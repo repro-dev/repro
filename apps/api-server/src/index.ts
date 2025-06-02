@@ -19,6 +19,7 @@ import { createHealthService } from '~/services/health'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { serverError } from '~/utils/errors'
+import { createStaffRouter } from './routers/staff'
 
 const database = createPostgresDatabaseClient({
   host: env.DB_HOST,
@@ -64,6 +65,7 @@ const projectRouter = createProjectRouter(
   recordingService,
   accountService
 )
+const staffRouter = createStaffRouter(accountService)
 
 const registerSessionDecorator = createSessionDecorator(accountService, env)
 
@@ -114,4 +116,5 @@ bootstrap({
   '/account': accountRouter,
   '/health': healthRouter,
   '/projects': projectRouter,
+  '/staff': staffRouter,
 })
