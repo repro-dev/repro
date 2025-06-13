@@ -21,7 +21,7 @@ k8s_yaml(helm(
   set=[
     'container.image=public-playback-ui',
     'vars.REPRO_APP_URL=https://app.repro.localhost/s',
-    'vars.REPRO_API_URL=https://api.repro.localhost/s',
+    'vars.REPRO_API_URL=https://api.repro.localhost',
     'vars.PORT=8080'
   ]
 ))
