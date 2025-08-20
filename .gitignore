@@ -13,3 +13,6 @@ certs
 .nx/cache
 .nx/workspace-data
 .aider*
+
+*storybook.log
+storybook-static

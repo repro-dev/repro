@@ -5,7 +5,9 @@
   "scripts": {
     "test": "tsx --experimental-test-module-mocks --import global-jsdom/register --test src/**/*.test.ts{,x}",
     "fmt": "prettier --write src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "license": "UNLICENSED",
   "dependencies": {
@@ -34,8 +36,14 @@
     "shortcuts": "^1.8.1"
   },
   "devDependencies": {
+    "@chromatic-com/storybook": "^4.1.0",
     "@ladle/react": "^4.0.2",
     "@repro/testing-utils": "workspace:*",
+    "@storybook/addon-a11y": "^9.1.2",
+    "@storybook/addon-docs": "^9.1.2",
+    "@storybook/addon-vitest": "^9.1.2",
+    "@storybook/react": "^9.1.2",
+    "@storybook/react-vite": "^9.1.2",
     "@types/expect": "^24.3.2",
     "@types/node": "22.14.0",
     "@types/react": "^18.2.21",
@@ -44,8 +52,13 @@
     "global-jsdom": "overridden",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
+    "storybook": "^9.1.2",
     "ts-eager": "^2.0.2",
     "tsx": "4.19.3",
-    "typescript": "overridden"
+    "typescript": "overridden",
+    "vitest": "^3.2.4",
+    "@vitest/browser": "^3.2.4",
+    "playwright": "^1.54.2",
+    "@vitest/coverage-v8": "^3.2.4"
   }
 }
