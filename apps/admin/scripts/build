@@ -18,4 +18,4 @@ mkdir -p "$build_dir"
 
 cp -r $source_dir/static/* $build_dir/
 
-eval "npx webpack $cmd --config webpack.config.js"
+eval "pnpx webpack $cmd --config webpack.config.js"
