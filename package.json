@@ -34,6 +34,7 @@
   "dependencies": {
     "@dotenvx/dotenvx": "^1.43.0",
     "node-gyp-build": "^4.8.4",
+    "nx": "21.4.0",
     "pm2": "^5.4.3"
   },
   "packageManager": "pnpm@8.3.1",
