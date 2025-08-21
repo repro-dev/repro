@@ -1,8 +1,6 @@
-import {
-  DOMOptions,
-  createDOMTreeWalker,
-  createDOMVisitor,
-} from '@repro/recording'
+import { DOMOptions } from '../types'
+import { createDOMTreeWalker } from './utils'
+import { createDOMVisitor } from './visitor'
 
 export function html2VTree(
   html: string,

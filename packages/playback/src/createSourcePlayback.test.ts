@@ -5,8 +5,8 @@ import {
   SourceEventType,
   SourceEventView,
 } from '@repro/domain'
+import { html2VTree } from '@repro/recording'
 import { Box, List } from '@repro/tdl'
-import { html2VTree } from '@repro/testing-utils'
 import { findElementById, findElementsByClassName } from '@repro/vdom-utils'
 import expect from 'expect'
 import assert from 'node:assert'

@@ -1,3 +1,4 @@
+import { Grid } from '@jsxstyle/react'
 import { Meta, Story } from '@ladle/react'
 import {
   AttributePatch,
@@ -7,11 +8,9 @@ import {
   SourceEventType,
   SourceEventView,
 } from '@repro/domain'
+import { html2VTree } from '@repro/recording'
 import { Box, List } from '@repro/tdl'
-import { html2VTree } from '@repro/testing-utils'
 import { findElementsByClassName } from '@repro/vdom-utils'
-import { Grid } from '@jsxstyle/react'
-import React from 'react'
 import { PlaybackProvider } from '../context'
 import { createSourcePlayback } from '../createSourcePlayback'
 import { PlaybackEditor } from './PlaybackEditor'

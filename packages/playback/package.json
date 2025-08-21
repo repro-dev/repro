@@ -22,6 +22,7 @@
     "@repro/domain": "workspace:*",
     "@repro/encryption": "workspace:*",
     "@repro/logger": "workspace:*",
+    "@repro/recording": "workspace:*",
     "@repro/source-utils": "workspace:*",
     "@repro/std": "workspace:*",
     "@repro/tdl": "workspace:*",
