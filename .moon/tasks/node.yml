@@ -1,0 +1,22 @@
+fileGroups:
+  sharedGlobals: []
+  default:
+  - glob: '**/*'
+    cache: true
+  production: []
+tasks:
+  build:
+    deps:
+    - ^:build
+    options:
+      cache: true
+  test:
+    deps:
+    - ^:build
+    options:
+      cache: true
+  typecheck:
+    deps:
+    - ^:build
+    options:
+      cache: true

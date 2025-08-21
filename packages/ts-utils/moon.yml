@@ -1,0 +1,7 @@
+id: repro/ts-utils
+language: typescript
+tags:
+- type.package
+tasks: {}
+toolchain:
+  default: node

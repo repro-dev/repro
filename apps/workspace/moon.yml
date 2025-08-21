@@ -1,0 +1,20 @@
+id: repro/workspace
+language: typescript
+tags:
+- type.app
+- build.static
+tasks:
+  build:
+    command: pnpm run build
+    deps:
+    - ^:build
+    outputs:
+    - dist
+    options:
+      cache: true
+  serve:
+    command: pnpm run serve
+    deps:
+    - ^:build
+toolchain:
+  default: node

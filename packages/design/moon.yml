@@ -1,0 +1,7 @@
+id: repro/design
+language: typescript
+tags:
+- type.package
+tasks: {}
+toolchain:
+  default: node

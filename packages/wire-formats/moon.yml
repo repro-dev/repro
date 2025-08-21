@@ -1,0 +1,14 @@
+id: repro/wire-formats
+language: typescript
+tags:
+- type.package
+tasks:
+  build:
+    command: pnpm run build
+    inputs:
+    - glob: src/**/*.tdls
+      cache: true
+    outputs:
+    - src/generated/**/*
+toolchain:
+  default: node

@@ -1,0 +1,5 @@
+id: repro/theme
+language: typescript
+tasks: {}
+toolchain:
+  default: node

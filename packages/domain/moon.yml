@@ -1,0 +1,18 @@
+id: repro/domain
+language: typescript
+tags:
+- type.package
+tasks:
+  build:
+    command: pnpm run build
+    deps:
+    - ^:build
+    inputs:
+    - glob: src/**/*.tdls
+      cache: true
+    outputs:
+    - src/generated/**/*
+    options:
+      cache: true
+toolchain:
+  default: node

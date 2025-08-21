@@ -1,0 +1,7 @@
+id: repro/vdom-utils
+language: typescript
+tags:
+- type.package
+tasks: {}
+toolchain:
+  default: node

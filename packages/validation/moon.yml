@@ -1,0 +1,7 @@
+id: repro/validation
+language: typescript
+tags:
+- type.package
+tasks: {}
+toolchain:
+  default: node
