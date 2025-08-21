@@ -17,6 +17,8 @@ jobs:
 
       - name: Setup Proto
         uses: moonrepo/setup-proto@v0
+
+      - name: Install binaries
         run: proto use
 
       - name: Setup PNPM
@@ -68,6 +70,8 @@ jobs:
 
       - name: Setup Proto
         uses: moonrepo/setup-proto@v0
+      
+      - name: Install binaries
         run: proto use
 
       - name: Setup PNPM
@@ -140,6 +144,8 @@ jobs:
 
       - name: Setup Proto
         uses: moonrepo/setup-proto@v0
+
+      - name: Install binaries
         run: proto use
 
       - name: Setup PNPM
