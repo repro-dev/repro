@@ -56,7 +56,7 @@ jobs:
           fi
 
       - name: Build affected packages
-        run: moon ci :build
+        run: moon run :build
 
   check:
     name: Typecheck
@@ -112,7 +112,7 @@ jobs:
           fi
 
       - name: Typecheck affected packages
-        run: moon ci :typecheck
+        run: moon run :typecheck
 
   test:
     name: Test
@@ -186,7 +186,7 @@ jobs:
           fi
 
       - name: Test affected packages
-        run: moon ci :test
+        run: moon run :test
 
   docker:
     name: Containerize
