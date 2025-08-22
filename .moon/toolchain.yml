@@ -1,4 +1,5 @@
 node:
   packageManager: 'pnpm'
+  inferTasksFromScripts: true
 proto:
   version: '0.51.6'
