@@ -11,9 +11,11 @@ tasks:
   start-mailpit:
     command: mailpit
     toolchain: system
+    preset: server
   watch:
     command: pnpm run dev-watch
     deps:
     - ^:build
+    preset: server
 toolchain:
   default: node

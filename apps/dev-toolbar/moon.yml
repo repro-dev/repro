@@ -16,5 +16,6 @@ tasks:
     command: pnpm run watch
     deps:
     - ^:build
+    preset: watcher
 toolchain:
   default: node
