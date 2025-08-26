@@ -7,8 +7,11 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: Build, check & test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        index: [0, 1]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,138 +58,8 @@ jobs:
             echo "MOON_HEAD=${{ github.sha }}" >> $GITHUB_ENV
           fi
 
-      - name: Build affected packages
-        run: moon run :build
-
-  check:
-    name: Typecheck
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Moon toolchain
-        uses: moonrepo/setup-toolchain@v0
-        with:
-          auto-install: true
-          proto-version: 0.51.6
-      
-      - name: Install binaries
-        run: proto use
-
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - name: Setup Node.js with caching
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Get Moon cache
-        uses: actions/cache@v3
-        with:
-          path: .moon
-          key: ${{ runner.os }}-moon-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-moon-
-
-      - name: Get base and head for affected commands
-        id: vars
-        run: |
-          git fetch origin main --depth=2
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "MOON_BASE=HEAD~1" >> $GITHUB_ENV
-            echo "MOON_HEAD=HEAD" >> $GITHUB_ENV
-          else
-            echo "MOON_BASE=origin/main" >> $GITHUB_ENV
-            echo "MOON_HEAD=${{ github.sha }}" >> $GITHUB_ENV
-          fi
-
-      - name: Typecheck affected packages
-        run: moon run :typecheck
-
-  test:
-    name: Test
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # Optional: Ensure PostgreSQL client (which includes pg_config) is installed
-      # ubuntu-latest usually has it, but being explicit can be safer.
-      - name: Install PostgreSQL client (if needed)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-
-      # Find the PostgreSQL bin directory and add it to the PATH
-      - name: Add PostgreSQL bin directory to PATH
-        run: |
-          PG_BIN_DIR=$(pg_config --bindir)
-          echo "Found PostgreSQL bin directory: $PG_BIN_DIR"
-          echo "$PG_BIN_DIR" >> $GITHUB_PATH
-        shell: bash # Explicitly use bash for command substitution
-
-      # Verify that the command is now available
-      - name: Verify initdb is in PATH
-        run: |
-          which initdb
-          initdb --version # Example command using the newly available tool
-
-      - name: Setup Moon toolchain
-        uses: moonrepo/setup-toolchain@v0
-        with:
-          auto-install: true
-          proto-version: 0.51.6
-
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - name: Setup Node.js with caching
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Get Moon cache
-        uses: actions/cache@v3
-        with:
-          path: .moon
-          key: ${{ runner.os }}-moon-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-moon-
-
-      - name: Get base and head for affected commands
-        id: vars
-        run: |
-          git fetch origin main --depth=2
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "MOON_BASE=HEAD~1" >> $GITHUB_ENV
-            echo "MOON_HEAD=HEAD" >> $GITHUB_ENV
-          else
-            echo "MOON_BASE=origin/main" >> $GITHUB_ENV
-            echo "MOON_HEAD=${{ github.sha }}" >> $GITHUB_ENV
-          fi
-
-      - name: Test affected packages
-        run: moon run :test
+      - name: Check affected packages
+        run: moon ci --job ${{ matrix.index }} --jobTotal 2 :build :typecheck :test
 
   docker:
     name: Containerize
