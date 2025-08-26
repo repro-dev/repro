@@ -13,10 +13,12 @@ tasks:
   test:
     deps:
     - ^:build
+    - build
     options:
       cache: true
   typecheck:
     deps:
     - ^:build
+    - build
     options:
       cache: true
