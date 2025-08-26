@@ -63,7 +63,7 @@ jobs:
 
   docker:
     name: Containerize
-    needs: [build, check, test]
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
