@@ -7,12 +7,12 @@ RUN corepack enable
 FROM base-dev-deps as dev
 COPY . .
 EXPOSE 3000
-CMD ["pnpm", "dotenvx", "run", "-f", "apps/admin/.env.development", "--", "nx", "run", "@repro/admin:dev-serve"]
+CMD ["pnpm", "dotenvx", "run", "-f", "apps/admin/.env.development", "--", "moon", "run", "repro/admin:dev-serve"]
 
 # Production build stage
 FROM base-prod-deps as build
 COPY . .
-RUN pnpm dotenvx run -f apps/admin/.env.production -- nx run @repro/admin:build
+RUN pnpm dotenvx run -f apps/admin/.env.production -- moon run repro/admin:build
 
 # Production serve stage
 FROM nginx:alpine as prod

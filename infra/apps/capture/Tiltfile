@@ -1,6 +1,6 @@
 local_resource(
   'capture',
-  serve_cmd='pnpm nx run @repro/capture:watch',
+  serve_cmd='moon run repro/capture:watch',
   resource_deps=['dependencies'],
   allow_parallel=True,
   labels=['extension']

@@ -1,0 +1,22 @@
+id: repro/capture-public
+language: typescript
+layer: application
+tags:
+- type.app
+- build.static
+tasks:
+  build:
+    command: pnpm run build
+    deps:
+    - ^:build
+    outputs:
+    - dist
+    options:
+      cache: true
+  watch:
+    command: pnpm run watch
+    deps:
+    - ^:build
+    preset: watcher
+toolchain:
+  default: node

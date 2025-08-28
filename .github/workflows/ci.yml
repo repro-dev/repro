@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: Build, check & test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -15,99 +15,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v4
+      - name: Setup Moon toolchain
+        uses: moonrepo/setup-toolchain@v0
         with:
-          run_install: false
-
-      - name: Setup Node.js with caching
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Get Nx cache
-        uses: actions/cache@v3
-        with:
-          path: .nx
-          key: ${{ runner.os }}-nx-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-nx-
-
-      - name: Get base and head for affected commands
-        id: vars
-        run: |
-          git fetch origin main --depth=2
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "NX_BASE=HEAD~1" >> $GITHUB_ENV
-            echo "NX_HEAD=HEAD" >> $GITHUB_ENV
-          else
-            echo "NX_BASE=origin/main" >> $GITHUB_ENV
-            echo "NX_HEAD=${{ github.sha }}" >> $GITHUB_ENV
-          fi
-
-      - name: Build affected packages
-        run: pnpm nx affected -t build
-
-  check:
-    name: Typecheck
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - name: Setup Node.js with caching
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Get Nx cache
-        uses: actions/cache@v3
-        with:
-          path: .nx
-          key: ${{ runner.os }}-nx-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-nx-
-
-      - name: Get base and head for affected commands
-        id: vars
-        run: |
-          git fetch origin main --depth=2
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "NX_BASE=HEAD~1" >> $GITHUB_ENV
-            echo "NX_HEAD=HEAD" >> $GITHUB_ENV
-          else
-            echo "NX_BASE=origin/main" >> $GITHUB_ENV
-            echo "NX_HEAD=${{ github.sha }}" >> $GITHUB_ENV
-          fi
-
-      - name: Typecheck affected packages
-        run: pnpm nx affected -t typecheck
-
-  test:
-    name: Test
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+          auto-install: true
+          proto-version: 0.51.6
 
       # Optional: Ensure PostgreSQL client (which includes pg_config) is installed
       # ubuntu-latest usually has it, but being explicit can be safer.
@@ -130,46 +42,47 @@ jobs:
           which initdb
           initdb --version # Example command using the newly available tool
 
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
+      - name: Set PNPM store directory
+        run: |
+          pnpm config set store-dir .pnpm-store
 
-      - name: Setup Node.js with caching
-        uses: actions/setup-node@v4
+      - name: Get cached PNPM store
+        uses: actions/cache@v3
         with:
-          node-version: 22
-          cache: "pnpm"
+          path: .pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
 
       - name: Install dependencies
         run: pnpm install
 
-      - name: Get Nx cache
+      - name: Get Moon cache
         uses: actions/cache@v3
         with:
-          path: .nx
-          key: ${{ runner.os }}-nx-${{ hashFiles('pnpm-lock.yaml') }}
+          path: .moon
+          key: ${{ runner.os }}-moon-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-nx-
+            ${{ runner.os }}-moon-
 
       - name: Get base and head for affected commands
         id: vars
         run: |
           git fetch origin main --depth=2
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "NX_BASE=HEAD~1" >> $GITHUB_ENV
-            echo "NX_HEAD=HEAD" >> $GITHUB_ENV
+            echo "MOON_BASE=HEAD~1" >> $GITHUB_ENV
+            echo "MOON_HEAD=HEAD" >> $GITHUB_ENV
           else
-            echo "NX_BASE=origin/main" >> $GITHUB_ENV
-            echo "NX_HEAD=${{ github.sha }}" >> $GITHUB_ENV
+            echo "MOON_BASE=origin/main" >> $GITHUB_ENV
+            echo "MOON_HEAD=${{ github.sha }}" >> $GITHUB_ENV
           fi
 
-      - name: Test affected packages
-        run: pnpm nx affected -t test
+      - name: Check affected packages
+        run: moon ci :build :typecheck :test
 
   docker:
     name: Containerize
-    needs: [build, check, test]
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

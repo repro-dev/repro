@@ -1,0 +1,6 @@
+id: repro/theme
+language: typescript
+layer: library
+tasks: {}
+toolchain:
+  default: node
