@@ -42,11 +42,17 @@ jobs:
           which initdb
           initdb --version # Example command using the newly available tool
 
-      - name: Setup Node.js with caching
-        uses: actions/setup-node@v4
+      - name: Set PNPM store directory
+        run: |
+          pnpm config set store-dir .pnpm-store
+
+      - name: Get cached PNPM store
+        uses: actions/cache@v3
         with:
-          node-version: 22
-          cache: "pnpm"
+          path: .pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
 
       - name: Install dependencies
         run: pnpm install
