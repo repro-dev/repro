@@ -1,5 +1,6 @@
 id: repro/buffer-utils
 language: typescript
+layer: library
 tags:
 - type.package
 tasks: {}

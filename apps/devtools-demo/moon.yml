@@ -1,5 +1,6 @@
 id: repro/devtools-demo
 language: typescript
+layer: application
 tags:
 - type.app
 - build.static

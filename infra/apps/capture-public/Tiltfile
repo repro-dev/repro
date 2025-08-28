@@ -1,6 +1,6 @@
 local_resource(
   'capture-public',
-  serve_cmd='pnpm nx run @repro/capture-public:watch',
+  serve_cmd='moon run repro/capture-public:watch',
   serve_env={
     'REPRO_APP_URL': 'https://app.repro.localhost/s',
     'REPRO_API_URL': 'https://api.repro.localhost/s',

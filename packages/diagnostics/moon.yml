@@ -1,5 +1,6 @@
 id: repro/diagnostics
 language: typescript
+layer: library
 tags:
 - type.package
 tasks: {}

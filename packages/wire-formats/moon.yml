@@ -1,5 +1,6 @@
 id: repro/wire-formats
 language: typescript
+layer: library
 tags:
 - type.package
 tasks:

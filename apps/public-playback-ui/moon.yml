@@ -1,5 +1,6 @@
 id: repro/public-playback-ui
 language: typescript
+layer: application
 tags:
 - type.app
 - build.static

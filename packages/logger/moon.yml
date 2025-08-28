@@ -1,5 +1,6 @@
 id: repro/logger
 language: typescript
+layer: library
 tags:
 - type.package
 tasks: {}

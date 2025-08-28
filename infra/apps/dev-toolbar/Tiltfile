@@ -1,6 +1,6 @@
 local_resource(
   'dev-toolbar',
-  serve_cmd='pnpm nx run @repro/dev-toolbar:watch',
+  serve_cmd='moon run repro/dev-toolbar:watch',
   resource_deps=['dependencies'],
   allow_parallel=True,
   labels=['extension']

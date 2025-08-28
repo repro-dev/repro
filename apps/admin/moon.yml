@@ -1,5 +1,6 @@
 id: repro/admin
 language: typescript
+layer: application
 tags:
 - type.app
 - build.static

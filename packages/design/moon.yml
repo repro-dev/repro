@@ -1,5 +1,6 @@
 id: repro/design
 language: typescript
+layer: library
 tags:
 - type.package
 tasks: {}

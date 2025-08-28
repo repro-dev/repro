@@ -1,5 +1,6 @@
 id: repro/api-server
 language: typescript
+layer: application
 tags:
 - type.app
 - build.docker

@@ -1,5 +1,6 @@
 id: repro/capture
 language: typescript
+layer: application
 tags:
 - type.app
 - build.static

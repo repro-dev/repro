@@ -1,5 +1,6 @@
 id: repro/dev-toolbar
 language: typescript
+layer: application
 tags:
 - type.app
 - build.static
