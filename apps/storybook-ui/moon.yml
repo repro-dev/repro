@@ -1,0 +1,11 @@
+id: repro/storybook-ui
+language: typescript
+layer: application
+tags:
+- type.app
+- build.static
+tasks:
+  dev:
+    command: pnpm run storybook
+toolchain:
+  default: node

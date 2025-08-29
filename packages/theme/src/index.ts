@@ -1,10 +1,10 @@
 // FIXME: investigate why import from package root breaks typechecking
 import { colors } from '@repro/design/src/theme'
 
-function createResetRules(rootSelector: string) {
+function createResetRules(rootSelector: string = '') {
   return [
     '* { box-sizing: border-box; }',
-    `html, body, ${rootSelector} {
+    `html, body ${rootSelector ? `, ${rootSelector}` : ''} {
       margin: 0;
       font-family: sans-serif;
       font-size: 10px;
