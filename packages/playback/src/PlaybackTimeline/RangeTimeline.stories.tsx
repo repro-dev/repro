@@ -7,12 +7,13 @@ import {
 } from '@repro/domain'
 import { html2VTree } from '@repro/recording'
 import { Box, List } from '@repro/tdl'
+import React from 'react'
 import { PlaybackProvider } from '../context'
 import { createSourcePlayback } from '../createSourcePlayback'
 import { RangeTimeline } from './RangeTimeline'
 
 const meta: Meta = {
-  title: 'RangeTimeline',
+  title: 'Playback/RangeTimeline',
 }
 
 export default meta

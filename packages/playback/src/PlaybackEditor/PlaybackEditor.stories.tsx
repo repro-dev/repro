@@ -11,12 +11,13 @@ import {
 import { html2VTree } from '@repro/recording'
 import { Box, List } from '@repro/tdl'
 import { findElementsByClassName } from '@repro/vdom-utils'
+import React from 'react'
 import { PlaybackProvider } from '../context'
 import { createSourcePlayback } from '../createSourcePlayback'
 import { PlaybackEditor } from './PlaybackEditor'
 
 const meta: Meta = {
-  title: 'PlaybackEditor',
+  title: 'Playback/PlaybackEditor',
 }
 
 export default meta

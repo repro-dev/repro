@@ -6,7 +6,7 @@ import { EMPTY_PLAYBACK } from '../createSourcePlayback'
 import { PlaybackNavigation } from './PlaybackNavigation'
 
 const meta: Meta = {
-  title: 'PlaybackNavigation',
+  title: 'Playback/PlaybackNavigation',
 }
 
 export default meta
