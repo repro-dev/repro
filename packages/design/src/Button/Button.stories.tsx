@@ -1,11 +1,11 @@
-import type { Meta, Story } from '@ladle/react'
 import { Block, Col, Grid } from '@jsxstyle/react'
+import type { Meta, Story } from '@ladle/react'
 import React from 'react'
 import { colors } from '../theme'
 import { Button } from './Button'
 
 const meta: Meta = {
-  title: 'Button',
+  title: 'Design/Button',
 }
 
 export default meta

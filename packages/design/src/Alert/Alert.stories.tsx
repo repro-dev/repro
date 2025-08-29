@@ -1,12 +1,12 @@
-import type { Meta, Story } from '@ladle/react'
 import { Block, Col, Grid } from '@jsxstyle/react'
+import type { Meta, Story } from '@ladle/react'
 import { AlertTriangleIcon } from 'lucide-react'
 import React from 'react'
 import { colors } from '../theme'
 import { Alert } from './Alert'
 
 const meta: Meta = {
-  title: 'Alert',
+  title: 'Design/Alert',
 }
 
 export default meta

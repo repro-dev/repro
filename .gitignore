@@ -20,3 +20,6 @@ certs
 .moon/docker
 
 .aider*
+
+*storybook.log
+storybook-static
