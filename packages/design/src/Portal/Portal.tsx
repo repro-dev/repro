@@ -1,15 +1,13 @@
-import { logger } from '@repro/logger'
 import React, { PropsWithChildren } from 'react'
 import { createPortal } from 'react-dom'
-import { usePortalRoot } from './PortalRootProvider'
+import { usePortalMountPoint } from './PortalRootProvider'
 
 export const Portal: React.FC<PropsWithChildren> = ({ children }) => {
-  const root = usePortalRoot()
+  const mountPoint = usePortalMountPoint()
 
-  if (!root) {
-    logger.error('Portal: cannot find portal root element')
-    return null
+  if (mountPoint) {
+    return createPortal(children, mountPoint)
   }
 
-  return createPortal(children, root)
+  return null
 }
