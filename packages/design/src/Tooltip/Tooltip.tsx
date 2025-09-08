@@ -66,7 +66,7 @@ export const Tooltip: React.FC<Props> = ({ children, position = 'top' }) => {
           break
 
         case 'left':
-          setX(left - width)
+          setX(left)
           setY(top + height / 2)
           break
 

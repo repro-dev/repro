@@ -1,5 +1,5 @@
 import { InlineRow } from '@jsxstyle/react'
-import { CircleIcon, StopCircleIcon } from 'lucide-react'
+import { CircleIcon } from 'lucide-react'
 import React from 'react'
 import { Tooltip } from '../Tooltip'
 import { colors } from '../theme'
@@ -23,7 +23,11 @@ export const BreakpointAction: React.FC<{
     cursor="pointer"
     props={{ onClick }}
   >
-    {active ? <StopCircleIcon size={12} /> : <CircleIcon size={12} />}
+    <CircleIcon
+      size={12}
+      fill={active ? 'currentColor' : 'none'}
+      stroke={active ? 'none' : 'currentColor'}
+    />
 
     <Tooltip position="right">
       {active ? 'Remove breakpoint' : 'Add breakpoint'}
