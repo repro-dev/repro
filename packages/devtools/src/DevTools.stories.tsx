@@ -31,6 +31,7 @@ const vtree = html2VTree(`
         .box { width: 100px; height: 100px; }
         .blue { background-color: blue; }
         .red { background-color: red; }
+        .green { background-color: green; }
       </style>
     </head>
     <body>
@@ -49,6 +50,14 @@ const patch: AttributePatch = {
   name: 'class',
   oldValue: 'box blue',
   value: 'box red',
+}
+
+const patch2: AttributePatch = {
+  type: PatchType.Attribute,
+  targetId: boxElement!.id,
+  name: 'class',
+  oldValue: 'box red',
+  value: 'box green',
 }
 
 const events = new List(SourceEventView, [
@@ -102,6 +111,14 @@ const events = new List(SourceEventView, [
       data: new Box(patch),
     })
   ),
+
+  SourceEventView.from(
+    new Box({
+      type: SourceEventType.DOMPatch,
+      time: 1250,
+      data: new Box(patch2),
+    })
+  ),
 ])
 
 export const Default: StoryObj = {
@@ -116,7 +133,7 @@ export const Default: StoryObj = {
   decorators: [
     Story => (
       <PortalRootProvider>
-        <PlaybackProvider playback={createSourcePlayback(events, 1000, {})}>
+        <PlaybackProvider playback={createSourcePlayback(events, 1250, {})}>
           <Block
             height="80vh"
             borderColor={colors.slate['300']}
