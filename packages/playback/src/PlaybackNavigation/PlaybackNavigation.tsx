@@ -1,77 +1,94 @@
 import { Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { colors, Tooltip } from '@repro/design'
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CircleSlash2Icon,
-  DotIcon,
-  StepBackIcon,
-  StepForwardIcon,
-} from 'lucide-react'
+import { BugOffIcon, StepBackIcon, StepForwardIcon } from 'lucide-react'
 import React from 'react'
-import { useBreakpoints, usePlayback } from '../hooks'
+import {
+  useActiveBreakpoint,
+  useBreakpoints,
+  useBreakpointsEnabled,
+  usePlayback,
+} from '../hooks'
 import { Button } from './Button.styles'
 
 export const PlaybackNavigation: React.FC = () => {
   const playback = usePlayback()
+
   const breakpoints = useBreakpoints()
   const hasBreakpoints = breakpoints.length > 0
 
-  function clearBreakpoints() {
-    Analytics.track('playback:clear-breakpoints')
-    playback.clearBreakpoints()
-  }
+  const activeBreakpoint = useActiveBreakpoint()
+  const showFloatingControls = activeBreakpoint !== null
+
+  const breakpointsEnabled = useBreakpointsEnabled()
+
+  // function clearBreakpoints() {
+  //   Analytics.track('playback:clear-breakpoints')
+  //   playback.clearBreakpoints()
+  // }
 
   function stepBack() {
     Analytics.track('playback:step-back')
     playback.breakPrevious()
   }
 
-  function stepBackOneFrame() {
-    Analytics.track('playback:step-back-one-frame')
-    // TODO: implement me
-  }
+  // function stepBackOneFrame() {
+  //   Analytics.track('playback:step-back-one-frame')
+  //   // TODO: implement me
+  // }
 
   function stepForward() {
     Analytics.track('playback:step-forward')
     playback.breakNext()
   }
 
-  function stepForwardOneFrame() {
-    Analytics.track('playback:step-forward-one-frame')
-    // TODO: implement me
+  // function stepForwardOneFrame() {
+  //   Analytics.track('playback:step-forward-one-frame')
+  //   // TODO: implement me
+  // }
+
+  function toggleBreakpoints() {
+    if (breakpointsEnabled) {
+      playback.disableBreakpoints()
+    } else {
+      playback.enableBreakpoints()
+    }
   }
 
   return (
-    <Row paddingH={10}>
-      <Button onClick={stepBack} disabled={!hasBreakpoints}>
-        <StepBackIcon size={16} />
-        <Tooltip position="top">Previous breakpoint</Tooltip>
-      </Button>
+    <Row paddingH={10} position="relative">
+      {showFloatingControls && (
+        <Row
+          position="absolute"
+          top={0}
+          right={0}
+          transform="translate(-10px, calc(-100% - 10px))"
+          padding={5}
+          backgroundColor={colors.white}
+          borderWidth={1}
+          borderStyle="solid"
+          borderColor={colors.slate['300']}
+          boxShadow={`0 2px 4px ${colors.slate['200']}`}
+        >
+          <Button onClick={stepBack}>
+            <StepBackIcon size={16} />
+          </Button>
 
-      <Button onClick={stepBackOneFrame} disabled={!hasBreakpoints}>
-        <ChevronLeftIcon size={16} />
-        <Tooltip position="top">Back 1 frame</Tooltip>
-      </Button>
+          <Button onClick={stepForward}>
+            <StepForwardIcon size={16} />
+          </Button>
+        </Row>
+      )}
 
-      <Button onClick={stepForwardOneFrame} disabled={!hasBreakpoints}>
-        <ChevronRightIcon size={16} />
-        <Tooltip position="top">Forward 1 frame</Tooltip>
-      </Button>
-
-      <Button onClick={stepForward} disabled={!hasBreakpoints}>
-        <StepForwardIcon size={16} />
-        <Tooltip position="top">Next breakpoint</Tooltip>
-      </Button>
-
-      <Row alignItems="center" color={colors.slate['500']}>
-        <DotIcon size={16} />
-      </Row>
-
-      <Button onClick={clearBreakpoints} disabled={!hasBreakpoints}>
-        <CircleSlash2Icon size={16} />
-        <Tooltip position="top">Clear breakpoints</Tooltip>
+      <Button
+        active={!breakpointsEnabled}
+        disabled={!hasBreakpoints}
+        onClick={toggleBreakpoints}
+      >
+        <BugOffIcon size={16} />
+        <Tooltip position="left">
+          {breakpointsEnabled ? 'Disable breakpoints' : 'Enable breakpoints'}
+        </Tooltip>
       </Button>
     </Row>
   )
