@@ -266,12 +266,15 @@ export function internal__processMutationRecords(
           break
         }
 
+        const parentNode = record.target.parentNode
+
         patches.push(
           new Box({
             type: PatchType.Text,
             targetId: getNodeId(record.target),
             value: (record.target as Text).data,
             oldValue: record.oldValue || '',
+            parentId: parentNode ? getNodeId(parentNode) : null,
           })
         )
 

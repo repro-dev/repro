@@ -80,6 +80,7 @@ type TextPatch: struct {
   1) targetId: NodeId
   2) value: string
   3) oldValue: string
+  4) parentId: ?NodeId
 }
 
 type TextPropertyPatch: struct {

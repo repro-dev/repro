@@ -25,13 +25,35 @@ export function findMatchingBreakpoint(
       .flatMap(event => event.data)
 
     previousDOMPatch.apply(domPatch => {
-      if (domPatch.type === PatchType.AddNodes) {
-        // Break **after** nodes are added
-        targetIds.push(domPatch.parentId)
+      switch (domPatch.type) {
+        case PatchType.AddNodes: {
+          // Break **after** nodes are added
+          targetIds.push(domPatch.parentId)
 
-        for (const subtree of domPatch.nodes) {
-          targetIds.push(...Object.keys(subtree.nodes))
+          for (const subtree of domPatch.nodes) {
+            targetIds.push(...Object.keys(subtree.nodes))
+          }
+
+          break
         }
+
+        case PatchType.Attribute:
+        case PatchType.BooleanProperty:
+        case PatchType.NumberProperty:
+        case PatchType.TextProperty:
+          targetIds.push(domPatch.targetId)
+          break
+
+        case PatchType.Text:
+          targetIds.push(domPatch.targetId)
+
+          if (domPatch.parentId) {
+            targetIds.push(domPatch.parentId)
+          }
+          break
+
+        default:
+          break
       }
     })
   }
@@ -52,14 +74,6 @@ export function findMatchingBreakpoint(
           }
           break
         }
-
-        case PatchType.Attribute:
-        case PatchType.BooleanProperty:
-        case PatchType.NumberProperty:
-        case PatchType.Text:
-        case PatchType.TextProperty:
-          targetIds.push(domPatch.targetId)
-          break
 
         default:
           break
