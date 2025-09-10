@@ -8,6 +8,8 @@ import {
 import { BreakpointType, type Breakpoint } from '../types'
 
 // FIXME: Return all matching breakpoints where multiple match
+// TODO: Split into findMatchingAfterEvent and findMatchingBeforeEvent
+// to better clarify which events are breaking.
 export function findMatchingBreakpoint(
   previousEvent: SourceEvent | null,
   nextEvent: SourceEvent | null,

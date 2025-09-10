@@ -41,6 +41,7 @@ export interface Playback {
   readonly $snapshot: Atom<Snapshot>
   readonly $activeBreakpoint: Atom<Breakpoint | null>
   readonly $breakpoints: Atom<Array<Breakpoint>>
+  readonly $breakpointsEnabled: Atom<boolean>
 
   // Accessors
   getActiveIndex(): number
@@ -58,6 +59,7 @@ export interface Playback {
   getSourceEvents(): List<SourceEventView>
   getActiveBreakpoint(): Breakpoint | null
   getBreakpoints(): Array<Breakpoint>
+  getBreakpointsEnabled(): boolean
 
   // Breakpoints
   addBreakpoint(breakpoint: Breakpoint): void
@@ -65,6 +67,9 @@ export interface Playback {
   clearBreakpoints(): void
   breakNext(): void
   breakPrevious(): void
+  enableBreakpoints(): void
+  disableBreakpoints(): void
+  listBreakingEvents(): void
 
   // Controls
   play(): void
