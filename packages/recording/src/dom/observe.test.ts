@@ -106,6 +106,7 @@ describe('libs/record: dom observers', () => {
         targetId: getNodeId(target),
         value: 'bar',
         oldValue: 'foo',
+        parentId: null,
       }),
     ])
   })

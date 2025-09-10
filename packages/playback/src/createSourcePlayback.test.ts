@@ -81,6 +81,7 @@ describe('createSourcePlayback', () => {
             targetId: targetNode.children[0]!,
             oldValue: 'One',
             value: 'Uno',
+            parentId: targetNode.id,
           }),
         })
       ),
