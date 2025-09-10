@@ -11,16 +11,11 @@ import { findElementById, findElementsByClassName } from '@repro/vdom-utils'
 import expect from 'expect'
 import assert from 'node:assert'
 import { describe, it } from 'node:test'
-import { TestScheduler } from 'rxjs/testing'
 import { createSourcePlayback } from './createSourcePlayback'
 import { BreakpointType } from './types'
 
-const testScheduler = new TestScheduler((actual, expected) => {
-  expect(actual).toEqual(expected)
-})
-
 describe('createSourcePlayback', () => {
-  it.skip('should pause playback on a breakpoint', () => {
+  it('should seek to the next breaking event', () => {
     Stats.enable()
     Stats.setLevel(StatsLevel.Debug)
 
@@ -119,6 +114,9 @@ describe('createSourcePlayback', () => {
     expect(playback.getDuration()).toBe(1000)
     expect(playback.getLatestEventTime()).toBe(900)
 
+    expect(playback.getElapsed()).toBe(-1)
+    expect(playback.getActiveIndex()).toBe(-1)
+
     playback.addBreakpoint({
       type: BreakpointType.VNode,
       nodeId: targetNode.id,
@@ -126,25 +124,9 @@ describe('createSourcePlayback', () => {
 
     expect(playback.getBreakpoints()).toHaveLength(1)
 
-    return new Promise<void>(() => {
-      testScheduler.run(({ animate, expectObservable, hot }) => {
-        animate('x 400ms x 399ms x')
+    playback.breakNext()
 
-        playback.open()
-        playback.play()
-
-        expectObservable(playback.$elapsed).toEqual(
-          hot('a 400ms b 399ms c', {
-            a: -1,
-            b: 400,
-            c: 750,
-          })
-        )
-
-        playback.$elapsed.subscribe(console.log)
-
-        playback.close()
-      })
-    })
+    expect(playback.getElapsed()).toBe(500)
+    expect(playback.getActiveIndex()).toBe(2)
   })
 })
