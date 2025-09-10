@@ -68,3 +68,8 @@ export function useActiveBreakpoint() {
   const playback = usePlayback()
   return useAtomValue(playback.$activeBreakpoint)
 }
+
+export function useBreakpointsEnabled() {
+  const playback = usePlayback()
+  return useAtomValue(playback.$breakpointsEnabled)
+}

@@ -44,6 +44,8 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
   const [$breakpoints, _setBreakpoints, getBreakpoints] = createAtom<
     Array<Breakpoint>
   >([])
+  const [$breakpointsEnabled, _setBreakpointsEnabled, getBreakpointsEnabled] =
+    createAtom(false)
 
   const sourceEventBuffer = createBuffer<SourceEvent>(
     MAX_EVENT_BUFFER_SIZE_BYTES
@@ -104,6 +106,18 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
   }
 
   function breakPrevious() {
+    // No-op for live playback
+  }
+
+  function disableBreakpoints() {
+    // No-op for live playback
+  }
+
+  function enableBreakpoints() {
+    // No-op for live playback
+  }
+
+  function listBreakingEvents() {
     // No-op for live playback
   }
 
@@ -200,6 +214,7 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
     $snapshot,
     $activeBreakpoint,
     $breakpoints,
+    $breakpointsEnabled,
 
     // Accessors
     getActiveIndex,
@@ -217,6 +232,7 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
     getSourceEvents,
     getActiveBreakpoint,
     getBreakpoints,
+    getBreakpointsEnabled,
 
     // Breakpoints
     addBreakpoint,
@@ -224,6 +240,9 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
     clearBreakpoints,
     breakNext,
     breakPrevious,
+    disableBreakpoints,
+    enableBreakpoints,
+    listBreakingEvents,
 
     // Services
     play,

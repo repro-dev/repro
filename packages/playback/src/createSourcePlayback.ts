@@ -66,6 +66,8 @@ export function createSourcePlayback(
     createAtom<Breakpoint | null>(null)
   const [_$breakingEvent, setBreakingEvent, getBreakingEvent] =
     createAtom<SourceEvent | null>(null)
+  const [$breakpointsEnabled, setBreakpointsEnabled, getBreakpointsEnabled] =
+    createAtom(true)
 
   const snapshotIndex: Array<number> = []
 
@@ -86,6 +88,22 @@ export function createSourcePlayback(
   }
 
   buildSnapshotIndex()
+
+  const eventIndex = new WeakMap<DataView, number>()
+
+  function buildEventIndex() {
+    Stats.time('RecordingPlayback: index events', () => {
+      for (let i = 0, len = events.size(); i < len; i++) {
+        const dataView = events.at(i)
+
+        if (dataView) {
+          eventIndex.set(dataView, i)
+        }
+      }
+    })
+  }
+
+  buildEventIndex()
 
   function loadEvents() {
     return events.slice()
@@ -258,6 +276,7 @@ export function createSourcePlayback(
       unlessMutexLock(() => {
         const breakpoints = getBreakpoints()
         const breakingEvent = getBreakingEvent()
+        const breakpointsEnabled = getBreakpointsEnabled()
 
         // TODO: investigate performance implications (especially after
         // resuming background/idle tab)
@@ -271,7 +290,10 @@ export function createSourcePlayback(
             const previousEvent = queuedEvents.over(index - 1)
 
             // Partition on next matching breakpoint.
-            if (findMatchingBreakpoint(previousEvent, event, breakpoints)) {
+            if (
+              breakpointsEnabled &&
+              findMatchingBreakpoint(previousEvent, event, breakpoints)
+            ) {
               if (!breakingEvent || !SourceEventView.is(event, breakingEvent)) {
                 return true
               }
@@ -285,13 +307,21 @@ export function createSourcePlayback(
         queuedEvents = after
 
         setBuffer(before)
-        setActiveIndex(activeIndex => activeIndex + before.size())
+
+        setActiveIndex(activeIndex => {
+          const mostRecentEvent = before.at(before.size() - 1)
+          const nextActiveIndex = mostRecentEvent
+            ? eventIndex.get(mostRecentEvent) ?? activeIndex
+            : activeIndex
+          return nextActiveIndex
+        })
 
         const previousEvent = before.over(before.size() - 1)
         const nextEvent = after.over(0)
-        const encounteredBreakpoint = nextEvent
-          ? findMatchingBreakpoint(previousEvent, nextEvent, breakpoints)
-          : null
+        const encounteredBreakpoint =
+          breakpointsEnabled && nextEvent
+            ? findMatchingBreakpoint(previousEvent, nextEvent, breakpoints)
+            : null
 
         if (encounteredBreakpoint) {
           setPlaybackState(PlaybackState.Paused)
@@ -393,11 +423,65 @@ export function createSourcePlayback(
     setBreakpoints([])
   }
 
+  function enableBreakpoints() {
+    setBreakpointsEnabled(true)
+  }
+
+  function disableBreakpoints() {
+    setBreakpointsEnabled(false)
+  }
+
+  function listBreakingEvents() {
+    return Stats.time('RecordingPlayback#listBreakingEvents', () => {
+      const breakpoints = getBreakpoints()
+      const breakpointsEnabled = getBreakpointsEnabled()
+
+      if (!breakpointsEnabled || breakpoints.length === 0) {
+        return []
+      }
+
+      const events = loadEvents()
+      const breakingEvents: Array<SourceEvent> = []
+
+      for (let i = 0, len = events.size() + 1; i < len; i++) {
+        const previousEvent = events.over(i - 1)
+        const nextEvent = events.over(i)
+
+        if (previousEvent) {
+          const trailingBreakpoint = findMatchingBreakpoint(
+            previousEvent,
+            null,
+            breakpoints
+          )
+
+          if (trailingBreakpoint) {
+            breakingEvents.push(previousEvent)
+          }
+        }
+
+        if (nextEvent) {
+          const leadingBreakpoint = findMatchingBreakpoint(
+            null,
+            nextEvent,
+            breakpoints
+          )
+
+          if (leadingBreakpoint) {
+            breakingEvents.push(nextEvent)
+          }
+        }
+      }
+
+      return breakingEvents
+    })
+  }
+
   function breakNext() {
     return Stats.time('RecordingPlayback#breakNext', () => {
       const breakpoints = getBreakpoints()
+      const breakpointsEnabled = getBreakpointsEnabled()
 
-      if (breakpoints.length === 0) {
+      if (!breakpointsEnabled || breakpoints.length === 0) {
         return
       }
 
@@ -406,7 +490,7 @@ export function createSourcePlayback(
 
       let nextBreakingEventIndex = activeIndex
 
-      for (let i = 0, len = trailingEvents.size(); i < len; i++) {
+      for (let i = 0, len = trailingEvents.size() + 1; i < len; i++) {
         const previousEvent = trailingEvents.over(i - 1)
         const nextEvent = trailingEvents.over(i)
 
@@ -426,15 +510,17 @@ export function createSourcePlayback(
   function breakPrevious() {
     return Stats.time('RecordingPlayback#breakPrevious', () => {
       const breakpoints = getBreakpoints()
+      const breakpointsEnabled = getBreakpointsEnabled()
 
-      if (breakpoints.length === 0) {
+      if (!breakpointsEnabled || breakpoints.length === 0) {
         return
       }
 
       const activeIndex = getActiveIndex()
       const leadingEvents = loadEvents().slice(0, activeIndex)
 
-      let previousBreakingEventIndex = activeIndex
+      // Default to initial snapshot event where no intermediate breakpoint is found
+      let previousBreakingEventIndex = 0
 
       for (let i = leadingEvents.size() - 1; i >= 0; i--) {
         const previousEvent = leadingEvents.over(i)
@@ -656,6 +742,7 @@ export function createSourcePlayback(
     $snapshot,
     $activeBreakpoint,
     $breakpoints,
+    $breakpointsEnabled,
 
     // Accessors
     getActiveIndex,
@@ -673,6 +760,7 @@ export function createSourcePlayback(
     getSourceEvents,
     getActiveBreakpoint,
     getBreakpoints,
+    getBreakpointsEnabled,
 
     // Breakpoints
     addBreakpoint,
@@ -680,6 +768,9 @@ export function createSourcePlayback(
     clearBreakpoints,
     breakNext,
     breakPrevious,
+    enableBreakpoints,
+    disableBreakpoints,
+    listBreakingEvents,
 
     // Services
     play,
