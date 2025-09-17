@@ -15,7 +15,6 @@ local_resource(
 )
 
 load_dynamic('./apps/capture/Tiltfile')
-load_dynamic('./apps/capture-public/Tiltfile')
 load_dynamic('./apps/dev-toolbar/Tiltfile')
 
 docker_build(

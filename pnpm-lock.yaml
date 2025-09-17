@@ -533,178 +533,6 @@ importers:
         specifier: ^4.11.1
         version: 4.11.1(webpack-cli@4.10.0)(webpack@5.99.8)
 
-  apps/capture-public:
-    dependencies:
-      '@jsxstyle/react':
-        specifier: ^3.0.1
-        version: 3.0.1(@types/react@18.3.10)(react@18.3.1)
-      '@repro/analytics':
-        specifier: workspace:*
-        version: link:../../packages/analytics
-      '@repro/analytics-provider-mixpanel':
-        specifier: workspace:*
-        version: link:../../packages/analytics-provider-mixpanel
-      '@repro/api-client':
-        specifier: workspace:*
-        version: link:../../packages/api-client
-      '@repro/atom':
-        specifier: workspace:*
-        version: link:../../packages/atom
-      '@repro/buffer-utils':
-        specifier: workspace:*
-        version: link:../../packages/buffer-utils
-      '@repro/date-utils':
-        specifier: workspace:*
-        version: link:../../packages/date-utils
-      '@repro/design':
-        specifier: workspace:*
-        version: link:../../packages/design
-      '@repro/diagnostics':
-        specifier: workspace:*
-        version: link:../../packages/diagnostics
-      '@repro/domain':
-        specifier: workspace:*
-        version: link:../../packages/domain
-      '@repro/encryption':
-        specifier: workspace:*
-        version: link:../../packages/encryption
-      '@repro/future-utils':
-        specifier: workspace:*
-        version: link:../../packages/future-utils
-      '@repro/logger':
-        specifier: workspace:*
-        version: link:../../packages/logger
-      '@repro/messaging':
-        specifier: workspace:*
-        version: link:../../packages/messaging
-      '@repro/playback':
-        specifier: workspace:*
-        version: link:../../packages/playback
-      '@repro/random-string':
-        specifier: workspace:*
-        version: link:../../packages/random-string
-      '@repro/recording':
-        specifier: workspace:*
-        version: link:../../packages/recording
-      '@repro/recording-api':
-        specifier: workspace:*
-        version: link:../../packages/recording-api
-      '@repro/source-utils':
-        specifier: workspace:*
-        version: link:../../packages/source-utils
-      '@repro/std':
-        specifier: workspace:*
-        version: link:../../packages/std
-      '@repro/tdl':
-        specifier: workspace:*
-        version: link:../../packages/tdl
-      '@repro/theme':
-        specifier: workspace:*
-        version: link:../../packages/theme
-      '@repro/validation':
-        specifier: workspace:*
-        version: link:../../packages/validation
-      '@repro/vdom-utils':
-        specifier: workspace:*
-        version: link:../../packages/vdom-utils
-      '@repro/wire-formats':
-        specifier: workspace:*
-        version: link:../../packages/wire-formats
-      detect-browser:
-        specifier: ^5.3.0
-        version: 5.3.0
-      fflate:
-        specifier: ^0.7.3
-        version: 0.7.3
-      fluture:
-        specifier: ^14.0.0
-        version: 14.0.0
-      lucide-react:
-        specifier: 0.542.0
-        version: 0.542.0(react@18.3.1)
-      react:
-        specifier: 18.3.1
-        version: 18.3.1
-      react-dom:
-        specifier: 18.3.1
-        version: 18.3.1(react@18.3.1)
-      react-hook-form:
-        specifier: 7.53.0
-        version: 7.53.0(react@18.3.1)
-      rxjs:
-        specifier: ^7.8.0
-        version: 7.8.0
-      webextension-polyfill:
-        specifier: ^0.12.0
-        version: 0.12.0
-      zod:
-        specifier: 3.24.4
-        version: 3.24.4
-    devDependencies:
-      '@ladle/react':
-        specifier: ^4.0.2
-        version: 4.0.2(@types/node@22.14.0)(@types/react@18.3.10)(react-dom@18.3.1)(react@18.3.1)(typescript@5.7.3)
-      '@types/node':
-        specifier: 22.14.0
-        version: 22.14.0
-      '@types/react':
-        specifier: 18.3.10
-        version: 18.3.10
-      '@types/react-dom':
-        specifier: 18.3.0
-        version: 18.3.0
-      '@types/repro-shared-types':
-        specifier: workspace:*
-        version: link:../../packages/shared-types
-      '@types/webextension-polyfill':
-        specifier: ^0.12.1
-        version: 0.12.1
-      css-loader:
-        specifier: ^6.6.0
-        version: 6.6.0(webpack@5.99.8)
-      esbuild:
-        specifier: ^0.17.19
-        version: 0.17.19
-      esbuild-loader:
-        specifier: ^3.0.1
-        version: 3.0.1(webpack@5.99.8)
-      html-webpack-plugin:
-        specifier: ^5.5.0
-        version: 5.5.0(webpack@5.99.8)
-      patch-package:
-        specifier: ^6.4.7
-        version: 6.4.7
-      prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
-      prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
-      style-loader:
-        specifier: ^3.3.1
-        version: 3.3.1(webpack@5.99.8)
-      ts-node:
-        specifier: ^10.8.1
-        version: 10.9.1(@types/node@22.14.0)(typescript@5.7.3)
-      tsconfig-paths:
-        specifier: ^3.12.0
-        version: 3.12.0
-      tsx:
-        specifier: 4.19.3
-        version: 4.19.3
-      typescript:
-        specifier: 5.7.3
-        version: 5.7.3
-      webpack:
-        specifier: ^5.99.8
-        version: 5.99.8(esbuild@0.17.19)(webpack-cli@4.10.0)
-      webpack-cli:
-        specifier: ^4.10.0
-        version: 4.10.0(webpack-dev-server@4.11.1)(webpack@5.99.8)
-      webpack-dev-server:
-        specifier: ^4.11.1
-        version: 4.11.1(webpack-cli@4.10.0)(webpack@5.99.8)
-
   apps/dev-toolbar:
     dependencies:
       '@jsxstyle/react':
@@ -7559,10 +7387,6 @@ packages:
 
   /@types/uuid@8.3.4:
     resolution: {integrity: sha512-c/I8ZRb51j+pYGAu5CrFMRxqZ2ke4y2grEBO5AUjgSkSk+qT2Ea+OdWElz/OiMf5MNpn2b17kuVBwZLQJXzihw==}
-    dev: true
-
-  /@types/webextension-polyfill@0.12.1:
-    resolution: {integrity: sha512-xPTFWwQ8BxPevPF2IKsf4hpZNss4LxaOLZXypQH4E63BDLmcwX/RMGdI4tB4VO4Nb6xDBH3F/p4gz4wvof1o9w==}
     dev: true
 
   /@types/wrap-ansi@3.0.0:
@@ -15376,10 +15200,6 @@ packages:
     resolution: {integrity: sha512-A7Jxrg7+eV+eZR/CIdESDnRGFb6/bcKukGvJBB5snI6cw3is1c2qamkYstC1bY1p08TyMRlN9eTMkxmnKJBPBw==}
     engines: {node: '>= 8'}
     dev: true
-
-  /webextension-polyfill@0.12.0:
-    resolution: {integrity: sha512-97TBmpoWJEE+3nFBQ4VocyCdLKfw54rFaJ6EVQYLBCXqCIpLSZkwGgASpv4oPt9gdKCJ80RJlcmNzNn008Ag6Q==}
-    dev: false
 
   /webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
