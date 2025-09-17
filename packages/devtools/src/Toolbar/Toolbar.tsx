@@ -1,4 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
+import { IfGate } from '@repro/auth'
 import { colors } from '@repro/design'
 import { PlaybackNavigation, SimpleTimeline } from '@repro/playback'
 import React, { PropsWithChildren } from 'react'
@@ -22,8 +23,10 @@ export const Toolbar: React.FC<Props> = ({ timeline }) => {
 
       <TimelineRegion>{timeline ?? <SimpleTimeline />}</TimelineRegion>
 
-      <Separator />
-      <PlaybackNavigation />
+      <IfGate gate="breakpoints">
+        <Separator />
+        <PlaybackNavigation />
+      </IfGate>
     </Container>
   )
 }
