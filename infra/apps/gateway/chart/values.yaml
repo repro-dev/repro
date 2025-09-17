@@ -24,13 +24,9 @@ ingress:
       nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
       nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
     paths:
-      - path: /w(/|$)(.*)
+      - path: /(.*)
         pathType: ImplementationSpecific
         serviceName: api-server-service
-        servicePort: http
-      - path: /s(/|$)(.*)
-        pathType: ImplementationSpecific
-        serviceName: public-api-server-service
         servicePort: http
   
   adminRoutes:

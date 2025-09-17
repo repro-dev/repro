@@ -21,7 +21,7 @@ k8s_yaml(helm(
   set=[
     'container.image=workspace',
     'vars.REPRO_APP_URL=https://app.repro.localhost/w',
-    'vars.REPRO_API_URL=https://api.repro.localhost/w',
+    'vars.REPRO_API_URL=https://api.repro.localhost',
     'vars.PORT=8080'
   ]
 ))

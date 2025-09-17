@@ -30,7 +30,6 @@ load_dynamic('./apps/data/Tiltfile')
 
 # APIs
 load_dynamic('./apps/api-server/Tiltfile')
-load_dynamic('./apps/public-api-server/Tiltfile')
 
 # Apps
 load_dynamic('./apps/public-playback-ui/Tiltfile')

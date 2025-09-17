@@ -20,8 +20,8 @@ k8s_yaml(helm(
     name='api-server',
     set=[
         'container.image=api-server',
-        'vars.REPRO_APP_URL=https://app.repro.localhost/w',
-        'vars.REPRO_API_URL=https://api.repro.localhost/w',
+        'vars.REPRO_APP_URL=https://app.repro.localhost',
+        'vars.REPRO_API_URL=https://api.repro.localhost',
         'vars.PORT=8080'
     ]
 ))
@@ -30,7 +30,7 @@ k8s_resource(
     'api-server-deployment',
     new_name='api-server',
     links=[
-        'https://api.repro.localhost/w',
+        'https://api.repro.localhost',
     ],
     labels=['api']
 )

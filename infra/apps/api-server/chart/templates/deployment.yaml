@@ -38,7 +38,15 @@ spec:
               value: "{{ .Values.vars.DB_PASSWORD }}"
             - name: DB_NAME
               value: "{{ .Values.vars.DB_NAME }}"
-            - name: STORAGE_DIR
-              value: "{{ .Values.vars.STORAGE_DIR }}"
+            - name: STORAGE_ENDPOINT
+              value: "{{ .Values.vars.STORAGE_ENDPOINT }}"
+            - name: STORAGE_REGION
+              value: "{{ .Values.vars.STORAGE_REGION }}"
+            - name: STORAGE_BUCKET
+              value: "{{ .Values.vars.STORAGE_BUCKET }}"
+            - name: STORAGE_ACCESS_KEY_ID
+              value: "{{ .Values.vars.STORAGE_ACCESS_KEY_ID }}"
+            - name: STORAGE_SECRET_ACCESS_KEY
+              value: "{{ .Values.vars.STORAGE_SECRET_ACCESS_KEY }}"
             - name: DEBUG
               value: "{{ .Values.vars.DEBUG }}"

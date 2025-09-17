@@ -53,6 +53,15 @@ export function createRecordingRouter(
   return async function (fastify) {
     const app = fastify.withTypeProvider<ZodTypeProvider>()
 
+    // FIXME: Only allow write access to staff users.
+    // Bare public recordings will be created as project demos.
+    // Users will be able to create public recordings only for their own projects.
+    function ensureCanWriteRecording(
+      user: User | StaffUser
+    ): FutureInstance<Error, StaffUser> {
+      return accountService.ensureStaffUser(user)
+    }
+
     function ensureCanAccessRecording(
       user: User | StaffUser | null,
       recordingId: string
@@ -110,7 +119,14 @@ export function createRecordingRouter(
         const { recordingId } = req.params
         respondWith(
           res,
-          recordingService.writeDataFromStream(recordingId, req.raw),
+          go(function* () {
+            const user = yield req.getCurrentUserOrNull()
+            yield ensureCanWriteRecording(user)
+            return yield recordingService.writeDataFromStream(
+              recordingId,
+              req.raw
+            )
+          }),
           201
         )
       }
@@ -143,11 +159,15 @@ export function createRecordingRouter(
         const { recordingId, resourceId } = req.params
         respondWith(
           res,
-          recordingService.writeResourceFromStream(
-            recordingId,
-            resourceId,
-            req.raw
-          ),
+          go(function* () {
+            const user = yield req.getCurrentUserOrNull()
+            yield ensureCanWriteRecording(user)
+            return yield recordingService.writeResourceFromStream(
+              recordingId,
+              resourceId,
+              req.raw
+            )
+          }),
           201
         )
       }
@@ -185,9 +205,19 @@ export function createRecordingRouter(
         const { recordingId } = req.params
         respondWith(
           res,
-          parseSchema(writeResourceMapSchema.body, req.body).pipe(
-            chain(body => recordingService.writeResourceMap(recordingId, body))
-          ),
+          go(function* () {
+            const user = yield req.getCurrentUserOrNull()
+            yield ensureCanWriteRecording(user)
+
+            return yield parseSchema(
+              writeResourceMapSchema.body,
+              req.body
+            ).pipe(
+              chain(body =>
+                recordingService.writeResourceMap(recordingId, body)
+              )
+            )
+          }),
           201
         )
       }
@@ -234,16 +264,21 @@ export function createRecordingRouter(
 
         respondWith(
           res,
-          recordingService.writeInfo(
-            title,
-            url,
-            description,
-            mode,
-            duration,
-            browserName,
-            browserVersion,
-            operatingSystem
-          ),
+          go(function* () {
+            const user = yield req.getCurrentUserOrNull()
+            yield ensureCanWriteRecording(user)
+
+            return yield recordingService.writeInfo(
+              title,
+              url,
+              description,
+              mode,
+              duration,
+              browserName,
+              browserVersion,
+              operatingSystem
+            )
+          }),
           201
         )
       }
