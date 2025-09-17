@@ -1,6 +1,6 @@
+import { TextR } from '@repro/design'
 import { NodeType, SyntheticId, VText } from '@repro/domain'
 import React from 'react'
-import { TextR } from '../DOM'
 import { TreeRow } from './TreeRow'
 import { useNode } from './context'
 
