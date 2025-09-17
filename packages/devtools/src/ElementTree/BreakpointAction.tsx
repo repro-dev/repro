@@ -1,8 +1,7 @@
 import { InlineRow } from '@jsxstyle/react'
+import { colors, Tooltip } from '@repro/design'
 import { CircleIcon } from 'lucide-react'
 import React from 'react'
-import { Tooltip } from '../Tooltip'
-import { colors } from '../theme'
 
 export const BreakpointAction: React.FC<{
   active: boolean

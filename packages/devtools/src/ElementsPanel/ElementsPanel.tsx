@@ -1,6 +1,6 @@
 import { Block, Grid } from '@jsxstyle/react'
 import { useSelector } from '@repro/atom'
-import { colors, ElementTree } from '@repro/design'
+import { colors } from '@repro/design'
 import { NodeId, VElement, VTree } from '@repro/domain'
 import { BreakpointType, usePlayback, useSnapshot } from '@repro/playback'
 import { isDocumentVNode, isElementVNode } from '@repro/vdom-utils'
@@ -10,6 +10,7 @@ import React, {
   useEffect,
   useState,
 } from 'react'
+import { ElementTree } from '../ElementTree'
 import { useElementPicker, useFocusedNode, useSelectedNode } from '../hooks'
 import { SelectedNodeComputedStyle } from './SelectedNodeComputedStyle'
 

@@ -1,6 +1,6 @@
 import { Inline } from '@jsxstyle/react'
+import { colors } from '@repro/design'
 import React from 'react'
-import { colors } from '../theme'
 import { FONT_SIZE } from './constants'
 
 const OpenIcon: React.FC = () => (
