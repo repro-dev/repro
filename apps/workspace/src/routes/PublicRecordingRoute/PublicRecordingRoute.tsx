@@ -1,18 +1,17 @@
+import { Block, Grid } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { Card } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
-import { Block, Grid } from '@jsxstyle/react'
 import React, { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { FullWidthLayout } from '~/components/FullWidthLayout'
-import { Loading } from '../components/Loading'
+import { Loading } from '~/components/Loading'
 import { RecordingError } from './RecordingError'
 import { RecordingLoader } from './RecordingLoader'
 import { Sidebar } from './Sidebar'
 
-export const RecordingRoute: React.FC = () => {
+export const PublicRecordingRoute: React.FC = () => {
   const params = useParams<'recordingId'>()
   const recordingId = params.recordingId
   const apiClient = useApiClient()
@@ -50,23 +49,21 @@ export const RecordingRoute: React.FC = () => {
   }
 
   return (
-    <FullWidthLayout>
-      <RecordingLoader>
-        <Grid
-          gap={15}
-          height="calc(100vh - 90px)"
-          gridTemplateRows="100%"
-          gridTemplateColumns="1fr 4fr"
-        >
-          <Sidebar info={info} />
+    <RecordingLoader>
+      <Grid
+        gap={15}
+        height="calc(100vh - 90px)"
+        gridTemplateRows="100%"
+        gridTemplateColumns="1fr 4fr"
+      >
+        <Sidebar info={info} />
 
-          <Card fullBleed height="100%">
-            <Block height="100%" overflow="hidden" borderRadius={4}>
-              <DevTools resourceBaseURL={resourceBaseURL} />
-            </Block>
-          </Card>
-        </Grid>
-      </RecordingLoader>
-    </FullWidthLayout>
+        <Card fullBleed height="100%">
+          <Block height="100%" overflow="hidden" borderRadius={4}>
+            <DevTools resourceBaseURL={resourceBaseURL} />
+          </Block>
+        </Card>
+      </Grid>
+    </RecordingLoader>
   )
 }

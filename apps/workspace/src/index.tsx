@@ -17,6 +17,7 @@ const LoginRoute = lazy(() => import('./routes/LoginRoute'))
 const MainRoute = lazy(() => import('./routes/MainRoute'))
 const RecordingRoute = lazy(() => import('./routes/RecordingRoute'))
 const RegisterRoute = lazy(() => import('./routes/RegisterRoute'))
+const PublicRecordingRoute = lazy(() => import('./routes/PublicRecordingRoute'))
 
 declare global {
   interface Window {
@@ -74,6 +75,11 @@ if (rootElem) {
                       element={<RecordingRoute />}
                     />
                   </Route>
+
+                  <Route
+                    path="share/:recordingId"
+                    element={<PublicRecordingRoute />}
+                  />
                 </Route>
               </Route>
             </Routes>
