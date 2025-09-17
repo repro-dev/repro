@@ -1,4 +1,5 @@
 import { Block } from '@jsxstyle/react'
+import { IfGate } from '@repro/auth'
 import { ElementR } from '@repro/design'
 import { NodeId, NodeType, VElement } from '@repro/domain'
 import { isEmptyElementVNode, isParentVNode } from '@repro/vdom-utils'
@@ -47,10 +48,12 @@ export const ElementNodeRenderer: React.FC<Props> = ({ nodeId, depth }) => {
       return (
         <Block key={nodeId} position="relative">
           <TreeRow nodeId={nodeId} depth={depth} tag="open">
-            <BreakpointAction
-              active={hasBreakpoint}
-              onClick={onToggleBreakpoint}
-            />
+            <IfGate gate="breakpoints">
+              <BreakpointAction
+                active={hasBreakpoint}
+                onClick={onToggleBreakpoint}
+              />
+            </IfGate>
 
             {!isTopLevelNode && hasChildren && (
               <Toggle isOpen={isVisible} onClick={onToggleNodeVisibility} />
