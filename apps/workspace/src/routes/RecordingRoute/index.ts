@@ -1,1 +1,1 @@
-export { RecordingRoute } from './RecordingRoute'
+export { RecordingRoute as default } from './RecordingRoute'
