@@ -64,9 +64,11 @@ module.exports = {
     }),
 
     new EnvironmentPlugin({
+      AUTH_STORAGE: 'local-storage',
       BUILD_ENV: 'production',
       MODE: 'extension',
-      STATS_LEVEL: 'debug'
+      REPRO_API_URL: '',
+      STATS_LEVEL: 'debug',
     }),
   ],
 

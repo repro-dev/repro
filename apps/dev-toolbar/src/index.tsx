@@ -35,8 +35,7 @@ switch (process.env.MODE) {
 usingAgent(agent)
 
 agent.subscribeToIntent('enable', ({ recording }) => {
-  attach(recording)
-  return resolve<void>(undefined)
+  return attach(recording)
 })
 
 agent.subscribeToIntent('disable', () => {
