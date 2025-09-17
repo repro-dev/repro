@@ -6,6 +6,7 @@ import {
   createRecordingStream,
 } from '@repro/recording'
 import { applyResetStyles } from '@repro/theme'
+import Future, { FutureInstance } from 'fluture'
 import React from 'react'
 import { Root, createRoot } from 'react-dom/client'
 import { Controller } from './Controller'
@@ -114,17 +115,36 @@ class ReproDevToolbar extends HTMLElement {
   }
 }
 
-export function attach(recording = false) {
+export function attach(recording = false): FutureInstance<Error, void> {
   if (!window.customElements.get(NODE_NAME)) {
     window.customElements.define(NODE_NAME, ReproDevToolbar)
   }
 
-  if (!document.querySelector(NODE_NAME)) {
-    const root = new ReproDevToolbar()
-    root.dataset.recording = recording ? 'true' : 'false'
+  return Future<Error, void>((_, resolve) => {
+    let root: HTMLElement | null = null
 
-    document.body.appendChild(root)
-  }
+    function onReady() {
+      if (root) {
+        document.body.appendChild(root)
+      }
+      resolve(undefined)
+    }
+
+    if (!document.querySelector(NODE_NAME)) {
+      root = new ReproDevToolbar()
+      root.dataset.recording = recording ? 'true' : 'false'
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', onReady, { once: true })
+      } else {
+        onReady()
+      }
+    }
+
+    return () => {
+      document.removeEventListener('DOMContentLoaded', onReady)
+    }
+  })
 }
 
 export function detach() {
