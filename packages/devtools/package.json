@@ -11,6 +11,7 @@
   "dependencies": {
     "@jsxstyle/react": "^3.0.1",
     "@repro/analytics": "workspace:*",
+    "@repro/auth": "workspace:*",
     "@repro/atom": "workspace:*",
     "@repro/css-utils": "workspace:*",
     "@repro/date-utils": "workspace:*",

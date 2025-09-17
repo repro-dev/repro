@@ -1,6 +1,7 @@
 import { useAtomValue } from '@repro/atom'
 import { useContext } from 'react'
 import { AuthContext } from './AuthProvider'
+import { GateContext } from './GateProvider'
 
 export function useAuthContext() {
   return useContext(AuthContext)
@@ -29,4 +30,9 @@ export function useResetPassword() {
 export function useRegister() {
   const context = useAuthContext()
   return context.register
+}
+
+export function useHasGate(gate: string) {
+  const gates = useContext(GateContext)
+  return gates.has(gate)
 }
