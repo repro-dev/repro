@@ -1,24 +1,22 @@
 import { Analytics } from '@repro/analytics'
 import { mixpanelBrowser } from '@repro/analytics-provider-mixpanel'
 import { ApiProvider } from '@repro/api-client'
+import { AuthProvider, SessionRouteBoundary } from '@repro/auth'
+import { PortalRootProvider } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import { DEFAULT_AGENT } from '@repro/messaging'
 import { applyResetStyles } from '@repro/theme'
-import React from 'react'
+import React, { lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-
+import { AuthLayout } from './AuthLayout'
 import { Layout } from './Layout'
 
-import { HomeRoute } from './routes/HomeRoute'
-import { MainRoute } from './routes/MainRoute'
-import { RecordingRoute } from './routes/RecordingRoute'
-
-import { AuthProvider, SessionRouteBoundary } from '@repro/auth'
-import { PortalRootProvider } from '@repro/design'
-import { AuthLayout } from './AuthLayout'
-import { LoginRoute } from './routes/LoginRoute'
-import { RegisterRoute } from './routes/RegisterRoute'
+const HomeRoute = lazy(() => import('./routes/HomeRoute'))
+const LoginRoute = lazy(() => import('./routes/LoginRoute'))
+const MainRoute = lazy(() => import('./routes/MainRoute'))
+const RecordingRoute = lazy(() => import('./routes/RecordingRoute'))
+const RegisterRoute = lazy(() => import('./routes/RegisterRoute'))
 
 declare global {
   interface Window {

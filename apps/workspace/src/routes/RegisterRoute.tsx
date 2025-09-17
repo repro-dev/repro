@@ -1,10 +1,10 @@
+import { Col } from '@jsxstyle/react'
 import { RegisterForm } from '@repro/auth'
 import { Card } from '@repro/design'
 import { logger } from '@repro/logger'
-import { Col } from '@jsxstyle/react'
 import React, { useCallback } from 'react'
 
-export const RegisterRoute: React.FC = () => {
+const RegisterRoute: React.FC = () => {
   const onSuccess = useCallback(() => {
     logger.debug('registration successful')
   }, [])
@@ -21,3 +21,5 @@ export const RegisterRoute: React.FC = () => {
     </Col>
   )
 }
+
+export default RegisterRoute

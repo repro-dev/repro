@@ -1,11 +1,11 @@
+import { Col } from '@jsxstyle/react'
 import { LoginForm } from '@repro/auth'
 import { Card } from '@repro/design'
 import { logger } from '@repro/logger'
-import { Col } from '@jsxstyle/react'
 import React, { useCallback } from 'react'
 import { useNavigate } from 'react-router'
 
-export const LoginRoute: React.FC = () => {
+const LoginRoute: React.FC = () => {
   const navigate = useNavigate()
 
   const onSuccess = useCallback(() => {
@@ -25,3 +25,5 @@ export const LoginRoute: React.FC = () => {
     </Col>
   )
 }
+
+export default LoginRoute
