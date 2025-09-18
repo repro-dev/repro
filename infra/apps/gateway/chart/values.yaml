@@ -8,13 +8,9 @@ ingress:
     annotations:
       nginx.ingress.kubernetes.io/app-root: /w
     paths:
-      - path: /w(/|$)(.*)
+      - path: /(.*)
         pathType: ImplementationSpecific
         serviceName: workspace-service
-        servicePort: http
-      - path: /s(/|$)(.*)
-        pathType: ImplementationSpecific
-        serviceName: public-playback-ui-service
         servicePort: http
   
   apiRoutes:
