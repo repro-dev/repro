@@ -31,7 +31,6 @@ load_dynamic('./apps/data/Tiltfile')
 load_dynamic('./apps/api-server/Tiltfile')
 
 # Apps
-load_dynamic('./apps/public-playback-ui/Tiltfile')
 load_dynamic('./apps/workspace/Tiltfile')
 
 # Infra
