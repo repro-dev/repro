@@ -1839,6 +1839,9 @@ importers:
       '@types/repro-shared-types':
         specifier: workspace:*
         version: link:../shared-types
+      global-jsdom:
+        specifier: 26.0.0
+        version: 26.0.0(jsdom@26.1.0)
       prettier:
         specifier: ^3.0.0
         version: 3.0.0

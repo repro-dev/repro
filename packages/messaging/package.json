@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "src/index.ts",
   "scripts": {
-    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
+    "test": "tsx -r global-jsdom/register --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
     "fmt": "prettier --write src",
     "typecheck": "tsc --noEmit"
   },
@@ -20,6 +20,7 @@
     "@types/node": "22.14.0",
     "@types/react": "^18.0.14",
     "@types/repro-shared-types": "workspace:*",
+    "global-jsdom": "26.0.0",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
     "ts-eager": "^2.0.2",
