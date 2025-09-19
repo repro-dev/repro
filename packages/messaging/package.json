@@ -20,6 +20,7 @@
     "@types/node": "22.14.0",
     "@types/react": "^18.0.14",
     "@types/repro-shared-types": "workspace:*",
+    "expect": "^29.7.0",
     "global-jsdom": "26.0.0",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
