@@ -1,5 +1,5 @@
-import { colors } from '@repro/design'
 import { Block } from '@jsxstyle/react'
+import { colors } from '@repro/design'
 import React, { useEffect, useState } from 'react'
 import { Subscription } from 'rxjs'
 import { usePlayback } from './hooks'

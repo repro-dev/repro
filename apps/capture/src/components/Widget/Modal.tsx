@@ -1,5 +1,5 @@
-import { colors, Logo } from '@repro/design'
 import { Block, InlineBlock, Row } from '@jsxstyle/react'
+import { colors, Logo } from '@repro/design'
 import { XIcon } from 'lucide-react'
 import React, { PropsWithChildren } from 'react'
 

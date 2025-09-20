@@ -1,6 +1,6 @@
+import { Block, Row } from '@jsxstyle/react'
 import { colors } from '@repro/design'
 import { LogLevel } from '@repro/domain'
-import { Block, Row } from '@jsxstyle/react'
 import { CheckCircle, Circle } from 'lucide-react'
 import React, { PropsWithChildren } from 'react'
 import { enumToBitField } from './util'

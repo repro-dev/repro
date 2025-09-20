@@ -1,5 +1,5 @@
-import { colors } from '@repro/design'
 import { Row } from '@jsxstyle/react'
+import { colors } from '@repro/design'
 import { Inspect as PickerIcon } from 'lucide-react'
 import React, { useCallback, useEffect } from 'react'
 import { useElementPicker, useInspecting } from '../hooks'

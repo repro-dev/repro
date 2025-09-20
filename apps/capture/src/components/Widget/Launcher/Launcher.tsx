@@ -1,6 +1,6 @@
+import { Row } from '@jsxstyle/react'
 import { Button, colors, Logo } from '@repro/design'
 import { RecordingMode } from '@repro/domain'
-import { Row } from '@jsxstyle/react'
 import { HistoryIcon, VideoIcon, XIcon } from 'lucide-react'
 import React, { Fragment } from 'react'
 import { ReadyState, useReadyState, useRecordingMode } from '~/state'

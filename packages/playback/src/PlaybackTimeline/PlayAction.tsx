@@ -1,6 +1,6 @@
+import { Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { colors } from '@repro/design'
-import { Row } from '@jsxstyle/react'
 import { Pause as PauseIcon, Play as PlayIcon } from 'lucide-react'
 import React, { useCallback, useEffect } from 'react'
 import { Shortcuts } from 'shortcuts'

@@ -1,7 +1,7 @@
+import { Block, Grid, InlineBlock, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
 import { colors } from '@repro/design'
 import { ConsoleEvent, LogLevel, StackEntry } from '@repro/domain'
-import { Block, Grid, InlineBlock, Row } from '@jsxstyle/react'
 import { AlertCircle, AlertTriangle } from 'lucide-react'
 import React from 'react'
 import { SeekAction } from '../SeekAction'

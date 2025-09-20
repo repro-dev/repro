@@ -1,3 +1,4 @@
+import { Block, Grid } from '@jsxstyle/react'
 import { colors } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import {
@@ -9,7 +10,6 @@ import {
 } from '@repro/domain'
 import { ControlFrame, ElapsedMarker, usePlayback } from '@repro/playback'
 import { Box } from '@repro/tdl'
-import { Block, Grid } from '@jsxstyle/react'
 import React, {
   Fragment,
   MutableRefObject,

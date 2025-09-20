@@ -1,3 +1,4 @@
+import { Block } from '@jsxstyle/react'
 import { RecordingMode, SourceEventType, SourceEventView } from '@repro/domain'
 import {
   Playback,
@@ -7,7 +8,6 @@ import {
 import { InterruptSignal, useRecordingStream } from '@repro/recording'
 import { calculateDuration } from '@repro/source-utils'
 import { Box, List } from '@repro/tdl'
-import { Block } from '@jsxstyle/react'
 import React, { useEffect, useState } from 'react'
 import {
   Subscription,

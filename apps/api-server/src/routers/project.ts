@@ -91,7 +91,7 @@ export function createProjectRouter(
         })
       )
     })
-   
+
     const createProjectSchema = {
       body: z.object({
         name: z.string(),
