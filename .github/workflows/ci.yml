@@ -19,7 +19,7 @@ jobs:
         uses: moonrepo/setup-toolchain@v0
         with:
           auto-install: true
-          proto-version: 0.51.6
+          proto-version: 0.53.0
 
       # Optional: Ensure PostgreSQL client (which includes pg_config) is installed
       # ubuntu-latest usually has it, but being explicit can be safer.
