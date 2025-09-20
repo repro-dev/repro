@@ -1,6 +1,7 @@
 import expect from 'expect'
 import Future, { fork, resolve } from 'fluture'
 import { beforeEach, describe, it } from 'node:test'
+import { createLoopbackAgent } from './createLoopbackAgent'
 import { createPTPAgent } from './createPTPAgent'
 
 describe('createPTPAgent', () => {
@@ -113,7 +114,7 @@ describe('createPTPAgent', () => {
 
   it('should forward intents when using subscribeToIntentAndForward', () => {
     return new Promise<void>((done, reject) => {
-      const forwardAgent = createPTPAgent()
+      const forwardAgent = createLoopbackAgent()
       const testPayload = { data: 'forward test' }
       const testResponse = { result: 'forwarded' }
 
@@ -157,4 +158,3 @@ describe('createPTPAgent', () => {
     })
   })
 })
-
