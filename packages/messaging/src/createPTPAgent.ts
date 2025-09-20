@@ -54,8 +54,8 @@ export function createPTPAgent(): Agent {
 
   const resolvers = new Map<SyntheticId, Resolver>()
 
-  const message$ = fromEvent<CustomEvent<Message>>(window, EVENT_NAME).pipe(
-    map(event => event.detail)
+  const message$ = fromEvent(window, EVENT_NAME).pipe(
+    map(event => (event as CustomEvent<Message>).detail)
   )
 
   const intentMessage$ = message$.pipe(filter(isIntentMessage))
@@ -108,7 +108,7 @@ export function createPTPAgent(): Agent {
   })
 
   function dispatch(message: Message) {
-    const event = new CustomEvent(EVENT_NAME, {
+    const event = new window.CustomEvent(EVENT_NAME, {
       detail: message,
     })
 
