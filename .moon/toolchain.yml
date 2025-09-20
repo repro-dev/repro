@@ -1,5 +1,7 @@
 node:
-  packageManager: 'pnpm'
+  dedupeOnLockfileChange: false
   inferTasksFromScripts: true
+  packageManager: 'pnpm'
+  syncPackageManagerField: false
 proto:
   version: '0.51.6'
