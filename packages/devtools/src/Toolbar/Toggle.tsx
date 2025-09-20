@@ -1,5 +1,5 @@
-import { colors } from '@repro/design'
 import { Row } from '@jsxstyle/react'
+import { colors } from '@repro/design'
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react'
 import React from 'react'
 import { useInspecting } from '../hooks'

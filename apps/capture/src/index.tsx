@@ -1,3 +1,4 @@
+import { cache as styleCache } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { PortalRootProvider } from '@repro/design'
 import { Stats, Trace } from '@repro/diagnostics'
@@ -12,7 +13,6 @@ import {
 } from '@repro/recording'
 import { applyResetStyles } from '@repro/theme'
 import { resolve } from 'fluture'
-import { cache as styleCache } from '@jsxstyle/react'
 import React from 'react'
 import { Root, createRoot } from 'react-dom/client'
 import { Controller } from './components/Controller'

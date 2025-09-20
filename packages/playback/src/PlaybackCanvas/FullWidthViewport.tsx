@@ -1,5 +1,5 @@
-import { colors } from '@repro/design'
 import { Block } from '@jsxstyle/react'
+import { colors } from '@repro/design'
 import React, { PropsWithChildren } from 'react'
 
 export const FullWidthViewport: React.FC<PropsWithChildren> = ({

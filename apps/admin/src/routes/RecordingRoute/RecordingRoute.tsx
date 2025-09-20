@@ -1,14 +1,11 @@
+import { Block, Grid } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { Card } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
-import {
-  createNullSource,
-  PlaybackFromSourceProvider,
-} from '@repro/playback'
+import { createNullSource, PlaybackFromSourceProvider } from '@repro/playback'
 import { createApiSource } from '@repro/recording-api'
-import { Block, Grid } from '@jsxstyle/react'
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Loading } from './Loading'

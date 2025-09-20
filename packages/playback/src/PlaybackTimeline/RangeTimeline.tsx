@@ -1,5 +1,5 @@
-import { colors } from '@repro/design'
 import { Block } from '@jsxstyle/react'
+import { colors } from '@repro/design'
 import React, { MutableRefObject, useEffect, useRef } from 'react'
 import { Subscription, fromEvent, map, switchMap, take, takeUntil } from 'rxjs'
 import { usePlayback } from '../hooks'

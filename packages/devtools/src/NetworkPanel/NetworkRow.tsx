@@ -1,7 +1,7 @@
+import { Block, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
 import { colors } from '@repro/design'
 import { RequestType } from '@repro/domain'
-import { Block, Row } from '@jsxstyle/react'
 // FIXME: re-export `JsxstyleProps`
 // @ts-expect-error Cannot get declaration from npm-forks
 import { JsxstyleProps } from 'jsxstyle/lib/types'

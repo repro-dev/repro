@@ -1,3 +1,4 @@
+import { Grid, InlineBlock, Row } from '@jsxstyle/react'
 import { FX, colors } from '@repro/design'
 import {
   InteractionType,
@@ -8,7 +9,6 @@ import {
   SourceEventView,
 } from '@repro/domain'
 import { ElapsedMarker, usePlayback } from '@repro/playback'
-import { Grid, InlineBlock, Row } from '@jsxstyle/react'
 import { LoaderIcon } from 'lucide-react'
 import React, { Fragment, useEffect, useState } from 'react'
 import AutoSizer from 'react-virtualized-auto-sizer'
