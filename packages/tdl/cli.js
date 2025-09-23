@@ -1,4 +1,4 @@
 #!/usr/bin/env node
 
-require('ts-eager/register')
+require('tsx')
 require('./src/cli')
