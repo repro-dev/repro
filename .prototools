@@ -2,6 +2,7 @@
 moon = "1.40.4"
 node = "22.19.0"
 pnpm = "10.17.0"
+proto = "0.53.0"
 tilt = "0.35.1"
 
 [plugins]
