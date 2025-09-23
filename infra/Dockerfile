@@ -5,7 +5,7 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
 RUN corepack enable
-RUN corepack prepare pnpm@8.3.1 --activate
+RUN corepack prepare pnpm@10.17.0 --activate
 
 RUN pnpm add --global @moonrepo/cli
 
