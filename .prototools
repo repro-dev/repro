@@ -1,8 +1,8 @@
-"asdf:ctlptl" = "0.8.43"
-moon = "1.40.4"
+ctlptl = "asdf:0.8.43"
+moon = "1.39.4"
 node = "22.19.0"
 pnpm = "10.17.0"
-proto = "0.52.5"
+proto = "0.51.6"
 tilt = "0.35.1"
 
 [plugins]
