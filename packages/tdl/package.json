@@ -27,6 +27,7 @@
     "@types/expect": "^24.3.2",
     "@types/glob": "^8.1.0",
     "@types/node": "22.14.0",
+    "@types/prettier": "^3.0.0",
     "@types/repro-shared-types": "workspace:*",
     "@types/yargs": "^17.0.24",
     "expect": "^29.7.0",
