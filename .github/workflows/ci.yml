@@ -77,7 +77,7 @@ jobs:
           fi
 
       - name: Check affected packages
-        run: moon ci :build :typecheck :test --log trace
+        run: moon ci :build :typecheck :test
 
   docker:
     name: Containerize

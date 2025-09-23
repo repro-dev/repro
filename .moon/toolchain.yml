@@ -4,4 +4,4 @@ node:
   packageManager: 'pnpm'
   syncPackageManagerField: false
 proto:
-  version: '0.53.0'
+  version: '0.52.5'
