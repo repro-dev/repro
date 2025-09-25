@@ -1,3 +1,41 @@
+config.define_string_list('groups', args=True)
+cfg = config.parse()
+
+groups = {
+  'capture-only': [
+    'capture'
+  ],
+
+  'dev-toolbar-only': [
+    'dev-toolbar'
+  ],
+
+  'api-server': [
+    'storage',
+    'database',
+    'api-server',
+    'gateway-ingress',
+  ],
+
+  'workspace': [
+    'storage',
+    'database',
+    'api-server',
+    'workspace',
+    'gateway-ingress',
+  ]
+}
+
+resources = []
+
+for arg in cfg.get('groups', []):
+  if arg in groups:
+    resources += groups[arg]
+  else:
+    resources.append(arg)
+
+config.set_enabled_resources(resources)
+
 PROJECT_ROOT = os.path.join(os.getcwd(), '..')
 
 update_settings(

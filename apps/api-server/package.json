@@ -6,10 +6,10 @@
   "scripts": {
     "dev-bin": "dotenvx run -f .env.development -- ts-eager",
     "dev": "mkdir -p tmp && pnpm run migrate && pnpm run start",
-    "start": "ts-eager src/index.ts",
+    "start": "tsx src/index.ts",
     "dev-watch": "nodemon --config nodemon-dev.json",
     "fmt": "prettier --write src",
-    "migrate": "ts-eager src/migrations/run.ts",
+    "migrate": "tsx src/migrations/run.ts",
     "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
     "typecheck": "tsc --noEmit"
   },
