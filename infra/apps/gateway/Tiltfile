@@ -30,5 +30,6 @@ k8s_resource(
     'gateway-ingress-api:Ingress:default',
     'gateway-ingress-admin:Ingress:default'
   ],
+  resource_deps=['ingress-controller'],
   labels=['infra']
 )
