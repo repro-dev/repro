@@ -43,7 +43,9 @@ async function main() {
     const program = parse({ directory })
 
     if (program) {
-      const results = program.map(module => [module.name, compile(module.ast)])
+      const results = program.map(
+        module => [module.name, compile(module.ast)] as const
+      )
 
       if (!fs.existsSync(outdir)) {
         fs.mkdirSync(outdir, { recursive: true })
@@ -52,7 +54,7 @@ async function main() {
       for (const [name, output] of results) {
         fs.writeFileSync(
           path.join(outdir, `${name}.${extension}`),
-          output as string
+          await output
         )
       }
     }
