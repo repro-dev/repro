@@ -2,7 +2,7 @@ import expect from 'expect'
 import { parallel, promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { Harness, createTestHarness } from '~/testing'
-import { errorType, resourceConflict } from '~/utils/errors'
+import { errorType, notFound, resourceConflict } from '~/utils/errors'
 import { FeatureGateService } from './featureGate'
 
 describe('Services > Feature Gate', () => {
@@ -55,7 +55,7 @@ describe('Services > Feature Gate', () => {
     await expect(
       promise(
         parallel(Infinity)(
-          ['Feature 1', 'Feature 2', 'Feature 3'].map((name, index) =>
+          ['Feature 1', 'Feature 2', 'Feature 3'].map(name =>
             featureGateService.createFeatureGate(
               name,
               `Description for ${name}`
@@ -79,5 +79,28 @@ describe('Services > Feature Gate', () => {
       createdAt: expect.any(String),
     })
   })
-})
 
+  it('should get a feature gate by ID', async () => {
+    const created = await promise(
+      featureGateService.createFeatureGate('Test Feature', 'A test feature')
+    )
+
+    const retrieved = await promise(
+      featureGateService.getFeatureGateById(created.id)
+    )
+
+    expect(retrieved).toMatchObject({
+      id: created.id,
+      name: 'Test Feature',
+      description: 'A test feature',
+      active: 1,
+      createdAt: created.createdAt,
+    })
+  })
+
+  it('should throw not-found when getting a feature gate by an invalid ID', async () => {
+    await expect(
+      promise(featureGateService.getFeatureGateById('invalid-id'))
+    ).rejects.toThrow(notFound())
+  })
+})

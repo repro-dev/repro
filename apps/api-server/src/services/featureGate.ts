@@ -1,6 +1,6 @@
 import { FutureInstance, chain, map, swap } from 'fluture'
-import { Database, attemptQuery, withEncodedId } from '~/modules/database'
-import { resourceConflict } from '~/utils/errors'
+import { Database, attemptQuery, decodeId, withEncodedId } from '~/modules/database'
+import { notFound, resourceConflict } from '~/utils/errors'
 
 export function createFeatureGateService(database: Database) {
   function createFeatureGate(
@@ -48,8 +48,35 @@ export function createFeatureGateService(database: Database) {
     )
   }
 
+  function getFeatureGateById(
+    id: string
+  ): FutureInstance<
+    Error,
+    {
+      id: string
+      name: string
+      description: string
+      active: number
+      createdAt: string
+    }
+  > {
+    return attemptQuery(() => {
+      return database
+        .selectFrom('feature_gates')
+        .select(['id', 'name', 'description', 'active', 'createdAt'])
+        .where('id', '=', decodeId(id))
+        .executeTakeFirstOrThrow(() => notFound())
+    }).pipe(
+      map(row => ({
+        ...withEncodedId(row),
+        createdAt: row.createdAt.toISOString(),
+      }))
+    )
+  }
+
   return {
     createFeatureGate,
+    getFeatureGateById,
   }
 }
 
