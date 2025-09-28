@@ -74,9 +74,38 @@ export function createFeatureGateService(database: Database) {
     )
   }
 
+  function listFeatureGates(
+    order: 'asc' | 'desc' = 'asc'
+  ): FutureInstance<
+    Error,
+    Array<{
+      id: string
+      name: string
+      description: string
+      active: number
+      createdAt: string
+    }>
+  > {
+    return attemptQuery(() => {
+      return database
+        .selectFrom('feature_gates')
+        .select(['id', 'name', 'description', 'active', 'createdAt'])
+        .orderBy(`name ${order}`)
+        .execute()
+    }).pipe(
+      map(rows =>
+        rows.map(row => ({
+          ...withEncodedId(row),
+          createdAt: row.createdAt.toISOString(),
+        }))
+      )
+    )
+  }
+
   return {
     createFeatureGate,
     getFeatureGateById,
+    listFeatureGates,
   }
 }
 

@@ -103,4 +103,40 @@ describe('Services > Feature Gate', () => {
       promise(featureGateService.getFeatureGateById('invalid-id'))
     ).rejects.toThrow(notFound())
   })
+
+  it('should list feature gates in ascending order by name', async () => {
+    await promise(
+      featureGateService.createFeatureGate('Z Feature', 'Last feature')
+    )
+    await promise(
+      featureGateService.createFeatureGate('A Feature', 'First feature')
+    )
+
+    const list = await promise(featureGateService.listFeatureGates('asc'))
+
+    expect(list).toHaveLength(2)
+    expect(list[0].name).toBe('A Feature')
+    expect(list[1].name).toBe('Z Feature')
+  })
+
+  it('should list feature gates in descending order by name', async () => {
+    await promise(
+      featureGateService.createFeatureGate('A Feature', 'First feature')
+    )
+    await promise(
+      featureGateService.createFeatureGate('Z Feature', 'Last feature')
+    )
+
+    const list = await promise(featureGateService.listFeatureGates('desc'))
+
+    expect(list).toHaveLength(2)
+    expect(list[0].name).toBe('Z Feature')
+    expect(list[1].name).toBe('A Feature')
+  })
+
+  it('should return an empty list when no feature gates exist', async () => {
+    const list = await promise(featureGateService.listFeatureGates())
+
+    expect(list).toEqual([])
+  })
 })
