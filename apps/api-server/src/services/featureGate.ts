@@ -143,16 +143,16 @@ export function createFeatureGateService(database: Database) {
   > {
     const { name, description, active } = updates
 
+    const conflictError = resourceConflict(
+      'Feature gate with this name already exists'
+    )
+
     const checkNameConflict: FutureInstance<Error, void> = name
       ? getFeatureGateByName(name).pipe(
           bichain<Error, Error, void>(error =>
             isNotFound(error) ? resolve(undefined) : reject(error)
           )(gate =>
-            gate.id === id
-              ? reject(
-                  resourceConflict('Feature gate with this name already exists')
-                )
-              : resolve(undefined)
+            gate.id !== id ? reject(conflictError) : resolve(undefined)
           )
         )
       : resolve(undefined)
