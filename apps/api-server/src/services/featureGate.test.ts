@@ -134,9 +134,78 @@ describe('Services > Feature Gate', () => {
     expect(list[1]?.name).toBe('A Feature')
   })
 
-  it('should return an empty list when no feature gates exist', async () => {
-    const list = await promise(featureGateService.listFeatureGates())
+   it('should return an empty list when no feature gates exist', async () => {
+     const list = await promise(featureGateService.listFeatureGates())
 
-    expect(list).toEqual([])
-  })
-})
+     expect(list).toEqual([])
+   })
+
+   it('should update a feature gate', async () => {
+     const created = await promise(
+       featureGateService.createFeatureGate('Test Feature', 'A test feature')
+     )
+
+     const updated = await promise(
+       featureGateService.updateFeatureGate(created.id, {
+         name: 'Updated Feature',
+         description: 'Updated description',
+         active: 0,
+       })
+     )
+
+     expect(updated).toMatchObject({
+       id: created.id,
+       name: 'Updated Feature',
+       description: 'Updated description',
+       active: 0,
+       createdAt: created.createdAt,
+     })
+   })
+
+   it('should update only provided fields', async () => {
+     const created = await promise(
+       featureGateService.createFeatureGate('Test Feature', 'A test feature')
+     )
+
+     const updated = await promise(
+       featureGateService.updateFeatureGate(created.id, {
+         description: 'New description',
+       })
+     )
+
+     expect(updated).toMatchObject({
+       id: created.id,
+       name: 'Test Feature',
+       description: 'New description',
+       active: 1,
+       createdAt: created.createdAt,
+     })
+   })
+
+   it('should fail to update a feature gate with a duplicate name', async () => {
+     await promise(
+       featureGateService.createFeatureGate('Feature One', 'First feature')
+     )
+     const second = await promise(
+       featureGateService.createFeatureGate('Feature Two', 'Second feature')
+     )
+
+     await expect(
+       promise(
+         featureGateService.updateFeatureGate(second.id, {
+           name: 'Feature One',
+         })
+       )
+     ).rejects.toThrow(errorType(resourceConflict()))
+   })
+
+   it('should throw not-found when updating a feature gate with invalid ID', async () => {
+     await expect(
+       promise(
+         featureGateService.updateFeatureGate('invalid-id', {
+           name: 'Updated Name',
+         })
+       )
+     ).rejects.toThrow(notFound())
+   })
+ })

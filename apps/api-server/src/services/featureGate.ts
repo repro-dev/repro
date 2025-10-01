@@ -1,8 +1,40 @@
-import { FutureInstance, chain, map, swap } from 'fluture'
-import { Database, attemptQuery, decodeId, withEncodedId } from '~/modules/database'
-import { notFound, resourceConflict } from '~/utils/errors'
+import {
+  FutureInstance,
+  bichain,
+  chain,
+  map,
+  reject,
+  resolve,
+  swap,
+} from 'fluture'
+import {
+  Database,
+  attemptQuery,
+  decodeId,
+  withEncodedId,
+} from '~/modules/database'
+import { FeatureGate } from '~/types/featureGate'
+import { isNotFound, notFound, resourceConflict } from '~/utils/errors'
 
 export function createFeatureGateService(database: Database) {
+  function getFeatureGateByName(
+    name: string
+  ): FutureInstance<Error, FeatureGate> {
+    return attemptQuery(() => {
+      return database
+        .selectFrom('feature_gates')
+        .select(['id', 'name', 'description', 'active', 'createdAt'])
+        .where('name', '=', name)
+        .executeTakeFirstOrThrow(() => notFound())
+    }).pipe(
+      map(row => ({
+        ...withEncodedId(row),
+        active: !!row.active,
+        createdAt: row.createdAt,
+      }))
+    )
+  }
+
   function createFeatureGate(
     name: string,
     description: string
@@ -16,13 +48,7 @@ export function createFeatureGateService(database: Database) {
       createdAt: string
     }
   > {
-    const existingFeatureGate = attemptQuery(async () => {
-      return database
-        .selectFrom('feature_gates')
-        .select('id')
-        .where('name', '=', name)
-        .executeTakeFirstOrThrow()
-    })
+    const existingFeatureGate = getFeatureGateByName(name)
       .pipe(map(() => resourceConflict('Feature gate already exists')))
       .pipe(swap)
 
@@ -48,9 +74,7 @@ export function createFeatureGateService(database: Database) {
     )
   }
 
-  function getFeatureGateById(
-    id: string
-  ): FutureInstance<
+  function getFeatureGateById(id: string): FutureInstance<
     Error,
     {
       id: string
@@ -74,9 +98,7 @@ export function createFeatureGateService(database: Database) {
     )
   }
 
-  function listFeatureGates(
-    order: 'asc' | 'desc' = 'asc'
-  ): FutureInstance<
+  function listFeatureGates(order: 'asc' | 'desc' = 'asc'): FutureInstance<
     Error,
     Array<{
       id: string
@@ -102,12 +124,69 @@ export function createFeatureGateService(database: Database) {
     )
   }
 
+  function updateFeatureGate(
+    id: string,
+    updates: {
+      name?: string
+      description?: string
+      active?: number
+    }
+  ): FutureInstance<
+    Error,
+    {
+      id: string
+      name: string
+      description: string
+      active: number
+      createdAt: string
+    }
+  > {
+    const { name, description, active } = updates
+
+    const checkNameConflict: FutureInstance<Error, void> = name
+      ? getFeatureGateByName(name).pipe(
+          bichain<Error, Error, void>(error =>
+            isNotFound(error) ? resolve(undefined) : reject(error)
+          )(gate =>
+            gate.id === id
+              ? reject(
+                  resourceConflict('Feature gate with this name already exists')
+                )
+              : resolve(undefined)
+          )
+        )
+      : resolve(undefined)
+
+    return checkNameConflict.pipe(
+      chain(() =>
+        attemptQuery(() => {
+          let query = database
+            .updateTable('feature_gates')
+            .set({
+              ...(name && { name }),
+              ...(description !== undefined && { description }),
+              ...(active !== undefined && { active }),
+            })
+            .where('id', '=', decodeId(id))
+            .returning(['id', 'name', 'description', 'active', 'createdAt'])
+
+          return query.executeTakeFirstOrThrow(() => notFound())
+        }).pipe(
+          map(row => ({
+            ...withEncodedId(row),
+            createdAt: row.createdAt.toISOString(),
+          }))
+        )
+      )
+    )
+  }
+
   return {
     createFeatureGate,
     getFeatureGateById,
     listFeatureGates,
+    updateFeatureGate,
   }
 }
 
 export type FeatureGateService = ReturnType<typeof createFeatureGateService>
-
