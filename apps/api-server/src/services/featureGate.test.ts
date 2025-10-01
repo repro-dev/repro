@@ -208,4 +208,37 @@ describe('Services > Feature Gate', () => {
        )
      ).rejects.toThrow(notFound())
    })
+
+   it('should remove a feature gate', async () => {
+     const created = await promise(
+       featureGateService.createFeatureGate('Test Feature', 'A test feature')
+     )
+
+     await promise(featureGateService.removeFeatureGate(created.id))
+
+     await expect(
+       promise(featureGateService.getFeatureGateById(created.id))
+     ).rejects.toThrow(notFound())
+   })
+
+   it('should throw not-found when removing a feature gate with invalid ID', async () => {
+     await expect(
+       promise(featureGateService.removeFeatureGate('invalid-id'))
+     ).rejects.toThrow(notFound())
+   })
+
+   it('should allow removing multiple feature gates', async () => {
+     const gate1 = await promise(
+       featureGateService.createFeatureGate('Feature 1', 'First feature')
+     )
+     const gate2 = await promise(
+       featureGateService.createFeatureGate('Feature 2', 'Second feature')
+     )
+
+     await promise(featureGateService.removeFeatureGate(gate1.id))
+     await promise(featureGateService.removeFeatureGate(gate2.id))
+
+     const list = await promise(featureGateService.listFeatureGates())
+     expect(list).toEqual([])
+   })
  })

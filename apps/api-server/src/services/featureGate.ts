@@ -181,11 +181,25 @@ export function createFeatureGateService(database: Database) {
     )
   }
 
+  function removeFeatureGate(id: string): FutureInstance<Error, void> {
+    return attemptQuery(() => {
+      return database
+        .deleteFrom('feature_gates')
+        .where('id', '=', decodeId(id))
+        .executeTakeFirst()
+    }).pipe(
+      chain(result =>
+        result.numDeletedRows === 0n ? reject(notFound()) : resolve(undefined)
+      )
+    )
+  }
+
   return {
     createFeatureGate,
     getFeatureGateById,
     listFeatureGates,
     updateFeatureGate,
+    removeFeatureGate,
   }
 }
 
