@@ -12,9 +12,11 @@ import { createPostgresDatabaseClient } from '~/modules/database/database-postgr
 import { createSMTPEmailUtils } from '~/modules/email-utils'
 import { createS3StorageClient } from '~/modules/storage-s3'
 import { createAccountRouter } from '~/routers/account'
+import { createFeatureGateRouter } from '~/routers/featureGate'
 import { createHealthRouter } from '~/routers/health'
 import { createProjectRouter } from '~/routers/project'
 import { createAccountService } from '~/services/account'
+import { createFeatureGateService } from '~/services/featureGate'
 import { createHealthService } from '~/services/health'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
@@ -54,11 +56,13 @@ const emailUtils = createSMTPEmailUtils({
 })
 
 const accountService = createAccountService(database, emailUtils)
+const featureGateService = createFeatureGateService(database)
 const healthService = createHealthService(database, storage)
 const projectService = createProjectService(database)
 const recordingService = createRecordingService(database, storage)
 
 const accountRouter = createAccountRouter(accountService)
+const featureGateRouter = createFeatureGateRouter(featureGateService)
 const healthRouter = createHealthRouter(healthService)
 const projectRouter = createProjectRouter(
   projectService,
@@ -114,6 +118,7 @@ function bootstrap(routers: Record<string, FastifyPluginAsync>) {
 
 bootstrap({
   '/account': accountRouter,
+  '/feature-gates': featureGateRouter,
   '/health': healthRouter,
   '/projects': projectRouter,
   '/staff': staffRouter,
