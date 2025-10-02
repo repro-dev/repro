@@ -57,11 +57,11 @@ export function createFeatureGateService(database: Database) {
         attemptQuery(() => {
           return database
             .insertInto('feature_gates')
-             .values({
-               name,
-               description,
-               enabled: 0,
-             })
+            .values({
+              name,
+              description,
+              enabled: 0,
+            })
             .returning(['id', 'name', 'description', 'enabled', 'createdAt'])
             .executeTakeFirstOrThrow()
         }).pipe(
@@ -98,58 +98,60 @@ export function createFeatureGateService(database: Database) {
     )
   }
 
-   function listFeatureGates(order: 'asc' | 'desc' = 'asc'): FutureInstance<
-     Error,
-     Array<{
-       id: string
-       name: string
-       description: string
-       enabled: number
-       createdAt: string
-     }>
-   > {
-     return attemptQuery(() => {
-       return database
-         .selectFrom('feature_gates')
-         .select(['id', 'name', 'description', 'enabled', 'createdAt'])
-         .orderBy(`name ${order}`)
-         .execute()
-     }).pipe(
-       map(rows =>
-         rows.map(row => ({
-           ...withEncodedId(row),
-           createdAt: row.createdAt.toISOString(),
-         }))
-       )
-     )
-   }
+  function listFeatureGates(order: 'asc' | 'desc' = 'asc'): FutureInstance<
+    Error,
+    Array<{
+      id: string
+      name: string
+      description: string
+      enabled: number
+      createdAt: string
+    }>
+  > {
+    return attemptQuery(() => {
+      return database
+        .selectFrom('feature_gates')
+        .select(['id', 'name', 'description', 'enabled', 'createdAt'])
+        .orderBy(`name ${order}`)
+        .execute()
+    }).pipe(
+      map(rows =>
+        rows.map(row => ({
+          ...withEncodedId(row),
+          createdAt: row.createdAt.toISOString(),
+        }))
+      )
+    )
+  }
 
-   function listEnabledFeatureGates(order: 'asc' | 'desc' = 'asc'): FutureInstance<
-     Error,
-     Array<{
-       id: string
-       name: string
-       description: string
-       enabled: number
-       createdAt: string
-     }>
-   > {
-     return attemptQuery(() => {
-       return database
-         .selectFrom('feature_gates')
-         .select(['id', 'name', 'description', 'enabled', 'createdAt'])
-         .where('enabled', '=', 1)
-         .orderBy(`name ${order}`)
-         .execute()
-     }).pipe(
-       map(rows =>
-         rows.map(row => ({
-           ...withEncodedId(row),
-           createdAt: row.createdAt.toISOString(),
-         }))
-       )
-     )
-   }
+  function listEnabledFeatureGates(
+    order: 'asc' | 'desc' = 'asc'
+  ): FutureInstance<
+    Error,
+    Array<{
+      id: string
+      name: string
+      description: string
+      enabled: number
+      createdAt: string
+    }>
+  > {
+    return attemptQuery(() => {
+      return database
+        .selectFrom('feature_gates')
+        .select(['id', 'name', 'description', 'enabled', 'createdAt'])
+        .where('enabled', '=', 1)
+        .orderBy(`name ${order}`)
+        .execute()
+    }).pipe(
+      map(rows =>
+        rows.map(row => ({
+          ...withEncodedId(row),
+          createdAt: row.createdAt.toISOString(),
+        }))
+      )
+    )
+  }
 
   function updateFeatureGate(
     id: string,
@@ -221,14 +223,14 @@ export function createFeatureGateService(database: Database) {
     )
   }
 
-   return {
-     createFeatureGate,
-     getFeatureGateById,
-     listFeatureGates,
-     listEnabledFeatureGates,
-     updateFeatureGate,
-     removeFeatureGate,
-   }
+  return {
+    createFeatureGate,
+    getFeatureGateById,
+    listFeatureGates,
+    listEnabledFeatureGates,
+    updateFeatureGate,
+    removeFeatureGate,
+  }
 }
 
 export type FeatureGateService = ReturnType<typeof createFeatureGateService>

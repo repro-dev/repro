@@ -1,5 +1,7 @@
+import expect from 'expect'
 import { FastifyInstance } from 'fastify'
-import { before, beforeEach, after, describe } from 'node:test'
+import { parallel, promise } from 'fluture'
+import { after, before, beforeEach, describe, it } from 'node:test'
 import { FeatureGateService } from '~/services/featureGate'
 import { Harness, createTestHarness } from '~/testing'
 import { createFeatureGateRouter } from './featureGate'
@@ -26,6 +28,33 @@ describe('Routers > FeatureGate', () => {
     await harness.close()
   })
 
-  // TODO: Add tests for feature gate router endpoints
-  // e.g., GET /feature-gates, POST /feature-gates, etc.
+  it('should return a list of enabled feature gate names', async () => {
+    // Create some feature gates, some enabled, some not
+    await promise(
+      parallel(Infinity)([
+        featureGateService.createFeatureGate('feature1', 'First feature'),
+        featureGateService.createFeatureGate('feature2', 'Second feature'),
+        featureGateService.createFeatureGate('feature3', 'Third feature'),
+      ])
+    )
+
+    // Enable the first two
+    const gates = await promise(featureGateService.listFeatureGates())
+    await promise(
+      parallel(Infinity)([
+        featureGateService.updateFeatureGate(gates[0]!.id, { enabled: 1 }),
+        featureGateService.updateFeatureGate(gates[1]!.id, { enabled: 1 }),
+      ])
+    )
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/enabled',
+    })
+
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(Array.isArray(body)).toBe(true)
+    expect(body).toEqual(['feature1', 'feature2'])
+  })
 })
