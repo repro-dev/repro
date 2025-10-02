@@ -17,12 +17,23 @@ const createFeatureGateSchema = {
 } as const
 
 const createFeatureGateResponseSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  description: z.string(),
-  enabled: z.number(),
-  createdAt: z.string(),
-})
+   id: z.string(),
+   name: z.string(),
+   description: z.string(),
+   enabled: z.number(),
+   createdAt: z.string(),
+ })
+
+ const updateFeatureGateSchema = {
+   body: z.object({
+     name: z.string().optional(),
+     description: z.string().optional(),
+     enabled: z.number().optional(),
+   }),
+   params: z.object({
+     id: z.string(),
+   }),
+ } as const
 
 export function createFeatureGateRouter(
    featureGateService: FeatureGateService,
@@ -68,20 +79,50 @@ export function createFeatureGateRouter(
            },
          },
        },
-       (req, res) => {
-         respondWith(
-           res,
-           go(function* () {
-             const user = yield req.getCurrentUser()
-             yield accountService.ensureStaffUser(user)
-             return yield featureGateService.createFeatureGate(
-               req.body.name,
-               req.body.description
-             )
-           }),
-           201
-         )
-       }
-     )
+        (req, res) => {
+          respondWith(
+            res,
+            go(function* () {
+              const user = yield req.getCurrentUser()
+              yield accountService.ensureStaffUser(user)
+              return yield featureGateService.createFeatureGate(
+                req.body.name,
+                req.body.description
+              )
+            }),
+            201
+          )
+        }
+      )
+
+      app.patch<{
+        Body: z.infer<typeof updateFeatureGateSchema.body>
+        Params: z.infer<typeof updateFeatureGateSchema.params>
+        Reply: z.infer<typeof createFeatureGateResponseSchema>
+      }>(
+        '/:id',
+        {
+          schema: {
+            body: updateFeatureGateSchema.body,
+            params: updateFeatureGateSchema.params,
+            response: {
+              200: createFeatureGateResponseSchema,
+            },
+          },
+        },
+        (req, res) => {
+          respondWith(
+            res,
+            go(function* () {
+              const user = yield req.getCurrentUser()
+              yield accountService.ensureStaffUser(user)
+              return yield featureGateService.updateFeatureGate(
+                req.params.id,
+                req.body
+              )
+            })
+          )
+        }
+      )
    }
  }

@@ -137,6 +137,109 @@ describe('Routers > FeatureGate', () => {
        },
      })
 
-     expect(response.statusCode).toBe(409)
-   })
- })
+      expect(response.statusCode).toBe(409)
+    })
+
+    it('should update a feature gate as a staff user', async () => {
+      const [session] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      // Create a feature gate first
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/',
+        payload: {
+          name: 'update-feature',
+          description: 'A feature to update',
+        },
+        headers: {
+          authorization: `Bearer ${session.sessionToken}`,
+        },
+      })
+
+      expect(createResponse.statusCode).toBe(201)
+      const createdGate = createResponse.json()
+
+      // Update the feature gate
+      const updateResponse = await app.inject({
+        method: 'PATCH',
+        url: `/${createdGate.id}`,
+        payload: {
+          description: 'Updated description',
+          enabled: 1,
+        },
+        headers: {
+          authorization: `Bearer ${session.sessionToken}`,
+        },
+      })
+
+      expect(updateResponse.statusCode).toBe(200)
+      const updatedGate = updateResponse.json()
+      expect(updatedGate).toMatchObject({
+        id: createdGate.id,
+        name: 'update-feature',
+        description: 'Updated description',
+        enabled: 1,
+      })
+    })
+
+    it('should return permission denied when updating a feature gate as a non-staff user', async () => {
+      const [session] = await harness.loadFixtures([
+        fixtures.account.UserA_Session,
+      ])
+
+      // Create a feature gate first as staff
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/',
+        payload: {
+          name: 'update-feature-non-staff',
+          description: 'A feature to update as non-staff',
+        },
+        headers: {
+          authorization: `Bearer ${staffSession.sessionToken}`,
+        },
+      })
+
+      expect(createResponse.statusCode).toBe(201)
+      const createdGate = createResponse.json()
+
+      // Try to update as non-staff user
+      const updateResponse = await app.inject({
+        method: 'PATCH',
+        url: `/${createdGate.id}`,
+        payload: {
+          description: 'Updated by non-staff',
+        },
+        headers: {
+          authorization: `Bearer ${session.sessionToken}`,
+        },
+      })
+
+      expect(updateResponse.statusCode).toBe(403)
+    })
+
+    it('should return not found when updating a non-existent feature gate', async () => {
+      const [session] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      const updateResponse = await app.inject({
+        method: 'PATCH',
+        url: '/non-existent-id',
+        payload: {
+          description: 'Updated description',
+        },
+        headers: {
+          authorization: `Bearer ${session.sessionToken}`,
+        },
+      })
+
+      expect(updateResponse.statusCode).toBe(404)
+    })
+  })
