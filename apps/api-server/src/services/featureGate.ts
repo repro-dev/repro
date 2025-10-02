@@ -49,23 +49,23 @@ import { isNotFound, notFound, resourceConflict } from '~/utils/errors'
  */
 
 export function createFeatureGateService(database: Database) {
-  function getFeatureGateByName(
-    name: string
-  ): FutureInstance<Error, FeatureGate> {
-    return attemptQuery(() => {
-      return database
-        .selectFrom('feature_gates')
-        .select(['id', 'name', 'description', 'active', 'createdAt'])
-        .where('name', '=', name)
-        .executeTakeFirstOrThrow(() => notFound())
-    }).pipe(
-      map(row => ({
-        ...withEncodedId(row),
-        active: !!row.active,
-        createdAt: row.createdAt,
-      }))
-    )
-  }
+   function getFeatureGateByName(
+     name: string
+   ): FutureInstance<Error, FeatureGate> {
+     return attemptQuery(() => {
+       return database
+         .selectFrom('feature_gates')
+         .select(['id', 'name', 'description', 'enabled', 'createdAt'])
+         .where('name', '=', name)
+         .executeTakeFirstOrThrow(() => notFound())
+     }).pipe(
+       map(row => ({
+         ...withEncodedId(row),
+         enabled: !!row.enabled,
+         createdAt: row.createdAt,
+       }))
+     )
+   }
 
   function createFeatureGate(
     name: string,
@@ -76,7 +76,7 @@ export function createFeatureGateService(database: Database) {
       id: string
       name: string
       description: string
-      active: number
+      enabled: number
       createdAt: string
     }
   > {
@@ -92,9 +92,9 @@ export function createFeatureGateService(database: Database) {
             .values({
               name,
               description,
-              active: 1,
+              enabled: 1,
             })
-            .returning(['id', 'name', 'description', 'active', 'createdAt'])
+            .returning(['id', 'name', 'description', 'enabled', 'createdAt'])
             .executeTakeFirstOrThrow()
         }).pipe(
           map(row => ({
@@ -112,14 +112,14 @@ export function createFeatureGateService(database: Database) {
       id: string
       name: string
       description: string
-      active: number
+      enabled: number
       createdAt: string
     }
   > {
     return attemptQuery(() => {
       return database
         .selectFrom('feature_gates')
-        .select(['id', 'name', 'description', 'active', 'createdAt'])
+        .select(['id', 'name', 'description', 'enabled', 'createdAt'])
         .where('id', '=', decodeId(id))
         .executeTakeFirstOrThrow(() => notFound())
     }).pipe(
@@ -136,14 +136,14 @@ export function createFeatureGateService(database: Database) {
       id: string
       name: string
       description: string
-      active: number
+      enabled: number
       createdAt: string
     }>
   > {
     return attemptQuery(() => {
       return database
         .selectFrom('feature_gates')
-        .select(['id', 'name', 'description', 'active', 'createdAt'])
+        .select(['id', 'name', 'description', 'enabled', 'createdAt'])
         .orderBy(`name ${order}`)
         .execute()
     }).pipe(
@@ -161,7 +161,7 @@ export function createFeatureGateService(database: Database) {
     updates: {
       name?: string
       description?: string
-      active?: number
+      enabled?: number
     }
   ): FutureInstance<
     Error,
@@ -169,11 +169,11 @@ export function createFeatureGateService(database: Database) {
       id: string
       name: string
       description: string
-      active: number
+      enabled: number
       createdAt: string
     }
   > {
-    const { name, description, active } = updates
+    const { name, description, enabled } = updates
 
     const conflictError = resourceConflict(
       'Feature gate with this name already exists'
@@ -197,10 +197,10 @@ export function createFeatureGateService(database: Database) {
             .set({
               ...(name && { name }),
               ...(description !== undefined && { description }),
-              ...(active !== undefined && { active }),
+              ...(enabled !== undefined && { enabled }),
             })
             .where('id', '=', decodeId(id))
-            .returning(['id', 'name', 'description', 'active', 'createdAt'])
+            .returning(['id', 'name', 'description', 'enabled', 'createdAt'])
 
           return query.executeTakeFirstOrThrow(() => notFound())
         }).pipe(

@@ -27,13 +27,13 @@ describe('Services > Feature Gate', () => {
       featureGateService.createFeatureGate('Test Feature', 'A test feature')
     )
 
-    expect(featureGate).toMatchObject({
-      id: expect.any(String),
-      name: 'Test Feature',
-      description: 'A test feature',
-      active: 1,
-      createdAt: expect.any(String),
-    })
+     expect(featureGate).toMatchObject({
+       id: expect.any(String),
+       name: 'Test Feature',
+       description: 'A test feature',
+       enabled: 1,
+       createdAt: expect.any(String),
+     })
   })
 
   it('should fail to create a feature gate with a duplicate name', async () => {
@@ -71,13 +71,13 @@ describe('Services > Feature Gate', () => {
       featureGateService.createFeatureGate('Empty Desc Feature', '')
     )
 
-    expect(featureGate).toMatchObject({
-      id: expect.any(String),
-      name: 'Empty Desc Feature',
-      description: '',
-      active: 1,
-      createdAt: expect.any(String),
-    })
+     expect(featureGate).toMatchObject({
+       id: expect.any(String),
+       name: 'Empty Desc Feature',
+       description: '',
+       enabled: 1,
+       createdAt: expect.any(String),
+     })
   })
 
   it('should get a feature gate by ID', async () => {
@@ -89,13 +89,13 @@ describe('Services > Feature Gate', () => {
       featureGateService.getFeatureGateById(created.id)
     )
 
-    expect(retrieved).toMatchObject({
-      id: created.id,
-      name: 'Test Feature',
-      description: 'A test feature',
-      active: 1,
-      createdAt: created.createdAt,
-    })
+     expect(retrieved).toMatchObject({
+       id: created.id,
+       name: 'Test Feature',
+       description: 'A test feature',
+       enabled: 1,
+       createdAt: created.createdAt,
+     })
   })
 
   it('should throw not-found when getting a feature gate by an invalid ID', async () => {
@@ -149,17 +149,17 @@ describe('Services > Feature Gate', () => {
        featureGateService.updateFeatureGate(created.id, {
          name: 'Updated Feature',
          description: 'Updated description',
-         active: 0,
+         enabled: 0,
        })
      )
 
-     expect(updated).toMatchObject({
-       id: created.id,
-       name: 'Updated Feature',
-       description: 'Updated description',
-       active: 0,
-       createdAt: created.createdAt,
-     })
+      expect(updated).toMatchObject({
+        id: created.id,
+        name: 'Updated Feature',
+        description: 'Updated description',
+        enabled: 0,
+        createdAt: created.createdAt,
+      })
    })
 
    it('should update only provided fields', async () => {
@@ -177,7 +177,7 @@ describe('Services > Feature Gate', () => {
        id: created.id,
        name: 'Test Feature',
        description: 'New description',
-       active: 1,
+        enabled: 1,
        createdAt: created.createdAt,
      })
    })

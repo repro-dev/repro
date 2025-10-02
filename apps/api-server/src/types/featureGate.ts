@@ -2,6 +2,6 @@ export interface FeatureGate {
   id: string
   name: string
   description: string
-  active: boolean
+  enabled: boolean
   createdAt: Date
 }

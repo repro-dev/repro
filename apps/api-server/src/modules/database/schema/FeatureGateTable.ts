@@ -4,6 +4,6 @@ export interface FeatureGateTable {
   id: GeneratedAlways<number>
   name: string
   description: string
-  active: number
+  enabled: number
   createdAt: GeneratedAlways<Date>
 }
