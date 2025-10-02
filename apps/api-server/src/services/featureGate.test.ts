@@ -227,18 +227,66 @@ describe('Services > Feature Gate', () => {
      ).rejects.toThrow(notFound())
    })
 
-   it('should allow removing multiple feature gates', async () => {
-     const gate1 = await promise(
-       featureGateService.createFeatureGate('Feature 1', 'First feature')
-     )
-     const gate2 = await promise(
-       featureGateService.createFeatureGate('Feature 2', 'Second feature')
-     )
+    it('should allow removing multiple feature gates', async () => {
+      const gate1 = await promise(
+        featureGateService.createFeatureGate('Feature 1', 'First feature')
+      )
+      const gate2 = await promise(
+        featureGateService.createFeatureGate('Feature 2', 'Second feature')
+      )
 
-     await promise(featureGateService.removeFeatureGate(gate1.id))
-     await promise(featureGateService.removeFeatureGate(gate2.id))
+      await promise(featureGateService.removeFeatureGate(gate1.id))
+      await promise(featureGateService.removeFeatureGate(gate2.id))
 
-     const list = await promise(featureGateService.listFeatureGates())
-     expect(list).toEqual([])
-   })
- })
+      const list = await promise(featureGateService.listFeatureGates())
+      expect(list).toEqual([])
+    })
+
+    it('should list only enabled feature gates in ascending order', async () => {
+      const enabledGate = await promise(
+        featureGateService.createFeatureGate('Enabled Feature', 'Enabled')
+      )
+
+      await promise(
+        featureGateService.updateFeatureGate(enabledGate.id, { enabled: 1 })
+      )
+
+      const list = await promise(featureGateService.listEnabledFeatureGates('asc'))
+
+      expect(list).toHaveLength(1)
+      expect(list[0]?.name).toBe('Enabled Feature')
+      expect(list[0]?.enabled).toBe(1)
+    })
+
+    it('should list only enabled feature gates in descending order', async () => {
+      const enabledGate1 = await promise(
+        featureGateService.createFeatureGate('A Enabled', 'First enabled')
+      )
+      const enabledGate2 = await promise(
+        featureGateService.createFeatureGate('Z Enabled', 'Last enabled')
+      )
+
+      await promise(
+        featureGateService.updateFeatureGate(enabledGate1.id, { enabled: 1 })
+      )
+      await promise(
+        featureGateService.updateFeatureGate(enabledGate2.id, { enabled: 1 })
+      )
+
+      const list = await promise(featureGateService.listEnabledFeatureGates('desc'))
+
+      expect(list).toHaveLength(2)
+      expect(list[0]?.name).toBe('Z Enabled')
+      expect(list[1]?.name).toBe('A Enabled')
+    })
+
+    it('should return empty list when no enabled feature gates exist', async () => {
+      await promise(
+        featureGateService.createFeatureGate('Disabled Feature', 'Disabled')
+      )
+
+      const list = await promise(featureGateService.listEnabledFeatureGates())
+
+      expect(list).toEqual([])
+    })
+  })
