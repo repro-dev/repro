@@ -16,56 +16,24 @@ import {
 import { FeatureGate } from '~/types/featureGate'
 import { isNotFound, notFound, resourceConflict } from '~/utils/errors'
 
-/**
- * TODO: Feature Gate Service Implementation Status
- * 
- * Core Operations (DONE):
- * - [x] createFeatureGate - Create a new feature gate
- * - [x] getFeatureGateById - Get feature gate by ID
- * - [x] listFeatureGates - List all feature gates
- * - [x] updateFeatureGate - Update feature gate properties
- * - [x] removeFeatureGate - Delete a feature gate
- * 
- * Priority 1 - Query Operations (PENDING):
- * - [ ] getEffectiveGateStatus - Check if gate is enabled (user -> account -> global hierarchy)
- * - [ ] isGateEnabledForUser - Check if specific user has gate enabled
- * - [ ] isGateEnabledForAccount - Check if specific account has gate enabled
- * 
- * Priority 2 - Account Operations (PENDING):
- * - [ ] enableGateForAccount - Enable gate for specific account
- * - [ ] disableGateForAccount - Disable gate for specific account
- * - [ ] listGatesForAccount - List all gates enabled for account
- * - [ ] removeAccountGateOverride - Remove account-specific override
- * 
- * Priority 3 - User Operations (PENDING):
- * - [ ] enableGateForUser - Enable gate for specific user
- * - [ ] disableGateForUser - Disable gate for specific user
- * - [ ] listGatesForUser - List all gates enabled for user
- * - [ ] removeUserGateOverride - Remove user-specific override
- * 
- * Priority 4 - Admin/Reporting Operations (PENDING):
- * - [ ] listAccountsWithGate - List all accounts with specific gate enabled
- * - [ ] listUsersWithGate - List all users with specific gate enabled
- */
-
 export function createFeatureGateService(database: Database) {
-   function getFeatureGateByName(
-     name: string
-   ): FutureInstance<Error, FeatureGate> {
-     return attemptQuery(() => {
-       return database
-         .selectFrom('feature_gates')
-         .select(['id', 'name', 'description', 'enabled', 'createdAt'])
-         .where('name', '=', name)
-         .executeTakeFirstOrThrow(() => notFound())
-     }).pipe(
-       map(row => ({
-         ...withEncodedId(row),
-         enabled: !!row.enabled,
-         createdAt: row.createdAt,
-       }))
-     )
-   }
+  function getFeatureGateByName(
+    name: string
+  ): FutureInstance<Error, FeatureGate> {
+    return attemptQuery(() => {
+      return database
+        .selectFrom('feature_gates')
+        .select(['id', 'name', 'description', 'enabled', 'createdAt'])
+        .where('name', '=', name)
+        .executeTakeFirstOrThrow(() => notFound())
+    }).pipe(
+      map(row => ({
+        ...withEncodedId(row),
+        enabled: !!row.enabled,
+        createdAt: row.createdAt,
+      }))
+    )
+  }
 
   function createFeatureGate(
     name: string,
@@ -89,11 +57,11 @@ export function createFeatureGateService(database: Database) {
         attemptQuery(() => {
           return database
             .insertInto('feature_gates')
-            .values({
-              name,
-              description,
-              enabled: 1,
-            })
+             .values({
+               name,
+               description,
+               enabled: 0,
+             })
             .returning(['id', 'name', 'description', 'enabled', 'createdAt'])
             .executeTakeFirstOrThrow()
         }).pipe(

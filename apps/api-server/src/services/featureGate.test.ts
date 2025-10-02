@@ -27,13 +27,13 @@ describe('Services > Feature Gate', () => {
       featureGateService.createFeatureGate('Test Feature', 'A test feature')
     )
 
-     expect(featureGate).toMatchObject({
-       id: expect.any(String),
-       name: 'Test Feature',
-       description: 'A test feature',
-       enabled: 1,
-       createdAt: expect.any(String),
-     })
+      expect(featureGate).toMatchObject({
+        id: expect.any(String),
+        name: 'Test Feature',
+        description: 'A test feature',
+        enabled: 0,
+        createdAt: expect.any(String),
+      })
   })
 
   it('should fail to create a feature gate with a duplicate name', async () => {
@@ -66,18 +66,18 @@ describe('Services > Feature Gate', () => {
     ).resolves.toBeDefined()
   })
 
-  it('should create a feature gate with empty description and default active to 1', async () => {
+   it('should create a feature gate with empty description and default active to 0', async () => {
     const featureGate = await promise(
       featureGateService.createFeatureGate('Empty Desc Feature', '')
     )
 
-     expect(featureGate).toMatchObject({
-       id: expect.any(String),
-       name: 'Empty Desc Feature',
-       description: '',
-       enabled: 1,
-       createdAt: expect.any(String),
-     })
+      expect(featureGate).toMatchObject({
+        id: expect.any(String),
+        name: 'Empty Desc Feature',
+        description: '',
+        enabled: 0,
+        createdAt: expect.any(String),
+      })
   })
 
   it('should get a feature gate by ID', async () => {
@@ -89,13 +89,13 @@ describe('Services > Feature Gate', () => {
       featureGateService.getFeatureGateById(created.id)
     )
 
-     expect(retrieved).toMatchObject({
-       id: created.id,
-       name: 'Test Feature',
-       description: 'A test feature',
-       enabled: 1,
-       createdAt: created.createdAt,
-     })
+      expect(retrieved).toMatchObject({
+        id: created.id,
+        name: 'Test Feature',
+        description: 'A test feature',
+        enabled: 0,
+        createdAt: created.createdAt,
+      })
   })
 
   it('should throw not-found when getting a feature gate by an invalid ID', async () => {
@@ -173,13 +173,13 @@ describe('Services > Feature Gate', () => {
        })
      )
 
-     expect(updated).toMatchObject({
-       id: created.id,
-       name: 'Test Feature',
-       description: 'New description',
-        enabled: 1,
-       createdAt: created.createdAt,
-     })
+      expect(updated).toMatchObject({
+        id: created.id,
+        name: 'Test Feature',
+        description: 'New description',
+         enabled: 0,
+        createdAt: created.createdAt,
+      })
    })
 
    it('should fail to update a feature gate with a duplicate name', async () => {
