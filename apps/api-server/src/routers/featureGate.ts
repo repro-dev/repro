@@ -9,6 +9,16 @@
 
 const listEnabledFeatureGatesResponseSchema = z.array(z.string())
 
+const listFeatureGatesResponseSchema = z.array(
+  z.object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string(),
+    enabled: z.number(),
+    createdAt: z.string(),
+  })
+)
+
 const createFeatureGateSchema = {
   body: z.object({
     name: z.string(),
@@ -64,9 +74,28 @@ export function createFeatureGateRouter(
              .pipe(map(gates => gates.map(gate => gate.name)))
          )
        }
-     )
+      )
 
-     app.post<{
+      app.get<{
+        Reply: z.infer<typeof listFeatureGatesResponseSchema>
+      }>(
+        '/',
+        {
+          schema: {
+            response: {
+              200: listFeatureGatesResponseSchema,
+            },
+          },
+        },
+        (_, res) => {
+          respondWith(
+            res,
+            featureGateService.listFeatureGates()
+          )
+        }
+      )
+
+      app.post<{
        Body: z.infer<typeof createFeatureGateSchema.body>
        Reply: z.infer<typeof createFeatureGateResponseSchema>
      }>(
