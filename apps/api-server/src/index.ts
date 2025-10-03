@@ -62,7 +62,10 @@ const projectService = createProjectService(database)
 const recordingService = createRecordingService(database, storage)
 
 const accountRouter = createAccountRouter(accountService)
- const featureGateRouter = createFeatureGateRouter(featureGateService, accountService)
+const featureGateRouter = createFeatureGateRouter(
+  featureGateService,
+  accountService
+)
 const healthRouter = createHealthRouter(healthService)
 const projectRouter = createProjectRouter(
   projectService,
