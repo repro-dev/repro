@@ -271,4 +271,82 @@ describe('Routers > FeatureGate', () => {
 
     expect(updateResponse.statusCode).toBe(404)
   })
+
+  it('should remove a feature gate as a staff user', async () => {
+    const [session] = await harness.loadFixtures([
+      fixtures.account.StaffUserA_Session,
+    ])
+
+    // Create a feature gate first using the service
+    const createdGate = await promise(
+      featureGateService.createFeatureGate(
+        'delete-feature',
+        'A feature to delete'
+      )
+    )
+
+    // Remove the feature gate
+    const deleteResponse = await app.inject({
+      method: 'DELETE',
+      url: `/${createdGate.id}`,
+      headers: {
+        authorization: `Bearer ${session.sessionToken}`,
+      },
+    })
+
+    expect(deleteResponse.statusCode).toBe(204)
+
+    // Verify it's gone
+    const listResponse = await app.inject({
+      method: 'GET',
+      url: '/',
+    })
+
+    expect(listResponse.statusCode).toBe(200)
+    const gates = listResponse.json()
+    expect(
+      gates.find((g: FeatureGate) => g.id === createdGate.id)
+    ).toBeUndefined()
+  })
+
+  it('should return permission denied when removing a feature gate as a non-staff user', async () => {
+    const [session] = await harness.loadFixtures([
+      fixtures.account.UserA_Session,
+    ])
+
+    // Create a feature gate first using the service
+    const createdGate = await promise(
+      featureGateService.createFeatureGate(
+        'delete-feature-non-staff',
+        'A feature to delete as non-staff'
+      )
+    )
+
+    // Try to delete as non-staff user
+    const deleteResponse = await app.inject({
+      method: 'DELETE',
+      url: `/${createdGate.id}`,
+      headers: {
+        authorization: `Bearer ${session.sessionToken}`,
+      },
+    })
+
+    expect(deleteResponse.statusCode).toBe(403)
+  })
+
+  it('should return not found when removing a non-existent feature gate', async () => {
+    const [session] = await harness.loadFixtures([
+      fixtures.account.StaffUserA_Session,
+    ])
+
+    const deleteResponse = await app.inject({
+      method: 'DELETE',
+      url: '/non-existent-id',
+      headers: {
+        authorization: `Bearer ${session.sessionToken}`,
+      },
+    })
+
+    expect(deleteResponse.statusCode).toBe(404)
+  })
 })

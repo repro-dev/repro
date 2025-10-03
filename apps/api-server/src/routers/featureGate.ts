@@ -45,6 +45,12 @@ const updateFeatureGateSchema = {
   }),
 } as const
 
+const deleteFeatureGateSchema = {
+  params: z.object({
+    id: z.string(),
+  }),
+} as const
+
 export function createFeatureGateRouter(
   featureGateService: FeatureGateService,
   accountService: AccountService,
@@ -147,6 +153,31 @@ export function createFeatureGateRouter(
               req.body
             )
           })
+        )
+      }
+    )
+
+    app.delete<{
+      Params: z.infer<typeof deleteFeatureGateSchema.params>
+    }>(
+      '/:id',
+      {
+        schema: {
+          params: deleteFeatureGateSchema.params,
+          response: {
+            204: z.undefined(),
+          },
+        },
+      },
+      (req, res) => {
+        respondWith(
+          res,
+          go(function* () {
+            const user = yield req.getCurrentUser()
+            yield accountService.ensureStaffUser(user)
+            yield featureGateService.removeFeatureGate(req.params.id)
+          }),
+          204
         )
       }
     )
