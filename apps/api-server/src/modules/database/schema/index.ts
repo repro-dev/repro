@@ -1,4 +1,5 @@
 import { AccountTable } from './AccountTable'
+import { FeatureGateTable } from './FeatureGateTable'
 import { InvitationTable } from './InvitationTable'
 import { MembershipTable } from './MembershipTable'
 import { ProjectRecordingTable } from './ProjectRecordingTable'
@@ -11,6 +12,7 @@ import { UserTable, asUser } from './UserTable'
 
 export interface Schema {
   accounts: AccountTable
+  feature_gates: FeatureGateTable
   invitations: InvitationTable
   memberships: MembershipTable
   recordings: RecordingTable
