@@ -45,8 +45,8 @@ describe('Routers > FeatureGate', () => {
     const gates = await promise(featureGateService.listFeatureGates())
     await promise(
       parallel(Infinity)([
-        featureGateService.updateFeatureGate(gates[0]!.id, { enabled: 1 }),
-        featureGateService.updateFeatureGate(gates[1]!.id, { enabled: 1 }),
+        featureGateService.updateFeatureGate(gates[0]!.id, { enabled: true }),
+        featureGateService.updateFeatureGate(gates[1]!.id, { enabled: true }),
       ])
     )
 
@@ -109,7 +109,7 @@ describe('Routers > FeatureGate', () => {
     expect(body).toMatchObject({
       name: 'test-feature',
       description: 'A test feature gate',
-      enabled: 0,
+      enabled: false,
     })
     expect(typeof body.id).toBe('string')
     expect(typeof body.createdAt).toBe('string')
@@ -196,7 +196,7 @@ describe('Routers > FeatureGate', () => {
       url: `/${createdGate.id}`,
       payload: {
         description: 'Updated description',
-        enabled: 1,
+        enabled: true,
       },
       headers: {
         authorization: `Bearer ${session.sessionToken}`,
@@ -209,7 +209,7 @@ describe('Routers > FeatureGate', () => {
       id: createdGate.id,
       name: 'update-feature',
       description: 'Updated description',
-      enabled: 1,
+      enabled: true,
     })
   })
 

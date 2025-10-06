@@ -7,12 +7,8 @@ import {
   resolve,
   swap,
 } from 'fluture'
-import {
-  Database,
-  attemptQuery,
-  decodeId,
-  withEncodedId,
-} from '~/modules/database'
+import { Database, attemptQuery, decodeId } from '~/modules/database'
+import { asFeatureGate } from '~/modules/database/schema/FeatureGateTable'
 import { FeatureGate } from '~/types/featureGate'
 import { isNotFound, notFound, resourceConflict } from '~/utils/errors'
 
@@ -26,28 +22,13 @@ export function createFeatureGateService(database: Database) {
         .select(['id', 'name', 'description', 'enabled', 'createdAt'])
         .where('name', '=', name)
         .executeTakeFirstOrThrow(() => notFound())
-    }).pipe(
-      map(row => ({
-        ...withEncodedId(row),
-        enabled: !!row.enabled,
-        createdAt: row.createdAt,
-      }))
-    )
+    }).pipe(map(asFeatureGate))
   }
 
   function createFeatureGate(
     name: string,
     description: string
-  ): FutureInstance<
-    Error,
-    {
-      id: string
-      name: string
-      description: string
-      enabled: number
-      createdAt: string
-    }
-  > {
+  ): FutureInstance<Error, FeatureGate> {
     const existingFeatureGate = getFeatureGateByName(name)
       .pipe(map(() => resourceConflict('Feature gate already exists')))
       .pipe(swap)
@@ -64,78 +45,36 @@ export function createFeatureGateService(database: Database) {
             })
             .returning(['id', 'name', 'description', 'enabled', 'createdAt'])
             .executeTakeFirstOrThrow()
-        }).pipe(
-          map(row => ({
-            ...withEncodedId(row),
-            createdAt: row.createdAt.toISOString(),
-          }))
-        )
+        }).pipe(map(asFeatureGate))
       )
     )
   }
 
-  function getFeatureGateById(id: string): FutureInstance<
-    Error,
-    {
-      id: string
-      name: string
-      description: string
-      enabled: number
-      createdAt: string
-    }
-  > {
+  function getFeatureGateById(id: string): FutureInstance<Error, FeatureGate> {
     return attemptQuery(() => {
       return database
         .selectFrom('feature_gates')
         .select(['id', 'name', 'description', 'enabled', 'createdAt'])
         .where('id', '=', decodeId(id))
         .executeTakeFirstOrThrow(() => notFound())
-    }).pipe(
-      map(row => ({
-        ...withEncodedId(row),
-        createdAt: row.createdAt.toISOString(),
-      }))
-    )
+    }).pipe(map(asFeatureGate))
   }
 
-  function listFeatureGates(order: 'asc' | 'desc' = 'asc'): FutureInstance<
-    Error,
-    Array<{
-      id: string
-      name: string
-      description: string
-      enabled: number
-      createdAt: string
-    }>
-  > {
+  function listFeatureGates(
+    order: 'asc' | 'desc' = 'asc'
+  ): FutureInstance<Error, Array<FeatureGate>> {
     return attemptQuery(() => {
       return database
         .selectFrom('feature_gates')
         .select(['id', 'name', 'description', 'enabled', 'createdAt'])
         .orderBy(`name ${order}`)
         .execute()
-    }).pipe(
-      map(rows =>
-        rows.map(row => ({
-          ...withEncodedId(row),
-          createdAt: row.createdAt.toISOString(),
-        }))
-      )
-    )
+    }).pipe(map(rows => rows.map(asFeatureGate)))
   }
 
   function listEnabledFeatureGates(
     order: 'asc' | 'desc' = 'asc'
-  ): FutureInstance<
-    Error,
-    Array<{
-      id: string
-      name: string
-      description: string
-      enabled: number
-      createdAt: string
-    }>
-  > {
+  ): FutureInstance<Error, Array<FeatureGate>> {
     return attemptQuery(() => {
       return database
         .selectFrom('feature_gates')
@@ -143,14 +82,7 @@ export function createFeatureGateService(database: Database) {
         .where('enabled', '=', 1)
         .orderBy(`name ${order}`)
         .execute()
-    }).pipe(
-      map(rows =>
-        rows.map(row => ({
-          ...withEncodedId(row),
-          createdAt: row.createdAt.toISOString(),
-        }))
-      )
-    )
+    }).pipe(map(rows => rows.map(asFeatureGate)))
   }
 
   function updateFeatureGate(
@@ -158,18 +90,9 @@ export function createFeatureGateService(database: Database) {
     updates: {
       name?: string
       description?: string
-      enabled?: number
+      enabled?: boolean
     }
-  ): FutureInstance<
-    Error,
-    {
-      id: string
-      name: string
-      description: string
-      enabled: number
-      createdAt: string
-    }
-  > {
+  ): FutureInstance<Error, FeatureGate> {
     const { name, description, enabled } = updates
 
     const conflictError = resourceConflict(
@@ -194,18 +117,13 @@ export function createFeatureGateService(database: Database) {
             .set({
               ...(name && { name }),
               ...(description !== undefined && { description }),
-              ...(enabled !== undefined && { enabled }),
+              ...(enabled !== undefined && { enabled: enabled ? 1 : 0 }),
             })
             .where('id', '=', decodeId(id))
             .returning(['id', 'name', 'description', 'enabled', 'createdAt'])
 
           return query.executeTakeFirstOrThrow(() => notFound())
-        }).pipe(
-          map(row => ({
-            ...withEncodedId(row),
-            createdAt: row.createdAt.toISOString(),
-          }))
-        )
+        }).pipe(map(asFeatureGate))
       )
     )
   }

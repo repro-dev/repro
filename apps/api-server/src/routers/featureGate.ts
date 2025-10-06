@@ -7,18 +7,6 @@ import { AccountService } from '~/services/account'
 import { FeatureGateService } from '~/services/featureGate'
 import { createResponseUtils } from '~/utils/response'
 
-const listEnabledFeatureGatesResponseSchema = z.array(z.string())
-
-const listFeatureGatesResponseSchema = z.array(
-  z.object({
-    id: z.string(),
-    name: z.string(),
-    description: z.string(),
-    enabled: z.number(),
-    createdAt: z.string(),
-  })
-)
-
 const createFeatureGateSchema = {
   body: z.object({
     name: z.string(),
@@ -26,19 +14,11 @@ const createFeatureGateSchema = {
   }),
 } as const
 
-const createFeatureGateResponseSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  description: z.string(),
-  enabled: z.number(),
-  createdAt: z.string(),
-})
-
 const updateFeatureGateSchema = {
   body: z.object({
     name: z.string().optional(),
     description: z.string().optional(),
-    enabled: z.number().optional(),
+    enabled: z.boolean().optional(),
   }),
   params: z.object({
     id: z.string(),
@@ -61,54 +41,26 @@ export function createFeatureGateRouter(
   return async function (fastify) {
     const app = fastify.withTypeProvider<ZodTypeProvider>()
 
-    app.get<{
-      Reply: z.infer<typeof listEnabledFeatureGatesResponseSchema>
-    }>(
-      '/enabled',
-      {
-        schema: {
-          response: {
-            200: listEnabledFeatureGatesResponseSchema,
-          },
-        },
-      },
-      (_, res) => {
-        respondWith(
-          res,
-          featureGateService
-            .listEnabledFeatureGates()
-            .pipe(map(gates => gates.map(gate => gate.name)))
-        )
-      }
-    )
+    app.get('/enabled', (_, res) => {
+      respondWith(
+        res,
+        featureGateService
+          .listEnabledFeatureGates()
+          .pipe(map(gates => gates.map(gate => gate.name)))
+      )
+    })
 
-    app.get<{
-      Reply: z.infer<typeof listFeatureGatesResponseSchema>
-    }>(
-      '/',
-      {
-        schema: {
-          response: {
-            200: listFeatureGatesResponseSchema,
-          },
-        },
-      },
-      (_, res) => {
-        respondWith(res, featureGateService.listFeatureGates())
-      }
-    )
+    app.get('/', (_, res) => {
+      respondWith(res, featureGateService.listFeatureGates())
+    })
 
     app.post<{
       Body: z.infer<typeof createFeatureGateSchema.body>
-      Reply: z.infer<typeof createFeatureGateResponseSchema>
     }>(
       '/',
       {
         schema: {
           body: createFeatureGateSchema.body,
-          response: {
-            201: createFeatureGateResponseSchema,
-          },
         },
       },
       (req, res) => {
@@ -130,16 +82,12 @@ export function createFeatureGateRouter(
     app.patch<{
       Body: z.infer<typeof updateFeatureGateSchema.body>
       Params: z.infer<typeof updateFeatureGateSchema.params>
-      Reply: z.infer<typeof createFeatureGateResponseSchema>
     }>(
       '/:id',
       {
         schema: {
           body: updateFeatureGateSchema.body,
           params: updateFeatureGateSchema.params,
-          response: {
-            200: createFeatureGateResponseSchema,
-          },
         },
       },
       (req, res) => {
@@ -164,9 +112,6 @@ export function createFeatureGateRouter(
       {
         schema: {
           params: deleteFeatureGateSchema.params,
-          response: {
-            204: z.undefined(),
-          },
         },
       },
       (req, res) => {

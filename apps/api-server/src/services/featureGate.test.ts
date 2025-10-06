@@ -31,8 +31,8 @@ describe('Services > Feature Gate', () => {
       id: expect.any(String),
       name: 'Test Feature',
       description: 'A test feature',
-      enabled: 0,
-      createdAt: expect.any(String),
+      enabled: false,
+      createdAt: expect.any(Date),
     })
   })
 
@@ -75,8 +75,8 @@ describe('Services > Feature Gate', () => {
       id: expect.any(String),
       name: 'Empty Desc Feature',
       description: '',
-      enabled: 0,
-      createdAt: expect.any(String),
+      enabled: false,
+      createdAt: expect.any(Date),
     })
   })
 
@@ -93,8 +93,8 @@ describe('Services > Feature Gate', () => {
       id: created.id,
       name: 'Test Feature',
       description: 'A test feature',
-      enabled: 0,
-      createdAt: created.createdAt,
+      enabled: false,
+      createdAt: expect.any(Date),
     })
   })
 
@@ -149,7 +149,7 @@ describe('Services > Feature Gate', () => {
       featureGateService.updateFeatureGate(created.id, {
         name: 'Updated Feature',
         description: 'Updated description',
-        enabled: 0,
+        enabled: false,
       })
     )
 
@@ -157,8 +157,8 @@ describe('Services > Feature Gate', () => {
       id: created.id,
       name: 'Updated Feature',
       description: 'Updated description',
-      enabled: 0,
-      createdAt: created.createdAt,
+      enabled: false,
+      createdAt: expect.any(Date),
     })
   })
 
@@ -177,7 +177,7 @@ describe('Services > Feature Gate', () => {
       id: created.id,
       name: 'Test Feature',
       description: 'New description',
-      enabled: 0,
+      enabled: false,
       createdAt: created.createdAt,
     })
   })
@@ -248,7 +248,7 @@ describe('Services > Feature Gate', () => {
     )
 
     await promise(
-      featureGateService.updateFeatureGate(enabledGate.id, { enabled: 1 })
+      featureGateService.updateFeatureGate(enabledGate.id, { enabled: true })
     )
 
     const list = await promise(
@@ -257,7 +257,7 @@ describe('Services > Feature Gate', () => {
 
     expect(list).toHaveLength(1)
     expect(list[0]?.name).toBe('Enabled Feature')
-    expect(list[0]?.enabled).toBe(1)
+    expect(list[0]?.enabled).toBe(true)
   })
 
   it('should list only enabled feature gates in descending order', async () => {
@@ -269,10 +269,10 @@ describe('Services > Feature Gate', () => {
     )
 
     await promise(
-      featureGateService.updateFeatureGate(enabledGate1.id, { enabled: 1 })
+      featureGateService.updateFeatureGate(enabledGate1.id, { enabled: true })
     )
     await promise(
-      featureGateService.updateFeatureGate(enabledGate2.id, { enabled: 1 })
+      featureGateService.updateFeatureGate(enabledGate2.id, { enabled: true })
     )
 
     const list = await promise(
