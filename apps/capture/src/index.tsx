@@ -1,5 +1,6 @@
 import { cache as styleCache } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
+import { GateProvider } from '@repro/auth'
 import { PortalRootProvider } from '@repro/design'
 import { Stats, Trace } from '@repro/diagnostics'
 import {
@@ -105,15 +106,17 @@ class ReproCapture extends HTMLElement {
     }
 
     this.renderRoot.render(
-      <RecordingStreamProvider stream={stream}>
-        <StateProvider state={this.state}>
-          <MessagingProvider agent={agent}>
-            <PortalRootProvider>
-              <Controller />
-            </PortalRootProvider>
-          </MessagingProvider>
-        </StateProvider>
-      </RecordingStreamProvider>
+      <GateProvider>
+        <RecordingStreamProvider stream={stream}>
+          <StateProvider state={this.state}>
+            <MessagingProvider agent={agent}>
+              <PortalRootProvider>
+                <Controller />
+              </PortalRootProvider>
+            </MessagingProvider>
+          </StateProvider>
+        </RecordingStreamProvider>
+      </GateProvider>
     )
   }
 

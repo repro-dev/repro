@@ -1,17 +1,30 @@
+import { useApiClient } from '@repro/api-client'
+import { useFuture } from '@repro/future-utils'
 import React, { createContext, PropsWithChildren } from 'react'
 
 export const GateContext = createContext(new Set<string>())
 
 interface GateProviderProps {
-  gates: Array<string>
+  fallbackGates?: Array<string>
 }
 
 export const GateProvider: React.FC<PropsWithChildren<GateProviderProps>> = ({
   children,
-  gates = [],
+  fallbackGates = [],
 }) => {
-  // TODO: Load open gates from user session via API
-  // Depends on: https://github.com/thetoolshop/repro/pull/175
+  const apiClient = useApiClient()
+
+  const { success, loading, data } = useFuture<Error, Array<string>>(
+    () => apiClient.fetch('/feature-gates/enabled'),
+    [apiClient]
+  )
+
+  let gates: Array<string> = []
+
+  if (!loading) {
+    gates = success ? data : fallbackGates
+  }
+
   return (
     <GateContext.Provider value={new Set(gates)}>
       {children}
