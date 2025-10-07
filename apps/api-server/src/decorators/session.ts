@@ -175,7 +175,7 @@ export function createSessionDecorator(
       res.setCookie(env.SESSION_COOKIE, req.session.sessionToken, {
         httpOnly: true,
         path: '/',
-        sameSite: 'none',
+        sameSite: 'strict',
         secure: 'auto',
         expires,
       })
