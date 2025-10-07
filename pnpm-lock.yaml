@@ -388,6 +388,9 @@ importers:
       '@repro/atom':
         specifier: workspace:*
         version: link:../../packages/atom
+      '@repro/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@repro/buffer-utils':
         specifier: workspace:*
         version: link:../../packages/buffer-utils

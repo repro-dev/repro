@@ -1,7 +1,7 @@
 import { Analytics } from '@repro/analytics'
 import { mixpanelBrowser } from '@repro/analytics-provider-mixpanel'
 import { ApiProvider } from '@repro/api-client'
-import { AuthProvider, SessionRouteBoundary } from '@repro/auth'
+import { AuthProvider, GateProvider, SessionRouteBoundary } from '@repro/auth'
 import { PortalRootProvider } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import { DEFAULT_AGENT } from '@repro/messaging'
@@ -52,39 +52,44 @@ if (rootElem) {
   root.render(
     <BrowserRouter basename={basename}>
       <ApiProvider>
-        <AuthProvider>
-          <PortalRootProvider>
-            <Routes>
-              <Route path="/" element={<MainRoute />}>
-                <Route element={<AuthLayout />}>
-                  <Route path="account/login" element={<LoginRoute />} />
-                  <Route path="account/register" element={<RegisterRoute />} />
-                  <Route path="account/verify" element={<div />} />
-
-                  {/* <Route */}
-                  {/*   path="account/accept-invitation" */}
-                  {/*   element={<AcceptInvitationRoute />} */}
-                  {/* /> */}
-                </Route>
-
-                <Route element={<Layout />}>
-                  <Route element={<SessionRouteBoundary />}>
-                    <Route index element={<HomeRoute />} />
+        <GateProvider>
+          <AuthProvider>
+            <PortalRootProvider>
+              <Routes>
+                <Route path="/" element={<MainRoute />}>
+                  <Route element={<AuthLayout />}>
+                    <Route path="account/login" element={<LoginRoute />} />
                     <Route
-                      path="recordings/:recordingId"
-                      element={<RecordingRoute />}
+                      path="account/register"
+                      element={<RegisterRoute />}
                     />
+                    <Route path="account/verify" element={<div />} />
+
+                    {/* <Route */}
+                    {/*   path="account/accept-invitation" */}
+                    {/*   element={<AcceptInvitationRoute />} */}
+                    {/* /> */}
                   </Route>
 
-                  <Route
-                    path="share/:recordingId"
-                    element={<PublicRecordingRoute />}
-                  />
+                  <Route element={<Layout />}>
+                    <Route element={<SessionRouteBoundary />}>
+                      <Route index element={<HomeRoute />} />
+                      <Route
+                        path="recordings/:recordingId"
+                        element={<RecordingRoute />}
+                      />
+                    </Route>
+
+                    <Route
+                      path="share/:recordingId"
+                      element={<PublicRecordingRoute />}
+                    />
+                  </Route>
                 </Route>
-              </Route>
-            </Routes>
-          </PortalRootProvider>
-        </AuthProvider>
+              </Routes>
+            </PortalRootProvider>
+          </AuthProvider>
+        </GateProvider>
       </ApiProvider>
     </BrowserRouter>
   )

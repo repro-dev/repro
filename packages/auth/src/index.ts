@@ -1,4 +1,5 @@
 export { AuthProvider } from './AuthProvider'
+export { GateProvider } from './GateProvider'
 export * from './hooks'
 export { IfGate } from './IfGate'
 export { IfSession } from './IfSession'
