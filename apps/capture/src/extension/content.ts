@@ -14,7 +14,7 @@ function addBridge() {
       resolve(null)
     } else {
       bridgeIframeElement = document.createElement('iframe')
-      bridgeIframeElement.src = chrome.runtime.getURL('bridge.html')
+      bridgeIframeElement.src = chrome.runtime.getURL('bridgeHost.html')
       bridgeIframeElement.style.position = 'fixed'
       bridgeIframeElement.style.top = '0'
       bridgeIframeElement.style.left = '0'

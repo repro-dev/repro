@@ -1,7 +1,7 @@
 import { cache as styleCache } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { ApiProvider, createApiClientBridge } from '@repro/api-client'
-import { GateProvider } from '@repro/auth'
+import { AuthProvider, GateProvider } from '@repro/auth'
 import { PortalRootProvider } from '@repro/design'
 import { Stats, Trace } from '@repro/diagnostics'
 import {
@@ -112,15 +112,17 @@ class ReproCapture extends HTMLElement {
     this.renderRoot.render(
       <ApiProvider client={apiClientBridge}>
         <GateProvider>
-          <RecordingStreamProvider stream={stream}>
-            <StateProvider state={this.state}>
-              <MessagingProvider agent={agent}>
-                <PortalRootProvider>
-                  <Controller />
-                </PortalRootProvider>
-              </MessagingProvider>
-            </StateProvider>
-          </RecordingStreamProvider>
+          <AuthProvider>
+            <RecordingStreamProvider stream={stream}>
+              <StateProvider state={this.state}>
+                <MessagingProvider agent={agent}>
+                  <PortalRootProvider>
+                    <Controller />
+                  </PortalRootProvider>
+                </MessagingProvider>
+              </StateProvider>
+            </RecordingStreamProvider>
+          </AuthProvider>
         </GateProvider>
       </ApiProvider>
     )

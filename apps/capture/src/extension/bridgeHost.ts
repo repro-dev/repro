@@ -1,4 +1,5 @@
 import { logger } from '@repro/logger'
+import { createMessagePortAgent } from '@repro/messaging'
 import Future, { fork } from 'fluture'
 import { createRuntimeAgent } from './createRuntimeAgent'
 
@@ -43,6 +44,7 @@ function main() {
       )
 
       const bridgeAgent = createMessagePortAgent(channel.port1)
+      channel.port1.start()
 
       hostAgent.subscribeToIntentAndForward('api-client:fetch', bridgeAgent)
       hostAgent.subscribeToIntentAndForward('upload:enqueue', bridgeAgent)

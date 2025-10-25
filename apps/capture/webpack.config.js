@@ -8,7 +8,7 @@ module.exports = {
   entry: {
     background: path.resolve(__dirname, 'src/extension/background.ts'),
     content: path.resolve(__dirname, 'src/extension/content.ts'),
-    bridge: path.resolve(__dirname, 'src/extension/bridge.ts'),
+    bridgeHost: path.resolve(__dirname, 'src/extension/bridgeHost.ts'),
     capture: path.resolve(__dirname, 'src/index.tsx'),
   },
 
