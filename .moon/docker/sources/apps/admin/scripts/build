@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+project_dir=$(realpath "$(dirname $0)/..")
+source_dir="$project_dir/src"
+build_dir="$project_dir/dist"
+
+cmd="build"
+
+while getopts "s" param; do
+  case "$param" in
+    s) cmd="serve";;
+  esac
+done
+
+mkdir -p "$build_dir"
+
+cp -r $source_dir/static/* $build_dir/
+
+eval "pnpx webpack $cmd --config webpack.config.js"

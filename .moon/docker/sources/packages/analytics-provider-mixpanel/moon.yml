@@ -1,0 +1,8 @@
+id: repro/analytics-provider-mixpanel
+language: typescript
+layer: library
+tags:
+- type.package
+tasks: {}
+toolchain:
+  default: node

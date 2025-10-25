@@ -1,0 +1,30 @@
+{
+  "name": "@repro/wire-formats",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tdlc src --outdir src/generated",
+    "clean": "rimraf src/generated",
+    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
+    "fmt": "prettier --write src",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@repro/stream-utils": "workspace:*",
+    "@repro/tdl": "workspace:*"
+  },
+  "devDependencies": {
+    "@repro/testing-utils": "workspace:*",
+    "@types/expect": "^24.3.2",
+    "@types/node": "22.14.0",
+    "@types/repro-shared-types": "workspace:*",
+    "expect": "^29.7.0",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "rimraf": "^3.0.2",
+    "ts-eager": "^2.0.2",
+    "tsx": "4.19.3",
+    "typescript": "overridden"
+  }
+}

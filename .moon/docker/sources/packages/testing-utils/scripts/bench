@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+cd $PWD/src
+
+for f in *.bench.ts; do
+  echo "Benchmarking $f";
+  TS_NODE_PROJECT=../tsconfig.json ../node_modules/.bin/ts-eager $f;
+done

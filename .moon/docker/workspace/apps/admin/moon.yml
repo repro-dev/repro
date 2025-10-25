@@ -1,0 +1,11 @@
+id: repro/admin
+language: typescript
+layer: application
+tags:
+- type.app
+- build.static
+tasks:
+  build:
+    command: pnpm run build
+toolchain:
+  default: node

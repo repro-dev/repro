@@ -1,0 +1,25 @@
+{
+  "name": "@repro/validation",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.ts",
+  "scripts": {
+    "fmt": "prettier --write src",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "fluture": "^14.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.14.0",
+    "@types/repro-shared-types": "workspace:*",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "tsx": "4.19.3",
+    "typescript": "overridden"
+  }
+}

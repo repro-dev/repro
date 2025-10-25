@@ -1,0 +1,16 @@
+import interaction.{PointerState, ScrollMap}
+import point.Point
+import vdom.VTree
+
+type InteractionSnapshot: struct {
+  0) pointer: Point
+  1) pointerState: PointerState
+  2) scroll: ScrollMap
+  3) viewport: Point
+  4) pageURL: string
+}
+
+type Snapshot: struct {
+  0) dom: ?VTree
+  1) interaction: ?InteractionSnapshot
+}

@@ -1,0 +1,8 @@
+id: repro/api-client
+language: typescript
+layer: library
+tags:
+- type.package
+tasks: {}
+toolchain:
+  default: node

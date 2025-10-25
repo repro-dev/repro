@@ -1,0 +1,134 @@
+type NodeType: enum<uint8> {
+  DocType: 0
+  Document: 1
+  Element: 2
+  Text: 3
+}
+
+type NodeId: char[5]
+
+type VDocType: struct {
+  0) type: NodeType.DocType
+  1) id: NodeId
+  2) parentId: ?NodeId
+  3) name: string
+  4) publicId: string
+  5) systemId: string
+}
+
+type VDocument: struct {
+  0) type: NodeType.Document
+  1) id: NodeId
+  2) parentId: ?NodeId
+  3) children: vector<NodeId>
+}
+
+type VElement: struct {
+  0) type: NodeType.Element
+  1) id: NodeId
+  2) parentId: ?NodeId
+  3) tagName: string
+  4) children: vector<NodeId>
+  5) attributes: map<string, ?string>
+  6) properties: struct {
+       0) value: ?string
+       1) checked: ?bool
+       2) selectedIndex: ?int16
+     }
+  7) shadowRoot: bool
+}
+
+type VText: struct {
+  0) type: NodeType.Text
+  1) id: NodeId
+  2) parentId: ?NodeId
+  3) value: string
+}
+
+type VNode: union(type) {
+  VDocType
+  VDocument
+  VElement
+  VText
+}
+
+type VTree: struct {
+  0) rootId: NodeId
+  1) nodes: map<NodeId, VNode>
+}
+
+type PatchType: enum<uint8> {
+  Attribute: 0
+  Text: 1
+  AddNodes: 2
+  RemoveNodes: 3
+  TextProperty: 4
+  NumberProperty: 5
+  BooleanProperty: 6
+}
+
+type AttributePatch: struct {
+  0) type: PatchType.Attribute
+  1) targetId: NodeId
+  2) name: string
+  3) value: ?string
+  4) oldValue: ?string
+}
+
+type TextPatch: struct {
+  0) type: PatchType.Text
+  1) targetId: NodeId
+  2) value: string
+  3) oldValue: string
+  4) parentId: ?NodeId
+}
+
+type TextPropertyPatch: struct {
+  0) type: PatchType.TextProperty
+  1) targetId: NodeId
+  2) name: string
+  3) value: string
+  4) oldValue: string
+}
+
+type NumberPropertyPatch: struct {
+  0) type: PatchType.NumberProperty
+  1) targetId: NodeId
+  2) name: string
+  3) value: int32
+  4) oldValue: int32
+}
+
+type BooleanPropertyPatch: struct {
+  0) type: PatchType.BooleanProperty
+  1) targetId: NodeId
+  2) name: string
+  3) value: bool
+  4) oldValue: bool
+}
+
+type AddNodesPatch: struct {
+  0) type: PatchType.AddNodes
+  1) parentId: NodeId
+  2) previousSiblingId: ?NodeId
+  3) nextSiblingId: ?NodeId
+  4) nodes: vector<VTree>
+}
+
+type RemoveNodesPatch: struct {
+  0) type: PatchType.RemoveNodes
+  1) parentId: NodeId
+  2) previousSiblingId: ?NodeId
+  3) nextSiblingId: ?NodeId
+  4) nodes: vector<VTree>
+}
+
+type DOMPatch: union(type) {
+  AttributePatch
+  TextPatch
+  TextPropertyPatch
+  NumberPropertyPatch
+  BooleanPropertyPatch
+  AddNodesPatch
+  RemoveNodesPatch
+}

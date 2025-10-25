@@ -1,0 +1,41 @@
+{
+  "name": "repro",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@jsxstyle/core": "^3.0.1",
+    "@types/trusted-types": "^2.0.7"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/expect": "24.3.2",
+      "@types/node": "22.14.0",
+      "@types/react": "18.3.10",
+      "@types/react-dom": "18.3.0",
+      "expect": "29.7.0",
+      "global-jsdom": "27.0.0",
+      "lucide-react": "0.542.0",
+      "react": "18.3.1",
+      "react-dom": "18.3.1",
+      "react-hook-form": "7.53.0",
+      "tsx": "4.19.3",
+      "typescript": "5.7.3",
+      "zod": "3.24.4"
+    },
+    "patchedDependencies": {
+      "@jsxstyle/core@3.0.1": "patches/@jsxstyle__core@3.0.1.patch"
+    }
+  },
+  "dependencies": {
+    "@dotenvx/dotenvx": "^1.43.0",
+    "node-gyp-build": "^4.8.4",
+    "pm2": "^5.4.3"
+  },
+  "engines": {
+    "node": "22.19.0",
+    "pnpm": "10.17.0"
+  },
+  "packageManager": "pnpm@10.17.0"
+}

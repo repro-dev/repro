@@ -1,0 +1,52 @@
+{
+  "name": "@repro/playback",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "tsx --experimental-test-module-mocks --import global-jsdom/register --test src/**/*.test.ts{,x}",
+    "fmt": "prettier --write src",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@jsxstyle/core": "^3.0.1",
+    "@jsxstyle/react": "^3.0.1",
+    "@repro/analytics": "workspace:*",
+    "@repro/api-client": "workspace:*",
+    "@repro/atom": "workspace:*",
+    "@repro/buffer-utils": "workspace:*",
+    "@repro/date-utils": "workspace:*",
+    "@repro/design": "workspace:*",
+    "@repro/diagnostics": "workspace:*",
+    "@repro/dom-utils": "workspace:*",
+    "@repro/domain": "workspace:*",
+    "@repro/encryption": "workspace:*",
+    "@repro/logger": "workspace:*",
+    "@repro/recording": "workspace:*",
+    "@repro/source-utils": "workspace:*",
+    "@repro/std": "workspace:*",
+    "@repro/tdl": "workspace:*",
+    "@repro/vdom-utils": "workspace:*",
+    "@repro/wire-formats": "workspace:*",
+    "fluture": "^14.0.0",
+    "lucide-react": "^0.277.0",
+    "react": "^18.2.0",
+    "rxjs": "^7.8.0",
+    "shortcuts": "^1.8.1"
+  },
+  "devDependencies": {
+    "@ladle/react": "^4.0.2",
+    "@repro/testing-utils": "workspace:*",
+    "@types/expect": "^24.3.2",
+    "@types/node": "22.14.0",
+    "@types/react": "^18.2.21",
+    "@types/repro-shared-types": "workspace:*",
+    "expect": "^29.7.0",
+    "global-jsdom": "overridden",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "ts-eager": "^2.0.2",
+    "tsx": "4.19.3",
+    "typescript": "overridden"
+  }
+}

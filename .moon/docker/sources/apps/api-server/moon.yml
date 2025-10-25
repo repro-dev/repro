@@ -1,0 +1,22 @@
+id: repro/api-server
+language: typescript
+layer: application
+tags:
+- type.app
+- build.docker
+tasks:
+  serve:
+    command: pnpm run start
+    deps:
+    - ^:build
+  start-mailpit:
+    command: mailpit
+    toolchain: system
+    preset: server
+  watch:
+    command: pnpm run dev-watch
+    deps:
+    - ^:build
+    preset: server
+toolchain:
+  default: node

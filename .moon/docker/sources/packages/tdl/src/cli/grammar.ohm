@@ -1,0 +1,82 @@
+TDLS {
+  Statements = ImportDef* TypeDef*
+  
+  ImportDef = "import" Module "." (NamedImports | SingleNamedImport)
+  Module = identifier
+  NamedImports = "{" ListOf<identifier, ", "> "}"
+  SingleNamedImport = identifier
+
+  TypeDef = "type" Assignment
+  Assignment = identifier ":" Maybe<Type>
+  Maybe<T> = Optional? T
+  Optional = "?"
+  
+  identifier = letter alnum*
+
+  Type =
+    | IntegerType
+    | FloatType
+    | CharType
+    | StringType
+    | UUIDType
+    | TimestampType
+    | BooleanType
+    | BooleanLiteralType
+    | BufferType
+    | EnumType
+    | ArrayType
+    | VectorType
+    | MapType
+    | StructType
+    | UnionType
+    | EnumLiteralType
+    | ReferenceType
+  
+  IntegerType =
+    | "int8"
+    | "uint8"
+    | "int16"
+    | "uint16"
+    | "int32"
+    | "uint32"
+    | "int64"
+    | "uint64"
+
+  FloatType =
+    | "float32"
+    | "float64"
+
+  CharType = "char[" digit+ "]"
+  
+  StringType = "string"
+
+  UUIDType = "uuid"
+
+  TimestampType = "timestamp"
+  
+  BooleanType = "bool"
+  
+  BooleanLiteralType = ("true" | "false")
+  
+  BufferType = "buffer"
+
+  EnumType = "enum<" IntegerType "> {" EnumProperty+ "}"
+  EnumProperty = EnumPropertyName ":" EnumPropertyValue
+  EnumPropertyName = identifier
+  EnumPropertyValue = digit+
+  
+  EnumLiteralType = ReferenceType "." ReferenceType
+
+  ArrayType = "array[" digit+ "]<" Maybe<Type> ">"
+  VectorType = "vector<" Maybe<Type> ">"
+  MapType = "map<" Type ", " Maybe<Type> ">"
+
+  StructType = "struct {" StructProperty* "}"
+  StructProperty = digit+ ")" StructAssignment
+  StructAssignment = identifier ":" Maybe<Type>
+
+  UnionType = "union(" UnionTagField ") {" ReferenceType+ "}"
+  UnionTagField = identifier
+  
+  ReferenceType = identifier
+}

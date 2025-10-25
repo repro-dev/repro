@@ -1,0 +1,61 @@
+import vdom.VNode
+
+type LogLevel: enum<uint8> {
+  Verbose: 0
+  Info: 1
+  Warning: 2
+  Error: 3
+}
+
+type MessagePartType: enum<uint8> {
+  String: 0
+  Node: 1
+  Undefined: 2
+  Date: 3
+}
+
+type StringMessagePart: struct {
+  0) type: MessagePartType.String
+  1) value: string
+}
+
+type NodeMessagePart: struct {
+  0) type: MessagePartType.Node
+  1) node: ?VNode
+}
+
+type UndefinedMessagePart: struct {
+  0) type: MessagePartType.Undefined
+}
+
+type DateMessagePart: struct {
+  0) type: MessagePartType.Date
+  1) year: int32 
+  2) month: uint8
+  3) day: uint8
+  4) hour: uint8
+  5) minute: uint8
+  6) second: uint8
+  7) millisecond: uint16
+  8) timezoneOffset: int16
+}
+
+type MessagePart: union(type) {
+  StringMessagePart
+  NodeMessagePart
+  UndefinedMessagePart
+  DateMessagePart
+}
+
+type StackEntry: struct {
+  0) functionName: ?string
+  1) fileName: string
+  2) lineNumber: uint32
+  3) columnNumber: uint32
+}
+
+type ConsoleMessage: struct {
+  0) level: LogLevel
+  1) parts: vector<MessagePart>
+  2) stack: vector<StackEntry>
+}

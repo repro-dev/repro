@@ -1,0 +1,5 @@
+{
+  "name": "@types/repro-shared-types",
+  "main": "",
+  "types": "index.d.ts"
+}

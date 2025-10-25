@@ -1,27 +1,23 @@
 FROM node:22-slim
 WORKDIR /app
 
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
+# Install moon binary
+RUN npm install -g @moonrepo/cli
 
-RUN corepack enable
-RUN corepack prepare pnpm@10.17.0 --activate
+# Copy workspace skeleton
+COPY ./.moon/docker/workspace .
+COPY ./patches ./patches
 
-RUN pnpm add --global @moonrepo/cli
+# Install toolchain and dependencies
+RUN moon docker setup
 
-COPY ./patches/ ./patches/
-
-# Install PNPM packages only if dependency versions have changed
-COPY pnpm-lock.yaml ./
-RUN pnpm fetch
-
-# Add source files and install dependencies from store
-COPY . .
-RUN pnpm install --offline
-
-RUN pnpm add -g @moonrepo/cli
+# Copy source files
+COPY ./.moon/docker/sources .
 
 # Run build step for all library packages with a build target
 RUN moon run :build --query 'tag=type.package'
+
+# Prune workspace
+RUN moon docker prune
 
 EXPOSE 8080

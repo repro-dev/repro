@@ -1,0 +1,41 @@
+{
+  "name": "@repro/api-client",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "fmt": "prettier --write src",
+    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
+    "typecheck": "tsc --noEmit"
+  },
+  "author": "Gary Chambers <gary@repro.dev>",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@repro/domain": "workspace:*",
+    "@repro/future-utils": "workspace:*",
+    "@repro/messaging": "workspace:*",
+    "@repro/random-string": "workspace:*",
+    "@repro/stream-utils": "workspace:*",
+    "@repro/vdom-utils": "workspace:*",
+    "@repro/wire-formats": "workspace:*",
+    "deepmerge-ts": "^4.2.2",
+    "fflate": "^0.7.3",
+    "fluture": "^14.0.0",
+    "isomorphic-unfetch": "^3.1.0",
+    "localforage": "^1.10.0",
+    "react": "^18.2.0",
+    "zod": "^3.22.2"
+  },
+  "devDependencies": {
+    "@types/expect": "^24.3.2",
+    "@types/node": "22.14.0",
+    "@types/react": "^18.0.14",
+    "@types/repro-shared-types": "workspace:*",
+    "expect": "^29.7.0",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "ts-eager": "^2.0.2",
+    "tsx": "4.19.3",
+    "typescript": "overridden",
+    "web-streams-polyfill": "^4.1.0"
+  }
+}

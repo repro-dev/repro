@@ -1,0 +1,20 @@
+type RecordingMode: enum<uint8> {
+  None: 0
+  Snapshot: 1
+  Live: 2
+  Replay: 3
+}
+
+type RecordingInfo: struct {
+  0) id: string
+  1) title: string
+  2) url: string
+  3) description: string
+  4) mode: RecordingMode
+  5) duration: uint32
+  6) createdAt: timestamp
+  7) browserName: ?string
+  8) browserVersion: ?string
+  9) operatingSystem: ?string
+  10) codecVersion: string
+}

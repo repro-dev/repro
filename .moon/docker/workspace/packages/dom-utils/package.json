@@ -1,0 +1,23 @@
+{
+  "name": "@repro/dom-utils",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
+    "fmt": "prettier --write src",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@repro/std": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.14.0",
+    "@types/repro-shared-types": "workspace:*",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "ts-eager": "^2.0.2",
+    "tsx": "4.19.3",
+    "typescript": "overridden"
+  }
+}

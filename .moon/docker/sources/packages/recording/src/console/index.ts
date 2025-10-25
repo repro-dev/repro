@@ -1,0 +1,1 @@
+export { createConsoleObserver } from './observe'

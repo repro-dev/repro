@@ -1,0 +1,61 @@
+import console.ConsoleMessage
+import interaction.Interaction
+import network.NetworkMessage
+import performance.PerformanceEntry
+import snapshot.Snapshot
+import vdom.DOMPatch
+
+type SourceEventType: enum<uint8> {
+  Snapshot: 0
+  DOMPatch: 10
+  Interaction: 20
+  Network: 30
+  Console: 40
+  Performance: 50
+  CloseRecording: 99
+}
+
+type SnapshotEvent: struct {
+  0) type: SourceEventType.Snapshot
+  1) time: uint32
+  2) data: Snapshot
+}
+
+type DOMPatchEvent: struct {
+  0) type: SourceEventType.DOMPatch
+  1) time: uint32
+  2) data: DOMPatch
+}
+
+type InteractionEvent: struct {
+  0) type: SourceEventType.Interaction
+  1) time: uint32
+  2) data: Interaction
+}
+
+type NetworkEvent: struct {
+  0) type: SourceEventType.Network
+  1) time: uint32
+  2) data: NetworkMessage
+}
+
+type ConsoleEvent: struct {
+  0) type: SourceEventType.Console
+  1) time: uint32
+  2) data: ConsoleMessage
+}
+
+type PerformanceEvent: struct {
+  0) type: SourceEventType.Performance
+  1) time: uint32
+  2) data: PerformanceEntry
+}
+
+type SourceEvent: union(type) {
+  SnapshotEvent
+  DOMPatchEvent
+  InteractionEvent
+  NetworkEvent
+  ConsoleEvent
+  PerformanceEvent
+}

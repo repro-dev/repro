@@ -1,0 +1,46 @@
+{
+  "name": "@repro/tdl",
+  "version": "1.0.0",
+  "description": "TypeScript Definition Language: TypeScript-compatible binary encodings",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "ohm generateBundles --withTypes src/cli/grammar.ohm",
+    "test": "tsx --test \"src/**/*.test.ts{,x}\"",
+    "fmt": "prettier --write src",
+    "typecheck": "tsc --noEmit"
+  },
+  "bin": {
+    "tdlc": "./cli.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reprohq/repro.git"
+  },
+  "author": "Gary Chambers <gary@repro.dev>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/reprohq/repro/issues"
+  },
+  "homepage": "https://github.com/reprohq/repro#readme",
+  "devDependencies": {
+    "@ohm-js/cli": "^2.0.0",
+    "@types/expect": "^24.3.2",
+    "@types/glob": "^8.1.0",
+    "@types/node": "22.14.0",
+    "@types/prettier": "^3.0.0",
+    "@types/repro-shared-types": "workspace:*",
+    "@types/yargs": "^17.0.24",
+    "expect": "^29.7.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "tsx": "4.19.3",
+    "typescript": "overridden"
+  },
+  "dependencies": {
+    "@repro/ts-utils": "workspace:*",
+    "chalk": "^4.1.2",
+    "glob": "^10.3.3",
+    "ohm-js": "^17.1.0",
+    "prettier": "^3.0.0",
+    "yargs": "^17.7.2"
+  }
+}

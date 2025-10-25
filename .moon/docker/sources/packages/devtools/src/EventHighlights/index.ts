@@ -1,0 +1,1 @@
+export { EventHighlights } from './EventHighlights'

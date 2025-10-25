@@ -1,0 +1,5 @@
+type Entity: struct {
+  0) id: uint8
+  1) name: string
+  2) properties: map<string, string>
+}

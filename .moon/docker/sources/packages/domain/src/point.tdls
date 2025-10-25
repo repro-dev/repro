@@ -1,0 +1,1 @@
+type Point: array[2]<uint16>
