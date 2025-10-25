@@ -4,6 +4,10 @@ import { Agent, Intent, Resolver, Unsubscribe } from './types'
 export function createLoopbackAgent(): Agent {
   const resolvers = new Map<string, Resolver>()
 
+  function destroy() {
+    resolvers.clear()
+  }
+
   function raiseIntent<R, P = any>(
     intent: Intent<P>
   ): FutureInstance<Error, R> {
@@ -46,5 +50,6 @@ export function createLoopbackAgent(): Agent {
     raiseIntent,
     subscribeToIntent,
     subscribeToIntentAndForward,
+    destroy,
   }
 }

@@ -22,4 +22,5 @@ export interface Agent {
     resolver: Resolver<P, R>
   ): Unsubscribe
   subscribeToIntentAndForward(type: string, forwardAgent: Agent): Unsubscribe
+  destroy(): void
 }

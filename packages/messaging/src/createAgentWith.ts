@@ -1,34 +1,33 @@
 import { SyntheticId } from '@repro/domain'
+import { logger } from '@repro/logger'
 import { randomString } from '@repro/random-string'
 import Future, { fork, FutureInstance } from 'fluture'
-import { distinct, filter, fromEvent, map } from 'rxjs'
+import { filter, Observable, Subscription } from 'rxjs'
 import { Agent, Intent, Resolver, Unsubscribe } from './types'
-
-const CHANNEL = 'repro-agent'
 
 function createCorrelationId(): SyntheticId {
   return randomString(5)
 }
 
-interface IntentMessage {
+export interface IntentMessage {
   type: 'intent'
   correlationId: SyntheticId
   intent: Intent<any>
 }
 
-interface ResponseMessage {
+export interface ResponseMessage {
   type: 'response'
   correlationId: SyntheticId
   response: any
 }
 
-interface ErrorMessage {
+export interface ErrorMessage {
   type: 'error'
   correlationId: SyntheticId
   error: any
 }
 
-type Message = IntentMessage | ResponseMessage | ErrorMessage
+export type Message = IntentMessage | ResponseMessage | ErrorMessage
 
 function isIntentMessage(message: Message): message is IntentMessage {
   return message.type === 'intent'
@@ -41,54 +40,58 @@ function isResponseMessage(message: Message): message is ResponseMessage {
 function isErrorMessage(message: Message): message is ErrorMessage {
   return message.type === 'error'
 }
+interface AgentWithParams {
+  name: string
+  message$: Observable<Message>
+  dispatch(message: Message): void
+}
 
-export function createBroadcastAgent(): Agent {
-  const channel = new BroadcastChannel(CHANNEL)
-  const resolvers = new Map<string, Resolver>()
+export function createAgentWith({ name, message$, dispatch }: AgentWithParams) {
   const callbacks = new Map<
     SyntheticId,
     {
-      resolve: (result: any) => void
+      resolve: (value: any) => void
       reject: (error: Error) => void
     }
   >()
 
-  const message$ = fromEvent<MessageEvent<Message>>(channel, 'message').pipe(
-    map(event => event.data)
-  )
+  const resolvers = new Map<SyntheticId, Resolver>()
 
   const intentMessage$ = message$.pipe(filter(isIntentMessage))
   const responseMessage$ = message$.pipe(filter(isResponseMessage))
   const errorMessage$ = message$.pipe(filter(isErrorMessage))
 
-  intentMessage$.subscribe(message => {
-    const { correlationId, intent } = message
-    const resolver = resolvers.get(intent.type)
+  const subscription = new Subscription()
 
-    function dispatchError(error: any) {
-      channel.postMessage({
-        type: 'error',
-        correlationId,
-        error,
-      })
-    }
+  subscription.add(
+    intentMessage$.subscribe(message => {
+      const { correlationId, intent } = message
+      const resolver = resolvers.get(intent.type)
 
-    function dispatchResponse(response: any) {
-      channel.postMessage({
-        type: 'response',
-        correlationId,
-        response,
-      })
-    }
+      function dispatchError(error: any) {
+        dispatch({
+          type: 'error',
+          correlationId,
+          error,
+        })
+      }
 
-    if (resolver) {
-      fork(dispatchError)(dispatchResponse)(resolver(intent.payload))
-    }
-  })
+      function dispatchResponse(response: any) {
+        dispatch({
+          type: 'response',
+          correlationId,
+          response,
+        })
+      }
 
-  responseMessage$
-    .pipe(distinct(message => message.correlationId))
-    .subscribe(message => {
+      if (resolver) {
+        fork(dispatchError)(dispatchResponse)(resolver(intent.payload))
+      }
+    })
+  )
+
+  subscription.add(
+    responseMessage$.subscribe(message => {
       const { correlationId, response } = message
       const callback = callbacks.get(correlationId)
 
@@ -97,10 +100,10 @@ export function createBroadcastAgent(): Agent {
         callbacks.delete(correlationId)
       }
     })
+  )
 
-  errorMessage$
-    .pipe(distinct(message => message.correlationId))
-    .subscribe(message => {
+  subscription.add(
+    errorMessage$.subscribe(message => {
       const { correlationId, error } = message
       const callback = callbacks.get(correlationId)
 
@@ -109,24 +112,31 @@ export function createBroadcastAgent(): Agent {
         callbacks.delete(correlationId)
       }
     })
+  )
+
+  function destroy() {
+    subscription.unsubscribe()
+  }
 
   function raiseIntent<R, P = any>(
     intent: Intent<P>
   ): FutureInstance<Error, R> {
-    const correlationId = createCorrelationId()
-
-    const message: IntentMessage = {
-      type: 'intent',
-      correlationId,
-      intent,
-    }
-
     return Future((reject, resolve) => {
-      callbacks.set(correlationId, { resolve, reject })
-      channel.postMessage(message)
+      const correlationId = createCorrelationId()
+
+      callbacks.set(correlationId, {
+        resolve,
+        reject,
+      })
+
+      dispatch({
+        type: 'intent',
+        correlationId,
+        intent,
+      })
 
       return () => {
-        console.warn('Intent is not cancellable')
+        logger.warn('Intent is not cancellable', intent)
       }
     })
   }
@@ -149,9 +159,10 @@ export function createBroadcastAgent(): Agent {
   }
 
   return {
-    name: 'Broadcast',
+    name,
     raiseIntent,
     subscribeToIntent,
     subscribeToIntentAndForward,
+    destroy,
   }
 }
