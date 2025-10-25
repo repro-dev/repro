@@ -8,6 +8,7 @@ module.exports = {
   entry: {
     background: path.resolve(__dirname, 'src/extension/background.ts'),
     content: path.resolve(__dirname, 'src/extension/content.ts'),
+    bridge: path.resolve(__dirname, 'src/extension/bridge.ts'),
     capture: path.resolve(__dirname, 'src/index.tsx'),
   },
 
@@ -55,7 +56,7 @@ module.exports = {
       REPRO_APP_URL: 'http://localhost:8080',
       REPRO_API_URL: 'http://localhost:8181',
       AUTH_STORAGE: 'memory',
-      STATS_LEVEL: 'debug'
+      STATS_LEVEL: 'debug',
     }),
   ],
 

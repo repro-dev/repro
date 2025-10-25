@@ -15,6 +15,7 @@ module.exports = {
 
   entry: {
     index: path.resolve(__dirname, 'src/index.tsx'),
+    apiBridge: path.resolve(__dirname, 'src/apiBridge.tsx'),
   },
 
   output: {
@@ -65,9 +66,19 @@ module.exports = {
     }),
 
     new HtmlWebpackPlugin({
+      filename: 'index.html',
       template: path.resolve(__dirname, 'src/templates/index.html'),
       base: baseURL,
       hash: true,
+      chunks: ['index'],
+    }),
+
+    new HtmlWebpackPlugin({
+      filename: 'apiBridge.html',
+      template: path.resolve(__dirname, 'src/templates/apiBridge.html'),
+      base: baseURL,
+      hash: true,
+      chunks: ['apiBridge'],
     }),
   ],
 

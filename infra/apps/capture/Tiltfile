@@ -1,6 +1,11 @@
 local_resource(
   'capture',
   serve_cmd='moon run repro/capture:watch',
+  serve_env={
+    'BUILD_ENV': 'development',
+    'REPRO_APP_URL': 'https://app.repro.localhost',
+    'REPRO_API_URL': 'https://api.repro.localhost'
+  },
   resource_deps=['dependencies'],
   allow_parallel=True,
   labels=['extension']

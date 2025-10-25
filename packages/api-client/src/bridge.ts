@@ -7,26 +7,20 @@ export function createApiClientBridge(
 ): ApiClient {
   return new Proxy<ApiClient>(apiClient, {
     get(target: ApiClient, namespace: keyof ApiClient) {
-      return new Proxy<(typeof target)[typeof namespace]>(target[namespace], {
-        get(module, method: keyof typeof module) {
-          if (typeof module[method] === 'function') {
-            return new Proxy(module[method], {
-              apply(_fn, _thisArg, args) {
-                return agent.raiseIntent({
-                  type: 'api:call',
-                  payload: {
-                    namespace,
-                    method,
-                    args,
-                  },
-                })
+      if (namespace === 'fetch') {
+        return new Proxy<ApiClient['fetch']>(target[namespace], {
+          apply(_target, _thisArg, argArray) {
+            return agent.raiseIntent({
+              type: 'api-client:fetch',
+              payload: {
+                args: argArray,
               },
             })
-          }
+          },
+        })
+      }
 
-          return module[method]
-        },
-      })
+      return Reflect.get(target, namespace)
     },
   })
 }
