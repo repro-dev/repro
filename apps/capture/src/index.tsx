@@ -1,6 +1,7 @@
 import { cache as styleCache } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
-import { GateProvider } from '@repro/auth'
+import { ApiProvider, createApiClientBridge } from '@repro/api-client'
+import { AuthProvider, GateProvider } from '@repro/auth'
 import { PortalRootProvider } from '@repro/design'
 import { Stats, Trace } from '@repro/diagnostics'
 import {
@@ -46,6 +47,9 @@ const _initialInjectOptions = styleCache.injectOptions
 const agent = createPTPAgent()
 
 Analytics.setAgent(agent)
+
+// Proxy API calls over messaging layer
+const apiClientBridge = createApiClientBridge(agent)
 
 class ReproCapture extends HTMLElement {
   private renderRoot: Root | null = null
@@ -106,17 +110,21 @@ class ReproCapture extends HTMLElement {
     }
 
     this.renderRoot.render(
-      <GateProvider>
-        <RecordingStreamProvider stream={stream}>
-          <StateProvider state={this.state}>
-            <MessagingProvider agent={agent}>
-              <PortalRootProvider>
-                <Controller />
-              </PortalRootProvider>
-            </MessagingProvider>
-          </StateProvider>
-        </RecordingStreamProvider>
-      </GateProvider>
+      <ApiProvider client={apiClientBridge}>
+        <GateProvider>
+          <AuthProvider>
+            <RecordingStreamProvider stream={stream}>
+              <StateProvider state={this.state}>
+                <MessagingProvider agent={agent}>
+                  <PortalRootProvider>
+                    <Controller />
+                  </PortalRootProvider>
+                </MessagingProvider>
+              </StateProvider>
+            </RecordingStreamProvider>
+          </AuthProvider>
+        </GateProvider>
+      </ApiProvider>
     )
   }
 

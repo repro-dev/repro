@@ -1,5 +1,6 @@
 export { MessagingProvider } from './context'
 export { createLoopbackAgent } from './createLoopbackAgent'
+export { createMessagePortAgent } from './createMessagePortAgent'
 export { createPTPAgent } from './createPTPAgent'
 export { DEFAULT_AGENT } from './defaults'
 export { useMessaging } from './hooks'
