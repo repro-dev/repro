@@ -1,5 +1,4 @@
 export { MessagingProvider } from './context'
-export { createBroadcastAgent } from './createBroadcastAgent'
 export { createLoopbackAgent } from './createLoopbackAgent'
 export { createPTPAgent } from './createPTPAgent'
 export { DEFAULT_AGENT } from './defaults'
