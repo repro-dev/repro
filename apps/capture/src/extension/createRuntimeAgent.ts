@@ -56,6 +56,10 @@ export function createRuntimeAgent(): Agent {
 
   chrome.runtime.onMessage.addListener(onMessage)
 
+  function destroy() {
+    chrome.runtime.onMessage.removeListener(onMessage)
+  }
+
   function raiseIntent<R, P = any>(
     intent: Intent<P>,
     options?: RuntimeOptions
@@ -119,5 +123,6 @@ export function createRuntimeAgent(): Agent {
     raiseIntent,
     subscribeToIntent,
     subscribeToIntentAndForward,
+    destroy,
   }
 }
