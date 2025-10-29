@@ -3,13 +3,14 @@ PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 docker_build(
   'workspace',
   PROJECT_ROOT,
-  dockerfile='./Dockerfile',
-  target='dev',
+  dockerfile='../../Dockerfile',
+  target='workspace-dev',
   ignore=['infra', 'dist', 'build', 'node_modules'],
   live_update=[
     fall_back_on([
       os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
-      os.path.join(PROJECT_ROOT, 'package.json'),
+      os.path.join(PROJECT_ROOT, 'apps/workspace/package.json'),
+      os.path.join(PROJECT_ROOT, 'apps/workspace/moon.yml')
     ]),
     sync(PROJECT_ROOT, '/app')
   ]

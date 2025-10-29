@@ -11,7 +11,7 @@ vars:
   DB_USER: repro
   DB_PASSWORD: repro
   DB_NAME: repro
-  STORAGE_ENDPOINT: http://seaweedfs-s3:8080
+  STORAGE_ENDPOINT: http://seaweedfs-s3:8333
   STORAGE_REGION: us-east-1
   STORAGE_BUCKET: repro
   STORAGE_ACCESS_KEY_ID: repro

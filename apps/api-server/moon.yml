@@ -13,7 +13,7 @@ tasks:
     command: mailpit
     toolchain: system
     preset: server
-  watch:
+  dev:
     command: pnpm run dev-watch
     deps:
     - ^:build

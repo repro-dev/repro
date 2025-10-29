@@ -1,0 +1,37 @@
+PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
+
+docker_build(
+  'admin',
+  PROJECT_ROOT,
+  dockerfile='../../Dockerfile',
+  target='admin-dev',
+  ignore=['infra', 'dist', 'build', 'node_modules'],
+  live_update=[
+    fall_back_on([
+      os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
+      os.path.join(PROJECT_ROOT, 'apps/admin/package.json')
+    ]),
+    sync(PROJECT_ROOT, '/app')
+  ]
+)
+
+k8s_yaml(helm(
+  './chart',
+  name='admin',
+  set=[
+    'container.image=admin',
+    'vars.REPRO_ADMIN_URL=https://admin.repro.localhost',
+    'vars.REPRO_APP_URL=https://app.repro.localhost',
+    'vars.REPRO_API_URL=https://api.repro.localhost',
+    'vars.PORT=8080'
+  ]
+))
+
+k8s_resource(
+  'admin-deployment',
+  new_name='admin',
+  links=[
+    'https://admin.repro.localhost',
+  ],
+  labels=['app']
+)
