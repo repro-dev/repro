@@ -17,5 +17,11 @@ tasks:
     command: pnpm run serve
     deps:
     - ^:build
+    preset: server
+  dev:
+    command: pnpm run dev-serve
+    deps:
+    - ^:build
+    preset: server
 toolchain:
   default: node

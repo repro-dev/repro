@@ -32,6 +32,6 @@ helm_resource(
     chart='seaweedfs/seaweedfs',
     namespace='default',
     resource_deps=['seaweedfs'],
-    flags=['--set=filer.s3.enabled=true,filer.s3.port=8080'],
+    flags=['--set=filer.s3.enabled=true'],
     labels=['infra']
 )
