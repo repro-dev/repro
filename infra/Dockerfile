@@ -30,3 +30,7 @@ CMD ["moon", "run", "repro/workspace:dev"]
 
 FROM prepare AS admin-dev
 CMD ["moon", "run", "repro/admin:dev"]
+
+FROM prepare AS build
+COPY . .
+RUN moon run :build

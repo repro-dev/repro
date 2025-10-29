@@ -111,6 +111,4 @@ jobs:
           tags: ${{ secrets.CONTAINER_REGISTRY_ENDPOINT}}/repro:latest
           file: infra/Dockerfile
           push: true
-          build-args: |
-            CONTAINER_REGISTRY_ENDPOINT=${{ secrets.CONTAINER_REGISTRY_ENDPOINT }}/
 
