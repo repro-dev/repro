@@ -4,11 +4,7 @@ const webpack = require('webpack')
 
 const EnvironmentPlugin = webpack.EnvironmentPlugin
 const mode = process.env.MODE || 'extension'
-
-const commitHash = require('child_process')
-  .execSync('git rev-parse --short HEAD')
-  .toString()
-  .trim()
+const buildVersion = process.env.BUILD_VERSION || 'unknown'
 
 module.exports = {
   mode: process.env.BUILD_ENV === 'production' ? 'production' : 'development',
@@ -60,7 +56,7 @@ module.exports = {
 
   plugins: [
     new webpack.DefinePlugin({
-      __BUILD_VERSION__: JSON.stringify(commitHash),
+      __BUILD_VERSION__: JSON.stringify(buildVersion),
     }),
 
     new EnvironmentPlugin({

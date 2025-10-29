@@ -4,12 +4,13 @@ docker_build(
     'api-server',
     PROJECT_ROOT,
     dockerfile='../../Dockerfile',
-    target='api-server-dev',
+    entrypoint=[
+      "moon", "run", "repro/api-server:dev",
+    ],
     ignore=['infra', 'dist', 'build', 'node_modules'],
     live_update=[
         fall_back_on([
             os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
-            os.path.join(PROJECT_ROOT, 'apps/api-server/.env.development'),
             os.path.join(PROJECT_ROOT, 'apps/api-server/package.json')
         ]),
         sync(PROJECT_ROOT, '/app')
