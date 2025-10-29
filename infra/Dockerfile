@@ -18,7 +18,6 @@ COPY --from=scaffold /app/patches ./patches
 RUN moon docker setup
 
 COPY --from=scaffold  /app/.moon/docker/sources .
-RUN moon run :build
 
 FROM prepare AS api-server-dev
 CMD ["moon", "run", "repro/api-server:dev"]
