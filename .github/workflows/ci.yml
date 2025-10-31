@@ -90,6 +90,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.CONTAINER_REGISTRY_ENDPOINT}}/repro
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -108,7 +121,7 @@ jobs:
         with:
           cache-from: type=registry,ref=${{ secrets.CONTAINER_REGISTRY_ENDPOINT }}/repro:build-cache
           cache-to: type=registry,ref=${{ secrets.CONTAINER_REGISTRY_ENDPOINT }}/repro:build-cache
-          tags: ${{ secrets.CONTAINER_REGISTRY_ENDPOINT}}/repro:latest
+          tags: ${{ steps.meta.outputs.tags }}
           file: infra/Dockerfile
           push: true
 
