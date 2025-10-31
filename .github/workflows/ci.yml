@@ -1,9 +1,13 @@
 name: Build, test and deploy (split)
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - "**"
+    tags:
+      - "v*"
+  pull_request:
 
 jobs:
   build:
