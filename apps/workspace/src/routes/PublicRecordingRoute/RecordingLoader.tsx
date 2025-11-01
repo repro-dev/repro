@@ -6,11 +6,12 @@ import {
 } from '@repro/playback'
 import { createApiSource } from '@repro/recording-api'
 import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react'
+import { defaultEnv as env } from '~/config/env'
 
 function getRecordingId() {
   const path = location.href
     // Strip leading app base URL
-    .replace(process.env.REPRO_APP_URL ?? '', '')
+    .replace(env.REPRO_APP_URL ?? '', '')
     // Strip trailing hash (encryption key)
     .replace(/#.*$/, '')
     .split('/')

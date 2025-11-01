@@ -8,6 +8,7 @@ import { createNullSource, PlaybackFromSourceProvider } from '@repro/playback'
 import { createApiSource } from '@repro/recording-api'
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { defaultEnv as env } from '~/config/env'
 import { Loading } from './Loading'
 import { RecordingError } from './RecordingError'
 import { Sidebar } from './Sidebar'
@@ -18,7 +19,7 @@ export const RecordingRoute: React.FC = () => {
   const apiClient = useApiClient()
 
   const resourceBaseURL = recordingId
-    ? `${process.env.REPRO_API_URL}/recordings/${recordingId}/resources/`
+    ? `${env.REPRO_API_URL}/recordings/${recordingId}/resources/`
     : undefined
 
   const {

@@ -6,6 +6,7 @@
   "scripts": {
     "build": "./scripts/build",
     "dev-serve": "./scripts/build -s",
+    "prepare-env": "./scripts/prepare-env",
     "serve": "serve -s dist",
     "fmt": "prettier --write src",
     "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
