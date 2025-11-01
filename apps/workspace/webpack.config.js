@@ -2,7 +2,6 @@ const path = require('path')
 
 const { EsbuildPlugin } = require('esbuild-loader')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
-const { EnvironmentPlugin } = require('webpack')
 
 let baseURL = process.env.REPRO_APP_URL || '/'
 
@@ -55,16 +54,6 @@ module.exports = {
   },
 
   plugins: [
-    new EnvironmentPlugin({
-      AUTH_STORAGE: 'memory',
-      BUILD_ENV: 'production',
-      MIXPANEL_API_URL: '',
-      MIXPANEL_TOKEN: '',
-      REPRO_API_URL: 'http://localhost:8181',
-      REPRO_APP_URL: 'http://localhost:8081',
-      STATS_LEVEL: 'debug',
-    }),
-
     new HtmlWebpackPlugin({
       filename: 'index.template.html',
       template: path.resolve(__dirname, 'src/templates/index.html'),
