@@ -10,6 +10,8 @@ import React, { lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
+import { Env } from './config/createEnv'
+import { defaultEnv as env } from './config/env'
 import { Layout } from './Layout'
 
 const HomeRoute = lazy(() => import('./routes/HomeRoute'))
@@ -21,13 +23,14 @@ const PublicRecordingRoute = lazy(() => import('./routes/PublicRecordingRoute'))
 
 declare global {
   interface Window {
+    __REPRO_ENV: Env
     __REPRO_USING_SDK: boolean
   }
 }
 
 window.__REPRO_USING_SDK = true
 
-if (process.env.BUILD_ENV === 'development') {
+if (env.BUILD_ENV === 'development') {
   Stats.enable()
 }
 
@@ -45,8 +48,8 @@ if (rootStyleSheet) {
 if (rootElem) {
   const root = createRoot(rootElem)
 
-  const basename = process.env.REPRO_APP_URL
-    ? new URL(process.env.REPRO_APP_URL).pathname
+  const basename = env.REPRO_APP_URL
+    ? new URL(env.REPRO_APP_URL).pathname
     : undefined
 
   root.render(

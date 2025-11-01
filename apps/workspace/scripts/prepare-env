@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+project_dir=$(realpath "$(dirname $0)/..")
+build_dir="$project_dir/dist"
+
+input="${build_dir}/index.template.html"
+output="${build_dir}/index.html"
+
+vars=$(grep -oE '\$[a-zA-Z0-9_]+' $input | paste -sd,)
+
+cat $input | envsubst $vars > $output

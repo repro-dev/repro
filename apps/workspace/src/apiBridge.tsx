@@ -1,9 +1,10 @@
 import { createApiClient } from '@repro/api-client'
 import { Fetch } from '@repro/api-client/src/types'
 import { createMessagePortAgent } from '@repro/messaging'
+import { defaultEnv as env } from '~/config/env'
 
 const apiClient = createApiClient({
-  baseUrl: process.env.REPRO_API_URL ?? '',
+  baseUrl: env.REPRO_API_URL ?? '',
   authStorage: 'memory',
 })
 

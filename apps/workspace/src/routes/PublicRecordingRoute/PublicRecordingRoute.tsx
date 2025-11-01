@@ -7,6 +7,7 @@ import { useFuture } from '@repro/future-utils'
 import React, { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { Loading } from '~/components/Loading'
+import { defaultEnv as env } from '~/config/env'
 import { RecordingError } from './RecordingError'
 import { RecordingLoader } from './RecordingLoader'
 import { Sidebar } from './Sidebar'
@@ -17,7 +18,7 @@ export const PublicRecordingRoute: React.FC = () => {
   const apiClient = useApiClient()
 
   const resourceBaseURL = recordingId
-    ? `${process.env.REPRO_API_URL}/recordings/${recordingId}/resources/`
+    ? `${env.REPRO_API_URL}/recordings/${recordingId}/resources/`
     : undefined
 
   const {

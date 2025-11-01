@@ -66,7 +66,7 @@ module.exports = {
     }),
 
     new HtmlWebpackPlugin({
-      filename: 'index.html',
+      filename: 'index.template.html',
       template: path.resolve(__dirname, 'src/templates/index.html'),
       base: baseURL,
       hash: true,

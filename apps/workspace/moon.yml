@@ -17,11 +17,17 @@ tasks:
     command: pnpm run serve
     deps:
     - ^:build
+    - prepare-env
     preset: server
   dev:
     command: pnpm run dev-serve
     deps:
     - ^:build
+    - prepare-env
     preset: server
+  prepare-env:
+    command: pnpm run prepare-env
+    options:
+      cache: false
 toolchain:
   default: node
