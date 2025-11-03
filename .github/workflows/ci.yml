@@ -1,9 +1,13 @@
 name: Build, test and deploy (split)
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - "**"
+    tags:
+      - "v*"
+  pull_request:
 
 jobs:
   build:
@@ -83,7 +87,6 @@ jobs:
     name: Containerize
     needs: [build]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -100,8 +103,6 @@ jobs:
             type=ref,event=branch
             type=ref,event=tag
             type=ref,event=pr
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -122,6 +123,7 @@ jobs:
           cache-from: type=registry,ref=${{ secrets.CONTAINER_REGISTRY_ENDPOINT }}/repro:build-cache
           cache-to: type=registry,ref=${{ secrets.CONTAINER_REGISTRY_ENDPOINT }}/repro:build-cache
           tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           file: infra/Dockerfile
           push: true
 
