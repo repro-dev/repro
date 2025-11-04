@@ -11,7 +11,7 @@ WORKDIR /app
 
 RUN npm add --global @moonrepo/cli
 
-FROM base as scaffold
+FROM base AS scaffold
 
 COPY . .
 RUN moon docker scaffold \
