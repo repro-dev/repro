@@ -1,6 +1,6 @@
 import { Analytics } from '@repro/analytics'
-import { mixpanelBrowser } from '@repro/analytics-provider-mixpanel'
-import { ApiProvider } from '@repro/api-client'
+import { createMixpanelBrowserConsumer } from '@repro/analytics-provider-mixpanel'
+import { ApiProvider, createApiClient } from '@repro/api-client'
 import { AuthProvider, GateProvider, SessionRouteBoundary } from '@repro/auth'
 import { PortalRootProvider } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
@@ -34,8 +34,18 @@ if (env.BUILD_ENV === 'development') {
   Stats.enable()
 }
 
+const apiClient = createApiClient({
+  baseUrl: env.REPRO_API_URL,
+  authStorage: 'memory',
+})
+
 Analytics.setAgent(DEFAULT_AGENT)
-Analytics.registerConsumer(mixpanelBrowser)
+Analytics.registerConsumer(
+  createMixpanelBrowserConsumer(
+    env.MIXPANEL_TOKEN,
+    env.BUILD_ENV === 'development'
+  )
+)
 
 const rootSelector = '#root'
 const rootElem = document.querySelector(rootSelector)
@@ -54,7 +64,7 @@ if (rootElem) {
 
   root.render(
     <BrowserRouter basename={basename}>
-      <ApiProvider>
+      <ApiProvider client={apiClient}>
         <GateProvider>
           <AuthProvider>
             <PortalRootProvider>

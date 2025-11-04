@@ -4,6 +4,7 @@ docker_build(
   'admin',
   PROJECT_ROOT,
   dockerfile='../../Dockerfile',
+  target="build-all",
   entrypoint=["moon", "run", "repro/admin:dev"],
   ignore=['infra', 'dist', 'build', 'node_modules'],
   live_update=[
