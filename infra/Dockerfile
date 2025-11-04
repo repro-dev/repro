@@ -3,11 +3,15 @@ FROM node:22-slim AS base
 ARG BUILD_VERSION
 ENV BUILD_VERSION=$BUILD_VERSION
 
+RUN apt update \
+  && apt upgrade -y \
+  && apt install -y gettext-base
+
 WORKDIR /app
 
 RUN npm add --global @moonrepo/cli
 
-FROM base as scaffold
+FROM base AS scaffold
 
 COPY . .
 RUN moon docker scaffold \
@@ -20,9 +24,11 @@ FROM base AS prepare
 COPY --from=scaffold /app/.moon/docker/workspace .
 COPY --from=scaffold /app/patches ./patches
 RUN moon docker setup
-
-COPY --from=scaffold  /app/.moon/docker/sources .
-
-FROM prepare AS build
 COPY . .
+
+FROM prepare AS build-all
 RUN moon run :build
+
+FROM prepare AS api-server
+RUN moon run repro/api-server:build
+CMD ["moon", "run", "repro/api-server:serve"]

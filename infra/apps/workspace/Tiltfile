@@ -4,6 +4,7 @@ docker_build(
   'workspace',
   PROJECT_ROOT,
   dockerfile='../../Dockerfile',
+  target="build-all",
   entrypoint=["moon", "run", "repro/workspace:dev"],
   ignore=['infra', 'dist', 'build', 'node_modules'],
   live_update=[

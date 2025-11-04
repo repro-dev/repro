@@ -4,6 +4,7 @@ docker_build(
     'api-server',
     PROJECT_ROOT,
     dockerfile='../../Dockerfile',
+    target="build-all",
     entrypoint=["moon", "run", "repro/api-server:dev"],
     ignore=['infra', 'dist', 'build', 'node_modules'],
     live_update=[

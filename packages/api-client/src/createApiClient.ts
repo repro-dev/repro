@@ -38,6 +38,6 @@ export function createApiClient(config: ApiConfiguration): ApiClient {
 }
 
 export const defaultClient = createApiClient({
-  baseUrl: process.env.REPRO_API_URL || '',
-  authStorage: (process.env.AUTH_STORAGE as any) || 'local-storage',
+  baseUrl: '',
+  authStorage: 'memory',
 })

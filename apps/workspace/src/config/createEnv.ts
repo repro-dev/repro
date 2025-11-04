@@ -2,6 +2,7 @@ import z from 'zod'
 
 const envSchema = z.object({
   BUILD_ENV: z.string().default('development'),
+  MIXPANEL_TOKEN: z.string().default(''),
   REPRO_API_URL: z.string().default('https://localhost:8181'),
   REPRO_APP_URL: z.string().default('https://localhost:8080'),
 })
