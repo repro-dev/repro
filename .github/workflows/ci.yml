@@ -128,7 +128,7 @@ jobs:
           push: true
 
   affected-deployments:
-    name: Get affected deployments
+    name: List affected deployments
     needs: [build]
     runs-on: ubuntu-latest
     outputs:
@@ -137,7 +137,7 @@ jobs:
       - name: List affected apps
         id: affected
         run: |
-          echo "app_ids=${{ moon query projects --affected --json --tags type.app | jq -c '.projects[].id' }}"
+          echo "app_ids=$(moon query projects --affected --json --tags type.app | jq -c '.projects[].id')" >> $GITHUB_OUTPUT
 
   deploy-workspace:
     name: Deploy workspace
