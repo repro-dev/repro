@@ -89,7 +89,8 @@ jobs:
         id: list-affected
         run: |
           echo "app_ids=$(moon query projects --json --tags type.app | jq -c '.projects[].id')"
-          echo "app_ids=${{ toJSON('$(moon query projects --affected --json --tags type.app | jq -c '.projects[].id')') }}" >> $GITHUB_OUTPUT
+          echo "app_ids=$(moon query projects --affected --json --tags type.app | jq -c '.projects[].id')" >> $GITHUB_OUTPUT
+          echo $GITHUB_OUTPUT
 
   docker:
     name: Containerize
