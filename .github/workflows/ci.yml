@@ -13,6 +13,8 @@ jobs:
   build:
     name: Build, check & test
     runs-on: ubuntu-latest
+    outputs:
+      app_ids: ${{ steps.list-affected.outputs.app_ids }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -83,6 +85,12 @@ jobs:
       - name: Check affected packages
         run: moon ci :build :typecheck :test
 
+      - name: List affected apps
+        id: list-affected
+        run: |
+          echo "app_ids=$(moon query projects --affected --json --tags type.app | jq -c '.projects[].id')"
+          echo "app_ids=$(moon query projects --affected --json --tags type.app | jq -c '.projects[].id')" >> $GITHUB_OUTPUT
+
   docker:
     name: Containerize
     needs: [build]
@@ -127,24 +135,11 @@ jobs:
           file: infra/Dockerfile
           push: true
 
-  affected-deployments:
-    name: List affected deployments
-    needs: [build]
-    runs-on: ubuntu-latest
-    outputs:
-      app_ids: ${{ steps.affected.outputs.app_ids }}
-    steps:
-      - name: List affected apps
-        id: affected
-        run: |
-          echo "app_ids=$(moon query projects --affected --json --tags type.app | jq -c '.projects[].id')"
-          echo "app_ids=$(moon query projects --affected --json --tags type.app | jq -c '.projects[].id')" >> $GITHUB_OUTPUT
-
   deploy-workspace:
     name: Deploy workspace
-    needs: [build, affected-deployments]
+    needs: [build]
     runs-on: ubuntu-latest
-    if: ${{ contains(fromJSON(needs.affected-deployments.outputs.app_ids), 'repro/workspace') }}
+    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/workspace') }}
     steps:
       - name: Log
         run: |
