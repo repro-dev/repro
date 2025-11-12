@@ -135,11 +135,31 @@ jobs:
           push: true
 
   deploy-workspace:
-    name: Deploy workspace
+    name: Deploy workspace (app)
     needs: [build]
     runs-on: ubuntu-latest
     if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/workspace') }}
     steps:
       - name: Log
         run: |
-          echo "Deploying workspace"
+          echo "Deploying workspace (app)"
+
+  deploy-capture:
+    name: Deploy capture (extension)
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/capture') }}
+    steps:
+      - name: Log
+        run: |
+          echo "Deploying capture (extension)
+
+  deploy-dev-toolbar:
+    name: Deploy dev-toolbar (extension)
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/dev-toolbar') }}
+    steps:
+      - name: Log
+        run: |
+          echo "Deploying dev-toolbar (extension)"
