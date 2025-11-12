@@ -127,11 +127,23 @@ jobs:
           file: infra/Dockerfile
           push: true
 
-  deploy-workspace:
-    name: Deploy workspace
+  affected-deployments:
+    name: Get affected deployments
     needs: [build]
     runs-on: ubuntu-latest
-    if: ${{ contains(moon query projects --affected --json | jq -c '.projects[].id', 'repro/workspace') }}
+    outputs:
+      app_ids: ${{ steps.affected.outputs.app_ids }}
+    steps:
+      - name: List affected apps
+        id: affected
+        run: |
+          echo "app_ids=${{ moon query projects --affected --json --tags type.app | jq -c '.projects[].id' }}"
+
+  deploy-workspace:
+    name: Deploy workspace
+    needs: [build, affected-deployments]
+    runs-on: ubuntu-latest
+    if: ${{ contains(fromJSON(needs.affected-deployments.outputs.app_ids), 'repro/workspace') }}
     steps:
       - name: Log
         run: |
