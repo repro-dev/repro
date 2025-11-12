@@ -127,3 +127,12 @@ jobs:
           file: infra/Dockerfile
           push: true
 
+  deploy-workspace:
+    name: Deploy workspace
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: ${{ contains(moon query projects --affected --json | jq -c '.projects[].id', 'repro/workspace')
+    steps:
+      - name: Log
+        run: |
+          echo "Deploying workspace"
