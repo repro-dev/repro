@@ -90,10 +90,11 @@ jobs:
         run: |
           echo "app_ids=$(moon query projects --affected --json --tags type.app | jq -c '[.projects[].id]')" >> $GITHUB_OUTPUT
 
-  docker:
-    name: Containerize
+  containerize:
+    name: Build container image
     needs: [build]
     runs-on: ubuntu-latest
+    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/api-server') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -133,6 +134,16 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           file: infra/Dockerfile
           push: true
+
+  deploy-api-server:
+    name: Deploy api-server (api)
+    needs: [containerize]
+    runs-on: ubuntu-latest
+    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/api-server') }}
+    steps:
+      - name: Log
+        run: |
+          echo "Deploying api-server (api)"
 
   deploy-workspace:
     name: Deploy workspace (app)
