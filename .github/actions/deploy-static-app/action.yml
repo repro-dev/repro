@@ -37,3 +37,4 @@ runs:
     - name: List artifacts
       run: |
         ls -R
+      shell: bash
