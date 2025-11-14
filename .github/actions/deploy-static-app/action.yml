@@ -33,6 +33,7 @@ runs:
       uses: actions/download-artifact@v5
       with:
         name: build-artifacts-${{ github.run_number }}
+        path: apps
 
     - name: List artifacts
       run: |
