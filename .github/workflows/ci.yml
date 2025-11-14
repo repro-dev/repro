@@ -157,6 +157,11 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/workspace') }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Deploy
         uses: ./.github/actions/deploy-static-app.yml
         with:
