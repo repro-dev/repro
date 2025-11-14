@@ -85,6 +85,12 @@ jobs:
       - name: Check affected packages
         run: moon ci :build :typecheck :test
 
+      - name: Upload artifacts
+        uses: actions/upload-artifacts@v4
+        with:
+          name: build-artifacts-${{ github.run_number }}
+          path: apps/*/dist
+
       - name: List affected apps
         id: list-affected
         run: |
@@ -151,9 +157,15 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/workspace') }}
     steps:
-      - name: Log
-        run: |
-          echo "Deploying workspace (app)"
+      - name: Deploy
+        uses: /.github/actions/deploy-static-app.yml
+        with:
+          app-name: workspace
+        secrets:
+          access-key: ${{ secrets.SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.SCW_SECRET_KEY }}
+          project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+          organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
 
   deploy-capture:
     name: Deploy capture (extension)
