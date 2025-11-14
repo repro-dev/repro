@@ -151,6 +151,26 @@ jobs:
         run: |
           echo "Deploying api-server (api)"
 
+  deploy-admin:
+    name: Deploy admin (app)
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/admin') }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Deploy
+        uses: ./.github/actions/deploy-static-app
+        with:
+          app-name: admin
+          access-key: ${{ secrets.SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.SCW_SECRET_KEY }}
+          project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+          organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+
   deploy-workspace:
     name: Deploy workspace (app)
     needs: [build]
