@@ -30,7 +30,7 @@ runs:
         default-organization-id: ${{ inputs.organization-id }}
 
     - name: Download artifacts
-      uses: actions/download-artifacts@v5
+      uses: actions/download-artifact@v5
       with:
         name: build-artifacts-${{ github.run_number }}
 
