@@ -6,7 +6,6 @@ on:
       app-name:
         type: string
         required: true
-    secrets:
       access-key:
         type: string
         required: true
@@ -29,10 +28,10 @@ jobs:
         uses: scaleway/action-scw@v0
         with:
           save-config: true
-          access-key: ${{ secrets.access-key }}
-          secret-key: ${{ secrets.secret-key }}
-          default-project-id: ${{ secrets.project-id }}
-          default-organization-id: ${{ secrets.organization-id }}
+          access-key: ${{ inputs.access-key }}
+          secret-key: ${{ inputs.secret-key }}
+          default-project-id: ${{ inputs.project-id }}
+          default-organization-id: ${{ inputs.organization-id }}
 
       - name: Download artifacts
         uses: actions/download-artifacts@v5

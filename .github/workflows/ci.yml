@@ -161,7 +161,6 @@ jobs:
         uses: /.github/actions/deploy-static-app.yml
         with:
           app-name: workspace
-        secrets:
           access-key: ${{ secrets.SCW_ACCESS_KEY }}
           secret-key: ${{ secrets.SCW_SECRET_KEY }}
           project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
