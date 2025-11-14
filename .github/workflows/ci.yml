@@ -163,7 +163,7 @@ jobs:
           fetch-depth: 0
 
       - name: Deploy
-        uses: ./.github/actions/deploy-static-app.yml
+        uses: ./.github/actions/deploy-static-app
         with:
           app-name: workspace
           access-key: ${{ secrets.SCW_ACCESS_KEY }}
