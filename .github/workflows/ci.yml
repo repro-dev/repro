@@ -158,7 +158,7 @@ jobs:
     if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/workspace') }}
     steps:
       - name: Deploy
-        uses: /.github/actions/deploy-static-app.yml
+        uses: ./.github/actions/deploy-static-app.yml
         with:
           app-name: workspace
           access-key: ${{ secrets.SCW_ACCESS_KEY }}

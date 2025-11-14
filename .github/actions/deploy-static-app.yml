@@ -1,43 +1,39 @@
 name: Deploy static app
 
-on:
-  workflow_call:
-    inputs:
-      app-name:
-        type: string
-        required: true
-      access-key:
-        type: string
-        required: true
-      secret-key:
-        type: string
-        required: true
-      project-id:
-        type: string
-        required: true
-      organization-id:
-        type: string
-        required: true
+inputs:
+  app-name:
+    type: string
+    required: true
+  access-key:
+    type: string
+    required: true
+  secret-key:
+    type: string
+    required: true
+  project-id:
+    type: string
+    required: true
+  organization-id:
+    type: string
+    required: true
 
-jobs:
-  deploy:
-    name: Deploy ${{ inputs.app-name }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Initialize Scaleway CLI
-        uses: scaleway/action-scw@v0
-        with:
-          save-config: true
-          access-key: ${{ inputs.access-key }}
-          secret-key: ${{ inputs.secret-key }}
-          default-project-id: ${{ inputs.project-id }}
-          default-organization-id: ${{ inputs.organization-id }}
+runs:
+  using: composite
+  steps:
+    - name: Initialize Scaleway CLI
+      uses: scaleway/action-scw@v0
+      with:
+        save-config: true
+        access-key: ${{ inputs.access-key }}
+        secret-key: ${{ inputs.secret-key }}
+        default-project-id: ${{ inputs.project-id }}
+        default-organization-id: ${{ inputs.organization-id }}
 
-      - name: Download artifacts
-        uses: actions/download-artifacts@v5
-        with:
-          name: build-artifacts-${{ github.run_number }}
+    - name: Download artifacts
+      uses: actions/download-artifacts@v5
+      with:
+        name: build-artifacts-${{ github.run_number }}
 
-      - name: List artifacts
-        run: |
-          ls -R
+    - name: List artifacts
+      run: |
+        ls -R
