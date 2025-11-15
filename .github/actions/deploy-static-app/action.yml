@@ -23,7 +23,19 @@ runs:
     - name: Set variables
       id: vars
       run: |
-        echo "branch-name=$(echo $GITHUB_REF_NAME  | sed 's/\//_/g')" >> $GITHUB_OUTPUT
+        case $GITHUB_EVENT_NAME in
+          push)
+            echo "base-path=/branch/$(echo $GITHUB_REF_NAME  | sed 's/\//_/g')" >> $GITHUB_OUTPUT
+            ;;
+
+          pull_request)
+            echo "base-path=/pull/${{ github.event.number }}" >> $GITHUB_OUTPUT
+            ;;
+
+          *)
+            echo "base-path=" >> $GITHUB_OUTPUT
+            ;;
+        esac
       shell: bash
 
     - name: Initialize Scaleway CLI
@@ -51,9 +63,9 @@ runs:
       shell: bash
       env:
         BUILD_ENV: production
-        REPRO_APP_URL: https://app.reproqa.dev/branch/${{ steps.vars.outputs.branch-name }}
+        REPRO_APP_URL: https://app.env.reproqa.dev${{ steps.vars.outputs.base-path }}
         # TODO: Provide branch build of API server
-        REPRO_API_URL: https://api.reproqa.dev
+        REPRO_API_URL: https://api.env.reproqa.dev
 
     - name: Upload build artifacts
       run: |
