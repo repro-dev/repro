@@ -580,7 +580,7 @@ function createDOMFromVTree(
             const frame = doc.createElement('iframe')
 
             for (const [name, value] of Object.entries(vNode.attributes)) {
-              if (isValidAttributeName(name)) {
+              if (isValidAttributeName(name) && name !== 'src') {
                 frame.setAttribute(name, value ?? '')
               }
             }
