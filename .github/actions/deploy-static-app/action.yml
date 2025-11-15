@@ -59,4 +59,5 @@ runs:
       run: |
         echo "Upload build artifacts with SCW API"
         ls -R apps/${{ inputs.app-name }}/dist
+        cat apps/${{ inputs.app-name }}/dist/index.html
       shell: bash
