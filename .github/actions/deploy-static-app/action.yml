@@ -20,6 +20,11 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Set variables
+      id: vars
+      run: |
+        echo "branch-name=$(echo $GITHUB_REF_NAME  | sed 's/\//_/g')" >> $GITHUB_OUTPUT
+
     - name: Initialize Scaleway CLI
       uses: scaleway/action-scw@v0
       with:
@@ -35,7 +40,18 @@ runs:
         name: build-artifacts-${{ github.run_number }}
         path: apps
 
-    - name: List artifacts
+    - name: Prepare environment
       run: |
-        ls -R
+        [ -f "apps/${{ inputs.app-name }}/scripts/prepare-env" ] \
+          && ./apps/${{ inputs.app-name }}/scripts/prepare-env
       shell: bash
+      env:
+        BUILD_ENV: production
+        REPRO_APP_URL: https://app.reproqa.dev/branch/${{ steps.vars.outputs.branch-name }}
+        # TODO: Provide branch build of API server
+        REPRO_API_URL: https://api.reproqa.dev
+
+    - name: Upload build artifacts
+      run: |
+        echo "Upload build artifacts with SCW API"
+        ls -R apps/${{ inputs.app-name }}/dist
