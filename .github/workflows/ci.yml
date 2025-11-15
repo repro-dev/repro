@@ -8,6 +8,10 @@ on:
     tags:
       - "v*"
   pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 jobs:
   build:
@@ -165,6 +169,7 @@ jobs:
       - name: Deploy
         uses: ./.github/actions/deploy-static-app
         with:
+          build-env: production
           app-name: admin
           access-key: ${{ secrets.SCW_ACCESS_KEY }}
           secret-key: ${{ secrets.SCW_SECRET_KEY }}
@@ -185,6 +190,7 @@ jobs:
       - name: Deploy
         uses: ./.github/actions/deploy-static-app
         with:
+          build-env: production
           app-name: workspace
           access-key: ${{ secrets.SCW_ACCESS_KEY }}
           secret-key: ${{ secrets.SCW_SECRET_KEY }}

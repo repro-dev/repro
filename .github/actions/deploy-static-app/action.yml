@@ -1,6 +1,9 @@
 name: Deploy static app
 
 inputs:
+  build-env:
+    type: string
+    required: true
   app-name:
     type: string
     required: true
@@ -25,14 +28,17 @@ runs:
       run: |
         case $GITHUB_EVENT_NAME in
           push)
-            echo "base-path=/branch/$(echo $GITHUB_REF_NAME  | sed 's/\//_/g')" >> $GITHUB_OUTPUT
+            echo "base-origin=https://${{ inputs.app-name }}.env.reproqa.dev" >> $GITHUB_OUTPUT
+            echo "base-path=/$GITHUB_REF_TYPE/$(echo $GITHUB_REF_NAME  | sed 's/\//_/g')" >> $GITHUB_OUTPUT
             ;;
 
           pull_request)
+            echo "base-origin=https://${{ inputs.app-name }}.env.reproqa.dev" >> $GITHUB_OUTPUT
             echo "base-path=/pull/${{ github.event.number }}" >> $GITHUB_OUTPUT
             ;;
 
           *)
+            echo "base-origin=https://app.reproqa.dev" >> $GITHUB_OUTPUT
             echo "base-path=" >> $GITHUB_OUTPUT
             ;;
         esac
@@ -62,10 +68,10 @@ runs:
         ./apps/${{ inputs.app-name }}/scripts/prepare-env
       shell: bash
       env:
-        BUILD_ENV: production
-        REPRO_APP_URL: https://app.env.reproqa.dev${{ steps.vars.outputs.base-path }}
+        BUILD_ENV: ${{ inputs.build-env }}
+        REPRO_APP_URL: ${{ steps.vars.outputs.base-origin }}${{ steps.vars.outputs.base-path }}
         # TODO: Provide branch build of API server
-        REPRO_API_URL: https://api.env.reproqa.dev
+        REPRO_API_URL: https://api.reproqa.dev
 
     - name: Upload build artifacts
       run: |
