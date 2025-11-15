@@ -24,6 +24,7 @@ runs:
       id: vars
       run: |
         echo "branch-name=$(echo $GITHUB_REF_NAME  | sed 's/\//_/g')" >> $GITHUB_OUTPUT
+      shell: bash
 
     - name: Initialize Scaleway CLI
       uses: scaleway/action-scw@v0
