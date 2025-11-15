@@ -43,8 +43,11 @@ runs:
 
     - name: Prepare environment
       run: |
-        [ -f "apps/${{ inputs.app-name }}/scripts/prepare-env" ] \
-          && ./apps/${{ inputs.app-name }}/scripts/prepare-env
+        if [ ! -f apps/${{ inputs.app-name }}/scripts/prepare-env ]; then
+          exit 0
+        fi
+        
+        ./apps/${{ inputs.app-name }}/scripts/prepare-env
       shell: bash
       env:
         BUILD_ENV: production
