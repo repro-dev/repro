@@ -28,18 +28,18 @@ runs:
       run: |
         case $GITHUB_EVENT_NAME in
           push)
-            echo "base-origin=https://${{ inputs.app-name }}.env.reproqa.dev" >> $GITHUB_OUTPUT
-            echo "base-path=/$GITHUB_REF_TYPE/$(echo $GITHUB_REF_NAME  | sed 's/\//_/g')" >> $GITHUB_OUTPUT
+            if [ $GITHUB_REF_NAME == "main" ]; then
+              echo "base-origin=https://app.reproqa.dev" >> $GITHUB_OUTPUT
+              echo "base-path=" >> $GITHUB_OUTPUT
+            else
+              echo "base-origin=https://${{ inputs.app-name }}.env.reproqa.dev" >> $GITHUB_OUTPUT
+              echo "base-path=/$GITHUB_REF_TYPE/$(echo $GITHUB_REF_NAME  | sed 's/\//_/g')" >> $GITHUB_OUTPUT
+            fi
             ;;
 
           pull_request)
             echo "base-origin=https://${{ inputs.app-name }}.env.reproqa.dev" >> $GITHUB_OUTPUT
             echo "base-path=/pull/${{ github.event.number }}" >> $GITHUB_OUTPUT
-            ;;
-
-          *)
-            echo "base-origin=https://app.reproqa.dev" >> $GITHUB_OUTPUT
-            echo "base-path=" >> $GITHUB_OUTPUT
             ;;
         esac
       shell: bash
