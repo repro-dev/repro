@@ -73,7 +73,7 @@ module.exports = {
 
   devServer: {
     port: process.env.PORT,
-    allowedHosts: ['app.repro.test', `localhost:${process.env.PORT}`],
+    allowedHosts: 'all',
     historyApiFallback: true,
     static: path.resolve(__dirname, 'dist'),
     webSocketServer: false,
