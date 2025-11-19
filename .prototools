@@ -4,6 +4,8 @@ node = "22.19.0"
 pnpm = "10.17.0"
 proto = "0.53.4"
 tilt = "0.35.1"
+helm = "3.19.2"
 
-[plugins]
+[plugins.tools]
 tilt = "https://raw.githubusercontent.com/appthrust/proto-toml-plugins/main/tilt/plugin.toml"
+helm = "https://raw.githubusercontent.com/stk0vrfl0w/proto-toml-plugins/main/plugins/helm.toml"

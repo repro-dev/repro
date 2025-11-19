@@ -1,10 +1,8 @@
 ingress:
   className: nginx
 
-  tlsSecretName: repro-dev-tls
-
   appRoutes:
-    host: app.repro.localhost
+    host: app.repro.k8s.orb.local
     paths:
       - path: /(.*)
         pathType: ImplementationSpecific
@@ -12,7 +10,7 @@ ingress:
         servicePort: http
   
   apiRoutes:
-    host: api.repro.localhost
+    host: api.repro.k8s.orb.local
     annotations:
       nginx.ingress.kubernetes.io/proxy-body-size: "0"
       nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
@@ -24,7 +22,7 @@ ingress:
         servicePort: http
   
   adminRoutes:
-    host: admin.repro.localhost
+    host: admin.repro.k8s.orb.local
     paths:
       - path: /(.*)
         pathType: ImplementationSpecific
