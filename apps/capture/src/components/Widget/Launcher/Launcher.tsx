@@ -40,7 +40,7 @@ export const Launcher: React.FC = () => {
       paddingInline={15}
       backgroundColor={colors.blue['800']}
       backgroundImage={`linear-gradient(to bottom right, ${colors.blue['900']}, ${colors.blue['700']})`}
-      hoverBackgroundColor={colors.blue['900']}
+      hoverBackgroundColor={colors.blue['800']}
       hoverBackgroundImage="none"
       borderRadius={8}
       border={`1px solid ${colors.blue['900']}`}
