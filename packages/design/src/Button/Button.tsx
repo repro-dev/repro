@@ -13,9 +13,9 @@ type Props = PropsWithChildren<{
 }>
 
 const sizes = {
-  small: 6,
-  medium: 8,
-  large: 10,
+  small: 5,
+  medium: 7,
+  large: 9,
 }
 
 const colorGroups = {
@@ -27,7 +27,7 @@ const colorGroups = {
   inverted: colors.white,
 }
 
-const MINIMUM_FONT_SIZE = 12
+const MINIMUM_FONT_SIZE = 11
 
 export const Button: React.FC<Props> = ({
   children,
@@ -63,14 +63,14 @@ export const Button: React.FC<Props> = ({
         disabled
           ? null
           : variant === 'contained'
-          ? colorGroup['600']
-          : colorGroup['50']
+            ? colorGroup['600']
+            : colorGroup['50']
       }
       boxSizing="border-box"
       borderColor={variant === 'outlined' ? colorGroup['300'] : 'transparent'}
       borderStyle="solid"
       borderWidth={1}
-      borderRadius={rounded ? base / 2 : 0}
+      borderRadius={rounded ? base : 0}
       color={
         variant === 'contained'
           ? context === 'inverted'
@@ -82,8 +82,8 @@ export const Button: React.FC<Props> = ({
         disabled
           ? 'none'
           : variant === 'contained'
-          ? '0 2px 4px rgba(0, 0, 0, 0.25)'
-          : 'none'
+            ? '0 2px 4px rgba(0, 0, 0, 0.25)'
+            : 'none'
       }
       opacity={disabled ? 0.5 : 1}
       cursor={disabled ? 'default' : 'pointer'}

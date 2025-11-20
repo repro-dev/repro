@@ -3,8 +3,8 @@ local_resource(
   serve_cmd='moon run repro/capture:watch',
   serve_env={
     'BUILD_ENV': 'development',
-    'REPRO_APP_URL': 'https://app.repro.localhost',
-    'REPRO_API_URL': 'https://api.repro.localhost'
+    'REPRO_APP_URL': 'https://app.repro.k8s.orb.local',
+    'REPRO_API_URL': 'https://api.repro.k8s.orb.local'
   },
   resource_deps=['dependencies'],
   allow_parallel=True,
