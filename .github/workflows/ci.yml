@@ -8,11 +8,17 @@ on:
     tags:
       - "v*"
   pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 jobs:
   build:
     name: Build, check & test
     runs-on: ubuntu-latest
+    outputs:
+      app_ids: ${{ steps.list-affected.outputs.app_ids }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -83,10 +89,22 @@ jobs:
       - name: Check affected packages
         run: moon ci :build :typecheck :test
 
-  docker:
-    name: Containerize
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ github.run_number }}
+          path: apps/*/dist
+
+      - name: List affected apps
+        id: list-affected
+        run: |
+          echo "app_ids=$(moon query projects --affected --json --tags type.app | jq -c '[.projects[].id]')" >> $GITHUB_OUTPUT
+
+  containerize:
+    name: Build container image
     needs: [build]
     runs-on: ubuntu-latest
+    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/api-server') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -127,3 +145,74 @@ jobs:
           file: infra/Dockerfile
           push: true
 
+  deploy-api-server:
+    name: Deploy api-server (api)
+    needs: [containerize]
+    runs-on: ubuntu-latest
+    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/api-server') }}
+    steps:
+      - name: Log
+        run: |
+          echo "Deploying api-server (api)"
+
+  deploy-admin:
+    name: Deploy admin (app)
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/admin') }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Deploy
+        uses: ./.github/actions/deploy-static-app
+        with:
+          build-env: production
+          app-name: admin
+          access-key: ${{ secrets.SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.SCW_SECRET_KEY }}
+          project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+          organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+
+  deploy-workspace:
+    name: Deploy workspace (app)
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/workspace') }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Deploy
+        uses: ./.github/actions/deploy-static-app
+        with:
+          build-env: production
+          app-name: workspace
+          access-key: ${{ secrets.SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.SCW_SECRET_KEY }}
+          project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+          organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+
+  deploy-capture:
+    name: Deploy capture (extension)
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/capture') }}
+    steps:
+      - name: Log
+        run: |
+          echo "Deploying capture (extension)
+
+  deploy-dev-toolbar:
+    name: Deploy dev-toolbar (extension)
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/dev-toolbar') }}
+    steps:
+      - name: Log
+        run: |
+          echo "Deploying dev-toolbar (extension)"

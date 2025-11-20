@@ -1,0 +1,81 @@
+name: Deploy static app
+
+inputs:
+  build-env:
+    type: string
+    required: true
+  app-name:
+    type: string
+    required: true
+  access-key:
+    type: string
+    required: true
+  secret-key:
+    type: string
+    required: true
+  project-id:
+    type: string
+    required: true
+  organization-id:
+    type: string
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set variables
+      id: vars
+      run: |
+        case $GITHUB_EVENT_NAME in
+          push)
+            if [ $GITHUB_REF_NAME == "main" ]; then
+              echo "base-origin=https://app.reproqa.dev" >> $GITHUB_OUTPUT
+              echo "base-path=" >> $GITHUB_OUTPUT
+            else
+              echo "base-origin=https://${{ inputs.app-name }}.env.reproqa.dev" >> $GITHUB_OUTPUT
+              echo "base-path=/$GITHUB_REF_TYPE/$(echo $GITHUB_REF_NAME  | sed 's/\//_/g')" >> $GITHUB_OUTPUT
+            fi
+            ;;
+
+          pull_request)
+            echo "base-origin=https://${{ inputs.app-name }}.env.reproqa.dev" >> $GITHUB_OUTPUT
+            echo "base-path=/pull/${{ github.event.number }}" >> $GITHUB_OUTPUT
+            ;;
+        esac
+      shell: bash
+
+    - name: Initialize Scaleway CLI
+      uses: scaleway/action-scw@v0
+      with:
+        save-config: true
+        access-key: ${{ inputs.access-key }}
+        secret-key: ${{ inputs.secret-key }}
+        default-project-id: ${{ inputs.project-id }}
+        default-organization-id: ${{ inputs.organization-id }}
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v5
+      with:
+        name: build-artifacts-${{ github.run_number }}
+        path: apps
+
+    - name: Prepare environment
+      run: |
+        if [ ! -f apps/${{ inputs.app-name }}/scripts/prepare-env ]; then
+          exit 0
+        fi
+        
+        ./apps/${{ inputs.app-name }}/scripts/prepare-env
+      shell: bash
+      env:
+        BUILD_ENV: ${{ inputs.build-env }}
+        REPRO_APP_URL: ${{ steps.vars.outputs.base-origin }}${{ steps.vars.outputs.base-path }}
+        # TODO: Provide branch build of API server
+        REPRO_API_URL: https://api.reproqa.dev
+
+    - name: Upload build artifacts
+      run: |
+        echo "Upload build artifacts with SCW API"
+        ls -R apps/${{ inputs.app-name }}/dist
+        cat apps/${{ inputs.app-name }}/dist/index.html
+      shell: bash
