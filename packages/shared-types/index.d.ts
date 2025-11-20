@@ -1,24 +1,26 @@
-import { CSSProperties } from '@jsxstyle/core'
+import { CSSProperties } from "@jsxstyle/core";
 
-declare module '@jsxstyle/core' {
+declare module "@jsxstyle/core" {
   interface PseudoPrefixedProps {
-    focusBorderColor?: CSSProperties['borderColor']
-    focusOutline?: CSSProperties['outline']
+    focusBorderColor?: CSSProperties["borderColor"];
+    focusOutline?: CSSProperties["outline"];
 
-    hoverBorderColor?: CSSProperties['borderColor']
-    hoverBorderWidth?: CSSProperties['borderWidth']
+    hoverBackgroundImage?: CSSProperties["backgroundImage"];
 
-    hoverBorderBottom?: CSSProperties['borderBottom']
-    hoverBorderLeft?: CSSProperties['borderLeft']
-    hoverBorderRight?: CSSProperties['borderRight']
-    hoverBorderTop?: CSSProperties['borderTop']
+    hoverBorderColor?: CSSProperties["borderColor"];
+    hoverBorderWidth?: CSSProperties["borderWidth"];
 
-    hoverHeight?: CSSProperties['height']
-    hoverWidth?: CSSProperties['width']
+    hoverBorderBottom?: CSSProperties["borderBottom"];
+    hoverBorderLeft?: CSSProperties["borderLeft"];
+    hoverBorderRight?: CSSProperties["borderRight"];
+    hoverBorderTop?: CSSProperties["borderTop"];
 
-    hoverVisibility?: CSSProperties['visibility']
-    emptyVisibility?: CSSProperties['visibility']
+    hoverHeight?: CSSProperties["height"];
+    hoverWidth?: CSSProperties["width"];
 
-    emptyDisplay?: CSSProperties['display']
+    hoverVisibility?: CSSProperties["visibility"];
+    emptyVisibility?: CSSProperties["visibility"];
+
+    emptyDisplay?: CSSProperties["display"];
   }
 }

@@ -200,7 +200,8 @@ export const PickerOverlay: React.FC = React.memo(() => {
               y={boundingBox.y}
               width={boundingBox.width}
               height={boundingBox.height}
-              fill={`${colors.pink['500']}33`}
+              fill={colors.pink['500']}
+              fillOpacity={0.2}
               stroke={colors.pink['500']}
               strokeWidth={2}
             />

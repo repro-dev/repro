@@ -12,12 +12,18 @@ import { Portal } from '../Portal'
 import { colors } from '../theme'
 
 type Props = PropsWithChildren<{
+  delay?: number
   position?: 'top' | 'bottom' | 'right' | 'left'
 }>
 
 const MAX_INT32 = 2 ** 32 - 1
+const DEFAULT_TOOLTIP_DELAY = 100
 
-export const Tooltip: React.FC<Props> = ({ children, position = 'top' }) => {
+export const Tooltip: React.FC<Props> = ({
+  children,
+  delay = DEFAULT_TOOLTIP_DELAY,
+  position = 'top',
+}) => {
   const ref = useRef() as MutableRefObject<HTMLDivElement>
   const [active, setActive] = useState(false)
   const [x, setX] = useState(0)
@@ -83,16 +89,12 @@ export const Tooltip: React.FC<Props> = ({ children, position = 'top' }) => {
     const parent = ref.current ? ref.current.parentElement : null
 
     if (parent) {
-      const TOOLTIP_DELAY = 100
-
       const pointerEnter$ = fromEvent(parent, 'pointerenter')
       const pointerLeave$ = fromEvent(parent, 'pointerleave')
 
       subscription.add(
         pointerEnter$
-          .pipe(
-            switchMap(() => timer(TOOLTIP_DELAY).pipe(takeUntil(pointerLeave$)))
-          )
+          .pipe(switchMap(() => timer(delay).pipe(takeUntil(pointerLeave$))))
           .subscribe(() => {
             updatePosition()
             setActive(true)
@@ -105,7 +107,7 @@ export const Tooltip: React.FC<Props> = ({ children, position = 'top' }) => {
     return () => {
       subscription.unsubscribe()
     }
-  }, [ref, setActive, updatePosition])
+  }, [ref, delay, setActive, updatePosition])
 
   return (
     <Block position="absolute" props={{ ref }}>
@@ -118,7 +120,7 @@ export const Tooltip: React.FC<Props> = ({ children, position = 'top' }) => {
           transform={`translate(${translateX}, ${translateY})`}
           transformOrigin="0 0"
           backgroundColor={colors.slate['700']}
-          borderRadius={2}
+          borderRadius={8}
           color={colors.white}
           fontSize={11}
           whiteSpace="nowrap"

@@ -266,7 +266,7 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
         gap={3}
         alignItems="center"
         fontFamily="monospace"
-        fontSize={13}
+        fontSize={11}
         userSelect="none"
       >
         <Block
@@ -413,6 +413,7 @@ function createTooltipElement() {
 
   const styles = [
     ['backgroundColor', colors.slate['700'] as string],
+    ['borderRadius', '8px'],
     ['color', colors.white],
     ['display', 'none'],
     ['fontSize', '11px'],
