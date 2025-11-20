@@ -205,7 +205,7 @@ jobs:
     steps:
       - name: Log
         run: |
-          echo "Deploying capture (extension)
+          echo "Deploying capture (extension)"
 
   deploy-dev-toolbar:
     name: Deploy dev-toolbar (extension)
