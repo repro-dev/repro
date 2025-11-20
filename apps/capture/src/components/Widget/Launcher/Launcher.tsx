@@ -9,10 +9,10 @@ export const Launcher: React.FC = () => {
   const [recordingMode, setRecordingMode] = useRecordingMode()
   const [, setReadyState] = useReadyState()
 
-  function onUseLive() {
-    setReadyState(ReadyState.Pending)
-    setRecordingMode(RecordingMode.Live)
-  }
+  // function onUseLive() {
+  //   setReadyState(ReadyState.Pending)
+  //   setRecordingMode(RecordingMode.Live)
+  // }
 
   function onUseReplay() {
     setReadyState(ReadyState.Ready)
