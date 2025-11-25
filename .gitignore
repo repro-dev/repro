@@ -15,11 +15,13 @@ certs
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
-# moon
+# MOON
 .moon/cache
 .moon/docker
 
-.aider*
-
+# STORYBOOK
 *storybook.log
 storybook-static
+
+# TEMP
+.DS_Store
