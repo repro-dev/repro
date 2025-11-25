@@ -2,6 +2,8 @@ import { CSSProperties } from "@jsxstyle/core";
 
 declare module "@jsxstyle/core" {
   interface PseudoPrefixedProps {
+    activeScale?: CSSProperties["scale"];
+
     focusBorderColor?: CSSProperties["borderColor"];
     focusOutline?: CSSProperties["outline"];
 

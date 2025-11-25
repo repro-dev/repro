@@ -11,7 +11,7 @@ import React, { Fragment, useCallback } from 'react'
 import { ReadyState, useReadyState, useRecordingMode } from '~/state'
 import { Launcher } from './Launcher'
 import { LiveControls } from './LiveControls'
-import { ReportForm } from './ReportForm'
+import { ReportFormModal } from './ReportForm/ReportFormModal'
 import { FormValues } from './ReportForm/types'
 
 const browser = detect()
@@ -94,14 +94,16 @@ export const Widget: React.FC = () => {
       <InlineBlock position="relative" pointerEvents="auto">
         <Launcher />
         {isPendingLiveRecording && <LiveControls />}
-        {isReady && (
-          <ReportForm
+
+        <Block position="relative" translate="20px -90px">
+          <ReportFormModal
+            open={isReady}
             onClose={onReset}
             onSuccess={onSuccess}
             onError={onError}
             upload={upload}
           />
-        )}
+        </Block>
       </InlineBlock>
     </Fragment>
   )

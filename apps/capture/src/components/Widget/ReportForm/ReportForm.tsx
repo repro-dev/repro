@@ -15,7 +15,6 @@ import { fork, FutureInstance } from 'fluture'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Subscription, switchMap, timer } from 'rxjs'
 import { useRecordingMode } from '~/state'
-import { Modal } from '../Modal'
 import { DetailsFields } from './DetailsFields'
 import { DetailsRegion, Layout, PlaybackRegion } from './Layout'
 import { ProgressOverlay } from './ProgressOverlay'
@@ -23,14 +22,14 @@ import { FormValues } from './types'
 
 const DEFAULT_SELECTED_DURATION = 60_000
 
-interface Props {
+export interface ReportFormProps {
   upload(values: FormValues): FutureInstance<Error, string>
   onSuccess(): void
   onError(error: Error): void
   onClose(): void
 }
 
-export const ReportForm: React.FC<Props> = ({
+export const ReportForm: React.FC<ReportFormProps> = ({
   upload,
   onSuccess,
   onError,
@@ -121,79 +120,71 @@ export const ReportForm: React.FC<Props> = ({
 
   return (
     <PlaybackProvider playback={playback}>
-      <Modal title="Create a bug report" size="full-screen" onClose={onClose}>
-        <Layout>
-          <PlaybackRegion>
-            {recordingMode === RecordingMode.Replay &&
-            durationOptions.length > 1 ? (
-              <Row
-                gap={10}
-                alignItems="center"
-                justifyContent="flex-end"
-                padding={10}
-                zIndex={1}
-                boxShadow={`
+      <Layout>
+        <PlaybackRegion>
+          {recordingMode === RecordingMode.Replay &&
+          durationOptions.length > 1 ? (
+            <Row
+              gap={10}
+              alignItems="center"
+              justifyContent="flex-end"
+              padding={10}
+              zIndex={1}
+              boxShadow={`
                   0 4px 16px rgba(0, 0, 0, 0.1),
                   0 1px 2px rgba(0, 0, 0, 0.1)
                 `}
-              >
-                <Block
-                  fontSize={13}
-                  fontWeight={700}
-                  color={colors.slate['700']}
-                >
-                  Duration
-                </Block>
+            >
+              <Block fontSize={13} fontWeight={700} color={colors.slate['700']}>
+                Duration
+              </Block>
 
-                <ToggleGroup
-                  options={durationOptions}
-                  selected={selectedDuration}
-                  onChange={setSelectedDuration}
-                />
-              </Row>
-            ) : (
-              <Block />
-            )}
+              <ToggleGroup
+                options={durationOptions}
+                selected={selectedDuration}
+                onChange={setSelectedDuration}
+              />
+            </Row>
+          ) : (
+            <Block />
+          )}
 
-            <PlaybackCanvas
-              interactive={false}
-              trackPointer={recordingMode !== RecordingMode.Snapshot}
-              trackScroll={true}
-              scaling="scale-to-fit"
-            />
+          <PlaybackCanvas
+            interactive={false}
+            trackPointer={recordingMode !== RecordingMode.Snapshot}
+            trackScroll={true}
+            scaling="scale-to-fit"
+          />
 
-            {(recordingMode === RecordingMode.Live ||
-              recordingMode === RecordingMode.Replay) && (
-              <Block
-                zIndex={1}
-                padding={10}
-                boxShadow={`
+          {(recordingMode === RecordingMode.Live ||
+            recordingMode === RecordingMode.Replay) && (
+            <Block
+              zIndex={1}
+              padding={10}
+              boxShadow={`
                   0 -4px 16px rgba(0, 0, 0, 0.1),
                   0 -1px 2px rgba(0, 0, 0, 0.1)
                 `}
-              >
-                <SimpleTimeline min={minTime} max={maxTime} />
-              </Block>
-            )}
-          </PlaybackRegion>
-
-          <DetailsRegion>
-            <DetailsFields
-              onSubmit={({ title, description }) =>
-                onSubmit({
-                  title,
-                  description,
-                  duration: selectedDuration,
-                })
-              }
-            />
-          </DetailsRegion>
-
-          {progress && (
-            <ProgressOverlay progress={progress} onClose={onClose} />
+            >
+              <SimpleTimeline min={minTime} max={maxTime} />
+            </Block>
           )}
-        </Layout>
-      </Modal>
+        </PlaybackRegion>
+
+        <DetailsRegion>
+          <DetailsFields
+            onSubmit={({ title, description }) =>
+              onSubmit({
+                title,
+                description,
+                duration: selectedDuration,
+              })
+            }
+          />
+        </DetailsRegion>
+
+        {progress && <ProgressOverlay progress={progress} onClose={onClose} />}
+      </Layout>
     </PlaybackProvider>
   )
 }
