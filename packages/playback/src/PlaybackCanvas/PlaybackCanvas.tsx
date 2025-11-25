@@ -94,7 +94,7 @@ export const PlaybackCanvas = withPlaybackErrorBoundary<
     const viewportContents = (
       <React.Fragment>
         <FrameRealm ref={frameRef}>
-          <Delay>
+          <Delay duration={500}>
             <NativeDOMRenderer
               trackScroll={trackScroll}
               ownerDocument={ownerDocument}
