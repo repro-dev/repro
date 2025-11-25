@@ -1,4 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
+import { animated, useTransition } from '@react-spring/web'
 import { colors, Logo, Tooltip } from '@repro/design'
 import { RecordingMode } from '@repro/domain'
 import { XIcon } from 'lucide-react'
@@ -8,6 +9,12 @@ import { ReadyState, useReadyState, useRecordingMode } from '~/state'
 export const Launcher: React.FC = () => {
   const [recordingMode, setRecordingMode] = useRecordingMode()
   const [, setReadyState] = useReadyState()
+
+  const transitions = useTransition(recordingMode !== RecordingMode.None, {
+    from: { opacity: 0, scale: 0.5, rotate: 45 },
+    enter: { opacity: 1, scale: 1, rotate: 0 },
+    leave: { opacity: 0, scale: 0.5, rotate: 45 },
+  })
 
   // function onUseLive() {
   //   setReadyState(ReadyState.Pending)
@@ -35,9 +42,10 @@ export const Launcher: React.FC = () => {
   return (
     <Row
       alignItems="center"
+      justifyContent="center"
       gap={10}
       height={60}
-      paddingInline={15}
+      width={60}
       backgroundColor={colors.blue['800']}
       backgroundImage={`linear-gradient(to bottom right, ${colors.blue['900']}, ${colors.blue['700']})`}
       hoverBackgroundColor={colors.blue['800']}
@@ -45,7 +53,9 @@ export const Launcher: React.FC = () => {
       borderRadius={8}
       border={`1px solid ${colors.blue['900']}`}
       boxShadow="0 0 16px rgba(0, 0, 0, 0.15)"
-      transform="translate(20px, -20px)"
+      scale={1}
+      activeScale={0.9}
+      translate="20px -20px"
       cursor="pointer"
       transition="all linear 100ms"
       onClick={onClick}
@@ -54,12 +64,22 @@ export const Launcher: React.FC = () => {
         <Tooltip position="right">Report a bug</Tooltip>
       )}
 
-      <Block>
-        {recordingMode === RecordingMode.None ? (
-          <Logo size={28} iconOnly inverted />
-        ) : (
-          <XIcon size={28} color={colors.white} />
-        )}
+      <Block position="relative" width={28} height={28}>
+        {transitions((style, active) => {
+          if (active) {
+            return (
+              <animated.div style={{ ...style, position: 'absolute' }}>
+                <XIcon size={28} color={colors.white} />
+              </animated.div>
+            )
+          }
+
+          return (
+            <animated.div style={{ ...style, position: 'absolute' }}>
+              <Logo size={28} iconOnly inverted />
+            </animated.div>
+          )
+        })}
       </Block>
     </Row>
   )

@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { colors, FrameRealm, FX } from '@repro/design'
+import { colors, Delay, FrameRealm, FX } from '@repro/design'
 import { Loader as LoaderIcon } from 'lucide-react'
 import React, {
   MutableRefObject,
@@ -94,12 +94,14 @@ export const PlaybackCanvas = withPlaybackErrorBoundary<
     const viewportContents = (
       <React.Fragment>
         <FrameRealm ref={frameRef}>
-          <NativeDOMRenderer
-            trackScroll={trackScroll}
-            ownerDocument={ownerDocument}
-            resourceBaseURL={resourceBaseURL || undefined}
-            onLoad={handleLoad}
-          />
+          <Delay>
+            <NativeDOMRenderer
+              trackScroll={trackScroll}
+              ownerDocument={ownerDocument}
+              resourceBaseURL={resourceBaseURL || undefined}
+              onLoad={handleLoad}
+            />
+          </Delay>
         </FrameRealm>
 
         {trackPointer && <PointerOverlay />}
