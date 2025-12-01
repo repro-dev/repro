@@ -1545,6 +1545,9 @@ importers:
       '@repro/recording':
         specifier: workspace:*
         version: link:../recording
+      '@repro/source-utils':
+        specifier: workspace:*
+        version: link:../source-utils
       '@repro/tdl':
         specifier: workspace:*
         version: link:../tdl

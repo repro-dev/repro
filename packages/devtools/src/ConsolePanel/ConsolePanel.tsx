@@ -1,15 +1,9 @@
 import { Block, Grid } from '@jsxstyle/react'
 import { colors } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
-import {
-  ConsoleEvent,
-  MessagePartType,
-  SourceEvent,
-  SourceEventType,
-  SourceEventView,
-} from '@repro/domain'
+import { ConsoleEvent, MessagePartType, SourceEventView } from '@repro/domain'
 import { ControlFrame, ElapsedMarker, usePlayback } from '@repro/playback'
-import { Box } from '@repro/tdl'
+import { isConsoleEvent } from '@repro/source-utils'
 import React, {
   Fragment,
   MutableRefObject,
@@ -24,10 +18,6 @@ import { ConsoleRow } from './ConsoleRow'
 import { LevelFilter } from './LevelFilter'
 import { SearchForm } from './SearchForm'
 import { enumToBitField } from './util'
-
-function isConsoleEvent(event: SourceEvent): event is Box<ConsoleEvent> {
-  return event.match(event => event.type === SourceEventType.Console)
-}
 
 export const ConsolePanel: React.FC = () => {
   const playback = usePlayback()
