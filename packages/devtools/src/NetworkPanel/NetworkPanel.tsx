@@ -1,107 +1,18 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
 import { colors } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
-import {
-  NetworkEvent,
-  NetworkMessageType,
-  SourceEvent,
-  SourceEventType,
-  SourceEventView,
-} from '@repro/domain'
 import { ControlFrame, ElapsedMarker, usePlayback } from '@repro/playback'
-import { Box } from '@repro/tdl'
+import {
+  FetchGroup,
+  findIndexedNetworkEvents,
+  groupNetworkEvents,
+  WebSocketGroup,
+} from '@repro/source-utils'
 import React, { Fragment, useEffect, useMemo, useState } from 'react'
 import { filter } from 'rxjs'
 import { pairwise } from '../utils'
 import { DetailsOverlay } from './DetailsOverlay'
 import { NetworkRow } from './NetworkRow'
-import { FetchGroup, WebSocketGroup } from './types'
-
-function isNetworkEvent(event: SourceEvent): event is Box<NetworkEvent> {
-  return event.match(event => event.type === SourceEventType.Network)
-}
-
-function groupNetworkEvents(
-  events: Array<[NetworkEvent, number]>
-): Array<FetchGroup | WebSocketGroup> {
-  const groups: Record<string, FetchGroup | WebSocketGroup> = {}
-  const orderedGroupIds: Array<string> = []
-
-  for (const [event, index] of events) {
-    event.data.apply(data => {
-      let group = groups[data.correlationId]
-
-      if (!group) {
-        switch (data.type) {
-          case NetworkMessageType.FetchRequest:
-            group = {
-              type: 'fetch',
-              requestTime: event.time,
-              requestIndex: index,
-              request: data,
-            }
-
-            orderedGroupIds.push(data.correlationId)
-            break
-
-          case NetworkMessageType.WebSocketOpen:
-            group = {
-              type: 'ws',
-              openTime: event.time,
-              openIndex: index,
-              open: data,
-            }
-
-            orderedGroupIds.push(data.correlationId)
-            break
-        }
-      }
-
-      if (!group) {
-        return
-      }
-
-      switch (data.type) {
-        case NetworkMessageType.FetchResponse:
-          ;(group as FetchGroup).response = data
-          ;(group as FetchGroup).responseTime = event.time
-          ;(group as FetchGroup).responseIndex = index
-          break
-
-        case NetworkMessageType.WebSocketClose:
-          ;(group as WebSocketGroup).close = data
-          ;(group as WebSocketGroup).closeTime = event.time
-          ;(group as WebSocketGroup).closeIndex = index
-          break
-
-        case NetworkMessageType.WebSocketInbound:
-        case NetworkMessageType.WebSocketOutbound:
-          const messages = (group as WebSocketGroup).messages || []
-          messages.push({
-            index,
-            time: event.time,
-            data,
-          })
-          ;(group as WebSocketGroup).messages = messages
-          break
-      }
-
-      groups[data.correlationId] = group
-    })
-  }
-
-  const orderedGroups: Array<FetchGroup | WebSocketGroup> = []
-
-  for (const groupId of orderedGroupIds) {
-    const group = groups[groupId]
-
-    if (group) {
-      orderedGroups.push(group)
-    }
-  }
-
-  return orderedGroups
-}
 
 function getStartIndex(group: FetchGroup | WebSocketGroup) {
   return group.type === 'fetch' ? group.requestIndex : group.openIndex
@@ -117,23 +28,9 @@ export const NetworkPanel: React.FC = () => {
     return Stats.time(
       'NetworkPanel -> get network messages from source events',
       () => {
-        const events: Array<[NetworkEvent, number]> = []
-        const sourceEvents = playback.getSourceEvents().toSource()
-        let i = 0
-
-        for (const view of sourceEvents) {
-          const event = SourceEventView.over(view)
-
-          if (isNetworkEvent(event)) {
-            event.apply(event => {
-              events.push([event, i])
-            })
-          }
-
-          i++
-        }
-
-        return groupNetworkEvents(events)
+        const sourceEvents = playback.getSourceEvents()
+        const indexedNetworkEvents = findIndexedNetworkEvents(sourceEvents)
+        return groupNetworkEvents(indexedNetworkEvents)
       }
     )
   }, [playback])

@@ -2,7 +2,6 @@ import { createAtom } from '@repro/atom'
 import { createBuffer } from '@repro/buffer-utils'
 import {
   Snapshot,
-  SnapshotEvent,
   SnapshotEventView,
   SourceEvent,
   SourceEventType,
@@ -12,6 +11,7 @@ import {
   applyEventToSnapshot,
   createEmptySnapshot,
   isSample,
+  isSnapshotEvent,
 } from '@repro/source-utils'
 import { copyObject } from '@repro/std'
 import { Box, List } from '@repro/tdl'
@@ -133,10 +133,6 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
   }
 
   const subscription = new Subscription()
-
-  function isSnapshotEvent(event: SourceEvent): event is Box<SnapshotEvent> {
-    return event.match(event => event.type === SourceEventType.Snapshot)
-  }
 
   function open() {
     const initialSnapshot$ = event$.pipe(first(isSnapshotEvent))

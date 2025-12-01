@@ -1,19 +1,7 @@
 import { Point } from '@repro/domain'
 
 import { copyArray } from '@repro/std'
-import { Box } from '@repro/tdl'
-
-export function isSample(data: Box<object>): data is Box<Sample<any>> {
-  return data.match(
-    data => 'from' in data && 'to' in data && 'duration' in data
-  )
-}
-
-export interface Sample<T> {
-  from: T
-  to: T
-  duration: number
-}
+import { Sample } from '../types'
 
 export function interpolatePointFromSample(
   sample: Sample<Point>,

@@ -1,8 +1,8 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
 import { colors, DefinitionList } from '@repro/design'
+import { FetchGroup } from '@repro/source-utils'
 import { getReasonPhrase } from 'http-status-codes'
 import React from 'react'
-import { FetchGroup } from '../types'
 
 interface Props {
   group: FetchGroup

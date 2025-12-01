@@ -9,6 +9,7 @@ import {
   WebSocketOutbound,
 } from '@repro/domain'
 import { ElapsedMarker } from '@repro/playback'
+import { WebSocketGroup } from '@repro/source-utils'
 // FIXME: Re-export `JsxstyleProps`
 // @ts-expect-error Cannot find declaration in npm-forks
 import { JsxstyleProps } from 'jsxstyle/lib/types'
@@ -22,7 +23,6 @@ import React, { PropsWithChildren, useState } from 'react'
 import AutoSizer from 'react-virtualized-auto-sizer'
 import { FixedSizeList, ListChildComponentProps } from 'react-window'
 import { SeekAction } from '../../SeekAction'
-import { WebSocketGroup } from '../types'
 
 interface Props {
   group: WebSocketGroup

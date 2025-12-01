@@ -9,7 +9,7 @@ import {
 } from '@repro/domain'
 
 import { applyVTreePatch } from '@repro/vdom-utils'
-import { interpolatePointFromSample } from '../queries/sample'
+import { interpolatePointFromSample } from '../queries/interpolatePointFromSample'
 
 function applyDOMEventToSnapshot(
   snapshot: Snapshot,

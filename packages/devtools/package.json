@@ -21,6 +21,7 @@
     "@repro/domain": "workspace:*",
     "@repro/playback": "workspace:*",
     "@repro/recording": "workspace:*",
+    "@repro/source-utils": "workspace:*",
     "@repro/tdl": "workspace:*",
     "@repro/vdom-utils": "workspace:*",
     "http-status-codes": "^2.2.0",
