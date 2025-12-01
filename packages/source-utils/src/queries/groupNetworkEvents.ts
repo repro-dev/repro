@@ -1,5 +1,5 @@
 import { NetworkEvent, NetworkMessageType } from '@repro/domain'
-import { FetchGroup, WebSocketGroup } from '~/types'
+import { FetchGroup, WebSocketGroup } from '../types'
 
 export function groupNetworkEvents(
   /** events: Array<[NetworkEvent, index]> */
