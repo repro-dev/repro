@@ -21,4 +21,4 @@ Use Repro for faster debugging, better software and happier users!
 
 ### License
 
-All code in this repository is licensed under the the terms of the [PolyForm Perimeter License 1.0.0](https://polyformproject.org/licenses/perimeter/1.0.0/)
+All code in this repository is licensed under the the terms of the [PolyForm Shield License 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/)
