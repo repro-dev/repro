@@ -158,7 +158,7 @@ export function createSourcePlayback(
             break
           }
 
-          eventsBefore.append(SourceEventView.decode(lens))
+          eventsBefore.append(lens)
 
           const shouldEnqueueUnresolvedSample = lens.match(lens => {
             if (!('data' in lens)) {
