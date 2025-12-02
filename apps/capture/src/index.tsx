@@ -41,8 +41,6 @@ const refs: Refs = {
   activeStyleRoot: null,
 }
 
-const _initialInjectOptions = styleCache.injectOptions
-
 // Should PTP agent replace Broadcast agent?
 const agent = createPTPAgent()
 
@@ -69,7 +67,7 @@ class ReproCapture extends HTMLElement {
     shadowRoot.appendChild(rootElem)
 
     styleCache.reset()
-    styleCache.injectOptions = _initialInjectOptions
+
     // TODO: build and bundle css for prod
     styleCache.injectOptions({
       onInsertRule(rule) {
