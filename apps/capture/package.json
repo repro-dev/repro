@@ -22,6 +22,7 @@
     "@repro/buffer-utils": "workspace:*",
     "@repro/date-utils": "workspace:*",
     "@repro/design": "workspace:*",
+    "@repro/devtools": "workspace:*",
     "@repro/diagnostics": "workspace:*",
     "@repro/domain": "workspace:*",
     "@repro/future-utils": "workspace:*",

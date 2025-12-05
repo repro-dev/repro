@@ -15,8 +15,8 @@ export const Toggle: React.FC<{
   onClick: () => void
 }> = ({ isOpen, onClick }) => (
   <Block
-    height={16.25}
-    fontSize={20}
+    height={13.75}
+    fontSize={16}
     lineHeight={0}
     cursor="default"
     props={{ onClick }}

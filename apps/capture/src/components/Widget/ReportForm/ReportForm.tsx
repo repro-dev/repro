@@ -1,15 +1,11 @@
 import { Block, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
 import { colors, ToggleGroup } from '@repro/design'
+import { DevTools } from '@repro/devtools'
 import { RecordingMode } from '@repro/domain'
 import { observeFuture } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
-import {
-  PlaybackCanvas,
-  PlaybackProvider,
-  SimpleTimeline,
-  usePlayback,
-} from '@repro/playback'
+import { PlaybackProvider, SimpleTimeline, usePlayback } from '@repro/playback'
 import { UploadProgress } from '@repro/recording-api'
 import { fork, FutureInstance } from 'fluture'
 import React, { useCallback, useEffect, useState } from 'react'
@@ -125,17 +121,17 @@ export const ReportForm: React.FC<ReportFormProps> = ({
           {recordingMode === RecordingMode.Replay &&
           durationOptions.length > 1 ? (
             <Row
-              gap={10}
+              gap={8}
               alignItems="center"
               justifyContent="flex-end"
-              padding={10}
+              padding={8}
               zIndex={1}
               boxShadow={`
                   0 4px 16px rgba(0, 0, 0, 0.1),
                   0 1px 2px rgba(0, 0, 0, 0.1)
                 `}
             >
-              <Block fontSize={13} fontWeight={700} color={colors.slate['700']}>
+              <Block fontSize={11} fontWeight={700} color={colors.slate['700']}>
                 Duration
               </Block>
 
@@ -149,26 +145,10 @@ export const ReportForm: React.FC<ReportFormProps> = ({
             <Block />
           )}
 
-          <PlaybackCanvas
-            interactive={false}
-            trackPointer={recordingMode !== RecordingMode.Snapshot}
-            trackScroll={true}
-            scaling="scale-to-fit"
+          <DevTools
+            hideInspectorOnOpen
+            timeline={<SimpleTimeline min={minTime} max={maxTime} />}
           />
-
-          {(recordingMode === RecordingMode.Live ||
-            recordingMode === RecordingMode.Replay) && (
-            <Block
-              zIndex={1}
-              padding={10}
-              boxShadow={`
-                  0 -4px 16px rgba(0, 0, 0, 0.1),
-                  0 -1px 2px rgba(0, 0, 0, 0.1)
-                `}
-            >
-              <SimpleTimeline min={minTime} max={maxTime} />
-            </Block>
-          )}
         </PlaybackRegion>
 
         <DetailsRegion>

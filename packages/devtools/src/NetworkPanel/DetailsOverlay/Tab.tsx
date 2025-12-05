@@ -11,7 +11,7 @@ interface Props {
 export const Tab: React.FC<Props> = ({ active, label, onClick }) => (
   <Block
     paddingV={8}
-    fontSize={13}
+    fontSize={11}
     color={active ? colors.blue['700'] : colors.slate['500']}
     borderBottom={`2px solid ${active ? colors.blue['700'] : 'transparent'}`}
     cursor="pointer"

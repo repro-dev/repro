@@ -45,7 +45,7 @@ const Separator: React.FC = () => (
 )
 
 const TimelineRegion: React.FC<PropsWithChildren> = ({ children }) => (
-  <Block flex={1} marginV={10} marginH={16}>
+  <Block flex={1} marginV={5} marginH={16}>
     {children}
   </Block>
 )

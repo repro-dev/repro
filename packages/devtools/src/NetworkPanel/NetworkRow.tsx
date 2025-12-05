@@ -88,7 +88,7 @@ export const NetworkRow: React.FC<Props> = ({
       display="contents"
       paddingH={15}
       overflowX="hidden"
-      fontSize={13}
+      fontSize={11}
       color={
         status !== null && status > 399
           ? colors.rose['700']

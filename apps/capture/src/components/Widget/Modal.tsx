@@ -6,7 +6,7 @@ import React, { PropsWithChildren } from 'react'
 
 export interface ModalProps {
   size?: 'compact' | 'normal' | 'full-screen'
-  title?: string
+  title?: React.ReactNode
   open?: boolean
   onClose?: () => void
 }
@@ -37,8 +37,8 @@ export const Modal: React.FC<PropsWithChildren<ModalProps>> = ({
       isOpen && (
         <animated.div style={{ ...styles, ...defaultStyles }}>
           <Block
-            height={size === 'full-screen' ? 'calc(100vh - 130px)' : 'auto'}
-            width={size === 'full-screen' ? 'calc(100vw - 140px)' : 'auto'}
+            blockSize={size === 'full-screen' ? 'calc(100vh - 110px)' : 'auto'}
+            inlineSize={size === 'full-screen' ? 'calc(100vw - 40px)' : 'auto'}
             backgroundColor={colors.white}
             boxShadow="0 0 16px rgba(0, 0, 0, 0.15)"
             borderRadius={8}

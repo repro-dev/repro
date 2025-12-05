@@ -1,45 +1,46 @@
-import { Inline, Row } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { Block, Inline, Row } from '@jsxstyle/react'
+import { colors, Tooltip } from '@repro/design'
 import {
   AlertTriangle as ConsoleIcon,
   Code as ElementsIcon,
   Globe as NetworkIcon,
 } from 'lucide-react'
-import React, { PropsWithChildren } from 'react'
+import React from 'react'
 import { useDevToolsView, useInspecting } from '../hooks'
 import { View } from '../types'
 
 export const Tabs: React.FC = () => {
   return (
-    <Row alignItems="stretch">
-      <Item view={View.Elements}>
-        <ElementsIcon size={16} />
-        <Inline>Elements</Inline>
-      </Item>
+    <Row alignItems="center" gap={4} marginH={4}>
+      <Item
+        view={View.Elements}
+        icon={<ElementsIcon size={14} />}
+        label="Elements"
+      />
 
-      <Item view={View.Console}>
-        <ConsoleIcon size={16} />
-        <Inline>Console</Inline>
-      </Item>
+      <Item
+        view={View.Console}
+        icon={<ConsoleIcon size={14} />}
+        label="Console"
+      />
 
-      <Item view={View.Network}>
-        <NetworkIcon size={16} />
-        <Inline>Network</Inline>
-      </Item>
+      <Item
+        view={View.Network}
+        icon={<NetworkIcon size={14} />}
+        label="Network"
+      />
     </Row>
   )
 }
 
 interface ItemProps {
   view: View
+  label: React.ReactNode
+  icon: React.ReactNode
   disabled?: boolean
 }
 
-const Item: React.FC<PropsWithChildren<ItemProps>> = ({
-  children,
-  disabled,
-  view,
-}) => {
+const Item: React.FC<ItemProps> = ({ disabled, icon, label, view }) => {
   const [activeView, setActiveView] = useDevToolsView()
   const [inspecting, setInspecting] = useInspecting()
 
@@ -52,31 +53,37 @@ const Item: React.FC<PropsWithChildren<ItemProps>> = ({
 
   const color = disabled
     ? colors.slate['300']
-    : activeView === view
+    : activeView === view && inspecting
     ? colors.blue['900']
     : colors.blue['700']
+
+  const active = activeView === view && inspecting
 
   return (
     <Row
       alignItems="center"
-      borderBottomColor={
-        inspecting && activeView === view ? colors.blue['500'] : 'transparent'
-      }
-      borderBottomStyle="solid"
-      borderBottomWidth={2}
+      backgroundColor={active ? colors.blue['50'] : 'transparent'}
+      hoverBackgroundColor={active ? colors.blue['50'] : colors.slate['100']}
       color={color}
       cursor="pointer"
-      fontSize={13}
-      gap={5}
-      marginH={10}
-      paddingH={5}
+      fontSize={11}
+      gap={4}
+      paddingH={8}
+      blockSize={32}
+      borderRadius={4}
       position="relative"
+      transition="all linear 250ms"
       userSelect="none"
       props={{
         onClick: handleClick,
       }}
     >
-      {children}
+      <Block>
+        {!inspecting && <Tooltip position="top">{label}</Tooltip>}
+        {icon}
+      </Block>
+
+      {inspecting && <Inline>{label}</Inline>}
     </Row>
   )
 }

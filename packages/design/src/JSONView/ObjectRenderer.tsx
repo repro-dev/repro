@@ -21,7 +21,7 @@ export const ObjectRenderer: React.FC<Props> = ({
   return (
     <Fragment>
       <TreeRow level={level} objectKey={objectKey}>
-        <Block position="absolute" top={8.125} left={-15}>
+        <Block position="absolute" top={5} left={-15}>
           <Toggle isOpen={open} onClick={() => setOpen(open => !open)} />
         </Block>
 

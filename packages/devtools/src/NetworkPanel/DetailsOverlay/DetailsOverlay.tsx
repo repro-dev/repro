@@ -80,7 +80,7 @@ export const DetailsOverlay: React.FC<Props> = ({ group, onClose }) => {
           cursor="pointer"
           props={{ onClick: onClose }}
         >
-          <CloseIcon size={16} />
+          <CloseIcon size={14} />
         </Row>
 
         {group.type === 'fetch' && (

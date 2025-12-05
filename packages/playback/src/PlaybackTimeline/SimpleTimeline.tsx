@@ -277,7 +277,7 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
           00:00
         </Block>
         <Block color={colors.slate['500']}>/</Block>
-        <Block color={colors.blue['700']} whiteSpace="nowrap">
+        <Block color={colors.blue['700']} whiteSpace="nowrap" fontSize={11}>
           {formatTime((max || playback.getDuration()) - (min || 0), 'seconds')}
         </Block>
       </Row>
