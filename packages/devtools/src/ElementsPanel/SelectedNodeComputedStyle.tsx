@@ -90,7 +90,7 @@ export const SelectedNodeComputedStyle: React.FC = () => {
               display="list-item"
               paddingBottom={8}
               textTransform="uppercase"
-              fontSize={13}
+              fontSize={11}
               fontWeight={700}
               color={colors.slate['700']}
               userSelect="none"
@@ -103,7 +103,7 @@ export const SelectedNodeComputedStyle: React.FC = () => {
               <Block
                 key={key}
                 fontFamily="monospace"
-                fontSize={12}
+                fontSize={11}
                 lineHeight={1.5}
               >
                 <InlineBlock color={colors.rose['500']}>{key}:</InlineBlock>

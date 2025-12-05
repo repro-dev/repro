@@ -11,7 +11,7 @@ export const JSONView: React.FC<Props> = ({ data }) => {
     <Block
       marginLeft={15}
       fontFamily="monospace"
-      fontSize={13}
+      fontSize={11}
       lineHeight={1.25}
     >
       {getRendererForType(null, data, 0)}

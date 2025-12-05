@@ -23,6 +23,7 @@ import {
 import { View } from './types'
 
 interface Props {
+  hideInspectorOnOpen?: boolean
   timeline?: React.ReactNode
   resourceBaseURL?: string
 }
@@ -30,10 +31,16 @@ interface Props {
 export const DevTools: React.FC<Props> = React.memo(props => {
   const [, setCurrentDocument] = useCurrentDocument()
   const [, setNodeMap] = useNodeMap()
-  const [inspecting] = useInspecting()
+  const [inspecting, setInspecting] = useInspecting()
   const [picker] = useElementPicker()
   const [mask] = useMask()
   const [view] = useDevToolsView()
+
+  useEffect(() => {
+    if (props.hideInspectorOnOpen) {
+      setInspecting(false)
+    }
+  }, [props.hideInspectorOnOpen])
 
   useEffect(() => {
     if (inspecting) {
@@ -117,7 +124,7 @@ const InspectorRegion: React.FC<PropsWithChildren> = ({ children }) => (
     position="relative"
     isolation="isolate"
     backgroundColor={colors.white}
-    gridTemplateRows="50px auto"
+    gridTemplateRows="40px auto"
     boxShadow={`0 -4px 16px rgba(0, 0, 0, 0.1)`}
     zIndex={MAX_INT32}
   >

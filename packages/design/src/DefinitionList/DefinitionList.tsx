@@ -14,7 +14,7 @@ export const DefinitionList: React.FC<Props> = ({ title, pairs }) => (
       paddingTop={30}
       paddingBottom={10}
       paddingH={10}
-      fontSize={15}
+      fontSize={13}
       fontWeight={700}
       color={colors.blue['700']}
       borderBottom={`1px solid ${colors.slate['200']}`}

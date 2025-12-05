@@ -26,13 +26,13 @@ interface Props extends Omit<UseFormRegisterReturn, 'ref'> {
 }
 
 const sizes = {
-  small: 8,
+  small: 6,
   medium: 10,
   large: 12,
   xlarge: 16,
 }
 
-const MINIMUM_FONT_SIZE = 12
+const MINIMUM_FONT_SIZE = 11
 
 export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
   (

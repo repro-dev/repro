@@ -22,10 +22,10 @@ const textColors = {
 }
 
 const icons = {
-  [LogLevel.Error]: <AlertTriangle size={16} color={colors.rose['700']} />,
-  [LogLevel.Info]: <AlertCircle size={16} color={colors.blue['700']} />,
-  [LogLevel.Warning]: <AlertTriangle size={16} color={colors.amber['700']} />,
-  [LogLevel.Verbose]: <AlertCircle size={16} color={colors.slate['500']} />,
+  [LogLevel.Error]: <AlertTriangle size={14} color={colors.rose['700']} />,
+  [LogLevel.Info]: <AlertCircle size={14} color={colors.blue['700']} />,
+  [LogLevel.Warning]: <AlertTriangle size={14} color={colors.amber['700']} />,
+  [LogLevel.Verbose]: <AlertCircle size={14} color={colors.slate['500']} />,
 }
 
 interface Props {
@@ -47,7 +47,7 @@ export const ConsoleRow: React.FC<Props> = ({
         columnGap={10}
         paddingV={6}
         paddingH={15}
-        fontSize={13}
+        fontSize={11}
         color={textColors[level]}
         backgroundColor={bgColors[level]}
       >

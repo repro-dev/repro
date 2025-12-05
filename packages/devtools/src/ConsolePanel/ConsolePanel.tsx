@@ -119,8 +119,8 @@ export const ConsolePanel: React.FC = () => {
     <Grid gridTemplateRows="auto 1fr" height="100%">
       <Grid
         alignItems="center"
-        gap={20}
-        padding={10}
+        gap={16}
+        padding={8}
         gridTemplateColumns="2fr 2fr 1fr"
         borderBottom={`1px solid ${colors.slate['200']}`}
       >
@@ -131,7 +131,7 @@ export const ConsolePanel: React.FC = () => {
           onChange={setConsoleLevelFilter}
         />
 
-        <Block justifySelf="end" fontSize={13} color={colors.slate['500']}>
+        <Block justifySelf="end" fontSize={11} color={colors.slate['500']}>
           {consoleEvents.length !== filteredConsoleEvents.length &&
             `${consoleEvents.length - filteredConsoleEvents.length} hidden`}
         </Block>

@@ -78,7 +78,7 @@ export const Messages: React.FC<Props> = ({ group }) => {
     selectedIndex !== null ? group.messages?.[selectedIndex] ?? null : null
 
   return (
-    <Block position="relative" height="100%" fontSize={13}>
+    <Block position="relative" height="100%" fontSize={11}>
       <AutoSizer disableWidth>
         {({ height }) => (
           <FixedSizeList
@@ -168,9 +168,9 @@ const MessageRow: React.FC<ListChildComponentProps<MessageListProps>> = ({
 
       <Cell>
         {message.type === NetworkMessageType.WebSocketOutbound ? (
-          <OutboundIcon color={colors.emerald['700']} size={16} />
+          <OutboundIcon color={colors.emerald['700']} size={14} />
         ) : (
-          <InboundIcon color={colors.rose['700']} size={16} />
+          <InboundIcon color={colors.rose['700']} size={14} />
         )}
       </Cell>
 

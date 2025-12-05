@@ -53,13 +53,12 @@ export const PlayAction: React.FC = () => {
       justifyContent="center"
       width={32}
       height={32}
-      color={playing ? colors.pink['500'] : colors.blue['700']}
-      backgroundColor={playing ? colors.pink['100'] : 'transparent'}
+      color={colors.blue['700']}
       borderRadius={4}
       cursor="pointer"
       props={{ onClick: evt => togglePlayback(evt.nativeEvent) }}
     >
-      {playing ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
+      {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
     </Row>
   )
 }

@@ -17,7 +17,7 @@ export const LevelFilter: React.FC<Props> = ({ value, onChange }) => {
   }
 
   return (
-    <Row alignItems="center" gap={10}>
+    <Row alignItems="center" gap={8}>
       <Toggle
         active={!!(value & enumToBitField(LogLevel.Error))}
         onClick={() => toggleLevel(LogLevel.Error)}
@@ -65,7 +65,7 @@ const Toggle: React.FC<PropsWithChildren<ToggleProps>> = ({
       gap={10}
       paddingV={6}
       paddingH={12}
-      fontSize={13}
+      fontSize={11}
       backgroundColor={active ? colors.slate['500'] : colors.slate['100']}
       backgroundImage={
         active
@@ -84,7 +84,7 @@ const Toggle: React.FC<PropsWithChildren<ToggleProps>> = ({
       props={{ onClick }}
     >
       <Block color={active ? colors.white : colors.blue['700']}>
-        {active ? <CheckCircle size={16} /> : <Circle size={16} />}
+        {active ? <CheckCircle size={14} /> : <Circle size={14} />}
       </Block>
 
       <Block color={active ? colors.white : colors.slate['800']}>

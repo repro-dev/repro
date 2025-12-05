@@ -44,7 +44,7 @@ export const Body: React.FC<Props> = ({ body, contentType }) => {
 }
 
 const Container: React.FC<PropsWithChildren> = ({ children }) => (
-  <Block padding={10} fontSize={13} lineHeight={1.25} wordBreak="break-all">
+  <Block padding={10} fontSize={11} lineHeight={1.25} wordBreak="break-all">
     {children}
   </Block>
 )

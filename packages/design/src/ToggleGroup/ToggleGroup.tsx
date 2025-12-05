@@ -42,7 +42,7 @@ const Toggle: React.FC<ToggleProps> = ({ active, label, onClick }) => (
     gap={10}
     paddingH={10}
     paddingV={5}
-    fontSize={13}
+    fontSize={11}
     backgroundColor={active ? colors.slate['500'] : colors.slate['100']}
     backgroundImage={
       active
@@ -59,10 +59,10 @@ const Toggle: React.FC<ToggleProps> = ({ active, label, onClick }) => (
     props={{ onClick }}
   >
     <Block color={active ? colors.white : colors.blue['700']}>
-      {active ? <CheckCircle size={16} /> : <Circle size={16} />}
+      {active ? <CheckCircle size={14} /> : <Circle size={14} />}
     </Block>
 
-    <Block fontSize={13} color={active ? colors.white : colors.slate['800']}>
+    <Block fontSize={11} color={active ? colors.white : colors.slate['800']}>
       {label}
     </Block>
   </Row>

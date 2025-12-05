@@ -66,7 +66,7 @@ export const Headers: React.FC<Props> = ({ group }) => {
   return (
     <Grid
       gridTemplateColumns="max-content 1fr"
-      fontSize={13}
+      fontSize={11}
       overflowX="hidden"
     >
       <DefinitionList title="General" pairs={generalHeaders} />
