@@ -1,4 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
+import { IfGate, UnlessGate } from '@repro/auth'
 import { formatTime } from '@repro/date-utils'
 import { colors, ToggleGroup } from '@repro/design'
 import { DevTools } from '@repro/devtools'
@@ -11,6 +12,7 @@ import { fork, FutureInstance } from 'fluture'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Subscription, switchMap, timer } from 'rxjs'
 import { useRecordingMode } from '~/state'
+import { Agentic } from './Agentic'
 import { DetailsFields } from './DetailsFields'
 import { DetailsRegion, Layout, PlaybackRegion } from './Layout'
 import { ProgressOverlay } from './ProgressOverlay'
@@ -152,15 +154,21 @@ export const ReportForm: React.FC<ReportFormProps> = ({
         </PlaybackRegion>
 
         <DetailsRegion>
-          <DetailsFields
-            onSubmit={({ title, description }) =>
-              onSubmit({
-                title,
-                description,
-                duration: selectedDuration,
-              })
-            }
-          />
+          <IfGate gate="agentic-mode">
+            <Agentic />
+          </IfGate>
+
+          <UnlessGate gate="agentic-mode">
+            <DetailsFields
+              onSubmit={({ title, description }) =>
+                onSubmit({
+                  title,
+                  description,
+                  duration: selectedDuration,
+                })
+              }
+            />
+          </UnlessGate>
         </DetailsRegion>
 
         {progress && <ProgressOverlay progress={progress} onClose={onClose} />}

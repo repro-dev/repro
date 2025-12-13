@@ -54,7 +54,7 @@ class ReproCapture extends HTMLElement {
   private state = createState()
 
   public connectedCallback() {
-    const shadowRoot = this.attachShadow({ mode: 'closed' })
+    const shadowRoot = this.attachShadow({ mode: 'open' })
 
     const rootElem = document.createElement('div')
     rootElem.id = REPRO_ROOT_ID
@@ -109,7 +109,7 @@ class ReproCapture extends HTMLElement {
 
     this.renderRoot.render(
       <ApiProvider client={apiClientBridge}>
-        <GateProvider>
+        <GateProvider fallbackGates={['agentic-mode']}>
           <AuthProvider>
             <RecordingStreamProvider stream={stream}>
               <StateProvider state={this.state}>

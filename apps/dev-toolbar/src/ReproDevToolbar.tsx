@@ -40,7 +40,7 @@ class ReproDevToolbar extends HTMLElement {
   private state = createState()
 
   public connectedCallback() {
-    const shadowRoot = this.attachShadow({ mode: 'closed' })
+    const shadowRoot = this.attachShadow({ mode: 'open' })
 
     const rootElem = document.createElement('div')
     rootElem.id = TOOLBAR_ROOT_ID
