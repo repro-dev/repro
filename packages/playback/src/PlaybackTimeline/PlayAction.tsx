@@ -74,7 +74,7 @@ export const PlayAction: React.FC = () => {
       color={colors.blue['700']}
       borderRadius={4}
       cursor="pointer"
-      props={{ onClick: evt => togglePlayback(evt.nativeEvent) }}
+      props={{ onClick: togglePlayback }}
     >
       {playing ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
     </Row>
