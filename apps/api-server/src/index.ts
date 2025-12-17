@@ -12,6 +12,7 @@ import { createPostgresDatabaseClient } from '~/modules/database/database-postgr
 import { createSMTPEmailUtils } from '~/modules/email-utils'
 import { createS3StorageClient } from '~/modules/storage-s3'
 import { createAccountRouter } from '~/routers/account'
+import { createAgenticRouter } from '~/routers/agentic'
 import { createFeatureGateRouter } from '~/routers/featureGate'
 import { createHealthRouter } from '~/routers/health'
 import { createProjectRouter } from '~/routers/project'
@@ -21,7 +22,11 @@ import { createHealthService } from '~/services/health'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { serverError } from '~/utils/errors'
+import { createHttpClient } from './modules/http'
 import { createStaffRouter } from './routers/staff'
+import { createAgenticService } from './services/agentic'
+
+const httpClient = createHttpClient()
 
 const database = createPostgresDatabaseClient({
   host: env.DB_HOST,
@@ -56,12 +61,14 @@ const emailUtils = createSMTPEmailUtils({
 })
 
 const accountService = createAccountService(database, emailUtils)
+const agenticService = createAgenticService(httpClient)
 const featureGateService = createFeatureGateService(database)
 const healthService = createHealthService(database, storage)
 const projectService = createProjectService(database)
 const recordingService = createRecordingService(database, storage)
 
 const accountRouter = createAccountRouter(accountService)
+const agenticRouter = createAgenticRouter(agenticService, accountService)
 const featureGateRouter = createFeatureGateRouter(
   featureGateService,
   accountService
@@ -121,6 +128,7 @@ function bootstrap(routers: Record<string, FastifyPluginAsync>) {
 
 bootstrap({
   '/account': accountRouter,
+  '/agentic': agenticRouter,
   '/feature-gates': featureGateRouter,
   '/health': healthRouter,
   '/projects': projectRouter,
