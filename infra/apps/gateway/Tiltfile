@@ -11,6 +11,7 @@ helm_resource(
     chart='ingress-nginx/ingress-nginx',
     namespace='default',
     flags=[
+      '--set=controller.config.use-http2=false',
       '--set=controller.hostPort.enabled=true',
       '--set=controller.service.type=NodePort'
     ],

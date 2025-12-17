@@ -63,6 +63,8 @@ export function createResponseUtils(config: SystemConfig) {
       res.status(status ?? 200)
 
       if (isReadableStream(value)) {
+        res.header('X-Accel-Buffering', 'no')
+        res.header('Connection', 'keep-alive')
         res.send(value)
       } else if (isObservable(value)) {
         res.type('text/plain')

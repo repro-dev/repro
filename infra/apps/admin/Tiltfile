@@ -21,9 +21,9 @@ k8s_yaml(helm(
   name='admin',
   set=[
     'container.image=admin',
-    'vars.REPRO_ADMIN_URL=https://admin.repro.localhost',
-    'vars.REPRO_APP_URL=https://app.repro.localhost',
-    'vars.REPRO_API_URL=https://api.repro.localhost',
+    'vars.REPRO_ADMIN_URL=http://admin.repro.localhost',
+    'vars.REPRO_APP_URL=http://app.repro.localhost',
+    'vars.REPRO_API_URL=http://api.repro.localhost',
     'vars.PORT=8080'
   ]
 ))

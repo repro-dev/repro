@@ -2,7 +2,7 @@ ingress:
   className: nginx
 
   appRoutes:
-    host: app.repro.k8s.orb.local
+    host: app.repro.localhost
     paths:
       - path: /(.*)
         pathType: ImplementationSpecific
@@ -10,8 +10,11 @@ ingress:
         servicePort: http
   
   apiRoutes:
-    host: api.repro.k8s.orb.local
+    host: api.repro.localhost
     annotations:
+      nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+      nginx.ingress.kubernetes.io/proxy-buffering: "off"
+      nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
       nginx.ingress.kubernetes.io/proxy-body-size: "0"
       nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
       nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
@@ -22,7 +25,7 @@ ingress:
         servicePort: http
   
   adminRoutes:
-    host: admin.repro.k8s.orb.local
+    host: admin.repro.localhost
     paths:
       - path: /(.*)
         pathType: ImplementationSpecific

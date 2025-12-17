@@ -1,37 +1,38 @@
 PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 
 docker_build(
-    'api-server',
-    PROJECT_ROOT,
-    dockerfile='../../Dockerfile',
-    target="build-all",
-    entrypoint=["moon", "run", "repro/api-server:dev"],
-    ignore=['infra', 'dist', 'build', 'node_modules'],
-    live_update=[
-        fall_back_on([
-            os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
-            os.path.join(PROJECT_ROOT, 'apps/api-server/package.json')
-        ]),
-        sync(PROJECT_ROOT, '/app')
-    ]
+  'api-server',
+  PROJECT_ROOT,
+  dockerfile='../../Dockerfile',
+  target="build-all",
+  entrypoint=["moon", "run", "repro/api-server:dev"],
+  ignore=['infra', 'dist', 'build', 'node_modules'],
+  live_update=[
+    fall_back_on([
+      os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
+      os.path.join(PROJECT_ROOT, 'apps/api-server/package.json')
+    ]),
+    sync(PROJECT_ROOT, '/app')
+  ]
 )
 
 k8s_yaml(helm(
-    './chart',
-    name='api-server',
-    set=[
-        'container.image=api-server',
-        'vars.REPRO_APP_URL=https://app.repro.k8s.orb.local',
-        'vars.REPRO_API_URL=https://api.repro.k8s.orb.local',
-        'vars.PORT=8080'
-    ]
+  './chart',
+  name='api-server',
+  set=[
+    'container.image=api-server',
+    'vars.REPRO_APP_URL=http://app.repro.localhost',
+    'vars.REPRO_API_URL=http://api.repro.localhost',
+    'vars.PORT=8080',
+    'vars.OPENROUTER_API_KEY=' + os.getenv('OPENROUTER_API_KEY', ''),
+  ]
 ))
 
 k8s_resource(
-    'api-server-deployment',
-    new_name='api-server',
-    links=[
-        'https://api.repro.k8s.orb.local',
-    ],
-    labels=['api']
+  'api-server-deployment',
+  new_name='api-server',
+  links=[
+    'http://api.repro.localhost',
+  ],
+  labels=['api']
 )

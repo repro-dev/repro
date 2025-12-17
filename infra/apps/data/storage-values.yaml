@@ -1,0 +1,6 @@
+filer:
+  s3:
+    enabled: true
+    createBuckets:
+      - name: repro
+        anonymousRead: false

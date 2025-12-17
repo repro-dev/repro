@@ -22,8 +22,8 @@ k8s_yaml(helm(
   name='workspace',
   set=[
     'container.image=workspace',
-    'vars.REPRO_APP_URL=https://app.repro.k8s.orb.local',
-    'vars.REPRO_API_URL=https://api.repro.k8s.orb.local',
+    'vars.REPRO_APP_URL=http://app.repro.localhost',
+    'vars.REPRO_API_URL=http://api.repro.localhost',
     'vars.PORT=8080'
   ]
 ))
@@ -32,7 +32,7 @@ k8s_resource(
   'workspace-deployment',
   new_name='workspace',
   links=[
-    'https://app.repro.k8s.orb.local',
+    'http://app.repro.localhost',
   ],
   labels=['app']
 )
