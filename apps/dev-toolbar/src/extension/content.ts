@@ -1,5 +1,5 @@
 import { logger } from '@repro/logger'
-import { createPTPAgent } from '@repro/messaging'
+import { createMessagingAgent } from '@repro/messaging'
 import Future, { chain } from 'fluture'
 import { createRuntimeAgent } from './createRuntimeAgent'
 
@@ -9,7 +9,7 @@ if (process.env.NODE_ENV === 'development') {
 
 let scriptElement: HTMLScriptElement | null = null
 
-const inPageAgent = createPTPAgent()
+const hostAgent = createMessagingAgent({ name: 'dev-toolbar content script' })
 const runtimeAgent = createRuntimeAgent()
 
 function addPageScript() {
@@ -32,12 +32,19 @@ function addPageScript() {
 
 runtimeAgent.subscribeToIntent('enable', payload => {
   return addPageScript().pipe(
-    chain(() => inPageAgent.raiseIntent({ type: 'enable', payload }))
+    chain(() => hostAgent.raiseIntent({ type: 'enable', payload }))
   )
 })
 
-runtimeAgent.subscribeToIntentAndForward('disable', inPageAgent)
+runtimeAgent.subscribeToIntent('disable', () => {
+  return runtimeAgent.raiseIntent({ type: 'disable' })
+})
 
-inPageAgent.subscribeToIntentAndForward('set-recording-state', runtimeAgent)
+hostAgent.subscribeToIntent('set-recording-state', (payload: any) => {
+  return runtimeAgent.raiseIntent({
+    type: 'set-recording-state',
+    payload,
+  })
+})
 
 export {}

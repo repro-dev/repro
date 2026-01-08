@@ -108,20 +108,10 @@ export function createRuntimeAgent(): Agent {
     }
   }
 
-  function subscribeToIntentAndForward(
-    type: string,
-    forwardAgent: Agent
-  ): Unsubscribe {
-    return subscribeToIntent(type, payload => {
-      return forwardAgent.raiseIntent({ type, payload })
-    })
-  }
-
   return {
     name: 'RuntimeAgent',
     raiseIntent,
     subscribeToIntent,
-    subscribeToIntentAndForward,
     destroy,
   }
 }

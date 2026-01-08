@@ -1,6 +1,10 @@
 import { cache as styleCache } from '@jsxstyle/react'
 import { PortalRootProvider } from '@repro/design'
-import { Agent, MessagingProvider, createLoopbackAgent } from '@repro/messaging'
+import {
+  Agent,
+  MessagingProvider,
+  createMessagingAgent,
+} from '@repro/messaging'
 import {
   RecordingStreamProvider,
   createRecordingStream,
@@ -29,7 +33,7 @@ const refs: Refs = {
   activeStyleRoot: null,
 }
 
-let agent = createLoopbackAgent()
+let agent = createMessagingAgent({ name: 'dev toolbar page host' })
 
 export function usingAgent(a: Agent) {
   agent = a

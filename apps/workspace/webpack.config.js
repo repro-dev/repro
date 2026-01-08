@@ -55,11 +55,18 @@ module.exports = {
 
   plugins: [
     new HtmlWebpackPlugin({
-      filename: 'index.template.html',
+      filename: 'index.html',
       template: path.resolve(__dirname, 'src/templates/index.html'),
       base: baseURL,
       hash: true,
       chunks: ['index'],
+      templateParameters: {
+        env: {
+          BUILD_ENV: process.env.BUILD_ENV,
+          REPRO_APP_URL: process.env.REPRO_APP_URL,
+          REPRO_API_URL: process.env.REPRO_API_URL,
+        },
+      },
     }),
 
     new HtmlWebpackPlugin({
@@ -68,6 +75,13 @@ module.exports = {
       base: baseURL,
       hash: true,
       chunks: ['apiBridge'],
+      templateParameters: {
+        env: {
+          BUILD_ENV: process.env.BUILD_ENV,
+          REPRO_APP_URL: process.env.REPRO_APP_URL,
+          REPRO_API_URL: process.env.REPRO_API_URL,
+        },
+      },
     }),
   ],
 

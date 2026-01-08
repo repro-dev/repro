@@ -10,9 +10,9 @@
     <div id="root"></div>
     <script>
       window.__REPRO_ENV = {
-        BUILD_ENV: "$BUILD_ENV",
-        REPRO_APP_URL: "$REPRO_APP_URL",
-        REPRO_API_URL: "$REPRO_API_URL",
+        BUILD_ENV: "<%= env.BUILD_ENV %>",
+        REPRO_APP_URL: "<%= env.REPRO_APP_URL %>",
+        REPRO_API_URL: "<%= env.REPRO_API_URL %>",
       }
     </script>
   </body>

@@ -1854,6 +1854,9 @@ importers:
       rxjs:
         specifier: ^7.8.0
         version: 7.8.0
+      transferables:
+        specifier: ^1.0.3
+        version: 1.0.3
     devDependencies:
       '@types/node':
         specifier: 22.14.0
@@ -8800,6 +8803,10 @@ packages:
   tr46@6.0.0:
     resolution: {integrity: sha512-bLVMLPtstlZ4iMQHpFHTR7GAGj2jxi8Dg0s2h2MafAE4uSWF98FC/3MomU51iQAMf8/qDUbKWf5GxuvvVcXEhw==}
     engines: {node: '>=20'}
+
+  transferables@1.0.3:
+    resolution: {integrity: sha512-pXxv1JjFR6BYdpxVADhtqjUVeHEPa401Ux9kGX2aOhOvNXsY5KVpqGV5bwzacNCtvjR51ViFwTBvlV/b10dl1A==}
+    engines: {node: '>=18'}
 
   tree-kill@1.2.2:
     resolution: {integrity: sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A==}
@@ -16819,6 +16826,8 @@ snapshots:
   tr46@6.0.0:
     dependencies:
       punycode: 2.3.1
+
+  transferables@1.0.3: {}
 
   tree-kill@1.2.2: {}
 

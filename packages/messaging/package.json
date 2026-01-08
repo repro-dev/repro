@@ -14,7 +14,8 @@
     "@repro/random-string": "workspace:*",
     "fluture": "^14.0.0",
     "react": "^18.2.0",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.0",
+    "transferables": "^1.0.3"
   },
   "devDependencies": {
     "@types/node": "22.14.0",
