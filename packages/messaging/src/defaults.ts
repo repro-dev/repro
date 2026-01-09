@@ -1,3 +1,10 @@
-import { createLoopbackAgent } from './createLoopbackAgent'
+import { createMessagingAgent } from './createMessagingAgent'
+import { Agent } from './types'
 
-export const DEFAULT_AGENT = createLoopbackAgent()
+let DEFAULT_AGENT: Agent
+
+export function getDefaultAgent() {
+  DEFAULT_AGENT =
+    DEFAULT_AGENT ?? createMessagingAgent({ name: 'default agent' })
+  return DEFAULT_AGENT
+}

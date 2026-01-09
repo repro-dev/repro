@@ -1,8 +1,7 @@
 import React, { PropsWithChildren } from 'react'
-import { DEFAULT_AGENT } from './defaults'
 import { Agent } from './types'
 
-export const MessagingContext = React.createContext<Agent>(DEFAULT_AGENT)
+export const MessagingContext = React.createContext<Agent | null>(null)
 
 type Props = PropsWithChildren<{
   agent: Agent

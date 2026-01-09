@@ -4,7 +4,7 @@ import { ApiProvider, createApiClient } from '@repro/api-client'
 import { AuthProvider, GateProvider, SessionRouteBoundary } from '@repro/auth'
 import { PortalRootProvider } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
-import { DEFAULT_AGENT } from '@repro/messaging'
+import { getDefaultAgent } from '@repro/messaging'
 import { applyResetStyles } from '@repro/theme'
 import React, { lazy } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -39,7 +39,7 @@ const apiClient = createApiClient({
   authStorage: 'memory',
 })
 
-Analytics.setAgent(DEFAULT_AGENT)
+Analytics.setAgent(getDefaultAgent())
 Analytics.registerConsumer(
   createMixpanelBrowserConsumer(
     env.MIXPANEL_TOKEN,

@@ -1,6 +1,6 @@
 import { Stats, Trace } from '@repro/diagnostics'
 import { logger } from '@repro/logger'
-import { Agent, createLoopbackAgent, createPTPAgent } from '@repro/messaging'
+import { getDefaultAgent } from '@repro/messaging'
 import { resolve } from 'fluture'
 import { attach, detach, usingAgent } from './ReproDevToolbar'
 
@@ -19,19 +19,7 @@ if (process.env.NODE_ENV === 'development') {
   Trace.enable()
 }
 
-let agent: Agent
-
-switch (process.env.MODE) {
-  case 'standalone':
-    agent = createLoopbackAgent()
-    break
-
-  case 'extension':
-  default:
-    agent = createPTPAgent()
-    break
-}
-
+const agent = getDefaultAgent()
 usingAgent(agent)
 
 agent.subscribeToIntent('enable', ({ recording }) => {

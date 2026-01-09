@@ -1,68 +1,47 @@
-import { createPTPAgent } from '@repro/messaging'
-import Future, { both, chain, resolve } from 'fluture'
+import { tap } from '@repro/future-utils'
+import { createMessagingAgent } from '@repro/messaging'
+import Future, { both, cache, resolve } from 'fluture'
 import { createRuntimeAgent } from './createRuntimeAgent'
+import { createIframe } from './iframe'
 
-let scriptElement: HTMLScriptElement | null = null
-let bridgeIframeElement: HTMLIFrameElement | null = null
-
-const inPageAgent = createPTPAgent()
+const hostAgent = createMessagingAgent({ name: 'contentScript' })
 const runtimeAgent = createRuntimeAgent()
 
-function addBridge() {
-  return Future<any, unknown>((reject, resolve) => {
-    if (bridgeIframeElement && bridgeIframeElement.isConnected) {
-      resolve(null)
-    } else {
-      bridgeIframeElement = document.createElement('iframe')
-      bridgeIframeElement.src = chrome.runtime.getURL('bridgeHost.html')
-      bridgeIframeElement.style.position = 'fixed'
-      bridgeIframeElement.style.top = '0'
-      bridgeIframeElement.style.left = '0'
-      bridgeIframeElement.style.width = '0'
-      bridgeIframeElement.style.height = '0'
-      bridgeIframeElement.style.display = 'none'
-      bridgeIframeElement.onerror = reject
-      bridgeIframeElement.onload = resolve
-
-      document.body.appendChild(bridgeIframeElement)
-    }
-
-    return () => {}
-  })
-}
-
-function addPageScript() {
-  return Future<any, unknown>((reject, resolve) => {
-    if (scriptElement && scriptElement.isConnected) {
-      resolve(null)
-    } else {
-      scriptElement = document.createElement('script')
-      scriptElement.src = chrome.runtime.getURL('capture.js')
-      scriptElement.onerror = reject
-      scriptElement.onload = resolve
-
-      document.head.appendChild(scriptElement)
-    }
-
-    return () => {}
-  })
-}
-
-runtimeAgent.subscribeToIntent('enable', () => {
-  return both(addBridge())(addPageScript()).pipe(
-    chain(() => inPageAgent.raiseIntent({ type: 'enable' }))
-  )
+const initializePageHost = Future<any, unknown>((reject, resolve) => {
+  const scriptElement = document.createElement('script')
+  scriptElement.src = chrome.runtime.getURL('capture.js')
+  scriptElement.onerror = reject
+  scriptElement.onload = resolve
+  document.head.appendChild(scriptElement)
+  return () => {}
 })
 
-runtimeAgent.subscribeToIntentAndForward('disable', inPageAgent)
+const initializeBridgeHost = createIframe(
+  chrome.runtime.getURL('bridgeHost.html'),
+  {
+    position: 'fixed',
+    top: '0',
+    left: '0',
+    width: '0',
+    height: '0',
+    display: 'none',
+  }
+)
 
-inPageAgent.subscribeToIntentAndForward('api-client:fetch', runtimeAgent)
-inPageAgent.subscribeToIntentAndForward('upload:enqueue', runtimeAgent)
-inPageAgent.subscribeToIntentAndForward('upload:progress', runtimeAgent)
-inPageAgent.subscribeToIntentAndForward('analytics:track', runtimeAgent)
+const connection = cache(
+  both<Error, unknown>(initializePageHost)(initializeBridgeHost)
+)
 
-inPageAgent.subscribeToIntent('detect-capture-extension', () => {
+hostAgent.subscribeToIntent('detect-capture-extension', () => {
   return resolve(true)
+})
+
+runtimeAgent.subscribeToIntent('enable', () => {
+  return connection.pipe(tap(() => hostAgent.raiseIntent({ type: 'enable' })))
+})
+
+runtimeAgent.subscribeToIntent('disable', () => {
+  return connection.pipe(tap(() => hostAgent.raiseIntent({ type: 'disable' })))
 })
 
 export {}

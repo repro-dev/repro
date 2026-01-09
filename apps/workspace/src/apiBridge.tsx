@@ -1,6 +1,9 @@
+import { TrackedEvent } from '@repro/analytics'
 import { createApiClient } from '@repro/api-client'
 import { Fetch } from '@repro/api-client/src/types'
-import { createMessagePortAgent } from '@repro/messaging'
+import { logger } from '@repro/logger'
+import { createMessagingAgent } from '@repro/messaging'
+import { resolve } from 'fluture'
 import { defaultEnv as env } from '~/config/env'
 
 const apiClient = createApiClient({
@@ -8,20 +11,26 @@ const apiClient = createApiClient({
   authStorage: 'memory',
 })
 
-window.addEventListener('message', event => {
-  if (event.data === 'repro-bridge-agent-port') {
-    const port = event.ports[0]
+const agent = createMessagingAgent({
+  name: 'apiBridge',
+})
 
-    if (port) {
-      const agent = createMessagePortAgent(port)
-      port.start()
-
-      agent.subscribeToIntent(
-        'api-client:fetch',
-        (payload: { args: Parameters<Fetch> }) => {
-          return apiClient.fetch(...payload.args)
-        }
-      )
-    }
+agent.subscribeToIntent(
+  'api-client:fetch',
+  (payload: { args: Parameters<Fetch> }) => {
+    return apiClient.fetch(...payload.args)
   }
+)
+
+agent.subscribeToIntent<TrackedEvent, void>('analytics:track', payload => {
+  // TODO: Track analytics events via API
+  // 0. Create API endpoint for tracking
+  // 1. Batch analytics events
+  // 2. Send to backend
+
+  if (env.BUILD_ENV === 'development') {
+    logger.debug('analytics:track', payload)
+  }
+
+  return resolve(undefined)
 })

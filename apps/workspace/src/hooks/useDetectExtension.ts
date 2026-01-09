@@ -1,4 +1,4 @@
-import { createPTPAgent } from '@repro/messaging'
+import { createMessagingAgent } from '@repro/messaging'
 import { fork } from 'fluture'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -9,7 +9,10 @@ declare global {
 }
 
 export function useDetectExtension() {
-  const agent = useMemo(createPTPAgent, [])
+  const agent = useMemo(
+    () => createMessagingAgent({ name: 'extension-detector' }),
+    []
+  )
   const [hasExtension, setHasExtension] = useState(false)
 
   useEffect(() => {

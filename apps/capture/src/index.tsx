@@ -4,11 +4,7 @@ import { ApiProvider, createApiClientBridge } from '@repro/api-client'
 import { AuthProvider, GateProvider } from '@repro/auth'
 import { PortalRootProvider } from '@repro/design'
 import { Stats, Trace } from '@repro/diagnostics'
-import {
-  DEFAULT_AGENT,
-  MessagingProvider,
-  createPTPAgent,
-} from '@repro/messaging'
+import { MessagingProvider, getDefaultAgent } from '@repro/messaging'
 import {
   RecordingStreamProvider,
   createRecordingStream,
@@ -41,8 +37,7 @@ const refs: Refs = {
   activeStyleRoot: null,
 }
 
-// Should PTP agent replace Broadcast agent?
-const agent = createPTPAgent()
+const agent = getDefaultAgent()
 
 Analytics.setAgent(agent)
 
@@ -80,7 +75,7 @@ class ReproCapture extends HTMLElement {
         }
       },
     })
-    const ignoredSelectors = [NODE_NAME]
+    const ignoredSelectors = [NODE_NAME, '.repro-ignore']
     const ignoredNodes: Array<Node> = []
 
     if (this.shadowRoot) {
@@ -136,9 +131,6 @@ declare global {
     __REPRO_USING_SDK: boolean
   }
 }
-
-// Announce over loopback agent
-agent.subscribeToIntentAndForward('announce', DEFAULT_AGENT)
 
 if (!window.__REPRO_USING_SDK) {
   agent.subscribeToIntent('enable', () => {
