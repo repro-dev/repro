@@ -27,7 +27,7 @@ describe('api-client: common', () => {
 
       for (const mock of mocks) {
         if (mock.url === url && mock.method === method) {
-          let body = new ArrayBuffer(0)
+          let body: BodyInit = new ArrayBuffer(0)
 
           if (mock.responseBody) {
             if (mock.responseBody instanceof ArrayBuffer) {

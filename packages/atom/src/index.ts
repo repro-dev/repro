@@ -9,6 +9,12 @@ export function atom<T>(val: T): Atom<T> {
   return new BehaviorSubject(val)
 }
 
+atom.from = <T>(observable: Observable<T>, initialValue: T): Atom<T> => {
+  const $atom = atom(initialValue)
+  observable.subscribe($atom)
+  return $atom
+}
+
 function createGetter<T>(atom: Atom<T>) {
   return () => atom.getValue()
 }
