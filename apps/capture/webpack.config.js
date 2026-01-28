@@ -50,11 +50,11 @@ module.exports = {
 
   plugins: [
     new EnvironmentPlugin({
-      BUILD_ENV: 'production',
+      BUILD_ENV: 'development',
       MIXPANEL_API_URL: '',
       MIXPANEL_TOKEN: '',
-      REPRO_APP_URL: 'http://localhost:8080',
-      REPRO_API_URL: 'http://localhost:8181',
+      REPRO_APP_URL: 'http://app.repro.localhost',
+      REPRO_API_URL: 'http://api.repro.localhost',
       AUTH_STORAGE: 'memory',
       STATS_LEVEL: 'debug',
     }),

@@ -17,6 +17,7 @@ import {
   takeWhile,
   withLatestFrom,
 } from 'rxjs'
+import { SYSTEM_CARD_MESSAGE } from './system'
 import {
   AgenticState,
   AssistantMessage,
@@ -115,7 +116,12 @@ export function createAgenticState(apiClient: ApiClient): AgenticState {
       '/agentic/response',
       {
         method: 'POST',
-        body: JSON.stringify({ messages: context }),
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: SYSTEM_CARD_MESSAGE },
+            ...context,
+          ],
+        }),
       },
       'json',
       'stream'
