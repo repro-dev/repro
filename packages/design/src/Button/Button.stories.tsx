@@ -5,7 +5,7 @@ import { colors } from '../theme'
 import { Button } from './Button'
 
 const meta: Meta = {
-  title: 'Design/Button',
+  title: 'Packages/Design/Button',
 }
 
 export default meta

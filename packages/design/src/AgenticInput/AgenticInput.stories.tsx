@@ -5,7 +5,7 @@ import colors from 'tailwindcss/colors'
 import { AgenticInput, AgenticInputProps } from './AgenticInput'
 
 const meta: Meta = {
-  title: 'Design/AgenticInput',
+  title: 'Packages/Design/AgenticInput',
   component: AgenticInput,
   decorators: [
     Story => (

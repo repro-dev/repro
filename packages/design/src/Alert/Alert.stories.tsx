@@ -6,7 +6,7 @@ import { colors } from '../theme'
 import { Alert } from './Alert'
 
 const meta: Meta = {
-  title: 'Design/Alert',
+  title: 'Packages/Design/Alert',
 }
 
 export default meta

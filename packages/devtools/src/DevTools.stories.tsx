@@ -17,7 +17,7 @@ import React from 'react'
 import { DevTools } from './DevTools'
 
 const meta: Meta = {
-  title: 'DevTools/DevTools',
+  title: 'Packages/DevTools/DevTools',
   component: DevTools,
 }
 

@@ -14,7 +14,7 @@ import { Subscription, switchMap, timer } from 'rxjs'
 import { useRecordingMode } from '~/state'
 import { Agentic } from './Agentic'
 import { DetailsFields } from './DetailsFields'
-import { DetailsRegion, Layout, PlaybackRegion } from './Layout'
+import { AsideRegion, Layout, PlaybackRegion } from './Layout'
 import { ProgressOverlay } from './ProgressOverlay'
 import { FormValues } from './types'
 
@@ -153,12 +153,12 @@ export const ReportForm: React.FC<ReportFormProps> = ({
           />
         </PlaybackRegion>
 
-        <DetailsRegion>
-          <IfGate gate="agentic-mode">
+        <AsideRegion>
+          <UnlessGate gate="legacy-report-form">
             <Agentic />
-          </IfGate>
+          </UnlessGate>
 
-          <UnlessGate gate="agentic-mode">
+          <IfGate gate="legacy-report-form">
             <DetailsFields
               onSubmit={({ title, description }) =>
                 onSubmit({
@@ -168,8 +168,8 @@ export const ReportForm: React.FC<ReportFormProps> = ({
                 })
               }
             />
-          </UnlessGate>
-        </DetailsRegion>
+          </IfGate>
+        </AsideRegion>
 
         {progress && <ProgressOverlay progress={progress} onClose={onClose} />}
       </Layout>

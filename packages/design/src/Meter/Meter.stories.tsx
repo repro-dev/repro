@@ -3,7 +3,7 @@ import React from 'react'
 import { Meter } from './Meter'
 
 const meta: Meta = {
-  title: 'Design/Meter',
+  title: 'Packages/Design/Meter',
 }
 
 export default meta

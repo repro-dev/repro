@@ -1,12 +1,12 @@
 import { Block } from '@jsxstyle/react'
-import type { Meta, Story } from '@ladle/react'
 import { colors } from '@repro/design'
 import { UploadStage } from '@repro/recording-api'
+import type { Meta, Story } from '@storybook/react'
 import React, { PropsWithChildren } from 'react'
 import { ProgressOverlay } from './ProgressOverlay'
 
 const meta: Meta = {
-  title: 'ProgressOverlay',
+  title: 'Apps/Capture/ProgressOverlay',
 }
 
 export default meta

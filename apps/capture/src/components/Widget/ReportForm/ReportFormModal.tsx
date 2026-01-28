@@ -12,7 +12,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
   ...restProps
 }) => (
   <Modal
-    title="Create a bug report"
+    title="Session Inspector"
     size="full-screen"
     open={open}
     onClose={onClose}

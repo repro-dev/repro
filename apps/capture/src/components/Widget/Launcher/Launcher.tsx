@@ -61,7 +61,7 @@ export const Launcher: React.FC = () => {
       onClick={onClick}
     >
       {recordingMode === RecordingMode.None && (
-        <Tooltip position="right">Report a bug</Tooltip>
+        <Tooltip position="right">Debug with Repro</Tooltip>
       )}
 
       <Block position="relative" width={28} height={28}>
