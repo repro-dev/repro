@@ -1,6 +1,5 @@
 import { ReadableStream } from '@repro/stream-utils'
 import { attemptP, bichain, chain, FutureInstance, map, resolve } from 'fluture'
-import nativeFetch from 'isomorphic-unfetch'
 import { AuthStore } from './auth'
 import { ApiConfiguration, Fetch, FetchOptions } from './types'
 
@@ -33,7 +32,7 @@ export function createDefaultRequestOptions(
 export function createFetch(
   authStore: AuthStore,
   config: ApiConfiguration,
-  fetchImpl = nativeFetch
+  fetchImpl = globalThis.fetch
 ): Fetch {
   return function fetch<R = any>(
     url: string,

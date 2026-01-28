@@ -32,6 +32,7 @@ export function createAgenticRouter(
       '/response',
       (req, res) => {
         const { messages } = req.body
+        res.header('content-type', 'text/event-stream')
         respondWith(
           res,
           agenticService
