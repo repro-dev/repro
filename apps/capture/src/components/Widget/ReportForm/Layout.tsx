@@ -6,7 +6,8 @@ import { MAX_INT32 } from '~/constants'
 export const Layout: React.FC<PropsWithChildren> = ({ children }) => (
   <Grid
     gridTemplateColumns="1fr 420px"
-    gridTemplateAreas="'playback details'"
+    gridTemplateRows="100%"
+    gridTemplateAreas="'playback aside'"
     gap={10}
     position="relative"
     height="100%"
@@ -36,8 +37,14 @@ export const PlaybackRegion: React.FC<PropsWithChildren> = ({ children }) => (
   </Grid>
 )
 
-export const DetailsRegion: React.FC<PropsWithChildren> = ({ children }) => (
-  <Grid gridArea="details" alignItems="stretch">
-    <Card>{children}</Card>
+export const AsideRegion: React.FC<PropsWithChildren> = ({ children }) => (
+  <Grid
+    gridArea="aside"
+    alignItems="stretch"
+    maxBlockSize="100%"
+    overflow="clip"
+    overflowClipMargin={16}
+  >
+    <Card height="100%">{children}</Card>
   </Grid>
 )

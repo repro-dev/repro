@@ -13,6 +13,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@jsxstyle/react": "^3.0.1",
+    "@m2d/react-markdown": "^1.0.0",
     "@react-spring/web": "^9.7.5",
     "@repro/analytics": "workspace:*",
     "@repro/analytics-provider-mixpanel": "workspace:*",
@@ -51,7 +52,7 @@
     "zod": "^3.22.2"
   },
   "devDependencies": {
-    "@ladle/react": "^4.0.2",
+    "@storybook/react": "^9.1.3",
     "@types/chrome": "^0.0.176",
     "@types/node": "22.14.0",
     "@types/react": "^18.0.14",

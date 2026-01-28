@@ -5,7 +5,7 @@ import React from 'react'
 import { Toolbar } from './Toolbar'
 
 const meta: Meta = {
-  title: 'DevTools/Toolbar',
+  title: 'Packages/DevTools/Toolbar',
   component: Toolbar,
 }
 

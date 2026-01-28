@@ -13,7 +13,7 @@ import { createSourcePlayback } from '../createSourcePlayback'
 import { RangeTimeline } from './RangeTimeline'
 
 const meta: Meta = {
-  title: 'Playback/RangeTimeline',
+  title: 'Packages/Playback/RangeTimeline',
 }
 
 export default meta

@@ -89,6 +89,8 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
   }
 
   function handleKeyDown(event: React.KeyboardEvent) {
+    event.stopPropagation()
+
     if (event.code === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       submitAndReset()
@@ -116,6 +118,7 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
           component="textarea"
           fontFamily="inherit"
           fontSize="inherit"
+          lineHeight={1.5}
           outline="none"
           padding={0}
           resize="none"
@@ -128,7 +131,7 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
           props={{ autoFocus, ref: valueRef }}
         />
 
-        <Row justifyContent="flex-end">
+        <Row justifyContent="flex-end" marginBlockStart={10}>
           <Block
             alignItems="center"
             backgroundColor={

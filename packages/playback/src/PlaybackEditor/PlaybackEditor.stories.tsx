@@ -17,7 +17,7 @@ import { createSourcePlayback } from '../createSourcePlayback'
 import { PlaybackEditor } from './PlaybackEditor'
 
 const meta: Meta = {
-  title: 'Playback/PlaybackEditor',
+  title: 'Packages/Playback/PlaybackEditor',
 }
 
 export default meta

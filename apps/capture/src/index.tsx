@@ -104,7 +104,7 @@ class ReproCapture extends HTMLElement {
 
     this.renderRoot.render(
       <ApiProvider client={apiClientBridge}>
-        <GateProvider fallbackGates={['agentic-mode']}>
+        <GateProvider>
           <AuthProvider>
             <RecordingStreamProvider stream={stream}>
               <StateProvider state={this.state}>
