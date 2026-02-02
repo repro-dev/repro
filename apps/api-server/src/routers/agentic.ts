@@ -25,18 +25,28 @@ export function createAgenticRouter(
             content: z.string(),
           })
         ),
+        tools: z
+          .array(
+            z.object({
+              type: z.literal('function'),
+              name: z.string(),
+              description: z.string(),
+              parameters: z.any(),
+            })
+          )
+          .optional(),
       }),
     }
 
     app.post<{ Body: z.infer<typeof createResponseSchema.body> }>(
       '/response',
       (req, res) => {
-        const { messages } = req.body
+        const { messages, tools } = req.body
         res.header('content-type', 'text/event-stream')
         respondWith(
           res,
           agenticService
-            .getStreamingResponse(messages)
+            .getStreamingResponse(messages, tools ?? [])
             .pipe(map(data => data.body))
         )
       }
