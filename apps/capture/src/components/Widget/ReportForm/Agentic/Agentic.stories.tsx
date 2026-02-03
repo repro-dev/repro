@@ -54,10 +54,9 @@ export const Reasoning: StoryObj = {
           id: '2',
           timestamp: new Date(),
           role: 'assistant',
-          reasoning:
-            'This question is likely to refer to Douglas Adam\'s Hitchhiker\'s Guide to the Galaxy, in which the answer "42" is given. I should refer to that in my response.',
           content:
             'The answer to the meaning of life, the universe and everything is widely agreed to be the number **42**.',
+          toolCalls: [],
         },
         {
           id: '3',
@@ -70,8 +69,8 @@ export const Reasoning: StoryObj = {
           id: '4',
           timestamp: new Date(),
           role: 'assistant',
-          reasoning: 'This is some more reasoning text.',
           content: '',
+          toolCalls: [],
         },
       ]),
       $loading: atom<Loading>('reasoning'),
@@ -95,10 +94,9 @@ export const Responding: StoryObj = {
           id: '2',
           timestamp: new Date(),
           role: 'assistant',
-          reasoning:
-            'This question is likely to refer to Douglas Adam\'s Hitchhiker\'s Guide to the Galaxy, in which the answer "42" is given. I should refer to that in my response.',
           content:
             'The answer to the meaning of life, the universe and everything is widely agreed to be the number **42**.',
+          toolCalls: [],
         },
         {
           id: '3',
@@ -111,8 +109,8 @@ export const Responding: StoryObj = {
           id: '4',
           timestamp: new Date(),
           role: 'assistant',
-          reasoning: 'This is some more reasoning text.',
           content: 'This is the start of the response',
+          toolCalls: [],
         },
       ]),
       $loading: atom<Loading>('responding'),
