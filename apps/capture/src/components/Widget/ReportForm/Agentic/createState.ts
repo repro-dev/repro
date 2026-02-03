@@ -17,7 +17,8 @@ import {
   takeWhile,
   withLatestFrom,
 } from 'rxjs'
-import { SYSTEM_CARD_MESSAGE } from './system'
+import { SYSTEM_CARD_MESSAGE } from './model/system'
+import { tools } from './model/tools'
 import {
   AgenticState,
   AssistantMessage,
@@ -37,6 +38,7 @@ interface MessageDeltaLike {
       delta: {
         content?: string
         reasoning?: string
+        tool_calls?: unknown
       }
     },
   ]
@@ -70,9 +72,7 @@ function isValidMessageDelta(data: any): data is MessageDeltaLike {
     data != null &&
     'choices' in data &&
     Array.isArray(data.choices) &&
-    data.choices[0]?.delta != null &&
-    (typeof data.choices[0].delta.reasoning === 'string' ||
-      typeof data.choices[0].delta.content === 'string')
+    data.choices[0]?.delta != null
   )
 }
 
@@ -91,6 +91,8 @@ export function createAgenticState(apiClient: ApiClient): AgenticState {
   }
 
   function query(input: string) {
+    setLoading('reasoning')
+
     const id = createEntryId()
 
     setEntryMap(entryMap => ({
@@ -105,8 +107,6 @@ export function createAgenticState(apiClient: ApiClient): AgenticState {
         },
       },
     }))
-
-    setLoading('reasoning')
   }
 
   function fetchResponse(
@@ -121,6 +121,8 @@ export function createAgenticState(apiClient: ApiClient): AgenticState {
             { role: 'system', content: SYSTEM_CARD_MESSAGE },
             ...context,
           ],
+          tools,
+          tool_choice: 'auto',
         }),
       },
       'json',
@@ -141,8 +143,25 @@ export function createAgenticState(apiClient: ApiClient): AgenticState {
     )
 
   const modelContext$ = entries$.pipe(
-    map(entries =>
-      entries.map(entry => ({ role: entry.role, content: entry.content }))
+    map<Array<Entry>, Context>(entries =>
+      entries.map<Context[number]>(entry => {
+        switch (entry.role) {
+          case 'assistant':
+          case 'system':
+          case 'user':
+            return {
+              role: entry.role,
+              content: entry.content,
+            }
+
+          case 'tool':
+            return {
+              role: entry.role,
+              tool_call_id: entry.tool_call_id,
+              content: entry.content,
+            }
+        }
+      })
     )
   )
 
@@ -174,7 +193,7 @@ export function createAgenticState(apiClient: ApiClient): AgenticState {
         timestamp: new Date(),
         role: 'assistant',
         content: '',
-        reasoning: '',
+        toolCalls: [],
       }
 
       const chunks$ = observeFuture(fetchResponse(context)).pipe(
@@ -189,9 +208,8 @@ export function createAgenticState(apiClient: ApiClient): AgenticState {
       return chunks$.pipe(
         scan((message, chunk) => {
           const delta = chunk.choices[0].delta
-          const reasoning = message.reasoning + (delta.reasoning ?? '')
           const content = message.content + (delta.content ?? '')
-          return { ...initialMessage, content, reasoning }
+          return { ...initialMessage, content }
         }, initialMessage),
         map<AssistantMessage, Chunk>(data => ({
           type: 'message',
