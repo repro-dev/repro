@@ -16,6 +16,7 @@ export interface AgenticInputFormState {
 
 export interface AgenticInputProps {
   autoFocus?: boolean
+  disabled?: boolean
   placeholders?: Array<string>
   onFocusChange(hasFocus: boolean): void
   onSubmit(formState: AgenticInputFormState): void
@@ -25,6 +26,7 @@ const PLACEHOLDER_ROTATION_INTERVAL = 3000
 
 export const AgenticInput: React.FC<AgenticInputProps> = ({
   autoFocus,
+  disabled,
   onFocusChange,
   onSubmit,
   placeholders = [],
@@ -102,7 +104,7 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} aria-disabled={disabled}>
       <Block
         cursor="text"
         fontSize={13}
@@ -116,6 +118,7 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
           border="none"
           color={colors.slate['900']}
           component="textarea"
+          disabled={disabled}
           fontFamily="inherit"
           fontSize="inherit"
           lineHeight={1.5}
@@ -142,6 +145,7 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
             borderRadius={4}
             color={colors.white}
             component="button"
+            disabled={disabled}
             display="flex"
             inlineSize={32}
             justifyContent="center"

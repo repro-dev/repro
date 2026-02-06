@@ -161,6 +161,7 @@ export const AgenticView: React.FC = () => {
         transition="margin ease-in-out 100ms, padding ease-in-out 100ms, transform ease-in-out 250ms"
       >
         <AgenticInput
+          disabled={loading !== 'none'}
           placeholders={PLACEHOLDER_COPY}
           onFocusChange={setInputHasFocus}
           onSubmit={handleSubmit}
