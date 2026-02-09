@@ -88,7 +88,102 @@ pnpm-lock.yaml updates, trigger occurs, but the solution doesn't account for thi
 
 ## Better Approach: Compute Full Dependency Graph
 
-### Option 1: Automated Dependency Discovery (Recommended)
+### Option 1: Moon Command Integration (STRONGLY RECOMMENDED) ⭐
+
+**Approach**: Invoke `moon project` to leverage Moon's own dependency graph computation.
+
+**Why This is Better**:
+- ✓ Moon already computes the full transitive dependency graph correctly
+- ✓ Uses the source of truth (Moon's internal resolution)
+- ✓ Automatically handles all edge cases and resolution rules
+- ✓ Stays in sync with Moon's behavior (no drift)
+- ✓ Works with all dependency types (implicit, explicit, etc.)
+- ✓ Significantly simpler than manual parsing
+- ✓ No need to duplicate Moon's dependency resolution logic
+
+**Moon Command**:
+```bash
+moon project <project-id> --json | jq '.config.dependsOn[] | select(.scope == "production") | .id'
+```
+
+**Example Output**:
+```
+"repro/domain"
+"repro/future-utils"
+"repro/validation"
+"repro/wire-formats"
+"repro/tdl"
+"repro/random-string"
+```
+
+**Implementation**:
+```python
+def get_moon_dependencies(project_id, root_path):
+    """
+    Get all production dependencies for a project using Moon's built-in resolver.
+    
+    Args:
+        project_id: e.g., 'repro/api-server'
+        root_path: Project root directory
+    
+    Returns:
+        set of package names (without 'repro/' prefix)
+    """
+    import json
+    import subprocess
+    
+    try:
+        # Call moon to get project info as JSON
+        result = subprocess.run(
+            ['moon', 'project', project_id, '--json'],
+            cwd=root_path,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode != 0:
+            fail(f'Moon command failed: {result.stderr}')
+        
+        # Parse JSON response
+        project_info = json.loads(result.stdout)
+        
+        # Extract production dependencies
+        deps = set()
+        for dep in project_info.get('config', {}).get('dependsOn', []):
+            # Filter for production scope and repro packages
+            if dep.get('scope') == 'production' and dep.get('id', '').startswith('repro/'):
+                pkg_name = dep['id'].replace('repro/', '')
+                deps.add(pkg_name)
+        
+        return deps
+    except Exception as e:
+        fail(f'Error computing dependencies: {e}')
+```
+
+**Benefits**:
+- ✓ Single source of truth
+- ✓ Full transitive graph included automatically
+- ✓ No manual list maintenance
+- ✓ Works across monorepo changes
+- ✓ Leverages existing Moon infrastructure
+
+**Example Usage in Tiltfile**:
+```python
+ALL_DEPS = get_moon_dependencies('repro/api-server', PROJECT_ROOT)
+
+fall_back_on([
+    os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
+    os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
+] + [
+    os.path.join(PROJECT_ROOT, f'packages/{dep}/package.json')
+    for dep in ALL_DEPS
+])
+```
+
+---
+
+### Option 2: Automated Dependency Discovery (Fallback)
 
 **Approach**: Automatically parse package.json files to build the full transitive graph.
 
@@ -347,28 +442,38 @@ cd packages/analytics-provider-mixpanel && echo "// change" >> src/index.ts
 
 ## Summary Table
 
-| Aspect | Phase 1-2 | Phase 3 (Manual) | Phase 3 (Automated) |
-|--------|----------|-----------------|-------------------|
-| Prevents unrelated app cascades | ✓ | ✓ | ✓ |
-| Handles direct deps correctly | ✗ | ✓ | ✓ |
-| Handles transitive deps | ✗ | ✗ | ✓ |
-| Manual maintenance required | - | ✓ (burden) | - |
-| Automatic updates | - | ✗ | ✓ |
-| Complexity | Low | Medium | Medium |
+| Aspect | Phase 1-2 | Phase 3 (Manual List) | Phase 3 (Parse JSON) | Phase 3 (Moon Command) |
+|--------|----------|----------------------|----------------------|----------------------|
+| Prevents unrelated app cascades | ✓ | ✓ | ✓ | ✓ |
+| Handles direct deps correctly | ✗ | ✓ | ✓ | ✓ |
+| Handles transitive deps | ✗ | ✗ | ✓ | ✓ |
+| Manual maintenance required | - | ✓ (burden) | - | - |
+| Automatic updates | - | ✗ | ✓ | ✓ |
+| Uses Moon's resolver | - | ✗ | ✗ | ✓ |
+| Complexity | Low | Medium | Medium | Low |
+| Single source of truth | - | ✗ | ✗ | ✓ |
 
 ## Recommendation
 
-**Implement Option 1 (Automated Dependency Discovery) for Phase 3**
+**Implement Option 1 (Moon Command Integration) for Phase 3** ⭐
 
-- Create `infra/tilt-lib/dependency_graph.py`
+**Why Moon Integration Wins**:
+1. **Source of Truth**: Moon already computes dependencies correctly - use it directly
+2. **Simplest Implementation**: Just call `moon project` and parse JSON
+3. **Future-Proof**: If Moon changes how it resolves deps, Tilt automatically adapts
+4. **No Maintenance**: Dependencies update automatically as package.json changes
+5. **Proven Correct**: Moon's resolver is battle-tested and handles all edge cases
+
+**Implementation**:
+- Create helper function `get_moon_dependencies(project_id, root_path)`
 - Use in all three service Tiltfiles (api-server, workspace, admin)
-- Test with the verification scenarios above
-- Document in updated IMPLEMENTATION_GUIDE.md
+- Test with verification scenarios below
+- Document in IMPLEMENTATION_GUIDE.md
 
 **Expected Outcome**:
 - Full transitive dependency support
-- No manual maintenance
-- Proper handling of complex dependency trees
+- Leverages existing Moon infrastructure
+- Zero maintenance burden
 - Production-ready implementation
 
 ---
