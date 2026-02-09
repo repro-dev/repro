@@ -182,9 +182,19 @@ Same changes as above, PLUS:
 
 ### Change 4: Direct Dependency Watching (Optional)
 
-**Benefit**: Only rebuild when direct dependencies change, not when other apps update their deps.
+**⚠️ Important Note on Dependency Graph**: See `DEPENDENCY_GRAPH_ANALYSIS.md` for a critical refinement.
 
-**Complexity**: Manual maintenance of dependency list per app.
+The basic Phase 3 implementation lists only **direct** dependencies. For production use, you should implement **transitive dependency discovery** to properly account for the full package dependency graph (where packages depend on other packages).
+
+**Simple Approach** (Phase 3 as written): Manual list of direct deps
+- Benefit: Only rebuild when direct dependencies change
+- Complexity: Manual maintenance of dependency list per app
+- Gap: Doesn't account for transitive deps (e.g., if @repro/domain depends on @repro/std)
+
+**Recommended Approach** (See DEPENDENCY_GRAPH_ANALYSIS.md): Automated discovery
+- Benefit: Full transitive dependency graph computed automatically
+- Complexity: Requires dependency graph helper script
+- Advantage: No manual maintenance, proper handling of cascading changes
 
 **File**: `/infra/apps/api-server/Tiltfile` - Replace lines 2-10
 
