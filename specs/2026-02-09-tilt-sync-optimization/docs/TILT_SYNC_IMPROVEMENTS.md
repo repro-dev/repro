@@ -334,82 +334,33 @@ live_update=[
 - Reduced network I/O (especially important for remote/VM setups)
 - Clearer intent: what syncs where
 
-### Improvement 4: Direct Dependency Watching
+### Improvement 4: Transitive Dependency Watching
 
 **File**: All service Tiltfiles
 
 **Challenge**: Monorepo-wide `pnpm-lock.yaml` triggers rebuilds when ANY package changes.
 
-**Solution A** (Manual): List direct dependencies explicitly
+**Solution**: Use `moon project-graph` to compute the full transitive dependency closure automatically:
 ```python
+ALL_DEPS = compute_all_dependencies('repro/api-server')
+
 fall_back_on([
   os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
   os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
-  os.path.join(PROJECT_ROOT, 'packages/domain/package.json'),
-  os.path.join(PROJECT_ROOT, 'packages/validation/package.json'),
-  os.path.join(PROJECT_ROOT, 'packages/wire-formats/package.json'),
-  os.path.join(PROJECT_ROOT, 'packages/tdl/package.json'),
-  os.path.join(PROJECT_ROOT, 'packages/future-utils/package.json'),
-  os.path.join(PROJECT_ROOT, 'packages/random-string/package.json'),
-  os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),  # Fallback if direct list incomplete
+] + [
+  os.path.join(PROJECT_ROOT, 'packages/' + dep + '/package.json')
+  for dep in ALL_DEPS
+] + [
+  os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
 ])
 ```
 
-**Pros**:
-- Only rebuild if direct dependencies change
-- Workspace change (e.g., capture deps) doesn't affect api-server
-
-**Cons**:
-- Manual maintenance of dependency list
-- Easy to become outdated
-
-**Solution B** (Dynamic, Complex): Parse package.json and auto-generate list
-```python
-def get_direct_deps(app_name):
-  pkg = read_json(PROJECT_ROOT + '/apps/' + app_name + '/package.json')
-  deps = pkg.get('dependencies', {})
-  return ['packages/' + dep.replace('@repro/', '') for dep in deps.keys() if dep.startswith('@repro/')]
-
-DIRECT_DEPS = get_direct_deps('api-server')
-fall_back_on([
-  PROJECT_ROOT + '/apps/api-server/package.json',
-  PROJECT_ROOT + '/apps/api-server/moon.yml',
-] + [PROJECT_ROOT + '/' + dep + '/package.json' for dep in DIRECT_DEPS] + [
-  PROJECT_ROOT + '/pnpm-lock.yaml',
-])
-```
+See `DEPENDENCY_GRAPH_ANALYSIS.md` for the `compute_all_dependencies` helper implementation.
 
 **Impact**:
+- Full transitive dependency graph (11 projects for api-server vs. 7 direct deps)
+- No manual maintenance
 - 50% reduction in unnecessary rebuilds when other apps' deps change
-- Cleaner development experience
-
-### Improvement 5: Consider Conditional Restart
-
-**Advanced**: Different strategies for source vs. dependency changes
-
-```python
-live_update=[
-  # Always trigger full rebuild if dependencies change
-  fall_back_on([
-    os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
-    os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
-  ]),
-  
-  # Sync source code (hot-reload in dev task)
-  sync(
-    os.path.join(PROJECT_ROOT, 'apps/api-server/src'),
-    '/app/apps/api-server/src'
-  ),
-  
-  # When packages change, sync but restart if compile fails
-  sync(
-    os.path.join(PROJECT_ROOT, 'packages'),
-    '/app/packages'
-  ),
-]
-```
-
-**Impact**: Best of both worlds - source changes hot-reload, dep changes trigger clean rebuild.
 
 ## Implementation Checklist
 
@@ -424,11 +375,9 @@ live_update=[
 - [ ] Test each service individually after changes
 - [ ] Update documentation
 
-### Phase 3: Advanced (1+ hours)
-- [ ] Implement dynamic dependency list generation
-- [ ] Add health checks to k8s_resource configs
-- [ ] Create helper functions for common Tiltfile patterns
-- [ ] Add performance benchmarking
+### Phase 3: Transitive Dependencies (10 minutes)
+- [ ] Create `compute_all_dependencies` helper using `moon project-graph`
+- [ ] Update `fall_back_on` in all three Tiltfiles to use computed deps
 
 ## Validation & Testing
 

@@ -158,64 +158,7 @@ CMD ["moon", "run", "repro/api-server:serve"]
 
 But Tiltfile uses `target="build-all"`, which defeats the purpose.
 
-### Solution 3: Optimize fall_back_on Granularity
-Instead of watching entire `pnpm-lock.yaml`, create an app-specific lock:
-```python
-fall_back_on([
-  os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
-  os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
-  os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),  # Catch build config changes
-  # List only direct @repro/* dependencies
-  os.path.join(PROJECT_ROOT, 'packages/domain/package.json'),
-  os.path.join(PROJECT_ROOT, 'packages/validation/package.json'),
-  os.path.join(PROJECT_ROOT, 'packages/wire-formats/package.json'),
-  os.path.join(PROJECT_ROOT, 'packages/tdl/package.json'),
-  os.path.join(PROJECT_ROOT, 'packages/future-utils/package.json'),
-  os.path.join(PROJECT_ROOT, 'packages/random-string/package.json'),
-])
-```
-
-**Problem**: Tedious and fragile (manual list of deps).
-
-**Better approach**: Use `moon project-graph <id> --json` to compute the full transitive dependency closure, parse it in the Tiltfile.
-
-### Solution 4: Two-Phase Live Update
-```python
-live_update=[
-  fall_back_on([
-    os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
-    os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
-  ]),
-  sync(os.path.join(PROJECT_ROOT, 'apps/api-server'), '/app/apps/api-server'),
-  sync(os.path.join(PROJECT_ROOT, 'packages'), '/app/packages'),
-  
-  # Only restart for node_modules changes
-  run('pnpm install --offline', trigger=[
-    os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
-  ]),
-]
-```
-
-This way:
-- Source code changes sync and hot-reload
-- Dependency changes trigger install + restart
-- Other app changes don't affect api-server
-
-### Solution 5: Reduce Package Rebuilds with moon.yml Optimization
-```yaml
-# apps/api-server/moon.yml - Consider NOT including ^:build for dev task
-dev:
-  command: pnpm run dev-watch
-  # Remove: deps: [^:build]
-  # Rely on pre-built packages or built on first run
-  preset: server
-```
-
-Rationale: In development, packages are already built (from CI or initial setup). Hot-reload of source suffices.
-
-If a package changes: Developer explicitly rebuilds with `moon run packages/domain:build` first.
-
-### Solution 6: Selective Resource Enablement
+### Solution 3: Selective Resource Enablement
 Already present but could be documented:
 ```
 tilt up api-server  # Only api-server + dependencies (storage, database, gateway)
@@ -281,22 +224,12 @@ live_update=[
 
 **Impact**: Prevents unrelated app changes from affecting dev loop.
 
-### Priority 4: Refine fall_back_on with Package.json Hash (Medium effort)
-Use a helper to list direct @repro/* dependencies from package.json, auto-generate watch list.
+### Priority 4: Transitive Dependency Watching (10 min)
+**File**: All three Tiltfiles + new helper file
 
-```python
-# Helper function (use read_json() — Tilt builtin — not Python's open())
-def get_dep_package_jsons(app_name, project_root):
-  # Parse apps/APP/package.json, extract @repro/* deps
-  # Return list of packages/*/package.json to watch
-  ...
-```
+Use `moon project-graph` to compute the full transitive dependency closure and generate the `fall_back_on` list automatically. See `DEPENDENCY_GRAPH_ANALYSIS.md` for implementation details.
 
 **Impact**: Prevents over-triggering rebuilds on unrelated package changes.
-
-### Priority 5: Consider Two-Sync Strategy for Heavy Changes (Medium effort)
-- Light sync for source changes (hot-reload)
-- Heavy rebuild + restart for dependency changes
 
 ## Diagnostics
 
@@ -318,6 +251,4 @@ Expected behavior (after fixes):
 | Docker target | build-all | app-specific | 5m | High |
 | Ignore patterns | Minimal | Comprehensive | 10m | High |
 | Sync scope | PROJECT_ROOT | App + packages only | 15m | High |
-| fall_back_on | Monorepo-wide lock | App + direct deps | 20m | Medium |
-| Package rebuilds | Always ^:build | Conditional | 30m | Medium |
-| Docs | Missing | Complete | 10m | Low |
+| fall_back_on | Monorepo-wide lock | App + direct deps | 10m | Medium |

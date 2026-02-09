@@ -204,45 +204,40 @@ Same changes as above, PLUS:
 - Reduced I/O and network overhead
 - Clearer intent in configuration
 
-## Phase 3: Advanced Optimization (30 minutes, optional)
+## Phase 3: Transitive Dependency Watching (10 minutes)
 
-### Change 4: Direct Dependency Watching (Optional)
+### Change 4: Use Moon Project Graph for Dependency Discovery
 
-**⚠️ Important Note on Dependency Graph**: See `DEPENDENCY_GRAPH_ANALYSIS.md` for a critical refinement.
+Create a shared helper at `infra/tilt-lib/dependency_graph.Tiltfile`:
 
-The basic Phase 3 implementation lists only **direct** dependencies. For production use, you should implement **transitive dependency discovery** to properly account for the full package dependency graph (where packages depend on other packages).
+```python
+def compute_all_dependencies(project_id):
+    result = local(
+        'moon project-graph %s --json' % project_id,
+        quiet=True,
+    )
+    graph = decode_json(str(result))
+    nodes = graph.get('graph', {}).get('nodes', [])
+    deps = []
+    for node in nodes:
+        node_id = node.get('id', '')
+        if node_id == project_id:
+            continue
+        if node_id.startswith('repro/'):
+            deps.append(node_id.replace('repro/', '', 1))
+    return deps
+```
 
-**Simple Approach** (Phase 3 as written): Manual list of direct deps
-- Benefit: Only rebuild when direct dependencies change
-- Complexity: Manual maintenance of dependency list per app
-- Gap: Doesn't account for transitive deps (e.g., if @repro/domain depends on @repro/std)
+Then update each Tiltfile to use it:
 
-**Recommended Approach** (See DEPENDENCY_GRAPH_ANALYSIS.md): Use `moon project-graph` to compute the full transitive dependency closure automatically.
-- Benefit: Full transitive dependency graph computed automatically
-- Complexity: Requires dependency graph helper script
-- Advantage: No manual maintenance, proper handling of cascading changes
-
-**File**: `/infra/apps/api-server/Tiltfile` - Replace lines 2-10
+**File**: `/infra/apps/api-server/Tiltfile`
 
 ```python
 PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 
-# API-server's direct @repro/* dependencies (from package.json)
-API_SERVER_DIRECT_DEPS = [
-  'domain',
-  'future-utils',
-  'random-string',
-  'tdl',
-  'validation',
-  'wire-formats',
-]
+load_dynamic('../../../infra/tilt-lib/dependency_graph.Tiltfile')
 
-def get_direct_dep_paths():
-  """Generate paths to direct dependency package.json files."""
-  paths = []
-  for dep in API_SERVER_DIRECT_DEPS:
-    paths.append(os.path.join(PROJECT_ROOT, 'packages/%s/package.json' % dep))
-  return paths
+ALL_DEPS = compute_all_dependencies('repro/api-server')
 
 docker_build(
   'api-server',
@@ -252,59 +247,37 @@ docker_build(
   entrypoint=["moon", "run", "repro/api-server:dev"],
   ignore=[...],
   live_update=[
-    fall_back_on(
-      [
-        os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
-        os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
-      ] + get_direct_dep_paths() + [
-        os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),  # Final fallback
-      ]
+    fall_back_on([
+      os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
+      os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
+    ] + [
+      os.path.join(PROJECT_ROOT, 'packages/' + dep + '/package.json')
+      for dep in ALL_DEPS
+    ] + [
+      os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
+    ]),
+    sync(
+      os.path.join(PROJECT_ROOT, 'apps/api-server/src'),
+      '/app/apps/api-server/src'
     ),
-    sync(...),
+    sync(
+      os.path.join(PROJECT_ROOT, 'packages'),
+      '/app/packages'
+    ),
   ]
 )
 ```
 
-**Do the same for workspace**:
-```python
-WORKSPACE_DIRECT_DEPS = [
-  'analytics',
-  'analytics-provider-mixpanel',
-  'api-client',
-  'atom',
-  'auth',
-  'billing',
-  'css-utils',
-  'date-utils',
-  'design',
-  'devtools',
-  'diagnostics',
-  'dom-utils',
-  'domain',
-  'future-utils',
-  'logger',
-  'messaging',
-  'playback',
-  'random-string',
-  'recording',
-  'recording-api',
-  'source-utils',
-  'std',
-  'string-utils',
-  'theme',
-  'vdom-utils',
-  'wire-formats',
-]
-```
+Apply the same pattern for workspace and admin, changing the project ID and app paths.
+
+**Why**:
+- `moon project-graph` computes the full transitive dependency closure (11 projects for api-server vs. 7 direct deps)
+- No manual dependency lists to maintain
+- Automatically stays in sync as package.json files change
 
 **Impact**:
-- Only rebuild api-server if its direct deps change
-- Workspace change (e.g., capture deps) won't trigger api-server rebuild
-- ~30% fewer unnecessary rebuilds in monorepo
-
-**Maintenance burden**: 
-- Must update lists when dependencies change
-- Consider automating with a script
+- Prevents rebuilds when unrelated packages change
+- Catches transitive dependency changes that manual lists would miss
 
 ## Testing Changes
 
@@ -359,22 +332,19 @@ cd ../api-server && echo "describe('test', ...)" >> src/test.test.ts
 # "Syncing 50000 files to container..." (bad, original behavior)
 ```
 
-### After Phase 3 Changes (if implemented)
+### After Phase 3 Changes
 ```bash
-# Test 1: Edit capture's dependencies
-cd apps/capture && pnpm add some-lib
-
-# pnpm-lock.yaml updates globally
-# Check: Does api-server rebuild?
-# Expected: YES - pnpm-lock.yaml is still in fall_back_on (monorepo-wide)
-# Note: Full lockfile isolation requires removing pnpm-lock.yaml from
-# fall_back_on or using app-specific lock fragments (future improvement)
-
-# Test 2: Edit a dependency api-server uses
-cd packages/domain && echo "export const x = 1" >> src/new-export.ts
+# Test 1: Edit a transitive dependency
+cd packages/ts-utils && echo "export const x = 1" >> src/index.ts
 
 # Check: Does api-server rebuild?
-# Expected: YES (it's a direct dep)
+# Expected: YES (ts-utils is a transitive dep via tdl)
+
+# Test 2: Edit an unrelated package
+cd packages/analytics-provider-mixpanel && echo "// change" >> src/index.ts
+
+# Check: Does api-server rebuild?
+# Expected: NO (not in api-server's dependency graph)
 ```
 
 ## Rollback Plan
@@ -459,20 +429,9 @@ Tilt's `sync()` function only accepts `(local_path, remote_path)`. It does **not
 
 ## Next Steps
 
-1. **Short term** (this session):
-   - Implement Phase 1 + 2 changes
-   - Test and verify
-   - Document in team docs
-
-2. **Medium term** (next sprint):
-   - Implement Phase 3 (automated dependency watching)
-   - Add health checks to k8s resources
-   - Monitor performance metrics
-
-3. **Long term**:
-   - Consider Tilt custom resources for common patterns
-   - Automate Dockerfile generation from moon.yml
-   - Create developer onboarding docs with performance tips
+1. Implement Phase 1 + 2 changes
+2. Test and verify
+3. Implement Phase 3 when ready (10 minutes additional)
 
 ## Troubleshooting Implementation
 
@@ -496,11 +455,3 @@ tilt up api-server
 # Add more ignore patterns
 # Verify sync(PROJECT_ROOT, ...) was changed to app-specific paths
 ```
-
-## Questions?
-
-Refer to:
-- `/TILT_SYNC_IMPROVEMENTS.md` - Deep technical analysis
-- `/SYNC_ANALYSIS.md` - Issues and root causes
-- `/infra/TILT_REFERENCE.md` - Configuration reference
-- `/infra/apps/api-server/Tiltfile.improved` - Example of complete improvements

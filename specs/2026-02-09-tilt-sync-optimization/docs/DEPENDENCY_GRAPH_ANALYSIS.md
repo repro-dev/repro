@@ -176,99 +176,11 @@ fall_back_on([
 
 ---
 
-### Option 2: Automated Dependency Discovery (Fallback)
+## Recommended Solution
 
-**Approach**: Automatically parse package.json files to build the full transitive graph.
+Use `moon project-graph` (Option 1 above) for Phase 3. It provides the full transitive closure with no manual maintenance and minimal implementation effort.
 
-**Implementation**:
-```python
-def get_all_package_dependencies(app_name, root_path):
-    visited = {}
-    to_visit = []
-
-    pkg_path = os.path.join(root_path, 'apps/%s/package.json' % app_name)
-    pkg = read_json(pkg_path)
-    for dep in pkg.get('dependencies', {}).keys():
-        if dep.startswith('@repro/'):
-            package_name = dep.replace('@repro/', '', 1)
-            to_visit.append(package_name)
-
-    for i in range(len(to_visit)):
-        pkg_name = to_visit[i]
-        if pkg_name in visited:
-            continue
-        visited[pkg_name] = True
-
-        dep_path = os.path.join(root_path, 'packages/%s/package.json' % pkg_name)
-        if not os.path.exists(dep_path):
-            continue
-
-        dep_pkg = read_json(dep_path)
-        for dep in dep_pkg.get('dependencies', {}).keys():
-            if dep.startswith('@repro/'):
-                child_name = dep.replace('@repro/', '', 1)
-                if child_name not in visited:
-                    to_visit.append(child_name)
-
-    return visited.keys()
-
-ALL_DEPS = get_all_package_dependencies('api-server', PROJECT_ROOT)
-
-fall_back_on([
-    os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
-    os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
-] + [
-    os.path.join(PROJECT_ROOT, 'packages/%s/package.json' % dep)
-    for dep in ALL_DEPS
-])
-```
-
-**Benefits**:
-- ✓ Automatically discovers full transitive graph
-- ✓ No manual maintenance
-- ✓ Accounts for transitive dependencies
-- ✓ Updates when package.json changes
-
-**Drawbacks**:
-- Slightly more complex
-- Requires JSON parsing in Tiltfile
-- Duplicates Moon's dependency resolution logic
-
-### Option 3: Generate Lock File Fragment
-
-**Approach**: Create a dependency-specific lock file instead of watching all files.
-
-**Implementation**: 
-- Extract only entries from pnpm-lock.yaml relevant to this app
-- Create `pnpm-lock.api-server.yaml` (not committed)
-- Watch only that file
-- Regenerate when app's package.json changes
-
-**Benefits**:
-- ✓ Accounts for full transitive dependencies
-- ✓ Watches only relevant lock entries
-- ✓ Automatic updates
-
-**Drawbacks**:
-- Requires build-time setup
-- More complex to implement
-
-## Recommended Solution: Option 1 + Smart Detection
-
-**Hybrid Approach**:
-
-1. **For Phase 1-2**: Use current approach (good enough for 80% benefit)
-   - Manually list direct deps
-   - Still prevents cascading between unrelated apps
-
-2. **For Phase 3** (Advanced): Implement automated discovery
-   - Use `moon project-graph` to compute full transitive graph
-   - Generate comprehensive fall_back_on list
-   - No manual maintenance needed
-
-3. **Future Enhancement**: Monitor Moon for better integration
-   - Track Moon releases for improved graph query APIs
-   - Consider contributing feature if needed
+For Phases 1-2, no dependency graph computation is needed — ignore patterns and app-specific sync paths provide 80% of the benefit.
 
 ## Implementation: Enhanced Phase 3
 
@@ -366,39 +278,20 @@ cd packages/analytics-provider-mixpanel && echo "// change" >> src/index.ts
 
 ## Summary Table
 
-| Aspect | Phase 1-2 | Phase 3 (Manual List) | Phase 3 (Parse JSON) | Phase 3 (Moon Project Graph) |
-|--------|----------|----------------------|----------------------|----------------------|
-| Prevents unrelated app cascades | ✓ | ✓ | ✓ | ✓ |
-| Handles direct deps correctly | ✗ | ✓ | ✓ | ✓ |
-| Handles transitive deps | ✗ | ✗ | ✓ | ✓ |
-| Manual maintenance required | - | ✓ (burden) | - | - |
-| Automatic updates | - | ✗ | ✓ | ✓ |
-| Uses Moon's resolver | - | ✗ | ✗ | ✓ |
-| Complexity | Low | Medium | Medium | Low |
-| Single source of truth | - | ✗ | ✗ | ✓ |
+| Aspect | Phase 1-2 | Phase 3 (Manual List) | Phase 3 (Moon Project Graph) |
+|--------|----------|----------------------|----------------------|
+| Prevents unrelated app cascades | ✓ | ✓ | ✓ |
+| Handles direct deps correctly | ✗ | ✓ | ✓ |
+| Handles transitive deps | ✗ | ✗ | ✓ |
+| Manual maintenance required | - | ✓ (burden) | - |
+| Automatic updates | - | ✗ | ✓ |
+| Uses Moon's resolver | - | ✗ | ✓ |
+| Complexity | Low | Medium | Low |
+| Single source of truth | - | ✗ | ✓ |
 
 ## Recommendation
 
-**Implement Option 1 (Moon Project Graph Integration) for Phase 3** ⭐
-
-**Why Moon Integration Wins**:
-1. **Source of Truth**: Moon already computes dependencies correctly - use it directly
-2. **Simplest Implementation**: Just call `moon project-graph` and parse JSON
-3. **Future-Proof**: If Moon changes how it resolves deps, Tilt automatically adapts
-4. **No Maintenance**: Dependencies update automatically as package.json changes
-5. **Proven Correct**: Moon's resolver is battle-tested and handles all edge cases
-
-**Implementation**:
-- Create helper function `get_moon_dependencies(project_id, root_path)`
-- Use in all three service Tiltfiles (api-server, workspace, admin)
-- Test with verification scenarios below
-- Document in IMPLEMENTATION_GUIDE.md
-
-**Expected Outcome**:
-- Full transitive dependency support
-- Leverages existing Moon infrastructure
-- Zero maintenance burden
-- Production-ready implementation
+**Use `moon project-graph` for Phase 3.** It provides the full transitive closure with no manual maintenance, minimal complexity, and uses Moon's own battle-tested resolver as the single source of truth. Use in all three service Tiltfiles (api-server, workspace, admin).
 
 ---
 
