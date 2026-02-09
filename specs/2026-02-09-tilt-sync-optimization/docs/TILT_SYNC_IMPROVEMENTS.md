@@ -366,18 +366,16 @@ fall_back_on([
 **Solution B** (Dynamic, Complex): Parse package.json and auto-generate list
 ```python
 def get_direct_deps(app_name):
-  """Parse apps/APP/package.json, extract @repro/* dependencies."""
-  with open(f'{PROJECT_ROOT}/apps/{app_name}/package.json') as f:
-    pkg = json.load(f)
-    deps = pkg.get('dependencies', {})
-    return [f'packages/{dep.replace("@repro/", "")}' for dep in deps.keys() if dep.startswith('@repro/')]
+  pkg = read_json(PROJECT_ROOT + '/apps/' + app_name + '/package.json')
+  deps = pkg.get('dependencies', {})
+  return ['packages/' + dep.replace('@repro/', '') for dep in deps.keys() if dep.startswith('@repro/')]
 
 DIRECT_DEPS = get_direct_deps('api-server')
 fall_back_on([
-  os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
-  os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
-  *[os.path.join(PROJECT_ROOT, f'{dep}/package.json') for dep in DIRECT_DEPS],
-  os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
+  PROJECT_ROOT + '/apps/api-server/package.json',
+  PROJECT_ROOT + '/apps/api-server/moon.yml',
+] + [PROJECT_ROOT + '/' + dep + '/package.json' for dep in DIRECT_DEPS] + [
+  PROJECT_ROOT + '/pnpm-lock.yaml',
 ])
 ```
 

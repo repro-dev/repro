@@ -177,7 +177,7 @@ fall_back_on([
 
 **Problem**: Tedious and fragile (manual list of deps).
 
-**Better approach**: Use `moon docker setup` to generate dependency manifest, parse it in Tiltfile.
+**Better approach**: Use `moon project-graph <id> --json` to compute the full transitive dependency closure, parse it in the Tiltfile.
 
 ### Solution 4: Two-Phase Live Update
 ```python
@@ -285,7 +285,7 @@ live_update=[
 Use a helper to list direct @repro/* dependencies from package.json, auto-generate watch list.
 
 ```python
-# Helper function
+# Helper function (use read_json() — Tilt builtin — not Python's open())
 def get_dep_package_jsons(app_name, project_root):
   # Parse apps/APP/package.json, extract @repro/* deps
   # Return list of packages/*/package.json to watch

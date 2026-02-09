@@ -217,7 +217,7 @@ The basic Phase 3 implementation lists only **direct** dependencies. For product
 - Complexity: Manual maintenance of dependency list per app
 - Gap: Doesn't account for transitive deps (e.g., if @repro/domain depends on @repro/std)
 
-**Recommended Approach** (See DEPENDENCY_GRAPH_ANALYSIS.md): Automated discovery
+**Recommended Approach** (See DEPENDENCY_GRAPH_ANALYSIS.md): Use `moon project-graph` to compute the full transitive dependency closure automatically.
 - Benefit: Full transitive dependency graph computed automatically
 - Complexity: Requires dependency graph helper script
 - Advantage: No manual maintenance, proper handling of cascading changes
@@ -241,7 +241,7 @@ def get_direct_dep_paths():
   """Generate paths to direct dependency package.json files."""
   paths = []
   for dep in API_SERVER_DIRECT_DEPS:
-    paths.append(os.path.join(PROJECT_ROOT, f'packages/{dep}/package.json'))
+    paths.append(os.path.join(PROJECT_ROOT, 'packages/%s/package.json' % dep))
   return paths
 
 docker_build(

@@ -85,7 +85,7 @@ Initial build:                   90+s  →  30-40s   (50-60% faster)
 ### Phase 3: Advanced (30-60 minutes, optional)
 - Create dependency watching helpers
 - List direct dependencies per app (simple approach)
-- **OR**: Implement automated transitive dependency discovery (recommended)
+- **OR**: Use `moon project-graph` for automated transitive dependency discovery (recommended)
 - **Benefit**: Prevents unrelated rebuilds
 - **⚠️ Important**: See `docs/DEPENDENCY_GRAPH_ANALYSIS.md` for critical refinement
 
@@ -127,7 +127,7 @@ Initial build:                   90+s  →  30-40s   (50-60% faster)
 **DEPENDENCY_GRAPH_ANALYSIS.md** ⚠️ **Critical for Phase 3**
 - Addresses important gap: transitive dependency handling
 - Explains limitations of simple direct-dependency approach
-- Proposes automated dependency discovery solution
+- Proposes `moon project-graph` integration for transitive dependency resolution
 - Implementation code and test scenarios
 - **Read before implementing Phase 3 for production**
 

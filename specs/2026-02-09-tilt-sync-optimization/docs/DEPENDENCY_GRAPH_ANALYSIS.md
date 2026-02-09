@@ -20,8 +20,8 @@ DIRECT_DEPS = [
 **But this is incomplete because:**
 
 1. **Transitive Dependencies**: Packages themselves have dependencies on other packages
-   - Example: `@repro/domain` might depend on `@repro/std` and `@repro/shared-types`
-   - If `@repro/std` changes, the lock file updates, but it's not in the direct deps list
+   - Example: `@repro/domain` depends on `@repro/random-string`, `@repro/tdl`, and `@repro/shared-types`
+   - If `@repro/shared-types` changes, the lock file updates, but it's not in the direct deps list
    - Result: Unnecessary fallback trigger (rebuilds unnecessarily)
 
 2. **Shared Package Dependencies**: Multiple apps share the same packages
@@ -30,9 +30,10 @@ DIRECT_DEPS = [
    - Need to track the full graph, not just direct imports
 
 3. **Moon's `^:build` Semantics**: 
-   - `deps: [^:build]` means "run build on all upstream packages"
-   - "Upstream" is determined by package.json `dependencies`
-   - But Moon walks the entire transitive graph
+   - `deps: [^:build]` means "run `:build` on direct `dependsOn` projects"
+   - Each dependent project's `build` task also has `deps: [^:build]` (inherited from `.moon/tasks/node.yml`)
+   - Moon's task scheduler recursively expands through the full graph at runtime
+   - So transitive execution is effectively achieved, but via recursive task expansion — not a single `^:build` expansion
    - Current solution doesn't account for this
 
 ## Current Limitations
@@ -77,20 +78,24 @@ fall_back_on([
 ```
 api-server
 ├── depends on: @repro/domain
-│   └── depends on: @repro/std
-│       └── depends on: @repro/shared-types
+│   ├── depends on: @repro/random-string
+│   ├── depends on: @repro/tdl
+│   │   └── depends on: @repro/ts-utils
+│   └── depends on: @repro/shared-types
+├── depends on: @repro/wire-formats
+│   ├── depends on: @repro/stream-utils
+│   └── depends on: @repro/testing-utils
 ├── depends on: @repro/validation
-│   └── depends on: @repro/std
 ```
 
-**Current approach would miss**: If `@repro/shared-types` changes (not in DIRECT_DEPS), 
+**Current approach would miss**: If `@repro/ts-utils` changes (not in DIRECT_DEPS), 
 pnpm-lock.yaml updates, trigger occurs, but the solution doesn't account for this.
 
 ## Better Approach: Compute Full Dependency Graph
 
-### Option 1: Moon Command Integration (STRONGLY RECOMMENDED) ⭐
+### Option 1: Moon Project Graph Integration (STRONGLY RECOMMENDED) ⭐
 
-**Approach**: Invoke `moon project` to leverage Moon's own dependency graph computation.
+**Approach**: Invoke `moon project-graph` to leverage Moon's own dependency graph computation for the full transitive closure.
 
 **Why This is Better**:
 - ✓ Moon already computes the full transitive dependency graph correctly
@@ -101,70 +106,52 @@ pnpm-lock.yaml updates, trigger occurs, but the solution doesn't account for thi
 - ✓ Significantly simpler than manual parsing
 - ✓ No need to duplicate Moon's dependency resolution logic
 
+**Important Distinction**:
+- `moon project <id> --json` returns only **direct** dependencies via `config.dependsOn` (7 for api-server)
+- `moon project-graph <id> --json` returns the **full transitive closure** as a graph of nodes and edges (11 projects for api-server)
+
 **Moon Command**:
 ```bash
-moon project <project-id> --json | jq '.config.dependsOn[] | select(.scope == "production") | .id'
+moon project-graph repro/api-server --json
 ```
 
-**Example Output**:
+**Example Output** (Moon v1.41.5):
+The output has structure `{ "graph": { "nodes": [...], "edges": [...] } }` where each node has an `id` field. For `repro/api-server`, the full transitive closure includes 11 projects:
 ```
-"repro/domain"
-"repro/future-utils"
-"repro/validation"
-"repro/wire-formats"
-"repro/tdl"
-"repro/random-string"
+repro/api-server
+repro/domain
+repro/future-utils
+repro/random-string
+repro/tdl
+repro/testing-utils
+repro/ts-utils
+repro/validation
+repro/wire-formats
+shared-types
+stream-utils
 ```
 
 **Implementation**:
 ```python
 def get_moon_dependencies(project_id, root_path):
-    """
-    Get all production dependencies for a project using Moon's built-in resolver.
-    
-    Args:
-        project_id: e.g., 'repro/api-server'
-        root_path: Project root directory
-    
-    Returns:
-        set of package names (without 'repro/' prefix)
-    """
-    import json
-    import subprocess
-    
-    try:
-        # Call moon to get project info as JSON
-        result = subprocess.run(
-            ['moon', 'project', project_id, '--json'],
-            cwd=root_path,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        
-        if result.returncode != 0:
-            fail(f'Moon command failed: {result.stderr}')
-        
-        # Parse JSON response
-        project_info = json.loads(result.stdout)
-        
-        # Extract production dependencies
-        deps = set()
-        for dep in project_info.get('config', {}).get('dependsOn', []):
-            # Filter for production scope and repro packages
-            if dep.get('scope') == 'production' and dep.get('id', '').startswith('repro/'):
-                pkg_name = dep['id'].replace('repro/', '')
-                deps.add(pkg_name)
-        
-        return deps
-    except Exception as e:
-        fail(f'Error computing dependencies: {e}')
+    result = local(
+        'moon project-graph %s --json' % project_id,
+        quiet=True,
+    )
 
-# Note: `config.dependsOn` may only include explicitly declared Moon
-# dependencies, not implicit ones derived from package.json. The `scope`
-# field may also be absent on some entries (defaulting to production).
-# Consider using `moon query projects --upstream deep` as a more
-# comprehensive alternative for transitive dependency discovery.
+    graph = decode_json(str(result))
+    nodes = graph.get('graph', {}).get('nodes', [])
+
+    deps = []
+    for node in nodes:
+        node_id = node.get('id', '')
+        if node_id == project_id:
+            continue
+        if node_id.startswith('repro/'):
+            pkg_name = node_id.replace('repro/', '', 1)
+            deps.append(pkg_name)
+
+    return deps
 ```
 
 **Benefits**:
@@ -182,7 +169,7 @@ fall_back_on([
     os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
     os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
 ] + [
-    os.path.join(PROJECT_ROOT, f'packages/{dep}/package.json')
+    os.path.join(PROJECT_ROOT, 'packages/%s/package.json' % dep)
     for dep in ALL_DEPS
 ])
 ```
@@ -195,53 +182,43 @@ fall_back_on([
 
 **Implementation**:
 ```python
-import json
-import os
-
 def get_all_package_dependencies(app_name, root_path):
-    """
-    Recursively build set of all @repro/* packages this app depends on
-    (including transitive dependencies).
-    """
-    visited = set()
+    visited = {}
     to_visit = []
-    
-    # Start with direct deps
-    pkg_path = f"{root_path}/apps/{app_name}/package.json"
-    with open(pkg_path) as f:
-        pkg = json.load(f)
-        for dep in pkg.get('dependencies', {}):
-            if dep.startswith('@repro/'):
-                package_name = dep.replace('@repro/', '')
-                to_visit.append(package_name)
-    
-    # Walk the full graph
-    while to_visit:
-        pkg_name = to_visit.pop()
+
+    pkg_path = os.path.join(root_path, 'apps/%s/package.json' % app_name)
+    pkg = read_json(pkg_path)
+    for dep in pkg.get('dependencies', {}).keys():
+        if dep.startswith('@repro/'):
+            package_name = dep.replace('@repro/', '', 1)
+            to_visit.append(package_name)
+
+    for i in range(len(to_visit)):
+        pkg_name = to_visit[i]
         if pkg_name in visited:
             continue
-        visited.add(pkg_name)
-        
-        # Load this package's dependencies
-        dep_path = f"{root_path}/packages/{pkg_name}/package.json"
-        if os.path.exists(dep_path):
-            with open(dep_path) as f:
-                pkg = json.load(f)
-                for dep in pkg.get('dependencies', {}):
-                    if dep.startswith('@repro/') and dep not in visited:
-                        package_name = dep.replace('@repro/', '')
-                        to_visit.append(package_name)
-    
-    return visited
+        visited[pkg_name] = True
 
-# Usage in Tiltfile:
+        dep_path = os.path.join(root_path, 'packages/%s/package.json' % pkg_name)
+        if not os.path.exists(dep_path):
+            continue
+
+        dep_pkg = read_json(dep_path)
+        for dep in dep_pkg.get('dependencies', {}).keys():
+            if dep.startswith('@repro/'):
+                child_name = dep.replace('@repro/', '', 1)
+                if child_name not in visited:
+                    to_visit.append(child_name)
+
+    return visited.keys()
+
 ALL_DEPS = get_all_package_dependencies('api-server', PROJECT_ROOT)
 
 fall_back_on([
     os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
     os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
 ] + [
-    os.path.join(PROJECT_ROOT, f'packages/{dep}/package.json')
+    os.path.join(PROJECT_ROOT, 'packages/%s/package.json' % dep)
     for dep in ALL_DEPS
 ])
 ```
@@ -255,20 +232,7 @@ fall_back_on([
 **Drawbacks**:
 - Slightly more complex
 - Requires JSON parsing in Tiltfile
-
-### Option 2b: Moon Query Command (Alternative)
-
-**Approach**: Query Moon's internal dependency graph (if exposed).
-
-**Challenge**: Moon doesn't currently expose its dependency graph in a standard format.
-
-**Potential Solution**: 
-```bash
-moon query projects --scope @repro/api-server
-# Could return all upstream dependencies
-```
-
-**Status**: Consider using `moon query projects --id repro/api-server --upstream deep --json` which is designed for upstream dependency traversal and may provide better coverage than `moon project --json`.
+- Duplicates Moon's dependency resolution logic
 
 ### Option 3: Generate Lock File Fragment
 
@@ -298,84 +262,40 @@ moon query projects --scope @repro/api-server
    - Still prevents cascading between unrelated apps
 
 2. **For Phase 3** (Advanced): Implement automated discovery
-   - Parse package.json files to build full graph
+   - Use `moon project-graph` to compute full transitive graph
    - Generate comprehensive fall_back_on list
    - No manual maintenance needed
 
 3. **Future Enhancement**: Monitor Moon for better integration
-   - Await Moon's dependency graph API
+   - Track Moon releases for improved graph query APIs
    - Consider contributing feature if needed
 
 ## Implementation: Enhanced Phase 3
 
 ### Step 1: Create Dependency Graph Helper
 
-**File**: `infra/tilt-lib/dependency_graph.py`
+**File**: `infra/tilt-lib/dependency_graph.Tiltfile`
 
 ```python
-"""
-Tilt helper for computing monorepo dependency graphs.
+def compute_all_dependencies(project_id, root_path):
+    result = local(
+        'moon project-graph %s --json' % project_id,
+        quiet=True,
+    )
 
-Usage in Tiltfile:
-  load_dynamic('./tilt-lib/dependency_graph.py')
-  deps = compute_all_dependencies('api-server', PROJECT_ROOT)
-"""
+    graph = decode_json(str(result))
+    nodes = graph.get('graph', {}).get('nodes', [])
 
-import json
-import os
-
-def compute_all_dependencies(app_name, root_path):
-    """
-    Compute full transitive dependency graph for an app.
-    
-    Returns:
-        set of @repro/* package names (without @repro/ prefix)
-    """
-    visited = set()
-    to_visit = []
-    
-    # Load direct dependencies from app
-    app_pkg_path = os.path.join(root_path, f'apps/{app_name}/package.json')
-    try:
-        with open(app_pkg_path) as f:
-            pkg_json = json.load(f)
-            deps = pkg_json.get('dependencies', {})
-            for dep_name in deps:
-                if dep_name.startswith('@repro/'):
-                    pkg_name = dep_name.replace('@repro/', '')
-                    to_visit.append(pkg_name)
-    except:
-        fail(f'Could not read {app_pkg_path}')
-    
-    # Traverse dependency tree
-    while to_visit:
-        pkg_name = to_visit.pop(0)
-        
-        # Skip if already visited
-        if pkg_name in visited:
+    deps = []
+    for node in nodes:
+        node_id = node.get('id', '')
+        if node_id == project_id:
             continue
-        visited.add(pkg_name)
-        
-        # Load package's dependencies
-        pkg_path = os.path.join(root_path, f'packages/{pkg_name}/package.json')
-        if not os.path.exists(pkg_path):
-            # Package might not exist or might be external
-            continue
-        
-        try:
-            with open(pkg_path) as f:
-                pkg_json = json.load(f)
-                deps = pkg_json.get('dependencies', {})
-                for dep_name in deps:
-                    if dep_name.startswith('@repro/'):
-                        pkg_name = dep_name.replace('@repro/', '')
-                        if pkg_name not in visited:
-                            to_visit.append(pkg_name)
-        except:
-            # Skip packages that can't be parsed
-            pass
-    
-    return visited
+        if node_id.startswith('repro/'):
+            pkg_name = node_id.replace('repro/', '', 1)
+            deps.append(pkg_name)
+
+    return deps
 ```
 
 ### Step 2: Use in Tiltfile
@@ -385,11 +305,9 @@ def compute_all_dependencies(app_name, root_path):
 ```python
 PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 
-# Import dependency graph helper
-load('../../../infra/tilt-lib/dependency_graph.py')  # or define inline
+load_dynamic('../../../infra/tilt-lib/dependency_graph.Tiltfile')
 
-# Compute full transitive dependency tree
-ALL_DEPS = compute_all_dependencies('api-server', PROJECT_ROOT)
+ALL_DEPS = compute_all_dependencies('repro/api-server', PROJECT_ROOT)
 
 docker_build(
   'api-server',
@@ -403,7 +321,7 @@ docker_build(
       os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
       os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
     ] + [
-      os.path.join(PROJECT_ROOT, f'packages/{dep}/package.json')
+      os.path.join(PROJECT_ROOT, 'packages/%s/package.json' % dep)
       for dep in ALL_DEPS
     ]),
     sync(...),
@@ -423,8 +341,8 @@ docker_build(
 
 ```bash
 # Setup: api-server depends on @repro/domain
-#        @repro/domain depends on @repro/std
-#        workspace depends on @repro/domain
+#        @repro/domain depends on @repro/tdl
+#        @repro/tdl depends on @repro/ts-utils
 
 tilt up api-server
 
@@ -436,8 +354,8 @@ cd apps/api-server && echo "// change" >> src/index.ts
 cd packages/domain && echo "// change" >> src/index.ts
 # Expected: api-server rebuilds (in dependency graph) ✓
 
-# Scenario 3: Edit transitive dependency (std)
-cd packages/std && echo "// change" >> src/index.ts
+# Scenario 3: Edit transitive dependency (ts-utils)
+cd packages/ts-utils && echo "// change" >> src/index.ts
 # Expected: api-server rebuilds (in transitive graph) ✓
 #           workspace ALSO rebuilds (shares @repro/domain) ✓
 
@@ -448,7 +366,7 @@ cd packages/analytics-provider-mixpanel && echo "// change" >> src/index.ts
 
 ## Summary Table
 
-| Aspect | Phase 1-2 | Phase 3 (Manual List) | Phase 3 (Parse JSON) | Phase 3 (Moon Command) |
+| Aspect | Phase 1-2 | Phase 3 (Manual List) | Phase 3 (Parse JSON) | Phase 3 (Moon Project Graph) |
 |--------|----------|----------------------|----------------------|----------------------|
 | Prevents unrelated app cascades | ✓ | ✓ | ✓ | ✓ |
 | Handles direct deps correctly | ✗ | ✓ | ✓ | ✓ |
@@ -461,11 +379,11 @@ cd packages/analytics-provider-mixpanel && echo "// change" >> src/index.ts
 
 ## Recommendation
 
-**Implement Option 1 (Moon Command Integration) for Phase 3** ⭐
+**Implement Option 1 (Moon Project Graph Integration) for Phase 3** ⭐
 
 **Why Moon Integration Wins**:
 1. **Source of Truth**: Moon already computes dependencies correctly - use it directly
-2. **Simplest Implementation**: Just call `moon project` and parse JSON
+2. **Simplest Implementation**: Just call `moon project-graph` and parse JSON
 3. **Future-Proof**: If Moon changes how it resolves deps, Tilt automatically adapts
 4. **No Maintenance**: Dependencies update automatically as package.json changes
 5. **Proven Correct**: Moon's resolver is battle-tested and handles all edge cases
