@@ -29,7 +29,7 @@ File System Event (e.g., apps/capture/src/Component.tsx changed)
       ↓
       [For each resource with docker_build/k8s_yaml]
         ├─ Check live_update fall_back_on conditions
-        │  ├─ If ANY fallback matched: Full container restart
+        │  ├─ If ANY fallback matched: Full image rebuild + deploy
         │  └─ If NO fallback matched: Sync only
         ↓
         [Execute syncs]
@@ -192,13 +192,13 @@ Tiltfile ignores the `api-server` target and uses `build-all`.
 | Step | Current | Proposed |
 |------|---------|----------|
 | 1. pnpm-lock.yaml changes | ✓ | ✓ |
-| 2. Check fall_back_on | pnpm-lock.yaml matches → Fallback triggered | pnpm-lock.yaml matches → Fallback |
-| 3. Services affected | api-server, workspace, admin ALL restart | Only capture restarts (local resource) |
-| 4. Rebuilds | All three services rebuild | N/A (local resource, no docker rebuild) |
-| 5. Result | 30+ second wait for all services | <2 second install in capture |
-| **Time** | **30-60 seconds** | **<2 seconds** |
+| 2. Check fall_back_on | pnpm-lock.yaml matches → Fallback triggered | pnpm-lock.yaml matches → Fallback triggered |
+| 3. Services affected | api-server, workspace, admin ALL restart | All services with pnpm-lock.yaml in fall_back_on still rebuild |
+| 4. Rebuilds | All three services rebuild | All three services rebuild (pnpm-lock.yaml is monorepo-wide) |
+| 5. Result | 30+ second wait for all services | Similar — lockfile isolation not achieved by these changes alone |
+| **Time** | **30-60 seconds** | **30-60 seconds (no improvement for this scenario)** |
 
-**Improvement**: 10-20x faster, only affected service restarts.
+**Note**: This scenario is **not improved** by the current changes. `pnpm-lock.yaml` is a monorepo-wide file and remains in `fall_back_on` for all services. Fully isolating lockfile changes per-app would require app-specific lock fragments or removing `pnpm-lock.yaml` from `fall_back_on` and using a `run` step with a trigger instead. The other scenarios (A, B, D) are genuinely improved.
 
 ### Scenario D: Edit shared package (packages/domain/src/index.ts)
 
@@ -320,11 +320,6 @@ live_update=[
   sync(
     os.path.join(PROJECT_ROOT, 'packages'),
     '/app/packages'
-  ),
-  sync(
-    os.path.join(PROJECT_ROOT, 'apps/api-server'),
-    '/app/apps/api-server',
-    exclude=['src', 'dist', 'node_modules', '.git']
   ),
 ]
 ```
@@ -499,4 +494,3 @@ A: Expected improvements:
 - Initial build: 40-50% faster (correct target)
 - File change feedback: 3-10x faster (smaller syncs)
 - Cascading restarts: Eliminated (correct ignore patterns)
-

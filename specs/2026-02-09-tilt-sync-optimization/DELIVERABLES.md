@@ -103,9 +103,11 @@ Complete deep exploration of Repro's Tilt Docker sync configuration, identifying
 |----------|---------|----------|-------------|
 | Edit api-server src | 3-5s | <1s | **3-5x faster** |
 | Edit capture (unrelated) | 5-10s | 0s | **Eliminated** |
-| Install capture dependency | 30-60s | <2s | **10-20x faster** |
+| Install capture dependency | 30-60s | 30-60s | **Not improved*** |
 | Edit shared package | 2-4s | 1-2s | **Cleaner** |
 | Initial build | 90+s | 30-40s | **50-60% faster** |
+
+*\*pnpm-lock.yaml is monorepo-wide and remains in fall_back_on. Isolating lockfile changes per-app requires additional work (app-specific lock fragments or alternative strategies).*
 
 ## Implementation Effort
 
@@ -195,8 +197,10 @@ infra/apps/workspace/Tiltfile        [MODIFY - Phase 1 & 2]
 infra/apps/admin/Tiltfile            [MODIFY - Phase 1 & 2]
 ```
 
+**Also requires**:
+- infra/Dockerfile (add `workspace` and `admin` Docker targets)
+
 **No changes needed to**:
-- infra/Dockerfile (already optimized)
 - .moon/workspace.yml (Moon config fine as-is)
 - pnpm-workspace.yaml (workspace declaration fine)
 - apps/*/moon.yml (optional for Phase 3, not required)
@@ -245,7 +249,7 @@ pnpm add in capture              → 30-60 seconds (all services restart)
 tilt up                           → 40-50 seconds (-40%)
 Edit api-server/src              → 3-5 seconds (same)
 Edit apps/capture                → 0 seconds (no impact!)
-pnpm add in capture              → <2 seconds (capture-only)
+pnpm add in capture              → 30-60s (pnpm-lock.yaml still global)
 ```
 
 **After Phase 2** (15 minutes work):
@@ -253,7 +257,7 @@ pnpm add in capture              → <2 seconds (capture-only)
 tilt up                           → 30-40 seconds (-60%)
 Edit api-server/src              → <1 second (-80%)
 Edit apps/capture                → 0 seconds (isolated)
-pnpm add in capture              → <2 seconds (isolated)
+pnpm add in capture              → 30-60s (pnpm-lock.yaml still global)
 ```
 
 ## Next Steps

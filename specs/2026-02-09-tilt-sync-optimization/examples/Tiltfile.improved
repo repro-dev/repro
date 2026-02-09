@@ -106,18 +106,6 @@ docker_build(
       os.path.join(PROJECT_ROOT, 'packages'),
       '/app/packages'
     ),
-    
-    # Sync configs if they change
-    sync(
-      os.path.join(PROJECT_ROOT, 'apps/api-server'),
-      '/app/apps/api-server',
-      exclude=[
-        'src',  # Already synced above
-        'dist',
-        'node_modules',
-        '.git',
-      ]
-    ),
   ]
 )
 

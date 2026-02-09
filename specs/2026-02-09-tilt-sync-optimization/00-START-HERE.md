@@ -140,7 +140,7 @@ Result: Capture change → no impact (0 seconds)
 | 1 | Docker target | `build-all` | `api-server` | Initial builds 50% faster |
 | 2 | Sync scope | `PROJECT_ROOT` | `apps/*/src` | Syncs 10x faster |
 | 3 | Ignore patterns | 4 items | 20+ items | 60% fewer false positives |
-| 4 | Fallback triggers | `pnpm-lock.yaml` global | Direct deps only | Prevents cascades |
+| 4 | Fallback triggers | `pnpm-lock.yaml` global | Direct deps only | Reduces (but does not eliminate) cascades* |
 | 5 | Rebuilds | All packages | Direct deps only | Fewer unnecessary rebuilds |
 
 ---
@@ -157,13 +157,15 @@ Result: Capture change → no impact (0 seconds)
 - Initial `tilt up`: 40-50 seconds
 - Edit api-server: 3-5 seconds (no change yet)
 - Edit capture: 0 seconds (isolated!)
-- Install dependency: <2 seconds (local resource only)
+- Install dependency: 30-60 seconds (pnpm-lock.yaml still monorepo-wide*)
 
 **After Phase 2 (15 minutes)**:
 - Initial `tilt up`: 30-40 seconds
 - Edit api-server: <1 second
 - Edit capture: 0 seconds
-- Install dependency: <2 seconds
+- Install dependency: 30-60 seconds (pnpm-lock.yaml still monorepo-wide*)
+
+*\*pnpm-lock.yaml is a monorepo-wide file. Isolating lockfile changes per-app requires app-specific lock fragments or removing pnpm-lock.yaml from fall_back_on (future improvement).*
 
 ---
 
@@ -268,8 +270,10 @@ infra/apps/workspace/Tiltfile       ← Phase 1 & 2 changes
 infra/apps/admin/Tiltfile           ← Phase 1 & 2 changes
 ```
 
+**Also requires changes to**:
+- `infra/Dockerfile` (add `workspace` and `admin` Docker targets)
+
 **No changes needed to**:
-- `infra/Dockerfile` (already good)
 - `.moon/` files
 - `pnpm-workspace.yaml`
 

@@ -63,6 +63,8 @@ Better approach:
 - Use `target="api-server"` which only runs `moon run repro/api-server:build`
 - Falls back to `scaffold` → `prepare` only if dependencies change
 
+> **Note**: The Dockerfile currently only has a `FROM prepare AS api-server` target. Targets for `workspace` and `admin` must be added to the Dockerfile before changing those Tiltfiles.
+
 ## Sync Flow Analysis
 
 ```
@@ -124,7 +126,8 @@ docker_build(
       os.path.join(PROJECT_ROOT, 'packages/validation/package.json'),
       os.path.join(PROJECT_ROOT, 'packages/wire-formats/package.json'),
     ]),
-    sync(PROJECT_ROOT, '/app', exclude=['apps/capture', 'apps/workspace', 'apps/admin', ...])
+    sync(os.path.join(PROJECT_ROOT, 'apps/api-server/src'), '/app/apps/api-server/src'),
+    sync(os.path.join(PROJECT_ROOT, 'packages'), '/app/packages'),
   ]
 )
 ```

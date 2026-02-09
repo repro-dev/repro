@@ -8,6 +8,32 @@ This guide walks through implementing the sync optimization improvements identif
 2. `/infra/apps/workspace/Tiltfile`
 3. `/infra/apps/admin/Tiltfile`
 
+## Prerequisite: Add Missing Dockerfile Targets
+
+**File**: `/infra/Dockerfile`
+
+The Dockerfile only has a `FROM prepare AS api-server` target. It is **missing** targets for `workspace` and `admin`. Add these at the end of the Dockerfile:
+
+```diff
+ FROM prepare AS api-server
+ RUN moon run repro/api-server:build
+ CMD ["moon", "run", "repro/api-server:serve"]
++
++FROM prepare AS workspace
++RUN moon run repro/workspace:build
++CMD ["moon", "run", "repro/workspace:serve"]
++
++FROM prepare AS admin
++RUN moon run repro/admin:build
++CMD ["moon", "run", "repro/admin:serve"]
+```
+
+Without these targets, changing `target="build-all"` to `target="workspace"` or `target="admin"` will cause Docker build failures.
+
+## Current Status
+
+> **Note**: The api-server Tiltfile has already been updated with the improvements described in Phases 1-3. The workspace and admin Tiltfiles still use the original configuration and need the changes below applied.
+
 ## Phase 1: Critical Changes (5 minutes)
 
 ### Change 1: Fix Docker Target
@@ -338,9 +364,11 @@ cd ../api-server && echo "describe('test', ...)" >> src/test.test.ts
 # Test 1: Edit capture's dependencies
 cd apps/capture && pnpm add some-lib
 
-# pnpm-lock.yaml updates
+# pnpm-lock.yaml updates globally
 # Check: Does api-server rebuild?
-# Expected: NO (with Phase 3) vs YES (without Phase 3)
+# Expected: YES - pnpm-lock.yaml is still in fall_back_on (monorepo-wide)
+# Note: Full lockfile isolation requires removing pnpm-lock.yaml from
+# fall_back_on or using app-specific lock fragments (future improvement)
 
 # Test 2: Edit a dependency api-server uses
 cd packages/domain && echo "export const x = 1" >> src/new-export.ts
@@ -417,6 +445,17 @@ Document baseline metrics in a comment in `/infra/Tiltfile`:
 # - File sync: <1s for same-app changes (was 3-5s)
 # - No cascading rebuilds: Unrelated app changes isolated
 ```
+
+## Known Limitations
+
+### pnpm-lock.yaml Cascade
+`pnpm-lock.yaml` is a monorepo-wide file. It remains in `fall_back_on` for all services, so any `pnpm add` in any app will still trigger full rebuilds for all running services. Fully isolating lockfile changes per-app would require app-specific lock fragments or removing `pnpm-lock.yaml` from `fall_back_on` and using a `run` step with a trigger instead.
+
+### Broad packages/ Sync
+The `sync(packages, '/app/packages')` syncs ALL packages to every service container. Changes to unrelated packages (e.g., packages only used by capture) will still trigger sync I/O for api-server. To fully isolate, sync only computed dependency packages instead of the entire `packages/` directory.
+
+### Tilt sync() API
+Tilt's `sync()` function only accepts `(local_path, remote_path)`. It does **not** support an `exclude` parameter. Any config files needed in-container should be synced via individual `sync()` calls.
 
 ## Next Steps
 

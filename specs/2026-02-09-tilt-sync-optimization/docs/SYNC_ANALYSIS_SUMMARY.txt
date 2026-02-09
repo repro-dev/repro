@@ -56,8 +56,8 @@ Scenario B: Edit capture (unrelated to api-server)
 
 Scenario C: Install dependency in capture
    Current:  30-60 seconds (all 3 services restart)
-   Proposed: <2 seconds    (only capture, local resource)
-   Improvement: 10-20x faster ⚡
+   Proposed: 30-60 seconds (pnpm-lock.yaml is monorepo-wide, still cascades)
+   Improvement: Not improved by these changes alone (see Known Limitations)
 
 Scenario D: Edit shared package
    Current:  2-4 seconds
@@ -72,6 +72,11 @@ Initial Build:
 ================================================================================
 RECOMMENDED CHANGES (Priority Order)
 ================================================================================
+
+PREREQUISITE: ADD DOCKERFILE TARGETS
+───────────────────────────────────────────
+□ Add workspace and admin targets to infra/Dockerfile
+  (Currently only api-server target exists)
 
 PHASE 1: CRITICAL (5 minutes, high impact)
 ───────────────────────────────────────────
@@ -185,6 +190,25 @@ KEY INSIGHTS
 5. Moon's build graph has more granularity than currently utilized
    - Could optimize ^:build to understand direct vs transitive deps
    - Future improvement opportunity
+
+================================================================================
+KNOWN LIMITATIONS
+================================================================================
+
+1. LOCKFILE CASCADE NOT RESOLVED
+   pnpm-lock.yaml is monorepo-wide and remains in fall_back_on for all
+   services. Any pnpm add in any app still triggers full rebuilds for all
+   running services. Isolating lockfile changes requires app-specific lock
+   fragments or removing pnpm-lock.yaml from fall_back_on.
+
+2. BROAD PACKAGES/ SYNC
+   sync(packages, '/app/packages') syncs ALL packages to every service.
+   Changes to unrelated packages still trigger sync I/O. To fully isolate,
+   sync only computed dependency packages.
+
+3. DOCKERFILE TARGETS
+   The Dockerfile must have workspace and admin targets added before those
+   Tiltfiles can use app-specific targets.
 
 ================================================================================
 NEXT STEPS

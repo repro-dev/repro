@@ -159,6 +159,12 @@ def get_moon_dependencies(project_id, root_path):
         return deps
     except Exception as e:
         fail(f'Error computing dependencies: {e}')
+
+# Note: `config.dependsOn` may only include explicitly declared Moon
+# dependencies, not implicit ones derived from package.json. The `scope`
+# field may also be absent on some entries (defaulting to production).
+# Consider using `moon query projects --upstream deep` as a more
+# comprehensive alternative for transitive dependency discovery.
 ```
 
 **Benefits**:
@@ -250,7 +256,7 @@ fall_back_on([
 - Slightly more complex
 - Requires JSON parsing in Tiltfile
 
-### Option 2: Use Moon's Dependency Analysis
+### Option 2b: Moon Query Command (Alternative)
 
 **Approach**: Query Moon's internal dependency graph (if exposed).
 
@@ -262,7 +268,7 @@ moon query projects --scope @repro/api-server
 # Could return all upstream dependencies
 ```
 
-**Status**: Would require Moon enhancement or workaround.
+**Status**: Consider using `moon query projects --id repro/api-server --upstream deep --json` which is designed for upstream dependency traversal and may provide better coverage than `moon project --json`.
 
 ### Option 3: Generate Lock File Fragment
 

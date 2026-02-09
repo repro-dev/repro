@@ -65,9 +65,11 @@ specs/2026-02-09-tilt-sync-optimization/
 ```
 Edit api-server source:          3-5s  →  <1s      (3-5x faster)
 Edit unrelated app:               5-10s →  0s       (Eliminated)
-Install dependency:              30-60s →  <2s     (10-20x faster)
+Install dependency:              30-60s →  30-60s  (not improved*)
 Initial build:                   90+s  →  30-40s   (50-60% faster)
 ```
+
+*\*Lockfile isolation requires additional work (app-specific lock fragments or removing pnpm-lock.yaml from fall_back_on) since pnpm-lock.yaml is monorepo-wide.*
 
 ## Implementation Roadmap
 
@@ -217,13 +219,15 @@ Initial build:                   90+s  →  30-40s   (50-60% faster)
 ## Files to Modify (When Ready)
 
 ```
-infra/apps/api-server/Tiltfile        → Apply changes per guide
+infra/apps/api-server/Tiltfile        → Already updated (verify working)
 infra/apps/workspace/Tiltfile         → Apply changes per guide
 infra/apps/admin/Tiltfile             → Apply changes per guide
 ```
 
+**Also requires changes to:**
+- `infra/Dockerfile` (add `workspace` and `admin` Docker targets — currently only `api-server` target exists)
+
 **No changes needed to:**
-- `infra/Dockerfile` (already optimized)
 - `.moon/` configuration
 - `pnpm-workspace.yaml`
 

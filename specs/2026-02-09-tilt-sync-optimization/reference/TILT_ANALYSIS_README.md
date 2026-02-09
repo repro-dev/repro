@@ -82,7 +82,7 @@ Scenario B: Edit unrelated app (capture)
   Current:  5-10 seconds   → Proposed: No impact      (Eliminated) ✓
 
 Scenario C: Install dependency in capture
-  Current:  30-60 seconds  → Proposed: <2 seconds     (10-20x faster) ⚡
+  Current:  30-60 seconds  → Proposed: 30-60 seconds  (Not improved*) ⚠️
 
 Scenario D: Edit shared package
   Current:  2-4 seconds    → Proposed: 1-2 seconds    (Cleaner) ✓
@@ -167,9 +167,9 @@ cd apps/api-server && echo "// change" >> src/index.ts
 cd apps/capture && echo "// change" >> src/Component.tsx
 # Watch: api-server should not react
 
-# Test 3: Dependency change (should rebuild ONLY affected service)
+# Test 3: Dependency change (still cascades due to monorepo-wide lockfile)
 cd apps/capture && pnpm add some-lib
-# Watch: Only capture shows activity (it's a local resource)
+# Watch: All services with pnpm-lock.yaml in fall_back_on will rebuild
 
 # Test 4: Shared package change (should propagate correctly)
 cd packages/domain && echo "export const x = 1" >> src/index.ts
@@ -188,7 +188,7 @@ cd packages/domain && echo "export const x = 1" >> src/index.ts
 - Initial `tilt up`: 30-40 seconds (50% improvement)
 - File change feedback: <1 second (3-5x improvement)
 - Capture change impact on api-server: None (100% improvement)
-- `pnpm add` in capture: <2 seconds (10-20x improvement)
+- `pnpm add` in capture: 30-60 seconds (not improved — lockfile is monorepo-wide)
 
 ## 🤔 Common Questions
 
@@ -213,7 +213,7 @@ A: SYNC_ANALYSIS_SUMMARY.txt for executive overview, IMPLEMENTATION_GUIDE.md for
 ## 🔗 Related Configuration Files
 
 - `/infra/Tiltfile` - Main entry point (delegates to apps/)
-- `/infra/Dockerfile` - Multi-stage builds (already optimized, no changes needed)
+- `/infra/Dockerfile` - Multi-stage builds (needs `workspace` and `admin` targets added)
 - `/infra/apps/*/Tiltfile` - Service configs (these are what we're optimizing)
 - `/infra/apps/*/chart/` - Helm charts for K8s deployments
 - `/.moon/` - Moon monorepo task runner config
@@ -230,8 +230,10 @@ A: SYNC_ANALYSIS_SUMMARY.txt for executive overview, IMPLEMENTATION_GUIDE.md for
 - `/SYNC_ANALYSIS_SUMMARY.txt` - Executive summary
 - `/TILT_ANALYSIS_README.md` - This file
 
+**Requires Changes**:
+- `/infra/Dockerfile` - Add `workspace` and `admin` Docker targets
+
 **Not Modified** (reference only):
-- `/infra/Dockerfile` - No changes needed
 - `/.moon/` - No changes needed
 - `pnpm-workspace.yaml` - No changes needed
 - `apps/*/moon.yml` - No changes needed
