@@ -1,0 +1,143 @@
+# IMPROVED VERSION: Optimized Docker sync for api-server
+# 
+# Changes from original:
+# 1. target="api-server" instead of "build-all" (builds only api-server, not all packages)
+# 2. Expanded ignore patterns (excludes unrelated apps, tests, docs)
+# 3. App-specific sync scope (only api-server/src and packages/)
+# 4. Direct dependency watch list (fall_back_on only api-server and direct deps)
+
+PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
+
+# Helper: List of direct @repro/* dependencies from api-server
+# These are extracted from apps/api-server/package.json "dependencies"
+DIRECT_DEPS = [
+  'domain',
+  'future-utils',
+  'random-string',
+  'tdl',
+  'validation',
+  'wire-formats',
+]
+
+def get_direct_dep_paths():
+  """Generate list of direct dependency package.json files to watch."""
+  paths = []
+  for dep in DIRECT_DEPS:
+    paths.append(os.path.join(PROJECT_ROOT, f'packages/{dep}/package.json'))
+  return paths
+
+docker_build(
+  'api-server',
+  PROJECT_ROOT,
+  dockerfile='../../Dockerfile',
+  # IMPROVEMENT 1: Changed from "build-all" to "api-server"
+  # This uses the Docker target that only builds api-server, not entire monorepo
+  target='api-server',
+  
+  entrypoint=["moon", "run", "repro/api-server:dev"],
+  
+  # IMPROVEMENT 2: Expanded ignore patterns
+  # Excludes:
+  # - Other apps (capture, workspace, admin, devtools-demo, storybook-ui)
+  # - Test files and fixtures
+  # - Documentation and demo files
+  # - Editor artifacts
+  ignore=[
+    'infra',
+    'dist',
+    'build',
+    'node_modules',
+    # Exclude unrelated apps
+    'apps/capture/**',
+    'apps/workspace/**',
+    'apps/admin/**',
+    'apps/devtools-demo/**',
+    'apps/storybook-ui/**',
+    # Exclude test files and fixtures
+    '**/*.test.ts',
+    '**/*.test.tsx',
+    '**/*.spec.ts',
+    '**/*.spec.tsx',
+    '**/fixtures/**',
+    '**/mocks/**',
+    '**/test-data/**',
+    # Exclude demo/story files
+    '**/*.stories.tsx',
+    '**/*.stories.ts',
+    '**/*.demo.tsx',
+    # Documentation
+    '**/*.md',
+    '*.md',
+    '*.MD',
+    # Editor artifacts
+    '.DS_Store',
+    '*.swp',
+    '*.swo',
+    '*~',
+    '*.log',
+  ],
+  
+  live_update=[
+    # IMPROVEMENT 3: Two-level fallback strategy
+    # First: Check if app or direct dependencies changed (triggers full rebuild)
+    # Second: Check if lock file changed (triggers install + rebuild)
+    fall_back_on([
+      # Always watch the app's own config
+      os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
+      os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
+      os.path.join(PROJECT_ROOT, 'apps/api-server/tsconfig.json'),
+      
+      # Watch only direct dependencies (extracted above)
+    ] + get_direct_dep_paths() + [
+      # Fall back to full rebuild if lock file changes
+      # (This catches dependency updates from root-level package managers)
+      os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
+    ]),
+    
+    # IMPROVEMENT 4: Granular sync paths
+    # Sync app source code (triggers hot-reload in dev task)
+    sync(
+      os.path.join(PROJECT_ROOT, 'apps/api-server/src'),
+      '/app/apps/api-server/src'
+    ),
+    
+    # Sync packages (shared dependencies)
+    sync(
+      os.path.join(PROJECT_ROOT, 'packages'),
+      '/app/packages'
+    ),
+    
+    # Sync configs if they change
+    sync(
+      os.path.join(PROJECT_ROOT, 'apps/api-server'),
+      '/app/apps/api-server',
+      exclude=[
+        'src',  # Already synced above
+        'dist',
+        'node_modules',
+        '.git',
+      ]
+    ),
+  ]
+)
+
+k8s_yaml(helm(
+  './chart',
+  name='api-server',
+  set=[
+    'container.image=api-server',
+    'vars.REPRO_APP_URL=http://app.repro.localhost',
+    'vars.REPRO_API_URL=http://api.repro.localhost',
+    'vars.PORT=8080',
+    'vars.OPENROUTER_API_KEY=' + os.getenv('OPENROUTER_API_KEY', ''),
+  ]
+))
+
+k8s_resource(
+  'api-server-deployment',
+  new_name='api-server',
+  links=[
+    'http://api.repro.localhost',
+  ],
+  labels=['api']
+)
