@@ -32,7 +32,7 @@ Without these targets, changing `target="build-all"` to `target="workspace"` or 
 
 ## Current Status
 
-> **Note**: The api-server Tiltfile has already been updated with the improvements described in Phases 1-3. The workspace and admin Tiltfiles still use the original configuration and need the changes below applied.
+> **Note**: All three Tiltfiles still use the original configuration. Apply the changes below to api-server, workspace, and admin.
 
 ## Phase 1: Critical Changes (5 minutes)
 
@@ -59,7 +59,7 @@ Without these targets, changing `target="build-all"` to `target="workspace"` or 
 + target="admin",
 ```
 
-**Why**: These targets already exist in Dockerfile but were ignored. Now they're used correctly.
+**Why**: The Dockerfile already contains `api-server`, and you will add `workspace`/`admin` in the prerequisite step. Using the app-specific target avoids rebuilding the entire monorepo.
 
 **Impact**: 
 - Faster initial builds (~40% improvement)
@@ -104,20 +104,70 @@ Without these targets, changing `target="build-all"` to `target="workspace"` or 
 
 **File**: `/infra/apps/workspace/Tiltfile` (line 9)
 
-Same changes as above, PLUS:
 ```diff
-- 'apps/workspace/**',
-+ 'apps/capture/**',
-+ 'apps/admin/**',
+- ignore=['infra', 'dist', 'build', 'node_modules'],
++ ignore=[
++   'infra',
++   'dist',
++   'build',
++   'node_modules',
++   'apps/capture/**',
++   'apps/admin/**',
++   'apps/devtools-demo/**',
++   'apps/storybook-ui/**',
++   '**/*.test.ts',
++   '**/*.test.tsx',
++   '**/*.spec.ts',
++   '**/*.spec.tsx',
++   '**/fixtures/**',
++   '**/mocks/**',
++   '**/test-data/**',
++   '**/*.stories.tsx',
++   '**/*.stories.ts',
++   '**/*.demo.tsx',
++   '**/*.md',
++   '*.md',
++   '*.MD',
++   '.DS_Store',
++   '*.swp',
++   '*.swo',
++   '*~',
++   '*.log',
++ ],
 ```
 
 **File**: `/infra/apps/admin/Tiltfile` (line 9)
 
-Same changes as above, PLUS:
 ```diff
-- 'apps/admin/**',
-+ 'apps/capture/**',
-+ 'apps/workspace/**',
+- ignore=['infra', 'dist', 'build', 'node_modules'],
++ ignore=[
++   'infra',
++   'dist',
++   'build',
++   'node_modules',
++   'apps/capture/**',
++   'apps/workspace/**',
++   'apps/devtools-demo/**',
++   'apps/storybook-ui/**',
++   '**/*.test.ts',
++   '**/*.test.tsx',
++   '**/*.spec.ts',
++   '**/*.spec.tsx',
++   '**/fixtures/**',
++   '**/mocks/**',
++   '**/test-data/**',
++   '**/*.stories.tsx',
++   '**/*.stories.ts',
++   '**/*.demo.tsx',
++   '**/*.md',
++   '*.md',
++   '*.MD',
++   '.DS_Store',
++   '*.swp',
++   '*.swo',
++   '*~',
++   '*.log',
++ ],
 ```
 
 **Why**: 
@@ -204,6 +254,10 @@ Same changes as above, PLUS:
 - Reduced I/O and network overhead
 - Clearer intent in configuration
 
+**Validate extra sync paths**:
+- If an app relies on non-`src` assets (for example `public/`, templates, or config files), add dedicated `sync()` entries for those paths.
+- After Phase 2, confirm each app still boots and serves assets correctly before moving to Phase 3.
+
 ## Phase 3: Transitive Dependency Watching (10 minutes)
 
 ### Change 4: Use Moon Project Graph for Dependency Discovery
@@ -252,6 +306,9 @@ docker_build(
       os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
     ] + [
       os.path.join(PROJECT_ROOT, 'packages/' + dep + '/package.json')
+      for dep in ALL_DEPS
+    ] + [
+      os.path.join(PROJECT_ROOT, 'packages/' + dep + '/moon.yml')
       for dep in ALL_DEPS
     ] + [
       os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
@@ -317,6 +374,10 @@ cd ../api-server && echo "describe('test', ...)" >> src/test.test.ts
 # Check Tilt UI:
 # - Should be ignored
 # - No api-server activity
+
+# Repeat the same three tests for workspace and admin:
+# - tilt down && tilt up workspace (then edit apps/workspace/src/...)
+# - tilt down && tilt up admin (then edit apps/admin/src/...)
 ```
 
 ### After Phase 2 Changes
@@ -353,7 +414,7 @@ If something breaks after changes:
 
 1. **Revert individual Tiltfile**:
    ```bash
-   git checkout -- infra/apps/api-server/Tiltfile
+   git restore infra/apps/api-server/Tiltfile
    tilt down && tilt up api-server
    ```
 
@@ -446,7 +507,7 @@ tilt up api-server
 ```bash
 # The new target might not exist in Dockerfile yet
 # Verify Dockerfile has: FROM prepare AS api-server
-# (It should already, no changes needed to Dockerfile)
+# Add workspace/admin targets if missing (see prerequisite section)
 ```
 
 **Issue**: Sync is slower, not faster
