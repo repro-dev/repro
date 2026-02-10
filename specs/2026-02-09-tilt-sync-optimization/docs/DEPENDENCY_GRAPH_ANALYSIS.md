@@ -150,6 +150,8 @@ def get_moon_dependencies(project_id, root_path):
         if node_id.startswith('repro/'):
             pkg_name = node_id.replace('repro/', '', 1)
             deps.append(pkg_name)
+        else:
+            deps.append(node_id)
 
     return deps
 ```
@@ -170,6 +172,9 @@ fall_back_on([
     os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
 ] + [
     os.path.join(PROJECT_ROOT, 'packages/%s/package.json' % dep)
+    for dep in ALL_DEPS
+] + [
+    os.path.join(PROJECT_ROOT, 'packages/%s/tsconfig.json' % dep)
     for dep in ALL_DEPS
 ])
 ```
@@ -206,6 +211,8 @@ def compute_all_dependencies(project_id, root_path):
         if node_id.startswith('repro/'):
             pkg_name = node_id.replace('repro/', '', 1)
             deps.append(pkg_name)
+        else:
+            deps.append(node_id)
 
     return deps
 ```

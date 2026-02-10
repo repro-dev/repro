@@ -30,6 +30,12 @@ The Dockerfile only has a `FROM prepare AS api-server` target. It is **missing**
 
 Without these targets, changing `target="build-all"` to `target="workspace"` or `target="admin"` will cause Docker build failures.
 
+## Before You Start
+
+Confirm `tilt up` is run from the `infra/` directory (the relative paths in the Tiltfiles assume this). If you run Tilt from the repo root, adjust the `load_dynamic` and Dockerfile paths accordingly.
+
+The `infra/Tiltfile` currently loads `api-server` and `workspace`, but not `admin`. If you want to run `admin` through Tilt, add a `load_dynamic('./apps/admin/Tiltfile')` entry or use a separate entrypoint.
+
 ## Current Status
 
 > **Note**: All three Tiltfiles still use the original configuration. Apply the changes below to api-server, workspace, and admin.
@@ -76,6 +82,7 @@ Without these targets, changing `target="build-all"` to `target="workspace"` or 
 +   'dist',
 +   'build',
 +   'node_modules',
++   'apps/dev-toolbar/**',
 +   'apps/capture/**',
 +   'apps/workspace/**',
 +   'apps/admin/**',
@@ -111,6 +118,8 @@ Without these targets, changing `target="build-all"` to `target="workspace"` or 
 +   'dist',
 +   'build',
 +   'node_modules',
++   'apps/api-server/**',
++   'apps/dev-toolbar/**',
 +   'apps/capture/**',
 +   'apps/admin/**',
 +   'apps/devtools-demo/**',
@@ -145,6 +154,8 @@ Without these targets, changing `target="build-all"` to `target="workspace"` or 
 +   'dist',
 +   'build',
 +   'node_modules',
++   'apps/api-server/**',
++   'apps/dev-toolbar/**',
 +   'apps/capture/**',
 +   'apps/workspace/**',
 +   'apps/devtools-demo/**',
@@ -197,6 +208,10 @@ Without these targets, changing `target="build-all"` to `target="workspace"` or 
 +     '/app/apps/api-server/src'
 +   ),
 +   sync(
++     os.path.join(PROJECT_ROOT, 'apps/api-server/scripts'),
++     '/app/apps/api-server/scripts'
++   ),
++   sync(
 +     os.path.join(PROJECT_ROOT, 'packages'),
 +     '/app/packages'
 +   ),
@@ -218,6 +233,10 @@ Without these targets, changing `target="build-all"` to `target="workspace"` or 
 +     '/app/apps/workspace/src'
 +   ),
 +   sync(
++     os.path.join(PROJECT_ROOT, 'apps/workspace/scripts'),
++     '/app/apps/workspace/scripts'
++   ),
++   sync(
 +     os.path.join(PROJECT_ROOT, 'packages'),
 +     '/app/packages'
 +   ),
@@ -236,6 +255,10 @@ Without these targets, changing `target="build-all"` to `target="workspace"` or 
 +   sync(
 +     os.path.join(PROJECT_ROOT, 'apps/admin/src'),
 +     '/app/apps/admin/src'
++   ),
++   sync(
++     os.path.join(PROJECT_ROOT, 'apps/admin/scripts'),
++     '/app/apps/admin/scripts'
 +   ),
 +   sync(
 +     os.path.join(PROJECT_ROOT, 'packages'),
@@ -279,6 +302,8 @@ def compute_all_dependencies(project_id):
             continue
         if node_id.startswith('repro/'):
             deps.append(node_id.replace('repro/', '', 1))
+        else:
+            deps.append(node_id)
     return deps
 ```
 
@@ -304,11 +329,15 @@ docker_build(
     fall_back_on([
       os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
       os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
+      os.path.join(PROJECT_ROOT, 'apps/api-server/tsconfig.json'),
     ] + [
       os.path.join(PROJECT_ROOT, 'packages/' + dep + '/package.json')
       for dep in ALL_DEPS
     ] + [
       os.path.join(PROJECT_ROOT, 'packages/' + dep + '/moon.yml')
+      for dep in ALL_DEPS
+    ] + [
+      os.path.join(PROJECT_ROOT, 'packages/' + dep + '/tsconfig.json')
       for dep in ALL_DEPS
     ] + [
       os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
@@ -325,7 +354,9 @@ docker_build(
 )
 ```
 
-Apply the same pattern for workspace and admin, changing the project ID and app paths.
+Apply the same pattern for workspace and admin, changing the project ID and app paths. For those two apps, include their `tsconfig.json` in the app-level fallbacks too.
+
+If the project graph includes non-`repro/` nodes (for example `shared-types`), include them in `deps` so their `package.json` and `tsconfig.json` changes trigger rebuilds.
 
 **Why**:
 - `moon project-graph` computes the full transitive dependency closure (11 projects for api-server vs. 7 direct deps)
@@ -464,18 +495,11 @@ Measure before/after:
 # Expected improvements:
 # - Small source change: <1 second (5-10x faster)
 # - Capture change: No impact on api-server
-# - pnpm install in capture: 2-5 seconds (only capture, local resource)
+# - pnpm install in capture: 30-60 seconds (no change; pnpm-lock.yaml is still global)
 # - Initial build: 30-40 seconds (40-50% faster)
 ```
 
-Document baseline metrics in a comment in `/infra/Tiltfile`:
-
-```python
-# Performance notes:
-# - Initial build: ~35s (was ~90s before optimizations)
-# - File sync: <1s for same-app changes (was 3-5s)
-# - No cascading rebuilds: Unrelated app changes isolated
-```
+Document baseline metrics in a local note (for example, a gist or team doc). Avoid committing performance notes directly into `infra/Tiltfile`.
 
 ## Known Limitations
 
@@ -484,6 +508,9 @@ Document baseline metrics in a comment in `/infra/Tiltfile`:
 
 ### Broad packages/ Sync
 The `sync(packages, '/app/packages')` syncs ALL packages to every service container. Changes to unrelated packages (e.g., packages only used by capture) will still trigger sync I/O for api-server. To fully isolate, sync only computed dependency packages instead of the entire `packages/` directory.
+
+### tilt-lib Helper Location
+`infra/tilt-lib` is a new directory introduced by Phase 3. Add it if it does not exist yet.
 
 ### Tilt sync() API
 Tilt's `sync()` function only accepts `(local_path, remote_path)`. It does **not** support an `exclude` parameter. Any config files needed in-container should be synced via individual `sync()` calls.

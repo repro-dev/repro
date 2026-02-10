@@ -9,7 +9,7 @@
 PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 
 # Compute full transitive dependency closure using Moon's project graph.
-# Returns all @repro/* package names that api-server depends on (direct + transitive).
+# Returns all package names that api-server depends on (direct + transitive).
 def compute_all_dependencies(project_id):
   result = local(
     'moon project-graph %s --json' % project_id,
@@ -24,6 +24,8 @@ def compute_all_dependencies(project_id):
       continue
     if node_id.startswith('repro/'):
       deps.append(node_id.replace('repro/', '', 1))
+    else:
+      deps.append(node_id)
   return deps
 
 ALL_DEPS = compute_all_dependencies('repro/api-server')
@@ -39,6 +41,7 @@ docker_build(
     'dist',
     'build',
     'node_modules',
+    'apps/dev-toolbar/**',
     'apps/capture/**',
     'apps/workspace/**',
     'apps/admin/**',
@@ -72,11 +75,18 @@ docker_build(
       os.path.join(PROJECT_ROOT, 'packages/' + dep + '/package.json')
       for dep in ALL_DEPS
     ] + [
+      os.path.join(PROJECT_ROOT, 'packages/' + dep + '/tsconfig.json')
+      for dep in ALL_DEPS
+    ] + [
       os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
     ]),
     sync(
       os.path.join(PROJECT_ROOT, 'apps/api-server/src'),
       '/app/apps/api-server/src'
+    ),
+    sync(
+      os.path.join(PROJECT_ROOT, 'apps/api-server/scripts'),
+      '/app/apps/api-server/scripts'
     ),
     sync(
       os.path.join(PROJECT_ROOT, 'packages'),
