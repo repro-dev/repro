@@ -8,23 +8,7 @@
 
 PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 
-# Helper: List of direct @repro/* dependencies from api-server
-# These are extracted from apps/api-server/package.json "dependencies"
-DIRECT_DEPS = [
-  'domain',
-  'future-utils',
-  'random-string',
-  'tdl',
-  'validation',
-  'wire-formats',
-]
-
-def get_direct_dep_paths():
-  """Generate list of direct dependency package.json files to watch."""
-  paths = []
-  for dep in DIRECT_DEPS:
-    paths.append(os.path.join(PROJECT_ROOT, 'packages/' + dep + '/package.json'))
-  return paths
+load('../../tilt-lib/dependency_graph.Tiltfile', 'dependency_sync_paths', 'dependency_watch_paths')
 
 docker_build(
   'api-server',
@@ -92,7 +76,7 @@ docker_build(
       os.path.join(PROJECT_ROOT, 'apps/api-server/tsconfig.json'),
       
       # Watch only direct dependencies (extracted above)
-    ] + get_direct_dep_paths() + [
+    ] + dependency_watch_paths('repro/api-server', PROJECT_ROOT) + [
       # Fall back to full rebuild if lock file changes
       # (This catches dependency updates from root-level package managers)
       os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
@@ -103,10 +87,9 @@ docker_build(
       '/app/apps/api-server/src'
     ),
     
-    sync(
-      os.path.join(PROJECT_ROOT, 'packages'),
-      '/app/packages'
-    ),
+  ] + [
+    sync(path, '/app/packages/' + os.path.basename(path))
+    for path in dependency_sync_paths('repro/api-server', PROJECT_ROOT)
   ]
 )
 
@@ -144,5 +127,15 @@ k8s_resource(
     'http://api.repro.localhost',
   ],
   resource_deps=['database-ready', 'storage-ready'],
+  labels=['api']
+)
+
+local_resource(
+  'api-server-migrations',
+  cmd='pod=$(kubectl get pods --namespace default -l app=api-server -o jsonpath="{.items[0].metadata.name}") && kubectl exec --namespace default $pod -- /bin/sh -lc "corepack enable >/dev/null 2>&1 || true; pnpm --filter @repro/api-server run migrate"',
+  resource_deps=['database-ready', 'api-server'],
+  deps=[
+    os.path.join(PROJECT_ROOT, 'apps/api-server/src/migrations'),
+  ],
   labels=['api']
 )
