@@ -19,6 +19,14 @@ helm_resource(
     labels=['infra']
 )
 
+local_resource(
+    'ingress-admission-ready',
+    # Waits for the controller deployment to be available and the admission endpoint to publish ready addresses, which prevents initial ingress webhook failures.
+    cmd='kubectl wait --namespace default --for=condition=available deployment/ingress-controller-ingress-nginx-controller --timeout=120s && kubectl wait --namespace default --for=jsonpath="{.subsets[*].addresses[*].ip}" endpoints/ingress-controller-ingress-nginx-controller-admission --timeout=120s',
+    resource_deps=['ingress-controller'],
+    labels=['infra']
+)
+
 k8s_yaml(helm(
   './chart',
   name='gateway',
@@ -31,6 +39,6 @@ k8s_resource(
     'gateway-ingress-api:Ingress:default',
     'gateway-ingress-admin:Ingress:default'
   ],
-  resource_deps=['ingress-controller'],
+  resource_deps=['ingress-admission-ready'],
   labels=['infra']
 )

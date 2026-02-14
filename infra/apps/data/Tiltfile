@@ -27,11 +27,17 @@ helm_repo(
     labels=['infra']
 )
 
+local_resource(
+    'storage-bucket-hook-cleanup',
+    cmd='kubectl delete job storage-bucket-hook --ignore-not-found',
+    labels=['infra']
+)
+
 helm_resource(
     name='storage',
     chart='seaweedfs/seaweedfs',
     namespace='default',
-    resource_deps=['seaweedfs'],
+    resource_deps=['seaweedfs', 'storage-bucket-hook-cleanup'],
     flags=['--values=./storage-values.yaml'],
     labels=['infra']
 )
