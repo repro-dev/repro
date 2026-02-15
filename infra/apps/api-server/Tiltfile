@@ -130,6 +130,10 @@ k8s_resource(
   labels=['api']
 )
 
+# TODO: This runs migrations via kubectl exec into the api-server pod. If the
+# /health endpoint ever starts validating schema or tables, this will deadlock
+# on fresh environments (app crash-loops waiting for tables, migrations can't
+# exec into a crash-looping pod). Move to an init container or Job if that happens.
 local_resource(
   'api-server-migrations',
   cmd='pod=$(kubectl get pods --namespace default -l app=api-server -o jsonpath="{.items[0].metadata.name}") && kubectl exec --namespace default $pod -- /bin/sh -lc "corepack enable >/dev/null 2>&1 || true; pnpm --filter @repro/api-server run migrate"',

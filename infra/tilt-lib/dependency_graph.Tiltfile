@@ -10,9 +10,10 @@ def compute_all_dependencies(project_id, root_path):
   deps = []
   for node in nodes:
     node_id = node.get('id') or node.get('config', {}).get('id', '')
-    if not node_id or node_id == project_id:
+    source = node.get('source', '')
+    if not node_id or node_id == project_id or not source:
       continue
-    deps.append(node_id)
+    deps.append({'id': node_id, 'source': source})
 
   return deps
 
@@ -21,13 +22,9 @@ def dependency_watch_paths(project_id, root_path):
 
   paths = []
   for dep in deps:
-    if dep.startswith('repro/'):
-      name = dep.replace('repro/', '', 1)
-      paths.append(os.path.join(root_path, 'packages', name, 'package.json'))
-      paths.append(os.path.join(root_path, 'packages', name, 'tsconfig.json'))
-    else:
-      paths.append(os.path.join(root_path, 'packages', dep, 'package.json'))
-      paths.append(os.path.join(root_path, 'packages', dep, 'tsconfig.json'))
+    source = dep['source']
+    paths.append(os.path.join(root_path, source, 'package.json'))
+    paths.append(os.path.join(root_path, source, 'tsconfig.json'))
 
   return paths
 
@@ -36,10 +33,6 @@ def dependency_sync_paths(project_id, root_path):
 
   paths = []
   for dep in deps:
-    if dep.startswith('repro/'):
-      name = dep.replace('repro/', '', 1)
-      paths.append(os.path.join(root_path, 'packages', name))
-    else:
-      paths.append(os.path.join(root_path, 'packages', dep))
+    paths.append(os.path.join(root_path, dep['source']))
 
   return paths

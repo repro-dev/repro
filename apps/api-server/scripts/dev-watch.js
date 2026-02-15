@@ -9,16 +9,14 @@ const rawGraph = execSync(`moon project-graph ${projectId} --json`, {
 })
 const graph = JSON.parse(rawGraph)
 const nodes = graph?.graph?.nodes ?? []
-const deps = nodes
-  .map(node => node.id || node.config?.id)
-  .filter(Boolean)
-  .filter(id => id !== projectId)
-
 const watchPaths = new Set(['src'])
 
-for (const dep of deps) {
-  const name = dep.startsWith('repro/') ? dep.slice('repro/'.length) : dep
-  const depRoot = path.join(rootPath, 'packages', name)
+for (const node of nodes) {
+  const nodeId = node.id || node.config?.id
+  if (!nodeId || nodeId === projectId) continue
+  const source = node.source
+  if (!source) continue
+  const depRoot = path.join(rootPath, source)
   const depSrc = path.join(depRoot, 'src')
   watchPaths.add(fs.existsSync(depSrc) ? depSrc : depRoot)
 }
@@ -35,6 +33,10 @@ for (const watchPath of watchPaths) {
 args.push('--exclude', 'src/**/*.test.ts')
 
 const child = spawn('pnpm', args, { stdio: 'inherit' })
+
+;['SIGINT', 'SIGTERM'].forEach(signal => {
+  process.on(signal, () => child.kill(signal))
+})
 
 child.on('exit', code => {
   process.exit(code ?? 1)
