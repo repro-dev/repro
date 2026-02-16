@@ -28,6 +28,10 @@ COPY . .
 FROM prepare AS build-all
 RUN moon run :build
 
+FROM prepare AS workspace
+RUN moon run repro/workspace:build
+CMD ["moon", "run", "repro/workspace:serve"]
+
 FROM prepare AS api-server
 RUN moon run repro/api-server:build
 CMD ["moon", "run", "repro/api-server:serve"]
