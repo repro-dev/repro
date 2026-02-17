@@ -18,6 +18,31 @@ docker_build(
   build_args={
     'MOON_SCAFFOLD_PROJECTS': 'repro/api-server',
   },
+  ignore=[
+    'infra',
+    'dist',
+    'build',
+    'node_modules',
+  ] + non_dependency_ignore_patterns('repro/api-server', PROJECT_ROOT) + [
+    '**/*.test.ts',
+    '**/*.test.tsx',
+    '**/*.spec.ts',
+    '**/*.spec.tsx',
+    '**/fixtures/**',
+    '**/mocks/**',
+    '**/test-data/**',
+    '**/*.stories.tsx',
+    '**/*.stories.ts',
+    '**/*.demo.tsx',
+    '**/*.md',
+    '*.md',
+    '*.MD',
+    '.DS_Store',
+    '*.swp',
+    '*.swo',
+    '*~',
+    '*.log',
+  ],
 )
 
 docker_build(
