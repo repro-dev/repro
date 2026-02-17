@@ -59,7 +59,7 @@ export interface BillingSubscriptionTable {
   accountId: number
   providerSubscriptionId: string
   planId: string
-  status: string
+  status: 'active' | 'past_due' | 'paused' | 'cancelled'
   currentPeriodStart: Date
   currentPeriodEnd: Date
   cancelAtPeriodEnd: boolean
