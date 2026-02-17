@@ -53,6 +53,17 @@ export interface BillingEvent {
 
 import { GeneratedAlways } from 'kysely'
 
+export interface BillingPlanTable {
+  id: GeneratedAlways<number>
+  name: string
+  providerPriceId: string
+  providerProductId: string
+  tier: 'free' | 'pro' | 'team' | 'enterprise'
+  interval: 'month' | 'year'
+  active: boolean
+  createdAt: GeneratedAlways<Date>
+}
+
 export interface BillingCustomerTable {
   id: GeneratedAlways<number>
   accountId: number
@@ -64,7 +75,7 @@ export interface BillingSubscriptionTable {
   id: GeneratedAlways<number>
   accountId: number
   providerSubscriptionId: string
-  planId: string
+  planId: number
   status: 'active' | 'past_due' | 'paused' | 'canceled' | 'trialing'
   currentPeriodStart: Date
   currentPeriodEnd: Date

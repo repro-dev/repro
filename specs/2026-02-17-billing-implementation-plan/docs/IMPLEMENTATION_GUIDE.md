@@ -3,7 +3,7 @@
 ## Phase 1: Foundations
 1. Confirm requirements with product/finance (all apps).
 2. Create Paddle accounts for sandbox and production.
-3. Define plan matrix and map each plan to Paddle product + price IDs.
+3. Define plan matrix and map each plan to Paddle product + price IDs. Plans are stored in `BillingPlanTable` and seeded per environment (sandbox vs production) so that Paddle IDs can differ without code changes.
 4. Define payment failure policy, including dunning cadence and grace period before restriction.
 5. Add Paddle secrets and config (apps/api-server config): API key (server-side), client-side token (for Paddle.js), webhook secret (notification signing), environment.
 6. Define local development overrides (apps/api-server config): default plan, per-account override, and stubbed billing mode.

@@ -5,7 +5,7 @@
 
 ## Data Model Proposal
 - BillingCustomer: links internal account/user to provider customer ID.
-- BillingPlan: internal plan definition mapped to provider price IDs.
+- BillingPlan: DB-backed plan definitions mapping internal tiers to provider product and price IDs. Stored in the database so that environment-specific Paddle IDs (sandbox vs production) can be seeded per environment without code changes, and plans can be activated/deactivated without deploys.
 - BillingSubscription: internal representation of the Paddle subscription, status, plan, billing period, and cancellation metadata.
 - BillingEntitlement: derived entitlements for feature gating, based on plan and usage.
 - BillingEvent: audit log of inbound webhooks and key billing actions.
