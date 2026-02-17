@@ -8,7 +8,17 @@
 
 PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 
-load('../../tilt-lib/dependency_graph.Tiltfile', 'dependency_sync_paths', 'dependency_watch_paths')
+load('../../tilt-lib/dependency_graph.Tiltfile', 'dependency_sync_paths', 'dependency_watch_paths', 'non_dependency_ignore_patterns')
+
+docker_build(
+  'api-server-migrations',
+  PROJECT_ROOT,
+  dockerfile='../../Dockerfile',
+  target='api-server',
+  build_args={
+    'MOON_SCAFFOLD_PROJECTS': 'repro/api-server',
+  },
+)
 
 docker_build(
   'api-server',
@@ -36,11 +46,7 @@ docker_build(
     'build',
     'node_modules',
     # Exclude unrelated apps
-    'apps/capture/**',
-    'apps/workspace/**',
-    'apps/admin/**',
-    'apps/devtools-demo/**',
-    'apps/storybook-ui/**',
+  ] + non_dependency_ignore_patterns('repro/api-server', PROJECT_ROOT) + [
     # Exclude test files and fixtures
     '**/*.test.ts',
     '**/*.test.tsx',
@@ -88,7 +94,7 @@ docker_build(
     ),
     
   ] + [
-    sync(path, '/app/packages/' + os.path.basename(path))
+    sync(path, '/app/' + path.removeprefix(PROJECT_ROOT + '/'))
     for path in dependency_sync_paths('repro/api-server', PROJECT_ROOT)
   ]
 )
@@ -121,25 +127,17 @@ local_resource(
 )
 
 k8s_resource(
+  'db-migrations',
+  resource_deps=['database-ready', 'storage-ready'],
+  labels=['api']
+)
+
+k8s_resource(
   'api-server-deployment',
   new_name='api-server',
   links=[
     'http://api.repro.localhost',
   ],
-  resource_deps=['database-ready', 'storage-ready'],
-  labels=['api']
-)
-
-# TODO: This runs migrations via kubectl exec into the api-server pod. If the
-# /health endpoint ever starts validating schema or tables, this will deadlock
-# on fresh environments (app crash-loops waiting for tables, migrations can't
-# exec into a crash-looping pod). Move to an init container or Job if that happens.
-local_resource(
-  'api-server-migrations',
-  cmd='pod=$(kubectl get pods --namespace default -l app=api-server -o jsonpath="{.items[0].metadata.name}") && kubectl exec --namespace default $pod -- /bin/sh -lc "corepack enable >/dev/null 2>&1 || true; pnpm --filter @repro/api-server run migrate"',
-  resource_deps=['database-ready', 'api-server'],
-  deps=[
-    os.path.join(PROJECT_ROOT, 'apps/api-server/src/migrations'),
-  ],
+  resource_deps=['db-migrations'],
   labels=['api']
 )

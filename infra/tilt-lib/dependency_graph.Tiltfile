@@ -36,3 +36,33 @@ def dependency_sync_paths(project_id, root_path):
     paths.append(os.path.join(root_path, dep['source']))
 
   return paths
+
+def non_dependency_ignore_patterns(project_id, root_path):
+  deps = compute_all_dependencies(project_id, root_path)
+
+  keep = {}
+  for dep in deps:
+    keep[dep['source']] = True
+
+  result = local(
+    'moon query projects --json',
+    quiet=True,
+  )
+  all_projects = decode_json(str(result))
+
+  own_source = ''
+  for project in all_projects.get('projects', []):
+    if project.get('id', '') == project_id:
+      own_source = project.get('source', '')
+      break
+
+  if own_source:
+    keep[own_source] = True
+
+  patterns = []
+  for project in all_projects.get('projects', []):
+    source = project.get('source', '')
+    if source and source not in keep:
+      patterns.append(source + '/**')
+
+  return patterns

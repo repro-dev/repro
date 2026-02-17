@@ -1,6 +1,6 @@
 PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 
-load('../../tilt-lib/dependency_graph.Tiltfile', 'dependency_sync_paths', 'dependency_watch_paths')
+load('../../tilt-lib/dependency_graph.Tiltfile', 'dependency_sync_paths', 'dependency_watch_paths', 'non_dependency_ignore_patterns')
 
 docker_build(
   'workspace',
@@ -18,11 +18,7 @@ docker_build(
     'dist',
     'build',
     'node_modules',
-    'apps/capture/**',
-    'apps/api-server/**',
-    'apps/admin/**',
-    'apps/devtools-demo/**',
-    'apps/storybook-ui/**',
+  ] + non_dependency_ignore_patterns('repro/workspace', PROJECT_ROOT) + [
     '**/*.test.ts',
     '**/*.test.tsx',
     '**/*.spec.ts',
