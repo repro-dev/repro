@@ -10,7 +10,7 @@
 7. Create billing data model and migration plan (apps/api-server/src/migrations). Use native Postgres `boolean` columns for boolean fields (`cancelAtPeriodEnd`, `enabled`). Register new table interfaces in `apps/api-server/src/modules/database/schema/index.ts`.
 
 ## Phase 2: Provider Integration
-0. Migrate or replace `packages/billing` (Paddle Classic v1 wrapper) with Paddle Billing v2 client. Remove the legacy `BillingProvider`/`useBillingClient` if no longer needed.
+0. Migrate or replace `packages/billing` (Paddle Classic v1 wrapper) with Paddle Billing v2 client. Remove the legacy `BillingProvider`/`useBillingClient` if no longer needed. Note: implementation details in `packages/billing` should be progressively removed in favour of v2 equivalents under `apps/api-server/src/modules/billing`.
 1. Implement Paddle client wrapper under modules (apps/api-server/src/modules/billing).
 2. Implement an opaque billing service interface (apps/api-server/src/services/billing.ts) that hides provider specifics.
 3. Implement a development billing adapter that bypasses Paddle and returns the configured plan (apps/api-server/src/services/billingDev.ts).
