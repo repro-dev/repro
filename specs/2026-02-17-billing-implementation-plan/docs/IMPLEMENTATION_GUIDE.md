@@ -5,7 +5,7 @@
 2. Create Paddle accounts for sandbox and production.
 3. Define plan matrix and map each plan to Paddle product + price IDs.
 4. Define payment failure policy, including dunning cadence and grace period before restriction.
-5. Add Paddle secrets and config (apps/api-server config): vendor ID, API key, webhook secret, environment.
+5. Add Paddle secrets and config (apps/api-server config): API key (server-side), client-side token (for Paddle.js), webhook secret (notification signing), environment.
 6. Define local development overrides (apps/api-server config): default plan, per-account override, and stubbed billing mode.
 7. Create billing data model and migration plan (apps/api-server/src/migrations). Use native Postgres `boolean` columns for boolean fields (`cancelAtPeriodEnd`, `enabled`). Register new table interfaces in `apps/api-server/src/modules/database/schema/index.ts`.
 
@@ -18,7 +18,7 @@
 5. Store Paddle customer + subscription IDs on account records in billing tables.
 6. Implement webhook receiver (apps/api-server/src/routers/billingWebhook.ts + apps/api-server/src/services/billingWebhook.ts).
 7. Verify webhook signatures with Paddle secret and ensure idempotency by event ID.
-8. Handle subscription lifecycle events: subscription_created, subscription_updated, subscription_cancelled, payment_succeeded, payment_failed.
+8. Handle subscription lifecycle events: subscription.created, subscription.updated, subscription.canceled, transaction.completed, transaction.payment_failed.
 9. Update entitlements and invalidate entitlement caches immediately on webhook events (apps/api-server/src/services/billingEntitlements.ts).
 
 ## Phase 3: Product Surfaces

@@ -24,7 +24,7 @@ export interface BillingSubscription {
   accountId: string
   providerSubscriptionId: string
   planId: string
-  status: 'active' | 'past_due' | 'paused' | 'canceled'
+  status: 'active' | 'past_due' | 'paused' | 'canceled' | 'trialing'
   currentPeriodStart: string
   currentPeriodEnd: string
   cancelAtPeriodEnd: boolean
@@ -45,7 +45,8 @@ export interface BillingEvent {
   payload: string
   status: 'pending' | 'success' | 'failed'
   error: string | null
-  processedAt: string
+  createdAt: string
+  processedAt: string | null
 }
 
 // Proposed billing database schema (apps/api-server/src/modules/database/schema)
@@ -64,7 +65,7 @@ export interface BillingSubscriptionTable {
   accountId: number
   providerSubscriptionId: string
   planId: string
-  status: 'active' | 'past_due' | 'paused' | 'canceled'
+  status: 'active' | 'past_due' | 'paused' | 'canceled' | 'trialing'
   currentPeriodStart: Date
   currentPeriodEnd: Date
   cancelAtPeriodEnd: boolean
@@ -89,7 +90,8 @@ export interface BillingEventTable {
   payload: string
   status: 'pending' | 'success' | 'failed'
   error: string | null
-  processedAt: GeneratedAlways<Date>
+  createdAt: GeneratedAlways<Date>
+  processedAt: Date | null
 }
 
 // Sample Paddle webhook payload (subscription_created)
