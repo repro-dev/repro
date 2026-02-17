@@ -7,7 +7,7 @@
     "dev-bin": "dotenvx run -f .env.development -- ts-eager",
     "dev": "mkdir -p tmp && pnpm run migrate && pnpm run start",
     "start": "tsx src/index.ts",
-    "dev-watch": "nodemon --config nodemon-dev.json",
+    "dev-watch": "node scripts/dev-watch.js",
     "fmt": "prettier --write src",
     "migrate": "tsx src/migrations/run.ts",
     "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",

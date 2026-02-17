@@ -39,7 +39,7 @@ config.set_enabled_resources(resources)
 PROJECT_ROOT = os.path.join(os.getcwd(), '..')
 
 update_settings(
-  k8s_upsert_timeout_secs=120
+  k8s_upsert_timeout_secs=300
 )
 
 allow_k8s_contexts('kind')

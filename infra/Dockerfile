@@ -13,11 +13,10 @@ RUN npm add --global @moonrepo/cli
 
 FROM base AS scaffold
 
+ARG MOON_SCAFFOLD_PROJECTS="repro/api-server repro/workspace repro/admin"
+
 COPY . .
-RUN moon docker scaffold \
-  repro/api-server \
-  repro/workspace \
-  repro/admin
+RUN moon docker scaffold $MOON_SCAFFOLD_PROJECTS
 
 FROM base AS prepare
 
@@ -28,6 +27,10 @@ COPY . .
 
 FROM prepare AS build-all
 RUN moon run :build
+
+FROM prepare AS workspace
+RUN moon run repro/workspace:build
+CMD ["moon", "run", "repro/workspace:serve"]
 
 FROM prepare AS api-server
 RUN moon run repro/api-server:build
