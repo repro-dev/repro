@@ -12,12 +12,12 @@
 1. Implement Paddle client wrapper under modules (apps/api-server/src/modules/billing).
 2. Implement an opaque billing service interface (apps/api-server/src/services/billing.ts) that hides provider specifics.
 3. Implement a development billing adapter that bypasses Paddle and returns the configured plan (apps/api-server/src/services/billingDev.ts).
-3. Create checkout session endpoint (apps/api-server/src/routers/billing.ts) that accepts plan ID and returns Paddle checkout URL.
-4. Store Paddle customer + subscription IDs on account records in billing tables.
-5. Implement webhook receiver (apps/api-server/src/routers/billingWebhook.ts + apps/api-server/src/services/billingWebhook.ts).
-6. Verify webhook signatures with Paddle secret and ensure idempotency by event ID.
-7. Handle subscription lifecycle events: subscription_created, subscription_updated, subscription_cancelled, payment_succeeded, payment_failed.
-8. Update entitlements on webhook events (apps/api-server/src/services/billingEntitlements.ts).
+4. Create checkout session endpoint (apps/api-server/src/routers/billing.ts) that accepts plan ID and returns Paddle checkout URL.
+5. Store Paddle customer + subscription IDs on account records in billing tables.
+6. Implement webhook receiver (apps/api-server/src/routers/billingWebhook.ts + apps/api-server/src/services/billingWebhook.ts).
+7. Verify webhook signatures with Paddle secret and ensure idempotency by event ID.
+8. Handle subscription lifecycle events: subscription_created, subscription_updated, subscription_cancelled, payment_succeeded, payment_failed.
+9. Update entitlements on webhook events (apps/api-server/src/services/billingEntitlements.ts).
 
 ## Phase 3: Product Surfaces
 1. Pricing page with plan comparison and CTA to create Paddle checkout session (apps/workspace/src/routes/PricingRoute.tsx).
@@ -35,7 +35,7 @@
 - Checkout succeeds and creates subscription.
 - Webhooks update subscription status.
 - Plan upgrades/downgrades propagate to entitlements.
-- Cancelation updates access after period end.
+- Cancellation updates access after period end.
 - Billing portal access works.
 - Payment failure handling follows policy.
 

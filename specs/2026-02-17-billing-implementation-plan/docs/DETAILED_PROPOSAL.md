@@ -1,19 +1,19 @@
 # Detailed Proposal
 
 ## Provider Recommendation
-- Use a mainstream subscription billing provider that supports hosted checkout, customer portal, webhooks, and tax calculation. The system should support multiple environments (test/prod) and a simple plan mapping strategy.
+- Use Paddle for subscription billing with hosted checkout, customer portal, webhooks, and tax calculation. The system should support multiple environments (test/prod) and a simple plan mapping strategy.
 
 ## Data Model Proposal
 - BillingCustomer: links internal account/user to provider customer ID.
 - BillingPlan: internal plan definition mapped to provider price IDs.
-- BillingSubscription: internal representation of the provider subscription, status, plan, billing period, and cancelation metadata.
+- BillingSubscription: internal representation of the Paddle subscription, status, plan, billing period, and cancellation metadata.
 - BillingEntitlement: derived entitlements for feature gating, based on plan and usage.
 - BillingEvent: audit log of inbound webhooks and key billing actions.
 
 ## Core Flows
 - Checkout: create checkout session, redirect user, handle success/cancel, store provider IDs.
 - Portal: provide billing portal link and allow payment method management.
-- Subscription lifecycle: upgrades/downgrades, cancelation at period end, immediate cancelation.
+- Subscription lifecycle: upgrades/downgrades, cancellation at period end, immediate cancellation.
 - Payment failures: pause or restrict access depending on policy, notify user.
 
 ## Entitlement Strategy

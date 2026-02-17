@@ -24,7 +24,7 @@ This spec provides a concrete implementation plan for adding billing to the Repr
 ## Quick Metrics Summary
 - Phases: 4 (Foundations, Provider Integration, Product Surfaces, Rollout)
 - Core integrations: Checkout, Webhooks, Billing Portal, Entitlements
-- Critical flows: Signup -> Checkout, Upgrade/Downgrade, Cancelation, Payment Failure
+- Critical flows: Signup -> Checkout, Upgrade/Downgrade, Cancellation, Payment Failure
 
 ## File Modification Checklist
 - Requirements confirmed and signed off
