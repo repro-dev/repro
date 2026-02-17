@@ -58,7 +58,7 @@ export interface BillingSubscriptionTable {
   id: GeneratedAlways<number>
   accountId: number
   providerSubscriptionId: string
-  planId: number
+  planId: string
   status: string
   currentPeriodStart: Date
   currentPeriodEnd: Date

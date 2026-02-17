@@ -9,7 +9,7 @@
 - `docs/SUMMARY.txt`: Executive summary for stakeholders.
 - `reference/ARCHITECTURE.md`: Component map and data flow.
 - `reference/TROUBLESHOOTING.md`: Operational debugging guide.
-- `examples/Example.improved`: Placeholder for future code sample.
+- `examples/Example.improved`: Reference implementation of domain types, database schema, and webhook payload.
 
 ## How To Use
 - Read `00-START-HERE.md` for fast orientation.

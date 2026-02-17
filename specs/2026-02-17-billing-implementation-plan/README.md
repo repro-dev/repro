@@ -12,7 +12,7 @@ This spec provides a concrete implementation plan for adding billing to the Repr
 - `docs/SUMMARY.txt`: Executive summary.
 - `reference/ARCHITECTURE.md`: Billing architecture and component map.
 - `reference/TROUBLESHOOTING.md`: Common issues and debugging paths.
-- `examples/Example.improved`: Placeholder for future code examples.
+- `examples/Example.improved`: Reference implementation of domain types, database schema, and webhook payload.
 
 ## Reading Guide by Role
 - Product/Leadership: `docs/SUMMARY.txt`, `docs/DETAILED_PROPOSAL.md`
