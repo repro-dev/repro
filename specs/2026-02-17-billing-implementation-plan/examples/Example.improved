@@ -1,3 +1,117 @@
-Billing Integration Example (placeholder)
+// Proposed billing domain types (packages/domain/src/billing.ts)
 
-This file is reserved for a future reference implementation once the billing integration is implemented in code.
+export interface BillingPlan {
+  id: string
+  name: string
+  providerPriceId: string
+  tier: 'free' | 'pro' | 'team' | 'enterprise'
+  interval: 'month' | 'year'
+  active: boolean
+}
+
+export interface BillingCustomer {
+  id: string
+  accountId: string
+  providerCustomerId: string
+  createdAt: string
+}
+
+export interface BillingSubscription {
+  id: string
+  accountId: string
+  providerSubscriptionId: string
+  planId: string
+  status: 'active' | 'past_due' | 'paused' | 'cancelled'
+  currentPeriodStart: string
+  currentPeriodEnd: string
+  cancelAtPeriodEnd: boolean
+  cancelledAt: string | null
+}
+
+export interface BillingEntitlement {
+  accountId: string
+  feature: string
+  enabled: boolean
+  limit: number | null
+}
+
+export interface BillingEvent {
+  id: string
+  providerEventId: string
+  eventType: string
+  payload: string
+  processedAt: string
+}
+
+// Proposed billing database schema (apps/api-server/src/modules/database/schema)
+
+import { GeneratedAlways } from 'kysely'
+
+export interface BillingCustomerTable {
+  id: GeneratedAlways<number>
+  accountId: number
+  providerCustomerId: string
+  createdAt: GeneratedAlways<Date>
+}
+
+export interface BillingSubscriptionTable {
+  id: GeneratedAlways<number>
+  accountId: number
+  providerSubscriptionId: string
+  planId: number
+  status: string
+  currentPeriodStart: Date
+  currentPeriodEnd: Date
+  cancelAtPeriodEnd: number
+  cancelledAt: Date | null
+  createdAt: GeneratedAlways<Date>
+  updatedAt: GeneratedAlways<Date>
+}
+
+export interface BillingEntitlementTable {
+  id: GeneratedAlways<number>
+  accountId: number
+  feature: string
+  enabled: number
+  limit: number | null
+  createdAt: GeneratedAlways<Date>
+}
+
+export interface BillingEventTable {
+  id: GeneratedAlways<number>
+  providerEventId: string
+  eventType: string
+  payload: string
+  processedAt: GeneratedAlways<Date>
+}
+
+// Sample Paddle webhook payload (subscription_created)
+//
+// {
+//   "event_id": "evt_01h1vjes1y163xfj1rh1tkfb65",
+//   "event_type": "subscription.created",
+//   "occurred_at": "2026-02-17T12:00:00.000Z",
+//   "data": {
+//     "id": "sub_01h1vjes1y163xfj1rh1tkfb65",
+//     "status": "active",
+//     "customer_id": "ctm_01h1vjes1y163xfj1rh1tkfb65",
+//     "currency_code": "USD",
+//     "items": [
+//       {
+//         "price": {
+//           "id": "pri_01h1vjes1y163xfj1rh1tkfb65",
+//           "product_id": "pro_01h1vjes1y163xfj1rh1tkfb65"
+//         },
+//         "quantity": 1
+//       }
+//     ],
+//     "billing_cycle": {
+//       "interval": "month",
+//       "frequency": 1
+//     },
+//     "current_billing_period": {
+//       "starts_at": "2026-02-17T12:00:00.000Z",
+//       "ends_at": "2026-03-17T12:00:00.000Z"
+//     }
+//   }
+// }
