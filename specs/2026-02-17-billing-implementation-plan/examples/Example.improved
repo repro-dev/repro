@@ -1,0 +1,137 @@
+// Proposed billing domain types (packages/domain/src/billing.ts)
+// Note: domain types use string IDs (accountId, id) while table schemas use
+// numeric IDs, following the existing codebase convention (see asUser/encodeId
+// in UserTable.ts). Repository mappers handle the conversion.
+
+export interface BillingPlan {
+  id: string
+  name: string
+  providerPriceId: string
+  tier: 'free' | 'pro' | 'team' | 'enterprise'
+  interval: 'month' | 'year'
+  active: boolean
+}
+
+export interface BillingCustomer {
+  id: string
+  accountId: string
+  providerCustomerId: string
+  createdAt: string
+}
+
+export interface BillingSubscription {
+  id: string
+  accountId: string
+  providerSubscriptionId: string
+  planId: string
+  status: 'active' | 'past_due' | 'paused' | 'canceled' | 'trialing'
+  currentPeriodStart: string
+  currentPeriodEnd: string
+  cancelAtPeriodEnd: boolean
+  canceledAt: string | null
+}
+
+export interface BillingEntitlement {
+  accountId: string
+  feature: string
+  enabled: boolean
+  limit: number | null
+}
+
+export interface BillingEvent {
+  id: string
+  providerEventId: string
+  eventType: string
+  payload: string
+  status: 'pending' | 'success' | 'failed'
+  error: string | null
+  createdAt: string
+  processedAt: string | null
+}
+
+// Proposed billing database schema (apps/api-server/src/modules/database/schema)
+
+import { GeneratedAlways } from 'kysely'
+
+export interface BillingPlanTable {
+  id: GeneratedAlways<number>
+  name: string
+  providerPriceId: string
+  providerProductId: string
+  tier: 'free' | 'pro' | 'team' | 'enterprise'
+  interval: 'month' | 'year'
+  active: boolean
+  createdAt: GeneratedAlways<Date>
+}
+
+export interface BillingCustomerTable {
+  id: GeneratedAlways<number>
+  accountId: number
+  providerCustomerId: string
+  createdAt: GeneratedAlways<Date>
+}
+
+export interface BillingSubscriptionTable {
+  id: GeneratedAlways<number>
+  accountId: number
+  providerSubscriptionId: string
+  planId: number
+  status: 'active' | 'past_due' | 'paused' | 'canceled' | 'trialing'
+  currentPeriodStart: Date
+  currentPeriodEnd: Date
+  cancelAtPeriodEnd: boolean
+  canceledAt: Date | null
+  createdAt: GeneratedAlways<Date>
+  updatedAt: GeneratedAlways<Date>
+}
+
+export interface BillingEntitlementTable {
+  id: GeneratedAlways<number>
+  accountId: number
+  feature: string
+  enabled: boolean
+  limit: number | null
+  createdAt: GeneratedAlways<Date>
+}
+
+export interface BillingEventTable {
+  id: GeneratedAlways<number>
+  providerEventId: string
+  eventType: string
+  payload: string
+  status: 'pending' | 'success' | 'failed'
+  error: string | null
+  createdAt: GeneratedAlways<Date>
+  processedAt: Date | null
+}
+
+// Sample Paddle webhook payload (subscription_created)
+//
+// {
+//   "event_id": "evt_01h1vjes1y163xfj1rh1tkfb65",
+//   "event_type": "subscription.created",
+//   "occurred_at": "2026-02-17T12:00:00.000Z",
+//   "data": {
+//     "id": "sub_01h1vjes1y163xfj1rh1tkfb65",
+//     "status": "active",
+//     "customer_id": "ctm_01h1vjes1y163xfj1rh1tkfb65",
+//     "currency_code": "USD",
+//     "items": [
+//       {
+//         "price": {
+//           "id": "pri_01h1vjes1y163xfj1rh1tkfb65",
+//           "product_id": "pro_01h1vjes1y163xfj1rh1tkfb65"
+//         },
+//         "quantity": 1
+//       }
+//     ],
+//     "billing_cycle": {
+//       "interval": "month",
+//       "frequency": 1
+//     },
+//     "current_billing_period": {
+//       "starts_at": "2026-02-17T12:00:00.000Z",
+//       "ends_at": "2026-03-17T12:00:00.000Z"
+//     }
+//   }
+// }
