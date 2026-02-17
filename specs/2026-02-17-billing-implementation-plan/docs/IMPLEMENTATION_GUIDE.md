@@ -8,13 +8,14 @@
 5. Create billing data model and migration plan (apps/api-server/src/migrations).
 
 ## Phase 2: Provider Integration
-1. Implement Paddle client wrapper (apps/api-server/src/services/billingPaddle.ts).
-2. Create checkout session endpoint (apps/api-server/src/routers/billing.ts) that accepts plan ID and returns Paddle checkout URL.
-3. Store Paddle customer + subscription IDs on account records in billing tables.
-4. Implement webhook receiver (apps/api-server/src/routers/billingWebhook.ts + apps/api-server/src/services/billingWebhook.ts).
-5. Verify webhook signatures with Paddle secret and ensure idempotency by event ID.
-6. Handle subscription lifecycle events: subscription_created, subscription_updated, subscription_cancelled, payment_succeeded, payment_failed.
-7. Update entitlements on webhook events (apps/api-server/src/services/billingEntitlements.ts).
+1. Implement Paddle client wrapper under modules (apps/api-server/src/modules/billing).
+2. Implement an opaque billing service interface (apps/api-server/src/services/billing.ts) that hides provider specifics.
+3. Create checkout session endpoint (apps/api-server/src/routers/billing.ts) that accepts plan ID and returns Paddle checkout URL.
+4. Store Paddle customer + subscription IDs on account records in billing tables.
+5. Implement webhook receiver (apps/api-server/src/routers/billingWebhook.ts + apps/api-server/src/services/billingWebhook.ts).
+6. Verify webhook signatures with Paddle secret and ensure idempotency by event ID.
+7. Handle subscription lifecycle events: subscription_created, subscription_updated, subscription_cancelled, payment_succeeded, payment_failed.
+8. Update entitlements on webhook events (apps/api-server/src/services/billingEntitlements.ts).
 
 ## Phase 3: Product Surfaces
 1. Pricing page with plan comparison and CTA to create Paddle checkout session (apps/workspace/src/routes/PricingRoute.tsx).
