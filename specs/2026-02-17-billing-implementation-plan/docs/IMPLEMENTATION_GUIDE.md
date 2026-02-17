@@ -7,7 +7,7 @@
 4. Define payment failure policy, including dunning cadence and grace period before restriction.
 5. Add Paddle secrets and config (apps/api-server config): vendor ID, API key, webhook secret, environment.
 6. Define local development overrides (apps/api-server config): default plan, per-account override, and stubbed billing mode.
-7. Create billing data model and migration plan (apps/api-server/src/migrations). Note: boolean fields (`cancelAtPeriodEnd`, `enabled`) are stored as `number` (0/1) following the existing SQLite convention (see `AccountTable.active`). Repository mappers must convert these to domain `boolean` values.
+7. Create billing data model and migration plan (apps/api-server/src/migrations). Use native Postgres `boolean` columns for boolean fields (`cancelAtPeriodEnd`, `enabled`).
 
 ## Phase 2: Provider Integration
 0. Migrate or replace `packages/billing` (Paddle Classic v1 wrapper) with Paddle Billing v2 client. Remove the legacy `BillingProvider`/`useBillingClient` if no longer needed.

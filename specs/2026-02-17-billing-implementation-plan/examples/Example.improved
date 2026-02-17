@@ -62,7 +62,7 @@ export interface BillingSubscriptionTable {
   status: string
   currentPeriodStart: Date
   currentPeriodEnd: Date
-  cancelAtPeriodEnd: number
+  cancelAtPeriodEnd: boolean
   cancelledAt: Date | null
   createdAt: GeneratedAlways<Date>
   updatedAt: GeneratedAlways<Date>
@@ -72,7 +72,7 @@ export interface BillingEntitlementTable {
   id: GeneratedAlways<number>
   accountId: number
   feature: string
-  enabled: number
+  enabled: boolean
   limit: number | null
   createdAt: GeneratedAlways<Date>
 }
