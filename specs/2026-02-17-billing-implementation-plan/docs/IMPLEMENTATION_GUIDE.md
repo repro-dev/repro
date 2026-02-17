@@ -5,11 +5,13 @@
 2. Create Paddle accounts for sandbox and production.
 3. Define plan matrix and map each plan to Paddle product + price IDs.
 4. Add Paddle secrets and config (apps/api-server config): vendor ID, API key, webhook secret, environment.
-5. Create billing data model and migration plan (apps/api-server/src/migrations).
+5. Define local development overrides (apps/api-server config): default plan, per-account override, and stubbed billing mode.
+6. Create billing data model and migration plan (apps/api-server/src/migrations).
 
 ## Phase 2: Provider Integration
 1. Implement Paddle client wrapper under modules (apps/api-server/src/modules/billing).
 2. Implement an opaque billing service interface (apps/api-server/src/services/billing.ts) that hides provider specifics.
+3. Implement a development billing adapter that bypasses Paddle and returns the configured plan (apps/api-server/src/services/billingDev.ts).
 3. Create checkout session endpoint (apps/api-server/src/routers/billing.ts) that accepts plan ID and returns Paddle checkout URL.
 4. Store Paddle customer + subscription IDs on account records in billing tables.
 5. Implement webhook receiver (apps/api-server/src/routers/billingWebhook.ts + apps/api-server/src/services/billingWebhook.ts).
@@ -27,7 +29,7 @@
 1. Sandbox testing and QA (apps/api-server tests + apps/workspace smoke flows).
 2. Staged rollout to internal users then external (apps/api-server feature flags).
 3. Monitor payment failures and webhook errors (apps/api-server logging/alerts).
-4. Document support playbooks (reference/TROUBLESHOOTING.md updates).
+4. Document local dev overrides and reset steps (reference/TROUBLESHOOTING.md updates).
 
 ## Verification Checklist
 - Checkout succeeds and creates subscription.

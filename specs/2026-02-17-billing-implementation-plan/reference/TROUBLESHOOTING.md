@@ -9,3 +9,8 @@
 - Confirm webhook signing secret configuration.
 - Validate provider event IDs are deduped.
 - Inspect billing event logs for processing errors.
+
+## Local Development
+- If billing checks fail in dev, confirm the stubbed billing mode is enabled in api-server config.
+- Use the per-account override to force a plan tier when testing gated features.
+- Reset overrides by clearing the dev override table or environment values.
