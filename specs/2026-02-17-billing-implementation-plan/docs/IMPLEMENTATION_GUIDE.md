@@ -4,9 +4,10 @@
 1. Confirm requirements with product/finance (all apps).
 2. Create Paddle accounts for sandbox and production.
 3. Define plan matrix and map each plan to Paddle product + price IDs.
-4. Add Paddle secrets and config (apps/api-server config): vendor ID, API key, webhook secret, environment.
-5. Define local development overrides (apps/api-server config): default plan, per-account override, and stubbed billing mode.
-6. Create billing data model and migration plan (apps/api-server/src/migrations).
+4. Define payment failure policy, including dunning cadence and grace period before restriction.
+5. Add Paddle secrets and config (apps/api-server config): vendor ID, API key, webhook secret, environment.
+6. Define local development overrides (apps/api-server config): default plan, per-account override, and stubbed billing mode.
+7. Create billing data model and migration plan (apps/api-server/src/migrations).
 
 ## Phase 2: Provider Integration
 1. Implement Paddle client wrapper under modules (apps/api-server/src/modules/billing).
@@ -17,7 +18,7 @@
 6. Implement webhook receiver (apps/api-server/src/routers/billingWebhook.ts + apps/api-server/src/services/billingWebhook.ts).
 7. Verify webhook signatures with Paddle secret and ensure idempotency by event ID.
 8. Handle subscription lifecycle events: subscription_created, subscription_updated, subscription_cancelled, payment_succeeded, payment_failed.
-9. Update entitlements on webhook events (apps/api-server/src/services/billingEntitlements.ts).
+9. Update entitlements and invalidate entitlement caches immediately on webhook events (apps/api-server/src/services/billingEntitlements.ts).
 
 ## Phase 3: Product Surfaces
 1. Pricing page with plan comparison and CTA to create Paddle checkout session (apps/workspace/src/routes/PricingRoute.tsx).
@@ -26,10 +27,11 @@
 4. Feature gates in API and UI (apps/api-server/src/services/featureGate.ts + apps/workspace/src/hooks/useEntitlements.ts).
 
 ## Phase 4: Rollout and Operations
-1. Sandbox testing and QA (apps/api-server tests + apps/workspace smoke flows).
-2. Staged rollout to internal users then external (apps/api-server feature flags).
-3. Monitor payment failures and webhook errors (apps/api-server logging/alerts).
-4. Document local dev overrides and reset steps (reference/TROUBLESHOOTING.md updates).
+1. Add integration tests against Paddle sandbox for checkout, webhooks, and entitlements.
+2. Sandbox testing and QA (apps/api-server tests + apps/workspace smoke flows).
+3. Staged rollout to internal users then external (apps/api-server feature flags).
+4. Monitor payment failures and webhook errors (apps/api-server logging/alerts).
+5. Document local dev overrides and reset steps (reference/TROUBLESHOOTING.md updates).
 
 ## Verification Checklist
 - Checkout succeeds and creates subscription.

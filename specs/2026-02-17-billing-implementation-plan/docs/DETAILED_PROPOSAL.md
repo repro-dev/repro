@@ -14,11 +14,11 @@
 - Checkout: create checkout session, redirect user, handle success/cancel, store provider IDs.
 - Portal: provide billing portal link and allow payment method management.
 - Subscription lifecycle: upgrades/downgrades, cancellation at period end, immediate cancellation.
-- Payment failures: pause or restrict access depending on policy, notify user.
+- Payment failures: pause or restrict access after a defined grace period, notify users via dunning communications.
 
 ## Entitlement Strategy
 - Centralized service or module that resolves entitlements for a given account.
-- Entitlements cached for short periods and refreshed on webhook events.
+- Entitlements cached for short periods and refreshed immediately on webhook events.
 - Single source of truth in backend; frontends consume via API.
 
 ## Security and Compliance

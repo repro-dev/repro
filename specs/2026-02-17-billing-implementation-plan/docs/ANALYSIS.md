@@ -4,6 +4,7 @@
 - The product uses a centralized auth system and a user/account model across apps.
 - There is no current billing provider integration.
 - Feature access is not currently gated by plan or entitlements.
+- Billing will be a day-0 feature with no existing users to migrate.
 
 ## Gaps
 - No billing data model (plans, subscriptions, entitlements).
