@@ -1,4 +1,9 @@
 import { AccountTable } from './AccountTable'
+import { BillingCustomerTable } from './BillingCustomerTable'
+import { BillingEntitlementTable } from './BillingEntitlementTable'
+import { BillingEventTable } from './BillingEventTable'
+import { BillingPlanTable } from './BillingPlanTable'
+import { BillingSubscriptionTable } from './BillingSubscriptionTable'
 import { FeatureGateTable } from './FeatureGateTable'
 import { InvitationTable } from './InvitationTable'
 import { MembershipTable } from './MembershipTable'
@@ -12,6 +17,11 @@ import { UserTable, asUser } from './UserTable'
 
 export interface Schema {
   accounts: AccountTable
+  billing_customers: BillingCustomerTable
+  billing_entitlements: BillingEntitlementTable
+  billing_events: BillingEventTable
+  billing_plans: BillingPlanTable
+  billing_subscriptions: BillingSubscriptionTable
   feature_gates: FeatureGateTable
   invitations: InvitationTable
   memberships: MembershipTable

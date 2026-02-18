@@ -7,7 +7,9 @@
 4. Define payment failure policy, including dunning cadence and grace period before restriction.
 5. Add Paddle secrets and config (apps/api-server config): API key (server-side), client-side token (for Paddle.js), webhook secret (notification signing), environment.
 6. Define local development overrides (apps/api-server config): default plan, per-account override, and stubbed billing mode.
-7. Create billing data model and migration plan (apps/api-server/src/migrations). Use native Postgres `boolean` columns for boolean fields (`cancelAtPeriodEnd`, `enabled`). Register new table interfaces in `apps/api-server/src/modules/database/schema/index.ts`.
+7. Create billing data model and migration plan (apps/api-server/src/migrations). Register new table interfaces in `apps/api-server/src/modules/database/schema/index.ts`.
+
+Note: Billing domain types are NOT added to `packages/domain` in this phase. The billing data model is backend-only — table interfaces in `apps/api-server` are sufficient. Shared types for API response shapes (e.g. plan tiers for the pricing page) will be introduced in Phase 3 when the frontend surfaces that consume them are built.
 
 ## Phase 2: Provider Integration
 0. Migrate or replace `packages/billing` (Paddle Classic v1 wrapper) with Paddle Billing v2 client. Remove the legacy `BillingProvider`/`useBillingClient` if no longer needed. Note: implementation details in `packages/billing` should be progressively removed in favour of v2 equivalents under `apps/api-server/src/modules/billing`.
