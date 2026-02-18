@@ -5,9 +5,9 @@
 
 ## Data Model Proposal
 - BillingCustomer: links internal account/user to provider customer ID.
-- BillingPlan: DB-backed plan definitions mapping internal tiers to provider product and price IDs. Stored in the database so that environment-specific Paddle IDs (sandbox vs production) can be seeded per environment without code changes, and plans can be activated/deactivated without deploys.
+- BillingPlan: DB-backed plan definitions mapping to provider product and price IDs. Stored in the database so that environment-specific Paddle IDs (sandbox vs production) can be seeded per environment without code changes, and plans can be activated/deactivated without deploys. Plans are identified by name (e.g. "Pro Monthly", "Team Annual") — there is no rigid tier enum, allowing new plans to be added or old ones grandfathered without migrations.
+- BillingPlanEntitlement: entitlements defined per plan. Each row maps a plan to a feature flag and optional limit. An account's entitlements are derived from its subscription's linked plan — there are no per-account entitlement records.
 - BillingSubscription: internal representation of the Paddle subscription, status, plan, billing period, and cancellation metadata.
-- BillingEntitlement: derived entitlements for feature gating, based on plan and usage.
 - BillingEvent: audit log of inbound webhooks and key billing actions.
 
 ## Core Flows
@@ -17,8 +17,10 @@
 - Payment failures: pause or restrict access after a defined grace period, notify users via dunning communications.
 
 ## Entitlement Strategy
-- Centralized service or module that resolves entitlements for a given account.
-- Entitlements cached for short periods and refreshed immediately on webhook events.
+- Entitlements are defined per plan, not per account. An account's entitlements are derived by looking up its active subscription's plan and reading the associated `BillingPlanEntitlement` rows.
+- This keeps entitlement data normalized and avoids fragmentation — changing a plan's entitlements automatically applies to all subscribers on that plan.
+- Grandfathering is supported by creating a new plan and leaving existing subscribers on the old one.
+- Entitlement lookups (account → subscription → plan → plan entitlements) are cached for short periods and refreshed on webhook events.
 - Single source of truth in backend; frontends consume via API.
 
 ## Security and Compliance

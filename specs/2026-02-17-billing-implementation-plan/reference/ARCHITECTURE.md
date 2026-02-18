@@ -10,8 +10,8 @@
 1. User initiates checkout from pricing page.
 2. Billing API creates provider checkout session.
 3. Provider redirects back to product; subscription created.
-4. Webhook updates subscription status and entitlements.
-5. API and UI consult entitlements for access control.
+4. Webhook updates subscription status.
+5. API and UI derive entitlements from account → subscription → plan → plan entitlements.
 
 ## Integration Points
 - Auth/Accounts: map billing customers to internal accounts.

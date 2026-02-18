@@ -7,7 +7,6 @@ CREATE TABLE billing_plans (
   "name" TEXT NOT NULL,
   "providerPriceId" TEXT NOT NULL,
   "providerProductId" TEXT NOT NULL,
-  "tier" TEXT CHECK("tier" IN ('free', 'pro', 'team', 'enterprise')) NOT NULL,
   "interval" TEXT CHECK("interval" IN ('month', 'year')) NOT NULL,
   "active" INTEGER NOT NULL DEFAULT 1,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -60,18 +59,18 @@ CREATE TRIGGER billing_subscriptions_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION billing_subscriptions_set_updated_at();
 
-CREATE TABLE billing_entitlements (
+CREATE TABLE billing_plan_entitlements (
   "id" SERIAL PRIMARY KEY,
-  "accountId" INTEGER NOT NULL,
+  "planId" INTEGER NOT NULL,
   "feature" TEXT NOT NULL,
   "enabled" INTEGER NOT NULL DEFAULT 1,
   "limit" INTEGER,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY ("accountId") REFERENCES accounts ("id"),
-  CONSTRAINT billing_entitlements_account_feature UNIQUE ("accountId", "feature")
+  FOREIGN KEY ("planId") REFERENCES billing_plans ("id"),
+  CONSTRAINT billing_plan_entitlements_plan_feature UNIQUE ("planId", "feature")
 );
 
-CREATE INDEX billing_entitlements_account_idx ON billing_entitlements ("accountId");
+CREATE INDEX billing_plan_entitlements_plan_idx ON billing_plan_entitlements ("planId");
 
 CREATE TABLE billing_events (
   "id" SERIAL PRIMARY KEY,
@@ -96,8 +95,8 @@ DROP INDEX IF EXISTS billing_events_status_idx;
 DROP INDEX IF EXISTS billing_events_type_idx;
 DROP TABLE IF EXISTS billing_events;
 
-DROP INDEX IF EXISTS billing_entitlements_account_idx;
-DROP TABLE IF EXISTS billing_entitlements;
+DROP INDEX IF EXISTS billing_plan_entitlements_plan_idx;
+DROP TABLE IF EXISTS billing_plan_entitlements;
 
 DROP TRIGGER IF EXISTS billing_subscriptions_updated_at ON billing_subscriptions;
 DROP FUNCTION IF EXISTS billing_subscriptions_set_updated_at();

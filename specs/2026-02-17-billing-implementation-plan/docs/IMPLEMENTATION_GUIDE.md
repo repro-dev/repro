@@ -21,7 +21,7 @@ Note: Billing domain types are NOT added to `packages/domain` in this phase. The
 6. Implement webhook receiver (apps/api-server/src/routers/billingWebhook.ts + apps/api-server/src/services/billingWebhook.ts).
 7. Verify webhook signatures with Paddle secret and ensure idempotency by event ID.
 8. Handle subscription lifecycle events: subscription.created, subscription.updated, subscription.canceled, transaction.completed, transaction.payment_failed.
-9. Update entitlements and invalidate entitlement caches immediately on webhook events (apps/api-server/src/services/billingEntitlements.ts).
+9. Invalidate entitlement caches on webhook events. Entitlements are derived from plan entitlements (account → subscription → plan → plan_entitlements), not stored per account (apps/api-server/src/services/billingEntitlements.ts).
 
 ## Phase 3: Product Surfaces
 1. Pricing page with plan comparison and CTA to create Paddle checkout session (apps/workspace/src/routes/PricingRoute.tsx).

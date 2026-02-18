@@ -11,9 +11,8 @@ export interface BillingPlanTable {
   name: string
   providerPriceId: string
   providerProductId: string
-  tier: 'free' | 'pro' | 'team' | 'enterprise'
   interval: 'month' | 'year'
-  active: boolean
+  active: number
   createdAt: GeneratedAlways<Date>
 }
 
@@ -38,11 +37,11 @@ export interface BillingSubscriptionTable {
   updatedAt: GeneratedAlways<Date>
 }
 
-export interface BillingEntitlementTable {
+export interface BillingPlanEntitlementTable {
   id: GeneratedAlways<number>
-  accountId: number
+  planId: number
   feature: string
-  enabled: boolean
+  enabled: number
   limit: number | null
   createdAt: GeneratedAlways<Date>
 }

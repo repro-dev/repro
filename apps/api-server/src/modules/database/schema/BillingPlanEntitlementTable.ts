@@ -1,8 +1,8 @@
 import { GeneratedAlways } from 'kysely'
 
-export interface BillingEntitlementTable {
+export interface BillingPlanEntitlementTable {
   id: GeneratedAlways<number>
-  accountId: number
+  planId: number
   feature: string
   enabled: number
   limit: number | null
