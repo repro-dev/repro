@@ -11,6 +11,9 @@
 
 Note: Billing domain types are NOT added to `packages/domain` in this phase. The billing data model is backend-only — table interfaces in `apps/api-server` are sufficient. Shared types for API response shapes (e.g. plan tiers for the pricing page) will be introduced in Phase 3 when the frontend surfaces that consume them are built.
 
+## Phase 2: Discovery Topics
+- **Entitlement caching strategy**: No traditional caching layer (Redis, Memcached) is currently provisioned. Evaluate in-process caching (Map/LRU with TTL) vs. introducing an external cache for entitlement lookups (account → subscription → plan → plan_entitlements). Consider cache invalidation on webhook events.
+
 ## Phase 2: Provider Integration
 0. Migrate or replace `packages/billing` (Paddle Classic v1 wrapper) with Paddle Billing v2 client. Remove the legacy `BillingProvider`/`useBillingClient` if no longer needed. Note: implementation details in `packages/billing` should be progressively removed in favour of v2 equivalents under `apps/api-server/src/modules/billing`.
 1. Implement Paddle client wrapper under modules (apps/api-server/src/modules/billing).
