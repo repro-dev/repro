@@ -10,7 +10,8 @@ CREATE TABLE billing_plans (
   "tier" TEXT CHECK("tier" IN ('free', 'pro', 'team', 'enterprise')) NOT NULL,
   "interval" TEXT CHECK("interval" IN ('month', 'year')) NOT NULL,
   "active" INTEGER NOT NULL DEFAULT 1,
-  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT billing_plans_provider_price UNIQUE ("providerPriceId")
 );
 
 CREATE TABLE billing_customers (
