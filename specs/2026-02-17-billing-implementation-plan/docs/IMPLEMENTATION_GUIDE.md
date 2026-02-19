@@ -11,9 +11,16 @@
 
 Note: Billing domain types are NOT added to `packages/domain` in this phase. The billing data model is backend-only — table interfaces in `apps/api-server` are sufficient. Shared types for API response shapes (e.g. plan tiers for the pricing page) will be introduced in Phase 3 when the frontend surfaces that consume them are built.
 
+## Decisions
+- **Free tier**: Modelled as an explicit plan with its own entitlements in `billing_plan_entitlements`. Assigned to every account on creation. Accounts always have a plan — the entitlement lookup never needs to handle "no plan".
+- **Customer creation**: Lazy — `billing_customer` (and the corresponding Paddle customer) is created at first checkout, not at signup. Free-tier users have no Paddle customer record.
+- **Plan seeding**: Plan definitions and entitlements are config-driven. A CLI or admin UI function applies the config template to create/update the corresponding Paddle products and prices, and seeds the `billing_plans` and `billing_plan_entitlements` tables.
+- **Trials**: Card-required. There will be a limited free tier for evaluation, so cardless trials are unnecessary. Trial expiry converts to the subscribed plan or falls back to the free plan.
+
 ## Phase 2: Discovery Topics
 - **Entitlement caching strategy**: No traditional caching layer (Redis, Memcached) is currently provisioned. Evaluate in-process caching (Map/LRU with TTL) vs. introducing an external cache for entitlement lookups (account → subscription → plan → plan_entitlements). Consider cache invalidation on webhook events.
 - **Proration strategy for upgrades/downgrades**: Paddle supports per-request `proration_billing_mode` when replacing items on a subscription. Decide which mode to use for upgrades (likely `prorated_immediately`) vs. downgrades (likely `prorated_next_billing_period` or `do_not_bill`). Note: upgrades/downgrades update the existing subscription in place (`subscription.updated` webhook) — they do not create a new subscription. The webhook handler must match the new `price.id` from `items[]` to a `billing_plan` row and update `billing_subscriptions.planId`.
+- **Webhook failure/retry handling**: Paddle retries failed webhook deliveries. Evaluate how to handle delayed or out-of-order events beyond the existing idempotency check by `providerEventId`.
 
 ## Phase 2: Provider Integration
 0. Migrate or replace `packages/billing` (Paddle Classic v1 wrapper) with Paddle Billing v2 client. Remove the legacy `BillingProvider`/`useBillingClient` if no longer needed. Note: implementation details in `packages/billing` should be progressively removed in favour of v2 equivalents under `apps/api-server/src/modules/billing`.
