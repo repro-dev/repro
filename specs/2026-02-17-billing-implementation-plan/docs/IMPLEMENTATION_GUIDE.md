@@ -13,6 +13,7 @@ Note: Billing domain types are NOT added to `packages/domain` in this phase. The
 
 ## Phase 2: Discovery Topics
 - **Entitlement caching strategy**: No traditional caching layer (Redis, Memcached) is currently provisioned. Evaluate in-process caching (Map/LRU with TTL) vs. introducing an external cache for entitlement lookups (account → subscription → plan → plan_entitlements). Consider cache invalidation on webhook events.
+- **Proration strategy for upgrades/downgrades**: Paddle supports per-request `proration_billing_mode` when replacing items on a subscription. Decide which mode to use for upgrades (likely `prorated_immediately`) vs. downgrades (likely `prorated_next_billing_period` or `do_not_bill`). Note: upgrades/downgrades update the existing subscription in place (`subscription.updated` webhook) — they do not create a new subscription. The webhook handler must match the new `price.id` from `items[]` to a `billing_plan` row and update `billing_subscriptions.planId`.
 
 ## Phase 2: Provider Integration
 0. Migrate or replace `packages/billing` (Paddle Classic v1 wrapper) with Paddle Billing v2 client. Remove the legacy `BillingProvider`/`useBillingClient` if no longer needed. Note: implementation details in `packages/billing` should be progressively removed in favour of v2 equivalents under `apps/api-server/src/modules/billing`.
