@@ -46,7 +46,7 @@ CREATE INDEX billing_subscriptions_account_idx ON billing_subscriptions ("accoun
 CREATE INDEX billing_subscriptions_plan_idx ON billing_subscriptions ("planId");
 CREATE INDEX billing_subscriptions_status_idx ON billing_subscriptions ("status");
 
-CREATE OR REPLACE FUNCTION billing_subscriptions_set_updated_at()
+CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW."updatedAt" = CURRENT_TIMESTAMP;
@@ -57,7 +57,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER billing_subscriptions_updated_at
   BEFORE UPDATE ON billing_subscriptions
   FOR EACH ROW
-  EXECUTE FUNCTION billing_subscriptions_set_updated_at();
+  EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE billing_plan_entitlements (
   "id" SERIAL PRIMARY KEY,
@@ -99,7 +99,7 @@ DROP INDEX IF EXISTS billing_plan_entitlements_plan_idx;
 DROP TABLE IF EXISTS billing_plan_entitlements;
 
 DROP TRIGGER IF EXISTS billing_subscriptions_updated_at ON billing_subscriptions;
-DROP FUNCTION IF EXISTS billing_subscriptions_set_updated_at();
+DROP FUNCTION IF EXISTS set_updated_at();
 DROP INDEX IF EXISTS billing_subscriptions_status_idx;
 DROP INDEX IF EXISTS billing_subscriptions_plan_idx;
 DROP INDEX IF EXISTS billing_subscriptions_account_idx;
