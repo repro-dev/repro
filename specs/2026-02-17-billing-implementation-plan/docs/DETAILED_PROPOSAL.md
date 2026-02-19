@@ -7,7 +7,7 @@
 - BillingCustomer: links internal account/user to provider customer ID.
 - BillingPlan: DB-backed plan definitions mapping to provider product and price IDs. Stored in the database so that environment-specific Paddle IDs (sandbox vs production) can be seeded per environment without code changes, and plans can be activated/deactivated without deploys. Plans are identified by name (e.g. "Pro Monthly", "Team Annual") — there is no rigid tier enum, allowing new plans to be added or old ones grandfathered without migrations.
 - BillingPlanEntitlement: entitlements defined per plan. Each row maps a plan to a feature flag and optional limit. An account's entitlements are derived from its subscription's linked plan — there are no per-account entitlement records.
-- BillingSubscription: internal representation of the Paddle subscription, status, plan, billing period, and cancellation metadata.
+- BillingSubscription: internal representation of the Paddle subscription, status, plan, billing period, and cancellation metadata. An account may have multiple subscription records over time (e.g. after cancellation and re-subscription), but at most one with a non-terminal status (`active`, `trialing`, `past_due`, `paused`) at any given time. Entitlement lookups must filter for the current active subscription.
 - BillingEvent: audit log of inbound webhooks and key billing actions.
 
 ## Core Flows
