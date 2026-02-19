@@ -35,6 +35,8 @@ A future extension may support usage or credit-based billing for AI features (e.
 
 No changes to existing billing tables are anticipated — the extension is fully additive.
 
+**Free tier and credits**: Usage/credit-based features (e.g. AI) will not be available on the free tier, or may be offered as a paid add-on. However, a small free credit allocation may be granted to free accounts to demonstrate value. The credit ledger model must support attaching credits to free-tier accounts (which have no Paddle subscription or customer record). This is primarily a product decision, but the billing model must not preclude it — the credit ledger should key on `accountId`, not `subscriptionId`.
+
 ## Security and Compliance
 - Webhooks verified with provider signing secrets.
 - Idempotent handling with event IDs.
