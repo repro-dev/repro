@@ -15,6 +15,9 @@
 - No billing UI (pricing, checkout, portal, invoices).
 - No observability for billing failures or payment issues.
 
+## Scoping Decision
+- Billing domain types are backend-only through Phase 1 and Phase 2. The `packages/domain` package is reserved for types shared between frontend and backend (e.g. generated codecs, account/project interfaces). Shared billing API response types will be introduced in Phase 3 alongside the frontend surfaces that consume them.
+
 ## Risks
 - Without centralized entitlements, access control will be inconsistent.
 - Webhook failures could lead to stale subscription state.

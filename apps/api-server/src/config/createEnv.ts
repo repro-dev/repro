@@ -48,6 +48,12 @@ const envSchema = z.object({
   EMAIL_SMTP_SECURE: booleanStringTransform.default(true),
   EMAIL_SMTP_USER: z.string().optional(),
   EMAIL_SMTP_PASS: z.string().optional(),
+  PADDLE_API_KEY: z.string().optional(),
+  PADDLE_CLIENT_TOKEN: z.string().optional(),
+  PADDLE_WEBHOOK_SECRET: z.string().optional(),
+  PADDLE_ENVIRONMENT: z.enum(['sandbox', 'production']).default('sandbox'),
+  BILLING_DEFAULT_PLAN: z.string().default('free'),
+  BILLING_STUBBED: booleanStringTransform.default(true),
   DEBUG: z.string().optional(),
 })
 
