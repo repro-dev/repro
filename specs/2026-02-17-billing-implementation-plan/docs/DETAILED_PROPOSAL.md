@@ -23,6 +23,18 @@
 - Entitlement lookups (account → subscription → plan → plan entitlements) are cached for short periods and refreshed on webhook events.
 - Single source of truth in backend; frontends consume via API.
 
+## Future Consideration: Usage/Credit-Based Billing
+
+A future extension may support usage or credit-based billing for AI features (e.g. top-up credits for AI requests). The current model accommodates this without changes to existing tables:
+
+- **Plan credit allocation**: A `BillingPlanEntitlement` row with `feature: 'ai_credits'` and a `limit` defines the monthly credit allowance per plan.
+- **Credit ledger** (new table): An append-only transaction log recording all credit movements — additions (plan allocation on renewal, top-up purchases, manual adjustments) and deductions (per-request AI usage). Account balance is derived from the ledger.
+- **Top-up purchases**: One-time transactions via Paddle checkout (not subscriptions). The `transaction.completed` webhook credits the account via a ledger entry.
+- **Usage metering** (new service): Checks balance before allowing an AI request and deducts credits atomically.
+- **Caching**: Credit balance checks must be synchronous and low-latency, which connects to the Phase 2 caching discovery topic.
+
+No changes to existing billing tables are anticipated — the extension is fully additive.
+
 ## Security and Compliance
 - Webhooks verified with provider signing secrets.
 - Idempotent handling with event IDs.
