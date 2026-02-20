@@ -151,14 +151,10 @@ describe('Services > Billing (dev adapter)', () => {
 
   describe('changePlan', () => {
     it('should change the subscription plan', async () => {
-      const [, , proPlan] = await harness.loadFixtures([
+      const [account, , proPlan] = await harness.loadFixtures([
+        fixtures.account.AccountA,
         fixtures.billing.AccountA_FreePlan_Checkout,
-        fixtures.account.AccountA,
         fixtures.billing.ProPlan,
-      ])
-
-      const [account] = await harness.loadFixtures([
-        fixtures.account.AccountA,
       ])
 
       const updated = await promise(
