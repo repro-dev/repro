@@ -1,47 +1,105 @@
-import React, { PropsWithChildren, useContext } from 'react'
+import React, { PropsWithChildren, useContext, useRef } from 'react'
 
 declare global {
   interface Window {
-    Paddle?: any
+    Paddle?: {
+      Environment: { set(env: string): void }
+      Initialize(config: { token: string; eventCallback?: (data: any) => void }): void
+      Checkout: {
+        open(config: any): void
+        close(): void
+      }
+    }
   }
 }
 
-function createBillingClient() {
+export type PaddleEnvironment = 'sandbox' | 'production'
+
+export interface BillingConfig {
+  token: string
+  environment?: PaddleEnvironment
+  eventCallback?: (data: any) => void
+}
+
+function createBillingClient(config: BillingConfig) {
+  let initialized = false
+
   function init() {
-    if (window.Paddle) {
-      if (process.env.BUILD_ENV === 'development') {
-        window.Paddle.Environment.set('sandbox')
-      }
-
-      const vendorId = process.env.PADDLE_VENDOR_ID
-        ? parseInt(process.env.PADDLE_VENDOR_ID, 10)
-        : undefined
-
-      window.Paddle.Setup({
-        vendor: vendorId,
-      })
+    if (initialized) {
+      return
     }
+
+    if (!window.Paddle) {
+      return
+    }
+
+    if (config.environment === 'sandbox') {
+      window.Paddle.Environment.set('sandbox')
+    }
+
+    window.Paddle.Initialize({
+      token: config.token,
+      eventCallback: config.eventCallback,
+    })
+
+    initialized = true
+  }
+
+  function openCheckout(options: any) {
+    if (!window.Paddle) {
+      return
+    }
+
+    window.Paddle.Checkout.open(options)
+  }
+
+  function closeCheckout() {
+    if (!window.Paddle) {
+      return
+    }
+
+    window.Paddle.Checkout.close()
   }
 
   return {
     init,
+    openCheckout,
+    closeCheckout,
   }
 }
 
-const defaultBillingClient = createBillingClient()
-const BillingContext = React.createContext(defaultBillingClient)
+export type BillingClient = ReturnType<typeof createBillingClient>
+
+const BillingContext = React.createContext<BillingClient | null>(null)
 
 interface Props {
-  client?: ReturnType<typeof createBillingClient>
+  config: BillingConfig
+  client?: BillingClient
+}
+
+export function createBillingClientFromConfig(config: BillingConfig) {
+  return createBillingClient(config)
 }
 
 export const BillingProvider: React.FC<PropsWithChildren<Props>> = ({
   children,
-  client = defaultBillingClient,
-}) => (
-  <BillingContext.Provider value={client}>{children}</BillingContext.Provider>
-)
+  config,
+  client,
+}) => {
+  const clientRef = useRef(client ?? createBillingClient(config))
+  return (
+    <BillingContext.Provider value={clientRef.current}>
+      {children}
+    </BillingContext.Provider>
+  )
+}
 
-export function useBillingClient() {
-  return useContext(BillingContext)
+export function useBillingClient(): BillingClient {
+  const client = useContext(BillingContext)
+
+  if (!client) {
+    throw new Error('useBillingClient must be used within a BillingProvider')
+  }
+
+  return client
 }
