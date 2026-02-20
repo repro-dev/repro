@@ -7,6 +7,7 @@ import { Database } from '~/modules/database'
 import { SendParams, createStubEmailUtils } from '~/modules/email-utils'
 import { Storage } from '~/modules/storage'
 import { createAccountService } from '~/services/account'
+import { createDevBillingService } from '~/services/billingDev'
 import { createFeatureGateService } from '~/services/featureGate'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
@@ -47,12 +48,14 @@ export async function createTestHarness(): Promise<Harness> {
   }
 
   const accountService = createAccountService(db, emailUtils)
+  const billingService = createDevBillingService(db, env)
   const featureGateService = createFeatureGateService(db)
   const projectService = createProjectService(db)
   const recordingService = createRecordingService(db, storage)
 
   const services = {
     accountService,
+    billingService,
     featureGateService,
     projectService,
     recordingService,

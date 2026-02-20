@@ -24,6 +24,7 @@
     "@fastify/jwt": "^8.0.1",
     "@inquirer/prompts": "^5.4.0",
     "@node-rs/argon2": "^1.8.3",
+    "@paddle/paddle-node-sdk": "^3.6.0",
     "@repro/domain": "workspace:*",
     "@repro/future-utils": "workspace:*",
     "@repro/random-string": "workspace:*",
