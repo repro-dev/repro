@@ -121,6 +121,71 @@ export function createDevBillingService(
     )
   }
 
+  function createPlan(params: {
+    name: string
+    providerPriceId: string
+    providerProductId: string
+    interval: 'month' | 'year'
+  }): FutureInstance<Error, BillingPlan> {
+    return attemptQuery(() =>
+      database
+        .insertInto('billing_plans')
+        .values({
+          name: params.name,
+          providerPriceId: params.providerPriceId,
+          providerProductId: params.providerProductId,
+          interval: params.interval,
+          active: 1,
+        })
+        .returning([
+          'id',
+          'name',
+          'providerPriceId',
+          'providerProductId',
+          'interval',
+          'active',
+          'createdAt',
+        ])
+        .executeTakeFirstOrThrow()
+    ).pipe(
+      map(row => ({
+        id: encodeId(row.id),
+        name: row.name,
+        providerPriceId: row.providerPriceId,
+        providerProductId: row.providerProductId,
+        interval: row.interval,
+        active: !!row.active,
+        createdAt: row.createdAt,
+      }))
+    )
+  }
+
+  function createEntitlement(
+    planId: string,
+    feature: string,
+    enabled: boolean,
+    limit: number | null
+  ): FutureInstance<Error, BillingEntitlement> {
+    return attemptQuery(() =>
+      database
+        .insertInto('billing_plan_entitlements')
+        .values({
+          planId: decodeId(planId)!,
+          feature,
+          enabled: enabled ? 1 : 0,
+          limit,
+        })
+        .returning(['feature', 'enabled', 'limit'])
+        .executeTakeFirstOrThrow()
+    ).pipe(
+      map(row => ({
+        feature: row.feature,
+        enabled: !!row.enabled,
+        limit: row.limit,
+      }))
+    )
+  }
+
   function getPlanById(planId: string): FutureInstance<Error, BillingPlan> {
     return attemptQuery(() =>
       database
@@ -466,6 +531,8 @@ export function createDevBillingService(
     getOrCreateCustomer,
     getCustomerByAccountId,
     createCheckoutSession,
+    createPlan,
+    createEntitlement,
     getPlanById,
     getPlanByProviderPriceId,
     listPlans,

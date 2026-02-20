@@ -1,11 +1,13 @@
 import { FutureInstance } from 'fluture'
 import { AccountService } from '~/services/account'
+import { BillingService } from '~/services/billing'
 import { FeatureGateService } from '~/services/featureGate'
 import { ProjectService } from '~/services/project'
 import { RecordingService } from '~/services/recording'
 
 export interface Services {
   accountService: AccountService
+  billingService: BillingService
   featureGateService: FeatureGateService
   projectService: ProjectService
   recordingService: RecordingService
