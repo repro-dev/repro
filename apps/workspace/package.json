@@ -21,7 +21,7 @@
     "@repro/api-client": "workspace:*",
     "@repro/atom": "workspace:*",
     "@repro/auth": "workspace:*",
-    "@repro/billing": "workspace:*",
+
     "@repro/css-utils": "workspace:*",
     "@repro/date-utils": "workspace:*",
     "@repro/design": "workspace:*",
