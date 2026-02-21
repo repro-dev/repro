@@ -13,6 +13,7 @@ helm_resource(
     resource_deps=['bitnami'],
     flags=[
         '--set=image.repository=bitnamilegacy/postgresql',
+        '--set=image.tag=17',
         '--set=global.postgresql.auth.username=repro',
         '--set=global.postgresql.auth.password=repro',
         '--set=global.postgresql.auth.database=repro'

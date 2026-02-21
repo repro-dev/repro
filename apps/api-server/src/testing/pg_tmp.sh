@@ -14,6 +14,8 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+PG_PREFIX=$(brew --prefix postgresql@17 2>/dev/null) && PATH="$PG_PREFIX/bin:$PATH"
+
 usage() {
 	echo >&2 "release: ${release}"
 	echo >&2 "usage: pg_tmp [-k] [-t [-p port]] [-w timeout] [-o extra-options] [-d datadir]"
