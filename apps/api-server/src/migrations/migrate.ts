@@ -2,12 +2,17 @@ import { Migrator } from 'kysely'
 import { Database } from '~/modules/database'
 import { SQLFileMigrationProvider } from './SQLFileMigrationProvider'
 
-export async function migrate(db: Database) {
+interface MigrateOptions {
+  quiet?: boolean
+}
+
+export async function migrate(db: Database, options: MigrateOptions = {}) {
   const provider = new SQLFileMigrationProvider()
   const migrator = new Migrator({ db, provider })
   const result = await migrator.migrateToLatest()
+  const quiet = options.quiet ?? false
 
-  if (result.results) {
+  if (result.results && !quiet) {
     for (const migration of result.results) {
       const tag =
         migration.status === 'Success'
