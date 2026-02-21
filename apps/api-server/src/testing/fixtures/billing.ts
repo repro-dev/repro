@@ -1,6 +1,7 @@
 import { Account } from '@repro/domain'
 import { tapF } from '@repro/future-utils'
-import { parallel } from 'fluture'
+import { chain, parallel } from 'fluture'
+import { decodeId } from '~/modules/database'
 import {
   BillingCustomer,
   BillingPlan,
@@ -85,6 +86,56 @@ export const AccountA_ProPlan_Checkout: Fixture<CheckoutResult> = {
       account.id,
       'billing-a@repro.test',
       plan.id
+    ),
+}
+
+export const AccountA_ProPlan_CanceledSubscription: Fixture<BillingSubscription> = {
+  dependencies: [AccountA_ProPlan_Checkout, AccountA],
+  load: ({ billingService }, _checkout: CheckoutResult, account: Account) =>
+    billingService.getSubscriptionByAccountId(account.id).pipe(
+      chain(subscription =>
+        billingService
+          .upsertSubscription({
+            accountId: decodeId(subscription.accountId)!,
+            providerSubscriptionId: subscription.providerSubscriptionId,
+            planId: decodeId(subscription.planId)!,
+            status: 'canceled',
+            currentPeriodStart: subscription.currentPeriodStart,
+            currentPeriodEnd: subscription.currentPeriodEnd,
+            cancelAtPeriodEnd: false,
+            canceledAt: new Date(),
+          })
+          .pipe(
+            chain(() =>
+              billingService.getSubscriptionByAccountId(account.id)
+            )
+          )
+      )
+    ),
+}
+
+export const AccountA_ProPlan_PastDueSubscription: Fixture<BillingSubscription> = {
+  dependencies: [AccountA_ProPlan_Checkout, AccountA],
+  load: ({ billingService }, _checkout: CheckoutResult, account: Account) =>
+    billingService.getSubscriptionByAccountId(account.id).pipe(
+      chain(subscription =>
+        billingService
+          .upsertSubscription({
+            accountId: decodeId(subscription.accountId)!,
+            providerSubscriptionId: subscription.providerSubscriptionId,
+            planId: decodeId(subscription.planId)!,
+            status: 'past_due',
+            currentPeriodStart: subscription.currentPeriodStart,
+            currentPeriodEnd: subscription.currentPeriodEnd,
+            cancelAtPeriodEnd: false,
+            canceledAt: null,
+          })
+          .pipe(
+            chain(() =>
+              billingService.getSubscriptionByAccountId(account.id)
+            )
+          )
+      )
     ),
 }
 

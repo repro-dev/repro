@@ -1,18 +1,11 @@
-import {
-  FutureInstance,
-  chain,
-  map,
-  reject,
-  resolve,
-} from 'fluture'
+import { FutureInstance, chain, map, reject, resolve } from 'fluture'
 import { Env } from '~/config/createEnv'
 import { PaddleClient, createPaddleClient } from '~/modules/billing'
+import { Database, attemptQuery, decodeId, encodeId } from '~/modules/database'
 import {
-  Database,
-  attemptQuery,
-  decodeId,
-  encodeId,
-} from '~/modules/database'
+  BillingEntitlementService,
+  createBillingEntitlementService,
+} from '~/services/billingEntitlements'
 import { badRequest, notFound, serverError } from '~/utils/errors'
 
 export interface BillingCustomer {
@@ -58,13 +51,6 @@ export interface CheckoutResult {
 
 export interface PortalSession {
   url: string
-}
-
-const ENTITLEMENT_CACHE_TTL_MS = 60_000
-
-interface CachedEntitlements {
-  entitlements: Array<BillingEntitlement>
-  expiresAt: number
 }
 
 function asBillingCustomer(row: {
@@ -146,7 +132,8 @@ export function createBillingService(database: Database, env: Env) {
     })
   }
 
-  const entitlementCache = new Map<string, CachedEntitlements>()
+  const entitlementService: BillingEntitlementService =
+    createBillingEntitlementService(database)
 
   function getPaddle(): PaddleClient {
     if (!paddleClient) {
@@ -417,7 +404,13 @@ export function createBillingService(database: Database, env: Env) {
                         'updatedAt',
                       ])
                       .executeTakeFirstOrThrow()
-                  ).pipe(map(asBillingSubscription))
+                  ).pipe(
+                    map(row => {
+                      const result = asBillingSubscription(row)
+                      invalidateEntitlementCache(accountId)
+                      return result
+                    })
+                  )
                 )
               )
           })
@@ -487,41 +480,11 @@ export function createBillingService(database: Database, env: Env) {
   function getEntitlements(
     accountId: string
   ): FutureInstance<Error, Array<BillingEntitlement>> {
-    const cached = entitlementCache.get(accountId)
-    if (cached && cached.expiresAt > Date.now()) {
-      return resolve(cached.entitlements)
-    }
-
-    return getSubscriptionByAccountId(accountId).pipe(
-      chain(subscription =>
-        attemptQuery(() =>
-          database
-            .selectFrom('billing_plan_entitlements')
-            .select(['feature', 'enabled', 'limit'])
-            .where('planId', '=', decodeId(subscription.planId))
-            .execute()
-        ).pipe(
-          map(rows => {
-            const entitlements: Array<BillingEntitlement> = rows.map(row => ({
-              feature: row.feature,
-              enabled: !!row.enabled,
-              limit: row.limit,
-            }))
-
-            entitlementCache.set(accountId, {
-              entitlements,
-              expiresAt: Date.now() + ENTITLEMENT_CACHE_TTL_MS,
-            })
-
-            return entitlements
-          })
-        )
-      )
-    )
+    return entitlementService.getEntitlements(accountId)
   }
 
   function invalidateEntitlementCache(accountId: string): void {
-    entitlementCache.delete(accountId)
+    entitlementService.invalidateEntitlementCache(accountId)
   }
 
   function recordWebhookEvent(
@@ -635,6 +598,10 @@ export function createBillingService(database: Database, env: Env) {
             })
             .execute()
         })
+      })
+    ).pipe(
+      map(() => {
+        invalidateEntitlementCache(encodeId(params.accountId))
       })
     )
   }
