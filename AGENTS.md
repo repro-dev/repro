@@ -15,7 +15,8 @@
 - **Paths**: Use `~/*` alias for local imports within packages
 - **React**: Functional components with hooks, use `@jsxstyle/react` for styling
 - **Naming**: PascalCase for components/types, camelCase for functions/variables
-- **Error handling**: Use `serialize-error` for serialization, `fluture` for async operations
+- **Async**: Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer Future-based signatures in interfaces that may involve I/O.
+- **Error handling**: Use `serialize-error` for serialization
 - **NO COMMENTS**: Do not add code comments unless explicitly requested
 
 ## Conventions
