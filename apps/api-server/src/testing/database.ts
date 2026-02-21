@@ -17,7 +17,7 @@ export async function setUpTestDatabase() {
 
   const client = createPostgresDatabaseClient(db)
 
-  await migrate(client)
+  await migrate(client, { quiet: !process.env.CI })
 
   return {
     db: client,
