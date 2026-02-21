@@ -14,16 +14,19 @@ import { createS3StorageClient } from '~/modules/storage-s3'
 import { createAccountRouter } from '~/routers/account'
 import { createAgenticRouter } from '~/routers/agentic'
 import { createBillingRouter } from '~/routers/billing'
+import { createBillingWebhookRouter } from '~/routers/billingWebhook'
 import { createFeatureGateRouter } from '~/routers/featureGate'
 import { createHealthRouter } from '~/routers/health'
 import { createProjectRouter } from '~/routers/project'
 import { createAccountService } from '~/services/account'
 import { createBillingService } from '~/services/billing'
+import { createBillingWebhookService } from '~/services/billingWebhook'
 import { createFeatureGateService } from '~/services/featureGate'
 import { createHealthService } from '~/services/health'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { serverError } from '~/utils/errors'
+import { createPaddleClient } from '~/modules/billing'
 import { createHttpClient } from './modules/http'
 import { createStaffRouter } from './routers/staff'
 import { createAgenticService } from './services/agentic'
@@ -73,6 +76,20 @@ const recordingService = createRecordingService(database, storage)
 const accountRouter = createAccountRouter(accountService)
 const agenticRouter = createAgenticRouter(agenticService, accountService)
 const billingRouter = createBillingRouter(billingService, accountService)
+const billingWebhookRouter =
+  !env.BILLING_STUBBED && env.PADDLE_API_KEY && env.PADDLE_WEBHOOK_SECRET
+    ? createBillingWebhookRouter(
+        createBillingWebhookService(
+          database,
+          billingService,
+          createPaddleClient({
+            apiKey: env.PADDLE_API_KEY,
+            environment: env.PADDLE_ENVIRONMENT,
+            webhookSecret: env.PADDLE_WEBHOOK_SECRET,
+          })
+        )
+      )
+    : null
 const featureGateRouter = createFeatureGateRouter(
   featureGateService,
   accountService
@@ -134,6 +151,9 @@ bootstrap({
   '/account': accountRouter,
   '/agentic': agenticRouter,
   '/billing': billingRouter,
+  ...(billingWebhookRouter
+    ? { '/billing/webhooks': billingWebhookRouter }
+    : {}),
   '/feature-gates': featureGateRouter,
   '/health': healthRouter,
   '/projects': projectRouter,

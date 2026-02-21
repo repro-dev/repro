@@ -441,18 +441,40 @@ export function createDevBillingService(
   ): FutureInstance<Error, { id: string; alreadyProcessed: boolean }> {
     return attemptQuery(() =>
       database
-        .insertInto('billing_events')
-        .values({
-          providerEventId,
-          eventType,
-          payload,
-          status: 'success',
-          error: null,
-          processedAt: new Date(),
-        })
-        .returning(['id'])
-        .executeTakeFirstOrThrow()
-    ).pipe(map(row => ({ id: encodeId(row.id), alreadyProcessed: false })))
+        .selectFrom('billing_events')
+        .select(['id'])
+        .where('providerEventId', '=', providerEventId)
+        .executeTakeFirst()
+    ).pipe(
+      chain(existing => {
+        if (existing) {
+          return resolve({
+            id: encodeId(existing.id),
+            alreadyProcessed: true,
+          })
+        }
+
+        return attemptQuery(() =>
+          database
+            .insertInto('billing_events')
+            .values({
+              providerEventId,
+              eventType,
+              payload,
+              status: 'pending',
+              error: null,
+              processedAt: null,
+            })
+            .returning(['id'])
+            .executeTakeFirstOrThrow()
+        ).pipe(
+          map(row => ({
+            id: encodeId(row.id),
+            alreadyProcessed: false,
+          }))
+        )
+      })
+    )
   }
 
   function markWebhookEventProcessed(
