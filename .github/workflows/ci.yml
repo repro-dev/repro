@@ -88,6 +88,8 @@ jobs:
 
       - name: Check affected packages
         run: moon ci :build :typecheck :test
+        env:
+          NODE_OPTIONS: '--test-reporter spec'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
