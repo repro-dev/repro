@@ -13,10 +13,12 @@ import { createSMTPEmailUtils } from '~/modules/email-utils'
 import { createS3StorageClient } from '~/modules/storage-s3'
 import { createAccountRouter } from '~/routers/account'
 import { createAgenticRouter } from '~/routers/agentic'
+import { createBillingRouter } from '~/routers/billing'
 import { createFeatureGateRouter } from '~/routers/featureGate'
 import { createHealthRouter } from '~/routers/health'
 import { createProjectRouter } from '~/routers/project'
 import { createAccountService } from '~/services/account'
+import { createBillingService } from '~/services/billing'
 import { createFeatureGateService } from '~/services/featureGate'
 import { createHealthService } from '~/services/health'
 import { createProjectService } from '~/services/project'
@@ -62,6 +64,7 @@ const emailUtils = createSMTPEmailUtils({
 
 const accountService = createAccountService(database, emailUtils)
 const agenticService = createAgenticService(httpClient)
+const billingService = createBillingService(database, env)
 const featureGateService = createFeatureGateService(database)
 const healthService = createHealthService(database, storage)
 const projectService = createProjectService(database)
@@ -69,6 +72,7 @@ const recordingService = createRecordingService(database, storage)
 
 const accountRouter = createAccountRouter(accountService)
 const agenticRouter = createAgenticRouter(agenticService, accountService)
+const billingRouter = createBillingRouter(billingService, accountService)
 const featureGateRouter = createFeatureGateRouter(
   featureGateService,
   accountService
@@ -129,6 +133,7 @@ function bootstrap(routers: Record<string, FastifyPluginAsync>) {
 bootstrap({
   '/account': accountRouter,
   '/agentic': agenticRouter,
+  '/billing': billingRouter,
   '/feature-gates': featureGateRouter,
   '/health': healthRouter,
   '/projects': projectRouter,

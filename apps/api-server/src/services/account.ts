@@ -555,6 +555,17 @@ export function createAccountService(
     ).pipe(map(asUser))
   }
 
+  function getUserEmailById(id: string): FutureInstance<Error, string> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('users')
+        .select(['email'])
+        .where('id', '=', decodeId(id))
+        .where('active', '=', 1)
+        .executeTakeFirstOrThrow(() => notFound())
+    ).pipe(map(row => row.email))
+  }
+
   function getUserByEmail(email: string): FutureInstance<Error, User> {
     return attemptQuery(async () => {
       return database
@@ -754,6 +765,7 @@ export function createAccountService(
     getUserByEmail,
     getUserByEmailAndPassword,
     getUserById,
+    getUserEmailById,
     getUserIsAdmin,
     sendVerificationEmail,
     verifyUser,
