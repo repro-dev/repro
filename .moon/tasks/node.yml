@@ -14,6 +14,8 @@ tasks:
     deps:
     - ^:build
     - build
+    env:
+      NODE_OPTIONS: '--test-reporter spec'
     options:
       cache: true
   typecheck:
