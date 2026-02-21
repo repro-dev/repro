@@ -5,8 +5,11 @@
   "main": "index.js",
   "license": "UNLICENSED",
   "devDependencies": {
+    "@commitlint/cli": "^20.4.2",
+    "@commitlint/config-conventional": "^20.4.2",
     "@jsxstyle/core": "^3.0.1",
-    "@types/trusted-types": "^2.0.7"
+    "@types/trusted-types": "^2.0.7",
+    "husky": "^9.1.7"
   },
   "pnpm": {
     "overrides": {
@@ -37,5 +40,8 @@
     "node": "22.19.0",
     "pnpm": "10.17.0"
   },
-  "packageManager": "pnpm@10.17.0"
+  "packageManager": "pnpm@10.17.0",
+  "scripts": {
+    "prepare": "husky"
+  }
 }
