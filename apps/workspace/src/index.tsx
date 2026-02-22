@@ -19,6 +19,7 @@ const LoginRoute = lazy(() => import('./routes/LoginRoute'))
 const MainRoute = lazy(() => import('./routes/MainRoute'))
 const RecordingRoute = lazy(() => import('./routes/RecordingRoute'))
 const RegisterRoute = lazy(() => import('./routes/RegisterRoute'))
+const PricingRoute = lazy(() => import('./routes/PricingRoute'))
 const PublicRecordingRoute = lazy(() => import('./routes/PublicRecordingRoute'))
 
 declare global {
@@ -93,6 +94,7 @@ if (rootElem) {
                       />
                     </Route>
 
+                    <Route path="pricing" element={<PricingRoute />} />
                     <Route
                       path="share/:recordingId"
                       element={<PublicRecordingRoute />}
