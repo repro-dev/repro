@@ -10,6 +10,7 @@
     "dev-watch": "node scripts/dev-watch.js",
     "fmt": "prettier --write src",
     "migrate": "tsx src/migrations/run.ts",
+    "reset-db": "tsx src/migrations/reset.ts",
     "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
     "typecheck": "tsc --noEmit"
   },

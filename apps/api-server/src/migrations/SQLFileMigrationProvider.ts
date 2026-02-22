@@ -12,7 +12,7 @@ export class SQLFileMigrationProvider implements MigrationProvider {
     const migrations: Record<string, Migration> = {}
 
     for (const entry of migrationEntries) {
-      migrations[entry.filename] = {
+      migrations[path.basename(entry.filename)] = {
         async up(db) {
           await db.executeQuery(sql.raw(entry.up).compile(db))
         },
