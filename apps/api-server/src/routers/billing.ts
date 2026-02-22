@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
-import { go, map } from 'fluture'
+import { go } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
@@ -24,12 +24,7 @@ export function createBillingRouter(
     const app = fastify.withTypeProvider<ZodTypeProvider>()
 
     app.get('/plans', {}, (_, res) => {
-      respondWith(
-        res,
-        billingService.listPlansWithEntitlements().pipe(
-          map(plans => ({ plans }))
-        )
-      )
+      respondWith(res, billingService.listPlansWithEntitlements())
     })
 
     app.post<{
