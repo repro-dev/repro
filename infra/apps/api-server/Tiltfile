@@ -157,6 +157,14 @@ k8s_resource(
   labels=['api']
 )
 
+local_resource(
+  'db-reset',
+  cmd='pnpm --filter @repro/api-server run reset-db',
+  resource_deps=['database-ready'],
+  labels=['api'],
+  trigger_mode=TRIGGER_MODE_MANUAL,
+)
+
 k8s_resource(
   'api-server-deployment',
   new_name='api-server',
