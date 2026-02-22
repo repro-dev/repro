@@ -163,6 +163,7 @@ local_resource(
   resource_deps=['database-ready'],
   labels=['api'],
   trigger_mode=TRIGGER_MODE_MANUAL,
+  auto_init=False,
 )
 
 k8s_resource(
