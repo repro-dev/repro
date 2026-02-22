@@ -1,3 +1,5 @@
+import { ListResponse } from './api'
+
 export interface BillingEntitlement {
   feature: string
   enabled: boolean
@@ -11,9 +13,7 @@ export interface BillingPlanWithEntitlements {
   entitlements: Array<BillingEntitlement>
 }
 
-export interface ListPlansResponse {
-  plans: Array<BillingPlanWithEntitlements>
-}
+export type ListPlansResponse = ListResponse<BillingPlanWithEntitlements>
 
 export interface CheckoutResponse {
   transactionId: string
