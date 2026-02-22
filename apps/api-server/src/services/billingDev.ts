@@ -7,6 +7,7 @@ import {
   createBillingEntitlementService,
 } from '~/services/billingEntitlements'
 import { badRequest, notFound } from '~/utils/errors'
+import { BillingPlanWithEntitlements } from '@repro/domain'
 import {
   BillingCustomer,
   BillingEntitlement,
@@ -285,7 +286,7 @@ export function createDevBillingService(
 
   function listPlansWithEntitlements(): FutureInstance<
     Error,
-    Array<BillingPlan & { entitlements: Array<BillingEntitlement> }>
+    Array<BillingPlanWithEntitlements>
   > {
     return attemptQuery(() =>
       database
@@ -298,11 +299,7 @@ export function createDevBillingService(
         .select([
           'billing_plans.id',
           'billing_plans.name',
-          'billing_plans.providerPriceId',
-          'billing_plans.providerProductId',
           'billing_plans.interval',
-          'billing_plans.active',
-          'billing_plans.createdAt',
           'billing_plan_entitlements.feature',
           'billing_plan_entitlements.enabled',
           'billing_plan_entitlements.limit',
@@ -312,21 +309,14 @@ export function createDevBillingService(
         .execute()
     ).pipe(
       map(rows => {
-        const planMap = new Map<
-          number,
-          BillingPlan & { entitlements: Array<BillingEntitlement> }
-        >()
+        const planMap = new Map<number, BillingPlanWithEntitlements>()
 
         for (const row of rows) {
           if (!planMap.has(row.id)) {
             planMap.set(row.id, {
               id: encodeId(row.id),
               name: row.name,
-              providerPriceId: row.providerPriceId,
-              providerProductId: row.providerProductId,
               interval: row.interval,
-              active: !!row.active,
-              createdAt: row.createdAt,
               entitlements: [],
             })
           }
