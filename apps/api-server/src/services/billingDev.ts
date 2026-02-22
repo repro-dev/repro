@@ -1,5 +1,6 @@
 import { FutureInstance, chain, map, reject, resolve } from 'fluture'
 import { Env } from '~/config/createEnv'
+import { tapF } from '@repro/future-utils'
 import { Database, attemptQuery, decodeId, encodeId } from '~/modules/database'
 import {
   BillingEntitlementService,
@@ -345,9 +346,10 @@ export function createDevBillingService(
               'updatedAt',
             ])
             .executeTakeFirstOrThrow()
-        ).pipe(
-          map(row => {
-            const result: BillingSubscription = {
+        )
+        .pipe(
+          map(
+            (row): BillingSubscription => ({
               id: encodeId(row.id),
               accountId: encodeId(row.accountId),
               providerSubscriptionId: row.providerSubscriptionId,
@@ -359,10 +361,13 @@ export function createDevBillingService(
               canceledAt: row.canceledAt,
               createdAt: row.createdAt,
               updatedAt: row.updatedAt,
-            }
-            invalidateEntitlementCache(accountId)
-            return result
-          })
+            })
+          )
+        )
+        .pipe(
+          tapF((result: BillingSubscription) =>
+            invalidateEntitlementCache(result.accountId)
+          )
         )
       )
     )
@@ -425,8 +430,10 @@ export function createDevBillingService(
     return entitlementService.getEntitlements(accountId)
   }
 
-  function invalidateEntitlementCache(accountId: string): void {
-    entitlementService.invalidateEntitlementCache(accountId)
+  function invalidateEntitlementCache(
+    accountId: string
+  ): FutureInstance<Error, void> {
+    return entitlementService.invalidateEntitlementCache(accountId)
   }
 
   function recordWebhookEvent(
@@ -542,9 +549,7 @@ export function createDevBillingService(
         })
       })
     ).pipe(
-      map(() => {
-        invalidateEntitlementCache(encodeId(params.accountId))
-      })
+      tapF(() => invalidateEntitlementCache(encodeId(params.accountId)))
     )
   }
 

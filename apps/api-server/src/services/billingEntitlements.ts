@@ -65,8 +65,10 @@ export function createBillingEntitlementService(database: Database) {
     )
   }
 
-  function invalidateEntitlementCache(accountId: string): void {
-    cache.delete(accountId)
+  function invalidateEntitlementCache(
+    accountId: string
+  ): FutureInstance<Error, void> {
+    return cache.delete(accountId).pipe(map(() => undefined))
   }
 
   return {

@@ -6,6 +6,7 @@ import {
   BillingEntitlementService,
   createBillingEntitlementService,
 } from '~/services/billingEntitlements'
+import { tapF } from '@repro/future-utils'
 import { badRequest, notFound, serverError } from '~/utils/errors'
 
 export interface BillingCustomer {
@@ -404,12 +405,12 @@ export function createBillingService(database: Database, env: Env) {
                         'updatedAt',
                       ])
                       .executeTakeFirstOrThrow()
-                  ).pipe(
-                    map(row => {
-                      const result = asBillingSubscription(row)
-                      invalidateEntitlementCache(accountId)
-                      return result
-                    })
+                  )
+                  .pipe(map(asBillingSubscription))
+                  .pipe(
+                    tapF((result: BillingSubscription) =>
+                      invalidateEntitlementCache(result.accountId)
+                    )
                   )
                 )
               )
@@ -483,8 +484,10 @@ export function createBillingService(database: Database, env: Env) {
     return entitlementService.getEntitlements(accountId)
   }
 
-  function invalidateEntitlementCache(accountId: string): void {
-    entitlementService.invalidateEntitlementCache(accountId)
+  function invalidateEntitlementCache(
+    accountId: string
+  ): FutureInstance<Error, void> {
+    return entitlementService.invalidateEntitlementCache(accountId)
   }
 
   function recordWebhookEvent(
@@ -600,9 +603,7 @@ export function createBillingService(database: Database, env: Env) {
         })
       })
     ).pipe(
-      map(() => {
-        invalidateEntitlementCache(encodeId(params.accountId))
-      })
+      tapF(() => invalidateEntitlementCache(encodeId(params.accountId)))
     )
   }
 
