@@ -283,6 +283,68 @@ export function createDevBillingService(
     )
   }
 
+  function listPlansWithEntitlements(): FutureInstance<
+    Error,
+    Array<BillingPlan & { entitlements: Array<BillingEntitlement> }>
+  > {
+    return attemptQuery(() =>
+      database
+        .selectFrom('billing_plans')
+        .leftJoin(
+          'billing_plan_entitlements',
+          'billing_plan_entitlements.planId',
+          'billing_plans.id'
+        )
+        .select([
+          'billing_plans.id',
+          'billing_plans.name',
+          'billing_plans.providerPriceId',
+          'billing_plans.providerProductId',
+          'billing_plans.interval',
+          'billing_plans.active',
+          'billing_plans.createdAt',
+          'billing_plan_entitlements.feature',
+          'billing_plan_entitlements.enabled',
+          'billing_plan_entitlements.limit',
+        ])
+        .where('billing_plans.active', '=', 1)
+        .orderBy('billing_plans.name asc')
+        .execute()
+    ).pipe(
+      map(rows => {
+        const planMap = new Map<
+          number,
+          BillingPlan & { entitlements: Array<BillingEntitlement> }
+        >()
+
+        for (const row of rows) {
+          if (!planMap.has(row.id)) {
+            planMap.set(row.id, {
+              id: encodeId(row.id),
+              name: row.name,
+              providerPriceId: row.providerPriceId,
+              providerProductId: row.providerProductId,
+              interval: row.interval,
+              active: !!row.active,
+              createdAt: row.createdAt,
+              entitlements: [],
+            })
+          }
+
+          if (row.feature !== null) {
+            planMap.get(row.id)!.entitlements.push({
+              feature: row.feature,
+              enabled: !!row.enabled,
+              limit: row.limit,
+            })
+          }
+        }
+
+        return Array.from(planMap.values())
+      })
+    )
+  }
+
   function getSubscriptionByAccountId(
     accountId: string
   ): FutureInstance<Error, BillingSubscription> {
@@ -562,6 +624,7 @@ export function createDevBillingService(
     getPlanById,
     getPlanByProviderPriceId,
     listPlans,
+    listPlansWithEntitlements,
     getSubscriptionByAccountId,
     changePlan,
     cancelSubscription,
