@@ -21,5 +21,6 @@ export type { CodecVersion }
 
 // Interface types
 export * from './account'
+export * from './api'
 export * from './billing'
 export * from './project'
