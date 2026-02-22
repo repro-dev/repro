@@ -1,6 +1,11 @@
 import { FutureInstance, chain, map, reject, resolve } from 'fluture'
 import { Env } from '~/config/createEnv'
+import { tapF } from '@repro/future-utils'
 import { Database, attemptQuery, decodeId, encodeId } from '~/modules/database'
+import {
+  BillingEntitlementService,
+  createBillingEntitlementService,
+} from '~/services/billingEntitlements'
 import { badRequest, notFound } from '~/utils/errors'
 import {
   BillingCustomer,
@@ -16,6 +21,9 @@ export function createDevBillingService(
   database: Database,
   _env: Env
 ): BillingService {
+  const entitlementService: BillingEntitlementService =
+    createBillingEntitlementService(database)
+
   function getOrCreateCustomer(
     accountId: string,
     _email: string,
@@ -338,20 +346,28 @@ export function createDevBillingService(
               'updatedAt',
             ])
             .executeTakeFirstOrThrow()
-        ).pipe(
-          map(row => ({
-            id: encodeId(row.id),
-            accountId: encodeId(row.accountId),
-            providerSubscriptionId: row.providerSubscriptionId,
-            planId: encodeId(row.planId),
-            status: row.status,
-            currentPeriodStart: row.currentPeriodStart,
-            currentPeriodEnd: row.currentPeriodEnd,
-            cancelAtPeriodEnd: !!row.cancelAtPeriodEnd,
-            canceledAt: row.canceledAt,
-            createdAt: row.createdAt,
-            updatedAt: row.updatedAt,
-          }))
+        )
+        .pipe(
+          map(
+            (row): BillingSubscription => ({
+              id: encodeId(row.id),
+              accountId: encodeId(row.accountId),
+              providerSubscriptionId: row.providerSubscriptionId,
+              planId: encodeId(row.planId),
+              status: row.status,
+              currentPeriodStart: row.currentPeriodStart,
+              currentPeriodEnd: row.currentPeriodEnd,
+              cancelAtPeriodEnd: !!row.cancelAtPeriodEnd,
+              canceledAt: row.canceledAt,
+              createdAt: row.createdAt,
+              updatedAt: row.updatedAt,
+            })
+          )
+        )
+        .pipe(
+          tapF((result: BillingSubscription) =>
+            invalidateEntitlementCache(result.accountId)
+          )
         )
       )
     )
@@ -411,28 +427,14 @@ export function createDevBillingService(
   function getEntitlements(
     accountId: string
   ): FutureInstance<Error, Array<BillingEntitlement>> {
-    return getSubscriptionByAccountId(accountId).pipe(
-      chain(subscription =>
-        attemptQuery(() =>
-          database
-            .selectFrom('billing_plan_entitlements')
-            .select(['feature', 'enabled', 'limit'])
-            .where('planId', '=', decodeId(subscription.planId))
-            .execute()
-        ).pipe(
-          map(rows =>
-            rows.map(row => ({
-              feature: row.feature,
-              enabled: !!row.enabled,
-              limit: row.limit,
-            }))
-          )
-        )
-      )
-    )
+    return entitlementService.getEntitlements(accountId)
   }
 
-  function invalidateEntitlementCache(_accountId: string): void {}
+  function invalidateEntitlementCache(
+    accountId: string
+  ): FutureInstance<Error, void> {
+    return entitlementService.invalidateEntitlementCache(accountId)
+  }
 
   function recordWebhookEvent(
     providerEventId: string,
@@ -546,6 +548,8 @@ export function createDevBillingService(
             .execute()
         })
       })
+    ).pipe(
+      tapF(() => invalidateEntitlementCache(encodeId(params.accountId)))
     )
   }
 

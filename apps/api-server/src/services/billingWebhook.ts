@@ -6,7 +6,7 @@ import {
   resolve,
 } from 'fluture'
 import { PaddleClient } from '~/modules/billing'
-import { Database, attemptQuery } from '~/modules/database'
+import { Database, attemptQuery, encodeId } from '~/modules/database'
 import { BillingService } from '~/services/billing'
 
 interface WebhookResult {
@@ -109,14 +109,7 @@ export function createBillingWebhookService(
                     cancelAtPeriodEnd: false,
                     canceledAt: null,
                   })
-                  .pipe(
-                    chain(() => {
-                      billingService.invalidateEntitlementCache(
-                        String(accountId)
-                      )
-                      return markSuccess(eventId)
-                    })
-                  )
+                  .pipe(chain(() => markSuccess(eventId)))
               )
             )
           )
@@ -149,14 +142,7 @@ export function createBillingWebhookService(
                       ? new Date(data.canceled_at)
                       : null,
                   })
-                  .pipe(
-                    chain(() => {
-                      billingService.invalidateEntitlementCache(
-                        String(accountId)
-                      )
-                      return markSuccess(eventId)
-                    })
-                  )
+                  .pipe(chain(() => markSuccess(eventId)))
               )
             )
           )
@@ -188,14 +174,7 @@ export function createBillingWebhookService(
                       ? new Date(data.canceled_at)
                       : new Date(),
                   })
-                  .pipe(
-                    chain(() => {
-                      billingService.invalidateEntitlementCache(
-                        String(accountId)
-                      )
-                      return markSuccess(eventId)
-                    })
-                  )
+                  .pipe(chain(() => markSuccess(eventId)))
               )
             )
           )
@@ -240,7 +219,7 @@ export function createBillingWebhookService(
         }).pipe(
           chain(() => {
             billingService.invalidateEntitlementCache(
-              String(subscription.accountId)
+              encodeId(subscription.accountId)
             )
             return markSuccess(eventId)
           })
