@@ -2,6 +2,7 @@ import { Block, Row } from '@jsxstyle/react'
 import { X as CloseIcon } from 'lucide-react'
 import React, { PropsWithChildren } from 'react'
 import { Portal } from '../Portal'
+import { focusRing } from '../tokens/interaction'
 import { colors } from '../theme'
 
 interface Props {
@@ -34,6 +35,7 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
         }
       >
         <Row
+          component="button"
           position="absolute"
           top={10}
           right={10}
@@ -41,10 +43,13 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
           height={32}
           alignItems="center"
           justifyContent="center"
+          background="none"
+          border="none"
           hoverBackgroundColor={colors.slate['100']}
           borderRadius="99rem"
           cursor="pointer"
-          props={{ onClick: onClose }}
+          props={{ type: 'button', onClick: onClose }}
+          {...focusRing()}
         >
           <CloseIcon size={16} />
         </Row>

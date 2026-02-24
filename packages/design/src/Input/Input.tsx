@@ -8,6 +8,7 @@ import React, {
 } from 'react'
 import { UseFormRegisterReturn } from 'react-hook-form'
 import mergeRefs from 'react-merge-refs'
+import { focusWithinRing } from '../tokens/interaction'
 import { colors } from '../theme'
 
 type Context = 'normal' | 'error'
@@ -102,14 +103,8 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
         borderStyle="solid"
         borderWidth={1}
         boxShadow={`0 0.5px 1.5px ${colors.slate['300']}DA`}
-        outline={
-          focused
-            ? `4px solid ${
-                context === 'error' ? colors.rose['100'] : colors.blue['100']
-              }`
-            : 'none'
-        }
         position="relative"
+        {...focusWithinRing(context === 'error' ? 'danger' : 'default')}
       >
         {label && (
           <Block

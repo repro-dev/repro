@@ -1,5 +1,6 @@
 export * from './colors'
 export * from './elevation'
+export * from './interaction'
 export * from './motion'
 export * from './spacing'
 export * from './typography'
