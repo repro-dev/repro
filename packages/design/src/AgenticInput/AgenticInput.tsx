@@ -146,14 +146,13 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
             borderRadius={4}
             color={colors.white}
             component="button"
-            disabled={disabled}
             display="flex"
             inlineSize={32}
             justifyContent="center"
             lineHeight={1}
             transition="all linear 100ms"
             cursor={hasValue ? 'pointer' : 'default'}
-            props={{ type: 'submit', disabled: !hasValue }}
+            props={{ type: 'submit', disabled: disabled || !hasValue }}
             {...focusRing()}
           >
             <ArrowUpIcon size={16} />
