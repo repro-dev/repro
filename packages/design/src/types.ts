@@ -4,13 +4,21 @@ export type SizeVariant = 'small' | 'medium' | 'large'
 
 export type ButtonVariant = 'contained' | 'outlined' | 'text'
 
-export type ContextVariant = 'info' | 'success' | 'warning' | 'danger' | 'neutral' | 'inverted'
+export type ContextVariant =
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'neutral'
+  | 'inverted'
 
-export type ButtonClickHandler = (event: React.MouseEvent<HTMLButtonElement>) => void
+export type ButtonClickHandler = (
+  event: React.MouseEvent<HTMLButtonElement>
+) => void
 
-export type InputChangeHandler = (event: React.ChangeEvent<HTMLInputElement>) => void
-
-export type DivClickHandler = (event: React.MouseEvent<HTMLDivElement>) => void
+export type InputChangeHandler = (
+  event: React.ChangeEvent<HTMLInputElement>
+) => void
 
 export interface WithChildren {
   children?: React.ReactNode

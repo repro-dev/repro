@@ -107,6 +107,20 @@ This means `onClick`, `onFocus`, `onBlur`, `aria-label`, etc. are automatically 
 - Modal and Drawer must trap focus while open (use `useFocusTrap` hook)
 - On modal/drawer close, focus must return to the element that triggered opening
 
+### Color Contrast
+
+All text and interactive elements must meet **WCAG 2.1 AA** minimum contrast ratios:
+
+| Element type | Minimum contrast ratio |
+|---|---|
+| Normal text (< 18pt / < 14pt bold) | 4.5:1 against background |
+| Large text (>= 18pt / >= 14pt bold) | 3:1 against background |
+| UI components and graphical objects (borders, icons, focus rings) | 3:1 against adjacent colors |
+
+- The `disabled` state is exempt from contrast requirements per WCAG, but should remain visually distinguishable from the enabled state
+- The `context` variants (`info`, `success`, `warning`, `danger`) must each meet contrast requirements independently — do not rely on color alone to convey meaning (pair with icons or text labels)
+- When tokens are defined (REP-154), contrast compliance must be verified for every semantic color pairing (foreground on background)
+
 ### Keyboard Interaction
 
 - `<button>` handles `Enter` and `Space` natively — no custom handlers needed
@@ -181,13 +195,15 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(/* ... */) as
 
 ### Hooks for Shared Behavior
 
-Reusable interactive patterns are extracted into hooks, not render props or HOCs:
+Reusable interactive patterns are extracted into hooks, not render props or HOCs.
 
-| Hook | Purpose |
-|------|---------|
-| `useFocusTrap` | Trap and restore focus for modals/drawers |
-| `useDisclosureState` | Open/close toggle state with optional controlled mode |
-| `useKeyboardNavigation` | Arrow-key navigation for lists/menus |
+The following hooks are **planned but not yet implemented**. They are listed here to establish the contract — implementations will be added as part of the accessibility and component refactoring work (see REP-160):
+
+| Hook | Purpose | Status |
+|------|---------|--------|
+| `useFocusTrap` | Trap and restore focus for modals/drawers | Planned (REP-160) |
+| `useDisclosureState` | Open/close toggle state with optional controlled mode | Planned |
+| `useKeyboardNavigation` | Arrow-key navigation for lists/menus | Planned |
 
 ---
 
@@ -221,10 +237,10 @@ export type { ModalProps } from './Modal'
 
 ### Storybook Stories (Required)
 
-Every component needs a `ComponentName.stories.tsx` using Storybook CSF3 format. The package uses `@ladle/react` as the story runner.
+Every component needs a `ComponentName.stories.tsx` using Storybook CSF3 format. The package uses `@storybook/react-vite` (Storybook v9) as the story runner.
 
 ```tsx
-import type { Meta, StoryObj } from '@ladle/react'
+import type { Meta, StoryObj } from '@storybook/react'
 import { Button } from './Button'
 
 const meta = {
