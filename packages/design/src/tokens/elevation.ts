@@ -40,7 +40,7 @@ export type ShadowValue = (typeof shadow)[ShadowToken]
 /**
  * Semantic border-radius scale in px (numeric values) or CSS strings.
  *
- * - `none` and `full` are string values (`'0'` / `'9999px'`).
+ * - `none` is a number (`0`), `full` is a string (`'9999px'`).
  * - All other values are numbers suitable for jsxstyle's `borderRadius` prop.
  */
 export const radius = {

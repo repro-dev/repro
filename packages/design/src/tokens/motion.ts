@@ -59,8 +59,8 @@ export const transition = {
   fast: `all ${duration.fast} ${easing.default}`,
   /** Transform only, fast duration, default easing */
   transform: `transform ${duration.fast} ${easing.default}`,
-  /** Opacity only, 250ms, default easing */
-  opacity: `opacity 250ms ${easing.default}`,
+  /** Opacity only, normal duration, default easing */
+  opacity: `opacity ${duration.normal} ${easing.default}`,
 } as const
 
 export type TransitionToken = keyof typeof transition
