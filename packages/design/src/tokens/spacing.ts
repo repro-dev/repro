@@ -1,7 +1,9 @@
 /**
  * Spacing token scale for @repro/design
  *
- * A base-4 scale with 9 named values covering the full range of spacing needs.
+ * A 9-step scale where every value is a multiple of 4 (except 2px for hairline
+ * gaps). Covers the full range of spacing needs in the codebase.
+ *
  * Some existing hardcoded values shift slightly (e.g. 5→4, 10→8, 15→16, 20→24,
  * 30→32, 40→48) — verify visual impact in Storybook during migration.
  *

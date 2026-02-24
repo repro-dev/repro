@@ -1,1 +1,1 @@
-export { default as colors } from 'tailwindcss/colors'
+export { colors } from './tokens/colors'
