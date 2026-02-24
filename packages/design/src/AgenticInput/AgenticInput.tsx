@@ -9,7 +9,7 @@ import React, {
   useState,
 } from 'react'
 import colors from 'tailwindcss/colors'
-import { focusRing, focusWithinRing } from '../tokens/interaction'
+import { focusRing } from '../tokens/interaction'
 
 export interface AgenticInputFormState {
   value: string
@@ -113,7 +113,6 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
         padding={8}
         position="relative"
         onClick={triggerFocus}
-        {...focusWithinRing()}
       >
         <Block
           backgroundColor="transparent"

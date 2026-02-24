@@ -91,7 +91,7 @@ export const Button: React.FC<Props> = ({
       fontSize={fontSize}
       lineHeight="1em"
       transition="all linear 100ms"
-      {...focusRing()}
+      {...focusRing(context)}
     >
       {children}
     </Row>

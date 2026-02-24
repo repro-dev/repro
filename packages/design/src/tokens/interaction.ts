@@ -20,15 +20,37 @@ import twColors from 'tailwindcss/colors'
  * Raw token values for focus ring styling.
  *
  * The default ring uses the same blue palette as `color.border.focus`.
- * The danger variant mirrors Input's error-context focus styling.
+ * Additional contexts mirror the component library's color groups so that
+ * focus rings can match the interactive context (e.g. a danger button gets a
+ * rose ring, a success button gets a green ring).
  */
 export const focusRingTokens = {
   default: {
     outline: `4px solid ${twColors.blue['100']}`,
     outlineOffset: 0,
   },
+  info: {
+    outline: `4px solid ${twColors.blue['100']}`,
+    outlineOffset: 0,
+  },
+  success: {
+    outline: `4px solid ${twColors.green['100']}`,
+    outlineOffset: 0,
+  },
+  warning: {
+    outline: `4px solid ${twColors.amber['100']}`,
+    outlineOffset: 0,
+  },
   danger: {
     outline: `4px solid ${twColors.rose['100']}`,
+    outlineOffset: 0,
+  },
+  neutral: {
+    outline: `4px solid ${twColors.slate['100']}`,
+    outlineOffset: 0,
+  },
+  inverted: {
+    outline: `4px solid ${twColors.white}`,
     outlineOffset: 0,
   },
 } as const
@@ -48,11 +70,12 @@ export type FocusRingContext = keyof typeof focusRingTokens
  * jsxstyle's built-in pseudo-prop prefix mechanism does not support
  * `focusVisible` — this keeps the jsxstyle patch types-only.
  *
- * @param context - 'default' (blue) or 'danger' (red). Defaults to 'default'.
+ * @param context - Focus ring color context. Defaults to 'default' (blue).
  *
  * @example
  * <Block component="button" {...focusRing()} />
  * <Block component="button" {...focusRing('danger')} />
+ * <Block component="button" {...focusRing('success')} />
  */
 export function focusRing(context: FocusRingContext = 'default') {
   const tokens = focusRingTokens[context]
@@ -73,10 +96,10 @@ export function focusRing(context: FocusRingContext = 'default') {
  * Uses `&:has(:focus-visible)` so the ring only appears when a descendant
  * receives keyboard focus, consistent with `focusRing()`.
  *
- * @param context - 'default' (blue) or 'danger' (red). Defaults to 'default'.
+ * @param context - Focus ring color context. Defaults to 'default' (blue).
  *
  * @example
- * <Block component="label" {...focusWithinRing(context)}>
+ * <Block component="label" {...focusWithinRing()}>
  *   <input ... />
  * </Block>
  */
