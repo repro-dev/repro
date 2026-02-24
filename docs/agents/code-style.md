@@ -4,7 +4,7 @@
 - **Imports**: Use `prettier-plugin-organize-imports` (auto-sorts imports)
 - **Types**: Strict TypeScript with `noUncheckedIndexedAccess`, `noUnusedLocals`, `noImplicitReturns`
 - **Paths**: Use `~/*` alias for local imports within packages
-- **React**: Functional components with hooks, use `@jsxstyle/react` for styling
+- **React**: Functional components with hooks. Inside `@repro/design`, use `@jsxstyle/react` for component styling. In app code, use `@repro/design` components for UI elements and jsxstyle layout primitives (`Row`, `Col`, `Grid`, `Block`, `Inline`) for structural arrangement. Do not use jsxstyle appearance props (backgroundColor, fontSize, color, etc.) to replicate what a design system component should provide.
 - **Naming**: PascalCase for components/types, camelCase for functions/variables
 - **Async**: Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer Future-based signatures in interfaces that may involve I/O.
   - `.pipe()` accepts exactly **one** argument; chain multiple operators with successive `.pipe()` calls
