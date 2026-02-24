@@ -27,3 +27,31 @@ The available statuses and when to use them:
 - Move to **In Review** immediately after opening a PR — do not leave it as In Progress.
 - **Never mark an issue Done until the PR is merged.** Code written locally or a branch pushed but not merged is still In Progress.
 - Do not skip statuses (e.g. Backlog → Done). Each transition should reflect the actual state of the work.
+
+## Code Review Checklist
+
+When reviewing a PR, follow this checklist in order:
+
+### 1. Gather Linear Context (mandatory)
+
+Before reading the diff:
+
+- **Extract issue IDs** from the branch name, PR title, and PR body (e.g. `REP-155`, `REP-156`).
+- **Fetch every referenced issue** and read the full description — not just the title.
+- **Look for "Decisions" sections** in the issue. These document choices that have already been made (e.g. which algorithm, which API shape, which default value). Do not flag decided items as open questions in the review.
+- **Check requirements** listed in the issue. Verify the PR satisfies each one. Call out any that are missing or only partially addressed.
+- **Check considerations** in the issue. These are open questions or trade-offs the author flagged. Note whether the PR resolves them or whether they need follow-up.
+- **Fetch the parent project and milestone** if the issue belongs to one, to understand broader goals and constraints.
+
+### 2. Review the Diff
+
+- Verify correctness, style, and consistency with the codebase conventions in `docs/agents/code-style.md` and `docs/agents/conventions.md`.
+- Cross-reference the diff against the issue requirements and decisions gathered in step 1.
+- Flag deviations from the issue spec — but distinguish intentional improvements (which are fine) from accidental omissions (which need action).
+
+### 3. Structure the Review
+
+- **Lead with context**: briefly note which Linear issues were reviewed and any resolved decisions that informed the review.
+- **Separate blocking issues from non-blocking notes**: use clear severity labels (e.g. "must fix", "suggestion", "informational").
+- **Reference issue requirements by ID** when noting gaps (e.g. "REP-155 requires `shadow.focus`; not included in this PR").
+- **End with a verdict**: approve, request changes, or note what needs discussion.

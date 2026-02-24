@@ -14,7 +14,8 @@ Detailed references are split by theme under `docs/agents/`:
 
 When the user corrects a code choice, style issue, or any fundamental rule about how the project should be developed, built, run, tested, or deployed, offer to update the relevant file in `docs/agents/` (or a more specific `AGENTS.md` closer to the relevant code) with the new information so the lesson is retained for future sessions.
 
-## Project Specs & Planning
+## Linear as Source of Truth
 
 - All project specifications, implementation plans, and tracked work live in **Linear** as the source of truth. Use Linear projects, milestones, and issues to organize deliverables.
 - When the user wants to expand or change the scope of a project, ensure that the Linear issue is updated to reflect this.
+- **Code reviews**: When reviewing a PR that references Linear issues (e.g. `REP-123` in the branch name, title, or body), always fetch those issues before completing the review. Check for requirements, resolved decisions, and open considerations documented in the issue — these take precedence over assumptions based on codebase patterns alone. See [docs/agents/git.md](docs/agents/git.md) for the full review checklist.
