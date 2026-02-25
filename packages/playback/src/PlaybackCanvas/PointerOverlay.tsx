@@ -9,7 +9,7 @@ const Cursor: React.FC<{ color?: string; size?: number }> = ({
   size = 24,
 }) => (
   <svg
-    xmlns="http://www.w3,org/2000/svg"
+    xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 12 20"
     width={size}
     height={size}
