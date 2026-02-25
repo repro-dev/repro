@@ -18,6 +18,21 @@ const colorMap: Record<AlertType, string> = {
   danger: colors.red['700'] as string,
 }
 
+/**
+ * Maps alert type to the appropriate ARIA live region role.
+ *
+ * - `danger` and `warning` use `role="alert"` (assertive) — these are
+ *   time-sensitive messages that should interrupt the user.
+ * - `info` and `success` use `role="status"` (polite) — these are
+ *   informational and should not interrupt the user.
+ */
+const ariaRoleMap: Record<AlertType, 'alert' | 'status'> = {
+  info: 'status',
+  success: 'status',
+  warning: 'alert',
+  danger: 'alert',
+}
+
 type Props = PropsWithChildren<{
   type: AlertType
   icon?: React.ReactNode
@@ -33,8 +48,13 @@ export const Alert: React.FC<Props> = ({ children, icon, type }) => (
     fontSize={12}
     lineHeight={1}
     borderRadius={4}
+    props={{ role: ariaRoleMap[type] }}
   >
-    {icon && <Block marginRight={8}>{icon}</Block>}
+    {icon && (
+      <Block marginRight={8} aria-hidden="true">
+        {icon}
+      </Block>
+    )}
     <Block>{children}</Block>
   </Row>
 )

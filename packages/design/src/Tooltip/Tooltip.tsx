@@ -4,6 +4,7 @@ import React, {
   PropsWithChildren,
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
 } from 'react'
@@ -28,6 +29,7 @@ export const Tooltip: React.FC<Props> = ({
   const [active, setActive] = useState(false)
   const [x, setX] = useState(0)
   const [y, setY] = useState(0)
+  const tooltipId = useId()
 
   let translateX = '0'
   let translateY = '0'
@@ -84,6 +86,46 @@ export const Tooltip: React.FC<Props> = ({
     }
   }, [position, ref, setX, setY])
 
+  // Show the tooltip and annotate the trigger with aria-describedby
+  const show = useCallback(() => {
+    updatePosition()
+    setActive(true)
+    const parent = ref.current?.parentElement
+    if (parent) {
+      const existing = parent.getAttribute('aria-describedby')
+      if (existing) {
+        const ids = existing.split(/\s+/).filter(Boolean)
+        if (!ids.includes(tooltipId)) {
+          ids.push(tooltipId)
+        }
+        parent.setAttribute('aria-describedby', ids.join(' '))
+      } else {
+        parent.setAttribute('aria-describedby', tooltipId)
+      }
+    }
+  }, [tooltipId, updatePosition])
+
+  // Hide the tooltip and remove only this tooltip's id from aria-describedby
+  const hide = useCallback(() => {
+    setActive(false)
+    const parent = ref.current?.parentElement
+    if (parent) {
+      const existing = parent.getAttribute('aria-describedby')
+      if (existing) {
+        const remainingIds = existing
+          .split(/\s+/)
+          .filter(Boolean)
+          .filter(id => id !== tooltipId)
+
+        if (remainingIds.length > 0) {
+          parent.setAttribute('aria-describedby', remainingIds.join(' '))
+        } else {
+          parent.removeAttribute('aria-describedby')
+        }
+      }
+    }
+  }, [tooltipId])
+
   useEffect(() => {
     const subscription = new Subscription()
     const parent = ref.current ? ref.current.parentElement : null
@@ -95,19 +137,29 @@ export const Tooltip: React.FC<Props> = ({
       subscription.add(
         pointerEnter$
           .pipe(switchMap(() => timer(delay).pipe(takeUntil(pointerLeave$))))
-          .subscribe(() => {
-            updatePosition()
-            setActive(true)
-          })
+          .subscribe(() => show())
       )
 
-      subscription.add(pointerLeave$.subscribe(() => setActive(false)))
+      subscription.add(pointerLeave$.subscribe(() => hide()))
+
+      // Focus-based trigger for keyboard users
+      const handleFocus = () => show()
+      const handleBlur = () => hide()
+      parent.addEventListener('focus', handleFocus, true)
+      parent.addEventListener('blur', handleBlur, true)
+
+      subscription.add({
+        unsubscribe: () => {
+          parent.removeEventListener('focus', handleFocus, true)
+          parent.removeEventListener('blur', handleBlur, true)
+        },
+      })
     }
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [ref, delay, setActive, updatePosition])
+  }, [ref, delay, show, hide])
 
   return (
     <Block position="absolute" props={{ ref }}>
@@ -129,6 +181,11 @@ export const Tooltip: React.FC<Props> = ({
           transition="opacity linear 100ms"
           userSelect="none"
           zIndex={MAX_INT32}
+          props={{
+            id: tooltipId,
+            role: 'tooltip',
+            'aria-hidden': !active,
+          }}
         >
           {children}
         </Block>
