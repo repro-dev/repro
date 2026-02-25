@@ -92,18 +92,39 @@ export const Tooltip: React.FC<Props> = ({
     setActive(true)
     const parent = ref.current?.parentElement
     if (parent) {
-      parent.setAttribute('aria-describedby', tooltipId)
+      const existing = parent.getAttribute('aria-describedby')
+      if (existing) {
+        const ids = existing.split(/\s+/).filter(Boolean)
+        if (!ids.includes(tooltipId)) {
+          ids.push(tooltipId)
+        }
+        parent.setAttribute('aria-describedby', ids.join(' '))
+      } else {
+        parent.setAttribute('aria-describedby', tooltipId)
+      }
     }
   }, [tooltipId, updatePosition])
 
-  // Hide the tooltip and remove aria-describedby from the trigger
+  // Hide the tooltip and remove only this tooltip's id from aria-describedby
   const hide = useCallback(() => {
     setActive(false)
     const parent = ref.current?.parentElement
     if (parent) {
-      parent.removeAttribute('aria-describedby')
+      const existing = parent.getAttribute('aria-describedby')
+      if (existing) {
+        const remainingIds = existing
+          .split(/\s+/)
+          .filter(Boolean)
+          .filter(id => id !== tooltipId)
+
+        if (remainingIds.length > 0) {
+          parent.setAttribute('aria-describedby', remainingIds.join(' '))
+        } else {
+          parent.removeAttribute('aria-describedby')
+        }
+      }
     }
-  }, [])
+  }, [tooltipId])
 
   useEffect(() => {
     const subscription = new Subscription()
@@ -163,6 +184,7 @@ export const Tooltip: React.FC<Props> = ({
           props={{
             id: tooltipId,
             role: 'tooltip',
+            'aria-hidden': !active,
           }}
         >
           {children}

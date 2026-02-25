@@ -5,7 +5,7 @@
   "scripts": {
     "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
     "fmt": "prettier --write src",
-    "lint": "eslint",
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",

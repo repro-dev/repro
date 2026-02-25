@@ -22,15 +22,20 @@ export const ToggleGroup: React.FC<Props> = ({
 
   const handleKeyDown = useCallback(
     (evt: React.KeyboardEvent<HTMLDivElement>) => {
+      if (options.length === 0) {
+        return
+      }
+
       const currentIndex = options.findIndex(o => o.value === selected)
+      const safeCurrentIndex = currentIndex === -1 ? 0 : currentIndex
       let nextIndex: number | null = null
 
       if (evt.key === 'ArrowRight' || evt.key === 'ArrowDown') {
         evt.preventDefault()
-        nextIndex = (currentIndex + 1) % options.length
+        nextIndex = (safeCurrentIndex + 1) % options.length
       } else if (evt.key === 'ArrowLeft' || evt.key === 'ArrowUp') {
         evt.preventDefault()
-        nextIndex = (currentIndex - 1 + options.length) % options.length
+        nextIndex = (safeCurrentIndex - 1 + options.length) % options.length
       } else if (evt.key === 'Home') {
         evt.preventDefault()
         nextIndex = 0

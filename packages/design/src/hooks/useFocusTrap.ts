@@ -96,6 +96,14 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean) {
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
+      // Restore focus if the component unmounts while the trap is still active
+      if (
+        previousFocusRef.current &&
+        previousFocusRef.current instanceof HTMLElement
+      ) {
+        previousFocusRef.current.focus()
+        previousFocusRef.current = null
+      }
     }
   }, [active])
 
