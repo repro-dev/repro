@@ -1,8 +1,17 @@
 import expect from 'expect'
-import { afterEach, describe, it } from 'node:test'
-import React, { useEffect } from 'react'
+import { afterEach, before, describe, it } from 'node:test'
+import React from 'react'
+import { act } from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { useFocusTrap } from './useFocusTrap'
+
+// ---------------------------------------------------------------------------
+// Enable React act() environment
+// ---------------------------------------------------------------------------
+
+before(() => {
+  ;(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true
+})
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -17,9 +26,11 @@ function setUp() {
   root = createRoot(container)
 }
 
-function tearDown() {
+async function tearDown() {
   if (root) {
-    root.unmount()
+    await act(() => {
+      root!.unmount()
+    })
     root = null
   }
   if (container) {
@@ -30,20 +41,13 @@ function tearDown() {
   ;(document.activeElement as HTMLElement | null)?.blur?.()
 }
 
-function render(element: React.ReactNode) {
+async function render(element: React.ReactNode) {
   if (!root || !container) {
     setUp()
   }
-  root!.render(element)
-  // react-dom/client with global-jsdom processes state synchronously in the
-  // microtask queue, so we need to flush.
-  flushMicrotasks()
-}
-
-function flushMicrotasks() {
-  // Force synchronous flush of React's batched updates in test environment
-  // by running a dummy sync operation. In jsdom with react-dom/client,
-  // useEffect callbacks are scheduled as microtasks.
+  await act(async () => {
+    root!.render(element)
+  })
 }
 
 function pressTab(shiftKey = false) {
@@ -100,7 +104,7 @@ describe('useFocusTrap', () => {
     outer.focus()
     expect(document.activeElement).toBe(outer)
 
-    render(
+    await render(
       React.createElement(
         TrapContainer,
         { active: true },
@@ -108,9 +112,6 @@ describe('useFocusTrap', () => {
         React.createElement('button', { id: 'second' }, 'Second')
       )
     )
-
-    // useEffect is async — wait for it
-    await new Promise(resolve => setTimeout(resolve, 0))
 
     expect(document.activeElement?.id).toBe('first')
 
@@ -120,15 +121,13 @@ describe('useFocusTrap', () => {
   it('focuses the container itself when there are no focusable children', async () => {
     setUp()
 
-    render(
+    await render(
       React.createElement(
         TrapContainer,
         { active: true },
         React.createElement('span', null, 'Not focusable')
       )
     )
-
-    await new Promise(resolve => setTimeout(resolve, 0))
 
     const trap = document.querySelector('[data-testid="trap"]')
     expect(document.activeElement).toBe(trap)
@@ -138,7 +137,7 @@ describe('useFocusTrap', () => {
   it('wraps focus from last to first on Tab', async () => {
     setUp()
 
-    render(
+    await render(
       React.createElement(
         TrapContainer,
         { active: true },
@@ -147,8 +146,6 @@ describe('useFocusTrap', () => {
         React.createElement('button', { id: 'c' }, 'C')
       )
     )
-
-    await new Promise(resolve => setTimeout(resolve, 0))
 
     // Focus should be on 'a'. Move to 'c' manually.
     const c = document.getElementById('c')!
@@ -164,7 +161,7 @@ describe('useFocusTrap', () => {
   it('wraps focus from first to last on Shift+Tab', async () => {
     setUp()
 
-    render(
+    await render(
       React.createElement(
         TrapContainer,
         { active: true },
@@ -173,8 +170,6 @@ describe('useFocusTrap', () => {
         React.createElement('button', { id: 'c' }, 'C')
       )
     )
-
-    await new Promise(resolve => setTimeout(resolve, 0))
 
     // Focus should already be on 'a'
     expect(document.activeElement?.id).toBe('a')
@@ -188,7 +183,7 @@ describe('useFocusTrap', () => {
   it('excludes elements inside aria-hidden from the focus cycle', async () => {
     setUp()
 
-    render(
+    await render(
       React.createElement(
         TrapContainer,
         { active: true },
@@ -200,8 +195,6 @@ describe('useFocusTrap', () => {
         )
       )
     )
-
-    await new Promise(resolve => setTimeout(resolve, 0))
 
     // Focus should be on 'visible' (the only non-hidden focusable)
     expect(document.activeElement?.id).toBe('visible')
@@ -215,15 +208,13 @@ describe('useFocusTrap', () => {
   it('prevents Tab when there are no focusable elements', async () => {
     setUp()
 
-    render(
+    await render(
       React.createElement(
         TrapContainer,
         { active: true },
         React.createElement('span', null, 'Nothing focusable')
       )
     )
-
-    await new Promise(resolve => setTimeout(resolve, 0))
 
     const event = pressTab()
     expect(event.defaultPrevented).toBe(true)
@@ -246,13 +237,11 @@ describe('useFocusTrap', () => {
       )
     }
 
-    render(React.createElement(Wrapper, { active: true }))
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await render(React.createElement(Wrapper, { active: true }))
     expect(document.activeElement?.id).toBe('inner')
 
     // Deactivate the trap
-    render(React.createElement(Wrapper, { active: false }))
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await render(React.createElement(Wrapper, { active: false }))
 
     expect(document.activeElement?.id).toBe('outer')
 
@@ -277,13 +266,11 @@ describe('useFocusTrap', () => {
       )
     }
 
-    render(React.createElement(Wrapper, { show: true }))
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await render(React.createElement(Wrapper, { show: true }))
     expect(document.activeElement?.id).toBe('inner')
 
     // Unmount the trap while still active
-    render(React.createElement(Wrapper, { show: false }))
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await render(React.createElement(Wrapper, { show: false }))
 
     expect(document.activeElement?.id).toBe('outer')
 
@@ -293,7 +280,7 @@ describe('useFocusTrap', () => {
   it('does not trap focus when inactive', async () => {
     setUp()
 
-    render(
+    await render(
       React.createElement(
         TrapContainer,
         { active: false },
@@ -301,8 +288,6 @@ describe('useFocusTrap', () => {
         React.createElement('button', { id: 'b' }, 'B')
       )
     )
-
-    await new Promise(resolve => setTimeout(resolve, 0))
 
     // Focus should NOT have moved into the container
     expect(document.activeElement?.id).not.toBe('a')
