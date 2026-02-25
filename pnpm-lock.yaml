@@ -1515,6 +1515,9 @@ importers:
       '@storybook/react':
         specifier: ^9.1.3
         version: 9.1.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@9.1.19(@testing-library/dom@10.4.1)(prettier@3.0.0)(vite@5.1.5(@types/node@22.14.0)(terser@5.39.0)))(typescript@5.7.3)
+      '@types/expect':
+        specifier: 24.3.2
+        version: 24.3.2
       '@types/md5':
         specifier: ^2.3.2
         version: 2.3.2
@@ -1539,6 +1542,12 @@ importers:
       eslint-plugin-jsx-a11y:
         specifier: ^6.10.2
         version: 6.10.2(eslint@9.39.3(jiti@2.6.1))
+      expect:
+        specifier: 29.7.0
+        version: 29.7.0
+      global-jsdom:
+        specifier: 27.0.0
+        version: 27.0.0(jsdom@27.0.0(postcss@8.4.35))
       prettier:
         specifier: ^3.0.0
         version: 3.0.0
@@ -12459,7 +12468,7 @@ snapshots:
 
   '@pm2/pm2-version-check@1.0.4':
     dependencies:
-      debug: 4.4.1
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
