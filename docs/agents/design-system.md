@@ -235,13 +235,13 @@ The raw `colors` palette (Tailwind) is available for product-specific edge cases
 
 | Preset | fontSize | fontWeight | lineHeight | fontFamily |
 |--------|----------|------------|------------|------------|
-| `textStyles.display` | 32 | 700 | 1 | sans-serif |
+| `textStyles.display` | 32 | 700 | 1.25 | sans-serif |
 | `textStyles.heading1` | 24 | 700 | 1.25 | sans-serif |
-| `textStyles.heading2` | 20 | 700 | 1.25 | sans-serif |
+| `textStyles.heading2` | 20 | 600 | 1.25 | sans-serif |
 | `textStyles.heading3` | 16 | 600 | 1.25 | sans-serif |
 | `textStyles.body` | 15 | 400 | 1.5 | sans-serif |
 | `textStyles.bodySmall` | 13 | 400 | 1.5 | sans-serif |
-| `textStyles.caption` | 11 | 400 | 1.25 | sans-serif |
+| `textStyles.caption` | 11 | 400 | 1.5 | sans-serif |
 | `textStyles.label` | 13 | 600 | 1 | sans-serif |
 | `textStyles.code` | 13 | 400 | 1.5 | monospace |
 
@@ -675,7 +675,7 @@ The component contract above describes the **target state**. Several existing co
 | `Modal` | Accepts styling props | Accepts `width` and `height` as required props. Not compound — no `Modal.Header`/`Body`/`Footer` sub-components. Pass all content as flat children. |
 | `Drawer` | Not compound | No `Drawer.Header`/`Drawer.Body` sub-components. Pass all content as flat children. |
 | `Modal` | Missing ARIA | No `role="dialog"`, `aria-modal`, or `aria-labelledby`. No focus trap. |
-| `Drawer` | Close button uses `<div onClick>` | Should be a semantic `<button>`. |
+| `Input` | No HTML attribute passthrough | Props extend `UseFormRegisterReturn`, not `InputHTMLAttributes`. Accepts only: `name`, `onChange`, `onBlur`, `autoComplete`, `autoFocus`, `context`, `disabled`, `label`, `placeholder`, `rows`, `size`, `type`. |
 | `Card` | Hardcoded values | Uses raw color and shadow values instead of tokens. |
 
 **Rule for agents:** Use components as they exist today. Do not add props that don't exist in the current interface. When building _new_ components in `@repro/design`, follow the full contract.

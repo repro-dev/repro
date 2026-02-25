@@ -11,7 +11,7 @@ There are two layers with different rules:
 ### Component layer (`@repro/design` components)
 - **Opaque API**: Design system components (Button, Modal, Input, etc.) expose only domain-specific props (variant, size, context, disabled, etc.). Do NOT pass styling props (padding, backgroundColor, fontSize, className, style) — they are not accepted. All visual appearance is controlled through the component's defined prop interface.
 - **jsxstyle is internal to components**: `@jsxstyle/react` is the styling implementation inside `@repro/design` components, but it is an internal detail. Consumers must not depend on how a design system component is styled. This allows the underlying styling library to be replaced in the future.
-- **Compound components**: Complex components with structural regions use compound sub-components (e.g. `Modal.Header`, `Modal.Body`, `Modal.Footer`). Simple atomics (Button, Input, Toggle) remain single components.
+- **Compound components (target pattern)**: Complex components with structural regions will use compound sub-components (e.g. `Modal.Header`, `Modal.Body`, `Modal.Footer`). No existing components implement this yet — it is the target for the Atomic Component Library milestone (REP-159). Simple atomics (Button, Input, Toggle) remain single components. See `docs/agents/design-system.md` § Known Deviations for current state.
 - **Hooks for shared behavior**: Reusable interactive patterns (focus trap, keyboard navigation, disclosure) are exposed as hooks, not render props or HOCs.
 
 ### Layout/structural layer (jsxstyle primitives)
