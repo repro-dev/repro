@@ -7,6 +7,7 @@ Detailed references are split by theme under `docs/agents/`:
 | [docs/agents/build.md](docs/agents/build.md) | moon, pnpm, test & typecheck commands |
 | [docs/agents/code-style.md](docs/agents/code-style.md) | Prettier, TypeScript strictness, async/Future, React, naming |
 | [docs/agents/conventions.md](docs/agents/conventions.md) | Package naming, dependency hygiene, design system |
+| [docs/agents/design-system.md](docs/agents/design-system.md) | UI implementation: components, tokens, jsxstyle, forms, state, icons |
 | [docs/agents/git.md](docs/agents/git.md) | Conventional Commits, branch names, PRs, gh CLI |
 | [docs/agents/database.md](docs/agents/database.md) | PostgreSQL version and pinning locations |
 
