@@ -2,7 +2,9 @@
 const config = {
   stories: [
     "../../../packages/*/src/**/*.stories.@(ts|tsx|mdx)",
+    "../../../packages/*/src/**/*.mdx",
     "../../../apps/*/src/**/*.stories.@(ts|tsx|mdx)",
+    "../../../apps/*/src/**/*.mdx",
   ],
   addons: ["@storybook/addon-docs"],
   framework: {
