@@ -1,7 +1,7 @@
 import { VDocType } from '@repro/domain'
 import { Inline } from '@jsxstyle/react'
 import React from 'react'
-import { colors } from '../theme'
+import { colors } from '@repro/design'
 import { Container } from './Container'
 
 interface Props {

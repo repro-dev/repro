@@ -1,5 +1,5 @@
 import React from 'react'
-import { colors } from '../theme'
+import { colors } from '@repro/design'
 import { ArrayRenderer } from './ArrayRenderer'
 import { BooleanRenderer } from './BooleanRenderer'
 import { NullRenderer } from './NullRenderer'

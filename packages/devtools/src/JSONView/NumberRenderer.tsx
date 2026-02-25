@@ -1,15 +1,20 @@
 import { Block } from '@jsxstyle/react'
 import React from 'react'
-import { colors } from '../theme'
+import { colors } from '@repro/design'
 import { TreeRow } from './TreeRow'
 
 interface Props {
   level: number
   objectKey: string | null
+  value: number
 }
 
-export const UndefinedRenderer: React.FC<Props> = ({ level, objectKey }) => (
+export const NumberRenderer: React.FC<Props> = ({
+  level,
+  objectKey,
+  value,
+}) => (
   <TreeRow level={level} objectKey={objectKey}>
-    <Block color={colors.slate['500']}>undefined</Block>
+    <Block color={colors.sky['700']}>{value}</Block>
   </TreeRow>
 )

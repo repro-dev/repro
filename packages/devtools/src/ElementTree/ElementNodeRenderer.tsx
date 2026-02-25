@@ -1,6 +1,6 @@
 import { Block } from '@jsxstyle/react'
 import { IfGate } from '@repro/auth'
-import { ElementR } from '@repro/design'
+import { ElementR } from '../DOM'
 import { NodeId, NodeType, VElement } from '@repro/domain'
 import { isEmptyElementVNode, isParentVNode } from '@repro/vdom-utils'
 import React, { useContext } from 'react'

@@ -1,6 +1,6 @@
 import { Block, Inline } from '@jsxstyle/react'
 import React from 'react'
-import { colors } from '../theme'
+import { colors } from '@repro/design'
 
 const OpenIcon: React.FC = () => (
   <Inline color={colors.slate['700']}>{String.fromCharCode(0x25be)}</Inline>

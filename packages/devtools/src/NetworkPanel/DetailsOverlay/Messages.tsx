@@ -1,6 +1,7 @@
 import { Block, Grid, Inline, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { colors, JSONView } from '@repro/design'
+import { colors } from '@repro/design'
+import { JSONView } from '../../JSONView'
 import { Stats } from '@repro/diagnostics'
 import {
   NetworkMessageType,
