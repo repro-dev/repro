@@ -41,6 +41,7 @@ const Toggle: React.FC<ToggleProps> = ({ active, label, onClick }) => (
     component="button"
     alignItems="center"
     cursor="pointer"
+    fontFamily="inherit"
     gap={10}
     paddingH={10}
     paddingV={5}

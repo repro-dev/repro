@@ -42,6 +42,7 @@ export const Toggle: React.FC<Props> = ({
       cursor="pointer"
       background="none"
       border="none"
+      fontFamily="inherit"
       padding={0}
       props={{
         type: 'button',

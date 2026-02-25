@@ -152,7 +152,11 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
             lineHeight={1}
             transition="all linear 100ms"
             cursor={hasValue ? 'pointer' : 'default'}
-            props={{ type: 'submit', disabled: disabled || !hasValue }}
+            props={{
+              type: 'submit',
+              'aria-label': 'Submit',
+              disabled: disabled || !hasValue,
+            }}
             {...focusRing()}
           >
             <ArrowUpIcon size={16} />

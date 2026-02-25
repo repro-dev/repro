@@ -48,7 +48,7 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
           hoverBackgroundColor={colors.slate['100']}
           borderRadius="99rem"
           cursor="pointer"
-          props={{ type: 'button', onClick: onClose }}
+          props={{ type: 'button', 'aria-label': 'Close drawer', onClick: onClose }}
           {...focusRing()}
         >
           <CloseIcon size={16} />
