@@ -6,3 +6,19 @@
 - Test: `moon run <package>:test` or `pnpm test` (uses tsx with `--test` flag)
 - Single test: `tsx --experimental-test-module-mocks --test path/to/file.test.ts`
 - Typecheck: `moon run <package>:typecheck` or `pnpm typecheck`
+
+## Tool version pinning
+
+All tool versions are pinned in `.prototools` at the repo root. This is the single source of truth for tool versions.
+
+When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup script), it **must reference the same version** pinned in `.prototools`. Never use unpinned installs like `npm add --global @moonrepo/cli` — always specify the version explicitly (e.g. `npm add --global @moonrepo/cli@1.41.5`).
+
+**Current pinning locations:**
+
+| Tool | `.prototools` | Also installed in |
+|------|---------------|-------------------|
+| `moon` | `moon = "1.41.5"` | `infra/Dockerfile` (`@moonrepo/cli@1.41.5`) |
+| `node` | `node = "22.19.0"` | `infra/Dockerfile` (base image `node:22-slim`) |
+| `pnpm` | `pnpm = "10.17.0"` | — |
+
+When upgrading a tool version, update **all** pinning locations together.

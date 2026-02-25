@@ -9,7 +9,7 @@ RUN apt update \
 
 WORKDIR /app
 
-RUN npm add --global @moonrepo/cli
+RUN npm add --global @moonrepo/cli@1.41.5
 
 FROM base AS scaffold
 
