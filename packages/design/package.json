@@ -5,6 +5,7 @@
   "scripts": {
     "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
     "fmt": "prettier --write src",
+    "lint": "eslint",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",
@@ -34,6 +35,9 @@
     "@types/react": "^18.0.14",
     "@types/react-dom": "^18.0.5",
     "@types/repro-shared-types": "workspace:*",
+    "@typescript-eslint/parser": "^8.56.1",
+    "eslint": "^9.39.3",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
     "ts-eager": "^2.0.2",
