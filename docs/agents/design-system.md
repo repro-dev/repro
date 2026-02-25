@@ -278,7 +278,7 @@ Spread presets onto jsxstyle components: `<Block {...textStyles.body}>`.
 |--------|-----------|
 | `transition.default` | all 200ms ease-in-out |
 | `transition.fast` | all 100ms ease-in-out |
-| `transition.transform` | transform 200ms ease-in-out |
+| `transition.transform` | transform 100ms ease-in-out |
 | `transition.opacity` | opacity 200ms ease-in-out |
 
 **Individual scales (custom transitions only):**
@@ -563,13 +563,15 @@ No `<div onClick>` patterns for interactive controls.
 
 Every component that renders a DOM element must use `React.forwardRef`. The ref type must be the actual DOM element (`HTMLButtonElement`, `HTMLInputElement`, etc.).
 
+**Note:** Some existing components (e.g. Button) have not been migrated to `forwardRef` yet — see [Known Deviations](#known-deviations-from-contract). All new components must use it.
+
 ### Defaults via destructuring
 
 Use destructuring defaults in the function signature. Do not use `defaultProps`.
 
 ```tsx
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = 'contained', size = 'medium', disabled = false, ...rest }, ref) => {
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ size = 'medium', context = 'normal', disabled = false, ...rest }, ref) => {
     // ...
   }
 )
@@ -591,9 +593,26 @@ interface WithDisabled { disabled?: boolean }
 interface WithRounded { rounded?: boolean }
 ```
 
-### Compound components
+### HTML attribute passthrough
 
-Complex components with distinct structural regions use sub-components:
+Prop interfaces for interactive components should extend the appropriate HTML element attributes so that standard attributes (`aria-*`, `id`, `data-*`, event handlers) pass through automatically:
+
+```tsx
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant
+  size?: SizeVariant
+  context?: ContextVariant
+  rounded?: boolean
+}
+```
+
+This means `onClick`, `onFocus`, `onBlur`, `aria-label`, etc. are included without needing to declare them explicitly. Omit attributes the component should not support using `Omit<>`.
+
+### Compound components (target pattern)
+
+Complex components with distinct structural regions should use sub-components. **No existing components implement this pattern yet** — it is the target for future refactoring (Modal, Drawer, Card are candidates).
+
+Target usage:
 
 ```tsx
 <Modal>
@@ -605,7 +624,7 @@ Complex components with distinct structural regions use sub-components:
 </Modal>
 ```
 
-Attach sub-components as properties of the parent export. Sub-component files live in the same directory as the parent.
+When building new compound components, attach sub-components as properties of the parent export. Sub-component files live in the same directory as the parent.
 
 ### File structure
 
@@ -644,6 +663,25 @@ export const Disabled: Story = {
 
 ---
 
+## Known Deviations from Contract
+
+The component contract above describes the **target state**. Several existing components predate it and have not yet been migrated. When using these components, follow their current API — do not attempt to pass props that match the contract but don't exist on the component.
+
+| Component | Deviation | Current behavior |
+|-----------|-----------|-----------------|
+| `Button` | No `forwardRef` | Declared as `React.FC`. Does not accept a `ref`. |
+| `Button` | `onClick` type mismatch | Accepts `() => void`, not `(event: React.MouseEvent) => void`. Does not use the shared `ButtonClickHandler` type. |
+| `Card` | Accepts styling props | Accepts `padding` and `height` directly, violating the opaque API. Use these props as documented — they are the current API. |
+| `Modal` | Accepts styling props | Accepts `width` and `height` as required props. Not compound — no `Modal.Header`/`Body`/`Footer` sub-components. Pass all content as flat children. |
+| `Drawer` | Not compound | No `Drawer.Header`/`Drawer.Body` sub-components. Pass all content as flat children. |
+| `Modal` | Missing ARIA | No `role="dialog"`, `aria-modal`, or `aria-labelledby`. No focus trap. |
+| `Drawer` | Close button uses `<div onClick>` | Should be a semantic `<button>`. |
+| `Card` | Hardcoded values | Uses raw color and shadow values instead of tokens. |
+
+**Rule for agents:** Use components as they exist today. Do not add props that don't exist in the current interface. When building _new_ components in `@repro/design`, follow the full contract.
+
+---
+
 ## Quality Checklist
 
 ### Accessibility
@@ -668,9 +706,10 @@ export const Disabled: Story = {
 ### Storybook
 
 - Every new component in `@repro/design` must have a `.stories.tsx` file
-- Use CSF3 format with `@storybook/react` (not Ladle)
+- Use CSF3 format with `@storybook/react` types, running on `@storybook/react-vite`
 - Stories should cover: default state, all variants/sizes, disabled state, error state, edge cases
 - Run Storybook and visually verify before committing
+- **Migration note:** Some existing stories (Button, Alert, Meter, and stories in `packages/playback/`) still use the older Ladle format (`@ladle/react`). New stories must use Storybook CSF3. When modifying an existing Ladle story, migrate it to CSF3 at the same time.
 
 ### Do / Don't
 
