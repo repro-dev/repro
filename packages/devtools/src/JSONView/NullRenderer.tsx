@@ -1,6 +1,6 @@
 import { Block } from '@jsxstyle/react'
 import React from 'react'
-import { colors } from '../theme'
+import { colors } from '@repro/design'
 import { TreeRow } from './TreeRow'
 
 interface Props {

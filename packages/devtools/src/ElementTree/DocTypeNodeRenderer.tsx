@@ -1,4 +1,4 @@
-import { DocTypeR } from '@repro/design'
+import { DocTypeR } from '../DOM'
 import { NodeType, SyntheticId, VDocType } from '@repro/domain'
 import React from 'react'
 import { TreeRow } from './TreeRow'

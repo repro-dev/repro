@@ -1,5 +1,6 @@
 import { formatTime } from '@repro/date-utils'
-import { Button, colors, JSONView } from '@repro/design'
+import { Button, colors } from '@repro/design'
+import { JSONView } from '@repro/devtools'
 import { SourceEventType } from '@repro/domain'
 import {
   createSourcePlayback,

@@ -1,4 +1,4 @@
-import { DocTypeR, DocumentR, ElementR, TextR } from '@repro/design'
+import { DocTypeR, DocumentR, ElementR, TextR } from '../DOM'
 import { VNode } from '@repro/domain'
 import {
   isDocTypeVNode,

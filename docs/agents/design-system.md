@@ -772,6 +772,22 @@ The component contract above describes the **target state**. Several existing co
 
 ---
 
+## Architectural Decisions & Deferred Considerations
+
+Judgment calls made during implementation that may need revisiting as the product evolves.
+
+### DOM renderers and JSONView are in `@repro/devtools` — for now
+
+`ElementR`, `TextR`, `DocTypeR`, `DocumentR`, and `JSONView` were relocated from `@repro/design` to `@repro/devtools` (REP-158) because that is their sole consumer today.
+
+**Future consideration:** If these components are ever needed outside the devtools surface — for example, to render elements or structured data in the Agentic message history — `@repro/devtools` will be the wrong home. An agent or developer working on that use case should move the relevant components to a more neutral package first, either back into `@repro/design` (if they are truly generic UI primitives) or into a new shared package (e.g. `@repro/vdom-ui`). Do not create a dependency from an unrelated product surface onto `@repro/devtools`.
+
+### `FrameRealm` stays in `@repro/design`
+
+`FrameRealm` is used by both `@repro/playback` and `@repro/css-utils`. Moving it to `@repro/playback` (as the original issue suggested) would create a `css-utils → playback` dependency, which is wrong directionally. It is a generic iframe isolation primitive and belongs in the design system.
+
+---
+
 ## File Paths Quick Reference
 
 | Resource | Path |

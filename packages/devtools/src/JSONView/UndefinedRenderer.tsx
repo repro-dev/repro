@@ -1,20 +1,15 @@
 import { Block } from '@jsxstyle/react'
 import React from 'react'
-import { colors } from '../theme'
+import { colors } from '@repro/design'
 import { TreeRow } from './TreeRow'
 
 interface Props {
   level: number
   objectKey: string | null
-  value: boolean
 }
 
-export const BooleanRenderer: React.FC<Props> = ({
-  level,
-  objectKey,
-  value,
-}) => (
+export const UndefinedRenderer: React.FC<Props> = ({ level, objectKey }) => (
   <TreeRow level={level} objectKey={objectKey}>
-    <Block color={colors.teal['700']}>{value ? 'true' : 'false'}</Block>
+    <Block color={colors.slate['500']}>undefined</Block>
   </TreeRow>
 )

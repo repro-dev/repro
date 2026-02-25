@@ -1,5 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
-import { colors, ElementR } from '@repro/design'
+import { colors } from '@repro/design'
+import { ElementR } from '../DOM'
 import { Click, InteractionEvent, InteractionType } from '@repro/domain'
 import {
   MousePointerClick as ClickIcon,
