@@ -1,5 +1,6 @@
 import { Row } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
+import { focusRing } from '../tokens/interaction'
 import { colors } from '../theme'
 
 type Props = PropsWithChildren<{
@@ -89,8 +90,8 @@ export const Button: React.FC<Props> = ({
       cursor={disabled ? 'default' : 'pointer'}
       fontSize={fontSize}
       lineHeight="1em"
-      outline="none"
       transition="all linear 100ms"
+      {...focusRing(context)}
     >
       {children}
     </Row>

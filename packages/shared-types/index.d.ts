@@ -6,6 +6,7 @@ declare module "@jsxstyle/core" {
 
     focusBorderColor?: CSSProperties["borderColor"];
     focusOutline?: CSSProperties["outline"];
+    focusOutlineOffset?: CSSProperties["outlineOffset"];
 
     hoverBackgroundImage?: CSSProperties["backgroundImage"];
 

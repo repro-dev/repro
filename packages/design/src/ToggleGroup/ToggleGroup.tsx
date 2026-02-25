@@ -1,6 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import { CheckCircle, Circle } from 'lucide-react'
 import React from 'react'
+import { focusRing } from '../tokens/interaction'
 import { colors } from '../theme'
 
 interface Props {
@@ -17,7 +18,7 @@ export const ToggleGroup: React.FC<Props> = ({
   selected,
   onChange,
 }) => (
-  <Row gap={10}>
+  <Row gap={10} props={{ role: 'group' }}>
     {options.map(({ value, label }) => (
       <Toggle
         key={value}
@@ -37,8 +38,10 @@ interface ToggleProps {
 
 const Toggle: React.FC<ToggleProps> = ({ active, label, onClick }) => (
   <Row
+    component="button"
     alignItems="center"
     cursor="pointer"
+    fontFamily="inherit"
     gap={10}
     paddingH={10}
     paddingV={5}
@@ -56,7 +59,8 @@ const Toggle: React.FC<ToggleProps> = ({ active, label, onClick }) => (
     boxShadow={active ? '0 2px 4px rgba(0, 0, 0, 0.25)' : undefined}
     hoverBackgroundColor={active ? colors.slate['500'] : colors.slate['200']}
     transition="all linear 100ms"
-    props={{ onClick }}
+    props={{ type: 'button', 'aria-pressed': active, onClick }}
+    {...focusRing()}
   >
     <Block color={active ? colors.white : colors.blue['700']}>
       {active ? <CheckCircle size={14} /> : <Circle size={14} />}

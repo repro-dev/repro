@@ -1,5 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
 import React from 'react'
+import { focusRing } from '../tokens/interaction'
 import { colors } from '../theme'
 
 interface Props {
@@ -35,12 +36,21 @@ export const Toggle: React.FC<Props> = ({
 
   return (
     <Row
+      component="button"
       alignItems="center"
       gap={gutter}
       cursor="pointer"
+      background="none"
+      border="none"
+      fontFamily="inherit"
+      padding={0}
       props={{
+        type: 'button',
+        role: 'switch',
+        'aria-checked': checked,
         onClick: () => onChange(!checked),
       }}
+      {...focusRing()}
     >
       <Block
         height={height}
