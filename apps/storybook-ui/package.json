@@ -1,6 +1,7 @@
 {
   "name": "@repro/storybook-ui",
   "version": "1.0.0",
+  "type": "module",
   "description": "Storybook host for all Repro packages",
   "main": "index.js",
   "license": "UNLICENSED",
@@ -8,14 +9,15 @@
     "@repro/theme": "workspace:*"
   },
   "devDependencies": {
-    "@storybook/addon-a11y": "^9.1.19",
-    "@storybook/addon-docs": "^9.1.19",
-    "@storybook/react-vite": "^9.1.19",
+    "@storybook/addon-a11y": "^10.2.13",
+    "@storybook/addon-docs": "^10.2.13",
+    "@storybook/react-vite": "^10.2.13",
     "prop-types": "^15.8.1",
-    "storybook": "^9.1.19"
+    "storybook": "^10.2.13"
   },
   "scripts": {
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "build": "storybook build"
   }
 }

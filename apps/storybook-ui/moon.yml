@@ -5,6 +5,14 @@ tags:
 - type.app
 - build.static
 tasks:
+  build:
+    command: pnpm run build
+    deps:
+    - ^:build
+    outputs:
+    - storybook-static
+    options:
+      cache: true
   dev:
     command: pnpm run storybook
 toolchain:

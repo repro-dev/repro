@@ -6,9 +6,9 @@ import { fontSize } from '../tokens/typography'
 import { Button } from './Button'
 
 const meta: Meta<typeof Button> = {
-  title: 'Packages/Design/Button',
+  title: 'Components/Button',
   component: Button,
-  tags: ['autodocs'],
+  tags: ['autodocs', 'design-system'],
 }
 
 export default meta

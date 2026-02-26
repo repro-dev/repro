@@ -1,15 +1,21 @@
 import { Block } from '@jsxstyle/react'
 import { colors } from '@repro/design'
 import { UploadStage } from '@repro/recording-api'
-import type { Meta, StoryFn } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react'
 import React, { PropsWithChildren } from 'react'
 import { ProgressOverlay } from './ProgressOverlay'
 
-const meta: Meta = {
-  title: 'Apps/Capture/ProgressOverlay',
+interface ExampleArgs {
+  onClose: () => void
+  completed: boolean
+  error: string
+  recordingId: string
+  enqueued: number
+  createRecording: number
+  saveEvents: number
+  readResources: number
+  saveResources: number
 }
-
-export default meta
 
 const Wrapper: React.FC<PropsWithChildren<{}>> = ({ children }) => (
   <Block
@@ -26,90 +32,84 @@ const Wrapper: React.FC<PropsWithChildren<{}>> = ({ children }) => (
   </Block>
 )
 
-export const Example: StoryFn<{
-  onClose: () => void
-  completed: boolean
-  error: string
-  recordingId: string
-  enqueued: number
-  createRecording: number
-  saveEvents: number
-  readResources: number
-  saveResources: number
-}> = ({
-  onClose,
-  completed,
-  error,
-  recordingId,
-  enqueued,
-  createRecording,
-  saveEvents,
-  readResources,
-  saveResources,
-}) => (
-  <Wrapper>
-    <ProgressOverlay
-      progress={{
-        ref: 'foo',
-        recordingId,
-        encryptionKey: null,
-        completed,
-        error: error ? new Error(error) : null,
-        stages: {
-          [UploadStage.Enqueued]: enqueued,
-          [UploadStage.CreateRecording]: createRecording,
-          [UploadStage.SaveEvents]: saveEvents,
-          [UploadStage.ReadResources]: readResources,
-          [UploadStage.SaveResources]: saveResources,
-        },
-      }}
-      onClose={onClose}
-    />
-  </Wrapper>
-)
-
-Example.argTypes = {
-  onClose: {
-    action: 'close',
+const meta: Meta<ExampleArgs> = {
+  title: 'Apps/Capture/ProgressOverlay',
+  tags: ['experimental'],
+  argTypes: {
+    onClose: {
+      action: 'close',
+    },
+    completed: {
+      control: { type: 'boolean' },
+    },
+    error: {
+      control: { type: 'text' },
+    },
+    recordingId: {
+      control: { type: 'text' },
+    },
+    enqueued: {
+      control: { type: 'range', min: 0, max: 1, step: 0.01 },
+    },
+    createRecording: {
+      control: { type: 'range', min: 0, max: 1, step: 0.01 },
+    },
+    saveEvents: {
+      control: { type: 'range', min: 0, max: 1, step: 0.01 },
+    },
+    readResources: {
+      control: { type: 'range', min: 0, max: 1, step: 0.01 },
+    },
+    saveResources: {
+      control: { type: 'range', min: 0, max: 1, step: 0.01 },
+    },
   },
-
-  completed: {
-    control: { type: 'boolean' },
-    defaultValue: false,
+  args: {
+    completed: false,
+    error: '',
+    recordingId: 'foo',
+    enqueued: 1,
+    createRecording: 0,
+    saveEvents: 0,
+    readResources: 0,
+    saveResources: 0,
   },
+}
 
-  error: {
-    control: { type: 'text' },
-    defaultValue: '',
-  },
+export default meta
 
-  recordingId: {
-    control: { type: 'text' },
-    defaultValue: 'foo',
-  },
+type Story = StoryObj<ExampleArgs>
 
-  enqueued: {
-    control: { type: 'range', min: 0, max: 1, step: 0.01 },
-    defaultValue: 1,
-  },
-
-  createRecording: {
-    control: { type: 'range', min: 0, max: 1, step: 0.01 },
-    defaultValue: 0,
-  },
-
-  saveEvents: {
-    control: { type: 'range', min: 0, max: 1, step: 0.01 },
-    defaultValue: 0,
-  },
-
-  readResources: {
-    control: { type: 'range', min: 0, max: 1, step: 0.01 },
-    defaultValue: 0,
-  },
-
-  saveResources: {
-    control: { type: 'range', min: 0, max: 1, step: 0.01 },
-    defaultValue: 0,
-  },
+export const Example: Story = {
+  render: ({
+    onClose,
+    completed,
+    error,
+    recordingId,
+    enqueued,
+    createRecording,
+    saveEvents,
+    readResources,
+    saveResources,
+  }) => (
+    <Wrapper>
+      <ProgressOverlay
+        progress={{
+          ref: 'foo',
+          recordingId,
+          encryptionKey: null,
+          completed,
+          error: error ? new Error(error) : null,
+          stages: {
+            [UploadStage.Enqueued]: enqueued,
+            [UploadStage.CreateRecording]: createRecording,
+            [UploadStage.SaveEvents]: saveEvents,
+            [UploadStage.ReadResources]: readResources,
+            [UploadStage.SaveResources]: saveResources,
+          },
+        }}
+        onClose={onClose}
+      />
+    </Wrapper>
+  ),
 }

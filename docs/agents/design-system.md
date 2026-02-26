@@ -726,9 +726,9 @@ import React from 'react'
 import { MyComponent } from './MyComponent'
 
 const meta: Meta<typeof MyComponent> = {
-  title: 'Packages/Design/MyComponent',
+  title: 'Components/MyComponent',
   component: MyComponent,
-  tags: ['autodocs'],
+  tags: ['autodocs', 'design-system'],
 }
 
 export default meta
@@ -783,9 +783,9 @@ Storybook picks up all `*.stories.@(ts|tsx)` files under `packages/*/src/` and `
 
 | Field | Required | Notes |
 |---|---|---|
-| `title` | Yes | `'Packages/Design/ComponentName'` or `'Packages/Playback/ComponentName'` |
+| `title` | Yes | Use the story hierarchy: `'Components/Name'` for design system, `'Tokens/Name'` for token docs, `'Playback/Name'` for playback, `'DevTools/Name'` for devtools, `'Apps/AppName/Name'` for app stories |
 | `component` | Yes | The primary component being documented |
-| `tags: ['autodocs']` | Yes | Enables auto-generated docs page. The component's JSDoc block is rendered as the description at the top of the Docs page. |
+| `tags: ['autodocs', '...']` | Yes | `autodocs` enables auto-generated docs page. Add a category tag: `design-system` for `@repro/design` components, `pattern` for composed features (playback, devtools), `experimental` for app-level stories. |
 | `decorators` | As needed | Use for layout wrappers, providers, background context |
 | `parameters` | As needed | Use for `docs.story.inline`, `controls`, etc. |
 
@@ -801,8 +801,30 @@ Storybook picks up all `*.stories.@(ts|tsx)` files under `packages/*/src/` and `
 ### Running Storybook
 
 ```bash
-moon run storybook-ui:storybook
+moon run storybook-ui:dev       # Dev server on http://localhost:6006
+moon run storybook-ui:build     # Static build to storybook-static/
 ```
+
+**Version**: Storybook v10 (`@storybook/react-vite`). Config: `apps/storybook-ui/.storybook/main.js`.
+
+**Story hierarchy** (sidebar ordering):
+
+| Prefix | Content | Tag |
+|--------|---------|-----|
+| `Tokens/` | Token documentation (MDX) | — |
+| `Components/` | Atomic design system components | `design-system` |
+| `Patterns/` | Composed patterns (future) | `pattern` |
+| `Playback/` | Playback package stories | `pattern` |
+| `DevTools/` | DevTools package stories | `pattern` |
+| `Apps/` | Application-level stories | `experimental` |
+
+**Built-in addons** (no extra packages needed in v10): viewport, controls, interactions, actions, measure, outline, backgrounds, highlight.
+
+**Explicit addons** (configured in `main.js`): `@storybook/addon-docs`, `@storybook/addon-a11y`.
+
+**Global decorators** (configured in `preview.js`):
+- Padding wrapper (1rem) for consistent story presentation
+- Background toggle (Light/Dark/Neutral) via the toolbar
 
 ---
 
@@ -849,7 +871,8 @@ The component contract above describes the **target state**. Several existing co
 ### Storybook
 
 - Every new component in `@repro/design` must have a `.stories.tsx` file
-- Use CSF3 format with `@storybook/react` types, running on `@storybook/react-vite`
+- Use CSF3 format with `@storybook/react` types, running on `@storybook/react-vite` v10
+- Set `title` using the story hierarchy (`Components/Name`) and include the `design-system` tag
 - Stories should cover: default state, all variants/sizes, disabled state, error state, edge cases
 - Run Storybook and visually verify before committing
 

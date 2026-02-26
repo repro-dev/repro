@@ -6,9 +6,9 @@ import { fontSize } from '../tokens/typography'
 import { Toggle } from './Toggle'
 
 const meta: Meta<typeof Toggle> = {
-  title: 'Packages/Design/Toggle',
+  title: 'Components/Toggle',
   component: Toggle,
-  tags: ['autodocs'],
+  tags: ['autodocs', 'design-system'],
 }
 
 export default meta

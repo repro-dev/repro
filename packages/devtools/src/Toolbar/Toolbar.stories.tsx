@@ -5,8 +5,9 @@ import React from 'react'
 import { Toolbar } from './Toolbar'
 
 const meta: Meta = {
-  title: 'Packages/DevTools/Toolbar',
+  title: 'DevTools/Toolbar',
   component: Toolbar,
+  tags: ['pattern'],
 }
 
 export default meta
