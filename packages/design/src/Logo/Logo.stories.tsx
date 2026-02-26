@@ -6,7 +6,7 @@ import { fontSize } from '../tokens/typography'
 import { Logo } from './Logo'
 
 const meta: Meta<typeof Logo> = {
-  title: 'Components/Logo',
+  title: 'Components/Data Display/Logo',
   component: Logo,
   tags: ['autodocs', 'design-system'],
 }

@@ -7,7 +7,7 @@ import { Portal } from './Portal'
 import { PortalRootProvider } from './PortalRootProvider'
 
 const meta: Meta<typeof Portal> = {
-  title: 'Components/Portal',
+  title: 'Components/Utilities/Portal',
   component: Portal,
   tags: ['autodocs', 'design-system'],
   decorators: [

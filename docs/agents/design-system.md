@@ -726,7 +726,7 @@ import React from 'react'
 import { MyComponent } from './MyComponent'
 
 const meta: Meta<typeof MyComponent> = {
-  title: 'Components/MyComponent',
+  title: 'Components/<Category>/MyComponent',
   component: MyComponent,
   tags: ['autodocs', 'design-system'],
 }
@@ -783,7 +783,7 @@ Storybook picks up all `*.stories.@(ts|tsx)` files under `packages/*/src/` and `
 
 | Field | Required | Notes |
 |---|---|---|
-| `title` | Yes | Use the story hierarchy: `'Components/Name'` for design system, `'Tokens/Name'` for token docs, `'Playback/Name'` for playback, `'DevTools/Name'` for devtools, `'Apps/AppName/Name'` for app stories |
+| `title` | Yes | Use the story hierarchy: `'Components/<Category>/Name'` for design system (categories: `Actions`, `Inputs`, `Data Display`, `Feedback`, `Overlays`, `Effects`, `Utilities`), `'Tokens/Name'` for token docs, `'Playback/Name'` for playback, `'DevTools/Name'` for devtools, `'Apps/AppName/Name'` for app stories |
 | `component` | Yes | The primary component being documented |
 | `tags: ['autodocs', '...']` | Yes | `autodocs` enables auto-generated docs page. Add a category tag: `design-system` for `@repro/design` components, `pattern` for composed features (playback, devtools), `experimental` for app-level stories. |
 | `decorators` | As needed | Use for layout wrappers, providers, background context |
@@ -872,7 +872,7 @@ The component contract above describes the **target state**. Several existing co
 
 - Every new component in `@repro/design` must have a `.stories.tsx` file
 - Use CSF3 format with `@storybook/react` types, running on `@storybook/react-vite` v10
-- Set `title` using the story hierarchy (`Components/Name`) and include the `design-system` tag
+- Set `title` using the story hierarchy (`Components/<Category>/Name`) and include the `design-system` tag. Categories: Actions, Inputs, Data Display, Feedback, Overlays, Effects, Utilities
 - Stories should cover: default state, all variants/sizes, disabled state, error state, edge cases
 - Run Storybook and visually verify before committing
 

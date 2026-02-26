@@ -8,7 +8,7 @@ import { fontSize } from '../tokens/typography'
 import { Tooltip } from './Tooltip'
 
 const meta: Meta<typeof Tooltip> = {
-  title: 'Components/Tooltip',
+  title: 'Components/Overlays/Tooltip',
   component: Tooltip,
   tags: ['autodocs', 'design-system'],
   decorators: [

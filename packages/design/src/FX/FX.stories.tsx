@@ -8,7 +8,7 @@ import { Pulse } from './Pulse'
 import { Spin } from './Spin'
 
 const spinMeta: Meta<typeof Spin> = {
-  title: 'Components/FX',
+  title: 'Components/Effects/FX',
   component: Spin,
   tags: ['autodocs', 'design-system'],
 }

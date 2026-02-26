@@ -4,7 +4,7 @@ import React from 'react'
 import { FormFieldError } from './FormFieldError'
 
 const meta: Meta<typeof FormFieldError> = {
-  title: 'Components/FormFieldError',
+  title: 'Components/Inputs/FormFieldError',
   component: FormFieldError,
   tags: ['autodocs', 'design-system'],
 }

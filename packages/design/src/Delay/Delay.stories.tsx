@@ -6,7 +6,7 @@ import { fontSize } from '../tokens/typography'
 import { Delay } from './Delay'
 
 const meta: Meta<typeof Delay> = {
-  title: 'Components/Delay',
+  title: 'Components/Effects/Delay',
   component: Delay,
   tags: ['autodocs', 'design-system'],
 }

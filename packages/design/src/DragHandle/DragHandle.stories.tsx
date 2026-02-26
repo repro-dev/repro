@@ -6,7 +6,7 @@ import { fontSize } from '../tokens/typography'
 import { DragHandle } from './DragHandle'
 
 const meta: Meta<typeof DragHandle> = {
-  title: 'Components/DragHandle',
+  title: 'Components/Utilities/DragHandle',
   component: DragHandle,
   tags: ['autodocs', 'design-system'],
 }

@@ -6,7 +6,7 @@ import { fontSize } from '../tokens/typography'
 import { Input } from './Input'
 
 const meta: Meta<typeof Input> = {
-  title: 'Components/Input',
+  title: 'Components/Inputs/Input',
   component: Input,
   tags: ['autodocs', 'design-system'],
 }

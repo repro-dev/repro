@@ -6,7 +6,7 @@ import { fontSize } from '../tokens/typography'
 import { Avatar } from './Avatar'
 
 const meta: Meta<typeof Avatar> = {
-  title: 'Components/Avatar',
+  title: 'Components/Data Display/Avatar',
   component: Avatar,
   tags: ['autodocs', 'design-system'],
 }

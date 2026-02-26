@@ -9,7 +9,7 @@ import { fontSize } from '../tokens/typography'
 import { Drawer } from './Drawer'
 
 const meta: Meta<typeof Drawer> = {
-  title: 'Components/Drawer',
+  title: 'Components/Overlays/Drawer',
   component: Drawer,
   tags: ['autodocs', 'design-system'],
   decorators: [

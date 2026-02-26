@@ -4,7 +4,7 @@ import React from 'react'
 import { DefinitionList } from './DefinitionList'
 
 const meta: Meta<typeof DefinitionList> = {
-  title: 'Components/DefinitionList',
+  title: 'Components/Data Display/DefinitionList',
   component: DefinitionList,
   tags: ['autodocs', 'design-system'],
   decorators: [

@@ -7,7 +7,7 @@ import { fontSize } from '../tokens/typography'
 import { Modal } from './Modal'
 
 const meta: Meta<typeof Modal> = {
-  title: 'Components/Modal',
+  title: 'Components/Overlays/Modal',
   component: Modal,
   tags: ['autodocs', 'design-system'],
 }

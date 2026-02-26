@@ -3,7 +3,7 @@ import React from 'react'
 import { Meter } from './Meter'
 
 const meta: Meta<typeof Meter> = {
-  title: 'Components/Meter',
+  title: 'Components/Data Display/Meter',
   component: Meter,
   tags: ['autodocs', 'design-system'],
 }
