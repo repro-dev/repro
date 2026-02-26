@@ -62,7 +62,7 @@ export const Toggle: React.FC<Props> = ({
         <Block
           height={control}
           width={control}
-          backgroundColor={checked ? color.bg.emphasis : color.border.emphasis}
+          backgroundColor={checked ? color.bg.emphasis : color.bg.muted}
           borderRadius={rounded ? '99rem' : 0}
           transform={`translate(${checked ? '100%' : '2px'}, 2px)`}
           transition="all 100ms linear"
