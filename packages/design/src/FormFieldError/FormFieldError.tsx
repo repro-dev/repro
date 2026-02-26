@@ -22,7 +22,7 @@ export const FormFieldError: React.FC<Props> = ({ error, id }) => {
       id={id}
       color={color.danger}
       fontSize={12}
-      fontWeight={700}
+      fontWeight={400}
       props={{ role: 'alert', 'aria-live': 'assertive' }}
     >
       {error.message}

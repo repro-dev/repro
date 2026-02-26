@@ -105,10 +105,14 @@ export const color = {
   /** green-900 — text on subtle success backgrounds */
   successFg: twColors.green['900'],
 
-  /** amber-700 — warning states */
+  /** amber-700 — warning states (text, borders on light backgrounds) */
   warning: twColors.amber['700'],
-  /** amber-800 — hover state for warning elements */
+  /** amber-800 — hover state for warning text/borders */
   warningHover: twColors.amber['800'],
+  /** amber-400 — warning contained button background (uses dark text) */
+  warningEmphasis: twColors.amber['400'],
+  /** amber-500 — hover state for warning contained button */
+  warningEmphasisHover: twColors.amber['500'],
   /** amber-100 — warning tint background */
   warningSubtle: twColors.amber['100'],
   /** amber-600 — border for outlined warning buttons */

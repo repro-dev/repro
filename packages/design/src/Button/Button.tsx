@@ -45,9 +45,9 @@ const contextColors = {
     fg: color.successFg,
   },
   warning: {
-    bg: color.warning,
-    bgHover: color.warningHover,
-    containedFg: color.text.inverse,
+    bg: color.warningEmphasis,
+    bgHover: color.warningEmphasisHover,
+    containedFg: color.warningFg,
     subtle: color.warningSubtle,
     border: color.warningBorder,
     fg: color.warningFg,
@@ -142,7 +142,9 @@ export const Button: React.FC<Props> = ({
         disabled
           ? shadow.none
           : variant === 'contained'
-            ? shadow.sm
+            ? context === 'warning'
+              ? shadow.containedWarning
+              : shadow.contained
             : shadow.none
       }
       opacity={disabled ? 0.5 : 1}
