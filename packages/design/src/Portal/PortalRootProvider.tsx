@@ -16,6 +16,14 @@ const PortalRootContext = React.createContext<
   current: null,
 })
 
+/**
+ * Provides a fixed-position root container for `Portal` instances to
+ * render into.
+ *
+ * Place once near the top of the component tree. All `Portal` children
+ * will mount into this root, ensuring overlays render above all other
+ * content at max z-index.
+ */
 export const PortalRootProvider: React.FC<PropsWithChildren> = ({
   children,
 }) => {

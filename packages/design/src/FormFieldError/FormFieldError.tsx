@@ -16,6 +16,13 @@ interface Props {
   id?: string
 }
 
+/**
+ * Displays a react-hook-form `FieldError` message in danger-colored text.
+ *
+ * Use below a form field to show validation errors. Announces the error
+ * to screen readers via `role="alert"` and `aria-live="assertive"`. Pass
+ * `id` and link it to the input's `aria-describedby` for full accessibility.
+ */
 export const FormFieldError: React.FC<Props> = ({ error, id }) => {
   return (
     <Block

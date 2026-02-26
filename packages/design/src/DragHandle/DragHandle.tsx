@@ -14,6 +14,14 @@ interface Props {
 
 const KEYBOARD_STEP = 10
 
+/**
+ * Draggable edge handle for resizing panels. Renders as an absolutely
+ * positioned `role="separator"` on the specified `edge`.
+ *
+ * Supports pointer drag and keyboard resizing (arrow keys). Reports
+ * offset deltas via `onDrag`; the parent is responsible for applying
+ * the size change.
+ */
 export const DragHandle: React.FC<Props> = ({
   edge,
   onDrag,

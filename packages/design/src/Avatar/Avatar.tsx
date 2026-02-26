@@ -10,6 +10,13 @@ interface Props {
   color?: string
 }
 
+/**
+ * User avatar backed by Gravatar. Displays an image derived from `email`,
+ * a text name, or both depending on `mode`.
+ *
+ * Use wherever a user identity needs visual representation. The `size` prop
+ * controls the image dimensions in pixels.
+ */
 export const Avatar: React.FC<Props> = ({
   email,
   name = email,

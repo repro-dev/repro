@@ -38,6 +38,13 @@ type Props = PropsWithChildren<{
   icon?: React.ReactNode
 }>
 
+/**
+ * Inline feedback banner with semantic color and ARIA roles per `type`.
+ *
+ * Use for contextual messages: `danger`/`warning` render as `role="alert"`,
+ * `info`/`success` as `role="status"`. Pass an optional `icon` to reinforce
+ * the message type visually.
+ */
 export const Alert: React.FC<Props> = ({ children, icon, type }) => (
   <Row
     alignItems="center"

@@ -8,6 +8,12 @@ const animation = {
   to: { opacity: 0.5, scale: 0.8 },
 }
 
+/**
+ * Wraps children in an alternating pulse animation (opacity + scale).
+ *
+ * Use to draw attention to an element with a subtle breathing effect.
+ * Accepts jsxstyle style props for additional styling.
+ */
 export const Pulse: React.FC<Props> = React.memo(({ children, ...props }) => (
   <InlineBlock
     {...props}

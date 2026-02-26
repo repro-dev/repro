@@ -22,6 +22,13 @@ interface Props {
   labelId?: string
 }
 
+/**
+ * Slide-in side panel that opens from the right edge with a backdrop overlay.
+ *
+ * Use for secondary content or detail views that should not replace the
+ * current page. Traps focus while open, closes on Escape and backdrop click,
+ * and renders into a Portal.
+ */
 export const Drawer: React.FC<PropsWithChildren<Props>> = ({
   children,
   open,

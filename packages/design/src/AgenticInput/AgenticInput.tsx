@@ -25,6 +25,13 @@ export interface AgenticInputProps {
 
 const PLACEHOLDER_ROTATION_INTERVAL = 3000
 
+/**
+ * Chat-style textarea with a submit button and animated rotating placeholders.
+ *
+ * Use for free-form agentic prompts. Submits on Enter (Shift+Enter for newline)
+ * and auto-resizes to fit content. The `placeholders` prop cycles through
+ * suggestion strings on a timer when the input is empty.
+ */
 export const AgenticInput: React.FC<AgenticInputProps> = ({
   autoFocus,
   disabled,

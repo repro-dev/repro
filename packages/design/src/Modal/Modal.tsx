@@ -27,6 +27,14 @@ type Props = PropsWithChildren<{
   labelId?: string
 }>
 
+/**
+ * Centered modal dialog with a dark backdrop overlay.
+ *
+ * Use for focused tasks that block interaction with the page behind.
+ * Traps focus while open and closes on Escape or backdrop click when
+ * `onClose` is provided. Renders inline (not into a Portal, unlike Drawer).
+ * Requires explicit `width` and `height` props.
+ */
 export const Modal: React.FC<Props> = ({
   children,
   width,

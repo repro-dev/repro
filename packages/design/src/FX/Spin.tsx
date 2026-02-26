@@ -8,6 +8,12 @@ const animation = {
   to: { transform: 'rotate(360deg)' },
 }
 
+/**
+ * Wraps children in a continuous 360-degree rotation animation.
+ *
+ * Use with an icon (e.g. `LoaderIcon` from lucide-react) to indicate
+ * a loading state. Accepts jsxstyle style props for additional styling.
+ */
 export const Spin: React.FC<Props> = React.memo(({ children, ...props }) => (
   <InlineBlock
     {...props}
