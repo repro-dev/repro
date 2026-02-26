@@ -51,7 +51,7 @@ const contextColors = {
   warning: {
     bg: color.warningEmphasis,
     bgHover: color.warningEmphasisHover,
-    containedFg: color.warningFg,
+    containedFg: color.text.default,
     highlightOpacity: 0.35,
     subtle: color.warningSubtle,
     border: color.warningBorder,
