@@ -637,6 +637,41 @@ packages/design/src/ComponentName/
 └── ComponentNameSubpart.tsx    # Compound sub-components (if applicable)
 ```
 
+### JSDoc on exported components (required)
+
+Every exported component must have a JSDoc block on its export declaration. Storybook's `autodocs` renders this block as the component description on the Docs page, so it serves as user-facing documentation for both humans and agents.
+
+**Content guidelines:**
+
+- Describe **what the component is** and **when to use it**
+- Note important behavioral characteristics (e.g. "visual only — does not navigate", "traps focus while open")
+- List key props and their effect if not obvious from the type signature
+- Do **not** include issue references, migration history, contrast ratios, or other change justifications — that belongs in Linear
+
+**Example:**
+
+```tsx
+/**
+ * Inline text styled as a hyperlink. Visual only — does not handle navigation.
+ * Wrap in an `<a>` or router link for clickable behavior.
+ */
+export const Link: React.FC<PropsWithChildren> = ({ children }) => (
+  // ...
+)
+```
+
+```tsx
+/**
+ * Binary toggle switch. Renders a `<button>` with `role="switch"`.
+ *
+ * Use for boolean settings where the effect is immediate (no form submission).
+ * For mutually exclusive options, use `ToggleGroup` instead.
+ */
+export const Toggle: React.FC<Props> = ({ ... }) => {
+  // ...
+}
+```
+
 ### Storybook stories (required)
 
 Every component needs a `.stories.tsx` using Storybook CSF3 format:
@@ -738,7 +773,7 @@ Storybook picks up all `*.stories.@(ts|tsx)` files under `packages/*/src/` and `
 |---|---|---|
 | `title` | Yes | `'Packages/Design/ComponentName'` or `'Packages/Playback/ComponentName'` |
 | `component` | Yes | The primary component being documented |
-| `tags: ['autodocs']` | Yes | Enables auto-generated docs page |
+| `tags: ['autodocs']` | Yes | Enables auto-generated docs page. The component's JSDoc block is rendered as the description at the top of the Docs page. |
 | `decorators` | As needed | Use for layout wrappers, providers, background context |
 | `parameters` | As needed | Use for `docs.story.inline`, `controls`, etc. |
 
