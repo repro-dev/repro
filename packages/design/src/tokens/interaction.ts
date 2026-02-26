@@ -26,28 +26,28 @@ import twColors from 'tailwindcss/colors'
  */
 export const focusRingTokens = {
   default: {
-    outline: `4px solid ${twColors.blue['100']}`,
-    outlineOffset: 0,
+    outline: `4px solid ${twColors.blue['200']}`,
+    outlineOffset: 2,
   },
   info: {
-    outline: `4px solid ${twColors.blue['100']}`,
-    outlineOffset: 0,
+    outline: `4px solid ${twColors.blue['200']}`,
+    outlineOffset: 2,
   },
   success: {
-    outline: `4px solid ${twColors.green['100']}`,
-    outlineOffset: 0,
+    outline: `4px solid ${twColors.green['200']}`,
+    outlineOffset: 2,
   },
   warning: {
-    outline: `4px solid ${twColors.amber['100']}`,
-    outlineOffset: 0,
+    outline: `4px solid ${twColors.amber['200']}`,
+    outlineOffset: 2,
   },
   danger: {
-    outline: `4px solid ${twColors.rose['100']}`,
-    outlineOffset: 0,
+    outline: `4px solid ${twColors.rose['200']}`,
+    outlineOffset: 2,
   },
   neutral: {
-    outline: `4px solid ${twColors.slate['100']}`,
-    outlineOffset: 0,
+    outline: `4px solid ${twColors.slate['200']}`,
+    outlineOffset: 2,
   },
 } as const
 
