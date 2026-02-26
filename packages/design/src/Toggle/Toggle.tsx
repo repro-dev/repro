@@ -19,6 +19,12 @@ const sizes = {
 
 const MINIMUM_FONT_SIZE = 12
 
+/**
+ * Binary toggle switch. Renders a `<button>` with `role="switch"`.
+ *
+ * Use for boolean settings where the effect is immediate (no form submission).
+ * For mutually exclusive options, use `ToggleGroup` instead.
+ */
 export const Toggle: React.FC<Props> = ({
   label,
   checked,

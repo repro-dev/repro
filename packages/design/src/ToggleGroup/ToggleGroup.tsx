@@ -13,6 +13,13 @@ interface Props {
   onChange(selected: number): void
 }
 
+/**
+ * Radio group of pill-shaped toggle buttons with `role="radiogroup"`.
+ *
+ * Use for selecting one option from a small set of mutually exclusive
+ * choices. Supports keyboard navigation (arrow keys, Home, End) with
+ * roving tabindex. For a simple on/off toggle, use `Toggle` instead.
+ */
 export const ToggleGroup: React.FC<Props> = ({
   options,
   selected,

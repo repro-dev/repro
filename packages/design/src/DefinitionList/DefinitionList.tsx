@@ -7,6 +7,13 @@ interface Props {
   pairs: Array<[string, React.ReactNode]>
 }
 
+/**
+ * Titled group of key-value pairs rendered as grid rows.
+ *
+ * Use for structured data display (metadata, configuration, properties).
+ * Must be placed inside a CSS Grid parent with at least two columns —
+ * the component uses `gridColumn: "1 / span 2"` for the title row.
+ */
 export const DefinitionList: React.FC<Props> = ({ title, pairs }) => (
   <Fragment>
     <Block

@@ -43,6 +43,13 @@ function updateValue(elem: HTMLElement, value: number) {
   }
 }
 
+/**
+ * Horizontal progress bar that fills from left to right.
+ *
+ * Use for bounded progress indicators (uploads, task completion).
+ * Transitions to a success color when `value` reaches `max`.
+ * Imperatively manages a child DOM element for smooth animation.
+ */
 export const Meter: React.FC<Props> = ({ min, max, value }) => {
   const ref = useRef() as MutableRefObject<HTMLDivElement>
   const normalizedValue = value / (max - min)

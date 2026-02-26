@@ -33,6 +33,13 @@ function attemptWriteToDocument(doc: Document, html: string) {
   } catch {}
 }
 
+/**
+ * Renders an `<iframe>` and portals React children into its document.
+ *
+ * Use for fully isolated rendering contexts where styles and scripts must
+ * not leak between host and guest. Handles Trusted Types CSP for
+ * `document.write`. Forwards a ref to the underlying `<iframe>` element.
+ */
 export const FrameRealm = React.forwardRef<HTMLIFrameElement, Props>(
   ({ children, ...props }, outerRef) => {
     const innerRef = useRef() as MutableRefObject<HTMLIFrameElement>

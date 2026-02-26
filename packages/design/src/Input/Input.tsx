@@ -35,6 +35,14 @@ const sizes = {
 
 const MINIMUM_FONT_SIZE = 11
 
+/**
+ * Form text input with floating label animation and error styling.
+ *
+ * Renders a single-line `<input>` by default, or a `<textarea>` when
+ * `rows` is greater than 1. Integrates with react-hook-form via
+ * `UseFormRegisterReturn` props. Stops keyboard event propagation to
+ * prevent conflicts with global shortcuts.
+ */
 export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
   (
     {

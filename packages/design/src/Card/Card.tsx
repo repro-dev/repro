@@ -8,6 +8,13 @@ interface Props {
   padding?: CSSProperties['padding']
 }
 
+/**
+ * Elevated surface container with rounded corners and a box shadow.
+ *
+ * Use for grouping related content into a visually distinct section.
+ * Set `fullBleed` to remove the background and padding for edge-to-edge
+ * child content.
+ */
 export const Card: React.FC<PropsWithChildren<Props>> = ({
   children,
   fullBleed,

@@ -109,6 +109,13 @@ const sizes = {
   large:  { base: 9, fontSize: fontSizeTokens.sm },   // 13px
 }
 
+/**
+ * General-purpose action button with `variant` (contained/outlined/text),
+ * `context` (info/success/warning/danger/neutral), and `size` props.
+ *
+ * Use for any clickable action. Renders a native `<button>` element.
+ * The `rounded` prop controls border-radius; defaults to `true`.
+ */
 export const Button: React.FC<Props> = ({
   children,
   type = 'button',

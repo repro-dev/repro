@@ -9,6 +9,13 @@ interface Props {
 
 const defaultIcon = null
 
+/**
+ * Standalone form field label with optional icon and "OPTIONAL" badge.
+ *
+ * Use above a form field when `Input`'s built-in label is insufficient
+ * (e.g. when the field needs an icon or optional indicator). Does not
+ * render an associated `<input>` — pair with a matching `htmlFor`/`id`.
+ */
 export const Label: React.FC<PropsWithChildren<Props>> = ({
   children,
   icon = defaultIcon,

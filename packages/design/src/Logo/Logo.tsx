@@ -21,6 +21,13 @@ const colorMap = {
   },
 }
 
+/**
+ * Repro brand logo rendered as an inline SVG.
+ *
+ * Use in headers, splash screens, and branding contexts. Set `iconOnly`
+ * to omit the wordmark, and `inverted` for light-on-dark backgrounds.
+ * The `size` prop controls the SVG height in pixels.
+ */
 export const Logo: React.FC<Props> = ({
   inverted = false,
   size = 48,

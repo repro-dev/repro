@@ -20,6 +20,14 @@ type Props = PropsWithChildren<{
 const MAX_INT32 = 2 ** 32 - 1
 const DEFAULT_TOOLTIP_DELAY = 100
 
+/**
+ * Positioned tooltip that appears on hover (with configurable delay) and
+ * on focus for keyboard users. Renders into a Portal.
+ *
+ * Place as a child of the trigger element — the tooltip attaches to its
+ * parent and manages `aria-describedby` automatically. Children are the
+ * tooltip content text.
+ */
 export const Tooltip: React.FC<Props> = ({
   children,
   delay = DEFAULT_TOOLTIP_DELAY,
