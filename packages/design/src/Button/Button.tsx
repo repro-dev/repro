@@ -4,7 +4,7 @@ import { color, colors } from '../tokens/colors'
 import { radius, shadow } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
-import { MINIMUM_FONT_SIZE } from '../tokens/typography'
+import { fontSize as fontSizeTokens } from '../tokens/typography'
 
 type Props = PropsWithChildren<{
   type?: 'button' | 'reset' | 'submit'
@@ -100,8 +100,13 @@ const contextColors = {
  * The nearest spacing tokens (sm=4, md=8, lg=12, xl=16…) are too coarse to
  * express these derived values without introducing new magic numbers.
  * Keeping the multiplier makes the scale internally consistent and self-
- * documenting. `MINIMUM_FONT_SIZE` (fontSize.xs = 11px) is imported from the
- * typography token module rather than hardcoded.
+ * documenting.
+ *
+ * Font sizes use `fontSize.*` tokens explicitly per size rather than deriving
+ * from `base * 1.5`:
+ *   small  (base*1.5 = 7.5)  → fontSize.xs (11px) — original clamped to MINIMUM_FONT_SIZE
+ *   medium (base*1.5 = 10.5) → fontSize.xs (11px) — original clamped to MINIMUM_FONT_SIZE
+ *   large  (base*1.5 = 13.5) → fontSize.sm (13px) — nearest token
  *
  * `borderRadius` also derives from `base` (5/7/9px for small/medium/large)
  * rather than a fixed radius token, preserving the original scaling behaviour.
@@ -109,9 +114,9 @@ const contextColors = {
  * `radius.none` is used when `rounded={false}`.
  */
 const sizes = {
-  small: 5,
-  medium: 7,
-  large: 9,
+  small:  { base: 5, fontSize: fontSizeTokens.xs },   // 11px
+  medium: { base: 7, fontSize: fontSizeTokens.xs },   // 11px
+  large:  { base: 9, fontSize: fontSizeTokens.sm },   // 13px
 }
 
 export const Button: React.FC<Props> = ({
@@ -124,10 +129,9 @@ export const Button: React.FC<Props> = ({
   disabled = false,
   onClick,
 }) => {
-  const base = sizes[size]
+  const { base, fontSize } = sizes[size]
   const height = base * 5
   const paddingH = base * 2
-  const fontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
   const gap = base
   const ctx = contextColors[context]
 
