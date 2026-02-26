@@ -667,7 +667,7 @@ export const Disabled: Story = {
 
 ### Story format
 
-All stories use **Storybook CSF3** with `@storybook/react`. Do not use `@ladle/react`.
+All stories use **Storybook CSF3** with `@storybook/react`.
 
 ### Standard template
 
@@ -805,7 +805,7 @@ The component contract above describes the **target state**. Several existing co
 - Use CSF3 format with `@storybook/react` types, running on `@storybook/react-vite`
 - Stories should cover: default state, all variants/sizes, disabled state, error state, edge cases
 - Run Storybook and visually verify before committing
-- All stories have been migrated from Ladle to Storybook CSF3. `@ladle/react` has been removed from all packages.
+
 
 ### Do / Don't
 
