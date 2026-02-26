@@ -25,7 +25,7 @@ export const SpinDefault: SpinStory = {
     <Row gap={24} padding={16} alignItems="center">
       <Col gap={8} alignItems="center">
         <Spin>
-          <Loader2 size={24} color={color.brand.primary} />
+          <Loader2 size={24} color={color.primary} />
         </Spin>
         <Block fontSize={fontSize.xs} color={color.text.muted}>
           Loader2
@@ -45,7 +45,7 @@ export const SpinDefault: SpinStory = {
             width={24}
             height={24}
             borderRadius={4}
-            backgroundColor={color.brand.primary}
+            backgroundColor={color.primary}
           />
         </Spin>
         <Block fontSize={fontSize.xs} color={color.text.muted}>
@@ -89,7 +89,7 @@ export const PulseDefault: PulseStory = {
       </Col>
       <Col gap={8} alignItems="center">
         <Pulse>
-          <Block fontSize={fontSize.md} fontWeight={600} color={color.brand.primary}>
+          <Block fontSize={fontSize.md} fontWeight={600} color={color.primary}>
             Recording
           </Block>
         </Pulse>

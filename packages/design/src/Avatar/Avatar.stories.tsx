@@ -80,6 +80,6 @@ export const CustomColor: Story = {
     name: 'Highlighted User',
     mode: 'text-only',
     size: 30,
-    color: color.brand.primary,
+    color: color.primary,
   },
 }
