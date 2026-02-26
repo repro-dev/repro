@@ -85,18 +85,48 @@ export const color = {
 
   /** rose-700 — destructive actions, error text */
   danger: twColors.rose['700'],
+  /** rose-800 — hover state for danger elements */
+  dangerHover: twColors.rose['800'],
   /** rose-100 — danger tint background */
   dangerSubtle: twColors.rose['100'],
+  /**
+   * rose-300 — border for outlined danger buttons.
+   * NOTE: ['300'] shades may fail WCAG 1.4.11 non-text contrast; pending
+   * review in REP-189. Value may shift to ['400'] or ['500'] after audit.
+   */
+  dangerBorder: twColors.rose['300'],
+  /** rose-900 — text on subtle danger backgrounds */
+  dangerFg: twColors.rose['900'],
 
   /** green-700 — success states */
   success: twColors.green['700'],
+  /** green-800 — hover state for success elements */
+  successHover: twColors.green['800'],
   /** green-100 — success tint background */
   successSubtle: twColors.green['100'],
+  /**
+   * green-300 — border for outlined success buttons.
+   * NOTE: ['300'] shades may fail WCAG 1.4.11 non-text contrast; pending
+   * review in REP-189. Value may shift to ['400'] or ['500'] after audit.
+   */
+  successBorder: twColors.green['300'],
+  /** green-900 — text on subtle success backgrounds */
+  successFg: twColors.green['900'],
 
   /** amber-700 — warning states */
   warning: twColors.amber['700'],
+  /** amber-800 — hover state for warning elements */
+  warningHover: twColors.amber['800'],
   /** amber-100 — warning tint background */
   warningSubtle: twColors.amber['100'],
+  /**
+   * amber-300 — border for outlined warning buttons.
+   * NOTE: ['300'] shades may fail WCAG 1.4.11 non-text contrast; pending
+   * review in REP-189. Value may shift to ['400'] or ['500'] after audit.
+   */
+  warningBorder: twColors.amber['300'],
+  /** amber-900 — text on subtle warning backgrounds */
+  warningFg: twColors.amber['900'],
 
   /**
    * blue-700 — informational states.
@@ -106,6 +136,29 @@ export const color = {
   info: twColors.blue['700'],
   /** blue-100 — info tint background */
   infoSubtle: twColors.blue['100'],
+  /**
+   * blue-300 — border for outlined info buttons.
+   * NOTE: ['300'] shades may fail WCAG 1.4.11 non-text contrast; pending
+   * review in REP-189. Value may shift to ['400'] or ['500'] after audit.
+   */
+  infoBorder: twColors.blue['300'],
+  /** blue-900 — text on subtle info backgrounds */
+  infoFg: twColors.blue['900'],
+
+  /**
+   * slate-700 — neutral contained button background.
+   * Same raw value as `text.secondary` today but carries a different intent
+   * (button fill vs. supporting text). Using a dedicated token allows the
+   * neutral contained shade to shift (e.g. to slate-600 or slate-800)
+   * independently of secondary text in future.
+   */
+  neutral: twColors.slate['700'],
+  /**
+   * slate-600 — hover state for neutral contained buttons.
+   * Lighter than the resting slate-700 to give visible hover feedback while
+   * staying within the neutral hue.
+   */
+  neutralHover: twColors.slate['600'],
 } as const
 
 export type ColorToken = typeof color

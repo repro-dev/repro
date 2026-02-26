@@ -49,10 +49,6 @@ export const focusRingTokens = {
     outline: `4px solid ${twColors.slate['100']}`,
     outlineOffset: 0,
   },
-  inverted: {
-    outline: `4px solid ${twColors.white}`,
-    outlineOffset: 0,
-  },
 } as const
 
 export type FocusRingContext = keyof typeof focusRingTokens
