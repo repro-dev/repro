@@ -1,7 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import React from 'react'
 import { focusRing } from '../tokens/interaction'
-import { colors } from '../theme'
+import { color } from '../tokens/colors'
 
 interface Props {
   label: string
@@ -55,14 +55,14 @@ export const Toggle: React.FC<Props> = ({
       <Block
         height={height}
         width={width}
-        backgroundColor={colors.slate['300']}
-        border={`1px solid ${colors.slate['500']}`}
+        backgroundColor={color.border.strong}
+        border={`1px solid ${color.border.emphasis}`}
         borderRadius={rounded ? '99rem' : 0}
       >
         <Block
           height={control}
           width={control}
-          backgroundColor={checked ? colors.slate['800'] : colors.slate['400']}
+          backgroundColor={checked ? color.bg.emphasis : color.bg.muted}
           borderRadius={rounded ? '99rem' : 0}
           transform={`translate(${checked ? '100%' : '2px'}, 2px)`}
           transition="all 100ms linear"

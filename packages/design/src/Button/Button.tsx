@@ -1,7 +1,7 @@
 import { Row } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
 import { color } from '../tokens/colors'
-import { radius, shadow } from '../tokens/elevation'
+import { radius, shadow, containedShadow } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
 import { fontSize as fontSizeTokens } from '../tokens/typography'
@@ -20,57 +20,60 @@ type Props = PropsWithChildren<{
  * Per-context color mapping using semantic tokens where available.
  *
  * Each context provides:
- *   bg           — contained variant background
- *   bgHover      — contained variant hover background
- *   containedFg  — text color inside a contained button
- *   subtle       — outlined/text variant hover background
- *   border       — outlined variant border color
- *   fg           — text color for outlined/text variants
- *
- * Semantic tokens from `color.*` are used throughout. Border tokens
- * (`color.{context}Border`) use ['300'] shades which may need to shift to
- * ['400'] or ['500'] pending the contrast audit in REP-189.
+ *   bg               — contained variant background
+ *   bgHover          — contained variant hover background
+ *   containedFg      — text color inside a contained button
+ *   highlightOpacity — white inset highlight strength (lower for dark bg,
+ *                      higher for light bg like warning)
+ *   subtle           — outlined/text variant hover background
+ *   border           — outlined variant border color
+ *   fg               — text color for outlined/text variants
  */
 const contextColors = {
   info: {
-    bg: color.info,                   // blue-700
-    bgHover: color.primaryHover,      // blue-800 (same hue as info today)
-    containedFg: color.text.inverse,  // white on blue-700 — contrast ~4.6:1 ✓
-    subtle: color.infoSubtle,         // blue-100
-    border: color.infoBorder,         // blue-300
-    fg: color.infoFg,                 // blue-900
+    bg: color.info,
+    bgHover: color.primaryHover,
+    containedFg: color.text.inverse,
+    highlightOpacity: 0.15,
+    subtle: color.infoSubtle,
+    border: color.infoBorder,
+    fg: color.infoFg,
   },
   success: {
-    bg: color.success,                // green-700
-    bgHover: color.successHover,      // green-800
-    containedFg: color.text.inverse,  // white on green-700 — contrast ~4.5:1 ✓
-    subtle: color.successSubtle,      // green-100
-    border: color.successBorder,      // green-300
-    fg: color.successFg,              // green-900
+    bg: color.success,
+    bgHover: color.successHover,
+    containedFg: color.text.inverse,
+    highlightOpacity: 0.15,
+    subtle: color.successSubtle,
+    border: color.successBorder,
+    fg: color.successFg,
   },
   warning: {
-    bg: color.warning,                // amber-700
-    bgHover: color.warningHover,      // amber-800
-    containedFg: color.text.inverse,  // white on amber-700 — contrast ~4.5:1 ✓
-    subtle: color.warningSubtle,      // amber-100
-    border: color.warningBorder,      // amber-300
-    fg: color.warningFg,              // amber-900
+    bg: color.warningEmphasis,
+    bgHover: color.warningEmphasisHover,
+    containedFg: color.text.default,
+    highlightOpacity: 0.35,
+    subtle: color.warningSubtle,
+    border: color.warningBorder,
+    fg: color.warningFg,
   },
   danger: {
-    bg: color.danger,                 // rose-700
-    bgHover: color.dangerHover,       // rose-800
-    containedFg: color.text.inverse,  // white on rose-700 — contrast ~4.6:1 ✓
-    subtle: color.dangerSubtle,       // rose-100
-    border: color.dangerBorder,       // rose-300
-    fg: color.dangerFg,               // rose-900
+    bg: color.danger,
+    bgHover: color.dangerHover,
+    containedFg: color.text.inverse,
+    highlightOpacity: 0.15,
+    subtle: color.dangerSubtle,
+    border: color.dangerBorder,
+    fg: color.dangerFg,
   },
   neutral: {
-    bg: color.neutral,                // slate-700
-    bgHover: color.neutralHover,      // slate-600
-    containedFg: color.text.inverse,  // white on slate-700 — contrast ~7.0:1 ✓
-    subtle: color.bg.hover,           // slate-100
-    border: color.border.strong,      // slate-300
-    fg: color.text.secondary,         // slate-700
+    bg: color.neutral,
+    bgHover: color.neutralHover,
+    containedFg: color.text.inverse,
+    highlightOpacity: 0.15,
+    subtle: color.bg.hover,
+    border: color.neutralBorder,
+    fg: color.text.secondary,
   },
 } as const
 
@@ -146,7 +149,7 @@ export const Button: React.FC<Props> = ({
         disabled
           ? shadow.none
           : variant === 'contained'
-            ? shadow.sm
+            ? containedShadow(ctx.highlightOpacity)
             : shadow.none
       }
       opacity={disabled ? 0.5 : 1}

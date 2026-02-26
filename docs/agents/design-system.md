@@ -199,21 +199,33 @@ import { color, spacing, fontSize, fontWeight, lineHeight, fontFamily, textStyle
 | `color.bg.surface` | white | Card/page surface |
 | `color.bg.subtle` | slate-50 | Subtle background (zebra rows, code blocks) |
 | `color.bg.hover` | slate-100 | Hover background |
+| `color.bg.muted` | slate-500 | De-emphasised fill for resting/inactive controls |
 | `color.bg.emphasis` | slate-800 | Dark emphasis background |
 | `color.bg.overlay` | `rgba(0,0,0,0.5)` | Backdrop overlays |
 | `color.border.default` | slate-200 | Standard border |
 | `color.border.strong` | slate-300 | Emphasized border |
+| `color.border.emphasis` | slate-500 | High-contrast borders for UI controls |
 | `color.border.focus` | blue-500 | Focus ring border |
 | `color.danger` | rose-700 | Error/destructive actions |
 | `color.dangerSubtle` | rose-100 | Error background |
+| `color.dangerBorder` | rose-500 | Outlined danger button/error borders |
 | `color.success` | green-700 | Success state |
 | `color.successSubtle` | green-100 | Success background |
-| `color.warning` | amber-700 | Warning state |
+| `color.successBorder` | green-600 | Outlined success button borders |
+| `color.warning` | amber-700 | Warning state (text/borders on light bg) |
 | `color.warningSubtle` | amber-100 | Warning background |
+| `color.warningEmphasis` | amber-400 | Warning contained button bg (uses dark text) |
+| `color.warningEmphasisHover` | amber-500 | Warning contained button hover |
+| `color.warningBorder` | amber-600 | Outlined warning button borders |
 | `color.info` | blue-700 | Informational state |
 | `color.infoSubtle` | blue-100 | Informational background |
+| `color.infoBorder` | blue-500 | Outlined info button/focus borders |
+| `color.neutral` | slate-700 | Neutral contained button bg |
+| `color.neutralBorder` | slate-500 | Outlined neutral button borders |
 
 The raw `colors` palette (Tailwind) is available for product-specific edge cases with no semantic equivalent (syntax highlighting, element inspector colors). Prefer `color.*` for all standard UI.
+
+**Token category discipline**: Always use tokens from the category that matches the CSS property — `color.bg.*` for `backgroundColor`, `color.border.*` for `border`/`borderColor`, `color.text.*` for `color`. Even when two tokens resolve to the same raw value (e.g. `bg.muted` and `border.emphasis` are both slate-500), using the wrong category is a semantic misuse and will break if the values diverge in future.
 
 ### Spacing (`spacing`)
 
@@ -637,6 +649,41 @@ packages/design/src/ComponentName/
 └── ComponentNameSubpart.tsx    # Compound sub-components (if applicable)
 ```
 
+### JSDoc on exported components (required)
+
+Every exported component must have a JSDoc block on its export declaration. Storybook's `autodocs` renders this block as the component description on the Docs page, so it serves as user-facing documentation for both humans and agents.
+
+**Content guidelines:**
+
+- Describe **what the component is** and **when to use it**
+- Note important behavioral characteristics (e.g. "visual only — does not navigate", "traps focus while open")
+- List key props and their effect if not obvious from the type signature
+- Do **not** include issue references, migration history, contrast ratios, or other change justifications — that belongs in Linear
+
+**Example:**
+
+```tsx
+/**
+ * Inline text styled as a hyperlink. Visual only — does not handle navigation.
+ * Wrap in an `<a>` or router link for clickable behavior.
+ */
+export const Link: React.FC<PropsWithChildren> = ({ children }) => (
+  // ...
+)
+```
+
+```tsx
+/**
+ * Binary toggle switch. Renders a `<button>` with `role="switch"`.
+ *
+ * Use for boolean settings where the effect is immediate (no form submission).
+ * For mutually exclusive options, use `ToggleGroup` instead.
+ */
+export const Toggle: React.FC<Props> = ({ ... }) => {
+  // ...
+}
+```
+
 ### Storybook stories (required)
 
 Every component needs a `.stories.tsx` using Storybook CSF3 format:
@@ -738,7 +785,7 @@ Storybook picks up all `*.stories.@(ts|tsx)` files under `packages/*/src/` and `
 |---|---|---|
 | `title` | Yes | `'Packages/Design/ComponentName'` or `'Packages/Playback/ComponentName'` |
 | `component` | Yes | The primary component being documented |
-| `tags: ['autodocs']` | Yes | Enables auto-generated docs page |
+| `tags: ['autodocs']` | Yes | Enables auto-generated docs page. The component's JSDoc block is rendered as the description at the top of the Docs page. |
 | `decorators` | As needed | Use for layout wrappers, providers, background context |
 | `parameters` | As needed | Use for `docs.story.inline`, `controls`, etc. |
 

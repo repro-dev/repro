@@ -60,6 +60,8 @@ export const color = {
     subtle: twColors.slate['50'],
     /** slate-100 — hover states, row highlights */
     hover: twColors.slate['100'],
+    /** slate-500 — de-emphasised fill for resting/inactive controls */
+    muted: twColors.slate['500'],
     /** slate-800 — nav bars, dark surfaces */
     emphasis: twColors.slate['800'],
     /** rgba(0,0,0,0.5) — modal overlays */
@@ -75,6 +77,8 @@ export const color = {
     default: twColors.slate['200'],
     /** slate-300 — stronger borders, active states */
     strong: twColors.slate['300'],
+    /** slate-500 — high-contrast borders for UI controls (e.g. toggle tracks) */
+    emphasis: twColors.slate['500'],
     /** blue-500 — keyboard focus rings */
     focus: twColors.blue['500'],
   },
@@ -89,12 +93,8 @@ export const color = {
   dangerHover: twColors.rose['800'],
   /** rose-100 — danger tint background */
   dangerSubtle: twColors.rose['100'],
-  /**
-   * rose-300 — border for outlined danger buttons.
-   * NOTE: ['300'] shades may fail WCAG 1.4.11 non-text contrast; pending
-   * review in REP-189. Value may shift to ['400'] or ['500'] after audit.
-   */
-  dangerBorder: twColors.rose['300'],
+  /** rose-500 — border for outlined danger buttons and error states */
+  dangerBorder: twColors.rose['500'],
   /** rose-900 — text on subtle danger backgrounds */
   dangerFg: twColors.rose['900'],
 
@@ -104,27 +104,23 @@ export const color = {
   successHover: twColors.green['800'],
   /** green-100 — success tint background */
   successSubtle: twColors.green['100'],
-  /**
-   * green-300 — border for outlined success buttons.
-   * NOTE: ['300'] shades may fail WCAG 1.4.11 non-text contrast; pending
-   * review in REP-189. Value may shift to ['400'] or ['500'] after audit.
-   */
-  successBorder: twColors.green['300'],
+  /** green-600 — border for outlined success buttons */
+  successBorder: twColors.green['600'],
   /** green-900 — text on subtle success backgrounds */
   successFg: twColors.green['900'],
 
-  /** amber-700 — warning states */
+  /** amber-700 — warning states (text, borders on light backgrounds) */
   warning: twColors.amber['700'],
-  /** amber-800 — hover state for warning elements */
+  /** amber-800 — hover state for warning text/borders */
   warningHover: twColors.amber['800'],
+  /** amber-400 — warning contained button background (uses dark text) */
+  warningEmphasis: twColors.amber['400'],
+  /** amber-500 — hover state for warning contained button */
+  warningEmphasisHover: twColors.amber['500'],
   /** amber-100 — warning tint background */
   warningSubtle: twColors.amber['100'],
-  /**
-   * amber-300 — border for outlined warning buttons.
-   * NOTE: ['300'] shades may fail WCAG 1.4.11 non-text contrast; pending
-   * review in REP-189. Value may shift to ['400'] or ['500'] after audit.
-   */
-  warningBorder: twColors.amber['300'],
+  /** amber-600 — border for outlined warning buttons */
+  warningBorder: twColors.amber['600'],
   /** amber-900 — text on subtle warning backgrounds */
   warningFg: twColors.amber['900'],
 
@@ -136,12 +132,8 @@ export const color = {
   info: twColors.blue['700'],
   /** blue-100 — info tint background */
   infoSubtle: twColors.blue['100'],
-  /**
-   * blue-300 — border for outlined info buttons.
-   * NOTE: ['300'] shades may fail WCAG 1.4.11 non-text contrast; pending
-   * review in REP-189. Value may shift to ['400'] or ['500'] after audit.
-   */
-  infoBorder: twColors.blue['300'],
+  /** blue-500 — border for outlined info buttons and focus rings */
+  infoBorder: twColors.blue['500'],
   /** blue-900 — text on subtle info backgrounds */
   infoFg: twColors.blue['900'],
 
@@ -159,6 +151,8 @@ export const color = {
    * staying within the neutral hue.
    */
   neutralHover: twColors.slate['600'],
+  /** slate-500 — border for outlined neutral buttons */
+  neutralBorder: twColors.slate['500'],
 } as const
 
 export type ColorToken = typeof color

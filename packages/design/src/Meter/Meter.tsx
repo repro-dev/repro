@@ -1,6 +1,6 @@
 import { Block } from '@jsxstyle/react'
 import React, { MutableRefObject, useEffect, useRef } from 'react'
-import { colors } from '../theme'
+import { color } from '../tokens/colors'
 
 interface Props {
   value: number
@@ -8,12 +8,15 @@ interface Props {
   max: number
 }
 
+const FILL_IN_PROGRESS = color.primary
+const FILL_COMPLETE = color.success
+
 function createValueElement() {
   const elem = document.createElement('div')
   elem.classList.add('value')
 
   const styles = [
-    ['backgroundColor', colors.blue['500'] as string],
+    ['backgroundColor', FILL_IN_PROGRESS],
     ['height', '100%'],
     ['left', '0'],
     ['pointerEvents', 'none'],
@@ -36,7 +39,7 @@ function updateValue(elem: HTMLElement, value: number) {
   elem.style.transform = `scaleX(${value})`
 
   if (value === 1) {
-    elem.style.backgroundColor = colors.green['500']
+    elem.style.backgroundColor = FILL_COMPLETE
   }
 }
 
@@ -62,7 +65,7 @@ export const Meter: React.FC<Props> = ({ min, max, value }) => {
       position="relative"
       width="100%"
       height={8}
-      backgroundColor={colors.slate['200']}
+      backgroundColor={color.border.default}
       borderRadius={4}
       overflow="hidden"
       props={{ ref }}

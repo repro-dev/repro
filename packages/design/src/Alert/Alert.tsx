@@ -1,21 +1,21 @@
 import { Block, Row } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
-import { colors } from '../theme'
+import { color } from '../tokens/colors'
 
 type AlertType = 'info' | 'success' | 'warning' | 'danger'
 
 const backgroundColorMap: Record<AlertType, string> = {
-  info: colors.blue['100'] as string,
-  success: colors.green['100'] as string,
-  warning: colors.amber['100'] as string,
-  danger: colors.red['100'] as string,
+  info: color.infoSubtle,
+  success: color.successSubtle,
+  warning: color.warningSubtle,
+  danger: color.dangerSubtle,
 }
 
 const colorMap: Record<AlertType, string> = {
-  info: colors.blue['700'] as string,
-  success: colors.green['700'] as string,
-  warning: colors.amber['700'] as string,
-  danger: colors.red['700'] as string,
+  info: color.info,
+  success: color.success,
+  warning: color.warning,
+  danger: color.danger,
 }
 
 /**
