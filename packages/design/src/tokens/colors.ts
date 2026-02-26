@@ -75,6 +75,8 @@ export const color = {
     default: twColors.slate['200'],
     /** slate-300 — stronger borders, active states */
     strong: twColors.slate['300'],
+    /** slate-500 — high-contrast borders for UI controls (e.g. toggle tracks) */
+    emphasis: twColors.slate['500'],
     /** blue-500 — keyboard focus rings */
     focus: twColors.blue['500'],
   },
