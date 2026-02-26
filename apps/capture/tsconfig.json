@@ -21,6 +21,8 @@
     "target": "es2021"
   },
 
+  "exclude": ["src/**/*.stories.tsx"],
+
   "ts-node": {
     "files": true
   }
