@@ -16,7 +16,6 @@ const contexts = [
   'warning',
   'danger',
   'neutral',
-  'inverted',
 ] as const
 
 const variants = ['contained', 'outlined', 'text'] as const

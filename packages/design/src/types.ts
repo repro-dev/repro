@@ -10,7 +10,6 @@ export type ContextVariant =
   | 'warning'
   | 'danger'
   | 'neutral'
-  | 'inverted'
 
 export type ButtonClickHandler = (
   event: React.MouseEvent<HTMLButtonElement>

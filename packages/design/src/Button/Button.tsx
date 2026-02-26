@@ -10,7 +10,7 @@ type Props = PropsWithChildren<{
   type?: 'button' | 'reset' | 'submit'
   size?: 'small' | 'medium' | 'large'
   variant?: 'contained' | 'outlined' | 'text'
-  context?: 'info' | 'success' | 'warning' | 'danger' | 'neutral' | 'inverted'
+  context?: 'info' | 'success' | 'warning' | 'danger' | 'neutral'
   rounded?: boolean
   disabled?: boolean
   onClick?: () => void
@@ -28,9 +28,7 @@ type Props = PropsWithChildren<{
  *   fg           — text color for outlined/text variants
  *
  * `containedFg` is `color.text.inverse` (white) for all dark-background
- * contexts. The `inverted` context is the exception: its contained background
- * is white (`color.bg.surface`), so the foreground must be
- * `color.text.default` (slate-900) to meet WCAG 1.4.3 AA contrast (≥4.5:1).
+ * contexts.
  *
  * Semantic tokens from `color.*` are preferred. Raw palette values are used
  * only where the 24-token vocabulary has no per-context hover or border shade
@@ -76,14 +74,6 @@ const contextColors = {
     subtle: color.bg.hover,           // slate-100
     border: color.border.strong,      // slate-300
     fg: color.text.secondary,         // slate-700
-  },
-  inverted: {
-    bg: color.bg.surface,             // white — intended for use on dark surfaces
-    bgHover: color.bg.hover,          // slate-100
-    containedFg: color.text.default,  // slate-900 on white — contrast ~16:1 ✓
-    subtle: color.bg.hover,           // slate-100
-    border: color.border.strong,      // slate-300
-    fg: color.text.default,           // slate-900
   },
 } as const
 
