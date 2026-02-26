@@ -18,10 +18,6 @@
  *
  * Values are derived from the most common shadows found in the codebase
  * (cards, buttons, modals, inspector panels).
- *
- * Contained buttons use a composite shadow (`contained`) that layers an
- * inset white highlight, an inset dark ring (pseudo-border), and a subtle
- * drop shadow — inspired by the TailwindUI / Catalyst button treatment.
  */
 export const shadow = {
   /** No shadow */
@@ -32,13 +28,38 @@ export const shadow = {
   md: '0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1)',
   /** Modal / overlay elevation */
   lg: '0 8px 16px rgba(0, 0, 0, 0.25)',
-  /** Contained button — inset highlight + inset border ring + drop shadow */
-  contained:
-    'inset 0 1px 0 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-  /** Warning contained button — uses dark overlay instead of white highlight */
-  containedWarning:
-    'inset 0 1px 0 0 rgba(255, 255, 255, 0.25), inset 0 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.05)',
 } as const
+
+/**
+ * Overlay colors used in contained button shadows.
+ *
+ * Separated from the shadow geometry so the tint values can be adjusted
+ * independently (e.g. for dark mode) without touching shadow definitions.
+ */
+const overlay = {
+  /** Dark ring — pseudo-border for edge definition */
+  ring: 'rgba(0, 0, 0, 0.1)',
+  /** Drop shadow beneath the button */
+  drop: 'rgba(0, 0, 0, 0.05)',
+} as const
+
+/**
+ * Build the composite box-shadow for a contained button.
+ *
+ * Layers three effects (top-edge highlight bevel, inset dark ring, subtle
+ * drop shadow) inspired by the TailwindUI / Catalyst button treatment.
+ *
+ * @param highlightOpacity - Opacity of the white inset highlight (0–1).
+ *   Darker backgrounds use a lower value (0.1); lighter backgrounds like
+ *   warning (amber-400) use a higher value (0.25) so the bevel is visible.
+ */
+export function containedShadow(highlightOpacity: number): string {
+  return [
+    `inset 0 1px 0 0 rgba(255, 255, 255, ${highlightOpacity})`,
+    `inset 0 0 0 1px ${overlay.ring}`,
+    `0 1px 2px 0 ${overlay.drop}`,
+  ].join(', ')
+}
 
 export type ShadowToken = keyof typeof shadow
 export type ShadowValue = (typeof shadow)[ShadowToken]

@@ -1,7 +1,7 @@
 import { Row } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
 import { color } from '../tokens/colors'
-import { radius, shadow } from '../tokens/elevation'
+import { radius, shadow, containedShadow } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
 import { fontSize as fontSizeTokens } from '../tokens/typography'
@@ -20,18 +20,21 @@ type Props = PropsWithChildren<{
  * Per-context color mapping using semantic tokens where available.
  *
  * Each context provides:
- *   bg           — contained variant background
- *   bgHover      — contained variant hover background
- *   containedFg  — text color inside a contained button
- *   subtle       — outlined/text variant hover background
- *   border       — outlined variant border color
- *   fg           — text color for outlined/text variants
+ *   bg               — contained variant background
+ *   bgHover          — contained variant hover background
+ *   containedFg      — text color inside a contained button
+ *   highlightOpacity — white inset highlight strength (lower for dark bg,
+ *                      higher for light bg like warning)
+ *   subtle           — outlined/text variant hover background
+ *   border           — outlined variant border color
+ *   fg               — text color for outlined/text variants
  */
 const contextColors = {
   info: {
     bg: color.info,
     bgHover: color.primaryHover,
     containedFg: color.text.inverse,
+    highlightOpacity: 0.1,
     subtle: color.infoSubtle,
     border: color.infoBorder,
     fg: color.infoFg,
@@ -40,6 +43,7 @@ const contextColors = {
     bg: color.success,
     bgHover: color.successHover,
     containedFg: color.text.inverse,
+    highlightOpacity: 0.1,
     subtle: color.successSubtle,
     border: color.successBorder,
     fg: color.successFg,
@@ -48,6 +52,7 @@ const contextColors = {
     bg: color.warningEmphasis,
     bgHover: color.warningEmphasisHover,
     containedFg: color.warningFg,
+    highlightOpacity: 0.25,
     subtle: color.warningSubtle,
     border: color.warningBorder,
     fg: color.warningFg,
@@ -56,6 +61,7 @@ const contextColors = {
     bg: color.danger,
     bgHover: color.dangerHover,
     containedFg: color.text.inverse,
+    highlightOpacity: 0.1,
     subtle: color.dangerSubtle,
     border: color.dangerBorder,
     fg: color.dangerFg,
@@ -64,6 +70,7 @@ const contextColors = {
     bg: color.neutral,
     bgHover: color.neutralHover,
     containedFg: color.text.inverse,
+    highlightOpacity: 0.1,
     subtle: color.bg.hover,
     border: color.neutralBorder,
     fg: color.text.secondary,
@@ -142,9 +149,7 @@ export const Button: React.FC<Props> = ({
         disabled
           ? shadow.none
           : variant === 'contained'
-            ? context === 'warning'
-              ? shadow.containedWarning
-              : shadow.contained
+            ? containedShadow(ctx.highlightOpacity)
             : shadow.none
       }
       opacity={disabled ? 0.5 : 1}
