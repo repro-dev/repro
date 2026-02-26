@@ -31,7 +31,7 @@ export const shadow = {
 } as const
 
 /**
- * Overlay colors used in contained button shadows.
+ * Overlay colors used in contained-surface shadows.
  *
  * Separated from the shadow geometry so the tint values can be adjusted
  * independently (e.g. for dark mode) without touching shadow definitions.
@@ -39,15 +39,17 @@ export const shadow = {
 const overlay = {
   /** Dark ring — pseudo-border for edge definition */
   ring: 'rgba(0, 0, 0, 0.1)',
-  /** Drop shadow beneath the button */
+  /** Drop shadow beneath the surface */
   drop: 'rgba(0, 0, 0, 0.05)',
 } as const
 
 /**
- * Build the composite box-shadow for a contained button.
+ * Build a composite box-shadow for raised, filled interactive surfaces.
  *
  * Layers three effects (top-edge highlight bevel, inset dark ring, subtle
  * drop shadow) inspired by the TailwindUI / Catalyst button treatment.
+ * Suitable for any contained/filled interactive element — buttons, toggle
+ * segments, solid chips, dropdown triggers, etc.
  *
  * @param highlightOpacity - Opacity of the white inset highlight (0–1).
  *   Darker backgrounds use a lower value (0.15); lighter backgrounds like
