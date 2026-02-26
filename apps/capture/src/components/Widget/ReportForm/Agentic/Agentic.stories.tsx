@@ -10,6 +10,7 @@ import { AgenticState, Entry, Loading } from './types'
 const meta: Meta = {
   title: 'Apps/Capture/Agentic',
   component: AgenticView,
+  tags: ['experimental'],
   decorators: [
     Story => (
       <Block

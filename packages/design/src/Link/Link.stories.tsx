@@ -5,9 +5,9 @@ import { color } from '../tokens/colors'
 import { Link } from './Link'
 
 const meta: Meta<typeof Link> = {
-  title: 'Packages/Design/Link',
+  title: 'Components/Link',
   component: Link,
-  tags: ['autodocs'],
+  tags: ['autodocs', 'design-system'],
 }
 
 export default meta

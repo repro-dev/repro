@@ -6,9 +6,9 @@ import { EMPTY_PLAYBACK } from '../createSourcePlayback'
 import { PlaybackNavigation } from './PlaybackNavigation'
 
 const meta: Meta<typeof PlaybackNavigation> = {
-  title: 'Packages/Playback/PlaybackNavigation',
+  title: 'Playback/PlaybackNavigation',
   component: PlaybackNavigation,
-  tags: ['autodocs'],
+  tags: ['autodocs', 'pattern'],
 }
 
 export default meta

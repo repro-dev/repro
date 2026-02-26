@@ -13,9 +13,9 @@ import { createSourcePlayback } from '../createSourcePlayback'
 import { RangeTimeline } from './RangeTimeline'
 
 const meta: Meta<typeof RangeTimeline> = {
-  title: 'Packages/Playback/RangeTimeline',
+  title: 'Playback/RangeTimeline',
   component: RangeTimeline,
-  tags: ['autodocs'],
+  tags: ['autodocs', 'pattern'],
 }
 
 export default meta

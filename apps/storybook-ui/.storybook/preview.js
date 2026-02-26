@@ -1,9 +1,11 @@
+import { createElement } from "react";
 import { applyResetStyles } from "@repro/theme";
 
 const globalStyleRoot = document.getElementById("global-styles");
 
 applyResetStyles("", globalStyleRoot);
 
+/** @type { import('@storybook/react').Preview } */
 const preview = {
   tags: ["autodocs"],
   parameters: {
@@ -13,7 +15,18 @@ const preview = {
         date: /Date$/i,
       },
     },
+    backgrounds: {
+      default: "Light",
+      values: [
+        { name: "Light", value: "#ffffff" },
+        { name: "Dark", value: "#1a1a2e" },
+        { name: "Neutral", value: "#f5f5f5" },
+      ],
+    },
   },
+  decorators: [
+    (Story) => createElement("div", { style: { padding: "1rem" } }, createElement(Story)),
+  ],
 };
 
 export default preview;

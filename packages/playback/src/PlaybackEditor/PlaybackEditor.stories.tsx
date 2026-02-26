@@ -17,9 +17,9 @@ import { createSourcePlayback } from '../createSourcePlayback'
 import { PlaybackEditor } from './PlaybackEditor'
 
 const meta: Meta<typeof PlaybackEditor> = {
-  title: 'Packages/Playback/PlaybackEditor',
+  title: 'Playback/PlaybackEditor',
   component: PlaybackEditor,
-  tags: ['autodocs'],
+  tags: ['autodocs', 'pattern'],
 }
 
 export default meta
