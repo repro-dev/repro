@@ -89,11 +89,7 @@ export const color = {
   dangerHover: twColors.rose['800'],
   /** rose-100 — danger tint background */
   dangerSubtle: twColors.rose['100'],
-  /**
-   * rose-500 — border for outlined danger buttons and error states.
-   * Shifted from ['300'] (1.89:1) to ['500'] (3.67:1) for WCAG 1.4.11
-   * non-text contrast compliance (3:1 minimum). See REP-189.
-   */
+  /** rose-500 — border for outlined danger buttons and error states */
   dangerBorder: twColors.rose['500'],
   /** rose-900 — text on subtle danger backgrounds */
   dangerFg: twColors.rose['900'],
@@ -104,11 +100,7 @@ export const color = {
   successHover: twColors.green['800'],
   /** green-100 — success tint background */
   successSubtle: twColors.green['100'],
-  /**
-   * green-600 — border for outlined success buttons.
-   * Shifted from ['300'] (1.40:1) to ['600'] (3.30:1) for WCAG 1.4.11
-   * non-text contrast compliance (3:1 minimum). See REP-189.
-   */
+  /** green-600 — border for outlined success buttons */
   successBorder: twColors.green['600'],
   /** green-900 — text on subtle success backgrounds */
   successFg: twColors.green['900'],
@@ -119,11 +111,7 @@ export const color = {
   warningHover: twColors.amber['800'],
   /** amber-100 — warning tint background */
   warningSubtle: twColors.amber['100'],
-  /**
-   * amber-600 — border for outlined warning buttons.
-   * Shifted from ['300'] (1.44:1) to ['600'] (3.19:1) for WCAG 1.4.11
-   * non-text contrast compliance (3:1 minimum). See REP-189.
-   */
+  /** amber-600 — border for outlined warning buttons */
   warningBorder: twColors.amber['600'],
   /** amber-900 — text on subtle warning backgrounds */
   warningFg: twColors.amber['900'],
@@ -136,11 +124,7 @@ export const color = {
   info: twColors.blue['700'],
   /** blue-100 — info tint background */
   infoSubtle: twColors.blue['100'],
-  /**
-   * blue-500 — border for outlined info buttons and focus rings.
-   * Shifted from ['300'] (1.80:1) to ['500'] (3.68:1) for WCAG 1.4.11
-   * non-text contrast compliance (3:1 minimum). See REP-189.
-   */
+  /** blue-500 — border for outlined info buttons and focus rings */
   infoBorder: twColors.blue['500'],
   /** blue-900 — text on subtle info backgrounds */
   infoFg: twColors.blue['900'],
@@ -159,12 +143,7 @@ export const color = {
    * staying within the neutral hue.
    */
   neutralHover: twColors.slate['600'],
-  /**
-   * slate-500 — border for outlined neutral buttons.
-   * Added in REP-189; the previous approach used `color.border.strong`
-   * (slate-300, 1.48:1) which failed WCAG 1.4.11. slate-500 provides
-   * 4.76:1 on white. See REP-189.
-   */
+  /** slate-500 — border for outlined neutral buttons */
   neutralBorder: twColors.slate['500'],
 } as const
 
