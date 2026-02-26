@@ -1,6 +1,6 @@
 import { Row } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
-import { color, colors } from '../tokens/colors'
+import { color } from '../tokens/colors'
 import { radius, shadow } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
@@ -27,12 +27,9 @@ type Props = PropsWithChildren<{
  *   border       — outlined variant border color
  *   fg           — text color for outlined/text variants
  *
- * `containedFg` is `color.text.inverse` (white) for all dark-background
- * contexts.
- *
- * Semantic tokens from `color.*` are preferred. Raw palette values are used
- * only where the 24-token vocabulary has no per-context hover or border shade
- * (e.g. success-hover, danger-border). These are noted with inline comments.
+ * Semantic tokens from `color.*` are used throughout. Border tokens
+ * (`color.{context}Border`) use ['300'] shades which may need to shift to
+ * ['400'] or ['500'] pending the contrast audit in REP-189.
  */
 const contextColors = {
   info: {
@@ -40,36 +37,36 @@ const contextColors = {
     bgHover: color.primaryHover,      // blue-800 (same hue as info today)
     containedFg: color.text.inverse,  // white on blue-700 — contrast ~4.6:1 ✓
     subtle: color.infoSubtle,         // blue-100
-    border: colors.blue['300'],       // no semantic border token for info
-    fg: colors.blue['900'],           // no semantic fg token for info
+    border: color.infoBorder,         // blue-300
+    fg: color.infoFg,                 // blue-900
   },
   success: {
     bg: color.success,                // green-700
-    bgHover: colors.green['800'],     // no semantic hover token for success
+    bgHover: color.successHover,      // green-800
     containedFg: color.text.inverse,  // white on green-700 — contrast ~4.5:1 ✓
     subtle: color.successSubtle,      // green-100
-    border: colors.green['300'],      // no semantic border token for success
-    fg: colors.green['900'],          // no semantic fg token for success
+    border: color.successBorder,      // green-300
+    fg: color.successFg,              // green-900
   },
   warning: {
     bg: color.warning,                // amber-700
-    bgHover: colors.amber['800'],     // no semantic hover token for warning
+    bgHover: color.warningHover,      // amber-800
     containedFg: color.text.inverse,  // white on amber-700 — contrast ~4.5:1 ✓
     subtle: color.warningSubtle,      // amber-100
-    border: colors.amber['300'],      // no semantic border token for warning
-    fg: colors.amber['900'],          // no semantic fg token for warning
+    border: color.warningBorder,      // amber-300
+    fg: color.warningFg,              // amber-900
   },
   danger: {
     bg: color.danger,                 // rose-700
-    bgHover: colors.rose['800'],      // no semantic hover token for danger
+    bgHover: color.dangerHover,       // rose-800
     containedFg: color.text.inverse,  // white on rose-700 — contrast ~4.6:1 ✓
     subtle: color.dangerSubtle,       // rose-100
-    border: colors.rose['300'],       // no semantic border token for danger
-    fg: colors.rose['900'],           // no semantic fg token for danger
+    border: color.dangerBorder,       // rose-300
+    fg: color.dangerFg,               // rose-900
   },
   neutral: {
-    bg: colors.slate['700'],          // no semantic contained-bg token for neutral
-    bgHover: colors.slate['600'],     // no semantic hover token for neutral
+    bg: color.neutral,                // slate-700
+    bgHover: color.neutralHover,      // slate-600
     containedFg: color.text.inverse,  // white on slate-700 — contrast ~7.0:1 ✓
     subtle: color.bg.hover,           // slate-100
     border: color.border.strong,      // slate-300
