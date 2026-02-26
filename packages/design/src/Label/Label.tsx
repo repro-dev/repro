@@ -1,6 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
-import { colors } from '../theme'
+import { color } from '../tokens/colors'
 
 interface Props {
   icon?: React.ReactNode
@@ -19,13 +19,13 @@ export const Label: React.FC<PropsWithChildren<Props>> = ({
     alignItems="center"
     fontSize={15}
     fontWeight={700}
-    color={colors.slate['700']}
+    color={color.text.secondary}
   >
     {icon}
     {children}
     {optional && (
       <Block
-        color={colors.slate['400']}
+        color={color.text.muted}
         fontSize={11}
         textTransform="uppercase"
       >

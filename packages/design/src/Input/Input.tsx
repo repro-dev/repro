@@ -9,7 +9,7 @@ import React, {
 import { UseFormRegisterReturn } from 'react-hook-form'
 import mergeRefs from 'react-merge-refs'
 import { focusWithinRing } from '../tokens/interaction'
-import { colors } from '../theme'
+import { color } from '../tokens/colors'
 
 type Context = 'normal' | 'error'
 type Size = 'small' | 'medium' | 'large' | 'xlarge'
@@ -91,18 +91,18 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
     return (
       <Block
         component="label"
-        backgroundColor={colors.white}
+        backgroundColor={color.bg.surface}
         borderColor={
           context === 'error'
-            ? colors.rose['500']
+            ? color.danger
             : focused
-            ? colors.blue['500']
-            : colors.slate['300']
+            ? color.border.focus
+            : color.border.strong
         }
         borderRadius={4}
         borderStyle="solid"
         borderWidth={1}
-        boxShadow={`0 0.5px 1.5px ${colors.slate['300']}DA`}
+        boxShadow={`0 0.5px 1.5px ${color.border.strong}DA`}
         position="relative"
         {...focusWithinRing(context === 'error' ? 'danger' : 'default')}
       >
@@ -115,13 +115,13 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
             translate="0 -50%"
             fontSize={fontSize}
             lineHeight={1}
-            backgroundColor={colors.white}
+            backgroundColor={color.bg.surface}
             color={
               context === 'error'
-                ? colors.rose['500']
+                ? color.danger
                 : focused
-                ? colors.blue['500']
-                : colors.slate['500']
+                ? color.primary
+                : color.text.muted
             }
             pointerEvents="none"
             scale={value !== '' || focused ? 0.8 : 1}
@@ -139,8 +139,8 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
           fontFamily="inherit"
           fontSize={fontSize}
           lineHeight={1.5}
-          color={colors.slate['800']}
-          placeholderColor={colors.slate['500']}
+          color={color.text.default}
+          placeholderColor={color.text.muted}
           backgroundColor="transparent"
           borderColor="transparent"
           borderRadius={4}

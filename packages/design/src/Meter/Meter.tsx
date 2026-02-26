@@ -1,6 +1,6 @@
 import { Block } from '@jsxstyle/react'
 import React, { MutableRefObject, useEffect, useRef } from 'react'
-import { colors } from '../theme'
+import { color } from '../tokens/colors'
 
 interface Props {
   value: number
@@ -8,12 +8,23 @@ interface Props {
   max: number
 }
 
+/**
+ * Meter fill colors (REP-189).
+ *
+ * Shifted from blue-500/green-500 to blue-600/green-700 for WCAG 1.4.11
+ * non-text contrast (3:1 minimum against the slate-200 track):
+ *   blue-600 on slate-200: 4.19:1 ✓
+ *   green-700 on slate-200: 4.07:1 ✓
+ */
+const FILL_IN_PROGRESS = color.primary // blue-700 (5.44:1 on slate-200 ✓)
+const FILL_COMPLETE = color.success    // green-700 (4.07:1 on slate-200 ✓)
+
 function createValueElement() {
   const elem = document.createElement('div')
   elem.classList.add('value')
 
   const styles = [
-    ['backgroundColor', colors.blue['500'] as string],
+    ['backgroundColor', FILL_IN_PROGRESS],
     ['height', '100%'],
     ['left', '0'],
     ['pointerEvents', 'none'],
@@ -36,7 +47,7 @@ function updateValue(elem: HTMLElement, value: number) {
   elem.style.transform = `scaleX(${value})`
 
   if (value === 1) {
-    elem.style.backgroundColor = colors.green['500']
+    elem.style.backgroundColor = FILL_COMPLETE
   }
 }
 
@@ -62,7 +73,7 @@ export const Meter: React.FC<Props> = ({ min, max, value }) => {
       position="relative"
       width="100%"
       height={8}
-      backgroundColor={colors.slate['200']}
+      backgroundColor={color.border.default}
       borderRadius={4}
       overflow="hidden"
       props={{ ref }}

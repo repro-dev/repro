@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import colors from 'tailwindcss/colors'
+import { color } from '../tokens/colors'
 import { focusRing } from '../tokens/interaction'
 
 export interface AgenticInputFormState {
@@ -117,7 +117,7 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
         <Block
           backgroundColor="transparent"
           border="none"
-          color={colors.slate['900']}
+          color={color.text.default}
           component="textarea"
           disabled={disabled}
           fontFamily="inherit"
@@ -139,12 +139,12 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
           <Block
             alignItems="center"
             backgroundColor={
-              hasValue ? colors.rose['500'] : colors.slate['200']
+              hasValue ? color.danger : color.border.default
             }
             blockSize={32}
             border="none"
             borderRadius={4}
-            color={colors.white}
+            color={color.text.inverse}
             component="button"
             display="flex"
             inlineSize={32}
@@ -169,7 +169,7 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
               style={{
                 ...style,
                 alignItems: 'center',
-                color: colors.slate['500'],
+                color: color.text.muted,
                 display: 'flex',
                 gap: 4,
                 left: 8,

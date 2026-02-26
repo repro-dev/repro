@@ -1,7 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import React from 'react'
 import { focusRing } from '../tokens/interaction'
-import { colors } from '../theme'
+import { color } from '../tokens/colors'
 
 interface Props {
   label: string
@@ -19,6 +19,14 @@ const sizes = {
 
 const MINIMUM_FONT_SIZE = 12
 
+/**
+ * Toggle / switch component.
+ *
+ * Contrast notes (REP-189):
+ *   Track border (slate-500) on white: 4.76:1 ✓ 1.4.11
+ *   Knob unchecked (slate-500) on track (slate-300): 3.21:1 ✓ 1.4.11
+ *   Knob checked (slate-800) on track (slate-300): 5.57:1 ✓ 1.4.11
+ */
 export const Toggle: React.FC<Props> = ({
   label,
   checked,
@@ -55,14 +63,14 @@ export const Toggle: React.FC<Props> = ({
       <Block
         height={height}
         width={width}
-        backgroundColor={colors.slate['300']}
-        border={`1px solid ${colors.slate['500']}`}
+        backgroundColor={color.border.strong}
+        border={`1px solid ${color.text.muted}`}
         borderRadius={rounded ? '99rem' : 0}
       >
         <Block
           height={control}
           width={control}
-          backgroundColor={checked ? colors.slate['800'] : colors.slate['400']}
+          backgroundColor={checked ? color.bg.emphasis : color.text.muted}
           borderRadius={rounded ? '99rem' : 0}
           transform={`translate(${checked ? '100%' : '2px'}, 2px)`}
           transition="all 100ms linear"
