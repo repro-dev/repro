@@ -32,7 +32,8 @@ type Props = PropsWithChildren<{
  *
  * Use for focused tasks that block interaction with the page behind.
  * Traps focus while open and closes on Escape or backdrop click when
- * `onClose` is provided. Requires explicit `width` and `height` props.
+ * `onClose` is provided. Renders inline (not into a Portal, unlike Drawer).
+ * Requires explicit `width` and `height` props.
  */
 export const Modal: React.FC<Props> = ({
   children,

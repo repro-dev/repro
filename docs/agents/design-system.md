@@ -333,16 +333,14 @@ Uses CSS `outline` (not `boxShadow`) — better for accessibility, composes with
 | Display a field label (standalone) | `Label` with optional `icon` and `optional` flag |
 | Render content in a portal | `Portal` (must be inside a `PortalRootProvider`) |
 | Render content in an iframe | `FrameRealm` (forwards ref, portals children into iframe document) |
-| Render content in a shadow DOM | `ShadowRealm` with `component` and `props` |
 | Display a card container | `Card` with optional `fullBleed`, `height`, `padding` |
 | Show a progress bar | `Meter` with `value`, `min`, `max` |
 | Display an avatar | `Avatar` with `email`, optional `name`, `mode`, `size` |
 | Display structured key-value data | `DefinitionList` with `title`, `pairs` (place in a CSS Grid parent) |
-| Display arbitrary JSON/object data | `JSONView` with `data` |
+| Display arbitrary JSON/object data | `JSONView` from `@repro/devtools` (not `@repro/design`) |
 | Delay rendering children | `Delay` with optional `duration` |
 | Show a draggable resize handle | `DragHandle` with `edge`, `onDragStart`, `onDrag`, `onDragEnd` |
 | Display the Repro logo | `Logo` with optional `inverted`, `size`, `iconOnly` |
-| Display a collaboration cursor | `Cursor` with `color`, optional `size` |
 | Style inline text as a link | `Link` wrapping text (visual only — no navigation) |
 
 ### Component API conventions
@@ -839,7 +837,7 @@ The component contract above describes the **target state**. Several existing co
 | `Card` | Accepts styling props | Accepts `padding` and `height` directly, violating the opaque API. Use these props as documented — they are the current API. |
 | `Modal` | Accepts styling props | Accepts `width` and `height` as required props. Not compound — no `Modal.Header`/`Body`/`Footer` sub-components. Pass all content as flat children. |
 | `Drawer` | Not compound | No `Drawer.Header`/`Drawer.Body` sub-components. Pass all content as flat children. |
-| `Modal` | Missing ARIA | No `role="dialog"`, `aria-modal`, or `aria-labelledby`. No focus trap. |
+| `Modal` | ~~Missing ARIA~~ (resolved) | Now has `role="dialog"`, `aria-modal="true"`, conditional `aria-labelledby`, and `useFocusTrap`. |
 | `Input` | No HTML attribute passthrough | Props extend `UseFormRegisterReturn`, not `InputHTMLAttributes`. Accepts only: `name`, `onChange`, `onBlur`, `autoComplete`, `autoFocus`, `context`, `disabled`, `label`, `placeholder`, `rows`, `size`, `type`. |
 | `Card` | Hardcoded values | Uses raw color and shadow values instead of tokens. |
 
