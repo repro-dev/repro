@@ -19,14 +19,6 @@ const sizes = {
 
 const MINIMUM_FONT_SIZE = 12
 
-/**
- * Toggle / switch component.
- *
- * Contrast notes (REP-189):
- *   Track border (slate-500) on white: 4.76:1 ✓ 1.4.11
- *   Knob unchecked (slate-500) on track (slate-300): 3.21:1 ✓ 1.4.11
- *   Knob checked (slate-800) on track (slate-300): 5.57:1 ✓ 1.4.11
- */
 export const Toggle: React.FC<Props> = ({
   label,
   checked,

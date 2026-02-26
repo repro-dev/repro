@@ -8,16 +8,8 @@ interface Props {
   max: number
 }
 
-/**
- * Meter fill colors (REP-189).
- *
- * Shifted from blue-500/green-500 to blue-600/green-700 for WCAG 1.4.11
- * non-text contrast (3:1 minimum against the slate-200 track):
- *   blue-600 on slate-200: 4.19:1 ✓
- *   green-700 on slate-200: 4.07:1 ✓
- */
-const FILL_IN_PROGRESS = color.primary // blue-700 (5.44:1 on slate-200 ✓)
-const FILL_COMPLETE = color.success    // green-700 (4.07:1 on slate-200 ✓)
+const FILL_IN_PROGRESS = color.primary
+const FILL_COMPLETE = color.success
 
 function createValueElement() {
   const elem = document.createElement('div')
