@@ -2,6 +2,7 @@ import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import type { Meta, Story } from '@ladle/react'
 import React from 'react'
 import { color } from '../tokens/colors'
+import { fontSize } from '../tokens/typography'
 import { Button } from './Button'
 
 const meta: Meta = {
@@ -31,7 +32,7 @@ export const AllButtons: Story = () => (
     {sizes.map(s => (
       <Col key={s}>
         <Block
-          fontSize={11}
+          fontSize={fontSize.xs}
           fontWeight={600}
           letterSpacing="0.08em"
           textTransform="uppercase"
@@ -53,7 +54,7 @@ export const AllButtons: Story = () => (
           {variants.map(v => (
             <Block
               key={v}
-              fontSize={11}
+              fontSize={fontSize.xs}
               fontWeight={600}
               color={color.text.muted}
             >
@@ -72,7 +73,7 @@ export const AllButtons: Story = () => (
             paddingV={6}
             borderBottom={`1px solid ${color.border.default}`}
           >
-            <Block fontSize={12} color={color.text.secondary}>
+            <Block fontSize={fontSize.sm} color={color.text.secondary}>
               {c}
             </Block>
             {variants.map(v => (
@@ -94,7 +95,7 @@ export const Disabled: Story = () => (
   <Col gap={16} padding={16}>
     {variants.map(v => (
       <Row key={v} gap={8} alignItems="center">
-        <Block width={80} fontSize={12} color={color.text.muted}>
+        <Block width={80} fontSize={fontSize.sm} color={color.text.muted}>
           {v}
         </Block>
         <Button variant={v} disabled>
