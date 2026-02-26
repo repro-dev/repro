@@ -6,7 +6,7 @@ import { color } from '../tokens/colors'
 import { Label } from './Label'
 
 const meta: Meta<typeof Label> = {
-  title: 'Components/Label',
+  title: 'Components/Inputs/Label',
   component: Label,
   tags: ['autodocs', 'design-system'],
 }

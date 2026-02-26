@@ -6,7 +6,7 @@ import { colors } from '../theme'
 import { Alert } from './Alert'
 
 const meta: Meta<typeof Alert> = {
-  title: 'Components/Alert',
+  title: 'Components/Feedback/Alert',
   component: Alert,
   tags: ['autodocs', 'design-system'],
 }
