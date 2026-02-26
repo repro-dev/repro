@@ -39,7 +39,7 @@ const contextColors = {
     bg: color.info,                   // blue-700
     bgHover: color.primaryHover,      // blue-800 (same hue as info today)
     containedFg: color.text.inverse,  // white on blue-700 — contrast ~4.6:1 ✓
-    subtle: color.primarySubtle,      // blue-100
+    subtle: color.infoSubtle,         // blue-100
     border: colors.blue['300'],       // no semantic border token for info
     fg: colors.blue['900'],           // no semantic fg token for info
   },
