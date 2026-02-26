@@ -50,8 +50,8 @@ const overlay = {
  * drop shadow) inspired by the TailwindUI / Catalyst button treatment.
  *
  * @param highlightOpacity - Opacity of the white inset highlight (0–1).
- *   Darker backgrounds use a lower value (0.1); lighter backgrounds like
- *   warning (amber-400) use a higher value (0.25) so the bevel is visible.
+ *   Darker backgrounds use a lower value (0.15); lighter backgrounds like
+ *   warning (amber-400) use a higher value (0.35) so the bevel is visible.
  */
 export function containedShadow(highlightOpacity: number): string {
   return [
