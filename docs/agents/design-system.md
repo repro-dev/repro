@@ -663,6 +663,102 @@ export const Disabled: Story = {
 
 ---
 
+## Writing Storybook Stories
+
+### Story format
+
+All stories use **Storybook CSF3** with `@storybook/react`.
+
+### Standard template
+
+Copy this template when creating stories for a new component:
+
+```tsx
+import type { Meta, StoryObj } from '@storybook/react'
+import React from 'react'
+import { MyComponent } from './MyComponent'
+
+const meta: Meta<typeof MyComponent> = {
+  title: 'Packages/Design/MyComponent',
+  component: MyComponent,
+  tags: ['autodocs'],
+}
+
+export default meta
+
+type Story = StoryObj<typeof MyComponent>
+
+// Default: args-based story — enables the Controls panel
+export const Default: Story = {
+  args: {
+    // Required props and representative defaults go here
+  },
+}
+
+// Additional stories for variants, sizes, states
+export const Disabled: Story = {
+  args: {
+    disabled: true,
+  },
+}
+
+// Use a render function when args don't capture the full picture
+// (matrix displays, context providers, fixture data, etc.)
+export const AllVariants: Story = {
+  render: () => (
+    // JSX here
+  ),
+}
+```
+
+### Naming conventions
+
+| Export name | When to use |
+|---|---|
+| `Default` | The canonical single-instance story with args |
+| `Variants` | Side-by-side display of all `variant` values |
+| `Sizes` | Side-by-side display of all `size` values |
+| `AllTypes` / `AllVariants` | Full matrix combining multiple dimensions |
+| `Disabled` | The disabled state |
+| `WithX` | Story that showcases a specific optional feature (e.g. `WithIcon`) |
+| `States` | Interactive states (hover, focus, error) if visually distinct |
+
+### Story file location
+
+```
+packages/design/src/ComponentName/ComponentName.stories.tsx
+packages/playback/src/ComponentName/ComponentName.stories.tsx
+```
+
+Storybook picks up all `*.stories.@(ts|tsx)` files under `packages/*/src/` and `apps/*/src/`.
+
+### meta fields
+
+| Field | Required | Notes |
+|---|---|---|
+| `title` | Yes | `'Packages/Design/ComponentName'` or `'Packages/Playback/ComponentName'` |
+| `component` | Yes | The primary component being documented |
+| `tags: ['autodocs']` | Yes | Enables auto-generated docs page |
+| `decorators` | As needed | Use for layout wrappers, providers, background context |
+| `parameters` | As needed | Use for `docs.story.inline`, `controls`, etc. |
+
+### args vs render
+
+**Prefer `args`** when the component can be fully exercised via props alone. This enables the Controls panel for interactive exploration.
+
+**Use `render`** when:
+- The story must display a matrix or table of many instances
+- The component requires a context provider (e.g. `PlaybackProvider`)
+- The story relies on complex fixture data not representable as a plain args object
+
+### Running Storybook
+
+```bash
+moon run storybook-ui:storybook
+```
+
+---
+
 ## Known Deviations from Contract
 
 The component contract above describes the **target state**. Several existing components predate it and have not yet been migrated. When using these components, follow their current API — do not attempt to pass props that match the contract but don't exist on the component.
@@ -709,7 +805,7 @@ The component contract above describes the **target state**. Several existing co
 - Use CSF3 format with `@storybook/react` types, running on `@storybook/react-vite`
 - Stories should cover: default state, all variants/sizes, disabled state, error state, edge cases
 - Run Storybook and visually verify before committing
-- **Migration note:** Some existing stories (Button, Alert, Meter, and stories in `packages/playback/`) still use the older Ladle format (`@ladle/react`). New stories must use Storybook CSF3. When modifying an existing Ladle story, migrate it to CSF3 at the same time.
+
 
 ### Do / Don't
 

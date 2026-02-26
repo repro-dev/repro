@@ -1,20 +1,26 @@
-import { Meta, Story } from '@ladle/react'
 import { PortalRootProvider } from '@repro/design'
+import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { PlaybackProvider } from '../context'
 import { EMPTY_PLAYBACK } from '../createSourcePlayback'
 import { PlaybackNavigation } from './PlaybackNavigation'
 
-const meta: Meta = {
+const meta: Meta<typeof PlaybackNavigation> = {
   title: 'Packages/Playback/PlaybackNavigation',
+  component: PlaybackNavigation,
+  tags: ['autodocs'],
 }
 
 export default meta
 
-export const Default: Story = () => (
-  <PortalRootProvider>
-    <PlaybackProvider playback={EMPTY_PLAYBACK}>
-      <PlaybackNavigation />
-    </PlaybackProvider>
-  </PortalRootProvider>
-)
+type Story = StoryObj<typeof PlaybackNavigation>
+
+export const Default: Story = {
+  render: () => (
+    <PortalRootProvider>
+      <PlaybackProvider playback={EMPTY_PLAYBACK}>
+        <PlaybackNavigation />
+      </PlaybackProvider>
+    </PortalRootProvider>
+  ),
+}

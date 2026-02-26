@@ -1,5 +1,4 @@
 import { Grid } from '@jsxstyle/react'
-import { Meta, Story } from '@ladle/react'
 import {
   AttributePatch,
   InteractionType,
@@ -11,16 +10,21 @@ import {
 import { html2VTree } from '@repro/recording'
 import { Box, List } from '@repro/tdl'
 import { findElementsByClassName } from '@repro/vdom-utils'
+import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { PlaybackProvider } from '../context'
 import { createSourcePlayback } from '../createSourcePlayback'
 import { PlaybackEditor } from './PlaybackEditor'
 
-const meta: Meta = {
+const meta: Meta<typeof PlaybackEditor> = {
   title: 'Packages/Playback/PlaybackEditor',
+  component: PlaybackEditor,
+  tags: ['autodocs'],
 }
 
 export default meta
+
+type Story = StoryObj<typeof PlaybackEditor>
 
 const vtree = html2VTree(`
   <!doctype html>
@@ -103,10 +107,12 @@ const events = new List(SourceEventView, [
   ),
 ])
 
-export const Default: Story = () => (
-  <PlaybackProvider playback={createSourcePlayback(events, 1000, {})}>
-    <Grid height={640}>
-      <PlaybackEditor />
-    </Grid>
-  </PlaybackProvider>
-)
+export const Default: Story = {
+  render: () => (
+    <PlaybackProvider playback={createSourcePlayback(events, 1000, {})}>
+      <Grid height={640}>
+        <PlaybackEditor />
+      </Grid>
+    </PlaybackProvider>
+  ),
+}

@@ -1,4 +1,3 @@
-import { Meta, Story } from '@ladle/react'
 import {
   InteractionType,
   PointerState,
@@ -7,16 +6,21 @@ import {
 } from '@repro/domain'
 import { html2VTree } from '@repro/recording'
 import { Box, List } from '@repro/tdl'
+import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { PlaybackProvider } from '../context'
 import { createSourcePlayback } from '../createSourcePlayback'
 import { RangeTimeline } from './RangeTimeline'
 
-const meta: Meta = {
+const meta: Meta<typeof RangeTimeline> = {
   title: 'Packages/Playback/RangeTimeline',
+  component: RangeTimeline,
+  tags: ['autodocs'],
 }
 
 export default meta
+
+type Story = StoryObj<typeof RangeTimeline>
 
 const events = new List(SourceEventView, [
   SourceEventView.encode(
@@ -64,8 +68,10 @@ const events = new List(SourceEventView, [
   ),
 ])
 
-export const Default: Story = () => (
-  <PlaybackProvider playback={createSourcePlayback(events, 1000, {})}>
-    <RangeTimeline onChange={() => undefined} />
-  </PlaybackProvider>
-)
+export const Default: Story = {
+  render: () => (
+    <PlaybackProvider playback={createSourcePlayback(events, 1000, {})}>
+      <RangeTimeline onChange={() => undefined} />
+    </PlaybackProvider>
+  ),
+}

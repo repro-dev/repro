@@ -1,20 +1,26 @@
-import type { Meta, Story } from '@ladle/react'
+import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { Meter } from './Meter'
 
-const meta: Meta = {
+const meta: Meta<typeof Meter> = {
   title: 'Packages/Design/Meter',
+  component: Meter,
+  tags: ['autodocs'],
 }
 
 export default meta
 
-export const Default: Story<{ value: number }> = ({ value }) => (
-  <Meter min={0} max={100} value={value} />
-)
+type Story = StoryObj<typeof Meter>
 
-Default.argTypes = {
-  value: {
-    control: { type: 'range', min: 0, max: 100 },
-    defaultValue: 75,
+export const Default: Story = {
+  args: {
+    min: 0,
+    max: 100,
+    value: 75,
+  },
+  argTypes: {
+    value: {
+      control: { type: 'range', min: 0, max: 100 },
+    },
   },
 }
