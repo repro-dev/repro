@@ -9,7 +9,11 @@ import React, {
   useState,
 } from 'react'
 import { color } from '../tokens/colors'
+import { radius } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
+import { transition } from '../tokens/motion'
+import { spacing } from '../tokens/spacing'
+import { fontSize, lineHeight } from '../tokens/typography'
 
 export interface AgenticInputFormState {
   value: string
@@ -115,9 +119,9 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
     <form onSubmit={handleSubmit} aria-disabled={disabled}>
       <Block
         cursor="text"
-        fontSize={13}
-        lineHeight={1.25}
-        padding={8}
+        fontSize={fontSize.sm}
+        lineHeight={lineHeight.normal}
+        padding={spacing.md}
         position="relative"
         onClick={triggerFocus}
       >
@@ -142,22 +146,22 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
           props={{ autoFocus, ref: valueRef }}
         />
 
-        <Row justifyContent="flex-end" marginBlockStart={10}>
+        <Row justifyContent="flex-end" marginBlockStart={spacing.md}>
           <Block
             alignItems="center"
             backgroundColor={
               hasValue ? color.danger : color.border.default
             }
-            blockSize={32}
+            blockSize={spacing['3xl']}
             border="none"
-            borderRadius={4}
+            borderRadius={radius.sm}
             color={color.text.inverse}
             component="button"
             display="flex"
-            inlineSize={32}
+            inlineSize={spacing['3xl']}
             justifyContent="center"
-            lineHeight={1}
-            transition="all linear 100ms"
+            lineHeight={lineHeight.tight}
+            transition={transition.fast}
             cursor={hasValue ? 'pointer' : 'default'}
             props={{
               type: 'submit',
@@ -178,11 +182,11 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
                 alignItems: 'center',
                 color: color.text.muted,
                 display: 'flex',
-                gap: 4,
-                left: 8,
+                gap: spacing.sm,
+                left: spacing.md,
                 pointerEvents: 'none',
                 position: 'absolute',
-                top: 8,
+                top: spacing.md,
                 userSelect: 'none',
               }}
             >

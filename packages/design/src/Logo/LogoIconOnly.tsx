@@ -1,4 +1,5 @@
 import React from 'react'
+import { color } from '../tokens/colors'
 
 interface Props {
   size?: number
@@ -12,7 +13,7 @@ export const LogoIconOnly: React.FC<Props> = ({
   <svg
     height={size}
     viewBox="0 0 118 118"
-    fill={variant === 'primary' ? '#1d4ed8' : 'white'}
+    fill={variant === 'primary' ? color.primary : color.text.inverse}
     xmlns="http://www.w3.org/2000/svg"
   >
     <path

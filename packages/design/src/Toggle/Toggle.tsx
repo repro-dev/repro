@@ -2,6 +2,9 @@ import { Block, Row } from '@jsxstyle/react'
 import React from 'react'
 import { focusRing } from '../tokens/interaction'
 import { color } from '../tokens/colors'
+import { radius } from '../tokens/elevation'
+import { transition } from '../tokens/motion'
+import { MINIMUM_FONT_SIZE } from '../tokens/typography'
 
 interface Props {
   label: string
@@ -16,8 +19,6 @@ const sizes = {
   medium: 8,
   large: 10,
 }
-
-const MINIMUM_FONT_SIZE = 12
 
 /**
  * Binary toggle switch. Renders a `<button>` with `role="switch"`.
@@ -63,15 +64,15 @@ export const Toggle: React.FC<Props> = ({
         width={width}
         backgroundColor={color.border.strong}
         border={`1px solid ${color.border.emphasis}`}
-        borderRadius={rounded ? '99rem' : 0}
+        borderRadius={rounded ? radius.full : radius.none}
       >
         <Block
           height={control}
           width={control}
           backgroundColor={checked ? color.bg.emphasis : color.bg.muted}
-          borderRadius={rounded ? '99rem' : 0}
+          borderRadius={rounded ? radius.full : radius.none}
           transform={`translate(${checked ? '100%' : '2px'}, 2px)`}
-          transition="all 100ms linear"
+          transition={transition.fast}
         />
       </Block>
       <Block fontSize={fontSize}>{label}</Block>

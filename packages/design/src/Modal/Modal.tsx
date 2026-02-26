@@ -1,7 +1,8 @@
 import { Block, Row } from '@jsxstyle/react'
 import React, { PropsWithChildren, useCallback, useEffect } from 'react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { colors } from '../theme'
+import { color } from '../tokens/colors'
+import { shadow } from '../tokens/elevation'
 
 type Props = PropsWithChildren<{
   width: string | number
@@ -66,8 +67,8 @@ export const Modal: React.FC<Props> = ({
     <Backdrop onClose={onClose}>
       <Block
         position="relative"
-        background={colors.white}
-        boxShadow="0 8px 16px rgba(0, 0, 0, 0.25)"
+        background={color.bg.surface}
+        boxShadow={shadow.lg}
         minHeight={minHeight}
         minWidth={minWidth}
         height={height}

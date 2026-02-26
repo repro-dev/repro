@@ -1,6 +1,8 @@
 import { Block } from '@jsxstyle/react'
 import React, { Fragment } from 'react'
-import { colors } from '../theme'
+import { color } from '../tokens/colors'
+import { spacing } from '../tokens/spacing'
+import { fontSize, fontWeight, lineHeight } from '../tokens/typography'
 
 interface Props {
   title: string
@@ -18,13 +20,13 @@ export const DefinitionList: React.FC<Props> = ({ title, pairs }) => (
   <Fragment>
     <Block
       gridColumn="1 / span 2"
-      paddingTop={30}
-      paddingBottom={10}
-      paddingH={10}
-      fontSize={13}
-      fontWeight={700}
-      color={colors.blue['700']}
-      borderBottom={`1px solid ${colors.slate['200']}`}
+      paddingTop={spacing['3xl']}
+      paddingBottom={spacing.md}
+      paddingH={spacing.md}
+      fontSize={fontSize.sm}
+      fontWeight={fontWeight.bold}
+      color={color.primary}
+      borderBottom={`1px solid ${color.border.default}`}
     >
       {title}
     </Block>
@@ -32,18 +34,18 @@ export const DefinitionList: React.FC<Props> = ({ title, pairs }) => (
     {pairs.map(([key, value]) => (
       <Fragment key={key}>
         <Block
-          padding={10}
-          fontWeight={700}
-          lineHeight={1.25}
-          color={colors.slate['700']}
-          borderBottom={`1px solid ${colors.slate['200']}`}
+          padding={spacing.md}
+          fontWeight={fontWeight.bold}
+          lineHeight={lineHeight.normal}
+          color={color.text.secondary}
+          borderBottom={`1px solid ${color.border.default}`}
         >
           {key}
         </Block>
         <Block
-          padding={10}
-          borderBottom={`1px solid ${colors.slate['200']}`}
-          lineHeight={1.25}
+          padding={spacing.md}
+          borderBottom={`1px solid ${color.border.default}`}
+          lineHeight={lineHeight.normal}
           wordBreak="break-word"
         >
           {value}

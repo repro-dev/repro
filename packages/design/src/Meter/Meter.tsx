@@ -1,6 +1,8 @@
 import { Block } from '@jsxstyle/react'
 import React, { MutableRefObject, useEffect, useRef } from 'react'
 import { color } from '../tokens/colors'
+import { radius } from '../tokens/elevation'
+import { duration, easing } from '../tokens/motion'
 
 interface Props {
   value: number
@@ -24,7 +26,7 @@ function createValueElement() {
     ['top', '0'],
     ['transform', 'scaleX(0)'],
     ['transformOrigin', '0 0'],
-    ['transition', 'transform 100ms ease-out'],
+    ['transition', `transform ${duration.fast} ${easing.easeOut}`],
     ['width', '100%'],
   ] as const
 
@@ -73,7 +75,7 @@ export const Meter: React.FC<Props> = ({ min, max, value }) => {
       width="100%"
       height={8}
       backgroundColor={color.border.default}
-      borderRadius={4}
+      borderRadius={radius.sm}
       overflow="hidden"
       props={{ ref }}
     />

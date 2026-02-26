@@ -1,8 +1,12 @@
 import { Block, Row } from '@jsxstyle/react'
 import { CheckCircle, Circle } from 'lucide-react'
 import React, { useCallback, useRef } from 'react'
+import { color } from '../tokens/colors'
+import { radius, shadow } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
-import { colors } from '../theme'
+import { transition } from '../tokens/motion'
+import { spacing } from '../tokens/spacing'
+import { fontSize } from '../tokens/typography'
 
 interface Props {
   options: Array<{
@@ -68,7 +72,7 @@ export const ToggleGroup: React.FC<Props> = ({
 
   return (
     <Row
-      gap={10}
+      gap={spacing.md}
       props={{
         ref: groupRef,
         role: 'radiogroup',
@@ -99,23 +103,23 @@ const Toggle: React.FC<ToggleProps> = ({ active, label, onClick }) => (
     alignItems="center"
     cursor="pointer"
     fontFamily="inherit"
-    gap={10}
-    paddingH={10}
-    paddingV={5}
-    fontSize={11}
-    backgroundColor={active ? colors.slate['500'] : colors.slate['100']}
+    gap={spacing.md}
+    paddingH={spacing.md}
+    paddingV={spacing.sm}
+    fontSize={fontSize.xs}
+    backgroundColor={active ? color.bg.muted : color.bg.hover}
     backgroundImage={
       active
-        ? `linear-gradient(to top right, ${colors.slate['700']}, ${colors.slate['600']})`
+        ? `linear-gradient(to top right, ${color.neutral}, ${color.neutralHover})`
         : undefined
     }
-    borderColor={active ? colors.slate['800'] : 'transparent'}
+    borderColor={active ? color.bg.emphasis : 'transparent'}
     borderWidth={1}
     borderStyle="solid"
-    borderRadius="99rem"
-    boxShadow={active ? '0 2px 4px rgba(0, 0, 0, 0.25)' : undefined}
-    hoverBackgroundColor={active ? colors.slate['500'] : colors.slate['200']}
-    transition="all linear 100ms"
+    borderRadius={radius.full}
+    boxShadow={active ? shadow.sm : undefined}
+    hoverBackgroundColor={active ? color.bg.muted : color.border.default}
+    transition={transition.fast}
     props={{
       type: 'button',
       role: 'radio',
@@ -126,11 +130,11 @@ const Toggle: React.FC<ToggleProps> = ({ active, label, onClick }) => (
     }}
     {...focusRing()}
   >
-    <Block color={active ? colors.white : colors.blue['700']}>
+    <Block color={active ? color.text.inverse : color.primary}>
       {active ? <CheckCircle size={14} /> : <Circle size={14} />}
     </Block>
 
-    <Block fontSize={11} color={active ? colors.white : colors.slate['800']}>
+    <Block fontSize={fontSize.xs} color={active ? color.text.inverse : color.text.default}>
       {label}
     </Block>
   </Row>

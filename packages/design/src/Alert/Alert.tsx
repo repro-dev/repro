@@ -1,6 +1,9 @@
 import { Block, Row } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
 import { color } from '../tokens/colors'
+import { radius } from '../tokens/elevation'
+import { spacing } from '../tokens/spacing'
+import { fontSize, lineHeight } from '../tokens/typography'
 
 type AlertType = 'info' | 'success' | 'warning' | 'danger'
 
@@ -48,17 +51,17 @@ type Props = PropsWithChildren<{
 export const Alert: React.FC<Props> = ({ children, icon, type }) => (
   <Row
     alignItems="center"
-    padding={16}
+    padding={spacing.xl}
     background={backgroundColorMap[type]}
     border={`1px solid ${colorMap[type]}`}
     color={colorMap[type]}
-    fontSize={12}
-    lineHeight={1}
-    borderRadius={4}
+    fontSize={fontSize.xs}
+    lineHeight={lineHeight.tight}
+    borderRadius={radius.sm}
     props={{ role: ariaRoleMap[type] }}
   >
     {icon && (
-      <Block marginRight={8} aria-hidden="true">
+      <Block marginRight={spacing.md} aria-hidden="true">
         {icon}
       </Block>
     )}
