@@ -3,7 +3,6 @@ import type { Meta, StoryObj } from '@storybook/react'
 import React, { useState } from 'react'
 import { Button } from '../Button'
 import { Portal } from '../Portal'
-import { PortalRootProvider } from '../Portal/PortalRootProvider'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
 import { Drawer } from './Drawer'
@@ -12,13 +11,6 @@ const meta: Meta<typeof Drawer> = {
   title: 'Components/Overlays/Drawer',
   component: Drawer,
   tags: ['autodocs', 'design-system'],
-  decorators: [
-    Story => (
-      <PortalRootProvider>
-        <Story />
-      </PortalRootProvider>
-    ),
-  ],
 }
 
 export default meta

@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { PortalRootProvider } from "@repro/design";
 import { applyResetStyles } from "@repro/theme";
 
 const globalStyleRoot = document.getElementById("global-styles");
@@ -25,7 +26,12 @@ const preview = {
     },
   },
   decorators: [
-    (Story) => createElement("div", { style: { padding: "1rem" } }, createElement(Story)),
+    (Story) =>
+      createElement(
+        PortalRootProvider,
+        null,
+        createElement("div", { style: { padding: "1rem" } }, createElement(Story))
+      ),
   ],
 };
 

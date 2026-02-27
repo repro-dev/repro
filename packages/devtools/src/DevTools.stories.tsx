@@ -1,5 +1,5 @@
 import { Block } from '@jsxstyle/react'
-import { colors, PortalRootProvider } from '@repro/design'
+import { colors } from '@repro/design'
 import {
   AttributePatch,
   InteractionType,
@@ -133,19 +133,17 @@ export const Default: StoryObj = {
   },
   decorators: [
     Story => (
-      <PortalRootProvider>
-        <PlaybackProvider playback={createSourcePlayback(events, 1250, {})}>
-          <Block
-            height="80vh"
-            borderColor={colors.slate['300']}
-            borderStyle="solid"
-            borderWidth={1}
-            boxShadow={`0 2px 4px ${colors.slate['100']}`}
-          >
-            <Story />
-          </Block>
-        </PlaybackProvider>
-      </PortalRootProvider>
+      <PlaybackProvider playback={createSourcePlayback(events, 1250, {})}>
+        <Block
+          height="80vh"
+          borderColor={colors.slate['300']}
+          borderStyle="solid"
+          borderWidth={1}
+          boxShadow={`0 2px 4px ${colors.slate['100']}`}
+        >
+          <Story />
+        </Block>
+      </PlaybackProvider>
     ),
   ],
 }
