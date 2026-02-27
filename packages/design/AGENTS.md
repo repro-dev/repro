@@ -44,10 +44,17 @@ packages/design/
     │   ├── ComponentName.tsx     # Main component implementation
     │   ├── ComponentName.stories.tsx  # Storybook CSF3 stories
     │   └── ComponentName.test.tsx     # Tests (when present)
+    ├── Portal/                   # Notable: includes constants.ts
+    │   ├── index.ts
+    │   ├── Portal.tsx
+    │   ├── PortalRootProvider.tsx
+    │   ├── Portal.stories.tsx
+    │   └── constants.ts          # PORTAL_ROOT_ID constant
     └── FX/
         ├── index.ts              # Exports Spin, Pulse
         ├── Spin.tsx
-        └── Pulse.tsx
+        ├── Pulse.tsx
+        └── FX.stories.tsx        # Combined stories for Spin + Pulse
 ```
 
 ---
