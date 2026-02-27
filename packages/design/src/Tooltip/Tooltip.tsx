@@ -10,7 +10,11 @@ import React, {
 } from 'react'
 import { Subscription, fromEvent, switchMap, takeUntil, timer } from 'rxjs'
 import { Portal } from '../Portal'
-import { colors } from '../theme'
+import { color } from '../tokens/colors'
+import { radius } from '../tokens/elevation'
+import { duration, easing } from '../tokens/motion'
+import { spacing } from '../tokens/spacing'
+import { fontSize } from '../tokens/typography'
 
 type Props = PropsWithChildren<{
   delay?: number
@@ -173,20 +177,20 @@ export const Tooltip: React.FC<Props> = ({
     <Block position="absolute" props={{ ref }}>
       <Portal>
         <Block
-          padding={8}
+          padding={spacing.md}
           position="absolute"
           top={y}
           left={x}
           transform={`translate(${translateX}, ${translateY})`}
           transformOrigin="0 0"
-          backgroundColor={colors.slate['700']}
-          borderRadius={8}
-          color={colors.white}
-          fontSize={11}
+          backgroundColor={color.text.secondary}
+          borderRadius={radius.md}
+          color={color.text.inverse}
+          fontSize={fontSize.xs}
           whiteSpace="nowrap"
           pointerEvents="none"
           opacity={active ? 1 : 0}
-          transition="opacity linear 100ms"
+          transition={`opacity ${easing.linear} ${duration.fast}`}
           userSelect="none"
           zIndex={MAX_INT32}
           props={{

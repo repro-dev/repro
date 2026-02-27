@@ -2,6 +2,7 @@ import { Block } from '@jsxstyle/react'
 import React from 'react'
 import { FieldError } from 'react-hook-form'
 import { color } from '../tokens/colors'
+import { fontSize, fontWeight } from '../tokens/typography'
 
 interface Props {
   /**
@@ -28,8 +29,8 @@ export const FormFieldError: React.FC<Props> = ({ error, id }) => {
     <Block
       id={id}
       color={color.danger}
-      fontSize={12}
-      fontWeight={400}
+      fontSize={fontSize.xs}
+      fontWeight={fontWeight.normal}
       props={{ role: 'alert', 'aria-live': 'assertive' }}
     >
       {error.message}

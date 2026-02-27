@@ -1,7 +1,8 @@
 import { Block } from '@jsxstyle/react'
 import React, { useCallback, useEffect, useState } from 'react'
+import { color } from '../tokens/colors'
 import { focusRing } from '../tokens/interaction'
-import { colors } from '../theme'
+import { transition } from '../tokens/motion'
 
 interface Props {
   edge: 'top' | 'bottom' | 'left' | 'right'
@@ -129,8 +130,8 @@ export const DragHandle: React.FC<Props> = ({
     edge === 'left' ? '4px' : '0',
   ].join(' ')
 
-  const borderColor = colors.slate['200']
-  const activeBorderColor = colors.blue['500']
+  const borderColor = color.border.default
+  const activeBorderColor = color.border.focus
 
   const sizeStyles = {
     height: edge === 'top' || edge === 'bottom' ? 4 : 'auto',
@@ -150,7 +151,7 @@ export const DragHandle: React.FC<Props> = ({
       hoverBorderColor={activeBorderColor}
       boxSizing="border-box"
       cursor={cursor}
-      transition="all linear 100ms"
+      transition={transition.fast}
       props={{
         role: 'separator',
         'aria-orientation': isVertical ? 'horizontal' : 'vertical',

@@ -1,5 +1,5 @@
 import React from 'react'
-import { colors } from '../theme'
+import { color } from '../tokens/colors'
 
 interface Props {
   inverted?: boolean
@@ -9,15 +9,15 @@ interface Props {
 
 const colorMap = {
   default: {
-    logoBg: colors.blue['700'],
-    logoFg: colors.white,
-    text: colors.slate['800'],
+    logoBg: color.primary,
+    logoFg: color.text.inverse,
+    text: color.bg.emphasis,
   },
 
   inverted: {
-    logoBg: colors.white,
-    logoFg: colors.blue['700'],
-    text: colors.white,
+    logoBg: color.text.inverse,
+    logoFg: color.primary,
+    text: color.text.inverse,
   },
 }
 

@@ -1,6 +1,8 @@
 import { Block } from '@jsxstyle/react'
 import React, { CSSProperties, PropsWithChildren } from 'react'
-import { colors } from '../theme'
+import { color } from '../tokens/colors'
+import { radius, shadow } from '../tokens/elevation'
+import { spacing } from '../tokens/spacing'
 
 interface Props {
   fullBleed?: boolean
@@ -19,18 +21,15 @@ interface Props {
 export const Card: React.FC<PropsWithChildren<Props>> = ({
   children,
   fullBleed,
-  padding = fullBleed ? 0 : 20,
+  padding = fullBleed ? 0 : spacing['2xl'],
   height = 'auto',
 }) => (
   <Block
     height={height}
     padding={padding}
-    backgroundColor={fullBleed ? 'transparent' : colors.white}
-    borderRadius={4}
-    boxShadow={`
-      0 4px 16px rgba(0, 0, 0, 0.1),
-      0 1px 2px rgba(0, 0, 0, 0.1)
-    `}
+    backgroundColor={fullBleed ? 'transparent' : color.bg.surface}
+    borderRadius={radius.sm}
+    boxShadow={shadow.md}
     overflow="hidden"
   >
     {children}

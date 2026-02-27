@@ -10,6 +10,10 @@ import { UseFormRegisterReturn } from 'react-hook-form'
 import mergeRefs from 'react-merge-refs'
 import { focusWithinRing } from '../tokens/interaction'
 import { color } from '../tokens/colors'
+import { radius } from '../tokens/elevation'
+import { transition } from '../tokens/motion'
+import { spacing } from '../tokens/spacing'
+import { MINIMUM_FONT_SIZE } from '../tokens/typography'
 
 type Context = 'normal' | 'error'
 type Size = 'small' | 'medium' | 'large' | 'xlarge'
@@ -32,8 +36,6 @@ const sizes = {
   large: 12,
   xlarge: 16,
 }
-
-const MINIMUM_FONT_SIZE = 11
 
 /**
  * Form text input with floating label animation and error styling.
@@ -107,7 +109,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
             ? color.border.focus
             : color.border.strong
         }
-        borderRadius={4}
+        borderRadius={radius.sm}
         borderStyle="solid"
         borderWidth={1}
         boxShadow={`0 0.5px 1.5px ${color.border.strong}DA`}
@@ -116,10 +118,10 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
       >
         {label && (
           <Block
-            padding={4}
+            padding={spacing.sm}
             position="absolute"
             top={value !== '' || focused ? 0 : '50%'}
-            left={6}
+            left={spacing.md}
             translate="0 -50%"
             fontSize={fontSize}
             lineHeight={1}
@@ -134,7 +136,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
             pointerEvents="none"
             scale={value !== '' || focused ? 0.8 : 1}
             transformOrigin="0 0"
-            transition="all 100ms linear"
+            transition={transition.fast}
           >
             {label}
           </Block>
@@ -151,7 +153,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
           placeholderColor={color.text.muted}
           backgroundColor="transparent"
           borderColor="transparent"
-          borderRadius={4}
+          borderRadius={radius.sm}
           outline="none"
           resize="none"
           isolation="isolate"

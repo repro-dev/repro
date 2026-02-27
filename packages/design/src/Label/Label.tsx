@@ -1,6 +1,8 @@
 import { Block, Row } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
 import { color } from '../tokens/colors'
+import { spacing } from '../tokens/spacing'
+import { fontSize, fontWeight } from '../tokens/typography'
 
 interface Props {
   icon?: React.ReactNode
@@ -28,10 +30,10 @@ export const Label: React.FC<PropsWithChildren<Props>> = ({
 }) => (
   <Row
     component="label"
-    gap={5}
+    gap={spacing.sm}
     alignItems="center"
-    fontSize={15}
-    fontWeight={700}
+    fontSize={fontSize.base}
+    fontWeight={fontWeight.bold}
     color={color.text.secondary}
     props={{ htmlFor }}
   >
@@ -40,7 +42,7 @@ export const Label: React.FC<PropsWithChildren<Props>> = ({
     {optional && (
       <Block
         color={color.text.muted}
-        fontSize={11}
+        fontSize={fontSize.xs}
         textTransform="uppercase"
       >
         optional

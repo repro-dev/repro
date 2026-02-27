@@ -3,8 +3,11 @@ import { X as CloseIcon } from 'lucide-react'
 import React, { PropsWithChildren, useCallback, useEffect } from 'react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { Portal } from '../Portal'
+import { color } from '../tokens/colors'
+import { radius } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
-import { colors } from '../theme'
+import { duration, easing } from '../tokens/motion'
+import { spacing } from '../tokens/spacing'
 
 interface Props {
   open: boolean
@@ -63,14 +66,14 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
           right={0}
           width="35vw"
           minWidth={480}
-          padding={30}
+          padding={spacing['3xl']}
           overflow="hidden"
-          backgroundColor={colors.white}
+          backgroundColor={color.bg.surface}
           transform={open ? 'translateX(0)' : 'translateX(100%)'}
           transition={
             open
-              ? 'transform 100ms ease-in-out 250ms'
-              : 'transform 100ms ease-in-out'
+              ? `transform ${duration.fast} ${easing.default} ${duration.slow}`
+              : `transform ${duration.fast} ${easing.default}`
           }
           props={{
             ref: containerRef,
@@ -88,14 +91,14 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
             position="absolute"
             top={10}
             right={10}
-            width={32}
-            height={32}
+            width={spacing['3xl']}
+            height={spacing['3xl']}
             alignItems="center"
             justifyContent="center"
             background="none"
             border="none"
-            hoverBackgroundColor={colors.slate['100']}
-            borderRadius="99rem"
+            hoverBackgroundColor={color.bg.hover}
+            borderRadius={radius.full}
             cursor="pointer"
             props={{ type: 'button', 'aria-label': 'Close drawer', onClick: onClose }}
             {...focusRing()}
@@ -140,7 +143,9 @@ const Backdrop: React.FC<PropsWithChildren<BackdropProps>> = ({
       opacity={active ? 1 : 0}
       pointerEvents={active ? 'all' : 'none'}
       transition={
-        active ? 'opacity 250ms ease-in-out' : 'opacity 250ms ease-in-out 100ms'
+        active
+          ? `opacity ${duration.slow} ${easing.default}`
+          : `opacity ${duration.slow} ${easing.default} ${duration.fast}`
       }
       props={{ onClick: handleBackdropClick }}
     >
