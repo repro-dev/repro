@@ -70,6 +70,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
 
     const [value, setValue] = useState('')
     const [focused, setFocused] = useState(false)
+    const labelFloated = !label || focused || value !== ''
     const fontSize = Math.max(sizes[size] * 1.5, MINIMUM_FONT_SIZE)
 
     function preventKeyCapture(evt: React.KeyboardEvent<HTMLElement>) {
@@ -161,7 +162,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
             name,
             autoFocus,
             disabled,
-            placeholder,
+            placeholder: labelFloated ? placeholder : undefined,
             rows: rows > 1 ? rows : undefined,
             type,
             onKeyDown: preventKeyCapture,
