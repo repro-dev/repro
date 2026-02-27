@@ -10,6 +10,7 @@ Detailed references are split by theme under `docs/agents/`:
 | [docs/agents/design-system.md](docs/agents/design-system.md) | UI implementation: components, tokens, jsxstyle, forms, state, icons |
 | [docs/agents/git.md](docs/agents/git.md) | Conventional Commits, branch names, PRs, gh CLI |
 | [docs/agents/database.md](docs/agents/database.md) | PostgreSQL version and pinning locations |
+| [packages/design/AGENTS.md](packages/design/AGENTS.md) | `@repro/design` package: component inventory, add/modify checklists, commands, pitfalls |
 
 ## Learning from Corrections
 
