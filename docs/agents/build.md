@@ -22,3 +22,9 @@ When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup sc
 | `pnpm` | `pnpm = "10.17.0"` | — |
 
 When upgrading a tool version, update **all** pinning locations together.
+
+## Screenshots & temporary files
+
+The project has a `tmp/` directory at the repo root for ephemeral files such as Playwright screenshots, build artifacts, or other throwaway output. Everything inside is git-ignored except the `.gitkeep` sentinel.
+
+When capturing Storybook screenshots (e.g. for PR visual reviews), save them to `tmp/` by passing `outputPath` or equivalent options pointing at `<repo-root>/tmp`. This avoids polluting `~/Downloads` or other user directories.
