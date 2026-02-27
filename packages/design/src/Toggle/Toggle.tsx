@@ -36,9 +36,11 @@ export const Toggle: React.FC<Props> = ({
   const base = sizes[size]
   const gutter = base / 2
   const padding = base / 4
+  const borderWidth = 1
   const width = base * 4
   const height = base * 2 + padding * 2
   const control = base * 2 - padding
+  const offset = (height - borderWidth * 2 - control) / 2
   const fontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
 
   return (
@@ -71,7 +73,7 @@ export const Toggle: React.FC<Props> = ({
           width={control}
           backgroundColor={checked ? color.bg.emphasis : color.bg.muted}
           borderRadius={rounded ? radius.full : radius.none}
-          transform={`translate(${checked ? '100%' : '2px'}, 2px)`}
+          transform={`translate(${checked ? `${width - borderWidth * 2 - control - offset}px` : `${offset}px`}, ${offset}px)`}
           transition={transition.fast}
         />
       </Block>
