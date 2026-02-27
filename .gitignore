@@ -23,5 +23,11 @@ certs
 *storybook.log
 storybook-static
 
+# PLAYWRIGHT
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # TEMP
 .DS_Store

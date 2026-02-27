@@ -5,6 +5,13 @@
       "type": "remote",
       "url": "https://mcp.linear.app/mcp",
       "oauth": {}
+    },
+    "Playwright": {
+      "type": "local",
+      "command": [
+        "npx",
+        "@playwright/mcp@latest"
+      ]
     }
   }
 }
