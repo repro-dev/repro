@@ -2,7 +2,6 @@ import { Block, Col, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { Button } from '../Button'
-import { PortalRootProvider } from '../Portal/PortalRootProvider'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
 import { Tooltip } from './Tooltip'
@@ -11,13 +10,6 @@ const meta: Meta<typeof Tooltip> = {
   title: 'Components/Overlays/Tooltip',
   component: Tooltip,
   tags: ['autodocs', 'design-system'],
-  decorators: [
-    Story => (
-      <PortalRootProvider>
-        <Story />
-      </PortalRootProvider>
-    ),
-  ],
 }
 
 export default meta

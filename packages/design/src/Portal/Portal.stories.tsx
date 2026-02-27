@@ -4,19 +4,11 @@ import React from 'react'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
 import { Portal } from './Portal'
-import { PortalRootProvider } from './PortalRootProvider'
 
 const meta: Meta<typeof Portal> = {
   title: 'Components/Utilities/Portal',
   component: Portal,
   tags: ['autodocs', 'design-system'],
-  decorators: [
-    Story => (
-      <PortalRootProvider>
-        <Story />
-      </PortalRootProvider>
-    ),
-  ],
 }
 
 export default meta

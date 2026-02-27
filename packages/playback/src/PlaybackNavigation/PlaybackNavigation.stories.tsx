@@ -1,4 +1,3 @@
-import { PortalRootProvider } from '@repro/design'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { PlaybackProvider } from '../context'
@@ -17,10 +16,8 @@ type Story = StoryObj<typeof PlaybackNavigation>
 
 export const Default: Story = {
   render: () => (
-    <PortalRootProvider>
-      <PlaybackProvider playback={EMPTY_PLAYBACK}>
-        <PlaybackNavigation />
-      </PlaybackProvider>
-    </PortalRootProvider>
+    <PlaybackProvider playback={EMPTY_PLAYBACK}>
+      <PlaybackNavigation />
+    </PlaybackProvider>
   ),
 }
