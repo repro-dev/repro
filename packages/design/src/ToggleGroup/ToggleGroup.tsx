@@ -6,7 +6,7 @@ import { radius, shadow } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
-import { fontSize } from '../tokens/typography'
+import { fontSize, lineHeight } from '../tokens/typography'
 
 interface Props {
   options: Array<{
@@ -130,11 +130,15 @@ const Toggle: React.FC<ToggleProps> = ({ active, label, onClick }) => (
     }}
     {...focusRing()}
   >
-    <Block color={active ? color.text.inverse : color.primary}>
+    <Block lineHeight={0} color={active ? color.text.inverse : color.primary}>
       {active ? <CheckCircle size={14} /> : <Circle size={14} />}
     </Block>
 
-    <Block fontSize={fontSize.xs} color={active ? color.text.inverse : color.text.default}>
+    <Block
+      fontSize={fontSize.xs}
+      lineHeight={lineHeight.tight}
+      color={active ? color.text.inverse : color.text.default}
+    >
       {label}
     </Block>
   </Row>
