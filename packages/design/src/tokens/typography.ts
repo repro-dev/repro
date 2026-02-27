@@ -149,6 +149,14 @@ export const textStyles = {
     lineHeight: lineHeight.relaxed,
     fontFamily: fontFamily.mono,
   },
+  overline: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    lineHeight: lineHeight.tight,
+    fontFamily: fontFamily.sans,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+  },
 } as const
 
 export type TextStyleToken = keyof typeof textStyles
