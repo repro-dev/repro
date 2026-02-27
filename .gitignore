@@ -31,3 +31,5 @@ storybook-static
 
 # TEMP
 .DS_Store
+/tmp/*
+!/tmp/.gitkeep
