@@ -343,6 +343,16 @@ cmd_status() {
   fi
 }
 
+cmd_ui() {
+  if ! tilt_is_running; then
+    die "Tilt is not running. Start services first with 'reproctl start <service>'."
+  fi
+
+  local url="http://localhost:$TILT_PORT"
+  echo "Opening $url"
+  open "$url"
+}
+
 # ── Main ────────────────────────────────────────────────────────────
 
 usage() {
@@ -353,6 +363,7 @@ Commands:
   start <service> [...]           Start services from the current context
   stop [<service>...] | --all     Remove services or tear down Tilt
   status                          Show running services and dashboard URL
+  ui                              Open the Tilt dashboard in a browser
 
 Context is detected automatically:
   - From the main checkout, services run as main.
@@ -368,6 +379,7 @@ Examples:
   reproctl stop api-server           # remove from current context
   reproctl stop --all                # tear down everything
   reproctl status                    # show what's running
+  reproctl ui                        # open Tilt dashboard
 EOF
 }
 
@@ -383,6 +395,7 @@ case "$COMMAND" in
   start)  cmd_start "$@" ;;
   stop)   cmd_stop "$@" ;;
   status) cmd_status "$@" ;;
+  ui)     cmd_ui "$@" ;;
   -h|--help) usage ;;
   *)
     die "Unknown command: $COMMAND"
