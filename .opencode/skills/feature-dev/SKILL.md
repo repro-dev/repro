@@ -40,7 +40,7 @@ Follow these phases in order when implementing a feature or fix.
 
 1. Break the issue down into concrete tasks using the todo list.
 2. Identify which packages are affected (`apps/*`, `packages/*`).
-3. If the work touches `@repro/design`, read `packages/design/AGENTS.md` for the component checklist.
+3. For each affected package, check for an `AGENTS.md` file in the package root. If one exists, read it — it contains package-specific conventions, checklists, and pitfalls that must be followed.
 
 ## Phase 3: Implementation
 
