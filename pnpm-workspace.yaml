@@ -1,3 +1,13 @@
 packages:
   - apps/*
   - packages/*
+
+# When on a non-default branch, write a branch-specific lockfile
+# (pnpm-lock.<branch>.yaml) instead of modifying pnpm-lock.yaml.
+# This avoids merge conflicts when multiple worktrees diverge.
+gitBranchLockfile: true
+
+# On the main branch, merge all branch lockfiles back into
+# pnpm-lock.yaml automatically during `pnpm install`.
+mergeGitBranchLockfilesBranchPattern:
+  - main
