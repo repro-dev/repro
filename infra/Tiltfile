@@ -38,6 +38,20 @@ if WORKTREE_MODE:
   # Hostnames follow the pattern:
   #   app.wt-<slug>.repro.localhost
   #   api.wt-<slug>.repro.localhost
+  #
+  # Routing note: services NOT listed on the `tilt up` command line
+  # are routed to the main checkout's k8s Services via the ingress
+  # fallback (e.g. api-server-service, workspace-service). This means
+  # the main checkout's Tilt must be running with those services
+  # enabled for cross-service requests to succeed. For example:
+  #
+  #   tilt up workspace            # workspace is isolated; API calls
+  #                                # go to the main checkout's api-server.
+  #                                # Requires `tilt up api-server` in the
+  #                                # main checkout.
+  #
+  #   tilt up api-server workspace # fully self-contained; no dependency
+  #                                # on the main checkout's services.
 
   MAIN_CHECKOUT = detect_main_checkout(PROJECT_ROOT)
   MAIN_INFRA = os.path.join(MAIN_CHECKOUT, 'infra')

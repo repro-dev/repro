@@ -257,7 +257,12 @@ def register_worktree_ingress(wt_slug, services, infra_dir):
 
   For each requested service, the ingress route points to the worktree's
   service. For services NOT requested, routes fall back to the main
-  checkout's service names.
+  checkout's service names (e.g. api-server-service, workspace-service).
+
+  Note: fallback routes require the main checkout's Tilt to be running
+  with those services enabled. If the backing service doesn't exist in
+  the cluster, the ingress will have a dangling backend and requests
+  will fail with 503.
 
   Args:
     wt_slug: Worktree slug.
