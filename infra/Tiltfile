@@ -67,3 +67,49 @@ load_dynamic('./apps/workspace/Tiltfile')
 
 # Infra
 load_dynamic('./apps/gateway/Tiltfile')
+
+# Worktrees
+#
+# Worktree services are configured via tilt_config.json at the repo root:
+#
+#   {
+#     "groups": ["workspace"],
+#     "worktrees": {
+#       "feat-new-api": {
+#         "services": ["api-server"]
+#       },
+#       "fix-auth-bug": {
+#         "services": ["api-server", "workspace"]
+#       }
+#     }
+#   }
+#
+# Each key under "worktrees" is a worktree slug (matching the directory name
+# repro-wt-<slug>). The "services" array lists which services to isolate for
+# that worktree. Services not listed will be shared from the main checkout.
+#
+# Worktree paths are resolved automatically as ../repro-wt-<slug> relative to
+# the main checkout root directory.
+
+load('./tilt-lib/worktree.Tiltfile', 'register_worktree')
+
+tilt_config_path = os.path.join(PROJECT_ROOT, 'tilt_config.json')
+
+if os.path.exists(tilt_config_path):
+  tilt_config = read_json(tilt_config_path)
+  worktrees = tilt_config.get('worktrees', {})
+
+  for wt_slug in worktrees:
+    wt_config = worktrees[wt_slug]
+    wt_path = os.path.join(PROJECT_ROOT, '..', 'repro-wt-' + wt_slug)
+    services = wt_config.get('services', [])
+
+    if not os.path.exists(wt_path):
+      warn('Worktree directory not found: %s (slug: %s). Skipping.' % (wt_path, wt_slug))
+      continue
+
+    if not services:
+      warn('No services configured for worktree: %s. Skipping.' % wt_slug)
+      continue
+
+    register_worktree(wt_slug, wt_path, services, os.path.join(PROJECT_ROOT, 'infra'))

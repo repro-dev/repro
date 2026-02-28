@@ -1,20 +1,20 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: db-migrations
+  name: {{ .Release.Name }}-migrations
   labels:
-    app: db-migrations
+    app: {{ .Release.Name }}-migrations
 spec:
   backoffLimit: 3
   template:
     metadata:
       labels:
-        app: db-migrations
+        app: {{ .Release.Name }}-migrations
     spec:
       restartPolicy: OnFailure
       containers:
         - name: migrations
-          image: api-server-migrations
+          image: {{ .Values.migrations.image }}
           imagePullPolicy: Never
           command: ["moon", "run", "repro/api-server:migrate"]
           env:

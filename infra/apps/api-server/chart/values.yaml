@@ -2,6 +2,9 @@ container:
   name: api-server
   image: api-server-dev
 
+migrations:
+  image: api-server-migrations
+
 vars:
   NODE_ENV: development
   HOST: 0.0.0.0
