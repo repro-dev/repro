@@ -1,6 +1,7 @@
 load('./dependency_graph.Tiltfile', 'dependency_sync_paths', 'dependency_watch_paths', 'non_dependency_ignore_patterns')
 
 COMMON_IGNORE = [
+  '.git',
   'infra',
   'dist',
   'build',
@@ -287,7 +288,10 @@ def register_worktree_ingress(wt_slug, services, infra_dir):
 
   for route_key, default_svc in route_defaults.items():
     service_name = overrides.get(route_key, default_svc + '-service')
+    helm_sets.append('ingress.%s.paths[0].path=/(.*)' % route_key)
+    helm_sets.append('ingress.%s.paths[0].pathType=ImplementationSpecific' % route_key)
     helm_sets.append('ingress.%s.paths[0].serviceName=%s' % (route_key, service_name))
+    helm_sets.append('ingress.%s.paths[0].servicePort=http' % route_key)
 
   k8s_yaml(helm(
     os.path.join(infra_dir, 'apps/gateway/chart'),
