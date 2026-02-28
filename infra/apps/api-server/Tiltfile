@@ -129,6 +129,7 @@ k8s_yaml(helm(
   name='api-server',
   set=[
     'container.image=api-server',
+    'migrations.image=api-server-migrations',
     'vars.REPRO_APP_URL=http://app.repro.localhost',
     'vars.REPRO_API_URL=http://api.repro.localhost',
     'vars.PORT=8080',
@@ -152,7 +153,7 @@ local_resource(
 )
 
 k8s_resource(
-  'db-migrations',
+  'api-server-migrations',
   resource_deps=['database-ready', 'storage-ready'],
   labels=['api']
 )
@@ -172,6 +173,6 @@ k8s_resource(
   links=[
     'http://api.repro.localhost',
   ],
-  resource_deps=['db-migrations'],
+  resource_deps=['api-server-migrations'],
   labels=['api']
 )

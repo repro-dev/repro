@@ -1,7 +1,8 @@
-def compute_all_dependencies(project_id, root_path):
+def compute_all_dependencies(project_id, root_path, work_dir=None):
   result = local(
     'moon project-graph %s --json' % project_id,
     quiet=True,
+    dir=work_dir,
   )
 
   graph = decode_json(str(result))
@@ -17,8 +18,8 @@ def compute_all_dependencies(project_id, root_path):
 
   return deps
 
-def dependency_watch_paths(project_id, root_path):
-  deps = compute_all_dependencies(project_id, root_path)
+def dependency_watch_paths(project_id, root_path, work_dir=None):
+  deps = compute_all_dependencies(project_id, root_path, work_dir)
 
   paths = []
   for dep in deps:
@@ -28,8 +29,8 @@ def dependency_watch_paths(project_id, root_path):
 
   return paths
 
-def dependency_sync_paths(project_id, root_path):
-  deps = compute_all_dependencies(project_id, root_path)
+def dependency_sync_paths(project_id, root_path, work_dir=None):
+  deps = compute_all_dependencies(project_id, root_path, work_dir)
 
   paths = []
   for dep in deps:
@@ -37,8 +38,8 @@ def dependency_sync_paths(project_id, root_path):
 
   return paths
 
-def non_dependency_ignore_patterns(project_id, root_path):
-  deps = compute_all_dependencies(project_id, root_path)
+def non_dependency_ignore_patterns(project_id, root_path, work_dir=None):
+  deps = compute_all_dependencies(project_id, root_path, work_dir)
 
   keep = {}
   for dep in deps:
@@ -47,6 +48,7 @@ def non_dependency_ignore_patterns(project_id, root_path):
   result = local(
     'moon query projects --json',
     quiet=True,
+    dir=work_dir,
   )
   all_projects = decode_json(str(result))
 

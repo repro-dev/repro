@@ -8,5 +8,8 @@
 # ENVIRONMENT
 **/.env
 
+# GIT
+.git
+
 # INFRA
 infra
