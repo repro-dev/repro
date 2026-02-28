@@ -66,13 +66,24 @@ cmd_create() {
   fi
 
   if [ -d "$wt_path" ]; then
-    echo "Error: Directory already exists: $wt_path" >&2
+    echo "Error: Worktree already exists at $wt_path" >&2
+    echo "  To remove it: ./scripts/worktree.sh remove $branch" >&2
     exit 1
   fi
 
   if [ "$NEW_BRANCH" = true ]; then
+    if git rev-parse --verify --quiet "$branch" >/dev/null 2>&1; then
+      echo "Error: Branch '$branch' already exists. Omit -b to check out the existing branch." >&2
+      exit 1
+    fi
     git worktree add -b "$branch" "$wt_path"
   else
+    if ! git rev-parse --verify --quiet "$branch" >/dev/null 2>&1; then
+      echo "Error: Branch '$branch' does not exist." >&2
+      echo "  To create a new branch: ./scripts/worktree.sh -b create $branch" >&2
+      echo "  To list local branches:  git branch" >&2
+      exit 1
+    fi
     git worktree add "$wt_path" "$branch"
   fi
 
@@ -124,8 +135,8 @@ cmd_remove() {
   fi
 
   if [ ! -d "$wt_path" ]; then
-    echo "Error: Worktree directory not found: $wt_path" >&2
-    echo "Pruning stale entries anyway..."
+    echo "Error: No worktree found at $wt_path" >&2
+    echo "  Run './scripts/worktree.sh list' to see active worktrees." >&2
     git worktree prune
     exit 1
   fi
@@ -180,7 +191,8 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     -*)
-      echo "Unknown option: $1" >&2
+      echo "Error: Unknown option '$1'" >&2
+      echo "" >&2
       usage >&2
       exit 1
       ;;
@@ -217,7 +229,8 @@ case "$COMMAND" in
     cmd_list
     ;;
   *)
-    echo "Unknown command: $COMMAND" >&2
+    echo "Error: Unknown command '$COMMAND'" >&2
+    echo "" >&2
     usage >&2
     exit 1
     ;;
