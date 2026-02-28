@@ -15,6 +15,11 @@ certs
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
+# PNPM
+# Branch-specific lockfiles created by gitBranchLockfile setting.
+# Only the main pnpm-lock.yaml should be committed.
+pnpm-lock.*.yaml
+
 # MOON
 .moon/cache
 .moon/docker
