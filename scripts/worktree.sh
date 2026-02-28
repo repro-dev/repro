@@ -12,7 +12,7 @@ DRY_RUN=false
 NEW_BRANCH=false
 
 slugify() {
-  printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'
+  printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'
 }
 
 worktree_path() {
@@ -225,11 +225,19 @@ case "$COMMAND" in
       echo "Error: 'create' requires a branch name" >&2
       exit 1
     fi
+    if ! git check-ref-format "refs/heads/$1" >/dev/null 2>&1; then
+      echo "Error: '$1' is not a valid branch name." >&2
+      exit 1
+    fi
     cmd_create "$1"
     ;;
   remove)
     if [ $# -lt 1 ]; then
       echo "Error: 'remove' requires a branch name" >&2
+      exit 1
+    fi
+    if ! git check-ref-format "refs/heads/$1" >/dev/null 2>&1; then
+      echo "Error: '$1' is not a valid branch name." >&2
       exit 1
     fi
     cmd_remove "$1"
