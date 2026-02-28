@@ -161,7 +161,7 @@ def register_worktree_service(service_name, wt_slug, wt_path, infra_dir):
 
   svc = SERVICES[service_name]
   prefix = service_name + '-wt-' + wt_slug
-  label = 'wt:' + wt_slug
+  label = 'wt.' + wt_slug
   moon_project = svc['moon_project']
   app_dir = svc['app_dir']
   chart_path = os.path.join(infra_dir, svc['chart'])
@@ -265,7 +265,7 @@ def register_worktree_ingress(wt_slug, services, infra_dir):
   """
   app_host = 'app.wt-' + wt_slug + '.repro.localhost'
   api_host = 'api.wt-' + wt_slug + '.repro.localhost'
-  label = 'wt:' + wt_slug
+  label = 'wt.' + wt_slug
 
   route_defaults = {
     'appRoutes': 'workspace',
