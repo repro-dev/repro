@@ -108,13 +108,27 @@ Run these checks before committing. Fix any failures before proceeding.
 ## Phase 6: Pull Request
 
 1. Push the branch: `git push -u origin <branch-name>`
-2. Create the PR via `gh` CLI:
+2. Create the PR via `gh` CLI. Fill in the PR body following the template in `.github/pull_request_template.md`:
    ```
    gh pr create --title "feat(scope): description (REP-123)" --body "$(cat <<'EOF'
    ## Summary
-   - <bullet points>
+
+   <Brief description of what this PR does and why.>
+
+   ## Linear Issue
 
    Resolves REP-123
+
+   ## Changes
+
+   - <change 1>
+   - <change 2>
+
+   ## Verification
+
+   - [x] Typechecks pass (`moon run <package>:typecheck`)
+   - [x] Tests pass (if applicable)
+   - [x] Formatted with `pnpm fmt`
    EOF
    )"
    ```
