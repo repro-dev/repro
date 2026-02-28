@@ -2,14 +2,17 @@
 
 set -euo pipefail
 
-MAIN_ROOT="$(git rev-parse --show-toplevel)"
+MAIN_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+  echo "Error: Not inside a git repository." >&2
+  exit 1
+}
 PARENT_DIR="$(dirname "$MAIN_ROOT")"
 
 DRY_RUN=false
 NEW_BRANCH=false
 
 slugify() {
-  echo "$1" | sed 's|/|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'
+  printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'
 }
 
 worktree_path() {
@@ -52,7 +55,7 @@ cmd_create() {
     echo "[dry-run] Would run: pnpm install (in $wt_path)"
 
     local env_files
-    env_files=$(find "$MAIN_ROOT/apps" -maxdepth 2 -name '.env*' -not -name '.env.example' 2>/dev/null || true)
+    env_files=$(find "$MAIN_ROOT/apps" -maxdepth 2 -type f -name '.env*' -not -name '.env.example' 2>/dev/null || true)
     if [ -n "$env_files" ]; then
       echo "[dry-run] Would copy .env files:"
       echo "$env_files" | while read -r f; do
@@ -105,7 +108,7 @@ cmd_create() {
       echo "  Copied: $rel"
       copied=$((copied + 1))
     fi
-  done < <(find "$MAIN_ROOT/apps" -maxdepth 2 -name '.env*' -not -name '.env.example' 2>/dev/null || true)
+  done < <(find "$MAIN_ROOT/apps" -maxdepth 2 -type f -name '.env*' -not -name '.env.example' 2>/dev/null || true)
 
   echo ""
   echo "=== Worktree ready ==="
