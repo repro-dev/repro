@@ -1,11 +1,11 @@
 # Unified Tilt orchestrator
 #
 # A single Tilt process manages all services — main checkout and
-# worktrees — from one instance. The `scripts/repro-start.sh` CLI
-# writes tilt_config.json with the resolved service list; this
+# worktrees — from one instance. The `scripts/reproctl.sh` CLI
+# writes reproctl_services.json with the resolved service list; this
 # Tiltfile reads it and registers everything generically.
 #
-# Backwards compatibility: when no tilt_config.json exists, the
+# Backwards compatibility: when no reproctl_services.json exists, the
 # original `tilt up <group>` workflow works exactly as before via
 # the legacy groups path.
 
@@ -26,7 +26,8 @@ cfg = config.parse()
 
 PROJECT_ROOT = os.path.join(os.getcwd(), '..')
 INFRA_DIR = os.getcwd()
-CONFIG_FILE = os.path.join(INFRA_DIR, 'tilt_config.json')
+TMP_DIR = os.path.join(PROJECT_ROOT, 'tmp')
+CONFIG_FILE = os.path.join(TMP_DIR, 'reproctl_services.json')
 
 update_settings(
   k8s_upsert_timeout_secs=300
@@ -34,21 +35,21 @@ update_settings(
 
 allow_k8s_contexts('kind')
 
-# Watch tilt_config.json so that changes from `repro-start.sh`
+# Watch reproctl_services.json so that changes from `reproctl`
 # trigger an automatic Tiltfile re-evaluation.
 watch_file(CONFIG_FILE)
 
 
 def has_config_file():
   result = str(local(
-    'test -f tilt_config.json && echo yes || echo no',
+    'test -f "%s" && echo yes || echo no' % CONFIG_FILE,
     quiet=True,
   ))
   return result.strip() == 'yes'
 
 
 def load_service_config():
-  """Load the service list from tilt_config.json.
+  """Load the service list from reproctl_services.json.
 
   Returns a list of dicts: [{name, source, slug}, ...]
   - name: service key in SERVICES (e.g. 'api-server')
@@ -77,8 +78,8 @@ def register_shared_infra():
 service_config = load_service_config()
 
 if service_config:
-  # Unified mode: services come from tilt_config.json, written by
-  # `scripts/repro-start.sh`. Each entry specifies which service to
+  # Unified mode: services come from reproctl_services.json, written by
+  # `scripts/reproctl.sh`. Each entry specifies which service to
   # run and from which source tree.
   #
   # Shared infrastructure (database, storage, ingress) is registered
@@ -98,7 +99,7 @@ if service_config:
 
     if slug:
       if name not in SERVICES:
-        warn('Unknown worktree service in tilt_config.json: %s. Known: %s' % (name, ', '.join(SERVICES.keys())))
+        warn('Unknown worktree service in reproctl_services.json: %s. Known: %s' % (name, ', '.join(SERVICES.keys())))
         continue
 
       wt_path = source if source.startswith('/') else os.path.join(PROJECT_ROOT, source)
@@ -152,14 +153,14 @@ if service_config:
     register_ingress(slug, svc_names, INFRA_DIR)
 
 else:
-  # Legacy mode: no tilt_config.json, original `tilt up <group>` behaviour.
+  # Legacy mode: no reproctl_services.json, original `tilt up <group>` behaviour.
   # This path is identical to the pre-REP-219 main checkout mode.
 
   if is_worktree(PROJECT_ROOT):
     fail(
-      'Worktree detected but no tilt_config.json found.\n' +
-      'Use `scripts/repro-start.sh start <service>` to configure and start Tilt,\n' +
-      'or create infra/tilt_config.json manually.\n\n' +
+      'Worktree detected but no reproctl_services.json found.\n' +
+      'Use `scripts/reproctl.sh start <service>` to configure and start Tilt,\n' +
+      'or create tmp/reproctl_services.json manually.\n\n' +
       'Direct `tilt up` from a worktree is no longer supported.\n' +
       'The unified orchestrator runs from the main checkout.'
     )
