@@ -8,6 +8,7 @@ load(
   'register_worktree_ingress',
   'SERVICES',
 )
+load('ext://helm_resource', 'helm_resource', 'helm_repo')
 
 config.define_string_list('groups', args=True)
 cfg = config.parse()
@@ -82,7 +83,6 @@ if WORKTREE_MODE:
   # Ingress controller only (NOT the main checkout's gateway chart,
   # which would deploy ingress objects for app/api.repro.localhost
   # that conflict with the worktree's own ingress).
-  load('ext://helm_resource', 'helm_resource', 'helm_repo')
 
   helm_repo(
     'ingress-nginx',
