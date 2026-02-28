@@ -10,11 +10,31 @@ Follow these phases in order when implementing a feature or fix.
 ## Phase 1: Pre-flight
 
 1. **Fetch the Linear issue** for the work item. Read the full description — check for requirements, resolved decisions, and open considerations. These take precedence over assumptions.
-2. **Check your branch**: run `git branch` to confirm you are NOT on `main`. If you are on `main`, stop and create a feature branch before writing any code.
-3. **Create a feature branch** (if needed):
-   - Pattern: `<type>/<issue?>-<slug>` (e.g., `feat/REP-123-add-auth`, `fix/REP-456-login-redirect`)
-   - Branch from `main`: `git checkout main && git checkout -b <branch-name>`
-4. **Set the Linear issue to In Progress.**
+2. **Resolve the correct branch.** Run `git branch` to check the current branch, then follow the first matching case:
+
+   **Case A — Already on the correct feature branch for this issue:**
+   No action needed. Continue to step 3.
+
+   **Case B — On `main`:**
+   Create a feature branch from `main`:
+   ```
+   git checkout -b <type>/<issue?>-<slug>
+   ```
+
+   **Case C — On a different feature branch:**
+   Ask the user: is this new work stacked on the current branch?
+   - **Yes (stacked):** Create the new branch from the current HEAD:
+     ```
+     git checkout -b <type>/<issue?>-<slug>
+     ```
+   - **No (independent):** Switch to latest `main` and branch from there:
+     ```
+     git checkout main && git pull && git checkout -b <type>/<issue?>-<slug>
+     ```
+
+   Branch naming pattern: `<type>/<issue?>-<slug>` (e.g., `feat/REP-123-add-auth`, `fix/REP-456-login-redirect`)
+
+3. **Set the Linear issue to In Progress.**
 
 ## Phase 2: Planning
 
