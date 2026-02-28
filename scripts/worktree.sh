@@ -109,6 +109,7 @@ cmd_create() {
       copied=$((copied + 1))
     fi
   done < <(find "$MAIN_ROOT/apps" -maxdepth 2 -type f -name '.env*' -not -name '.env.example' 2>/dev/null || true)
+  echo "  ($copied file(s) copied)"
 
   echo ""
   echo "=== Worktree ready ==="
@@ -212,6 +213,11 @@ fi
 
 COMMAND="$1"
 shift
+
+if [ "$NEW_BRANCH" = true ] && [ "$COMMAND" != "create" ]; then
+  echo "Error: -b flag can only be used with 'create'" >&2
+  exit 1
+fi
 
 case "$COMMAND" in
   create)
