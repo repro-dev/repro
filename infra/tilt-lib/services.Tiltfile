@@ -42,6 +42,11 @@ COMMON_IGNORE_GLOBS = [
 #
 # "ingress" maps route keys in the gateway chart to the service name
 # suffix used for the k8s Service object (e.g. "apiRoutes" -> "service").
+#
+# "deps" lists other SERVICES keys that this service depends on at
+# runtime (e.g. workspace -> api-server). resolve_dependencies() uses
+# this to auto-inject missing transitive dependencies as main-checkout
+# entries when running from a worktree.
 
 SERVICES = {
   'api-server': {
@@ -64,6 +69,7 @@ SERVICES = {
     'ingress': {
       'apiRoutes': 'service',
     },
+    'deps': [],
   },
 
   'workspace': {
@@ -80,6 +86,7 @@ SERVICES = {
     'ingress': {
       'appRoutes': 'service',
     },
+    'deps': ['api-server'],
   },
 }
 
@@ -189,6 +196,56 @@ def register_service(service_name, wt_slug, source_path, infra_dir):
     resource_deps=resource_deps,
     labels=[label]
   )
+
+
+def resolve_dependencies(service_config):
+  """Expand transitive service dependencies in the config list.
+
+  For each service in the config, look up its `deps` in SERVICES and
+  inject any missing dependencies as main-checkout entries (slug="",
+  source="."). Only services that are NOT already present get added —
+  if the user explicitly listed a dependency it keeps its original
+  source/slug.
+
+  Args:
+    service_config: list of dicts [{name, source, slug}, ...]
+
+  Returns:
+    New list with dependency entries appended as needed.
+  """
+  present = {}
+  for entry in service_config:
+    key = entry.get('name', '') + ':' + entry.get('slug', '')
+    present[key] = True
+
+  result = list(service_config)
+  queue = list(service_config)
+
+  for _guard in range(100):
+    if not queue:
+      break
+    entry = queue[0]
+    queue = queue[1:]
+
+    name = entry.get('name', '')
+    svc = SERVICES.get(name, {})
+    deps = svc.get('deps', [])
+
+    for dep_name in deps:
+      main_key = dep_name + ':'
+      has_any = False
+      for existing_key in present:
+        if existing_key.startswith(dep_name + ':'):
+          has_any = True
+          break
+
+      if not has_any:
+        dep_entry = {'name': dep_name, 'source': '.', 'slug': ''}
+        result.append(dep_entry)
+        present[main_key] = True
+        queue.append(dep_entry)
+
+  return result
 
 
 def register_ingress(wt_slug, services, infra_dir):

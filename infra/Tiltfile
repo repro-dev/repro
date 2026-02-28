@@ -13,6 +13,7 @@ load(
   './tilt-lib/services.Tiltfile',
   'register_service',
   'register_ingress',
+  'resolve_dependencies',
   'SERVICES',
 )
 load(
@@ -86,6 +87,8 @@ if service_config:
   # once. Main-checkout services use per-app Tiltfiles for full
   # feature parity (db-reset, etc.). Worktree services use the
   # generic register_service() from services.Tiltfile.
+
+  service_config = resolve_dependencies(service_config)
 
   register_shared_infra()
 
