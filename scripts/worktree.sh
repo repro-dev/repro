@@ -83,7 +83,7 @@ cmd_create() {
   echo ""
   echo "Copying .env files..."
   local copied=0
-  find "$MAIN_ROOT/apps" -maxdepth 2 -name '.env*' -not -name '.env.example' | while read -r env_file; do
+  while read -r env_file; do
     local rel="${env_file#"$MAIN_ROOT"/}"
     local dest="$wt_path/$rel"
     local dest_dir
@@ -94,7 +94,7 @@ cmd_create() {
       echo "  Copied: $rel"
       copied=$((copied + 1))
     fi
-  done
+  done < <(find "$MAIN_ROOT/apps" -maxdepth 2 -name '.env*' -not -name '.env.example' 2>/dev/null || true)
 
   echo ""
   echo "=== Worktree ready ==="
