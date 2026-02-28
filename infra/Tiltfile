@@ -25,17 +25,16 @@ if WORKTREE_MODE:
   # Worktree mode
   #
   # When `tilt up` runs from inside a git worktree, shared infrastructure
-  # (database, storage, ingress controller) is expected to already be running
-  # from the main checkout. This Tiltfile only brings up the services
-  # requested via `tilt up <service> ...`.
+  # (database, storage, ingress controller) is automatically provisioned
+  # from the main checkout's charts. Worktree-specific services get their
+  # own Docker builds, Helm releases, and ingress routes.
   #
   # Usage:
   #   cd ../repro-wt-feat-new-api
   #   tilt up api-server          # isolated api-server from this worktree
   #   tilt up api-server workspace # both services isolated
   #
-  # The worktree services get their own Docker builds, Helm releases, and
-  # ingress routes. Hostnames follow the pattern:
+  # Hostnames follow the pattern:
   #   app.wt-<slug>.repro.localhost
   #   api.wt-<slug>.repro.localhost
 
@@ -59,6 +58,59 @@ if WORKTREE_MODE:
       'Available services: %s' % ', '.join(SERVICES.keys())
     )
 
+  # Shared infrastructure — loaded from the main checkout so that
+  # database, storage, and ingress controller are available even if the
+  # main checkout's Tilt isn't running.
+
+  # Database + object storage (PostgreSQL, SeaweedFS)
+  load_dynamic(os.path.join(MAIN_INFRA, 'apps/data/Tiltfile'))
+
+  local_resource(
+    'database-ready',
+    cmd='kubectl wait --namespace default --for=condition=ready pod -l app.kubernetes.io/instance=database,app.kubernetes.io/name=postgresql --timeout=120s',
+    resource_deps=['database'],
+    labels=['infra']
+  )
+
+  local_resource(
+    'storage-ready',
+    cmd='kubectl wait --namespace default --for=jsonpath="{.subsets[*].addresses[*].ip}" endpoints/storage-seaweedfs-s3 --timeout=120s',
+    resource_deps=['storage'],
+    labels=['infra']
+  )
+
+  # Ingress controller only (NOT the main checkout's gateway chart,
+  # which would deploy ingress objects for app/api.repro.localhost
+  # that conflict with the worktree's own ingress).
+  load('ext://helm_resource', 'helm_resource', 'helm_repo')
+
+  helm_repo(
+    'ingress-nginx',
+    'https://kubernetes.github.io/ingress-nginx',
+    labels=['infra']
+  )
+
+  helm_resource(
+    name='ingress-controller',
+    chart='ingress-nginx/ingress-nginx',
+    namespace='default',
+    flags=[
+      '--set=controller.config.use-http2=false',
+      '--set=controller.hostPort.enabled=true',
+      '--set=controller.service.type=NodePort'
+    ],
+    resource_deps=['ingress-nginx'],
+    labels=['infra']
+  )
+
+  local_resource(
+    'ingress-admission-ready',
+    cmd='kubectl wait --namespace default --for=condition=available deployment/ingress-controller-ingress-nginx-controller --timeout=120s && kubectl wait --namespace default --for=jsonpath="{.subsets[*].addresses[*].ip}" endpoints/ingress-controller-ingress-nginx-controller-admission --timeout=120s',
+    resource_deps=['ingress-controller'],
+    labels=['infra']
+  )
+
+  # Worktree-specific services
   register_worktree_dependencies(WT_SLUG, PROJECT_ROOT)
 
   for svc in services:
