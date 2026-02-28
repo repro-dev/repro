@@ -1,42 +1,19 @@
+load(
+  './tilt-lib/worktree.Tiltfile',
+  'is_worktree',
+  'detect_main_checkout',
+  'worktree_slug',
+  'register_worktree_dependencies',
+  'register_worktree_service',
+  'register_worktree_ingress',
+  'SERVICES',
+)
+
 config.define_string_list('groups', args=True)
 cfg = config.parse()
 
-groups = {
-  'capture-only': [
-    'capture'
-  ],
-
-  'dev-toolbar-only': [
-    'dev-toolbar'
-  ],
-
-  'api-server': [
-    'storage',
-    'database',
-    'api-server',
-    'gateway-ingress',
-  ],
-
-  'workspace': [
-    'storage',
-    'database',
-    'api-server',
-    'workspace',
-    'gateway-ingress',
-  ]
-}
-
-resources = []
-
-for arg in cfg.get('groups', []):
-  if arg in groups:
-    resources += groups[arg]
-  else:
-    resources.append(arg)
-
-config.set_enabled_resources(resources)
-
 PROJECT_ROOT = os.path.join(os.getcwd(), '..')
+WORKTREE_MODE = is_worktree(PROJECT_ROOT)
 
 update_settings(
   k8s_upsert_timeout_secs=300
@@ -44,72 +21,109 @@ update_settings(
 
 allow_k8s_contexts('kind')
 
-local_resource(
-  'dependencies',
-  cmd='pnpm fetch && pnpm install --offline',
-  dir='..',
-  deps=['pnpm-lock.yaml'],
-  labels=['infra'],
-)
+if WORKTREE_MODE:
+  # Worktree mode
+  #
+  # When `tilt up` runs from inside a git worktree, shared infrastructure
+  # (database, storage, ingress controller) is expected to already be running
+  # from the main checkout. This Tiltfile only brings up the services
+  # requested via `tilt up <service> ...`.
+  #
+  # Usage:
+  #   cd ../repro-wt-feat-new-api
+  #   tilt up api-server          # isolated api-server from this worktree
+  #   tilt up api-server workspace # both services isolated
+  #
+  # The worktree services get their own Docker builds, Helm releases, and
+  # ingress routes. Hostnames follow the pattern:
+  #   app.wt-<slug>.repro.localhost
+  #   api.wt-<slug>.repro.localhost
 
-# Extensions
-load_dynamic('./apps/capture/Tiltfile')
-load_dynamic('./apps/dev-toolbar/Tiltfile')
+  MAIN_CHECKOUT = detect_main_checkout(PROJECT_ROOT)
+  MAIN_INFRA = os.path.join(MAIN_CHECKOUT, 'infra')
+  WT_SLUG = worktree_slug(PROJECT_ROOT)
 
-# Data
-load_dynamic('./apps/data/Tiltfile')
+  requested = cfg.get('groups', [])
 
-# APIs
-load_dynamic('./apps/api-server/Tiltfile')
+  services = []
+  for arg in requested:
+    if arg in SERVICES:
+      services.append(arg)
+    else:
+      warn('Unknown service for worktree mode: %s. Known: %s' % (arg, ', '.join(SERVICES.keys())))
 
-# Apps
-load_dynamic('./apps/workspace/Tiltfile')
+  if not services:
+    fail(
+      'Worktree mode requires at least one service as an argument.\n' +
+      'Usage: tilt up <service> [...]\n' +
+      'Available services: %s' % ', '.join(SERVICES.keys())
+    )
 
-# Infra
-load_dynamic('./apps/gateway/Tiltfile')
+  register_worktree_dependencies(WT_SLUG, PROJECT_ROOT)
 
-# Worktrees
-#
-# Worktree services are configured via tilt_config.json at the repo root:
-#
-#   {
-#     "groups": ["workspace"],
-#     "worktrees": {
-#       "feat-new-api": {
-#         "services": ["api-server"]
-#       },
-#       "fix-auth-bug": {
-#         "services": ["api-server", "workspace"]
-#       }
-#     }
-#   }
-#
-# Each key under "worktrees" is a worktree slug (matching the directory name
-# repro-wt-<slug>). The "services" array lists which services to isolate for
-# that worktree. Services not listed will be shared from the main checkout.
-#
-# Worktree paths are resolved automatically as ../repro-wt-<slug> relative to
-# the main checkout root directory.
+  for svc in services:
+    register_worktree_service(svc, WT_SLUG, PROJECT_ROOT, MAIN_INFRA)
 
-load('./tilt-lib/worktree.Tiltfile', 'register_worktree')
+  register_worktree_ingress(WT_SLUG, services, MAIN_INFRA)
 
-tilt_config_path = os.path.join(PROJECT_ROOT, 'tilt_config.json')
+else:
+  # Main checkout mode (original behaviour)
 
-if os.path.exists(tilt_config_path):
-  tilt_config = read_json(tilt_config_path)
-  worktrees = tilt_config.get('worktrees', {})
+  groups = {
+    'capture-only': [
+      'capture'
+    ],
 
-  for wt_slug in worktrees:
-    wt_config = worktrees[wt_slug]
-    wt_path = os.path.join(PROJECT_ROOT, '..', 'repro-wt-' + wt_slug)
-    services = wt_config.get('services', [])
+    'dev-toolbar-only': [
+      'dev-toolbar'
+    ],
 
-    if not os.path.exists(wt_path):
-      warn('Worktree directory not found: %s (slug: %s). Skipping.' % (wt_path, wt_slug))
-      continue
+    'api-server': [
+      'storage',
+      'database',
+      'api-server',
+      'gateway-ingress',
+    ],
 
-    if not services:
-      warn('No services configured for worktree: %s. Skipping.' % wt_slug)
-      continue
+    'workspace': [
+      'storage',
+      'database',
+      'api-server',
+      'workspace',
+      'gateway-ingress',
+    ]
+  }
 
-    register_worktree(wt_slug, wt_path, services, os.path.join(PROJECT_ROOT, 'infra'))
+  resources = []
+
+  for arg in cfg.get('groups', []):
+    if arg in groups:
+      resources += groups[arg]
+    else:
+      resources.append(arg)
+
+  config.set_enabled_resources(resources)
+
+  local_resource(
+    'dependencies',
+    cmd='pnpm fetch && pnpm install --offline',
+    dir='..',
+    deps=['pnpm-lock.yaml'],
+    labels=['infra'],
+  )
+
+  # Extensions
+  load_dynamic('./apps/capture/Tiltfile')
+  load_dynamic('./apps/dev-toolbar/Tiltfile')
+
+  # Data
+  load_dynamic('./apps/data/Tiltfile')
+
+  # APIs
+  load_dynamic('./apps/api-server/Tiltfile')
+
+  # Apps
+  load_dynamic('./apps/workspace/Tiltfile')
+
+  # Infra
+  load_dynamic('./apps/gateway/Tiltfile')
