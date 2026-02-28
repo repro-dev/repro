@@ -44,3 +44,17 @@ helm_resource(
     flags=['--values=./storage-values.yaml'],
     labels=['infra']
 )
+
+local_resource(
+    'database-ready',
+    cmd='kubectl wait --namespace default --for=condition=ready pod -l app.kubernetes.io/instance=database,app.kubernetes.io/name=postgresql --timeout=120s',
+    resource_deps=['database'],
+    labels=['infra']
+)
+
+local_resource(
+    'storage-ready',
+    cmd='kubectl wait --namespace default --for=jsonpath="{.subsets[*].addresses[*].ip}" endpoints/storage-seaweedfs-s3 --timeout=120s',
+    resource_deps=['storage'],
+    labels=['infra']
+)
