@@ -12,9 +12,16 @@ DB_NAME="repro"
 
 # ── Helpers ─────────────────────────────────────────────────────────
 
+# postgresql@17 is keg-only on macOS; locate psql even if the keg bin
+# isn't on PATH (e.g. outside direnv context).
+PSQL="$(command -v psql 2>/dev/null || true)"
+if [ -z "$PSQL" ] && [ -x "/opt/homebrew/opt/postgresql@17/bin/psql" ]; then
+  PSQL="/opt/homebrew/opt/postgresql@17/bin/psql"
+fi
+
 require_psql() {
-  if ! command -v psql > /dev/null 2>&1; then
-    die "psql is not installed. Install it with: brew install libpq"
+  if [ -z "$PSQL" ]; then
+    die "psql is not installed. Install it with: brew install postgresql@17"
   fi
 }
 
@@ -79,7 +86,7 @@ cmd_db_shell() {
   require_psql
 
   echo "Connecting to $DB_NAME on $DB_HOST:$DB_PORT as $DB_USER..."
-  exec psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$@"
+  exec "$PSQL" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$@"
 }
 
 cmd_db_status() {
@@ -89,15 +96,15 @@ cmd_db_status() {
   echo "  User:     $DB_USER"
   echo "  Database: $DB_NAME"
 
-  if command -v psql > /dev/null 2>&1; then
+  if [ -n "$PSQL" ]; then
     echo ""
     echo "Recent migrations:"
-    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
+    "$PSQL" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
       -c "SELECT * FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 10" \
       2>/dev/null || echo "  (unable to query migrations — is the database reachable?)"
   else
     echo ""
-    echo "Install psql to view migration status: brew install libpq"
+    echo "Install psql to view migration status: brew install postgresql@17"
   fi
 }
 
