@@ -155,6 +155,31 @@ cmd_wt_list() {
   echo ""
 }
 
+cmd_attach() {
+  local branch="$1"
+  local wt_path
+  wt_path="$(worktree_path "$branch")"
+
+  if [ ! -d "$wt_path" ]; then
+    die "No worktree found for '$branch' at $wt_path\n  Create it first: reproctl worktree create $branch"
+  fi
+
+  local slug
+  slug="$(slugify "$branch")"
+
+  echo "Attached to worktree: $branch"
+  echo "  Path: $wt_path"
+  echo "  Exit the shell (exit or Ctrl-D) to return."
+
+  (cd "$wt_path" && \
+    REPRO_WORKTREE="$slug" \
+    REPRO_WORKTREE_BRANCH="$branch" \
+    REPRO_WORKTREE_PATH="$wt_path" \
+    exec "$SHELL")
+
+  echo "Detached from worktree: $branch"
+}
+
 wt_usage() {
   cat <<'EOF'
 Usage: reproctl worktree <command> [options] [args]
