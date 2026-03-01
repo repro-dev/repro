@@ -105,36 +105,50 @@ ctx_b = parse_duration(ctx_before)
 ctx_a = parse_duration(ctx_after)
 use_context = bool(grep_pattern and (ctx_b or ctx_a))
 
+def severity_to_level(sev):
+    if sev >= 500:
+        return "ERROR"
+    if sev >= 400:
+        return "WARN"
+    return "INFO"
+
 try:
     logstore = json.load(sys.stdin)
 except json.JSONDecodeError:
     print("Error: failed to parse logstore JSON", file=sys.stderr)
     sys.exit(1)
 
+# Build span-id → manifest (resource) name lookup
+span_map = {}
+for span_id, span in logstore.get("spans", {}).items():
+    span_map[span_id] = span.get("ManifestName", "")
+
 segments = logstore.get("segments", [])
 
 lines = []
 for seg in segments:
-    span_id = seg.get("span_id", "")
-    resource = seg.get("resource", "")
-    source = seg.get("source", "")
-    level = seg.get("level", "")
-    ts_str = seg.get("time", "")
-    text = seg.get("text", "").rstrip("\n")
+    span_id = seg.get("SpanID", "")
+    resource = span_map.get(span_id, "")
+    text = seg.get("Text", "").rstrip("\n")
+    ts_str = seg.get("Time", "")
+    level_obj = seg.get("Level", {})
+    level = severity_to_level(level_obj.get("severity", 0) if isinstance(level_obj, dict) else 0)
+    fields = seg.get("Fields", {}) or {}
+    is_build = "buildEvent" in fields
 
     if resources and resource not in resources:
         continue
 
     if source_filter != "all":
-        if source_filter == "build" and source != "build":
+        if source_filter == "build" and not is_build:
             continue
-        if source_filter == "runtime" and source != "runtime":
+        if source_filter == "runtime" and is_build:
             continue
 
     if level_filter:
         if level_filter == "error" and level != "ERROR":
             continue
-        if level_filter == "warn" and level not in ("WARN", "WARNING", "ERROR"):
+        if level_filter == "warn" and level not in ("WARN", "ERROR"):
             continue
 
     ts = parse_ts(ts_str)
@@ -144,7 +158,6 @@ for seg in segments:
     lines.append({
         "timestamp": ts_str,
         "resource": resource,
-        "source": source,
         "level": level,
         "message": text,
         "ts": ts,
