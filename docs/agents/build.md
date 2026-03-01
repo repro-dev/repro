@@ -28,3 +28,22 @@ When upgrading a tool version, update **all** pinning locations together.
 The project has a `tmp/` directory at the repo root for ephemeral files such as Playwright screenshots, build artifacts, or other throwaway output. Everything inside is git-ignored except the `.gitkeep` sentinel.
 
 When capturing Storybook screenshots (e.g. for PR visual reviews), save them to `tmp/` by passing `outputPath` or equivalent options pointing at `<repo-root>/tmp`. This avoids polluting `~/Downloads` or other user directories.
+
+## Worktrees & OpenCode external directory permission
+
+Git worktrees created by `reproctl wt create` live as sibling directories of the main checkout (e.g. `../repro-wt-<name>`). When running OpenCode from the main checkout and accessing files in a worktree (or vice-versa), OpenCode will prompt for permission because the path is outside the working directory.
+
+This cannot be configured in the project-level `opencode.json` because the checkout path varies per developer. Instead, add the following to your **user-level** config at `~/.config/opencode/config.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "external_directory": {
+      "~/path/to/parent-of-checkouts/**": "allow"
+    }
+  }
+}
+```
+
+Replace `~/path/to/parent-of-checkouts` with the directory that contains your main checkout and its worktree siblings (e.g. `~/Projects/repro-dev`).
