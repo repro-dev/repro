@@ -1,0 +1,68 @@
+#!/bin/bash
+#
+# scripts/lib/common.sh — shared utilities for reproctl
+#
+# Sourced by reproctl.sh and its sub-libraries. Provides context
+# detection, error handling, and string helpers used across all
+# subcommands.
+
+# ── Error handling ──────────────────────────────────────────────────
+
+die() {
+  printf 'Error: %b\n' "$*" >&2
+  exit 1
+}
+
+# ── String helpers ──────────────────────────────────────────────────
+
+slugify() {
+  printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'
+}
+
+# ── Context detection ───────────────────────────────────────────────
+#
+# REPO_ROOT is the git toplevel of the current working directory —
+# either the main checkout or a worktree. MAIN_CHECKOUT is always the
+# main checkout (first entry from `git worktree list`). We derive all
+# shared paths from these two values so every script works identically
+# regardless of which checkout invokes it.
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+  die "Not inside a git repository. Run reproctl from within the repro checkout."
+}
+
+is_worktree() {
+  [ -f "$1/.git" ]
+}
+
+if is_worktree "$REPO_ROOT"; then
+  MAIN_CHECKOUT="$(git -C "$REPO_ROOT" worktree list --porcelain | awk '/^worktree /{print substr($0,10); exit}')"
+else
+  MAIN_CHECKOUT="$REPO_ROOT"
+fi
+
+PARENT_DIR="$(dirname "$MAIN_CHECKOUT")"
+INFRA_DIR="$MAIN_CHECKOUT/infra"
+SCRIPTS_DIR="$MAIN_CHECKOUT/scripts"
+SERVICES_JSON="$INFRA_DIR/services.json"
+TMP_DIR="$MAIN_CHECKOUT/tmp"
+CONFIG_FILE="$TMP_DIR/reproctl_services.json"
+TILT_PID_FILE="$TMP_DIR/tilt.pid"
+TILT_LOG_FILE="$TMP_DIR/tilt.log"
+TILT_PORT="${TILT_PORT:-10350}"
+
+detect_worktree_slug() {
+  local basename
+  basename="$(basename "$REPO_ROOT")"
+  if [[ "$basename" == repro-wt-* ]]; then
+    echo "${basename#repro-wt-}"
+  else
+    echo "$basename"
+  fi
+}
+
+worktree_path() {
+  local slug
+  slug="$(slugify "$1")"
+  echo "$PARENT_DIR/repro-wt-$slug"
+}
