@@ -50,19 +50,18 @@ cmd_wt_create() {
   fi
 
   if [ "$WT_NEW_BRANCH" = true ]; then
-    if git rev-parse --verify --quiet "$branch" >/dev/null 2>&1; then
+    if git rev-parse --verify --quiet "refs/heads/$branch" >/dev/null 2>&1; then
       echo "Error: Branch '$branch' already exists. Omit -b to check out the existing branch." >&2
       exit 1
     fi
     git worktree add -b "$branch" "$wt_path"
-  else
-    if ! git rev-parse --verify --quiet "$branch" >/dev/null 2>&1; then
-      echo "Error: Branch '$branch' does not exist." >&2
-      echo "  To create a new branch: reproctl worktree create -b $branch" >&2
-      echo "  To list local branches:  git branch" >&2
-      exit 1
-    fi
+  elif git rev-parse --verify --quiet "refs/heads/$branch" >/dev/null 2>&1; then
     git worktree add "$wt_path" "$branch"
+  elif git rev-parse --verify --quiet "refs/remotes/origin/$branch" >/dev/null 2>&1; then
+    git worktree add "$wt_path" "$branch"
+  else
+    echo "Branch '$branch' does not exist locally or on remote, creating from HEAD..."
+    git worktree add -b "$branch" "$wt_path"
   fi
 
   echo ""
