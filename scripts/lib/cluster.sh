@@ -60,6 +60,7 @@ cmd_cluster_up() {
 cmd_cluster_down() {
   require_docker
   require_ctlptl
+  require_kind
 
   local force=false
   for arg in "$@"; do
