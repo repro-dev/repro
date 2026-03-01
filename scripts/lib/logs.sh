@@ -189,8 +189,9 @@ if use_context:
         else:
             prefix = "" if no_prefix else line["resource"] + "  "
             marker = "> " if is_match else "  "
-            ts_short = line["timestamp"][:19].replace("T", " ") if line["timestamp"] else ""
-            print(f"{marker}{prefix}{ts_short}  {line[\"message\"]}")
+             ts_short = line["timestamp"][:19].replace("T", " ") if line["timestamp"] else ""
+            msg = line["message"]
+            print(f"{marker}{prefix}{ts_short}  {msg}")
     sys.exit(0)
 
 if grep_pattern:
@@ -206,7 +207,8 @@ for line in lines:
         print(json.dumps(obj))
     else:
         prefix = "" if no_prefix else line["resource"] + "  "
-        print(f"{prefix}{line[\"message\"]}")
+        msg = line["message"]
+        print(f"{prefix}{msg}")
 '
 }
 
