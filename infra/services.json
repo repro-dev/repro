@@ -1,0 +1,39 @@
+{
+  "api-server": {
+    "moon_project": "repro/api-server",
+    "docker_target": "api-server",
+    "chart": "apps/api-server/chart",
+    "app_dir": "apps/api-server",
+    "helm_sets": [
+      "vars.PORT=8080",
+      "vars.STORAGE_ENDPOINT=http://storage-seaweedfs-s3:8333"
+    ],
+    "helm_env_sets": {
+      "OPENROUTER_API_KEY": "vars.OPENROUTER_API_KEY"
+    },
+    "migrations": {
+      "moon_task": "repro/api-server:migrate",
+      "resource_deps": ["database-ready", "storage-ready"]
+    },
+    "ingress": {
+      "apiRoutes": "service"
+    },
+    "deps": []
+  },
+
+  "workspace": {
+    "moon_project": "repro/workspace",
+    "docker_target": "workspace",
+    "chart": "apps/workspace/chart",
+    "app_dir": "apps/workspace",
+    "helm_sets": [
+      "vars.PORT=8080"
+    ],
+    "helm_env_sets": {},
+    "migrations": null,
+    "ingress": {
+      "appRoutes": "service"
+    },
+    "deps": ["api-server"]
+  }
+}
