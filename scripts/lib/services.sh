@@ -276,6 +276,17 @@ cmd_stop() {
 }
 
 cmd_status() {
+  if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+    cat <<'USAGE'
+Usage: reproctl status
+
+Show the current state of Tilt and all running resources.
+When Tilt is running, queries live resource status.
+When Tilt is not running, shows configured services only.
+USAGE
+    return 0
+  fi
+
   if tilt_is_running; then
     echo "Tilt: running (http://localhost:$TILT_PORT)"
   else
@@ -284,12 +295,92 @@ cmd_status() {
 
   echo ""
 
-  if [ -f "$CONFIG_FILE" ]; then
-    echo "Services:"
-    print_services "$(cat "$CONFIG_FILE")"
-  else
-    echo "No services configured. Run 'reproctl start <service>' to begin."
+  if ! tilt_is_running; then
+    if [ -f "$CONFIG_FILE" ]; then
+      echo "Services:"
+      print_services "$(cat "$CONFIG_FILE")"
+    else
+      echo "No services configured. Run 'reproctl start <service>' to begin."
+    fi
+    return 0
   fi
+
+  echo "Resources:"
+
+  tilt get uiresources -o json --port "$TILT_PORT" 2>/dev/null | \
+    SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" python3 -c '
+import json, os, sys
+
+data = json.load(sys.stdin)
+items = data.get("items", [])
+
+svc_path = os.environ.get("SERVICES_JSON", "")
+cfg_path = os.environ.get("CONFIG_FILE", "")
+
+known_services = set()
+if svc_path and os.path.isfile(svc_path):
+    with open(svc_path) as f:
+        known_services = set(json.load(f).keys())
+
+configured = set()
+if cfg_path and os.path.isfile(cfg_path):
+    with open(cfg_path) as f:
+        cfg_data = json.load(f)
+        for s in cfg_data.get("services", []):
+            slug = s.get("slug", "")
+            name = s.get("name", "")
+            if slug:
+                configured.add(name + "-wt-" + slug)
+            else:
+                configured.add(name)
+
+rows = []
+for item in items:
+    name = item.get("metadata", {}).get("name", "")
+    if name == "(Tiltfile)":
+        continue
+
+    status_obj = item.get("status", {})
+    runtime = status_obj.get("runtimeStatus", "")
+    update = status_obj.get("updateStatus", "")
+
+    if runtime == "ok" and update == "ok":
+        display_status = "ok"
+    elif runtime == "error" or update == "error":
+        display_status = "error"
+    elif update == "in_progress":
+        display_status = "building"
+    else:
+        display_status = "pending"
+
+    wt_marker = ""
+    if "-wt-" in name:
+        idx = name.index("-wt-")
+        wt_slug = name[idx + 4:]
+        res_type = "service [wt:" + wt_slug + "]"
+    elif name in known_services:
+        res_type = "service"
+    elif name.endswith("-migrations"):
+        res_type = "job"
+    else:
+        res_type = "infra"
+
+    auto = ""
+    if res_type == "service" and name not in configured:
+        auto = " (auto)"
+
+    rows.append((name, display_status, res_type + auto))
+
+if not rows:
+    print("  (none)")
+else:
+    col0 = max(len(r[0]) for r in rows)
+    col1 = max(len(r[1]) for r in rows)
+    for name_val, status_val, type_val in rows:
+        pad0 = name_val.ljust(col0)
+        pad1 = status_val.ljust(col1)
+        print("  " + pad0 + "  " + pad1 + "  " + type_val)
+'
 }
 
 cmd_restart() {
