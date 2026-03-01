@@ -7,6 +7,7 @@
 #   reproctl setup                            Bootstrap the development environment
 #   reproctl doctor                           Diagnose the development environment
 #   reproctl cluster up|down|status|reset     Manage the local k8s cluster
+#   reproctl db reset|migrate|shell|status    Database operations
 #   reproctl start <service> [...]            Start services from current context
 #   reproctl stop [<service>...] | --all      Remove services or tear down Tilt
 #   reproctl restart <service> [...]          Rebuild and redeploy running services
@@ -48,6 +49,8 @@ source "$SCRIPT_DIR/lib/worktree.sh"
 source "$SCRIPT_DIR/lib/setup.sh"
 # shellcheck source=scripts/lib/logs.sh
 source "$SCRIPT_DIR/lib/logs.sh"
+# shellcheck source=scripts/lib/db.sh
+source "$SCRIPT_DIR/lib/db.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -60,6 +63,8 @@ Commands:
   doctor                            Diagnose the development environment
   cluster <subcommand>            Manage the local k8s cluster and registry
                                   (up, down, status, reset)
+  db <subcommand>                 Database operations
+                                  (reset, migrate, shell, status)
   start <service> [...]           Start services from the current context
   stop [<service>...] | --all     Remove services or tear down Tilt
   restart <service> [...]         Rebuild and redeploy running services
@@ -83,6 +88,10 @@ Examples:
   reproctl doctor                             # check environment health
   reproctl cluster up                         # create cluster and registry
   reproctl cluster status                     # check cluster state
+  reproctl db reset                           # drop + recreate database
+  reproctl db migrate                         # run pending migrations
+  reproctl db shell                           # open psql session
+  reproctl db status                          # show migration status
   reproctl start workspace                    # main checkout services
   reproctl start api-server                   # from worktree: isolated api-server
   reproctl stop api-server                    # remove from current context
@@ -111,6 +120,7 @@ case "$COMMAND" in
   setup)   cmd_setup "$@" ;;
   doctor)  cmd_doctor "$@" ;;
   cluster) cmd_cluster "$@" ;;
+  db)      cmd_db "$@" ;;
   start)   cmd_start "$@" ;;
   stop)    cmd_stop "$@" ;;
   restart) cmd_restart "$@" ;;
