@@ -29,6 +29,10 @@ helm_repo(
 )
 
 k8s_yaml('./s3-config-secret.yaml')
+k8s_resource(
+    'seaweedfs-s3-config',
+    labels=['infra'],
+)
 
 local_resource(
     'storage-bucket-hook-cleanup',
