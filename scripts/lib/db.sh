@@ -8,7 +8,7 @@
 # Connection details for the in-cluster Postgres, accessible via Tilt's
 # port-forward (configured in infra/apps/data/Tiltfile).
 DB_HOST="localhost"
-DB_PORT="5432"
+DB_PORT="15432"
 DB_USER="repro"
 DB_PASSWORD="repro"
 DB_NAME="repro"
