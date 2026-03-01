@@ -21,22 +21,22 @@ registry_exists() {
 
 require_docker() {
   if ! command -v docker > /dev/null 2>&1; then
-    die "docker is not installed. Install Docker Desktop: https://www.docker.com/products/docker-desktop"
+    die "docker is not installed.\nRun 'reproctl setup' or install Docker Desktop: https://www.docker.com/products/docker-desktop"
   fi
   if ! docker info > /dev/null 2>&1; then
-    die "Docker daemon is not running or is not accessible.\nStart Docker Desktop and try again."
+    die "Docker daemon is not running or is not accessible.\nStart Docker Desktop and try again, or run 'reproctl setup'."
   fi
 }
 
 require_ctlptl() {
   if ! command -v ctlptl > /dev/null 2>&1; then
-    die "ctlptl is not installed. Run 'proto use' to install managed tools."
+    die "ctlptl is not installed. Run 'reproctl setup' to install all required tools."
   fi
 }
 
 require_kind() {
   if ! command -v kind > /dev/null 2>&1; then
-    die "kind is not installed. Install it with: brew install kind"
+    die "kind is not installed. Run 'reproctl setup' to install all required tools."
   fi
 }
 
