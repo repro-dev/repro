@@ -8,25 +8,6 @@
 
 # ── Helpers ─────────────────────────────────────────────────────────
 
-resolve_resource_names() {
-  local resources=()
-  local wt_slug=""
-
-  if is_worktree "$REPO_ROOT"; then
-    wt_slug="$(detect_worktree_slug)"
-  fi
-
-  for svc in "$@"; do
-    if [ -n "$wt_slug" ]; then
-      resources+=("${svc}-wt-${wt_slug}")
-    else
-      resources+=("$svc")
-    fi
-  done
-
-  printf '%s\n' "${resources[@]}"
-}
-
 list_tilt_resources() {
   tilt get uiresources --port "$TILT_PORT" -o name 2>/dev/null \
     | sed 's|^uiresources/||'
@@ -35,6 +16,11 @@ list_tilt_resources() {
 validate_resources() {
   local available
   available="$(list_tilt_resources)"
+
+  if [ -z "$available" ]; then
+    echo "No resources found in Tilt." >&2
+    return 1
+  fi
 
   for res in "$@"; do
     if ! echo "$available" | grep -qx "$res"; then
@@ -45,20 +31,6 @@ validate_resources() {
       return 1
     fi
   done
-}
-
-parse_duration_seconds() {
-  python3 -c "
-import re, sys
-s = sys.argv[1]
-m = re.fullmatch(r'(\d+)([smhd])', s)
-if not m:
-    print('invalid', file=sys.stderr)
-    sys.exit(1)
-n, unit = int(m.group(1)), m.group(2)
-mult = {'s': 1, 'm': 60, 'h': 3600, 'd': 86400}
-print(n * mult[unit])
-" "$1"
 }
 
 # ── Logstore processing ────────────────────────────────────────────
@@ -338,7 +310,7 @@ cmd_logs() {
   if [ "${#services[@]}" -gt 0 ]; then
     while IFS= read -r name; do
       resolved+=("$name")
-    done < <(resolve_resource_names "${services[@]}")
+    done < <(resolve_worktree_resource_names "${services[@]}")
 
     validate_resources "${resolved[@]}" || exit 1
   fi

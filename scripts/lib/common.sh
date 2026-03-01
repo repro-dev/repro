@@ -66,3 +66,26 @@ worktree_path() {
   slug="$(slugify "$1")"
   echo "$PARENT_DIR/repro-wt-$slug"
 }
+
+# ── Worktree-aware resource resolution ──────────────────────────────
+#
+# Maps a service name to its Tilt resource name, appending the
+# worktree slug suffix when running from a worktree checkout.
+# Usage: resolve_worktree_resource_name <service>
+#        resolve_worktree_resource_names <service> [<service>...]
+
+resolve_worktree_resource_name() {
+  if is_worktree "$REPO_ROOT"; then
+    local slug
+    slug="$(detect_worktree_slug)"
+    echo "${1}-wt-${slug}"
+  else
+    echo "$1"
+  fi
+}
+
+resolve_worktree_resource_names() {
+  for svc in "$@"; do
+    resolve_worktree_resource_name "$svc"
+  done
+}
