@@ -70,6 +70,9 @@ cmd_db_reset() {
   fi
 
   echo "Triggering database reset..."
+  if ! tilt get uiresource db-reset --port "$TILT_PORT" > /dev/null 2>&1; then
+    die "The db-reset resource is not loaded in Tilt.\nStart services first with 'reproctl start api-server'."
+  fi
   tilt trigger db-reset --port "$TILT_PORT"
   echo "db-reset triggered. Watch Tilt for progress."
 }
@@ -81,6 +84,9 @@ cmd_db_migrate() {
   resource="$(migrations_resource_name)"
 
   echo "Triggering migrations ($resource)..."
+  if ! tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
+    die "Migrations resource '$resource' is not loaded in Tilt.\nStart the service first with 'reproctl start api-server'."
+  fi
   tilt trigger "$resource" --port "$TILT_PORT"
   echo "Migrations triggered. Watch Tilt for progress."
 }
