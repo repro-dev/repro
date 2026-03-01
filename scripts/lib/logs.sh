@@ -10,7 +10,7 @@
 
 list_tilt_resources() {
   tilt get uiresources --port "$TILT_PORT" -o name 2>/dev/null \
-    | sed 's|^uiresources/||'
+    | sed 's|^uiresource\.tilt\.dev/||'
 }
 
 validate_resources() {
@@ -79,13 +79,21 @@ def parse_since(s):
     if dur:
         return datetime.now(timezone.utc) - dur
     try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return datetime.fromisoformat(normalize_ts(s).replace("Z", "+00:00"))
     except ValueError:
         return None
 
+def normalize_ts(s):
+    """Normalize ISO-8601 fractional seconds to 6 digits for Python <3.11."""
+    m = re.match(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\.(\d+)(.*)", s)
+    if m:
+        frac = m.group(2)[:6].ljust(6, "0")
+        return m.group(1) + "." + frac + m.group(3)
+    return s
+
 def parse_ts(ts_str):
     try:
-        return datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        return datetime.fromisoformat(normalize_ts(ts_str).replace("Z", "+00:00"))
     except (ValueError, TypeError):
         return None
 
