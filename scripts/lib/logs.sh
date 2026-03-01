@@ -382,9 +382,11 @@ cmd_logs() {
     tilt_args+=("--no-prefix")
   fi
 
-  for res in "${resolved[@]}"; do
-    tilt_args+=("$res")
-  done
+  if [ "${#resolved[@]}" -gt 0 ]; then
+    for res in "${resolved[@]}"; do
+      tilt_args+=("$res")
+    done
+  fi
 
   tilt_args+=("--port" "$TILT_PORT")
 
