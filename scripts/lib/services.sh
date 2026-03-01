@@ -293,8 +293,17 @@ cmd_status() {
 }
 
 cmd_restart() {
-  if [ $# -eq 0 ]; then
-    die "At least one service is required.\nUsage: reproctl restart <service> [<service>...]"
+  if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    cat <<'USAGE'
+Usage: reproctl restart <service> [<service>...]
+
+Rebuild and redeploy running services via tilt trigger.
+If a service has migrations, the migration job is triggered first.
+USAGE
+    if [ $# -eq 0 ]; then
+      exit 1
+    fi
+    return 0
   fi
 
   if ! tilt_is_running; then
