@@ -14,7 +14,6 @@ load(
   'register_service',
   'register_ingress',
   'resolve_dependencies',
-  'SERVICES',
 )
 load(
   './tilt-lib/worktree.Tiltfile',
@@ -29,6 +28,7 @@ PROJECT_ROOT = os.path.join(os.getcwd(), '..')
 INFRA_DIR = os.getcwd()
 TMP_DIR = os.path.join(PROJECT_ROOT, 'tmp')
 CONFIG_FILE = os.path.join(TMP_DIR, 'reproctl_services.json')
+SERVICES = read_json('./services.json')
 
 update_settings(
   k8s_upsert_timeout_secs=300
@@ -88,7 +88,7 @@ if service_config:
   # feature parity (db-reset, etc.). Worktree services use the
   # generic register_service() from services.Tiltfile.
 
-  service_config = resolve_dependencies(service_config)
+  service_config = resolve_dependencies(service_config, SERVICES)
 
   register_shared_infra()
 
@@ -117,23 +117,21 @@ if service_config:
           labels=['wt.' + slug],
         )
 
-      register_service(name, slug, wt_path, INFRA_DIR)
+      register_service(name, SERVICES[name], slug, wt_path, INFRA_DIR)
 
       if slug not in wt_slugs_with_services:
         wt_slugs_with_services[slug] = []
       wt_slugs_with_services[slug].append(name)
 
     else:
-      if name == 'api-server':
-        load_dynamic('./apps/api-server/Tiltfile')
-      elif name == 'workspace':
-        load_dynamic('./apps/workspace/Tiltfile')
-      elif name == 'admin':
-        load_dynamic('./apps/admin/Tiltfile')
-      elif name == 'capture':
-        load_dynamic('./apps/capture/Tiltfile')
-      elif name == 'dev-toolbar':
-        load_dynamic('./apps/dev-toolbar/Tiltfile')
+      app_tiltfile = './apps/%s/Tiltfile' % name
+      app_tiltfile_abs = os.path.join(INFRA_DIR, 'apps', name, 'Tiltfile')
+      result = str(local(
+        'test -f "%s" && echo yes || echo no' % app_tiltfile_abs,
+        quiet=True,
+      ))
+      if result.strip() == 'yes':
+        load_dynamic(app_tiltfile)
       else:
         warn('No per-app Tiltfile for main checkout service: %s' % name)
 
@@ -153,7 +151,7 @@ if service_config:
     )
 
   for slug, svc_names in wt_slugs_with_services.items():
-    register_ingress(slug, svc_names, INFRA_DIR)
+    register_ingress(slug, svc_names, SERVICES, INFRA_DIR)
 
 else:
   # Legacy mode: no reproctl_services.json, original `tilt up <group>` behaviour.

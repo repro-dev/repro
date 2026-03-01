@@ -1,9 +1,3 @@
-# Worktree detection helpers
-#
-# These functions detect git worktree context and resolve paths.
-# Service registration logic has moved to services.Tiltfile.
-
-
 def is_worktree(repo_root):
   """Detect whether repo_root is a git worktree (not the main checkout).
 

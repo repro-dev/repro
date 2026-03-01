@@ -29,84 +29,20 @@ COMMON_IGNORE_GLOBS = [
   '*.log',
 ]
 
-# Service descriptors
-#
-# Each deployable service declares the metadata needed for generic
-# registration from any source tree (main checkout or worktree):
-# moon project id, Dockerfile target, path to the Helm chart
-# (relative to infra/), the app directory inside the monorepo,
-# and any extra helm --set values.
-#
-# "migrations" is an optional sub-key for services that run a
-# pre-deploy job (only api-server today).
-#
-# "ingress" maps route keys in the gateway chart to the service name
-# suffix used for the k8s Service object (e.g. "apiRoutes" -> "service").
-#
-# "deps" lists other SERVICES keys that this service depends on at
-# runtime (e.g. workspace -> api-server). resolve_dependencies() uses
-# this to auto-inject missing transitive dependencies as main-checkout
-# entries when running from a worktree.
 
-SERVICES = {
-  'api-server': {
-    'moon_project': 'repro/api-server',
-    'docker_target': 'api-server',
-    'chart': 'apps/api-server/chart',
-    'app_dir': 'apps/api-server',
-    'helm_sets': [
-      'vars.PORT=8080',
-      'vars.STORAGE_ENDPOINT=http://storage-seaweedfs-s3:8333',
-    ],
-    'helm_env_sets': {
-      'OPENROUTER_API_KEY': 'vars.OPENROUTER_API_KEY',
-    },
-    'migrations': {
-      'moon_task': 'repro/api-server:migrate',
-      'resource_deps': ['database-ready', 'storage-ready'],
-    },
-    'resource_deps_fn': lambda prefix: [prefix + '-migrations'],
-    'ingress': {
-      'apiRoutes': 'service',
-    },
-    'deps': [],
-  },
-
-  'workspace': {
-    'moon_project': 'repro/workspace',
-    'docker_target': 'workspace',
-    'chart': 'apps/workspace/chart',
-    'app_dir': 'apps/workspace',
-    'helm_sets': [
-      'vars.PORT=8080',
-    ],
-    'helm_env_sets': {},
-    'migrations': None,
-    'resource_deps_fn': lambda prefix: [],
-    'ingress': {
-      'appRoutes': 'service',
-    },
-    'deps': ['api-server'],
-  },
-}
-
-
-def register_service(service_name, wt_slug, source_path, infra_dir):
+def register_service(service_name, svc, wt_slug, source_path, infra_dir):
   """Register a single service from a worktree source tree.
 
   Creates Docker builds, Helm deployments, and k8s resources using the
-  service descriptor from SERVICES, pointing at the given source tree.
+  provided service descriptor, pointing at the given source tree.
 
   Args:
-    service_name: Key in SERVICES (e.g. 'api-server', 'workspace').
+    service_name: Service key (e.g. 'api-server', 'workspace').
+    svc: Service descriptor dict from services.json.
     wt_slug: Worktree slug for namespacing (e.g. 'feat-new-api').
     source_path: Absolute path to the source tree (worktree root).
     infra_dir: Absolute path to the infra/ directory.
   """
-  if service_name not in SERVICES:
-    fail('Unknown service: %s. Known services: %s' % (service_name, ', '.join(SERVICES.keys())))
-
-  svc = SERVICES[service_name]
   prefix = service_name + '-wt-' + wt_slug
   label = 'wt.' + wt_slug
   moon_project = svc['moon_project']
@@ -185,7 +121,7 @@ def register_service(service_name, wt_slug, source_path, infra_dir):
       labels=[label]
     )
 
-  resource_deps = svc['resource_deps_fn'](prefix)
+  resource_deps = [prefix + '-migrations'] if svc.get('migrations') else []
 
   k8s_resource(
     prefix + '-deployment',
@@ -198,17 +134,18 @@ def register_service(service_name, wt_slug, source_path, infra_dir):
   )
 
 
-def resolve_dependencies(service_config):
+def resolve_dependencies(service_config, services):
   """Expand transitive service dependencies in the config list.
 
-  For each service in the config, look up its `deps` in SERVICES and
-  inject any missing dependencies as main-checkout entries (slug="",
-  source="."). Only services that are NOT already present get added —
-  if the user explicitly listed a dependency it keeps its original
-  source/slug.
+  For each service in the config, look up its `deps` in the services
+  dict and inject any missing dependencies as main-checkout entries
+  (slug="", source="."). Only services that are NOT already present
+  get added — if the user explicitly listed a dependency it keeps its
+  original source/slug.
 
   Args:
     service_config: list of dicts [{name, source, slug}, ...]
+    services: dict of service descriptors keyed by name.
 
   Returns:
     New list with dependency entries appended as needed.
@@ -228,7 +165,7 @@ def resolve_dependencies(service_config):
     queue = queue[1:]
 
     name = entry.get('name', '')
-    svc = SERVICES.get(name, {})
+    svc = services.get(name, {})
     deps = svc.get('deps', [])
 
     for dep_name in deps:
@@ -248,7 +185,7 @@ def resolve_dependencies(service_config):
   return result
 
 
-def register_ingress(wt_slug, services, infra_dir):
+def register_ingress(wt_slug, service_names, services, infra_dir):
   """Register a per-worktree gateway with ingress routes.
 
   For each requested service, the ingress route points to the worktree's
@@ -257,7 +194,8 @@ def register_ingress(wt_slug, services, infra_dir):
 
   Args:
     wt_slug: Worktree slug.
-    services: List of service names being isolated in this worktree.
+    service_names: List of service names being isolated in this worktree.
+    services: dict of service descriptors keyed by name.
     infra_dir: Absolute path to the infra/ directory.
   """
   app_host = 'app.wt-' + wt_slug + '.repro.localhost'
@@ -271,8 +209,8 @@ def register_ingress(wt_slug, services, infra_dir):
   }
 
   overrides = {}
-  for svc_name in services:
-    svc = SERVICES.get(svc_name, {})
+  for svc_name in service_names:
+    svc = services.get(svc_name, {})
     for route_key, suffix in svc.get('ingress', {}).items():
       overrides[route_key] = svc_name + '-wt-' + wt_slug + '-' + suffix
 
