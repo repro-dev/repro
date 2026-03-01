@@ -10,6 +10,7 @@
 #   reproctl start <service> [...]            Start services from current context
 #   reproctl stop [<service>...] | --all      Remove services or tear down Tilt
 #   reproctl status                           Show running services and dashboard URL
+#   reproctl logs [options] [service...]       Show or stream service logs
 #   reproctl ui                               Open the Tilt dashboard in a browser
 #   reproctl worktree create [-b] <branch>    Create a worktree
 #   reproctl worktree remove <branch>         Remove a worktree
@@ -43,6 +44,8 @@ source "$SCRIPT_DIR/lib/cluster.sh"
 source "$SCRIPT_DIR/lib/worktree.sh"
 # shellcheck source=scripts/lib/setup.sh
 source "$SCRIPT_DIR/lib/setup.sh"
+# shellcheck source=scripts/lib/logs.sh
+source "$SCRIPT_DIR/lib/logs.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -58,6 +61,7 @@ Commands:
   start <service> [...]           Start services from the current context
   stop [<service>...] | --all     Remove services or tear down Tilt
   status                          Show running services and dashboard URL
+  logs [options] [service...]     Show or stream service logs
   ui                              Open the Tilt dashboard in a browser
   worktree <subcommand>           Manage git worktrees (create, remove, list)
                                   (alias: wt)
@@ -81,6 +85,8 @@ Examples:
   reproctl stop api-server                    # remove from current context
   reproctl stop --all                         # tear down everything
   reproctl status                             # show what's running
+  reproctl logs -f api-server                 # tail logs for a service
+  reproctl logs --json --since 5m api-server  # structured recent logs
   reproctl ui                                 # open Tilt dashboard
   reproctl wt create feat/my-feat             # shorthand for worktree
   reproctl worktree create feat/my-feat       # create worktree for existing branch
@@ -105,6 +111,7 @@ case "$COMMAND" in
   start)   cmd_start "$@" ;;
   stop)    cmd_stop "$@" ;;
   status)  cmd_status "$@" ;;
+  logs)    cmd_logs "$@" ;;
   ui)      cmd_ui "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
   -h|--help)   usage ;;
