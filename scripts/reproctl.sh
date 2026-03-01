@@ -91,7 +91,10 @@ read_config() {
 }
 
 write_config() {
-  echo "$1" > "$CONFIG_FILE"
+  local tmpfile
+  tmpfile="$(mktemp "$TMP_DIR/reproctl_services.XXXXXX")"
+  echo "$1" > "$tmpfile"
+  mv -f "$tmpfile" "$CONFIG_FILE"
 }
 
 merge_services() {
@@ -104,15 +107,19 @@ merge_services() {
     local slug source svc_name
     IFS=':' read -r slug source svc_name <<< "$entry"
 
-    result=$(echo "$result" | python3 -c "
-import json, sys
+    result=$(SVC_NAME="$svc_name" SVC_SOURCE="$source" SVC_SLUG="$slug" \
+      python3 -c "
+import json, os, sys
 data = json.load(sys.stdin)
+svc_name = os.environ['SVC_NAME']
+source = os.environ['SVC_SOURCE']
+slug = os.environ['SVC_SLUG']
 services = data.get('services', [])
-services = [s for s in services if not (s['name'] == '$svc_name' and s.get('slug', '') == '$slug')]
-services.append({'name': '$svc_name', 'source': '$source', 'slug': '$slug'})
+services = [s for s in services if not (s['name'] == svc_name and s.get('slug', '') == slug)]
+services.append({'name': svc_name, 'source': source, 'slug': slug})
 data['services'] = services
 json.dump(data, sys.stdout, indent=2)
-")
+" <<< "$result")
   done
 
   echo "$result"
@@ -128,14 +135,17 @@ remove_services() {
     local slug svc_name
     IFS=':' read -r slug svc_name <<< "$entry"
 
-    result=$(echo "$result" | python3 -c "
-import json, sys
+    result=$(SVC_NAME="$svc_name" SVC_SLUG="$slug" \
+      python3 -c "
+import json, os, sys
 data = json.load(sys.stdin)
+svc_name = os.environ['SVC_NAME']
+slug = os.environ['SVC_SLUG']
 services = data.get('services', [])
-services = [s for s in services if not (s['name'] == '$svc_name' and s.get('slug', '') == '$slug')]
+services = [s for s in services if not (s['name'] == svc_name and s.get('slug', '') == slug)]
 data['services'] = services
 json.dump(data, sys.stdout, indent=2)
-")
+" <<< "$result")
   done
 
   echo "$result"
