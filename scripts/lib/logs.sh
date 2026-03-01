@@ -189,7 +189,7 @@ if use_context:
         else:
             prefix = "" if no_prefix else line["resource"] + "  "
             marker = "> " if is_match else "  "
-             ts_short = line["timestamp"][:19].replace("T", " ") if line["timestamp"] else ""
+            ts_short = line["timestamp"][:19].replace("T", " ") if line["timestamp"] else ""
             msg = line["message"]
             print(f"{marker}{prefix}{ts_short}  {msg}")
     sys.exit(0)
