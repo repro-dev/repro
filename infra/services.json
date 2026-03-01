@@ -35,5 +35,31 @@
       "appRoutes": "service"
     },
     "deps": ["api-server"]
+  },
+
+  "capture": {
+    "type": "local",
+    "moon_project": "repro/capture",
+    "app_dir": "apps/capture",
+    "serve_cmd": "moon run repro/capture:watch",
+    "serve_env": {
+      "BUILD_ENV": "development",
+      "REPRO_APP_URL": "http://app.repro.localhost",
+      "REPRO_API_URL": "http://api.repro.localhost"
+    },
+    "resource_deps": ["dependencies"],
+    "labels": ["extension"],
+    "deps": []
+  },
+
+  "dev-toolbar": {
+    "type": "local",
+    "moon_project": "repro/dev-toolbar",
+    "app_dir": "apps/dev-toolbar",
+    "serve_cmd": "moon run repro/dev-toolbar:watch",
+    "serve_env": {},
+    "resource_deps": ["dependencies"],
+    "labels": ["extension"],
+    "deps": []
   }
 }

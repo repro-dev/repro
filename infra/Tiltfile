@@ -12,6 +12,7 @@
 load(
   './tilt-lib/services.Tiltfile',
   'register_service',
+  'register_local_service',
   'register_ingress',
   'resolve_dependencies',
 )
@@ -117,23 +118,29 @@ if service_config:
           labels=['wt.' + slug],
         )
 
-      register_service(name, SERVICES[name], slug, wt_path, INFRA_DIR)
+      if SERVICES[name].get('type', 'k8s') == 'local':
+        register_local_service(name, SERVICES[name], INFRA_DIR, slug, wt_path)
+      else:
+        register_service(name, SERVICES[name], slug, wt_path, INFRA_DIR)
 
       if slug not in wt_slugs_with_services:
         wt_slugs_with_services[slug] = []
       wt_slugs_with_services[slug].append(name)
 
     else:
-      app_tiltfile = './apps/%s/Tiltfile' % name
-      app_tiltfile_abs = os.path.join(INFRA_DIR, 'apps', name, 'Tiltfile')
-      result = str(local(
-        'test -f "%s" && echo yes || echo no' % app_tiltfile_abs,
-        quiet=True,
-      ))
-      if result.strip() == 'yes':
-        load_dynamic(app_tiltfile)
+      if SERVICES[name].get('type', 'k8s') == 'local':
+        register_local_service(name, SERVICES[name], INFRA_DIR)
       else:
-        warn('No per-app Tiltfile for main checkout service: %s' % name)
+        app_tiltfile = './apps/%s/Tiltfile' % name
+        app_tiltfile_abs = os.path.join(INFRA_DIR, 'apps', name, 'Tiltfile')
+        result = str(local(
+          'test -f "%s" && echo yes || echo no' % app_tiltfile_abs,
+          quiet=True,
+        ))
+        if result.strip() == 'yes':
+          load_dynamic(app_tiltfile)
+        else:
+          warn('No per-app Tiltfile for main checkout service: %s' % name)
 
   has_main_services = False
   for entry in service_config:
