@@ -292,6 +292,53 @@ cmd_status() {
   fi
 }
 
+cmd_restart() {
+  if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    cat <<'USAGE'
+Usage: reproctl restart <service> [<service>...]
+
+Rebuild and redeploy running services via tilt trigger.
+If a service has migrations, the migration job is triggered first.
+USAGE
+    if [ $# -eq 0 ]; then
+      exit 1
+    fi
+    return 0
+  fi
+
+  if ! tilt_is_running; then
+    die "Tilt is not running. Start services first with 'reproctl start <service>'."
+  fi
+
+  for svc in "$@"; do
+    local resource
+    resource="$(resolve_worktree_resource_name "$svc")"
+
+    if ! tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
+      die "Service '$svc' (resource '$resource') is not running in Tilt.\nStart it first with 'reproctl start $svc'."
+    fi
+
+    local has_migrations
+    has_migrations=$(SERVICES_JSON="$SERVICES_JSON" SVC_NAME="$svc" python3 -c "
+import json, os, sys
+with open(os.environ['SERVICES_JSON']) as f:
+    data = json.load(f)
+svc = os.environ['SVC_NAME']
+print('yes' if data.get(svc, {}).get('migrations') else 'no')
+")
+
+    if [ "$has_migrations" = "yes" ]; then
+      echo "Triggering migrations for $svc..."
+      tilt trigger "${resource}-migrations" --port "$TILT_PORT"
+    fi
+
+    echo "Triggering restart for $svc..."
+    tilt trigger "$resource" --port "$TILT_PORT"
+  done
+
+  echo "Done."
+}
+
 cmd_ui() {
   if ! tilt_is_running; then
     die "Tilt is not running. Start services first with 'reproctl start <service>'."
