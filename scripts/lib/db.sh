@@ -5,9 +5,12 @@
 # Sourced by reproctl.sh. Expects scripts/lib/common.sh and
 # scripts/lib/services.sh to be loaded first.
 
+# Connection details for the in-cluster Postgres, accessible via Tilt's
+# port-forward (configured in infra/apps/data/Tiltfile).
 DB_HOST="localhost"
 DB_PORT="5432"
 DB_USER="repro"
+DB_PASSWORD="repro"
 DB_NAME="repro"
 
 # ── Helpers ─────────────────────────────────────────────────────────
@@ -83,25 +86,27 @@ cmd_db_migrate() {
 }
 
 cmd_db_shell() {
+  require_tilt
   require_psql
 
-  echo "Connecting to $DB_NAME on $DB_HOST:$DB_PORT as $DB_USER..."
-  exec "$PSQL" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$@"
+  echo "Connecting to cluster database ($DB_NAME via Tilt port-forward)..."
+  PGPASSWORD="$DB_PASSWORD" exec "$PSQL" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$@"
 }
 
 cmd_db_status() {
-  echo "Database connection:"
-  echo "  Host:     $DB_HOST"
-  echo "  Port:     $DB_PORT"
+  require_tilt
+
+  echo "Cluster database (via Tilt port-forward):"
+  echo "  Host:     $DB_HOST:$DB_PORT"
   echo "  User:     $DB_USER"
   echo "  Database: $DB_NAME"
 
   if [ -n "$PSQL" ]; then
     echo ""
     echo "Recent migrations:"
-    "$PSQL" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
+    PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
       -c "SELECT * FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 10" \
-      2>/dev/null || echo "  (unable to query migrations — is the database reachable?)"
+      2>/dev/null || echo "  (unable to query — is the database resource healthy?)"
   else
     echo ""
     echo "Install psql to view migration status: brew install postgresql@17"
@@ -133,8 +138,8 @@ Usage: reproctl db <subcommand>
 Subcommands:
   reset    Drop and recreate the database (main checkout only)
   migrate  Run pending database migrations
-  shell    Open a psql session against the local database
-  status   Show connection info and recent migrations
+  shell    Open a psql session against the cluster database
+  status   Show cluster database connection info and recent migrations
 
 Options (reset):
   -y, --yes  Skip confirmation prompt
