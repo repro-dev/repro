@@ -7,6 +7,7 @@
 #   reproctl cluster up|down|status|reset     Manage the local k8s cluster
 #   reproctl start <service> [...]            Start services from current context
 #   reproctl stop [<service>...] | --all      Remove services or tear down Tilt
+#   reproctl restart <service> [...]          Rebuild and redeploy running services
 #   reproctl status                           Show running services and dashboard URL
 #   reproctl ui                               Open the Tilt dashboard in a browser
 #   reproctl worktree create [-b] <branch>    Create a worktree
@@ -21,6 +22,7 @@
 #   reproctl start workspace                # main checkout services
 #   reproctl start api-server               # from worktree: isolated api-server
 #   reproctl stop --all                     # tear down everything
+#   reproctl restart api-server             # rebuild + redeploy a running service
 #   reproctl worktree create feat/my-feat   # create worktree for existing branch
 #   reproctl worktree list                  # list all worktrees
 
@@ -51,6 +53,7 @@ Commands:
                                   (up, down, status, reset)
   start <service> [...]           Start services from the current context
   stop [<service>...] | --all     Remove services or tear down Tilt
+  restart <service> [...]         Rebuild and redeploy running services
   status                          Show running services and dashboard URL
   ui                              Open the Tilt dashboard in a browser
   worktree <subcommand>           Manage git worktrees (create, remove, list)
@@ -71,6 +74,7 @@ Examples:
   reproctl start api-server                   # from worktree: isolated api-server
   reproctl stop api-server                    # remove from current context
   reproctl stop --all                         # tear down everything
+  reproctl restart api-server                 # rebuild + redeploy a running service
   reproctl status                             # show what's running
   reproctl ui                                 # open Tilt dashboard
   reproctl wt create feat/my-feat             # shorthand for worktree
@@ -93,6 +97,7 @@ case "$COMMAND" in
   cluster) cmd_cluster "$@" ;;
   start)   cmd_start "$@" ;;
   stop)    cmd_stop "$@" ;;
+  restart) cmd_restart "$@" ;;
   status)  cmd_status "$@" ;;
   ui)      cmd_ui "$@" ;;
   worktree|wt) cmd_wt "$@" ;;

@@ -292,6 +292,50 @@ cmd_status() {
   fi
 }
 
+cmd_restart() {
+  if [ $# -eq 0 ]; then
+    die "At least one service is required.\nUsage: reproctl restart <service> [<service>...]"
+  fi
+
+  if ! tilt_is_running; then
+    die "Tilt is not running. Start services first with 'reproctl start <service>'."
+  fi
+
+  local prefix=""
+  if is_worktree "$REPO_ROOT"; then
+    local wt_slug
+    wt_slug="$(detect_worktree_slug)"
+    prefix="-wt-$wt_slug"
+  fi
+
+  for svc in "$@"; do
+    local resource="${svc}${prefix}"
+
+    if ! tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
+      die "Service '$svc' (resource '$resource') is not running in Tilt.\nStart it first with 'reproctl start $svc'."
+    fi
+
+    local has_migrations
+    has_migrations=$(SVC_NAME="$svc" python3 -c "
+import json, os, sys
+with open('$SERVICES_JSON') as f:
+    data = json.load(f)
+svc = os.environ['SVC_NAME']
+print('yes' if data.get(svc, {}).get('migrations') else 'no')
+")
+
+    if [ "$has_migrations" = "yes" ]; then
+      echo "Triggering migrations for $svc..."
+      tilt trigger "${resource}-migrations" --port "$TILT_PORT"
+    fi
+
+    echo "Triggering restart for $svc..."
+    tilt trigger "$resource" --port "$TILT_PORT"
+  done
+
+  echo "Done."
+}
+
 cmd_ui() {
   if ! tilt_is_running; then
     die "Tilt is not running. Start services first with 'reproctl start <service>'."
