@@ -19,6 +19,15 @@ registry_exists() {
   docker inspect "$REGISTRY_NAME" > /dev/null 2>&1
 }
 
+require_docker() {
+  if ! command -v docker > /dev/null 2>&1; then
+    die "docker is not installed. Install Docker Desktop: https://www.docker.com/products/docker-desktop"
+  fi
+  if ! docker info > /dev/null 2>&1; then
+    die "Docker daemon is not running or is not accessible.\nStart Docker Desktop and try again."
+  fi
+}
+
 require_ctlptl() {
   if ! command -v ctlptl > /dev/null 2>&1; then
     die "ctlptl is not installed. Run 'proto use' to install managed tools."
@@ -27,13 +36,14 @@ require_ctlptl() {
 
 require_kind() {
   if ! command -v kind > /dev/null 2>&1; then
-    die "kind is not installed. Run 'proto use' to install managed tools."
+    die "kind is not installed. Install it with: brew install kind"
   fi
 }
 
 # ── Subcommands ─────────────────────────────────────────────────────
 
 cmd_cluster_up() {
+  require_docker
   require_ctlptl
   require_kind
 
@@ -48,6 +58,7 @@ cmd_cluster_up() {
 }
 
 cmd_cluster_down() {
+  require_docker
   require_ctlptl
 
   local force=false
@@ -79,6 +90,7 @@ cmd_cluster_down() {
 }
 
 cmd_cluster_status() {
+  require_docker
   require_kind
 
   echo "Cluster: $CLUSTER_NAME"
