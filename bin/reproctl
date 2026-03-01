@@ -2,9 +2,11 @@
 #
 # bin/reproctl — self-locating wrapper for scripts/reproctl.sh
 #
-# Add the repo's bin/ directory to your PATH for global access:
+# The repo's .envrc adds bin/ to PATH via direnv, so `reproctl` is
+# available as a bare command when you cd into the repo or a worktree.
 #
-#   export PATH="/path/to/repro/bin:$PATH"
+# Setup (one-time):
+#   brew bundle && eval "$(direnv hook zsh)" >> ~/.zshrc && direnv allow
 #
 # This wrapper resolves its own filesystem location (following symlinks)
 # to find scripts/reproctl.sh, so it works from any cwd — including
