@@ -1,15 +1,17 @@
 #!/bin/bash
 #
-# reproctl — unified CLI for worktree lifecycle and Tilt service orchestration
+# reproctl — unified CLI for cluster management, worktree lifecycle,
+#            and Tilt service orchestration
 #
 # Usage:
-#   reproctl start <service> [...]          Start services from current context
-#   reproctl stop [<service>...] | --all    Remove services or tear down Tilt
-#   reproctl status                         Show running services and dashboard URL
-#   reproctl ui                             Open the Tilt dashboard in a browser
-#   reproctl worktree create [-b] <branch>  Create a worktree
-#   reproctl worktree remove <branch>       Remove a worktree
-#   reproctl worktree list                  List active worktrees
+#   reproctl cluster up|down|status|reset     Manage the local k8s cluster
+#   reproctl start <service> [...]            Start services from current context
+#   reproctl stop [<service>...] | --all      Remove services or tear down Tilt
+#   reproctl status                           Show running services and dashboard URL
+#   reproctl ui                               Open the Tilt dashboard in a browser
+#   reproctl worktree create [-b] <branch>    Create a worktree
+#   reproctl worktree remove <branch>         Remove a worktree
+#   reproctl worktree list                    List active worktrees
 #
 # Context is detected automatically:
 #   - From the main checkout, services run as main.
@@ -33,6 +35,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 # shellcheck source=scripts/lib/services.sh
 source "$SCRIPT_DIR/lib/services.sh"
+# shellcheck source=scripts/lib/cluster.sh
+source "$SCRIPT_DIR/lib/cluster.sh"
 # shellcheck source=scripts/lib/worktree.sh
 source "$SCRIPT_DIR/lib/worktree.sh"
 
@@ -43,6 +47,8 @@ usage() {
 Usage: reproctl <command> [args]
 
 Commands:
+  cluster <subcommand>            Manage the local k8s cluster and registry
+                                  (up, down, status, reset)
   start <service> [...]           Start services from the current context
   stop [<service>...] | --all     Remove services or tear down Tilt
   status                          Show running services and dashboard URL
@@ -59,6 +65,8 @@ checkout in separate terminals. The shared config and single Tilt
 process handle coordination.
 
 Examples:
+  reproctl cluster up                         # create cluster and registry
+  reproctl cluster status                     # check cluster state
   reproctl start workspace                    # main checkout services
   reproctl start api-server                   # from worktree: isolated api-server
   reproctl stop api-server                    # remove from current context
@@ -82,10 +90,11 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-  start)  cmd_start "$@" ;;
-  stop)   cmd_stop "$@" ;;
-  status) cmd_status "$@" ;;
-  ui)     cmd_ui "$@" ;;
+  cluster) cmd_cluster "$@" ;;
+  start)   cmd_start "$@" ;;
+  stop)    cmd_stop "$@" ;;
+  status)  cmd_status "$@" ;;
+  ui)      cmd_ui "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
   -h|--help)   usage ;;
   *)

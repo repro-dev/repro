@@ -169,6 +169,10 @@ cmd_start() {
 
   mkdir -p "$TMP_DIR"
 
+  if ! cluster_preflight; then
+    die "Cannot start services without a running cluster.\nRun 'reproctl cluster up' first."
+  fi
+
   echo "Validating services.json..."
   if ! python3 "$SCRIPTS_DIR/validate-services.py" "$SERVICES_JSON" "$INFRA_DIR" "$@"; then
     die "services.json validation failed. Fix the errors above before starting."
