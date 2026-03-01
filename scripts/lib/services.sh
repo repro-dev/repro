@@ -301,24 +301,18 @@ cmd_restart() {
     die "Tilt is not running. Start services first with 'reproctl start <service>'."
   fi
 
-  local prefix=""
-  if is_worktree "$REPO_ROOT"; then
-    local wt_slug
-    wt_slug="$(detect_worktree_slug)"
-    prefix="-wt-$wt_slug"
-  fi
-
   for svc in "$@"; do
-    local resource="${svc}${prefix}"
+    local resource
+    resource="$(resolve_worktree_resource_name "$svc")"
 
     if ! tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
       die "Service '$svc' (resource '$resource') is not running in Tilt.\nStart it first with 'reproctl start $svc'."
     fi
 
     local has_migrations
-    has_migrations=$(SVC_NAME="$svc" python3 -c "
+    has_migrations=$(SERVICES_JSON="$SERVICES_JSON" SVC_NAME="$svc" python3 -c "
 import json, os, sys
-with open('$SERVICES_JSON') as f:
+with open(os.environ['SERVICES_JSON']) as f:
     data = json.load(f)
 svc = os.environ['SVC_NAME']
 print('yes' if data.get(svc, {}).get('migrations') else 'no')
