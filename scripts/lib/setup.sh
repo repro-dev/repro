@@ -200,9 +200,9 @@ cmd_doctor() {
       node)   actual="$(node --version 2>/dev/null | sed 's/^v//')" ;;
       pnpm)   actual="$(pnpm --version 2>/dev/null)" ;;
       moon)   actual="$(moon --version 2>/dev/null | awk '{print $NF}')" ;;
-      tilt)   actual="$(tilt version 2>/dev/null | sed 's/^v//')" ;;
-      helm)   actual="$(helm version --short 2>/dev/null | sed 's/^v//' | sed 's/+.*//')" ;;
-      ctlptl) actual="$(ctlptl version 2>/dev/null | sed 's/^v//')" ;;
+      tilt)   actual="$(tilt version 2>/dev/null | sed 's/^v//; s/,.*//')" ;;
+      helm)   actual="$(helm version --short 2>/dev/null | sed 's/^v//; s/+.*//')" ;;
+      ctlptl) actual="$(ctlptl version 2>/dev/null | sed 's/^v//; s/,.*//')" ;;
     esac
 
     if [ -n "$expected" ] && [ -n "$actual" ] && [ "$actual" != "$expected" ]; then
