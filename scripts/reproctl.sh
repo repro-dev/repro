@@ -3,24 +3,24 @@
 # reproctl — unified CLI for worktree lifecycle and Tilt service orchestration
 #
 # Usage:
-#   reproctl start <service> [...]           Start services from current context
-#   reproctl stop [<service>...] | --all     Remove services or tear down Tilt
-#   reproctl status                          Show running services and dashboard URL
-#   reproctl ui                              Open the Tilt dashboard in a browser
-#   reproctl worktree create [-b] <branch>    Create a worktree
-#   reproctl worktree remove <branch>         Remove a worktree
-#   reproctl worktree list                    List active worktrees
+#   reproctl start <service> [...]          Start services from current context
+#   reproctl stop [<service>...] | --all    Remove services or tear down Tilt
+#   reproctl status                         Show running services and dashboard URL
+#   reproctl ui                             Open the Tilt dashboard in a browser
+#   reproctl worktree create [-b] <branch>  Create a worktree
+#   reproctl worktree remove <branch>       Remove a worktree
+#   reproctl worktree list                  List active worktrees
 #
 # Context is detected automatically:
 #   - From the main checkout, services run as main.
 #   - From a worktree, services are isolated to that branch.
 #
 # Examples:
-#   reproctl start workspace          # main checkout services
-#   reproctl start api-server         # from worktree: isolated api-server
-#   reproctl stop --all                       # tear down everything
-#   reproctl worktree create feat/my-feat     # create worktree for existing branch
-#   reproctl worktree list                    # list all worktrees
+#   reproctl start workspace                # main checkout services
+#   reproctl start api-server               # from worktree: isolated api-server
+#   reproctl stop --all                     # tear down everything
+#   reproctl worktree create feat/my-feat   # create worktree for existing branch
+#   reproctl worktree list                  # list all worktrees
 
 set -euo pipefail
 
@@ -59,17 +59,17 @@ checkout in separate terminals. The shared config and single Tilt
 process handle coordination.
 
 Examples:
-  reproctl start workspace          # main checkout services
-  reproctl start api-server         # from worktree: isolated api-server
-  reproctl stop api-server           # remove from current context
-  reproctl stop --all                # tear down everything
-  reproctl status                    # show what's running
-  reproctl ui                        # open Tilt dashboard
-  reproctl wt create feat/my-feat         # shorthand for worktree
-  reproctl worktree create feat/my-feat  # create worktree for existing branch
-  reproctl worktree create -b feat/new   # create new branch + worktree
-  reproctl worktree remove feat/my-feat  # remove worktree
-  reproctl worktree list                 # list all worktrees
+  reproctl start workspace                    # main checkout services
+  reproctl start api-server                   # from worktree: isolated api-server
+  reproctl stop api-server                    # remove from current context
+  reproctl stop --all                         # tear down everything
+  reproctl status                             # show what's running
+  reproctl ui                                 # open Tilt dashboard
+  reproctl wt create feat/my-feat             # shorthand for worktree
+  reproctl worktree create feat/my-feat       # create worktree for existing branch
+  reproctl worktree create -b feat/new        # create new branch + worktree
+  reproctl worktree remove feat/my-feat       # remove worktree
+  reproctl worktree list                      # list all worktrees
 EOF
 }
 
