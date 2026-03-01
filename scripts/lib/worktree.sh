@@ -35,6 +35,9 @@ cmd_wt_create() {
         echo "  $rel"
       done
     fi
+    if command -v direnv > /dev/null 2>&1; then
+      echo "[dry-run] Would run: direnv allow (in $wt_path)"
+    fi
     echo ""
     echo "[dry-run] No changes were made."
     return 0
@@ -82,6 +85,19 @@ cmd_wt_create() {
     fi
   done < <(find "$MAIN_CHECKOUT/apps" -maxdepth 2 -type f -name '.env*' -not -name '.env.example' 2>/dev/null || true)
   echo "  ($copied file(s) copied)"
+
+  if command -v direnv > /dev/null 2>&1 && [ -f "$wt_path/.envrc" ]; then
+    local main_allowed=false
+    if (cd "$MAIN_CHECKOUT" && direnv status 2>/dev/null) | grep -q "Found RC allowed 0"; then
+      main_allowed=true
+    fi
+
+    if [ "$main_allowed" = true ]; then
+      echo ""
+      echo "Allowing direnv..."
+      (cd "$wt_path" && direnv allow)
+    fi
+  fi
 
   echo ""
   echo "=== Worktree ready ==="
