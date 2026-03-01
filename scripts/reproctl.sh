@@ -4,6 +4,8 @@
 #            and Tilt service orchestration
 #
 # Usage:
+#   reproctl setup                            Bootstrap the development environment
+#   reproctl doctor                           Diagnose the development environment
 #   reproctl cluster up|down|status|reset     Manage the local k8s cluster
 #   reproctl start <service> [...]            Start services from current context
 #   reproctl stop [<service>...] | --all      Remove services or tear down Tilt
@@ -39,6 +41,8 @@ source "$SCRIPT_DIR/lib/services.sh"
 source "$SCRIPT_DIR/lib/cluster.sh"
 # shellcheck source=scripts/lib/worktree.sh
 source "$SCRIPT_DIR/lib/worktree.sh"
+# shellcheck source=scripts/lib/setup.sh
+source "$SCRIPT_DIR/lib/setup.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -47,6 +51,8 @@ usage() {
 Usage: reproctl <command> [args]
 
 Commands:
+  setup                             Bootstrap the development environment
+  doctor                            Diagnose the development environment
   cluster <subcommand>            Manage the local k8s cluster and registry
                                   (up, down, status, reset)
   start <service> [...]           Start services from the current context
@@ -65,6 +71,9 @@ checkout in separate terminals. The shared config and single Tilt
 process handle coordination.
 
 Examples:
+  reproctl setup                              # bootstrap entire environment
+  reproctl setup --skip-cluster               # skip cluster creation
+  reproctl doctor                             # check environment health
   reproctl cluster up                         # create cluster and registry
   reproctl cluster status                     # check cluster state
   reproctl start workspace                    # main checkout services
@@ -90,6 +99,8 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
+  setup)   cmd_setup "$@" ;;
+  doctor)  cmd_doctor "$@" ;;
   cluster) cmd_cluster "$@" ;;
   start)   cmd_start "$@" ;;
   stop)    cmd_stop "$@" ;;
