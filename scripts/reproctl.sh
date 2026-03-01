@@ -53,6 +53,8 @@ else
 fi
 
 INFRA_DIR="$MAIN_CHECKOUT/infra"
+SCRIPTS_DIR="$MAIN_CHECKOUT/scripts"
+SERVICES_JSON="$INFRA_DIR/services.json"
 TMP_DIR="$MAIN_CHECKOUT/tmp"
 CONFIG_FILE="$TMP_DIR/reproctl_services.json"
 TILT_PID_FILE="$TMP_DIR/tilt.pid"
@@ -237,6 +239,13 @@ stop_tilt_daemon() {
 cmd_start() {
   if [ $# -eq 0 ]; then
     die "At least one service is required.\nUsage: reproctl start <service> [<service>...]"
+  fi
+
+  mkdir -p "$TMP_DIR"
+
+  echo "Validating services.json..."
+  if ! python3 "$SCRIPTS_DIR/validate-services.py" "$SERVICES_JSON" "$INFRA_DIR" "$@"; then
+    die "services.json validation failed. Fix the errors above before starting."
   fi
 
   local entries=()
