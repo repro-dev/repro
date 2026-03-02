@@ -1,0 +1,5 @@
+# Check that generated manpages are up to date when sources change.
+staged_manpages=$(git diff --cached --name-only -- 'docs/man/*.1.md')
+if [ -n "$staged_manpages" ]; then
+  scripts/generate-manpages.sh --check
+fi
