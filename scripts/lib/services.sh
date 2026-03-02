@@ -387,14 +387,34 @@ else:
 cmd_restart() {
   if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     cat <<'USAGE'
-Usage: reproctl restart <service> [<service>...]
+Usage: reproctl restart <service> [<service>...] | --all
 
 Rebuild and redeploy running services via tilt trigger.
 If a service has migrations, the migration job is triggered first.
+
+  --all   Stop the Tilt daemon and restart it with the same service
+          configuration. Useful when Tiltfile changes need to be
+          picked up or when Tilt gets into a bad state.
 USAGE
     if [ $# -eq 0 ]; then
       exit 1
     fi
+    return 0
+  fi
+
+  if [ "$1" = "--all" ]; then
+    if ! tilt_is_running; then
+      die "Tilt is not running. Start services first with 'reproctl start <service>'."
+    fi
+
+    local saved_config
+    saved_config="$(read_config)"
+
+    echo "Restarting Tilt daemon..."
+    stop_tilt_daemon
+
+    write_config "$saved_config"
+    start_tilt_daemon
     return 0
   fi
 

@@ -10,7 +10,7 @@
 #   reproctl db reset|migrate|shell|status    Database operations
 #   reproctl start <service> [...]            Start services from current context
 #   reproctl stop [<service>...] | --all      Remove services or tear down Tilt
-#   reproctl restart <service> [...]          Rebuild and redeploy running services
+#   reproctl restart <service> [...] | --all  Rebuild services or restart Tilt
 #   reproctl status                           Show running services and dashboard URL
 #   reproctl logs [options] [service...]       Show or stream service logs
 #   reproctl ui                               Open the Tilt dashboard in a browser
@@ -68,7 +68,7 @@ Commands:
                                   (reset, migrate, shell, status)
   start <service> [...]           Start services from the current context
   stop [<service>...] | --all     Remove services or tear down Tilt
-  restart <service> [...]         Rebuild and redeploy running services
+  restart <service> [...] | --all Rebuild services or restart the Tilt daemon
   status                          Show running services and dashboard URL
   logs [options] [service...]     Show or stream service logs
   ui                              Open the Tilt dashboard in a browser
@@ -98,6 +98,7 @@ Examples:
   reproctl stop api-server                    # remove from current context
   reproctl stop --all                         # tear down everything
   reproctl restart api-server                 # rebuild + redeploy a running service
+  reproctl restart --all                      # restart the Tilt daemon
   reproctl status                             # show what's running
   reproctl logs -f api-server                 # tail logs for a service
   reproctl logs --json --since 5m api-server  # structured recent logs
