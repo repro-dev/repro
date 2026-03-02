@@ -1,36 +1,66 @@
 ---
 name: feature-dev
-description: Sequenced workflow for feature development — enforces git rules, Linear lifecycle, code style, and build verification
+description: Worktree-based workflow for feature development — enforces isolation via git worktrees, git rules, Linear lifecycle, code style, and build verification
 ---
 
 # Feature Development Workflow
 
 Follow these phases in order when implementing a feature or fix.
 
+## Worktree Isolation (Required)
+
+**Every feature or fix MUST be developed in its own worktree.** The main checkout stays on `main` and serves only as the control plane — never as a work surface.
+
+This ensures full isolation between concurrent agent sessions that may not be aware of each other. Even when working on a single issue, use a worktree.
+
+### Creating worktrees
+
+Create worktrees **from the main checkout** (never from inside another worktree):
+
+```sh
+reproctl wt create fix/REP-205-textarea-label
+reproctl wt create feat/REP-200-button-hover
+```
+
+This creates sibling directories (`../repro-wt-fix-rep-205-textarea-label/`, etc.), installs dependencies, copies `.env` files, and runs `direnv allow`.
+
+**Never use raw `git worktree` commands** — always use `reproctl wt create` / `reproctl wt remove`. See `docs/agents/worktrees.md` for the full rationale.
+
+### Parallel agents
+
+When working on 2+ independent issues simultaneously, use the Task tool to launch one agent per worktree. Each agent receives:
+
+- The worktree path as its working directory
+- The Linear issue identifier
+- Instructions to follow Phases 1–5 of this workflow
+
+### Git lock contention
+
+All worktrees share one `.git/` directory. Concurrent `git fetch`, `rebase`, or `gc` commands will hit lock contention. Agents should retry on lock errors. Set `gc.auto=0` or use `--no-auto-gc` in parallel sessions.
+
+### Worktree lifecycle
+
+Keep worktrees alive through review. They are needed for addressing PR feedback and manual testing. Only clean up **after the branch is merged**:
+
+```sh
+# After merge to main:
+reproctl wt remove fix/REP-205-textarea-label
+```
+
+### Coordination rules
+
+- One branch per worktree. Never check out the same branch in two places.
+- Don't modify the main checkout while worktrees are active (except unrelated files like `SKILL.md` or `AGENTS.md`).
+- The main checkout stays on `main` — it is the control plane, not a work surface.
+
 ## Phase 1: Pre-flight
 
 1. **Fetch the Linear issue** for the work item. Read the full description — check for requirements, resolved decisions, and open considerations. These take precedence over assumptions.
-2. **Resolve the correct branch.** Run `git branch` to check the current branch, then follow the first matching case:
-
-   **Case A — Already on the correct feature branch for this issue:**
-   No action needed. Continue to step 3.
-
-   **Case B — On `main`:**
-   Create a feature branch from `main`:
+2. **Create a worktree** (if one doesn't already exist for this issue):
+   ```sh
+   reproctl wt create <type>/<issue?>-<slug>
    ```
-   git checkout -b <type>/<issue?>-<slug>
-   ```
-
-   **Case C — On a different feature branch:**
-   Ask the user: is this new work stacked on the current branch?
-   - **Yes (stacked):** Create the new branch from the current HEAD:
-     ```
-     git checkout -b <type>/<issue?>-<slug>
-     ```
-   - **No (independent):** Switch to latest `main` and branch from there:
-     ```
-     git checkout main && git pull && git checkout -b <type>/<issue?>-<slug>
-     ```
+   If a worktree already exists and you're working inside it, skip this step.
 
    Branch naming pattern: `<type>/<issue?>-<slug>` (e.g., `feat/REP-123-add-auth`, `fix/REP-456-login-redirect`)
 
