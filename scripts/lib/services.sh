@@ -39,18 +39,7 @@ merge_services() {
     IFS=':' read -r slug source svc_name <<< "$entry"
 
     result=$(SVC_NAME="$svc_name" SVC_SOURCE="$source" SVC_SLUG="$slug" \
-      python3 -c "
-import json, os, sys
-data = json.load(sys.stdin)
-svc_name = os.environ['SVC_NAME']
-source = os.environ['SVC_SOURCE']
-slug = os.environ['SVC_SLUG']
-services = data.get('services', [])
-services = [s for s in services if not (s['name'] == svc_name and s.get('slug', '') == slug)]
-services.append({'name': svc_name, 'source': source, 'slug': slug})
-data['services'] = services
-json.dump(data, sys.stdout, indent=2)
-" <<< "$result")
+      python3 "$SCRIPTS_DIR/lib/py/config_upsert.py" <<< "$result")
   done
 
   echo "$result"
@@ -67,44 +56,18 @@ remove_services() {
     IFS=':' read -r slug svc_name <<< "$entry"
 
     result=$(SVC_NAME="$svc_name" SVC_SLUG="$slug" \
-      python3 -c "
-import json, os, sys
-data = json.load(sys.stdin)
-svc_name = os.environ['SVC_NAME']
-slug = os.environ['SVC_SLUG']
-services = data.get('services', [])
-services = [s for s in services if not (s['name'] == svc_name and s.get('slug', '') == slug)]
-data['services'] = services
-json.dump(data, sys.stdout, indent=2)
-" <<< "$result")
+      python3 "$SCRIPTS_DIR/lib/py/config_remove.py" <<< "$result")
   done
 
   echo "$result"
 }
 
 print_services() {
-  echo "$1" | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-services = data.get('services', [])
-if not services:
-    print('  (none)')
-else:
-    for s in services:
-        slug = s.get('slug', '')
-        if slug:
-            print('  %s (wt: %s)' % (s['name'], slug))
-        else:
-            print('  %s (main)' % s['name'])
-"
+  echo "$1" | python3 "$SCRIPTS_DIR/lib/py/config_print.py"
 }
 
 service_count() {
-  echo "$1" | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-print(len(data.get('services', [])))
-"
+  echo "$1" | python3 "$SCRIPTS_DIR/lib/py/config_count.py"
 }
 
 # ── Tilt lifecycle ──────────────────────────────────────────────────
@@ -411,13 +374,8 @@ USAGE
     fi
 
     local has_migrations
-    has_migrations=$(SERVICES_JSON="$SERVICES_JSON" SVC_NAME="$svc" python3 -c "
-import json, os, sys
-with open(os.environ['SERVICES_JSON']) as f:
-    data = json.load(f)
-svc = os.environ['SVC_NAME']
-print('yes' if data.get(svc, {}).get('migrations') else 'no')
-")
+    has_migrations=$(SERVICES_JSON="$SERVICES_JSON" SVC_NAME="$svc" \
+      python3 "$SCRIPTS_DIR/lib/py/check_migrations.py")
 
     if [ "$has_migrations" = "yes" ]; then
       echo "Triggering migrations for $svc..."
