@@ -139,7 +139,7 @@ case "$COMMAND" in
         usage
       fi
     else
-      local topic="$1"
+      topic="$1"
       case "$topic" in
         wt) topic="worktree" ;;
       esac
