@@ -13,7 +13,7 @@
 #   reproctl status                           Show running services and dashboard URL
 #   reproctl logs [options] [service...]       Show or stream service logs
 #   reproctl ui                               Open the Tilt dashboard in a browser
-#   reproctl worktree create [-b] <branch>    Create a worktree
+#   reproctl worktree create <branch>         Create a worktree
 #   reproctl worktree remove <branch>         Remove a worktree
 #   reproctl worktree list                    List active worktrees
 #
@@ -93,8 +93,7 @@ Examples:
   reproctl logs --json --since 5m api-server  # structured recent logs
   reproctl ui                                 # open Tilt dashboard
   reproctl wt create feat/my-feat             # shorthand for worktree
-  reproctl worktree create feat/my-feat       # create worktree for existing branch
-  reproctl worktree create -b feat/new        # create new branch + worktree
+  reproctl worktree create feat/my-feat       # create worktree (auto-creates branch)
   reproctl worktree remove feat/my-feat       # remove worktree
   reproctl worktree list                      # list all worktrees
 EOF
