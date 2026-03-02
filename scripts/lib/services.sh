@@ -344,16 +344,17 @@ for item in items:
     runtime = status_obj.get("runtimeStatus", "")
     update = status_obj.get("updateStatus", "")
 
-    if runtime == "ok" and update == "ok":
+    effective_runtime = "ok" if runtime in ("ok", "not_applicable") else runtime
+    effective_update = "ok" if update in ("ok", "not_applicable", "none") else update
+
+    if effective_runtime == "ok" and effective_update == "ok":
         display_status = "ok"
-    elif runtime == "error" or update == "error":
+    elif effective_runtime == "error" or effective_update == "error":
         display_status = "error"
-    elif update == "in_progress":
+    elif effective_update == "in_progress":
         display_status = "building"
     else:
         display_status = "pending"
-
-    wt_marker = ""
     if "-wt-" in name:
         idx = name.index("-wt-")
         wt_slug = name[idx + 4:]
