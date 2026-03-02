@@ -178,16 +178,7 @@ cmd_wt_list() {
 
     local svc_names=""
     if [ -n "$active_services" ] && command -v python3 > /dev/null 2>&1; then
-      svc_names="$(python3 -c "
-import json, sys
-try:
-    cfg = json.loads(sys.argv[1])
-    slug = sys.argv[2]
-    names = [s['name'] for s in cfg.get('services', []) if s.get('slug') == slug]
-    print(', '.join(names))
-except Exception:
-    pass
-" "$active_services" "$slug" 2>/dev/null || true)"
+      svc_names="$(python3 "$SCRIPTS_DIR/lib/py/worktree_services.py" "$active_services" "$slug" 2>/dev/null || true)"
     fi
 
     slugs+=("$slug")
