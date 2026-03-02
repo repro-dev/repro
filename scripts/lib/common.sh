@@ -77,7 +77,7 @@ else
 fi
 
 PARENT_DIR="$(dirname "$MAIN_CHECKOUT")"
-INFRA_DIR="$REPO_ROOT/infra"
+INFRA_DIR="$MAIN_CHECKOUT/infra"
 SCRIPTS_DIR="$REPO_ROOT/scripts"
 SERVICES_JSON="$INFRA_DIR/services.json"
 TMP_DIR="$MAIN_CHECKOUT/tmp"
