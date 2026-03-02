@@ -132,23 +132,22 @@ case "$COMMAND" in
   ui)      cmd_ui "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
   help)
-    if [ $# -eq 0 ]; then
-      if command -v man > /dev/null 2>&1 && man -w reproctl > /dev/null 2>&1; then
-        man reproctl
-      else
-        usage
-      fi
+    topic="${1:-reproctl}"
+    case "$topic" in
+      wt) topic="worktree" ;;
+    esac
+    if [ "$topic" = "reproctl" ]; then
+      page="reproctl"
     else
-      topic="$1"
-      case "$topic" in
-        wt) topic="worktree" ;;
-      esac
       page="reproctl-$topic"
-      if command -v man > /dev/null 2>&1 && man -w "$page" > /dev/null 2>&1; then
-        man "$page"
-      else
-        die "No manual entry for $page.\nRun 'reproctl --help' for a command list."
-      fi
+    fi
+    manfile="$MAIN_CHECKOUT/docs/man/man1/${page}.1"
+    if [ -f "$manfile" ] && command -v man > /dev/null 2>&1; then
+      man -l "$manfile"
+    elif [ -f "$manfile" ]; then
+      cat "$manfile"
+    else
+      die "No manual entry for $page.\nRun 'reproctl --help' for a command list."
     fi
     ;;
   -h|--help)   usage ;;
