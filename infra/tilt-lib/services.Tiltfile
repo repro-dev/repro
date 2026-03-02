@@ -1,5 +1,14 @@
 load('./dependency_graph.Tiltfile', 'dependency_sync_paths', 'dependency_watch_paths', 'non_dependency_ignore_patterns')
 
+
+def wt_label(slug):
+  """Build a Tilt label for a worktree slug, truncated to 63 chars."""
+  label = 'wt.' + slug
+  if len(label) > 63:
+    label = label[:63]
+  return label
+
+
 COMMON_IGNORE = [
   '.git',
   'infra',
@@ -44,7 +53,7 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
     infra_dir: Absolute path to the infra/ directory.
   """
   prefix = service_name + '-wt-' + wt_slug
-  label = 'wt.' + wt_slug
+  label = wt_label(wt_slug)
   moon_project = svc['moon_project']
   app_dir = svc['app_dir']
   chart_path = os.path.join(infra_dir, svc['chart'])
@@ -137,7 +146,7 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
 def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_path=None):
   if wt_slug:
     resource_name = service_name + '-wt-' + wt_slug
-    label = 'wt.' + wt_slug
+    label = wt_label(wt_slug)
     work_dir = source_path
   else:
     resource_name = service_name
@@ -238,7 +247,7 @@ def register_ingress(wt_slug, service_names, services, infra_dir):
   """
   app_host = 'app.wt-' + wt_slug + '.repro.localhost'
   api_host = 'api.wt-' + wt_slug + '.repro.localhost'
-  label = 'wt.' + wt_slug
+  label = wt_label(wt_slug)
 
   route_defaults = {
     'appRoutes': 'workspace',
