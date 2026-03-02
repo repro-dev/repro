@@ -1,0 +1,10 @@
+id: repro/scripts
+language: bash
+tags:
+- type.tooling
+tasks:
+  test:
+    command: python3 -m pytest lib/py/tests/ -v
+    toolchain: system
+    options:
+      cache: true

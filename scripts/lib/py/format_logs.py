@@ -65,23 +65,6 @@ def parse_ts(ts_str):
         return None
 
 
-resources = json.loads(os.environ.get("RESOURCES", "[]"))
-source_filter = os.environ.get("SOURCE_FILTER", "all")
-level_filter = os.environ.get("LEVEL_FILTER", "")
-since_filter = os.environ.get("SINCE_FILTER", "")
-grep_pattern = os.environ.get("GREP_PATTERN", "")
-ctx_before = os.environ.get("CONTEXT_BEFORE", "")
-ctx_after = os.environ.get("CONTEXT_AFTER", "")
-json_output = os.environ.get("JSON_OUTPUT", "false") == "true"
-no_prefix = os.environ.get("NO_PREFIX", "false") == "true"
-tail_lines = os.environ.get("TAIL_LINES", "")
-
-since_dt = parse_since(since_filter)
-ctx_b = parse_duration(ctx_before)
-ctx_a = parse_duration(ctx_after)
-use_context = bool(grep_pattern and (ctx_b or ctx_a))
-
-
 def severity_to_level(sev):
     if sev >= 500:
         return "ERROR"
@@ -90,118 +73,141 @@ def severity_to_level(sev):
     return "INFO"
 
 
-try:
-    logstore = json.load(sys.stdin)
-except json.JSONDecodeError:
-    print("Error: failed to parse logstore JSON", file=sys.stderr)
-    sys.exit(1)
+def main():
+    resources = json.loads(os.environ.get("RESOURCES", "[]"))
+    source_filter = os.environ.get("SOURCE_FILTER", "all")
+    level_filter = os.environ.get("LEVEL_FILTER", "")
+    since_filter = os.environ.get("SINCE_FILTER", "")
+    grep_pattern = os.environ.get("GREP_PATTERN", "")
+    ctx_before = os.environ.get("CONTEXT_BEFORE", "")
+    ctx_after = os.environ.get("CONTEXT_AFTER", "")
+    json_output = os.environ.get("JSON_OUTPUT", "false") == "true"
+    no_prefix = os.environ.get("NO_PREFIX", "false") == "true"
+    tail_lines = os.environ.get("TAIL_LINES", "")
 
-span_map = {}
-for span_id, span in logstore.get("spans", {}).items():
-    span_map[span_id] = span.get("ManifestName", "")
+    since_dt = parse_since(since_filter)
+    ctx_b = parse_duration(ctx_before)
+    ctx_a = parse_duration(ctx_after)
+    use_context = bool(grep_pattern and (ctx_b or ctx_a))
 
-segments = logstore.get("segments", [])
+    try:
+        logstore = json.load(sys.stdin)
+    except json.JSONDecodeError:
+        print("Error: failed to parse logstore JSON", file=sys.stderr)
+        sys.exit(1)
 
-lines = []
-for seg in segments:
-    span_id = seg.get("SpanID", "")
-    resource = span_map.get(span_id, "")
-    text = seg.get("Text", "").rstrip("\n")
-    ts_str = seg.get("Time", "")
-    level_obj = seg.get("Level", {})
-    level = severity_to_level(
-        level_obj.get("severity", 0) if isinstance(level_obj, dict) else 0
-    )
-    fields = seg.get("Fields", {}) or {}
-    is_build = "buildEvent" in fields
+    span_map = {}
+    for span_id, span in logstore.get("spans", {}).items():
+        span_map[span_id] = span.get("ManifestName", "")
 
-    if resources and resource not in resources:
-        continue
+    segments = logstore.get("segments", [])
 
-    if source_filter != "all":
-        if source_filter == "build" and not is_build:
+    lines = []
+    for seg in segments:
+        span_id = seg.get("SpanID", "")
+        resource = span_map.get(span_id, "")
+        text = seg.get("Text", "").rstrip("\n")
+        ts_str = seg.get("Time", "")
+        level_obj = seg.get("Level", {})
+        level = severity_to_level(
+            level_obj.get("severity", 0) if isinstance(level_obj, dict) else 0
+        )
+        fields = seg.get("Fields", {}) or {}
+        is_build = "buildEvent" in fields
+
+        if resources and resource not in resources:
             continue
-        if source_filter == "runtime" and is_build:
+
+        if source_filter != "all":
+            if source_filter == "build" and not is_build:
+                continue
+            if source_filter == "runtime" and is_build:
+                continue
+
+        if level_filter:
+            if level_filter == "error" and level != "ERROR":
+                continue
+            if level_filter == "warn" and level not in ("WARN", "ERROR"):
+                continue
+
+        ts = parse_ts(ts_str)
+        if since_dt and ts and ts < since_dt:
             continue
 
-    if level_filter:
-        if level_filter == "error" and level != "ERROR":
-            continue
-        if level_filter == "warn" and level not in ("WARN", "ERROR"):
-            continue
+        lines.append(
+            {
+                "timestamp": ts_str,
+                "resource": resource,
+                "level": level,
+                "message": text,
+                "ts": ts,
+            }
+        )
 
-    ts = parse_ts(ts_str)
-    if since_dt and ts and ts < since_dt:
-        continue
+    if use_context:
+        match_indices = set()
+        for i, line in enumerate(lines):
+            if re.search(grep_pattern, line["message"]):
+                match_indices.add(i)
 
-    lines.append(
-        {
-            "timestamp": ts_str,
-            "resource": resource,
-            "level": level,
-            "message": text,
-            "ts": ts,
-        }
-    )
+        if not match_indices:
+            sys.exit(0)
 
-if use_context:
-    match_indices = set()
-    for i, line in enumerate(lines):
-        if re.search(grep_pattern, line["message"]):
-            match_indices.add(i)
+        windows = []
+        for i in sorted(match_indices):
+            ts = lines[i]["ts"]
+            if ts:
+                start = ts - ctx_b if ctx_b else ts
+                end = ts + ctx_a if ctx_a else ts
+                windows.append((start, end))
 
-    if not match_indices:
+        merged = []
+        for start, end in sorted(windows):
+            if merged and start <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+            else:
+                merged.append((start, end))
+
+        for i, line in enumerate(lines):
+            ts = line["ts"]
+            if not ts:
+                continue
+            in_window = any(s <= ts <= e for s, e in merged)
+            if not in_window:
+                continue
+            is_match = i in match_indices
+            if json_output:
+                obj = {k: v for k, v in line.items() if k != "ts"}
+                obj["match"] = is_match
+                print(json.dumps(obj))
+            else:
+                prefix = "" if no_prefix else line["resource"] + "  "
+                marker = "> " if is_match else "  "
+                ts_short = (
+                    line["timestamp"][:19].replace("T", " ")
+                    if line["timestamp"]
+                    else ""
+                )
+                msg = line["message"]
+                print(f"{marker}{prefix}{ts_short}  {msg}")
         sys.exit(0)
 
-    windows = []
-    for i in sorted(match_indices):
-        ts = lines[i]["ts"]
-        if ts:
-            start = ts - ctx_b if ctx_b else ts
-            end = ts + ctx_a if ctx_a else ts
-            windows.append((start, end))
+    if grep_pattern:
+        lines = [l for l in lines if re.search(grep_pattern, l["message"])]
 
-    merged = []
-    for start, end in sorted(windows):
-        if merged and start <= merged[-1][1]:
-            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
-        else:
-            merged.append((start, end))
+    if tail_lines:
+        n = int(tail_lines)
+        lines = lines[-n:]
 
-    for i, line in enumerate(lines):
-        ts = line["ts"]
-        if not ts:
-            continue
-        in_window = any(s <= ts <= e for s, e in merged)
-        if not in_window:
-            continue
-        is_match = i in match_indices
+    for line in lines:
         if json_output:
             obj = {k: v for k, v in line.items() if k != "ts"}
-            obj["match"] = is_match
             print(json.dumps(obj))
         else:
             prefix = "" if no_prefix else line["resource"] + "  "
-            marker = "> " if is_match else "  "
-            ts_short = (
-                line["timestamp"][:19].replace("T", " ") if line["timestamp"] else ""
-            )
             msg = line["message"]
-            print(f"{marker}{prefix}{ts_short}  {msg}")
-    sys.exit(0)
+            print(f"{prefix}{msg}")
 
-if grep_pattern:
-    lines = [l for l in lines if re.search(grep_pattern, l["message"])]
 
-if tail_lines:
-    n = int(tail_lines)
-    lines = lines[-n:]
-
-for line in lines:
-    if json_output:
-        obj = {k: v for k, v in line.items() if k != "ts"}
-        print(json.dumps(obj))
-    else:
-        prefix = "" if no_prefix else line["resource"] + "  "
-        msg = line["message"]
-        print(f"{prefix}{msg}")
+if __name__ == "__main__":
+    main()
