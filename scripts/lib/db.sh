@@ -107,15 +107,55 @@ cmd_db_status() {
   echo "  User:     $DB_USER"
   echo "  Database: $DB_NAME"
 
-  if [ -n "$PSQL" ]; then
-    echo ""
-    echo "Recent migrations:"
-    PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-      -c "SELECT name, timestamp FROM kysely_migration ORDER BY timestamp DESC LIMIT 10" \
-      2>/dev/null || echo "  (unable to query — is the database resource healthy?)"
-  else
+  if [ -z "$PSQL" ]; then
     echo ""
     echo "Install psql to view migration status: brew install postgresql@17"
+    return
+  fi
+
+  local migrations_dir="$REPO_ROOT/apps/api-server/src/migrations/data"
+  if [ ! -d "$migrations_dir" ]; then
+    echo ""
+    echo "Migrations directory not found: $migrations_dir"
+    return
+  fi
+
+  # Compare on-disk migration files against what's been applied in the DB.
+  local applied
+  applied="$(PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" \
+    -U "$DB_USER" -d "$DB_NAME" -t -A \
+    -c "SELECT name FROM kysely_migration ORDER BY name" 2>/dev/null)" || {
+    echo ""
+    echo "Migrations: unable to query — is the database resource healthy?"
+    return
+  }
+
+  # Build lists of on-disk and applied migration names
+  local on_disk
+  on_disk="$(ls "$migrations_dir"/*.sql 2>/dev/null | xargs -n1 basename | sort)"
+
+  local pending
+  pending="$(comm -23 <(echo "$on_disk") <(echo "$applied"))"
+
+  local orphaned
+  orphaned="$(comm -13 <(echo "$on_disk") <(echo "$applied"))"
+
+  echo ""
+  if [ -z "$pending" ] && [ -z "$orphaned" ]; then
+    echo "Migrations: up to date ($(echo "$applied" | wc -l | tr -d ' ') applied)"
+  else
+    if [ -n "$pending" ]; then
+      echo "Migrations: $(echo "$pending" | wc -l | tr -d ' ') pending"
+      echo "$pending" | while read -r name; do
+        echo "  + $name"
+      done
+    fi
+    if [ -n "$orphaned" ]; then
+      echo "Migrations: $(echo "$orphaned" | wc -l | tr -d ' ') applied but missing from disk"
+      echo "$orphaned" | while read -r name; do
+        echo "  - $name"
+      done
+    fi
   fi
 }
 
@@ -145,7 +185,7 @@ Subcommands:
   reset    Drop and recreate the database (main checkout only)
   migrate  Run pending database migrations
   shell    Open a psql session against the cluster database
-  status   Show cluster database connection info and recent migrations
+  status   Show connection info and whether migrations are up to date
 
 Options (reset):
   -y, --yes  Skip confirmation prompt
