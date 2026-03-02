@@ -1,5 +1,53 @@
 load('./dependency_graph.Tiltfile', 'dependency_sync_paths', 'dependency_watch_paths', 'non_dependency_ignore_patterns')
 
+
+def _hash_suffix(s):
+  """Return the first 6 hex chars of a deterministic hash of s.
+
+  Starlark has no hashlib; a simple polynomial hash is sufficient
+  for collision avoidance among a handful of worktree slugs.
+  """
+  h = 0
+  for c in s.elems():
+    h = (h * 31 + ord(c)) & 0xFFFFFFFF
+  return '%x' % h
+
+
+def wt_label(slug):
+  """Build a Tilt label for a worktree slug, truncated to 63 chars."""
+  label = 'wt.' + slug
+  if len(label) > 63:
+    label = label[:63]
+  return label
+
+
+def wt_name(base, slug, max_len=53):
+  """Build a length-safe name from a base and worktree slug.
+
+  Constructs 'base-wt-slug' and truncates the slug (with a hash
+  suffix for collision avoidance) when the result exceeds max_len.
+  The default max_len of 53 satisfies the Helm release name limit.
+
+  Args:
+    base: Prefix (e.g. 'workspace', 'gateway').
+    slug: Worktree slug (e.g. 'gary-rep-237-some-long-name').
+    max_len: Maximum total length (default 53, Helm release limit).
+
+  Returns:
+    A string of at most max_len characters.
+  """
+  full = base + '-wt-' + slug
+  if len(full) <= max_len:
+    return full
+
+  # Reserve 7 chars for the hash suffix (-HHHHHH)
+  hash_suffix = _hash_suffix(slug)[:6]
+  budget = max_len - len(base) - len('-wt-') - 1 - 6  # 1 for '-', 6 for hash
+  if budget < 1:
+    budget = 1
+  return base + '-wt-' + slug[:budget] + '-' + hash_suffix
+
+
 COMMON_IGNORE = [
   '.git',
   'infra',
@@ -43,8 +91,8 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
     source_path: Absolute path to the source tree (worktree root).
     infra_dir: Absolute path to the infra/ directory.
   """
-  prefix = service_name + '-wt-' + wt_slug
-  label = 'wt.' + wt_slug
+  prefix = wt_name(service_name, wt_slug)
+  label = wt_label(wt_slug)
   moon_project = svc['moon_project']
   app_dir = svc['app_dir']
   chart_path = os.path.join(infra_dir, svc['chart'])
@@ -136,8 +184,8 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
 
 def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_path=None):
   if wt_slug:
-    resource_name = service_name + '-wt-' + wt_slug
-    label = 'wt.' + wt_slug
+    resource_name = wt_name(service_name, wt_slug)
+    label = wt_label(wt_slug)
     work_dir = source_path
   else:
     resource_name = service_name
@@ -238,7 +286,7 @@ def register_ingress(wt_slug, service_names, services, infra_dir):
   """
   app_host = 'app.wt-' + wt_slug + '.repro.localhost'
   api_host = 'api.wt-' + wt_slug + '.repro.localhost'
-  label = 'wt.' + wt_slug
+  label = wt_label(wt_slug)
 
   route_defaults = {
     'appRoutes': 'workspace',
@@ -250,7 +298,7 @@ def register_ingress(wt_slug, service_names, services, infra_dir):
   for svc_name in service_names:
     svc = services.get(svc_name, {})
     for route_key, suffix in svc.get('ingress', {}).items():
-      overrides[route_key] = svc_name + '-wt-' + wt_slug + '-' + suffix
+      overrides[route_key] = wt_name(svc_name, wt_slug) + '-' + suffix
 
   helm_sets = [
     'ingress.appRoutes.host=' + app_host,
@@ -265,18 +313,20 @@ def register_ingress(wt_slug, service_names, services, infra_dir):
     helm_sets.append('ingress.%s.paths[0].serviceName=%s' % (route_key, service_name))
     helm_sets.append('ingress.%s.paths[0].servicePort=http' % route_key)
 
+  gw_release = wt_name('gateway', wt_slug)
+
   k8s_yaml(helm(
     os.path.join(infra_dir, 'apps/gateway/chart'),
-    name='gateway-wt-' + wt_slug,
+    name=gw_release,
     set=helm_sets,
   ))
 
   k8s_resource(
     new_name='gateway-ingress-wt-' + wt_slug,
     objects=[
-      'gateway-wt-%s-ingress-app:Ingress:default' % wt_slug,
-      'gateway-wt-%s-ingress-api:Ingress:default' % wt_slug,
-      'gateway-wt-%s-ingress-admin:Ingress:default' % wt_slug,
+      '%s-ingress-app:Ingress:default' % gw_release,
+      '%s-ingress-api:Ingress:default' % gw_release,
+      '%s-ingress-admin:Ingress:default' % gw_release,
     ],
     resource_deps=['ingress-admission-ready'],
     labels=[label]

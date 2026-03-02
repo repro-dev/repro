@@ -6,6 +6,40 @@
 # detection, error handling, and string helpers used across all
 # subcommands.
 
+# ── Colour ──────────────────────────────────────────────────────────
+#
+# Respect NO_COLOR (https://no-color.org/) and non-interactive
+# terminals by falling back to empty strings.
+
+if [ -z "${NO_COLOR:-}" ] && [ -t 1 ]; then
+  CLR_BOLD=$'\033[1m'
+  CLR_DIM=$'\033[2m'
+  CLR_RED=$'\033[31m'
+  CLR_GREEN=$'\033[32m'
+  CLR_RESET=$'\033[0m'
+else
+  CLR_BOLD=""
+  CLR_DIM=""
+  CLR_RED=""
+  CLR_GREEN=""
+  CLR_RESET=""
+fi
+
+# ── Output helpers ──────────────────────────────────────────────────
+
+_step() {
+  local current="$1" total="$2" msg="$3"
+  printf '%s[%d/%d]%s %s\n' "$CLR_BOLD" "$current" "$total" "$CLR_RESET" "$msg"
+}
+
+_ok() {
+  printf '%s✔ %s%s\n' "$CLR_GREEN" "$1" "$CLR_RESET"
+}
+
+_err() {
+  printf '%s✖ %s%s\n' "$CLR_RED" "$1" "$CLR_RESET" >&2
+}
+
 # ── Error handling ──────────────────────────────────────────────────
 
 die() {

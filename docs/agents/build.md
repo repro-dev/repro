@@ -7,6 +7,23 @@
 - Single test: `tsx --experimental-test-module-mocks --test path/to/file.test.ts`
 - Typecheck: `moon run <package>:typecheck` or `pnpm typecheck`
 
+## reproctl CLI
+
+`reproctl` is the unified CLI for local development (cluster, services, worktrees, database). Run `reproctl help` for an overview, or `reproctl help <command>` for detailed usage of any subcommand:
+
+```
+reproctl help              # overview of all commands
+reproctl help setup        # bootstrap the dev environment
+reproctl help cluster      # kind cluster lifecycle
+reproctl help db           # database operations
+reproctl help worktree     # git worktree management (alias: wt)
+reproctl help start        # start services via Tilt
+reproctl help stop         # stop services / tear down Tilt
+reproctl help restart      # rebuild services / restart Tilt
+reproctl help logs         # service log streaming
+reproctl help doctor       # environment diagnostics
+```
+
 ## Python script tests
 
 The `scripts/lib/py/` directory contains standalone Python scripts used by reproctl bash scripts. These have a pytest suite in `scripts/lib/py/tests/` that is **not** integrated into moon or CI — tests must be run locally when scripts are changed.
