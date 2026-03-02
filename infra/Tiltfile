@@ -15,6 +15,7 @@ load(
   'register_local_service',
   'register_ingress',
   'resolve_dependencies',
+  'wt_label',
 )
 load(
   './tilt-lib/worktree.Tiltfile',
@@ -115,7 +116,7 @@ if service_config:
           cmd='pnpm fetch && pnpm install --offline',
           dir=wt_path,
           deps=[os.path.join(wt_path, 'pnpm-lock.yaml')],
-          labels=['wt.' + slug],
+          labels=[wt_label(slug)],
         )
 
       if SERVICES[name].get('type', 'k8s') == 'local':
