@@ -74,6 +74,7 @@ Commands:
   ui                              Open the Tilt dashboard in a browser
   worktree <subcommand>           Manage git worktrees (create, remove, list, attach)
                                   (alias: wt)
+  help [<command>]                Show manpage for reproctl or a subcommand
 
 Context is detected automatically:
   - From the main checkout, services run as main.
@@ -130,6 +131,22 @@ case "$COMMAND" in
   logs)    cmd_logs "$@" ;;
   ui)      cmd_ui "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
+  help)
+    if [ $# -eq 0 ]; then
+      if command -v man > /dev/null 2>&1 && man -w reproctl > /dev/null 2>&1; then
+        man reproctl
+      else
+        usage
+      fi
+    else
+      page="reproctl-$1"
+      if command -v man > /dev/null 2>&1 && man -w "$page" > /dev/null 2>&1; then
+        man "$page"
+      else
+        die "No manual entry for $page.\nRun 'reproctl --help' for a command list."
+      fi
+    fi
+    ;;
   -h|--help)   usage ;;
   *)
     die "Unknown command: $COMMAND\nRun 'reproctl --help' for usage."
