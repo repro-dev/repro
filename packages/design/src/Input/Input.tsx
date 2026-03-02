@@ -121,9 +121,9 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
           <Block
             padding={spacing.sm}
             position="absolute"
-            top={value !== '' || focused ? 0 : '50%'}
+            top={value !== '' || focused ? 0 : rows > 1 ? sizes[size] : '50%'}
             left={spacing.md}
-            translate="0 -50%"
+            translate={value !== '' || focused || rows > 1 ? undefined : '0 -50%'}
             fontSize={fontSize}
             lineHeight={1}
             backgroundColor={color.bg.surface}
