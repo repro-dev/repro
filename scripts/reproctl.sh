@@ -13,6 +13,7 @@
 #   reproctl status                           Show running services and dashboard URL
 #   reproctl logs [options] [service...]       Show or stream service logs
 #   reproctl ui                               Open the Tilt dashboard in a browser
+#   reproctl worktree attach <branch>          Attach to a worktree subshell
 #   reproctl worktree create <branch>         Create a worktree
 #   reproctl worktree remove <branch>         Remove a worktree
 #   reproctl worktree list                    List active worktrees
@@ -66,8 +67,7 @@ Commands:
   status                          Show running services and dashboard URL
   logs [options] [service...]     Show or stream service logs
   ui                              Open the Tilt dashboard in a browser
-  attach <branch>                 Attach to a worktree subshell
-  worktree <subcommand>           Manage git worktrees (create, remove, list)
+  worktree <subcommand>           Manage git worktrees (create, remove, list, attach)
                                   (alias: wt)
 
 Context is detected automatically:
@@ -93,7 +93,7 @@ Examples:
   reproctl logs -f api-server                 # tail logs for a service
   reproctl logs --json --since 5m api-server  # structured recent logs
   reproctl ui                                 # open Tilt dashboard
-  reproctl attach feat/my-feat                # drop into worktree subshell
+  reproctl wt attach feat/my-feat              # drop into worktree subshell
   reproctl wt create feat/my-feat             # shorthand for worktree
   reproctl worktree create feat/my-feat       # create worktree (auto-creates branch)
   reproctl worktree remove feat/my-feat       # remove worktree
@@ -119,11 +119,6 @@ case "$COMMAND" in
   status)  cmd_status "$@" ;;
   logs)    cmd_logs "$@" ;;
   ui)      cmd_ui "$@" ;;
-  attach)
-    if [ $# -lt 1 ]; then
-      die "'attach' requires a branch name.\nUsage: reproctl attach <branch>"
-    fi
-    cmd_attach "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
   -h|--help)   usage ;;
   *)
