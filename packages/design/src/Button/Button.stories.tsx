@@ -1,5 +1,6 @@
 import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import React from 'react'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
@@ -9,6 +10,9 @@ const meta: Meta<typeof Button> = {
   title: 'Components/Actions/Button',
   component: Button,
   tags: ['autodocs', 'design-system'],
+  args: {
+    onClick: fn(),
+  },
 }
 
 export default meta
@@ -35,6 +39,43 @@ export const Default: Story = {
     size: 'medium',
     rounded: true,
     disabled: false,
+  },
+}
+
+export const ClickTest: Story = {
+  args: {
+    children: 'Click me',
+    context: 'info',
+    variant: 'contained',
+    size: 'medium',
+    rounded: true,
+    disabled: false,
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const button = canvas.getByRole('button', { name: 'Click me' })
+
+    await userEvent.click(button)
+    await expect(args.onClick).toHaveBeenCalledTimes(1)
+  },
+}
+
+export const DisabledClickTest: Story = {
+  args: {
+    children: 'Disabled',
+    context: 'info',
+    variant: 'contained',
+    size: 'medium',
+    rounded: true,
+    disabled: true,
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const button = canvas.getByRole('button', { name: 'Disabled' })
+
+    await expect(button).toBeDisabled()
+    await userEvent.click(button)
+    await expect(args.onClick).not.toHaveBeenCalled()
   },
 }
 

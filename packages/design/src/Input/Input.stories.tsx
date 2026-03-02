@@ -1,5 +1,6 @@
 import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import React from 'react'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
@@ -15,13 +16,10 @@ export default meta
 
 type Story = StoryObj<typeof Input>
 
-const noop = () => {}
-
-/** Shared registration stub so stories satisfy the UseFormRegisterReturn interface */
 const reg = {
   name: 'field',
-  onChange: noop as any,
-  onBlur: noop as any,
+  onChange: fn(),
+  onBlur: fn(),
 }
 
 export const Default: Story = {
@@ -32,6 +30,31 @@ export const Default: Story = {
     size: 'medium',
     context: 'normal',
     disabled: false,
+  },
+}
+
+export const FocusAndTypeTest: Story = {
+  args: {
+    ...reg,
+    label: 'Email',
+    placeholder: 'you@example.com',
+    size: 'medium',
+    context: 'normal',
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const input = canvas.getByRole('textbox')
+
+    await userEvent.click(input)
+    await expect(input).toHaveFocus()
+
+    await userEvent.type(input, 'test@example.com')
+    await expect(input).toHaveValue('test@example.com')
+    await expect(args.onChange).toHaveBeenCalled()
+
+    await userEvent.tab()
+    await expect(input).not.toHaveFocus()
+    await expect(args.onBlur).toHaveBeenCalled()
   },
 }
 

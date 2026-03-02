@@ -1,5 +1,6 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
+import { expect, userEvent, within } from 'storybook/test'
 import React from 'react'
 import { Button } from '../Button'
 import { color } from '../tokens/colors'
@@ -73,4 +74,38 @@ export const CustomDelay: Story = {
       </Block>
     </Block>
   ),
+}
+
+export const HoverTest: Story = {
+  render: () => (
+    <Block padding={80} display="flex" justifyContent="center">
+      <Block position="relative" display="inline-block">
+        <Button context="info" variant="contained" size="medium" rounded>
+          Hover target
+        </Button>
+        <Tooltip position="top" delay={0}>
+          Tooltip content
+        </Tooltip>
+      </Block>
+    </Block>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const button = canvas.getByRole('button', { name: 'Hover target' })
+
+    const tooltip = within(document.body).getByRole('tooltip')
+    await expect(tooltip).toHaveAttribute('aria-hidden', 'true')
+
+    await userEvent.hover(button)
+    await within(document.body).findByRole('tooltip', { hidden: false })
+    const visibleTooltip = within(document.body).getByRole('tooltip')
+    await expect(visibleTooltip).toHaveAttribute('aria-hidden', 'false')
+    await expect(visibleTooltip).toHaveTextContent('Tooltip content')
+
+    await userEvent.unhover(button)
+    await expect(within(document.body).getByRole('tooltip')).toHaveAttribute(
+      'aria-hidden',
+      'true'
+    )
+  },
 }
