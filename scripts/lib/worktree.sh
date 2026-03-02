@@ -155,6 +155,31 @@ cmd_wt_list() {
   echo ""
 }
 
+cmd_attach() {
+  local branch="$1"
+  local wt_path
+  wt_path="$(worktree_path "$branch")"
+
+  if [ ! -d "$wt_path" ]; then
+    die "No worktree found for '$branch' at $wt_path\n  Create it first: reproctl worktree create $branch"
+  fi
+
+  local slug
+  slug="$(slugify "$branch")"
+
+  echo "Attached to worktree: $branch"
+  echo "  Path: $wt_path"
+  echo "  Exit the shell (exit or Ctrl-D) to return."
+
+  (cd "$wt_path" && \
+    REPRO_WORKTREE="$slug" \
+    REPRO_WORKTREE_BRANCH="$branch" \
+    REPRO_WORKTREE_PATH="$wt_path" \
+    exec "$SHELL")
+
+  echo "Detached from worktree: $branch"
+}
+
 wt_usage() {
   cat <<'EOF'
 Usage: reproctl worktree <command> [options] [args]
@@ -163,6 +188,7 @@ Commands:
   create [options] <branch>   Create a new worktree for the given branch
   remove [options] <branch>   Remove the worktree for the given branch
   list                        List all active worktrees
+  attach <branch>             Drop into a subshell in the given worktree
 
 Options (create, remove):
   --dry-run         Preview what would be done without making changes
@@ -172,6 +198,7 @@ Examples:
   reproctl worktree create feat/new-feature     # auto-creates branch if needed
   reproctl worktree remove feat/my-feature      # remove worktree
   reproctl worktree list                        # list all worktrees
+  reproctl worktree attach feat/my-feature      # drop into worktree subshell
 EOF
 }
 
@@ -193,7 +220,7 @@ cmd_wt() {
         wt_usage
         exit 0
         ;;
-      create|remove|list)
+      create|remove|list|attach)
         subcmd="$1"
         shift
         break
@@ -230,6 +257,11 @@ cmd_wt() {
     esac
   done
 
+  if [ "$WT_DRY_RUN" = true ] && [ "$subcmd" = "attach" ]; then
+    die "--dry-run flag cannot be used with 'attach'"
+  fi
+
+
   case "$subcmd" in
     create)
       if [ "${#args[@]}" -lt 1 ]; then
@@ -251,6 +283,12 @@ cmd_wt() {
       ;;
     list)
       cmd_wt_list
+      ;;
+    attach)
+      if [ "${#args[@]}" -lt 1 ]; then
+        die "'worktree attach' requires a branch name"
+      fi
+      cmd_attach "${args[0]}"
       ;;
   esac
 }
