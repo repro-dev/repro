@@ -16,32 +16,39 @@ type Story = StoryObj<typeof Link>
 
 export const Default: Story = {
   args: {
+    href: '#',
     children: 'Click here',
   },
 }
 
-/** Link rendered inline within body text */
-export const InlineWithText: Story = {
-  render: () => (
-    <Block padding={16} color={color.text.default} fontSize={15} lineHeight={1.5}>
-      Please read our <Link>terms of service</Link> and{' '}
-      <Link>privacy policy</Link> before continuing.
-    </Block>
-  ),
+export const Disabled: Story = {
+  args: {
+    href: '#',
+    disabled: true,
+    children: 'Disabled link',
+  },
 }
 
-/** Links in different surrounding text contexts */
-export const InContext: Story = {
+export const ExternalLink: Story = {
+  args: {
+    href: 'https://example.com',
+    target: '_blank',
+    children: 'Open external site',
+  },
+}
+
+export const CustomUnderline: Story = {
   render: () => (
     <Col gap={16} padding={16}>
-      <Block color={color.text.default} fontSize={15}>
-        Default text with a <Link>link</Link> inside.
+      <Block color={color.text.default} fontSize={15} lineHeight={1.5}>
+        Please read our <Link href="#">terms of service</Link> and{' '}
+        <Link href="#">privacy policy</Link> before continuing.
       </Block>
       <Block color={color.text.secondary} fontSize={13}>
-        Secondary text with a <Link>link</Link> inside.
+        Secondary text with a <Link href="#">link</Link> inside.
       </Block>
       <Block color={color.text.muted} fontSize={11}>
-        Muted caption with a <Link>link</Link> inside.
+        Muted caption with a <Link href="#">link</Link> inside.
       </Block>
     </Col>
   ),
