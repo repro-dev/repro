@@ -111,7 +111,7 @@ cmd_db_status() {
     echo ""
     echo "Recent migrations:"
     PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-      -c "SELECT * FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 10" \
+      -c "SELECT name, timestamp FROM kysely_migration ORDER BY timestamp DESC LIMIT 10" \
       2>/dev/null || echo "  (unable to query — is the database resource healthy?)"
   else
     echo ""
