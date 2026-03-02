@@ -23,9 +23,10 @@ slugify() {
 #
 # REPO_ROOT is the git toplevel of the current working directory —
 # either the main checkout or a worktree. MAIN_CHECKOUT is always the
-# main checkout (first entry from `git worktree list`). We derive all
-# shared paths from these two values so every script works identically
-# regardless of which checkout invokes it.
+# main checkout (first entry from `git worktree list`). We derive paths
+# for repo-specific assets from REPO_ROOT, and shared state from
+# MAIN_CHECKOUT so every script works identically regardless of which
+# checkout invokes it.
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
   die "Not inside a git repository. Run reproctl from within the repro checkout."
@@ -42,8 +43,8 @@ else
 fi
 
 PARENT_DIR="$(dirname "$MAIN_CHECKOUT")"
-INFRA_DIR="$MAIN_CHECKOUT/infra"
-SCRIPTS_DIR="$MAIN_CHECKOUT/scripts"
+INFRA_DIR="$REPO_ROOT/infra"
+SCRIPTS_DIR="$REPO_ROOT/scripts"
 SERVICES_JSON="$INFRA_DIR/services.json"
 TMP_DIR="$MAIN_CHECKOUT/tmp"
 CONFIG_FILE="$TMP_DIR/reproctl_services.json"

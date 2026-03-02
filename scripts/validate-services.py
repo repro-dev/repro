@@ -24,6 +24,13 @@ REQUIRED_KEYS = {
     "deps": list,
 }
 
+LOCAL_REQUIRED_KEYS = {
+    "moon_project": str,
+    "app_dir": str,
+    "serve_cmd": str,
+    "deps": list,
+}
+
 MIGRATION_KEYS = {
     "moon_task": str,
     "resource_deps": list,
@@ -56,44 +63,79 @@ def validate(services_path, infra_dir, requested_services):
             errors.append("%s must be an object, got %s" % (prefix, type(svc).__name__))
             continue
 
-        for key, expected_type in REQUIRED_KEYS.items():
-            if key not in svc:
-                errors.append("%s missing required key: %s" % (prefix, key))
-            elif not isinstance(svc[key], expected_type):
+        svc_type = svc.get("type", "k8s")
+
+        if svc_type == "local":
+            for key, expected_type in LOCAL_REQUIRED_KEYS.items():
+                if key not in svc:
+                    errors.append("%s missing required key: %s" % (prefix, key))
+                elif not isinstance(svc[key], expected_type):
+                    errors.append(
+                        "%s %s must be %s, got %s"
+                        % (prefix, key, expected_type.__name__, type(svc[key]).__name__)
+                    )
+
+            if "serve_env" in svc and not isinstance(svc["serve_env"], dict):
                 errors.append(
-                    "%s %s must be %s, got %s"
-                    % (prefix, key, expected_type.__name__, type(svc[key]).__name__)
+                    "%s serve_env must be dict, got %s"
+                    % (prefix, type(svc["serve_env"]).__name__)
+                )
+            if "resource_deps" in svc and not isinstance(svc["resource_deps"], list):
+                errors.append(
+                    "%s resource_deps must be list, got %s"
+                    % (prefix, type(svc["resource_deps"]).__name__)
+                )
+            if "labels" in svc and not isinstance(svc["labels"], list):
+                errors.append(
+                    "%s labels must be list, got %s"
+                    % (prefix, type(svc["labels"]).__name__)
                 )
 
-        chart = svc.get("chart", "")
-        if chart:
-            chart_path = os.path.join(infra_dir, chart)
-            if not os.path.isdir(chart_path):
-                errors.append("%s chart path does not exist: %s" % (prefix, chart_path))
+        elif svc_type == "k8s":
+            for key, expected_type in REQUIRED_KEYS.items():
+                if key not in svc:
+                    errors.append("%s missing required key: %s" % (prefix, key))
+                elif not isinstance(svc[key], expected_type):
+                    errors.append(
+                        "%s %s must be %s, got %s"
+                        % (prefix, key, expected_type.__name__, type(svc[key]).__name__)
+                    )
 
-        migrations = svc.get("migrations")
-        if migrations is not None:
-            if not isinstance(migrations, dict):
-                errors.append(
-                    "%s migrations must be an object or null, got %s"
-                    % (prefix, type(migrations).__name__)
-                )
-            else:
-                for key, expected_type in MIGRATION_KEYS.items():
-                    if key not in migrations:
-                        errors.append(
-                            "%s migrations missing required key: %s" % (prefix, key)
-                        )
-                    elif not isinstance(migrations[key], expected_type):
-                        errors.append(
-                            "%s migrations.%s must be %s, got %s"
-                            % (
-                                prefix,
-                                key,
-                                expected_type.__name__,
-                                type(migrations[key]).__name__,
+            chart = svc.get("chart", "")
+            if chart:
+                chart_path = os.path.join(infra_dir, chart)
+                if not os.path.isdir(chart_path):
+                    errors.append(
+                        "%s chart path does not exist: %s" % (prefix, chart_path)
+                    )
+
+            migrations = svc.get("migrations")
+            if migrations is not None:
+                if not isinstance(migrations, dict):
+                    errors.append(
+                        "%s migrations must be an object or null, got %s"
+                        % (prefix, type(migrations).__name__)
+                    )
+                else:
+                    for key, expected_type in MIGRATION_KEYS.items():
+                        if key not in migrations:
+                            errors.append(
+                                "%s migrations missing required key: %s" % (prefix, key)
                             )
-                        )
+                        elif not isinstance(migrations[key], expected_type):
+                            errors.append(
+                                "%s migrations.%s must be %s, got %s"
+                                % (
+                                    prefix,
+                                    key,
+                                    expected_type.__name__,
+                                    type(migrations[key]).__name__,
+                                )
+                            )
+
+        else:
+            errors.append("%s invalid type: %s" % (prefix, svc_type))
+            continue
 
         deps = svc.get("deps", [])
         if isinstance(deps, list):

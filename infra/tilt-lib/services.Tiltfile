@@ -134,6 +134,44 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
   )
 
 
+def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_path=None):
+  if wt_slug:
+    resource_name = service_name + '-wt-' + wt_slug
+    label = 'wt.' + wt_slug
+    work_dir = source_path
+  else:
+    resource_name = service_name
+    label = svc.get('labels', ['service'])[0] if svc.get('labels') else 'service'
+    work_dir = os.path.join(infra_dir, '..')
+
+  serve_env = dict(svc.get('serve_env', {}))
+
+  if wt_slug:
+    app_host = 'app.wt-' + wt_slug + '.repro.localhost'
+    api_host = 'api.wt-' + wt_slug + '.repro.localhost'
+    serve_env['REPRO_APP_URL'] = 'http://' + app_host
+    serve_env['REPRO_API_URL'] = 'http://' + api_host
+
+  resource_deps = list(svc.get('resource_deps', []))
+  if wt_slug and 'dependencies' in resource_deps:
+    idx = resource_deps.index('dependencies')
+    resource_deps[idx] = 'dependencies-wt-' + wt_slug
+
+  labels = list(svc.get('labels', []))
+  if wt_slug:
+    labels = [label]
+
+  local_resource(
+    resource_name,
+    serve_cmd=svc['serve_cmd'],
+    serve_env=serve_env,
+    dir=work_dir,
+    resource_deps=resource_deps,
+    allow_parallel=True,
+    labels=labels,
+  )
+
+
 def resolve_dependencies(service_config, services):
   """Expand transitive service dependencies in the config list.
 
