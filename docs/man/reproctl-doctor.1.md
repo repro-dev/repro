@@ -19,6 +19,7 @@ The following checks are performed:
 - **brew** — Homebrew is installed and functional.
 - **direnv** — direnv is installed and hooked into the shell.
 - **kind** — kind CLI is available.
+- **pandoc** — pandoc document converter is available (used for manpage generation).
 - **postgresql@17** — PostgreSQL 17 client tools are on PATH.
 - **proto** — proto toolchain manager is installed.
 - **node** — Node.js is available at the expected version.
