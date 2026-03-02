@@ -141,7 +141,7 @@ case "$COMMAND" in
     else
       page="reproctl-$topic"
     fi
-    manfile="$MAIN_CHECKOUT/docs/man/man1/${page}.1"
+    manfile="$REPO_ROOT/docs/man/man1/${page}.1"
     if [ -f "$manfile" ] && command -v man > /dev/null 2>&1; then
       man -l "$manfile"
     elif [ -f "$manfile" ]; then
