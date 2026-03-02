@@ -85,6 +85,9 @@ jobs:
             echo "MOON_HEAD=${{ github.sha }}" >> $GITHUB_ENV
           fi
 
+      - name: Install Python test dependencies
+        run: pip install pytest
+
       - name: Check affected packages
         run: moon ci :build :typecheck :test
         env:
