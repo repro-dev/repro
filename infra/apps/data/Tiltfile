@@ -28,7 +28,15 @@ helm_repo(
     labels=['infra']
 )
 
-k8s_yaml('./s3-config-secret.yaml')
+_s3_secret_yaml = read_file('./s3-config-secret.yaml')
+
+local_resource(
+    'storage-s3-config',
+    cmd=['sh', '-c', 'echo "$S3_SECRET_YAML" | kubectl apply -f -'],
+    env={'S3_SECRET_YAML': str(_s3_secret_yaml)},
+    labels=['infra'],
+    deps=['./s3-config-secret.yaml']
+)
 
 local_resource(
     'storage-bucket-hook-cleanup',
@@ -40,14 +48,9 @@ helm_resource(
     name='storage',
     chart='seaweedfs/seaweedfs',
     namespace='default',
-    resource_deps=['seaweedfs', 'storage-bucket-hook-cleanup'],
+    resource_deps=['seaweedfs', 'storage-bucket-hook-cleanup', 'storage-s3-config'],
     flags=['--values=./storage-values.yaml'],
     labels=['infra']
-)
-
-k8s_resource(
-    'storage',
-    objects=['seaweedfs-s3-config:secret:default'],
 )
 
 local_resource(
