@@ -26,7 +26,7 @@ Use Repro for faster debugging, better software and happier users!
 - macOS (primary supported platform)
 - [Homebrew](https://brew.sh)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (must be running)
-- A shell with direnv hook installed (`eval "$(direnv hook zsh)"` or bash equivalent)
+- direnv shell hook (the bootstrap script will remind you if it's missing)
 
 ### First-time setup
 
@@ -35,24 +35,17 @@ Use Repro for faster debugging, better software and happier users!
 git clone git@github.com:AnomalyInnovations/repro.git
 cd repro
 
-# Install Homebrew dependencies (direnv, kind, postgresql@17, etc.)
-brew bundle
-
-# Allow direnv to load the environment
-direnv allow
-
-# Install pinned tool versions (node, pnpm, moon, tilt, helm, ctlptl)
-proto use
-
-# Install npm dependencies
-pnpm install
-
-# Bootstrap everything (cluster, registry, dependencies)
-reproctl setup
+# Bootstrap everything in one shot:
+#   brew deps → proto tools → pnpm install → direnv allow → kind cluster
+./scripts/bootstrap.sh
 
 # Or skip cluster creation if you already have one
-reproctl setup --skip-cluster
+./scripts/bootstrap.sh --no-cluster
 ```
+
+The bootstrap script handles the full dependency chain in the right order,
+including steps that must happen before `reproctl` is available on PATH.
+After it completes, `reproctl` works as a bare command in any new shell.
 
 ### Verify your environment
 
