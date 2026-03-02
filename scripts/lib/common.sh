@@ -69,13 +69,28 @@ worktree_path() {
 
 # ── Worktree-aware resource resolution ──────────────────────────────
 #
-# Maps a service name to its Tilt resource name, appending the
-# worktree slug suffix when running from a worktree checkout.
-# Usage: resolve_worktree_resource_name <service>
-#        resolve_worktree_resource_names <service> [<service>...]
+# Maps a resource name to its Tilt resource name, appending the
+# worktree slug suffix when running from a worktree checkout —
+# but ONLY for names that correspond to services defined in
+# services.json.  Shared infra resources (database, storage,
+# ingress-controller, etc.) are never suffixed.
+#
+# Usage: resolve_worktree_resource_name <name>
+#        resolve_worktree_resource_names <name> [<name>...]
+
+_is_known_service() {
+  [ -f "$SERVICES_JSON" ] || return 1
+  python3 -c "
+import json, sys
+svc = sys.argv[1]
+with open(sys.argv[2]) as f:
+    services = json.load(f)
+sys.exit(0 if svc in services else 1)
+" "$1" "$SERVICES_JSON"
+}
 
 resolve_worktree_resource_name() {
-  if is_worktree "$REPO_ROOT"; then
+  if is_worktree "$REPO_ROOT" && _is_known_service "$1"; then
     local slug
     slug="$(detect_worktree_slug)"
     echo "${1}-wt-${slug}"
