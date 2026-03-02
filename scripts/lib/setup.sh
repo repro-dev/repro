@@ -154,7 +154,7 @@ cmd_doctor() {
   fi
 
   # 2. Brewfile dependencies
-  local brew_deps=("direnv" "kind" "postgresql@17")
+  local brew_deps=("direnv" "kind" "pandoc" "postgresql@17")
   for dep in "${brew_deps[@]}"; do
     if command -v brew > /dev/null 2>&1 && brew list "$dep" > /dev/null 2>&1; then
       local dep_version
