@@ -32,8 +32,8 @@ export const Picker: React.FC = () => {
         transition="all linear 250ms"
         props={{ onClick: togglePicker }}
       >
+        <Tooltip position="top">Select element</Tooltip>
         <Block>
-          <Tooltip position="top">Select element</Tooltip>
           <PickerIcon size={14} />
         </Block>
       </Row>

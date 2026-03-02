@@ -78,10 +78,8 @@ const Item: React.FC<ItemProps> = ({ disabled, icon, label, view }) => {
         onClick: handleClick,
       }}
     >
-      <Block>
-        {!inspecting && <Tooltip position="top">{label}</Tooltip>}
-        {icon}
-      </Block>
+      {!inspecting && <Tooltip position="top">{label}</Tooltip>}
+      <Block>{icon}</Block>
 
       {inspecting && <Inline>{label}</Inline>}
     </Row>
