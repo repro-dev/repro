@@ -139,7 +139,11 @@ case "$COMMAND" in
         usage
       fi
     else
-      page="reproctl-$1"
+      local topic="$1"
+      case "$topic" in
+        wt) topic="worktree" ;;
+      esac
+      page="reproctl-$topic"
       if command -v man > /dev/null 2>&1 && man -w "$page" > /dev/null 2>&1; then
         man "$page"
       else

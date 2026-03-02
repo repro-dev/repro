@@ -1,10 +1,10 @@
-% REPROCTL-WT(1) reproctl | Repro Development Tools
+% REPROCTL-WORKTREE(1) reproctl | Repro Development Tools
 % Repro
 % 2026
 
 # NAME
 
-reproctl-wt - manage git worktrees
+reproctl-worktree - manage git worktrees
 
 # SYNOPSIS
 

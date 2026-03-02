@@ -49,7 +49,7 @@ Context is detected automatically: from the main checkout, services run as main;
 : Open the Tilt dashboard in a browser.
 
 **worktree** *subcommand*
-: Manage git worktrees. See **reproctl-wt**(1). Alias: **wt**.
+: Manage git worktrees. See **reproctl-worktree**(1). Alias: **wt**.
 
 # EXAMPLES
 
@@ -64,4 +64,4 @@ reproctl stop --all
 
 # SEE ALSO
 
-**reproctl-setup**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-wt**(1)
+**reproctl-setup**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-worktree**(1)
