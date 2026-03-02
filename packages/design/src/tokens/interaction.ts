@@ -2,15 +2,17 @@
  * Interaction style tokens and utilities for @repro/design.
  *
  * This module is the canonical source for interactive state styling across the
- * component library. It covers focus rings first; hover, active, disabled, and
- * selection state utilities will be added here over time.
+ * component library. It covers focus rings, hover lift, active press, and
+ * other interactive state utilities.
  *
  * Usage:
- *   import { focusRing } from '@repro/design'
+ *   import { focusRing, hoverLift, activePress } from '@repro/design'
  *   <Block {...focusRing()} />
- *   <Block {...focusRing('danger')} />
+ *   <Block {...hoverLift()} {...activePress()} />
  */
 import twColors from 'tailwindcss/colors'
+
+import { transition } from './motion'
 
 // ---------------------------------------------------------------------------
 // Focus ring tokens
@@ -106,6 +108,52 @@ export function focusWithinRing(context: FocusRingContext = 'default') {
     '&:has(:focus-visible)': {
       outline: tokens.outline,
       outlineOffset: tokens.outlineOffset,
+    },
+  } as const
+}
+
+// ---------------------------------------------------------------------------
+// Hover lift
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns jsxstyle-compatible props that apply a slight scale-up on hover,
+ * giving the element a "lift" feel. Disabled elements are excluded via
+ * `:not(:disabled)`.
+ *
+ * Uses `transition.fast` for a snappy response.
+ *
+ * @example
+ * <Block component="button" {...hoverLift()} />
+ */
+export function hoverLift() {
+  return {
+    transition: transition.fast,
+    '&:hover:not(:disabled)': {
+      transform: 'scale(1.02)',
+    },
+  } as const
+}
+
+// ---------------------------------------------------------------------------
+// Active press
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns jsxstyle-compatible props that apply a scale-down on active/press,
+ * simulating a physical button press. Disabled elements are excluded via
+ * `:not(:disabled)`.
+ *
+ * Uses `transition.fast` for a snappy response.
+ *
+ * @example
+ * <Block component="button" {...activePress()} />
+ */
+export function activePress() {
+  return {
+    transition: transition.fast,
+    '&:active:not(:disabled)': {
+      transform: 'scale(0.98)',
     },
   } as const
 }

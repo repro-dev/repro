@@ -2,8 +2,7 @@ import { Row } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
 import { color } from '../tokens/colors'
 import { radius, shadow, containedShadow } from '../tokens/elevation'
-import { focusRing } from '../tokens/interaction'
-import { transition } from '../tokens/motion'
+import { activePress, focusRing, hoverLift } from '../tokens/interaction'
 import { fontSize as fontSizeTokens } from '../tokens/typography'
 
 type Props = PropsWithChildren<{
@@ -163,8 +162,9 @@ export const Button: React.FC<Props> = ({
       cursor={disabled ? 'default' : 'pointer'}
       fontSize={fontSize}
       lineHeight="1em"
-      transition={transition.fast}
       {...focusRing(context)}
+      {...hoverLift()}
+      {...activePress()}
     >
       {children}
     </Row>

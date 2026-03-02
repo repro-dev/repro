@@ -137,3 +137,52 @@ export const Square: Story = {
     </Row>
   ),
 }
+
+/**
+ * Hover and active micro-interactions.
+ * Hover a button to see the lift effect (scale up); click and hold to see the
+ * press effect (scale down). Disabled buttons do not animate.
+ */
+export const HoverAndActive: Story = {
+  render: () => (
+    <Col gap={24} padding={16}>
+      <Col gap={8}>
+        <Block
+          fontSize={fontSize.xs}
+          fontWeight={600}
+          letterSpacing="0.08em"
+          textTransform="uppercase"
+          color={color.text.muted}
+        >
+          Interactive (hover + active)
+        </Block>
+        <Row gap={8} alignItems="center">
+          {contexts.map(c => (
+            <Button key={c} context={c}>
+              {c}
+            </Button>
+          ))}
+        </Row>
+      </Col>
+
+      <Col gap={8}>
+        <Block
+          fontSize={fontSize.xs}
+          fontWeight={600}
+          letterSpacing="0.08em"
+          textTransform="uppercase"
+          color={color.text.muted}
+        >
+          Disabled (no hover/active)
+        </Block>
+        <Row gap={8} alignItems="center">
+          {contexts.map(c => (
+            <Button key={c} context={c} disabled>
+              {c}
+            </Button>
+          ))}
+        </Row>
+      </Col>
+    </Col>
+  ),
+}
