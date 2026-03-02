@@ -39,18 +39,7 @@ merge_services() {
     IFS=':' read -r slug source svc_name <<< "$entry"
 
     result=$(SVC_NAME="$svc_name" SVC_SOURCE="$source" SVC_SLUG="$slug" \
-      python3 -c "
-import json, os, sys
-data = json.load(sys.stdin)
-svc_name = os.environ['SVC_NAME']
-source = os.environ['SVC_SOURCE']
-slug = os.environ['SVC_SLUG']
-services = data.get('services', [])
-services = [s for s in services if not (s['name'] == svc_name and s.get('slug', '') == slug)]
-services.append({'name': svc_name, 'source': source, 'slug': slug})
-data['services'] = services
-json.dump(data, sys.stdout, indent=2)
-" <<< "$result")
+      python3 "$SCRIPTS_DIR/lib/py/config_upsert.py" <<< "$result")
   done
 
   echo "$result"
@@ -67,44 +56,18 @@ remove_services() {
     IFS=':' read -r slug svc_name <<< "$entry"
 
     result=$(SVC_NAME="$svc_name" SVC_SLUG="$slug" \
-      python3 -c "
-import json, os, sys
-data = json.load(sys.stdin)
-svc_name = os.environ['SVC_NAME']
-slug = os.environ['SVC_SLUG']
-services = data.get('services', [])
-services = [s for s in services if not (s['name'] == svc_name and s.get('slug', '') == slug)]
-data['services'] = services
-json.dump(data, sys.stdout, indent=2)
-" <<< "$result")
+      python3 "$SCRIPTS_DIR/lib/py/config_remove.py" <<< "$result")
   done
 
   echo "$result"
 }
 
 print_services() {
-  echo "$1" | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-services = data.get('services', [])
-if not services:
-    print('  (none)')
-else:
-    for s in services:
-        slug = s.get('slug', '')
-        if slug:
-            print('  %s (wt: %s)' % (s['name'], slug))
-        else:
-            print('  %s (main)' % s['name'])
-"
+  echo "$1" | python3 "$SCRIPTS_DIR/lib/py/config_print.py"
 }
 
 service_count() {
-  echo "$1" | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-print(len(data.get('services', [])))
-"
+  echo "$1" | python3 "$SCRIPTS_DIR/lib/py/config_count.py"
 }
 
 # ── Tilt lifecycle ──────────────────────────────────────────────────
@@ -308,80 +271,8 @@ USAGE
   echo "Resources:"
 
   tilt get uiresources -o json --port "$TILT_PORT" 2>/dev/null | \
-    SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" python3 -c '
-import json, os, sys
-
-data = json.load(sys.stdin)
-items = data.get("items", [])
-
-svc_path = os.environ.get("SERVICES_JSON", "")
-cfg_path = os.environ.get("CONFIG_FILE", "")
-
-known_services = set()
-if svc_path and os.path.isfile(svc_path):
-    with open(svc_path) as f:
-        known_services = set(json.load(f).keys())
-
-configured = set()
-if cfg_path and os.path.isfile(cfg_path):
-    with open(cfg_path) as f:
-        cfg_data = json.load(f)
-        for s in cfg_data.get("services", []):
-            slug = s.get("slug", "")
-            name = s.get("name", "")
-            if slug:
-                configured.add(name + "-wt-" + slug)
-            else:
-                configured.add(name)
-
-rows = []
-for item in items:
-    name = item.get("metadata", {}).get("name", "")
-    if name == "(Tiltfile)":
-        continue
-
-    status_obj = item.get("status", {})
-    runtime = status_obj.get("runtimeStatus", "")
-    update = status_obj.get("updateStatus", "")
-
-    effective_runtime = "ok" if runtime in ("ok", "not_applicable") else runtime
-    effective_update = "ok" if update in ("ok", "not_applicable", "none") else update
-
-    if effective_runtime == "ok" and effective_update == "ok":
-        display_status = "ok"
-    elif effective_runtime == "error" or effective_update == "error":
-        display_status = "error"
-    elif effective_update == "in_progress":
-        display_status = "building"
-    else:
-        display_status = "pending"
-    if "-wt-" in name:
-        idx = name.index("-wt-")
-        wt_slug = name[idx + 4:]
-        res_type = "service [wt:" + wt_slug + "]"
-    elif name in known_services:
-        res_type = "service"
-    elif name.endswith("-migrations"):
-        res_type = "job"
-    else:
-        res_type = "infra"
-
-    auto = ""
-    if res_type == "service" and name not in configured:
-        auto = " (auto)"
-
-    rows.append((name, display_status, res_type + auto))
-
-if not rows:
-    print("  (none)")
-else:
-    col0 = max(len(r[0]) for r in rows)
-    col1 = max(len(r[1]) for r in rows)
-    for name_val, status_val, type_val in rows:
-        pad0 = name_val.ljust(col0)
-        pad1 = status_val.ljust(col1)
-        print("  " + pad0 + "  " + pad1 + "  " + type_val)
-'
+    SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" \
+    python3 "$SCRIPTS_DIR/lib/py/format_status.py"
 }
 
 cmd_restart() {
@@ -431,13 +322,8 @@ USAGE
     fi
 
     local has_migrations
-    has_migrations=$(SERVICES_JSON="$SERVICES_JSON" SVC_NAME="$svc" python3 -c "
-import json, os, sys
-with open(os.environ['SERVICES_JSON']) as f:
-    data = json.load(f)
-svc = os.environ['SVC_NAME']
-print('yes' if data.get(svc, {}).get('migrations') else 'no')
-")
+    has_migrations=$(SERVICES_JSON="$SERVICES_JSON" SVC_NAME="$svc" \
+      python3 "$SCRIPTS_DIR/lib/py/check_migrations.py")
 
     if [ "$has_migrations" = "yes" ]; then
       echo "Triggering migrations for $svc..."

@@ -115,13 +115,7 @@ worktree_path() {
 
 _is_known_service() {
   [ -f "$SERVICES_JSON" ] || return 1
-  python3 -c "
-import json, sys
-svc = sys.argv[1]
-with open(sys.argv[2]) as f:
-    services = json.load(f)
-sys.exit(0 if svc in services else 1)
-" "$1" "$SERVICES_JSON"
+  python3 "$SCRIPTS_DIR/lib/py/is_known_service.py" "$1" "$SERVICES_JSON"
 }
 
 resolve_worktree_resource_name() {

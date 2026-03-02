@@ -24,6 +24,17 @@ reproctl help logs         # service log streaming
 reproctl help doctor       # environment diagnostics
 ```
 
+## Python script tests
+
+The `scripts/lib/py/` directory contains standalone Python scripts used by reproctl bash scripts. These have a pytest suite in `scripts/lib/py/tests/` that is **not** integrated into moon or CI — tests must be run locally when scripts are changed.
+
+```sh
+# Run all Python script tests (from repo root)
+python3 -m pytest scripts/lib/py/tests/ -v
+```
+
+Requires `pytest` (`pip3 install pytest`). Uses system Python 3 — no version pinning required.
+
 ## Tool version pinning
 
 All tool versions are pinned in `.prototools` at the repo root. This is the single source of truth for tool versions.
