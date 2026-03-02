@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { PortalRootProvider } from "@repro/design";
 import { applyResetStyles } from "@repro/theme";
+import { theme } from "./theme";
 
 const globalStyleRoot = document.getElementById("global-styles");
 
@@ -23,6 +24,9 @@ const preview = {
         { name: "Dark", value: "#1a1a2e" },
         { name: "Neutral", value: "#f5f5f5" },
       ],
+    },
+    docs: {
+      theme,
     },
   },
   decorators: [
