@@ -40,27 +40,22 @@ read_prototools_version() {
 # ── Setup command ───────────────────────────────────────────────────
 
 cmd_setup() {
-  local skip_cluster=false
+  local args=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --skip-cluster) skip_cluster=true; shift ;;
+      --skip-cluster) args+=("--no-cluster"); shift ;;
       -h|--help)
         cat <<'EOF'
 Usage: reproctl setup [options]
 
-Bootstrap the local development environment. Installs all required
-tools and dependencies in the correct order.
+Bootstrap the local development environment. Delegates to
+scripts/bootstrap.sh which handles the full dependency chain.
 
 Options:
-  --skip-cluster    Skip kind cluster creation (step 5)
+  --skip-cluster    Skip kind cluster creation
 
-Steps:
-  1. brew bundle     Install Homebrew dependencies from Brewfile
-  2. proto use       Install proto-managed tools from .prototools
-  3. pnpm install    Install Node.js dependencies
-  4. Docker check    Verify Docker is installed and running
-  5. cluster up      Create kind cluster and registry (idempotent)
+Run './scripts/bootstrap.sh --help' for full details.
 EOF
         return 0
         ;;
@@ -70,68 +65,7 @@ EOF
     esac
   done
 
-  # Prerequisite: brew must be available
-  if ! command -v brew > /dev/null 2>&1; then
-    die "Homebrew is not installed.\nInstall it from https://brew.sh:\n  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
-  fi
-
-  # Step 1: brew bundle
-  echo "==> Step 1/5: Installing Homebrew dependencies..."
-  if ! brew bundle --file="$MAIN_CHECKOUT/Brewfile"; then
-    die "brew bundle failed. Check the output above."
-  fi
-  echo ""
-
-  # Step 2: proto use
-  echo "==> Step 2/5: Installing proto-managed tools..."
-  if ! command -v proto > /dev/null 2>&1; then
-    die "proto is not on PATH after brew bundle.\nInstall it manually: https://moonrepo.dev/docs/proto/install"
-  fi
-  if ! (cd "$MAIN_CHECKOUT" && proto use); then
-    die "proto use failed. Check the output above."
-  fi
-  echo ""
-
-  # Step 3: pnpm install
-  echo "==> Step 3/5: Installing Node.js dependencies..."
-  if ! (cd "$MAIN_CHECKOUT" && pnpm install); then
-    die "pnpm install failed. Check the output above."
-  fi
-  echo ""
-
-  # Step 4: Docker check
-  echo "==> Step 4/5: Checking Docker..."
-  if ! command -v docker > /dev/null 2>&1; then
-    die "Docker is not installed.\nInstall Docker Desktop: https://www.docker.com/products/docker-desktop"
-  fi
-  if ! docker info > /dev/null 2>&1; then
-    echo "Docker daemon is not running. Please start Docker Desktop."
-    echo "Waiting for Docker to start..."
-    local retries=0
-    while [ "$retries" -lt 30 ]; do
-      if docker info > /dev/null 2>&1; then
-        break
-      fi
-      sleep 2
-      retries=$((retries + 1))
-    done
-    if ! docker info > /dev/null 2>&1; then
-      die "Docker daemon did not start within 60 seconds.\nStart Docker Desktop manually and re-run 'reproctl setup'."
-    fi
-  fi
-  echo "Docker is running."
-  echo ""
-
-  # Step 5: Cluster
-  if [ "$skip_cluster" = true ]; then
-    echo "==> Step 5/5: Skipping cluster creation (--skip-cluster)"
-  else
-    echo "==> Step 5/5: Creating kind cluster and registry..."
-    cmd_cluster_up
-  fi
-
-  echo ""
-  echo "Setup complete. Run 'reproctl doctor' to verify your environment."
+  exec "$SCRIPTS_DIR/bootstrap.sh" "${args[@]}"
 }
 
 # ── Doctor command ──────────────────────────────────────────────────

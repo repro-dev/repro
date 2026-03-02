@@ -9,8 +9,11 @@
 #   2. direnv shell hook      (check + remind)
 #   3. Proto-managed tools    (proto use)
 #   4. Node.js dependencies   (pnpm install)
-#   5. Trust .envrc           (direnv allow)
-#   6. Cluster + registry     (reproctl setup, which skips completed steps)
+#   5. Docker                 (check daemon is running, wait if needed)
+#   6. Trust .envrc           (direnv allow)
+#   7. Cluster + registry     (reproctl cluster up)
+#
+# Also invoked by `reproctl setup`, which passes through its flags.
 #
 # Usage:
 #   ./scripts/bootstrap.sh              # full setup
@@ -26,7 +29,7 @@ cd "$REPO_ROOT"
 # ── Helpers ─────────────────────────────────────────────────────────
 
 step=0
-total=6
+total=7
 
 next_step() {
   step=$((step + 1))
@@ -55,7 +58,7 @@ Usage: ./scripts/bootstrap.sh [options]
 Bootstrap the development environment from a fresh clone.
 
 Options:
-  --no-cluster    Skip kind cluster creation (step 6)
+  --no-cluster    Skip kind cluster creation (step 7)
   -h, --help      Show this help
 EOF
       exit 0
@@ -117,14 +120,41 @@ next_step "Installing Node.js dependencies..."
 pnpm install
 ok "Node.js dependencies installed"
 
-# ── Step 5: Trust .envrc ────────────────────────────────────────────
+# ── Step 5: Docker ──────────────────────────────────────────────────
+
+next_step "Checking Docker..."
+
+if ! command -v docker > /dev/null 2>&1; then
+  die "Docker is not installed. Install Docker Desktop: https://www.docker.com/products/docker-desktop"
+fi
+
+if ! docker info > /dev/null 2>&1; then
+  echo "  Docker daemon is not running. Please start Docker Desktop."
+  echo "  Waiting for Docker to start..."
+  retries=0
+  while [ "$retries" -lt 30 ]; do
+    if docker info > /dev/null 2>&1; then
+      break
+    fi
+    sleep 2
+    retries=$((retries + 1))
+  done
+  if ! docker info > /dev/null 2>&1; then
+    die "Docker daemon did not start within 60 seconds. Start Docker Desktop manually and re-run."
+  fi
+fi
+
+docker_version="$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "unknown")"
+ok "Docker $docker_version, daemon running"
+
+# ── Step 6: Trust .envrc ────────────────────────────────────────────
 
 next_step "Trusting .envrc (enables reproctl as a bare command)..."
 
 direnv allow "$REPO_ROOT"
 ok ".envrc allowed"
 
-# ── Step 6: Cluster + registry ──────────────────────────────────────
+# ── Step 7: Cluster + registry ──────────────────────────────────────
 
 if [ "$skip_cluster" = true ]; then
   next_step "Skipping cluster creation (--no-cluster)"
