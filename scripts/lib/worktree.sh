@@ -15,7 +15,7 @@ _linear_api() {
   local response
   response="$(curl -sSf -X POST \
     -H "Content-Type: application/json" \
-    -H "Authorization: $LINEAR_API_KEY" \
+    -H "Authorization: Bearer $LINEAR_API_KEY" \
     --data "{\"query\": $(printf '%s' "$query" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}" \
     "https://api.linear.app/graphql")" || die "Failed to reach Linear API"
 
@@ -48,7 +48,7 @@ cmd_wt_create_from_issue() {
   fi
 
   if [[ -z "${LINEAR_API_KEY:-}" ]]; then
-    die "LINEAR_API_KEY environment variable is not set.\nSet it to a Linear personal API key to use --from-issue."
+    die "LINEAR_API_KEY environment variable is not set.\nCreate a personal API key at https://linear.app/settings/api\nthen export it in your shell:  export LINEAR_API_KEY=lin_api_..."
   fi
 
   _step 1 3 "Fetching issue ${issue_id} from Linear..."
