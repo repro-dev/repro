@@ -1,0 +1,5 @@
+# Auto-prune worktrees whose branches were just merged.
+current_branch=$(git symbolic-ref --short HEAD 2>/dev/null || true)
+if [ "$current_branch" = "main" ] && [ -x scripts/reproctl.sh ]; then
+  scripts/reproctl.sh wt prune --yes 2>/dev/null || true
+fi
