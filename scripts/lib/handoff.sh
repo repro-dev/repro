@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# scripts/lib/context_bundle.sh — generate a self-contained context document
+# scripts/lib/handoff.sh — generate a self-contained context document
 # for subagent delegation
 #
 # Sourced by reproctl.sh. Expects common.sh, context.sh, and worktree.sh
 # to be loaded first.
 
-cmd_context_bundle() {
+cmd_handoff() {
   local issue_id=""
   local wt_path=""
 
@@ -28,7 +28,7 @@ cmd_context_bundle() {
         ;;
       -h|--help)
         cat <<'USAGE'
-Usage: reproctl context-bundle [options]
+Usage: reproctl handoff [options]
 
 Generate a self-contained markdown context document for subagent delegation.
 
@@ -42,7 +42,7 @@ USAGE
         return 0
         ;;
       *)
-        die "Unknown option: $1\nRun 'reproctl context-bundle --help' for usage."
+        die "Unknown option: $1\nRun 'reproctl handoff --help' for usage."
         ;;
     esac
   done
@@ -103,7 +103,7 @@ USAGE
     has_ts=true
   fi
 
-  local conventions_dir="$SCRIPTS_DIR/lib/context_bundle_conventions"
+  local conventions_dir="$SCRIPTS_DIR/lib/handoff_conventions"
   local conventions=""
 
   if [[ -f "$conventions_dir/general.md" ]]; then
