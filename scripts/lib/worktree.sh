@@ -230,7 +230,7 @@ resolve_worktree() {
   while IFS= read -r line; do
     case "$line" in
       worktree\ *) wt_path="${line#worktree }" ;;
-      branch\ *)   wt_branch="${line#branch refs/heads/}" ;;
+      branch\ *)   wt_branch="${line#branch }"; wt_branch="${wt_branch#refs/heads/}" ;;
       "")
         if [[ "$wt_branch" == "$input" ]]; then
           echo "$wt_path"
@@ -254,9 +254,12 @@ _worktree_branch_for_path() {
   while IFS= read -r line; do
     case "$line" in
       worktree\ *) wt_path="${line#worktree }" ;;
-      branch\ *)   wt_branch="${line#branch refs/heads/}" ;;
+      branch\ *)   wt_branch="${line#branch }"; wt_branch="${wt_branch#refs/heads/}" ;;
       "")
         if [[ "$wt_path" == "$target" ]]; then
+          if [[ -z "$wt_branch" ]]; then
+            return 1
+          fi
           echo "$wt_branch"
           return 0
         fi
@@ -265,6 +268,9 @@ _worktree_branch_for_path() {
     esac
   done < <(git worktree list --porcelain)
   if [[ "$wt_path" == "$target" ]]; then
+    if [[ -z "$wt_branch" ]]; then
+      return 1
+    fi
     echo "$wt_branch"
     return 0
   fi
@@ -275,29 +281,34 @@ _worktree_branch_for_path() {
 _list_available_worktrees() {
   local wt_path="" wt_branch="" wt_bare=false wt_detached=false
   local entries=()
+
+  _avail_flush() {
+    if [[ -z "$wt_path" ]]; then return; fi
+    if [[ "$wt_bare" != true ]]; then
+      local basename
+      basename="$(basename "$wt_path")"
+      if [[ "$basename" == repro-wt-* ]]; then
+        local slug="${basename#repro-wt-}"
+        if [[ "$wt_detached" == true ]]; then
+          entries+=("  $slug  (detached HEAD)")
+        else
+          entries+=("  $slug  $wt_branch")
+        fi
+      fi
+    fi
+    wt_path="" wt_branch="" wt_bare=false wt_detached=false
+  }
+
   while IFS= read -r line; do
     case "$line" in
       worktree\ *) wt_path="${line#worktree }" ;;
-      branch\ *)   wt_branch="${line#branch refs/heads/}" ;;
+      branch\ *)   wt_branch="${line#branch }"; wt_branch="${wt_branch#refs/heads/}" ;;
       bare)        wt_bare=true ;;
       detached)    wt_detached=true ;;
-      "")
-        if [[ "$wt_bare" != true ]]; then
-          local basename
-          basename="$(basename "$wt_path")"
-          if [[ "$basename" == repro-wt-* ]]; then
-            local slug="${basename#repro-wt-}"
-            if [[ "$wt_detached" == true ]]; then
-              entries+=("  $slug  (detached HEAD)")
-            else
-              entries+=("  $slug  $wt_branch")
-            fi
-          fi
-        fi
-        wt_path="" wt_branch="" wt_bare=false wt_detached=false
-        ;;
+      "")          _avail_flush ;;
     esac
   done < <(git worktree list --porcelain)
+  _avail_flush
 
   if [[ ${#entries[@]} -eq 0 ]]; then
     echo "  (none)"
