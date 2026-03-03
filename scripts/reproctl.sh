@@ -58,6 +58,8 @@ source "$SCRIPT_DIR/lib/db.sh"
 source "$SCRIPT_DIR/lib/context.sh"
 # shellcheck source=scripts/lib/checkhealth.sh
 source "$SCRIPT_DIR/lib/checkhealth.sh"
+# shellcheck source=scripts/lib/handoff.sh
+source "$SCRIPT_DIR/lib/handoff.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -80,6 +82,7 @@ Commands:
   logs [options] [service...]     Show or stream service logs
   ui                              Open the Tilt dashboard in a browser
   context                         Show current development context
+  handoff [options]               Generate context document for subagent delegation
   worktree <subcommand>           Manage git worktrees (create, remove, list, attach)
                                   (alias: wt)
   help [<command>]                Show manpage for reproctl or a subcommand
@@ -115,6 +118,8 @@ Examples:
   reproctl logs --json --since 5m api-server  # structured recent logs
   reproctl ui                                 # open Tilt dashboard
   reproctl context                            # show current worktree/branch context
+  reproctl handoff                            # generate handoff document from current branch
+  reproctl handoff -i REP-123                 # generate handoff document for specific issue
   reproctl wt attach feat/my-feat              # drop into worktree subshell
   reproctl wt create feat/my-feat             # shorthand for worktree
   reproctl worktree create feat/my-feat       # create worktree (auto-creates branch)
@@ -169,6 +174,7 @@ USAGE
   logs)    cmd_logs "$@" ;;
   ui)      cmd_ui "$@" ;;
   context) cmd_context "$@" ;;
+  handoff) cmd_handoff "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
   help)
     topic="${1:-reproctl}"
