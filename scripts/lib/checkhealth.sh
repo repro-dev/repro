@@ -72,7 +72,10 @@ cmd_checkhealth() {
     has_errors=true
   fi
 
-  if registry_exists; then
+  if ! command -v docker > /dev/null 2>&1 || ! docker info > /dev/null 2>&1; then
+    _diag_skip "Container registry" "Docker not available"
+    _add_check "registry" "skip" "Docker not available"
+  elif registry_exists; then
     local reg_port
     reg_port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "5000/tcp") 0).HostPort}}' "$REGISTRY_NAME" 2>/dev/null || echo "5000")"
     if curl -sf "http://localhost:${reg_port}/v2/" > /dev/null 2>&1; then
@@ -93,21 +96,30 @@ cmd_checkhealth() {
 
   local ports=(80 443 15432)
   local port_names=("HTTP/ingress" "HTTPS/ingress" "PostgreSQL")
-  for i in "${!ports[@]}"; do
-    local port="${ports[$i]}"
-    local pname="${port_names[$i]}"
-    local listener
-    listener="$(lsof -iTCP:"$port" -sTCP:LISTEN -P -n 2>/dev/null | tail -1 | awk '{print $1}' || true)"
-    if [ -n "$listener" ]; then
-      _diag_ok "Port $port" "bound ($pname, $listener)"
-      _add_check "port_$port" "ok" "bound ($pname, $listener)"
-    else
-      _diag_warn "Port $port" "not bound ($pname)"
-      _add_check "port_$port" "warn" "not bound ($pname)"
-      _add_issue "warning" "Port $port ($pname) is not bound — service may not be started"
-      has_warnings=true
-    fi
-  done
+  if command -v lsof > /dev/null 2>&1; then
+    for i in "${!ports[@]}"; do
+      local port="${ports[$i]}"
+      local pname="${port_names[$i]}"
+      local listener
+      listener="$(lsof -iTCP:"$port" -sTCP:LISTEN -P -n 2>/dev/null | tail -1 | awk '{print $1}' || true)"
+      if [ -n "$listener" ]; then
+        _diag_ok "Port $port" "bound ($pname, $listener)"
+        _add_check "port_$port" "ok" "bound ($pname, $listener)"
+      else
+        _diag_warn "Port $port" "not bound ($pname)"
+        _add_check "port_$port" "warn" "not bound ($pname)"
+        _add_issue "warning" "Port $port ($pname) is not bound — service may not be started"
+        has_warnings=true
+      fi
+    done
+  else
+    for i in "${!ports[@]}"; do
+      local port="${ports[$i]}"
+      local pname="${port_names[$i]}"
+      _diag_skip "Port $port" "cannot check ($pname, lsof not available)"
+      _add_check "port_$port" "skip" "cannot check ($pname, lsof not available)"
+    done
+  fi
 
   if [ "$CHECKHEALTH_JSON" != true ]; then
     echo ""
@@ -124,23 +136,31 @@ cmd_checkhealth() {
       python3 "$SCRIPTS_DIR/lib/py/format_checkhealth.py" 2>/dev/null || echo '{"services":[],"issues":[]}')"
 
     if [ "$CHECKHEALTH_JSON" != true ]; then
-      printf '%s' "$svc_results" | python3 -c '
-import json, sys
+      printf '%s' "$svc_results" | \
+        CLR_BOLD="$CLR_BOLD" CLR_RESET="$CLR_RESET" CLR_GREEN="$CLR_GREEN" \
+        CLR_RED="$CLR_RED" CLR_YELLOW="$CLR_YELLOW" CLR_DIM="$CLR_DIM" \
+        python3 -c '
+import json, os, sys
 data = json.load(sys.stdin)
+bold = os.environ.get("CLR_BOLD", "")
+reset = os.environ.get("CLR_RESET", "")
+green = os.environ.get("CLR_GREEN", "")
+red = os.environ.get("CLR_RED", "")
+yellow = os.environ.get("CLR_YELLOW", "")
+dim = os.environ.get("CLR_DIM", "")
 for s in data.get("services", []):
     name = s["name"]
     status = s["status"]
     detail = s.get("detail", "")
     if status == "ok":
-        color = "\033[32m"
+        color = green
     elif status == "error":
-        color = "\033[31m"
+        color = red
     elif status == "warn":
-        color = "\033[33m"
+        color = yellow
     else:
-        color = "\033[2m"
-    reset = "\033[0m"
-    print(f"  \033[1m{name:<24}\033[0m {color}{status}{reset}  {detail}")
+        color = dim
+    print(f"  {bold}{name:<24}{reset} {color}{status}{reset}  {detail}")
 '
     fi
 
@@ -194,15 +214,15 @@ import json, sys
 releases = json.load(sys.stdin)
 wt = [r for r in releases if "-wt-" in r.get("name", "")]
 for r in wt:
-    print(r["name"])
+    print(r["name"] + "\t" + r.get("namespace", "default"))
 ' 2>/dev/null || true)"
 
     local wt_slugs=()
-    local wt_path="" wt_branch="" wt_bare=false
+    local wt_path="" wt_bare=false
     while IFS= read -r line; do
       case "$line" in
         worktree\ *) wt_path="${line#worktree }" ;;
-        branch\ *)   wt_branch="${line#branch refs/heads/}" ;;
+        branch\ *)   ;; # branch not needed here
         bare)        wt_bare=true ;;
         "")
           if [ "$wt_bare" != true ] && [ -n "$wt_path" ]; then
@@ -212,7 +232,7 @@ for r in wt:
               wt_slugs+=("${basename#repro-wt-}")
             fi
           fi
-          wt_path="" wt_branch="" wt_bare=false
+          wt_path="" wt_bare=false
           ;;
       esac
     done < <(git worktree list --porcelain)
@@ -225,10 +245,10 @@ for r in wt:
     fi
 
     local orphaned_releases=()
-    while IFS= read -r release; do
-      [ -z "$release" ] && continue
+    while IFS=$'\t' read -r release_name release_ns; do
+      [ -z "$release_name" ] && continue
       local release_slug
-      release_slug="$(printf '%s' "$release" | sed 's/.*-wt-//')"
+      release_slug="$(printf '%s' "$release_name" | sed 's/.*-wt-//')"
 
       local found=false
       for slug in "${wt_slugs[@]}"; do
@@ -239,16 +259,16 @@ for r in wt:
       done
 
       if [ "$found" = false ]; then
-        orphaned_releases+=("$release")
+        orphaned_releases+=("$release_name"$'\t'"${release_ns:-default}")
       fi
     done <<< "$wt_releases"
 
     if [ ${#wt_slugs[@]} -gt 0 ]; then
       for slug in "${wt_slugs[@]}"; do
         local release_count=0
-        while IFS= read -r release; do
-          [ -z "$release" ] && continue
-          if [[ "$release" == *"-wt-$slug" ]]; then
+        while IFS=$'\t' read -r release_name _; do
+          [ -z "$release_name" ] && continue
+          if [[ "$release_name" == *"-wt-$slug" ]]; then
             release_count=$((release_count + 1))
           fi
         done <<< "$wt_releases"
@@ -268,10 +288,12 @@ for r in wt:
     fi
 
     if [ ${#orphaned_releases[@]} -gt 0 ]; then
-      for release in "${orphaned_releases[@]}"; do
-        _diag_warn "orphan: $release" "no matching worktree"
-        _add_check "orphan_$release" "warn" "orphaned Helm release — no matching worktree"
-        _add_issue "warning" "Orphaned Helm release '$release' — no matching worktree. Clean up with: helm uninstall $release"
+      for entry in "${orphaned_releases[@]}"; do
+        local release_name release_ns
+        IFS=$'\t' read -r release_name release_ns <<< "$entry"
+        _diag_warn "orphan: $release_name" "no matching worktree"
+        _add_check "orphan_$release_name" "warn" "orphaned Helm release — no matching worktree"
+        _add_issue "warning" "Orphaned Helm release '$release_name' — no matching worktree. Clean up with: helm uninstall $release_name --namespace $release_ns"
         has_warnings=true
       done
     fi

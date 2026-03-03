@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Format Tilt resource data for `reproctl diagnose`.
+"""Format Tilt resource data for `reproctl checkhealth`.
 
 Reads Tilt uiresources JSON from stdin and produces a JSON object with:
   - services: list of {name, status, detail}
@@ -49,12 +49,6 @@ for item in items:
     runtime = status_obj.get("runtimeStatus", "")
     update = status_obj.get("updateStatus", "")
 
-    containers = (
-        status_obj.get("k8sResourceInfo", {}).get("podConditions", [])
-        if "k8sResourceInfo" in status_obj
-        else []
-    )
-
     pod_restarts = 0
     pod_status_reason = ""
     k8s_info = status_obj.get("k8sResourceInfo", {})
@@ -74,7 +68,7 @@ for item in items:
     elif effective_runtime == "pending" or effective_update == "pending":
         display_status = "pending"
     else:
-        display_status = "ok"
+        display_status = "unknown"
 
     is_service = name in known_services or "-wt-" in name
     is_infra = not is_service and not name.endswith("-migrations")
