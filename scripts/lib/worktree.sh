@@ -216,14 +216,124 @@ cmd_wt_list() {
   echo ""
 }
 
-cmd_attach() {
-  local branch="$1"
-  local wt_path
-  wt_path="$(worktree_path "$branch")"
+resolve_worktree() {
+  local input="$1"
+  local slug_path
+  slug_path="$(worktree_path "$input")"
 
-  if [ ! -d "$wt_path" ]; then
-    die "No worktree found for '$branch' at $wt_path\n  Create it first: reproctl worktree create $branch"
+  if [[ -d "$slug_path" ]]; then
+    echo "$slug_path"
+    return 0
   fi
+
+  local wt_path="" wt_branch=""
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *) wt_path="${line#worktree }" ;;
+      branch\ *)   wt_branch="${line#branch }"; wt_branch="${wt_branch#refs/heads/}" ;;
+      "")
+        if [[ "$wt_branch" == "$input" ]]; then
+          echo "$wt_path"
+          return 0
+        fi
+        wt_path="" wt_branch=""
+        ;;
+    esac
+  done < <(git worktree list --porcelain)
+  if [[ "$wt_branch" == "$input" ]]; then
+    echo "$wt_path"
+    return 0
+  fi
+
+  return 1
+}
+
+_worktree_branch_for_path() {
+  local target="$1"
+  local wt_path="" wt_branch=""
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *) wt_path="${line#worktree }" ;;
+      branch\ *)   wt_branch="${line#branch }"; wt_branch="${wt_branch#refs/heads/}" ;;
+      "")
+        if [[ "$wt_path" == "$target" ]]; then
+          if [[ -z "$wt_branch" ]]; then
+            return 1
+          fi
+          echo "$wt_branch"
+          return 0
+        fi
+        wt_path="" wt_branch=""
+        ;;
+    esac
+  done < <(git worktree list --porcelain)
+  if [[ "$wt_path" == "$target" ]]; then
+    if [[ -z "$wt_branch" ]]; then
+      return 1
+    fi
+    echo "$wt_branch"
+    return 0
+  fi
+
+  return 1
+}
+
+_list_available_worktrees() {
+  local wt_path="" wt_branch="" wt_bare=false wt_detached=false
+  local entries=()
+
+  _avail_flush() {
+    if [[ -z "$wt_path" ]]; then return; fi
+    if [[ "$wt_bare" != true ]]; then
+      local basename
+      basename="$(basename "$wt_path")"
+      if [[ "$basename" == repro-wt-* ]]; then
+        local slug="${basename#repro-wt-}"
+        if [[ "$wt_detached" == true ]]; then
+          entries+=("  $slug  (detached HEAD)")
+        else
+          entries+=("  $slug  $wt_branch")
+        fi
+      fi
+    fi
+    wt_path="" wt_branch="" wt_bare=false wt_detached=false
+  }
+
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *) wt_path="${line#worktree }" ;;
+      branch\ *)   wt_branch="${line#branch }"; wt_branch="${wt_branch#refs/heads/}" ;;
+      bare)        wt_bare=true ;;
+      detached)    wt_detached=true ;;
+      "")          _avail_flush ;;
+    esac
+  done < <(git worktree list --porcelain)
+  _avail_flush
+
+  if [[ ${#entries[@]} -eq 0 ]]; then
+    echo "  (none)"
+  else
+    printf '%s\n' "${entries[@]}"
+  fi
+}
+
+cmd_attach() {
+  local input="$1"
+  local wt_path
+  wt_path="$(resolve_worktree "$input")" || true
+
+  if [[ -z "$wt_path" ]] || [[ ! -d "$wt_path" ]]; then
+    {
+      printf "No worktree found for '%s'.\n\n" "$input"
+      printf "Available worktrees:\n"
+      _list_available_worktrees
+      printf "\n  Create one: reproctl worktree create %s\n" "$input"
+    } >&2
+    exit 1
+  fi
+
+  local branch
+  branch="$(_worktree_branch_for_path "$wt_path")" || branch="$input"
 
   local slug
   slug="$(slugify "$branch")"
