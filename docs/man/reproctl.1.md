@@ -48,6 +48,9 @@ Context is detected automatically: from the main checkout, services run as main;
 **ui**
 : Open the Tilt dashboard in a browser.
 
+**context**
+: Show the current development context (worktree, branch, issue, delta vs main, services).
+
 **worktree** *subcommand*
 : Manage git worktrees. See **reproctl-worktree**(1). Alias: **wt**.
 
