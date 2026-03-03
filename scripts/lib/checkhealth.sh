@@ -14,7 +14,7 @@ _diag_ok() {
 
 _diag_warn() {
   if [ "$CHECKHEALTH_JSON" = true ]; then return; fi
-  printf '  %s%-24s%s %swarn%s  %s\n' "$CLR_BOLD" "$1" "$CLR_RESET" "\033[33m" "$CLR_RESET" "$2"
+  printf '  %s%-24s%s %swarn%s  %s\n' "$CLR_BOLD" "$1" "$CLR_RESET" "$CLR_YELLOW" "$CLR_RESET" "$2"
 }
 
 _diag_err() {
@@ -325,7 +325,7 @@ print(json.dumps(items))
       if [ "$sev" = "error" ]; then
         printf '  %s✗ %s%s\n' "$CLR_RED" "$msg" "$CLR_RESET"
       else
-        printf '  %s⚠ %s%s\n' "\033[33m" "$msg" "$CLR_RESET"
+        printf '  %s⚠ %s%s\n' "$CLR_YELLOW" "$msg" "$CLR_RESET"
       fi
     done
   fi
