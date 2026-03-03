@@ -1,6 +1,6 @@
 import expect from 'expect'
 import { afterEach, before, describe, it } from 'node:test'
-import React, { act } from 'react'
+import React, { act, type ReactNode, useState } from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { ToggleGroup } from './ToggleGroup'
 
@@ -31,7 +31,7 @@ async function tearDown() {
   ;(document.activeElement as HTMLElement | null)?.blur?.()
 }
 
-async function render(element: React.ReactNode) {
+async function render(element: ReactNode) {
   if (!root || !container) {
     setUp()
   }
@@ -62,11 +62,7 @@ describe('ToggleGroup', () => {
   it('renders with radiogroup role', async () => {
     setUp()
     await render(
-      React.createElement(ToggleGroup, {
-        options,
-        selected: 1,
-        onChange: () => {},
-      })
+      <ToggleGroup options={options} selected={1} onChange={() => {}} />
     )
 
     const group = document.querySelector('[role="radiogroup"]')
@@ -76,11 +72,7 @@ describe('ToggleGroup', () => {
   it('renders radio buttons for each option', async () => {
     setUp()
     await render(
-      React.createElement(ToggleGroup, {
-        options,
-        selected: 1,
-        onChange: () => {},
-      })
+      <ToggleGroup options={options} selected={1} onChange={() => {}} />
     )
 
     const radios = document.querySelectorAll('[role="radio"]')
@@ -90,11 +82,7 @@ describe('ToggleGroup', () => {
   it('sets aria-checked on the selected option', async () => {
     setUp()
     await render(
-      React.createElement(ToggleGroup, {
-        options,
-        selected: 2,
-        onChange: () => {},
-      })
+      <ToggleGroup options={options} selected={2} onChange={() => {}} />
     )
 
     const radios = document.querySelectorAll('[role="radio"]')
@@ -106,11 +94,7 @@ describe('ToggleGroup', () => {
   it('uses roving tabindex — only selected option has tabIndex 0', async () => {
     setUp()
     await render(
-      React.createElement(ToggleGroup, {
-        options,
-        selected: 2,
-        onChange: () => {},
-      })
+      <ToggleGroup options={options} selected={2} onChange={() => {}} />
     )
 
     const radios = document.querySelectorAll('[role="radio"]')
@@ -127,7 +111,7 @@ describe('ToggleGroup', () => {
     }
 
     await render(
-      React.createElement(ToggleGroup, { options, selected, onChange })
+      <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
     const radios = document.querySelectorAll<HTMLElement>('[role="radio"]')
@@ -145,7 +129,7 @@ describe('ToggleGroup', () => {
     }
 
     await render(
-      React.createElement(ToggleGroup, { options, selected, onChange })
+      <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
     const radios = document.querySelectorAll<HTMLElement>('[role="radio"]')
@@ -163,7 +147,7 @@ describe('ToggleGroup', () => {
     }
 
     await render(
-      React.createElement(ToggleGroup, { options, selected, onChange })
+      <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
     const radios = document.querySelectorAll<HTMLElement>('[role="radio"]')
@@ -181,7 +165,7 @@ describe('ToggleGroup', () => {
     }
 
     await render(
-      React.createElement(ToggleGroup, { options, selected, onChange })
+      <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
     const radios = document.querySelectorAll<HTMLElement>('[role="radio"]')
@@ -199,7 +183,7 @@ describe('ToggleGroup', () => {
     }
 
     await render(
-      React.createElement(ToggleGroup, { options, selected, onChange })
+      <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
     const radios = document.querySelectorAll<HTMLElement>('[role="radio"]')
@@ -217,7 +201,7 @@ describe('ToggleGroup', () => {
     }
 
     await render(
-      React.createElement(ToggleGroup, { options, selected, onChange })
+      <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
     const radios = document.querySelectorAll<HTMLElement>('[role="radio"]')
@@ -232,18 +216,20 @@ describe('ToggleGroup', () => {
     let selected = 1
 
     function Wrapper() {
-      const [sel, setSel] = React.useState(selected)
-      return React.createElement(ToggleGroup, {
-        options,
-        selected: sel,
-        onChange: (val: number) => {
-          selected = val
-          setSel(val)
-        },
-      })
+      const [sel, setSel] = useState(selected)
+      return (
+        <ToggleGroup
+          options={options}
+          selected={sel}
+          onChange={(val: number) => {
+            selected = val
+            setSel(val)
+          }}
+        />
+      )
     }
 
-    await render(React.createElement(Wrapper))
+    await render(<Wrapper />)
 
     const radios = document.querySelectorAll<HTMLElement>('[role="radio"]')
     radios[0]!.focus()
@@ -266,7 +252,7 @@ describe('ToggleGroup', () => {
     }
 
     await render(
-      React.createElement(ToggleGroup, { options, selected, onChange })
+      <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
     const radios = document.querySelectorAll<HTMLElement>('[role="radio"]')
@@ -283,7 +269,7 @@ describe('ToggleGroup', () => {
     }
 
     await render(
-      React.createElement(ToggleGroup, { options, selected, onChange })
+      <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
     const radios = document.querySelectorAll<HTMLElement>('[role="radio"]')
@@ -293,7 +279,7 @@ describe('ToggleGroup', () => {
 
     selected = 2
     await render(
-      React.createElement(ToggleGroup, { options, selected, onChange })
+      <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
     const updatedRadios =
       document.querySelectorAll<HTMLElement>('[role="radio"]')

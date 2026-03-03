@@ -1,6 +1,6 @@
 import expect from 'expect'
 import { afterEach, before, describe, it } from 'node:test'
-import React, { act } from 'react'
+import React, { act, type ReactNode } from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { PortalRootProvider } from '../Portal/PortalRootProvider'
 import { Tooltip } from './Tooltip'
@@ -32,7 +32,7 @@ async function tearDown() {
   ;(document.activeElement as HTMLElement | null)?.blur?.()
 }
 
-async function render(element: React.ReactNode) {
+async function render(element: ReactNode) {
   if (!root || !container) {
     setUp()
   }
@@ -45,15 +45,13 @@ function createTooltipTree(tooltipProps?: {
   delay?: number
   position?: 'top' | 'bottom' | 'left' | 'right'
 }) {
-  return React.createElement(
-    PortalRootProvider,
-    null,
-    React.createElement(
-      'button',
-      { id: 'trigger' },
-      'Hover me',
-      React.createElement(Tooltip, tooltipProps ?? {}, 'Tooltip text')
-    )
+  return (
+    <PortalRootProvider>
+      <button id="trigger">
+        Hover me
+        <Tooltip {...(tooltipProps ?? {})}>Tooltip text</Tooltip>
+      </button>
+    </PortalRootProvider>
   )
 }
 

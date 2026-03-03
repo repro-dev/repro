@@ -1,6 +1,6 @@
 import expect from 'expect'
 import { afterEach, before, describe, it } from 'node:test'
-import React, { act } from 'react'
+import React, { act, type ReactNode } from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { Modal } from './Modal'
 
@@ -31,7 +31,7 @@ async function tearDown() {
   ;(document.activeElement as HTMLElement | null)?.blur?.()
 }
 
-async function render(element: React.ReactNode) {
+async function render(element: ReactNode) {
   if (!root || !container) {
     setUp()
   }
@@ -46,11 +46,9 @@ describe('Modal', () => {
   it('renders with role="dialog"', async () => {
     setUp()
     await render(
-      React.createElement(
-        Modal,
-        { width: 400, height: 300, 'aria-label': 'Test modal' },
-        React.createElement('p', null, 'Content')
-      )
+      <Modal width={400} height={300} aria-label="Test modal">
+        <p>Content</p>
+      </Modal>
     )
 
     const dialog = document.querySelector('[role="dialog"]')
@@ -60,11 +58,9 @@ describe('Modal', () => {
   it('sets aria-modal="true"', async () => {
     setUp()
     await render(
-      React.createElement(
-        Modal,
-        { width: 400, height: 300, 'aria-label': 'Test modal' },
-        React.createElement('p', null, 'Content')
-      )
+      <Modal width={400} height={300} aria-label="Test modal">
+        <p>Content</p>
+      </Modal>
     )
 
     const dialog = document.querySelector('[role="dialog"]')
@@ -74,11 +70,9 @@ describe('Modal', () => {
   it('applies aria-label when provided', async () => {
     setUp()
     await render(
-      React.createElement(
-        Modal,
-        { width: 400, height: 300, 'aria-label': 'Confirm action' },
-        React.createElement('p', null, 'Content')
-      )
+      <Modal width={400} height={300} aria-label="Confirm action">
+        <p>Content</p>
+      </Modal>
     )
 
     const dialog = document.querySelector('[role="dialog"]')
@@ -88,11 +82,9 @@ describe('Modal', () => {
   it('applies aria-labelledby when labelId is provided', async () => {
     setUp()
     await render(
-      React.createElement(
-        Modal,
-        { width: 400, height: 300, labelId: 'modal-title' },
-        React.createElement('h2', { id: 'modal-title' }, 'Title')
-      )
+      <Modal width={400} height={300} labelId="modal-title">
+        <h2 id="modal-title">Title</h2>
+      </Modal>
     )
 
     const dialog = document.querySelector('[role="dialog"]')
@@ -102,16 +94,14 @@ describe('Modal', () => {
   it('prefers aria-label over labelId when both provided', async () => {
     setUp()
     await render(
-      React.createElement(
-        Modal,
-        {
-          width: 400,
-          height: 300,
-          'aria-label': 'Direct label',
-          labelId: 'modal-title',
-        },
-        React.createElement('h2', { id: 'modal-title' }, 'Title')
-      )
+      <Modal
+        width={400}
+        height={300}
+        aria-label="Direct label"
+        labelId="modal-title"
+      >
+        <h2 id="modal-title">Title</h2>
+      </Modal>
     )
 
     const dialog = document.querySelector('[role="dialog"]')
@@ -129,12 +119,10 @@ describe('Modal', () => {
     expect(document.activeElement).toBe(outer)
 
     await render(
-      React.createElement(
-        Modal,
-        { width: 400, height: 300, 'aria-label': 'Focus test' },
-        React.createElement('button', { id: 'inside-1' }, 'First'),
-        React.createElement('button', { id: 'inside-2' }, 'Second')
-      )
+      <Modal width={400} height={300} aria-label="Focus test">
+        <button id="inside-1">First</button>
+        <button id="inside-2">Second</button>
+      </Modal>
     )
 
     expect(document.activeElement?.id).toBe('inside-1')
@@ -147,18 +135,16 @@ describe('Modal', () => {
     let closed = false
 
     await render(
-      React.createElement(
-        Modal,
-        {
-          width: 400,
-          height: 300,
-          'aria-label': 'Escape test',
-          onClose: () => {
-            closed = true
-          },
-        },
-        React.createElement('p', null, 'Content')
-      )
+      <Modal
+        width={400}
+        height={300}
+        aria-label="Escape test"
+        onClose={() => {
+          closed = true
+        }}
+      >
+        <p>Content</p>
+      </Modal>
     )
 
     await act(() => {
@@ -177,11 +163,9 @@ describe('Modal', () => {
   it('does not call onClose on Escape when onClose is not provided', async () => {
     setUp()
     await render(
-      React.createElement(
-        Modal,
-        { width: 400, height: 300, 'aria-label': 'No close' },
-        React.createElement('p', null, 'Content')
-      )
+      <Modal width={400} height={300} aria-label="No close">
+        <p>Content</p>
+      </Modal>
     )
 
     const event = new KeyboardEvent('keydown', {
@@ -198,18 +182,16 @@ describe('Modal', () => {
     let closed = false
 
     await render(
-      React.createElement(
-        Modal,
-        {
-          width: 400,
-          height: 300,
-          'aria-label': 'Backdrop test',
-          onClose: () => {
-            closed = true
-          },
-        },
-        React.createElement('p', null, 'Content')
-      )
+      <Modal
+        width={400}
+        height={300}
+        aria-label="Backdrop test"
+        onClose={() => {
+          closed = true
+        }}
+      >
+        <p>Content</p>
+      </Modal>
     )
 
     const dialog = document.querySelector('[role="dialog"]')
@@ -234,18 +216,16 @@ describe('Modal', () => {
     let closed = false
 
     await render(
-      React.createElement(
-        Modal,
-        {
-          width: 400,
-          height: 300,
-          'aria-label': 'Inner click test',
-          onClose: () => {
-            closed = true
-          },
-        },
-        React.createElement('button', { id: 'inner-btn' }, 'Click me')
-      )
+      <Modal
+        width={400}
+        height={300}
+        aria-label="Inner click test"
+        onClose={() => {
+          closed = true
+        }}
+      >
+        <button id="inner-btn">Click me</button>
+      </Modal>
     )
 
     const innerBtn = document.getElementById('inner-btn')!

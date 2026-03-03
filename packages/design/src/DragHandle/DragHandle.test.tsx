@@ -1,6 +1,6 @@
 import expect from 'expect'
 import { afterEach, before, describe, it } from 'node:test'
-import React, { act } from 'react'
+import React, { act, type ReactNode } from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { DragHandle } from './DragHandle'
 
@@ -31,7 +31,7 @@ async function tearDown() {
   ;(document.activeElement as HTMLElement | null)?.blur?.()
 }
 
-async function render(element: React.ReactNode) {
+async function render(element: ReactNode) {
   if (!root || !container) {
     setUp()
   }
@@ -58,12 +58,12 @@ describe('DragHandle', () => {
   it('renders with role="separator"', async () => {
     setUp()
     await render(
-      React.createElement(DragHandle, {
-        edge: 'right',
-        onDragStart: noop,
-        onDragEnd: noop,
-        onDrag: noop,
-      })
+      <DragHandle
+        edge="right"
+        onDragStart={noop}
+        onDragEnd={noop}
+        onDrag={noop}
+      />
     )
 
     const separator = document.querySelector('[role="separator"]')
@@ -73,12 +73,12 @@ describe('DragHandle', () => {
   it('sets aria-orientation to vertical for left/right edges', async () => {
     setUp()
     await render(
-      React.createElement(DragHandle, {
-        edge: 'right',
-        onDragStart: noop,
-        onDragEnd: noop,
-        onDrag: noop,
-      })
+      <DragHandle
+        edge="right"
+        onDragStart={noop}
+        onDragEnd={noop}
+        onDrag={noop}
+      />
     )
 
     const separator = document.querySelector('[role="separator"]')
@@ -88,12 +88,12 @@ describe('DragHandle', () => {
   it('sets aria-orientation to horizontal for top/bottom edges', async () => {
     setUp()
     await render(
-      React.createElement(DragHandle, {
-        edge: 'top',
-        onDragStart: noop,
-        onDragEnd: noop,
-        onDrag: noop,
-      })
+      <DragHandle
+        edge="top"
+        onDragStart={noop}
+        onDragEnd={noop}
+        onDrag={noop}
+      />
     )
 
     const separator = document.querySelector('[role="separator"]')
@@ -103,12 +103,12 @@ describe('DragHandle', () => {
   it('uses the default aria-label "Resize"', async () => {
     setUp()
     await render(
-      React.createElement(DragHandle, {
-        edge: 'left',
-        onDragStart: noop,
-        onDragEnd: noop,
-        onDrag: noop,
-      })
+      <DragHandle
+        edge="left"
+        onDragStart={noop}
+        onDragEnd={noop}
+        onDrag={noop}
+      />
     )
 
     const separator = document.querySelector('[role="separator"]')
@@ -118,13 +118,13 @@ describe('DragHandle', () => {
   it('accepts a custom aria-label', async () => {
     setUp()
     await render(
-      React.createElement(DragHandle, {
-        edge: 'left',
-        onDragStart: noop,
-        onDragEnd: noop,
-        onDrag: noop,
-        'aria-label': 'Resize sidebar',
-      })
+      <DragHandle
+        edge="left"
+        onDragStart={noop}
+        onDragEnd={noop}
+        onDrag={noop}
+        aria-label="Resize sidebar"
+      />
     )
 
     const separator = document.querySelector('[role="separator"]')
@@ -134,12 +134,12 @@ describe('DragHandle', () => {
   it('is focusable via tabIndex 0', async () => {
     setUp()
     await render(
-      React.createElement(DragHandle, {
-        edge: 'bottom',
-        onDragStart: noop,
-        onDragEnd: noop,
-        onDrag: noop,
-      })
+      <DragHandle
+        edge="bottom"
+        onDragStart={noop}
+        onDragEnd={noop}
+        onDrag={noop}
+      />
     )
 
     const separator = document.querySelector(
@@ -153,12 +153,12 @@ describe('DragHandle', () => {
     const calls: Array<{ type: string; delta?: number }> = []
 
     await render(
-      React.createElement(DragHandle, {
-        edge: 'right',
-        onDragStart: () => calls.push({ type: 'start' }),
-        onDragEnd: () => calls.push({ type: 'end' }),
-        onDrag: (delta: number) => calls.push({ type: 'drag', delta }),
-      })
+      <DragHandle
+        edge="right"
+        onDragStart={() => calls.push({ type: 'start' })}
+        onDragEnd={() => calls.push({ type: 'end' })}
+        onDrag={(delta: number) => calls.push({ type: 'drag', delta })}
+      />
     )
 
     const separator = document.querySelector(
@@ -178,12 +178,12 @@ describe('DragHandle', () => {
     const calls: Array<{ type: string; delta?: number }> = []
 
     await render(
-      React.createElement(DragHandle, {
-        edge: 'right',
-        onDragStart: () => calls.push({ type: 'start' }),
-        onDragEnd: () => calls.push({ type: 'end' }),
-        onDrag: (delta: number) => calls.push({ type: 'drag', delta }),
-      })
+      <DragHandle
+        edge="right"
+        onDragStart={() => calls.push({ type: 'start' })}
+        onDragEnd={() => calls.push({ type: 'end' })}
+        onDrag={(delta: number) => calls.push({ type: 'drag', delta })}
+      />
     )
 
     const separator = document.querySelector(
@@ -203,12 +203,12 @@ describe('DragHandle', () => {
     const calls: Array<{ type: string; delta?: number }> = []
 
     await render(
-      React.createElement(DragHandle, {
-        edge: 'left',
-        onDragStart: () => calls.push({ type: 'start' }),
-        onDragEnd: () => calls.push({ type: 'end' }),
-        onDrag: (delta: number) => calls.push({ type: 'drag', delta }),
-      })
+      <DragHandle
+        edge="left"
+        onDragStart={() => calls.push({ type: 'start' })}
+        onDragEnd={() => calls.push({ type: 'end' })}
+        onDrag={(delta: number) => calls.push({ type: 'drag', delta })}
+      />
     )
 
     const separator = document.querySelector(
@@ -228,12 +228,12 @@ describe('DragHandle', () => {
     const calls: Array<{ type: string; delta?: number }> = []
 
     await render(
-      React.createElement(DragHandle, {
-        edge: 'top',
-        onDragStart: () => calls.push({ type: 'start' }),
-        onDragEnd: () => calls.push({ type: 'end' }),
-        onDrag: (delta: number) => calls.push({ type: 'drag', delta }),
-      })
+      <DragHandle
+        edge="top"
+        onDragStart={() => calls.push({ type: 'start' })}
+        onDragEnd={() => calls.push({ type: 'end' })}
+        onDrag={(delta: number) => calls.push({ type: 'drag', delta })}
+      />
     )
 
     const separator = document.querySelector(
@@ -253,12 +253,12 @@ describe('DragHandle', () => {
     const calls: Array<{ type: string; delta?: number }> = []
 
     await render(
-      React.createElement(DragHandle, {
-        edge: 'bottom',
-        onDragStart: () => calls.push({ type: 'start' }),
-        onDragEnd: () => calls.push({ type: 'end' }),
-        onDrag: (delta: number) => calls.push({ type: 'drag', delta }),
-      })
+      <DragHandle
+        edge="bottom"
+        onDragStart={() => calls.push({ type: 'start' })}
+        onDragEnd={() => calls.push({ type: 'end' })}
+        onDrag={(delta: number) => calls.push({ type: 'drag', delta })}
+      />
     )
 
     const separator = document.querySelector(
@@ -278,12 +278,12 @@ describe('DragHandle', () => {
     const calls: Array<{ type: string; delta?: number }> = []
 
     await render(
-      React.createElement(DragHandle, {
-        edge: 'right',
-        onDragStart: () => calls.push({ type: 'start' }),
-        onDragEnd: () => calls.push({ type: 'end' }),
-        onDrag: (delta: number) => calls.push({ type: 'drag', delta }),
-      })
+      <DragHandle
+        edge="right"
+        onDragStart={() => calls.push({ type: 'start' })}
+        onDragEnd={() => calls.push({ type: 'end' })}
+        onDrag={(delta: number) => calls.push({ type: 'drag', delta })}
+      />
     )
 
     const separator = document.querySelector(
@@ -298,12 +298,12 @@ describe('DragHandle', () => {
   it('prevents default on recognized arrow keys', async () => {
     setUp()
     await render(
-      React.createElement(DragHandle, {
-        edge: 'right',
-        onDragStart: noop,
-        onDragEnd: noop,
-        onDrag: noop,
-      })
+      <DragHandle
+        edge="right"
+        onDragStart={noop}
+        onDragEnd={noop}
+        onDrag={noop}
+      />
     )
 
     const separator = document.querySelector(
