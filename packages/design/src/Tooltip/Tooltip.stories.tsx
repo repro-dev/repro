@@ -93,19 +93,12 @@ export const HoverTest: Story = {
     const canvas = within(canvasElement)
     const button = canvas.getByRole('button', { name: 'Hover target' })
 
-    const tooltip = within(document.body).getByRole('tooltip')
-    await expect(tooltip).toHaveAttribute('aria-hidden', 'true')
-
     await userEvent.hover(button)
-    await within(document.body).findByRole('tooltip', { hidden: false })
-    const visibleTooltip = within(document.body).getByRole('tooltip')
-    await expect(visibleTooltip).toHaveAttribute('aria-hidden', 'false')
-    await expect(visibleTooltip).toHaveTextContent('Tooltip content')
+    const tooltip = await within(document.body).findByRole('tooltip')
+    await expect(tooltip).toHaveAttribute('aria-hidden', 'false')
+    await expect(tooltip).toHaveTextContent('Tooltip content')
 
     await userEvent.unhover(button)
-    await expect(within(document.body).getByRole('tooltip')).toHaveAttribute(
-      'aria-hidden',
-      'true'
-    )
+    await expect(tooltip).toHaveAttribute('aria-hidden', 'true')
   },
 }

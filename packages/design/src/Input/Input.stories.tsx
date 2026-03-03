@@ -16,10 +16,13 @@ export default meta
 
 type Story = StoryObj<typeof Input>
 
+const onChangeSpy = fn()
+const onBlurSpy = fn()
+
 const reg = {
   name: 'field',
-  onChange: fn(),
-  onBlur: fn(),
+  onChange: () => onChangeSpy(),
+  onBlur: () => onBlurSpy(),
 }
 
 export const Default: Story = {
@@ -41,7 +44,7 @@ export const FocusAndTypeTest: Story = {
     size: 'medium',
     context: 'normal',
   },
-  play: async ({ args, canvasElement }) => {
+  play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const input = canvas.getByRole('textbox')
 
@@ -50,11 +53,11 @@ export const FocusAndTypeTest: Story = {
 
     await userEvent.type(input, 'test@example.com')
     await expect(input).toHaveValue('test@example.com')
-    await expect(args.onChange).toHaveBeenCalled()
+    await expect(onChangeSpy).toHaveBeenCalled()
 
-    await userEvent.tab()
+    await userEvent.click(canvasElement)
     await expect(input).not.toHaveFocus()
-    await expect(args.onBlur).toHaveBeenCalled()
+    await expect(onBlurSpy).toHaveBeenCalled()
   },
 }
 

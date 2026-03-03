@@ -6,12 +6,14 @@ import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
 import { Button } from './Button'
 
+const onClickSpy = fn()
+
 const meta: Meta<typeof Button> = {
   title: 'Components/Actions/Button',
   component: Button,
   tags: ['autodocs', 'design-system'],
   args: {
-    onClick: fn(),
+    onClick: () => onClickSpy(),
   },
 }
 
@@ -51,12 +53,12 @@ export const ClickTest: Story = {
     rounded: true,
     disabled: false,
   },
-  play: async ({ args, canvasElement }) => {
+  play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const button = canvas.getByRole('button', { name: 'Click me' })
 
     await userEvent.click(button)
-    await expect(args.onClick).toHaveBeenCalledTimes(1)
+    await expect(onClickSpy).toHaveBeenCalledTimes(1)
   },
 }
 
@@ -69,13 +71,13 @@ export const DisabledClickTest: Story = {
     rounded: true,
     disabled: true,
   },
-  play: async ({ args, canvasElement }) => {
+  play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const button = canvas.getByRole('button', { name: 'Disabled' })
 
     await expect(button).toBeDisabled()
     await userEvent.click(button)
-    await expect(args.onClick).not.toHaveBeenCalled()
+    await expect(onClickSpy).not.toHaveBeenCalled()
   },
 }
 
