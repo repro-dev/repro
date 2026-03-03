@@ -16,12 +16,14 @@ if [ -z "${NO_COLOR:-}" ] && [ -t 1 ]; then
   CLR_DIM=$'\033[2m'
   CLR_RED=$'\033[31m'
   CLR_GREEN=$'\033[32m'
+  CLR_YELLOW=$'\033[33m'
   CLR_RESET=$'\033[0m'
 else
   CLR_BOLD=""
   CLR_DIM=""
   CLR_RED=""
   CLR_GREEN=""
+  CLR_YELLOW=""
   CLR_RESET=""
 fi
 

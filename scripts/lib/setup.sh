@@ -162,30 +162,7 @@ cmd_doctor() {
     has_failures=true
   fi
 
-  # 6. Cluster
-  if command -v kind > /dev/null 2>&1 && command -v docker > /dev/null 2>&1 && docker info > /dev/null 2>&1; then
-    if cluster_exists; then
-      check_ok "cluster" "$CLUSTER_NAME running (kind-$CLUSTER_NAME)"
-    else
-      check_fail "cluster" "$CLUSTER_NAME not running — run 'reproctl setup' or 'reproctl cluster up'"
-      has_failures=true
-    fi
-
-    if registry_exists; then
-      local reg_port
-      reg_port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "5000/tcp") 0).HostPort}}' "$REGISTRY_NAME" 2>/dev/null || echo "5000")"
-      check_ok "registry" "$REGISTRY_NAME running (port $reg_port)"
-    else
-      check_fail "registry" "$REGISTRY_NAME not running — run 'reproctl setup' or 'reproctl cluster up'"
-      has_failures=true
-    fi
-  else
-    check_fail "cluster" "cannot check — docker or kind not available"
-    check_fail "registry" "cannot check — docker not available"
-    has_failures=true
-  fi
-
-  # 7. pnpm dependencies
+  # 6. pnpm dependencies
   if [ -d "$MAIN_CHECKOUT/node_modules" ]; then
     if [ -f "$MAIN_CHECKOUT/node_modules/.package-lock.json" ] || [ -f "$MAIN_CHECKOUT/node_modules/.modules.yaml" ]; then
       if [ "$MAIN_CHECKOUT/pnpm-lock.yaml" -nt "$MAIN_CHECKOUT/node_modules/.modules.yaml" ] 2>/dev/null; then
@@ -202,7 +179,7 @@ cmd_doctor() {
     has_failures=true
   fi
 
-  # 8. direnv
+  # 7. direnv
   if command -v direnv > /dev/null 2>&1; then
     if [ -n "${DIRENV_DIR:-}" ]; then
       check_ok "direnv" "shell hook active"
