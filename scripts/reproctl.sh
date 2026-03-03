@@ -5,7 +5,8 @@
 #
 # Usage:
 #   reproctl setup                            Bootstrap the development environment
-#   reproctl doctor                           Diagnose the development environment
+#   reproctl doctor                           Check development environment prerequisites
+#   reproctl checkhealth [--json]              Runtime health checks
 #   reproctl cluster up|down|status|reset     Manage the local k8s cluster
 #   reproctl db reset|migrate|shell|status    Database operations
 #   reproctl start <service> [...]            Start services from current context
@@ -55,8 +56,8 @@ source "$SCRIPT_DIR/lib/logs.sh"
 source "$SCRIPT_DIR/lib/db.sh"
 # shellcheck source=scripts/lib/context.sh
 source "$SCRIPT_DIR/lib/context.sh"
-# shellcheck source=scripts/lib/diagnose.sh
-source "$SCRIPT_DIR/lib/diagnose.sh"
+# shellcheck source=scripts/lib/checkhealth.sh
+source "$SCRIPT_DIR/lib/checkhealth.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -66,8 +67,8 @@ Usage: reproctl <command> [args]
 
 Commands:
   setup                             Bootstrap the development environment
-  doctor                            Diagnose the development environment
-  diagnose [--json]               Runtime health checks (Tilt, k8s, services)
+  doctor                            Check development environment prerequisites
+  checkhealth [--json]              Runtime health checks (Tilt, k8s, services)
   cluster <subcommand>            Manage the local k8s cluster and registry
                                   (up, down, status, reset)
   db <subcommand>                 Database operations
@@ -94,9 +95,9 @@ process handle coordination.
 Examples:
   reproctl setup                              # bootstrap entire environment
   reproctl setup --skip-cluster               # skip cluster creation
-  reproctl doctor                             # check environment health
-  reproctl diagnose                            # runtime health checks
-  reproctl diagnose --json                     # machine-readable health check
+  reproctl doctor                             # check installed tools and versions
+  reproctl checkhealth                         # runtime health checks
+  reproctl checkhealth --json                  # machine-readable health check
   reproctl cluster up                         # create cluster and registry
   reproctl cluster status                     # check cluster state
   reproctl db reset                           # drop + recreate database
@@ -133,14 +134,14 @@ shift
 case "$COMMAND" in
   setup)   cmd_setup "$@" ;;
   doctor)  cmd_doctor "$@" ;;
-  diagnose)
-    DIAGNOSE_JSON=false
+  checkhealth)
+    CHECKHEALTH_JSON=false
     for arg in "$@"; do
       case "$arg" in
-        --json) DIAGNOSE_JSON=true ;;
+        --json) CHECKHEALTH_JSON=true ;;
         -h|--help)
           cat <<'USAGE'
-Usage: reproctl diagnose [--json]
+Usage: reproctl checkhealth [--json]
 
 Check the runtime health of the development environment — Tilt daemon,
 Kubernetes cluster, container registry, services, and worktree resources.
@@ -154,10 +155,10 @@ Exit codes:
 USAGE
           exit 0
           ;;
-        *) die "Unknown option: $arg\nRun 'reproctl diagnose --help' for usage." ;;
+        *) die "Unknown option: $arg\nRun 'reproctl checkhealth --help' for usage." ;;
       esac
     done
-    cmd_diagnose
+    cmd_checkhealth
     ;;
   cluster) cmd_cluster "$@" ;;
   db)      cmd_db "$@" ;;
