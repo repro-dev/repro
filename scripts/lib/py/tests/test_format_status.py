@@ -7,11 +7,17 @@ import tempfile
 from conftest import run_script
 
 
-def _make_item(name, runtime="ok", update="ok"):
-    return {
+def _make_item(name, runtime="ok", update="ok", pod_restarts=0, pod_status=""):
+    item = {
         "metadata": {"name": name},
         "status": {"runtimeStatus": runtime, "updateStatus": update},
     }
+    if pod_restarts or pod_status:
+        item["status"]["k8sResourceInfo"] = {
+            "podRestarts": pod_restarts,
+            "podStatusMessage": pod_status,
+        }
+    return item
 
 
 def _write_json(data):
@@ -130,3 +136,142 @@ class TestFormatStatus:
         assert len(lines) == 2
         col1_positions = [l.index("ok") for l in lines]
         assert col1_positions[0] == col1_positions[1]
+
+    def test_pod_restarts_shown_when_nonzero(self):
+        data = {"items": [_make_item("web-wt-x", pod_restarts=3)]}
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        assert "3 restart(s)" in result.stdout
+
+    def test_pod_restarts_hidden_when_zero(self):
+        data = {"items": [_make_item("web-wt-x", pod_restarts=0)]}
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        assert "restart" not in result.stdout
+
+    def test_pod_status_reason_shown_for_error(self):
+        data = {
+            "items": [
+                _make_item(
+                    "web-wt-x",
+                    runtime="error",
+                    pod_status="CrashLoopBackOff",
+                )
+            ]
+        }
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        assert "CrashLoopBackOff" in result.stdout
+
+    def test_pod_status_and_restarts_combined(self):
+        data = {
+            "items": [
+                _make_item(
+                    "web-wt-x",
+                    runtime="error",
+                    pod_restarts=5,
+                    pod_status="CrashLoopBackOff",
+                )
+            ]
+        }
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        assert "CrashLoopBackOff" in result.stdout
+        assert "5 restart(s)" in result.stdout
+        line = [l for l in result.stdout.splitlines() if "web-wt-x" in l][0]
+        assert "CrashLoopBackOff, 5 restart(s)" in line
+
+    def test_configured_but_missing_shows_warning(self):
+        cfg_path = _write_json({"services": [{"name": "capture", "slug": "y"}]})
+        try:
+            data = {"items": [_make_item("redis")]}
+            result = run_script(
+                "format_status.py",
+                stdin=json.dumps(data),
+                env={"CONFIG_FILE": cfg_path},
+            )
+            assert "capture-wt-y" in result.stdout
+            assert "warn" in result.stdout
+            assert "not in Tilt" in result.stdout
+        finally:
+            os.unlink(cfg_path)
+
+    def test_configured_service_present_no_warning(self):
+        cfg_path = _write_json({"services": [{"name": "web", "slug": "x"}]})
+        try:
+            data = {"items": [_make_item("web-wt-x")]}
+            result = run_script(
+                "format_status.py",
+                stdin=json.dumps(data),
+                env={"CONFIG_FILE": cfg_path},
+            )
+            assert "not in Tilt" not in result.stdout
+        finally:
+            os.unlink(cfg_path)
+
+    def test_no_detail_column_when_nothing_notable(self):
+        data = {"items": [_make_item("redis"), _make_item("postgres")]}
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            parts = stripped.split()
+            assert "restart" not in stripped
+            assert "CrashLoopBackOff" not in stripped
+            assert "not in Tilt" not in stripped
+
+    def test_column_alignment_with_detail(self):
+        svc_path = _write_json({"web": {}, "api": {}})
+        try:
+            data = {
+                "items": [
+                    _make_item("web", pod_restarts=3),
+                    _make_item("api"),
+                    _make_item("redis"),
+                ]
+            }
+            result = run_script(
+                "format_status.py",
+                stdin=json.dumps(data),
+                env={"SERVICES_JSON": svc_path},
+            )
+            lines = [l for l in result.stdout.splitlines() if l.strip()]
+            assert len(lines) == 3
+            ok_positions = set()
+            for line in lines:
+                idx = line.index("ok")
+                ok_positions.add(idx)
+            assert len(ok_positions) == 1
+        finally:
+            os.unlink(svc_path)
+
+    def test_null_k8s_resource_info(self):
+        """Explicit null k8sResourceInfo should not cause errors."""
+        data = {
+            "items": [
+                {
+                    "metadata": {"name": "web"},
+                    "status": {
+                        "runtimeStatus": "ok",
+                        "updateStatus": "ok",
+                        "k8sResourceInfo": None,
+                    },
+                }
+            ]
+        }
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        assert result.returncode == 0
+        assert "web" in result.stdout
+        assert "restart" not in result.stdout
+
+    def test_pod_status_reason_hidden_for_ok_status(self):
+        """pod_status_reason should only appear when status is error."""
+        data = {"items": [_make_item("web-wt-x", runtime="ok", pod_status="Running")]}
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        assert result.returncode == 0
+        assert "Running" not in result.stdout
+
+    def test_no_trailing_whitespace(self):
+        """Lines without detail should not have trailing whitespace."""
+        data = {"items": [_make_item("redis"), _make_item("postgres")]}
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        for line in result.stdout.splitlines():
+            if line.strip():
+                assert line == line.rstrip(), f"Trailing whitespace: {line!r}"
