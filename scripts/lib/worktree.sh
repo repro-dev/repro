@@ -13,15 +13,27 @@ WT_NO_STATUS_UPDATE=false
 _linear_api() {
   local query="$1"
   local response
-  response="$(curl -s -X POST \
+  response="$(curl -sSf -X POST \
     -H "Content-Type: application/json" \
     -H "Authorization: $LINEAR_API_KEY" \
     --data "{\"query\": $(printf '%s' "$query" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}" \
     "https://api.linear.app/graphql")" || die "Failed to reach Linear API"
 
+  if ! printf '%s' "$response" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
+    die "Linear API returned non-JSON response"
+  fi
+
   local errors
-  errors="$(printf '%s' "$response" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("errors",""))' 2>/dev/null)"
-  if [[ -n "$errors" && "$errors" != "None" && "$errors" != "" ]]; then
+  errors="$(printf '%s' "$response" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+e = d.get("errors")
+if isinstance(e, list) and e:
+    print(e)
+elif e and not isinstance(e, list):
+    print(e)
+' 2>/dev/null)"
+  if [[ -n "$errors" ]]; then
     die "Linear API error: $errors"
   fi
 
@@ -31,11 +43,15 @@ _linear_api() {
 cmd_wt_create_from_issue() {
   local issue_id="$1"
 
+  if [[ ! "$issue_id" =~ ^[A-Z]+-[0-9]+$ ]]; then
+    die "Invalid issue identifier: '$issue_id'. Expected format: REP-123"
+  fi
+
   if [[ -z "${LINEAR_API_KEY:-}" ]]; then
     die "LINEAR_API_KEY environment variable is not set.\nSet it to a Linear personal API key to use --from-issue."
   fi
 
-  _step 1 2 "Fetching issue ${issue_id} from Linear..."
+  _step 1 3 "Fetching issue ${issue_id} from Linear..."
 
   local query
   query="{ issueSearch(filter: { identifier: { eq: \"${issue_id}\" } }, first: 1) { nodes { id identifier title branchName team { states { nodes { id name type } } } } } }"
@@ -56,7 +72,11 @@ states = n.get("team", {}).get("states", {}).get("nodes", [])
 in_progress = [s for s in states if s["type"] == "started" and s["name"] == "In Progress"]
 state_id = in_progress[0]["id"] if in_progress else ""
 print(f"{n[\"id\"]}\n{n[\"identifier\"]}\n{n[\"title\"]}\n{n[\"branchName\"]}\n{state_id}")
-')"
+')" || die "Failed to parse Linear API response"
+
+  if [[ -z "$issue_data" ]]; then
+    die "Failed to parse Linear API response for ${issue_id}"
+  fi
 
   if [[ "$issue_data" == "NOT_FOUND" ]]; then
     die "Issue ${issue_id} not found in Linear."
@@ -81,7 +101,7 @@ print(f"{n[\"id\"]}\n{n[\"identifier\"]}\n{n[\"title\"]}\n{n[\"branchName\"]}\n{
 
   if [[ "$WT_NO_STATUS_UPDATE" != true ]]; then
     if [[ -n "$in_progress_state_id" ]]; then
-      _step 1 1 "Updating ${issue_identifier} status to In Progress..."
+      _step 3 3 "Updating ${issue_identifier} status to In Progress..."
       local mutation
       mutation="mutation { issueUpdate(id: \"${issue_uuid}\", input: { stateId: \"${in_progress_state_id}\" }) { issue { id identifier } } }"
       _linear_api "$mutation" > /dev/null
@@ -563,8 +583,9 @@ wt_usage() {
 Usage: reproctl worktree <command> [options] [args]
 
 Commands:
-  create [options] <branch>   Create a new worktree for the given branch
-  remove [options] <branch>   Remove the worktree for the given branch
+  create [options] <branch>        Create a new worktree for the given branch
+  create --from-issue <id>         Create a worktree from a Linear issue
+  remove [options] <branch>        Remove the worktree for the given branch
   list                        List all active worktrees
   attach <branch>             Drop into a subshell in the given worktree
   prune  [options]            Remove worktrees whose branches are merged
