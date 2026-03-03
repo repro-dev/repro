@@ -1,3 +1,11 @@
+#!/bin/bash
+#
+# scripts/lib/context.sh — show current development context
+#
+# Sourced by reproctl.sh. Expects scripts/lib/common.sh to be loaded
+# first (provides REPO_ROOT, MAIN_CHECKOUT, CONFIG_FILE, CLR_*,
+# is_worktree, detect_worktree_slug).
+
 _extract_issue_id() {
   local branch="$1"
   local id
@@ -37,7 +45,8 @@ if matches:
 
 cmd_context() {
   local branch
-  branch="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "(unknown)")"
+  branch="$(git -C "$REPO_ROOT" symbolic-ref -q --short HEAD 2>/dev/null)" || \
+    branch="(detached: $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo 'unknown'))"
 
   if is_worktree "$REPO_ROOT"; then
     local slug
