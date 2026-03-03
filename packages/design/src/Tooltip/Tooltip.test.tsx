@@ -1,45 +1,11 @@
+import { cleanup, render } from '@testing-library/react'
 import expect from 'expect'
-import { afterEach, before, describe, it } from 'node:test'
-import React, { act, type ReactNode } from 'react'
-import { createRoot, Root } from 'react-dom/client'
+import { afterEach, describe, it } from 'node:test'
+import React, { act } from 'react'
 import { PortalRootProvider } from '../Portal/PortalRootProvider'
 import { Tooltip } from './Tooltip'
 
-before(() => {
-  ;(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true
-})
-
-let root: Root | null = null
-let container: HTMLDivElement | null = null
-
-function setUp() {
-  container = document.createElement('div')
-  document.body.appendChild(container)
-  root = createRoot(container)
-}
-
-async function tearDown() {
-  if (root) {
-    await act(() => {
-      root!.unmount()
-    })
-    root = null
-  }
-  if (container) {
-    document.body.removeChild(container)
-    container = null
-  }
-  ;(document.activeElement as HTMLElement | null)?.blur?.()
-}
-
-async function render(element: ReactNode) {
-  if (!root || !container) {
-    setUp()
-  }
-  await act(async () => {
-    root!.render(element)
-  })
-}
+afterEach(cleanup)
 
 function createTooltipTree(tooltipProps?: {
   delay?: number
@@ -70,11 +36,8 @@ async function hideViaBlur() {
 }
 
 describe('Tooltip', () => {
-  afterEach(tearDown)
-
   it('renders a tooltip element with role="tooltip" when shown', async () => {
-    setUp()
-    await render(createTooltipTree())
+    render(createTooltipTree())
     await showViaFocus()
 
     const tooltip = document.querySelector('[role="tooltip"]')
@@ -82,8 +45,7 @@ describe('Tooltip', () => {
   })
 
   it('sets aria-hidden="false" when visible', async () => {
-    setUp()
-    await render(createTooltipTree())
+    render(createTooltipTree())
     await showViaFocus()
 
     const tooltip = document.querySelector('[role="tooltip"]')
@@ -91,8 +53,7 @@ describe('Tooltip', () => {
   })
 
   it('sets aria-hidden="true" when hidden', async () => {
-    setUp()
-    await render(createTooltipTree())
+    render(createTooltipTree())
     await showViaFocus()
     await hideViaBlur()
 
@@ -101,8 +62,7 @@ describe('Tooltip', () => {
   })
 
   it('sets aria-describedby on the trigger when shown via focus', async () => {
-    setUp()
-    await render(createTooltipTree())
+    render(createTooltipTree())
     await showViaFocus()
 
     const trigger = document.getElementById('trigger')!
@@ -114,8 +74,7 @@ describe('Tooltip', () => {
   })
 
   it('removes aria-describedby from the trigger on blur', async () => {
-    setUp()
-    await render(createTooltipTree())
+    render(createTooltipTree())
     await showViaFocus()
     await hideViaBlur()
 
@@ -124,8 +83,7 @@ describe('Tooltip', () => {
   })
 
   it('shows on pointerenter after delay', async () => {
-    setUp()
-    await render(createTooltipTree({ delay: 0 }))
+    render(createTooltipTree({ delay: 0 }))
 
     const trigger = document.getElementById('trigger')!
     await act(() => {
@@ -141,8 +99,7 @@ describe('Tooltip', () => {
   })
 
   it('hides on pointerleave', async () => {
-    setUp()
-    await render(createTooltipTree({ delay: 0 }))
+    render(createTooltipTree({ delay: 0 }))
 
     const trigger = document.getElementById('trigger')!
     await act(() => {
@@ -164,8 +121,7 @@ describe('Tooltip', () => {
   })
 
   it('has a unique id on the tooltip for aria-describedby association', async () => {
-    setUp()
-    await render(createTooltipTree())
+    render(createTooltipTree())
     await showViaFocus()
 
     const tooltip = document.querySelector('[role="tooltip"]')

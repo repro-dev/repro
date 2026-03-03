@@ -1,44 +1,10 @@
+import { cleanup, render } from '@testing-library/react'
 import expect from 'expect'
-import { afterEach, before, describe, it } from 'node:test'
-import React, { act, type ReactNode, useState } from 'react'
-import { createRoot, Root } from 'react-dom/client'
+import { afterEach, describe, it } from 'node:test'
+import React, { act, useState } from 'react'
 import { ToggleGroup } from './ToggleGroup'
 
-before(() => {
-  ;(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true
-})
-
-let root: Root | null = null
-let container: HTMLDivElement | null = null
-
-function setUp() {
-  container = document.createElement('div')
-  document.body.appendChild(container)
-  root = createRoot(container)
-}
-
-async function tearDown() {
-  if (root) {
-    await act(() => {
-      root!.unmount()
-    })
-    root = null
-  }
-  if (container) {
-    document.body.removeChild(container)
-    container = null
-  }
-  ;(document.activeElement as HTMLElement | null)?.blur?.()
-}
-
-async function render(element: ReactNode) {
-  if (!root || !container) {
-    setUp()
-  }
-  await act(async () => {
-    root!.render(element)
-  })
-}
+afterEach(cleanup)
 
 function pressKey(key: string, target?: Element) {
   const event = new KeyboardEvent('keydown', {
@@ -57,33 +23,22 @@ const options = [
 ]
 
 describe('ToggleGroup', () => {
-  afterEach(tearDown)
-
-  it('renders with radiogroup role', async () => {
-    setUp()
-    await render(
-      <ToggleGroup options={options} selected={1} onChange={() => {}} />
-    )
+  it('renders with radiogroup role', () => {
+    render(<ToggleGroup options={options} selected={1} onChange={() => {}} />)
 
     const group = document.querySelector('[role="radiogroup"]')
     expect(group).not.toBeNull()
   })
 
-  it('renders radio buttons for each option', async () => {
-    setUp()
-    await render(
-      <ToggleGroup options={options} selected={1} onChange={() => {}} />
-    )
+  it('renders radio buttons for each option', () => {
+    render(<ToggleGroup options={options} selected={1} onChange={() => {}} />)
 
     const radios = document.querySelectorAll('[role="radio"]')
     expect(radios.length).toBe(3)
   })
 
-  it('sets aria-checked on the selected option', async () => {
-    setUp()
-    await render(
-      <ToggleGroup options={options} selected={2} onChange={() => {}} />
-    )
+  it('sets aria-checked on the selected option', () => {
+    render(<ToggleGroup options={options} selected={2} onChange={() => {}} />)
 
     const radios = document.querySelectorAll('[role="radio"]')
     expect(radios[0]?.getAttribute('aria-checked')).toBe('false')
@@ -91,11 +46,8 @@ describe('ToggleGroup', () => {
     expect(radios[2]?.getAttribute('aria-checked')).toBe('false')
   })
 
-  it('uses roving tabindex — only selected option has tabIndex 0', async () => {
-    setUp()
-    await render(
-      <ToggleGroup options={options} selected={2} onChange={() => {}} />
-    )
+  it('uses roving tabindex — only selected option has tabIndex 0', () => {
+    render(<ToggleGroup options={options} selected={2} onChange={() => {}} />)
 
     const radios = document.querySelectorAll('[role="radio"]')
     expect((radios[0] as HTMLElement).tabIndex).toBe(-1)
@@ -103,14 +55,13 @@ describe('ToggleGroup', () => {
     expect((radios[2] as HTMLElement).tabIndex).toBe(-1)
   })
 
-  it('moves selection forward on ArrowRight', async () => {
-    setUp()
+  it('moves selection forward on ArrowRight', () => {
     let selected = 1
     const onChange = (val: number) => {
       selected = val
     }
 
-    await render(
+    render(
       <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
@@ -121,14 +72,13 @@ describe('ToggleGroup', () => {
     expect(selected).toBe(2)
   })
 
-  it('moves selection backward on ArrowLeft', async () => {
-    setUp()
+  it('moves selection backward on ArrowLeft', () => {
     let selected = 2
     const onChange = (val: number) => {
       selected = val
     }
 
-    await render(
+    render(
       <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
@@ -139,14 +89,13 @@ describe('ToggleGroup', () => {
     expect(selected).toBe(1)
   })
 
-  it('wraps from last to first on ArrowRight', async () => {
-    setUp()
+  it('wraps from last to first on ArrowRight', () => {
     let selected = 3
     const onChange = (val: number) => {
       selected = val
     }
 
-    await render(
+    render(
       <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
@@ -157,14 +106,13 @@ describe('ToggleGroup', () => {
     expect(selected).toBe(1)
   })
 
-  it('wraps from first to last on ArrowLeft', async () => {
-    setUp()
+  it('wraps from first to last on ArrowLeft', () => {
     let selected = 1
     const onChange = (val: number) => {
       selected = val
     }
 
-    await render(
+    render(
       <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
@@ -175,14 +123,13 @@ describe('ToggleGroup', () => {
     expect(selected).toBe(3)
   })
 
-  it('moves to first option on Home', async () => {
-    setUp()
+  it('moves to first option on Home', () => {
     let selected = 3
     const onChange = (val: number) => {
       selected = val
     }
 
-    await render(
+    render(
       <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
@@ -193,14 +140,13 @@ describe('ToggleGroup', () => {
     expect(selected).toBe(1)
   })
 
-  it('moves to last option on End', async () => {
-    setUp()
+  it('moves to last option on End', () => {
     let selected = 1
     const onChange = (val: number) => {
       selected = val
     }
 
-    await render(
+    render(
       <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
@@ -212,7 +158,6 @@ describe('ToggleGroup', () => {
   })
 
   it('moves DOM focus to the newly selected radio on keyboard navigation', async () => {
-    setUp()
     let selected = 1
 
     function Wrapper() {
@@ -229,7 +174,7 @@ describe('ToggleGroup', () => {
       )
     }
 
-    await render(<Wrapper />)
+    render(<Wrapper />)
 
     const radios = document.querySelectorAll<HTMLElement>('[role="radio"]')
     radios[0]!.focus()
@@ -244,14 +189,13 @@ describe('ToggleGroup', () => {
     expect(document.activeElement).toBe(updatedRadios[1])
   })
 
-  it('selects an option on click', async () => {
-    setUp()
+  it('selects an option on click', () => {
     let selected = 1
     const onChange = (val: number) => {
       selected = val
     }
 
-    await render(
+    render(
       <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
@@ -261,14 +205,13 @@ describe('ToggleGroup', () => {
     expect(selected).toBe(3)
   })
 
-  it('supports ArrowDown and ArrowUp as alternatives', async () => {
-    setUp()
+  it('supports ArrowDown and ArrowUp as alternatives', () => {
     let selected = 1
     const onChange = (val: number) => {
       selected = val
     }
 
-    await render(
+    const { rerender } = render(
       <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
 
@@ -278,7 +221,7 @@ describe('ToggleGroup', () => {
     expect(selected).toBe(2)
 
     selected = 2
-    await render(
+    rerender(
       <ToggleGroup options={options} selected={selected} onChange={onChange} />
     )
     const updatedRadios =

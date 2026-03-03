@@ -1,51 +1,14 @@
+import { cleanup, render } from '@testing-library/react'
 import expect from 'expect'
-import { afterEach, before, describe, it } from 'node:test'
-import React, { act, type ReactNode } from 'react'
-import { createRoot, Root } from 'react-dom/client'
+import { afterEach, describe, it } from 'node:test'
+import React, { act } from 'react'
 import { Modal } from './Modal'
 
-before(() => {
-  ;(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true
-})
-
-let root: Root | null = null
-let container: HTMLDivElement | null = null
-
-function setUp() {
-  container = document.createElement('div')
-  document.body.appendChild(container)
-  root = createRoot(container)
-}
-
-async function tearDown() {
-  if (root) {
-    await act(() => {
-      root!.unmount()
-    })
-    root = null
-  }
-  if (container) {
-    document.body.removeChild(container)
-    container = null
-  }
-  ;(document.activeElement as HTMLElement | null)?.blur?.()
-}
-
-async function render(element: ReactNode) {
-  if (!root || !container) {
-    setUp()
-  }
-  await act(async () => {
-    root!.render(element)
-  })
-}
+afterEach(cleanup)
 
 describe('Modal', () => {
-  afterEach(tearDown)
-
-  it('renders with role="dialog"', async () => {
-    setUp()
-    await render(
+  it('renders with role="dialog"', () => {
+    render(
       <Modal width={400} height={300} aria-label="Test modal">
         <p>Content</p>
       </Modal>
@@ -55,9 +18,8 @@ describe('Modal', () => {
     expect(dialog).not.toBeNull()
   })
 
-  it('sets aria-modal="true"', async () => {
-    setUp()
-    await render(
+  it('sets aria-modal="true"', () => {
+    render(
       <Modal width={400} height={300} aria-label="Test modal">
         <p>Content</p>
       </Modal>
@@ -67,9 +29,8 @@ describe('Modal', () => {
     expect(dialog?.getAttribute('aria-modal')).toBe('true')
   })
 
-  it('applies aria-label when provided', async () => {
-    setUp()
-    await render(
+  it('applies aria-label when provided', () => {
+    render(
       <Modal width={400} height={300} aria-label="Confirm action">
         <p>Content</p>
       </Modal>
@@ -79,9 +40,8 @@ describe('Modal', () => {
     expect(dialog?.getAttribute('aria-label')).toBe('Confirm action')
   })
 
-  it('applies aria-labelledby when labelId is provided', async () => {
-    setUp()
-    await render(
+  it('applies aria-labelledby when labelId is provided', () => {
+    render(
       <Modal width={400} height={300} labelId="modal-title">
         <h2 id="modal-title">Title</h2>
       </Modal>
@@ -91,9 +51,8 @@ describe('Modal', () => {
     expect(dialog?.getAttribute('aria-labelledby')).toBe('modal-title')
   })
 
-  it('prefers aria-label over labelId when both provided', async () => {
-    setUp()
-    await render(
+  it('prefers aria-label over labelId when both provided', () => {
+    render(
       <Modal
         width={400}
         height={300}
@@ -109,16 +68,14 @@ describe('Modal', () => {
     expect(dialog?.getAttribute('aria-labelledby')).toBeNull()
   })
 
-  it('traps focus inside the dialog', async () => {
-    setUp()
-
+  it('traps focus inside the dialog', () => {
     const outer = document.createElement('button')
     outer.id = 'outer'
     document.body.appendChild(outer)
     outer.focus()
     expect(document.activeElement).toBe(outer)
 
-    await render(
+    render(
       <Modal width={400} height={300} aria-label="Focus test">
         <button id="inside-1">First</button>
         <button id="inside-2">Second</button>
@@ -131,10 +88,9 @@ describe('Modal', () => {
   })
 
   it('calls onClose when Escape is pressed', async () => {
-    setUp()
     let closed = false
 
-    await render(
+    render(
       <Modal
         width={400}
         height={300}
@@ -160,9 +116,8 @@ describe('Modal', () => {
     expect(closed).toBe(true)
   })
 
-  it('does not call onClose on Escape when onClose is not provided', async () => {
-    setUp()
-    await render(
+  it('does not call onClose on Escape when onClose is not provided', () => {
+    render(
       <Modal width={400} height={300} aria-label="No close">
         <p>Content</p>
       </Modal>
@@ -178,10 +133,9 @@ describe('Modal', () => {
   })
 
   it('calls onClose when the backdrop is clicked', async () => {
-    setUp()
     let closed = false
 
-    await render(
+    render(
       <Modal
         width={400}
         height={300}
@@ -212,10 +166,9 @@ describe('Modal', () => {
   })
 
   it('does not close when clicking inside the dialog', async () => {
-    setUp()
     let closed = false
 
-    await render(
+    render(
       <Modal
         width={400}
         height={300}
