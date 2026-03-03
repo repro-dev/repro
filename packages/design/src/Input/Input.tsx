@@ -8,9 +8,9 @@ import React, {
 } from 'react'
 import { UseFormRegisterReturn } from 'react-hook-form'
 import mergeRefs from 'react-merge-refs'
-import { focusWithinRing } from '../tokens/interaction'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
+import { focusWithinRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { MINIMUM_FONT_SIZE } from '../tokens/typography'
@@ -121,8 +121,8 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
           <Block
             padding={spacing.sm}
             position="absolute"
-            top={value !== '' || focused ? 0 : '50%'}
-            left={spacing.md}
+            top={value !== '' || focused ? 0 : fontSize + fontSize / 2}
+            left={sizes[size] - spacing.sm}
             translate="0 -50%"
             fontSize={fontSize}
             lineHeight={1}
