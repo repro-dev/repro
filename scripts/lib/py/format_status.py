@@ -82,7 +82,7 @@ for item in items:
         auto = " (auto)"
 
     detail_parts = []
-    if pod_status_reason:
+    if pod_status_reason and display_status == "error":
         detail_parts.append(pod_status_reason)
     if pod_restarts > 0:
         detail_parts.append(str(pod_restarts) + " restart(s)")
@@ -109,8 +109,9 @@ else:
     for name_val, status_val, type_val, detail_val in rows:
         pad0 = name_val.ljust(col0)
         pad1 = status_val.ljust(col1)
-        pad2 = type_val.ljust(col2)
-        line = "  " + pad0 + "  " + pad1 + "  " + pad2
         if detail_val:
-            line += "  " + detail_val
+            pad2 = type_val.ljust(col2)
+            line = "  " + pad0 + "  " + pad1 + "  " + pad2 + "  " + detail_val
+        else:
+            line = "  " + pad0 + "  " + pad1 + "  " + type_val
         print(line)

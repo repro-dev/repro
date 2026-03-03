@@ -241,3 +241,37 @@ class TestFormatStatus:
             assert len(ok_positions) == 1
         finally:
             os.unlink(svc_path)
+
+    def test_null_k8s_resource_info(self):
+        """Explicit null k8sResourceInfo should not cause errors."""
+        data = {
+            "items": [
+                {
+                    "metadata": {"name": "web"},
+                    "status": {
+                        "runtimeStatus": "ok",
+                        "updateStatus": "ok",
+                        "k8sResourceInfo": None,
+                    },
+                }
+            ]
+        }
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        assert result.returncode == 0
+        assert "web" in result.stdout
+        assert "restart" not in result.stdout
+
+    def test_pod_status_reason_hidden_for_ok_status(self):
+        """pod_status_reason should only appear when status is error."""
+        data = {"items": [_make_item("web-wt-x", runtime="ok", pod_status="Running")]}
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        assert result.returncode == 0
+        assert "Running" not in result.stdout
+
+    def test_no_trailing_whitespace(self):
+        """Lines without detail should not have trailing whitespace."""
+        data = {"items": [_make_item("redis"), _make_item("postgres")]}
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        for line in result.stdout.splitlines():
+            if line.strip():
+                assert line == line.rstrip(), f"Trailing whitespace: {line!r}"
