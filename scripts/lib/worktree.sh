@@ -145,6 +145,107 @@ cmd_wt_remove() {
   _ok "Worktree removed: $wt_path"
 }
 
+cmd_wt_prune() {
+  _step 1 2 "Fetching and pruning remote refs..."
+  git fetch --prune origin
+
+  _step 2 2 "Scanning worktrees for merged branches..."
+
+  local candidates=()
+  local wt_path="" wt_branch="" wt_bare=false wt_detached=false is_first=true
+
+  _prune_flush() {
+    if [ -z "$wt_path" ]; then
+      return
+    fi
+
+    if [ "$is_first" = true ]; then
+      is_first=false
+      wt_path="" wt_branch="" wt_bare=false wt_detached=false
+      return
+    fi
+
+    if [ "$wt_bare" = true ] || [ "$wt_detached" = true ] || [ -z "$wt_branch" ]; then
+      wt_path="" wt_branch="" wt_bare=false wt_detached=false
+      return
+    fi
+
+    if [ "$wt_path" = "$REPO_ROOT" ]; then
+      wt_path="" wt_branch="" wt_bare=false wt_detached=false
+      return
+    fi
+
+    local merged=false
+
+    if git merge-base --is-ancestor "refs/heads/$wt_branch" refs/heads/main 2>/dev/null; then
+      merged=true
+    elif ! git rev-parse --verify --quiet "refs/remotes/origin/$wt_branch" >/dev/null 2>&1; then
+      merged=true
+    fi
+
+    if [ "$merged" = true ]; then
+      candidates+=("$wt_branch")
+    fi
+
+    wt_path="" wt_branch="" wt_bare=false wt_detached=false
+  }
+
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *) wt_path="${line#worktree }" ;;
+      branch\ *)   wt_branch="${line#branch }"; wt_branch="${wt_branch#refs/heads/}" ;;
+      bare)        wt_bare=true ;;
+      detached)    wt_detached=true ;;
+      "")          _prune_flush ;;
+    esac
+  done < <(git worktree list --porcelain)
+  _prune_flush
+
+  if [ ${#candidates[@]} -eq 0 ]; then
+    echo ""
+    echo "No worktrees eligible for pruning."
+    return 0
+  fi
+
+  echo ""
+  echo "${CLR_BOLD}Worktrees eligible for pruning:${CLR_RESET}"
+  for branch in "${candidates[@]}"; do
+    echo "  ${CLR_DIM}•${CLR_RESET} $branch"
+  done
+  echo ""
+
+  if [ "$WT_DRY_RUN" = true ]; then
+    echo "${CLR_DIM}[dry-run] No changes were made.${CLR_RESET}"
+    return 0
+  fi
+
+  if [ "$WT_YES" != true ]; then
+    local answer
+    read -r -p "Remove these worktrees? [y/N] " answer
+    case "$answer" in
+      [yY]) ;;
+      *)
+        echo "Aborted."
+        return 0
+        ;;
+    esac
+  fi
+
+  local failed=0
+  for branch in "${candidates[@]}"; do
+    if ! cmd_wt_remove "$branch"; then
+      failed=$((failed + 1))
+    fi
+  done
+
+  echo ""
+  if [ "$failed" -eq 0 ]; then
+    _ok "Pruned ${#candidates[@]} worktree(s)"
+  else
+    _err "Pruned with $failed error(s)"
+  fi
+}
+
 cmd_wt_list() {
   echo "${CLR_BOLD}Active worktrees:${CLR_RESET}"
   echo ""
@@ -250,9 +351,13 @@ Commands:
   remove [options] <branch>   Remove the worktree for the given branch
   list                        List all active worktrees
   attach <branch>             Drop into a subshell in the given worktree
+  prune  [options]            Remove worktrees whose branches are merged
 
-Options (create, remove):
+Options (create, remove, prune):
   --dry-run         Preview what would be done without making changes
+
+Options (prune):
+  --yes, -y         Skip confirmation prompt
 
 Examples:
   reproctl worktree create feat/my-feature      # checkout existing branch
@@ -260,6 +365,8 @@ Examples:
   reproctl worktree remove feat/my-feature      # remove worktree
   reproctl worktree list                        # list all worktrees
   reproctl worktree attach feat/my-feature      # drop into worktree subshell
+  reproctl worktree prune --dry-run             # preview merged worktrees
+  reproctl worktree prune --yes                 # prune without confirmation
 EOF
 }
 
@@ -270,6 +377,7 @@ cmd_wt() {
   fi
 
   WT_DRY_RUN=false
+  WT_YES=false
 
   local subcmd=""
   local args=()
@@ -280,7 +388,7 @@ cmd_wt() {
         wt_usage
         exit 0
         ;;
-      create|remove|list|attach)
+      create|remove|list|attach|prune)
         subcmd="$1"
         shift
         break
@@ -303,6 +411,10 @@ cmd_wt() {
         WT_DRY_RUN=true
         shift
         ;;
+      --yes|-y)
+        WT_YES=true
+        shift
+        ;;
       -h|--help)
         wt_usage
         exit 0
@@ -319,6 +431,10 @@ cmd_wt() {
 
   if [ "$WT_DRY_RUN" = true ] && [ "$subcmd" = "attach" ]; then
     die "--dry-run flag cannot be used with 'attach'"
+  fi
+
+  if [ "$WT_YES" = true ] && [ "$subcmd" != "prune" ]; then
+    die "--yes flag can only be used with 'prune'"
   fi
 
 
@@ -349,6 +465,9 @@ cmd_wt() {
         die "'worktree attach' requires a branch name"
       fi
       cmd_attach "${args[0]}"
+      ;;
+    prune)
+      cmd_wt_prune
       ;;
   esac
 }
