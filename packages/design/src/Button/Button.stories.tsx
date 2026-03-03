@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import React from 'react'
 import { color } from '../tokens/colors'
-import { fontSize } from '../tokens/typography'
+import { fontSize, fontWeight } from '../tokens/typography'
 import { Button } from './Button'
 
 const onClickSpy = fn()
@@ -21,13 +21,7 @@ export default meta
 
 type Story = StoryObj<typeof Button>
 
-const contexts = [
-  'info',
-  'success',
-  'warning',
-  'danger',
-  'neutral',
-] as const
+const contexts = ['info', 'success', 'warning', 'danger', 'neutral'] as const
 
 const variants = ['contained', 'outlined', 'text'] as const
 
@@ -178,5 +172,54 @@ export const Square: Story = {
         </Button>
       ))}
     </Row>
+  ),
+}
+
+/**
+ * Active press micro-interaction.
+ * Click and hold a button to see the press effect (scale down).
+ * Disabled buttons do not animate.
+ */
+export const HoverAndActive: Story = {
+  render: () => (
+    <Col gap={24} padding={16}>
+      <Col gap={8}>
+        <Block
+          fontSize={fontSize.xs}
+          fontWeight={fontWeight.semibold}
+          letterSpacing="0.08em"
+          textTransform="uppercase"
+          color={color.text.muted}
+        >
+          Interactive (active press)
+        </Block>
+        <Row gap={8} alignItems="center">
+          {contexts.map(c => (
+            <Button key={c} context={c}>
+              {c}
+            </Button>
+          ))}
+        </Row>
+      </Col>
+
+      <Col gap={8}>
+        <Block
+          fontSize={fontSize.xs}
+          fontWeight={fontWeight.semibold}
+          letterSpacing="0.08em"
+          textTransform="uppercase"
+          color={color.text.muted}
+        >
+          Disabled (no hover/active)
+        </Block>
+        <Row gap={8} alignItems="center">
+          {contexts.map(c => (
+            <Button key={c} context={c} disabled>
+              {c}
+            </Button>
+          ))}
+        </Row>
+      </Col>
+    </Col>
   ),
 }

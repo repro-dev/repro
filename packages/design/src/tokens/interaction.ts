@@ -2,13 +2,13 @@
  * Interaction style tokens and utilities for @repro/design.
  *
  * This module is the canonical source for interactive state styling across the
- * component library. It covers focus rings first; hover, active, disabled, and
- * selection state utilities will be added here over time.
+ * component library. It covers focus rings, active press, and other interactive
+ * state utilities.
  *
  * Usage:
- *   import { focusRing } from '@repro/design'
+ *   import { focusRing, activePress } from '@repro/design'
  *   <Block {...focusRing()} />
- *   <Block {...focusRing('danger')} />
+ *   <Block {...activePress()} />
  */
 import twColors from 'tailwindcss/colors'
 
@@ -106,6 +106,30 @@ export function focusWithinRing(context: FocusRingContext = 'default') {
     '&:has(:focus-visible)': {
       outline: tokens.outline,
       outlineOffset: tokens.outlineOffset,
+    },
+  } as const
+}
+
+// ---------------------------------------------------------------------------
+// Active press
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns jsxstyle-compatible props that apply a scale-down on active/press,
+ * simulating a physical button press. Disabled elements are excluded via
+ * `:not(:disabled)`.
+ *
+ * Does not set `transition` — the consuming component should set that
+ * explicitly so that multiple interaction utilities can be composed without
+ * overwriting each other.
+ *
+ * @example
+ * <Block component="button" transition={transition.fast} {...activePress()} />
+ */
+export function activePress() {
+  return {
+    '&:active:not(:disabled)': {
+      transform: 'scale(0.96)',
     },
   } as const
 }
