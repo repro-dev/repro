@@ -23,17 +23,9 @@ _linear_api() {
     die "Linear API returned non-JSON response"
   fi
 
-  local errors
-  errors="$(printf '%s' "$response" | python3 -c '
-import json, sys
-d = json.load(sys.stdin)
-e = d.get("errors")
-if isinstance(e, list) and e:
-    print(e)
-elif e and not isinstance(e, list):
-    print(e)
-' 2>/dev/null)"
-  if [[ -n "$errors" ]]; then
+  local errors rc=0
+  errors="$(printf '%s' "$response" | python3 "$SCRIPTS_DIR/lib/py/linear_check_errors.py" 2>/dev/null)" || rc=$?
+  if [[ $rc -ne 0 ]] && [[ -n "$errors" ]]; then
     die "Linear API error: $errors"
   fi
 
@@ -60,19 +52,7 @@ cmd_wt_create_from_issue() {
   response="$(_linear_api "$query")"
 
   local issue_data
-  issue_data="$(printf '%s' "$response" | python3 -c '
-import json, sys
-d = json.load(sys.stdin)
-nodes = d.get("data", {}).get("issueSearch", {}).get("nodes", [])
-if not nodes:
-    print("NOT_FOUND")
-    sys.exit(0)
-n = nodes[0]
-states = n.get("team", {}).get("states", {}).get("nodes", [])
-in_progress = [s for s in states if s["type"] == "started" and s["name"] == "In Progress"]
-state_id = in_progress[0]["id"] if in_progress else ""
-print(f"{n[\"id\"]}\n{n[\"identifier\"]}\n{n[\"title\"]}\n{n[\"branchName\"]}\n{state_id}")
-')" || die "Failed to parse Linear API response"
+  issue_data="$(printf '%s' "$response" | python3 "$SCRIPTS_DIR/lib/py/linear_parse_issue.py")" || die "Failed to parse Linear API response"
 
   if [[ -z "$issue_data" ]]; then
     die "Failed to parse Linear API response for ${issue_id}"
