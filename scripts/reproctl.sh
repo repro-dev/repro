@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # reproctl — unified CLI for cluster management, worktree lifecycle,
-#            and Tilt service orchestration
+#            Tilt service orchestration, and moon task wrappers
 #
 # Usage:
 #   reproctl setup                            Bootstrap the development environment
@@ -14,6 +14,9 @@
 #   reproctl status                           Show running services and dashboard URL
 #   reproctl logs [options] [service...]       Show or stream service logs
 #   reproctl ui                               Open the Tilt dashboard in a browser
+#   reproctl test [options] [<target>]        Run tests for a service or package
+#   reproctl typecheck [options] [<target>]   Run typecheck for a service or package
+#   reproctl build [options] [<target>]       Run build for a service or package
 #   reproctl worktree attach <branch>          Attach to a worktree subshell
 #   reproctl worktree create <branch>         Create a worktree
 #   reproctl worktree remove <branch>         Remove a worktree
@@ -28,6 +31,9 @@
 #   reproctl start api-server               # from worktree: isolated api-server
 #   reproctl stop --all                     # tear down everything
 #   reproctl restart api-server             # rebuild + redeploy a running service
+#   reproctl test api-server                # run tests for a service
+#   reproctl typecheck api-server           # typecheck a service
+#   reproctl build api-server               # build a service
 #   reproctl worktree create feat/my-feat   # create worktree for existing branch
 #   reproctl worktree list                  # list all worktrees
 
@@ -52,6 +58,8 @@ source "$SCRIPT_DIR/lib/setup.sh"
 source "$SCRIPT_DIR/lib/logs.sh"
 # shellcheck source=scripts/lib/db.sh
 source "$SCRIPT_DIR/lib/db.sh"
+# shellcheck source=scripts/lib/testbuild.sh
+source "$SCRIPT_DIR/lib/testbuild.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -72,6 +80,9 @@ Commands:
   status                          Show running services and dashboard URL
   logs [options] [service...]     Show or stream service logs
   ui                              Open the Tilt dashboard in a browser
+  test [options] [<target>]       Run tests for a service or package
+  typecheck [options] [<target>]  Run typecheck for a service or package
+  build [options] [<target>]      Run build for a service or package
   worktree <subcommand>           Manage git worktrees (create, remove, list, attach)
                                   (alias: wt)
   help [<command>]                Show manpage for reproctl or a subcommand
@@ -104,6 +115,14 @@ Examples:
   reproctl logs -f api-server                 # tail logs for a service
   reproctl logs --json --since 5m api-server  # structured recent logs
   reproctl ui                                 # open Tilt dashboard
+  reproctl test api-server                    # run tests for a service
+  reproctl test design                        # run tests for a package
+  reproctl test --all                         # run all tests
+  reproctl test --file path/to/file.test.ts   # run a single test file
+  reproctl typecheck api-server               # typecheck a service
+  reproctl typecheck --all                    # typecheck everything
+  reproctl build api-server                   # build a service
+  reproctl build --all                        # build everything
   reproctl wt attach feat/my-feat              # drop into worktree subshell
   reproctl wt create feat/my-feat             # shorthand for worktree
   reproctl worktree create feat/my-feat       # create worktree (auto-creates branch)
@@ -131,6 +150,9 @@ case "$COMMAND" in
   status)  cmd_status "$@" ;;
   logs)    cmd_logs "$@" ;;
   ui)      cmd_ui "$@" ;;
+  test)    cmd_test "$@" ;;
+  typecheck) cmd_typecheck "$@" ;;
+  build)   cmd_build "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
   help)
     topic="${1:-reproctl}"
