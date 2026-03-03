@@ -52,6 +52,8 @@ source "$SCRIPT_DIR/lib/setup.sh"
 source "$SCRIPT_DIR/lib/logs.sh"
 # shellcheck source=scripts/lib/db.sh
 source "$SCRIPT_DIR/lib/db.sh"
+# shellcheck source=scripts/lib/diagnose.sh
+source "$SCRIPT_DIR/lib/diagnose.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -62,6 +64,7 @@ Usage: reproctl <command> [args]
 Commands:
   setup                             Bootstrap the development environment
   doctor                            Diagnose the development environment
+  diagnose [--json]               Runtime health checks (Tilt, k8s, services)
   cluster <subcommand>            Manage the local k8s cluster and registry
                                   (up, down, status, reset)
   db <subcommand>                 Database operations
@@ -88,6 +91,8 @@ Examples:
   reproctl setup                              # bootstrap entire environment
   reproctl setup --skip-cluster               # skip cluster creation
   reproctl doctor                             # check environment health
+  reproctl diagnose                            # runtime health checks
+  reproctl diagnose --json                     # machine-readable health check
   reproctl cluster up                         # create cluster and registry
   reproctl cluster status                     # check cluster state
   reproctl db reset                           # drop + recreate database
@@ -123,6 +128,32 @@ shift
 case "$COMMAND" in
   setup)   cmd_setup "$@" ;;
   doctor)  cmd_doctor "$@" ;;
+  diagnose)
+    DIAGNOSE_JSON=false
+    for arg in "$@"; do
+      case "$arg" in
+        --json) DIAGNOSE_JSON=true ;;
+        -h|--help)
+          cat <<'USAGE'
+Usage: reproctl diagnose [--json]
+
+Check the runtime health of the development environment — Tilt daemon,
+Kubernetes cluster, container registry, services, and worktree resources.
+
+Options:
+  --json    Output machine-readable JSON instead of human-readable text
+
+Exit codes:
+  0   All healthy (or only warnings)
+  1   Errors found
+USAGE
+          exit 0
+          ;;
+        *) die "Unknown option: $arg\nRun 'reproctl diagnose --help' for usage." ;;
+      esac
+    done
+    cmd_diagnose
+    ;;
   cluster) cmd_cluster "$@" ;;
   db)      cmd_db "$@" ;;
   start)   cmd_start "$@" ;;
