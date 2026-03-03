@@ -7,24 +7,50 @@
 
 CHECKHEALTH_JSON=false
 
-_diag_ok() {
-  if [ "$CHECKHEALTH_JSON" = true ]; then return; fi
-  printf '  %s%-24s%s %sok%s  %s\n' "$CLR_BOLD" "$1" "$CLR_RESET" "$CLR_GREEN" "$CLR_RESET" "$2"
+_diag_rows=()
+
+_diag_row() {
+  local name="$1" status="$2" detail="$3"
+  _diag_rows+=("${name}"$'\t'"${status}"$'\t'"${detail}")
 }
 
-_diag_warn() {
-  if [ "$CHECKHEALTH_JSON" = true ]; then return; fi
-  printf '  %s%-24s%s %swarn%s  %s\n' "$CLR_BOLD" "$1" "$CLR_RESET" "$CLR_YELLOW" "$CLR_RESET" "$2"
-}
+_diag_flush() {
+  if [ "$CHECKHEALTH_JSON" = true ]; then
+    _diag_rows=()
+    return
+  fi
 
-_diag_err() {
-  if [ "$CHECKHEALTH_JSON" = true ]; then return; fi
-  printf '  %s%-24s%s %serror%s  %s\n' "$CLR_BOLD" "$1" "$CLR_RESET" "$CLR_RED" "$CLR_RESET" "$2"
-}
+  if [ ${#_diag_rows[@]} -eq 0 ]; then
+    return
+  fi
 
-_diag_skip() {
-  if [ "$CHECKHEALTH_JSON" = true ]; then return; fi
-  printf '  %s%-24s%s %sskip%s  %s\n' "$CLR_BOLD" "$1" "$CLR_RESET" "$CLR_DIM" "$CLR_RESET" "$2"
+  local max_name=0 max_status=0
+  for entry in "${_diag_rows[@]}"; do
+    local name status
+    IFS=$'\t' read -r name status _ <<< "$entry"
+    [ ${#name} -gt $max_name ] && max_name=${#name}
+    [ ${#status} -gt $max_status ] && max_status=${#status}
+  done
+
+  for entry in "${_diag_rows[@]}"; do
+    local name status detail
+    IFS=$'\t' read -r name status detail <<< "$entry"
+
+    local color
+    case "$status" in
+      ok)      color="$CLR_GREEN" ;;
+      warn)    color="$CLR_YELLOW" ;;
+      error)   color="$CLR_RED" ;;
+      *)       color="$CLR_DIM" ;;
+    esac
+
+    printf '  %s%-*s%s  %s%-*s%s  %s\n' \
+      "$CLR_BOLD" "$max_name" "$name" "$CLR_RESET" \
+      "$color" "$max_status" "$status" "$CLR_RESET" \
+      "$detail"
+  done
+
+  _diag_rows=()
 }
 
 cmd_checkhealth() {
@@ -51,10 +77,10 @@ cmd_checkhealth() {
   fi
 
   if tilt_is_running; then
-    _diag_ok "Tilt daemon" "running (http://localhost:$TILT_PORT)"
+    _diag_row "Tilt daemon" "ok" "running (http://localhost:$TILT_PORT)"
     _add_check "tilt" "ok" "running (http://localhost:$TILT_PORT)"
   else
-    _diag_err "Tilt daemon" "not running"
+    _diag_row "Tilt daemon" "error" "not running"
     _add_check "tilt" "error" "not running"
     _add_issue "error" "Tilt is not running — start services with: reproctl start <service>"
     has_errors=true
@@ -63,32 +89,32 @@ cmd_checkhealth() {
   if command -v kubectl > /dev/null 2>&1 && kubectl cluster-info > /dev/null 2>&1; then
     local node_count
     node_count="$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')"
-    _diag_ok "Kubernetes cluster" "$CLUSTER_NAME ($node_count node(s))"
+    _diag_row "Kubernetes cluster" "ok" "$CLUSTER_NAME ($node_count node(s))"
     _add_check "kubernetes" "ok" "$CLUSTER_NAME ($node_count node(s))"
   else
-    _diag_err "Kubernetes cluster" "not accessible"
+    _diag_row "Kubernetes cluster" "error" "not accessible"
     _add_check "kubernetes" "error" "not accessible"
     _add_issue "error" "Kubernetes cluster not accessible — run: reproctl cluster up"
     has_errors=true
   fi
 
   if ! command -v docker > /dev/null 2>&1 || ! docker info > /dev/null 2>&1; then
-    _diag_skip "Container registry" "Docker not available"
+    _diag_row "Container registry" "skip" "Docker not available"
     _add_check "registry" "skip" "Docker not available"
   elif registry_exists; then
     local reg_port
     reg_port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "5000/tcp") 0).HostPort}}' "$REGISTRY_NAME" 2>/dev/null || echo "5000")"
     if curl -sf "http://localhost:${reg_port}/v2/" > /dev/null 2>&1; then
-      _diag_ok "Container registry" "$REGISTRY_NAME (port $reg_port, API reachable)"
+      _diag_row "Container registry" "ok" "$REGISTRY_NAME (port $reg_port, API reachable)"
       _add_check "registry" "ok" "$REGISTRY_NAME (port $reg_port)"
     else
-      _diag_warn "Container registry" "$REGISTRY_NAME running but API not reachable on port $reg_port"
+      _diag_row "Container registry" "warn" "$REGISTRY_NAME running but API not reachable on port $reg_port"
       _add_check "registry" "warn" "running but API not reachable"
       _add_issue "warning" "Container registry running but API not reachable on port $reg_port"
       has_warnings=true
     fi
   else
-    _diag_err "Container registry" "$REGISTRY_NAME not running"
+    _diag_row "Container registry" "error" "$REGISTRY_NAME not running"
     _add_check "registry" "error" "$REGISTRY_NAME not running"
     _add_issue "error" "Container registry not running — run: reproctl cluster up"
     has_errors=true
@@ -103,10 +129,10 @@ cmd_checkhealth() {
       local listener
       listener="$(lsof -iTCP:"$port" -sTCP:LISTEN -P -n 2>/dev/null | tail -1 | awk '{print $1}' || true)"
       if [ -n "$listener" ]; then
-        _diag_ok "Port $port" "bound ($pname, $listener)"
+        _diag_row "Port $port" "ok" "bound ($pname, $listener)"
         _add_check "port_$port" "ok" "bound ($pname, $listener)"
       else
-        _diag_warn "Port $port" "not bound ($pname)"
+        _diag_row "Port $port" "warn" "not bound ($pname)"
         _add_check "port_$port" "warn" "not bound ($pname)"
         _add_issue "warning" "Port $port ($pname) is not bound — service may not be started"
         has_warnings=true
@@ -116,10 +142,12 @@ cmd_checkhealth() {
     for i in "${!ports[@]}"; do
       local port="${ports[$i]}"
       local pname="${port_names[$i]}"
-      _diag_skip "Port $port" "cannot check ($pname, lsof not available)"
+      _diag_row "Port $port" "skip" "cannot check ($pname, lsof not available)"
       _add_check "port_$port" "skip" "cannot check ($pname, lsof not available)"
     done
   fi
+
+  _diag_flush
 
   if [ "$CHECKHEALTH_JSON" != true ]; then
     echo ""
@@ -136,33 +164,23 @@ cmd_checkhealth() {
       python3 "$SCRIPTS_DIR/lib/py/format_checkhealth.py" 2>/dev/null || echo '{"services":[],"issues":[]}')"
 
     if [ "$CHECKHEALTH_JSON" != true ]; then
-      printf '%s' "$svc_results" | \
-        CLR_BOLD="$CLR_BOLD" CLR_RESET="$CLR_RESET" CLR_GREEN="$CLR_GREEN" \
-        CLR_RED="$CLR_RED" CLR_YELLOW="$CLR_YELLOW" CLR_DIM="$CLR_DIM" \
-        python3 -c '
-import json, os, sys
+      local svc_line
+      while IFS= read -r svc_line; do
+        [ -z "$svc_line" ] && continue
+        local svc_name svc_status svc_detail
+        svc_name="$(printf '%s' "$svc_line" | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')"
+        svc_status="$(printf '%s' "$svc_line" | python3 -c 'import json,sys; print(json.load(sys.stdin)["status"])')"
+        svc_detail="$(printf '%s' "$svc_line" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("detail",""))')"
+        _diag_row "$svc_name" "$svc_status" "$svc_detail"
+      done < <(printf '%s' "$svc_results" | python3 -c '
+import json, sys
 data = json.load(sys.stdin)
-bold = os.environ.get("CLR_BOLD", "")
-reset = os.environ.get("CLR_RESET", "")
-green = os.environ.get("CLR_GREEN", "")
-red = os.environ.get("CLR_RED", "")
-yellow = os.environ.get("CLR_YELLOW", "")
-dim = os.environ.get("CLR_DIM", "")
 for s in data.get("services", []):
-    name = s["name"]
-    status = s["status"]
-    detail = s.get("detail", "")
-    if status == "ok":
-        color = green
-    elif status == "error":
-        color = red
-    elif status == "warn":
-        color = yellow
-    else:
-        color = dim
-    print(f"  {bold}{name:<24}{reset} {color}{status}{reset}  {detail}")
-'
+    print(json.dumps(s))
+')
     fi
+
+    _diag_flush
 
     local svc_check_items
     svc_check_items="$(printf '%s' "$svc_results" | python3 -c '
@@ -195,8 +213,9 @@ for issue in data.get("issues", []):
       fi
     done <<< "$svc_issues"
   else
-    _diag_skip "Services" "Tilt not running — cannot check service health"
+    _diag_row "Services" "skip" "Tilt not running — cannot check service health"
     _add_check "services" "skip" "Tilt not running"
+    _diag_flush
   fi
 
   if [ "$CHECKHEALTH_JSON" != true ]; then
@@ -274,10 +293,10 @@ for r in wt:
         done <<< "$wt_releases"
 
         if [ "$release_count" -gt 0 ]; then
-          _diag_ok "wt-$slug" "$release_count Helm release(s)"
+          _diag_row "wt-$slug" "ok" "$release_count Helm release(s)"
           _add_check "wt_$slug" "ok" "$release_count Helm release(s)"
         else
-          _diag_ok "wt-$slug" "no Helm releases (services may not be started)"
+          _diag_row "wt-$slug" "ok" "no Helm releases (services may not be started)"
           _add_check "wt_$slug" "ok" "no Helm releases"
         fi
       done
@@ -291,15 +310,18 @@ for r in wt:
       for entry in "${orphaned_releases[@]}"; do
         local release_name release_ns
         IFS=$'\t' read -r release_name release_ns <<< "$entry"
-        _diag_warn "orphan: $release_name" "no matching worktree"
+        _diag_row "orphan: $release_name" "warn" "no matching worktree"
         _add_check "orphan_$release_name" "warn" "orphaned Helm release — no matching worktree"
         _add_issue "warning" "Orphaned Helm release '$release_name' — no matching worktree. Clean up with: helm uninstall $release_name --namespace $release_ns"
         has_warnings=true
       done
     fi
+
+    _diag_flush
   else
-    _diag_skip "Worktree resources" "helm/kubectl not available"
+    _diag_row "Worktree resources" "skip" "helm/kubectl not available"
     _add_check "worktree_resources" "skip" "helm/kubectl not available"
+    _diag_flush
   fi
 
   if [ "$CHECKHEALTH_JSON" = true ]; then
