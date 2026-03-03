@@ -37,14 +37,23 @@ if cfg_path and os.path.isfile(cfg_path):
                 configured.add(name)
 
 rows = []
+seen_names = set()
 for item in items:
     name = item.get("metadata", {}).get("name", "")
     if name == "(Tiltfile)":
         continue
 
+    seen_names.add(name)
     status_obj = item.get("status", {})
     runtime = status_obj.get("runtimeStatus", "")
     update = status_obj.get("updateStatus", "")
+
+    pod_restarts = 0
+    pod_status_reason = ""
+    k8s_info = status_obj.get("k8sResourceInfo", {})
+    if k8s_info:
+        pod_restarts = k8s_info.get("podRestarts", 0)
+        pod_status_reason = k8s_info.get("podStatusMessage", "")
 
     effective_runtime = "ok" if runtime in ("ok", "not_applicable") else runtime
     effective_update = "ok" if update in ("ok", "not_applicable", "none") else update
@@ -72,14 +81,36 @@ for item in items:
     if res_type == "service" and name not in configured:
         auto = " (auto)"
 
-    rows.append((name, display_status, res_type + auto))
+    detail_parts = []
+    if pod_status_reason:
+        detail_parts.append(pod_status_reason)
+    if pod_restarts > 0:
+        detail_parts.append(str(pod_restarts) + " restart(s)")
+    detail = ", ".join(detail_parts)
+
+    rows.append((name, display_status, res_type + auto, detail))
+
+for svc_name in sorted(configured):
+    if svc_name not in seen_names:
+        if "-wt-" in svc_name:
+            idx = svc_name.index("-wt-")
+            wt_slug = svc_name[idx + 4 :]
+            svc_type = "service [wt:" + wt_slug + "]"
+        else:
+            svc_type = "service"
+        rows.append((svc_name, "warn", svc_type, "not in Tilt"))
 
 if not rows:
     print("  (none)")
 else:
     col0 = max(len(r[0]) for r in rows)
     col1 = max(len(r[1]) for r in rows)
-    for name_val, status_val, type_val in rows:
+    col2 = max(len(r[2]) for r in rows)
+    for name_val, status_val, type_val, detail_val in rows:
         pad0 = name_val.ljust(col0)
         pad1 = status_val.ljust(col1)
-        print("  " + pad0 + "  " + pad1 + "  " + type_val)
+        pad2 = type_val.ljust(col2)
+        line = "  " + pad0 + "  " + pad1 + "  " + pad2
+        if detail_val:
+            line += "  " + detail_val
+        print(line)
