@@ -1,33 +1,33 @@
 #!/bin/bash
 #
-# scripts/lib/diagnose.sh — runtime health checks
+# scripts/lib/checkhealth.sh — runtime health checks
 #
 # Sourced by reproctl.sh. Expects scripts/lib/common.sh and
 # scripts/lib/cluster.sh to be loaded first.
 
-DIAGNOSE_JSON=false
+CHECKHEALTH_JSON=false
 
 _diag_ok() {
-  if [ "$DIAGNOSE_JSON" = true ]; then return; fi
+  if [ "$CHECKHEALTH_JSON" = true ]; then return; fi
   printf '  %s%-24s%s %sok%s  %s\n' "$CLR_BOLD" "$1" "$CLR_RESET" "$CLR_GREEN" "$CLR_RESET" "$2"
 }
 
 _diag_warn() {
-  if [ "$DIAGNOSE_JSON" = true ]; then return; fi
+  if [ "$CHECKHEALTH_JSON" = true ]; then return; fi
   printf '  %s%-24s%s %swarn%s  %s\n' "$CLR_BOLD" "$1" "$CLR_RESET" "\033[33m" "$CLR_RESET" "$2"
 }
 
 _diag_err() {
-  if [ "$DIAGNOSE_JSON" = true ]; then return; fi
+  if [ "$CHECKHEALTH_JSON" = true ]; then return; fi
   printf '  %s%-24s%s %serror%s  %s\n' "$CLR_BOLD" "$1" "$CLR_RESET" "$CLR_RED" "$CLR_RESET" "$2"
 }
 
 _diag_skip() {
-  if [ "$DIAGNOSE_JSON" = true ]; then return; fi
+  if [ "$CHECKHEALTH_JSON" = true ]; then return; fi
   printf '  %s%-24s%s %sskip%s  %s\n' "$CLR_BOLD" "$1" "$CLR_RESET" "$CLR_DIM" "$CLR_RESET" "$2"
 }
 
-cmd_diagnose() {
+cmd_checkhealth() {
   local has_errors=false
   local has_warnings=false
   local issues=()
@@ -43,7 +43,7 @@ cmd_diagnose() {
     issues+=("{\"severity\":\"$severity\",\"message\":$(printf '%s' "$msg" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}")
   }
 
-  if [ "$DIAGNOSE_JSON" != true ]; then
+  if [ "$CHECKHEALTH_JSON" != true ]; then
     echo ""
     echo "${CLR_BOLD}Runtime health check${CLR_RESET}"
     echo ""
@@ -109,7 +109,7 @@ cmd_diagnose() {
     fi
   done
 
-  if [ "$DIAGNOSE_JSON" != true ]; then
+  if [ "$CHECKHEALTH_JSON" != true ]; then
     echo ""
     echo "${CLR_BOLD}Services:${CLR_RESET}"
   fi
@@ -121,9 +121,9 @@ cmd_diagnose() {
     local svc_results
     svc_results="$(printf '%s' "$tilt_json" | \
       SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" \
-      python3 "$SCRIPTS_DIR/lib/py/format_diagnose.py" 2>/dev/null || echo '{"services":[],"issues":[]}')"
+      python3 "$SCRIPTS_DIR/lib/py/format_checkhealth.py" 2>/dev/null || echo '{"services":[],"issues":[]}')"
 
-    if [ "$DIAGNOSE_JSON" != true ]; then
+    if [ "$CHECKHEALTH_JSON" != true ]; then
       printf '%s' "$svc_results" | python3 -c '
 import json, sys
 data = json.load(sys.stdin)
@@ -179,7 +179,7 @@ for issue in data.get("issues", []):
     _add_check "services" "skip" "Tilt not running"
   fi
 
-  if [ "$DIAGNOSE_JSON" != true ]; then
+  if [ "$CHECKHEALTH_JSON" != true ]; then
     echo ""
     echo "${CLR_BOLD}Worktree resources:${CLR_RESET}"
   fi
@@ -262,7 +262,7 @@ for r in wt:
         fi
       done
     else
-      if [ "$DIAGNOSE_JSON" != true ]; then
+      if [ "$CHECKHEALTH_JSON" != true ]; then
         echo "  ${CLR_DIM}(no worktrees)${CLR_RESET}"
       fi
     fi
@@ -280,7 +280,7 @@ for r in wt:
     _add_check "worktree_resources" "skip" "helm/kubectl not available"
   fi
 
-  if [ "$DIAGNOSE_JSON" = true ]; then
+  if [ "$CHECKHEALTH_JSON" = true ]; then
     local checks_json
     checks_json="$(printf '%s\n' "${json_checks[@]}" | python3 -c '
 import json, sys
