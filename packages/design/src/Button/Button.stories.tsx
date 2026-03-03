@@ -2,7 +2,7 @@ import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { color } from '../tokens/colors'
-import { fontSize } from '../tokens/typography'
+import { fontSize, fontWeight } from '../tokens/typography'
 import { Button } from './Button'
 
 const meta: Meta<typeof Button> = {
@@ -15,13 +15,7 @@ export default meta
 
 type Story = StoryObj<typeof Button>
 
-const contexts = [
-  'info',
-  'success',
-  'warning',
-  'danger',
-  'neutral',
-] as const
+const contexts = ['info', 'success', 'warning', 'danger', 'neutral'] as const
 
 const variants = ['contained', 'outlined', 'text'] as const
 
@@ -139,9 +133,9 @@ export const Square: Story = {
 }
 
 /**
- * Hover and active micro-interactions.
- * Hover a button to see the lift effect (scale up); click and hold to see the
- * press effect (scale down). Disabled buttons do not animate.
+ * Active press micro-interaction.
+ * Click and hold a button to see the press effect (scale down).
+ * Disabled buttons do not animate.
  */
 export const HoverAndActive: Story = {
   render: () => (
@@ -149,12 +143,12 @@ export const HoverAndActive: Story = {
       <Col gap={8}>
         <Block
           fontSize={fontSize.xs}
-          fontWeight={600}
+          fontWeight={fontWeight.semibold}
           letterSpacing="0.08em"
           textTransform="uppercase"
           color={color.text.muted}
         >
-          Interactive (hover + active)
+          Interactive (active press)
         </Block>
         <Row gap={8} alignItems="center">
           {contexts.map(c => (
@@ -168,7 +162,7 @@ export const HoverAndActive: Story = {
       <Col gap={8}>
         <Block
           fontSize={fontSize.xs}
-          fontWeight={600}
+          fontWeight={fontWeight.semibold}
           letterSpacing="0.08em"
           textTransform="uppercase"
           color={color.text.muted}

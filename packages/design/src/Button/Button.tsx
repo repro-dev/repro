@@ -1,8 +1,9 @@
 import { Row } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
 import { color } from '../tokens/colors'
-import { radius, shadow, containedShadow } from '../tokens/elevation'
-import { activePress, focusRing, hoverLift } from '../tokens/interaction'
+import { containedShadow, radius, shadow } from '../tokens/elevation'
+import { activePress, focusRing } from '../tokens/interaction'
+import { transition } from '../tokens/motion'
 import { fontSize as fontSizeTokens } from '../tokens/typography'
 
 type Props = PropsWithChildren<{
@@ -103,9 +104,9 @@ const contextColors = {
  * `radius.none` is used when `rounded={false}`.
  */
 const sizes = {
-  small:  { base: 5, fontSize: fontSizeTokens.xs },   // 11px
-  medium: { base: 7, fontSize: fontSizeTokens.xs },   // 11px
-  large:  { base: 9, fontSize: fontSizeTokens.sm },   // 13px
+  small: { base: 5, fontSize: fontSizeTokens.xs }, // 11px
+  medium: { base: 7, fontSize: fontSizeTokens.xs }, // 11px
+  large: { base: 9, fontSize: fontSizeTokens.sm }, // 13px
 }
 
 /**
@@ -155,15 +156,15 @@ export const Button: React.FC<Props> = ({
         disabled
           ? shadow.none
           : variant === 'contained'
-            ? containedShadow(ctx.highlightOpacity)
-            : shadow.none
+          ? containedShadow(ctx.highlightOpacity)
+          : shadow.none
       }
       opacity={disabled ? 0.5 : 1}
       cursor={disabled ? 'default' : 'pointer'}
       fontSize={fontSize}
       lineHeight="1em"
+      transition={transition.fast}
       {...focusRing(context)}
-      {...hoverLift()}
       {...activePress()}
     >
       {children}

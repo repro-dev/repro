@@ -2,17 +2,15 @@
  * Interaction style tokens and utilities for @repro/design.
  *
  * This module is the canonical source for interactive state styling across the
- * component library. It covers focus rings, hover lift, active press, and
- * other interactive state utilities.
+ * component library. It covers focus rings, active press, and other interactive
+ * state utilities.
  *
  * Usage:
- *   import { focusRing, hoverLift, activePress } from '@repro/design'
+ *   import { focusRing, activePress } from '@repro/design'
  *   <Block {...focusRing()} />
- *   <Block {...hoverLift()} {...activePress()} />
+ *   <Block {...activePress()} />
  */
 import twColors from 'tailwindcss/colors'
-
-import { transition } from './motion'
 
 // ---------------------------------------------------------------------------
 // Focus ring tokens
@@ -113,29 +111,6 @@ export function focusWithinRing(context: FocusRingContext = 'default') {
 }
 
 // ---------------------------------------------------------------------------
-// Hover lift
-// ---------------------------------------------------------------------------
-
-/**
- * Returns jsxstyle-compatible props that apply a slight scale-up on hover,
- * giving the element a "lift" feel. Disabled elements are excluded via
- * `:not(:disabled)`.
- *
- * Uses `transition.fast` for a snappy response.
- *
- * @example
- * <Block component="button" {...hoverLift()} />
- */
-export function hoverLift() {
-  return {
-    transition: transition.fast,
-    '&:hover:not(:disabled)': {
-      transform: 'scale(1.02)',
-    },
-  } as const
-}
-
-// ---------------------------------------------------------------------------
 // Active press
 // ---------------------------------------------------------------------------
 
@@ -144,16 +119,17 @@ export function hoverLift() {
  * simulating a physical button press. Disabled elements are excluded via
  * `:not(:disabled)`.
  *
- * Uses `transition.fast` for a snappy response.
+ * Does not set `transition` — the consuming component should set that
+ * explicitly so that multiple interaction utilities can be composed without
+ * overwriting each other.
  *
  * @example
- * <Block component="button" {...activePress()} />
+ * <Block component="button" transition={transition.fast} {...activePress()} />
  */
 export function activePress() {
   return {
-    transition: transition.fast,
     '&:active:not(:disabled)': {
-      transform: 'scale(0.98)',
+      transform: 'scale(0.96)',
     },
   } as const
 }
