@@ -7,6 +7,90 @@
 # worktree_path, die).
 
 WT_DRY_RUN=false
+WT_FROM_ISSUE=""
+WT_NO_STATUS_UPDATE=false
+
+_linear_api() {
+  local query="$1"
+  local response
+  response="$(curl -sSf -X POST \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $LINEAR_API_KEY" \
+    --data "{\"query\": $(printf '%s' "$query" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}" \
+    "https://api.linear.app/graphql")" || die "Failed to reach Linear API"
+
+  if ! printf '%s' "$response" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
+    die "Linear API returned non-JSON response"
+  fi
+
+  local errors rc=0
+  errors="$(printf '%s' "$response" | python3 "$SCRIPTS_DIR/lib/py/linear_check_errors.py" 2>/dev/null)" || rc=$?
+  if [[ $rc -ne 0 ]] && [[ -n "$errors" ]]; then
+    die "Linear API error: $errors"
+  fi
+
+  printf '%s' "$response"
+}
+
+cmd_wt_create_from_issue() {
+  local issue_id="$1"
+
+  if [[ ! "$issue_id" =~ ^[A-Z]+-[0-9]+$ ]]; then
+    die "Invalid issue identifier: '$issue_id'. Expected format: REP-123"
+  fi
+
+  if [[ -z "${LINEAR_API_KEY:-}" ]]; then
+    die "LINEAR_API_KEY environment variable is not set.\nCreate a personal API key at https://linear.app/settings/api\nthen export it in your shell:  export LINEAR_API_KEY=lin_api_..."
+  fi
+
+  _step 1 3 "Fetching issue ${issue_id} from Linear..."
+
+  local query
+  query="{ issueSearch(filter: { identifier: { eq: \"${issue_id}\" } }, first: 1) { nodes { id identifier title branchName team { states { nodes { id name type } } } } } }"
+
+  local response
+  response="$(_linear_api "$query")"
+
+  local issue_data
+  issue_data="$(printf '%s' "$response" | python3 "$SCRIPTS_DIR/lib/py/linear_parse_issue.py")" || die "Failed to parse Linear API response"
+
+  if [[ -z "$issue_data" ]]; then
+    die "Failed to parse Linear API response for ${issue_id}"
+  fi
+
+  if [[ "$issue_data" == "NOT_FOUND" ]]; then
+    die "Issue ${issue_id} not found in Linear."
+  fi
+
+  local issue_uuid issue_identifier issue_title branch_name in_progress_state_id
+  issue_uuid="$(sed -n '1p' <<< "$issue_data")"
+  issue_identifier="$(sed -n '2p' <<< "$issue_data")"
+  issue_title="$(sed -n '3p' <<< "$issue_data")"
+  branch_name="$(sed -n '4p' <<< "$issue_data")"
+  in_progress_state_id="$(sed -n '5p' <<< "$issue_data")"
+
+  if [[ -z "$branch_name" ]]; then
+    die "No branch name returned by Linear for ${issue_identifier}."
+  fi
+
+  _ok "Found: ${issue_identifier} — ${issue_title}"
+  echo "  Branch: ${branch_name}"
+  echo ""
+
+  cmd_wt_create "$branch_name"
+
+  if [[ "$WT_NO_STATUS_UPDATE" != true ]]; then
+    if [[ -n "$in_progress_state_id" ]]; then
+      _step 3 3 "Updating ${issue_identifier} status to In Progress..."
+      local mutation
+      mutation="mutation { issueUpdate(id: \"${issue_uuid}\", input: { stateId: \"${in_progress_state_id}\" }) { issue { id identifier } } }"
+      _linear_api "$mutation" > /dev/null
+      _ok "Issue ${issue_identifier} marked In Progress"
+    else
+      echo "  ${CLR_DIM}Could not find 'In Progress' state — skipping status update${CLR_RESET}"
+    fi
+  fi
+}
 
 cmd_wt_create() {
   local branch="$1"
@@ -479,13 +563,19 @@ wt_usage() {
 Usage: reproctl worktree <command> [options] [args]
 
 Commands:
-  create [options] <branch>   Create a new worktree for the given branch
-  remove [options] <branch>   Remove the worktree for the given branch
+  create [options] <branch>        Create a new worktree for the given branch
+  create --from-issue <id>         Create a worktree from a Linear issue
+  remove [options] <branch>        Remove the worktree for the given branch
   list                        List all active worktrees
   attach <branch>             Drop into a subshell in the given worktree
   prune  [options]            Remove worktrees whose branches are merged
 
-Options (create, remove, prune):
+Options (create):
+  --from-issue, -i <id>   Fetch branch name from a Linear issue (e.g. REP-123)
+  --no-status-update      Skip setting the Linear issue to In Progress
+  --dry-run               Preview what would be done without making changes
+
+Options (remove, prune):
   --dry-run         Preview what would be done without making changes
 
 Options (prune):
@@ -494,6 +584,7 @@ Options (prune):
 Examples:
   reproctl worktree create feat/my-feature      # checkout existing branch
   reproctl worktree create feat/new-feature     # auto-creates branch if needed
+  reproctl worktree create -i REP-123           # create from Linear issue
   reproctl worktree remove feat/my-feature      # remove worktree
   reproctl worktree list                        # list all worktrees
   reproctl worktree attach feat/my-feature      # drop into worktree subshell
@@ -510,6 +601,8 @@ cmd_wt() {
 
   WT_DRY_RUN=false
   WT_YES=false
+  WT_FROM_ISSUE=""
+  WT_NO_STATUS_UPDATE=false
 
   local subcmd=""
   local args=()
@@ -547,6 +640,17 @@ cmd_wt() {
         WT_YES=true
         shift
         ;;
+      --from-issue|-i)
+        if [[ -z "${2:-}" ]]; then
+          die "--from-issue requires an issue identifier (e.g. REP-123)"
+        fi
+        WT_FROM_ISSUE="$2"
+        shift 2
+        ;;
+      --no-status-update)
+        WT_NO_STATUS_UPDATE=true
+        shift
+        ;;
       -h|--help)
         wt_usage
         exit 0
@@ -569,16 +673,31 @@ cmd_wt() {
     die "--yes flag can only be used with 'prune'"
   fi
 
+  if [[ -n "$WT_FROM_ISSUE" && "$subcmd" != "create" ]]; then
+    die "--from-issue can only be used with 'create'"
+  fi
+
+  if [[ "$WT_NO_STATUS_UPDATE" == true && -z "$WT_FROM_ISSUE" ]]; then
+    die "--no-status-update can only be used with --from-issue"
+  fi
+
 
   case "$subcmd" in
     create)
-      if [ "${#args[@]}" -lt 1 ]; then
-        die "'worktree create' requires a branch name"
+      if [[ -n "$WT_FROM_ISSUE" ]]; then
+        if [[ "${#args[@]}" -gt 0 ]]; then
+          die "Cannot specify both --from-issue and a branch name"
+        fi
+        cmd_wt_create_from_issue "$WT_FROM_ISSUE"
+      else
+        if [ "${#args[@]}" -lt 1 ]; then
+          die "'worktree create' requires a branch name (or use --from-issue)"
+        fi
+        if ! git check-ref-format "refs/heads/${args[0]}" >/dev/null 2>&1; then
+          die "'${args[0]}' is not a valid branch name."
+        fi
+        cmd_wt_create "${args[0]}"
       fi
-      if ! git check-ref-format "refs/heads/${args[0]}" >/dev/null 2>&1; then
-        die "'${args[0]}' is not a valid branch name."
-      fi
-      cmd_wt_create "${args[0]}"
       ;;
     remove)
       if [ "${#args[@]}" -lt 1 ]; then
