@@ -1,0 +1,5 @@
+- Shell scripts: `set -euo pipefail`, use helpers from common.sh (`die`, `_step`, `_ok`)
+- Python scripts: standalone, read stdin/env vars, output to stdout
+- Python tests: `python3 -m pytest scripts/lib/py/tests/ -v` (uses subprocess pattern in conftest.py)
+- Bash syntax check: `bash -n scripts/lib/<file>.sh`
+- No shellcheck directives unless strictly necessary

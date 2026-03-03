@@ -1,0 +1,10 @@
+- TypeScript strict mode: `noUncheckedIndexedAccess`, `noUnusedLocals`, `noImplicitReturns`
+- Use `~/*` path aliases for local imports within packages
+- Functional React components with hooks only
+- Async: use `fluture` (`FutureInstance`), NOT Promises; `.pipe()` with one arg per call
+- Naming: PascalCase for components/types, camelCase for functions/variables
+- Styling: use `@repro/design` tokens for all visual values — no hardcoded px/hex/transition
+- Layout: jsxstyle primitives (`Row`, `Col`, `Grid`, `Block`) for structural arrangement
+- Typecheck: `moon run <package>:typecheck`
+- Test: `tsx --experimental-test-module-mocks --test path/to/file.test.ts`
+- Format: `pnpm fmt`
