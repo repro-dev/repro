@@ -1,5 +1,6 @@
 import { Block, Col } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
+import { expect, userEvent, within } from 'storybook/test'
 import React, { useState } from 'react'
 import { Button } from '../Button'
 import { Portal } from '../Portal'
@@ -107,5 +108,55 @@ export const WithLabelledBy: Story = {
         </Drawer>
       </Block>
     )
+  },
+}
+
+export const OpenCloseTest: Story = {
+  render: () => {
+    const [open, setOpen] = useState(false)
+    return (
+      <Block padding={16}>
+        <Button
+          context="info"
+          variant="contained"
+          size="medium"
+          rounded
+          onClick={() => setOpen(true)}
+        >
+          Open Drawer
+        </Button>
+
+        <Drawer
+          open={open}
+          onClose={() => setOpen(false)}
+          aria-label="Test drawer"
+        >
+          <Col gap={16} paddingTop={24}>
+            <Block fontSize={fontSize.lg} fontWeight={600}>
+              Test Drawer
+            </Block>
+          </Col>
+        </Drawer>
+      </Block>
+    )
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const openButton = canvas.getByRole('button', { name: 'Open Drawer' })
+
+    await userEvent.click(openButton)
+
+    const dialog = await within(document.body).findByRole('dialog')
+    await expect(dialog).toBeInTheDocument()
+    await expect(dialog).toHaveAttribute('aria-label', 'Test drawer')
+
+    const closeButton = within(document.body).getByRole('button', { name: 'Close drawer' })
+    await userEvent.click(closeButton)
+
+    await userEvent.click(openButton)
+    const reopenedDialog = await within(document.body).findByRole('dialog')
+    await expect(reopenedDialog).toBeInTheDocument()
+
+    await userEvent.keyboard('{Escape}')
   },
 }

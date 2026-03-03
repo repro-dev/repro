@@ -1,5 +1,6 @@
 import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import React, { useState } from 'react'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
@@ -9,6 +10,9 @@ const meta: Meta<typeof Toggle> = {
   title: 'Components/Actions/Toggle',
   component: Toggle,
   tags: ['autodocs', 'design-system'],
+  args: {
+    onChange: fn(),
+  },
 }
 
 export default meta
@@ -22,9 +26,6 @@ export const Default: Story = {
     size: 'medium',
     rounded: true,
   },
-  argTypes: {
-    onChange: { action: 'changed' },
-  },
 }
 
 export const Checked: Story = {
@@ -34,8 +35,39 @@ export const Checked: Story = {
     size: 'medium',
     rounded: true,
   },
-  argTypes: {
-    onChange: { action: 'changed' },
+}
+
+export const ToggleTest: Story = {
+  args: {
+    label: 'Enable notifications',
+    checked: false,
+    size: 'medium',
+    rounded: true,
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const toggle = canvas.getByRole('switch')
+
+    await expect(toggle).toHaveAttribute('aria-checked', 'false')
+    await userEvent.click(toggle)
+    await expect(args.onChange).toHaveBeenCalledWith(true)
+  },
+}
+
+export const CheckedToggleTest: Story = {
+  args: {
+    label: 'Enabled',
+    checked: true,
+    size: 'medium',
+    rounded: true,
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const toggle = canvas.getByRole('switch')
+
+    await expect(toggle).toHaveAttribute('aria-checked', 'true')
+    await userEvent.click(toggle)
+    await expect(args.onChange).toHaveBeenCalledWith(false)
   },
 }
 

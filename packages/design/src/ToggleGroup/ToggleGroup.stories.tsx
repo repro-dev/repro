@@ -1,5 +1,6 @@
 import { Block, Col } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import React, { useState } from 'react'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
@@ -9,6 +10,9 @@ const meta: Meta<typeof ToggleGroup> = {
   title: 'Components/Actions/ToggleGroup',
   component: ToggleGroup,
   tags: ['autodocs', 'design-system'],
+  args: {
+    onChange: fn(),
+  },
 }
 
 export default meta
@@ -23,6 +27,28 @@ export const Default: Story = {
       { value: 3, label: 'Network' },
     ],
     selected: 1,
+  },
+}
+
+export const SelectionTest: Story = {
+  args: {
+    options: [
+      { value: 1, label: 'All Events' },
+      { value: 2, label: 'Clicks' },
+      { value: 3, label: 'Network' },
+    ],
+    selected: 1,
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const radios = canvas.getAllByRole('radio')
+
+    await expect(radios).toHaveLength(3)
+    await expect(radios[0]).toHaveAttribute('aria-checked', 'true')
+    await expect(radios[1]).toHaveAttribute('aria-checked', 'false')
+
+    await userEvent.click(radios[1]!)
+    await expect(args.onChange).toHaveBeenCalledWith(2)
   },
 }
 

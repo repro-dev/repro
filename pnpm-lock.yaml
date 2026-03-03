@@ -1557,6 +1557,9 @@ importers:
       prettier-plugin-organize-imports:
         specifier: ^3.2.3
         version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+      storybook:
+        specifier: ^10.2.13
+        version: 10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
