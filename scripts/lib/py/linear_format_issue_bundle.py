@@ -10,7 +10,6 @@ If the response contains no issue data, prints nothing and exits 0.
 
 import json
 import sys
-import textwrap
 
 data = json.load(sys.stdin)
 
@@ -21,9 +20,9 @@ if node is None:
         sys.exit(0)
     node = nodes[0]
 
-identifier = node.get("identifier", "")
-title = node.get("title", "")
-description = node.get("description", "")
+identifier = node.get("identifier") or ""
+title = node.get("title") or ""
+description = node.get("description") or ""
 
 lines = []
 lines.append(f"Title: {title}")

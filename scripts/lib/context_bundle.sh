@@ -59,34 +59,23 @@ USAGE
     fi
   fi
 
-  local issue_title=""
+  # Validate issue identifier format (prevents GraphQL injection)
+  if [[ -n "$issue_id" ]] && [[ ! "$issue_id" =~ ^[A-Z]+-[0-9]+$ ]]; then
+    die "Invalid issue identifier: '$issue_id'. Expected format: REP-123"
+  fi
+
   local issue_section=""
 
   if [[ -n "$issue_id" ]]; then
     if [[ -n "${LINEAR_API_KEY:-}" ]]; then
       local query response formatted
-      query="{ issue(id: \"${issue_id}\") { id identifier title description } }"
+      query="{ issueSearch(filter: { identifier: { eq: \"${issue_id}\" } }, first: 1) { nodes { id identifier title description } } }"
       response="$(_linear_api "$query" 2>/dev/null)" || response=""
 
       if [[ -n "$response" ]]; then
         formatted="$(printf '%s' "$response" | python3 "$SCRIPTS_DIR/lib/py/linear_format_issue_bundle.py" 2>/dev/null)" || formatted=""
         if [[ -n "$formatted" ]]; then
           issue_section="$formatted"
-          issue_title="$(printf '%s' "$formatted" | head -1 | sed 's/^Title: //')"
-        fi
-      fi
-
-      if [[ -z "$issue_section" ]]; then
-        local search_query search_response
-        search_query="{ issueSearch(filter: { identifier: { eq: \"${issue_id}\" } }, first: 1) { nodes { id identifier title description } } }"
-        search_response="$(_linear_api "$search_query" 2>/dev/null)" || search_response=""
-
-        if [[ -n "$search_response" ]]; then
-          formatted="$(printf '%s' "$search_response" | python3 "$SCRIPTS_DIR/lib/py/linear_format_issue_bundle.py" 2>/dev/null)" || formatted=""
-          if [[ -n "$formatted" ]]; then
-            issue_section="$formatted"
-            issue_title="$(printf '%s' "$formatted" | head -1 | sed 's/^Title: //')"
-          fi
         fi
       fi
     else

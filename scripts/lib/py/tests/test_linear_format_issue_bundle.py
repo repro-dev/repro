@@ -92,3 +92,23 @@ def test_missing_fields_handled_gracefully():
     result = run_script(SCRIPT, stdin=payload)
     assert result.returncode == 0
     assert "Title: " in result.stdout
+
+
+def test_null_field_values():
+    """Explicit null values for title/description should not crash."""
+    payload = json.dumps(
+        {
+            "data": {
+                "issue": {
+                    "id": "uuid-1",
+                    "identifier": None,
+                    "title": None,
+                    "description": None,
+                }
+            }
+        }
+    )
+    result = run_script(SCRIPT, stdin=payload)
+    assert result.returncode == 0
+    assert "Title: " in result.stdout
+    assert "Description:" not in result.stdout
