@@ -132,7 +132,7 @@ cmd_wt_remove() {
     _err "Error: No worktree found at $wt_path"
     echo "  Run 'reproctl worktree list' to see active worktrees." >&2
     git worktree prune
-    exit 1
+    return 1
   fi
 
   _step 1 2 "Removing git worktree..."
@@ -146,21 +146,29 @@ cmd_wt_remove() {
 }
 
 cmd_wt_prune() {
-  _step 1 2 "Fetching and pruning remote refs..."
-  git fetch --prune origin
+  if [ "$WT_DRY_RUN" = true ]; then
+    _step 1 2 "[dry-run] Skipping fetch/prune of remote refs..."
+  else
+    _step 1 2 "Fetching and pruning remote refs..."
+    if ! git remote get-url origin >/dev/null 2>&1; then
+      die "Remote 'origin' does not exist; cannot prune worktrees."
+    fi
+    if ! git fetch --prune origin; then
+      die "Failed to fetch from 'origin'; aborting worktree prune."
+    fi
+  fi
 
   _step 2 2 "Scanning worktrees for merged branches..."
 
   local candidates=()
-  local wt_path="" wt_branch="" wt_bare=false wt_detached=false is_first=true
+  local wt_path="" wt_branch="" wt_bare=false wt_detached=false
 
   _prune_flush() {
     if [ -z "$wt_path" ]; then
       return
     fi
 
-    if [ "$is_first" = true ]; then
-      is_first=false
+    if [ "$wt_path" = "$MAIN_CHECKOUT" ]; then
       wt_path="" wt_branch="" wt_bare=false wt_detached=false
       return
     fi
@@ -175,12 +183,26 @@ cmd_wt_prune() {
       return
     fi
 
+    local expected_path
+    expected_path="$(worktree_path "$wt_branch")"
+    if [ "$wt_path" != "$expected_path" ]; then
+      wt_path="" wt_branch="" wt_bare=false wt_detached=false
+      return
+    fi
+
     local merged=false
 
     if git merge-base --is-ancestor "refs/heads/$wt_branch" refs/heads/main 2>/dev/null; then
       merged=true
-    elif ! git rev-parse --verify --quiet "refs/remotes/origin/$wt_branch" >/dev/null 2>&1; then
-      merged=true
+    else
+      local upstream_remote upstream_merge
+      upstream_remote="$(git config "branch.$wt_branch.remote" 2>/dev/null || true)"
+      upstream_merge="$(git config "branch.$wt_branch.merge" 2>/dev/null || true)"
+      if [ "$upstream_remote" = "origin" ] && [ "$upstream_merge" = "refs/heads/$wt_branch" ]; then
+        if ! git rev-parse --verify --quiet "refs/remotes/origin/$wt_branch" >/dev/null 2>&1; then
+          merged=true
+        fi
+      fi
     fi
 
     if [ "$merged" = true ]; then
