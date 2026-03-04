@@ -284,17 +284,6 @@ _pick_multi() {
   [[ "$found" = true ]] || return 1
 }
 
-# _pick_or_args <prompt> <args-array-name> <candidates-fn>
-#
-# If the named array is non-empty, do nothing (the user supplied args).
-# If the array is empty AND stdin is a terminal, invoke _pick with
-# candidates from the given function name and set the array to the
-# single selected value.
-#
-# Example:
-#   local services=("$@")
-#   _pick_or_args "Select a service" services _list_service_names
-#
 _list_service_names() {
   [[ -f "$SERVICES_JSON" ]] || return
   python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1])).keys()))" "$SERVICES_JSON" 2>/dev/null

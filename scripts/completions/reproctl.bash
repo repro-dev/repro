@@ -55,7 +55,7 @@ _reproctl() {
   local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui context handoff worktree wt"
 
   # Find the subcommand position (skip global flags)
-  local cmd="" subcmd="" cmd_idx=0 subcmd_idx=0
+  local cmd="" subcmd=""
   local i
   for ((i = 1; i < cword; i++)); do
     case "${words[i]}" in
@@ -64,10 +64,8 @@ _reproctl() {
       *)
         if [[ -z "$cmd" ]]; then
           cmd="${words[i]}"
-          cmd_idx=$i
         elif [[ -z "$subcmd" ]]; then
           subcmd="${words[i]}"
-          subcmd_idx=$i
         fi
         ;;
     esac
