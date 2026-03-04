@@ -72,6 +72,32 @@ Start api\-server and workspace from main checkout.
 .TP
 reproctl stop \(enall
 Tear down all services and Tilt.
+.SH SHELL COMPLETION
+Zsh and Bash completions are provided in \f[B]scripts/completions/\f[R].
+.SS Zsh
+Add the completions directory to \f[B]fpath\f[R] in
+\f[B]\(ti/.zshrc\f[R], before \f[B]compinit\f[R]:
+.IP
+.EX
+fpath=(/path/to/repro/scripts/completions $fpath)
+autoload \-Uz compinit && compinit
+.EE
+.SS Bash
+Source the completion script in \f[B]\(ti/.bashrc\f[R]:
+.IP
+.EX
+source /path/to/repro/scripts/completions/reproctl.bash
+.EE
+.SH INTERACTIVE PICKER
+Commands that accept a service name (\f[B]start\f[R], \f[B]stop\f[R],
+\f[B]restart\f[R], \f[B]logs\f[R]) support a \f[B]\(enpick\f[R] /
+\f[B]\-p\f[R] flag to interactively select from available services.
+If \f[B]fzf\f[R] is installed, it is used for fuzzy selection; otherwise
+a numbered prompt is shown.
+.PP
+For \f[B]worktree attach\f[R] and \f[B]worktree remove\f[R], omitting
+the branch argument triggers the picker automatically when stdin is a
+terminal.
 .SH SEE ALSO
 \f[B]reproctl\-setup\f[R](1), \f[B]reproctl\-doctor\f[R](1),
 \f[B]reproctl\-cluster\f[R](1), \f[B]reproctl\-db\f[R](1),

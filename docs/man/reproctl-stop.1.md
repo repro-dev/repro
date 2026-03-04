@@ -23,6 +23,9 @@ With **--all**, the Tilt daemon is stopped entirely, tearing down all running se
 **--all**
 : Stop the Tilt daemon entirely instead of removing individual services.
 
+**--pick**, **-p**
+: Interactively select a service to stop. Uses **fzf** if installed, otherwise a numbered prompt. When no service names are given and stdin is a terminal, the picker is shown automatically.
+
 # EXAMPLES
 
 reproctl stop api-server

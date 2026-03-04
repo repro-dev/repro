@@ -20,6 +20,13 @@ If the Tilt daemon is not already running, it is started automatically.
 
 When invoked from a worktree, services are isolated with a worktree-slug suffix so they do not conflict with services running from the main checkout or other worktrees.
 
+If no service names are provided and stdin is a terminal, an interactive picker is shown (using **fzf** if available, or a numbered prompt).
+
+# OPTIONS
+
+**--pick**, **-p**
+: Interactively select a service. Uses **fzf** if installed, otherwise a numbered prompt.
+
 # EXAMPLES
 
 reproctl start api-server

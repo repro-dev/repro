@@ -126,6 +126,25 @@ stop_tilt_daemon() {
 # ── Service commands ────────────────────────────────────────────────
 
 cmd_start() {
+  local pick=false
+  local args=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --pick|-p) pick=true; shift ;;
+      *) args+=("$1"); shift ;;
+    esac
+  done
+  set -- "${args[@]}"
+
+  if [ "$pick" = true ] || { [ $# -eq 0 ] && [ -t 0 ]; }; then
+    local candidates
+    mapfile -t candidates < <(_list_service_names)
+    local selected
+    selected="$(_pick "Select service to start" "${candidates[@]}")" || exit 1
+    set -- "$selected"
+  fi
+
   if [ $# -eq 0 ]; then
     die "At least one service is required.\nUsage: reproctl start <service> [<service>...]"
   fi
@@ -175,12 +194,17 @@ cmd_start() {
 
 cmd_stop() {
   local stop_all=false
+  local pick=false
   local targets=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --all)
         stop_all=true
+        shift
+        ;;
+      --pick|-p)
+        pick=true
         shift
         ;;
       -*)
@@ -196,6 +220,14 @@ cmd_stop() {
   if [ "$stop_all" = true ]; then
     stop_tilt_daemon
     return 0
+  fi
+
+  if [ "$pick" = true ] || { [ "${#targets[@]}" -eq 0 ] && [ -t 0 ]; }; then
+    local candidates
+    mapfile -t candidates < <(_list_service_names)
+    local selected
+    selected="$(_pick "Select service to stop" "${candidates[@]}")" || exit 1
+    targets=("$selected")
   fi
 
   if [ "${#targets[@]}" -eq 0 ]; then
@@ -286,6 +318,8 @@ If a service has migrations, the migration job is triggered first.
   --all   Stop the Tilt daemon and restart it with the same service
           configuration. Useful when Tiltfile changes need to be
           picked up or when Tilt gets into a bad state.
+
+  --pick, -p  Interactively choose a service.
 USAGE
     if [ $# -eq 0 ]; then
       exit 1
@@ -293,7 +327,20 @@ USAGE
     return 0
   fi
 
-  if [ "$1" = "--all" ]; then
+  local pick=false
+  local positional=()
+  local do_all=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --all) do_all=true; shift ;;
+      --pick|-p) pick=true; shift ;;
+      -h|--help) return 0 ;; # handled above
+      *) positional+=("$1"); shift ;;
+    esac
+  done
+
+  if [ "$do_all" = true ]; then
     if ! tilt_is_running; then
       die "Tilt is not running. Start services first with 'reproctl start <service>'."
     fi
@@ -313,7 +360,19 @@ USAGE
     die "Tilt is not running. Start services first with 'reproctl start <service>'."
   fi
 
-  for svc in "$@"; do
+  if [ "$pick" = true ] || { [ "${#positional[@]}" -eq 0 ] && [ -t 0 ]; }; then
+    local candidates
+    mapfile -t candidates < <(_list_service_names)
+    local selected
+    selected="$(_pick "Select service to restart" "${candidates[@]}")" || exit 1
+    positional=("$selected")
+  fi
+
+  if [ "${#positional[@]}" -eq 0 ]; then
+    die "At least one service is required.\nUsage: reproctl restart <service> [<service>...] | --all"
+  fi
+
+  for svc in "${positional[@]}"; do
     local resource
     resource="$(resolve_worktree_resource_name "$svc")"
 

@@ -51,6 +51,9 @@ When service names are given, output is filtered to only those services. When **
 **-n**, **--tail** *lines*
 : Number of recent lines to display (default: **50**).
 
+**--pick**, **-p**
+: Interactively select a service to view logs for. Uses **fzf** if installed, otherwise a numbered prompt.
+
 # EXAMPLES
 
 reproctl logs

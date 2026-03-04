@@ -23,6 +23,12 @@ preserving the current service configuration from
 \f[B]\(enall\f[R]
 Stop and restart the Tilt daemon instead of rebuilding individual
 services.
+.TP
+\f[B]\(enpick\f[R], \f[B]\-p\f[R]
+Interactively select a service to restart.
+Uses \f[B]fzf\f[R] if installed, otherwise a numbered prompt.
+When no service names are given and stdin is a terminal, the picker is
+shown automatically.
 .SH EXAMPLES
 .TP
 reproctl restart api\-server

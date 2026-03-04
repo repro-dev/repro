@@ -1,0 +1,278 @@
+#compdef reproctl
+# shellcheck disable=SC2168,SC2207,SC2034
+#
+# Zsh completion for reproctl — the Repro development CLI.
+#
+# Installation (add to ~/.zshrc BEFORE compinit):
+#   fpath=(/path/to/repro/scripts/completions $fpath)
+#
+# Or, if direnv is already configured, the .envrc sources this
+# automatically. Just run:  compinit
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+# Locate the repo root relative to this completion file.
+__reproctl_repo_root() {
+  local dir="${${(%):-%x}:A:h}"   # directory of this file (resolved)
+  echo "${dir:h:h}"                # up two levels: completions → scripts → repo
+}
+
+# List service names from infra/services.json.
+__reproctl_services() {
+  local repo
+  repo="$(__reproctl_repo_root)"
+  local json="$repo/infra/services.json"
+  [[ -f "$json" ]] || return
+  python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1])).keys()))" "$json" 2>/dev/null
+}
+
+# List worktree branch slugs (stripped of repro-wt- prefix).
+__reproctl_worktree_branches() {
+  git worktree list --porcelain 2>/dev/null \
+    | awk '/^branch refs\/heads\//{sub(/^branch refs\/heads\//, ""); print}'
+}
+
+# ---------------------------------------------------------------------------
+# Main completion function
+# ---------------------------------------------------------------------------
+
+_reproctl() {
+  local -a top_commands
+  top_commands=(
+    'setup:Bootstrap the development environment'
+    'doctor:Check development prerequisites'
+    'checkhealth:Runtime health checks'
+    'cluster:Manage local k8s cluster and registry'
+    'db:Database operations'
+    'start:Start services'
+    'stop:Stop services or tear down Tilt'
+    'restart:Rebuild and redeploy services'
+    'status:Show running services'
+    'logs:Show or stream service logs'
+    'ui:Open Tilt dashboard in browser'
+    'context:Show current development context'
+    'handoff:Generate subagent context document'
+    'worktree:Manage git worktrees'
+    'wt:Manage git worktrees (alias)'
+    'help:Show help for a command'
+  )
+
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '1:command:->command' \
+    '*::arg:->args' && return
+
+  case "$state" in
+    command)
+      _describe -t commands 'reproctl command' top_commands
+      ;;
+    args)
+      case "${line[1]}" in
+        setup)      _reproctl_setup ;;
+        doctor)     ;; # no args
+        checkhealth) _reproctl_checkhealth ;;
+        cluster)    _reproctl_cluster ;;
+        db)         _reproctl_db ;;
+        start)      _reproctl_start ;;
+        stop)       _reproctl_stop ;;
+        restart)    _reproctl_restart ;;
+        status)     ;; # no args
+        logs)       _reproctl_logs ;;
+        ui)         ;; # no args
+        context)    ;; # no args
+        handoff)    _reproctl_handoff ;;
+        worktree|wt) _reproctl_worktree ;;
+        help)       _reproctl_help ;;
+      esac
+      ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# Subcommand completions
+# ---------------------------------------------------------------------------
+
+_reproctl_setup() {
+  _arguments \
+    '--skip-cluster[Skip kind cluster creation]' \
+    '(-h --help)'{-h,--help}'[Show help]'
+}
+
+_reproctl_checkhealth() {
+  _arguments \
+    '--json[Output machine-readable JSON]' \
+    '(-h --help)'{-h,--help}'[Show help]'
+}
+
+_reproctl_cluster() {
+  local -a cluster_commands
+  cluster_commands=(
+    'up:Create local registry and kind cluster'
+    'down:Tear down cluster and registry'
+    'status:Show cluster and registry state'
+    'reset:Destroy and recreate the cluster'
+  )
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '1:subcommand:->subcommand' \
+    '*::arg:->args' && return
+
+  case "$state" in
+    subcommand) _describe -t commands 'cluster subcommand' cluster_commands ;;
+    args)
+      case "${line[1]}" in
+        down|reset) _arguments '--force[Force even if services are running]' ;;
+      esac
+      ;;
+  esac
+}
+
+_reproctl_db() {
+  local -a db_commands
+  db_commands=(
+    'reset:Drop and recreate the database'
+    'migrate:Run pending migrations'
+    'shell:Open a psql session'
+    'status:Show connection info and migration status'
+  )
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '1:subcommand:->subcommand' \
+    '*::arg:->args' && return
+
+  case "$state" in
+    subcommand) _describe -t commands 'db subcommand' db_commands ;;
+    args)
+      case "${line[1]}" in
+        reset) _arguments '(-y --yes)'{-y,--yes}'[Skip confirmation]' ;;
+      esac
+      ;;
+  esac
+}
+
+# Complete service names (for start, logs, etc.)
+_reproctl_services_arg() {
+  local -a services
+  services=("${(@f)$(__reproctl_services)}")
+  [[ ${#services} -gt 0 ]] && _values -s ' ' 'service' "${services[@]}"
+}
+
+_reproctl_start() {
+  _arguments \
+    '(--pick -p)'{--pick,-p}'[Interactively select a service]' \
+    '*:service:_reproctl_services_arg'
+}
+
+_reproctl_stop() {
+  _arguments \
+    '--all[Tear down Tilt entirely]' \
+    '(--pick -p)'{--pick,-p}'[Interactively select a service]' \
+    '*:service:_reproctl_services_arg'
+}
+
+_reproctl_restart() {
+  _arguments \
+    '--all[Restart entire Tilt daemon]' \
+    '(--pick -p)'{--pick,-p}'[Interactively select a service]' \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '*:service:_reproctl_services_arg'
+}
+
+_reproctl_logs() {
+  _arguments \
+    '(-f --follow)'{-f,--follow}'[Stream logs continuously]' \
+    '--level[Filter by level]:level:(warn error)' \
+    '--source[Filter by source]:source:(all build runtime)' \
+    '--grep[Filter lines matching pattern]:pattern:' \
+    '(-C --context)'{-C,--context}'[Time window around matches]:duration:' \
+    '-B[Time window before matches]:duration:' \
+    '-A[Time window after matches]:duration:' \
+    '--since[Show logs newer than]:duration or timestamp:' \
+    '--json[Output structured JSON]' \
+    '--no-prefix[Omit resource name prefix]' \
+    '(-n --tail)'{-n,--tail}'[Show last N lines]:lines:' \
+    '(--pick -p)'{--pick,-p}'[Interactively select a service]' \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '*:service:_reproctl_services_arg'
+}
+
+_reproctl_handoff() {
+  _arguments \
+    '(--issue -i)'{--issue,-i}'[Linear issue identifier]:issue id:' \
+    '(--worktree -w)'{--worktree,-w}'[Worktree path]:path:_directories' \
+    '(-h --help)'{-h,--help}'[Show help]'
+}
+
+_reproctl_worktree() {
+  local -a wt_commands
+  wt_commands=(
+    'create:Create a new worktree'
+    'remove:Remove a worktree'
+    'list:List active worktrees'
+    'attach:Drop into a worktree subshell'
+    'prune:Remove worktrees with merged branches'
+  )
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '1:subcommand:->subcommand' \
+    '*::arg:->args' && return
+
+  case "$state" in
+    subcommand) _describe -t commands 'worktree subcommand' wt_commands ;;
+    args)
+      case "${line[1]}" in
+        create)
+          _arguments \
+            '(--from-issue -i)'{--from-issue,-i}'[Fetch branch from Linear issue]:issue id:' \
+            '--no-status-update[Skip setting issue to In Progress]' \
+            '--dry-run[Preview without making changes]' \
+            '(-h --help)'{-h,--help}'[Show help]' \
+            '1:branch name:'
+          ;;
+        remove)
+          _arguments \
+            '--dry-run[Preview without making changes]' \
+            '(-h --help)'{-h,--help}'[Show help]' \
+            '1:branch:->branch' && return
+          [[ "$state" == branch ]] && {
+            local -a branches
+            branches=("${(@f)$(__reproctl_worktree_branches)}")
+            [[ ${#branches} -gt 0 ]] && _values 'branch' "${branches[@]}"
+          }
+          ;;
+        attach)
+          local -a branches
+          branches=("${(@f)$(__reproctl_worktree_branches)}")
+          [[ ${#branches} -gt 0 ]] && _values 'branch' "${branches[@]}"
+          ;;
+        prune)
+          _arguments \
+            '--dry-run[Preview without making changes]' \
+            '(-y --yes)'{-y,--yes}'[Skip confirmation]' \
+            '(-h --help)'{-h,--help}'[Show help]'
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_reproctl_help() {
+  local -a help_topics
+  help_topics=(
+    'setup' 'doctor' 'checkhealth' 'cluster' 'db'
+    'start' 'stop' 'restart' 'status' 'logs'
+    'ui' 'context' 'handoff' 'worktree' 'wt'
+  )
+  _values 'topic' "${help_topics[@]}"
+}
+
+# Register
+_reproctl "$@"

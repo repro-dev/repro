@@ -14,30 +14,56 @@ Manage git worktrees for isolated development.
 \f[B]wt\f[R] is a shorthand alias for \f[B]worktree\f[R].
 .SS Subcommands
 .TP
-\f[B]create\f[R] [\f[B]\(endry\-run\f[R]] \f[I]branch\f[R]
+\f[B]create\f[R] [\f[B]\(enfrom\-issue\f[R] \f[I]id\f[R]] [\f[B]\(enno\-status\-update\f[R]] [\f[B]\(endry\-run\f[R]] \f[I]branch\f[R]
 Create a new git worktree for \f[I]branch\f[R].
 If the branch does not exist, it is created from the current HEAD.
 After checkout, runs \f[B]pnpm install\f[R], copies \f[B].env\f[R] files
 from the main checkout, and runs \f[B]direnv allow\f[R] in the new
 worktree.
+With \f[B]\(enfrom\-issue\f[R], fetches the branch name from a Linear
+issue and sets it to In Progress.
 .TP
-\f[B]remove\f[R] [\f[B]\(endry\-run\f[R]] \f[I]branch\f[R]
+\f[B]remove\f[R] [\f[B]\(endry\-run\f[R]] [\f[I]branch\f[R]]
 Remove the worktree for \f[I]branch\f[R] via \f[B]git worktree
 remove\f[R], then run \f[B]git worktree prune\f[R] to clean up stale
 references.
+If \f[I]branch\f[R] is omitted and stdin is a terminal, an interactive
+picker is shown.
 .TP
 \f[B]list\f[R]
 Show all active worktrees and their associated branches.
 .TP
-\f[B]attach\f[R] \f[I]branch\f[R]
+\f[B]attach\f[R] [\f[I]branch\f[R]]
 Drop into a new subshell with the working directory set to the worktree
 for \f[I]branch\f[R].
 Exit the subshell to return to your previous directory.
+If \f[I]branch\f[R] is omitted and stdin is a terminal, an interactive
+picker is shown.
+.TP
+\f[B]prune\f[R] [\f[B]\(endry\-run\f[R]] [\f[B]\(enyes\f[R]]
+Remove worktrees whose branches have been merged into main or whose
+upstream tracking branch no longer exists on the remote.
 .SH OPTIONS
 .TP
 \f[B]\(endry\-run\f[R]
-Preview the operations that would be performed by \f[B]create\f[R] or
-\f[B]remove\f[R] without making any changes.
+Preview the operations that would be performed by \f[B]create\f[R],
+\f[B]remove\f[R], or \f[B]prune\f[R] without making any changes.
+.TP
+\f[B]\(enfrom\-issue\f[R], \f[B]\-i\f[R] \f[I]id\f[R]
+Fetch the branch name from a Linear issue (e.g., \f[B]REP\-123\f[R]).
+Only valid with \f[B]create\f[R].
+.TP
+\f[B]\(enno\-status\-update\f[R]
+Skip setting the Linear issue to In Progress.
+Only valid with \f[B]\(enfrom\-issue\f[R].
+.TP
+\f[B]\(enyes\f[R], \f[B]\-y\f[R]
+Skip the confirmation prompt when pruning.
+.SH INTERACTIVE PICKER
+When \f[B]attach\f[R] or \f[B]remove\f[R] is called without a branch
+name and stdin is a terminal, an interactive picker is shown.
+If \f[B]fzf\f[R] is installed, it provides fuzzy selection; otherwise a
+numbered prompt is displayed.
 .SH EXAMPLES
 .TP
 reproctl worktree create feat/my\-feature
@@ -57,6 +83,15 @@ Remove a worktree and prune references.
 .TP
 reproctl wt remove \(endry\-run feat/old\-branch
 Preview removal without making changes.
+.TP
+reproctl wt attach
+Pick a worktree interactively.
+.TP
+reproctl wt create \-i REP\-123
+Create a worktree from a Linear issue.
+.TP
+reproctl worktree prune \(endry\-run
+Preview which worktrees would be pruned.
 .SH SEE ALSO
 \f[B]reproctl\f[R](1), \f[B]git\-worktree\f[R](1)
 .SH AUTHORS
