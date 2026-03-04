@@ -135,11 +135,11 @@ cmd_start() {
       *) args+=("$1"); shift ;;
     esac
   done
-  set -- "${args[@]}"
+  set -- ${args[@]+"${args[@]}"}
 
   if [ "$pick" = true ] || { [ $# -eq 0 ] && [ -t 0 ]; }; then
-    local candidates
-    mapfile -t candidates < <(_list_service_names)
+    local candidates=()
+    while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
     local selected
     selected="$(_pick "Select service to start" "${candidates[@]}")" || exit 1
     set -- "$selected"
@@ -223,8 +223,8 @@ cmd_stop() {
   fi
 
   if [ "$pick" = true ] || { [ "${#targets[@]}" -eq 0 ] && [ -t 0 ]; }; then
-    local candidates
-    mapfile -t candidates < <(_list_service_names)
+    local candidates=()
+    while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
     local selected
     selected="$(_pick "Select service to stop" "${candidates[@]}")" || exit 1
     targets=("$selected")
@@ -308,8 +308,16 @@ USAGE
 }
 
 cmd_restart() {
-  if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    cat <<'USAGE'
+  local pick=false
+  local positional=()
+  local do_all=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --all) do_all=true; shift ;;
+      --pick|-p) pick=true; shift ;;
+      -h|--help)
+        cat <<'USAGE'
 Usage: reproctl restart <service> [<service>...] | --all
 
 Rebuild and redeploy running services via tilt trigger.
@@ -321,21 +329,8 @@ If a service has migrations, the migration job is triggered first.
 
   --pick, -p  Interactively choose a service.
 USAGE
-    if [ $# -eq 0 ]; then
-      exit 1
-    fi
-    return 0
-  fi
-
-  local pick=false
-  local positional=()
-  local do_all=false
-
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --all) do_all=true; shift ;;
-      --pick|-p) pick=true; shift ;;
-      -h|--help) return 0 ;; # handled above
+        return 0
+        ;;
       *) positional+=("$1"); shift ;;
     esac
   done
@@ -361,8 +356,8 @@ USAGE
   fi
 
   if [ "$pick" = true ] || { [ "${#positional[@]}" -eq 0 ] && [ -t 0 ]; }; then
-    local candidates
-    mapfile -t candidates < <(_list_service_names)
+    local candidates=()
+    while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
     local selected
     selected="$(_pick "Select service to restart" "${candidates[@]}")" || exit 1
     positional=("$selected")

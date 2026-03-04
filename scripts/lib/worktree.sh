@@ -709,8 +709,8 @@ cmd_wt() {
     remove)
       if [ "${#args[@]}" -lt 1 ]; then
         if [ -t 0 ]; then
-          local candidates
-          mapfile -t candidates < <(_list_worktree_branches)
+          local candidates=()
+          while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_worktree_branches)
           local selected
           selected="$(_pick "Select worktree to remove" "${candidates[@]}")" || exit 1
           args=("$selected")
@@ -729,8 +729,8 @@ cmd_wt() {
     attach)
       if [ "${#args[@]}" -lt 1 ]; then
         if [ -t 0 ]; then
-          local candidates
-          mapfile -t candidates < <(_list_worktree_branches)
+          local candidates=()
+          while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_worktree_branches)
           local selected
           selected="$(_pick "Select worktree to attach" "${candidates[@]}")" || exit 1
           args=("$selected")
