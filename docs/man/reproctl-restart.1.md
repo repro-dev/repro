@@ -23,6 +23,9 @@ With **--all**, the Tilt daemon is stopped and restarted while preserving the cu
 **--all**
 : Stop and restart the Tilt daemon instead of rebuilding individual services.
 
+**--pick**, **-p**
+: Interactively select a service to restart. Uses **fzf** if installed, otherwise a numbered prompt. When no service names are given and stdin is a terminal, the picker is shown automatically.
+
 # EXAMPLES
 
 reproctl restart api-server

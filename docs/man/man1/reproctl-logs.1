@@ -53,6 +53,10 @@ Omit the service\-name prefix from each log line.
 .TP
 \f[B]\-n\f[R], \f[B]\(entail\f[R] \f[I]lines\f[R]
 Number of recent lines to display (default: \f[B]50\f[R]).
+.TP
+\f[B]\(enpick\f[R], \f[B]\-p\f[R]
+Interactively select a service to view logs for.
+Uses \f[B]fzf\f[R] if installed, otherwise a numbered prompt.
 .SH EXAMPLES
 .TP
 reproctl logs

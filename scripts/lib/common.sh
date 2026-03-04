@@ -135,3 +135,161 @@ resolve_worktree_resource_names() {
     resolve_worktree_resource_name "$svc"
   done
 }
+
+# ── Interactive picker ──────────────────────────────────────────────
+#
+# _pick <prompt> [candidates...]
+#
+# Reads candidate lines from arguments (one per arg).  If fzf is
+# available, launches it with the given prompt.  Otherwise, falls back
+# to a numbered prompt on the terminal.
+#
+# Prints the selected value to stdout.  Returns 1 if the user cancels
+# or if there are no candidates.
+#
+# Usage:
+#   selected="$(_pick "Select a service" "${services[@]}")" || exit 1
+
+_pick() {
+  local prompt="$1"
+  shift
+
+  if [[ $# -eq 0 ]]; then
+    _err "No candidates available."
+    return 1
+  fi
+
+  if [[ $# -eq 1 ]]; then
+    echo "$1"
+    return 0
+  fi
+
+  # fzf path
+  if command -v fzf > /dev/null 2>&1; then
+    local selected
+    selected="$(printf '%s\n' "$@" | fzf --prompt="$prompt: " --height=~15 --reverse)" || return 1
+    [[ -n "$selected" ]] || return 1
+    echo "$selected"
+    return 0
+  fi
+
+  # Numbered-prompt fallback (requires a terminal)
+  if [[ ! -t 0 ]]; then
+    _err "Cannot show interactive picker: stdin is not a terminal and fzf is not installed."
+    return 1
+  fi
+
+  echo "" >&2
+  echo "${CLR_BOLD}${prompt}:${CLR_RESET}" >&2
+  local i=1
+  for item in "$@"; do
+    printf '  %s%d)%s %s\n' "$CLR_DIM" "$i" "$CLR_RESET" "$item" >&2
+    i=$((i + 1))
+  done
+  echo "" >&2
+
+  local choice
+  read -r -p "Enter number (1-$#): " choice </dev/tty
+  if [[ ! "$choice" =~ ^[0-9]+$ ]] || [[ "$choice" -lt 1 ]] || [[ "$choice" -gt $# ]]; then
+    _err "Invalid selection."
+    return 1
+  fi
+
+  local idx=$((choice))
+  local j=1
+  for item in "$@"; do
+    if [[ $j -eq $idx ]]; then
+      echo "$item"
+      return 0
+    fi
+    j=$((j + 1))
+  done
+
+  return 1
+}
+
+# _pick_multi <prompt> [candidates...]
+#
+# Multi-select variant of _pick.  Prints one selected value per line to
+# stdout.  Returns 1 if the user cancels or selects nothing.
+#
+# With fzf: uses --multi (Tab to toggle, Enter to confirm).
+# Fallback: accepts a comma-separated list of numbers.
+#
+# Usage:
+#   local selected=()
+#   while IFS= read -r _l; do selected+=("$_l"); done < <(_pick_multi "Select services" "${svcs[@]}")
+
+_pick_multi() {
+  local prompt="$1"
+  shift
+
+  if [[ $# -eq 0 ]]; then
+    _err "No candidates available."
+    return 1
+  fi
+
+  if [[ $# -eq 1 ]]; then
+    echo "$1"
+    return 0
+  fi
+
+  # fzf path (multi-select)
+  if command -v fzf > /dev/null 2>&1; then
+    local selected
+    selected="$(printf '%s\n' "$@" | fzf --prompt="$prompt: " --height=~15 --reverse --multi)" || return 1
+    [[ -n "$selected" ]] || return 1
+    echo "$selected"
+    return 0
+  fi
+
+  # Numbered-prompt fallback (requires a terminal)
+  if [[ ! -t 0 ]]; then
+    _err "Cannot show interactive picker: stdin is not a terminal and fzf is not installed."
+    return 1
+  fi
+
+  echo "" >&2
+  echo "${CLR_BOLD}${prompt}:${CLR_RESET}" >&2
+  local i=1
+  for item in "$@"; do
+    printf '  %s%d)%s %s\n' "$CLR_DIM" "$i" "$CLR_RESET" "$item" >&2
+    i=$((i + 1))
+  done
+  echo "" >&2
+
+  local choices
+  read -r -p "Enter numbers separated by commas (1-$#): " choices </dev/tty
+  [[ -n "$choices" ]] || return 1
+
+  local IFS=','
+  local found=false
+  for choice in $choices; do
+    choice="${choice// /}"  # trim spaces
+    if [[ ! "$choice" =~ ^[0-9]+$ ]] || [[ "$choice" -lt 1 ]] || [[ "$choice" -gt $# ]]; then
+      _err "Invalid selection: $choice"
+      return 1
+    fi
+    local j=1
+    for item in "$@"; do
+      if [[ $j -eq $choice ]]; then
+        echo "$item"
+        found=true
+        break
+      fi
+      j=$((j + 1))
+    done
+  done
+
+  [[ "$found" = true ]] || return 1
+}
+
+_list_service_names() {
+  [[ -f "$SERVICES_JSON" ]] || return
+  python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1])).keys()))" "$SERVICES_JSON" 2>/dev/null
+}
+
+_list_worktree_branches() {
+  git worktree list --porcelain 2>/dev/null \
+    | awk '/^branch refs\/heads\//{sub(/^branch refs\/heads\//, ""); print}'
+}

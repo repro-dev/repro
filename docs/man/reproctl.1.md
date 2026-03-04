@@ -65,6 +65,29 @@ reproctl start api-server workspace
 reproctl stop --all
 : Tear down all services and Tilt.
 
+# SHELL COMPLETION
+
+Zsh and Bash completions are provided in **scripts/completions/**.
+
+## Zsh
+
+Add the completions directory to **fpath** in **~/.zshrc**, before **compinit**:
+
+    fpath=(/path/to/repro/scripts/completions $fpath)
+    autoload -Uz compinit && compinit
+
+## Bash
+
+Source the completion script in **~/.bashrc**:
+
+    source /path/to/repro/scripts/completions/reproctl.bash
+
+# INTERACTIVE PICKER
+
+Commands that accept a service name (**start**, **stop**, **restart**, **logs**) support a **--pick** / **-p** flag to interactively select from available services. If **fzf** is installed, it is used for fuzzy selection; otherwise a numbered prompt is shown.
+
+For **worktree attach** and **worktree remove**, omitting the branch argument triggers the picker automatically when stdin is a terminal.
+
 # SEE ALSO
 
 **reproctl-setup**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-worktree**(1)

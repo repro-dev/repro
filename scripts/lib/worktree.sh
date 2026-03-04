@@ -581,13 +581,20 @@ Options (remove, prune):
 Options (prune):
   --yes, -y         Skip confirmation prompt
 
+Interactive picker:
+  When 'attach' or 'remove' is invoked without a branch name and stdin
+  is a terminal, an interactive picker is shown (fzf if available,
+  numbered prompt otherwise).
+
 Examples:
   reproctl worktree create feat/my-feature      # checkout existing branch
   reproctl worktree create feat/new-feature     # auto-creates branch if needed
   reproctl worktree create -i REP-123           # create from Linear issue
   reproctl worktree remove feat/my-feature      # remove worktree
+  reproctl worktree remove                      # pick interactively
   reproctl worktree list                        # list all worktrees
   reproctl worktree attach feat/my-feature      # drop into worktree subshell
+  reproctl worktree attach                      # pick interactively
   reproctl worktree prune --dry-run             # preview merged worktrees
   reproctl worktree prune --yes                 # prune without confirmation
 EOF
@@ -701,7 +708,15 @@ cmd_wt() {
       ;;
     remove)
       if [ "${#args[@]}" -lt 1 ]; then
-        die "'worktree remove' requires a branch name"
+        if [ -t 0 ]; then
+          local candidates=()
+          while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_worktree_branches)
+          local selected
+          selected="$(_pick "Select worktree to remove" "${candidates[@]}")" || exit 1
+          args=("$selected")
+        else
+          die "'worktree remove' requires a branch name"
+        fi
       fi
       if ! git check-ref-format "refs/heads/${args[0]}" >/dev/null 2>&1; then
         die "'${args[0]}' is not a valid branch name."
@@ -713,7 +728,15 @@ cmd_wt() {
       ;;
     attach)
       if [ "${#args[@]}" -lt 1 ]; then
-        die "'worktree attach' requires a branch name"
+        if [ -t 0 ]; then
+          local candidates=()
+          while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_worktree_branches)
+          local selected
+          selected="$(_pick "Select worktree to attach" "${candidates[@]}")" || exit 1
+          args=("$selected")
+        else
+          die "'worktree attach' requires a branch name"
+        fi
       fi
       cmd_attach "${args[0]}"
       ;;

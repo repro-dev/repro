@@ -74,12 +74,17 @@ cmd_logs() {
   local json_output=false
   local no_prefix=false
   local tail_lines=""
+  local pick=false
   local services=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -f|--follow)
         follow=true
+        shift
+        ;;
+      --pick|-p)
+        pick=true
         shift
         ;;
       --level)
@@ -147,6 +152,14 @@ cmd_logs() {
 
   if ! tilt_is_running; then
     die "Tilt is not running. Start services first with 'reproctl start <service>'."
+  fi
+
+  if [ "$pick" = true ] && [ "${#services[@]}" -eq 0 ]; then
+    local candidates=()
+    while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
+    local selected
+    selected="$(_pick "Select service for logs" "${candidates[@]}")" || exit 1
+    services=("$selected")
   fi
 
   if [ -n "$context_before" ] || [ -n "$context_after" ]; then
@@ -275,6 +288,7 @@ Options:
   --json                   Output structured JSON (one object per line)
   --no-prefix              Omit resource name prefix
   -n, --tail <lines>       Show only last N lines (snapshot mode)
+  --pick, -p               Interactively select a service (uses fzf if available)
 
 Without -f or services, shows the last 50 lines across all resources.
 
@@ -288,5 +302,6 @@ Examples:
                                              Time-context around matches
   reproctl logs --since 5m api-server        Logs from last 5 minutes
   reproctl logs -n 100 api-server            Last 100 lines
+  reproctl logs --pick                       Pick a service interactively
 EOF
 }

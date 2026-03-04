@@ -1,4 +1,5 @@
 brew "direnv"
+brew "fzf"
 brew "kind"
 brew "pandoc"
 brew "postgresql@17"
