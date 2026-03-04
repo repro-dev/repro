@@ -15,24 +15,41 @@ This ensures full isolation between concurrent agent sessions that may not be aw
 
 ### Creating worktrees
 
-Create worktrees **from the main checkout** (never from inside another worktree):
+Create worktrees **from the main checkout** (never from inside another worktree).
+
+**Preferred — from a Linear issue** (fetches the branch name from Linear automatically):
+
+```sh
+reproctl wt create --from-issue REP-205
+reproctl wt create --from-issue REP-200
+```
+
+**Manual — when you already know the branch name:**
 
 ```sh
 reproctl wt create fix/REP-205-textarea-label
 reproctl wt create feat/REP-200-button-hover
 ```
 
-This creates sibling directories (`../repro-wt-fix-rep-205-textarea-label/`, etc.), installs dependencies, copies `.env` files, and runs `direnv allow`.
+Both forms create sibling directories (`../repro-wt-<slug>/`), install dependencies, copy `.env` files, and run `direnv allow`.
 
 **Never use raw `git worktree` commands** — always use `reproctl wt create` / `reproctl wt remove`. See `docs/agents/worktrees.md` for the full rationale.
 
 ### Parallel agents
 
-When working on 2+ independent issues simultaneously, use the Task tool to launch one agent per worktree. Each agent receives:
+When working on 2+ independent issues simultaneously, create one worktree per issue, then use the Task tool to launch subagents in parallel.
 
-- The worktree path as its working directory
-- The Linear issue identifier
-- Instructions to follow Phases 1–5 of this workflow
+Use `reproctl handoff` to generate the context bundle for each subagent. This produces a self-contained markdown document with the issue spec (from Linear), worktree path, relevant conventions, changed files, and verification commands:
+
+```sh
+# From a worktree — infers issue from branch name:
+reproctl handoff --worktree /path/to/worktree
+
+# Or specify the issue explicitly:
+reproctl handoff --issue REP-205 --worktree /path/to/worktree
+```
+
+Include the handoff output in the Task tool prompt along with instructions to follow Phases 1-5 of this workflow. See the [Parallel delegation playbook](#parallel-delegation-playbook) below for a complete example.
 
 ### Git lock contention
 
@@ -43,9 +60,14 @@ All worktrees share one `.git/` directory. Concurrent `git fetch`, `rebase`, or 
 Keep worktrees alive through review. They are needed for addressing PR feedback and manual testing. Only clean up **after the branch is merged**:
 
 ```sh
-# After merge to main:
+# Remove a single worktree:
 reproctl wt remove fix/REP-205-textarea-label
+
+# Bulk-remove all worktrees whose branches are merged into main:
+reproctl wt prune
 ```
+
+A `post-merge` git hook (`.husky/post-merge`) automatically runs `reproctl wt prune --yes` when you pull main, so merged worktrees are cleaned up without manual intervention.
 
 ### Coordination rules
 
@@ -58,6 +80,10 @@ reproctl wt remove fix/REP-205-textarea-label
 1. **Fetch the Linear issue** for the work item. Read the full description — check for requirements, resolved decisions, and open considerations. These take precedence over assumptions.
 2. **Create a worktree** (if one doesn't already exist for this issue):
    ```sh
+   # Preferred — fetches branch name from Linear:
+   reproctl wt create --from-issue REP-123
+
+   # Manual — when you know the branch name:
    reproctl wt create <type>/<issue?>-<slug>
    ```
    If a worktree already exists and you're working inside it, skip this step.
@@ -120,7 +146,11 @@ Run these checks before committing. Fix any failures before proceeding.
    ```
    tsx --experimental-test-module-mocks --test path/to/file.test.ts
    ```
-3. **Format**:
+3. **Run Python tests** (if changes touch `scripts/lib/py/`):
+   ```
+   python3 -m pytest scripts/lib/py/tests/ -v
+   ```
+4. **Format**:
    ```
    pnpm fmt
    ```
@@ -175,3 +205,61 @@ Run these checks before committing. Fix any failures before proceeding.
 | **In Review** | PR is open |
 | Done | PR merged to main (never set manually before merge) |
 | Canceled | Won't do — leave a comment explaining why |
+
+## Parallel Delegation Playbook
+
+This is the end-to-end flow for working on multiple independent issues in parallel using Task tool subagents.
+
+### 1. Create worktrees
+
+From the main checkout, create one worktree per issue:
+
+```sh
+reproctl wt create --from-issue REP-101
+reproctl wt create --from-issue REP-102
+```
+
+### 2. Generate handoff bundles
+
+For each worktree, generate a context document:
+
+```sh
+reproctl handoff --issue REP-101 --worktree /abs/path/to/repro-wt-...-rep-101
+reproctl handoff --issue REP-102 --worktree /abs/path/to/repro-wt-...-rep-102
+```
+
+### 3. Spawn subagents
+
+Use the Task tool to launch one `general` subagent per worktree. Each Task prompt should contain:
+
+1. The handoff output (pasted verbatim)
+2. An explicit instruction: "All file operations MUST use absolute paths under `<worktree path>`. NEVER modify the main checkout."
+3. Instructions to follow Phases 1-6 of this workflow (load the `feature-dev` skill)
+4. What to do on completion (commit, push, create PR)
+
+Launch all Task calls in a **single message** so they run concurrently.
+
+### 4. Review and merge
+
+After subagents complete:
+
+1. Review each subagent's diff and test results
+2. Push branches and create PRs (if the subagent didn't already)
+3. Set Linear issues to In Review
+4. After PRs merge, `git pull` on main triggers automatic worktree pruning
+
+### Notes
+
+- **Git lock contention**: Subagents sharing `.git/` may hit lock errors on concurrent git operations. Stagger fetches, or set `gc.auto=0`. Subagents should retry on lock failures.
+- **Independence requirement**: Only use this pattern for issues that touch different files. Overlapping changes will cause merge conflicts.
+- **Step budget**: Subagents have a step limit. For large issues, break them into smaller sub-issues first.
+
+## Troubleshooting
+
+If a service isn't behaving as expected during development:
+
+| Command | What it shows |
+|---------|---------------|
+| `reproctl status` | Quick glance — running services, pod status, restart counts, drift warnings |
+| `reproctl checkhealth` | Comprehensive runtime health — Tilt, k8s, registry, ports, service health, worktree orphans |
+| `reproctl doctor` | Static prerequisites — tool versions, brew deps, node_modules, direnv |
