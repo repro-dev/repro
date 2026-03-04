@@ -140,9 +140,10 @@ cmd_start() {
   if [ "$pick" = true ] || { [ $# -eq 0 ] && [ -t 0 ]; }; then
     local candidates=()
     while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
-    local selected
-    selected="$(_pick "Select service to start" "${candidates[@]}")" || exit 1
-    set -- "$selected"
+    local selected=()
+    while IFS= read -r _line; do selected+=("$_line"); done < <(_pick_multi "Select services to start" "${candidates[@]}")
+    [[ ${#selected[@]} -gt 0 ]] || exit 1
+    set -- "${selected[@]}"
   fi
 
   if [ $# -eq 0 ]; then
@@ -225,9 +226,10 @@ cmd_stop() {
   if [ "$pick" = true ] || { [ "${#targets[@]}" -eq 0 ] && [ -t 0 ]; }; then
     local candidates=()
     while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
-    local selected
-    selected="$(_pick "Select service to stop" "${candidates[@]}")" || exit 1
-    targets=("$selected")
+    local selected=()
+    while IFS= read -r _line; do selected+=("$_line"); done < <(_pick_multi "Select services to stop" "${candidates[@]}")
+    [[ ${#selected[@]} -gt 0 ]] || exit 1
+    targets=("${selected[@]}")
   fi
 
   if [ "${#targets[@]}" -eq 0 ]; then
@@ -327,7 +329,7 @@ If a service has migrations, the migration job is triggered first.
           configuration. Useful when Tiltfile changes need to be
           picked up or when Tilt gets into a bad state.
 
-  --pick, -p  Interactively choose a service.
+  --pick, -p  Interactively choose services.
 USAGE
         return 0
         ;;
@@ -358,9 +360,10 @@ USAGE
   if [ "$pick" = true ] || { [ "${#positional[@]}" -eq 0 ] && [ -t 0 ]; }; then
     local candidates=()
     while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
-    local selected
-    selected="$(_pick "Select service to restart" "${candidates[@]}")" || exit 1
-    positional=("$selected")
+    local selected=()
+    while IFS= read -r _line; do selected+=("$_line"); done < <(_pick_multi "Select services to restart" "${candidates[@]}")
+    [[ ${#selected[@]} -gt 0 ]] || exit 1
+    positional=("${selected[@]}")
   fi
 
   if [ "${#positional[@]}" -eq 0 ]; then
