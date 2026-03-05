@@ -1,5 +1,6 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
+import React from 'react'
 import { spacing } from '../tokens/spacing'
 import { Badge } from './Badge'
 
