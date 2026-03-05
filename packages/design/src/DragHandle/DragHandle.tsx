@@ -77,13 +77,17 @@ export const DragHandle: React.FC<Props> = ({
       if (isVertical) {
         // For top edge: ArrowUp = expand (positive), ArrowDown = shrink (negative)
         // For bottom edge: ArrowDown = expand (positive), ArrowUp = shrink (negative)
-        if (evt.key === 'ArrowUp') delta = edge === 'top' ? KEYBOARD_STEP : -KEYBOARD_STEP
-        else if (evt.key === 'ArrowDown') delta = edge === 'bottom' ? KEYBOARD_STEP : -KEYBOARD_STEP
+        if (evt.key === 'ArrowUp')
+          delta = edge === 'top' ? KEYBOARD_STEP : -KEYBOARD_STEP
+        else if (evt.key === 'ArrowDown')
+          delta = edge === 'bottom' ? KEYBOARD_STEP : -KEYBOARD_STEP
       } else {
         // For left edge: ArrowLeft = expand (positive), ArrowRight = shrink (negative)
         // For right edge: ArrowRight = expand (positive), ArrowLeft = shrink (negative)
-        if (evt.key === 'ArrowLeft') delta = edge === 'left' ? KEYBOARD_STEP : -KEYBOARD_STEP
-        else if (evt.key === 'ArrowRight') delta = edge === 'right' ? KEYBOARD_STEP : -KEYBOARD_STEP
+        if (evt.key === 'ArrowLeft')
+          delta = edge === 'left' ? KEYBOARD_STEP : -KEYBOARD_STEP
+        else if (evt.key === 'ArrowRight')
+          delta = edge === 'right' ? KEYBOARD_STEP : -KEYBOARD_STEP
       }
 
       if (delta !== 0) {

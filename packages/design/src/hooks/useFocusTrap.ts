@@ -51,9 +51,8 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean) {
     // Move focus into the container
     const container = containerRef.current
     if (container) {
-      const firstFocusable = container.querySelector<HTMLElement>(
-        FOCUSABLE_SELECTORS
-      )
+      const firstFocusable =
+        container.querySelector<HTMLElement>(FOCUSABLE_SELECTORS)
       if (firstFocusable) {
         firstFocusable.focus()
       } else {

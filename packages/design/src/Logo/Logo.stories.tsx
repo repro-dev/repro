@@ -42,11 +42,7 @@ export const AllVariants: Story = {
         </Col>
       </Row>
 
-      <Block
-        padding={24}
-        backgroundColor={color.bg.emphasis}
-        borderRadius={8}
-      >
+      <Block padding={24} backgroundColor={color.bg.emphasis} borderRadius={8}>
         <Row gap={24} alignItems="center">
           <Col gap={8} alignItems="center">
             <Logo size={48} inverted />

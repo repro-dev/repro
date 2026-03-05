@@ -1,7 +1,7 @@
 import { Block, Col } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
-import { expect, fn, userEvent, within } from 'storybook/test'
 import React, { useState } from 'react'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
 import { ToggleGroup } from './ToggleGroup'

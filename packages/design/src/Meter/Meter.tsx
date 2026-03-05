@@ -26,7 +26,7 @@ function createValueElement() {
     ['top', '0'],
     ['transform', 'scaleX(0)'],
     ['transformOrigin', '0 0'],
-    ['transition', `transform ${duration.fast} ${easing.easeOut}`],
+    ['transition', `transform ${duration[100]} ${easing.easeOut}`],
     ['width', '100%'],
   ] as const
 

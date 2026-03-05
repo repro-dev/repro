@@ -72,11 +72,7 @@ export const Variants: Story = {
 
 export const ContentPlaceholder: Story = {
   render: () => (
-    <Col
-      gap={spacing.xl}
-      padding={spacing.xl}
-      maxWidth={400}
-    >
+    <Col gap={spacing.xl} padding={spacing.xl} maxWidth={400}>
       <Row gap={spacing.lg} alignItems="center">
         <Skeleton variant="circular" width={48} height={48} />
         <Col gap={spacing.sm} flex={1}>

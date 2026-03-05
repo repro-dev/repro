@@ -12,7 +12,7 @@ import { Subscription, fromEvent, switchMap, takeUntil, timer } from 'rxjs'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
-import { duration, easing } from '../tokens/motion'
+import { delay as delayTokens, duration, easing } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { fontSize } from '../tokens/typography'
 
@@ -22,7 +22,6 @@ type Props = PropsWithChildren<{
 }>
 
 const MAX_INT32 = 2 ** 32 - 1
-const DEFAULT_TOOLTIP_DELAY = 100
 
 /**
  * Positioned tooltip that appears on hover (with configurable delay) and
@@ -34,7 +33,7 @@ const DEFAULT_TOOLTIP_DELAY = 100
  */
 export const Tooltip: React.FC<Props> = ({
   children,
-  delay = DEFAULT_TOOLTIP_DELAY,
+  delay = delayTokens.tooltip,
   position = 'top',
 }) => {
   const ref = useRef() as MutableRefObject<HTMLDivElement>
@@ -190,7 +189,7 @@ export const Tooltip: React.FC<Props> = ({
           whiteSpace="nowrap"
           pointerEvents="none"
           opacity={active ? 1 : 0}
-          transition={`opacity ${easing.linear} ${duration.fast}`}
+          transition={`opacity ${duration[100]} ${easing.linear}`}
           userSelect="none"
           zIndex={MAX_INT32}
           props={{

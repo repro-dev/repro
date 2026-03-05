@@ -4,7 +4,7 @@ import { color, colors } from './colors'
 import { spacing } from './spacing'
 import { fontSize, fontWeight, lineHeight, fontFamily, textStyles } from './typography'
 import { shadow, radius } from './elevation'
-import { duration, easing, transition } from './motion'
+import { duration, easing, transition, delay } from './motion'
 import { focusRingTokens } from './interaction'
 
 <Meta title="Tokens/Overview" />
@@ -16,7 +16,7 @@ typography, elevation, motion, and interaction styles. **Always import tokens fr
 `@repro/design`** — never hardcode raw values.
 
 ```tsx
-import { color, spacing, textStyles, shadow, radius, transition, focusRing } from '@repro/design'
+
 ```
 
 <div style={{ paddingBottom: 16 }} />
@@ -39,8 +39,19 @@ values today but can be re-themed in future.
     ['primarySubtle', color.primarySubtle],
   ].map(([name, value]) => (
     <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: value, border: '1px solid #e2e8f0', flexShrink: 0 }} />
-      <div style={{ fontSize: 13, fontWeight: 600, width: 120, flexShrink: 0 }}>{name}</div>
+      <div
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: 4,
+          backgroundColor: value,
+          border: '1px solid #e2e8f0',
+          flexShrink: 0,
+        }}
+      />
+      <div style={{ fontSize: 13, fontWeight: 600, width: 120, flexShrink: 0 }}>
+        {name}
+      </div>
       <div style={{ fontSize: 11, color: '#64748b' }}>{value}</div>
     </div>
   ))}
@@ -51,8 +62,19 @@ values today but can be re-themed in future.
 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
   {Object.entries(color.text).map(([name, value]) => (
     <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: value, border: '1px solid #e2e8f0', flexShrink: 0 }} />
-      <div style={{ fontSize: 13, fontWeight: 600, width: 120, flexShrink: 0 }}>text.{name}</div>
+      <div
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: 4,
+          backgroundColor: value,
+          border: '1px solid #e2e8f0',
+          flexShrink: 0,
+        }}
+      />
+      <div style={{ fontSize: 13, fontWeight: 600, width: 120, flexShrink: 0 }}>
+        text.{name}
+      </div>
       <div style={{ fontSize: 11, color: '#64748b' }}>{value}</div>
     </div>
   ))}
@@ -63,8 +85,19 @@ values today but can be re-themed in future.
 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
   {Object.entries(color.bg).map(([name, value]) => (
     <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: value, border: '1px solid #e2e8f0', flexShrink: 0 }} />
-      <div style={{ fontSize: 13, fontWeight: 600, width: 120, flexShrink: 0 }}>bg.{name}</div>
+      <div
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: 4,
+          backgroundColor: value,
+          border: '1px solid #e2e8f0',
+          flexShrink: 0,
+        }}
+      />
+      <div style={{ fontSize: 13, fontWeight: 600, width: 120, flexShrink: 0 }}>
+        bg.{name}
+      </div>
       <div style={{ fontSize: 11, color: '#64748b' }}>{String(value)}</div>
     </div>
   ))}
@@ -75,8 +108,19 @@ values today but can be re-themed in future.
 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
   {Object.entries(color.border).map(([name, value]) => (
     <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: value, border: '1px solid #e2e8f0', flexShrink: 0 }} />
-      <div style={{ fontSize: 13, fontWeight: 600, width: 120, flexShrink: 0 }}>border.{name}</div>
+      <div
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: 4,
+          backgroundColor: value,
+          border: '1px solid #e2e8f0',
+          flexShrink: 0,
+        }}
+      />
+      <div style={{ fontSize: 13, fontWeight: 600, width: 120, flexShrink: 0 }}>
+        border.{name}
+      </div>
       <div style={{ fontSize: 11, color: '#64748b' }}>{value}</div>
     </div>
   ))}
@@ -96,8 +140,19 @@ values today but can be re-themed in future.
     ['infoSubtle', color.infoSubtle],
   ].map(([name, value]) => (
     <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: value, border: '1px solid #e2e8f0', flexShrink: 0 }} />
-      <div style={{ fontSize: 13, fontWeight: 600, width: 120, flexShrink: 0 }}>{name}</div>
+      <div
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: 4,
+          backgroundColor: value,
+          border: '1px solid #e2e8f0',
+          flexShrink: 0,
+        }}
+      />
+      <div style={{ fontSize: 13, fontWeight: 600, width: 120, flexShrink: 0 }}>
+        {name}
+      </div>
       <div style={{ fontSize: 11, color: '#64748b' }}>{value}</div>
     </div>
   ))}
@@ -124,15 +179,27 @@ A 9-step scale where every value is a multiple of 4 (except `xs` at 2px).
 
 ```tsx
 import { spacing } from '@repro/design'
-<Block padding={spacing.md} gap={spacing.sm} />
+;<Block padding={spacing.md} gap={spacing.sm} />
 ```
 
 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
   {Object.entries(spacing).map(([name, value]) => (
     <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <div style={{ width: 64, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{name}</div>
-      <div style={{ width: 40, fontSize: 11, color: '#64748b', flexShrink: 0 }}>{value}px</div>
-      <div style={{ width: value, height: 16, backgroundColor: '#3b82f6', borderRadius: 2, minWidth: value === 0 ? 1 : undefined }} />
+      <div style={{ width: 64, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+        {name}
+      </div>
+      <div style={{ width: 40, fontSize: 11, color: '#64748b', flexShrink: 0 }}>
+        {value}px
+      </div>
+      <div
+        style={{
+          width: value,
+          height: 16,
+          backgroundColor: '#3b82f6',
+          borderRadius: 2,
+          minWidth: value === 0 ? 1 : undefined,
+        }}
+      />
     </div>
   ))}
 </div>
@@ -148,15 +215,26 @@ import { spacing } from '@repro/design'
 ### Font size scale
 
 ```tsx
-import { fontSize, fontWeight, lineHeight, fontFamily, textStyles } from '@repro/design'
+
 ```
 
-<div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+<div
+  style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}
+>
   {Object.entries(fontSize).map(([name, value]) => (
-    <div key={name} style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-      <div style={{ width: 48, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{name}</div>
-      <div style={{ width: 40, fontSize: 11, color: '#64748b', flexShrink: 0 }}>{value}px</div>
-      <div style={{ fontSize: value, lineHeight: 1.25 }}>The quick brown fox</div>
+    <div
+      key={name}
+      style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}
+    >
+      <div style={{ width: 48, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+        {name}
+      </div>
+      <div style={{ width: 40, fontSize: 11, color: '#64748b', flexShrink: 0 }}>
+        {value}px
+      </div>
+      <div style={{ fontSize: value, lineHeight: 1.25 }}>
+        The quick brown fox
+      </div>
     </div>
   ))}
 </div>
@@ -168,25 +246,27 @@ import { fontSize, fontWeight, lineHeight, fontFamily, textStyles } from '@repro
     <div key={name}>
       <div style={{ fontSize: 16, fontWeight: value }}>Aa</div>
       <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{name}</div>
-      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{value}</div>
+      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+        {value}
+      </div>
     </div>
   ))}
 </div>
 
 ### Line height
 
-| Token | Value | Use case |
-|-------|-------|----------|
-| `tight` | 1 | Single-line UI labels, badges |
-| `normal` | 1.25 | Headings |
-| `relaxed` | 1.5 | Body text, captions |
+| Token     | Value | Use case                      |
+| --------- | ----- | ----------------------------- |
+| `tight`   | 1     | Single-line UI labels, badges |
+| `normal`  | 1.25  | Headings                      |
+| `relaxed` | 1.5   | Body text, captions           |
 
 ### Font family
 
-| Token | Value | Use case |
-|-------|-------|----------|
-| `sans` | `sans-serif` | Default UI text |
-| `mono` | `monospace` | Code, technical values |
+| Token  | Value        | Use case               |
+| ------ | ------------ | ---------------------- |
+| `sans` | `sans-serif` | Default UI text        |
+| `mono` | `monospace`  | Code, technical values |
 
 ### Text style presets (primary API)
 
@@ -194,14 +274,28 @@ Spread these directly on jsxstyle primitives:
 
 ```tsx
 import { textStyles } from '@repro/design'
-<Block {...textStyles.heading1}>Title</Block>
+;<Block {...textStyles.heading1}>Title</Block>
 ```
 
-<div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
+<div
+  style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}
+>
   {Object.entries(textStyles).map(([name, style]) => (
-    <div key={name} style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-      <div style={{ width: 96, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{name}</div>
-      <div style={{ fontSize: style.fontSize, fontWeight: style.fontWeight, lineHeight: style.lineHeight, fontFamily: style.fontFamily }}>
+    <div
+      key={name}
+      style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}
+    >
+      <div style={{ width: 96, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+        {name}
+      </div>
+      <div
+        style={{
+          fontSize: style.fontSize,
+          fontWeight: style.fontWeight,
+          lineHeight: style.lineHeight,
+          fontFamily: style.fontFamily,
+        }}
+      >
         The quick brown fox jumps over the lazy dog
       </div>
     </div>
@@ -220,15 +314,41 @@ import { textStyles } from '@repro/design'
 
 ```tsx
 import { shadow } from '@repro/design'
-<Block boxShadow={shadow.md} />
+;<Block boxShadow={shadow.md} />
 ```
 
 <div style={{ display: 'flex', gap: 24, marginTop: 16, marginBottom: 16 }}>
   {Object.entries(shadow).map(([name, value]) => (
-    <div key={name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-      <div style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: 'white', boxShadow: value, border: value === 'none' ? '1px solid #e2e8f0' : undefined }} />
+    <div
+      key={name}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 8,
+      }}
+    >
+      <div
+        style={{
+          width: 80,
+          height: 80,
+          borderRadius: 8,
+          backgroundColor: 'white',
+          boxShadow: value,
+          border: value === 'none' ? '1px solid #e2e8f0' : undefined,
+        }}
+      />
       <div style={{ fontSize: 13, fontWeight: 600 }}>{name}</div>
-      <div style={{ fontSize: 11, color: '#64748b', maxWidth: 120, textAlign: 'center' }}>{value === 'none' ? 'none' : 'see code'}</div>
+      <div
+        style={{
+          fontSize: 11,
+          color: '#64748b',
+          maxWidth: 120,
+          textAlign: 'center',
+        }}
+      >
+        {value === 'none' ? 'none' : 'see code'}
+      </div>
     </div>
   ))}
 </div>
@@ -237,15 +357,32 @@ import { shadow } from '@repro/design'
 
 ```tsx
 import { radius } from '@repro/design'
-<Block borderRadius={radius.md} />
+;<Block borderRadius={radius.md} />
 ```
 
 <div style={{ display: 'flex', gap: 24, marginTop: 16, marginBottom: 16 }}>
   {Object.entries(radius).map(([name, value]) => (
-    <div key={name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-      <div style={{ width: 64, height: 64, borderRadius: value, backgroundColor: '#3b82f6' }} />
+    <div
+      key={name}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 8,
+      }}
+    >
+      <div
+        style={{
+          width: 64,
+          height: 64,
+          borderRadius: value,
+          backgroundColor: '#3b82f6',
+        }}
+      />
       <div style={{ fontSize: 13, fontWeight: 600 }}>{name}</div>
-      <div style={{ fontSize: 11, color: '#64748b' }}>{typeof value === 'number' ? `${value}px` : value}</div>
+      <div style={{ fontSize: 11, color: '#64748b' }}>
+        {typeof value === 'number' ? `${value}px` : value}
+      </div>
     </div>
   ))}
 </div>
@@ -261,22 +398,25 @@ import { radius } from '@repro/design'
 ### Durations
 
 ```tsx
-import { duration, easing, transition } from '@repro/design'
+
 ```
 
-| Token | Value | Use case |
-|-------|-------|----------|
-| `fast` | 100ms | Micro-interactions, hover/focus feedback |
-| `normal` | 200ms | Default UI transitions |
-| `slow` | 300ms | Larger-area transitions |
+| Token  | Value  | Use case                                 |
+| ------ | ------ | ---------------------------------------- |
+| `100`  | 100ms  | Micro-interactions, hover/focus feedback |
+| `200`  | 200ms  | Default UI transitions                   |
+| `300`  | 300ms  | Deliberate, larger-area transitions      |
+| `500`  | 500ms  | Pulse animations, fade sequences         |
+| `1000` | 1000ms | Continuous rotation (spinners)           |
+| `1800` | 1800ms | Slow sweep animations (skeleton shimmer) |
 
 ### Easings
 
-| Token | Value | Use case |
-|-------|-------|----------|
-| `default` | ease-in-out | Most UI transitions |
-| `linear` | linear | Progress bars, marquees |
-| `easeOut` | ease-out | Toasts, dropdowns |
+| Token     | Value       | Use case                |
+| --------- | ----------- | ----------------------- |
+| `default` | ease-in-out | Most UI transitions     |
+| `linear`  | linear      | Progress bars, marquees |
+| `easeOut` | ease-out    | Toasts, dropdowns       |
 
 ### Transition presets
 
@@ -286,14 +426,24 @@ Ready-to-use CSS transition strings:
 <Block transition={transition.default} />
 ```
 
-| Token | Value |
-|-------|-------|
-| `default` | `all 200ms ease-in-out` |
-| `fast` | `all 100ms ease-in-out` |
+| Token       | Value                         |
+| ----------- | ----------------------------- |
+| `default`   | `all 200ms ease-in-out`       |
+| `fast`      | `all 100ms ease-in-out`       |
 | `transform` | `transform 100ms ease-in-out` |
-| `opacity` | `opacity 200ms ease-in-out` |
+| `opacity`   | `opacity 200ms ease-in-out`   |
 
-**Types:** `DurationToken`, `EasingToken`, `TransitionToken`
+**Types:** `DurationToken`, `EasingToken`, `TransitionToken`, `DelayToken`
+
+### Delays (JS timing constants)
+
+Raw numbers (not CSS strings) for `setTimeout`, `setInterval`, and react-spring `config.duration`:
+
+| Token     | Value | Use case                              |
+| --------- | ----- | ------------------------------------- |
+| `tooltip` | 100   | Tooltip hover delay before showing    |
+| `fade`    | 500   | Spring/fade animation config duration |
+| `rotate`  | 3000  | Placeholder text rotation interval    |
 
 <div style={{ paddingBottom: 16 }} />
 
@@ -314,10 +464,36 @@ import { focusRing, focusWithinRing } from '@repro/design'
 
 Available contexts:
 
-<div style={{ display: 'flex', gap: 16, marginTop: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+<div
+  style={{
+    display: 'flex',
+    gap: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    flexWrap: 'wrap',
+  }}
+>
   {Object.entries(focusRingTokens).map(([name, tokens]) => (
-    <div key={name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-      <div style={{ width: 48, height: 48, borderRadius: 8, backgroundColor: name === 'inverted' ? '#1e293b' : 'white', border: '1px solid #e2e8f0', outline: tokens.outline, outlineOffset: tokens.outlineOffset }} />
+    <div
+      key={name}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 8,
+      }}
+    >
+      <div
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 8,
+          backgroundColor: name === 'inverted' ? '#1e293b' : 'white',
+          border: '1px solid #e2e8f0',
+          outline: tokens.outline,
+          outlineOffset: tokens.outlineOffset,
+        }}
+      />
       <div style={{ fontSize: 13, fontWeight: 600 }}>{name}</div>
     </div>
   ))}

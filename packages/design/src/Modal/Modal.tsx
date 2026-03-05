@@ -81,8 +81,8 @@ export const Modal: React.FC<Props> = ({
           ...(ariaLabel
             ? { 'aria-label': ariaLabel }
             : labelId
-              ? { 'aria-labelledby': labelId }
-              : {}),
+            ? { 'aria-labelledby': labelId }
+            : {}),
         }}
       >
         {children}

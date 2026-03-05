@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import React from 'react'
 import { Meter } from './Meter'
 
 const meta: Meta<typeof Meter> = {

@@ -11,7 +11,7 @@ import React, {
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
-import { transition } from '../tokens/motion'
+import { delay, transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { fontSize, lineHeight } from '../tokens/typography'
 
@@ -27,7 +27,7 @@ export interface AgenticInputProps {
   onSubmit(formState: AgenticInputFormState): void
 }
 
-const PLACEHOLDER_ROTATION_INTERVAL = 3000
+const PLACEHOLDER_ROTATION_INTERVAL = delay.rotate
 
 /**
  * Chat-style textarea with a submit button and animated rotating placeholders.
@@ -55,8 +55,8 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
     from: { opacity: 0 },
     enter: { opacity: 1 },
     leave: { opacity: 0 },
-    config: { duration: 500 },
-    trail: 500,
+    config: { duration: delay.fade },
+    trail: delay.fade,
   })
 
   useEffect(() => {
@@ -149,9 +149,7 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
         <Row justifyContent="flex-end" marginBlockStart={spacing.md}>
           <Block
             alignItems="center"
-            backgroundColor={
-              hasValue ? color.danger : color.border.default
-            }
+            backgroundColor={hasValue ? color.danger : color.border.default}
             blockSize={spacing['3xl']}
             border="none"
             borderRadius={radius.sm}

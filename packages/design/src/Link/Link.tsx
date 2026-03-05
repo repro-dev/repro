@@ -21,7 +21,18 @@ export interface LinkProps {
  * router dependency to this package.
  */
 export const Link = forwardRef<HTMLAnchorElement, LinkProps>(
-  ({ children, href, target, rel, disabled = false, component, props: componentProps }, ref) => {
+  (
+    {
+      children,
+      href,
+      target,
+      rel,
+      disabled = false,
+      component,
+      props: componentProps,
+    },
+    ref
+  ) => {
     const resolvedRel =
       rel ?? (target === '_blank' ? 'noopener noreferrer' : undefined)
 

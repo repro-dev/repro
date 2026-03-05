@@ -1,8 +1,11 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
 import React from 'react'
 import { color } from '../tokens/colors'
-import { fontWeight as fontWeightTokens, textStyles } from '../tokens/typography'
 import type { TextStyleToken } from '../tokens/typography'
+import {
+  fontWeight as fontWeightTokens,
+  textStyles,
+} from '../tokens/typography'
 
 type TextVariant = TextStyleToken
 

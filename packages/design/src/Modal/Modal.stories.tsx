@@ -1,7 +1,7 @@
 import { Block, Col } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
-import { expect, userEvent, within } from 'storybook/test'
 import React, { useState } from 'react'
+import { expect, userEvent, within } from 'storybook/test'
 import { Button } from '../Button'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
@@ -28,7 +28,11 @@ export const Default: Story = {
         <Block fontSize={fontSize.lg} fontWeight={600} marginBottom={12}>
           Confirm Action
         </Block>
-        <Block fontSize={fontSize.sm} color={color.text.secondary} marginBottom={24}>
+        <Block
+          fontSize={fontSize.sm}
+          color={color.text.secondary}
+          marginBottom={24}
+        >
           Are you sure you want to delete this recording? This action cannot be
           undone.
         </Block>
@@ -43,7 +47,13 @@ export const Interactive: Story = {
     const [open, setOpen] = useState(false)
     return (
       <Block padding={16}>
-        <Button context="info" variant="contained" size="medium" rounded onClick={() => setOpen(true)}>
+        <Button
+          context="info"
+          variant="contained"
+          size="medium"
+          rounded
+          onClick={() => setOpen(true)}
+        >
           Open Modal
         </Button>
 
@@ -86,7 +96,13 @@ export const OpenCloseTest: Story = {
     const [open, setOpen] = useState(false)
     return (
       <Block padding={16}>
-        <Button context="info" variant="contained" size="medium" rounded onClick={() => setOpen(true)}>
+        <Button
+          context="info"
+          variant="contained"
+          size="medium"
+          rounded
+          onClick={() => setOpen(true)}
+        >
           Open Modal
         </Button>
 
@@ -129,15 +145,21 @@ export const OpenCloseTest: Story = {
     await expect(dialog).toHaveAttribute('aria-label', 'Test modal')
 
     await userEvent.keyboard('{Escape}')
-    await expect(within(document.body).queryByRole('dialog')).not.toBeInTheDocument()
+    await expect(
+      within(document.body).queryByRole('dialog')
+    ).not.toBeInTheDocument()
 
     await userEvent.click(openButton)
     const reopenedDialog = await within(document.body).findByRole('dialog')
     await expect(reopenedDialog).toBeInTheDocument()
 
-    const closeButton = within(document.body).getByRole('button', { name: 'Close' })
+    const closeButton = within(document.body).getByRole('button', {
+      name: 'Close',
+    })
     await userEvent.click(closeButton)
-    await expect(within(document.body).queryByRole('dialog')).not.toBeInTheDocument()
+    await expect(
+      within(document.body).queryByRole('dialog')
+    ).not.toBeInTheDocument()
   },
 }
 
