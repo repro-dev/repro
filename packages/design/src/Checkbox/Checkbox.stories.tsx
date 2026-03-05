@@ -1,7 +1,7 @@
 import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import { expect, fn, userEvent, within } from 'storybook/test'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
 import { Checkbox } from './Checkbox'
