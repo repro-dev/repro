@@ -81,9 +81,25 @@ local function open_worktree_picker()
         vim.notify("Already in worktree: " .. item.branch)
         return
       end
+
+      local source_cwd = vim.fn.fnamemodify(vim.fn.getcwd(), ":p")
+      local bufpath = vim.api.nvim_buf_get_name(0)
+      local rel_file = nil
+
+      if bufpath ~= "" and vim.startswith(bufpath, source_cwd) then
+        rel_file = bufpath:sub(#source_cwd + 1)
+      end
+
       vim.cmd("tcd " .. vim.fn.fnameescape(item.file))
       vim.cmd("clearjumps")
-      vim.cmd("edit .")
+
+      local target_file = rel_file and (item.file .. "/" .. rel_file) or nil
+      if target_file and vim.fn.filereadable(target_file) == 1 then
+        vim.cmd("edit " .. vim.fn.fnameescape(target_file))
+      else
+        vim.cmd("edit .")
+      end
+
       vim.notify("Switched to worktree: " .. item.branch)
     end,
     actions = {

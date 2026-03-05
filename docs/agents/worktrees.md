@@ -226,7 +226,7 @@ Neovim will prompt for trust confirmation the first time it loads the file.
 
 | Key | Description |
 |-----|-------------|
-| `<CR>` | Switch to selected worktree (`tcd`, clear jumplist, open root) |
+| `<CR>` | Switch to selected worktree (`tcd`, clear jumplist, re-open current file if it exists in the target, otherwise open root) |
 | `<C-x>` | Delete selected worktree (`reproctl wt remove`) |
 | `<C-a>` | Create a new worktree (prompts for branch name) |
 
