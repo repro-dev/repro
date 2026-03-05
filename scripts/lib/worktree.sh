@@ -12,24 +12,37 @@ WT_NO_STATUS_UPDATE=false
 
 _linear_api() {
   local query="$1"
-  local response
-  response="$(curl -sSf -X POST \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer $LINEAR_API_KEY" \
-    --data "{\"query\": $(printf '%s' "$query" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}" \
-    "https://api.linear.app/graphql")" || die "Failed to reach Linear API"
+  local _tmpfile http_code body
+  _tmpfile="$(mktemp)"
 
-  if ! printf '%s' "$response" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
-    die "Linear API returned non-JSON response"
+  http_code="$(curl -sS -o "$_tmpfile" -w '%{http_code}' -X POST \
+    -H "Content-Type: application/json" \
+    -H "Authorization: $LINEAR_API_KEY" \
+    --data "{\"query\": $(printf '%s' "$query" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}" \
+    "https://api.linear.app/graphql")" || { rm -f "$_tmpfile"; die "Failed to reach Linear API (network error)"; }
+
+  body="$(cat "$_tmpfile")"
+  rm -f "$_tmpfile"
+
+  if [[ "$http_code" -ge 400 ]]; then
+    case "$http_code" in
+      401) die "Linear API authentication failed (HTTP 401). Check that LINEAR_API_KEY is valid." ;;
+      403) die "Linear API authorization failed (HTTP 403). Your API key may lack required scopes." ;;
+      *)   die "Linear API request failed (HTTP $http_code): $body" ;;
+    esac
+  fi
+
+  if ! printf '%s' "$body" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
+    die "Linear API returned non-JSON response (HTTP $http_code)"
   fi
 
   local errors rc=0
-  errors="$(printf '%s' "$response" | python3 "$SCRIPTS_DIR/lib/py/linear_check_errors.py" 2>/dev/null)" || rc=$?
+  errors="$(printf '%s' "$body" | python3 "$SCRIPTS_DIR/lib/py/linear_check_errors.py" 2>/dev/null)" || rc=$?
   if [[ $rc -ne 0 ]] && [[ -n "$errors" ]]; then
     die "Linear API error: $errors"
   fi
 
-  printf '%s' "$response"
+  printf '%s' "$body"
 }
 
 cmd_wt_create_from_issue() {
@@ -45,8 +58,12 @@ cmd_wt_create_from_issue() {
 
   _step 1 3 "Fetching issue ${issue_id} from Linear..."
 
+  local team_key issue_number
+  team_key="${issue_id%%-*}"
+  issue_number="${issue_id##*-}"
+
   local query
-  query="{ issueSearch(filter: { identifier: { eq: \"${issue_id}\" } }, first: 1) { nodes { id identifier title branchName team { states { nodes { id name type } } } } } }"
+  query="{ issues(filter: { number: { eq: ${issue_number} }, team: { key: { eq: \"${team_key}\" } } }, first: 1) { nodes { id identifier title branchName team { states { nodes { id name type } } } } } }"
 
   local response
   response="$(_linear_api "$query")"

@@ -15,7 +15,7 @@ data = json.load(sys.stdin)
 
 node = data.get("data", {}).get("issue")
 if node is None:
-    nodes = data.get("data", {}).get("issueSearch", {}).get("nodes", [])
+    nodes = data.get("data", {}).get("issues", {}).get("nodes", [])
     if not nodes:
         sys.exit(0)
     node = nodes[0]
