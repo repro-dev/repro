@@ -101,7 +101,6 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
               fontSize={fontSize.xs}
               lineHeight={lineHeight.relaxed}
               color={disabled ? color.text.muted : color.text.secondary}
-              marginTop={spacing.xs}
             >
               {description}
             </Block>

@@ -80,7 +80,7 @@ export const RadioGroup = forwardRef<HTMLFieldSetElement, RadioGroupProps>(
     return (
       <Col
         component="fieldset"
-        gap={spacing.md}
+        gap={spacing.lg}
         border="none"
         margin={0}
         padding={0}
