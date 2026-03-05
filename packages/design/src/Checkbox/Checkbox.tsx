@@ -41,11 +41,13 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
     const indicatorSize = base * 2
     const iconSize = base * 1.5
     const fontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
+    const labelLineHeight = 1.4
+    const firstLineHeight = Math.ceil(fontSize * labelLineHeight)
 
     return (
       <Row
         component="label"
-        alignItems={description ? 'flex-start' : 'center'}
+        alignItems="flex-start"
         gap={spacing.md}
         cursor={disabled ? 'not-allowed' : 'pointer'}
         opacity={disabled ? 0.5 : 1}
@@ -55,9 +57,12 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
       >
         <Block
           position="relative"
-          height={indicatorSize}
+          height={firstLineHeight}
           width={indicatorSize}
           flexShrink={0}
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
         >
           <Block
             component="input"
@@ -98,7 +103,11 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
         </Block>
 
         <Col gap={spacing.xs}>
-          <Block fontSize={fontSize} color={color.text.default}>
+          <Block
+            fontSize={fontSize}
+            lineHeight={`${labelLineHeight}`}
+            color={color.text.default}
+          >
             {label}
           </Block>
           {description && (
