@@ -45,6 +45,7 @@ export interface SelectProps {
   placeholder?: string
   size?: 'small' | 'medium' | 'large'
   disabled?: boolean
+  required?: boolean
   name?: string
   'aria-label'?: string
   'aria-labelledby'?: string
@@ -81,6 +82,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       placeholder = 'Select an option',
       size = 'medium',
       disabled = false,
+      required = false,
+      name,
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledBy,
     },
@@ -251,6 +254,23 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
             <ChevronDown size={iconSize} color={color.text.muted} />
           </Block>
         </Row>
+
+        <Block
+          component="input"
+          position="absolute"
+          width={1}
+          height={1}
+          overflow="hidden"
+          opacity={0}
+          props={{
+            name,
+            value: resolvedValue,
+            required,
+            onChange() {},
+            tabIndex: -1,
+            'aria-hidden': true,
+          }}
+        />
 
         {isOpen && (
           <Portal>

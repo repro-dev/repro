@@ -263,3 +263,105 @@ describe('Select — controlled and uncontrolled modes (REP-296)', () => {
     expect(trigger!.textContent).toContain('Pick one')
   })
 })
+
+describe('Select — required attribute and hidden input (REP-293)', () => {
+  it('renders a hidden input with required attribute when required prop is set', () => {
+    render(
+      <Select
+        value="apple"
+        onChange={() => {}}
+        options={options}
+        name="fruit"
+        required
+        aria-label="Fruit"
+      />
+    )
+
+    const hiddenInput = document.querySelector(
+      'input[name="fruit"]'
+    ) as HTMLInputElement
+    expect(hiddenInput).not.toBeNull()
+    expect(hiddenInput.required).toBe(true)
+  })
+
+  it('hidden input value reflects the selected value', () => {
+    render(
+      <Select
+        value="banana"
+        onChange={() => {}}
+        options={options}
+        name="fruit"
+        aria-label="Fruit"
+      />
+    )
+
+    const hiddenInput = document.querySelector(
+      'input[name="fruit"]'
+    ) as HTMLInputElement
+    expect(hiddenInput).not.toBeNull()
+    expect(hiddenInput.value).toBe('banana')
+  })
+
+  it('native form validation prevents submission when no value is selected and required is true', () => {
+    const onSubmit = mock.fn()
+
+    render(
+      <form
+        onSubmit={e => {
+          e.preventDefault()
+          onSubmit()
+        }}
+      >
+        <Select options={options} name="fruit" required aria-label="Fruit" />
+        <button type="submit">Submit</button>
+      </form>
+    )
+
+    const submitButton = document.querySelector(
+      'button[type="submit"]'
+    ) as HTMLButtonElement
+
+    act(() => {
+      submitButton.click()
+    })
+
+    expect(onSubmit.mock.callCount()).toBe(0)
+  })
+
+  it('hidden input is visually hidden but present in the DOM', () => {
+    render(
+      <Select
+        value="apple"
+        onChange={() => {}}
+        options={options}
+        name="fruit"
+        aria-label="Fruit"
+      />
+    )
+
+    const hiddenInput = document.querySelector(
+      'input[name="fruit"]'
+    ) as HTMLInputElement
+    expect(hiddenInput).not.toBeNull()
+    expect(hiddenInput.tabIndex).toBe(-1)
+    expect(hiddenInput.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('hidden input uses name prop', () => {
+    render(
+      <Select
+        value="cherry"
+        onChange={() => {}}
+        options={options}
+        name="my-select"
+        aria-label="Fruit"
+      />
+    )
+
+    const hiddenInput = document.querySelector(
+      'input[name="my-select"]'
+    ) as HTMLInputElement
+    expect(hiddenInput).not.toBeNull()
+    expect(hiddenInput.value).toBe('cherry')
+  })
+})
