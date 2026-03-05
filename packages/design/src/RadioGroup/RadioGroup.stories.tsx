@@ -135,17 +135,16 @@ export const SelectionTest: Story = {
 }
 
 export const KeyboardNavigationTest: Story = {
-  args: {
-    label: 'Plan',
-    value: 'free',
+  render: () => {
+    const [value, setValue] = useState('free')
+    return (
+      <RadioGroup label="Plan" value={value} onChange={setValue}>
+        <Radio value="free" label="Free" />
+        <Radio value="pro" label="Pro" />
+        <Radio value="enterprise" label="Enterprise" />
+      </RadioGroup>
+    )
   },
-  render: args => (
-    <RadioGroup {...args}>
-      <Radio value="free" label="Free" />
-      <Radio value="pro" label="Pro" />
-      <Radio value="enterprise" label="Enterprise" />
-    </RadioGroup>
-  ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const radios = canvas.getAllByRole('radio')
