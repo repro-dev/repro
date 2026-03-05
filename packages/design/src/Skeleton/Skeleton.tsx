@@ -12,11 +12,13 @@ export interface SkeletonProps {
   lines?: number
 }
 
-const shimmerGradient = `linear-gradient(90deg, ${color.border.default} 0%, ${color.border.default} 33%, ${color.bg.hover} 50%, ${color.border.default} 67%, ${color.border.default} 100%)`
+const SHIMMER_WIDTH = 1000
+
+const shimmerGradient = `linear-gradient(90deg, ${color.border.default} 0px, ${color.bg.hover} ${SHIMMER_WIDTH / 2}px, ${color.border.default} ${SHIMMER_WIDTH}px)`
 
 const shimmerAnimation = {
-  '0%': { backgroundPosition: '100% 0' },
-  '100%': { backgroundPosition: '-100% 0' },
+  '0%': { backgroundPosition: `${SHIMMER_WIDTH}px 0` },
+  '100%': { backgroundPosition: `${-SHIMMER_WIDTH}px 0` },
 }
 
 const variantStyles = {
@@ -68,7 +70,7 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
               width={i === lines - 1 ? '80%' : resolvedWidth}
               height={resolvedHeight}
               background={shimmerGradient}
-              backgroundSize="200% 100%"
+              backgroundSize={`${SHIMMER_WIDTH}px 100%`}
               borderRadius={styles.borderRadius}
               animation={shimmerAnimation}
               animationDuration="1.8s"
@@ -85,7 +87,7 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
         width={resolvedWidth}
         height={resolvedHeight}
         background={shimmerGradient}
-        backgroundSize="200% 100%"
+        backgroundSize={`${SHIMMER_WIDTH}px 100%`}
         borderRadius={styles.borderRadius}
         animation={shimmerAnimation}
         animationDuration="1.8s"
