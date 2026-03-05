@@ -37,13 +37,15 @@ export interface SelectOption {
 }
 
 export interface SelectProps {
-  label: string
+  id?: string
   value: string
   onChange(value: string): void
   options: SelectOption[]
   placeholder?: string
   size?: 'small' | 'medium' | 'large'
   disabled?: boolean
+  'aria-label'?: string
+  'aria-labelledby'?: string
 }
 
 const sizes = {
@@ -69,13 +71,15 @@ const LISTBOX_PADDING = spacing.sm
 export const Select = forwardRef<HTMLButtonElement, SelectProps>(
   (
     {
-      label,
+      id,
       value,
       onChange,
       options,
       placeholder = 'Select an option',
       size = 'medium',
       disabled = false,
+      'aria-label': ariaLabel,
+      'aria-labelledby': ariaLabelledBy,
     },
     ref
   ) => {
@@ -87,7 +91,14 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     )
 
     const listboxId = useId()
-    const labelId = useId()
+
+    if (process.env['NODE_ENV'] !== 'production') {
+      if (!ariaLabel && !ariaLabelledBy && !id) {
+        console.warn(
+          'Select: No accessible label provided. Pass `aria-label`, `aria-labelledby`, or `id` (with a corresponding <Label htmlFor>) to ensure screen reader accessibility.'
+        )
+      }
+    }
 
     const base = sizes[size]
     const triggerFontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
@@ -164,18 +175,6 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
 
     return (
       <Block>
-        <Block
-          component="label"
-          display="block"
-          fontSize={Math.max(base * 1.25, MINIMUM_FONT_SIZE)}
-          lineHeight={lineHeight.tight}
-          color={disabled ? color.text.muted : color.text.secondary}
-          marginBottom={spacing.sm}
-          props={{ id: labelId }}
-        >
-          {label}
-        </Block>
-
         <Row
           component="button"
           alignItems="center"
@@ -197,9 +196,11 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           {...focusRing()}
           props={{
             ref: mergeRefs([ref, refs.setReference].filter(Boolean)),
+            id,
             type: 'button',
             disabled,
-            'aria-labelledby': labelId,
+            'aria-label': ariaLabel,
+            'aria-labelledby': ariaLabelledBy,
             'aria-expanded': isOpen,
             'aria-haspopup': 'listbox' as const,
             ...getReferenceProps(),
@@ -235,7 +236,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
               padding={LISTBOX_PADDING}
               overflowY="auto"
               zIndex={2 ** 32 - 1}
-              animation={`selectFadeIn ${duration.fast} ${easing.easeOut}`}
+              animation={`selectFadeIn ${duration[100]} ${easing.easeOut}`}
               props={{
                 ref: refs.setFloating,
                 style: floatingStyles,
@@ -250,7 +251,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                 props={{
                   id: listboxId,
                   role: 'listbox',
-                  'aria-labelledby': labelId,
+                  'aria-labelledby': ariaLabelledBy ?? id,
                 }}
               >
                 {options.map((option, index) => {

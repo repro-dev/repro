@@ -1,7 +1,9 @@
 import { Block, Col } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React, { useState } from 'react'
+import { Label } from '../Label/Label'
 import { color } from '../tokens/colors'
+import { spacing } from '../tokens/spacing'
 import { fontSize } from '../tokens/typography'
 import { Select, type SelectOption } from './Select'
 
@@ -48,13 +50,16 @@ export const Default: Story = {
     const [value, setValue] = useState('')
     return (
       <Block padding={16} maxWidth={300}>
-        <Select
-          label="Fruit"
-          value={value}
-          onChange={setValue}
-          options={fruitOptions}
-          placeholder="Choose a fruit"
-        />
+        <Col gap={spacing.sm}>
+          <Label htmlFor="fruit-select">Fruit</Label>
+          <Select
+            id="fruit-select"
+            value={value}
+            onChange={setValue}
+            options={fruitOptions}
+            placeholder="Choose a fruit"
+          />
+        </Col>
       </Block>
     )
   },
@@ -65,12 +70,15 @@ export const WithSelection: Story = {
     const [value, setValue] = useState('cherry')
     return (
       <Block padding={16} maxWidth={300}>
-        <Select
-          label="Fruit"
-          value={value}
-          onChange={setValue}
-          options={fruitOptions}
-        />
+        <Col gap={spacing.sm}>
+          <Label htmlFor="fruit-preselected">Fruit</Label>
+          <Select
+            id="fruit-preselected"
+            value={value}
+            onChange={setValue}
+            options={fruitOptions}
+          />
+        </Col>
       </Block>
     )
   },
@@ -79,13 +87,16 @@ export const WithSelection: Story = {
 export const Disabled: Story = {
   render: () => (
     <Block padding={16} maxWidth={300}>
-      <Select
-        label="Fruit"
-        value="apple"
-        onChange={() => {}}
-        options={fruitOptions}
-        disabled
-      />
+      <Col gap={spacing.sm}>
+        <Label htmlFor="fruit-disabled">Fruit</Label>
+        <Select
+          id="fruit-disabled"
+          value="apple"
+          onChange={() => {}}
+          options={fruitOptions}
+          disabled
+        />
+      </Col>
     </Block>
   ),
 }
@@ -95,12 +106,15 @@ export const DisabledOptions: Story = {
     const [value, setValue] = useState('active')
     return (
       <Block padding={16} maxWidth={300}>
-        <Select
-          label="Status"
-          value={value}
-          onChange={setValue}
-          options={withDisabledOptions}
-        />
+        <Col gap={spacing.sm}>
+          <Label htmlFor="status-select">Status</Label>
+          <Select
+            id="status-select"
+            value={value}
+            onChange={setValue}
+            options={withDisabledOptions}
+          />
+        </Col>
       </Block>
     )
   },
@@ -111,13 +125,16 @@ export const LongList: Story = {
     const [value, setValue] = useState('')
     return (
       <Block padding={16} maxWidth={300}>
-        <Select
-          label="Country"
-          value={value}
-          onChange={setValue}
-          options={countryOptions}
-          placeholder="Select a country"
-        />
+        <Col gap={spacing.sm}>
+          <Label htmlFor="country-select">Country</Label>
+          <Select
+            id="country-select"
+            value={value}
+            onChange={setValue}
+            options={countryOptions}
+            placeholder="Select a country"
+          />
+        </Col>
       </Block>
     )
   },
@@ -144,16 +161,36 @@ export const Sizes: Story = {
             >
               {s}
             </Block>
-            <Select
-              label={`Fruit (${s})`}
-              value={values[s] ?? ''}
-              onChange={v => setValues(prev => ({ ...prev, [s]: v }))}
-              options={fruitOptions}
-              size={s}
-            />
+            <Col gap={spacing.sm}>
+              <Label htmlFor={`fruit-${s}`}>Fruit ({s})</Label>
+              <Select
+                id={`fruit-${s}`}
+                value={values[s] ?? ''}
+                onChange={v => setValues(prev => ({ ...prev, [s]: v }))}
+                options={fruitOptions}
+                size={s}
+              />
+            </Col>
           </Block>
         ))}
       </Col>
+    )
+  },
+}
+
+export const WithAriaLabel: Story = {
+  render: () => {
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <Select
+          value={value}
+          onChange={setValue}
+          options={fruitOptions}
+          placeholder="Choose a fruit"
+          aria-label="Fruit picker"
+        />
+      </Block>
     )
   },
 }
