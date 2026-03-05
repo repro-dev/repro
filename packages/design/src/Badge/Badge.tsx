@@ -23,6 +23,14 @@ const colorMap: Record<BadgeContext, string> = {
   danger: color.dangerFg,
 }
 
+const borderColorMap: Record<BadgeContext, string> = {
+  neutral: color.neutralBorderSubtle,
+  info: color.infoBorderSubtle,
+  success: color.successBorderSubtle,
+  warning: color.warningBorderSubtle,
+  danger: color.dangerBorderSubtle,
+}
+
 export interface BadgeProps {
   children: ReactNode
   context?: BadgeContext
@@ -45,6 +53,7 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
         justifyContent="center"
         backgroundColor={backgroundColorMap[context]}
         color={colorMap[context]}
+        border={`1px solid ${borderColorMap[context]}`}
         borderRadius={rounded ? radius.full : radius.sm}
         paddingLeft={spacing.sm}
         paddingRight={spacing.sm}

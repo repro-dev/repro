@@ -95,6 +95,8 @@ export const color = {
   dangerSubtle: twColors.rose['100'],
   /** rose-500 — border for outlined danger buttons and error states */
   dangerBorder: twColors.rose['500'],
+  /** rose-300 — subtle border for badges and tinted containers */
+  dangerBorderSubtle: twColors.rose['300'],
   /** rose-900 — text on subtle danger backgrounds */
   dangerFg: twColors.rose['900'],
 
@@ -106,6 +108,8 @@ export const color = {
   successSubtle: twColors.green['100'],
   /** green-600 — border for outlined success buttons */
   successBorder: twColors.green['600'],
+  /** green-300 — subtle border for badges and tinted containers */
+  successBorderSubtle: twColors.green['300'],
   /** green-900 — text on subtle success backgrounds */
   successFg: twColors.green['900'],
 
@@ -121,6 +125,8 @@ export const color = {
   warningSubtle: twColors.amber['100'],
   /** amber-600 — border for outlined warning buttons */
   warningBorder: twColors.amber['600'],
+  /** amber-300 — subtle border for badges and tinted containers */
+  warningBorderSubtle: twColors.amber['300'],
   /** amber-900 — text on subtle warning backgrounds */
   warningFg: twColors.amber['900'],
 
@@ -134,6 +140,8 @@ export const color = {
   infoSubtle: twColors.blue['100'],
   /** blue-500 — border for outlined info buttons and focus rings */
   infoBorder: twColors.blue['500'],
+  /** blue-300 — subtle border for badges and tinted containers */
+  infoBorderSubtle: twColors.blue['300'],
   /** blue-900 — text on subtle info backgrounds */
   infoFg: twColors.blue['900'],
 
@@ -153,6 +161,8 @@ export const color = {
   neutralHover: twColors.slate['600'],
   /** slate-500 — border for outlined neutral buttons */
   neutralBorder: twColors.slate['500'],
+  /** slate-300 — subtle border for badges and tinted containers */
+  neutralBorderSubtle: twColors.slate['300'],
 } as const
 
 export type ColorToken = typeof color
