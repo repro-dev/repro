@@ -179,7 +179,20 @@ cmd_doctor() {
     has_failures=true
   fi
 
-  # 7. direnv
+  # 7. LINEAR_API_KEY (optional — needed for reproctl wt create --from-issue / handoff)
+  if [[ -n "${LINEAR_API_KEY:-}" ]]; then
+    if [[ "$LINEAR_API_KEY" == lin_api_* ]]; then
+      check_ok "LINEAR_API_KEY" "set"
+    else
+      check_warn "LINEAR_API_KEY" "set but does not start with lin_api_ — may be invalid"
+      has_warnings=true
+    fi
+  else
+    check_warn "LINEAR_API_KEY" "not set — wt create --from-issue and handoff will not fetch issue details"
+    has_warnings=true
+  fi
+
+  # 8. direnv
   if command -v direnv > /dev/null 2>&1; then
     if [ -n "${DIRENV_DIR:-}" ]; then
       check_ok "direnv" "shell hook active"

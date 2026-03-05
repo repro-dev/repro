@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parse a Linear ``issueSearch`` GraphQL response.
+"""Parse a Linear ``issues`` GraphQL response.
 
 Reads the full API JSON from stdin. Outputs newline-delimited fields:
 
@@ -16,7 +16,7 @@ import json
 import sys
 
 data = json.load(sys.stdin)
-nodes = data.get("data", {}).get("issueSearch", {}).get("nodes", [])
+nodes = data.get("data", {}).get("issues", {}).get("nodes", [])
 
 if not nodes:
     print("NOT_FOUND")

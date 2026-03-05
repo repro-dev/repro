@@ -25,7 +25,7 @@ def _make_issue_response(
 
 
 def _make_search_response(nodes):
-    return json.dumps({"data": {"issueSearch": {"nodes": nodes}}})
+    return json.dumps({"data": {"issues": {"nodes": nodes}}})
 
 
 def test_formats_issue_title_and_description():
@@ -54,7 +54,7 @@ def test_no_issue_data_produces_no_output():
     assert result.stdout.strip() == ""
 
 
-def test_issuesearch_fallback():
+def test_issues_fallback():
     nodes = [
         {
             "id": "uuid-1",

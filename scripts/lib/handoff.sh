@@ -68,11 +68,21 @@ USAGE
 
   if [[ -n "$issue_id" ]]; then
     if [[ -n "${LINEAR_API_KEY:-}" ]]; then
-      local query response formatted
-      query="{ issueSearch(filter: { identifier: { eq: \"${issue_id}\" } }, first: 1) { nodes { id identifier title description } } }"
-      response="$(_linear_api "$query" 2>/dev/null)" || response=""
+      local query formatted err_file
+      err_file="$(mktemp)"
+      local team_key issue_number
+      team_key="${issue_id%%-*}"
+      issue_number="${issue_id##*-}"
+      query="{ issues(filter: { number: { eq: ${issue_number} }, team: { key: { eq: \"${team_key}\" } } }, first: 1) { nodes { id identifier title description } } }"
+      local response=""
+      response="$(_linear_api "$query" 2>"$err_file")" || true
+      local api_err
+      api_err="$(cat "$err_file")"
+      rm -f "$err_file"
 
-      if [[ -n "$response" ]]; then
+      if [[ -n "$api_err" ]]; then
+        issue_section="(Linear API error — ${api_err#Error: })"
+      elif [[ -n "$response" ]]; then
         formatted="$(printf '%s' "$response" | python3 "$SCRIPTS_DIR/lib/py/linear_format_issue_bundle.py" 2>/dev/null)" || formatted=""
         if [[ -n "$formatted" ]]; then
           issue_section="$formatted"

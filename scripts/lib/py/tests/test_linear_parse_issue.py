@@ -6,8 +6,8 @@ from conftest import run_script
 
 
 def _make_response(nodes):
-    """Build a Linear issueSearch response envelope."""
-    return json.dumps({"data": {"issueSearch": {"nodes": nodes}}})
+    """Build a Linear issues response envelope."""
+    return json.dumps({"data": {"issues": {"nodes": nodes}}})
 
 
 def _make_issue(
