@@ -39,6 +39,7 @@ Each worktree is a full working directory with its own `node_modules`, `.env` fi
 | `reproctl wt create <branch>` | Create a worktree at `../repro-wt-<slug>/`, install deps, copy `.env` files, run `direnv allow` |
 | `reproctl wt remove <branch>` | Remove a worktree and clean up stale references |
 | `reproctl wt list` | List active worktrees and their running services |
+| `reproctl wt list --json` | Machine-readable JSON output (see schema below) |
 | `reproctl wt attach <branch>` | Drop into a subshell inside a worktree |
 
 All four commands accept the branch name directly (e.g. `gary/rep-208-integrated-git-worktree-support`). The directory slug is the branch name with `/` replaced by `-` and lowercased, prefixed with `repro-wt-`.
@@ -173,6 +174,61 @@ This matters most when multiple agents work in parallel worktrees.
 - **Disable auto-gc** — pass `--no-auto-gc` or set `gc.auto=0` to prevent surprise lock contention during normal operations.
 - **Handle lock failures gracefully** — if a git command fails with a lock error (`.git/index.lock` or similar), wait briefly and retry rather than aborting.
 - **Avoid long-running git operations** during active parallel work (e.g. large rebases, `git filter-branch`).
+
+## JSON output schema
+
+`reproctl wt list --json` outputs a JSON array with one object per worktree:
+
+```json
+[
+  {
+    "slug": "main",
+    "path": "/absolute/path/to/repro",
+    "branch": "main",
+    "head": "64005c40",
+    "bare": false,
+    "services": ["web"]
+  }
+]
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `slug` | string | Directory slug (`main` for the main checkout) |
+| `path` | string | Absolute path to the worktree |
+| `branch` | string \| null | Branch name (without `refs/heads/`), `null` if detached or bare |
+| `head` | string | Short SHA (8 chars) of HEAD |
+| `bare` | boolean | Whether this is a bare worktree |
+| `services` | string[] | Running service names from `tmp/reproctl_services.json` |
+
+## Neovim worktree picker
+
+The project includes a `.nvim.lua` file that provides a [Snacks](https://github.com/folke/snacks.nvim) picker for listing, switching, creating, and deleting worktrees. This is project-local — it uses `reproctl wt` commands and is not a global plugin.
+
+### Prerequisites
+
+Enable Neovim's `exrc` feature so `.nvim.lua` is loaded automatically:
+
+```lua
+-- In your init.lua or equivalent
+vim.o.exrc = true
+```
+
+Neovim will prompt for trust confirmation the first time it loads the file.
+
+### Keymap
+
+| Key | Mode | Description |
+|-----|------|-------------|
+| `<leader>gw` | Normal | Open the worktree picker |
+
+### Picker actions
+
+| Key | Description |
+|-----|-------------|
+| `<CR>` | Switch to selected worktree (`tcd`, clear jumplist, open root) |
+| `<C-x>` | Delete selected worktree (`reproctl wt remove`) |
+| `<C-a>` | Create a new worktree (prompts for branch name) |
 
 ## OpenCode external directory permission
 

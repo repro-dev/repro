@@ -440,6 +440,18 @@ cmd_wt_list() {
   echo ""
 }
 
+cmd_wt_list_json() {
+  local active_services=""
+  if [ -f "$CONFIG_FILE" ]; then
+    active_services="$(cat "$CONFIG_FILE")"
+  fi
+
+  local porcelain
+  porcelain="$(git worktree list --porcelain)"
+
+  python3 "$SCRIPTS_DIR/lib/py/worktree_list_json.py" "$porcelain" "$active_services"
+}
+
 resolve_worktree() {
   local input="$1"
   local slug_path
@@ -592,6 +604,9 @@ Options (create):
   --no-status-update      Skip setting the Linear issue to In Progress
   --dry-run               Preview what would be done without making changes
 
+Options (list):
+  --json              Output worktree data as a JSON array
+
 Options (remove, prune):
   --dry-run         Preview what would be done without making changes
 
@@ -610,6 +625,7 @@ Examples:
   reproctl worktree remove feat/my-feature      # remove worktree
   reproctl worktree remove                      # pick interactively
   reproctl worktree list                        # list all worktrees
+  reproctl worktree list --json                 # list as JSON (for tooling)
   reproctl worktree attach feat/my-feature      # drop into worktree subshell
   reproctl worktree attach                      # pick interactively
   reproctl worktree prune --dry-run             # preview merged worktrees
@@ -625,6 +641,7 @@ cmd_wt() {
 
   WT_DRY_RUN=false
   WT_YES=false
+  WT_JSON=false
   WT_FROM_ISSUE=""
   WT_NO_STATUS_UPDATE=false
 
@@ -662,6 +679,10 @@ cmd_wt() {
         ;;
       --yes|-y)
         WT_YES=true
+        shift
+        ;;
+      --json)
+        WT_JSON=true
         shift
         ;;
       --from-issue|-i)
@@ -705,6 +726,10 @@ cmd_wt() {
     die "--no-status-update can only be used with --from-issue"
   fi
 
+  if [[ "${WT_JSON:-}" == true && "$subcmd" != "list" ]]; then
+    die "--json can only be used with 'list'"
+  fi
+
 
   case "$subcmd" in
     create)
@@ -741,7 +766,11 @@ cmd_wt() {
       cmd_wt_remove "${args[0]}"
       ;;
     list)
-      cmd_wt_list
+      if [ "$WT_JSON" = true ]; then
+        cmd_wt_list_json
+      else
+        cmd_wt_list
+      fi
       ;;
     attach)
       if [ "${#args[@]}" -lt 1 ]; then
