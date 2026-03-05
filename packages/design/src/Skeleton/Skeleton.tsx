@@ -71,7 +71,7 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
               backgroundSize="200% 100%"
               borderRadius={styles.borderRadius}
               animation={shimmerAnimation}
-              animationDuration="2.5s"
+              animationDuration="1.8s"
               animationIterationCount="infinite"
               animationTimingFunction="linear"
             />
@@ -88,7 +88,7 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
         backgroundSize="200% 100%"
         borderRadius={styles.borderRadius}
         animation={shimmerAnimation}
-        animationDuration="2.5s"
+        animationDuration="1.8s"
         animationIterationCount="infinite"
         animationTimingFunction="linear"
         props={{
