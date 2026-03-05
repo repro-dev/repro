@@ -14,7 +14,7 @@ export interface SkeletonProps {
 
 const pulseAnimation = {
   from: { opacity: 1 },
-  to: { opacity: 0.4 },
+  to: { opacity: 0.5 },
 }
 
 const variantStyles = {
@@ -65,7 +65,7 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
               key={i}
               width={i === lines - 1 ? '80%' : resolvedWidth}
               height={resolvedHeight}
-              backgroundColor={color.bg.hover}
+              backgroundColor={color.border.default}
               borderRadius={styles.borderRadius}
               animation={pulseAnimation}
               animationDuration="1.5s"
@@ -81,7 +81,7 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
       <Block
         width={resolvedWidth}
         height={resolvedHeight}
-        backgroundColor={color.bg.hover}
+        backgroundColor={color.border.default}
         borderRadius={styles.borderRadius}
         animation={pulseAnimation}
         animationDuration="1.5s"
