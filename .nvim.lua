@@ -22,7 +22,7 @@ local function build_items()
       goto continue
     end
 
-    local is_current = vim.startswith(cwd, wt.path)
+    local is_current = vim.fn.fnamemodify(cwd, ":p") == vim.fn.fnamemodify(wt.path, ":p")
     local branch_display = wt.branch or "(detached)"
 
     items[#items + 1] = {
