@@ -45,7 +45,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
     return (
       <Row
         component="label"
-        alignItems="flex-start"
+        alignItems={description ? 'flex-start' : 'center'}
         gap={spacing.md}
         cursor={disabled ? 'not-allowed' : 'pointer'}
         opacity={disabled ? 0.5 : 1}
@@ -53,7 +53,12 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
         {...focusWithinRing()}
         borderRadius={radius.sm}
       >
-        <Block position="relative" height={indicatorSize} width={indicatorSize}>
+        <Block
+          position="relative"
+          height={indicatorSize}
+          width={indicatorSize}
+          flexShrink={0}
+        >
           <Block
             component="input"
             position="absolute"
@@ -92,8 +97,8 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           </Block>
         </Block>
 
-        <Col gap={spacing.xs} paddingTop={1}>
-          <Block fontSize={fontSize} color={color.text.default} lineHeight={1}>
+        <Col gap={spacing.xs}>
+          <Block fontSize={fontSize} color={color.text.default}>
             {label}
           </Block>
           {description && (
