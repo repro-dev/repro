@@ -12,9 +12,11 @@ export interface SkeletonProps {
   lines?: number
 }
 
-const pulseAnimation = {
-  from: { opacity: 1 },
-  to: { opacity: 0.5 },
+const shimmerGradient = `linear-gradient(90deg, ${color.border.default} 25%, ${color.bg.hover} 50%, ${color.border.default} 75%)`
+
+const shimmerAnimation = {
+  '0%': { backgroundPosition: '200% 0' },
+  '100%': { backgroundPosition: '-200% 0' },
 }
 
 const variantStyles = {
@@ -65,12 +67,13 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
               key={i}
               width={i === lines - 1 ? '80%' : resolvedWidth}
               height={resolvedHeight}
-              backgroundColor={color.border.default}
+              background={shimmerGradient}
+              backgroundSize="400% 100%"
               borderRadius={styles.borderRadius}
-              animation={pulseAnimation}
-              animationDuration="1.5s"
+              animation={shimmerAnimation}
+              animationDuration="1.8s"
               animationIterationCount="infinite"
-              animationDirection="alternate"
+              animationTimingFunction="ease-in-out"
             />
           ))}
         </Block>
@@ -81,12 +84,13 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
       <Block
         width={resolvedWidth}
         height={resolvedHeight}
-        backgroundColor={color.border.default}
+        background={shimmerGradient}
+        backgroundSize="400% 100%"
         borderRadius={styles.borderRadius}
-        animation={pulseAnimation}
-        animationDuration="1.5s"
+        animation={shimmerAnimation}
+        animationDuration="1.8s"
         animationIterationCount="infinite"
-        animationDirection="alternate"
+        animationTimingFunction="ease-in-out"
         props={{
           ref,
           role: 'status',
