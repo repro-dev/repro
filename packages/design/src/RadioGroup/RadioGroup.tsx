@@ -99,6 +99,7 @@ export const RadioGroup = forwardRef<HTMLFieldSetElement, RadioGroupProps>(
             lineHeight: lineHeight.tight,
             color: disabled ? color.text.muted : color.text.default,
             padding: 0,
+            marginBottom: spacing.md,
           }}
         >
           {label}
