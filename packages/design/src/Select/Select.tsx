@@ -38,12 +38,14 @@ export interface SelectOption {
 
 export interface SelectProps {
   id?: string
-  value: string
-  onChange(value: string): void
+  value?: string
+  defaultValue?: string
+  onChange?(value: string): void
   options: SelectOption[]
   placeholder?: string
   size?: 'small' | 'medium' | 'large'
   disabled?: boolean
+  name?: string
   'aria-label'?: string
   'aria-labelledby'?: string
 }
@@ -72,7 +74,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
   (
     {
       id,
-      value,
+      value: valueProp,
+      defaultValue,
       onChange,
       options,
       placeholder = 'Select an option',
@@ -83,6 +86,25 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     },
     ref
   ) => {
+    const isControlled = valueProp !== undefined
+    const [internalValue, setInternalValue] = useState(defaultValue ?? '')
+    const wasControlledRef = useRef(isControlled)
+
+    if (process.env['NODE_ENV'] !== 'production') {
+      if (wasControlledRef.current !== isControlled) {
+        console.warn(
+          `Select: A component is changing from ${
+            wasControlledRef.current ? 'controlled' : 'uncontrolled'
+          } to ${
+            isControlled ? 'controlled' : 'uncontrolled'
+          }. This is not supported and may cause unexpected behavior.`
+        )
+      }
+    }
+    wasControlledRef.current = isControlled
+
+    const resolvedValue = isControlled ? valueProp : internalValue
+
     const [isOpen, setIsOpen] = useState(false)
     const [activeIndex, setActiveIndex] = useState<number | null>(null)
     const listRef = useRef<Array<HTMLElement | null>>([])
@@ -107,13 +129,13 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     const iconSize = Math.max(base * 2, 16)
 
     const selectedOption = useMemo(
-      () => options.find(o => o.value === value),
-      [options, value]
+      () => options.find(o => o.value === resolvedValue),
+      [options, resolvedValue]
     )
 
     const selectedIndex = useMemo(
-      () => options.findIndex(o => o.value === value),
-      [options, value]
+      () => options.findIndex(o => o.value === resolvedValue),
+      [options, resolvedValue]
     )
 
     const { refs, floatingStyles, context } = useFloating({
@@ -166,11 +188,14 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       (index: number) => {
         const option = options[index]
         if (option && !option.disabled) {
-          onChange(option.value)
+          if (!isControlled) {
+            setInternalValue(option.value)
+          }
+          onChange?.(option.value)
           setIsOpen(false)
         }
       },
-      [options, onChange]
+      [options, onChange, isControlled]
     )
 
     return (
@@ -256,7 +281,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                 }}
               >
                 {options.map((option, index) => {
-                  const isSelected = option.value === value
+                  const isSelected = option.value === resolvedValue
                   const isActive = activeIndex === index
                   const isDisabled = option.disabled === true
 

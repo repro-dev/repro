@@ -194,3 +194,33 @@ export const WithAriaLabel: Story = {
     )
   },
 }
+
+export const Uncontrolled: Story = {
+  render: () => (
+    <Block padding={16} maxWidth={300}>
+      <Col gap={spacing.sm}>
+        <Label htmlFor="fruit-uncontrolled">Fruit</Label>
+        <Select
+          id="fruit-uncontrolled"
+          defaultValue="banana"
+          options={fruitOptions}
+        />
+      </Col>
+    </Block>
+  ),
+}
+
+export const UncontrolledNoDefault: Story = {
+  render: () => (
+    <Block padding={16} maxWidth={300}>
+      <Col gap={spacing.sm}>
+        <Label htmlFor="fruit-uncontrolled-empty">Fruit</Label>
+        <Select
+          id="fruit-uncontrolled-empty"
+          options={fruitOptions}
+          placeholder="Pick a fruit..."
+        />
+      </Col>
+    </Block>
+  ),
+}
