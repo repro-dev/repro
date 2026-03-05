@@ -55,11 +55,11 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
         color={colorMap[context]}
         border={`1px solid ${borderColorMap[context]}`}
         borderRadius={rounded ? radius.full : radius.sm}
-        paddingLeft={spacing.sm}
-        paddingRight={spacing.sm}
-        paddingTop={spacing.xs}
-        paddingBottom={spacing.xs}
-        fontSize={size === 'small' ? fontSize.xs : fontSize.sm}
+        paddingLeft={size === 'large' ? spacing.md : spacing.sm}
+        paddingRight={size === 'large' ? spacing.md : spacing.sm}
+        paddingTop={size === 'large' ? spacing.sm : spacing.xs}
+        paddingBottom={size === 'large' ? spacing.sm : spacing.xs}
+        fontSize={size === 'small' ? fontSize.xs : size === 'large' ? fontSize.md : fontSize.sm}
         fontWeight={size === 'small' ? fontWeight.normal : fontWeight.semibold}
         lineHeight={lineHeight.tight}
         props={{ ref }}
