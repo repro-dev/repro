@@ -3,8 +3,14 @@ import React, { forwardRef, useCallback, useId, useMemo, useRef } from 'react'
 import mergeRefs from 'react-merge-refs'
 import { spacing } from '../tokens/spacing'
 import { color } from '../tokens/colors'
-import { fontSize, lineHeight, fontWeight } from '../tokens/typography'
+import { lineHeight, fontWeight, MINIMUM_FONT_SIZE } from '../tokens/typography'
 import { RadioGroupProvider, type RadioGroupContextValue } from './RadioGroupContext'
+
+const sizes = {
+  small: 6,
+  medium: 8,
+  large: 10,
+}
 
 export interface RadioGroupProps {
   label: string
@@ -26,6 +32,8 @@ export const RadioGroup = forwardRef<HTMLFieldSetElement, RadioGroupProps>(
   ({ label, value, onChange, disabled = false, size = 'medium', children }, ref) => {
     const generatedName = useId()
     const fieldsetRef = useRef<HTMLFieldSetElement>(null)
+    const base = sizes[size]
+    const legendFontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
 
     const ctx = useMemo<RadioGroupContextValue>(
       () => ({ name: generatedName, value, onChange, disabled, size }),
@@ -94,7 +102,7 @@ export const RadioGroup = forwardRef<HTMLFieldSetElement, RadioGroupProps>(
       >
         <legend
           style={{
-            fontSize: fontSize.sm,
+            fontSize: legendFontSize,
             fontWeight: fontWeight.semibold,
             lineHeight: lineHeight.tight,
             color: disabled ? color.text.muted : color.text.default,
