@@ -67,13 +67,22 @@ export const InlineWithText: Story = {
   render: () => (
     <Col gap={spacing.lg}>
       <Block>
-        The deployment is <Badge context="success">Active</Badge> and running smoothly.
+        The deployment is <Badge context="success">Active</Badge> and running
+        smoothly.
       </Block>
       <Block>
-        There are <Badge context="danger" size="small">3</Badge> critical issues remaining.
+        There are{' '}
+        <Badge context="danger" size="small">
+          3
+        </Badge>{' '}
+        critical issues remaining.
       </Block>
       <Block>
-        This item is <Badge context="warning" rounded>Pending review</Badge> by the team.
+        This item is{' '}
+        <Badge context="warning" rounded>
+          Pending review
+        </Badge>{' '}
+        by the team.
       </Block>
     </Col>
   ),

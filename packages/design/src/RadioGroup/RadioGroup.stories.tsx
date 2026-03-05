@@ -1,11 +1,11 @@
 import { Block, Col } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
-import { expect, fn, userEvent, within } from 'storybook/test'
 import React, { useState } from 'react'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
-import { RadioGroup } from './RadioGroup'
 import { Radio } from './Radio'
+import { RadioGroup } from './RadioGroup'
 
 const meta: Meta<typeof RadioGroup> = {
   title: 'Components/Inputs/RadioGroup',
@@ -43,7 +43,11 @@ export const WithDescriptions: Story = {
     <RadioGroup {...args}>
       <Radio value="free" label="Free" description="Up to 3 projects" />
       <Radio value="pro" label="Pro" description="Unlimited projects" />
-      <Radio value="enterprise" label="Enterprise" description="Custom limits" />
+      <Radio
+        value="enterprise"
+        label="Enterprise"
+        description="Custom limits"
+      />
     </RadioGroup>
   ),
 }
@@ -58,7 +62,11 @@ export const Disabled: Story = {
     <RadioGroup {...args}>
       <Radio value="free" label="Free" description="Up to 3 projects" />
       <Radio value="pro" label="Pro" description="Unlimited projects" />
-      <Radio value="enterprise" label="Enterprise" description="Custom limits" />
+      <Radio
+        value="enterprise"
+        label="Enterprise"
+        description="Custom limits"
+      />
     </RadioGroup>
   ),
 }
@@ -71,8 +79,17 @@ export const DisabledOption: Story = {
   render: args => (
     <RadioGroup {...args}>
       <Radio value="free" label="Free" description="Up to 3 projects" />
-      <Radio value="pro" label="Pro" description="Unlimited projects" disabled />
-      <Radio value="enterprise" label="Enterprise" description="Custom limits" />
+      <Radio
+        value="pro"
+        label="Pro"
+        description="Unlimited projects"
+        disabled
+      />
+      <Radio
+        value="enterprise"
+        label="Enterprise"
+        description="Custom limits"
+      />
     </RadioGroup>
   ),
 }
@@ -81,7 +98,13 @@ export const Sizes: Story = {
   render: () => (
     <Col gap={32}>
       {(['small', 'medium', 'large'] as const).map(size => (
-        <RadioGroup key={size} label={`Size: ${size}`} value="a" onChange={() => {}} size={size}>
+        <RadioGroup
+          key={size}
+          label={`Size: ${size}`}
+          value="a"
+          onChange={() => {}}
+          size={size}
+        >
           <Radio value="a" label="Option A" />
           <Radio value="b" label="Option B" />
           <Radio value="c" label="Option C" />
@@ -99,7 +122,11 @@ export const Interactive: Story = {
         <RadioGroup label="Plan" value={plan} onChange={setPlan}>
           <Radio value="free" label="Free" description="Up to 3 projects" />
           <Radio value="pro" label="Pro" description="Unlimited projects" />
-          <Radio value="enterprise" label="Enterprise" description="Custom limits" />
+          <Radio
+            value="enterprise"
+            label="Enterprise"
+            description="Custom limits"
+          />
         </RadioGroup>
         <Block fontSize={fontSize.sm} color={color.text.secondary}>
           Selected: {plan}

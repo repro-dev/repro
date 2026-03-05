@@ -1,7 +1,7 @@
 import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
-import { expect, fn, userEvent, within } from 'storybook/test'
 import React, { useState } from 'react'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
 import { Toggle } from './Toggle'
@@ -103,18 +103,8 @@ export const Sizes: Story = {
 export const Square: Story = {
   render: () => (
     <Row gap={24} padding={16} alignItems="center">
-      <Toggle
-        label="Off"
-        checked={false}
-        rounded={false}
-        onChange={() => {}}
-      />
-      <Toggle
-        label="On"
-        checked={true}
-        rounded={false}
-        onChange={() => {}}
-      />
+      <Toggle label="Off" checked={false} rounded={false} onChange={() => {}} />
+      <Toggle label="On" checked={true} rounded={false} onChange={() => {}} />
     </Row>
   ),
 }

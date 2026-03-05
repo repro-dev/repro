@@ -60,9 +60,8 @@ export const ToggleGroup: React.FC<Props> = ({
         if (option) {
           onChange(option.value)
           // Move DOM focus to the newly selected radio button
-          const buttons = groupRef.current?.querySelectorAll<HTMLElement>(
-            '[role="radio"]'
-          )
+          const buttons =
+            groupRef.current?.querySelectorAll<HTMLElement>('[role="radio"]')
           buttons?.[nextIndex]?.focus()
         }
       }

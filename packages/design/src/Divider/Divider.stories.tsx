@@ -35,7 +35,7 @@ export const Vertical: Story = {
 export const Spacings: Story = {
   render: () => (
     <Col gap={spacing.lg}>
-      {(['none', 'sm', 'md', 'lg'] as const).map((s) => (
+      {(['none', 'sm', 'md', 'lg'] as const).map(s => (
         <Col key={s} gap={0}>
           <Block {...textStyles.body} color={color.text.secondary}>
             spacing=&quot;{s}&quot;

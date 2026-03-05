@@ -2,6 +2,7 @@ import { Block } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
+import { duration } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { fontSize } from '../tokens/typography'
 
@@ -14,7 +15,9 @@ export interface SkeletonProps {
 
 const SHIMMER_WIDTH = 1000
 
-const shimmerGradient = `linear-gradient(90deg, ${color.border.default} 0px, ${color.bg.hover} ${SHIMMER_WIDTH / 2}px, ${color.border.default} ${SHIMMER_WIDTH}px)`
+const shimmerGradient = `linear-gradient(90deg, ${color.border.default} 0px, ${
+  color.bg.hover
+} ${SHIMMER_WIDTH / 2}px, ${color.border.default} ${SHIMMER_WIDTH}px)`
 
 const shimmerAnimation = {
   '0%': { backgroundPosition: `${SHIMMER_WIDTH}px 0` },
@@ -73,7 +76,7 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
               backgroundSize={`${SHIMMER_WIDTH}px 100%`}
               borderRadius={styles.borderRadius}
               animation={shimmerAnimation}
-              animationDuration="1.8s"
+              animationDuration={duration[1800]}
               animationIterationCount="infinite"
               animationTimingFunction="linear"
             />
@@ -90,7 +93,7 @@ export const Skeleton = forwardRef<HTMLDivElement, SkeletonProps>(
         backgroundSize={`${SHIMMER_WIDTH}px 100%`}
         borderRadius={styles.borderRadius}
         animation={shimmerAnimation}
-        animationDuration="1.8s"
+        animationDuration={duration[1800]}
         animationIterationCount="infinite"
         animationTimingFunction="linear"
         props={{

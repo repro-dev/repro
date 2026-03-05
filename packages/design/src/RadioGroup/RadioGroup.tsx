@@ -1,10 +1,13 @@
 import { Col } from '@jsxstyle/react'
 import React, { forwardRef, useCallback, useId, useMemo, useRef } from 'react'
 import mergeRefs from 'react-merge-refs'
-import { spacing } from '../tokens/spacing'
 import { color } from '../tokens/colors'
-import { lineHeight, fontWeight, MINIMUM_FONT_SIZE } from '../tokens/typography'
-import { RadioGroupProvider, type RadioGroupContextValue } from './RadioGroupContext'
+import { spacing } from '../tokens/spacing'
+import { fontWeight, lineHeight, MINIMUM_FONT_SIZE } from '../tokens/typography'
+import {
+  RadioGroupProvider,
+  type RadioGroupContextValue,
+} from './RadioGroupContext'
 
 const sizes = {
   small: 6,
@@ -29,7 +32,10 @@ export interface RadioGroupProps {
  * Home/End) with roving tabindex.
  */
 export const RadioGroup = forwardRef<HTMLFieldSetElement, RadioGroupProps>(
-  ({ label, value, onChange, disabled = false, size = 'medium', children }, ref) => {
+  (
+    { label, value, onChange, disabled = false, size = 'medium', children },
+    ref
+  ) => {
     const generatedName = useId()
     const fieldsetRef = useRef<HTMLFieldSetElement>(null)
     const base = sizes[size]
@@ -43,7 +49,9 @@ export const RadioGroup = forwardRef<HTMLFieldSetElement, RadioGroupProps>(
     const getRadioInputs = useCallback(() => {
       if (!fieldsetRef.current) return []
       return Array.from(
-        fieldsetRef.current.querySelectorAll<HTMLInputElement>('input[type="radio"]')
+        fieldsetRef.current.querySelectorAll<HTMLInputElement>(
+          'input[type="radio"]'
+        )
       )
     }, [])
 
@@ -56,7 +64,9 @@ export const RadioGroup = forwardRef<HTMLFieldSetElement, RadioGroupProps>(
         const enabledInputs = getEnabledRadioInputs()
         if (enabledInputs.length === 0) return
 
-        const currentIndex = enabledInputs.findIndex(input => input.value === value)
+        const currentIndex = enabledInputs.findIndex(
+          input => input.value === value
+        )
         const safeCurrentIndex = currentIndex === -1 ? 0 : currentIndex
         let nextIndex: number | null = null
 
@@ -65,7 +75,8 @@ export const RadioGroup = forwardRef<HTMLFieldSetElement, RadioGroupProps>(
           nextIndex = (safeCurrentIndex + 1) % enabledInputs.length
         } else if (evt.key === 'ArrowUp' || evt.key === 'ArrowLeft') {
           evt.preventDefault()
-          nextIndex = (safeCurrentIndex - 1 + enabledInputs.length) % enabledInputs.length
+          nextIndex =
+            (safeCurrentIndex - 1 + enabledInputs.length) % enabledInputs.length
         } else if (evt.key === 'Home') {
           evt.preventDefault()
           nextIndex = 0
@@ -113,9 +124,7 @@ export const RadioGroup = forwardRef<HTMLFieldSetElement, RadioGroupProps>(
           {label}
         </legend>
 
-        <RadioGroupProvider value={ctx}>
-          {children}
-        </RadioGroupProvider>
+        <RadioGroupProvider value={ctx}>{children}</RadioGroupProvider>
       </Col>
     )
   }

@@ -33,7 +33,14 @@ const sizes = {
  */
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
   (
-    { label, checked, onChange, size = 'medium', disabled = false, description },
+    {
+      label,
+      checked,
+      onChange,
+      size = 'medium',
+      disabled = false,
+      description,
+    },
     ref
   ) => {
     const id = useId()

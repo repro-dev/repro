@@ -1,5 +1,6 @@
 import { InlineBlock, JsxstyleComponentStyleProps } from '@jsxstyle/react'
 import React, { PropsWithChildren } from 'react'
+import { duration } from '../tokens/motion'
 
 type Props = PropsWithChildren<JsxstyleComponentStyleProps>
 
@@ -18,7 +19,7 @@ export const Pulse: React.FC<Props> = React.memo(({ children, ...props }) => (
   <InlineBlock
     {...props}
     animationIterationCount="infinite"
-    animationDuration="500ms"
+    animationDuration={duration[500]}
     animationDirection="alternate"
     animation={animation}
     transformOrigin="center center"

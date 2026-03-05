@@ -72,8 +72,8 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
           transform={open ? 'translateX(0)' : 'translateX(100%)'}
           transition={
             open
-              ? `transform ${duration.fast} ${easing.default} ${duration.slow}`
-              : `transform ${duration.fast} ${easing.default}`
+              ? `transform ${duration[100]} ${easing.default} ${duration[300]}`
+              : `transform ${duration[100]} ${easing.default}`
           }
           props={{
             ref: containerRef,
@@ -82,8 +82,8 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
             ...(ariaLabel
               ? { 'aria-label': ariaLabel }
               : labelId
-                ? { 'aria-labelledby': labelId }
-                : {}),
+              ? { 'aria-labelledby': labelId }
+              : {}),
           }}
         >
           <Row
@@ -100,7 +100,11 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
             hoverBackgroundColor={color.bg.hover}
             borderRadius={radius.full}
             cursor="pointer"
-            props={{ type: 'button', 'aria-label': 'Close drawer', onClick: onClose }}
+            props={{
+              type: 'button',
+              'aria-label': 'Close drawer',
+              onClick: onClose,
+            }}
             {...focusRing()}
           >
             <CloseIcon size={16} />
@@ -144,8 +148,8 @@ const Backdrop: React.FC<PropsWithChildren<BackdropProps>> = ({
       pointerEvents={active ? 'all' : 'none'}
       transition={
         active
-          ? `opacity ${duration.slow} ${easing.default}`
-          : `opacity ${duration.slow} ${easing.default} ${duration.fast}`
+          ? `opacity ${duration[300]} ${easing.default}`
+          : `opacity ${duration[300]} ${easing.default} ${duration[100]}`
       }
       props={{ onClick: handleBackdropClick }}
     >

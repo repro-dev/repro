@@ -61,7 +61,10 @@ export const LongValues: Story = {
   args: {
     title: 'Error Details',
     pairs: [
-      ['Message', 'TypeError: Cannot read properties of undefined (reading "map")'],
+      [
+        'Message',
+        'TypeError: Cannot read properties of undefined (reading "map")',
+      ],
       [
         'Stack Trace',
         'at Array.map (<anonymous>)\nat renderList (app.js:142:23)\nat Object.render (app.js:89:5)',

@@ -1,8 +1,8 @@
 import { Block, Row } from '@jsxstyle/react'
 import React from 'react'
-import { focusRing } from '../tokens/interaction'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
+import { focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
 import { MINIMUM_FONT_SIZE } from '../tokens/typography'
 
@@ -73,7 +73,11 @@ export const Toggle: React.FC<Props> = ({
           width={control}
           backgroundColor={checked ? color.bg.emphasis : color.bg.muted}
           borderRadius={rounded ? radius.full : radius.none}
-          transform={`translate(${checked ? `${width - borderWidth * 2 - control - offset}px` : `${offset}px`}, ${offset}px)`}
+          transform={`translate(${
+            checked
+              ? `${width - borderWidth * 2 - control - offset}px`
+              : `${offset}px`
+          }, ${offset}px)`}
           transition={transition.fast}
         />
       </Block>

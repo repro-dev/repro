@@ -45,7 +45,10 @@ export interface BadgeProps {
  * It renders as an inline `<span>` so it flows naturally within text.
  */
 export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
-  ({ children, context = 'neutral', size = 'medium', rounded = false }, ref) => {
+  (
+    { children, context = 'neutral', size = 'medium', rounded = false },
+    ref
+  ) => {
     return (
       <InlineRow
         component="span"
@@ -59,7 +62,13 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
         paddingRight={size === 'large' ? spacing.md : spacing.sm}
         paddingTop={size === 'large' ? spacing.sm : spacing.xs}
         paddingBottom={size === 'large' ? spacing.sm : spacing.xs}
-        fontSize={size === 'small' ? fontSize.xs : size === 'large' ? fontSize.md : fontSize.sm}
+        fontSize={
+          size === 'small'
+            ? fontSize.xs
+            : size === 'large'
+            ? fontSize.md
+            : fontSize.sm
+        }
         fontWeight={size === 'small' ? fontWeight.normal : fontWeight.semibold}
         lineHeight={lineHeight.tight}
         props={{ ref }}

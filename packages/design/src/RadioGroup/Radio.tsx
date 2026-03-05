@@ -5,8 +5,7 @@ import { radius } from '../tokens/elevation'
 import { focusWithinRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
-import { fontSize, lineHeight } from '../tokens/typography'
-import { MINIMUM_FONT_SIZE } from '../tokens/typography'
+import { fontSize, lineHeight, MINIMUM_FONT_SIZE } from '../tokens/typography'
 import { useRadioGroupContext } from './RadioGroupContext'
 
 export interface RadioProps {
@@ -83,7 +82,9 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
           borderColor={checked ? color.primary : color.border.strong}
           backgroundColor={color.bg.surface}
           transition={transition.fast}
-          marginTop={Math.round((labelFontSize * lineHeight.relaxed - indicatorSize) / 2)}
+          marginTop={Math.round(
+            (labelFontSize * lineHeight.relaxed - indicatorSize) / 2
+          )}
           props={{ 'aria-hidden': true }}
         />
 

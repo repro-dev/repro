@@ -1,9 +1,8 @@
 import { Block, Col } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
-import { expect, userEvent, within } from 'storybook/test'
 import React, { useState } from 'react'
+import { expect, userEvent, within } from 'storybook/test'
 import { Button } from '../Button'
-import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
 import { Drawer } from './Drawer'
@@ -93,11 +92,7 @@ export const WithLabelledBy: Story = {
           labelId="drawer-heading"
         >
           <Col gap={16} paddingTop={24}>
-            <Block
-              id="drawer-heading"
-              fontSize={fontSize.lg}
-              fontWeight={600}
-            >
+            <Block id="drawer-heading" fontSize={fontSize.lg} fontWeight={600}>
               Event Inspector
             </Block>
             <Block fontSize={fontSize.sm} color={color.text.secondary}>
@@ -150,7 +145,9 @@ export const OpenCloseTest: Story = {
     await expect(dialog).toBeInTheDocument()
     await expect(dialog).toHaveAttribute('aria-label', 'Test drawer')
 
-    const closeButton = within(document.body).getByRole('button', { name: 'Close drawer' })
+    const closeButton = within(document.body).getByRole('button', {
+      name: 'Close drawer',
+    })
     await userEvent.click(closeButton)
 
     await userEvent.click(openButton)

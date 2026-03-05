@@ -1,4 +1,4 @@
-import { Col, Grid, Block } from '@jsxstyle/react'
+import { Block, Col, Grid } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { color } from '../tokens/colors'
@@ -140,7 +140,8 @@ export const ContentComposition: Story = {
       <Text variant="heading2">Getting Started</Text>
       <Text variant="body">
         Import any component from the design package and use it directly. All
-        components follow the same props API contract and accessibility baseline.
+        components follow the same props API contract and accessibility
+        baseline.
       </Text>
       <Text variant="code">
         {"import { Text, Button } from '@repro/design'"}

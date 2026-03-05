@@ -1,7 +1,7 @@
 import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
-import { expect, fn, userEvent, within } from 'storybook/test'
 import React from 'react'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import { color } from '../tokens/colors'
 import { fontSize } from '../tokens/typography'
 import { Input } from './Input'
@@ -125,11 +125,7 @@ export const Sizes: Story = {
 /** Normal vs error context */
 export const Contexts: Story = {
   render: () => (
-    <Grid
-      gridTemplateColumns="1fr 1fr"
-      gap={16}
-      padding={16}
-    >
+    <Grid gridTemplateColumns="1fr 1fr" gap={16} padding={16}>
       <Input {...reg} label="Normal" context="normal" />
       <Input {...reg} label="Error" context="error" />
     </Grid>
