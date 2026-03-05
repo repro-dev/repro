@@ -61,3 +61,13 @@ export const AllVariants: Story = {
     </Col>
   ),
 }
+
+export const Sizes: Story = {
+  render: () => (
+    <Col gap={16} padding={16}>
+      <Label size="small">Small label</Label>
+      <Label size="medium">Medium label (default)</Label>
+      <Label size="large">Large label</Label>
+    </Col>
+  ),
+}

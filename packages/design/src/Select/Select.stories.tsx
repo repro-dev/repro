@@ -50,7 +50,7 @@ export const Default: Story = {
     const [value, setValue] = useState('')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.sm}>
+        <Col gap={spacing.md}>
           <Label htmlFor="fruit-select">Fruit</Label>
           <Select
             id="fruit-select"
@@ -70,7 +70,7 @@ export const WithSelection: Story = {
     const [value, setValue] = useState('cherry')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.sm}>
+        <Col gap={spacing.md}>
           <Label htmlFor="fruit-preselected">Fruit</Label>
           <Select
             id="fruit-preselected"
@@ -87,7 +87,7 @@ export const WithSelection: Story = {
 export const Disabled: Story = {
   render: () => (
     <Block padding={16} maxWidth={300}>
-      <Col gap={spacing.sm}>
+      <Col gap={spacing.md}>
         <Label htmlFor="fruit-disabled">Fruit</Label>
         <Select
           id="fruit-disabled"
@@ -106,7 +106,7 @@ export const DisabledOptions: Story = {
     const [value, setValue] = useState('active')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.sm}>
+        <Col gap={spacing.md}>
           <Label htmlFor="status-select">Status</Label>
           <Select
             id="status-select"
@@ -125,7 +125,7 @@ export const LongList: Story = {
     const [value, setValue] = useState('')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.sm}>
+        <Col gap={spacing.md}>
           <Label htmlFor="country-select">Country</Label>
           <Select
             id="country-select"
@@ -161,8 +161,10 @@ export const Sizes: Story = {
             >
               {s}
             </Block>
-            <Col gap={spacing.sm}>
-              <Label htmlFor={`fruit-${s}`}>Fruit ({s})</Label>
+            <Col gap={spacing.md}>
+              <Label htmlFor={`fruit-${s}`} size={s}>
+                Fruit ({s})
+              </Label>
               <Select
                 id={`fruit-${s}`}
                 value={values[s] ?? ''}
@@ -198,7 +200,7 @@ export const WithAriaLabel: Story = {
 export const Uncontrolled: Story = {
   render: () => (
     <Block padding={16} maxWidth={300}>
-      <Col gap={spacing.sm}>
+      <Col gap={spacing.md}>
         <Label htmlFor="fruit-uncontrolled">Fruit</Label>
         <Select
           id="fruit-uncontrolled"
@@ -213,7 +215,7 @@ export const Uncontrolled: Story = {
 export const UncontrolledNoDefault: Story = {
   render: () => (
     <Block padding={16} maxWidth={300}>
-      <Col gap={spacing.sm}>
+      <Col gap={spacing.md}>
         <Label htmlFor="fruit-uncontrolled-empty">Fruit</Label>
         <Select
           id="fruit-uncontrolled-empty"

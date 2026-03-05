@@ -277,8 +277,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
             <Block
               backgroundColor={color.bg.surface}
               borderRadius={radius.md}
-              boxShadow={shadow.lg}
-              border={`1px solid ${color.border.default}`}
+              boxShadow={shadow.md}
+              border={`1px solid ${color.border.strong}`}
               padding={LISTBOX_PADDING}
               overflowY="auto"
               zIndex={2 ** 32 - 1}
