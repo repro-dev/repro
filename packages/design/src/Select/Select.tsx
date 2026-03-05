@@ -185,6 +185,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           backgroundColor={color.bg.surface}
           border={`1px solid ${color.border.strong}`}
           borderRadius={radius.sm}
+          boxShadow={`0 0.5px 1.5px ${color.border.strong}DA`}
           fontSize={triggerFontSize}
           lineHeight={lineHeight.relaxed}
           color={selectedOption ? color.text.default : color.text.muted}
