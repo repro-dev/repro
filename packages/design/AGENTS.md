@@ -73,6 +73,7 @@ packages/design/
 | `DragHandle` | Draggable edge handle (`role="separator"`) for resizing panels with pointer and keyboard support |
 | `Drawer` | Slide-in side panel with backdrop, focus trapping, and Escape-to-close |
 | `FormFieldError` | Displays a react-hook-form `FieldError` message with `role="alert"` |
+| `FormField` | Layout wrapper (`Col gap={spacing.md}`) that groups a `Label`, input, and optional error into a single form field |
 | `FrameRealm` | Renders an `<iframe>` and portals React children into its document for isolated rendering |
 | `FX.Spin` | Continuous rotation animation wrapper (use with loader icons) |
 | `FX.Pulse` | Alternating opacity/scale pulse animation wrapper |
