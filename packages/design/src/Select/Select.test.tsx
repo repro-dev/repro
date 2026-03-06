@@ -3,6 +3,7 @@ import expect from 'expect'
 import { afterEach, describe, it, mock } from 'node:test'
 import React, { act } from 'react'
 import { Controller, useForm } from 'react-hook-form'
+import { FormFieldError } from '../FormFieldError/FormFieldError'
 import { Label } from '../Label/Label'
 import { PortalRootProvider } from '../Portal/PortalRootProvider'
 import { Select, type SelectOption } from './Select'
@@ -760,13 +761,13 @@ describe('Select — error state (REP-292)', () => {
     expect(trigger.getAttribute('aria-invalid')).toBe('true')
   })
 
-  it('error message renders when error is a string', () => {
+  it('does not render error messages (consumer responsibility)', () => {
     render(
       <Select
         value=""
         onChange={() => {}}
         options={options}
-        error="Please select a fruit"
+        error
         aria-label="Fruit"
       />
     )
@@ -775,8 +776,7 @@ describe('Select — error state (REP-292)', () => {
     expect(trigger.getAttribute('aria-invalid')).toBe('true')
 
     const errorMessage = document.querySelector('[role="alert"]')
-    expect(errorMessage).not.toBeNull()
-    expect(errorMessage!.textContent).toBe('Please select a fruit')
+    expect(errorMessage).toBeNull()
   })
 
   it('no error styling when error is not set or is false', () => {
@@ -871,14 +871,19 @@ describe('Select — react-hook-form integration (REP-294)', () => {
             control={control}
             rules={{ required: 'Please select a fruit' }}
             render={({ field, fieldState }) => (
-              <Select
-                value={field.value}
-                onChange={field.onChange}
-                name={field.name}
-                options={options}
-                error={fieldState.error?.message}
-                aria-label="Fruit"
-              />
+              <>
+                <Select
+                  value={field.value}
+                  onChange={field.onChange}
+                  name={field.name}
+                  options={options}
+                  error={!!fieldState.error}
+                  aria-label="Fruit"
+                />
+                {fieldState.error && (
+                  <FormFieldError error={fieldState.error} />
+                )}
+              </>
             )}
           />
         </PortalRootProvider>

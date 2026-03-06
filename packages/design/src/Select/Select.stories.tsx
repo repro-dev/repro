@@ -250,7 +250,7 @@ export const ErrorBoolean: Story = {
   },
 }
 
-export const ErrorMessage: Story = {
+export const ErrorWithMessage: Story = {
   render: () => {
     const [value, setValue] = useState('')
     return (
@@ -263,7 +263,10 @@ export const ErrorMessage: Story = {
             onChange={setValue}
             options={fruitOptions}
             placeholder="Choose a fruit"
-            error="Please select a fruit"
+            error
+          />
+          <FormFieldError
+            error={{ type: 'required', message: 'Please select a fruit' }}
           />
         </Col>
       </Block>
@@ -290,11 +293,9 @@ export const EmptyOptions: Story = {
 
 export const ReactHookForm: Story = {
   render: () => {
-    const {
-      control,
-      handleSubmit,
-      formState: { errors },
-    } = useForm({ defaultValues: { fruit: '' } })
+    const { control, handleSubmit } = useForm({
+      defaultValues: { fruit: '' },
+    })
     const [submitted, setSubmitted] = useState('')
 
     return (
@@ -311,18 +312,22 @@ export const ReactHookForm: Story = {
               control={control}
               rules={{ required: 'Please select a fruit' }}
               render={({ field, fieldState }) => (
-                <Select
-                  id="fruit-rhf"
-                  value={field.value}
-                  onChange={field.onChange}
-                  name={field.name}
-                  options={fruitOptions}
-                  placeholder="Choose a fruit"
-                  error={fieldState.error?.message}
-                />
+                <>
+                  <Select
+                    id="fruit-rhf"
+                    value={field.value}
+                    onChange={field.onChange}
+                    name={field.name}
+                    options={fruitOptions}
+                    placeholder="Choose a fruit"
+                    error={!!fieldState.error}
+                  />
+                  {fieldState.error && (
+                    <FormFieldError error={fieldState.error} />
+                  )}
+                </>
               )}
             />
-            {errors.fruit && <FormFieldError error={errors.fruit} />}
             <button type="submit">Submit</button>
             {submitted && (
               <Block fontSize={fontSize.xs} color={color.text.muted}>

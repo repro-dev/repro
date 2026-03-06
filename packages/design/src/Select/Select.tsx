@@ -23,7 +23,6 @@ import React, {
   useState,
 } from 'react'
 import mergeRefs from 'react-merge-refs'
-import { FormFieldError } from '../FormFieldError/FormFieldError'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
 import { radius, shadow } from '../tokens/elevation'
@@ -49,7 +48,7 @@ export interface SelectProps {
   disabled?: boolean
   required?: boolean
   name?: string
-  error?: boolean | string
+  error?: boolean
   'aria-label'?: string
   'aria-labelledby'?: string
 }
@@ -294,12 +293,6 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
             'aria-hidden': true,
           }}
         />
-
-        {typeof error === 'string' && (
-          <Block marginTop={spacing.md}>
-            <FormFieldError error={{ type: 'validate', message: error }} />
-          </Block>
-        )}
 
         {isOpen && (
           <Portal>
