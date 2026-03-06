@@ -348,7 +348,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                           : color.text.default
                       }
                       backgroundColor={
-                        isActive && !isOptionDisabled
+                        isActive && !isOptionDisabled && isSelected
+                          ? color.primarySubtleHover
+                          : isActive && !isOptionDisabled
                           ? color.bg.hover
                           : isSelected
                           ? color.primarySubtle
