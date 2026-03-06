@@ -27,10 +27,11 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
     <form onSubmit={handleSubmit(onSubmit)}>
       <Col gap={20}>
         <Col gap={10}>
-          <Label>Title</Label>
+          <Label htmlFor="report-title">Title</Label>
           {formState.errors.title && <Error>Please enter a title</Error>}
           <Input
             {...register('title', { required: true })}
+            id="report-title"
             autoFocus={true}
             context={formState.errors.title !== undefined ? 'error' : 'normal'}
             placeholder="What is the bug?"
@@ -39,9 +40,12 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
         </Col>
 
         <Col gap={10}>
-          <Label optional>Description</Label>
+          <Label htmlFor="report-description" optional>
+            Description
+          </Label>
           <Input
             {...register('description')}
+            id="report-description"
             size="medium"
             placeholder="Is there anything else that would be useful to know?"
             rows={12}

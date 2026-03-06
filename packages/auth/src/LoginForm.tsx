@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, colors, FormFieldError, Input } from '@repro/design'
+import { Button, colors, FormFieldError, Input, Label } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { fork } from 'fluture'
 import { Block, Col } from '@jsxstyle/react'
@@ -145,25 +145,36 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             </Block>
           )}
 
-          <Input
-            autoFocus={true}
-            label="Email"
-            autoComplete="email"
-            context={formState.errors.email != null ? 'error' : 'normal'}
-            {...register('email', { required: true })}
-          />
-
-          {formState.errors.email && (
-            <FormFieldError error={formState.errors.email} />
-          )}
+          <Col gap={6}>
+            <Label htmlFor="login-email">Email</Label>
+            <Input
+              id="login-email"
+              autoFocus={true}
+              autoComplete="email"
+              context={formState.errors.email != null ? 'error' : 'normal'}
+              aria-describedby={
+                formState.errors.email ? 'login-email-error' : undefined
+              }
+              {...register('email', { required: true })}
+            />
+            {formState.errors.email && (
+              <FormFieldError
+                id="login-email-error"
+                error={formState.errors.email}
+              />
+            )}
+          </Col>
 
           {!showResetFlow && (
-            <Input
-              type="password"
-              label="Password"
-              autoComplete="current-password"
-              {...register('password', { required: true })}
-            />
+            <Col gap={6}>
+              <Label htmlFor="login-password">Password</Label>
+              <Input
+                id="login-password"
+                type="password"
+                autoComplete="current-password"
+                {...register('password', { required: true })}
+              />
+            </Col>
           )}
 
           {supportPasswordReset && showResetFlow && (

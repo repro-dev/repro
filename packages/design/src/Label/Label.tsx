@@ -23,13 +23,13 @@ const labelFontSizes: Record<SizeVariant, number> = {
 }
 
 /**
- * Standalone form field label with optional icon and "OPTIONAL" badge.
+ * Form field label with optional icon and "OPTIONAL" badge.
  *
  * Renders a semantic `<label>` element. Pass `htmlFor` matching the
  * input's `id` to create an accessible label–input association.
  *
- * Use above a form field when `Input`'s built-in label is insufficient
- * (e.g. when the field needs an icon or optional indicator).
+ * This is the standard way to label all form fields (`Input`, `Select`,
+ * etc.) in the design system.
  */
 export const Label: React.FC<PropsWithChildren<LabelProps>> = ({
   children,

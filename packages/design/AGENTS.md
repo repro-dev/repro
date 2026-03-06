@@ -76,7 +76,7 @@ packages/design/
 | `FrameRealm` | Renders an `<iframe>` and portals React children into its document for isolated rendering |
 | `FX.Spin` | Continuous rotation animation wrapper (use with loader icons) |
 | `FX.Pulse` | Alternating opacity/scale pulse animation wrapper |
-| `Input` | Text input or textarea with floating label, error styling, and react-hook-form integration |
+| `Input` | Text input or textarea with error styling and react-hook-form integration; uses external `Label` for labeling |
 | `Label` | Standalone form field `<label>` with optional icon and "OPTIONAL" badge |
 | `Link` | Inline text styled as a hyperlink (visual only — does not navigate) |
 | `Logo` | Repro brand logo SVG with `iconOnly`, `inverted`, and `size` props |
@@ -186,7 +186,7 @@ packages/design/
 | Package | Purpose |
 |---------|---------|
 | `@jsxstyle/react` | CSS-in-JS layout primitives (Block, Row, Col, etc.) — internal styling implementation |
-| `@react-spring/web` | Spring-based animations (used in Input floating label, Drawer slide) |
+| `@react-spring/web` | Spring-based animations (used in Drawer slide) |
 | `lucide-react` | Icon library — use with `FX.Spin` for loading spinners |
 | `react-hook-form` | Form state management — Input integrates via `UseFormRegisterReturn` |
 | `react-merge-refs` | Combines multiple refs (forwardRef + internal refs) |
