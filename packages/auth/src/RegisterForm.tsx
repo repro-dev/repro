@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Input, Label, colors } from '@repro/design'
+import { Button, Input, Label, colors, spacing } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { done } from 'fluture'
 import { Block, Col } from '@jsxstyle/react'
@@ -106,7 +106,7 @@ export const RegisterForm: React.FC<Props> = () => {
             </Block>
           )}
 
-          <Col gap={6}>
+          <Col gap={spacing.md}>
             <Label htmlFor="reg-account">Company</Label>
             <Input
               id="reg-account"
@@ -116,7 +116,7 @@ export const RegisterForm: React.FC<Props> = () => {
             />
           </Col>
 
-          <Col gap={6}>
+          <Col gap={spacing.md}>
             <Label htmlFor="reg-name">Your name</Label>
             <Input
               id="reg-name"
@@ -125,7 +125,7 @@ export const RegisterForm: React.FC<Props> = () => {
             />
           </Col>
 
-          <Col gap={6}>
+          <Col gap={spacing.md}>
             <Label htmlFor="reg-email">Email</Label>
             <Input
               id="reg-email"
@@ -135,7 +135,7 @@ export const RegisterForm: React.FC<Props> = () => {
             />
           </Col>
 
-          <Col gap={6}>
+          <Col gap={spacing.md}>
             <Label htmlFor="reg-password">Password</Label>
             <Input
               id="reg-password"
@@ -145,7 +145,7 @@ export const RegisterForm: React.FC<Props> = () => {
             />
           </Col>
 
-          <Col gap={6}>
+          <Col gap={spacing.md}>
             <Label htmlFor="reg-confirm-password">Confirm password</Label>
             <Input
               id="reg-confirm-password"

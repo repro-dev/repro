@@ -1,5 +1,5 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { Button, colors, Input, Label } from '@repro/design'
+import { Button, colors, Input, Label, spacing } from '@repro/design'
 import { BugPlayIcon } from 'lucide-react'
 import React, { PropsWithChildren } from 'react'
 import { useForm } from 'react-hook-form'
@@ -26,7 +26,7 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <Col gap={20}>
-        <Col gap={10}>
+        <Col gap={spacing.md}>
           <Label htmlFor="report-title">Title</Label>
           {formState.errors.title && <Error>Please enter a title</Error>}
           <Input
@@ -39,7 +39,7 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
           />
         </Col>
 
-        <Col gap={10}>
+        <Col gap={spacing.md}>
           <Label htmlFor="report-description" optional>
             Description
           </Label>

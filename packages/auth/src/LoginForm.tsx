@@ -1,5 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, colors, FormFieldError, Input, Label } from '@repro/design'
+import {
+  Button,
+  colors,
+  FormFieldError,
+  Input,
+  Label,
+  spacing,
+} from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { fork } from 'fluture'
 import { Block, Col } from '@jsxstyle/react'
@@ -145,7 +152,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             </Block>
           )}
 
-          <Col gap={6}>
+          <Col gap={spacing.md}>
             <Label htmlFor="login-email">Email</Label>
             <Input
               id="login-email"
@@ -166,7 +173,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
           </Col>
 
           {!showResetFlow && (
-            <Col gap={6}>
+            <Col gap={spacing.md}>
               <Label htmlFor="login-password">Password</Label>
               <Input
                 id="login-password"

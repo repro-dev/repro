@@ -38,7 +38,7 @@ export const Default: Story = {
     disabled: false,
   },
   render: args => (
-    <Col gap={spacing.sm}>
+    <Col gap={spacing.md}>
       <Label htmlFor="email-input">Email</Label>
       <Input {...args} />
     </Col>
@@ -54,7 +54,7 @@ export const FocusAndTypeTest: Story = {
     context: 'normal',
   },
   render: args => (
-    <Col gap={spacing.sm}>
+    <Col gap={spacing.md}>
       <Label htmlFor="email-focus-test">Email</Label>
       <Input {...args} />
     </Col>
@@ -83,7 +83,7 @@ export const WithLabel: Story = {
     size: 'medium',
   },
   render: args => (
-    <Col gap={spacing.sm}>
+    <Col gap={spacing.md}>
       <Label htmlFor="username-input">Username</Label>
       <Input {...args} />
     </Col>
@@ -98,7 +98,7 @@ export const WithOptionalLabel: Story = {
     placeholder: 'Tell us about yourself...',
   },
   render: args => (
-    <Col gap={spacing.sm}>
+    <Col gap={spacing.md}>
       <Label htmlFor="bio-input" optional>
         Bio
       </Label>
@@ -115,7 +115,7 @@ export const ErrorContext: Story = {
     size: 'medium',
   },
   render: args => (
-    <Col gap={spacing.sm}>
+    <Col gap={spacing.md}>
       <Label htmlFor="email-error">Email</Label>
       <Input {...args} />
       <FormFieldError
@@ -134,7 +134,7 @@ export const Disabled: Story = {
     size: 'medium',
   },
   render: args => (
-    <Col gap={spacing.sm}>
+    <Col gap={spacing.md}>
       <Label htmlFor="disabled-input">Disabled field</Label>
       <Input {...args} />
     </Col>
@@ -150,7 +150,7 @@ export const Textarea: Story = {
     placeholder: 'Tell us more...',
   },
   render: args => (
-    <Col gap={spacing.sm}>
+    <Col gap={spacing.md}>
       <Label htmlFor="description-input">Description</Label>
       <Input {...args} />
     </Col>
@@ -173,7 +173,7 @@ export const Sizes: Story = {
           >
             {s}
           </Block>
-          <Col flex={1} gap={spacing.sm}>
+          <Col flex={1} gap={spacing.md}>
             <Label htmlFor={`size-${s}`}>Label ({s})</Label>
             <Input {...reg} id={`size-${s}`} size={s} />
           </Col>
@@ -186,11 +186,11 @@ export const Sizes: Story = {
 export const Contexts: Story = {
   render: () => (
     <Grid gridTemplateColumns="1fr 1fr" gap={spacing.lg} padding={spacing.lg}>
-      <Col gap={spacing.sm}>
+      <Col gap={spacing.md}>
         <Label htmlFor="ctx-normal">Normal</Label>
         <Input {...reg} id="ctx-normal" context="normal" />
       </Col>
-      <Col gap={spacing.sm}>
+      <Col gap={spacing.md}>
         <Label htmlFor="ctx-error">Error</Label>
         <Input {...reg} id="ctx-error" context="error" />
       </Col>
