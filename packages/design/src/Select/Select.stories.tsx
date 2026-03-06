@@ -2,6 +2,7 @@ import { Block, Col } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React, { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
+import { Button } from '../Button/Button'
 import { FormFieldError } from '../FormFieldError/FormFieldError'
 import { Label } from '../Label/Label'
 import { color } from '../tokens/colors'
@@ -328,7 +329,7 @@ export const ReactHookForm: Story = {
                 </>
               )}
             />
-            <button type="submit">Submit</button>
+            <Button type="submit">Submit</Button>
             {submitted && (
               <Block fontSize={fontSize.xs} color={color.text.muted}>
                 Submitted: {submitted}
