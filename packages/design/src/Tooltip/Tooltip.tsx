@@ -1,3 +1,11 @@
+import {
+  autoUpdate,
+  flip,
+  offset,
+  shift,
+  useFloating,
+  useTransitionStyles,
+} from '@floating-ui/react'
 import { Block } from '@jsxstyle/react'
 import React, {
   MutableRefObject,
@@ -5,6 +13,7 @@ import React, {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -12,9 +21,11 @@ import { Subscription, fromEvent, switchMap, takeUntil, timer } from 'rxjs'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
 import { radius, zIndex } from '../tokens/elevation'
-import { delay as delayTokens, duration, easing } from '../tokens/motion'
+import { delay as delayTokens } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { fontSize } from '../tokens/typography'
+
+const OFFSET = 5
 
 type Props = PropsWithChildren<{
   delay?: number
@@ -28,78 +39,60 @@ type Props = PropsWithChildren<{
  * Place as a child of the trigger element — the tooltip attaches to its
  * parent and manages `aria-describedby` automatically. Children are the
  * tooltip content text.
+ *
+ * Uses `@floating-ui/react` for viewport-aware positioning with automatic
+ * flip and shift behavior.
  */
 export const Tooltip: React.FC<Props> = ({
   children,
   delay = delayTokens.tooltip,
   position = 'top',
 }) => {
-  const ref = useRef() as MutableRefObject<HTMLDivElement>
+  const anchorRef = useRef() as MutableRefObject<HTMLDivElement>
   const [active, setActive] = useState(false)
-  const [x, setX] = useState(0)
-  const [y, setY] = useState(0)
   const tooltipId = useId()
 
-  let translateX = '0'
-  let translateY = '0'
+  const { refs, floatingStyles, context } = useFloating({
+    open: active,
+    placement: position,
+    whileElementsMounted: autoUpdate,
+    middleware: [
+      offset(OFFSET),
+      flip({ padding: spacing.md }),
+      shift({ padding: spacing.md }),
+    ],
+  })
 
-  switch (position) {
-    case 'top':
-      translateX = '-50%'
-      translateY = 'calc(-100% - 5px)'
-      break
+  const { styles: transitionStyles } = useTransitionStyles(context, {
+    duration: {
+      open: 100,
+      close: 100,
+    },
+    initial: {
+      opacity: 0,
+    },
+  })
 
-    case 'bottom':
-      translateX = '-50%'
-      translateY = '5px'
-      break
-
-    case 'left':
-      translateX = 'calc(-100% - 5px)'
-      translateY = '-50%'
-      break
-
-    case 'right':
-      translateX = '5px'
-      translateY = '-50%'
-      break
-  }
-
-  const updatePosition = useCallback(() => {
-    const parent = ref.current ? ref.current.parentElement : null
-
-    if (parent) {
-      const { top, left, width, height } = parent.getBoundingClientRect()
-
-      switch (position) {
-        case 'top':
-          setX(left + width / 2)
-          setY(top)
-          break
-
-        case 'bottom':
-          setX(left + width / 2)
-          setY(top + height)
-          break
-
-        case 'left':
-          setX(left)
-          setY(top + height / 2)
-          break
-
-        case 'right':
-          setX(left + width)
-          setY(top + height / 2)
-          break
-      }
+  useEffect(() => {
+    const parent = anchorRef.current?.parentElement
+    if (!parent) {
+      return
     }
-  }, [position, ref, setX, setY])
 
-  // Show the tooltip and annotate the trigger with aria-describedby
+    refs.setReference(parent)
+  }, [refs])
+
+  const mergedStyles = useMemo(
+    () => ({
+      ...floatingStyles,
+      ...transitionStyles,
+    }),
+    [floatingStyles, transitionStyles]
+  )
+
   const show = useCallback(() => {
-    updatePosition()
     setActive(true)
-    const parent = ref.current?.parentElement
+    const parent = anchorRef.current?.parentElement
     if (parent) {
       const existing = parent.getAttribute('aria-describedby')
       if (existing) {
@@ -112,12 +105,11 @@ export const Tooltip: React.FC<Props> = ({
         parent.setAttribute('aria-describedby', tooltipId)
       }
     }
-  }, [tooltipId, updatePosition])
+  }, [tooltipId])
 
-  // Hide the tooltip and remove only this tooltip's id from aria-describedby
   const hide = useCallback(() => {
     setActive(false)
-    const parent = ref.current?.parentElement
+    const parent = anchorRef.current?.parentElement
     if (parent) {
       const existing = parent.getAttribute('aria-describedby')
       if (existing) {
@@ -137,7 +129,7 @@ export const Tooltip: React.FC<Props> = ({
 
   useEffect(() => {
     const subscription = new Subscription()
-    const parent = ref.current ? ref.current.parentElement : null
+    const parent = anchorRef.current?.parentElement
 
     if (parent) {
       const pointerEnter$ = fromEvent(parent, 'pointerenter')
@@ -151,7 +143,6 @@ export const Tooltip: React.FC<Props> = ({
 
       subscription.add(pointerLeave$.subscribe(() => hide()))
 
-      // Focus-based trigger for keyboard users
       const handleFocus = () => show()
       const handleBlur = () => hide()
       parent.addEventListener('focus', handleFocus, true)
@@ -168,32 +159,28 @@ export const Tooltip: React.FC<Props> = ({
     return () => {
       subscription.unsubscribe()
     }
-  }, [ref, delay, show, hide])
+  }, [delay, show, hide])
 
   return (
-    <Block position="absolute" props={{ ref }}>
+    <Block position="absolute" props={{ ref: anchorRef }}>
       <Portal>
         <Block
           padding={spacing.md}
-          position="absolute"
-          top={y}
-          left={x}
-          transform={`translate(${translateX}, ${translateY})`}
-          transformOrigin="0 0"
           backgroundColor={color.text.secondary}
           borderRadius={radius.md}
           color={color.text.inverse}
           fontSize={fontSize.xs}
           whiteSpace="nowrap"
           pointerEvents="none"
-          opacity={active ? 1 : 0}
-          transition={`opacity ${duration[100]} ${easing.linear}`}
           userSelect="none"
           zIndex={zIndex.portal}
+          width="max-content"
           props={{
+            ref: refs.setFloating,
             id: tooltipId,
             role: 'tooltip',
             'aria-hidden': !active,
+            style: mergedStyles,
           }}
         >
           {children}
