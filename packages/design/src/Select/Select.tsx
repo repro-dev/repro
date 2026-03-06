@@ -303,9 +303,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           opacity: 0,
           transform: 'scale(0.96)',
         },
-        common: ({ side }) => ({
-          transformOrigin: side === 'top' ? 'bottom' : 'top',
-        }),
+        common: {
+          transformOrigin: 'top center',
+        },
       }
     )
 
@@ -409,147 +409,145 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
         {isMounted && (
           <Portal>
             <Block
-              backgroundColor={color.bg.surface}
-              borderRadius={radius.md}
-              boxShadow={shadow.md}
-              border={`1px solid ${color.border.strong}`}
-              padding={LISTBOX_PADDING}
-              overflowY="auto"
               zIndex={zIndex.portal}
               props={{
                 ref: refs.setFloating,
-                style: {
-                  ...floatingStyles,
-                  ...transitionStyles,
-                  transform: [
-                    floatingStyles.transform,
-                    transitionStyles.transform,
-                  ]
-                    .filter(Boolean)
-                    .join(' '),
-                },
+                style: floatingStyles,
                 ...getFloatingProps(),
                 'aria-label': ariaLabelledBy ? undefined : ariaLabel,
                 'aria-labelledby': ariaLabelledBy ?? (id ? id : undefined),
               }}
             >
               <Block
-                component="ul"
-                margin={0}
-                padding={0}
-                listStyleType="none"
+                backgroundColor={color.bg.surface}
+                borderRadius={radius.md}
+                boxShadow={shadow.md}
+                border={`1px solid ${color.border.strong}`}
+                padding={LISTBOX_PADDING}
+                overflowY="auto"
+                maxHeight="inherit"
                 props={{
-                  id: listboxId,
-                  role: 'presentation',
+                  style: transitionStyles,
                 }}
               >
-                {flatItems.map((item, index) => {
-                  if (item.type === 'group-header') {
+                <Block
+                  component="ul"
+                  margin={0}
+                  padding={0}
+                  listStyleType="none"
+                  props={{
+                    id: listboxId,
+                    role: 'presentation',
+                  }}
+                >
+                  {flatItems.map((item, index) => {
+                    if (item.type === 'group-header') {
+                      return (
+                        <Block
+                          key={`group-${item.groupId}`}
+                          component="li"
+                          padding={`${base * 0.75}px ${base * 1.5}px`}
+                          fontSize={triggerFontSize * 0.85}
+                          lineHeight={lineHeight.relaxed}
+                          fontWeight={600}
+                          color={color.text.muted}
+                          props={{
+                            ref: (node: HTMLElement | null) => {
+                              listRef.current[index] = node
+                            },
+                            role: 'presentation',
+                            id: item.groupId,
+                            'aria-hidden': true,
+                          }}
+                        >
+                          {item.groupLabel}
+                        </Block>
+                      )
+                    }
+
+                    const option = item.option!
+                    const isSelected = option.value === resolvedValue
+                    const isActive = activeIndex === index
+                    const isOptionDisabled = option.disabled === true
+
                     return (
-                      <Block
-                        key={`group-${item.groupId}`}
+                      <Row
+                        key={option.value}
                         component="li"
-                        padding={`${base * 0.75}px ${base * 1.5}px`}
-                        fontSize={triggerFontSize * 0.85}
+                        alignItems="center"
+                        justifyContent="space-between"
+                        gap={spacing.sm}
+                        padding={`${base}px ${base * 1.5}px`}
+                        paddingLeft={item.groupId ? base * 2.5 : base * 1.5}
+                        fontSize={triggerFontSize}
                         lineHeight={lineHeight.relaxed}
-                        fontWeight={600}
-                        color={color.text.muted}
+                        borderRadius={radius.sm}
+                        outline="none"
+                        cursor={isOptionDisabled ? 'not-allowed' : 'pointer'}
+                        color={
+                          isOptionDisabled
+                            ? color.text.muted
+                            : isSelected
+                            ? color.primary
+                            : color.text.default
+                        }
+                        backgroundColor={
+                          isActive && !isOptionDisabled && isSelected
+                            ? color.primarySubtleHover
+                            : isActive && !isOptionDisabled
+                            ? color.bg.hover
+                            : isSelected
+                            ? color.primarySubtle
+                            : 'transparent'
+                        }
+                        opacity={isOptionDisabled ? 0.5 : 1}
                         props={{
                           ref: (node: HTMLElement | null) => {
                             listRef.current[index] = node
                           },
-                          role: 'presentation',
-                          id: item.groupId,
-                          'aria-hidden': true,
+                          role: 'option',
+                          'aria-selected': isSelected,
+                          'aria-disabled': isOptionDisabled || undefined,
+                          tabIndex: !isOptionDisabled && isActive ? 0 : -1,
+                          ...getItemProps({
+                            onClick: () => {
+                              if (!isOptionDisabled) {
+                                handleSelect(index)
+                              }
+                            },
+                            onKeyDown: (e: React.KeyboardEvent) => {
+                              if (
+                                (e.key === 'Enter' || e.key === ' ') &&
+                                !isOptionDisabled
+                              ) {
+                                e.preventDefault()
+                                handleSelect(index)
+                              }
+                            },
+                          }),
                         }}
                       >
-                        {item.groupLabel}
-                      </Block>
-                    )
-                  }
-
-                  const option = item.option!
-                  const isSelected = option.value === resolvedValue
-                  const isActive = activeIndex === index
-                  const isOptionDisabled = option.disabled === true
-
-                  return (
-                    <Row
-                      key={option.value}
-                      component="li"
-                      alignItems="center"
-                      justifyContent="space-between"
-                      gap={spacing.sm}
-                      padding={`${base}px ${base * 1.5}px`}
-                      paddingLeft={item.groupId ? base * 2.5 : base * 1.5}
-                      fontSize={triggerFontSize}
-                      lineHeight={lineHeight.relaxed}
-                      borderRadius={radius.sm}
-                      outline="none"
-                      cursor={isOptionDisabled ? 'not-allowed' : 'pointer'}
-                      color={
-                        isOptionDisabled
-                          ? color.text.muted
-                          : isSelected
-                          ? color.primary
-                          : color.text.default
-                      }
-                      backgroundColor={
-                        isActive && !isOptionDisabled && isSelected
-                          ? color.primarySubtleHover
-                          : isActive && !isOptionDisabled
-                          ? color.bg.hover
-                          : isSelected
-                          ? color.primarySubtle
-                          : 'transparent'
-                      }
-                      opacity={isOptionDisabled ? 0.5 : 1}
-                      props={{
-                        ref: (node: HTMLElement | null) => {
-                          listRef.current[index] = node
-                        },
-                        role: 'option',
-                        'aria-selected': isSelected,
-                        'aria-disabled': isOptionDisabled || undefined,
-                        tabIndex: !isOptionDisabled && isActive ? 0 : -1,
-                        ...getItemProps({
-                          onClick: () => {
-                            if (!isOptionDisabled) {
-                              handleSelect(index)
-                            }
-                          },
-                          onKeyDown: (e: React.KeyboardEvent) => {
-                            if (
-                              (e.key === 'Enter' || e.key === ' ') &&
-                              !isOptionDisabled
-                            ) {
-                              e.preventDefault()
-                              handleSelect(index)
-                            }
-                          },
-                        }),
-                      }}
-                    >
-                      <Block flex={1}>
-                        {renderOption
-                          ? renderOption(option, { isSelected, isActive })
-                          : option.label}
-                      </Block>
-                      {isSelected && (
-                        <Block
-                          flexShrink={0}
-                          display="flex"
-                          alignItems="center"
-                        >
-                          <Check
-                            size={Math.max(base * 1.5, 12)}
-                            color={color.primary}
-                          />
+                        <Block flex={1}>
+                          {renderOption
+                            ? renderOption(option, { isSelected, isActive })
+                            : option.label}
                         </Block>
-                      )}
-                    </Row>
-                  )
-                })}
+                        {isSelected && (
+                          <Block
+                            flexShrink={0}
+                            display="flex"
+                            alignItems="center"
+                          >
+                            <Check
+                              size={Math.max(base * 1.5, 12)}
+                              color={color.primary}
+                            />
+                          </Block>
+                        )}
+                      </Row>
+                    )
+                  })}
+                </Block>
               </Block>
             </Block>
           </Portal>
