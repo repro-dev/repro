@@ -110,17 +110,49 @@ describe('Select — external Label (REP-307)', () => {
 
   it('passes the listbox aria-labelledby to match the trigger id', () => {
     render(
-      <Select
-        id="fruit-select"
-        value=""
-        onChange={() => {}}
-        options={options}
-      />
+      <PortalRootProvider>
+        <Select
+          id="fruit-select"
+          value=""
+          onChange={() => {}}
+          options={options}
+        />
+      </PortalRootProvider>
     )
 
-    const trigger = document.querySelector('button')
-    expect(trigger).not.toBeNull()
-    expect(trigger!.getAttribute('id')).toBe('fruit-select')
+    const trigger = document.querySelector('button')!
+    expect(trigger.getAttribute('id')).toBe('fruit-select')
+
+    act(() => {
+      trigger.click()
+    })
+
+    const listbox = document.querySelector('[role="listbox"]')
+    expect(listbox).not.toBeNull()
+    expect(listbox!.getAttribute('aria-labelledby')).toBe('fruit-select')
+  })
+
+  it('passes aria-label to the listbox when no aria-labelledby or id is provided', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={options}
+          aria-label="Choose a fruit"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+
+    act(() => {
+      trigger.click()
+    })
+
+    const listbox = document.querySelector('[role="listbox"]')
+    expect(listbox).not.toBeNull()
+    expect(listbox!.getAttribute('aria-label')).toBe('Choose a fruit')
   })
 })
 
@@ -363,5 +395,24 @@ describe('Select — required attribute and hidden input (REP-293)', () => {
     ) as HTMLInputElement
     expect(hiddenInput).not.toBeNull()
     expect(hiddenInput.value).toBe('cherry')
+  })
+
+  it('hidden input is disabled when Select is disabled', () => {
+    render(
+      <Select
+        value="apple"
+        onChange={() => {}}
+        options={options}
+        name="fruit"
+        disabled
+        aria-label="Fruit"
+      />
+    )
+
+    const hiddenInput = document.querySelector(
+      'input[name="fruit"]'
+    ) as HTMLInputElement
+    expect(hiddenInput).not.toBeNull()
+    expect(hiddenInput.disabled).toBe(true)
   })
 })

@@ -16,6 +16,7 @@ import { ChevronDown } from 'lucide-react'
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -115,6 +116,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       options.map(o => (o.disabled ? null : o.label))
     )
 
+    useEffect(() => {
+      listContentRef.current = options.map(o => (o.disabled ? null : o.label))
+    }, [options])
+
     const listboxId = useId()
 
     if (process.env['NODE_ENV'] !== 'production') {
@@ -136,9 +141,18 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       [options, resolvedValue]
     )
 
-    const selectedIndex = useMemo(
-      () => options.findIndex(o => o.value === resolvedValue),
-      [options, resolvedValue]
+    const selectedIndex = useMemo(() => {
+      const idx = options.findIndex(o => o.value === resolvedValue)
+      return idx >= 0 ? idx : null
+    }, [options, resolvedValue])
+
+    const disabledIndices = useMemo(
+      () =>
+        options.reduce<number[]>((acc, o, i) => {
+          if (o.disabled) acc.push(i)
+          return acc
+        }, []),
+      [options]
     )
 
     const { refs, floatingStyles, context } = useFloating({
@@ -170,6 +184,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       selectedIndex,
       onNavigate: setActiveIndex,
       loop: true,
+      disabledIndices,
     })
     const typeahead = useTypeahead(context, {
       listRef: listContentRef,
@@ -266,6 +281,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
             name,
             value: resolvedValue,
             required,
+            disabled,
             onChange() {},
             tabIndex: -1,
             'aria-hidden': true,
@@ -287,6 +303,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                 ref: refs.setFloating,
                 style: floatingStyles,
                 ...getFloatingProps(),
+                'aria-label': ariaLabelledBy ? undefined : ariaLabel,
+                'aria-labelledby': ariaLabelledBy ?? (id ? id : undefined),
               }}
             >
               <Block
@@ -296,8 +314,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                 listStyleType="none"
                 props={{
                   id: listboxId,
-                  role: 'listbox',
-                  'aria-labelledby': ariaLabelledBy ?? id,
+                  role: 'presentation',
                 }}
               >
                 {options.map((option, index) => {
@@ -334,7 +351,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                         role: 'option',
                         'aria-selected': isSelected,
                         'aria-disabled': isDisabled || undefined,
-                        tabIndex: isActive ? 0 : -1,
+                        tabIndex: !isDisabled && isActive ? 0 : -1,
                         ...getItemProps({
                           onClick: () => {
                             if (!isDisabled) {
