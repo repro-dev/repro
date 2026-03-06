@@ -418,7 +418,16 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
               zIndex={zIndex.portal}
               props={{
                 ref: refs.setFloating,
-                style: { ...floatingStyles, ...transitionStyles },
+                style: {
+                  ...floatingStyles,
+                  ...transitionStyles,
+                  transform: [
+                    floatingStyles.transform,
+                    transitionStyles.transform,
+                  ]
+                    .filter(Boolean)
+                    .join(' '),
+                },
                 ...getFloatingProps(),
                 'aria-label': ariaLabelledBy ? undefined : ariaLabel,
                 'aria-labelledby': ariaLabelledBy ?? (id ? id : undefined),
