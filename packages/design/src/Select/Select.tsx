@@ -215,9 +215,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           }
           onChange?.(option.value)
           setIsOpen(false)
+          ;(refs.domReference.current as HTMLElement | null)?.focus()
         }
       },
-      [options, onChange, isControlled]
+      [options, onChange, isControlled, refs]
     )
 
     return (
@@ -297,7 +298,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           <Block
             color={color.danger}
             fontSize={fontSize.xs}
-            marginTop={spacing.xs}
+            marginTop={spacing.md}
             props={{ role: 'alert', 'aria-live': 'assertive' }}
           >
             {error}

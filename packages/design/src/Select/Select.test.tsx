@@ -521,6 +521,64 @@ describe('Select — keyboard selection (REP-309)', () => {
     expect(onChange.mock.calls[0]?.arguments[0]).toBe('banana')
   })
 
+  it('focus returns to trigger after click selection', () => {
+    const onChange = mock.fn()
+
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={onChange}
+          options={options}
+          aria-label="Fruit"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+
+    act(() => {
+      ;(optionElements[1] as HTMLElement).click()
+    })
+
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('focus returns to trigger after keyboard selection', () => {
+    const onChange = mock.fn()
+
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={onChange}
+          options={options}
+          aria-label="Fruit"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+
+    act(() => {
+      fireEvent.keyDown(optionElements[1] as HTMLElement, { key: 'Enter' })
+    })
+
+    expect(document.activeElement).toBe(trigger)
+  })
+
   it('keyboard selection skips disabled options', () => {
     const optionsWithDisabled: SelectOption[] = [
       { value: 'a', label: 'A' },
