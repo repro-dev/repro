@@ -109,8 +109,8 @@ export type RadiusValue = (typeof radius)[RadiusToken]
  * after the modal's portal mount point.
  */
 export const zIndex = {
-  /** Maximum 32-bit integer — used by PortalRootProvider and overlay content */
-  portal: 2 ** 32 - 1,
+  /** Maximum signed 32-bit integer — used by PortalRootProvider and overlay content */
+  portal: 2 ** 31 - 1,
 } as const
 
 export type ZIndexToken = keyof typeof zIndex

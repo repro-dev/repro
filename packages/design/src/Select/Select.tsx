@@ -87,7 +87,6 @@ interface FlatItem {
   option?: SelectOption
   groupLabel?: string
   groupId?: string
-  flatIndex: number
 }
 
 function flattenOptions(input: SelectOptionsInput): {
@@ -104,24 +103,19 @@ function flattenOptions(input: SelectOptionsInput): {
         type: 'group-header',
         groupLabel: item.label,
         groupId,
-        flatIndex: flatItems.length,
       })
       for (const option of item.options) {
-        const flatIndex = flatItems.length
         flatItems.push({
           type: 'option',
           option,
           groupId,
-          flatIndex,
         })
         flatOptions.push(option)
       }
     } else {
-      const flatIndex = flatItems.length
       flatItems.push({
         type: 'option',
         option: item,
-        flatIndex,
       })
       flatOptions.push(item)
     }
@@ -427,6 +421,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                 ...getFloatingProps(),
                 'aria-label': ariaLabelledBy ? undefined : ariaLabel,
                 'aria-labelledby': ariaLabelledBy ?? (id ? id : undefined),
+                'aria-hidden': !isOpen,
               }}
             >
               <Block
@@ -455,7 +450,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                     if (item.type === 'group-header') {
                       return (
                         <Block
-                          key={`group-${item.groupId}`}
+                          key={item.groupId}
                           component="li"
                           padding={`${base * 0.75}px ${base * 1.5}px`}
                           fontSize={triggerFontSize * 0.85}

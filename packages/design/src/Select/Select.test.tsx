@@ -1035,7 +1035,7 @@ describe('Select — custom option rendering (REP-300)', () => {
     expect(customBanana).not.toBeNull()
   })
 
-  it('type-ahead still works using the label string (not rendered content)', () => {
+  it('options are present in the DOM when renderOption is used', () => {
     const onChange = mock.fn()
 
     render(
@@ -1060,7 +1060,7 @@ describe('Select — custom option rendering (REP-300)', () => {
     expect(optionElements.length).toBe(3)
   })
 
-  it('keyboard navigation works with custom-rendered options', () => {
+  it('Enter key selects custom-rendered option', () => {
     const onChange = mock.fn()
 
     render(
@@ -1304,7 +1304,7 @@ describe('Select — option groups (REP-299)', () => {
     expect(headers[1]!.textContent).toBe('Vegetables')
   })
 
-  it('keyboard navigation skips group headers', () => {
+  it('options within groups are selectable via Enter key', () => {
     const onChange = mock.fn()
 
     render(
