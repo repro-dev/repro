@@ -21,11 +21,12 @@ import { Subscription, fromEvent, switchMap, takeUntil, timer } from 'rxjs'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
 import { radius, zIndex } from '../tokens/elevation'
-import { delay as delayTokens } from '../tokens/motion'
+import { delay as delayTokens, duration } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { fontSize } from '../tokens/typography'
 
 const OFFSET = 5
+const TRANSITION_DURATION = parseInt(duration[100], 10)
 
 type Props = PropsWithChildren<{
   delay?: number
@@ -65,8 +66,8 @@ export const Tooltip: React.FC<Props> = ({
 
   const { styles: transitionStyles } = useTransitionStyles(context, {
     duration: {
-      open: 100,
-      close: 100,
+      open: TRANSITION_DURATION,
+      close: TRANSITION_DURATION,
     },
     initial: {
       opacity: 0,
@@ -158,8 +159,28 @@ export const Tooltip: React.FC<Props> = ({
 
     return () => {
       subscription.unsubscribe()
+
+      const parentOnUnmount = anchorRef.current?.parentElement
+      if (parentOnUnmount) {
+        const existing = parentOnUnmount.getAttribute('aria-describedby')
+        if (existing) {
+          const remainingIds = existing
+            .split(/\s+/)
+            .filter(Boolean)
+            .filter(id => id !== tooltipId)
+
+          if (remainingIds.length > 0) {
+            parentOnUnmount.setAttribute(
+              'aria-describedby',
+              remainingIds.join(' ')
+            )
+          } else {
+            parentOnUnmount.removeAttribute('aria-describedby')
+          }
+        }
+      }
     }
-  }, [delay, show, hide])
+  }, [delay, show, hide, tooltipId])
 
   return (
     <Block position="absolute" props={{ ref: anchorRef }}>
