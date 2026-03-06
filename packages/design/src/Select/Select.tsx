@@ -9,6 +9,7 @@ import {
   useInteractions,
   useListNavigation,
   useRole,
+  useTransitionStyles,
   useTypeahead,
 } from '@floating-ui/react'
 import { Block, Row } from '@jsxstyle/react'
@@ -25,9 +26,9 @@ import React, {
 import mergeRefs from 'react-merge-refs'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
-import { radius, shadow } from '../tokens/elevation'
+import { radius, shadow, zIndex } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
-import { duration, easing, transition } from '../tokens/motion'
+import { transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { lineHeight, MINIMUM_FONT_SIZE } from '../tokens/typography'
 
@@ -37,18 +38,31 @@ export interface SelectOption {
   disabled?: boolean
 }
 
+export interface SelectOptionGroup {
+  label: string
+  options: SelectOption[]
+}
+
+export type SelectOptionsInput = Array<SelectOption | SelectOptionGroup>
+
+export interface SelectOptionState {
+  isSelected: boolean
+  isActive: boolean
+}
+
 export interface SelectProps {
   id?: string
   value?: string
   defaultValue?: string
   onChange?(value: string): void
-  options: SelectOption[]
+  options: SelectOptionsInput
   placeholder?: string
   size?: 'small' | 'medium' | 'large'
   disabled?: boolean
   required?: boolean
   name?: string
   error?: boolean
+  renderOption?(option: SelectOption, state: SelectOptionState): React.ReactNode
   'aria-label'?: string
   'aria-labelledby'?: string
 }
@@ -60,6 +74,60 @@ const sizes = {
 }
 
 const LISTBOX_PADDING = spacing.sm
+
+function isOptionGroup(
+  item: SelectOption | SelectOptionGroup
+): item is SelectOptionGroup {
+  return 'options' in item && Array.isArray(item.options)
+}
+
+interface FlatItem {
+  type: 'option' | 'group-header'
+  option?: SelectOption
+  groupLabel?: string
+  groupId?: string
+  flatIndex: number
+}
+
+function flattenOptions(input: SelectOptionsInput): {
+  flatItems: FlatItem[]
+  flatOptions: SelectOption[]
+} {
+  const flatItems: FlatItem[] = []
+  const flatOptions: SelectOption[] = []
+
+  for (const item of input) {
+    if (isOptionGroup(item)) {
+      const groupId = `group-${flatItems.length}`
+      flatItems.push({
+        type: 'group-header',
+        groupLabel: item.label,
+        groupId,
+        flatIndex: flatItems.length,
+      })
+      for (const option of item.options) {
+        const flatIndex = flatItems.length
+        flatItems.push({
+          type: 'option',
+          option,
+          groupId,
+          flatIndex,
+        })
+        flatOptions.push(option)
+      }
+    } else {
+      const flatIndex = flatItems.length
+      flatItems.push({
+        type: 'option',
+        option: item,
+        flatIndex,
+      })
+      flatOptions.push(item)
+    }
+  }
+
+  return { flatItems, flatOptions }
+}
 
 /**
  * Select dropdown for choosing one option from a list. Renders a custom
@@ -87,13 +155,18 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       required = false,
       name,
       error,
+      renderOption,
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledBy,
     },
     ref
   ) => {
     const isControlled = valueProp !== undefined
-    const isEmpty = options.length === 0
+    const { flatItems, flatOptions } = useMemo(
+      () => flattenOptions(options),
+      [options]
+    )
+    const isEmpty = flatOptions.length === 0
     const isDisabled = disabled || isEmpty
     const [internalValue, setInternalValue] = useState(defaultValue ?? '')
     const wasControlledRef = useRef(isControlled)
@@ -117,12 +190,24 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     const [activeIndex, setActiveIndex] = useState<number | null>(null)
     const listRef = useRef<Array<HTMLElement | null>>([])
     const listContentRef = useRef<Array<string | null>>(
-      options.map(o => (o.disabled ? null : o.label))
+      flatItems.map(item =>
+        item.type === 'group-header'
+          ? null
+          : item.option?.disabled
+          ? null
+          : item.option?.label ?? null
+      )
     )
 
     useEffect(() => {
-      listContentRef.current = options.map(o => (o.disabled ? null : o.label))
-    }, [options])
+      listContentRef.current = flatItems.map(item =>
+        item.type === 'group-header'
+          ? null
+          : item.option?.disabled
+          ? null
+          : item.option?.label ?? null
+      )
+    }, [flatItems])
 
     const listboxId = useId()
 
@@ -141,22 +226,26 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     const iconSize = Math.max(base * 2, 16)
 
     const selectedOption = useMemo(
-      () => options.find(o => o.value === resolvedValue),
-      [options, resolvedValue]
+      () => flatOptions.find(o => o.value === resolvedValue),
+      [flatOptions, resolvedValue]
     )
 
     const selectedIndex = useMemo(() => {
-      const idx = options.findIndex(o => o.value === resolvedValue)
+      const idx = flatItems.findIndex(
+        item => item.type === 'option' && item.option?.value === resolvedValue
+      )
       return idx >= 0 ? idx : null
-    }, [options, resolvedValue])
+    }, [flatItems, resolvedValue])
 
     const disabledIndices = useMemo(
       () =>
-        options.reduce<number[]>((acc, o, i) => {
-          if (o.disabled) acc.push(i)
+        flatItems.reduce<number[]>((acc, item, i) => {
+          if (item.type === 'group-header' || item.option?.disabled) {
+            acc.push(i)
+          }
           return acc
         }, []),
-      [options]
+      [flatItems]
     )
 
     const { refs, floatingStyles, context } = useFloating({
@@ -203,22 +292,39 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       },
     })
 
+    const { isMounted, styles: transitionStyles } = useTransitionStyles(
+      context,
+      {
+        duration: {
+          open: 100,
+          close: 100,
+        },
+        initial: {
+          opacity: 0,
+          transform: 'scale(0.96)',
+        },
+        common: ({ side }) => ({
+          transformOrigin: side === 'top' ? 'bottom' : 'top',
+        }),
+      }
+    )
+
     const { getReferenceProps, getFloatingProps, getItemProps } =
       useInteractions([click, dismiss, role, listNavigation, typeahead])
 
     const handleSelect = useCallback(
       (index: number) => {
-        const option = options[index]
-        if (option && !option.disabled) {
+        const item = flatItems[index]
+        if (item?.type === 'option' && item.option && !item.option.disabled) {
           if (!isControlled) {
-            setInternalValue(option.value)
+            setInternalValue(item.option.value)
           }
-          onChange?.(option.value)
+          onChange?.(item.option.value)
           setIsOpen(false)
           ;(refs.domReference.current as HTMLElement | null)?.focus()
         }
       },
-      [options, onChange, isControlled, refs]
+      [flatItems, onChange, isControlled, refs]
     )
 
     return (
@@ -241,7 +347,11 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           opacity={isDisabled ? 0.5 : 1}
           transition={transition.fast}
           hoverBorderColor={
-            isDisabled ? undefined : error ? color.dangerHover : color.border.emphasis
+            isDisabled
+              ? undefined
+              : error
+              ? color.dangerHover
+              : color.border.emphasis
           }
           textAlign="left"
           {...focusRing(error ? 'danger' : 'default')}
@@ -296,7 +406,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           }}
         />
 
-        {isOpen && (
+        {isMounted && (
           <Portal>
             <Block
               backgroundColor={color.bg.surface}
@@ -305,11 +415,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
               border={`1px solid ${color.border.strong}`}
               padding={LISTBOX_PADDING}
               overflowY="auto"
-              zIndex={2 ** 32 - 1}
-              animation={`selectFadeIn ${duration[100]} ${easing.easeOut}`}
+              zIndex={zIndex.portal}
               props={{
                 ref: refs.setFloating,
-                style: floatingStyles,
+                style: { ...floatingStyles, ...transitionStyles },
                 ...getFloatingProps(),
                 'aria-label': ariaLabelledBy ? undefined : ariaLabel,
                 'aria-labelledby': ariaLabelledBy ?? (id ? id : undefined),
@@ -325,7 +434,32 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                   role: 'presentation',
                 }}
               >
-                {options.map((option, index) => {
+                {flatItems.map((item, index) => {
+                  if (item.type === 'group-header') {
+                    return (
+                      <Block
+                        key={`group-${item.groupId}`}
+                        component="li"
+                        padding={`${base * 0.75}px ${base * 1.5}px`}
+                        fontSize={triggerFontSize * 0.85}
+                        lineHeight={lineHeight.relaxed}
+                        fontWeight={600}
+                        color={color.text.muted}
+                        props={{
+                          ref: (node: HTMLElement | null) => {
+                            listRef.current[index] = node
+                          },
+                          role: 'presentation',
+                          id: item.groupId,
+                          'aria-hidden': true,
+                        }}
+                      >
+                        {item.groupLabel}
+                      </Block>
+                    )
+                  }
+
+                  const option = item.option!
                   const isSelected = option.value === resolvedValue
                   const isActive = activeIndex === index
                   const isOptionDisabled = option.disabled === true
@@ -338,6 +472,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                       justifyContent="space-between"
                       gap={spacing.sm}
                       padding={`${base}px ${base * 1.5}px`}
+                      paddingLeft={item.groupId ? base * 2.5 : base * 1.5}
                       fontSize={triggerFontSize}
                       lineHeight={lineHeight.relaxed}
                       borderRadius={radius.sm}
@@ -386,7 +521,11 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                         }),
                       }}
                     >
-                      <Block flex={1}>{option.label}</Block>
+                      <Block flex={1}>
+                        {renderOption
+                          ? renderOption(option, { isSelected, isActive })
+                          : option.label}
+                      </Block>
                       {isSelected && (
                         <Block
                           flexShrink={0}

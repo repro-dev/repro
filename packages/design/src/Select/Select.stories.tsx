@@ -1,14 +1,23 @@
-import { Block, Col } from '@jsxstyle/react'
+import { Block, Col, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
+import { Apple, Cherry, Citrus, Grape, ShieldCheck } from 'lucide-react'
 import React, { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { Button } from '../Button/Button'
+import { Drawer } from '../Drawer/Drawer'
 import { FormFieldError } from '../FormFieldError/FormFieldError'
 import { Label } from '../Label/Label'
+import { Modal } from '../Modal/Modal'
 import { color } from '../tokens/colors'
+import { radius } from '../tokens/elevation'
 import { spacing } from '../tokens/spacing'
 import { fontSize } from '../tokens/typography'
-import { Select, type SelectOption } from './Select'
+import {
+  Select,
+  type SelectOption,
+  type SelectOptionState,
+  type SelectOptionsInput,
+} from './Select'
 
 const fruitOptions: SelectOption[] = [
   { value: 'apple', label: 'Apple' },
@@ -337,6 +346,345 @@ export const ReactHookForm: Story = {
             )}
           </Col>
         </form>
+      </Block>
+    )
+  },
+}
+
+const fruitIconOptions: SelectOption[] = [
+  { value: 'apple', label: 'Apple' },
+  { value: 'cherry', label: 'Cherry' },
+  { value: 'citrus', label: 'Citrus' },
+  { value: 'grape', label: 'Grape' },
+]
+
+const fruitIcons: Record<string, React.ReactNode> = {
+  apple: <Apple size={16} />,
+  cherry: <Cherry size={16} />,
+  citrus: <Citrus size={16} />,
+  grape: <Grape size={16} />,
+}
+
+export const CustomRenderingWithIcons: Story = {
+  render: () => {
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <Col gap={spacing.md}>
+          <Label htmlFor="fruit-icons">Fruit</Label>
+          <Select
+            id="fruit-icons"
+            value={value}
+            onChange={setValue}
+            options={fruitIconOptions}
+            placeholder="Choose a fruit"
+            renderOption={option => (
+              <Row alignItems="center" gap={spacing.sm}>
+                <Block
+                  display="flex"
+                  alignItems="center"
+                  color={color.text.muted}
+                >
+                  {fruitIcons[option.value]}
+                </Block>
+                <Block>{option.label}</Block>
+              </Row>
+            )}
+          />
+        </Col>
+      </Block>
+    )
+  },
+}
+
+const roleOptions: SelectOption[] = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'editor', label: 'Editor' },
+  { value: 'viewer', label: 'Viewer' },
+  { value: 'guest', label: 'Guest', disabled: true },
+]
+
+const roleDescriptions: Record<string, string> = {
+  admin: 'Full access to all settings and data',
+  editor: 'Can edit content but not manage users',
+  viewer: 'Read-only access to content',
+  guest: 'Limited access, invitation required',
+}
+
+export const CustomRenderingWithDescriptions: Story = {
+  render: () => {
+    const [value, setValue] = useState('editor')
+    return (
+      <Block padding={16} maxWidth={350}>
+        <Col gap={spacing.md}>
+          <Label htmlFor="role-select">Role</Label>
+          <Select
+            id="role-select"
+            value={value}
+            onChange={setValue}
+            options={roleOptions}
+            renderOption={option => (
+              <Col gap={2}>
+                <Block fontWeight={500}>{option.label}</Block>
+                <Block fontSize={fontSize.xs} color={color.text.muted}>
+                  {roleDescriptions[option.value]}
+                </Block>
+              </Col>
+            )}
+          />
+        </Col>
+      </Block>
+    )
+  },
+}
+
+const planOptions: SelectOption[] = [
+  { value: 'free', label: 'Free' },
+  { value: 'pro', label: 'Pro' },
+  { value: 'enterprise', label: 'Enterprise' },
+]
+
+const planBadges: Record<
+  string,
+  { text: string; bgColor: string; textColor: string }
+> = {
+  free: {
+    text: 'Current',
+    bgColor: color.bg.muted,
+    textColor: color.text.muted,
+  },
+  pro: {
+    text: 'Popular',
+    bgColor: color.primarySubtle,
+    textColor: color.primary,
+  },
+  enterprise: {
+    text: 'Contact us',
+    bgColor: color.bg.muted,
+    textColor: color.text.muted,
+  },
+}
+
+export const CustomRenderingWithBadges: Story = {
+  render: () => {
+    const [value, setValue] = useState('free')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <Col gap={spacing.md}>
+          <Label htmlFor="plan-select">Plan</Label>
+          <Select
+            id="plan-select"
+            value={value}
+            onChange={setValue}
+            options={planOptions}
+            renderOption={option => (
+              <Row alignItems="center" gap={spacing.sm}>
+                <Block flex={1}>{option.label}</Block>
+                <Block
+                  fontSize={fontSize.xs}
+                  backgroundColor={planBadges[option.value]?.bgColor}
+                  color={planBadges[option.value]?.textColor}
+                  padding={`2px ${spacing.sm}px`}
+                  borderRadius={radius.full}
+                  fontWeight={500}
+                >
+                  {planBadges[option.value]?.text}
+                </Block>
+              </Row>
+            )}
+          />
+        </Col>
+      </Block>
+    )
+  },
+}
+
+export const CustomRenderingWithState: Story = {
+  render: () => {
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <Col gap={spacing.md}>
+          <Label htmlFor="fruit-state">Fruit (state-aware rendering)</Label>
+          <Select
+            id="fruit-state"
+            value={value}
+            onChange={setValue}
+            options={fruitIconOptions}
+            placeholder="Choose a fruit"
+            renderOption={(option: SelectOption, state: SelectOptionState) => (
+              <Row alignItems="center" gap={spacing.sm}>
+                <Block
+                  display="flex"
+                  alignItems="center"
+                  color={state.isSelected ? color.primary : color.text.muted}
+                >
+                  {state.isSelected ? (
+                    <ShieldCheck size={16} />
+                  ) : (
+                    fruitIcons[option.value]
+                  )}
+                </Block>
+                <Block fontWeight={state.isActive ? 600 : 400}>
+                  {option.label}
+                </Block>
+              </Row>
+            )}
+          />
+        </Col>
+      </Block>
+    )
+  },
+}
+
+export const InsideModal: Story = {
+  render: () => {
+    const [open, setOpen] = useState(true)
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16}>
+        <Button type="button" onClick={() => setOpen(true)}>
+          Open Modal
+        </Button>
+        {open && (
+          <Modal
+            width={400}
+            height="auto"
+            minHeight={200}
+            onClose={() => setOpen(false)}
+            aria-label="Select inside modal"
+          >
+            <Block padding={spacing['2xl']}>
+              <Col gap={spacing.md}>
+                <Label htmlFor="modal-fruit">Fruit</Label>
+                <Select
+                  id="modal-fruit"
+                  value={value}
+                  onChange={setValue}
+                  options={fruitOptions}
+                  placeholder="Choose a fruit"
+                />
+                {value && (
+                  <Block fontSize={fontSize.xs} color={color.text.muted}>
+                    Selected: {value}
+                  </Block>
+                )}
+              </Col>
+            </Block>
+          </Modal>
+        )}
+      </Block>
+    )
+  },
+}
+
+export const InsideDrawer: Story = {
+  render: () => {
+    const [open, setOpen] = useState(true)
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16}>
+        <Button type="button" onClick={() => setOpen(true)}>
+          Open Drawer
+        </Button>
+        <Drawer
+          open={open}
+          onClose={() => setOpen(false)}
+          aria-label="Select inside drawer"
+        >
+          <Col gap={spacing.md}>
+            <Label htmlFor="drawer-fruit">Fruit</Label>
+            <Select
+              id="drawer-fruit"
+              value={value}
+              onChange={setValue}
+              options={fruitOptions}
+              placeholder="Choose a fruit"
+            />
+            {value && (
+              <Block fontSize={fontSize.xs} color={color.text.muted}>
+                Selected: {value}
+              </Block>
+            )}
+          </Col>
+        </Drawer>
+      </Block>
+    )
+  },
+}
+
+const groupedFoodOptions: SelectOptionsInput = [
+  {
+    label: 'Fruits',
+    options: [
+      { value: 'apple', label: 'Apple' },
+      { value: 'banana', label: 'Banana' },
+      { value: 'cherry', label: 'Cherry' },
+    ],
+  },
+  {
+    label: 'Vegetables',
+    options: [
+      { value: 'carrot', label: 'Carrot' },
+      { value: 'broccoli', label: 'Broccoli' },
+      { value: 'spinach', label: 'Spinach' },
+    ],
+  },
+]
+
+export const GroupedOptions: Story = {
+  render: () => {
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <Col gap={spacing.md}>
+          <Label htmlFor="food-grouped">Food</Label>
+          <Select
+            id="food-grouped"
+            value={value}
+            onChange={setValue}
+            options={groupedFoodOptions}
+            placeholder="Choose a food"
+          />
+        </Col>
+      </Block>
+    )
+  },
+}
+
+const mixedGroupOptions: SelectOptionsInput = [
+  { value: 'all', label: 'All categories' },
+  {
+    label: 'Fruits',
+    options: [
+      { value: 'apple', label: 'Apple' },
+      { value: 'banana', label: 'Banana' },
+    ],
+  },
+  {
+    label: 'Vegetables',
+    options: [
+      { value: 'carrot', label: 'Carrot' },
+      { value: 'broccoli', label: 'Broccoli', disabled: true },
+    ],
+  },
+  { value: 'other', label: 'Other' },
+]
+
+export const MixedGroupedAndUngrouped: Story = {
+  render: () => {
+    const [value, setValue] = useState('all')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <Col gap={spacing.md}>
+          <Label htmlFor="food-mixed">Food (mixed)</Label>
+          <Select
+            id="food-mixed"
+            value={value}
+            onChange={setValue}
+            options={mixedGroupOptions}
+          />
+        </Col>
       </Block>
     )
   },

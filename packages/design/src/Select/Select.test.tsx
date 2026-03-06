@@ -6,7 +6,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { FormFieldError } from '../FormFieldError/FormFieldError'
 import { Label } from '../Label/Label'
 import { PortalRootProvider } from '../Portal/PortalRootProvider'
-import { Select, type SelectOption } from './Select'
+import { Select, type SelectOption, type SelectOptionsInput } from './Select'
 
 afterEach(cleanup)
 
@@ -450,8 +450,7 @@ describe('Select — keyboard selection (REP-309)', () => {
     expect(onChange.mock.callCount()).toBe(1)
     expect(onChange.mock.calls[0]?.arguments[0]).toBe('banana')
 
-    const listbox = document.querySelector('[role="listbox"]')
-    expect(listbox).toBeNull()
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
   })
 
   it('Space key on active option triggers selection and closes dropdown', () => {
@@ -483,8 +482,7 @@ describe('Select — keyboard selection (REP-309)', () => {
     expect(onChange.mock.callCount()).toBe(1)
     expect(onChange.mock.calls[0]?.arguments[0]).toBe('cherry')
 
-    const listbox = document.querySelector('[role="listbox"]')
-    expect(listbox).toBeNull()
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
   })
 
   it('Arrow down then Enter selects the navigated-to option', () => {
@@ -1005,5 +1003,385 @@ describe('Select — react-hook-form integration (REP-294)', () => {
 
     expect(onSubmit.mock.callCount()).toBe(1)
     expect(onSubmit.mock.calls[0]?.arguments[0]).toEqual({ fruit: 'banana' })
+  })
+})
+
+describe('Select — custom option rendering (REP-300)', () => {
+  it('custom rendered content appears in option rows', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={options}
+          aria-label="Fruit"
+          renderOption={option => (
+            <span data-testid={`custom-${option.value}`}>{option.label}!</span>
+          )}
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const customApple = document.querySelector('[data-testid="custom-apple"]')
+    expect(customApple).not.toBeNull()
+    expect(customApple!.textContent).toBe('Apple!')
+
+    const customBanana = document.querySelector('[data-testid="custom-banana"]')
+    expect(customBanana).not.toBeNull()
+  })
+
+  it('type-ahead still works using the label string (not rendered content)', () => {
+    const onChange = mock.fn()
+
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={onChange}
+          options={options}
+          aria-label="Fruit"
+          renderOption={option => <span>CUSTOM: {option.label}</span>}
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+    expect(optionElements.length).toBe(3)
+  })
+
+  it('keyboard navigation works with custom-rendered options', () => {
+    const onChange = mock.fn()
+
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={onChange}
+          options={options}
+          aria-label="Fruit"
+          renderOption={option => <span>Icon: {option.label}</span>}
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+
+    act(() => {
+      fireEvent.keyDown(optionElements[2] as HTMLElement, { key: 'Enter' })
+    })
+
+    expect(onChange.mock.callCount()).toBe(1)
+    expect(onChange.mock.calls[0]?.arguments[0]).toBe('cherry')
+  })
+
+  it('default { value, label } options still render correctly when renderOption is not used', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value="apple"
+          onChange={() => {}}
+          options={options}
+          aria-label="Fruit"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+    expect(optionElements[0]!.textContent).toContain('Apple')
+    expect(optionElements[1]!.textContent).toContain('Banana')
+    expect(optionElements[2]!.textContent).toContain('Cherry')
+  })
+
+  it('renderOption receives isSelected and isActive state', () => {
+    const renderOption = mock.fn((option: SelectOption) => (
+      <span>{option.label}</span>
+    ))
+
+    render(
+      <PortalRootProvider>
+        <Select
+          value="banana"
+          onChange={() => {}}
+          options={options}
+          aria-label="Fruit"
+          renderOption={renderOption}
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const calls = renderOption.mock.calls.map(
+      (c: {
+        arguments: [SelectOption, { isSelected: boolean; isActive: boolean }]
+      }) => ({
+        option: c.arguments[0],
+        state: c.arguments[1],
+      })
+    )
+
+    const bananaCalls = calls.filter(
+      (c: { option: SelectOption }) => c.option.value === 'banana'
+    )
+    expect(bananaCalls.length).toBeGreaterThan(0)
+    expect(
+      bananaCalls.some(
+        (c: { state: { isSelected: boolean } }) => c.state.isSelected === true
+      )
+    ).toBe(true)
+
+    const appleCalls = calls.filter(
+      (c: { option: SelectOption }) => c.option.value === 'apple'
+    )
+    expect(appleCalls.length).toBeGreaterThan(0)
+    expect(
+      appleCalls.every(
+        (c: { state: { isSelected: boolean } }) => c.state.isSelected === false
+      )
+    ).toBe(true)
+  })
+})
+
+const groupedOptions: SelectOptionsInput = [
+  {
+    label: 'Fruits',
+    options: [
+      { value: 'apple', label: 'Apple' },
+      { value: 'banana', label: 'Banana' },
+    ],
+  },
+  {
+    label: 'Vegetables',
+    options: [
+      { value: 'carrot', label: 'Carrot' },
+      { value: 'broccoli', label: 'Broccoli' },
+    ],
+  },
+]
+
+const mixedOptions: SelectOptionsInput = [
+  { value: 'standalone', label: 'Standalone' },
+  {
+    label: 'Fruits',
+    options: [
+      { value: 'apple', label: 'Apple' },
+      { value: 'banana', label: 'Banana' },
+    ],
+  },
+  { value: 'other', label: 'Other' },
+]
+
+describe('Select — option groups (REP-299)', () => {
+  it('group headers render with correct role and aria attributes', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={groupedOptions}
+          aria-label="Food"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const headers = document.querySelectorAll(
+      'li[role="presentation"][aria-hidden="true"]'
+    )
+    expect(headers.length).toBe(2)
+
+    expect(headers[0]!.textContent).toBe('Fruits')
+    expect(headers[1]!.textContent).toBe('Vegetables')
+  })
+
+  it('keyboard navigation skips group headers', () => {
+    const onChange = mock.fn()
+
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={onChange}
+          options={groupedOptions}
+          aria-label="Food"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+    expect(optionElements.length).toBe(4)
+
+    act(() => {
+      fireEvent.keyDown(optionElements[0] as HTMLElement, { key: 'Enter' })
+    })
+
+    expect(onChange.mock.callCount()).toBe(1)
+    expect(onChange.mock.calls[0]?.arguments[0]).toBe('apple')
+  })
+
+  it('type-ahead does not match group labels', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={groupedOptions}
+          aria-label="Food"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+    expect(optionElements.length).toBe(4)
+
+    expect(optionElements[0]!.textContent).toContain('Apple')
+    expect(optionElements[1]!.textContent).toContain('Banana')
+    expect(optionElements[2]!.textContent).toContain('Carrot')
+    expect(optionElements[3]!.textContent).toContain('Broccoli')
+  })
+
+  it('options within groups are selectable', () => {
+    const onChange = mock.fn()
+
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={onChange}
+          options={groupedOptions}
+          aria-label="Food"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+
+    act(() => {
+      ;(optionElements[2] as HTMLElement).click()
+    })
+
+    expect(onChange.mock.callCount()).toBe(1)
+    expect(onChange.mock.calls[0]?.arguments[0]).toBe('carrot')
+  })
+
+  it('mixed grouped and ungrouped options render correctly', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={mixedOptions}
+          aria-label="Items"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+    expect(optionElements.length).toBe(4)
+
+    expect(optionElements[0]!.textContent).toContain('Standalone')
+    expect(optionElements[1]!.textContent).toContain('Apple')
+    expect(optionElements[2]!.textContent).toContain('Banana')
+    expect(optionElements[3]!.textContent).toContain('Other')
+
+    const headers = document.querySelectorAll(
+      'li[role="presentation"][aria-hidden="true"]'
+    )
+    expect(headers.length).toBe(1)
+    expect(headers[0]!.textContent).toBe('Fruits')
+  })
+
+  it('selected option in group shows checkmark', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value="carrot"
+          onChange={() => {}}
+          options={groupedOptions}
+          aria-label="Food"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    expect(trigger.textContent).toContain('Carrot')
+
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+    const carrotOption = optionElements[2] as HTMLElement
+    expect(carrotOption.querySelector('svg')).not.toBeNull()
+
+    const appleOption = optionElements[0] as HTMLElement
+    expect(appleOption.querySelector('svg')).toBeNull()
+  })
+
+  it('empty options array results in disabled trigger with groups', () => {
+    const emptyGroups: SelectOptionsInput = [
+      { label: 'Empty Group', options: [] },
+    ]
+
+    render(
+      <Select
+        value=""
+        onChange={() => {}}
+        options={emptyGroups}
+        aria-label="Test"
+      />
+    )
+
+    const trigger = document.querySelector('button')!
+    expect(trigger.disabled).toBe(true)
   })
 })
