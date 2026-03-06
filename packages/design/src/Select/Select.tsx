@@ -339,6 +339,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                       fontSize={triggerFontSize}
                       lineHeight={lineHeight.relaxed}
                       borderRadius={radius.sm}
+                      outline="none"
                       cursor={isOptionDisabled ? 'not-allowed' : 'pointer'}
                       color={
                         isOptionDisabled
