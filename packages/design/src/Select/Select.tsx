@@ -374,7 +374,14 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
             whiteSpace="nowrap"
             flex={1}
           >
-            {selectedOption ? selectedOption.label : placeholder}
+            {selectedOption
+              ? renderOption
+                ? renderOption(selectedOption, {
+                    isSelected: true,
+                    isActive: false,
+                  })
+                : selectedOption.label
+              : placeholder}
           </Block>
 
           <Block

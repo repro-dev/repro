@@ -450,7 +450,7 @@ const planBadges: Record<
 > = {
   free: {
     text: 'Current',
-    bgColor: color.bg.muted,
+    bgColor: color.bg.subtle,
     textColor: color.text.muted,
   },
   pro: {
@@ -460,7 +460,7 @@ const planBadges: Record<
   },
   enterprise: {
     text: 'Contact us',
-    bgColor: color.bg.muted,
+    bgColor: color.bg.subtle,
     textColor: color.text.muted,
   },
 }
@@ -479,7 +479,7 @@ export const CustomRenderingWithBadges: Story = {
             options={planOptions}
             renderOption={option => (
               <Row alignItems="center" gap={spacing.sm}>
-                <Block flex={1}>{option.label}</Block>
+                <Block>{option.label}</Block>
                 <Block
                   fontSize={fontSize.xs}
                   backgroundColor={planBadges[option.value]?.bgColor}
@@ -539,11 +539,17 @@ export const CustomRenderingWithState: Story = {
 
 export const InsideModal: Story = {
   render: () => {
-    const [open, setOpen] = useState(true)
+    const [open, setOpen] = useState(false)
     const [value, setValue] = useState('')
     return (
       <Block padding={16}>
-        <Button type="button" onClick={() => setOpen(true)}>
+        <Button
+          context="info"
+          variant="contained"
+          size="medium"
+          rounded
+          onClick={() => setOpen(true)}
+        >
           Open Modal
         </Button>
         {open && (
@@ -580,11 +586,17 @@ export const InsideModal: Story = {
 
 export const InsideDrawer: Story = {
   render: () => {
-    const [open, setOpen] = useState(true)
+    const [open, setOpen] = useState(false)
     const [value, setValue] = useState('')
     return (
       <Block padding={16}>
-        <Button type="button" onClick={() => setOpen(true)}>
+        <Button
+          context="info"
+          variant="contained"
+          size="medium"
+          rounded
+          onClick={() => setOpen(true)}
+        >
           Open Drawer
         </Button>
         <Drawer
@@ -592,7 +604,7 @@ export const InsideDrawer: Story = {
           onClose={() => setOpen(false)}
           aria-label="Select inside drawer"
         >
-          <Col gap={spacing.md}>
+          <Col gap={spacing.md} paddingTop={24}>
             <Label htmlFor="drawer-fruit">Fruit</Label>
             <Select
               id="drawer-fruit"
