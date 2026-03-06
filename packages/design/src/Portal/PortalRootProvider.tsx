@@ -7,8 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
-
-const MAX_INT32 = 2 ** 32 - 1
+import { zIndex } from '../tokens/elevation'
 
 const PortalRootContext = React.createContext<
   MutableRefObject<HTMLElement | null>
@@ -36,7 +35,7 @@ export const PortalRootProvider: React.FC<PropsWithChildren> = ({
         position="fixed"
         top={0}
         left={0}
-        zIndex={MAX_INT32}
+        zIndex={zIndex.portal}
         props={{ ref: root }}
       />
     </PortalRootContext.Provider>
@@ -60,7 +59,7 @@ export function usePortalMountPoint() {
       elem.style.position = 'fixed'
       elem.style.top = '0px'
       elem.style.left = '0px'
-      elem.style.zIndex = `${MAX_INT32}`
+      elem.style.zIndex = `${zIndex.portal}`
       root.appendChild(elem)
       setMountPoint(elem)
     }

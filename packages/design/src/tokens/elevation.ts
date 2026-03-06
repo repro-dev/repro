@@ -91,3 +91,27 @@ export const radius = {
 
 export type RadiusToken = keyof typeof radius
 export type RadiusValue = (typeof radius)[RadiusToken]
+
+// ---------------------------------------------------------------------------
+// Z-index
+// ---------------------------------------------------------------------------
+
+/**
+ * Shared z-index scale for layered UI.
+ *
+ * All portaled content (modals, drawers, tooltips, select dropdowns)
+ * renders into a single `PortalRootProvider` container that sits at
+ * `zIndex.portal`. Within that container, DOM insertion order determines
+ * the visual stacking — later-mounted elements appear on top.
+ *
+ * This means a Select opened inside a Modal will naturally layer above
+ * the modal backdrop because the Select's dropdown portal is appended
+ * after the modal's portal mount point.
+ */
+export const zIndex = {
+  /** Maximum signed 32-bit integer — used by PortalRootProvider and overlay content */
+  portal: 2 ** 31 - 1,
+} as const
+
+export type ZIndexToken = keyof typeof zIndex
+export type ZIndexValue = (typeof zIndex)[ZIndexToken]
