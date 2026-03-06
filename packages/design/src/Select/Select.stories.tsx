@@ -726,3 +726,158 @@ export const MixedGroupedAndUngrouped: Story = {
     )
   },
 }
+
+export const Controlled: Story = {
+  render: () => {
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <Col gap={spacing.md}>
+          <Label htmlFor="fruit-controlled">Fruit</Label>
+          <Select
+            id="fruit-controlled"
+            value={value}
+            onChange={setValue}
+            options={fruitOptions}
+            placeholder="Choose a fruit"
+          />
+          <Block fontSize={fontSize.xs} color={color.text.muted}>
+            Current value: {value ? `"${value}"` : '(none)'}
+          </Block>
+          <Row gap={spacing.sm}>
+            <Button
+              context="info"
+              variant="outlined"
+              size="small"
+              rounded
+              onClick={() => setValue('cherry')}
+            >
+              Set Cherry
+            </Button>
+            <Button
+              context="neutral"
+              variant="outlined"
+              size="small"
+              rounded
+              onClick={() => setValue('')}
+            >
+              Clear
+            </Button>
+          </Row>
+        </Col>
+      </Block>
+    )
+  },
+}
+
+export const Required: Story = {
+  render: () => {
+    const [value, setValue] = useState('')
+    const [submitted, setSubmitted] = useState(false)
+    return (
+      <Block padding={16} maxWidth={300}>
+        <form
+          onSubmit={e => {
+            e.preventDefault()
+            setSubmitted(true)
+          }}
+        >
+          <Col gap={spacing.md}>
+            <Label htmlFor="fruit-required">Fruit (required)</Label>
+            <Select
+              id="fruit-required"
+              value={value}
+              onChange={v => {
+                setValue(v)
+                setSubmitted(false)
+              }}
+              options={fruitOptions}
+              placeholder="Choose a fruit"
+              required
+              name="fruit"
+            />
+            <Button type="submit">Submit</Button>
+            {submitted && value && (
+              <Block fontSize={fontSize.xs} color={color.text.muted}>
+                Submitted: {value}
+              </Block>
+            )}
+          </Col>
+        </form>
+      </Block>
+    )
+  },
+}
+
+const longLabelOptions: SelectOption[] = [
+  {
+    value: 'short',
+    label: 'Short',
+  },
+  {
+    value: 'medium-length',
+    label: 'A medium-length option label',
+  },
+  {
+    value: 'long',
+    label:
+      'This is a very long option label that should be truncated ' +
+      'when it exceeds the available width of the select trigger',
+  },
+  {
+    value: 'extra-long',
+    label:
+      'An extremely long option label that goes on and on to test ' +
+      'how the component handles text overflow in both the trigger ' +
+      'and the dropdown list with ellipsis truncation behavior',
+  },
+]
+
+export const LongOptionLabels: Story = {
+  render: () => {
+    const [value, setValue] = useState('long')
+    return (
+      <Block padding={16} maxWidth={250}>
+        <Col gap={spacing.md}>
+          <Label htmlFor="fruit-long">Label truncation</Label>
+          <Select
+            id="fruit-long"
+            value={value}
+            onChange={setValue}
+            options={longLabelOptions}
+          />
+        </Col>
+      </Block>
+    )
+  },
+}
+
+export const Playground: Story = {
+  args: {
+    options: fruitOptions,
+    placeholder: 'Choose a fruit',
+    size: 'medium',
+    disabled: false,
+    required: false,
+    error: false,
+    'aria-label': 'Playground select',
+  },
+  argTypes: {
+    size: {
+      control: 'inline-radio',
+      options: ['small', 'medium', 'large'],
+    },
+    disabled: { control: 'boolean' },
+    required: { control: 'boolean' },
+    error: { control: 'boolean' },
+    placeholder: { control: 'text' },
+    options: { table: { disable: true } },
+    value: { table: { disable: true } },
+    defaultValue: { table: { disable: true } },
+    onChange: { table: { disable: true } },
+    renderOption: { table: { disable: true } },
+    renderValue: { table: { disable: true } },
+    'aria-label': { table: { disable: true } },
+    'aria-labelledby': { table: { disable: true } },
+  },
+}
