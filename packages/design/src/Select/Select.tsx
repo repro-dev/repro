@@ -240,7 +240,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           cursor={isDisabled ? 'not-allowed' : 'pointer'}
           opacity={isDisabled ? 0.5 : 1}
           transition={transition.fast}
-          hoverBorderColor={isDisabled ? undefined : color.border.emphasis}
+          hoverBorderColor={
+            isDisabled ? undefined : error ? color.dangerHover : color.border.emphasis
+          }
           textAlign="left"
           {...focusRing(error ? 'danger' : 'default')}
           props={{
