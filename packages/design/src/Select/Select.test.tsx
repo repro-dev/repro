@@ -1165,6 +1165,87 @@ describe('Select — custom option rendering (REP-300)', () => {
       )
     ).toBe(true)
   })
+
+  it('renderValue controls trigger display instead of renderOption', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value="banana"
+          onChange={() => {}}
+          options={options}
+          aria-label="Fruit"
+          renderOption={option => (
+            <span data-testid={`rich-${option.value}`}>
+              Rich: {option.label}
+            </span>
+          )}
+          renderValue={option => (
+            <span data-testid="trigger-value">Compact: {option.label}</span>
+          )}
+        />
+      </PortalRootProvider>
+    )
+
+    const triggerValue = document.querySelector('[data-testid="trigger-value"]')
+    expect(triggerValue).not.toBeNull()
+    expect(triggerValue!.textContent).toBe('Compact: Banana')
+
+    const richInTrigger = document.querySelector('[data-testid="rich-banana"]')
+    expect(richInTrigger).toBeNull()
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const richInDropdown = document.querySelector('[data-testid="rich-banana"]')
+    expect(richInDropdown).not.toBeNull()
+    expect(richInDropdown!.textContent).toBe('Rich: Banana')
+  })
+
+  it('renderValue is not called when no value is selected', () => {
+    const renderValue = mock.fn()
+
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={options}
+          aria-label="Fruit"
+          placeholder="Pick one"
+          renderValue={renderValue}
+        />
+      </PortalRootProvider>
+    )
+
+    expect(renderValue.mock.callCount()).toBe(0)
+
+    const trigger = document.querySelector('button')!
+    expect(trigger.textContent).toContain('Pick one')
+  })
+
+  it('without renderValue, renderOption is used in the trigger', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value="apple"
+          onChange={() => {}}
+          options={options}
+          aria-label="Fruit"
+          renderOption={option => (
+            <span data-testid={`custom-${option.value}`}>{option.label}!</span>
+          )}
+        />
+      </PortalRootProvider>
+    )
+
+    const customInTrigger = document.querySelector(
+      '[data-testid="custom-apple"]'
+    )
+    expect(customInTrigger).not.toBeNull()
+    expect(customInTrigger!.textContent).toBe('Apple!')
+  })
 })
 
 const groupedOptions: SelectOptionsInput = [

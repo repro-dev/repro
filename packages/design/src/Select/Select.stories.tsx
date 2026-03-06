@@ -431,11 +431,36 @@ export const CustomRenderingWithDescriptions: Story = {
                 </Block>
               </Col>
             )}
+            renderValue={option => option.label}
           />
         </Col>
       </Block>
     )
   },
+}
+
+export const RenderValueUncontrolled: Story = {
+  render: () => (
+    <Block padding={16} maxWidth={350}>
+      <Col gap={spacing.md}>
+        <Label htmlFor="role-uncontrolled">Role (no initial selection)</Label>
+        <Select
+          id="role-uncontrolled"
+          options={roleOptions}
+          placeholder="Assign a role"
+          renderOption={option => (
+            <Col gap={2}>
+              <Block fontWeight={500}>{option.label}</Block>
+              <Block fontSize={fontSize.xs} color={color.text.muted}>
+                {roleDescriptions[option.value]}
+              </Block>
+            </Col>
+          )}
+          renderValue={option => option.label}
+        />
+      </Col>
+    </Block>
+  ),
 }
 
 const planOptions: SelectOption[] = [

@@ -63,6 +63,7 @@ export interface SelectProps {
   name?: string
   error?: boolean
   renderOption?(option: SelectOption, state: SelectOptionState): React.ReactNode
+  renderValue?(option: SelectOption): React.ReactNode
   'aria-label'?: string
   'aria-labelledby'?: string
 }
@@ -156,6 +157,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       name,
       error,
       renderOption,
+      renderValue,
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledBy,
     },
@@ -375,7 +377,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
             flex={1}
           >
             {selectedOption
-              ? renderOption
+              ? renderValue
+                ? renderValue(selectedOption)
+                : renderOption
                 ? renderOption(selectedOption, {
                     isSelected: true,
                     isActive: false,
