@@ -1,6 +1,8 @@
 import { Block, Col } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React, { useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { FormFieldError } from '../FormFieldError/FormFieldError'
 import { Label } from '../Label/Label'
 import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
@@ -225,4 +227,111 @@ export const UncontrolledNoDefault: Story = {
       </Col>
     </Block>
   ),
+}
+
+export const ErrorBoolean: Story = {
+  render: () => {
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <Col gap={spacing.md}>
+          <Label htmlFor="fruit-error-bool">Fruit</Label>
+          <Select
+            id="fruit-error-bool"
+            value={value}
+            onChange={setValue}
+            options={fruitOptions}
+            placeholder="Choose a fruit"
+            error
+          />
+        </Col>
+      </Block>
+    )
+  },
+}
+
+export const ErrorMessage: Story = {
+  render: () => {
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <Col gap={spacing.md}>
+          <Label htmlFor="fruit-error-msg">Fruit</Label>
+          <Select
+            id="fruit-error-msg"
+            value={value}
+            onChange={setValue}
+            options={fruitOptions}
+            placeholder="Choose a fruit"
+            error="Please select a fruit"
+          />
+        </Col>
+      </Block>
+    )
+  },
+}
+
+export const EmptyOptions: Story = {
+  render: () => (
+    <Block padding={16} maxWidth={300}>
+      <Col gap={spacing.md}>
+        <Label htmlFor="fruit-empty">Fruit</Label>
+        <Select
+          id="fruit-empty"
+          value=""
+          onChange={() => {}}
+          options={[]}
+          placeholder="No options available"
+        />
+      </Col>
+    </Block>
+  ),
+}
+
+export const ReactHookForm: Story = {
+  render: () => {
+    const {
+      control,
+      handleSubmit,
+      formState: { errors },
+    } = useForm({ defaultValues: { fruit: '' } })
+    const [submitted, setSubmitted] = useState('')
+
+    return (
+      <Block padding={16} maxWidth={300}>
+        <form
+          onSubmit={handleSubmit(data => {
+            setSubmitted(JSON.stringify(data))
+          })}
+        >
+          <Col gap={spacing.md}>
+            <Label htmlFor="fruit-rhf">Fruit</Label>
+            <Controller
+              name="fruit"
+              control={control}
+              rules={{ required: 'Please select a fruit' }}
+              render={({ field, fieldState }) => (
+                <Select
+                  id="fruit-rhf"
+                  value={field.value}
+                  onChange={field.onChange}
+                  name={field.name}
+                  options={fruitOptions}
+                  placeholder="Choose a fruit"
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
+            {errors.fruit && <FormFieldError error={errors.fruit} />}
+            <button type="submit">Submit</button>
+            {submitted && (
+              <Block fontSize={fontSize.xs} color={color.text.muted}>
+                Submitted: {submitted}
+              </Block>
+            )}
+          </Col>
+        </form>
+      </Block>
+    )
+  },
 }
