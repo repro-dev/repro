@@ -12,7 +12,7 @@ import {
   useTypeahead,
 } from '@floating-ui/react'
 import { Block, Row } from '@jsxstyle/react'
-import { ChevronDown } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 import React, {
   forwardRef,
   useCallback,
@@ -48,6 +48,7 @@ export interface SelectProps {
   disabled?: boolean
   required?: boolean
   name?: string
+  error?: boolean
   'aria-label'?: string
   'aria-labelledby'?: string
 }
@@ -85,12 +86,15 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       disabled = false,
       required = false,
       name,
+      error,
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledBy,
     },
     ref
   ) => {
     const isControlled = valueProp !== undefined
+    const isEmpty = options.length === 0
+    const isDisabled = disabled || isEmpty
     const [internalValue, setInternalValue] = useState(defaultValue ?? '')
     const wasControlledRef = useRef(isControlled)
 
@@ -211,9 +215,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           }
           onChange?.(option.value)
           setIsOpen(false)
+          ;(refs.domReference.current as HTMLElement | null)?.focus()
         }
       },
-      [options, onChange, isControlled]
+      [options, onChange, isControlled, refs]
     )
 
     return (
@@ -226,27 +231,30 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           width="100%"
           padding={`${triggerPaddingV}px ${triggerPaddingH}px`}
           backgroundColor={color.bg.surface}
-          border={`1px solid ${color.border.strong}`}
+          border={`1px solid ${error ? color.danger : color.border.strong}`}
           borderRadius={radius.sm}
           boxShadow={`0 0.5px 1.5px ${color.border.strong}DA`}
           fontSize={triggerFontSize}
           lineHeight={lineHeight.relaxed}
           color={selectedOption ? color.text.default : color.text.muted}
-          cursor={disabled ? 'not-allowed' : 'pointer'}
-          opacity={disabled ? 0.5 : 1}
+          cursor={isDisabled ? 'not-allowed' : 'pointer'}
+          opacity={isDisabled ? 0.5 : 1}
           transition={transition.fast}
-          hoverBorderColor={disabled ? undefined : color.border.emphasis}
+          hoverBorderColor={
+            isDisabled ? undefined : error ? color.dangerHover : color.border.emphasis
+          }
           textAlign="left"
-          {...focusRing()}
+          {...focusRing(error ? 'danger' : 'default')}
           props={{
             ref: mergeRefs([ref, refs.setReference].filter(Boolean)),
             id,
             type: 'button',
-            disabled,
+            disabled: isDisabled,
             'aria-label': ariaLabel,
             'aria-labelledby': ariaLabelledBy,
             'aria-expanded': isOpen,
             'aria-haspopup': 'listbox' as const,
+            'aria-invalid': error ? true : undefined,
             ...getReferenceProps(),
           }}
         >
@@ -281,7 +289,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
             name,
             value: resolvedValue,
             required,
-            disabled,
+            disabled: isDisabled,
             onChange() {},
             tabIndex: -1,
             'aria-hidden': true,
@@ -320,48 +328,77 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                 {options.map((option, index) => {
                   const isSelected = option.value === resolvedValue
                   const isActive = activeIndex === index
-                  const isDisabled = option.disabled === true
+                  const isOptionDisabled = option.disabled === true
 
                   return (
                     <Row
                       key={option.value}
                       component="li"
                       alignItems="center"
+                      justifyContent="space-between"
+                      gap={spacing.sm}
                       padding={`${base}px ${base * 1.5}px`}
                       fontSize={triggerFontSize}
                       lineHeight={lineHeight.relaxed}
                       borderRadius={radius.sm}
-                      cursor={isDisabled ? 'not-allowed' : 'pointer'}
+                      outline="none"
+                      cursor={isOptionDisabled ? 'not-allowed' : 'pointer'}
                       color={
-                        isDisabled
+                        isOptionDisabled
                           ? color.text.muted
                           : isSelected
                           ? color.primary
                           : color.text.default
                       }
                       backgroundColor={
-                        isActive && !isDisabled ? color.bg.hover : 'transparent'
+                        isActive && !isOptionDisabled && isSelected
+                          ? color.primarySubtleHover
+                          : isActive && !isOptionDisabled
+                          ? color.bg.hover
+                          : isSelected
+                          ? color.primarySubtle
+                          : 'transparent'
                       }
-                      opacity={isDisabled ? 0.5 : 1}
-                      transition={transition.fast}
+                      opacity={isOptionDisabled ? 0.5 : 1}
                       props={{
                         ref: (node: HTMLElement | null) => {
                           listRef.current[index] = node
                         },
                         role: 'option',
                         'aria-selected': isSelected,
-                        'aria-disabled': isDisabled || undefined,
-                        tabIndex: !isDisabled && isActive ? 0 : -1,
+                        'aria-disabled': isOptionDisabled || undefined,
+                        tabIndex: !isOptionDisabled && isActive ? 0 : -1,
                         ...getItemProps({
                           onClick: () => {
-                            if (!isDisabled) {
+                            if (!isOptionDisabled) {
+                              handleSelect(index)
+                            }
+                          },
+                          onKeyDown: (e: React.KeyboardEvent) => {
+                            if (
+                              (e.key === 'Enter' || e.key === ' ') &&
+                              !isOptionDisabled
+                            ) {
+                              e.preventDefault()
                               handleSelect(index)
                             }
                           },
                         }),
                       }}
                     >
-                      {option.label}
+                      <Block flex={1}>{option.label}</Block>
+                      {isSelected && (
+                        <Block
+                          flexShrink={0}
+                          display="flex"
+                          alignItems="center"
+                        >
+                          <Check
+                            size={Math.max(base * 1.5, 12)}
+                            color={color.primary}
+                          />
+                        </Block>
+                      )}
                     </Row>
                   )
                 })}

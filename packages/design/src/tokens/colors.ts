@@ -33,6 +33,8 @@ export const color = {
   primaryHover: twColors.blue['800'],
   /** blue-100 — subtle primary tint (backgrounds, chips) */
   primarySubtle: twColors.blue['100'],
+  /** blue-200 — hover state for primarySubtle backgrounds */
+  primarySubtleHover: twColors.blue['200'],
 
   // -------------------------------------------------------------------------
   // Text
