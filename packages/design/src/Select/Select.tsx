@@ -23,13 +23,14 @@ import React, {
   useState,
 } from 'react'
 import mergeRefs from 'react-merge-refs'
+import { FormFieldError } from '../FormFieldError/FormFieldError'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
 import { radius, shadow } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
 import { duration, easing, transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
-import { fontSize, lineHeight, MINIMUM_FONT_SIZE } from '../tokens/typography'
+import { lineHeight, MINIMUM_FONT_SIZE } from '../tokens/typography'
 
 export interface SelectOption {
   value: string
@@ -295,13 +296,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
         />
 
         {typeof error === 'string' && (
-          <Block
-            color={color.danger}
-            fontSize={fontSize.xs}
-            marginTop={spacing.md}
-            props={{ role: 'alert', 'aria-live': 'assertive' }}
-          >
-            {error}
+          <Block marginTop={spacing.md}>
+            <FormFieldError error={{ type: 'validate', message: error }} />
           </Block>
         )}
 
