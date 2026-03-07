@@ -6,13 +6,13 @@ import { radius } from '../tokens/elevation'
 import { spacing } from '../tokens/spacing'
 import { Center } from './Center'
 
-function Placeholder({ label }: { label: string }) {
+const Placeholder: React.FC<{ label: string }> = ({ label }) => {
   return (
     <Block
       padding={spacing.xl}
       backgroundColor={color.bg.muted}
       borderRadius={radius.md}
-      color={color.text.default}
+      color={color.text.inverse}
     >
       {label}
     </Block>

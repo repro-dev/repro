@@ -6,13 +6,13 @@ import { radius } from '../tokens/elevation'
 import { spacing } from '../tokens/spacing'
 import { Stack } from './Stack'
 
-function Placeholder({ label }: { label: string }) {
+const Placeholder: React.FC<{ label: string }> = ({ label }) => {
   return (
     <Block
       padding={spacing.md}
       backgroundColor={color.bg.muted}
       borderRadius={radius.md}
-      color={color.text.default}
+      color={color.text.inverse}
     >
       {label}
     </Block>

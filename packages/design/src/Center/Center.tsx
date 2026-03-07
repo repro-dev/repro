@@ -36,6 +36,7 @@ export const Center = forwardRef<HTMLDivElement, CenterProps>(
         height="100%"
         width="100%"
         maxWidth={maxWidth}
+        margin={maxWidth ? '0 auto' : undefined}
         props={{ ref }}
       >
         {children}

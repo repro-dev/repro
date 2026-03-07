@@ -30,7 +30,7 @@ export interface StackProps {
  *     <SettingsForm />
  *   </Stack>
  */
-export const Stack = forwardRef<HTMLDivElement, StackProps>(
+export const Stack = forwardRef<HTMLElement, StackProps>(
   ({ gap, component, children }, ref) => {
     return (
       <Col component={component} gap={spacing[gap]} props={{ ref }}>
