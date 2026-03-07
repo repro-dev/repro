@@ -94,7 +94,8 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
     >
     const ref = mergeRefs([innerRef, outerRef])
 
-    const fontSize = Math.max(sizes[size] * 1.5, MINIMUM_FONT_SIZE)
+    const base = sizes[size]
+    const fontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
 
     if (process.env['NODE_ENV'] !== 'production') {
       if (!ariaLabel && !ariaLabelledBy && !id) {
@@ -132,7 +133,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
       >
         <Block
           component={rows > 1 ? 'textarea' : 'input'}
-          padding={sizes[size]}
+          padding={`${base}px ${base * 1.5}px`}
           width="100%"
           fontFamily="inherit"
           fontSize={fontSize}
