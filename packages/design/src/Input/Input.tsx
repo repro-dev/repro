@@ -1,29 +1,25 @@
 import { Block } from '@jsxstyle/react'
-import React, {
-  MutableRefObject,
-  forwardRef,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import React, { forwardRef, useRef } from 'react'
+import type { MutableRefObject } from 'react'
 import { UseFormRegisterReturn } from 'react-hook-form'
 import mergeRefs from 'react-merge-refs'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
 import { focusWithinRing } from '../tokens/interaction'
-import { transition } from '../tokens/motion'
-import { spacing } from '../tokens/spacing'
 import { MINIMUM_FONT_SIZE } from '../tokens/typography'
 
 type Context = 'normal' | 'error'
 type Size = 'small' | 'medium' | 'large' | 'xlarge'
 
-interface Props extends Omit<UseFormRegisterReturn, 'ref'> {
+export interface InputProps extends Omit<UseFormRegisterReturn, 'ref'> {
+  'aria-describedby'?: string
+  'aria-label'?: string
+  'aria-labelledby'?: string
   autoComplete?: string
   autoFocus?: boolean
   context?: Context
   disabled?: boolean
-  label?: string
+  id?: string
   placeholder?: string
   rows?: number
   size?: Size
@@ -38,27 +34,30 @@ const sizes = {
 }
 
 /**
- * Form text input with floating label animation and error styling.
+ * Form text input with error styling and react-hook-form integration.
  *
  * Renders a single-line `<input>` by default, or a `<textarea>` when
- * `rows` is greater than 1. Integrates with react-hook-form via
- * `UseFormRegisterReturn` props. Stops keyboard event propagation to
- * prevent conflicts with global shortcuts.
+ * `rows` is greater than 1. Pair with an external `<Label htmlFor>` for
+ * accessible labeling. Stops keyboard event propagation to prevent
+ * conflicts with global shortcuts.
  */
-export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
+export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputProps>(
   (
     {
       autoFocus = false,
       context = 'normal',
       disabled = false,
-      label = '',
       placeholder = '',
       rows = 1,
       size = 'medium',
       type = 'text',
+      id,
       name,
       onBlur,
       onChange,
+      'aria-describedby': ariaDescribedBy,
+      'aria-label': ariaLabel,
+      'aria-labelledby': ariaLabelledBy,
       ...restProps
     },
     outerRef
@@ -68,81 +67,34 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
     >
     const ref = mergeRefs([innerRef, outerRef])
 
-    const [value, setValue] = useState('')
-    const [focused, setFocused] = useState(false)
-    const labelFloated = !label || focused || value !== ''
     const fontSize = Math.max(sizes[size] * 1.5, MINIMUM_FONT_SIZE)
+
+    if (process.env['NODE_ENV'] !== 'production') {
+      if (!ariaLabel && !ariaLabelledBy && !id) {
+        console.warn(
+          'Input: No accessible label provided. Pass `aria-label`, `aria-labelledby`, or `id` (with a corresponding <Label htmlFor>) to ensure screen reader accessibility.'
+        )
+      }
+    }
 
     function preventKeyCapture(evt: React.KeyboardEvent<HTMLElement>) {
       evt.stopPropagation()
     }
 
-    function handleFocus() {
-      setFocused(true)
-    }
-
-    function handleBlur(evt: React.FocusEvent) {
-      onBlur(evt)
-      setFocused(false)
-    }
-
-    function handleChange(
-      evt: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-    ) {
-      onChange(evt)
-      setValue(evt.target.value)
-    }
-
-    useEffect(() => {
-      if (innerRef.current) {
-        setValue(innerRef.current.value)
-      }
-    }, [innerRef, setValue])
-
     return (
       <Block
-        component="label"
         backgroundColor={color.bg.surface}
         borderColor={
-          context === 'error'
-            ? color.danger
-            : focused
-            ? color.border.focus
-            : color.border.strong
+          context === 'error' ? color.danger : color.border.strong
         }
         borderRadius={radius.sm}
         borderStyle="solid"
         borderWidth={1}
         boxShadow={`0 0.5px 1.5px ${color.border.strong}DA`}
-        position="relative"
+        opacity={disabled ? 0.5 : 1}
+        cursor={disabled ? 'not-allowed' : undefined}
         {...focusWithinRing(context === 'error' ? 'danger' : 'default')}
       >
-        {label && (
-          <Block
-            padding={spacing.sm}
-            position="absolute"
-            top={value !== '' || focused ? 0 : fontSize + fontSize / 2}
-            left={sizes[size] - spacing.sm}
-            translate="0 -50%"
-            fontSize={fontSize}
-            lineHeight={1}
-            backgroundColor={color.bg.surface}
-            color={
-              context === 'error'
-                ? color.danger
-                : focused
-                ? color.primary
-                : color.text.muted
-            }
-            pointerEvents="none"
-            scale={value !== '' || focused ? 0.8 : 1}
-            transformOrigin="0 0"
-            transition={transition.fast}
-          >
-            {label}
-          </Block>
-        )}
-
         <Block
           component={rows > 1 ? 'textarea' : 'input'}
           padding={sizes[size]}
@@ -158,19 +110,23 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
           outline="none"
           resize="none"
           isolation="isolate"
+          cursor={disabled ? 'not-allowed' : undefined}
           props={{
+            id,
             name,
             autoFocus,
             disabled,
-            placeholder: labelFloated ? placeholder : undefined,
+            placeholder,
             rows: rows > 1 ? rows : undefined,
             type,
+            'aria-describedby': ariaDescribedBy,
+            'aria-label': ariaLabel,
+            'aria-labelledby': ariaLabelledBy,
             onKeyDown: preventKeyCapture,
             onKeyUp: preventKeyCapture,
             onKeyPress: preventKeyCapture,
-            onFocus: handleFocus,
-            onBlur: handleBlur,
-            onChange: handleChange,
+            onBlur,
+            onChange,
             ref: ref as any,
             ...restProps,
           }}
@@ -179,3 +135,5 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, Props>(
     )
   }
 )
+
+Input.displayName = 'Input'

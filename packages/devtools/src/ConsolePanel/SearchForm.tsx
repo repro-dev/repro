@@ -14,6 +14,7 @@ export const SearchForm: React.FC<Props> = ({ value, onChange }) => {
 
   return (
     <Input
+      aria-label="Filter console logs"
       size="small"
       placeholder="Enter search to filter logs"
       {...register('value', { onChange: evt => onChange(evt.target.value) })}

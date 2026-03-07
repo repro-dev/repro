@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Input, colors } from '@repro/design'
+import { Button, Input, Label, colors, spacing } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { done } from 'fluture'
 import { Block, Col } from '@jsxstyle/react'
@@ -106,39 +106,54 @@ export const RegisterForm: React.FC<Props> = () => {
             </Block>
           )}
 
-          <Input
-            autoFocus={true}
-            label="Company"
-            context={formState.errors.accountName != null ? 'error' : 'normal'}
-            {...register('accountName', { required: true })}
-          />
+          <Col gap={spacing.md}>
+            <Label htmlFor="reg-account">Company</Label>
+            <Input
+              id="reg-account"
+              autoFocus={true}
+              context={formState.errors.accountName != null ? 'error' : 'normal'}
+              {...register('accountName', { required: true })}
+            />
+          </Col>
 
-          <Input
-            label="Your name"
-            context={formState.errors.userName != null ? 'error' : 'normal'}
-            {...register('userName', { required: true })}
-          />
+          <Col gap={spacing.md}>
+            <Label htmlFor="reg-name">Your name</Label>
+            <Input
+              id="reg-name"
+              context={formState.errors.userName != null ? 'error' : 'normal'}
+              {...register('userName', { required: true })}
+            />
+          </Col>
 
-          <Input
-            label="Email"
-            autoComplete="email"
-            context={formState.errors.email != null ? 'error' : 'normal'}
-            {...register('email', { required: true })}
-          />
+          <Col gap={spacing.md}>
+            <Label htmlFor="reg-email">Email</Label>
+            <Input
+              id="reg-email"
+              autoComplete="email"
+              context={formState.errors.email != null ? 'error' : 'normal'}
+              {...register('email', { required: true })}
+            />
+          </Col>
 
-          <Input
-            label="Password"
-            type="password"
-            autoComplete="new-password"
-            {...register('password', { required: true })}
-          />
+          <Col gap={spacing.md}>
+            <Label htmlFor="reg-password">Password</Label>
+            <Input
+              id="reg-password"
+              type="password"
+              autoComplete="new-password"
+              {...register('password', { required: true })}
+            />
+          </Col>
 
-          <Input
-            label="Confirm password"
-            type="password"
-            autoComplete="new-password"
-            {...register('confirmedPassword', { required: true })}
-          />
+          <Col gap={spacing.md}>
+            <Label htmlFor="reg-confirm-password">Confirm password</Label>
+            <Input
+              id="reg-confirm-password"
+              type="password"
+              autoComplete="new-password"
+              {...register('confirmedPassword', { required: true })}
+            />
+          </Col>
 
           <Button
             disabled={!formState.isValid || formState.isSubmitting}
