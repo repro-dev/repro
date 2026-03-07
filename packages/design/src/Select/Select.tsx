@@ -24,6 +24,7 @@ import React, {
   useState,
 } from 'react'
 import mergeRefs from 'react-merge-refs'
+import { useFormFieldContext } from '../FormField/FormFieldContext'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
 import { radius, shadow, zIndex } from '../tokens/elevation'
@@ -139,17 +140,17 @@ function flattenOptions(input: SelectOptionsInput): {
 export const Select = forwardRef<HTMLButtonElement, SelectProps>(
   (
     {
-      id,
+      id: idProp,
       value: valueProp,
       defaultValue,
       onChange,
       options,
       placeholder = 'Select an option',
       size = 'medium',
-      disabled = false,
+      disabled: disabledProp,
       required = false,
       name,
-      error,
+      error: errorProp,
       renderOption,
       renderValue,
       'aria-label': ariaLabel,
@@ -157,6 +158,12 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     },
     ref
   ) => {
+    const fieldCtx = useFormFieldContext()
+
+    const id = idProp ?? fieldCtx?.id
+    const disabled = disabledProp ?? fieldCtx?.disabled ?? false
+    const error = errorProp ?? fieldCtx?.invalid ?? false
+
     const isControlled = valueProp !== undefined
     const { flatItems, flatOptions } = useMemo(
       () => flattenOptions(options),

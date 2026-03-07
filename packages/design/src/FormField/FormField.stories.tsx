@@ -76,7 +76,7 @@ export const WithError: Story = {
         />
         <FormFieldError
           id="email-err-msg"
-          error={{ type: 'required', message: 'Email is required' }}
+          error={{ message: 'Email is required' }}
         />
       </FormField>
     </Block>
@@ -143,6 +143,94 @@ export const WithHelperText: Story = {
         <Block fontSize={fontSize.xs} color={color.text.muted}>
           Must be at least 8 characters
         </Block>
+      </FormField>
+    </Block>
+  ),
+}
+
+export const ContextDrivenInput: Story = {
+  name: 'Context: Input with error',
+  render: () => (
+    <Block maxWidth={300} padding={16}>
+      <FormField invalid required>
+        <Label>Email</Label>
+        <Input {...reg} placeholder="you@example.com" />
+        <FormFieldError error={{ message: 'Email is required' }} />
+      </FormField>
+    </Block>
+  ),
+}
+
+export const ContextDrivenSelect: Story = {
+  name: 'Context: Select with error',
+  render: () => {
+    const [value, setValue] = useState('')
+    return (
+      <Block maxWidth={300} padding={16}>
+        <FormField invalid required>
+          <Label>Fruit</Label>
+          <Select
+            value={value}
+            onChange={setValue}
+            options={fruitOptions}
+            placeholder="Choose a fruit"
+          />
+          <FormFieldError error={{ message: 'A fruit is required' }} />
+        </FormField>
+      </Block>
+    )
+  },
+}
+
+export const ContextRequired: Story = {
+  name: 'Context: Required field',
+  render: () => (
+    <Block maxWidth={300} padding={16}>
+      <FormField required>
+        <Label>Full name</Label>
+        <Input {...reg} placeholder="Jane Doe" />
+      </FormField>
+    </Block>
+  ),
+}
+
+export const ContextDisabled: Story = {
+  name: 'Context: Disabled field',
+  render: () => (
+    <Block maxWidth={300} padding={16}>
+      <FormField disabled>
+        <Label>Email</Label>
+        <Input {...reg} placeholder="you@example.com" />
+      </FormField>
+    </Block>
+  ),
+}
+
+export const ContextExplicitOverride: Story = {
+  name: 'Context: Explicit props override context',
+  render: () => (
+    <Block maxWidth={300} padding={16}>
+      <FormField invalid required disabled>
+        <Label required={false}>Email (not marked required)</Label>
+        <Input
+          {...reg}
+          context="normal"
+          disabled={false}
+          placeholder="Explicit overrides win"
+        />
+      </FormField>
+    </Block>
+  ),
+}
+
+export const ContextWithExplicitId: Story = {
+  name: 'Context: Explicit id override',
+  render: () => (
+    <Block maxWidth={300} padding={16}>
+      <FormField id="custom-email" invalid required>
+        <Label>Email</Label>
+        <Input {...reg} placeholder="you@example.com" />
+        <FormFieldError error={{ message: 'Email is required' }} />
       </FormField>
     </Block>
   ),
