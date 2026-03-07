@@ -25,6 +25,13 @@ const Placeholder: React.FC<{ label: string; height?: number | string }> = ({
   )
 }
 
+/** Dashed outline to delineate structural regions in stories. */
+const regionOutline = {
+  borderWidth: 1,
+  borderStyle: 'dashed' as const,
+  borderColor: color.border.default,
+}
+
 const meta: Meta<typeof PageLayout> = {
   title: 'Components/Layout/PageLayout',
   component: PageLayout,
@@ -42,12 +49,19 @@ export const Default: Story = {
   render: () => (
     <PageLayout>
       <PageLayout.Header>
-        <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
+        <Block
+          {...regionOutline}
+          padding={spacing.lg}
+          color={color.text.default}
+          fontWeight={fontWeight.semibold}
+        >
           Header
         </Block>
       </PageLayout.Header>
       <PageLayout.Body>
-        <Placeholder label="Body content" height={400} />
+        <Block {...regionOutline} padding={spacing.lg}>
+          <Placeholder label="Body content" height={400} />
+        </Block>
       </PageLayout.Body>
     </PageLayout>
   ),
@@ -76,7 +90,12 @@ export const WithSidebar: Story = {
   render: () => (
     <PageLayout>
       <PageLayout.Header>
-        <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
+        <Block
+          {...regionOutline}
+          padding={spacing.lg}
+          color={color.text.default}
+          fontWeight={fontWeight.semibold}
+        >
           Header
         </Block>
       </PageLayout.Header>
@@ -85,7 +104,9 @@ export const WithSidebar: Story = {
           <Placeholder label="Sidebar navigation" />
         </PageLayout.Sidebar>
         <PageLayout.Body>
-          <Placeholder label="Main content area" height={400} />
+          <Block {...regionOutline} padding={spacing.lg}>
+            <Placeholder label="Main content area" height={400} />
+          </Block>
         </PageLayout.Body>
       </Row>
     </PageLayout>
@@ -96,12 +117,19 @@ export const ConstrainedBody: Story = {
   render: () => (
     <PageLayout>
       <PageLayout.Header>
-        <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
+        <Block
+          {...regionOutline}
+          padding={spacing.lg}
+          color={color.text.default}
+          fontWeight={fontWeight.semibold}
+        >
           Header
         </Block>
       </PageLayout.Header>
       <PageLayout.Body maxWidth={720}>
-        <Placeholder label="Constrained to 720px max-width" height={400} />
+        <Block {...regionOutline} padding={spacing.lg}>
+          <Placeholder label="Constrained to 720px max-width" height={400} />
+        </Block>
       </PageLayout.Body>
     </PageLayout>
   ),
@@ -111,7 +139,12 @@ export const CustomSidebarWidth: Story = {
   render: () => (
     <PageLayout>
       <PageLayout.Header>
-        <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
+        <Block
+          {...regionOutline}
+          padding={spacing.lg}
+          color={color.text.default}
+          fontWeight={fontWeight.semibold}
+        >
           Header
         </Block>
       </PageLayout.Header>
@@ -120,7 +153,9 @@ export const CustomSidebarWidth: Story = {
           <Placeholder label="Wide sidebar (360px)" />
         </PageLayout.Sidebar>
         <PageLayout.Body>
-          <Placeholder label="Main content" height={400} />
+          <Block {...regionOutline} padding={spacing.lg}>
+            <Placeholder label="Main content" height={400} />
+          </Block>
         </PageLayout.Body>
       </Row>
     </PageLayout>
