@@ -227,3 +227,5 @@ packages/design/
 7. **div onClick** — Never use `<div onClick>` for interactive controls. Use semantic HTML via jsxstyle's `component` prop (`<Row component="button">`) or native elements.
 
 8. **displayName** — Always set `displayName` on `forwardRef` components for better debugging and Storybook autodocs.
+
+9. **Missing `import React`** — This package uses `"jsx": "react"` (classic transform), so every `.tsx` file must have `import React from 'react'` (or `import React, { useState } from 'react'` etc.). Without it, JSX compiles to `React.createElement` calls that fail at runtime with `React is not defined`. This applies to component files, stories, and tests alike.
