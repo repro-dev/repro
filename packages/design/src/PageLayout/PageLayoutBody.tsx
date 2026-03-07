@@ -25,7 +25,7 @@ export interface PageLayoutBodyProps {
 export const PageLayoutBody = forwardRef<HTMLDivElement, PageLayoutBodyProps>(
   ({ maxWidth, padding = spacing.xl, children }, ref) => {
     return (
-      <Block overflowY="auto" padding={padding} props={{ ref }}>
+      <Block overflowY="auto" flex={1} padding={padding} props={{ ref }}>
         <Block
           maxWidth={maxWidth}
           margin={maxWidth ? '0 auto' : undefined}

@@ -1,7 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
-import { color } from '../tokens/colors'
+import { color, colors } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
 import { spacing } from '../tokens/spacing'
 import { fontSize, fontWeight } from '../tokens/typography'
@@ -57,7 +57,7 @@ export const WithGradientHeader: Story = {
   render: () => (
     <PageLayout>
       <PageLayout.Header
-        gradient={{ from: '#1e3a5f', to: '#1d4ed8' }}
+        gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
       >
         <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
           Gradient Header

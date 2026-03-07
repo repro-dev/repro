@@ -30,14 +30,12 @@ export interface PageLayoutHeaderProps {
  *     <Logo />
  *   </PageLayout.Header>
  */
-export const PageLayoutHeader = forwardRef<HTMLDivElement, PageLayoutHeaderProps>(
+export const PageLayoutHeader = forwardRef<
+  HTMLDivElement,
+  PageLayoutHeaderProps
+>(
   (
-    {
-      gradient,
-      backgroundColor = color.bg.emphasis,
-      height = 120,
-      children,
-    },
+    { gradient, backgroundColor = color.bg.emphasis, height = 120, children },
     ref
   ) => {
     const backgroundImage = gradient

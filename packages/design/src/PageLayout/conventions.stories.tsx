@@ -1,7 +1,8 @@
 import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
-import { color } from '../tokens/colors'
+import { Center } from '../Center'
+import { color, colors } from '../tokens/colors'
 import { radius, shadow } from '../tokens/elevation'
 import { spacing } from '../tokens/spacing'
 import { fontSize, fontWeight, textStyles } from '../tokens/typography'
@@ -85,7 +86,7 @@ export const AppShell: Story = {
   render: () => (
     <PageLayout>
       <PageLayout.Header
-        gradient={{ from: '#1e3a5f', to: '#1d4ed8' }}
+        gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
       >
         <Row alignItems="center" gap={spacing.xl}>
           <Block
@@ -120,39 +121,38 @@ export const AppShell: Story = {
 export const AuthCentered: Story = {
   name: 'auth-centered',
   render: () => (
-    <Grid
-      height="100vh"
-      alignItems="center"
-      justifyContent="center"
-      backgroundColor={color.bg.subtle}
-    >
-      <Col alignItems="flex-start" gap={spacing['2xl']}>
-        <Block
-          fontWeight={fontWeight.bold}
-          fontSize={fontSize.lg}
-          color={color.text.default}
-          paddingH={spacing.md}
-        >
-          App Logo
-        </Block>
-        <Block
-          backgroundColor={color.bg.surface}
-          borderRadius={radius.md}
-          boxShadow={shadow.md}
-          padding={spacing['3xl']}
-          width={400}
-        >
-          <Col gap={spacing.xl}>
-            <Block {...textStyles.heading2} color={color.text.default}>
-              Sign In
+    <PageLayout>
+      <Block gridRow="1 / -1" backgroundColor={color.bg.subtle}>
+        <Center>
+          <Col alignItems="flex-start" gap={spacing['2xl']}>
+            <Block
+              fontWeight={fontWeight.bold}
+              fontSize={fontSize.lg}
+              color={color.text.default}
+              paddingH={spacing.md}
+            >
+              App Logo
             </Block>
-            <Placeholder label="Email input" />
-            <Placeholder label="Password input" />
-            <Placeholder label="Submit button" height={40} />
+            <Block
+              backgroundColor={color.bg.surface}
+              borderRadius={radius.md}
+              boxShadow={shadow.md}
+              padding={spacing['3xl']}
+              width={400}
+            >
+              <Col gap={spacing.xl}>
+                <Block {...textStyles.heading2} color={color.text.default}>
+                  Sign In
+                </Block>
+                <Placeholder label="Email input" />
+                <Placeholder label="Password input" />
+                <Placeholder label="Submit button" height={40} />
+              </Col>
+            </Block>
           </Col>
-        </Block>
-      </Col>
-    </Grid>
+        </Center>
+      </Block>
+    </PageLayout>
   ),
 }
 
@@ -190,13 +190,13 @@ export const ContentSidebar: Story = {
         </Block>
       </PageLayout.Header>
       <Row height="100%" overflow="hidden">
-        <Block flex={1} overflowY="auto" padding={spacing.xl}>
+        <PageLayout.Body>
           <Placeholder label="Recording player / main content" height={400} />
           <Block marginTop={spacing.xl}>
             <Placeholder label="Timeline" height={80} />
           </Block>
-        </Block>
-        <PageLayout.Sidebar width={320}>
+        </PageLayout.Body>
+        <PageLayout.Sidebar width={320} borderSide="left">
           <Col gap={spacing.xl}>
             <Block {...textStyles.label} color={color.text.default}>
               Metadata
@@ -216,7 +216,7 @@ export const DashboardGrid: Story = {
   render: () => (
     <PageLayout>
       <PageLayout.Header
-        gradient={{ from: '#1e3a5f', to: '#1d4ed8' }}
+        gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
       >
         <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
           Dashboard

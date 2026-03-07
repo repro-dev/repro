@@ -5,7 +5,10 @@ import { PageLayoutSidebar } from './PageLayoutSidebar'
 
 export type { PageLayoutProps } from './PageLayout'
 export type { PageLayoutBodyProps } from './PageLayoutBody'
-export type { PageLayoutHeaderProps, PageLayoutHeaderGradient } from './PageLayoutHeader'
+export type {
+  PageLayoutHeaderGradient,
+  PageLayoutHeaderProps,
+} from './PageLayoutHeader'
 export type { PageLayoutSidebarProps } from './PageLayoutSidebar'
 
 export const PageLayout = Object.assign(PageLayoutRoot, {
