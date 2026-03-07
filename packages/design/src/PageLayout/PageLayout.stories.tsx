@@ -1,36 +1,11 @@
-import { Block, Row } from '@jsxstyle/react'
+import { Block, Col, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
+import { Card } from '../Card'
 import { color, colors } from '../tokens/colors'
-import { radius } from '../tokens/elevation'
 import { spacing } from '../tokens/spacing'
 import { fontSize, fontWeight } from '../tokens/typography'
 import { PageLayout } from './index'
-
-const Placeholder: React.FC<{ label: string; height?: number | string }> = ({
-  label,
-  height = 'auto',
-}) => {
-  return (
-    <Block
-      padding={spacing.xl}
-      backgroundColor={color.bg.subtle}
-      borderRadius={radius.md}
-      color={color.text.secondary}
-      height={height}
-      fontSize={fontSize.sm}
-    >
-      {label}
-    </Block>
-  )
-}
-
-/** Dashed outline to delineate structural regions in stories. */
-const regionOutline = {
-  borderWidth: 1,
-  borderStyle: 'dashed' as const,
-  borderColor: color.border.default,
-}
 
 const meta: Meta<typeof PageLayout> = {
   title: 'Components/Layout/PageLayout',
@@ -48,20 +23,17 @@ type Story = StoryObj<typeof PageLayout>
 export const Default: Story = {
   render: () => (
     <PageLayout>
-      <PageLayout.Header>
-        <Block
-          {...regionOutline}
-          padding={spacing.lg}
-          color={color.text.default}
-          fontWeight={fontWeight.semibold}
-        >
+      <PageLayout.Header backgroundColor={color.bg.subtle}>
+        <Block color={color.text.default} fontWeight={fontWeight.semibold}>
           Header
         </Block>
       </PageLayout.Header>
       <PageLayout.Body>
-        <Block {...regionOutline} padding={spacing.lg}>
-          <Placeholder label="Body content" height={400} />
-        </Block>
+        <Card>
+          <Block color={color.text.secondary} fontSize={fontSize.sm}>
+            Body content
+          </Block>
+        </Card>
       </PageLayout.Body>
     </PageLayout>
   ),
@@ -80,7 +52,11 @@ export const WithGradientHeader: Story = {
         </Block>
       </PageLayout.Header>
       <PageLayout.Body>
-        <Placeholder label="Body content" height={400} />
+        <Card>
+          <Block color={color.text.secondary} fontSize={fontSize.sm}>
+            Body content
+          </Block>
+        </Card>
       </PageLayout.Body>
     </PageLayout>
   ),
@@ -89,24 +65,25 @@ export const WithGradientHeader: Story = {
 export const WithSidebar: Story = {
   render: () => (
     <PageLayout>
-      <PageLayout.Header>
-        <Block
-          {...regionOutline}
-          padding={spacing.lg}
-          color={color.text.default}
-          fontWeight={fontWeight.semibold}
-        >
+      <PageLayout.Header backgroundColor={color.bg.subtle}>
+        <Block color={color.text.default} fontWeight={fontWeight.semibold}>
           Header
         </Block>
       </PageLayout.Header>
       <Row height="100%" overflow="hidden">
         <PageLayout.Sidebar>
-          <Placeholder label="Sidebar navigation" />
+          <Col gap={spacing.md}>
+            <Block color={color.text.secondary} fontSize={fontSize.sm}>
+              Sidebar navigation
+            </Block>
+          </Col>
         </PageLayout.Sidebar>
         <PageLayout.Body>
-          <Block {...regionOutline} padding={spacing.lg}>
-            <Placeholder label="Main content area" height={400} />
-          </Block>
+          <Card>
+            <Block color={color.text.secondary} fontSize={fontSize.sm}>
+              Main content area
+            </Block>
+          </Card>
         </PageLayout.Body>
       </Row>
     </PageLayout>
@@ -116,20 +93,17 @@ export const WithSidebar: Story = {
 export const ConstrainedBody: Story = {
   render: () => (
     <PageLayout>
-      <PageLayout.Header>
-        <Block
-          {...regionOutline}
-          padding={spacing.lg}
-          color={color.text.default}
-          fontWeight={fontWeight.semibold}
-        >
+      <PageLayout.Header backgroundColor={color.bg.subtle}>
+        <Block color={color.text.default} fontWeight={fontWeight.semibold}>
           Header
         </Block>
       </PageLayout.Header>
       <PageLayout.Body maxWidth={720}>
-        <Block {...regionOutline} padding={spacing.lg}>
-          <Placeholder label="Constrained to 720px max-width" height={400} />
-        </Block>
+        <Card>
+          <Block color={color.text.secondary} fontSize={fontSize.sm}>
+            Constrained to 720px max-width
+          </Block>
+        </Card>
       </PageLayout.Body>
     </PageLayout>
   ),
@@ -138,24 +112,23 @@ export const ConstrainedBody: Story = {
 export const CustomSidebarWidth: Story = {
   render: () => (
     <PageLayout>
-      <PageLayout.Header>
-        <Block
-          {...regionOutline}
-          padding={spacing.lg}
-          color={color.text.default}
-          fontWeight={fontWeight.semibold}
-        >
+      <PageLayout.Header backgroundColor={color.bg.subtle}>
+        <Block color={color.text.default} fontWeight={fontWeight.semibold}>
           Header
         </Block>
       </PageLayout.Header>
       <Row height="100%" overflow="hidden">
         <PageLayout.Sidebar width={360}>
-          <Placeholder label="Wide sidebar (360px)" />
+          <Block color={color.text.secondary} fontSize={fontSize.sm}>
+            Wide sidebar (360px)
+          </Block>
         </PageLayout.Sidebar>
         <PageLayout.Body>
-          <Block {...regionOutline} padding={spacing.lg}>
-            <Placeholder label="Main content" height={400} />
-          </Block>
+          <Card>
+            <Block color={color.text.secondary} fontSize={fontSize.sm}>
+              Main content
+            </Block>
+          </Card>
         </PageLayout.Body>
       </Row>
     </PageLayout>
