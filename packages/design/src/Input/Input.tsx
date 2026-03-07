@@ -2,6 +2,7 @@ import { Block } from '@jsxstyle/react'
 import React, { forwardRef, useRef } from 'react'
 import type { MutableRefObject } from 'react'
 import mergeRefs from 'react-merge-refs'
+import { useFormFieldContext } from '../FormField/FormFieldContext'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
 import { focusWithinRing } from '../tokens/interaction'
@@ -12,6 +13,7 @@ type Size = 'small' | 'medium' | 'large' | 'xlarge'
 
 export interface InputProps {
   'aria-describedby'?: string
+  'aria-invalid'?: boolean
   'aria-label'?: string
   'aria-labelledby'?: string
   autoComplete?: string
@@ -48,28 +50,45 @@ const sizes = {
  * `rows` is greater than 1. Pair with an external `<Label htmlFor>` for
  * accessible labeling. Stops keyboard event propagation to prevent
  * conflicts with global shortcuts.
+ *
+ * When used inside a `FormField`, `id`, `aria-describedby`,
+ * `aria-invalid`, `context`, and `disabled` are automatically provided
+ * via context. Explicit props always override context values.
  */
 export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputProps>(
   (
     {
       autoFocus = false,
-      context = 'normal',
-      disabled = false,
+      context: contextProp,
+      disabled: disabledProp,
       placeholder = '',
       rows = 1,
       size = 'medium',
       type = 'text',
-      id,
+      id: idProp,
       name,
       onBlur,
       onChange,
-      'aria-describedby': ariaDescribedBy,
+      'aria-describedby': ariaDescribedByProp,
+      'aria-invalid': ariaInvalidProp,
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledBy,
       ...restProps
     },
     outerRef
   ) => {
+    const fieldCtx = useFormFieldContext()
+
+    const id = idProp ?? fieldCtx?.id
+    const disabled = disabledProp ?? fieldCtx?.disabled ?? false
+    const context =
+      contextProp ?? (fieldCtx?.invalid ? 'error' : 'normal')
+    const ariaInvalid =
+      ariaInvalidProp ?? (fieldCtx?.invalid ? true : undefined)
+    const ariaDescribedBy =
+      ariaDescribedByProp ??
+      (fieldCtx?.invalid ? fieldCtx.errorId : undefined)
+
     const innerRef = useRef() as MutableRefObject<
       HTMLInputElement | HTMLTextAreaElement
     >
@@ -128,6 +147,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
             rows: rows > 1 ? rows : undefined,
             type,
             'aria-describedby': ariaDescribedBy,
+            'aria-invalid': ariaInvalid,
             'aria-label': ariaLabel,
             'aria-labelledby': ariaLabelledBy,
             onKeyDown: preventKeyCapture,

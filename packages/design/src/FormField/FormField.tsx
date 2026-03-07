@@ -1,12 +1,16 @@
 import { Col } from '@jsxstyle/react'
-import React, { forwardRef, PropsWithChildren } from 'react'
+import React, { forwardRef, PropsWithChildren, useId, useMemo } from 'react'
 import { spacing } from '../tokens/spacing'
+import {
+  FormFieldProvider,
+  type FormFieldContextValue,
+} from './FormFieldContext'
 
 export interface FormFieldProps {
-  /**
-   * Props reserved for future extension. The `FormField` component currently
-   * does not accept any additional props beyond `children`.
-   */
+  id?: string
+  invalid?: boolean
+  required?: boolean
+  disabled?: boolean
 }
 
 /**
@@ -17,21 +21,51 @@ export interface FormFieldProps {
  * message. Children are composed freely — any combination of `Label`,
  * `Input`, `Select`, `FormFieldError`, or helper text.
  *
+ * When `invalid`, `required`, or `disabled` props are passed, a
+ * `FormFieldContext` is provided to children so they can auto-wire
+ * `id`/`htmlFor`, `aria-describedby`, `aria-invalid`, required
+ * indicators, and disabled state without manual prop drilling.
+ *
  * @example
  * ```tsx
- * <FormField>
- *   <Label htmlFor="email">Email</Label>
- *   <Input id="email" {...register('email')} />
+ * <FormField invalid={!!errors.email} required>
+ *   <Label>Email</Label>
+ *   <Input {...register('email')} />
  *   <FormFieldError error={errors.email} />
  * </FormField>
  * ```
  */
 export const FormField = forwardRef<HTMLDivElement, PropsWithChildren<FormFieldProps>>(
-  ({ children }, ref) => {
+  (
+    {
+      children,
+      id: idProp,
+      invalid = false,
+      required = false,
+      disabled = false,
+    },
+    ref
+  ) => {
+    const generatedId = useId()
+    const id = idProp ?? generatedId
+
+    const ctx = useMemo<FormFieldContextValue>(
+      () => ({
+        id,
+        errorId: `${id}-error`,
+        invalid,
+        required,
+        disabled,
+      }),
+      [id, invalid, required, disabled]
+    )
+
     return (
-      <Col props={{ ref }} gap={spacing.md}>
-        {children}
-      </Col>
+      <FormFieldProvider value={ctx}>
+        <Col props={{ ref }} gap={spacing.md}>
+          {children}
+        </Col>
+      </FormFieldProvider>
     )
   }
 )
