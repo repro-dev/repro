@@ -6,8 +6,9 @@ import { fontSize, fontWeight } from '../tokens/typography'
 interface Props {
   /**
    * The field error to display. Only the `message` property is read.
+   * When `undefined` or when `message` is falsy, nothing is rendered.
    */
-  error: { message?: string }
+  error?: { message?: string }
   /**
    * An optional id for this element.
    * Pass this id to the associated input's `aria-describedby` so screen readers
@@ -22,8 +23,14 @@ interface Props {
  * Use below a form field to show validation errors. Announces the error
  * to screen readers via `role="alert"` and `aria-live="assertive"`. Pass
  * `id` and link it to the input's `aria-describedby` for full accessibility.
+ *
+ * Renders nothing when `error` is `undefined` or has no `message`.
  */
 export const FormFieldError: React.FC<Props> = ({ error, id }) => {
+  if (!error?.message) {
+    return null
+  }
+
   return (
     <Block
       id={id}
