@@ -6,10 +6,11 @@ import { useFormFieldContext } from '../FormField/FormFieldContext'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
 import { focusWithinRing } from '../tokens/interaction'
+import { transition } from '../tokens/motion'
 import { MINIMUM_FONT_SIZE } from '../tokens/typography'
 
 type Context = 'normal' | 'error'
-type Size = 'small' | 'medium' | 'large' | 'xlarge'
+type Size = 'small' | 'medium' | 'large'
 
 export interface InputProps {
   'aria-describedby'?: string
@@ -38,9 +39,8 @@ export interface InputProps {
 
 const sizes = {
   small: 6,
-  medium: 10,
-  large: 12,
-  xlarge: 16,
+  medium: 8,
+  large: 10,
 }
 
 /**
@@ -94,7 +94,8 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
     >
     const ref = mergeRefs([innerRef, outerRef])
 
-    const fontSize = Math.max(sizes[size] * 1.5, MINIMUM_FONT_SIZE)
+    const base = sizes[size]
+    const fontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
 
     if (process.env['NODE_ENV'] !== 'production') {
       if (!ariaLabel && !ariaLabelledBy && !id) {
@@ -120,11 +121,19 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
         boxShadow={`0 0.5px 1.5px ${color.border.strong}DA`}
         opacity={disabled ? 0.5 : 1}
         cursor={disabled ? 'not-allowed' : undefined}
+        transition={transition.fast}
+        hoverBorderColor={
+          disabled
+            ? undefined
+            : context === 'error'
+            ? color.dangerHover
+            : color.border.emphasis
+        }
         {...focusWithinRing(context === 'error' ? 'danger' : 'default')}
       >
         <Block
           component={rows > 1 ? 'textarea' : 'input'}
-          padding={sizes[size]}
+          padding={`${base}px ${base * 1.5}px`}
           width="100%"
           fontFamily="inherit"
           fontSize={fontSize}

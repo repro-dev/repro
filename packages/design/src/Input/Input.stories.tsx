@@ -158,7 +158,7 @@ export const Textarea: Story = {
   ),
 }
 
-const sizeVariants = ['small', 'medium', 'large', 'xlarge'] as const
+const sizeVariants = ['small', 'medium', 'large'] as const
 
 export const Sizes: Story = {
   render: () => (
@@ -176,7 +176,7 @@ export const Sizes: Story = {
           </Block>
           <Block flex={1}>
             <FormField>
-              <Label htmlFor={`size-${s}`} size={s === 'xlarge' ? 'large' : s}>Label ({s})</Label>
+              <Label htmlFor={`size-${s}`} size={s}>Label ({s})</Label>
               <Input {...reg} id={`size-${s}`} size={s} />
             </FormField>
           </Block>

@@ -124,3 +124,39 @@ export const Interactive: Story = {
     )
   },
 }
+
+/** Disabled state — dimmed with no interaction */
+export const Disabled: Story = {
+  args: {
+    label: 'Cannot change',
+    checked: false,
+    size: 'medium',
+    disabled: true,
+  },
+}
+
+export const DisabledChecked: Story = {
+  args: {
+    label: 'Locked on',
+    checked: true,
+    size: 'medium',
+    disabled: true,
+  },
+}
+
+export const DisabledToggleTest: Story = {
+  args: {
+    label: 'Disabled toggle',
+    checked: false,
+    size: 'medium',
+    disabled: true,
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const toggle = canvas.getByRole('switch')
+
+    await expect(toggle).toBeDisabled()
+    await userEvent.click(toggle)
+    await expect(args.onChange).not.toHaveBeenCalled()
+  },
+}
