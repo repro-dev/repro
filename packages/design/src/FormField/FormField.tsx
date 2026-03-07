@@ -4,8 +4,8 @@ import { spacing } from '../tokens/spacing'
 
 export interface FormFieldProps {
   /**
-   * Additional CSS class name. Intentionally not exposed — use the
-   * component's layout props or wrap it in a jsxstyle primitive instead.
+   * Props reserved for future extension. The `FormField` component currently
+   * does not accept any additional props beyond `children`.
    */
 }
 
