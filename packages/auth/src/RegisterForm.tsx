@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Input, Label, colors, spacing } from '@repro/design'
+import { Button, FormField, Input, Label, colors } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { done } from 'fluture'
 import { Block, Col } from '@jsxstyle/react'
@@ -106,7 +106,7 @@ export const RegisterForm: React.FC<Props> = () => {
             </Block>
           )}
 
-          <Col gap={spacing.md}>
+          <FormField>
             <Label htmlFor="reg-account">Company</Label>
             <Input
               id="reg-account"
@@ -114,18 +114,18 @@ export const RegisterForm: React.FC<Props> = () => {
               context={formState.errors.accountName != null ? 'error' : 'normal'}
               {...register('accountName', { required: true })}
             />
-          </Col>
+          </FormField>
 
-          <Col gap={spacing.md}>
+          <FormField>
             <Label htmlFor="reg-name">Your name</Label>
             <Input
               id="reg-name"
               context={formState.errors.userName != null ? 'error' : 'normal'}
               {...register('userName', { required: true })}
             />
-          </Col>
+          </FormField>
 
-          <Col gap={spacing.md}>
+          <FormField>
             <Label htmlFor="reg-email">Email</Label>
             <Input
               id="reg-email"
@@ -133,9 +133,9 @@ export const RegisterForm: React.FC<Props> = () => {
               context={formState.errors.email != null ? 'error' : 'normal'}
               {...register('email', { required: true })}
             />
-          </Col>
+          </FormField>
 
-          <Col gap={spacing.md}>
+          <FormField>
             <Label htmlFor="reg-password">Password</Label>
             <Input
               id="reg-password"
@@ -143,9 +143,9 @@ export const RegisterForm: React.FC<Props> = () => {
               autoComplete="new-password"
               {...register('password', { required: true })}
             />
-          </Col>
+          </FormField>
 
-          <Col gap={spacing.md}>
+          <FormField>
             <Label htmlFor="reg-confirm-password">Confirm password</Label>
             <Input
               id="reg-confirm-password"
@@ -153,7 +153,7 @@ export const RegisterForm: React.FC<Props> = () => {
               autoComplete="new-password"
               {...register('confirmedPassword', { required: true })}
             />
-          </Col>
+          </FormField>
 
           <Button
             disabled={!formState.isValid || formState.isSubmitting}

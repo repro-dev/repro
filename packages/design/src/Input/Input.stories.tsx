@@ -1,7 +1,8 @@
-import { Col, Grid, Row, Block } from '@jsxstyle/react'
+import { Block, Grid, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { expect, fn, userEvent, within } from 'storybook/test'
+import { FormField } from '../FormField'
 import { Label } from '../Label'
 import { FormFieldError } from '../FormFieldError'
 import { color } from '../tokens/colors'
@@ -38,10 +39,10 @@ export const Default: Story = {
     disabled: false,
   },
   render: args => (
-    <Col gap={spacing.md}>
+    <FormField>
       <Label htmlFor="email-input">Email</Label>
       <Input {...args} />
-    </Col>
+    </FormField>
   ),
 }
 
@@ -54,10 +55,10 @@ export const FocusAndTypeTest: Story = {
     context: 'normal',
   },
   render: args => (
-    <Col gap={spacing.md}>
+    <FormField>
       <Label htmlFor="email-focus-test">Email</Label>
       <Input {...args} />
-    </Col>
+    </FormField>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
@@ -83,10 +84,10 @@ export const WithLabel: Story = {
     size: 'medium',
   },
   render: args => (
-    <Col gap={spacing.md}>
+    <FormField>
       <Label htmlFor="username-input">Username</Label>
       <Input {...args} />
-    </Col>
+    </FormField>
   ),
 }
 
@@ -98,12 +99,12 @@ export const WithOptionalLabel: Story = {
     placeholder: 'Tell us about yourself...',
   },
   render: args => (
-    <Col gap={spacing.md}>
+    <FormField>
       <Label htmlFor="bio-input" optional>
         Bio
       </Label>
       <Input {...args} />
-    </Col>
+    </FormField>
   ),
 }
 
@@ -115,14 +116,14 @@ export const ErrorContext: Story = {
     size: 'medium',
   },
   render: args => (
-    <Col gap={spacing.md}>
+    <FormField>
       <Label htmlFor="email-error">Email</Label>
       <Input {...args} />
       <FormFieldError
         id="email-error-msg"
         error={{ type: 'required', message: 'Email is required' }}
       />
-    </Col>
+    </FormField>
   ),
 }
 
@@ -134,10 +135,10 @@ export const Disabled: Story = {
     size: 'medium',
   },
   render: args => (
-    <Col gap={spacing.md}>
+    <FormField>
       <Label htmlFor="disabled-input">Disabled field</Label>
       <Input {...args} />
-    </Col>
+    </FormField>
   ),
 }
 
@@ -150,10 +151,10 @@ export const Textarea: Story = {
     placeholder: 'Tell us more...',
   },
   render: args => (
-    <Col gap={spacing.md}>
+    <FormField>
       <Label htmlFor="description-input">Description</Label>
       <Input {...args} />
-    </Col>
+    </FormField>
   ),
 }
 
@@ -161,7 +162,7 @@ const sizeVariants = ['small', 'medium', 'large', 'xlarge'] as const
 
 export const Sizes: Story = {
   render: () => (
-    <Col gap={spacing.lg} padding={spacing.lg}>
+    <Block display="flex" flexDirection="column" gap={spacing.lg} padding={spacing.lg}>
       {sizeVariants.map(s => (
         <Row key={s} gap={spacing.md} alignItems="start">
           <Block
@@ -173,27 +174,29 @@ export const Sizes: Story = {
           >
             {s}
           </Block>
-          <Col flex={1} gap={spacing.md}>
-            <Label htmlFor={`size-${s}`} size={s === 'xlarge' ? 'large' : s}>Label ({s})</Label>
-            <Input {...reg} id={`size-${s}`} size={s} />
-          </Col>
+          <Block flex={1}>
+            <FormField>
+              <Label htmlFor={`size-${s}`} size={s === 'xlarge' ? 'large' : s}>Label ({s})</Label>
+              <Input {...reg} id={`size-${s}`} size={s} />
+            </FormField>
+          </Block>
         </Row>
       ))}
-    </Col>
+    </Block>
   ),
 }
 
 export const Contexts: Story = {
   render: () => (
     <Grid gridTemplateColumns="1fr 1fr" gap={spacing.lg} padding={spacing.lg}>
-      <Col gap={spacing.md}>
+      <FormField>
         <Label htmlFor="ctx-normal">Normal</Label>
         <Input {...reg} id="ctx-normal" context="normal" />
-      </Col>
-      <Col gap={spacing.md}>
+      </FormField>
+      <FormField>
         <Label htmlFor="ctx-error">Error</Label>
         <Input {...reg} id="ctx-error" context="error" />
-      </Col>
+      </FormField>
     </Grid>
   ),
 }

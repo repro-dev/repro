@@ -5,6 +5,7 @@ import React, { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { Button } from '../Button/Button'
 import { Drawer } from '../Drawer/Drawer'
+import { FormField } from '../FormField/FormField'
 import { FormFieldError } from '../FormFieldError/FormFieldError'
 import { Label } from '../Label/Label'
 import { Modal } from '../Modal/Modal'
@@ -62,7 +63,7 @@ export const Default: Story = {
     const [value, setValue] = useState('')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="fruit-select">Fruit</Label>
           <Select
             id="fruit-select"
@@ -71,7 +72,7 @@ export const Default: Story = {
             options={fruitOptions}
             placeholder="Choose a fruit"
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },
@@ -82,7 +83,7 @@ export const WithSelection: Story = {
     const [value, setValue] = useState('cherry')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="fruit-preselected">Fruit</Label>
           <Select
             id="fruit-preselected"
@@ -90,7 +91,7 @@ export const WithSelection: Story = {
             onChange={setValue}
             options={fruitOptions}
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },
@@ -99,7 +100,7 @@ export const WithSelection: Story = {
 export const Disabled: Story = {
   render: () => (
     <Block padding={16} maxWidth={300}>
-      <Col gap={spacing.md}>
+      <FormField>
         <Label htmlFor="fruit-disabled">Fruit</Label>
         <Select
           id="fruit-disabled"
@@ -108,7 +109,7 @@ export const Disabled: Story = {
           options={fruitOptions}
           disabled
         />
-      </Col>
+      </FormField>
     </Block>
   ),
 }
@@ -118,7 +119,7 @@ export const DisabledOptions: Story = {
     const [value, setValue] = useState('active')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="status-select">Status</Label>
           <Select
             id="status-select"
@@ -126,7 +127,7 @@ export const DisabledOptions: Story = {
             onChange={setValue}
             options={withDisabledOptions}
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },
@@ -137,7 +138,7 @@ export const LongList: Story = {
     const [value, setValue] = useState('')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="country-select">Country</Label>
           <Select
             id="country-select"
@@ -146,7 +147,7 @@ export const LongList: Story = {
             options={countryOptions}
             placeholder="Select a country"
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },
@@ -173,7 +174,7 @@ export const Sizes: Story = {
             >
               {s}
             </Block>
-            <Col gap={spacing.md}>
+            <FormField>
               <Label htmlFor={`fruit-${s}`} size={s}>
                 Fruit ({s})
               </Label>
@@ -184,7 +185,7 @@ export const Sizes: Story = {
                 options={fruitOptions}
                 size={s}
               />
-            </Col>
+            </FormField>
           </Block>
         ))}
       </Col>
@@ -212,14 +213,14 @@ export const WithAriaLabel: Story = {
 export const Uncontrolled: Story = {
   render: () => (
     <Block padding={16} maxWidth={300}>
-      <Col gap={spacing.md}>
+      <FormField>
         <Label htmlFor="fruit-uncontrolled">Fruit</Label>
         <Select
           id="fruit-uncontrolled"
           defaultValue="banana"
           options={fruitOptions}
         />
-      </Col>
+      </FormField>
     </Block>
   ),
 }
@@ -227,14 +228,14 @@ export const Uncontrolled: Story = {
 export const UncontrolledNoDefault: Story = {
   render: () => (
     <Block padding={16} maxWidth={300}>
-      <Col gap={spacing.md}>
+      <FormField>
         <Label htmlFor="fruit-uncontrolled-empty">Fruit</Label>
         <Select
           id="fruit-uncontrolled-empty"
           options={fruitOptions}
           placeholder="Pick a fruit..."
         />
-      </Col>
+      </FormField>
     </Block>
   ),
 }
@@ -244,7 +245,7 @@ export const ErrorBoolean: Story = {
     const [value, setValue] = useState('')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="fruit-error-bool">Fruit</Label>
           <Select
             id="fruit-error-bool"
@@ -254,7 +255,7 @@ export const ErrorBoolean: Story = {
             placeholder="Choose a fruit"
             error
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },
@@ -265,7 +266,7 @@ export const ErrorWithMessage: Story = {
     const [value, setValue] = useState('')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="fruit-error-msg">Fruit</Label>
           <Select
             id="fruit-error-msg"
@@ -278,7 +279,7 @@ export const ErrorWithMessage: Story = {
           <FormFieldError
             error={{ type: 'required', message: 'Please select a fruit' }}
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },
@@ -287,7 +288,7 @@ export const ErrorWithMessage: Story = {
 export const EmptyOptions: Story = {
   render: () => (
     <Block padding={16} maxWidth={300}>
-      <Col gap={spacing.md}>
+      <FormField>
         <Label htmlFor="fruit-empty">Fruit</Label>
         <Select
           id="fruit-empty"
@@ -296,7 +297,7 @@ export const EmptyOptions: Story = {
           options={[]}
           placeholder="No options available"
         />
-      </Col>
+      </FormField>
     </Block>
   ),
 }
@@ -316,28 +317,30 @@ export const ReactHookForm: Story = {
           })}
         >
           <Col gap={spacing.md}>
-            <Label htmlFor="fruit-rhf">Fruit</Label>
-            <Controller
-              name="fruit"
-              control={control}
-              rules={{ required: 'Please select a fruit' }}
-              render={({ field, fieldState }) => (
-                <>
-                  <Select
-                    id="fruit-rhf"
-                    value={field.value}
-                    onChange={field.onChange}
-                    name={field.name}
-                    options={fruitOptions}
-                    placeholder="Choose a fruit"
-                    error={!!fieldState.error}
-                  />
-                  {fieldState.error && (
-                    <FormFieldError error={fieldState.error} />
-                  )}
-                </>
-              )}
-            />
+            <FormField>
+              <Label htmlFor="fruit-rhf">Fruit</Label>
+              <Controller
+                name="fruit"
+                control={control}
+                rules={{ required: 'Please select a fruit' }}
+                render={({ field, fieldState }) => (
+                  <>
+                    <Select
+                      id="fruit-rhf"
+                      value={field.value}
+                      onChange={field.onChange}
+                      name={field.name}
+                      options={fruitOptions}
+                      placeholder="Choose a fruit"
+                      error={!!fieldState.error}
+                    />
+                    {fieldState.error && (
+                      <FormFieldError error={fieldState.error} />
+                    )}
+                  </>
+                )}
+              />
+            </FormField>
             <Button type="submit">Submit</Button>
             {submitted && (
               <Block fontSize={fontSize.xs} color={color.text.muted}>
@@ -370,7 +373,7 @@ export const CustomRenderingWithIcons: Story = {
     const [value, setValue] = useState('')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="fruit-icons">Fruit</Label>
           <Select
             id="fruit-icons"
@@ -391,7 +394,7 @@ export const CustomRenderingWithIcons: Story = {
               </Row>
             )}
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },
@@ -416,7 +419,7 @@ export const CustomRenderingWithDescriptions: Story = {
     const [value, setValue] = useState('editor')
     return (
       <Block padding={16} maxWidth={350}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="role-select">Role</Label>
           <Select
             id="role-select"
@@ -433,7 +436,7 @@ export const CustomRenderingWithDescriptions: Story = {
             )}
             renderValue={option => option.label}
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },
@@ -442,7 +445,7 @@ export const CustomRenderingWithDescriptions: Story = {
 export const RenderValueUncontrolled: Story = {
   render: () => (
     <Block padding={16} maxWidth={350}>
-      <Col gap={spacing.md}>
+      <FormField>
         <Label htmlFor="role-uncontrolled">Role (no initial selection)</Label>
         <Select
           id="role-uncontrolled"
@@ -458,7 +461,7 @@ export const RenderValueUncontrolled: Story = {
           )}
           renderValue={option => option.label}
         />
-      </Col>
+      </FormField>
     </Block>
   ),
 }
@@ -495,7 +498,7 @@ export const CustomRenderingWithBadges: Story = {
     const [value, setValue] = useState('free')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="plan-select">Plan</Label>
           <Select
             id="plan-select"
@@ -518,7 +521,7 @@ export const CustomRenderingWithBadges: Story = {
               </Row>
             )}
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },
@@ -529,7 +532,7 @@ export const CustomRenderingWithState: Story = {
     const [value, setValue] = useState('')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="fruit-state">Fruit (state-aware rendering)</Label>
           <Select
             id="fruit-state"
@@ -556,7 +559,7 @@ export const CustomRenderingWithState: Story = {
               </Row>
             )}
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },
@@ -587,14 +590,16 @@ export const InsideModal: Story = {
           >
             <Block padding={spacing['2xl']}>
               <Col gap={spacing.md}>
-                <Label htmlFor="modal-fruit">Fruit</Label>
-                <Select
-                  id="modal-fruit"
-                  value={value}
-                  onChange={setValue}
-                  options={fruitOptions}
-                  placeholder="Choose a fruit"
-                />
+                <FormField>
+                  <Label htmlFor="modal-fruit">Fruit</Label>
+                  <Select
+                    id="modal-fruit"
+                    value={value}
+                    onChange={setValue}
+                    options={fruitOptions}
+                    placeholder="Choose a fruit"
+                  />
+                </FormField>
                 {value && (
                   <Block fontSize={fontSize.xs} color={color.text.muted}>
                     Selected: {value}
@@ -630,14 +635,16 @@ export const InsideDrawer: Story = {
           aria-label="Select inside drawer"
         >
           <Col gap={spacing.md} paddingTop={24}>
-            <Label htmlFor="drawer-fruit">Fruit</Label>
-            <Select
-              id="drawer-fruit"
-              value={value}
-              onChange={setValue}
-              options={fruitOptions}
-              placeholder="Choose a fruit"
-            />
+            <FormField>
+              <Label htmlFor="drawer-fruit">Fruit</Label>
+              <Select
+                id="drawer-fruit"
+                value={value}
+                onChange={setValue}
+                options={fruitOptions}
+                placeholder="Choose a fruit"
+              />
+            </FormField>
             {value && (
               <Block fontSize={fontSize.xs} color={color.text.muted}>
                 Selected: {value}
@@ -674,7 +681,7 @@ export const GroupedOptions: Story = {
     const [value, setValue] = useState('')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="food-grouped">Food</Label>
           <Select
             id="food-grouped"
@@ -683,7 +690,7 @@ export const GroupedOptions: Story = {
             options={groupedFoodOptions}
             placeholder="Choose a food"
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },
@@ -713,7 +720,7 @@ export const MixedGroupedAndUngrouped: Story = {
     const [value, setValue] = useState('all')
     return (
       <Block padding={16} maxWidth={300}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="food-mixed">Food (mixed)</Label>
           <Select
             id="food-mixed"
@@ -721,7 +728,7 @@ export const MixedGroupedAndUngrouped: Story = {
             onChange={setValue}
             options={mixedGroupOptions}
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },
@@ -733,14 +740,16 @@ export const Controlled: Story = {
     return (
       <Block padding={16} maxWidth={300}>
         <Col gap={spacing.md}>
-          <Label htmlFor="fruit-controlled">Fruit</Label>
-          <Select
-            id="fruit-controlled"
-            value={value}
-            onChange={setValue}
-            options={fruitOptions}
-            placeholder="Choose a fruit"
-          />
+          <FormField>
+            <Label htmlFor="fruit-controlled">Fruit</Label>
+            <Select
+              id="fruit-controlled"
+              value={value}
+              onChange={setValue}
+              options={fruitOptions}
+              placeholder="Choose a fruit"
+            />
+          </FormField>
           <Block fontSize={fontSize.xs} color={color.text.muted}>
             Current value: {value ? `"${value}"` : '(none)'}
           </Block>
@@ -783,19 +792,21 @@ export const Required: Story = {
           }}
         >
           <Col gap={spacing.md}>
-            <Label htmlFor="fruit-required">Fruit (required)</Label>
-            <Select
-              id="fruit-required"
-              value={value}
-              onChange={v => {
-                setValue(v)
-                setSubmitted(false)
-              }}
-              options={fruitOptions}
-              placeholder="Choose a fruit"
-              required
-              name="fruit"
-            />
+            <FormField>
+              <Label htmlFor="fruit-required">Fruit (required)</Label>
+              <Select
+                id="fruit-required"
+                value={value}
+                onChange={v => {
+                  setValue(v)
+                  setSubmitted(false)
+                }}
+                options={fruitOptions}
+                placeholder="Choose a fruit"
+                required
+                name="fruit"
+              />
+            </FormField>
             <Button type="submit">Submit</Button>
             {submitted && value && (
               <Block fontSize={fontSize.xs} color={color.text.muted}>
@@ -838,7 +849,7 @@ export const LongOptionLabels: Story = {
     const [value, setValue] = useState('long')
     return (
       <Block padding={16} maxWidth={250}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="fruit-long">Label truncation</Label>
           <Select
             id="fruit-long"
@@ -846,7 +857,7 @@ export const LongOptionLabels: Story = {
             onChange={setValue}
             options={longLabelOptions}
           />
-        </Col>
+        </FormField>
       </Block>
     )
   },

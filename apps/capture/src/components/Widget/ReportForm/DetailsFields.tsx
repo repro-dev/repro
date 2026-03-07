@@ -1,5 +1,5 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { Button, colors, Input, Label, spacing } from '@repro/design'
+import { Button, colors, FormField, Input, Label } from '@repro/design'
 import { BugPlayIcon } from 'lucide-react'
 import React, { PropsWithChildren } from 'react'
 import { useForm } from 'react-hook-form'
@@ -26,7 +26,7 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <Col gap={20}>
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="report-title">Title</Label>
           {formState.errors.title && <Error>Please enter a title</Error>}
           <Input
@@ -37,9 +37,9 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
             placeholder="What is the bug?"
             size="large"
           />
-        </Col>
+        </FormField>
 
-        <Col gap={spacing.md}>
+        <FormField>
           <Label htmlFor="report-description" optional>
             Description
           </Label>
@@ -50,7 +50,7 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
             placeholder="Is there anything else that would be useful to know?"
             rows={12}
           />
-        </Col>
+        </FormField>
 
         <Row>
           <Button type="submit" context="success" size="large">
