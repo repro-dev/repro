@@ -1,7 +1,6 @@
 import { Block } from '@jsxstyle/react'
 import React, { forwardRef, useRef } from 'react'
 import type { MutableRefObject } from 'react'
-import { UseFormRegisterReturn } from 'react-hook-form'
 import mergeRefs from 'react-merge-refs'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
@@ -11,7 +10,7 @@ import { MINIMUM_FONT_SIZE } from '../tokens/typography'
 type Context = 'normal' | 'error'
 type Size = 'small' | 'medium' | 'large' | 'xlarge'
 
-export interface InputProps extends Omit<UseFormRegisterReturn, 'ref'> {
+export interface InputProps {
   'aria-describedby'?: string
   'aria-label'?: string
   'aria-labelledby'?: string
@@ -20,7 +19,16 @@ export interface InputProps extends Omit<UseFormRegisterReturn, 'ref'> {
   context?: Context
   disabled?: boolean
   id?: string
+  max?: string | number
+  maxLength?: number
+  min?: string | number
+  minLength?: number
+  name?: string
+  onBlur?: React.FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>
+  onChange?: React.ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>
+  pattern?: string
   placeholder?: string
+  required?: boolean
   rows?: number
   size?: Size
   type?: string
@@ -34,7 +42,7 @@ const sizes = {
 }
 
 /**
- * Form text input with error styling and react-hook-form integration.
+ * Form text input with error styling and configurable validation attributes.
  *
  * Renders a single-line `<input>` by default, or a `<textarea>` when
  * `rows` is greater than 1. Pair with an external `<Label htmlFor>` for
