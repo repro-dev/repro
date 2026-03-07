@@ -54,11 +54,13 @@ export const Default: Story = {
 }
 
 export const WithGradientHeader: Story = {
+  name: 'With Backdrop',
   render: () => (
     <PageLayout>
-      <PageLayout.Header
+      <PageLayout.Backdrop
         gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
-      >
+      />
+      <PageLayout.Header>
         <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
           Gradient Header
         </Block>
@@ -121,24 +123,6 @@ export const CustomSidebarWidth: Story = {
           <Placeholder label="Main content" height={400} />
         </PageLayout.Body>
       </Row>
-    </PageLayout>
-  ),
-}
-
-export const WithBackdrop: Story = {
-  render: () => (
-    <PageLayout>
-      <PageLayout.Backdrop
-        gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
-      />
-      <PageLayout.Header>
-        <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
-          Transparent header on backdrop
-        </Block>
-      </PageLayout.Header>
-      <PageLayout.Body>
-        <Placeholder label="Body content overlaps the gradient naturally" height={400} />
-      </PageLayout.Body>
     </PageLayout>
   ),
 }

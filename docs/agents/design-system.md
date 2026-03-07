@@ -474,7 +474,7 @@ All conventions are built from these `PageLayout` sub-components:
 |---------------|---------|-----------|
 | `PageLayout` | Root grid shell, `100vh`, `gridTemplateRows="auto 1fr"` | — |
 | `PageLayout.Backdrop` | Absolute-positioned gradient layer behind structural content | `gradient`, `backgroundColor`, `height` (default 180) |
-| `PageLayout.Header` | Themeable top bar | `gradient`, `backgroundColor`, `height` (default 120) |
+| `PageLayout.Header` | Transparent top bar region | `backgroundColor` |
 | `PageLayout.Body` | Scrollable content area, optional centering | `maxWidth`, `padding` (default `spacing.xl`) |
 | `PageLayout.Sidebar` | Fixed-width side panel | `width` (default 280), `borderSide` (`'left'` / `'right'` / `'none'`) |
 

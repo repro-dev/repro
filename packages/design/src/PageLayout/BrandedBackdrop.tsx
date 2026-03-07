@@ -1,10 +1,14 @@
 import { Block } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
-import type { PageLayoutHeaderGradient } from './PageLayoutHeader'
+
+export interface BrandedBackdropGradient {
+  from: string
+  to: string
+}
 
 export interface BrandedBackdropProps {
   /** Background gradient for the branded region. */
-  gradient?: PageLayoutHeaderGradient
+  gradient?: BrandedBackdropGradient
   /** Solid background color fallback when no gradient is provided. */
   backgroundColor?: string
   /** Height of the painted gradient region in pixels. Defaults to 180. */

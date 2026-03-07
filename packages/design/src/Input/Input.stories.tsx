@@ -3,8 +3,8 @@ import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { FormField } from '../FormField'
-import { Label } from '../Label'
 import { FormFieldError } from '../FormFieldError'
+import { Label } from '../Label'
 import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
 import { fontSize } from '../tokens/typography'
@@ -162,7 +162,12 @@ const sizeVariants = ['small', 'medium', 'large'] as const
 
 export const Sizes: Story = {
   render: () => (
-    <Block display="flex" flexDirection="column" gap={spacing.lg} padding={spacing.lg}>
+    <Block
+      display="flex"
+      flexDirection="column"
+      gap={spacing.lg}
+      padding={spacing.lg}
+    >
       {sizeVariants.map(s => (
         <Row key={s} gap={spacing.md} alignItems="start">
           <Block
@@ -176,7 +181,9 @@ export const Sizes: Story = {
           </Block>
           <Block flex={1}>
             <FormField>
-              <Label htmlFor={`size-${s}`} size={s}>Label ({s})</Label>
+              <Label htmlFor={`size-${s}`} size={s}>
+                Label ({s})
+              </Label>
               <Input {...reg} id={`size-${s}`} size={s} />
             </FormField>
           </Block>

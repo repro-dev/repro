@@ -87,7 +87,12 @@ export const NoVisibleLabel: Story = {
   render: () => (
     <Block maxWidth={300} padding={16}>
       <FormField>
-        <Input {...reg} aria-label="Search" placeholder="Search..." size="small" />
+        <Input
+          {...reg}
+          aria-label="Search"
+          placeholder="Search..."
+          size="small"
+        />
       </FormField>
     </Block>
   ),

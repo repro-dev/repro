@@ -1,6 +1,6 @@
 import { Block } from '@jsxstyle/react'
-import React, { forwardRef, useRef } from 'react'
 import type { MutableRefObject } from 'react'
+import React, { forwardRef, useRef } from 'react'
 import mergeRefs from 'react-merge-refs'
 import { useFormFieldContext } from '../FormField/FormFieldContext'
 import { color } from '../tokens/colors'
@@ -55,7 +55,10 @@ const sizes = {
  * `aria-invalid`, `context`, and `disabled` are automatically provided
  * via context. Explicit props always override context values.
  */
-export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputProps>(
+export const Input = forwardRef<
+  HTMLInputElement | HTMLTextAreaElement,
+  InputProps
+>(
   (
     {
       autoFocus = false,
@@ -81,13 +84,11 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
 
     const id = idProp ?? fieldCtx?.id
     const disabled = disabledProp ?? fieldCtx?.disabled ?? false
-    const context =
-      contextProp ?? (fieldCtx?.invalid ? 'error' : 'normal')
+    const context = contextProp ?? (fieldCtx?.invalid ? 'error' : 'normal')
     const ariaInvalid =
       ariaInvalidProp ?? (fieldCtx?.invalid ? true : undefined)
     const ariaDescribedBy =
-      ariaDescribedByProp ??
-      (fieldCtx?.invalid ? fieldCtx.errorId : undefined)
+      ariaDescribedByProp ?? (fieldCtx?.invalid ? fieldCtx.errorId : undefined)
 
     const innerRef = useRef() as MutableRefObject<
       HTMLInputElement | HTMLTextAreaElement
@@ -112,9 +113,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
     return (
       <Block
         backgroundColor={color.bg.surface}
-        borderColor={
-          context === 'error' ? color.danger : color.border.strong
-        }
+        borderColor={context === 'error' ? color.danger : color.border.strong}
         borderRadius={radius.sm}
         borderStyle="solid"
         borderWidth={1}
