@@ -484,6 +484,13 @@ Supporting layout primitives:
 | `Stack` | Vertical flex layout with token-constrained gap | `gap` (spacing token key, e.g. `"xl"`), `component` |
 | `Center` | Horizontal + vertical centering via CSS Grid | `maxWidth` |
 
+**Imports for all convention examples below:**
+
+```tsx
+import { PageLayout, Stack, Center, color, colors, spacing, radius, shadow } from '@repro/design'
+import { Block, Col, Row, Grid } from '@jsxstyle/react'
+```
+
 ---
 
 #### Convention: `app-shell`
@@ -533,7 +540,7 @@ Full application shell with branded header and scrollable body. Optionally inclu
 
 **Storybook:** `Patterns/Layouts` > `app-shell` (`packages/design/src/PageLayout/conventions.stories.tsx`)
 
-**Real examples:**
+**Legacy implementations (pre-`PageLayout` — use Storybook skeleton as canonical reference):**
 - `apps/workspace/src/Layout.tsx` — workspace app shell (blue gradient header)
 - `apps/admin/src/Layout.tsx` — admin app shell (slate gradient header)
 
@@ -577,7 +584,7 @@ Unauthenticated flow with a centered content card on a subtle background.
 
 **Storybook:** `Patterns/Layouts` > `auth-centered` (`packages/design/src/PageLayout/conventions.stories.tsx`)
 
-**Real examples:**
+**Legacy implementations (pre-`PageLayout` — use Storybook skeleton as canonical reference):**
 - `apps/workspace/src/AuthLayout.tsx` — workspace login/register
 - `apps/admin/src/AuthLayout.tsx` — admin login with Admin badge
 
