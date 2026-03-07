@@ -174,7 +174,7 @@ export const Sizes: Story = {
             {s}
           </Block>
           <Col flex={1} gap={spacing.md}>
-            <Label htmlFor={`size-${s}`}>Label ({s})</Label>
+            <Label htmlFor={`size-${s}`} size={s === 'xlarge' ? 'large' : s}>Label ({s})</Label>
             <Input {...reg} id={`size-${s}`} size={s} />
           </Col>
         </Row>
