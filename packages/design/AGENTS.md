@@ -68,6 +68,7 @@ packages/design/
 | `Avatar` | User avatar backed by Gravatar, displaying image from `email`, text name, or both |
 | `Button` | Action button with `variant` (contained/outlined/text), `context`, and `size` props |
 | `Card` | Elevated surface container with rounded corners and box shadow |
+| `Center` | Horizontal and vertical centering via CSS Grid with optional `maxWidth` constraint |
 | `DefinitionList` | Titled group of key-value pairs rendered as CSS Grid rows |
 | `Delay` | Defers rendering of children by a configurable duration to prevent layout flashes |
 | `DragHandle` | Draggable edge handle (`role="separator"`) for resizing panels with pointer and keyboard support |
@@ -83,8 +84,13 @@ packages/design/
 | `Logo` | Repro brand logo SVG with `iconOnly`, `inverted`, and `size` props |
 | `Meter` | Horizontal progress bar that transitions to success color when full |
 | `Modal` | Centered modal dialog with backdrop, focus trapping, and Escape/click-to-close |
+| `PageLayout` | Root page shell — `100vh` CSS Grid with `auto 1fr` rows. Use with `.Header`, `.Body`, `.Sidebar` sub-components. See `docs/agents/design-system.md` Layout Conventions for usage patterns |
+| `PageLayout.Header` | Themeable top bar with `gradient` and `backgroundColor` props (default height 120) |
+| `PageLayout.Body` | Scrollable body region with optional `maxWidth` for auto-centered content |
+| `PageLayout.Sidebar` | Fixed-width side panel with `borderSide` prop (`'left'` / `'right'` / `'none'`) |
 | `Portal` | Renders children into the nearest `PortalRootProvider` via `createPortal` |
 | `PortalRootProvider` | Provides a fixed-position root container for Portal instances |
+| `Stack` | Vertical flex layout with token-constrained `gap` and optional `component` for semantic HTML |
 | `Toggle` | Binary toggle switch (`role="switch"`) for immediate boolean settings |
 | `ToggleGroup` | Radio group of pill-shaped toggles (`role="radiogroup"`) with keyboard navigation |
 | `Tooltip` | Positioned tooltip on hover/focus, rendered via Portal with `aria-describedby` |
