@@ -342,6 +342,9 @@ Uses CSS `outline` (not `boxShadow`) — better for accessibility, composes with
 | Show a draggable resize handle | `DragHandle` with `edge`, `onDragStart`, `onDrag`, `onDragEnd` |
 | Display the Repro logo | `Logo` with optional `inverted`, `size`, `iconOnly` |
 | Style inline text as a link | `Link` wrapping text (visual only — no navigation) |
+| Build a page layout | See [Layout Conventions](#layout-conventions) — use the decision tree to pick the right convention |
+| Stack children vertically with consistent spacing | `Stack` with `gap` (spacing token key) and optional `component` for semantic HTML |
+| Center content horizontally and vertically | `Center` with optional `maxWidth` |
 
 ### Component API conventions
 
@@ -447,48 +450,257 @@ function LoginForm() {
 - Disable submit button with `formState.isSubmitting`
 - Cross-field validation: use `.refine()` on the Zod schema with a `path` array
 
-### Build a page layout
+### Layout Conventions
+
+Every page in the product maps to exactly one layout convention. Use the decision tree below to select the correct one, then follow the convention's reference card.
+
+#### Decision tree
+
+Evaluate these conditions **in order**. Use the first match.
+
+| # | Condition | Convention |
+|---|-----------|------------|
+| 1 | Unauthenticated flow (login, register, password reset, invite accept) | `auth-centered` |
+| 2 | Primary app chrome with persistent navigation (top bar + optional sidebar) | `app-shell` |
+| 3 | Primary content area + contextual metadata panel side-by-side | `content-sidebar` |
+| 4 | Grid of summary cards, metrics, or KPI tiles | `dashboard-grid` |
+| 5 | Otherwise (single-column: settings, forms, detail views, lists) | `content-single` |
+
+#### Sub-component reference
+
+All conventions are built from these `PageLayout` sub-components:
+
+| Sub-component | Purpose | Key props |
+|---------------|---------|-----------|
+| `PageLayout` | Root grid shell, `100vh`, `gridTemplateRows="auto 1fr"` | — |
+| `PageLayout.Header` | Themeable top bar | `gradient`, `backgroundColor`, `height` (default 120) |
+| `PageLayout.Body` | Scrollable content area, optional centering | `maxWidth`, `padding` (default `spacing.xl`) |
+| `PageLayout.Sidebar` | Fixed-width side panel | `width` (default 280), `borderSide` (`'left'` / `'right'` / `'none'`) |
+
+Supporting layout primitives:
+
+| Component | Purpose | Key props |
+|-----------|---------|-----------|
+| `Stack` | Vertical flex layout with token-constrained gap | `gap` (spacing token key, e.g. `"xl"`), `component` |
+| `Center` | Horizontal + vertical centering via CSS Grid | `maxWidth` |
+
+---
+
+#### Convention: `app-shell`
+
+Full application shell with branded header and scrollable body. Optionally includes a sidebar for persistent navigation.
+
+**When to use:** The page is the main authenticated chrome — top bar with logo, navigation links, and user controls.
+
+**Regions:**
+
+| Region | Component | Content |
+|--------|-----------|---------|
+| Header | `PageLayout.Header` with `gradient` | Logo, nav links, user menu |
+| Sidebar (optional) | `PageLayout.Sidebar` (inside a `Row` with Body) | Section navigation |
+| Body | `PageLayout.Body` | Route outlet / main content |
+
+**Structure (with sidebar):**
 
 ```tsx
-import { color, spacing, textStyles } from '@repro/design'
-import { Block, Col, Grid, Row } from '@jsxstyle/react'
-
-function PageLayout() {
-  return (
-    <Grid
-      height="100vh"
-      gridTemplateRows="auto 1fr"
-      gridTemplateColumns="240px 1fr"
-      gridTemplateAreas={`
-        "header header"
-        "sidebar main"
-      `}
-    >
-      <Row
-        gridArea="header"
-        alignItems="center"
-        padding={spacing.xl}
-        borderBottom={`1px solid ${color.border.default}`}
-      >
-        {/* header content */}
-      </Row>
-
-      <Col
-        gridArea="sidebar"
-        padding={spacing.xl}
-        gap={spacing.md}
-        borderRight={`1px solid ${color.border.default}`}
-      >
-        {/* sidebar content */}
-      </Col>
-
-      <Block gridArea="main" padding={spacing['2xl']} overflow="auto">
-        {/* main content */}
-      </Block>
-    </Grid>
-  )
-}
+<PageLayout>
+  <PageLayout.Header gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}>
+    {/* Logo, nav links, user controls */}
+  </PageLayout.Header>
+  <Row height="100%" overflow="hidden">
+    <PageLayout.Sidebar>
+      {/* Section nav items */}
+    </PageLayout.Sidebar>
+    <PageLayout.Body>
+      {/* Main content */}
+    </PageLayout.Body>
+  </Row>
+</PageLayout>
 ```
+
+**Structure (without sidebar):**
+
+```tsx
+<PageLayout>
+  <PageLayout.Header gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}>
+    {/* Logo, nav links, user controls */}
+  </PageLayout.Header>
+  <PageLayout.Body>
+    {/* Main content */}
+  </PageLayout.Body>
+</PageLayout>
+```
+
+**Storybook:** `Patterns/Layouts` > `app-shell` (`packages/design/src/PageLayout/conventions.stories.tsx`)
+
+**Real examples:**
+- `apps/workspace/src/Layout.tsx` — workspace app shell (blue gradient header)
+- `apps/admin/src/Layout.tsx` — admin app shell (slate gradient header)
+
+---
+
+#### Convention: `auth-centered`
+
+Unauthenticated flow with a centered content card on a subtle background.
+
+**When to use:** Login, registration, password reset, invite acceptance, or any pre-authentication screen.
+
+**Regions:**
+
+| Region | Component | Content |
+|--------|-----------|---------|
+| Full page | `PageLayout` with a single `Block` spanning all rows | Subtle background |
+| Centered area | `Center` inside the block | Logo above a card containing the form |
+
+**Structure:**
+
+```tsx
+<PageLayout>
+  <Block gridRow="1 / -1" backgroundColor={color.bg.subtle}>
+    <Center>
+      <Col alignItems="flex-start" gap={spacing['2xl']}>
+        {/* Logo */}
+        <Block
+          backgroundColor={color.bg.surface}
+          borderRadius={radius.md}
+          boxShadow={shadow.md}
+          padding={spacing['3xl']}
+          width={400}
+        >
+          {/* Form content */}
+        </Block>
+      </Col>
+    </Center>
+  </Block>
+</PageLayout>
+```
+
+**Storybook:** `Patterns/Layouts` > `auth-centered` (`packages/design/src/PageLayout/conventions.stories.tsx`)
+
+**Real examples:**
+- `apps/workspace/src/AuthLayout.tsx` — workspace login/register
+- `apps/admin/src/AuthLayout.tsx` — admin login with Admin badge
+
+---
+
+#### Convention: `content-single`
+
+Single-column content with a header and a width-constrained body.
+
+**When to use:** Settings pages, standalone forms, detail views, or any page with linear top-to-bottom content that does not need a sidebar or grid.
+
+**Regions:**
+
+| Region | Component | Content |
+|--------|-----------|---------|
+| Header | `PageLayout.Header` | Page title, breadcrumbs |
+| Body | `PageLayout.Body` with `maxWidth` (typically 720) | Vertically stacked content sections |
+
+**Content arrangement:** Use `Stack` or `Col` with `gap={spacing['2xl']}` for vertical sections within the body.
+
+**Structure:**
+
+```tsx
+<PageLayout>
+  <PageLayout.Header>
+    {/* Page title */}
+  </PageLayout.Header>
+  <PageLayout.Body maxWidth={720}>
+    <Col gap={spacing['2xl']}>
+      {/* Content sections */}
+    </Col>
+  </PageLayout.Body>
+</PageLayout>
+```
+
+**Storybook:** `Patterns/Layouts` > `content-single` (`packages/design/src/PageLayout/conventions.stories.tsx`)
+
+**Real examples:** Settings pages, account profile forms (future — currently no standalone instances in the codebase).
+
+---
+
+#### Convention: `content-sidebar`
+
+Primary content area alongside a contextual metadata panel.
+
+**When to use:** The page has a main content region (player, editor, document) with supplementary metadata or controls displayed in a fixed-width side panel.
+
+**Regions:**
+
+| Region | Component | Content |
+|--------|-----------|---------|
+| Header | `PageLayout.Header` | Page title, navigation |
+| Body | `PageLayout.Body` (inside a `Row` with Sidebar) | Primary content |
+| Sidebar | `PageLayout.Sidebar` with `borderSide="left"` | Metadata, properties, event list |
+
+**Content arrangement:** Body content is unconstrained width (`flex={1}`). Sidebar gets a fixed width (default 280, or specify e.g. 320).
+
+**Structure:**
+
+```tsx
+<PageLayout>
+  <PageLayout.Header>
+    {/* Page title */}
+  </PageLayout.Header>
+  <Row height="100%" overflow="hidden">
+    <PageLayout.Body>
+      {/* Primary content */}
+    </PageLayout.Body>
+    <PageLayout.Sidebar width={320} borderSide="left">
+      {/* Metadata panel */}
+    </PageLayout.Sidebar>
+  </Row>
+</PageLayout>
+```
+
+**Storybook:** `Patterns/Layouts` > `content-sidebar` (`packages/design/src/PageLayout/conventions.stories.tsx`)
+
+**Real examples:** Recording detail view (future — player + session metadata side panel).
+
+---
+
+#### Convention: `dashboard-grid`
+
+Grid of summary cards and metrics with a branded header.
+
+**When to use:** The page displays KPI tiles, summary cards, charts, or tabular overviews in a responsive grid.
+
+**Regions:**
+
+| Region | Component | Content |
+|--------|-----------|---------|
+| Header | `PageLayout.Header` with `gradient` | Dashboard title |
+| Body | `PageLayout.Body` | Grid of cards, charts, tables |
+
+**Content arrangement:** Use `Col gap={spacing['2xl']}` for vertical sections. Use a jsxstyle `Grid` with `gridTemplateColumns="repeat(auto-fill, minmax(240px, 1fr))"` and `gap={spacing.xl}` for the card grid.
+
+**Structure:**
+
+```tsx
+<PageLayout>
+  <PageLayout.Header gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}>
+    {/* Dashboard title */}
+  </PageLayout.Header>
+  <PageLayout.Body>
+    <Col gap={spacing['2xl']}>
+      {/* Section heading */}
+      <Grid
+        gridTemplateColumns="repeat(auto-fill, minmax(240px, 1fr))"
+        gap={spacing.xl}
+      >
+        {/* Summary cards */}
+      </Grid>
+      {/* Charts, tables */}
+    </Col>
+  </PageLayout.Body>
+</PageLayout>
+```
+
+**Storybook:** `Patterns/Layouts` > `dashboard-grid` (`packages/design/src/PageLayout/conventions.stories.tsx`)
+
+**Real examples:** Workspace dashboard / overview page (future).
+
+---
 
 ### Handle loading, empty, and error states
 
