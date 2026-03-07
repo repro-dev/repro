@@ -44,6 +44,8 @@ export const PageLayoutHeader = forwardRef<
 
     return (
       <Block
+        position="relative"
+        zIndex={1}
         padding={spacing['2xl']}
         height={height}
         backgroundColor={gradient ? undefined : backgroundColor}

@@ -473,6 +473,7 @@ All conventions are built from these `PageLayout` sub-components:
 | Sub-component | Purpose | Key props |
 |---------------|---------|-----------|
 | `PageLayout` | Root grid shell, `100vh`, `gridTemplateRows="auto 1fr"` | — |
+| `PageLayout.Backdrop` | Absolute-positioned gradient layer behind structural content | `gradient`, `backgroundColor`, `height` (default 180) |
 | `PageLayout.Header` | Themeable top bar | `gradient`, `backgroundColor`, `height` (default 120) |
 | `PageLayout.Body` | Scrollable content area, optional centering | `maxWidth`, `padding` (default `spacing.xl`) |
 | `PageLayout.Sidebar` | Fixed-width side panel | `width` (default 280), `borderSide` (`'left'` / `'right'` / `'none'`) |
@@ -487,7 +488,7 @@ Supporting layout primitives:
 **Imports for all convention examples below:**
 
 ```tsx
-import { PageLayout, Stack, Center, color, colors, spacing, radius, shadow } from '@repro/design'
+import { PageLayout, BrandedBackdrop, Stack, Center, color, colors, spacing, radius, shadow } from '@repro/design'
 import { Block, Col, Row, Grid } from '@jsxstyle/react'
 ```
 
@@ -503,7 +504,8 @@ Full application shell with branded header and scrollable body. Optionally inclu
 
 | Region | Component | Content |
 |--------|-----------|---------|
-| Header | `PageLayout.Header` with `gradient` | Logo, nav links, user menu |
+| Backdrop | `PageLayout.Backdrop` with `gradient` | Visual gradient layer behind content |
+| Header | `PageLayout.Header` (transparent on top of backdrop) | Logo, nav links, user menu |
 | Sidebar (optional) | `PageLayout.Sidebar` (inside a `Row` with Body) | Section navigation |
 | Body | `PageLayout.Body` | Route outlet / main content |
 
@@ -511,7 +513,8 @@ Full application shell with branded header and scrollable body. Optionally inclu
 
 ```tsx
 <PageLayout>
-  <PageLayout.Header gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}>
+  <PageLayout.Backdrop gradient={{ from: colors.blue['900'], to: colors.blue['700'] }} />
+  <PageLayout.Header>
     {/* Logo, nav links, user controls */}
   </PageLayout.Header>
   <Row height="100%" overflow="hidden">
@@ -529,7 +532,8 @@ Full application shell with branded header and scrollable body. Optionally inclu
 
 ```tsx
 <PageLayout>
-  <PageLayout.Header gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}>
+  <PageLayout.Backdrop gradient={{ from: colors.blue['900'], to: colors.blue['700'] }} />
+  <PageLayout.Header>
     {/* Logo, nav links, user controls */}
   </PageLayout.Header>
   <PageLayout.Body>
@@ -676,7 +680,8 @@ Grid of summary cards and metrics with a branded header.
 
 | Region | Component | Content |
 |--------|-----------|---------|
-| Header | `PageLayout.Header` with `gradient` | Dashboard title |
+| Backdrop | `PageLayout.Backdrop` with `gradient` | Visual gradient layer behind content |
+| Header | `PageLayout.Header` (transparent on top of backdrop) | Dashboard title |
 | Body | `PageLayout.Body` | Grid of cards, charts, tables |
 
 **Content arrangement:** Use `Col gap={spacing['2xl']}` for vertical sections. Use a jsxstyle `Grid` with `gridTemplateColumns="repeat(auto-fill, minmax(240px, 1fr))"` and `gap={spacing.xl}` for the card grid.
@@ -685,7 +690,8 @@ Grid of summary cards and metrics with a branded header.
 
 ```tsx
 <PageLayout>
-  <PageLayout.Header gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}>
+  <PageLayout.Backdrop gradient={{ from: colors.blue['900'], to: colors.blue['700'] }} />
+  <PageLayout.Header>
     {/* Dashboard title */}
   </PageLayout.Header>
   <PageLayout.Body>

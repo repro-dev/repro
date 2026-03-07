@@ -85,9 +85,10 @@ export const AppShell: Story = {
   name: 'app-shell',
   render: () => (
     <PageLayout>
-      <PageLayout.Header
+      <PageLayout.Backdrop
         gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
-      >
+      />
+      <PageLayout.Header>
         <Row alignItems="center" gap={spacing.xl}>
           <Block
             color={color.text.inverse}
@@ -215,9 +216,10 @@ export const DashboardGrid: Story = {
   name: 'dashboard-grid',
   render: () => (
     <PageLayout>
-      <PageLayout.Header
+      <PageLayout.Backdrop
         gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
-      >
+      />
+      <PageLayout.Header>
         <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
           Dashboard
         </Block>

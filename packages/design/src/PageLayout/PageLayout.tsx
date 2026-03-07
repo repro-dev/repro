@@ -28,6 +28,7 @@ export const PageLayout = forwardRef<HTMLDivElement, PageLayoutProps>(
   ({ children }, ref) => {
     return (
       <Grid
+        position="relative"
         height="100vh"
         gridTemplateRows="auto 1fr"
         backgroundColor={color.bg.surface}

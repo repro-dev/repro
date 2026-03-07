@@ -124,3 +124,21 @@ export const CustomSidebarWidth: Story = {
     </PageLayout>
   ),
 }
+
+export const WithBackdrop: Story = {
+  render: () => (
+    <PageLayout>
+      <PageLayout.Backdrop
+        gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
+      />
+      <PageLayout.Header>
+        <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
+          Transparent header on backdrop
+        </Block>
+      </PageLayout.Header>
+      <PageLayout.Body>
+        <Placeholder label="Body content overlaps the gradient naturally" height={400} />
+      </PageLayout.Body>
+    </PageLayout>
+  ),
+}
