@@ -13,7 +13,6 @@ export interface BrandedBackdropProps {
   backgroundColor?: string
   /** Height of the painted gradient region in pixels. Defaults to 180. */
   height?: number
-  children?: React.ReactNode
 }
 
 /**
@@ -36,7 +35,7 @@ export interface BrandedBackdropProps {
  *   </PageLayout>
  */
 export const BrandedBackdrop = forwardRef<HTMLDivElement, BrandedBackdropProps>(
-  ({ gradient, backgroundColor, height = 180, children }, ref) => {
+  ({ gradient, backgroundColor, height = 180 }, ref) => {
     const backgroundImage = gradient
       ? `linear-gradient(to bottom right, ${gradient.from}, ${gradient.to})`
       : undefined
@@ -54,9 +53,7 @@ export const BrandedBackdrop = forwardRef<HTMLDivElement, BrandedBackdropProps>(
         backgroundColor={gradient ? undefined : backgroundColor}
         backgroundImage={backgroundImage}
         props={{ ref }}
-      >
-        {children}
-      </Block>
+      />
     )
   }
 )

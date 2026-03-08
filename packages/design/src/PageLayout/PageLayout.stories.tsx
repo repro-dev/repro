@@ -83,7 +83,7 @@ export const Default: Story = {
   ),
 }
 
-export const WithGradientHeader: Story = {
+export const WithBackdrop: Story = {
   name: 'With Backdrop',
   render: () => (
     <PageLayout>
