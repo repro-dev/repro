@@ -48,6 +48,7 @@ export const ClickTest: Story = {
     disabled: false,
   },
   play: async ({ canvasElement }) => {
+    onClickSpy.mockClear()
     const canvas = within(canvasElement)
     const button = canvas.getByRole('button', { name: 'Click me' })
 
@@ -66,6 +67,7 @@ export const DisabledClickTest: Story = {
     disabled: true,
   },
   play: async ({ canvasElement }) => {
+    onClickSpy.mockClear()
     const canvas = within(canvasElement)
     const button = canvas.getByRole('button', { name: 'Disabled' })
 

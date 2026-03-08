@@ -15,5 +15,15 @@ tasks:
       cache: true
   dev:
     command: pnpm run storybook
+  test:
+    command: pnpm test
+    deps:
+    - ^:build
+    env:
+      NODE_OPTIONS: ''
+    options:
+      cache: true
+      mergeDeps: replace
+      mergeEnv: replace
 toolchain:
   default: node

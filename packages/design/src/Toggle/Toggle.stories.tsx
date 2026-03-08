@@ -152,6 +152,7 @@ export const DisabledToggleTest: Story = {
     disabled: true,
   },
   play: async ({ args, canvasElement }) => {
+    ;(args.onChange as ReturnType<typeof fn>).mockClear()
     const canvas = within(canvasElement)
     const toggle = canvas.getByRole('switch')
 
