@@ -32,7 +32,10 @@ export const PageLayoutHeader = forwardRef<
     <Block
       position="relative"
       zIndex={1}
-      padding={spacing['2xl']}
+      paddingTop={spacing['2xl']}
+      paddingLeft={spacing['2xl']}
+      paddingRight={spacing['2xl']}
+      paddingBottom={spacing.md}
       backgroundColor={backgroundColor}
       props={{ ref }}
     >

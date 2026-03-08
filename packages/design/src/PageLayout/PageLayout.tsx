@@ -1,5 +1,5 @@
 import { Grid } from '@jsxstyle/react'
-import React, { forwardRef } from 'react'
+import React from 'react'
 import { color } from '../tokens/colors'
 
 export interface PageLayoutProps {
@@ -24,20 +24,15 @@ export interface PageLayoutProps {
  *     <PageLayout.Body>Main content</PageLayout.Body>
  *   </PageLayout>
  */
-export const PageLayout = forwardRef<HTMLDivElement, PageLayoutProps>(
-  ({ children }, ref) => {
-    return (
-      <Grid
-        position="relative"
-        height="100vh"
-        gridTemplateRows="auto 1fr"
-        backgroundColor={color.bg.surface}
-        props={{ ref }}
-      >
-        {children}
-      </Grid>
-    )
-  }
-)
-
-PageLayout.displayName = 'PageLayout'
+export const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
+  return (
+    <Grid
+      position="relative"
+      height="100vh"
+      gridTemplateRows="auto 1fr"
+      backgroundColor={color.bg.surface}
+    >
+      {children}
+    </Grid>
+  )
+}
