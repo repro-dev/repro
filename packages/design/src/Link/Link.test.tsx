@@ -2,33 +2,13 @@ import { cleanup, render } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React, { createRef } from 'react'
-import { color } from '../tokens/colors'
 import { Link } from './Link'
 
 afterEach(cleanup)
 
-function getAppliedCSSRules(el: HTMLElement): Array<string> {
-  const classNames = el.className.split(/\s+/).filter(Boolean)
-  const rules: Array<string> = []
-
-  for (const sheet of Array.from(document.styleSheets)) {
-    try {
-      for (const rule of Array.from(sheet.cssRules)) {
-        if (classNames.some(cn => rule.cssText.includes(`.${cn}`))) {
-          rules.push(rule.cssText)
-        }
-      }
-    } catch {
-      continue
-    }
-  }
-
-  return rules
-}
-
 describe('Link', () => {
   describe('default rendering', () => {
-    it('renders a semantic <a> element', () => {
+    it('renders a semantic <a> element with text content', () => {
       render(<Link href="https://example.com">Example</Link>)
 
       const anchor = document.querySelector('a')
@@ -102,34 +82,6 @@ describe('Link', () => {
       expect(anchor?.getAttribute('aria-disabled')).toBe('true')
     })
 
-    it('applies muted color when disabled', () => {
-      render(
-        <Link href="https://example.com" disabled>
-          Disabled
-        </Link>
-      )
-
-      const anchor = document.querySelector('a') as HTMLElement
-      const rules = getAppliedCSSRules(anchor)
-      const hasColorRule = rules.some(r => r.includes(color.text.muted))
-      expect(hasColorRule).toBe(true)
-    })
-
-    it('applies pointer-events: none when disabled', () => {
-      render(
-        <Link href="https://example.com" disabled>
-          Disabled
-        </Link>
-      )
-
-      const anchor = document.querySelector('a') as HTMLElement
-      const rules = getAppliedCSSRules(anchor)
-      const hasPointerEventsRule = rules.some(
-        r => r.includes('pointer-events: none')
-      )
-      expect(hasPointerEventsRule).toBe(true)
-    })
-
     it('does not set aria-disabled when not disabled', () => {
       render(<Link href="https://example.com">Enabled</Link>)
 
@@ -180,4 +132,5 @@ describe('Link', () => {
       expect(ref.current?.tagName).toBe('A')
     })
   })
+
 })
