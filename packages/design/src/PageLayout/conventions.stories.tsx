@@ -176,7 +176,7 @@ export const ContentSingle: Story = {
   name: 'content-single',
   render: () => (
     <PageLayout>
-      <PageLayout.Header backgroundColor={color.bg.subtle}>
+      <PageLayout.Header>
         <SampleHeader />
       </PageLayout.Header>
       <PageLayout.Body maxWidth={720}>
@@ -212,7 +212,7 @@ export const ContentSidebar: Story = {
   name: 'content-sidebar',
   render: () => (
     <PageLayout>
-      <PageLayout.Header backgroundColor={color.bg.subtle}>
+      <PageLayout.Header>
         <SampleHeader />
       </PageLayout.Header>
       <PageLayout.Body>

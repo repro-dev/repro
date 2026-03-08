@@ -67,7 +67,7 @@ const SampleHeader: React.FC<{ inverted?: boolean }> = ({
 export const Default: Story = {
   render: () => (
     <PageLayout>
-      <PageLayout.Header backgroundColor={color.bg.subtle}>
+      <PageLayout.Header>
         <SampleHeader />
       </PageLayout.Header>
       <PageLayout.Body>
@@ -109,7 +109,7 @@ export const WithGradientHeader: Story = {
 export const WithSidebar: Story = {
   render: () => (
     <PageLayout>
-      <PageLayout.Header backgroundColor={color.bg.subtle}>
+      <PageLayout.Header>
         <SampleHeader />
       </PageLayout.Header>
       <PageLayout.Body>
@@ -137,7 +137,7 @@ export const WithSidebar: Story = {
 export const ConstrainedBody: Story = {
   render: () => (
     <PageLayout>
-      <PageLayout.Header backgroundColor={color.bg.subtle}>
+      <PageLayout.Header>
         <SampleHeader />
       </PageLayout.Header>
       <PageLayout.Body maxWidth={720}>
@@ -156,7 +156,7 @@ export const ConstrainedBody: Story = {
 export const CustomSidebarWidth: Story = {
   render: () => (
     <PageLayout>
-      <PageLayout.Header backgroundColor={color.bg.subtle}>
+      <PageLayout.Header>
         <SampleHeader />
       </PageLayout.Header>
       <PageLayout.Body>
