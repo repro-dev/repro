@@ -476,7 +476,6 @@ All conventions are built from these `PageLayout` sub-components:
 | `PageLayout.Backdrop` | Absolute-positioned gradient layer behind structural content | `gradient`, `backgroundColor`, `height` (default 180) |
 | `PageLayout.Header` | Transparent top bar region | `backgroundColor` |
 | `PageLayout.Body` | Scrollable content area, optional centering | `maxWidth`, `padding` (default `spacing.xl`) |
-| `PageLayout.Sidebar` | Fixed-width side panel | `width` (default 280), `borderSide` (`'left'` / `'right'` / `'none'`) |
 
 Supporting layout primitives:
 
@@ -496,7 +495,7 @@ import { Block, Col, Row, Grid } from '@jsxstyle/react'
 
 #### Convention: `app-shell`
 
-Full application shell with branded header and scrollable body. Optionally includes a sidebar for persistent navigation.
+Full application shell with branded header and scrollable body. Optionally includes a sidebar for persistent navigation composed with plain `Grid` inside the body.
 
 **When to use:** The page is the main authenticated chrome — top bar with logo, navigation links, and user controls.
 
@@ -506,7 +505,6 @@ Full application shell with branded header and scrollable body. Optionally inclu
 |--------|-----------|---------|
 | Backdrop | `PageLayout.Backdrop` with `gradient` | Visual gradient layer behind content |
 | Header | `PageLayout.Header` (transparent on top of backdrop) | Logo, nav links, user menu |
-| Sidebar (optional) | `PageLayout.Sidebar` (inside a `Row` with Body) | Section navigation |
 | Body | `PageLayout.Body` | Route outlet / main content |
 
 **Structure (with sidebar):**
@@ -517,14 +515,12 @@ Full application shell with branded header and scrollable body. Optionally inclu
   <PageLayout.Header>
     {/* Logo, nav links, user controls */}
   </PageLayout.Header>
-  <Row height="100%" overflow="hidden">
-    <PageLayout.Sidebar>
-      {/* Section nav items */}
-    </PageLayout.Sidebar>
-    <PageLayout.Body>
+  <PageLayout.Body>
+    <Grid gridTemplateColumns="280px 1fr" gap={spacing.xl} height="100%">
+      {/* Sidebar nav items (wrap in Card) */}
       {/* Main content */}
-    </PageLayout.Body>
-  </Row>
+    </Grid>
+  </PageLayout.Body>
 </PageLayout>
 ```
 
@@ -641,10 +637,9 @@ Primary content area alongside a contextual metadata panel.
 | Region | Component | Content |
 |--------|-----------|---------|
 | Header | `PageLayout.Header` | Page title, navigation |
-| Body | `PageLayout.Body` (inside a `Row` with Sidebar) | Primary content |
-| Sidebar | `PageLayout.Sidebar` with `borderSide="left"` | Metadata, properties, event list |
+| Body | `PageLayout.Body` with a `Grid` for columns | Primary content + metadata panel |
 
-**Content arrangement:** Body content is unconstrained width (`flex={1}`). Sidebar gets a fixed width (default 280, or specify e.g. 320).
+**Content arrangement:** Body contains a `Grid` with `gridTemplateColumns="1fr 320px"` (or similar). Main content fills the first column; metadata lives in a `Card` in the second.
 
 **Structure:**
 
@@ -653,14 +648,14 @@ Primary content area alongside a contextual metadata panel.
   <PageLayout.Header>
     {/* Page title */}
   </PageLayout.Header>
-  <Row height="100%" overflow="hidden">
-    <PageLayout.Body>
+  <PageLayout.Body>
+    <Grid gridTemplateColumns="1fr 320px" gap={spacing.xl} height="100%">
       {/* Primary content */}
-    </PageLayout.Body>
-    <PageLayout.Sidebar width={320} borderSide="left">
-      {/* Metadata panel */}
-    </PageLayout.Sidebar>
-  </Row>
+      <Card>
+        {/* Metadata panel */}
+      </Card>
+    </Grid>
+  </PageLayout.Body>
 </PageLayout>
 ```
 

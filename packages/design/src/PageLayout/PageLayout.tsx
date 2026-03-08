@@ -11,8 +11,8 @@ export interface PageLayoutProps {
  *
  * Provides a full-viewport CSS Grid with `auto 1fr` rows for a header region
  * and a scrollable body region. Use the compound sub-components
- * (`PageLayout.Header`, `PageLayout.Body`, `PageLayout.Sidebar`) to populate
- * named regions.
+ * (`PageLayout.Header`, `PageLayout.Body`) to populate named regions.
+ * Add `PageLayout.Backdrop` for branded gradient headers.
  *
  * This component is the foundation for all named layout conventions
  * (`app-shell`, `auth-centered`, `content-single`, `content-sidebar`,

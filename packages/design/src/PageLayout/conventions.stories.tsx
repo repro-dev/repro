@@ -110,8 +110,8 @@ export const AppShell: Story = {
       <PageLayout.Header>
         <SampleHeader inverted />
       </PageLayout.Header>
-      <Row height="100%" overflow="hidden">
-        <PageLayout.Sidebar>
+      <PageLayout.Body>
+        <Grid gridTemplateColumns="280px 1fr" gap={spacing.xl} height="100%">
           <Card>
             <Col gap={spacing.xs}>
               <SidebarNavItem label="Dashboard" active />
@@ -120,8 +120,6 @@ export const AppShell: Story = {
               <SidebarNavItem label="Settings" />
             </Col>
           </Card>
-        </PageLayout.Sidebar>
-        <PageLayout.Body>
           <Card>
             <Col gap={spacing.lg}>
               <Skeleton variant="text" lines={3} />
@@ -129,8 +127,8 @@ export const AppShell: Story = {
               <Skeleton variant="text" lines={2} />
             </Col>
           </Card>
-        </PageLayout.Body>
-      </Row>
+        </Grid>
+      </PageLayout.Body>
     </PageLayout>
   ),
 }
@@ -217,21 +215,19 @@ export const ContentSidebar: Story = {
       <PageLayout.Header backgroundColor={color.bg.subtle}>
         <SampleHeader />
       </PageLayout.Header>
-      <Row height="100%" overflow="hidden">
-        <PageLayout.Body>
-          <Card>
-            <Col gap={spacing.lg}>
-              <Skeleton variant="rectangular" height={300} />
-              <Skeleton variant="text" lines={2} />
-            </Col>
-          </Card>
-          <Block marginTop={spacing.xl}>
+      <PageLayout.Body>
+        <Grid gridTemplateColumns="1fr 320px" gap={spacing.xl} height="100%">
+          <Col gap={spacing.xl}>
+            <Card>
+              <Col gap={spacing.lg}>
+                <Skeleton variant="rectangular" height={300} />
+                <Skeleton variant="text" lines={2} />
+              </Col>
+            </Card>
             <Card>
               <Skeleton variant="rectangular" height={60} />
             </Card>
-          </Block>
-        </PageLayout.Body>
-        <PageLayout.Sidebar width={320} borderSide="left">
+          </Col>
           <Card>
             <Col gap={spacing.xl}>
               <Block {...textStyles.label} color={color.text.default}>
@@ -242,8 +238,8 @@ export const ContentSidebar: Story = {
               <Skeleton variant="text" lines={4} />
             </Col>
           </Card>
-        </PageLayout.Sidebar>
-      </Row>
+        </Grid>
+      </PageLayout.Body>
     </PageLayout>
   ),
 }

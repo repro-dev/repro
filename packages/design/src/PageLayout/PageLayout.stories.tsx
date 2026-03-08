@@ -1,4 +1,4 @@
-import { Block, Col, Row } from '@jsxstyle/react'
+import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { Avatar } from '../Avatar'
@@ -112,8 +112,8 @@ export const WithSidebar: Story = {
       <PageLayout.Header backgroundColor={color.bg.subtle}>
         <SampleHeader />
       </PageLayout.Header>
-      <Row height="100%" overflow="hidden">
-        <PageLayout.Sidebar>
+      <PageLayout.Body>
+        <Grid gridTemplateColumns="280px 1fr" gap={spacing.xl} height="100%">
           <Card>
             <Col gap={spacing.lg}>
               <Skeleton variant="text" />
@@ -122,16 +122,14 @@ export const WithSidebar: Story = {
               <Skeleton variant="text" />
             </Col>
           </Card>
-        </PageLayout.Sidebar>
-        <PageLayout.Body>
           <Card>
             <Col gap={spacing.lg}>
               <Skeleton variant="text" lines={4} />
               <Skeleton variant="rectangular" height={200} />
             </Col>
           </Card>
-        </PageLayout.Body>
-      </Row>
+        </Grid>
+      </PageLayout.Body>
     </PageLayout>
   ),
 }
@@ -161,8 +159,8 @@ export const CustomSidebarWidth: Story = {
       <PageLayout.Header backgroundColor={color.bg.subtle}>
         <SampleHeader />
       </PageLayout.Header>
-      <Row height="100%" overflow="hidden">
-        <PageLayout.Sidebar width={360}>
+      <PageLayout.Body>
+        <Grid gridTemplateColumns="360px 1fr" gap={spacing.xl} height="100%">
           <Card>
             <Col gap={spacing.lg}>
               <Skeleton variant="text" />
@@ -171,16 +169,14 @@ export const CustomSidebarWidth: Story = {
               <Skeleton variant="rectangular" height={100} />
             </Col>
           </Card>
-        </PageLayout.Sidebar>
-        <PageLayout.Body>
           <Card>
             <Col gap={spacing.lg}>
               <Skeleton variant="text" lines={4} />
               <Skeleton variant="rectangular" height={200} />
             </Col>
           </Card>
-        </PageLayout.Body>
-      </Row>
+        </Grid>
+      </PageLayout.Body>
     </PageLayout>
   ),
 }

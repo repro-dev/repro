@@ -84,11 +84,10 @@ packages/design/
 | `Logo` | Repro brand logo SVG with `iconOnly`, `inverted`, and `size` props |
 | `Meter` | Horizontal progress bar that transitions to success color when full |
 | `Modal` | Centered modal dialog with backdrop, focus trapping, and Escape/click-to-close |
-| `PageLayout` | Root page shell — `100vh` CSS Grid with `auto 1fr` rows. Use with `.Backdrop`, `.Header`, `.Body`, `.Sidebar` sub-components. See `docs/agents/design-system.md` Layout Conventions for usage patterns |
+| `PageLayout` | Root page shell — `100vh` CSS Grid with `auto 1fr` rows. Use with `.Backdrop`, `.Header`, `.Body` sub-components. See `docs/agents/design-system.md` Layout Conventions for usage patterns |
 | `PageLayout.Backdrop` | Absolute-positioned gradient layer that paints behind structural content. Use for branded header overlap pattern instead of negative margins |
 | `PageLayout.Header` | Transparent top bar region with optional `backgroundColor` override. Sizes to content via padding. Pair with `PageLayout.Backdrop` for branded gradients |
 | `PageLayout.Body` | Scrollable body region with optional `maxWidth` for auto-centered content |
-| `PageLayout.Sidebar` | Fixed-width side panel with `borderSide` prop (`'left'` / `'right'` / `'none'`) |
 | `Portal` | Renders children into the nearest `PortalRootProvider` via `createPortal` |
 | `PortalRootProvider` | Provides a fixed-position root container for Portal instances |
 | `Stack` | Vertical flex layout with token-constrained `gap` and optional `component` for semantic HTML |
