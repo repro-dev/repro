@@ -1,59 +1,47 @@
 import { Block } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
-import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
 
-export interface PageLayoutHeaderGradient {
-  from: string
-  to: string
-}
-
 export interface PageLayoutHeaderProps {
-  /** Background gradient for header branding. Overrides `backgroundColor`. */
-  gradient?: PageLayoutHeaderGradient
-  /** Solid background color. Defaults to `color.bg.emphasis`. */
+  /** Optional solid background color. Transparent by default. */
   backgroundColor?: string
-  /** Header height. Defaults to 120. */
-  height?: number | string
   children?: React.ReactNode
 }
 
 /**
  * Top bar region of a PageLayout.
  *
- * Renders a full-width header with configurable background styling.
- * Use the `gradient` prop to apply branding gradients (e.g. workspace blue,
- * admin slate) or `backgroundColor` for a solid fill.
+ * Renders a full-width header that is transparent by default. For branded
+ * pages, pair with `PageLayout.Backdrop` to paint a gradient behind the
+ * header. Use `backgroundColor` only when an opaque header is needed
+ * without a backdrop.
  *
  * @example
- *   <PageLayout.Header gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}>
- *     <Logo />
- *   </PageLayout.Header>
+ *   <PageLayout>
+ *     <PageLayout.Backdrop gradient={{ from: colors.blue['900'], to: colors.blue['700'] }} />
+ *     <PageLayout.Header>
+ *       <Logo />
+ *     </PageLayout.Header>
+ *   </PageLayout>
  */
 export const PageLayoutHeader = forwardRef<
   HTMLDivElement,
   PageLayoutHeaderProps
->(
-  (
-    { gradient, backgroundColor = color.bg.emphasis, height = 120, children },
-    ref
-  ) => {
-    const backgroundImage = gradient
-      ? `linear-gradient(to bottom right, ${gradient.from}, ${gradient.to})`
-      : undefined
-
-    return (
-      <Block
-        padding={spacing['2xl']}
-        height={height}
-        backgroundColor={gradient ? undefined : backgroundColor}
-        backgroundImage={backgroundImage}
-        props={{ ref }}
-      >
-        {children}
-      </Block>
-    )
-  }
-)
+>(({ backgroundColor, children }, ref) => {
+  return (
+    <Block
+      position="relative"
+      zIndex={1}
+      paddingTop={spacing['2xl']}
+      paddingLeft={spacing['2xl']}
+      paddingRight={spacing['2xl']}
+      paddingBottom={spacing.md}
+      backgroundColor={backgroundColor}
+      props={{ ref }}
+    >
+      {children}
+    </Block>
+  )
+})
 
 PageLayoutHeader.displayName = 'PageLayoutHeader'

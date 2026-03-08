@@ -35,7 +35,10 @@ export interface FormFieldProps {
  * </FormField>
  * ```
  */
-export const FormField = forwardRef<HTMLDivElement, PropsWithChildren<FormFieldProps>>(
+export const FormField = forwardRef<
+  HTMLDivElement,
+  PropsWithChildren<FormFieldProps>
+>(
   (
     {
       children,

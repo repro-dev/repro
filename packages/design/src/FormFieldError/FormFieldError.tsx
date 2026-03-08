@@ -32,10 +32,7 @@ interface Props {
  *
  * Renders nothing when `error` is `undefined` or has no `message`.
  */
-export const FormFieldError: React.FC<Props> = ({
-  error,
-  id: idProp,
-}) => {
+export const FormFieldError: React.FC<Props> = ({ error, id: idProp }) => {
   const ctx = useFormFieldContext()
   const id = idProp ?? ctx?.errorId
 

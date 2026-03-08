@@ -1,29 +1,14 @@
-import { Block, Row } from '@jsxstyle/react'
+import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
+import { Avatar } from '../Avatar'
+import { Card } from '../Card'
+import { Logo } from '../Logo'
+import { Skeleton } from '../Skeleton'
 import { color, colors } from '../tokens/colors'
-import { radius } from '../tokens/elevation'
 import { spacing } from '../tokens/spacing'
 import { fontSize, fontWeight } from '../tokens/typography'
 import { PageLayout } from './index'
-
-const Placeholder: React.FC<{ label: string; height?: number | string }> = ({
-  label,
-  height = 'auto',
-}) => {
-  return (
-    <Block
-      padding={spacing.xl}
-      backgroundColor={color.bg.subtle}
-      borderRadius={radius.md}
-      color={color.text.secondary}
-      height={height}
-      fontSize={fontSize.sm}
-    >
-      {label}
-    </Block>
-  )
-}
 
 const meta: Meta<typeof PageLayout> = {
   title: 'Components/Layout/PageLayout',
@@ -38,33 +23,84 @@ export default meta
 
 type Story = StoryObj<typeof PageLayout>
 
+const NavLink: React.FC<{ label: string; inverted?: boolean }> = ({
+  label,
+  inverted = false,
+}) => (
+  <Block
+    fontSize={fontSize.sm}
+    fontWeight={fontWeight.medium}
+    color={inverted ? color.text.inverse : color.text.secondary}
+    cursor="pointer"
+  >
+    {label}
+  </Block>
+)
+
+const SampleNav: React.FC<{ inverted?: boolean }> = ({
+  inverted = false,
+}) => (
+  <Row alignItems="center" gap={spacing.lg}>
+    <NavLink label="Recordings" inverted={inverted} />
+    <NavLink label="Team" inverted={inverted} />
+    <NavLink label="Settings" inverted={inverted} />
+  </Row>
+)
+
+const SampleHeader: React.FC<{ inverted?: boolean }> = ({
+  inverted = false,
+}) => (
+  <Row alignItems="center" gap={spacing.xl}>
+    <Logo size={28} inverted={inverted} />
+    <SampleNav inverted={inverted} />
+    <Row alignItems="center" marginLeft="auto">
+      <Avatar
+        name="Jane Smith"
+        email="jane@example.com"
+        mode="image-only"
+        size={28}
+      />
+    </Row>
+  </Row>
+)
+
 export const Default: Story = {
   render: () => (
     <PageLayout>
       <PageLayout.Header>
-        <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
-          Header
-        </Block>
+        <SampleHeader />
       </PageLayout.Header>
       <PageLayout.Body>
-        <Placeholder label="Body content" height={400} />
+        <Card>
+          <Col gap={spacing.lg}>
+            <Skeleton variant="text" lines={3} />
+            <Skeleton variant="rectangular" height={160} />
+            <Skeleton variant="text" lines={2} />
+          </Col>
+        </Card>
       </PageLayout.Body>
     </PageLayout>
   ),
 }
 
-export const WithGradientHeader: Story = {
+export const WithBackdrop: Story = {
+  name: 'With Backdrop',
   render: () => (
     <PageLayout>
-      <PageLayout.Header
+      <PageLayout.Backdrop
         gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
-      >
-        <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
-          Gradient Header
-        </Block>
+      />
+      <PageLayout.Header>
+        <SampleHeader inverted />
       </PageLayout.Header>
       <PageLayout.Body>
-        <Placeholder label="Body content" height={400} />
+        <Card>
+          <Col gap={spacing.lg}>
+            <Skeleton variant="text" lines={3} />
+            <Skeleton variant="rectangular" height={160} />
+            <Skeleton variant="text" lines={2} />
+          </Col>
+        </Card>
       </PageLayout.Body>
     </PageLayout>
   ),
@@ -74,18 +110,26 @@ export const WithSidebar: Story = {
   render: () => (
     <PageLayout>
       <PageLayout.Header>
-        <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
-          Header
-        </Block>
+        <SampleHeader />
       </PageLayout.Header>
-      <Row height="100%" overflow="hidden">
-        <PageLayout.Sidebar>
-          <Placeholder label="Sidebar navigation" />
-        </PageLayout.Sidebar>
-        <PageLayout.Body>
-          <Placeholder label="Main content area" height={400} />
-        </PageLayout.Body>
-      </Row>
+      <PageLayout.Body>
+        <Grid gridTemplateColumns="280px 1fr" gap={spacing.xl} height="100%">
+          <Card>
+            <Col gap={spacing.lg}>
+              <Skeleton variant="text" />
+              <Skeleton variant="text" />
+              <Skeleton variant="text" />
+              <Skeleton variant="text" />
+            </Col>
+          </Card>
+          <Card>
+            <Col gap={spacing.lg}>
+              <Skeleton variant="text" lines={4} />
+              <Skeleton variant="rectangular" height={200} />
+            </Col>
+          </Card>
+        </Grid>
+      </PageLayout.Body>
     </PageLayout>
   ),
 }
@@ -94,12 +138,16 @@ export const ConstrainedBody: Story = {
   render: () => (
     <PageLayout>
       <PageLayout.Header>
-        <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
-          Header
-        </Block>
+        <SampleHeader />
       </PageLayout.Header>
       <PageLayout.Body maxWidth={720}>
-        <Placeholder label="Constrained to 720px max-width" height={400} />
+        <Card>
+          <Col gap={spacing.lg}>
+            <Skeleton variant="text" lines={3} />
+            <Skeleton variant="rectangular" height={120} />
+            <Skeleton variant="text" lines={2} />
+          </Col>
+        </Card>
       </PageLayout.Body>
     </PageLayout>
   ),
@@ -109,18 +157,26 @@ export const CustomSidebarWidth: Story = {
   render: () => (
     <PageLayout>
       <PageLayout.Header>
-        <Block color={color.text.inverse} fontWeight={fontWeight.semibold}>
-          Header
-        </Block>
+        <SampleHeader />
       </PageLayout.Header>
-      <Row height="100%" overflow="hidden">
-        <PageLayout.Sidebar width={360}>
-          <Placeholder label="Wide sidebar (360px)" />
-        </PageLayout.Sidebar>
-        <PageLayout.Body>
-          <Placeholder label="Main content" height={400} />
-        </PageLayout.Body>
-      </Row>
+      <PageLayout.Body>
+        <Grid gridTemplateColumns="360px 1fr" gap={spacing.xl} height="100%">
+          <Card>
+            <Col gap={spacing.lg}>
+              <Skeleton variant="text" />
+              <Skeleton variant="text" />
+              <Skeleton variant="text" />
+              <Skeleton variant="rectangular" height={100} />
+            </Col>
+          </Card>
+          <Card>
+            <Col gap={spacing.lg}>
+              <Skeleton variant="text" lines={4} />
+              <Skeleton variant="rectangular" height={200} />
+            </Col>
+          </Card>
+        </Grid>
+      </PageLayout.Body>
     </PageLayout>
   ),
 }
