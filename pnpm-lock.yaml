@@ -1469,6 +1469,9 @@ importers:
       '@floating-ui/react':
         specifier: ^0.27.19
         version: 0.27.19(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@hookform/resolvers':
+        specifier: ^2.9.10
+        version: 2.9.10(react-hook-form@7.53.0(react@18.3.1))
       '@jsxstyle/core':
         specifier: ^3.0.1
         version: 3.0.1(patch_hash=f01c696c3290a899c0c02cf47a135a226b695495ba95d4ad82675e2e6136b9cd)
@@ -1514,6 +1517,9 @@ importers:
       tailwindcss:
         specifier: ^3.3.2
         version: 3.3.2(ts-node@10.9.1(@swc/core@1.13.5)(@types/node@22.14.0)(typescript@5.7.3))
+      zod:
+        specifier: 3.24.4
+        version: 3.24.4
     devDependencies:
       '@storybook/addon-docs':
         specifier: ^10.2.13
