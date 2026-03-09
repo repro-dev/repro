@@ -1,17 +1,15 @@
-import React, { PropsWithChildren, useContext, useEffect, useRef } from 'react'
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
+import { Block } from '@jsxstyle/react'
 import { zIndex } from '../tokens/elevation'
 
 const PortalRootContext = React.createContext<HTMLElement | null>(null)
-
-function createRootElement(): HTMLDivElement {
-  const el = document.createElement('div')
-  el.style.position = 'fixed'
-  el.style.top = '0px'
-  el.style.left = '0px'
-  el.style.zIndex = `${zIndex.portal}`
-  document.body.appendChild(el)
-  return el
-}
 
 /**
  * Provides a fixed-position root container for `Portal` instances to
@@ -21,31 +19,33 @@ function createRootElement(): HTMLDivElement {
  * will mount into this root, ensuring overlays render above all other
  * content at max z-index.
  *
- * The root element is created synchronously so that child `Portal`
- * components can render into it on the very first paint.
+ * The root element lives inside the React tree so it respects shadow DOM
+ * boundaries. A callback ref captures the DOM node after the first
+ * commit; the brief `null` frame is invisible because the provider
+ * mounts at application startup, well before any overlay opens.
  */
 export const PortalRootProvider: React.FC<PropsWithChildren> = ({
   children,
 }) => {
-  const rootRef = useRef<HTMLDivElement | null>(null)
+  const [root, setRoot] = useState<HTMLElement | null>(null)
 
-  if (!rootRef.current) {
-    rootRef.current = createRootElement()
-  }
-
-  useEffect(() => {
-    return () => {
-      if (rootRef.current) {
-        rootRef.current.remove()
-        rootRef.current = null
-      }
-    }
+  const callbackRef = useCallback((node: HTMLElement | null) => {
+    setRoot(node)
   }, [])
 
   return (
-    <PortalRootContext.Provider value={rootRef.current}>
-      {children}
-    </PortalRootContext.Provider>
+    <>
+      <Block
+        position="fixed"
+        top={0}
+        left={0}
+        zIndex={zIndex.portal}
+        props={{ ref: callbackRef }}
+      />
+      <PortalRootContext.Provider value={root}>
+        {children}
+      </PortalRootContext.Provider>
+    </>
   )
 }
 
