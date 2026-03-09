@@ -10,17 +10,23 @@ tasks:
     - ^:build
     options:
       cache: true
+      outputStyle: 'buffer-only-failure'
   test:
     deps:
     - ^:build
     - build
     env:
       NODE_OPTIONS: '--test-reporter spec'
+    inputs:
+    - glob: 'src/**/*.test.ts{,x}'
+      cache: true
     options:
       cache: true
+      outputStyle: 'buffer-only-failure'
   typecheck:
     deps:
     - ^:build
     - build
     options:
       cache: true
+      outputStyle: 'buffer-only-failure'
