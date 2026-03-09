@@ -3,8 +3,8 @@ import type { Meta, StoryObj } from '@storybook/react'
 import React, { useState } from 'react'
 import { expect, userEvent, within } from 'storybook/test'
 import { Button } from '../Button'
+import { Text } from '../Text'
 import { color } from '../tokens/colors'
-import { fontSize } from '../tokens/typography'
 import { Drawer } from './Drawer'
 
 const meta: Meta<typeof Drawer> = {
@@ -39,19 +39,17 @@ export const Default: Story = {
           aria-label="Session details"
         >
           <Col gap={16} paddingTop={24}>
-            <Block fontSize={fontSize.lg} fontWeight={600}>
-              Session Details
-            </Block>
-            <Block fontSize={fontSize.sm} color={color.text.secondary}>
+            <Text variant="heading3">Session Details</Text>
+            <Text variant="bodySmall" color={color.text.secondary}>
               This drawer slides in from the right. It can be dismissed by
               pressing Escape, clicking the backdrop, or the close button.
-            </Block>
-            <Block fontSize={fontSize.sm} color={color.text.secondary}>
+            </Text>
+            <Text variant="bodySmall" color={color.text.secondary}>
               Browser: Chrome 124
-            </Block>
-            <Block fontSize={fontSize.sm} color={color.text.secondary}>
+            </Text>
+            <Text variant="bodySmall" color={color.text.secondary}>
               Duration: 2m 13s
-            </Block>
+            </Text>
             <Block>
               <Button
                 context="neutral"
@@ -92,13 +90,13 @@ export const WithLabelledBy: Story = {
           labelId="drawer-heading"
         >
           <Col gap={16} paddingTop={24}>
-            <Block id="drawer-heading" fontSize={fontSize.lg} fontWeight={600}>
-              Event Inspector
-            </Block>
-            <Block fontSize={fontSize.sm} color={color.text.secondary}>
+            <Text variant="heading3" as="h2">
+              <span id="drawer-heading">Event Inspector</span>
+            </Text>
+            <Text variant="bodySmall" color={color.text.secondary}>
               This drawer uses <code>aria-labelledby</code> pointing at the
               heading above for accessible labelling.
-            </Block>
+            </Text>
           </Col>
         </Drawer>
       </Block>
@@ -127,9 +125,7 @@ export const OpenCloseTest: Story = {
           aria-label="Test drawer"
         >
           <Col gap={16} paddingTop={24}>
-            <Block fontSize={fontSize.lg} fontWeight={600}>
-              Test Drawer
-            </Block>
+            <Text variant="heading3">Test Drawer</Text>
           </Col>
         </Drawer>
       </Block>
