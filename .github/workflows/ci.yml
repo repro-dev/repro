@@ -88,7 +88,7 @@ jobs:
       - name: Check affected packages
         run: |
           echo '::group::Moon pipeline — build, typecheck, test'
-          moon ci --summary :build :typecheck :test
+          moon ci :build :typecheck :test
           echo '::endgroup::'
         env:
           MOON_LOG: warn
