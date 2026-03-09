@@ -84,7 +84,7 @@ Omit attributes the component should not support using `Omit<>`.
 
 ## Compound Components (Target Pattern)
 
-Complex components with distinct structural regions should use sub-components. **No existing components implement this pattern yet** — it is the target for future refactoring (Modal, Drawer, Card are candidates).
+Complex components with distinct structural regions should use sub-components. `PageLayout` already implements this pattern (`.Backdrop`, `.Header`, `.Body`). Modal, Drawer, and Card are candidates for future refactoring to this pattern.
 
 Target usage:
 

@@ -11,7 +11,7 @@ For the full specification — component inventory, authoring checklists, token 
 | Typecheck | `moon run design:typecheck` |
 | Run tests | `moon run design:test` |
 | Run single test | `tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/path/to/file.test.tsx` |
-| Format | `pnpm fmt` |
+| Format | `pnpm -C packages/design fmt` |
 | Storybook dev | `moon run storybook-ui:dev` |
 | Storybook typecheck | `moon run storybook-ui:typecheck` |
 

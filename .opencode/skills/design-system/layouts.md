@@ -35,7 +35,7 @@ Supporting layout primitives:
 **Imports for all convention examples:**
 
 ```tsx
-import { PageLayout, Stack, Center, color, colors, spacing, radius, shadow } from '@repro/design'
+import { PageLayout, Stack, Center, Card, color, colors, spacing, radius, shadow } from '@repro/design'
 import { Block, Col, Row, Grid } from '@jsxstyle/react'
 ```
 
