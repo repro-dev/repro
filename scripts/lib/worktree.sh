@@ -121,6 +121,7 @@ cmd_wt_create() {
     echo ""
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: git worktree add ... \"$wt_path\" \"$branch\""
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: pnpm install (in $wt_path)"
+    echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: moon run :build (in $wt_path)"
 
     local env_files
     env_files=$(find "$MAIN_CHECKOUT/apps" -maxdepth 2 -type f -name '.env*' -not -name '.env.example' 2>/dev/null || true)
@@ -150,9 +151,9 @@ cmd_wt_create() {
     has_direnv=true
   fi
 
-  local total_steps=3
+  local total_steps=4
   if [ "$has_direnv" = true ]; then
-    total_steps=4
+    total_steps=5
   fi
 
   local step=1
@@ -169,6 +170,10 @@ cmd_wt_create() {
   step=$((step + 1))
   _step "$step" "$total_steps" "Installing dependencies..."
   (cd "$wt_path" && pnpm install)
+
+  step=$((step + 1))
+  _step "$step" "$total_steps" "Building packages..."
+  (cd "$wt_path" && moon run :build)
 
   step=$((step + 1))
   _step "$step" "$total_steps" "Copying .env files..."
