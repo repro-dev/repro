@@ -20,7 +20,7 @@ import { color, spacing, fontSize, fontWeight, lineHeight, fontFamily, textStyle
 | `color.bg.surface` | white | Card/page surface |
 | `color.bg.subtle` | slate-50 | Subtle background (zebra rows, code blocks) |
 | `color.bg.hover` | slate-100 | Hover background |
-| `color.bg.muted` | slate-500 | De-emphasised fill for resting/inactive controls |
+| `color.bg.muted` | slate-200 | Muted fill for secondary/de-emphasised sections |
 | `color.bg.emphasis` | slate-800 | Dark emphasis background |
 | `color.bg.overlay` | `rgba(0,0,0,0.5)` | Backdrop overlays |
 | `color.border.default` | slate-200 | Standard border |

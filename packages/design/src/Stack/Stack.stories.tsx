@@ -10,7 +10,7 @@ const Placeholder: React.FC<{ label: string }> = ({ label }) => {
   return (
     <Block
       padding={spacing.md}
-      backgroundColor={color.bg.muted}
+      backgroundColor={color.bg.emphasis}
       borderRadius={radius.md}
       color={color.text.inverse}
     >
