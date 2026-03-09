@@ -10,9 +10,10 @@ Evaluate these conditions **in order**. Use the first match.
 |---|-----------|------------|
 | 1 | Unauthenticated flow (login, register, password reset, invite accept) | `auth-centered` |
 | 2 | Primary app chrome with persistent navigation (top bar + optional sidebar) | `app-shell` |
-| 3 | Primary content area + contextual metadata panel side-by-side | `content-sidebar` |
-| 4 | Grid of summary cards, metrics, or KPI tiles | `dashboard-grid` |
-| 5 | Otherwise (single-column: settings, forms, detail views, lists) | `content-single` |
+| 3 | Page embeds the recording playback viewport with DevTools inspector | `tool-panel` |
+| 4 | Primary content area + contextual metadata panel side-by-side | `content-sidebar` |
+| 5 | Grid of summary cards, metrics, or KPI tiles | `dashboard-grid` |
+| 6 | Otherwise (single-column: settings, forms, detail views, lists) | `content-single` |
 
 ## PageLayout Sub-Components
 
@@ -128,6 +129,59 @@ Unauthenticated flow with a centered content card on a subtle background.
 **Legacy implementations:**
 - `apps/workspace/src/AuthLayout.tsx` — workspace login/register
 - `apps/admin/src/AuthLayout.tsx` — admin login with Admin badge
+
+---
+
+## Convention: `tool-panel`
+
+Multi-panel DevTools layout with a recording playback viewport, a resizable inspector, a toolbar with tab switching, and an optional side panel.
+
+**When to use:** The page embeds the recording playback viewport with the DevTools inspector. Compose with `<DevTools>` from `@repro/devtools` — do not build custom multi-panel playback layouts.
+
+**Structural overview:**
+
+`<DevTools>` renders a CSS Grid (`gridTemplateRows="1fr auto"`) with two regions:
+
+| Region | Component | Content |
+|--------|-----------|---------|
+| Playback | `PlaybackRegion` (`Block`) | `PlaybackCanvas` with scale-to-fit, pointer/scroll tracking, picker overlay |
+| Inspector | `InspectorRegion` (`Grid`, `gridTemplateRows="40px auto"`) | `Toolbar` (toggle, picker, tabs, timeline) + collapsible `ContentRegion` with `DragHandle` resize |
+
+The inspector is collapsible — when collapsed, only the `Toolbar` row is visible. When expanded, a `DragHandle` (from `@repro/design`) allows vertical resizing between `MIN_HEIGHT` and `MAX_HEIGHT`. The `DragHandle` masks pointer events on the playback viewport during drag to prevent iframe interference.
+
+The `Toolbar` contains: inspector toggle, element picker, view tabs (Elements / Network / Console), a timeline slot (customisable via the `timeline` prop), and optional playback navigation controls.
+
+**Composition pattern — hosting route:**
+
+```tsx
+import { DevTools } from '@repro/devtools'
+import { PlaybackFromSourceProvider } from '@repro/playback'
+import { Card } from '@repro/design'
+import { Grid, Block } from '@jsxstyle/react'
+
+<PlaybackFromSourceProvider source={source}>
+  <Grid gridTemplateColumns="1fr 4fr" gridTemplateRows="100%" height="100%" gap={15}>
+    {/* Optional sidebar */}
+    <Card fullBleed height="100%">
+      <Block height="100%" overflow="hidden" borderRadius={4}>
+        <DevTools resourceBaseURL={resourceBaseURL} />
+      </Block>
+    </Card>
+  </Grid>
+</PlaybackFromSourceProvider>
+```
+
+**Key guidance:**
+
+- Always compose with `<DevTools>` — never build custom multi-panel playback layouts from scratch.
+- Pass `resourceBaseURL` to enable resource loading for the recorded session.
+- Pass a custom `timeline` prop to replace the default `SimpleTimeline`.
+- Set `hideInspectorOnOpen` to start with the inspector collapsed.
+
+**Real examples:**
+
+- `apps/workspace/src/routes/RecordingRoute/RecordingRoute.tsx` — workspace recording playback with sidebar
+- `apps/capture/src/components/Widget/ReportForm/Layout.tsx` — capture widget report form (playback + aside panel)
 
 ---
 
