@@ -62,7 +62,7 @@ export const RecordingRoute: React.FC = () => {
     <PlaybackFromSourceProvider source={source}>
       <Grid
         gap={15}
-        height="calc(100vh - 90px)"
+        height="100%"
         gridTemplateColumns="1fr 4fr"
         gridTemplateRows="100%"
       >

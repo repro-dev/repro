@@ -4,7 +4,7 @@ import { Loader as LoaderIcon } from 'lucide-react'
 import React from 'react'
 
 export const Loading: React.FC = () => (
-  <Grid height="calc(100vh - 90px)" alignItems="center" justifyItems="center">
+  <Grid height="100%" alignItems="center" justifyItems="center">
     <FX.Spin>
       <LoaderIcon />
     </FX.Spin>
