@@ -244,6 +244,52 @@ export const ContentSidebar: Story = {
   ),
 }
 
+export const SettingsShell: Story = {
+  name: 'settings-shell',
+  render: () => (
+    <PageLayout>
+      <PageLayout.Header>
+        <SampleHeader />
+      </PageLayout.Header>
+      <PageLayout.Body>
+        <Grid gridTemplateColumns="240px 1fr" gap={spacing.xl} height="100%">
+          <Card>
+            <Col gap={spacing.xs}>
+              <SidebarNavItem label="Account" active />
+              <SidebarNavItem label="Billing" />
+              <SidebarNavItem label="Security" />
+              <SidebarNavItem label="API Keys" />
+            </Col>
+          </Card>
+          <Col gap={spacing['2xl']}>
+            <Block {...textStyles.heading2} color={color.text.default}>
+              Account
+            </Block>
+            <Card>
+              <Col gap={spacing.lg}>
+                <Block {...textStyles.label} color={color.text.default}>
+                  Profile
+                </Block>
+                <Skeleton variant="text" lines={2} />
+                <Skeleton variant="rectangular" height={80} />
+              </Col>
+            </Card>
+            <Card>
+              <Col gap={spacing.lg}>
+                <Block {...textStyles.label} color={color.text.default}>
+                  Preferences
+                </Block>
+                <Skeleton variant="text" lines={2} />
+                <Skeleton variant="rectangular" height={60} />
+              </Col>
+            </Card>
+          </Col>
+        </Grid>
+      </PageLayout.Body>
+    </PageLayout>
+  ),
+}
+
 export const DashboardGrid: Story = {
   name: 'dashboard-grid',
   render: () => (

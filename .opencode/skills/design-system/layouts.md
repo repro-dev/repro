@@ -12,6 +12,7 @@ Evaluate these conditions **in order**. Use the first match.
 | 2 | Primary app chrome with persistent navigation (top bar + optional sidebar) | `app-shell` |
 | 3 | Page embeds the recording playback viewport with DevTools inspector | `tool-panel` |
 | 4 | Primary content area + contextual metadata panel side-by-side | `content-sidebar` |
+| 5 | Persistent sidebar nav listing sections + swappable content area (e.g. `/settings/*`) | `settings-shell` |
 | 5 | Grid of summary cards, metrics, or KPI tiles | `dashboard-grid` |
 | 6 | Otherwise (single-column: settings, forms, detail views, lists) | `content-single` |
 
@@ -235,6 +236,44 @@ Primary content area alongside a contextual metadata panel.
 ```
 
 **Storybook:** `Patterns/Layouts` > `content-sidebar`
+
+---
+
+## Convention: `settings-shell`
+
+Persistent sidebar navigation with a swappable content area for multi-section settings pages.
+
+**When to use:** The page is a settings area (or similar) with multiple sub-pages navigated via a persistent vertical sidebar. Each sub-page contains full-width content (forms, tables, lists) that swaps as the user selects a section. This is distinct from `content-sidebar` — that convention pairs primary content with a metadata panel. A settings shell pairs a *navigation list* with a *route outlet*.
+
+**Structure:**
+
+```tsx
+<PageLayout>
+  <PageLayout.Header>
+    {/* Page title */}
+  </PageLayout.Header>
+  <PageLayout.Body>
+    <Grid gridTemplateColumns="240px 1fr" gap={spacing.xl} height="100%">
+      <Card>
+        <Col gap={spacing.xs}>
+          {/* Nav items — one per settings section */}
+        </Col>
+      </Card>
+      <Col gap={spacing['2xl']}>
+        {/* Active section content (route outlet) */}
+      </Col>
+    </Grid>
+  </PageLayout.Body>
+</PageLayout>
+```
+
+**Guidance:**
+- The sidebar `Card` should stay fixed in height with the page (achieved by `height="100%"` on the `Grid`). If sections overflow, add `overflow="auto"` to the sidebar `Card`.
+- Nav items should use a pill/highlight pattern to indicate the active section (see `SidebarNavItem` in Storybook).
+- Each settings section is a nested route. The content column renders the active route's component.
+- Content within each section is full-width (forms, tables, lists) — do not constrain with `maxWidth` as `content-single` does.
+
+**Storybook:** `Patterns/Layouts` > `settings-shell` (`packages/design/src/PageLayout/conventions.stories.tsx`)
 
 ---
 
