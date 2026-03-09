@@ -1,3 +1,8 @@
+---
+name: database
+description: PostgreSQL 17 conventions, Kysely ORM and migration tracking, version pinning locations (CI, Tilt, Brewfile). Load when writing migrations, modifying schemas, or working with database queries.
+---
+
 # Database
 
 ## PostgreSQL
