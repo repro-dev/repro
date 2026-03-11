@@ -14,6 +14,9 @@ import json
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from wt_name import wt_name
+
 data = json.load(sys.stdin)
 items = data.get("items", [])
 
@@ -33,7 +36,7 @@ if cfg_path and os.path.isfile(cfg_path):
             slug = s.get("slug", "")
             name = s.get("name", "")
             if slug:
-                configured.add(name + "-wt-" + slug)
+                configured.add(wt_name(name, slug))
             else:
                 configured.add(name)
 
