@@ -36,6 +36,7 @@ export const EmptyState = forwardRef<HTMLDivElement, EmptyStateProps>(
         alignItems="center"
         justifyContent="center"
         flex={1}
+        height="100%"
         padding={spacing['2xl']}
         gap={spacing.lg}
         textAlign="center"
