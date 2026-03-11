@@ -76,7 +76,7 @@ export const DropdownMenuItem = forwardRef<
 
   return (
     <Block
-      {...textStyles.body}
+      {...textStyles.bodySmall}
       color={textColor}
       padding={`${spacing.md}px ${spacing.lg}px`}
       borderRadius={radius.sm}
