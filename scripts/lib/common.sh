@@ -52,9 +52,7 @@ die() {
 # ── String helpers ──────────────────────────────────────────────────
 
 slugify() {
-  local raw
-  raw="$(printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]')"
-  python3 "${BASH_SOURCE[0]%/*}/py/wt_name.py" slug "$raw"
+  printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'
 }
 
 # ── Context detection ───────────────────────────────────────────────
@@ -101,9 +99,7 @@ detect_worktree_slug() {
 }
 
 worktree_path() {
-  local slug
-  slug="$(slugify "$1")"
-  echo "$PARENT_DIR/repro-wt-$slug"
+  echo "$PARENT_DIR/repro-wt-$1"
 }
 
 # ── Worktree-aware resource resolution ──────────────────────────────
