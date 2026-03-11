@@ -37,9 +37,7 @@ const NavLink: React.FC<{ label: string; inverted?: boolean }> = ({
   </Block>
 )
 
-const SampleNav: React.FC<{ inverted?: boolean }> = ({
-  inverted = false,
-}) => (
+const SampleNav: React.FC<{ inverted?: boolean }> = ({ inverted = false }) => (
   <Row alignItems="center" gap={spacing.lg}>
     <NavLink label="Recordings" inverted={inverted} />
     <NavLink label="Team" inverted={inverted} />

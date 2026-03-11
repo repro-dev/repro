@@ -264,10 +264,7 @@ export const DashboardGrid: Story = {
           </Grid>
           <Card>
             <Col gap={spacing.md}>
-              <Block
-                {...textStyles.label}
-                color={color.text.default}
-              >
+              <Block {...textStyles.label} color={color.text.default}>
                 Activity
               </Block>
               <Skeleton variant="rectangular" height={200} />
@@ -275,10 +272,7 @@ export const DashboardGrid: Story = {
           </Card>
           <Card>
             <Col gap={spacing.md}>
-              <Block
-                {...textStyles.label}
-                color={color.text.default}
-              >
+              <Block {...textStyles.label} color={color.text.default}>
                 Recent Sessions
               </Block>
               <Skeleton variant="text" lines={6} />

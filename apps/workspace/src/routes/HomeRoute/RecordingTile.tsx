@@ -1,7 +1,7 @@
+import { Block, Col, InlineRow, Row } from '@jsxstyle/react'
 import { formatDate, formatTime } from '@repro/date-utils'
 import { colors } from '@repro/design'
 import { RecordingInfo, RecordingMode } from '@repro/domain'
-import { Block, Col, InlineRow, Row } from '@jsxstyle/react'
 import { Camera as CameraIcon, Video as VideoIcon } from 'lucide-react'
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
