@@ -9,7 +9,7 @@ interface Props {
 
 export const RecordingError: React.FC<Props> = ({ error }) => (
   <Grid
-    height="calc(100vh - 90px)"
+    height="100%"
     gridTemplateColumns="1fr"
     gridTemplateRows="100%"
     marginH={-15}

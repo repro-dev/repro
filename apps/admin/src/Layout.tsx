@@ -1,6 +1,6 @@
-import { Block, Grid, Row } from '@jsxstyle/react'
+import { Block, Row } from '@jsxstyle/react'
 import { IfSession, MyAvatar, UnlessSession, useLogout } from '@repro/auth'
-import { Logo, colors } from '@repro/design'
+import { Logo, PageLayout, colors } from '@repro/design'
 import { logger } from '@repro/logger'
 import { done } from 'fluture'
 import React from 'react'
@@ -27,17 +27,12 @@ export const Layout: React.FC = () => {
   }
 
   return (
-    <Grid
-      height="100vh"
-      gridTemplateRows="auto 1fr"
-      backgroundColor={colors.white}
-    >
-      <Block
-        padding={20}
-        height={120}
-        backgroundColor={colors.slate['800']}
-        backgroundImage={`linear-gradient(to bottom right, ${colors.slate['900']}, ${colors.slate['700']})`}
-      >
+    <PageLayout>
+      <PageLayout.Backdrop
+        gradient={{ from: colors.slate['900'], to: colors.slate['700'] }}
+      />
+
+      <PageLayout.Header>
         <Row alignItems="center">
           <NavLink to="/" style={{ textDecoration: 'none' }}>
             <Row alignItems="center" gap={5}>
@@ -90,11 +85,11 @@ export const Layout: React.FC = () => {
             </Row>
           </UnlessSession>
         </Row>
-      </Block>
+      </PageLayout.Header>
 
-      <Block marginTop={-60} padding={15}>
+      <PageLayout.Body>
         <Outlet />
-      </Block>
-    </Grid>
+      </PageLayout.Body>
+    </PageLayout>
   )
 }
