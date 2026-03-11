@@ -5,7 +5,7 @@ import { Avatar } from '../Avatar'
 import { Card } from '../Card'
 import { Logo } from '../Logo'
 import { Skeleton } from '../Skeleton'
-import { color, colors } from '../tokens/colors'
+import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
 import { fontSize, fontWeight } from '../tokens/typography'
 import { PageLayout } from './index'
@@ -84,12 +84,9 @@ export const Default: Story = {
 }
 
 export const WithBackdrop: Story = {
-  name: 'With Backdrop',
+  name: 'Branded',
   render: () => (
-    <PageLayout>
-      <PageLayout.Backdrop
-        gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
-      />
+    <PageLayout branded>
       <PageLayout.Header>
         <SampleHeader inverted />
       </PageLayout.Header>
