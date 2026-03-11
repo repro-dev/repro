@@ -120,11 +120,15 @@ _is_known_service() {
   python3 "$SCRIPTS_DIR/lib/py/is_known_service.py" "$1" "$SERVICES_JSON"
 }
 
+_wt_name() {
+  python3 "$SCRIPTS_DIR/lib/py/wt_name.py" "$1" "$2"
+}
+
 resolve_worktree_resource_name() {
   if is_worktree "$REPO_ROOT" && _is_known_service "$1"; then
     local slug
     slug="$(detect_worktree_slug)"
-    echo "${1}-wt-${slug}"
+    _wt_name "$1" "$slug"
   else
     echo "$1"
   fi

@@ -1,0 +1,73 @@
+"""Tests for wt_name.py — verifies parity with the Starlark wt_name()."""
+
+import subprocess
+import sys
+
+import pytest
+
+from conftest import run_script
+
+
+def _starlark_hash_suffix(s):
+    h = 0
+    for c in s:
+        h = (h * 31 + ord(c)) & 0xFFFFFFFF
+    return "%x" % h
+
+
+def _starlark_wt_name(base, slug, max_len=53):
+    full = base + "-wt-" + slug
+    if len(full) <= max_len:
+        return full
+    hash_suffix = _starlark_hash_suffix(slug)[:6]
+    budget = max_len - len(base) - len("-wt-") - 1 - 6
+    if budget < 1:
+        budget = 1
+    return base + "-wt-" + slug[:budget] + "-" + hash_suffix
+
+
+TEST_CASES = [
+    ("workspace", "gary-short", 53),
+    ("workspace", "gary-rep-237-some-very-long-feature-branch-name-here", 53),
+    (
+        "api-server",
+        "gary-rep-364-reproctl-restartstop-fails-for-worktrees-with-long-branch",
+        53,
+    ),
+    ("gateway", "gary-rep-999-extremely-long-slug-that-exceeds-all-limits-by-far", 53),
+    ("a", "b", 53),
+    ("workspace", "a", 53),
+    ("workspace", "gary-rep-100-just-barely-over-the-limit-xxxxxxxxx", 53),
+    ("very-long-base-name", "gary-rep-500-another-long-slug-name-here", 53),
+    ("x", "gary-rep-200-slug", 20),
+]
+
+
+class TestWtName:
+    @pytest.mark.parametrize("base,slug,max_len", TEST_CASES)
+    def test_matches_starlark(self, base, slug, max_len):
+        expected = _starlark_wt_name(base, slug, max_len)
+        result = run_script("wt_name.py", args=[base, slug, str(max_len)])
+        assert result.returncode == 0, f"Script failed: {result.stderr}"
+        actual = result.stdout.strip()
+        assert actual == expected
+        assert len(actual) <= max_len
+
+    @pytest.mark.parametrize("base,slug,max_len", TEST_CASES)
+    def test_length_constraint(self, base, slug, max_len):
+        expected = _starlark_wt_name(base, slug, max_len)
+        assert len(expected) <= max_len
+
+    def test_short_name_no_truncation(self):
+        result = run_script("wt_name.py", args=["workspace", "gary-short"])
+        assert result.returncode == 0
+        assert result.stdout.strip() == "workspace-wt-gary-short"
+
+    def test_default_max_len(self):
+        result = run_script("wt_name.py", args=["workspace", "short"])
+        assert result.returncode == 0
+        assert result.stdout.strip() == "workspace-wt-short"
+
+    def test_missing_args(self):
+        result = run_script("wt_name.py", args=[])
+        assert result.returncode == 1
