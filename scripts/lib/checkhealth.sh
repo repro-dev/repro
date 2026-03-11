@@ -299,6 +299,17 @@ for r in wt:
           _diag_row "wt-$slug" "ok" "no Helm releases (services may not be started)"
           _add_check "wt_$slug" "ok" "no Helm releases"
         fi
+
+        local dns_hostname="app.wt-${slug}.repro.localhost"
+        if python3 -c "import socket; socket.getaddrinfo('$dns_hostname', 80)" 2>/dev/null; then
+          _diag_row "wt-$slug DNS" "ok" "$dns_hostname resolves"
+          _add_check "wt_${slug}_dns" "ok" "$dns_hostname resolves"
+        else
+          _diag_row "wt-$slug DNS" "warn" "$dns_hostname does not resolve"
+          _add_check "wt_${slug}_dns" "warn" "$dns_hostname does not resolve"
+          _add_issue "warning" "DNS for $dns_hostname does not resolve — browser DNS-over-HTTPS (DoH) may bypass OS resolver. Disable DoH or add entries to /etc/hosts."
+          has_warnings=true
+        fi
       done
     else
       if [ "$CHECKHEALTH_JSON" != true ]; then
