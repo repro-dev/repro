@@ -21,17 +21,19 @@ def wt_label(slug):
   return label
 
 
-def wt_name(base, slug, max_len=53):
+def wt_name(base, slug, max_len=49):
   """Build a length-safe name from a base and worktree slug.
 
   Constructs 'base-wt-slug' and truncates the slug (with a hash
   suffix for collision avoidance) when the result exceeds max_len.
-  The default max_len of 53 satisfies the Helm release name limit.
+  The default max_len of 49 ensures that Helm release names plus the
+  longest chart suffix (-ingress-admin, 14 chars) stay within the
+  63-byte Kubernetes label value limit.
 
   Args:
     base: Prefix (e.g. 'workspace', 'gateway').
     slug: Worktree slug (e.g. 'gary-rep-237-some-long-name').
-    max_len: Maximum total length (default 53, Helm release limit).
+    max_len: Maximum total length (default 49).
 
   Returns:
     A string of at most max_len characters.
