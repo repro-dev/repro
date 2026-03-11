@@ -1,7 +1,0 @@
-- Conventional Commits: `feat(scope):`, `fix(scope):`, `refactor:`, `chore:`, `docs:`
-- No code comments unless explicitly requested
-- Never commit on `main` — always use a feature branch
-- Branch naming: `<type>/<issue?>-<slug>` (e.g. `feat/REP-123-add-auth`)
-- PR title must reference the Linear issue ID (e.g. REP-123)
-- All file operations must use absolute paths under the worktree directory
-- Check existing imports/patterns before adding new dependencies

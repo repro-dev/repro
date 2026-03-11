@@ -53,7 +53,6 @@ _reproctl() {
     'logs:Show or stream service logs'
     'ui:Open Tilt dashboard in browser'
     'context:Show current development context'
-    'handoff:Generate subagent context document'
     'worktree:Manage git worktrees'
     'wt:Manage git worktrees (alias)'
     'help:Show help for a command'
@@ -85,7 +84,6 @@ _reproctl() {
         logs)       _reproctl_logs ;;
         ui)         ;; # no args
         context)    ;; # no args
-        handoff)    _reproctl_handoff ;;
         worktree|wt) _reproctl_worktree ;;
         help)       _reproctl_help ;;
       esac
@@ -203,13 +201,6 @@ _reproctl_logs() {
     '*:service:_reproctl_services_arg'
 }
 
-_reproctl_handoff() {
-  _arguments \
-    '(--issue -i)'{--issue,-i}'[Linear issue identifier]:issue id:' \
-    '(--worktree -w)'{--worktree,-w}'[Worktree path]:path:_directories' \
-    '(-h --help)'{-h,--help}'[Show help]'
-}
-
 _reproctl_worktree() {
   local -a wt_commands
   wt_commands=(
@@ -269,7 +260,7 @@ _reproctl_help() {
   help_topics=(
     'setup' 'doctor' 'checkhealth' 'cluster' 'db'
     'start' 'stop' 'restart' 'status' 'logs'
-    'ui' 'context' 'handoff' 'worktree' 'wt'
+    'ui' 'context' 'worktree' 'wt'
   )
   _values 'topic' "${help_topics[@]}"
 }
