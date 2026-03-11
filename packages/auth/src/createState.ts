@@ -22,6 +22,7 @@ export function createState(config: Config) {
         }),
       })
       .pipe(tap(setSession))
+      .pipe(tap(() => setSessionLoading(false)))
   }
 
   function logout() {

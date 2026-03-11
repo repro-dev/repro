@@ -27,11 +27,16 @@ export const UserMenu: React.FC = () => {
     <DropdownMenu>
       <DropdownMenu.Trigger>
         <Row
+          component="button"
+          type="button"
           alignItems="center"
           gap={spacing.md}
           padding={spacing.lg}
           cursor="pointer"
+          border="none"
+          background="none"
           hoverBackgroundColor={color.bg.hover}
+          props={{ 'aria-label': `Open user menu for ${user.name}` }}
         >
           <Avatar name={user.name} size={24} />
         </Row>
