@@ -15,6 +15,7 @@
 #   reproctl status                           Show running services and dashboard URL
 #   reproctl logs [options] [service...]       Show or stream service logs
 #   reproctl ui                               Open the Tilt dashboard in a browser
+#   reproctl launch <service>                  Open service URL in the browser
 #   reproctl context                           Show current development context
 #   reproctl worktree attach <branch>          Attach to a worktree subshell
 #   reproctl worktree create <branch>         Create a worktree
@@ -58,6 +59,8 @@ source "$SCRIPT_DIR/lib/db.sh"
 source "$SCRIPT_DIR/lib/context.sh"
 # shellcheck source=scripts/lib/checkhealth.sh
 source "$SCRIPT_DIR/lib/checkhealth.sh"
+# shellcheck source=scripts/lib/launch.sh
+source "$SCRIPT_DIR/lib/launch.sh"
 # shellcheck source=scripts/lib/handoff.sh
 source "$SCRIPT_DIR/lib/handoff.sh"
 
@@ -81,6 +84,7 @@ Commands:
   status                          Show running services and dashboard URL
   logs [options] [service...]     Show or stream service logs
   ui                              Open the Tilt dashboard in a browser
+  launch <service>                Open a service URL in the browser
   context                         Show current development context
   handoff [options]               Generate context document for subagent delegation
   worktree <subcommand>           Manage git worktrees (create, remove, list, attach)
@@ -117,6 +121,8 @@ Examples:
   reproctl logs -f api-server                 # tail logs for a service
   reproctl logs --json --since 5m api-server  # structured recent logs
   reproctl ui                                 # open Tilt dashboard
+  reproctl launch workspace                  # open workspace in browser
+  reproctl launch api-server -w feat/my-feat # open worktree api-server URL
   reproctl context                            # show current worktree/branch context
   reproctl handoff                            # generate handoff document from current branch
   reproctl handoff -i REP-123                 # generate handoff document for specific issue
@@ -173,6 +179,7 @@ USAGE
   status)  cmd_status "$@" ;;
   logs)    cmd_logs "$@" ;;
   ui)      cmd_ui "$@" ;;
+  launch)  cmd_launch "$@" ;;
   context) cmd_context "$@" ;;
   handoff) cmd_handoff "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
