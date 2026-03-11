@@ -40,27 +40,23 @@ export const PublicRecordingRoute: React.FC = () => {
     }
   }, [info])
 
-  if (loading) {
-    return <Loading />
-  }
-
-  if (error) {
-    return <RecordingError error={error} />
-  }
-
   return (
-    <RecordingLoader>
-      <ToolView>
-        <ToolView.Header>
-          <Logo size={24} />
-          {info && (
-            <Block {...textStyles.body}>{info.title}</Block>
-          )}
-        </ToolView.Header>
-        <ToolView.Content>
-          <DevTools resourceBaseURL={resourceBaseURL} />
-        </ToolView.Content>
-      </ToolView>
-    </RecordingLoader>
+    <ToolView>
+      <ToolView.Header>
+        <Logo size={24} />
+        {info && <Block {...textStyles.body}>{info.title}</Block>}
+      </ToolView.Header>
+      <ToolView.Content>
+        {loading ? (
+          <Loading />
+        ) : error ? (
+          <RecordingError error={error} />
+        ) : (
+          <RecordingLoader>
+            <DevTools resourceBaseURL={resourceBaseURL} />
+          </RecordingLoader>
+        )}
+      </ToolView.Content>
+    </ToolView>
   )
 }

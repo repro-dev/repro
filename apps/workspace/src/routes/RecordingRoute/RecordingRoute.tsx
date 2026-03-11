@@ -4,7 +4,7 @@ import { DevTools } from '@repro/devtools'
 import { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { createNullSource, PlaybackFromSourceProvider } from '@repro/playback'
-import { Link, ToolView, textStyles } from '@repro/design'
+import { Link, Logo, ToolView, textStyles } from '@repro/design'
 import { createApiSource } from '@repro/recording-api'
 import React, { useEffect, useState } from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
@@ -49,29 +49,29 @@ export const RecordingRoute: React.FC = () => {
     }
   }, [info])
 
-  if (loading) {
-    return <Loading />
-  }
-
-  if (error) {
-    return <RecordingError error={error} />
-  }
-
   return (
-    <PlaybackFromSourceProvider source={source}>
-      <ToolView>
-        <ToolView.Header>
-          <Link component={RouterLink} props={{ to: '/' }}>
-            &larr; Sessions
-          </Link>
-          {info && (
-            <Block {...textStyles.body}>{info.title}</Block>
-          )}
-        </ToolView.Header>
-        <ToolView.Content>
-          <DevTools resourceBaseURL={resourceBaseURL} />
-        </ToolView.Content>
-      </ToolView>
-    </PlaybackFromSourceProvider>
+    <ToolView>
+      <ToolView.Header>
+        <Logo size={24} />
+        <Link
+          component={RouterLink}
+          props={{ to: '/', style: textStyles.body }}
+        >
+          &larr; Sessions
+        </Link>
+        {info && <Block {...textStyles.body}>{info.title}</Block>}
+      </ToolView.Header>
+      <ToolView.Content>
+        {loading ? (
+          <Loading />
+        ) : error ? (
+          <RecordingError error={error} />
+        ) : (
+          <PlaybackFromSourceProvider source={source}>
+            <DevTools resourceBaseURL={resourceBaseURL} />
+          </PlaybackFromSourceProvider>
+        )}
+      </ToolView.Content>
+    </ToolView>
   )
 }

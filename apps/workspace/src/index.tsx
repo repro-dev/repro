@@ -6,12 +6,13 @@ import { PortalRootProvider } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import { getDefaultAgent } from '@repro/messaging'
 import { applyResetStyles } from '@repro/theme'
-import React, { lazy } from 'react'
+import React, { Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { Env } from './config/createEnv'
 import { defaultEnv as env } from './config/env'
+import { Loading } from './components/Loading'
 import { Layout } from './Layout'
 
 const HomeRoute = lazy(() => import('./routes/HomeRoute'))
@@ -67,34 +68,36 @@ if (rootElem) {
         <GateProvider>
           <AuthProvider>
             <PortalRootProvider>
-              <Routes>
-                <Route element={<AuthLayout />}>
-                  <Route path="account/login" element={<LoginRoute />} />
-                  <Route
-                    path="account/register"
-                    element={<RegisterRoute />}
-                  />
-                  <Route path="account/verify" element={<div />} />
-                </Route>
-
-                <Route element={<Layout />}>
-                  <Route element={<SessionRouteBoundary />}>
-                    <Route index element={<HomeRoute />} />
+              <Suspense fallback={<Loading />}>
+                <Routes>
+                  <Route element={<AuthLayout />}>
+                    <Route path="account/login" element={<LoginRoute />} />
+                    <Route
+                      path="account/register"
+                      element={<RegisterRoute />}
+                    />
+                    <Route path="account/verify" element={<div />} />
                   </Route>
-                </Route>
 
-                <Route element={<SessionRouteBoundary />}>
+                  <Route element={<Layout />}>
+                    <Route element={<SessionRouteBoundary />}>
+                      <Route index element={<HomeRoute />} />
+                    </Route>
+                  </Route>
+
+                  <Route element={<SessionRouteBoundary />}>
+                    <Route
+                      path="recordings/:recordingId"
+                      element={<RecordingRoute />}
+                    />
+                  </Route>
+
                   <Route
-                    path="recordings/:recordingId"
-                    element={<RecordingRoute />}
+                    path="share/:recordingId"
+                    element={<PublicRecordingRoute />}
                   />
-                </Route>
-
-                <Route
-                  path="share/:recordingId"
-                  element={<PublicRecordingRoute />}
-                />
-              </Routes>
+                </Routes>
+              </Suspense>
             </PortalRootProvider>
           </AuthProvider>
         </GateProvider>

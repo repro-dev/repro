@@ -1,6 +1,13 @@
 import React, { Fragment, PropsWithChildren } from 'react'
-import { useSession } from './hooks'
+import { useSession, useSessionLoading } from './hooks'
 
 export const IfSession: React.FC<PropsWithChildren> = ({ children }) => {
-  return useSession() ? <Fragment>{children}</Fragment> : null
+  const session = useSession()
+  const loading = useSessionLoading()
+
+  if (loading || !session) {
+    return null
+  }
+
+  return <Fragment>{children}</Fragment>
 }
