@@ -52,7 +52,9 @@ die() {
 # ── String helpers ──────────────────────────────────────────────────
 
 slugify() {
-  printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'
+  local raw
+  raw="$(printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]')"
+  python3 "${BASH_SOURCE[0]%/*}/py/wt_name.py" slug "$raw"
 }
 
 # ── Context detection ───────────────────────────────────────────────

@@ -38,7 +38,7 @@ migrations_resource_name() {
   if is_worktree "$REPO_ROOT"; then
     local slug
     slug="$(detect_worktree_slug)"
-    echo "api-server-wt-${slug}-migrations"
+    echo "$(_wt_name "api-server" "$slug")-migrations"
   else
     echo "api-server-migrations"
   fi
