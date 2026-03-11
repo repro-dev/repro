@@ -27,10 +27,7 @@ export const Layout: React.FC = () => {
   }
 
   return (
-    <PageLayout>
-      <PageLayout.Backdrop
-        gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
-      />
+    <PageLayout branded>
 
       <PageLayout.Header>
         <Row alignItems="center">
