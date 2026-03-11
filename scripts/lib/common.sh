@@ -99,9 +99,7 @@ detect_worktree_slug() {
 }
 
 worktree_path() {
-  local slug
-  slug="$(slugify "$1")"
-  echo "$PARENT_DIR/repro-wt-$slug"
+  echo "$PARENT_DIR/repro-wt-$1"
 }
 
 # ── Worktree-aware resource resolution ──────────────────────────────

@@ -90,11 +90,15 @@ cmd_wt_create_from_issue() {
     die "No branch name returned by Linear for ${issue_identifier}."
   fi
 
+  local slug
+  slug="$(printf '%s' "$issue_identifier" | tr '[:upper:]' '[:lower:]')"
+
   _ok "Found: ${issue_identifier} — ${issue_title}"
   echo "  Branch: ${branch_name}"
+  echo "  Slug:   ${slug}"
   echo ""
 
-  cmd_wt_create "$branch_name"
+  cmd_wt_create "$branch_name" "$slug"
 
   if [[ "$WT_NO_STATUS_UPDATE" != true ]]; then
     if [[ -n "$in_progress_state_id" ]]; then
@@ -111,8 +115,9 @@ cmd_wt_create_from_issue() {
 
 cmd_wt_create() {
   local branch="$1"
+  local slug="${2:-$(slugify "$branch")}"
   local wt_path
-  wt_path="$(worktree_path "$branch")"
+  wt_path="$(worktree_path "$slug")"
 
   echo "${CLR_BOLD}Creating worktree for branch:${CLR_RESET} $branch"
   echo "  Path: $wt_path"
@@ -220,7 +225,18 @@ cmd_wt_create() {
 cmd_wt_remove() {
   local branch="$1"
   local wt_path
-  wt_path="$(worktree_path "$branch")"
+  wt_path="$(_worktree_path_for_branch "$branch")" || wt_path=""
+
+  if [ -z "$wt_path" ] || [ ! -d "$wt_path" ]; then
+    if [ "$WT_DRY_RUN" = true ]; then
+      echo "${CLR_DIM}[dry-run]${CLR_RESET} No worktree found for branch: $branch"
+      return 0
+    fi
+    _err "Error: No worktree found for branch: $branch"
+    echo "  Run 'reproctl worktree list' to see active worktrees." >&2
+    git worktree prune
+    return 1
+  fi
 
   echo "${CLR_BOLD}Removing worktree for branch:${CLR_RESET} $branch"
   echo "  Path: $wt_path"
@@ -232,13 +248,6 @@ cmd_wt_remove() {
     echo ""
     echo "${CLR_DIM}[dry-run] No changes were made.${CLR_RESET}"
     return 0
-  fi
-
-  if [ ! -d "$wt_path" ]; then
-    _err "Error: No worktree found at $wt_path"
-    echo "  Run 'reproctl worktree list' to see active worktrees." >&2
-    git worktree prune
-    return 1
   fi
 
   _step 1 2 "Removing git worktree..."
@@ -289,9 +298,9 @@ cmd_wt_prune() {
       return
     fi
 
-    local expected_path
-    expected_path="$(worktree_path "$wt_branch")"
-    if [ "$wt_path" != "$expected_path" ]; then
+    local basename
+    basename="$(basename "$wt_path")"
+    if [[ "$basename" != repro-wt-* ]]; then
       wt_path="" wt_branch="" wt_bare=false wt_detached=false
       return
     fi
@@ -459,32 +468,25 @@ cmd_wt_list_json() {
 
 resolve_worktree() {
   local input="$1"
+
   local slug_path
   slug_path="$(worktree_path "$input")"
-
   if [[ -d "$slug_path" ]]; then
     echo "$slug_path"
     return 0
   fi
 
-  local wt_path="" wt_branch=""
-  while IFS= read -r line; do
-    case "$line" in
-      worktree\ *) wt_path="${line#worktree }" ;;
-      branch\ *)   wt_branch="${line#branch }"; wt_branch="${wt_branch#refs/heads/}" ;;
-      "")
-        if [[ "$wt_branch" == "$input" ]]; then
-          echo "$wt_path"
-          return 0
-        fi
-        wt_path="" wt_branch=""
-        ;;
-    esac
-  done < <(git worktree list --porcelain)
-  if [[ "$wt_branch" == "$input" ]]; then
-    echo "$wt_path"
-    return 0
+  local lower_input
+  lower_input="$(printf '%s' "$input" | tr '[:upper:]' '[:lower:]')"
+  if [[ "$lower_input" != "$input" ]]; then
+    slug_path="$(worktree_path "$lower_input")"
+    if [[ -d "$slug_path" ]]; then
+      echo "$slug_path"
+      return 0
+    fi
   fi
+
+  _worktree_path_for_branch "$input" && return 0
 
   return 1
 }
@@ -513,6 +515,30 @@ _worktree_branch_for_path() {
       return 1
     fi
     echo "$wt_branch"
+    return 0
+  fi
+
+  return 1
+}
+
+_worktree_path_for_branch() {
+  local target="$1"
+  local wt_path="" wt_branch=""
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *) wt_path="${line#worktree }" ;;
+      branch\ *)   wt_branch="${line#branch }"; wt_branch="${wt_branch#refs/heads/}" ;;
+      "")
+        if [[ "$wt_branch" == "$target" ]]; then
+          echo "$wt_path"
+          return 0
+        fi
+        wt_path="" wt_branch=""
+        ;;
+    esac
+  done < <(git worktree list --porcelain)
+  if [[ "$wt_branch" == "$target" ]]; then
+    echo "$wt_path"
     return 0
   fi
 
@@ -576,8 +602,9 @@ cmd_attach() {
   local branch
   branch="$(_worktree_branch_for_path "$wt_path")" || branch="$input"
 
-  local slug
-  slug="$(slugify "$branch")"
+  local slug basename
+  basename="$(basename "$wt_path")"
+  slug="${basename#repro-wt-}"
 
   echo "Attached to worktree: $branch"
   echo "  Path: $wt_path"

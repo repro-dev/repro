@@ -1,9 +1,10 @@
-"""Compute a length-safe worktree resource name.
+"""Compute length-safe worktree resource names.
 
 Replicates the wt_name() algorithm from infra/tilt-lib/services.Tiltfile
 so that shell tooling produces identical resource names.
 
-Usage: python3 wt_name.py <base> <slug> [max_len]
+Usage:
+  python3 wt_name.py name  <base> <slug> [max_len]
 """
 
 import sys
@@ -29,12 +30,23 @@ def wt_name(base, slug, max_len=49):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: wt_name.py <base> <slug> [max_len]", file=sys.stderr)
+    if len(sys.argv) < 2:
+        print("Usage: wt_name.py <name|slug> ...", file=sys.stderr)
         sys.exit(1)
 
-    base = sys.argv[1]
-    slug = sys.argv[2]
-    max_len = int(sys.argv[3]) if len(sys.argv) > 3 else 49
+    cmd = sys.argv[1]
 
-    print(wt_name(base, slug, max_len))
+    if cmd == "name":
+        if len(sys.argv) < 4:
+            print("Usage: wt_name.py name <base> <slug> [max_len]", file=sys.stderr)
+            sys.exit(1)
+        base = sys.argv[2]
+        slug = sys.argv[3]
+        max_len = int(sys.argv[4]) if len(sys.argv) > 4 else 49
+        print(wt_name(base, slug, max_len))
+
+    else:
+        base = cmd
+        slug = sys.argv[2] if len(sys.argv) > 2 else ""
+        max_len = int(sys.argv[3]) if len(sys.argv) > 3 else 49
+        print(wt_name(base, slug, max_len))
