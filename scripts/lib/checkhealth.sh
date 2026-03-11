@@ -266,15 +266,18 @@ for r in wt:
     local orphaned_releases=()
     while IFS=$'\t' read -r release_name release_ns; do
       [ -z "$release_name" ] && continue
-      local release_slug
-      release_slug="$(printf '%s' "$release_name" | sed 's/.*-wt-//')"
 
       local found=false
       for slug in "${wt_slugs[@]}"; do
-        if [ "$release_slug" = "$slug" ]; then
-          found=true
-          break
-        fi
+        local expected
+        for svc_base in $(_list_service_names) gateway; do
+          expected="$(python3 "$SCRIPTS_DIR/lib/py/wt_name.py" "$svc_base" "$slug")"
+          if [ "$release_name" = "$expected" ]; then
+            found=true
+            break
+          fi
+        done
+        [ "$found" = true ] && break
       done
 
       if [ "$found" = false ]; then
@@ -287,28 +290,47 @@ for r in wt:
         local release_count=0
         while IFS=$'\t' read -r release_name _; do
           [ -z "$release_name" ] && continue
-          if [[ "$release_name" == *"-wt-$slug" ]]; then
-            release_count=$((release_count + 1))
-          fi
+          local svc_base
+          for svc_base in $(_list_service_names) gateway; do
+            local expected
+            expected="$(python3 "$SCRIPTS_DIR/lib/py/wt_name.py" "$svc_base" "$slug")"
+            if [ "$release_name" = "$expected" ]; then
+              release_count=$((release_count + 1))
+              break
+            fi
+          done
         done <<< "$wt_releases"
 
+        local display_slug="$slug"
+        if [ ${#display_slug} -gt 40 ]; then
+          display_slug="${display_slug:0:37}..."
+        fi
+
         if [ "$release_count" -gt 0 ]; then
-          _diag_row "wt-$slug" "ok" "$release_count Helm release(s)"
+          _diag_row "wt-$display_slug" "ok" "$release_count Helm release(s)"
           _add_check "wt_$slug" "ok" "$release_count Helm release(s)"
         else
-          _diag_row "wt-$slug" "ok" "no Helm releases (services may not be started)"
+          _diag_row "wt-$display_slug" "ok" "no Helm releases (services may not be started)"
           _add_check "wt_$slug" "ok" "no Helm releases"
         fi
 
-        local dns_hostname="app.wt-${slug}.repro.localhost"
-        if python3 -c "import socket; socket.getaddrinfo('$dns_hostname', 80)" 2>/dev/null; then
-          _diag_row "wt-$slug DNS" "ok" "$dns_hostname resolves"
-          _add_check "wt_${slug}_dns" "ok" "$dns_hostname resolves"
-        else
-          _diag_row "wt-$slug DNS" "warn" "$dns_hostname does not resolve"
-          _add_check "wt_${slug}_dns" "warn" "$dns_hostname does not resolve"
-          _add_issue "warning" "DNS for $dns_hostname does not resolve — browser DNS-over-HTTPS (DoH) may bypass OS resolver. Disable DoH or add entries to /etc/hosts."
+        local dns_label="wt-${slug}"
+        if [ ${#dns_label} -gt 63 ]; then
+          _diag_row "wt-$display_slug DNS" "warn" "hostname label exceeds 63-byte DNS limit"
+          _add_check "wt_${slug}_dns" "warn" "DNS label too long"
+          _add_issue "warning" "Worktree slug '$slug' produces a DNS label longer than 63 bytes — .localhost resolution will fail. Consider a shorter branch name or see REP-361."
           has_warnings=true
+        else
+          local dns_hostname="app.wt-${slug}.repro.localhost"
+          if python3 -c "import socket; socket.getaddrinfo('$dns_hostname', 80)" >/dev/null 2>&1; then
+            _diag_row "wt-$display_slug DNS" "ok" "$dns_hostname resolves"
+            _add_check "wt_${slug}_dns" "ok" "$dns_hostname resolves"
+          else
+            _diag_row "wt-$display_slug DNS" "warn" "$dns_hostname does not resolve"
+            _add_check "wt_${slug}_dns" "warn" "$dns_hostname does not resolve"
+            _add_issue "warning" "DNS for $dns_hostname does not resolve — browser DNS-over-HTTPS (DoH) may bypass OS resolver. Disable DoH or add entries to /etc/hosts."
+            has_warnings=true
+          fi
         fi
       done
     else
