@@ -15,7 +15,7 @@ def _starlark_hash_suffix(s):
     return "%x" % h
 
 
-def _starlark_wt_name(base, slug, max_len=53):
+def _starlark_wt_name(base, slug, max_len=49):
     full = base + "-wt-" + slug
     if len(full) <= max_len:
         return full
@@ -27,18 +27,18 @@ def _starlark_wt_name(base, slug, max_len=53):
 
 
 TEST_CASES = [
-    ("workspace", "gary-short", 53),
-    ("workspace", "gary-rep-237-some-very-long-feature-branch-name-here", 53),
+    ("workspace", "gary-short", 49),
+    ("workspace", "gary-rep-237-some-very-long-feature-branch-name-here", 49),
     (
         "api-server",
         "gary-rep-364-reproctl-restartstop-fails-for-worktrees-with-long-branch",
-        53,
+        49,
     ),
-    ("gateway", "gary-rep-999-extremely-long-slug-that-exceeds-all-limits-by-far", 53),
-    ("a", "b", 53),
-    ("workspace", "a", 53),
-    ("workspace", "gary-rep-100-just-barely-over-the-limit-xxxxxxxxx", 53),
-    ("very-long-base-name", "gary-rep-500-another-long-slug-name-here", 53),
+    ("gateway", "gary-rep-999-extremely-long-slug-that-exceeds-all-limits-by-far", 49),
+    ("a", "b", 49),
+    ("workspace", "a", 49),
+    ("workspace", "gary-rep-100-just-barely-over-the-limit-xxxxxxxxx", 49),
+    ("very-long-base-name", "gary-rep-500-another-long-slug-name-here", 49),
     ("x", "gary-rep-200-slug", 20),
 ]
 
@@ -71,3 +71,30 @@ class TestWtName:
     def test_missing_args(self):
         result = run_script("wt_name.py", args=[])
         assert result.returncode == 1
+
+    @pytest.mark.parametrize(
+        "base,slug",
+        [
+            (
+                "api-server",
+                "gary-rep-364-reproctl-restartstop-fails-for-worktrees-with-long-branch",
+            ),
+            (
+                "workspace",
+                "gary-rep-363-worktree-service-hostnames-may-not-resolve-depending-on",
+            ),
+            (
+                "gateway",
+                "gary-rep-999-extremely-long-slug-that-exceeds-all-limits-by-far",
+            ),
+        ],
+    )
+    def test_k8s_label_constraint(self, base, slug):
+        result = run_script("wt_name.py", args=[base, slug])
+        assert result.returncode == 0
+        name = result.stdout.strip()
+        longest_resource = name + "-ingress-admin"
+        assert len(longest_resource) <= 63, (
+            f"Resource name {longest_resource!r} ({len(longest_resource)} chars) "
+            f"exceeds 63-byte Kubernetes label limit"
+        )

@@ -16,7 +16,7 @@ def _hash_suffix(s):
     return "%x" % h
 
 
-def wt_name(base, slug, max_len=53):
+def wt_name(base, slug, max_len=49):
     full = base + "-wt-" + slug
     if len(full) <= max_len:
         return full
@@ -35,6 +35,6 @@ if __name__ == "__main__":
 
     base = sys.argv[1]
     slug = sys.argv[2]
-    max_len = int(sys.argv[3]) if len(sys.argv) > 3 else 53
+    max_len = int(sys.argv[3]) if len(sys.argv) > 3 else 49
 
     print(wt_name(base, slug, max_len))
