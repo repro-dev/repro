@@ -1,61 +1,23 @@
 import { Block } from '@jsxstyle/react'
-import React, { forwardRef } from 'react'
+import React from 'react'
+import { colors } from '../tokens/colors'
 
-export interface BrandedBackdropGradient {
-  from: string
-  to: string
+const GRADIENT_FROM = colors.blue['900']
+const GRADIENT_TO = colors.blue['700']
+const DEFAULT_HEIGHT = 180
+
+export const BrandedBackdrop: React.FC = () => {
+  return (
+    <Block
+      position="absolute"
+      top={0}
+      left={0}
+      right={0}
+      height={DEFAULT_HEIGHT}
+      gridRow="1 / -1"
+      gridColumn="1 / -1"
+      zIndex={0}
+      backgroundImage={`linear-gradient(to bottom right, ${GRADIENT_FROM}, ${GRADIENT_TO})`}
+    />
+  )
 }
-
-export interface BrandedBackdropProps {
-  /** Background gradient for the branded region. */
-  gradient?: BrandedBackdropGradient
-  /** Solid background color fallback when no gradient is provided. */
-  backgroundColor?: string
-  /** Height of the painted gradient region in pixels. Defaults to 180. */
-  height?: number
-}
-
-/**
- * Visual backdrop layer that paints a gradient behind a PageLayout.
- *
- * Renders as a positioned-absolute layer spanning the full grid. The gradient
- * fills only the top `height` pixels; below that the backdrop is transparent,
- * allowing body content cards to naturally overlap the gradient without
- * negative margins.
- *
- * Place this as the first child inside a `PageLayout`:
- *
- * @example
- *   <PageLayout>
- *     <PageLayout.Backdrop
- *       gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
- *     />
- *     <PageLayout.Header>Nav</PageLayout.Header>
- *     <PageLayout.Body>Content</PageLayout.Body>
- *   </PageLayout>
- */
-export const BrandedBackdrop = forwardRef<HTMLDivElement, BrandedBackdropProps>(
-  ({ gradient, backgroundColor, height = 180 }, ref) => {
-    const backgroundImage = gradient
-      ? `linear-gradient(to bottom right, ${gradient.from}, ${gradient.to})`
-      : undefined
-
-    return (
-      <Block
-        position="absolute"
-        top={0}
-        left={0}
-        right={0}
-        height={height}
-        gridRow="1 / -1"
-        gridColumn="1 / -1"
-        zIndex={0}
-        backgroundColor={gradient ? undefined : backgroundColor}
-        backgroundImage={backgroundImage}
-        props={{ ref }}
-      />
-    )
-  }
-)
-
-BrandedBackdrop.displayName = 'BrandedBackdrop'

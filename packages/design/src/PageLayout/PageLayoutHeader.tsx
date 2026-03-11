@@ -12,13 +12,12 @@ export interface PageLayoutHeaderProps {
  * Top bar region of a PageLayout.
  *
  * Renders a full-width header that is transparent by default. For branded
- * pages, pair with `PageLayout.Backdrop` to paint a gradient behind the
+ * pages, use `<PageLayout branded>` to paint the product gradient behind the
  * header. Use `backgroundColor` only when an opaque header is needed
- * without a backdrop.
+ * without a branded gradient.
  *
  * @example
- *   <PageLayout>
- *     <PageLayout.Backdrop gradient={{ from: colors.blue['900'], to: colors.blue['700'] }} />
+ *   <PageLayout branded>
  *     <PageLayout.Header>
  *       <Logo />
  *     </PageLayout.Header>

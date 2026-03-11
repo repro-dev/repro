@@ -78,7 +78,7 @@ packages/design/
 | `Logo` | Repro brand logo SVG |
 | `Meter` | Horizontal progress bar that transitions to success color when full |
 | `Modal` | Centered modal dialog with backdrop, focus trapping, and Escape/click-to-close |
-| `PageLayout` | Root page shell with `.Backdrop`, `.Header`, `.Body` sub-components |
+| `PageLayout` | Root page shell with `.Header`, `.Body` sub-components and `branded` prop |
 | `Portal` | Renders children into the nearest `PortalRootProvider` |
 | `PortalRootProvider` | Provides a fixed-position root container for Portal instances |
 | `Stack` | Vertical flex layout with token-constrained `gap` |

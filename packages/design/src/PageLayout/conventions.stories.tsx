@@ -6,7 +6,7 @@ import { Card } from '../Card'
 import { Center } from '../Center'
 import { Logo } from '../Logo'
 import { Skeleton } from '../Skeleton'
-import { color, colors } from '../tokens/colors'
+import { color } from '../tokens/colors'
 import { radius, shadow } from '../tokens/elevation'
 import { spacing } from '../tokens/spacing'
 import { fontSize, fontWeight, textStyles } from '../tokens/typography'
@@ -103,10 +103,7 @@ type Story = StoryObj
 export const AppShell: Story = {
   name: 'app-shell',
   render: () => (
-    <PageLayout>
-      <PageLayout.Backdrop
-        gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
-      />
+    <PageLayout branded>
       <PageLayout.Header>
         <SampleHeader inverted />
       </PageLayout.Header>
@@ -247,10 +244,7 @@ export const ContentSidebar: Story = {
 export const DashboardGrid: Story = {
   name: 'dashboard-grid',
   render: () => (
-    <PageLayout>
-      <PageLayout.Backdrop
-        gradient={{ from: colors.blue['900'], to: colors.blue['700'] }}
-      />
+    <PageLayout branded>
       <PageLayout.Header>
         <SampleHeader inverted />
       </PageLayout.Header>
