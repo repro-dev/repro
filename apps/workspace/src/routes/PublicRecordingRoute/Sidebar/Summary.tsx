@@ -1,7 +1,7 @@
+import { Block, InlineBlock } from '@jsxstyle/react'
 import { formatDate } from '@repro/date-utils'
 import { colors, Drawer } from '@repro/design'
 import { RecordingInfo } from '@repro/domain'
-import { Block, InlineBlock } from '@jsxstyle/react'
 import React, { Fragment, useState } from 'react'
 
 interface Props {

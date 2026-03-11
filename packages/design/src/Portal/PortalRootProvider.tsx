@@ -1,3 +1,4 @@
+import { Block } from '@jsxstyle/react'
 import React, {
   PropsWithChildren,
   useCallback,
@@ -6,7 +7,6 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { Block } from '@jsxstyle/react'
 import { zIndex } from '../tokens/elevation'
 
 const PortalRootContext = React.createContext<HTMLElement | null>(null)

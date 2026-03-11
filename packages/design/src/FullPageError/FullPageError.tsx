@@ -1,5 +1,5 @@
-import React, { forwardRef } from 'react'
 import { AlertTriangle as AlertIcon } from 'lucide-react'
+import React, { forwardRef } from 'react'
 import { Alert } from '../Alert'
 import { Center } from '../Center'
 

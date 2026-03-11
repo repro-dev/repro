@@ -1,8 +1,8 @@
+import { Block, Grid } from '@jsxstyle/react'
 import { Card, colors, DefinitionList } from '@repro/design'
 import { EventHighlights } from '@repro/devtools'
 import { RecordingInfo } from '@repro/domain'
 import { ucfirst } from '@repro/string-utils'
-import { Block, Grid } from '@jsxstyle/react'
 import React from 'react'
 import { Summary } from './Summary'
 

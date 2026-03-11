@@ -132,5 +132,4 @@ describe('Link', () => {
       expect(ref.current?.tagName).toBe('A')
     })
   })
-
 })
