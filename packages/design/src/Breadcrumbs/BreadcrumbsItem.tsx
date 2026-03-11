@@ -3,6 +3,7 @@ import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
 import { focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
+import { spacing } from '../tokens/spacing'
 
 export interface BreadcrumbsItemProps {
   children?: React.ReactNode
@@ -20,11 +21,25 @@ export interface BreadcrumbsItemProps {
  * additional attributes (e.g. `href`, `to`) via the `props` bag.
  */
 export const BreadcrumbsItem = forwardRef<HTMLLIElement, BreadcrumbsItemProps>(
-  ({ children, component, current = false, props: componentProps }, ref) => {
+  ({ children, component, current = false, props: componentProps, ...rest }, ref) => {
+    const showSeparator =
+      (rest as { _showSeparator?: boolean })._showSeparator ?? false
     const Tag = (current ? 'span' : component ?? 'span') as 'span'
+    const isInteractive = !current && component !== undefined
 
     return (
-      <Inline component="li" props={{ ref }}>
+      <Inline
+        component="li"
+        display="flex"
+        alignItems="center"
+        gap={spacing.sm}
+        props={{ ref }}
+      >
+        {showSeparator && (
+          <Inline color={color.text.muted} props={{ 'aria-hidden': 'true' }}>
+            /
+          </Inline>
+        )}
         {current ? (
           <Inline
             component="span"
@@ -37,12 +52,16 @@ export const BreadcrumbsItem = forwardRef<HTMLLIElement, BreadcrumbsItemProps>(
           <Inline
             component={Tag}
             color={color.primary}
-            hoverColor={color.primaryHover}
             textDecoration="none"
-            hoverTextDecoration="underline"
-            cursor="pointer"
             transition={transition.fast}
-            {...focusRing()}
+            {...(isInteractive
+              ? {
+                  hoverColor: color.primaryHover,
+                  hoverTextDecoration: 'underline',
+                  cursor: 'pointer',
+                  ...focusRing(),
+                }
+              : {})}
             props={componentProps}
           >
             {children}

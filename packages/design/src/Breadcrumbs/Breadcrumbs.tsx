@@ -1,6 +1,5 @@
-import { Inline, Row } from '@jsxstyle/react'
+import { Row } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
-import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
 
@@ -17,8 +16,8 @@ export interface BreadcrumbsProps {
  *
  * @example
  *   <Breadcrumbs>
- *     <Breadcrumbs.Item component="a" href="/">Home</Breadcrumbs.Item>
- *     <Breadcrumbs.Item component="a" href="/docs">Docs</Breadcrumbs.Item>
+ *     <Breadcrumbs.Item component="a" props={{ href: '/' }}>Home</Breadcrumbs.Item>
+ *     <Breadcrumbs.Item component="a" props={{ href: '/docs' }}>Docs</Breadcrumbs.Item>
  *     <Breadcrumbs.Item current>Getting Started</Breadcrumbs.Item>
  *   </Breadcrumbs>
  */
@@ -37,20 +36,14 @@ export const Breadcrumbs = forwardRef<HTMLElement, BreadcrumbsProps>(
           padding={0}
           {...textStyles.bodySmall}
         >
-          {items.map((child, i) => (
-            <React.Fragment key={i}>
-              {i > 0 && (
-                <Inline
-                  component="li"
-                  color={color.text.muted}
-                  props={{ 'aria-hidden': 'true' }}
-                >
-                  /
-                </Inline>
-              )}
-              {child}
-            </React.Fragment>
-          ))}
+          {items.map((child, i) =>
+            React.isValidElement(child)
+              ? React.cloneElement(child, {
+                  key: i,
+                  _showSeparator: i > 0,
+                } as Record<string, unknown>)
+              : child
+          )}
         </Row>
       </Row>
     )

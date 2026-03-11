@@ -15,8 +15,10 @@ type Story = StoryObj<typeof Breadcrumbs>
 export const Default: Story = {
   render: () => (
     <Breadcrumbs>
-      <Breadcrumbs.Item>Home</Breadcrumbs.Item>
-      <Breadcrumbs.Item>Library</Breadcrumbs.Item>
+      <Breadcrumbs.Item component="a" props={{ href: '#' }}>
+        Home
+      </Breadcrumbs.Item>
+      <Breadcrumbs.Item current>Library</Breadcrumbs.Item>
     </Breadcrumbs>
   ),
 }
