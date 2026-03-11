@@ -9,6 +9,7 @@ export interface DropdownMenuContextValue {
   refs: {
     setReference: (node: HTMLElement | null) => void
     setFloating: (node: HTMLElement | null) => void
+    domReference: React.MutableRefObject<Element | null>
   }
   floatingStyles: React.CSSProperties
   context: FloatingContext

@@ -1,5 +1,5 @@
 import { Block } from '@jsxstyle/react'
-import React, { forwardRef, useCallback, useRef } from 'react'
+import React, { forwardRef, useCallback, useRef, useState } from 'react'
 import mergeRefs from 'react-merge-refs'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
@@ -27,9 +27,11 @@ export const DropdownMenuItem = forwardRef<
   HTMLDivElement,
   DropdownMenuItemProps
 >(({ children, onSelect, disabled = false, destructive = false }, ref) => {
-  const { getItemProps, listRef, setOpen } = useDropdownMenuContext()
+  const { getItemProps, listRef, setOpen, activeIndex, refs } =
+    useDropdownMenuContext()
   const internalRef = useRef<HTMLDivElement | null>(null)
 
+  const [itemIndex, setItemIndex] = useState<number>(-1)
   const indexRef = useRef<number>(-1)
 
   const setItemRef = useCallback(
@@ -50,6 +52,13 @@ export const DropdownMenuItem = forwardRef<
         } else {
           indexRef.current = existing
         }
+        setItemIndex(indexRef.current)
+      } else {
+        if (indexRef.current !== -1) {
+          list[indexRef.current] = null
+          indexRef.current = -1
+        }
+        setItemIndex(-1)
       }
     },
     [listRef]
@@ -59,8 +68,9 @@ export const DropdownMenuItem = forwardRef<
     if (!disabled) {
       onSelect()
       setOpen(false)
+      ;(refs.domReference.current as HTMLElement | null)?.focus()
     }
-  }, [disabled, onSelect, setOpen])
+  }, [disabled, onSelect, setOpen, refs])
 
   const textColor = disabled
     ? color.text.muted
@@ -88,7 +98,7 @@ export const DropdownMenuItem = forwardRef<
       props={{
         ref: mergeRefs([ref, setItemRef].filter(Boolean)),
         role: 'menuitem',
-        tabIndex: disabled ? -1 : 0,
+        tabIndex: disabled ? -1 : itemIndex === activeIndex ? 0 : -1,
         'aria-disabled': disabled || undefined,
         ...getItemProps({
           onClick: handleSelect,
