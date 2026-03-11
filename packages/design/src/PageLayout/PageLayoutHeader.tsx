@@ -3,26 +3,10 @@ import React, { forwardRef } from 'react'
 import { spacing } from '../tokens/spacing'
 
 export interface PageLayoutHeaderProps {
-  /** Optional solid background color. Transparent by default. */
   backgroundColor?: string
   children?: React.ReactNode
 }
 
-/**
- * Top bar region of a PageLayout.
- *
- * Renders a full-width header that is transparent by default. For branded
- * pages, use `<PageLayout branded>` to paint the product gradient behind the
- * header. Use `backgroundColor` only when an opaque header is needed
- * without a branded gradient.
- *
- * @example
- *   <PageLayout branded>
- *     <PageLayout.Header>
- *       <Logo />
- *     </PageLayout.Header>
- *   </PageLayout>
- */
 export const PageLayoutHeader = forwardRef<
   HTMLDivElement,
   PageLayoutHeaderProps
