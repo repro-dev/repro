@@ -1,82 +1,48 @@
-import { Block, Row } from '@jsxstyle/react'
-import { IfSession, MyAvatar, UnlessSession, useLogout } from '@repro/auth'
-import { Logo, PageLayout, colors } from '@repro/design'
-import { logger } from '@repro/logger'
-import { done } from 'fluture'
+import { Col } from '@jsxstyle/react'
+import { IfSession, UnlessSession } from '@repro/auth'
+import { AppShell, Link, SideNav, spacing } from '@repro/design'
+import { PlayIcon } from 'lucide-react'
 import React from 'react'
-import { Outlet } from 'react-router'
-import { NavLink } from 'react-router-dom'
-
-const navLinkStyle = {
-  color: colors.white,
-  fontSize: 15,
-  textDecoration: 'none',
-}
+import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
+import { UserMenu } from '~/components/UserMenu'
+import { WorkspaceHeader } from '~/components/WorkspaceHeader'
 
 export const Layout: React.FC = () => {
-  const logout = useLogout()
-
-  function onSignOut() {
-    logout().pipe(
-      done(error => {
-        if (error) {
-          logger.error(error)
-        }
-      })
-    )
-  }
+  const sessionsActive = useMatch({ path: '/', end: true })
 
   return (
-    <PageLayout branded>
+    <AppShell>
+      <AppShell.Sidebar>
+        <WorkspaceHeader />
 
-      <PageLayout.Header>
-        <Row alignItems="center">
-          <NavLink to="/" style={{ textDecoration: 'none' }}>
-            <Logo size={30} inverted={true} />
-          </NavLink>
+        <IfSession>
+          <Col flex={1}>
+            <SideNav aria-label="Main navigation">
+              <SideNav.Item
+                icon={PlayIcon}
+                label="Sessions"
+                active={!!sessionsActive}
+                component={RouterNavLink}
+                props={{ to: '/' }}
+              />
+            </SideNav>
+          </Col>
 
-          <IfSession>
-            <Row alignItems="center" marginLeft={30} gap={15}></Row>
+          <UserMenu />
+        </IfSession>
 
-            <Row
-              alignItems="center"
-              gap={15}
-              marginLeft="auto"
-              color={colors.white}
-            >
-              <MyAvatar />
+        <UnlessSession>
+          <Col flex={1} padding={spacing.lg}>
+            <Link component={RouterNavLink} props={{ to: '/account/login' }}>
+              Log In
+            </Link>
+          </Col>
+        </UnlessSession>
+      </AppShell.Sidebar>
 
-              <Block
-                padding={10}
-                fontSize={15}
-                fontWeight={700}
-                color={colors.white}
-                backgroundColor={colors.slate['500']}
-                backgroundImage={`linear-gradient(to top right, ${colors.blue['600']}, ${colors.blue['500']})`}
-                border={`1px solid ${colors.blue['800']}`}
-                borderRadius={4}
-                boxShadow={`0 2px 4px ${colors.blue['800']}`}
-                cursor="pointer"
-                props={{ onClick: onSignOut }}
-              >
-                Sign Out
-              </Block>
-            </Row>
-          </IfSession>
-
-          <UnlessSession>
-            <Row alignItems="center" gap={15} marginLeft="auto">
-              <NavLink to="/account/login" style={navLinkStyle}>
-                Log In
-              </NavLink>
-            </Row>
-          </UnlessSession>
-        </Row>
-      </PageLayout.Header>
-
-      <PageLayout.Body padding={15}>
+      <AppShell.Content>
         <Outlet />
-      </PageLayout.Body>
-    </PageLayout>
+      </AppShell.Content>
+    </AppShell>
   )
 }

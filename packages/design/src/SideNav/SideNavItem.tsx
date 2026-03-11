@@ -8,7 +8,7 @@ import { spacing } from '../tokens/spacing'
 import { fontSize, fontWeight } from '../tokens/typography'
 
 export interface SideNavItemProps {
-  icon?: React.ComponentType<{ size?: number; color?: string }>
+  icon?: React.ComponentType<{ size?: number | string; color?: string }>
   label: string
   active?: boolean
   component?: React.ElementType

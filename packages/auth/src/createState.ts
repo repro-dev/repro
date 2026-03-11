@@ -1,7 +1,7 @@
 import { ApiClient } from '@repro/api-client'
 import { createAtom } from '@repro/atom'
 import { StaffUser, User } from '@repro/domain'
-import { tap } from '@repro/future-utils'
+import { tap, tapRej } from '@repro/future-utils'
 
 interface Config {
   apiClient: ApiClient
@@ -10,6 +10,7 @@ interface Config {
 export function createState(config: Config) {
   const { apiClient } = config
   const [$session, setSession] = createAtom<User | StaffUser | null>(null)
+  const [$sessionLoading, setSessionLoading] = createAtom(true)
 
   function login(email: string, password: string) {
     return apiClient
@@ -21,6 +22,7 @@ export function createState(config: Config) {
         }),
       })
       .pipe(tap(setSession))
+      .pipe(tap(() => setSessionLoading(false)))
   }
 
   function logout() {
@@ -93,10 +95,13 @@ export function createState(config: Config) {
     return apiClient
       .fetch<User | StaffUser>('/account/me')
       .pipe(tap(setSession))
+      .pipe(tap(() => setSessionLoading(false)))
+      .pipe(tapRej(() => setSessionLoading(false)))
   }
 
   return {
     $session,
+    $sessionLoading,
     login,
     logout,
     register,

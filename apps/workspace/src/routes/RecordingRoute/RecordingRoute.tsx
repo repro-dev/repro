@@ -1,17 +1,16 @@
-import { Block, Grid } from '@jsxstyle/react'
+import { Block } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
-import { Card } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { createNullSource, PlaybackFromSourceProvider } from '@repro/playback'
+import { Link, Logo, ToolView, textStyles } from '@repro/design'
 import { createApiSource } from '@repro/recording-api'
 import React, { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link as RouterLink, useParams } from 'react-router-dom'
 import { defaultEnv as env } from '~/config/env'
 import { Loading } from './Loading'
 import { RecordingError } from './RecordingError'
-import { Sidebar } from './Sidebar'
 
 export const RecordingRoute: React.FC = () => {
   const params = useParams<'recordingId'>()
@@ -50,30 +49,29 @@ export const RecordingRoute: React.FC = () => {
     }
   }, [info])
 
-  if (loading) {
-    return <Loading />
-  }
-
-  if (error) {
-    return <RecordingError error={error} />
-  }
-
   return (
-    <PlaybackFromSourceProvider source={source}>
-      <Grid
-        gap={15}
-        height="100%"
-        gridTemplateColumns="1fr 4fr"
-        gridTemplateRows="100%"
-      >
-        <Sidebar info={info} />
-
-        <Card fullBleed height="100%">
-          <Block height="100%" overflow="hidden" borderRadius={4}>
+    <ToolView>
+      <ToolView.Header>
+        <Logo size={24} />
+        <Link
+          component={RouterLink}
+          props={{ to: '/', style: textStyles.body }}
+        >
+          &larr; Sessions
+        </Link>
+        {info && <Block {...textStyles.body}>{info.title}</Block>}
+      </ToolView.Header>
+      <ToolView.Content>
+        {loading ? (
+          <Loading />
+        ) : error ? (
+          <RecordingError error={error} />
+        ) : (
+          <PlaybackFromSourceProvider source={source}>
             <DevTools resourceBaseURL={resourceBaseURL} />
-          </Block>
-        </Card>
-      </Grid>
-    </PlaybackFromSourceProvider>
+          </PlaybackFromSourceProvider>
+        )}
+      </ToolView.Content>
+    </ToolView>
   )
 }

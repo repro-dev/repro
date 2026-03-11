@@ -12,6 +12,11 @@ export function useSession() {
   return useAtomValue(context.$session)
 }
 
+export function useSessionLoading() {
+  const context = useAuthContext()
+  return useAtomValue(context.$sessionLoading)
+}
+
 export function useLogin() {
   const context = useAuthContext()
   return context.login

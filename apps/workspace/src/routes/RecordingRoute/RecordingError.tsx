@@ -7,7 +7,7 @@ interface Props {
 }
 
 export const RecordingError: React.FC<Props> = ({ error }) => (
-  <Grid height="calc(100vh - 90px)">
+  <Grid height="100%">
     <FullPageError
       title={
         error.name === 'ServerError'
