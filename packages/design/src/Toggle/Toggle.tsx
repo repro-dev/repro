@@ -82,7 +82,7 @@ export const Toggle = forwardRef<HTMLButtonElement, ToggleProps>(
           <Block
             height={control}
             width={control}
-            backgroundColor={checked ? color.bg.emphasis : color.bg.muted}
+            backgroundColor={checked ? color.bg.emphasis : color.border.emphasis}
             borderRadius={rounded ? radius.full : radius.none}
             transform={`translate(${
               checked

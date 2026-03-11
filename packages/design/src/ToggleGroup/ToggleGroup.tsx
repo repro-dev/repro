@@ -106,7 +106,7 @@ const Toggle: React.FC<ToggleProps> = ({ active, label, onClick }) => (
     paddingH={spacing.md}
     paddingV={spacing.sm}
     fontSize={fontSize.xs}
-    backgroundColor={active ? color.bg.muted : color.bg.hover}
+    backgroundColor={active ? color.bg.emphasis : color.bg.hover}
     backgroundImage={
       active
         ? `linear-gradient(to top right, ${color.neutral}, ${color.neutralHover})`
@@ -117,7 +117,7 @@ const Toggle: React.FC<ToggleProps> = ({ active, label, onClick }) => (
     borderStyle="solid"
     borderRadius={radius.full}
     boxShadow={active ? shadow.sm : undefined}
-    hoverBackgroundColor={active ? color.bg.muted : color.border.default}
+    hoverBackgroundColor={active ? color.bg.emphasis : color.border.default}
     transition={transition.fast}
     props={{
       type: 'button',

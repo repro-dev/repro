@@ -158,6 +158,269 @@ values today but can be re-themed in future.
   ))}
 </div>
 
+### Background / Foreground Compositions
+
+These compositions pair every `bg.*` token with plausible `text.*` and `border.*`
+tokens so you can visually verify contrast. Each cell shows the approximate
+[WCAG contrast ratio](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html).
+
+- **AA** (≥ 4.5 for normal text, ≥ 3 for large text) — shown in **green**
+- **AA Large** (≥ 3 but < 4.5) — shown in **amber**
+- **Fail** (< 3) — shown in **red**
+
+export function hexToRgb(hex) {
+  const raw = hex.replace('#', '')
+  const bigint = parseInt(raw, 16)
+  return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255]
+}
+
+export function sRGBtoLinear(c) {
+  const s = c / 255
+  return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
+}
+
+export function luminance(hex) {
+  const [r, g, b] = hexToRgb(hex)
+  return 0.2126 * sRGBtoLinear(r) + 0.7152 * sRGBtoLinear(g) + 0.0722 * sRGBtoLinear(b)
+}
+
+export function contrastRatio(hex1, hex2) {
+  const l1 = luminance(hex1)
+  const l2 = luminance(hex2)
+  const lighter = Math.max(l1, l2)
+  const darker = Math.min(l1, l2)
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
+export function contrastLabel(ratio) {
+  if (ratio >= 4.5) return 'AA'
+  if (ratio >= 3) return 'AA Large'
+  return 'Fail'
+}
+
+export function contrastColor(ratio) {
+  if (ratio >= 4.5) return '#16a34a'
+  if (ratio >= 3) return '#d97706'
+  return '#dc2626'
+}
+
+export const bgTokens = [
+  ['bg.surface', color.bg.surface],
+  ['bg.subtle', color.bg.subtle],
+  ['bg.hover', color.bg.hover],
+  ['bg.muted', color.bg.muted],
+  ['bg.emphasis', color.bg.emphasis],
+]
+
+export const fgTokens = [
+  ['text.default', color.text.default],
+  ['text.secondary', color.text.secondary],
+  ['text.muted', color.text.muted],
+  ['text.inverse', color.text.inverse],
+]
+
+export const borderTokens = [
+  ['border.default', color.border.default],
+  ['border.strong', color.border.strong],
+  ['border.emphasis', color.border.emphasis],
+]
+
+#### bg + text pairings
+
+<div style={{ overflowX: 'auto' }}>
+  <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
+    <thead>
+      <tr>
+        <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>Background</th>
+        {fgTokens.map(([name]) => (
+          <th key={name} style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '2px solid #e2e8f0', minWidth: 120 }}>
+            {name}
+          </th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {bgTokens.filter(([_, v]) => typeof v === 'string' && v.startsWith('#')).map(([bgName, bgValue]) => (
+        <tr key={bgName}>
+          <td style={{ padding: '8px 12px', fontWeight: 600, borderBottom: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 16, height: 16, borderRadius: 3, backgroundColor: bgValue, border: '1px solid #e2e8f0', flexShrink: 0 }} />
+              {bgName}
+            </div>
+          </td>
+          {fgTokens.map(([fgName, fgValue]) => {
+            const ratio = contrastRatio(bgValue, fgValue)
+            const label = contrastLabel(ratio)
+            const badgeColor = contrastColor(ratio)
+            return (
+              <td key={fgName} style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+                <div
+                  style={{
+                    backgroundColor: bgValue,
+                    color: fgValue,
+                    padding: '6px 10px',
+                    borderRadius: 4,
+                    border: '1px solid #e2e8f0',
+                    marginBottom: 4,
+                    fontWeight: 500,
+                  }}
+                >
+                  Sample
+                </div>
+                <div style={{ fontSize: 11 }}>
+                  <span style={{ color: badgeColor, fontWeight: 600 }}>{label}</span>
+                  {' '}
+                  <span style={{ color: '#94a3b8' }}>{ratio.toFixed(1)}:1</span>
+                </div>
+              </td>
+            )
+          })}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+#### bg + border pairings
+
+<div style={{ overflowX: 'auto' }}>
+  <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
+    <thead>
+      <tr>
+        <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>Background</th>
+        {borderTokens.map(([name]) => (
+          <th key={name} style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '2px solid #e2e8f0', minWidth: 120 }}>
+            {name}
+          </th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {bgTokens.filter(([_, v]) => typeof v === 'string' && v.startsWith('#')).map(([bgName, bgValue]) => (
+        <tr key={bgName}>
+          <td style={{ padding: '8px 12px', fontWeight: 600, borderBottom: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 16, height: 16, borderRadius: 3, backgroundColor: bgValue, border: '1px solid #e2e8f0', flexShrink: 0 }} />
+              {bgName}
+            </div>
+          </td>
+          {borderTokens.map(([bName, bValue]) => {
+            const ratio = contrastRatio(bgValue, bValue)
+            const label = contrastLabel(ratio)
+            const badgeColor = contrastColor(ratio)
+            return (
+              <td key={bName} style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+                <div
+                  style={{
+                    backgroundColor: bgValue,
+                    padding: '6px 10px',
+                    borderRadius: 4,
+                    border: `2px solid ${bValue}`,
+                    marginBottom: 4,
+                    fontSize: 11,
+                    color: '#64748b',
+                  }}
+                >
+                  border
+                </div>
+                <div style={{ fontSize: 11 }}>
+                  <span style={{ color: badgeColor, fontWeight: 600 }}>{label}</span>
+                  {' '}
+                  <span style={{ color: '#94a3b8' }}>{ratio.toFixed(1)}:1</span>
+                </div>
+              </td>
+            )
+          })}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+#### Status bg + fg pairings
+
+<div style={{ overflowX: 'auto' }}>
+  <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
+    <thead>
+      <tr>
+        <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>Status</th>
+        <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '2px solid #e2e8f0' }}>Subtle bg + Fg text</th>
+        <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '2px solid #e2e8f0' }}>Subtle bg + Default text</th>
+        <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '2px solid #e2e8f0' }}>Subtle bg + Border</th>
+      </tr>
+    </thead>
+    <tbody>
+      {[
+        ['danger', color.dangerSubtle, color.dangerFg, color.danger, color.dangerBorder],
+        ['success', color.successSubtle, color.successFg, color.success, color.successBorder],
+        ['warning', color.warningSubtle, color.warningFg, color.warning, color.warningBorder],
+        ['info', color.infoSubtle, color.infoFg, color.info, color.infoBorder],
+      ].map(([status, subtleBg, fg, main, border]) => (
+        <tr key={status}>
+          <td style={{ padding: '8px 12px', fontWeight: 600, borderBottom: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 16, height: 16, borderRadius: 3, backgroundColor: main, flexShrink: 0 }} />
+              {status}
+            </div>
+          </td>
+          <td style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+            {(() => {
+              const ratio = contrastRatio(subtleBg, fg)
+              return (
+                <div>
+                  <div style={{ backgroundColor: subtleBg, color: fg, padding: '6px 10px', borderRadius: 4, fontWeight: 500, marginBottom: 4 }}>
+                    {status}Fg on {status}Subtle
+                  </div>
+                  <div style={{ fontSize: 11 }}>
+                    <span style={{ color: contrastColor(ratio), fontWeight: 600 }}>{contrastLabel(ratio)}</span>
+                    {' '}<span style={{ color: '#94a3b8' }}>{ratio.toFixed(1)}:1</span>
+                  </div>
+                </div>
+              )
+            })()}
+          </td>
+          <td style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+            {(() => {
+              const ratio = contrastRatio(subtleBg, main)
+              return (
+                <div>
+                  <div style={{ backgroundColor: subtleBg, color: main, padding: '6px 10px', borderRadius: 4, fontWeight: 500, marginBottom: 4 }}>
+                    {status} on {status}Subtle
+                  </div>
+                  <div style={{ fontSize: 11 }}>
+                    <span style={{ color: contrastColor(ratio), fontWeight: 600 }}>{contrastLabel(ratio)}</span>
+                    {' '}<span style={{ color: '#94a3b8' }}>{ratio.toFixed(1)}:1</span>
+                  </div>
+                </div>
+              )
+            })()}
+          </td>
+          <td style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+            {(() => {
+              const ratio = contrastRatio(subtleBg, border)
+              return (
+                <div>
+                  <div style={{ backgroundColor: subtleBg, padding: '6px 10px', borderRadius: 4, border: `2px solid ${border}`, marginBottom: 4, fontSize: 11, color: '#64748b' }}>
+                    {status}Border
+                  </div>
+                  <div style={{ fontSize: 11 }}>
+                    <span style={{ color: contrastColor(ratio), fontWeight: 600 }}>{contrastLabel(ratio)}</span>
+                    {' '}<span style={{ color: '#94a3b8' }}>{ratio.toFixed(1)}:1</span>
+                  </div>
+                </div>
+              )
+            })()}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<div style={{ paddingBottom: 16 }} />
+
+---
+
 ### Raw palette (`colors`)
 
 The full Tailwind palette is available as `colors` for product-specific edge cases
