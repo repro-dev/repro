@@ -1,6 +1,6 @@
-import { Block, Grid } from '@jsxstyle/react'
+import { Block } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
-import { Card } from '@repro/design'
+import { Logo, ToolView, textStyles } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
@@ -10,7 +10,6 @@ import { Loading } from '~/components/Loading'
 import { defaultEnv as env } from '~/config/env'
 import { RecordingError } from './RecordingError'
 import { RecordingLoader } from './RecordingLoader'
-import { Sidebar } from './Sidebar'
 
 export const PublicRecordingRoute: React.FC = () => {
   const params = useParams<'recordingId'>()
@@ -51,20 +50,17 @@ export const PublicRecordingRoute: React.FC = () => {
 
   return (
     <RecordingLoader>
-      <Grid
-        gap={15}
-        height="100%"
-        gridTemplateRows="100%"
-        gridTemplateColumns="1fr 4fr"
-      >
-        <Sidebar info={info} />
-
-        <Card fullBleed height="100%">
-          <Block height="100%" overflow="hidden" borderRadius={4}>
-            <DevTools resourceBaseURL={resourceBaseURL} />
-          </Block>
-        </Card>
-      </Grid>
+      <ToolView>
+        <ToolView.Header>
+          <Logo size={24} />
+          {info && (
+            <Block {...textStyles.body}>{info.title}</Block>
+          )}
+        </ToolView.Header>
+        <ToolView.Content>
+          <DevTools resourceBaseURL={resourceBaseURL} />
+        </ToolView.Content>
+      </ToolView>
     </RecordingLoader>
   )
 }

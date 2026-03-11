@@ -16,7 +16,6 @@ import { Layout } from './Layout'
 
 const HomeRoute = lazy(() => import('./routes/HomeRoute'))
 const LoginRoute = lazy(() => import('./routes/LoginRoute'))
-const MainRoute = lazy(() => import('./routes/MainRoute'))
 const RecordingRoute = lazy(() => import('./routes/RecordingRoute'))
 const RegisterRoute = lazy(() => import('./routes/RegisterRoute'))
 const PublicRecordingRoute = lazy(() => import('./routes/PublicRecordingRoute'))
@@ -69,36 +68,32 @@ if (rootElem) {
           <AuthProvider>
             <PortalRootProvider>
               <Routes>
-                <Route path="/" element={<MainRoute />}>
-                  <Route element={<AuthLayout />}>
-                    <Route path="account/login" element={<LoginRoute />} />
-                    <Route
-                      path="account/register"
-                      element={<RegisterRoute />}
-                    />
-                    <Route path="account/verify" element={<div />} />
+                <Route element={<AuthLayout />}>
+                  <Route path="account/login" element={<LoginRoute />} />
+                  <Route
+                    path="account/register"
+                    element={<RegisterRoute />}
+                  />
+                  <Route path="account/verify" element={<div />} />
+                </Route>
 
-                    {/* <Route */}
-                    {/*   path="account/accept-invitation" */}
-                    {/*   element={<AcceptInvitationRoute />} */}
-                    {/* /> */}
-                  </Route>
-
-                  <Route element={<Layout />}>
-                    <Route element={<SessionRouteBoundary />}>
-                      <Route index element={<HomeRoute />} />
-                      <Route
-                        path="recordings/:recordingId"
-                        element={<RecordingRoute />}
-                      />
-                    </Route>
-
-                    <Route
-                      path="share/:recordingId"
-                      element={<PublicRecordingRoute />}
-                    />
+                <Route element={<Layout />}>
+                  <Route element={<SessionRouteBoundary />}>
+                    <Route index element={<HomeRoute />} />
                   </Route>
                 </Route>
+
+                <Route element={<SessionRouteBoundary />}>
+                  <Route
+                    path="recordings/:recordingId"
+                    element={<RecordingRoute />}
+                  />
+                </Route>
+
+                <Route
+                  path="share/:recordingId"
+                  element={<PublicRecordingRoute />}
+                />
               </Routes>
             </PortalRootProvider>
           </AuthProvider>
