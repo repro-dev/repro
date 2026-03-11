@@ -217,6 +217,13 @@ cmd_doctor() {
     has_failures=true
   fi
 
+  if python3 -c "import socket; socket.getaddrinfo('test.sub.repro.localhost', 80)" 2>/dev/null; then
+    check_ok ".localhost DNS" "multi-level subdomains resolve correctly"
+  else
+    check_warn ".localhost DNS" "multi-level .localhost subdomains do not resolve — browser DoH may prevent worktree URLs from loading. Disable DNS-over-HTTPS or add entries to /etc/hosts."
+    has_warnings=true
+  fi
+
   echo ""
 
   if [ "$has_failures" = true ]; then
