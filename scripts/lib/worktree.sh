@@ -222,6 +222,49 @@ cmd_wt_create() {
   echo ""
 }
 
+_cleanup_worktree_services() {
+  local wt_path="$1"
+  local slug
+  slug="$(basename "$wt_path")"
+  slug="${slug#repro-wt-}"
+
+  if [ ! -f "$CONFIG_FILE" ]; then
+    return 0
+  fi
+
+  local current_config
+  current_config="$(cat "$CONFIG_FILE")"
+
+  local svc_names
+  svc_names="$(python3 "$SCRIPTS_DIR/lib/py/worktree_services.py" "$current_config" "$slug" 2>/dev/null || true)"
+
+  if [ -z "$svc_names" ]; then
+    return 0
+  fi
+
+  echo "  Stopping services for worktree ${slug}: ${svc_names}"
+
+  local entries=()
+  local IFS=','
+  for name in $svc_names; do
+    name="$(echo "$name" | sed 's/^ *//')"
+    entries+=("$slug:$name")
+  done
+  unset IFS
+
+  local new_config
+  new_config="$(remove_services "$current_config" "${entries[@]}")"
+
+  local remaining
+  remaining="$(service_count "$new_config")"
+
+  if [ "$remaining" = "0" ]; then
+    stop_tilt_daemon
+  else
+    write_config "$new_config"
+  fi
+}
+
 cmd_wt_remove() {
   local branch="$1"
   local wt_path
@@ -249,6 +292,8 @@ cmd_wt_remove() {
     echo "${CLR_DIM}[dry-run] No changes were made.${CLR_RESET}"
     return 0
   fi
+
+  _cleanup_worktree_services "$wt_path"
 
   _step 1 2 "Removing git worktree..."
   git worktree remove "$wt_path"
