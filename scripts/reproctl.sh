@@ -10,8 +10,8 @@
 #   reproctl cluster up|down|status|reset     Manage the local k8s cluster
 #   reproctl db reset|migrate|shell|status    Database operations
 #   reproctl start <service> [...]            Start services from current context
-#   reproctl stop [<service>...] | --all      Remove services or tear down Tilt
-#   reproctl restart <service> [...] | --all  Rebuild services or restart Tilt
+#   reproctl stop [<service>...] [-w <wt>] | --all  Remove services or tear down Tilt
+#   reproctl restart <service> [...] [-w <wt>] | --all  Rebuild services or restart Tilt
 #   reproctl status                           Show running services and dashboard URL
 #   reproctl logs [options] [service...]       Show or stream service logs
 #   reproctl ui                               Open the Tilt dashboard in a browser
@@ -78,6 +78,7 @@ Commands:
   start <service> [...]           Start services from the current context
   stop [<service>...] | --all     Remove services or tear down Tilt
   restart <service> [...] | --all Rebuild services or restart the Tilt daemon
+                                  Use --worktree / -w to target another worktree
   status                          Show running services and dashboard URL
   logs [options] [service...]     Show or stream service logs
   ui                              Open the Tilt dashboard in a browser
@@ -110,8 +111,10 @@ Examples:
   reproctl start workspace                    # main checkout services
   reproctl start api-server                   # from worktree: isolated api-server
   reproctl stop api-server                    # remove from current context
+  reproctl stop -w rep-123 api-server        # stop in another worktree
   reproctl stop --all                         # tear down everything
   reproctl restart api-server                 # rebuild + redeploy a running service
+  reproctl restart -w rep-123 workspace      # restart in another worktree
   reproctl restart --all                      # restart the Tilt daemon
   reproctl status                             # show what's running
   reproctl logs -f api-server                 # tail logs for a service

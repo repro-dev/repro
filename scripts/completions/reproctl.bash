@@ -114,11 +114,17 @@ _reproctl() {
       ;;
 
     stop)
-      COMPREPLY=($(compgen -W "--all --pick -p $(__reproctl_services)" -- "$cur"))
+      case "$prev" in
+        --worktree|-w) COMPREPLY=($(compgen -W "$(__reproctl_worktree_branches)" -- "$cur")); return ;;
+      esac
+      COMPREPLY=($(compgen -W "--all --worktree -w --pick -p $(__reproctl_services)" -- "$cur"))
       ;;
 
     restart)
-      COMPREPLY=($(compgen -W "--all --pick -p -h --help $(__reproctl_services)" -- "$cur"))
+      case "$prev" in
+        --worktree|-w) COMPREPLY=($(compgen -W "$(__reproctl_worktree_branches)" -- "$cur")); return ;;
+      esac
+      COMPREPLY=($(compgen -W "--all --worktree -w --pick -p -h --help $(__reproctl_services)" -- "$cur"))
       ;;
 
     logs)

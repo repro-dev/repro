@@ -125,6 +125,16 @@ stop_tilt_daemon() {
 
 # ── Service commands ────────────────────────────────────────────────
 
+_resolve_worktree_flag() {
+  local input="$1"
+  local wt_path
+  wt_path="$(resolve_worktree "$input")" || \
+    die "No worktree found for '$input'.\nRun 'reproctl worktree list' to see available worktrees."
+  local basename
+  basename="$(basename "$wt_path")"
+  echo "${basename#repro-wt-}"
+}
+
 cmd_start() {
   local pick=false
   local args=()
@@ -197,6 +207,7 @@ cmd_stop() {
   local stop_all=false
   local pick=false
   local targets=()
+  local worktree_flag=""
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -207,6 +218,11 @@ cmd_stop() {
       --pick|-p)
         pick=true
         shift
+        ;;
+      --worktree|-w)
+        [[ -n "${2:-}" ]] || die "Missing value for $1"
+        worktree_flag="$2"
+        shift 2
         ;;
       -*)
         die "Unknown option: $1"
@@ -233,13 +249,17 @@ cmd_stop() {
   fi
 
   if [ "${#targets[@]}" -eq 0 ]; then
-    die "Specify services to stop, or use --all.\nUsage: reproctl stop [<service>...] | --all"
+    die "Specify services to stop, or use --all.\nUsage: reproctl stop [<service>...] [--worktree <slug>] | --all"
   fi
 
   local entries=()
   for target in "${targets[@]}"; do
     if [[ "$target" == *:* ]]; then
       entries+=("$target")
+    elif [[ -n "$worktree_flag" ]]; then
+      local wt_slug
+      wt_slug="$(_resolve_worktree_flag "$worktree_flag")"
+      entries+=("$wt_slug:$target")
     else
       if is_worktree "$REPO_ROOT"; then
         local wt_slug
@@ -313,14 +333,20 @@ cmd_restart() {
   local pick=false
   local positional=()
   local do_all=false
+  local worktree_flag=""
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --all) do_all=true; shift ;;
       --pick|-p) pick=true; shift ;;
+      --worktree|-w)
+        [[ -n "${2:-}" ]] || die "Missing value for $1"
+        worktree_flag="$2"
+        shift 2
+        ;;
       -h|--help)
         cat <<'USAGE'
-Usage: reproctl restart <service> [<service>...] | --all
+Usage: reproctl restart <service> [<service>...] [--worktree <slug>] | --all
 
 Rebuild and redeploy running services via tilt trigger.
 If a service has migrations, the migration job is triggered first.
@@ -328,6 +354,9 @@ If a service has migrations, the migration job is triggered first.
   --all   Stop the Tilt daemon and restart it with the same service
           configuration. Useful when Tiltfile changes need to be
           picked up or when Tilt gets into a bad state.
+
+  --worktree, -w <slug>  Target services in a specific worktree instead
+                         of the current working directory context.
 
   --pick, -p  Interactively choose services.
 USAGE
@@ -372,7 +401,13 @@ USAGE
 
   for svc in "${positional[@]}"; do
     local resource
-    resource="$(resolve_worktree_resource_name "$svc")"
+    if [[ -n "$worktree_flag" ]]; then
+      local wt_slug
+      wt_slug="$(_resolve_worktree_flag "$worktree_flag")"
+      resource="$(_wt_name "$svc" "$wt_slug")"
+    else
+      resource="$(resolve_worktree_resource_name "$svc")"
+    fi
 
     if ! tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
       die "Service '$svc' (resource '$resource') is not running in Tilt.\nStart it first with 'reproctl start $svc'."
