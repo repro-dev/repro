@@ -12,7 +12,6 @@ import { spacing } from '../tokens/spacing'
 import { fontSize, fontWeight, textStyles } from '../tokens/typography'
 import { PageLayout } from './index'
 
-/** Shared inline nav link for story headers. */
 const NavLink: React.FC<{ label: string; inverted?: boolean }> = ({
   label,
   inverted = false,
@@ -27,7 +26,6 @@ const NavLink: React.FC<{ label: string; inverted?: boolean }> = ({
   </Block>
 )
 
-/** Reusable header bar with Logo, navigation links, and user avatar. */
 const SampleHeader: React.FC<{ inverted?: boolean }> = ({
   inverted = false,
 }) => (
@@ -49,7 +47,6 @@ const SampleHeader: React.FC<{ inverted?: boolean }> = ({
   </Row>
 )
 
-/** Sidebar nav item pill. */
 const SidebarNavItem: React.FC<{ label: string; active?: boolean }> = ({
   label,
   active = false,
@@ -67,7 +64,6 @@ const SidebarNavItem: React.FC<{ label: string; active?: boolean }> = ({
   </Block>
 )
 
-/** Metric card for dashboard grid. */
 const DashboardCard: React.FC<{ label: string }> = ({ label }) => (
   <Block
     padding={spacing['2xl']}
@@ -108,15 +104,13 @@ export const AppShell: Story = {
         <SampleHeader inverted />
       </PageLayout.Header>
       <PageLayout.Body>
-        <Grid gridTemplateColumns="280px 1fr" gap={spacing.xl} height="100%">
-          <Card>
-            <Col gap={spacing.xs}>
-              <SidebarNavItem label="Dashboard" active />
-              <SidebarNavItem label="Recordings" />
-              <SidebarNavItem label="Team" />
-              <SidebarNavItem label="Settings" />
-            </Col>
-          </Card>
+        <Grid gridTemplateColumns="280px 1fr" gap={spacing.xl}>
+          <Col gap={spacing.xs}>
+            <SidebarNavItem label="Dashboard" active />
+            <SidebarNavItem label="Recordings" />
+            <SidebarNavItem label="Team" />
+            <SidebarNavItem label="Settings" />
+          </Col>
           <Card>
             <Col gap={spacing.lg}>
               <Skeleton variant="text" lines={3} />
@@ -134,7 +128,7 @@ export const AuthCentered: Story = {
   name: 'auth-centered',
   render: () => (
     <PageLayout>
-      <Block gridRow="1 / -1" backgroundColor={color.bg.subtle}>
+      <Block minHeight="100vh" backgroundColor={color.bg.subtle}>
         <Center>
           <Col alignItems="flex-start" gap={spacing['2xl']}>
             <Block paddingH={spacing.md}>
@@ -213,7 +207,7 @@ export const ContentSidebar: Story = {
         <SampleHeader />
       </PageLayout.Header>
       <PageLayout.Body>
-        <Grid gridTemplateColumns="1fr 320px" gap={spacing.xl} height="100%">
+        <Grid gridTemplateColumns="1fr 320px" gap={spacing.xl}>
           <Col gap={spacing.xl}>
             <Card>
               <Col gap={spacing.lg}>
@@ -249,15 +243,13 @@ export const SettingsShell: Story = {
         <SampleHeader />
       </PageLayout.Header>
       <PageLayout.Body>
-        <Grid gridTemplateColumns="240px 1fr" gap={spacing.xl} height="100%">
-          <Card>
-            <Col gap={spacing.xs}>
-              <SidebarNavItem label="Account" active />
-              <SidebarNavItem label="Billing" />
-              <SidebarNavItem label="Security" />
-              <SidebarNavItem label="API Keys" />
-            </Col>
-          </Card>
+        <Grid gridTemplateColumns="240px 1fr" gap={spacing.xl}>
+          <Col gap={spacing.xs}>
+            <SidebarNavItem label="Account" active />
+            <SidebarNavItem label="Billing" />
+            <SidebarNavItem label="Security" />
+            <SidebarNavItem label="API Keys" />
+          </Col>
           <Col gap={spacing['2xl']}>
             <Block {...textStyles.heading2} color={color.text.default}>
               Account
@@ -310,10 +302,7 @@ export const DashboardGrid: Story = {
           </Grid>
           <Card>
             <Col gap={spacing.md}>
-              <Block
-                {...textStyles.label}
-                color={color.text.default}
-              >
+              <Block {...textStyles.label} color={color.text.default}>
                 Activity
               </Block>
               <Skeleton variant="rectangular" height={200} />
@@ -321,10 +310,7 @@ export const DashboardGrid: Story = {
           </Card>
           <Card>
             <Col gap={spacing.md}>
-              <Block
-                {...textStyles.label}
-                color={color.text.default}
-              >
+              <Block {...textStyles.label} color={color.text.default}>
                 Recent Sessions
               </Block>
               <Skeleton variant="text" lines={6} />

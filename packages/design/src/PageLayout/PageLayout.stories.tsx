@@ -37,9 +37,7 @@ const NavLink: React.FC<{ label: string; inverted?: boolean }> = ({
   </Block>
 )
 
-const SampleNav: React.FC<{ inverted?: boolean }> = ({
-  inverted = false,
-}) => (
+const SampleNav: React.FC<{ inverted?: boolean }> = ({ inverted = false }) => (
   <Row alignItems="center" gap={spacing.lg}>
     <NavLink label="Recordings" inverted={inverted} />
     <NavLink label="Team" inverted={inverted} />
@@ -110,7 +108,7 @@ export const WithSidebar: Story = {
         <SampleHeader />
       </PageLayout.Header>
       <PageLayout.Body>
-        <Grid gridTemplateColumns="280px 1fr" gap={spacing.xl} height="100%">
+        <Grid gridTemplateColumns="280px 1fr" gap={spacing.xl}>
           <Card>
             <Col gap={spacing.lg}>
               <Skeleton variant="text" />
@@ -157,7 +155,7 @@ export const CustomSidebarWidth: Story = {
         <SampleHeader />
       </PageLayout.Header>
       <PageLayout.Body>
-        <Grid gridTemplateColumns="360px 1fr" gap={spacing.xl} height="100%">
+        <Grid gridTemplateColumns="360px 1fr" gap={spacing.xl}>
           <Card>
             <Col gap={spacing.lg}>
               <Skeleton variant="text" />

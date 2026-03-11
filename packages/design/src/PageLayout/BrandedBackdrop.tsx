@@ -14,8 +14,6 @@ export const BrandedBackdrop: React.FC = () => {
       left={0}
       right={0}
       height={DEFAULT_HEIGHT}
-      gridRow="1 / -1"
-      gridColumn="1 / -1"
       zIndex={0}
       backgroundImage={`linear-gradient(to bottom right, ${GRADIENT_FROM}, ${GRADIENT_TO})`}
     />
