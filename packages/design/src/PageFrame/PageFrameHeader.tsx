@@ -13,10 +13,11 @@ export interface PageFrameHeaderProps {
  * Renders a flex row with title on the left and actions on the right.
  * Place `PageFrame.Title` and `PageFrame.Actions` as children.
  */
-export const PageFrameHeader = forwardRef<HTMLDivElement, PageFrameHeaderProps>(
+export const PageFrameHeader = forwardRef<HTMLElement, PageFrameHeaderProps>(
   ({ children }, ref) => {
     return (
       <Row
+        component="header"
         alignItems="center"
         justifyContent="space-between"
         paddingH={spacing['2xl']}

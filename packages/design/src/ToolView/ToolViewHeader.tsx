@@ -13,10 +13,11 @@ export interface ToolViewHeaderProps {
  * Renders a row with horizontal padding for back links, titles, and
  * action buttons. Height is driven by content (typically 40–48px).
  */
-export const ToolViewHeader = forwardRef<HTMLDivElement, ToolViewHeaderProps>(
+export const ToolViewHeader = forwardRef<HTMLElement, ToolViewHeaderProps>(
   ({ children }, ref) => {
     return (
       <Row
+        component="header"
         alignItems="center"
         gap={spacing.md}
         paddingH={spacing.xl}

@@ -3,6 +3,7 @@ import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
 
 export interface AppShellSidebarProps {
+  ariaLabel?: string
   children?: React.ReactNode
 }
 
@@ -14,7 +15,7 @@ export interface AppShellSidebarProps {
  * are composed here by the consuming application.
  */
 export const AppShellSidebar = forwardRef<HTMLElement, AppShellSidebarProps>(
-  ({ children }, ref) => {
+  ({ ariaLabel = 'Sidebar', children }, ref) => {
     return (
       <Col
         component="aside"
@@ -22,7 +23,7 @@ export const AppShellSidebar = forwardRef<HTMLElement, AppShellSidebarProps>(
         overflowY="auto"
         backgroundColor={color.bg.surface}
         borderRight={`1px solid ${color.border.default}`}
-        props={{ ref, 'aria-label': 'Sidebar' }}
+        props={{ ref, 'aria-label': ariaLabel }}
       >
         {children}
       </Col>
