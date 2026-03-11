@@ -29,6 +29,7 @@ export const UserMenu: React.FC = () => {
         <Row
           component="button"
           type="button"
+          width="100%"
           alignItems="center"
           gap={spacing.md}
           padding={spacing.lg}
