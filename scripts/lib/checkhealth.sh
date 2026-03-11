@@ -223,96 +223,80 @@ for issue in data.get("issues", []):
     echo "${CLR_BOLD}Worktree resources:${CLR_RESET}"
   fi
 
-  if command -v helm > /dev/null 2>&1 && command -v kubectl > /dev/null 2>&1 && kubectl cluster-info > /dev/null 2>&1; then
-    local helm_releases
-    helm_releases="$(helm list --all-namespaces --output json 2>/dev/null || echo '[]')"
-
-    local wt_releases
-    wt_releases="$(printf '%s' "$helm_releases" | python3 -c '
-import json, sys
-releases = json.load(sys.stdin)
-wt = [r for r in releases if "-wt-" in r.get("name", "")]
-for r in wt:
-    print(r["name"] + "\t" + r.get("namespace", "default"))
-' 2>/dev/null || true)"
-
-    local wt_slugs=()
-    local wt_path="" wt_bare=false
-    while IFS= read -r line; do
-      case "$line" in
-        worktree\ *) wt_path="${line#worktree }" ;;
-        branch\ *)   ;; # branch not needed here
-        bare)        wt_bare=true ;;
-        "")
-          if [ "$wt_bare" != true ] && [ -n "$wt_path" ]; then
-            local basename
-            basename="$(basename "$wt_path")"
-            if [[ "$basename" == repro-wt-* ]]; then
-              wt_slugs+=("${basename#repro-wt-}")
-            fi
+  local wt_slugs=()
+  local wt_path="" wt_bare=false
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *) wt_path="${line#worktree }" ;;
+      branch\ *)   ;;
+      bare)        wt_bare=true ;;
+      "")
+        if [ "$wt_bare" != true ] && [ -n "$wt_path" ]; then
+          local basename
+          basename="$(basename "$wt_path")"
+          if [[ "$basename" == repro-wt-* ]]; then
+            wt_slugs+=("${basename#repro-wt-}")
           fi
-          wt_path="" wt_bare=false
-          ;;
-      esac
-    done < <(git worktree list --porcelain)
-    if [ "$wt_bare" != true ] && [ -n "$wt_path" ]; then
-      local basename
-      basename="$(basename "$wt_path")"
-      if [[ "$basename" == repro-wt-* ]]; then
-        wt_slugs+=("${basename#repro-wt-}")
-      fi
+        fi
+        wt_path="" wt_bare=false
+        ;;
+    esac
+  done < <(git worktree list --porcelain)
+  if [ "$wt_bare" != true ] && [ -n "$wt_path" ]; then
+    local basename
+    basename="$(basename "$wt_path")"
+    if [[ "$basename" == repro-wt-* ]]; then
+      wt_slugs+=("${basename#repro-wt-}")
     fi
+  fi
 
-    local orphaned_releases=()
-    while IFS=$'\t' read -r release_name release_ns; do
-      [ -z "$release_name" ] && continue
+  local tilt_wt_resources=""
+  if tilt_is_running; then
+    tilt_wt_resources="$(tilt get uiresources -o json --port "$TILT_PORT" 2>/dev/null | python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+for item in data.get("items", []):
+    name = item.get("metadata", {}).get("name", "")
+    if "-wt-" in name:
+        print(name)
+' 2>/dev/null || true)"
+  fi
 
-      local found=false
-      for slug in "${wt_slugs[@]}"; do
-        local expected
-        for svc_base in $(_list_service_names) gateway; do
-          expected="$(python3 "$SCRIPTS_DIR/lib/py/wt_name.py" "$svc_base" "$slug")"
-          if [ "$release_name" = "$expected" ]; then
-            found=true
-            break
+  if [ ${#wt_slugs[@]} -gt 0 ]; then
+    local active_slugs=()
+    local idle_slugs=()
+
+    for slug in "${wt_slugs[@]}"; do
+      local resource_count=0
+      if [ -n "$tilt_wt_resources" ]; then
+        while IFS= read -r res_name; do
+          [ -z "$res_name" ] && continue
+          if [[ "$res_name" == *-wt-"$slug" ]]; then
+            resource_count=$((resource_count + 1))
           fi
-        done
-        [ "$found" = true ] && break
-      done
-
-      if [ "$found" = false ]; then
-        orphaned_releases+=("$release_name"$'\t'"${release_ns:-default}")
+        done <<< "$tilt_wt_resources"
       fi
-    done <<< "$wt_releases"
 
-    if [ ${#wt_slugs[@]} -gt 0 ]; then
-      for slug in "${wt_slugs[@]}"; do
-        local release_count=0
-        while IFS=$'\t' read -r release_name _; do
-          [ -z "$release_name" ] && continue
-          local svc_base
-          for svc_base in $(_list_service_names) gateway; do
-            local expected
-            expected="$(python3 "$SCRIPTS_DIR/lib/py/wt_name.py" "$svc_base" "$slug")"
-            if [ "$release_name" = "$expected" ]; then
-              release_count=$((release_count + 1))
-              break
-            fi
-          done
-        done <<< "$wt_releases"
+      if [ "$resource_count" -gt 0 ]; then
+        active_slugs+=("$slug"$'\t'"$resource_count")
+      else
+        idle_slugs+=("$slug")
+        _add_check "wt_$slug" "ok" "idle"
+      fi
+    done
+
+    if [ ${#active_slugs[@]} -gt 0 ]; then
+      for entry in "${active_slugs[@]}"; do
+        local slug resource_count
+        IFS=$'\t' read -r slug resource_count <<< "$entry"
 
         local display_slug="$slug"
         if [ ${#display_slug} -gt 40 ]; then
           display_slug="${display_slug:0:37}..."
         fi
 
-        if [ "$release_count" -gt 0 ]; then
-          _diag_row "wt-$display_slug" "ok" "$release_count Helm release(s)"
-          _add_check "wt_$slug" "ok" "$release_count Helm release(s)"
-        else
-          _diag_row "wt-$display_slug" "ok" "no Helm releases (services may not be started)"
-          _add_check "wt_$slug" "ok" "no Helm releases"
-        fi
+        _diag_row "wt-$display_slug" "ok" "$resource_count Tilt resource(s)"
+        _add_check "wt_$slug" "ok" "$resource_count Tilt resource(s)"
 
         local dns_label="wt-${slug}"
         if [ ${#dns_label} -gt 63 ]; then
@@ -333,10 +317,61 @@ for r in wt:
           fi
         fi
       done
-    else
-      if [ "$CHECKHEALTH_JSON" != true ]; then
-        echo "  ${CLR_DIM}(no worktrees)${CLR_RESET}"
-      fi
+    fi
+
+    if [ ${#idle_slugs[@]} -gt 0 ]; then
+      local idle_list=""
+      for slug in "${idle_slugs[@]}"; do
+        if [ -n "$idle_list" ]; then
+          idle_list="$idle_list, "
+        fi
+        idle_list="${idle_list}${slug}"
+      done
+      _diag_row "${#idle_slugs[@]} idle worktree(s)" "ok" "$idle_list"
+    fi
+  else
+    if [ "$CHECKHEALTH_JSON" != true ]; then
+      echo "  ${CLR_DIM}(no worktrees)${CLR_RESET}"
+    fi
+  fi
+
+  if command -v helm > /dev/null 2>&1 && command -v kubectl > /dev/null 2>&1 && kubectl cluster-info > /dev/null 2>&1; then
+    local helm_releases
+    helm_releases="$(helm list --all-namespaces --output json 2>/dev/null || echo '[]')"
+
+    local wt_releases
+    wt_releases="$(printf '%s' "$helm_releases" | python3 -c '
+import json, sys
+releases = json.load(sys.stdin)
+wt = [r for r in releases if "-wt-" in r.get("name", "")]
+for r in wt:
+    print(r["name"] + "\t" + r.get("namespace", "default"))
+' 2>/dev/null || true)"
+
+    local orphaned_releases=()
+    if [ -n "$wt_releases" ]; then
+      while IFS=$'\t' read -r release_name release_ns; do
+        [ -z "$release_name" ] && continue
+
+        local found=false
+        if [ ${#wt_slugs[@]} -gt 0 ]; then
+          for slug in "${wt_slugs[@]}"; do
+            local expected
+            for svc_base in $(_list_service_names) gateway; do
+              expected="$(python3 "$SCRIPTS_DIR/lib/py/wt_name.py" "$svc_base" "$slug")"
+              if [ "$release_name" = "$expected" ]; then
+                found=true
+                break
+              fi
+            done
+            [ "$found" = true ] && break
+          done
+        fi
+
+        if [ "$found" = false ]; then
+          orphaned_releases+=("$release_name"$'\t'"${release_ns:-default}")
+        fi
+      done <<< "$wt_releases"
     fi
 
     if [ ${#orphaned_releases[@]} -gt 0 ]; then
@@ -349,13 +384,9 @@ for r in wt:
         has_warnings=true
       done
     fi
-
-    _diag_flush
-  else
-    _diag_row "Worktree resources" "skip" "helm/kubectl not available"
-    _add_check "worktree_resources" "skip" "helm/kubectl not available"
-    _diag_flush
   fi
+
+  _diag_flush
 
   if [ "$CHECKHEALTH_JSON" = true ]; then
     local checks_json
