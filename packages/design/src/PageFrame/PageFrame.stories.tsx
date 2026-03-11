@@ -1,0 +1,149 @@
+import { Block, Col } from '@jsxstyle/react'
+import type { Meta, StoryObj } from '@storybook/react'
+import React from 'react'
+import { AppShell } from '../AppShell'
+import { Button } from '../Button'
+import { Card } from '../Card'
+import { Skeleton } from '../Skeleton'
+import { color } from '../tokens/colors'
+import { spacing } from '../tokens/spacing'
+import { fontSize } from '../tokens/typography'
+import { PageFrame } from './index'
+
+const meta: Meta<typeof PageFrame> = {
+  title: 'Components/Layout/PageFrame',
+  component: PageFrame,
+  tags: ['autodocs', 'design-system'],
+  parameters: {
+    layout: 'fullscreen',
+  },
+}
+
+export default meta
+
+type Story = StoryObj<typeof PageFrame>
+
+export const Default: Story = {
+  render: () => (
+    <Block height="100vh" backgroundColor={color.bg.subtle}>
+      <PageFrame>
+        <PageFrame.Header>
+          <PageFrame.Title>Sessions</PageFrame.Title>
+          <PageFrame.Actions>
+            <Button variant="contained" size="small">
+              New Recording
+            </Button>
+          </PageFrame.Actions>
+        </PageFrame.Header>
+        <PageFrame.Body>
+          <Col gap={spacing.lg}>
+            <Card>
+              <Skeleton variant="text" lines={3} />
+            </Card>
+            <Card>
+              <Skeleton variant="rectangular" height={160} />
+            </Card>
+            <Card>
+              <Skeleton variant="text" lines={2} />
+            </Card>
+          </Col>
+        </PageFrame.Body>
+      </PageFrame>
+    </Block>
+  ),
+}
+
+export const ConstrainedWidth: Story = {
+  name: 'Constrained Width',
+  render: () => (
+    <Block height="100vh" backgroundColor={color.bg.subtle}>
+      <PageFrame>
+        <PageFrame.Header>
+          <PageFrame.Title>Settings</PageFrame.Title>
+        </PageFrame.Header>
+        <PageFrame.Body maxWidth={720}>
+          <Col gap={spacing.xl}>
+            <Card>
+              <Col gap={spacing.lg}>
+                <Skeleton variant="text" lines={2} />
+                <Skeleton variant="rectangular" height={40} />
+              </Col>
+            </Card>
+            <Card>
+              <Col gap={spacing.lg}>
+                <Skeleton variant="text" lines={2} />
+                <Skeleton variant="rectangular" height={40} />
+              </Col>
+            </Card>
+          </Col>
+        </PageFrame.Body>
+      </PageFrame>
+    </Block>
+  ),
+}
+
+export const ScrollableContent: Story = {
+  name: 'Scrollable Content',
+  render: () => (
+    <Block height="100vh" backgroundColor={color.bg.subtle}>
+      <PageFrame>
+        <PageFrame.Header>
+          <PageFrame.Title>All Sessions</PageFrame.Title>
+          <PageFrame.Actions>
+            <Button variant="outlined" size="small">
+              Export
+            </Button>
+            <Button variant="contained" size="small">
+              New Recording
+            </Button>
+          </PageFrame.Actions>
+        </PageFrame.Header>
+        <PageFrame.Body>
+          <Col gap={spacing.lg}>
+            {Array.from({ length: 12 }, (_, i) => (
+              <Card key={i}>
+                <Skeleton variant="text" lines={2} />
+              </Card>
+            ))}
+          </Col>
+        </PageFrame.Body>
+      </PageFrame>
+    </Block>
+  ),
+}
+
+export const InsideAppShell: Story = {
+  name: 'Inside AppShell (Composed)',
+  render: () => (
+    <AppShell>
+      <AppShell.Sidebar>
+        <Block padding={spacing.xl}>
+          <Block fontSize={fontSize.sm} color={color.text.muted}>
+            Sidebar placeholder
+          </Block>
+        </Block>
+      </AppShell.Sidebar>
+      <AppShell.Content>
+        <PageFrame>
+          <PageFrame.Header>
+            <PageFrame.Title>Sessions</PageFrame.Title>
+            <PageFrame.Actions>
+              <Button variant="contained" size="small">
+                New Recording
+              </Button>
+            </PageFrame.Actions>
+          </PageFrame.Header>
+          <PageFrame.Body>
+            <Col gap={spacing.lg}>
+              {Array.from({ length: 6 }, (_, i) => (
+                <Card key={i}>
+                  <Skeleton variant="text" lines={2} />
+                </Card>
+              ))}
+            </Col>
+          </PageFrame.Body>
+        </PageFrame>
+      </AppShell.Content>
+    </AppShell>
+  ),
+}
