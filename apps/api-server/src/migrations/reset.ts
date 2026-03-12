@@ -3,6 +3,7 @@ import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
 import { migrate } from './migrate'
 import { seed } from './seed'
+import { seedFixtures } from './seed-fixtures'
 
 async function main() {
   const db = createPostgresDatabaseClient({
@@ -17,13 +18,17 @@ async function main() {
   console.log('Dropping all tables...')
 
   await db.executeQuery(
-    sql.raw(`DO $$ DECLARE
+    sql
+      .raw(
+        `DO $$ DECLARE
   r RECORD;
 BEGIN
   FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
     EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
   END LOOP;
-END $$`).compile(db)
+END $$`
+      )
+      .compile(db)
   )
 
   console.log('All tables dropped. Running migrations...')
@@ -44,6 +49,8 @@ END $$`).compile(db)
   console.log('Running seed...')
   await seed(db)
   console.log('Seed complete.')
+
+  await seedFixtures(db)
 }
 
 main()
