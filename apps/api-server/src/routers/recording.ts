@@ -2,12 +2,13 @@ import { RecordingMode, StaffUser, User } from '@repro/domain'
 import { parseSchema } from '@repro/validation'
 import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
-import { FutureInstance, alt, bimap, chain, go } from 'fluture'
+import { FutureInstance, alt, bimap, chain, go, map } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
 import type { RecordingService } from '~/services/recording'
 import { isPermissionDenied, notFound } from '~/utils/errors'
+import { toListResponse } from '~/utils/listResponse'
 import { createResponseUtils } from '~/utils/response'
 
 const recordingIdSchema = {
@@ -83,7 +84,7 @@ export function createRecordingRouter(
           const user: User | StaffUser = yield req.getCurrentUser()
           yield accountService.ensureStaffUser(user)
           return yield recordingService.listInfo()
-        })
+        }).pipe(map(toListResponse))
       )
     })
 

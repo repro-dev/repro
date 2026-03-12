@@ -134,7 +134,7 @@ describe('Routers > Project', () => {
       })
 
       expect(res.statusCode).toEqual(200)
-      expect(res.json()).toEqual([projectB, projectA])
+      expect(res.json()).toEqual({ items: [projectB, projectA] })
     })
   })
 
@@ -377,11 +377,13 @@ describe('Routers > Project', () => {
         },
       })
 
-      expect(res.json()).toMatchObject([
-        { user: userA, role: ProjectRole.Contributor },
-        { user: userB, role: ProjectRole.Viewer },
-        { user: userC, role: ProjectRole.Admin },
-      ])
+      expect(res.json()).toMatchObject({
+        items: [
+          { user: userA, role: ProjectRole.Contributor },
+          { user: userB, role: ProjectRole.Viewer },
+          { user: userC, role: ProjectRole.Admin },
+        ],
+      })
     })
 
     it('should return not-found when getting all members for a project in another account', async () => {
@@ -831,7 +833,7 @@ describe('Routers > Project', () => {
         },
       })
 
-      expect(res.json()).toEqual([recordingB, recordingA])
+      expect(res.json()).toEqual({ items: [recordingB, recordingA] })
     })
 
     it('should get all recordings for a project where user is an account admin', async () => {
@@ -851,7 +853,7 @@ describe('Routers > Project', () => {
         },
       })
 
-      expect(res.json()).toEqual([recordingB, recordingA])
+      expect(res.json()).toEqual({ items: [recordingB, recordingA] })
     })
 
     it('should return permission-denied when getting recordings for a project without membership', async () => {

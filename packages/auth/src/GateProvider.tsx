@@ -1,4 +1,5 @@
 import { useApiClient } from '@repro/api-client'
+import { ListResponse } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import React, { createContext, PropsWithChildren } from 'react'
 
@@ -14,7 +15,7 @@ export const GateProvider: React.FC<PropsWithChildren<GateProviderProps>> = ({
 }) => {
   const apiClient = useApiClient()
 
-  const { success, loading, data } = useFuture<Error, Array<string>>(
+  const { success, loading, data } = useFuture<Error, ListResponse<string>>(
     () => apiClient.fetch('/feature-gates/enabled'),
     [apiClient]
   )
@@ -22,7 +23,7 @@ export const GateProvider: React.FC<PropsWithChildren<GateProviderProps>> = ({
   let gates: Array<string> = []
 
   if (!loading) {
-    gates = success ? data : fallbackGates
+    gates = success ? data.items : fallbackGates
   }
 
   return (

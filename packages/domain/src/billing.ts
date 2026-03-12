@@ -11,10 +11,6 @@ export interface BillingPlanWithEntitlements {
   entitlements: Array<BillingEntitlement>
 }
 
-export interface ListPlansResponse {
-  plans: Array<BillingPlanWithEntitlements>
-}
-
 export interface CheckoutResponse {
   transactionId: string
 }
