@@ -2,6 +2,7 @@ import { sql } from 'kysely'
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
 import { migrate } from './migrate'
+import { seed } from './seed'
 
 async function main() {
   const db = createPostgresDatabaseClient({
@@ -39,6 +40,10 @@ END $$`).compile(db)
     console.error(error)
     process.exit(1)
   }
+
+  console.log('Running seed...')
+  await seed(db)
+  console.log('Seed complete.')
 }
 
 main()
