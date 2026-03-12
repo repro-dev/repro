@@ -10,11 +10,12 @@
 #   reproctl cluster up|down|status|reset     Manage the local k8s cluster
 #   reproctl db reset|migrate|shell|status    Database operations
 #   reproctl start <service> [...]            Start services from current context
-#   reproctl stop [<service>...] | --all      Remove services or tear down Tilt
-#   reproctl restart <service> [...] | --all  Rebuild services or restart Tilt
+#   reproctl stop [<service>...] [-w <wt>] | --all  Remove services or tear down Tilt
+#   reproctl restart <service> [...] [-w <wt>] | --all  Rebuild services or restart Tilt
 #   reproctl status                           Show running services and dashboard URL
 #   reproctl logs [options] [service...]       Show or stream service logs
 #   reproctl ui                               Open the Tilt dashboard in a browser
+#   reproctl launch <service>                  Open service URL in the browser
 #   reproctl context                           Show current development context
 #   reproctl worktree attach <branch>          Attach to a worktree subshell
 #   reproctl worktree create <branch>         Create a worktree
@@ -58,6 +59,8 @@ source "$SCRIPT_DIR/lib/db.sh"
 source "$SCRIPT_DIR/lib/context.sh"
 # shellcheck source=scripts/lib/checkhealth.sh
 source "$SCRIPT_DIR/lib/checkhealth.sh"
+# shellcheck source=scripts/lib/launch.sh
+source "$SCRIPT_DIR/lib/launch.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -75,10 +78,13 @@ Commands:
                                   (reset, migrate, shell, status)
   start <service> [...]           Start services from the current context
   stop [<service>...] | --all     Remove services or tear down Tilt
+                                  Use --worktree / -w to target another worktree
   restart <service> [...] | --all Rebuild services or restart the Tilt daemon
+                                  Use --worktree / -w to target another worktree
   status                          Show running services and dashboard URL
   logs [options] [service...]     Show or stream service logs
   ui                              Open the Tilt dashboard in a browser
+  launch <service>                Open a service URL in the browser
   context                         Show current development context
   worktree <subcommand>           Manage git worktrees (create, remove, list, attach)
                                   (alias: wt)
@@ -107,13 +113,17 @@ Examples:
   reproctl start workspace                    # main checkout services
   reproctl start api-server                   # from worktree: isolated api-server
   reproctl stop api-server                    # remove from current context
+  reproctl stop -w rep-123 api-server        # stop in another worktree
   reproctl stop --all                         # tear down everything
   reproctl restart api-server                 # rebuild + redeploy a running service
+  reproctl restart -w rep-123 workspace      # restart in another worktree
   reproctl restart --all                      # restart the Tilt daemon
   reproctl status                             # show what's running
   reproctl logs -f api-server                 # tail logs for a service
   reproctl logs --json --since 5m api-server  # structured recent logs
   reproctl ui                                 # open Tilt dashboard
+  reproctl launch workspace                  # open workspace in browser
+  reproctl launch api-server -w feat/my-feat # open worktree api-server URL
   reproctl context                            # show current worktree/branch context
   reproctl wt attach feat/my-feat              # drop into worktree subshell
   reproctl wt create feat/my-feat             # shorthand for worktree
@@ -168,6 +178,7 @@ USAGE
   status)  cmd_status "$@" ;;
   logs)    cmd_logs "$@" ;;
   ui)      cmd_ui "$@" ;;
+  launch)  cmd_launch "$@" ;;
   context) cmd_context "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
   help)
