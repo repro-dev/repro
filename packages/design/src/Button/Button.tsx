@@ -1,19 +1,19 @@
 import { Row } from '@jsxstyle/react'
-import React, { PropsWithChildren } from 'react'
+import React, { forwardRef, PropsWithChildren } from 'react'
 import { color } from '../tokens/colors'
 import { containedShadow, radius, shadow } from '../tokens/elevation'
 import { activePress, focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
 import { fontSize as fontSizeTokens } from '../tokens/typography'
 
-type Props = PropsWithChildren<{
+export type ButtonProps = PropsWithChildren<{
   type?: 'button' | 'reset' | 'submit'
   size?: 'small' | 'medium' | 'large'
   variant?: 'contained' | 'outlined' | 'text'
   context?: 'info' | 'success' | 'warning' | 'danger' | 'neutral'
   rounded?: boolean
   disabled?: boolean
-  onClick?: () => void
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
 }>
 
 /**
@@ -116,16 +116,20 @@ const sizes = {
  * Use for any clickable action. Renders a native `<button>` element.
  * The `rounded` prop controls border-radius; defaults to `true`.
  */
-export const Button: React.FC<Props> = ({
-  children,
-  type = 'button',
-  size = 'medium',
-  variant = 'contained',
-  context = 'info',
-  rounded = true,
-  disabled = false,
-  onClick,
-}) => {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      children,
+      type = 'button',
+      size = 'medium',
+      variant = 'contained',
+      context = 'info',
+      rounded = true,
+      disabled = false,
+      onClick,
+    },
+    ref
+  ) => {
   const { base, fontSize } = sizes[size]
   const height = base * 5
   const paddingH = base * 2
@@ -136,7 +140,7 @@ export const Button: React.FC<Props> = ({
     <Row
       position="relative"
       component="button"
-      props={{ disabled, type, onClick }}
+      props={{ disabled, type, onClick, ref }}
       gap={gap}
       height={height}
       paddingH={paddingH}
@@ -171,3 +175,6 @@ export const Button: React.FC<Props> = ({
     </Row>
   )
 }
+)
+
+Button.displayName = 'Button'
