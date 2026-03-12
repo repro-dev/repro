@@ -1072,6 +1072,46 @@ importers:
         specifier: ^4.11.1
         version: 4.11.1(webpack-cli@4.10.0)(webpack@5.99.8)
 
+  packages/a11y:
+    dependencies:
+      react:
+        specifier: 18.3.1
+        version: 18.3.1
+    devDependencies:
+      '@types/expect':
+        specifier: 24.3.2
+        version: 24.3.2
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      '@types/react':
+        specifier: 18.3.10
+        version: 18.3.10
+      '@types/repro-shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+      expect:
+        specifier: 29.7.0
+        version: 29.7.0
+      global-jsdom:
+        specifier: 27.0.0
+        version: 27.0.0(jsdom@27.0.0(postcss@8.4.35))
+      prettier:
+        specifier: ^3.0.0
+        version: 3.0.0
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+      ts-eager:
+        specifier: ^2.0.2
+        version: 2.0.2
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
   packages/analytics:
     dependencies:
       '@repro/domain':
@@ -1478,6 +1518,9 @@ importers:
       '@react-spring/web':
         specifier: ^9.7.5
         version: 9.7.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@repro/a11y':
+        specifier: workspace:*
+        version: link:../a11y
       '@repro/domain':
         specifier: workspace:*
         version: link:../domain
