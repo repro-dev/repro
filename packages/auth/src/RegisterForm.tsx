@@ -59,7 +59,14 @@ export const RegisterForm: React.FC<Props> = () => {
     registration.pipe(
       done(error => {
         if (error) {
-          if (isValidationError(error)) {
+          if (
+            error.name === 'TooManyRequests' ||
+            (error as any).statusCode === 429
+          ) {
+            setErrorMessage(
+              'Too many registration attempts. Please try again later.'
+            )
+          } else if (isValidationError(error)) {
             setErrorMessage(`Form invalid: ${error.message}`)
           } else if (error.name === 'ResourceConflictError') {
             setErrorMessage('User already exists for this email address')

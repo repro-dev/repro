@@ -1,5 +1,5 @@
 import { User } from '@repro/domain'
-import { GeneratedAlways, Selectable } from 'kysely'
+import { Generated, GeneratedAlways, Selectable } from 'kysely'
 import { encodeId } from '../helpers'
 
 export interface UserTable {
@@ -12,6 +12,8 @@ export interface UserTable {
   verified: number | null
   active: number | null
   admin: number | null
+  failedLoginCount: Generated<number>
+  lockedUntil: Date | null
   createdAt: GeneratedAlways<Date>
 }
 
