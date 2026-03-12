@@ -15,5 +15,7 @@ tasks:
       cache: true
   dev:
     command: pnpm run storybook
+    deps:
+    - ^:build
 toolchain:
   default: node
