@@ -37,7 +37,7 @@ No `<div onClick>` patterns for interactive controls.
 
 Every component that renders a DOM element must use `React.forwardRef`. The ref type must be the actual DOM element (`HTMLButtonElement`, `HTMLInputElement`, etc.).
 
-**Note:** Some existing components (e.g. Button) have not been migrated to `forwardRef` yet — see [Known Deviations](#known-deviations-from-contract) below. All new components must use it.
+**Note:** Some existing components have not been migrated to `forwardRef` yet — see [Known Deviations](#known-deviations-from-contract) below. All new components must use it.
 
 ## Defaults via Destructuring
 
@@ -210,8 +210,6 @@ The contract above describes the **target state**. Several existing components p
 
 | Component | Deviation | Current behavior |
 |-----------|-----------|-----------------|
-| `Button` | No `forwardRef` | Declared as `React.FC`. Does not accept a `ref`. |
-| `Button` | `onClick` type mismatch | Accepts `() => void`, not `(event: React.MouseEvent) => void`. |
 | `Card` | Accepts styling props | Accepts `padding` and `height` directly, violating the opaque API. Use as documented. |
 | `Modal` | Accepts styling props | Accepts `width` and `height` as required props. Not compound. Pass content as flat children. |
 | `Drawer` | Not compound | No sub-components. Pass all content as flat children. |
