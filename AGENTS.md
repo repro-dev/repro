@@ -28,6 +28,47 @@
 - When the user wants to expand or change the scope of a project, ensure that the Linear issue is updated to reflect this.
 - **Code reviews**: When reviewing a PR that references Linear issues (e.g. `REP-123` in the branch name, title, or body), always fetch those issues before completing the review. Check for requirements, resolved decisions, and open considerations documented in the issue — these take precedence over assumptions based on codebase patterns alone. Load the `git-workflow` skill for the full review checklist.
 
+### Workspace structure
+
+One team: **Repro** (key `REP`). All issues use the `REP-<number>` identifier.
+
+**Initiatives** represent product-level goals that span multiple projects (e.g. Starter Edition, Pro Edition). Projects can be linked to one or more initiatives.
+
+**Projects** group related issues into a deliverable scope. Current projects:
+
+| Project | Purpose |
+|---------|---------|
+| Platform | Infrastructure, developer experience, CI/CD, reproctl |
+| Engineering | Code style, conventions, tooling, technical hygiene |
+| Design System | UI components, tokens, patterns for `@repro/design` |
+| Accessibility | Reusable a11y helpers (`@repro/a11y`) |
+| Recording & Playback | Session capture, playback engine, DevTools |
+| Authentication | Auth flows, social login, passkeys |
+| Agentic | Agentic debugging experience |
+| Billing | Paid plans, subscriptions, entitlements (Paddle) |
+| Marketing Website | Public-facing site |
+
+**Milestones** are optional sub-goals within a project. Use them when a project has distinct phases or deliverables that benefit from sequencing.
+
+**Labels** categorize issues by type:
+
+| Label | When to use |
+|-------|-------------|
+| Bug | Broken behavior that needs fixing |
+| Feature | New user-facing functionality |
+| Improvement | Enhancement to existing functionality |
+| Tech Debt | Internal quality, refactoring, cleanup |
+
+**Cycles** are not currently used.
+
+### Agent guidance
+
+- **Filing issues**: Choose the project that best fits the work. Use `Platform` for reproctl, infra, and DX. Use `Engineering` for cross-cutting code quality and conventions. Use the product-area project for product features.
+- **Labels**: Apply exactly one type label (Bug, Feature, Improvement, or Tech Debt) per issue.
+- **Milestones**: Only create milestones when a project has 3+ issues that form a natural phase. Don't create milestones for one-off issues.
+- **Priority**: Set priority on every issue. 1 = Urgent, 2 = High, 3 = Normal, 4 = Low.
+- **Issue status lifecycle**: See the `git-workflow` skill for the full status lifecycle and transition rules.
+
 ## Learning from Corrections
 
 When the user corrects a code choice, style issue, or any fundamental rule about how the project should be developed, built, run, tested, or deployed, offer to update the relevant skill file in `.opencode/skills/` (or a package-level `AGENTS.md` closer to the relevant code) with the new information so the lesson is retained for future sessions.
