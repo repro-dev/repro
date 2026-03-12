@@ -153,6 +153,15 @@ local_resource(
   auto_init=False,
 )
 
+local_resource(
+  'db-seed',
+  cmd='pnpm --filter @repro/api-server run seed',
+  resource_deps=['database-ready'],
+  labels=['api'],
+  trigger_mode=TRIGGER_MODE_MANUAL,
+  auto_init=False,
+)
+
 k8s_resource(
   'api-server-deployment',
   new_name='api-server',
