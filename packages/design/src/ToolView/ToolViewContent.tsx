@@ -15,12 +15,7 @@ export interface ToolViewContentProps {
 export const ToolViewContent = forwardRef<HTMLElement, ToolViewContentProps>(
   ({ children }, ref) => {
     return (
-      <Block
-        component="main"
-        overflow="hidden"
-        height="100%"
-        props={{ ref }}
-      >
+      <Block component="main" overflow="hidden" height="100%" props={{ ref }}>
         {children}
       </Block>
     )

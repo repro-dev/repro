@@ -29,9 +29,5 @@ export interface PageFrameProps {
  *   </PageFrame>
  */
 export const PageFrame: React.FC<PageFrameProps> = ({ children }) => {
-  return (
-    <Col height="100%">
-      {children}
-    </Col>
-  )
+  return <Col height="100%">{children}</Col>
 }

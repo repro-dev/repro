@@ -21,7 +21,10 @@ export interface BreadcrumbsItemProps {
  * additional attributes (e.g. `href`, `to`) via the `props` bag.
  */
 export const BreadcrumbsItem = forwardRef<HTMLLIElement, BreadcrumbsItemProps>(
-  ({ children, component, current = false, props: componentProps, ...rest }, ref) => {
+  (
+    { children, component, current = false, props: componentProps, ...rest },
+    ref
+  ) => {
     const showSeparator =
       (rest as { _showSeparator?: boolean })._showSeparator ?? false
     const Tag = (current ? 'span' : component ?? 'span') as 'span'

@@ -1,6 +1,6 @@
+import { PageFrame as PageFrameRoot } from './PageFrame'
 import { PageFrameActions } from './PageFrameActions'
 import { PageFrameBody } from './PageFrameBody'
-import { PageFrame as PageFrameRoot } from './PageFrame'
 import { PageFrameHeader } from './PageFrameHeader'
 import { PageFrameTitle } from './PageFrameTitle'
 

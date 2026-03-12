@@ -12,19 +12,15 @@ export interface PageFrameTitleProps {
  * Renders an `<h1>` with heading typography. Accepts plain text or
  * composed elements like breadcrumbs.
  */
-export const PageFrameTitle = forwardRef<HTMLHeadingElement, PageFrameTitleProps>(
-  ({ children }, ref) => {
-    return (
-      <Block
-        component="h1"
-        {...textStyles.heading2}
-        margin={0}
-        props={{ ref }}
-      >
-        {children}
-      </Block>
-    )
-  }
-)
+export const PageFrameTitle = forwardRef<
+  HTMLHeadingElement,
+  PageFrameTitleProps
+>(({ children }, ref) => {
+  return (
+    <Block component="h1" {...textStyles.heading2} margin={0} props={{ ref }}>
+      {children}
+    </Block>
+  )
+})
 
 PageFrameTitle.displayName = 'PageFrameTitle'
