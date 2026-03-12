@@ -68,7 +68,7 @@ jobs:
       - name: Get Moon cache
         uses: actions/cache@v3
         with:
-          path: .moon
+          path: .moon/cache
           key: ${{ runner.os }}-moon-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-moon-
