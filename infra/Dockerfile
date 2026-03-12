@@ -35,3 +35,7 @@ CMD ["moon", "run", "repro/workspace:serve"]
 FROM prepare AS api-server
 RUN moon run repro/api-server:build
 CMD ["moon", "run", "repro/api-server:serve"]
+
+FROM prepare AS admin
+RUN moon run repro/admin:build
+CMD ["moon", "run", "repro/admin:serve"]
