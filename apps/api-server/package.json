@@ -4,7 +4,6 @@
   "description": "",
   "main": "src/index.ts",
   "scripts": {
-    "dev-bin": "dotenvx run -f .env.development -- ts-eager",
     "dev": "mkdir -p tmp && pnpm run migrate && pnpm run start",
     "start": "tsx src/index.ts",
     "dev-watch": "node scripts/dev-watch.js",

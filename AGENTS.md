@@ -22,6 +22,22 @@
 - Always check existing imports/patterns before adding new dependencies
 - **API list endpoints** must return `{ items: Array<T> }` envelope — never bare arrays. Use a generic `items` key (not resource-specific keys). A shared `ListResponse<T>` type exists in `packages/domain`. Existing endpoints currently return bare arrays and are pending uplift in REP-129; new endpoints must follow the envelope convention.
 
+## Environment Variables
+
+**Tilt + Helm is the single source of truth** for environment variable configuration in development. All services receive their env vars through Kubernetes pod environment variables, injected via Helm chart `values.yaml` defaults and Tiltfile `helm(set=[...])` overrides.
+
+- **Canonical source**: `infra/apps/<service>/chart/values.yaml` defines defaults for each service. Tiltfiles apply overrides (e.g. URLs, API keys via `os.getenv()`).
+- **Runtime validation**: Each app uses a `createEnv()` function with a Zod schema (`apps/<service>/src/config/createEnv.ts`) that validates `process.env` and provides fallback defaults. This is a safety net, not a configuration source.
+- **No `.env` file loading**: No code path loads `.env` files at runtime. The `.env*` files in `apps/` are gitignored local artifacts copied by `reproctl wt create` for convenience — they are not authoritative.
+- **Frontend apps**: Webpack `EnvironmentPlugin` / `templateParameters` read `process.env` at build time, set by Kubernetes env vars in the container.
+
+### Adding a new environment variable
+
+1. Add the variable to the Helm chart `values.yaml` for the service (`infra/apps/<service>/chart/values.yaml`).
+2. If needed, add a Tiltfile `helm(set=[...])` override for local development.
+3. Add the variable to the service's `createEnv()` Zod schema with an appropriate default.
+4. Access the variable through the validated env object — never read `process.env` directly in application code.
+
 ## Linear as Source of Truth
 
 - All project specifications, implementation plans, and tracked work live in **Linear** as the source of truth. Use Linear projects, milestones, and issues to organize deliverables.
