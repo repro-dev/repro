@@ -17,5 +17,5 @@ tasks:
     command: pnpm run storybook
     deps:
     - ^:build
-toolchain:
+toolchains:
   default: node

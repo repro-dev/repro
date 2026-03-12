@@ -23,4 +23,4 @@ mkdir -p "$build_dir"
 
 cp -r $source_dir/extension/static/* $build_dir/
 
-eval "pnpx webpack $flags"
+eval "pnpm exec webpack $flags"

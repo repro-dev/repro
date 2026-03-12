@@ -29,5 +29,5 @@ tasks:
     command: pnpm run prepare-env
     options:
       cache: false
-toolchain:
+toolchains:
   default: node

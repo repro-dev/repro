@@ -7,16 +7,30 @@ description: Build system (moon + pnpm workspaces), test commands, reproctl CLI 
 
 ## Build System
 
-Uses **moon** (monorepo task runner) with pnpm workspaces.
+Uses **moon v2** (monorepo task runner) with pnpm workspaces.
+
+Moon v2 project IDs use the source-path format: `repro/<name>` (e.g. `repro/domain`, `repro/admin`). Package aliases like `@repro/domain` also work.
+
+**Moon v2 glob restriction**: Brace expansion (`{,x}`) is not supported in glob patterns. Use separate entries instead (e.g. two globs `*.ts` and `*.tsx` rather than `*.ts{,x}`).
 
 | Task | Command |
 |------|---------|
-| Build | `moon run <package>:build` (builds dependencies first via `^:build`) |
-| Test | `moon run <package>:test` or `pnpm test` (uses tsx with `--test` flag) |
+| Build | `moon run repro/<name>:build` (builds dependencies first via `^:build`) |
+| Test | `moon run repro/<name>:test` or `pnpm test` (uses tsx with `--test` flag) |
 | Single test | `tsx --experimental-test-module-mocks --test path/to/file.test.ts` |
-| Typecheck | `moon run <package>:typecheck` or `pnpm typecheck` |
+| Typecheck | `moon run repro/<name>:typecheck` or `pnpm typecheck` |
 
-General form: `moon run <package>:build|test|typecheck` or `cd <package> && pnpm <script>`.
+General form: `moon run repro/<name>:build|test|typecheck` or `cd <package> && pnpm <script>`.
+
+### Moon v2 config files
+
+| File | Purpose |
+|------|---------|
+| `.moon/toolchains.yml` | Toolchain config (javascript, node, pnpm sections) |
+| `.moon/workspace.yml` | Workspace config (project sources, vcs) |
+| `.moon/tasks/node.yml` | Inherited task definitions (uses `inheritedBy: toolchain: node`) |
+
+Individual project configs are in `moon.yml` files within each app/package directory and use `toolchains:` (plural) for toolchain overrides.
 
 ## reproctl CLI
 
@@ -50,15 +64,17 @@ Requires `pytest` (`pip3 install pytest`). Uses system Python 3 — no version p
 
 All tool versions are pinned in `.prototools` at the repo root. This is the single source of truth for tool versions.
 
-When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup script), it **must reference the same version** pinned in `.prototools`. Never use unpinned installs like `npm add --global @moonrepo/cli` — always specify the version explicitly (e.g. `npm add --global @moonrepo/cli@1.41.5`).
+When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup script), it **must reference the same version** pinned in `.prototools`. Never use unpinned installs like `npm add --global @moonrepo/cli` — always specify the version explicitly (e.g. `npm add --global @moonrepo/cli@2.0.4`).
 
 **Current pinning locations:**
 
 | Tool | `.prototools` | Also installed in |
 |------|---------------|-------------------|
-| `moon` | `moon = "1.41.5"` | `infra/Dockerfile` (`@moonrepo/cli@1.41.5`) |
+| `moon` | `moon = "2.0.4"` | `infra/Dockerfile` (`@moonrepo/cli@2.0.4`) |
 | `node` | `node = "22.19.0"` | `infra/Dockerfile` (base image `node:22-slim`) |
 | `pnpm` | `pnpm = "10.17.0"` | — |
+
+`.prototools` also pins a **moon_tool plugin override** (`[plugins.tools] moon = "...moon_tool-v0.4.1/moon_tool.wasm"`) required for Moon v2's archive distribution format. The built-in proto plugin doesn't support v2 yet.
 
 When upgrading a tool version, update **all** pinning locations together.
 

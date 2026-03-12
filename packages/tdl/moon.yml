@@ -14,5 +14,5 @@ tasks:
     - src/cli/grammar.ohm-bundle.*
     options:
       cache: true
-toolchain:
+toolchains:
   default: node

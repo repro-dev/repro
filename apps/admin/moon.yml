@@ -7,5 +7,5 @@ tags:
 tasks:
   build:
     command: pnpm run build
-toolchain:
+toolchains:
   default: node
