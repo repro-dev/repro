@@ -18,7 +18,9 @@ tasks:
     env:
       NODE_OPTIONS: --test-reporter spec
     inputs:
-    - glob: src/**/*.test.ts{,x}
+    - glob: src/**/*.test.ts
+      cache: true
+    - glob: src/**/*.test.tsx
       cache: true
     options:
       cache: true

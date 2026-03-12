@@ -11,6 +11,8 @@ Uses **moon v2** (monorepo task runner) with pnpm workspaces.
 
 Moon v2 project IDs use the source-path format: `repro/<name>` (e.g. `repro/domain`, `repro/admin`). Package aliases like `@repro/domain` also work.
 
+**Moon v2 glob restriction**: Brace expansion (`{,x}`) is not supported in glob patterns. Use separate entries instead (e.g. two globs `*.ts` and `*.tsx` rather than `*.ts{,x}`).
+
 | Task | Command |
 |------|---------|
 | Build | `moon run repro/<name>:build` (builds dependencies first via `^:build`) |
