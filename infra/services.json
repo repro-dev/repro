@@ -61,5 +61,17 @@
     "resource_deps": ["dependencies"],
     "labels": ["extension"],
     "deps": []
+  },
+
+  "storybook-ui": {
+    "type": "local",
+    "moon_project": "repro/storybook-ui",
+    "app_dir": "apps/storybook-ui",
+    "serve_cmd": "moon run repro/storybook-ui:dev",
+    "serve_env": {},
+    "resource_deps": ["dependencies"],
+    "labels": ["design"],
+    "links": ["http://localhost:6006"],
+    "deps": []
   }
 }
