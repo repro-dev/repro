@@ -5,6 +5,7 @@ import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
 import { BillingService } from '~/services/billing'
+import { toListResponse } from '~/utils/listResponse'
 import { createResponseUtils } from '~/utils/response'
 
 const checkoutSchema = {
@@ -26,7 +27,7 @@ export function createBillingRouter(
     app.get('/plans', {}, (_, res) => {
       respondWith(
         res,
-        billingService.listPlansWithEntitlements().pipe(map(items => ({ items })))
+        billingService.listPlansWithEntitlements().pipe(map(toListResponse))
       )
     })
 

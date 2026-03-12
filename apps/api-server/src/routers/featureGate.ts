@@ -5,6 +5,7 @@ import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
 import { FeatureGateService } from '~/services/featureGate'
+import { toListResponse } from '~/utils/listResponse'
 import { createResponseUtils } from '~/utils/response'
 
 const createFeatureGateSchema = {
@@ -47,11 +48,15 @@ export function createFeatureGateRouter(
         featureGateService
           .listEnabledFeatureGates()
           .pipe(map(gates => gates.map(gate => gate.name)))
+          .pipe(map(toListResponse))
       )
     })
 
     app.get('/', (_, res) => {
-      respondWith(res, featureGateService.listFeatureGates())
+      respondWith(
+        res,
+        featureGateService.listFeatureGates().pipe(map(toListResponse))
+      )
     })
 
     app.post<{

@@ -57,8 +57,7 @@ describe('Routers > FeatureGate', () => {
 
     expect(response.statusCode).toBe(200)
     const body = response.json()
-    expect(Array.isArray(body)).toBe(true)
-    expect(body).toEqual(['feature1', 'feature2'])
+    expect(body).toEqual({ items: ['feature1', 'feature2'] })
   })
 
   it('should return a list of all feature gates', async () => {
@@ -78,9 +77,8 @@ describe('Routers > FeatureGate', () => {
 
     expect(response.statusCode).toBe(200)
     const body = response.json()
-    expect(Array.isArray(body)).toBe(true)
-    expect(body).toHaveLength(3)
-    expect(body.map((g: FeatureGate) => g.name)).toEqual([
+    expect(body.items).toHaveLength(3)
+    expect(body.items.map((g: FeatureGate) => g.name)).toEqual([
       'feature1',
       'feature2',
       'feature3',
@@ -305,7 +303,7 @@ describe('Routers > FeatureGate', () => {
     expect(listResponse.statusCode).toBe(200)
     const gates = listResponse.json()
     expect(
-      gates.find((g: FeatureGate) => g.id === createdGate.id)
+      gates.items.find((g: FeatureGate) => g.id === createdGate.id)
     ).toBeUndefined()
   })
 

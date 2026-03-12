@@ -29,6 +29,7 @@ import {
   notFound,
   notImplemented,
 } from '~/utils/errors'
+import { toListResponse } from '~/utils/listResponse'
 import { createResponseUtils } from '~/utils/response'
 
 export function createProjectRouter(
@@ -88,7 +89,7 @@ export function createProjectRouter(
           const user: User | StaffUser = yield req.getCurrentUser()
           yield accountService.ensureUser(user)
           return yield projectService.getUserProjects(user.id)
-        })
+        }).pipe(map(toListResponse))
       )
     })
 
@@ -273,7 +274,7 @@ export function createProjectRouter(
                   .pipe(map(user => ({ user, role: member.role })))
               )
             )
-          })
+          }).pipe(map(toListResponse))
         )
       }
     )
@@ -479,7 +480,7 @@ export function createProjectRouter(
             const user: User | StaffUser = yield req.getCurrentUser()
             yield ensureCanAccessProject(user, projectId)
             return yield projectService.getRecordingsForProject(projectId)
-          })
+          }).pipe(map(toListResponse))
         )
       }
     )
