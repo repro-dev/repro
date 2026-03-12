@@ -33,7 +33,6 @@
     }
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.43.0",
     "node-gyp-build": "^4.8.4",
     "pm2": "^5.4.3"
   },
