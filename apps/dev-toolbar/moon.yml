@@ -17,5 +17,8 @@ tasks:
     command: pnpm run watch
     deps:
     - ^:build
+    options:
+      persistent: true
+      runInCI: false
 toolchains:
   default: node
