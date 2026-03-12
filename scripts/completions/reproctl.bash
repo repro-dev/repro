@@ -48,11 +48,11 @@ _reproctl() {
   local cur prev words cword
   _init_completion || return
 
-  local top_commands="setup doctor checkhealth cluster db start stop restart status logs ui context handoff worktree wt help"
+  local top_commands="setup doctor checkhealth cluster db start stop restart status logs ui launch context handoff worktree wt help"
   local cluster_sub="up down status reset"
   local db_sub="reset migrate shell status"
   local wt_sub="create remove list attach prune"
-  local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui context handoff worktree wt"
+  local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui launch context handoff worktree wt"
 
   # Find the subcommand position (skip global flags)
   local cmd="" subcmd=""
@@ -128,6 +128,13 @@ _reproctl() {
         --grep|--since|-C|--context|-B|-A|-n|--tail) return ;; # expect value
       esac
       COMPREPLY=($(compgen -W "-f --follow --level --source --grep -C --context -B -A --since --json --no-prefix -n --tail --pick -p -h --help $(__reproctl_services)" -- "$cur"))
+      ;;
+
+    launch)
+      case "$prev" in
+        --worktree|-w) COMPREPLY=($(compgen -W "$(__reproctl_worktree_branches)" -- "$cur")); return ;;
+      esac
+      COMPREPLY=($(compgen -W "--worktree -w -h --help workspace api-server admin" -- "$cur"))
       ;;
 
     context)
