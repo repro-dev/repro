@@ -40,10 +40,7 @@ export const Default: Story = {
           Recording: User Checkout Flow
         </Block>
         <Row gap={spacing.md}>
-          <Block
-            fontSize={fontSize.sm}
-            color={color.text.secondary}
-          >
+          <Block fontSize={fontSize.sm} color={color.text.secondary}>
             Share
           </Block>
         </Row>

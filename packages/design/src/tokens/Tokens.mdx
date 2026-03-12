@@ -182,7 +182,11 @@ export function sRGBtoLinear(c) {
 
 export function luminance(hex) {
   const [r, g, b] = hexToRgb(hex)
-  return 0.2126 * sRGBtoLinear(r) + 0.7152 * sRGBtoLinear(g) + 0.0722 * sRGBtoLinear(b)
+  return (
+    0.2126 * sRGBtoLinear(r) +
+    0.7152 * sRGBtoLinear(g) +
+    0.0722 * sRGBtoLinear(b)
+  )
 }
 
 export function contrastRatio(hex1, hex2) {
@@ -232,52 +236,95 @@ export const borderTokens = [
   <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
     <thead>
       <tr>
-        <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>Background</th>
+        <th
+          style={{
+            padding: '8px 12px',
+            textAlign: 'left',
+            borderBottom: '2px solid #e2e8f0',
+          }}
+        >
+          Background
+        </th>
         {fgTokens.map(([name]) => (
-          <th key={name} style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '2px solid #e2e8f0', minWidth: 120 }}>
+          <th
+            key={name}
+            style={{
+              padding: '8px 12px',
+              textAlign: 'center',
+              borderBottom: '2px solid #e2e8f0',
+              minWidth: 120,
+            }}
+          >
             {name}
           </th>
         ))}
       </tr>
     </thead>
     <tbody>
-      {bgTokens.filter(([_, v]) => typeof v === 'string' && v.startsWith('#')).map(([bgName, bgValue]) => (
-        <tr key={bgName}>
-          <td style={{ padding: '8px 12px', fontWeight: 600, borderBottom: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 16, height: 16, borderRadius: 3, backgroundColor: bgValue, border: '1px solid #e2e8f0', flexShrink: 0 }} />
-              {bgName}
-            </div>
-          </td>
-          {fgTokens.map(([fgName, fgValue]) => {
-            const ratio = contrastRatio(bgValue, fgValue)
-            const label = contrastLabel(ratio)
-            const badgeColor = contrastColor(ratio)
-            return (
-              <td key={fgName} style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+      {bgTokens
+        .filter(([_, v]) => typeof v === 'string' && v.startsWith('#'))
+        .map(([bgName, bgValue]) => (
+          <tr key={bgName}>
+            <td
+              style={{
+                padding: '8px 12px',
+                fontWeight: 600,
+                borderBottom: '1px solid #e2e8f0',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div
                   style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: 3,
                     backgroundColor: bgValue,
-                    color: fgValue,
-                    padding: '6px 10px',
-                    borderRadius: 4,
                     border: '1px solid #e2e8f0',
-                    marginBottom: 4,
-                    fontWeight: 500,
+                    flexShrink: 0,
+                  }}
+                />
+                {bgName}
+              </div>
+            </td>
+            {fgTokens.map(([fgName, fgValue]) => {
+              const ratio = contrastRatio(bgValue, fgValue)
+              const label = contrastLabel(ratio)
+              const badgeColor = contrastColor(ratio)
+              return (
+                <td
+                  key={fgName}
+                  style={{
+                    padding: '8px 12px',
+                    textAlign: 'center',
+                    borderBottom: '1px solid #e2e8f0',
                   }}
                 >
-                  Sample
-                </div>
-                <div style={{ fontSize: 11 }}>
-                  <span style={{ color: badgeColor, fontWeight: 600 }}>{label}</span>
-                  {' '}
-                  <span style={{ color: '#94a3b8' }}>{ratio.toFixed(1)}:1</span>
-                </div>
-              </td>
-            )
-          })}
-        </tr>
-      ))}
+                  <div
+                    style={{
+                      backgroundColor: bgValue,
+                      color: fgValue,
+                      padding: '6px 10px',
+                      borderRadius: 4,
+                      border: '1px solid #e2e8f0',
+                      marginBottom: 4,
+                      fontWeight: 500,
+                    }}
+                  >
+                    Sample
+                  </div>
+                  <div style={{ fontSize: 11 }}>
+                    <span style={{ color: badgeColor, fontWeight: 600 }}>
+                      {label}
+                    </span>{' '}
+                    <span style={{ color: '#94a3b8' }}>
+                      {ratio.toFixed(1)}:1
+                    </span>
+                  </div>
+                </td>
+              )
+            })}
+          </tr>
+        ))}
     </tbody>
   </table>
 </div>
@@ -288,52 +335,95 @@ export const borderTokens = [
   <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
     <thead>
       <tr>
-        <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>Background</th>
+        <th
+          style={{
+            padding: '8px 12px',
+            textAlign: 'left',
+            borderBottom: '2px solid #e2e8f0',
+          }}
+        >
+          Background
+        </th>
         {borderTokens.map(([name]) => (
-          <th key={name} style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '2px solid #e2e8f0', minWidth: 120 }}>
+          <th
+            key={name}
+            style={{
+              padding: '8px 12px',
+              textAlign: 'center',
+              borderBottom: '2px solid #e2e8f0',
+              minWidth: 120,
+            }}
+          >
             {name}
           </th>
         ))}
       </tr>
     </thead>
     <tbody>
-      {bgTokens.filter(([_, v]) => typeof v === 'string' && v.startsWith('#')).map(([bgName, bgValue]) => (
-        <tr key={bgName}>
-          <td style={{ padding: '8px 12px', fontWeight: 600, borderBottom: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 16, height: 16, borderRadius: 3, backgroundColor: bgValue, border: '1px solid #e2e8f0', flexShrink: 0 }} />
-              {bgName}
-            </div>
-          </td>
-          {borderTokens.map(([bName, bValue]) => {
-            const ratio = contrastRatio(bgValue, bValue)
-            const label = contrastLabel(ratio)
-            const badgeColor = contrastColor(ratio)
-            return (
-              <td key={bName} style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+      {bgTokens
+        .filter(([_, v]) => typeof v === 'string' && v.startsWith('#'))
+        .map(([bgName, bgValue]) => (
+          <tr key={bgName}>
+            <td
+              style={{
+                padding: '8px 12px',
+                fontWeight: 600,
+                borderBottom: '1px solid #e2e8f0',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div
                   style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: 3,
                     backgroundColor: bgValue,
-                    padding: '6px 10px',
-                    borderRadius: 4,
-                    border: `2px solid ${bValue}`,
-                    marginBottom: 4,
-                    fontSize: 11,
-                    color: '#64748b',
+                    border: '1px solid #e2e8f0',
+                    flexShrink: 0,
+                  }}
+                />
+                {bgName}
+              </div>
+            </td>
+            {borderTokens.map(([bName, bValue]) => {
+              const ratio = contrastRatio(bgValue, bValue)
+              const label = contrastLabel(ratio)
+              const badgeColor = contrastColor(ratio)
+              return (
+                <td
+                  key={bName}
+                  style={{
+                    padding: '8px 12px',
+                    textAlign: 'center',
+                    borderBottom: '1px solid #e2e8f0',
                   }}
                 >
-                  border
-                </div>
-                <div style={{ fontSize: 11 }}>
-                  <span style={{ color: badgeColor, fontWeight: 600 }}>{label}</span>
-                  {' '}
-                  <span style={{ color: '#94a3b8' }}>{ratio.toFixed(1)}:1</span>
-                </div>
-              </td>
-            )
-          })}
-        </tr>
-      ))}
+                  <div
+                    style={{
+                      backgroundColor: bgValue,
+                      padding: '6px 10px',
+                      borderRadius: 4,
+                      border: `2px solid ${bValue}`,
+                      marginBottom: 4,
+                      fontSize: 11,
+                      color: '#64748b',
+                    }}
+                  >
+                    border
+                  </div>
+                  <div style={{ fontSize: 11 }}>
+                    <span style={{ color: badgeColor, fontWeight: 600 }}>
+                      {label}
+                    </span>{' '}
+                    <span style={{ color: '#94a3b8' }}>
+                      {ratio.toFixed(1)}:1
+                    </span>
+                  </div>
+                </td>
+              )
+            })}
+          </tr>
+        ))}
     </tbody>
   </table>
 </div>
@@ -344,69 +434,197 @@ export const borderTokens = [
   <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
     <thead>
       <tr>
-        <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>Status</th>
-        <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '2px solid #e2e8f0' }}>Subtle bg + Fg text</th>
-        <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '2px solid #e2e8f0' }}>Subtle bg + Default text</th>
-        <th style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '2px solid #e2e8f0' }}>Subtle bg + Border</th>
+        <th
+          style={{
+            padding: '8px 12px',
+            textAlign: 'left',
+            borderBottom: '2px solid #e2e8f0',
+          }}
+        >
+          Status
+        </th>
+        <th
+          style={{
+            padding: '8px 12px',
+            textAlign: 'center',
+            borderBottom: '2px solid #e2e8f0',
+          }}
+        >
+          Subtle bg + Fg text
+        </th>
+        <th
+          style={{
+            padding: '8px 12px',
+            textAlign: 'center',
+            borderBottom: '2px solid #e2e8f0',
+          }}
+        >
+          Subtle bg + Default text
+        </th>
+        <th
+          style={{
+            padding: '8px 12px',
+            textAlign: 'center',
+            borderBottom: '2px solid #e2e8f0',
+          }}
+        >
+          Subtle bg + Border
+        </th>
       </tr>
     </thead>
     <tbody>
       {[
-        ['danger', color.dangerSubtle, color.dangerFg, color.danger, color.dangerBorder],
-        ['success', color.successSubtle, color.successFg, color.success, color.successBorder],
-        ['warning', color.warningSubtle, color.warningFg, color.warning, color.warningBorder],
+        [
+          'danger',
+          color.dangerSubtle,
+          color.dangerFg,
+          color.danger,
+          color.dangerBorder,
+        ],
+        [
+          'success',
+          color.successSubtle,
+          color.successFg,
+          color.success,
+          color.successBorder,
+        ],
+        [
+          'warning',
+          color.warningSubtle,
+          color.warningFg,
+          color.warning,
+          color.warningBorder,
+        ],
         ['info', color.infoSubtle, color.infoFg, color.info, color.infoBorder],
       ].map(([status, subtleBg, fg, main, border]) => (
         <tr key={status}>
-          <td style={{ padding: '8px 12px', fontWeight: 600, borderBottom: '1px solid #e2e8f0' }}>
+          <td
+            style={{
+              padding: '8px 12px',
+              fontWeight: 600,
+              borderBottom: '1px solid #e2e8f0',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 16, height: 16, borderRadius: 3, backgroundColor: main, flexShrink: 0 }} />
+              <div
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 3,
+                  backgroundColor: main,
+                  flexShrink: 0,
+                }}
+              />
               {status}
             </div>
           </td>
-          <td style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+          <td
+            style={{
+              padding: '8px 12px',
+              textAlign: 'center',
+              borderBottom: '1px solid #e2e8f0',
+            }}
+          >
             {(() => {
               const ratio = contrastRatio(subtleBg, fg)
               return (
                 <div>
-                  <div style={{ backgroundColor: subtleBg, color: fg, padding: '6px 10px', borderRadius: 4, fontWeight: 500, marginBottom: 4 }}>
+                  <div
+                    style={{
+                      backgroundColor: subtleBg,
+                      color: fg,
+                      padding: '6px 10px',
+                      borderRadius: 4,
+                      fontWeight: 500,
+                      marginBottom: 4,
+                    }}
+                  >
                     {status}Fg on {status}Subtle
                   </div>
                   <div style={{ fontSize: 11 }}>
-                    <span style={{ color: contrastColor(ratio), fontWeight: 600 }}>{contrastLabel(ratio)}</span>
-                    {' '}<span style={{ color: '#94a3b8' }}>{ratio.toFixed(1)}:1</span>
+                    <span
+                      style={{ color: contrastColor(ratio), fontWeight: 600 }}
+                    >
+                      {contrastLabel(ratio)}
+                    </span>{' '}
+                    <span style={{ color: '#94a3b8' }}>
+                      {ratio.toFixed(1)}:1
+                    </span>
                   </div>
                 </div>
               )
             })()}
           </td>
-          <td style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+          <td
+            style={{
+              padding: '8px 12px',
+              textAlign: 'center',
+              borderBottom: '1px solid #e2e8f0',
+            }}
+          >
             {(() => {
               const ratio = contrastRatio(subtleBg, main)
               return (
                 <div>
-                  <div style={{ backgroundColor: subtleBg, color: main, padding: '6px 10px', borderRadius: 4, fontWeight: 500, marginBottom: 4 }}>
+                  <div
+                    style={{
+                      backgroundColor: subtleBg,
+                      color: main,
+                      padding: '6px 10px',
+                      borderRadius: 4,
+                      fontWeight: 500,
+                      marginBottom: 4,
+                    }}
+                  >
                     {status} on {status}Subtle
                   </div>
                   <div style={{ fontSize: 11 }}>
-                    <span style={{ color: contrastColor(ratio), fontWeight: 600 }}>{contrastLabel(ratio)}</span>
-                    {' '}<span style={{ color: '#94a3b8' }}>{ratio.toFixed(1)}:1</span>
+                    <span
+                      style={{ color: contrastColor(ratio), fontWeight: 600 }}
+                    >
+                      {contrastLabel(ratio)}
+                    </span>{' '}
+                    <span style={{ color: '#94a3b8' }}>
+                      {ratio.toFixed(1)}:1
+                    </span>
                   </div>
                 </div>
               )
             })()}
           </td>
-          <td style={{ padding: '8px 12px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+          <td
+            style={{
+              padding: '8px 12px',
+              textAlign: 'center',
+              borderBottom: '1px solid #e2e8f0',
+            }}
+          >
             {(() => {
               const ratio = contrastRatio(subtleBg, border)
               return (
                 <div>
-                  <div style={{ backgroundColor: subtleBg, padding: '6px 10px', borderRadius: 4, border: `2px solid ${border}`, marginBottom: 4, fontSize: 11, color: '#64748b' }}>
+                  <div
+                    style={{
+                      backgroundColor: subtleBg,
+                      padding: '6px 10px',
+                      borderRadius: 4,
+                      border: `2px solid ${border}`,
+                      marginBottom: 4,
+                      fontSize: 11,
+                      color: '#64748b',
+                    }}
+                  >
                     {status}Border
                   </div>
                   <div style={{ fontSize: 11 }}>
-                    <span style={{ color: contrastColor(ratio), fontWeight: 600 }}>{contrastLabel(ratio)}</span>
-                    {' '}<span style={{ color: '#94a3b8' }}>{ratio.toFixed(1)}:1</span>
+                    <span
+                      style={{ color: contrastColor(ratio), fontWeight: 600 }}
+                    >
+                      {contrastLabel(ratio)}
+                    </span>{' '}
+                    <span style={{ color: '#94a3b8' }}>
+                      {ratio.toFixed(1)}:1
+                    </span>
                   </div>
                 </div>
               )
@@ -778,13 +996,9 @@ Responsive breakpoint tokens for media-query-driven layouts. Provides raw pixel 
 pre-built media query strings for use with jsxstyle's `mediaQueries` prop.
 
 ```tsx
-import { breakpoint, mediaQueries } from '@repro/design'
+import { mediaQueries } from '@repro/design'
 
-<Block
-  display="none"
-  mediaQueries={mediaQueries}
-  mdDisplay="block"
-/>
+;<Block display="none" mediaQueries={mediaQueries} mdDisplay="block" />
 ```
 
 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
@@ -804,9 +1018,7 @@ import { breakpoint, mediaQueries } from '@repro/design'
           borderRadius: 2,
         }}
       />
-      <div style={{ fontSize: 11, color: '#64748b' }}>
-        {mediaQueries[name]}
-      </div>
+      <div style={{ fontSize: 11, color: '#64748b' }}>{mediaQueries[name]}</div>
     </div>
   ))}
 </div>

@@ -57,8 +57,17 @@ const SampleSidebar: React.FC = () => (
       gap={spacing.md}
       borderTop={`1px solid ${color.border.default}`}
     >
-      <Avatar name="Jane Smith" email="jane@example.com" mode="image-only" size={28} />
-      <Block fontSize={fontSize.sm} fontWeight={fontWeight.medium} color={color.text.default}>
+      <Avatar
+        name="Jane Smith"
+        email="jane@example.com"
+        mode="image-only"
+        size={28}
+      />
+      <Block
+        fontSize={fontSize.sm}
+        fontWeight={fontWeight.medium}
+        color={color.text.default}
+      >
         Jane Smith
       </Block>
     </Row>

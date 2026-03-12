@@ -17,13 +17,7 @@ export interface SideNavItemProps {
 
 export const SideNavItem = forwardRef<HTMLElement, SideNavItemProps>(
   (
-    {
-      icon: Icon,
-      label,
-      active = false,
-      component,
-      props: componentProps,
-    },
+    { icon: Icon, label, active = false, component, props: componentProps },
     ref
   ) => {
     const iconColor = active ? color.primary : color.text.secondary
