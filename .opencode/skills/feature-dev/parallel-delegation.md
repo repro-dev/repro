@@ -11,35 +11,32 @@ reproctl wt create --from-issue REP-101
 reproctl wt create --from-issue REP-102
 ```
 
-## 2. Generate handoff bundles
+## 2. Spawn subagents
 
-For each worktree, generate a context document:
+Use the Task tool to launch one `general` subagent per worktree. Each Task prompt should contain exactly three things:
 
-```sh
-reproctl handoff --issue REP-101 --worktree /abs/path/to/repro-wt-...-rep-101
-reproctl handoff --issue REP-102 --worktree /abs/path/to/repro-wt-...-rep-102
+1. **Worktree path** (absolute) — the subagent's working directory
+2. **Issue identifier** (e.g. `REP-101`) — so the subagent can fetch it via MCP
+3. **Objective** — what to do and completion criteria
+
+### Prompt template
+
+```
+Implement the following in worktree /abs/path/to/repro-wt-...-rep-101:
+
+<objective — what to build/fix and why>
+
+1. Fetch Linear issue REP-101 and read the full description.
+2. Load the `feature-dev` skill and follow Phases 1–6.
+3. All file operations MUST use absolute paths under the worktree.
+4. When done: commit, push, create PR.
 ```
 
-`reproctl handoff` produces a self-contained markdown document with the issue spec (from Linear), worktree path, relevant conventions, changed files, and verification commands.
-
-If running from inside the worktree, the `--worktree` flag can be omitted and the issue can be inferred from the branch name:
-
-```sh
-reproctl handoff --worktree /path/to/worktree
-```
-
-## 3. Spawn subagents
-
-Use the Task tool to launch one `general` subagent per worktree. Each Task prompt should contain:
-
-1. The handoff output (pasted verbatim)
-2. An explicit instruction: "All file operations MUST use absolute paths under `<worktree path>`. NEVER modify the main checkout."
-3. Instructions to follow Phases 1-6 of the `feature-dev` skill workflow
-4. What to do on completion (commit, push, create PR)
+The subagent self-primes by fetching the Linear issue via MCP (`Linear_get_issue`), loading skills, and reading `AGENTS.md` in affected packages. The orchestrator does not need to assemble or relay any of this context.
 
 Launch all Task calls in a **single message** so they run concurrently.
 
-## 4. Review and merge
+## 3. Review and merge
 
 After subagents complete:
 

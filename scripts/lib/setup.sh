@@ -179,7 +179,7 @@ cmd_doctor() {
     has_failures=true
   fi
 
-  # 7. LINEAR_API_KEY (optional — needed for reproctl wt create --from-issue / handoff)
+  # 7. LINEAR_API_KEY (optional — needed for reproctl wt create --from-issue)
   if [[ -n "${LINEAR_API_KEY:-}" ]]; then
     if [[ "$LINEAR_API_KEY" == lin_api_* ]]; then
       check_ok "LINEAR_API_KEY" "set"
@@ -188,7 +188,7 @@ cmd_doctor() {
       has_warnings=true
     fi
   else
-    check_warn "LINEAR_API_KEY" "not set — wt create --from-issue and handoff will not fetch issue details"
+    check_warn "LINEAR_API_KEY" "not set — wt create --from-issue will not fetch issue details"
     has_warnings=true
   fi
 

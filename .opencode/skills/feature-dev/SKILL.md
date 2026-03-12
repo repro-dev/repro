@@ -61,8 +61,9 @@ For 2+ independent issues, create one worktree per issue and use the Task tool t
 
 ## Phase 1: Pre-flight
 
-1. **Fetch the Linear issue** for the work item. Read the full description — check for requirements, resolved decisions, and open considerations. These take precedence over assumptions.
-2. **Create a worktree** (if one doesn't already exist for this issue):
+1. **Fetch the Linear issue** via MCP (`Linear_get_issue`) for the work item. Read the full description — check for requirements, resolved decisions, and open considerations. These take precedence over assumptions.
+2. **Load relevant skills** — this skill (`feature-dev`) provides the phased workflow; load domain skills (`build-and-test`, `design-system`, `database`, `git-workflow`) as needed during implementation.
+3. **Create a worktree** (if one doesn't already exist for this issue):
    ```sh
    reproctl wt create --from-issue REP-123
    ```
@@ -70,7 +71,7 @@ For 2+ independent issues, create one worktree per issue and use the Task tool t
 
    Branch naming pattern: `<type>/<issue?>-<slug>` (e.g., `feat/REP-123-add-auth`, `fix/REP-456-login-redirect`)
 
-3. **Set the Linear issue to In Progress.**
+4. **Set the Linear issue to In Progress.**
 
 ## Phase 2: Planning
 
