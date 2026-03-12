@@ -1,129 +1,128 @@
 # Layout Conventions
 
-Every page maps to exactly one layout convention. Use the decision tree below to select the correct one, then follow the convention's reference card.
+Every page maps to exactly one layout convention. The system has three tiers:
+
+```
+Tier 1: Application Shell (app-shell / tool-view / auth-flow)
+  └── Owns the viewport. Provides sidebar nav, tool header, or auth card.
+
+Tier 2: Page Frame (PageFrame)
+  └── Page-level header (title, breadcrumbs, actions) + scrollable body.
+
+Tier 3: Content Layout (varies per page)
+  └── Composition inside PageFrame.Body — list, detail, dashboard, settings, etc.
+```
+
+Use the decision tree below to select the correct Tier 1 shell, then select the page convention that describes what goes inside it.
 
 ## Decision Tree
 
 Evaluate these conditions **in order**. Use the first match.
 
+| # | Condition | Shell (Tier 1) | Page convention (Tier 3) |
+|---|-----------|---------------|-------------------------|
+| 1 | Unauthenticated flow (login, register, password reset, invite accept) | `auth-flow` | — (standalone) |
+| 2 | Immersive full-screen tool (session replay, capture widget) | `tool-view` | — (tool manages own layout) |
+| 3 | Main authenticated pages with sidebar navigation | `app-shell` | Select from page conventions below |
+
+### Page conventions (inside `app-shell` > `PageFrame`)
+
 | # | Condition | Convention |
 |---|-----------|------------|
-| 1 | Unauthenticated flow (login, register, password reset, invite accept) | `auth-centered` |
-| 2 | Primary app chrome with persistent navigation (top bar + optional sidebar) | `app-shell` |
-| 3 | Page embeds the recording playback viewport with DevTools inspector | `tool-panel` |
-| 4 | Primary content area + contextual metadata panel side-by-side | `content-sidebar` |
-| 5 | Persistent sidebar nav listing sections + swappable content area (e.g. `/settings/*`) | `settings-shell` |
-| 5 | Grid of summary cards, metrics, or KPI tiles | `dashboard-grid` |
-| 6 | Otherwise (single-column: settings, forms, detail views, lists) | `content-single` |
+| 1 | Filterable collection of records with empty/populated states | `page-list` |
+| 2 | Single-record detail view with metadata | `page-detail` |
+| 3 | Grid of summary cards, metrics, or KPI tiles | `page-dashboard` |
+| 4 | Settings with secondary sidebar navigation | `page-settings` |
+| 5 | Otherwise (standalone forms, about pages, single-column content) | `page-single` |
 
-## PageLayout Sub-Components
+---
 
-All conventions are built from these `PageLayout` sub-components:
+## Tier 1 Components
+
+### `AppShell` (REP-369)
+
+Sidebar + content area grid shell. Primary authenticated layout.
 
 | Sub-component | Purpose | Key props |
 |---------------|---------|-----------|
-| `PageLayout` | Root grid shell, `100vh`, `gridTemplateRows="auto 1fr"` | `branded` |
-| `PageLayout.Header` | Transparent top bar region | `backgroundColor` |
-| `PageLayout.Body` | Scrollable content area, optional centering | `maxWidth`, `padding` (default `spacing.xl`) |
-
-When `branded` is set, `PageLayout` renders a product gradient backdrop (blue-900 to blue-700) behind the header. Use `branded` for customer-facing pages; omit for internal/admin pages.
-
-Supporting layout primitives:
-
-| Component | Purpose | Key props |
-|-----------|---------|-----------|
-| `Stack` | Vertical flex layout with token-constrained gap | `gap` (spacing token key, e.g. `"xl"`), `component` |
-| `Center` | Horizontal + vertical centering via CSS Grid | `maxWidth` |
-
-**Imports for all convention examples:**
-
-```tsx
-import { PageLayout, Stack, Center, Card, color, spacing, radius, shadow } from '@repro/design'
-import { Block, Col, Row, Grid } from '@jsxstyle/react'
-```
-
----
-
-## Convention: `app-shell`
-
-Full application shell with branded header and scrollable body. Optionally includes a sidebar.
-
-**When to use:** The page is the main authenticated chrome — top bar with logo, navigation links, and user controls.
-
-**Regions:**
-
-| Region | Component | Content |
-|--------|-----------|---------|
-| Header | `PageLayout.Header` (transparent on top of branded gradient) | Logo, nav links, user menu |
-| Body | `PageLayout.Body` | Route outlet / main content |
-
-**Structure (with sidebar):**
-
-```tsx
-<PageLayout branded>
-  <PageLayout.Header>
-    {/* Logo, nav links, user controls */}
-  </PageLayout.Header>
-  <PageLayout.Body>
-    <Grid gridTemplateColumns="280px 1fr" gap={spacing.xl} height="100%">
-      {/* Sidebar nav items (wrap in Card) */}
-      {/* Main content */}
-    </Grid>
-  </PageLayout.Body>
-</PageLayout>
-```
-
-**Structure (without sidebar):**
-
-```tsx
-<PageLayout branded>
-  <PageLayout.Header>
-    {/* Logo, nav links, user controls */}
-  </PageLayout.Header>
-  <PageLayout.Body>
-    {/* Main content */}
-  </PageLayout.Body>
-</PageLayout>
-```
-
-**Storybook:** `Patterns/Layouts` > `app-shell` (`packages/design/src/PageLayout/conventions.stories.tsx`)
-
-**Legacy implementations (pre-`PageLayout` — use Storybook skeleton as canonical reference):**
-- `apps/workspace/src/Layout.tsx` — workspace app shell (blue gradient header)
-- `apps/admin/src/Layout.tsx` — admin app shell (slate gradient header)
-
----
-
-## Convention: `auth-centered`
-
-Unauthenticated flow with a centered content card on a subtle background.
-
-**When to use:** Login, registration, password reset, invite acceptance, or any pre-authentication screen.
+| `AppShell` | Root grid shell, `100vh`, `gridTemplateColumns="220px 1fr"` | — |
+| `AppShell.Sidebar` | Flex column for logo, `SideNav`, user menu | — |
+| `AppShell.Content` | Scrollable content area for `<Outlet />` | — |
 
 **Structure:**
 
 ```tsx
-<PageLayout>
-  <Block gridRow="1 / -1" backgroundColor={color.bg.subtle}>
-    <Center>
-      <Col alignItems="flex-start" gap={spacing['2xl']}>
-        {/* Logo */}
-        <Block
-          backgroundColor={color.bg.surface}
-          borderRadius={radius.md}
-          boxShadow={shadow.md}
-          padding={spacing['3xl']}
-          width={400}
-        >
-          {/* Form content */}
-        </Block>
-      </Col>
-    </Center>
-  </Block>
-</PageLayout>
+import { AppShell, SideNav } from '@repro/design'
+
+<AppShell>
+  <AppShell.Sidebar>
+    {/* App-level: WorkspaceHeader, SideNav, UserMenu */}
+  </AppShell.Sidebar>
+  <AppShell.Content>
+    <Outlet />
+  </AppShell.Content>
+</AppShell>
 ```
 
-**Storybook:** `Patterns/Layouts` > `auth-centered`
+**Sidebar content is app-level** — `WorkspaceHeader`, `SideNav` with route-aware items, and `UserMenu` are compositions built in `apps/workspace/src/` (not design system components). The design system provides the structural shell and the navigation primitives; the app wires them to routes and session data.
+
+### `ToolView` (REP-370)
+
+Full-screen tool shell. Sidebar is hidden; compact header bar with back link + tool controls.
+
+| Sub-component | Purpose | Key props |
+|---------------|---------|-----------|
+| `ToolView` | Root grid shell, `100vh`, `gridTemplateRows="auto 1fr"` | — |
+| `ToolView.Header` | Compact bar (40–48px), back link + title + actions | — |
+| `ToolView.Content` | Full-bleed content area (`overflow: hidden`) | — |
+
+**Structure:**
+
+```tsx
+import { ToolView } from '@repro/design'
+import { DevTools } from '@repro/devtools'
+
+<ToolView>
+  <ToolView.Header>
+    <Link to="/sessions">← Back to sessions</Link>
+    <span>{recording.title}</span>
+    <ShareButton />
+  </ToolView.Header>
+  <ToolView.Content>
+    <DevTools resourceBaseURL={resourceBaseURL} />
+  </ToolView.Content>
+</ToolView>
+```
+
+### `auth-flow` (standalone layout)
+
+Unauthenticated flow with a centered content card on a subtle background. Auth layouts are custom standalone compositions — they do not use `AppShell`, `ToolView`, or any Tier 1 shell from `@repro/design`. Each app defines its own `AuthLayout` component using inline styles and design tokens directly.
+
+**Structure:**
+
+```tsx
+import { Center, color, spacing, radius, shadow } from '@repro/design'
+import { Block, Col } from '@jsxstyle/react'
+
+<Block height="100vh" backgroundColor={color.bg.subtle}>
+  <Center>
+    <Col alignItems="flex-start" gap={spacing['2xl']}>
+      {/* Logo */}
+      <Block
+        backgroundColor={color.bg.surface}
+        borderRadius={radius.md}
+        boxShadow={shadow.md}
+        padding={spacing['3xl']}
+        width={400}
+      >
+        {/* Form content */}
+      </Block>
+    </Col>
+  </Center>
+</Block>
+```
+
+**Storybook:** `Patterns/Layouts` > `auth-flow`
 
 **Legacy implementations:**
 - `apps/workspace/src/AuthLayout.tsx` — workspace login/register
@@ -131,166 +130,137 @@ Unauthenticated flow with a centered content card on a subtle background.
 
 ---
 
-## Convention: `tool-panel`
+## Tier 2: PageFrame (REP-371)
 
-Multi-panel DevTools layout with a recording playback viewport, a resizable inspector, a toolbar with tab switching, and an optional side panel.
+Page-level header (title, breadcrumbs, actions) above a scrollable body. Rendered inside `AppShell.Content`. Does not own the viewport.
 
-**When to use:** The page embeds the recording playback viewport with the DevTools inspector. Compose with `<DevTools>` from `@repro/devtools` — do not build custom multi-panel playback layouts.
-
-**Structural overview:**
-
-`<DevTools>` renders a CSS Grid (`gridTemplateRows="1fr auto"`) with two regions:
-
-| Region | Component | Content |
-|--------|-----------|---------|
-| Playback | `PlaybackRegion` (`Block`) | `PlaybackCanvas` with scale-to-fit, pointer/scroll tracking, picker overlay |
-| Inspector | `InspectorRegion` (`Grid`, `gridTemplateRows="40px auto"`) | `Toolbar` (toggle, picker, tabs, timeline) + collapsible `ContentRegion` with `DragHandle` resize |
-
-The inspector is collapsible — when collapsed, only the `Toolbar` row is visible. When expanded, a `DragHandle` (from `@repro/design`) allows vertical resizing between `MIN_HEIGHT` and `MAX_HEIGHT`. The `DragHandle` masks pointer events on the playback viewport during drag to prevent iframe interference.
-
-The `Toolbar` contains: inspector toggle, element picker, view tabs (Elements / Network / Console), a timeline slot (customisable via the `timeline` prop), and optional playback navigation controls.
-
-**Composition pattern — hosting route:**
-
-```tsx
-import { DevTools } from '@repro/devtools'
-import { PlaybackFromSourceProvider } from '@repro/playback'
-import { Card } from '@repro/design'
-import { Grid, Block } from '@jsxstyle/react'
-
-<PlaybackFromSourceProvider source={source}>
-  <Grid gridTemplateColumns="1fr 4fr" gridTemplateRows="100%" height="100%" gap={15}>
-    {/* Optional sidebar */}
-    <Card fullBleed height="100%">
-      <Block height="100%" overflow="hidden" borderRadius={4}>
-        <DevTools resourceBaseURL={resourceBaseURL} />
-      </Block>
-    </Card>
-  </Grid>
-</PlaybackFromSourceProvider>
-```
-
-**Key guidance:**
-
-- Always compose with `<DevTools>` — never build custom multi-panel playback layouts from scratch.
-- Pass `resourceBaseURL` to enable resource loading for the recorded session.
-- Pass a custom `timeline` prop to replace the default `SimpleTimeline`.
-- Set `hideInspectorOnOpen` to start with the inspector collapsed.
-
-**Real examples:**
-
-- `apps/workspace/src/routes/RecordingRoute/RecordingRoute.tsx` — workspace recording playback with sidebar
-- `apps/capture/src/components/Widget/ReportForm/Layout.tsx` — capture widget report form (playback + aside panel)
-
----
-
-## Convention: `content-single`
-
-Single-column content with a header and width-constrained body.
-
-**When to use:** Settings pages, standalone forms, detail views, or any page with linear top-to-bottom content.
+| Sub-component | Purpose | Key props |
+|---------------|---------|-----------|
+| `PageFrame` | Flex column, `height: 100%` (fills parent) | — |
+| `PageFrame.Header` | Flex row: title left, actions right | — |
+| `PageFrame.Title` | `<h1>` with heading typography | — |
+| `PageFrame.Actions` | Right-aligned action buttons | — |
+| `PageFrame.Body` | `flex: 1`, `overflow-y: auto`, scrollable | `maxWidth` |
 
 **Structure:**
 
 ```tsx
-<PageLayout>
-  <PageLayout.Header>
-    {/* Page title */}
-  </PageLayout.Header>
-  <PageLayout.Body maxWidth={720}>
-    <Col gap={spacing['2xl']}>
-      {/* Content sections */}
-    </Col>
-  </PageLayout.Body>
-</PageLayout>
-```
+import { PageFrame, Button } from '@repro/design'
 
-**Storybook:** `Patterns/Layouts` > `content-single`
+<PageFrame>
+  <PageFrame.Header>
+    <PageFrame.Title>Sessions</PageFrame.Title>
+    <PageFrame.Actions>
+      <Button>New Recording</Button>
+    </PageFrame.Actions>
+  </PageFrame.Header>
+  <PageFrame.Body>
+    {/* Page content — see Tier 3 conventions */}
+  </PageFrame.Body>
+</PageFrame>
+```
 
 ---
 
-## Convention: `content-sidebar`
+## Tier 3: Page Conventions
 
-Primary content area alongside a contextual metadata panel.
+These describe what goes inside `PageFrame.Body` (or inside `AppShell.Content` when a page composes its own framing).
 
-**When to use:** The page has a main content region (player, editor, document) with supplementary metadata or controls in a fixed-width side panel.
+### Convention: `page-list`
+
+Filterable collection of records with empty and populated states.
+
+**When to use:** Sessions list, team members list, API keys list — any tabular or card-based collection.
 
 **Structure:**
 
 ```tsx
-<PageLayout>
-  <PageLayout.Header>
-    {/* Page title */}
-  </PageLayout.Header>
-  <PageLayout.Body>
-    <Grid gridTemplateColumns="1fr 320px" gap={spacing.xl} height="100%">
-      {/* Primary content */}
-      <Card>
-        {/* Metadata panel */}
-      </Card>
-    </Grid>
-  </PageLayout.Body>
-</PageLayout>
-```
+import { PageFrame, Card, EmptyState, Button } from '@repro/design'
+import { Col, Grid } from '@jsxstyle/react'
+import { spacing } from '@repro/design'
 
-**Storybook:** `Patterns/Layouts` > `content-sidebar`
-
----
-
-## Convention: `settings-shell`
-
-Persistent sidebar navigation with a swappable content area for multi-section settings pages.
-
-**When to use:** The page is a settings area (or similar) with multiple sub-pages navigated via a persistent vertical sidebar. Each sub-page contains full-width content (forms, tables, lists) that swaps as the user selects a section. This is distinct from `content-sidebar` — that convention pairs primary content with a metadata panel. A settings shell pairs a *navigation list* with a *route outlet*.
-
-**Structure:**
-
-```tsx
-<PageLayout>
-  <PageLayout.Header>
-    {/* Page title */}
-  </PageLayout.Header>
-  <PageLayout.Body>
-    <Grid gridTemplateColumns="240px 1fr" gap={spacing.xl} height="100%">
-      <Card>
-        <Col gap={spacing.xs}>
-          {/* Nav items — one per settings section */}
-        </Col>
-      </Card>
-      <Col gap={spacing['2xl']}>
-        {/* Active section content (route outlet) */}
+<PageFrame>
+  <PageFrame.Header>
+    <PageFrame.Title>Sessions</PageFrame.Title>
+    <PageFrame.Actions>
+      <Button>New Recording</Button>
+    </PageFrame.Actions>
+  </PageFrame.Header>
+  <PageFrame.Body>
+    {/* Filter bar (when applicable) */}
+    {items.length === 0 ? (
+      <EmptyState>
+        <EmptyState.Title>No sessions yet</EmptyState.Title>
+        <EmptyState.Description>
+          Start capturing user sessions to see them here.
+        </EmptyState.Description>
+        <EmptyState.Action>
+          <Button>Create Recording</Button>
+        </EmptyState.Action>
+      </EmptyState>
+    ) : (
+      <Col gap={spacing.md}>
+        {items.map(item => (
+          <Card key={item.id}>{/* Item row */}</Card>
+        ))}
       </Col>
-    </Grid>
-  </PageLayout.Body>
-</PageLayout>
+    )}
+  </PageFrame.Body>
+</PageFrame>
 ```
 
-**Guidance:**
-- The sidebar `Card` should stay fixed in height with the page (achieved by `height="100%"` on the `Grid`). If sections overflow, add `overflow="auto"` to the sidebar `Card`.
-- Nav items should use a pill/highlight pattern to indicate the active section (see `SidebarNavItem` in Storybook).
-- Each settings section is a nested route. The content column renders the active route's component.
-- Content within each section is full-width (forms, tables, lists) — do not constrain with `maxWidth` as `content-single` does.
+### Convention: `page-detail`
 
-**Storybook:** `Patterns/Layouts` > `settings-shell` (`packages/design/src/PageLayout/conventions.stories.tsx`)
+Single-record detail view with metadata.
 
----
-
-## Convention: `dashboard-grid`
-
-Grid of summary cards and metrics with a branded header.
-
-**When to use:** KPI tiles, summary cards, charts, or tabular overviews in a responsive grid.
+**When to use:** Individual account view, user profile, recording metadata (not the player — that's `tool-view`).
 
 **Structure:**
 
 ```tsx
-<PageLayout branded>
-  <PageLayout.Header>
-    {/* Dashboard title */}
-  </PageLayout.Header>
-  <PageLayout.Body>
+import { PageFrame, Breadcrumbs, Card } from '@repro/design'
+import { Col, Grid } from '@jsxstyle/react'
+import { spacing } from '@repro/design'
+
+<PageFrame>
+  <PageFrame.Header>
+    <Breadcrumbs>
+      <Breadcrumbs.Item component={Link} to="/accounts">Accounts</Breadcrumbs.Item>
+      <Breadcrumbs.Item current>{account.name}</Breadcrumbs.Item>
+    </Breadcrumbs>
+  </PageFrame.Header>
+  <PageFrame.Body maxWidth={960}>
+    <Grid gridTemplateColumns="1fr 320px" gap={spacing.xl}>
+      <Col gap={spacing.lg}>
+        {/* Primary content sections */}
+      </Col>
+      <Card>
+        {/* Metadata sidebar */}
+      </Card>
+    </Grid>
+  </PageFrame.Body>
+</PageFrame>
+```
+
+### Convention: `page-dashboard`
+
+Grid of summary cards, metrics, or KPI tiles.
+
+**When to use:** Analytics overview, workspace home with activity cards, any metrics-heavy page.
+
+**Structure:**
+
+```tsx
+import { PageFrame, Card } from '@repro/design'
+import { Col, Grid } from '@jsxstyle/react'
+import { spacing } from '@repro/design'
+
+<PageFrame>
+  <PageFrame.Header>
+    <PageFrame.Title>Dashboard</PageFrame.Title>
+  </PageFrame.Header>
+  <PageFrame.Body>
     <Col gap={spacing['2xl']}>
-      {/* Section heading */}
       <Grid
         gridTemplateColumns="repeat(auto-fill, minmax(240px, 1fr))"
         gap={spacing.xl}
@@ -299,8 +269,158 @@ Grid of summary cards and metrics with a branded header.
       </Grid>
       {/* Charts, tables */}
     </Col>
-  </PageLayout.Body>
-</PageLayout>
+  </PageFrame.Body>
+</PageFrame>
 ```
 
-**Storybook:** `Patterns/Layouts` > `dashboard-grid`
+### Convention: `page-settings`
+
+Settings with a secondary sidebar navigation for sections.
+
+**When to use:** Account settings, workspace settings, any configuration area with multiple sections.
+
+**Structure:**
+
+```tsx
+import { PageFrame, SideNav } from '@repro/design'
+import { Grid } from '@jsxstyle/react'
+import { spacing } from '@repro/design'
+
+<PageFrame>
+  <PageFrame.Header>
+    <PageFrame.Title>Settings</PageFrame.Title>
+  </PageFrame.Header>
+  <PageFrame.Body>
+    <Grid gridTemplateColumns="200px 1fr" gap={spacing.xl} height="100%">
+      <SideNav aria-label="Settings navigation">
+        <SideNav.Item component={NavLink} to="/settings" active>General</SideNav.Item>
+        <SideNav.Item component={NavLink} to="/settings/team">Team</SideNav.Item>
+        <SideNav.Item component={NavLink} to="/settings/api-keys">API Keys</SideNav.Item>
+      </SideNav>
+      <Col gap={spacing['2xl']} maxWidth={720}>
+        <Outlet />
+      </Col>
+    </Grid>
+  </PageFrame.Body>
+</PageFrame>
+```
+
+### Convention: `page-single`
+
+Single-column content with width-constrained body.
+
+**When to use:** Standalone forms, about pages, detail views without sidebars, or any linear top-to-bottom content.
+
+**Structure:**
+
+```tsx
+import { PageFrame } from '@repro/design'
+import { Col } from '@jsxstyle/react'
+import { spacing } from '@repro/design'
+
+<PageFrame>
+  <PageFrame.Header>
+    <PageFrame.Title>Create Team</PageFrame.Title>
+  </PageFrame.Header>
+  <PageFrame.Body maxWidth={720}>
+    <Col gap={spacing['2xl']}>
+      {/* Content sections */}
+    </Col>
+  </PageFrame.Body>
+</PageFrame>
+```
+
+---
+
+## Supporting Components
+
+### Layout Primitives
+
+| Component | Purpose | Key props |
+|-----------|---------|-----------|
+| `Stack` | Vertical flex layout with token-constrained gap | `gap` (spacing token key, e.g. `"xl"`), `component` |
+| `Center` | Horizontal + vertical centering via CSS Grid | `maxWidth` |
+
+### Navigation Primitives
+
+| Component | Purpose | Key props |
+|-----------|---------|-----------|
+| `SideNav` | Vertical sidebar navigation (`<nav>`) | `aria-label` |
+| `SideNav.Section` | Grouped nav items with optional title | `title` |
+| `SideNav.Item` | Nav link with icon, active state, router integration | `icon`, `active`, `component` |
+| `Breadcrumbs` | Hierarchical page location (`<nav>`) | — |
+| `Breadcrumbs.Item` | Breadcrumb link with router integration | `component`, `current` |
+| `DropdownMenu` | Trigger-activated action menu | — |
+
+---
+
+## Route-to-Shell Mapping
+
+| Route pattern | Shell | Convention | Notes |
+|---------------|-------|------------|-------|
+| `/account/login` | `auth-flow` | — | Standalone centered card |
+| `/account/register` | `auth-flow` | — | Same as login |
+| `/` | `app-shell` | redirect | Redirects to `/sessions` |
+| `/sessions` | `app-shell` | `page-list` | Session recordings list |
+| `/sessions/:id` | `tool-view` | — | Full-screen replay with `DevTools` |
+| `/settings` | `app-shell` | `page-settings` | Secondary sidebar nav |
+| `/settings/team` | `app-shell` | `page-settings` | Nested under settings |
+| `/share/:id` | standalone | — | No shell — public share page |
+
+---
+
+## Route Structure
+
+React Router v6 layout routes scope each shell:
+
+```tsx
+<Routes>
+  {/* Auth flow — standalone layout */}
+  <Route element={<AuthLayout />}>
+    <Route path="/account/login" element={<Login />} />
+    <Route path="/account/register" element={<Register />} />
+  </Route>
+
+  {/* App shell — sidebar nav */}
+  <Route element={<RequireSession><AppShellLayout /></RequireSession>}>
+    <Route index element={<Navigate to="/sessions" />} />
+    <Route path="/sessions" element={<SessionsList />} />
+    <Route path="/settings" element={<SettingsLayout />}>
+      <Route index element={<GeneralSettings />} />
+      <Route path="team" element={<TeamSettings />} />
+    </Route>
+  </Route>
+
+  {/* Tool view — full-screen playback */}
+  <Route element={<RequireSession><ToolViewLayout /></RequireSession>}>
+    <Route path="/sessions/:id" element={<RecordingRoute />} />
+  </Route>
+
+  {/* Standalone */}
+  <Route path="/share/:id" element={<ShareRoute />} />
+</Routes>
+```
+
+---
+
+## Imports Reference
+
+```tsx
+// Tier 1 shells
+import { AppShell, ToolView } from '@repro/design'
+
+// Tier 2 page frame
+import { PageFrame } from '@repro/design'
+
+// Navigation primitives
+import { SideNav, Breadcrumbs, DropdownMenu } from '@repro/design'
+
+// Content components
+import { Card, EmptyState, Button, Stack, Center } from '@repro/design'
+
+// Tokens
+import { color, colors, spacing, radius, shadow, textStyles } from '@repro/design'
+
+// Layout primitives
+import { Block, Col, Row, Grid } from '@jsxstyle/react'
+```
