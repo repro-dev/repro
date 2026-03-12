@@ -224,6 +224,8 @@ _cleanup_worktree_services() {
     return 0
   fi
 
+  _drop_worktree_db "$slug" "$svc_names"
+
   echo "  Stopping services for worktree ${slug}: ${svc_names}"
 
   local entries=()
@@ -245,6 +247,40 @@ _cleanup_worktree_services() {
   else
     write_config "$new_config"
   fi
+}
+
+_drop_worktree_db() {
+  local slug="$1"
+  local svc_names="$2"
+
+  case ",$svc_names," in
+    *,api-server,*|*", api-server,"*) ;;
+    *) return 0 ;;
+  esac
+
+  local db_name="repro_wt_$(printf '%s' "$slug" | tr '-' '_')"
+
+  local psql_bin
+  psql_bin="$(command -v psql 2>/dev/null || true)"
+  if [ -z "$psql_bin" ] && [ -x "/opt/homebrew/opt/postgresql@17/bin/psql" ]; then
+    psql_bin="/opt/homebrew/opt/postgresql@17/bin/psql"
+  fi
+
+  if [ -z "$psql_bin" ]; then
+    echo "  Warning: psql not found — skipping database cleanup for $db_name" >&2
+    return 0
+  fi
+
+  if ! PGPASSWORD=repro "$psql_bin" -h localhost -p 15432 -U repro -d postgres \
+    -tc "SELECT 1 FROM pg_database WHERE datname = '$db_name'" 2>/dev/null | grep -q 1; then
+    return 0
+  fi
+
+  echo "  Dropping worktree database: $db_name"
+  PGPASSWORD=repro "$psql_bin" -h localhost -p 15432 -U repro -d postgres \
+    -c "DROP DATABASE IF EXISTS $db_name" 2>/dev/null || {
+    echo "  Warning: failed to drop database $db_name" >&2
+  }
 }
 
 cmd_wt_remove() {

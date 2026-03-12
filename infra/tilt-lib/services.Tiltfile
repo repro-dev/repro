@@ -80,6 +80,15 @@ COMMON_IGNORE_GLOBS = [
 ]
 
 
+def wt_db_name(slug):
+  """Derive a Postgres-safe database name for a worktree slug.
+
+  Replaces hyphens with underscores so the name is a valid unquoted
+  Postgres identifier: 'repro_wt_<slug>'.
+  """
+  return 'repro_wt_' + slug.replace('-', '_')
+
+
 def register_service(service_name, svc, wt_slug, source_path, infra_dir):
   """Register a single service from a worktree source tree.
 
@@ -146,6 +155,8 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
     ]
   )
 
+  db_name = wt_db_name(wt_slug)
+
   helm_set = [
     'container.image=' + prefix,
     'vars.REPRO_APP_URL=http://' + app_host,
@@ -154,6 +165,7 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
 
   if svc['migrations']:
     helm_set.append('migrations.image=' + prefix + '-migrations')
+    helm_set.append('vars.DB_NAME=' + db_name)
 
   for env_key, helm_key in svc.get('helm_env_sets', {}).items():
     helm_set.append(helm_key + '=' + os.getenv(env_key, ''))
@@ -165,9 +177,17 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
   ))
 
   if svc['migrations']:
+    db_ready_name = 'db-ready-wt-' + wt_slug
+    local_resource(
+      db_ready_name,
+      cmd="PGPASSWORD=repro psql -h localhost -p 15432 -U repro -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname = '%s'\" | grep -q 1 || PGPASSWORD=repro psql -h localhost -p 15432 -U repro -d postgres -c \"CREATE DATABASE %s\"" % (db_name, db_name),
+      resource_deps=['database-ready'],
+      labels=[label],
+    )
+
     k8s_resource(
       prefix + '-migrations',
-      resource_deps=svc['migrations']['resource_deps'],
+      resource_deps=[db_ready_name] + svc['migrations']['resource_deps'],
       labels=[label]
     )
 

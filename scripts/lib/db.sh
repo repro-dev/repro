@@ -11,7 +11,18 @@ DB_HOST="localhost"
 DB_PORT="15432"
 DB_USER="repro"
 DB_PASSWORD="repro"
-DB_NAME="repro"
+
+_resolve_db_name() {
+  if is_worktree "$REPO_ROOT"; then
+    local slug
+    slug="$(detect_worktree_slug)"
+    echo "repro_wt_$(printf '%s' "$slug" | tr '-' '_')"
+  else
+    echo "repro"
+  fi
+}
+
+DB_NAME="$(_resolve_db_name)"
 
 # ── Helpers ─────────────────────────────────────────────────────────
 
@@ -47,11 +58,8 @@ migrations_resource_name() {
 # ── Subcommands ─────────────────────────────────────────────────────
 
 cmd_db_reset() {
-  if is_worktree "$REPO_ROOT"; then
-    die "db reset is only available from the main checkout.\nThe db-reset Tilt resource does not exist in worktree context."
-  fi
-
   require_tilt
+  require_psql
 
   local skip_confirm=false
   for arg in "$@"; do
@@ -61,7 +69,7 @@ cmd_db_reset() {
   done
 
   if [ "$skip_confirm" = false ]; then
-    printf 'This will drop and recreate the database. Continue? [y/N] '
+    printf 'This will drop and recreate the database (%s). Continue? [y/N] ' "$DB_NAME"
     read -r answer
     case "$answer" in
       [yY]) ;;
@@ -69,12 +77,30 @@ cmd_db_reset() {
     esac
   fi
 
-  echo "Triggering database reset..."
-  if ! tilt get uiresource db-reset --port "$TILT_PORT" > /dev/null 2>&1; then
-    die "The db-reset resource is not loaded in Tilt.\nStart services first with 'reproctl start api-server'."
+  if is_worktree "$REPO_ROOT"; then
+    echo "Dropping and recreating worktree database ($DB_NAME)..."
+    PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" \
+      -U "$DB_USER" -d postgres \
+      -c "DROP DATABASE IF EXISTS $DB_NAME" \
+      -c "CREATE DATABASE $DB_NAME"
+
+    local resource
+    resource="$(migrations_resource_name)"
+    echo "Triggering migrations ($resource)..."
+    if tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
+      tilt trigger "$resource" --port "$TILT_PORT"
+      echo "db-reset complete. Migrations triggered."
+    else
+      echo "Migrations resource '$resource' is not loaded — run migrations manually."
+    fi
+  else
+    echo "Triggering database reset..."
+    if ! tilt get uiresource db-reset --port "$TILT_PORT" > /dev/null 2>&1; then
+      die "The db-reset resource is not loaded in Tilt.\nStart services first with 'reproctl start api-server'."
+    fi
+    tilt trigger db-reset --port "$TILT_PORT"
+    echo "db-reset triggered. Watch Tilt for progress."
   fi
-  tilt trigger db-reset --port "$TILT_PORT"
-  echo "db-reset triggered. Watch Tilt for progress."
 }
 
 cmd_db_migrate() {
@@ -182,7 +208,7 @@ cmd_db() {
 Usage: reproctl db <subcommand>
 
 Subcommands:
-  reset    Drop and recreate the database (main checkout only)
+  reset    Drop and recreate the database
   migrate  Run pending database migrations
   shell    Open a psql session against the cluster database
   status   Show connection info and whether migrations are up to date
