@@ -99,8 +99,7 @@ export function createAccountRouter(
               req.body.password
             )
 
-            // TODO
-            // yield accountService.sendVerificationEmail(user.id)
+            yield req.createSession(user)
 
             return { account, user }
           }),

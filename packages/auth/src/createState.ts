@@ -1,7 +1,8 @@
 import { ApiClient } from '@repro/api-client'
 import { createAtom } from '@repro/atom'
-import { StaffUser, User } from '@repro/domain'
+import { Account, StaffUser, User } from '@repro/domain'
 import { tap, tapRej } from '@repro/future-utils'
+import { map } from 'fluture'
 
 interface Config {
   apiClient: ApiClient
@@ -37,15 +38,19 @@ export function createState(config: Config) {
     email: string,
     password: string
   ) {
-    return apiClient.fetch('/account/register', {
-      method: 'POST',
-      body: JSON.stringify({
-        accountName,
-        userName,
-        email,
-        password,
-      }),
-    })
+    return apiClient
+      .fetch<{ account: Account; user: User }>('/account/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          accountName,
+          userName,
+          email,
+          password,
+        }),
+      })
+      .pipe(map(res => res.user))
+      .pipe(tap(setSession))
+      .pipe(tap(() => setSessionLoading(false)))
   }
 
   function verify(verificationToken: string, email: string) {

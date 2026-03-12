@@ -28,7 +28,7 @@ const formSchema = z
 
 type FormState = z.infer<typeof formSchema>
 
-export const RegisterForm: React.FC<Props> = () => {
+export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   const [errorMessage, setErrorMessage] = useState('')
 
   // const navigate = useNavigate()
@@ -66,6 +66,10 @@ export const RegisterForm: React.FC<Props> = () => {
           } else {
             setErrorMessage('Unable to register account. Please try again.')
           }
+
+          onFailure(error)
+        } else {
+          onSuccess()
         }
       })
     )
