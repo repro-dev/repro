@@ -216,7 +216,7 @@ _reproctl_launch() {
   local -a launch_services
   launch_services=(workspace api-server admin)
   _arguments \
-    '(--worktree -w)'{--worktree,-w}'[Target a specific worktree]:branch:' \
+    '(--worktree -w)'{--worktree,-w}'[Target a specific worktree]:branch:__reproctl_worktree_branches' \
     '(-h --help)'{-h,--help}'[Show help]' \
     '1:service:'"(${launch_services[*]})"
 }

@@ -132,7 +132,7 @@ _reproctl() {
 
     launch)
       case "$prev" in
-        --worktree|-w) _filedir -d; return ;;
+        --worktree|-w) COMPREPLY=($(compgen -W "$(__reproctl_worktree_branches)" -- "$cur")); return ;;
       esac
       COMPREPLY=($(compgen -W "--worktree -w -h --help workspace api-server admin" -- "$cur"))
       ;;

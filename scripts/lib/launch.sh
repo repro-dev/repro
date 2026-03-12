@@ -93,7 +93,14 @@ USAGE
   local slug=""
 
   if [[ -n "$worktree_flag" ]]; then
-    slug="$(slugify "$worktree_flag")"
+    local wt_path
+    wt_path="$(resolve_worktree "$worktree_flag")" || \
+      die "No worktree found for '$worktree_flag'.\nRun 'reproctl worktree list' to see available worktrees."
+    if is_worktree "$wt_path"; then
+      local basename
+      basename="$(basename "$wt_path")"
+      slug="${basename#repro-wt-}"
+    fi
   elif is_worktree "$REPO_ROOT"; then
     slug="$(detect_worktree_slug)"
   fi
