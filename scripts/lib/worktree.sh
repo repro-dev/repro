@@ -128,15 +128,6 @@ cmd_wt_create() {
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: pnpm install (in $wt_path)"
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: moon run :build (in $wt_path)"
 
-    local env_files
-    env_files=$(find "$MAIN_CHECKOUT/apps" -maxdepth 2 -type f -name '.env*' -not -name '.env.example' 2>/dev/null || true)
-    if [ -n "$env_files" ]; then
-      echo "${CLR_DIM}[dry-run]${CLR_RESET} Would copy .env files:"
-      echo "$env_files" | while read -r f; do
-        local rel="${f#"$MAIN_CHECKOUT"/}"
-        echo "  $rel"
-      done
-    fi
     if command -v direnv > /dev/null 2>&1; then
       echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: direnv allow (in $wt_path)"
     fi
@@ -156,9 +147,9 @@ cmd_wt_create() {
     has_direnv=true
   fi
 
-  local total_steps=4
+  local total_steps=3
   if [ "$has_direnv" = true ]; then
-    total_steps=5
+    total_steps=4
   fi
 
   local step=1
@@ -179,23 +170,6 @@ cmd_wt_create() {
   step=$((step + 1))
   _step "$step" "$total_steps" "Building packages..."
   (cd "$wt_path" && moon run :build)
-
-  step=$((step + 1))
-  _step "$step" "$total_steps" "Copying .env files..."
-  local copied=0
-  while read -r env_file; do
-    local rel="${env_file#"$MAIN_CHECKOUT"/}"
-    local dest="$wt_path/$rel"
-    local dest_dir
-    dest_dir="$(dirname "$dest")"
-
-    if [ -d "$dest_dir" ]; then
-      cp "$env_file" "$dest"
-      echo "  Copied: $rel"
-      copied=$((copied + 1))
-    fi
-  done < <(find "$MAIN_CHECKOUT/apps" -maxdepth 2 -type f -name '.env*' -not -name '.env.example' 2>/dev/null || true)
-  echo "  ($copied file(s) copied)"
 
   if [ "$has_direnv" = true ] && [ -f "$wt_path/.envrc" ]; then
     step=$((step + 1))
