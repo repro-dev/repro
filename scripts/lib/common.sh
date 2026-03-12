@@ -81,7 +81,7 @@ fi
 PARENT_DIR="$(dirname "$MAIN_CHECKOUT")"
 INFRA_DIR="$MAIN_CHECKOUT/infra"
 SCRIPTS_DIR="$REPO_ROOT/scripts"
-SERVICES_JSON="$INFRA_DIR/services.json"
+SERVICES_JSON="$REPO_ROOT/infra/services.json"
 TMP_DIR="$MAIN_CHECKOUT/tmp"
 CONFIG_FILE="$TMP_DIR/reproctl_services.json"
 TILT_PID_FILE="$TMP_DIR/tilt.pid"
