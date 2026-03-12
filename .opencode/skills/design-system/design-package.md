@@ -72,6 +72,7 @@ packages/design/
 | `FrameRealm` | Renders an `<iframe>` and portals React children into its document |
 | `FX.Spin` | Continuous rotation animation wrapper |
 | `FX.Pulse` | Alternating opacity/scale pulse animation wrapper |
+| `FullPageError` | Centered error state composing EmptyState with danger-themed icon, title, description, and optional action |
 | `Input` | Text input or textarea with error styling and react-hook-form integration |
 | `Label` | Standalone form field `<label>` with optional icon and "OPTIONAL" badge |
 | `Link` | Inline text styled as a hyperlink (visual only) |
