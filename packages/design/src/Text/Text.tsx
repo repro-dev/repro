@@ -90,6 +90,8 @@ export const Text = React.forwardRef<HTMLElement, TextProps>(
     return (
       <Component
         component={element}
+        margin={0}
+        padding={0}
         {...style}
         color={colorProp ?? color.text.default}
         {...(weight != null && { fontWeight: fontWeightTokens[weight] })}
