@@ -1,35 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import md5 from 'md5'
-import React, { useEffect, useMemo, useState } from 'react'
-import { color as colorToken } from '../tokens/colors'
+import React, { useMemo } from 'react'
 import { spacing } from '../tokens/spacing'
-import { fontWeight } from '../tokens/typography'
-
-const palette = [
-  colorToken.info,
-  colorToken.success,
-  colorToken.warning,
-  colorToken.danger,
-  colorToken.neutral,
-  colorToken.primary,
-]
-
-function getInitials(name: string | undefined): string {
-  if (!name || name.trim().length === 0) return '?'
-  const words = name.trim().split(/\s+/)
-  const first = words[0]?.[0] ?? ''
-  const last = words.length > 1 ? words[words.length - 1]?.[0] ?? '' : ''
-  return (first + last).toUpperCase()
-}
-
-function getBackgroundColor(name: string | undefined): string {
-  const str = name ?? ''
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    hash += str.charCodeAt(i)
-  }
-  return palette[hash % palette.length] as string
-}
 
 interface Props {
   email?: string
@@ -46,24 +18,17 @@ export const Avatar: React.FC<Props> = ({
   size = 30,
   color = 'inherit',
 }) => {
-  const [hasError, setHasError] = useState(false)
-
   const hash = useMemo(() => {
-    return email != null ? md5(email.trim()) : null
-  }, [email])
-
-  useEffect(() => {
-    setHasError(false)
-  }, [email])
+    const key = email?.trim() ?? name?.trim()
+    return key != null ? md5(key) : null
+  }, [email, name])
 
   const showImage = mode === 'full' || mode === 'image-only'
   const showText = mode === 'full' || mode === 'text-only'
 
-  const showInitials = showImage && (hash === null || hasError)
-
   return (
     <Row alignItems="center" gap={spacing.md}>
-      {showImage && !showInitials && hash !== null && (
+      {showImage && hash !== null && (
         <Block
           overflow="hidden"
           borderRadius="99rem"
@@ -71,29 +36,9 @@ export const Avatar: React.FC<Props> = ({
           height={size}
         >
           <img
-            src={`https://www.gravatar.com/avatar/${hash}?s=${size}&d=mp`}
+            src={`https://www.gravatar.com/avatar/${hash}?s=${size}&d=initials`}
             alt={name}
-            onError={() => setHasError(true)}
           />
-        </Block>
-      )}
-
-      {showInitials && (
-        <Block
-          overflow="hidden"
-          borderRadius="99rem"
-          width={size}
-          height={size}
-          backgroundColor={getBackgroundColor(name)}
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          color={colorToken.text.inverse}
-          fontSize={size * 0.4}
-          fontWeight={fontWeight.semibold}
-          lineHeight={1}
-        >
-          {getInitials(name)}
         </Block>
       )}
 
