@@ -71,7 +71,7 @@
     "serve_env": {},
     "resource_deps": ["dependencies"],
     "labels": ["design"],
-    "links": ["http://localhost:6006"],
+    "port": 6006,
     "deps": []
   }
 }
