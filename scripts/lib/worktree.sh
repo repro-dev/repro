@@ -235,8 +235,16 @@ _cleanup_worktree_services() {
   local current_config
   current_config="$(cat "$CONFIG_FILE")"
 
-  local svc_names
-  svc_names="$(python3 "$SCRIPTS_DIR/lib/py/worktree_services.py" "$current_config" "$slug" 2>/dev/null || true)"
+  local svc_names svc_err
+  svc_err="$(mktemp)"
+  svc_names="$(python3 "$SCRIPTS_DIR/lib/py/worktree_services.py" "$current_config" "$slug" 2>"$svc_err")" || {
+    local err_msg
+    err_msg="$(cat "$svc_err")"
+    rm -f "$svc_err"
+    echo "  Warning: could not determine services for worktree '${slug}': ${err_msg}" >&2
+    return 0
+  }
+  rm -f "$svc_err"
 
   if [ -z "$svc_names" ]; then
     return 0
