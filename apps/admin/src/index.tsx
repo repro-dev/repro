@@ -1,16 +1,15 @@
 import { ApiProvider } from '@repro/api-client'
-import { applyResetStyles } from '@repro/theme'
-import React from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
-
 import { AuthProvider, SessionRouteBoundary } from '@repro/auth'
 import { PortalRootProvider } from '@repro/design'
+import { applyResetStyles } from '@repro/theme'
+import React, { Suspense } from 'react'
+import { createRoot } from 'react-dom/client'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
+import { Loading } from './components/Loading'
 import { Layout } from './Layout'
 import { HomeRoute } from './routes/HomeRoute'
 import { LoginRoute } from './routes/LoginRoute'
-import { MainRoute } from './routes/MainRoute'
 import { RecordingRoute } from './routes/RecordingRoute/RecordingRoute'
 
 declare global {
@@ -41,8 +40,8 @@ if (rootElem) {
       <ApiProvider>
         <AuthProvider>
           <PortalRootProvider>
-            <Routes>
-              <Route path="/" element={<MainRoute />}>
+            <Suspense fallback={<Loading />}>
+              <Routes>
                 <Route element={<AuthLayout />}>
                   <Route path="account/login" element={<LoginRoute />} />
                 </Route>
@@ -50,14 +49,17 @@ if (rootElem) {
                 <Route element={<Layout />}>
                   <Route element={<SessionRouteBoundary />}>
                     <Route index element={<HomeRoute />} />
-                    <Route
-                      path="recordings/:recordingId"
-                      element={<RecordingRoute />}
-                    />
                   </Route>
                 </Route>
-              </Route>
-            </Routes>
+
+                <Route element={<SessionRouteBoundary />}>
+                  <Route
+                    path="recordings/:recordingId"
+                    element={<RecordingRoute />}
+                  />
+                </Route>
+              </Routes>
+            </Suspense>
           </PortalRootProvider>
         </AuthProvider>
       </ApiProvider>
