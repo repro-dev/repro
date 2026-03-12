@@ -13,7 +13,7 @@ For detailed sub-topics, read the reference files in this directory:
 |------|-------------|
 | `tokens.md` | Need full token tables (color, spacing, typography, elevation, motion, interaction) |
 | `component-contract.md` | Creating or modifying `@repro/design` components (forwardRef, a11y, Storybook, known deviations) |
-| `layouts.md` | Building page layouts (5 layout archetypes, PageLayout sub-components) |
+| `layouts.md` | Building page layouts (3-tier hierarchy: AppShell/ToolView/auth-flow shells, PageFrame, page conventions) |
 | `forms-and-state.md` | Building forms (react-hook-form + zod), state management (@repro/atom), loading/empty/error patterns |
 | `design-package.md` | Working inside `packages/design/` (directory structure, inventory, add/modify checklists, pitfalls) |
 
