@@ -130,6 +130,9 @@ _resolve_worktree_flag() {
   local wt_path
   wt_path="$(resolve_worktree "$input")" || \
     die "No worktree found for '$input'.\nRun 'reproctl worktree list' to see available worktrees."
+  if ! is_worktree "$wt_path"; then
+    die "--worktree targets worktree checkouts only.\n'$input' resolved to the main checkout. Omit --worktree to target main services."
+  fi
   local basename
   basename="$(basename "$wt_path")"
   echo "${basename#repro-wt-}"
@@ -249,25 +252,24 @@ cmd_stop() {
   fi
 
   if [ "${#targets[@]}" -eq 0 ]; then
-    die "Specify services to stop, or use --all.\nUsage: reproctl stop [<service>...] [--worktree <slug>] | --all"
+    die "Specify services to stop, or use --all.\nUsage: reproctl stop [<service>...] [--worktree <worktree>] | --all"
+  fi
+
+  local wt_slug=""
+  if [[ -n "$worktree_flag" ]]; then
+    wt_slug="$(_resolve_worktree_flag "$worktree_flag")"
+  elif is_worktree "$REPO_ROOT"; then
+    wt_slug="$(detect_worktree_slug)"
   fi
 
   local entries=()
   for target in "${targets[@]}"; do
     if [[ "$target" == *:* ]]; then
       entries+=("$target")
-    elif [[ -n "$worktree_flag" ]]; then
-      local wt_slug
-      wt_slug="$(_resolve_worktree_flag "$worktree_flag")"
+    elif [[ -n "$wt_slug" ]]; then
       entries+=("$wt_slug:$target")
     else
-      if is_worktree "$REPO_ROOT"; then
-        local wt_slug
-        wt_slug="$(detect_worktree_slug)"
-        entries+=("$wt_slug:$target")
-      else
-        entries+=(":$target")
-      fi
+      entries+=(":$target")
     fi
   done
 
@@ -346,7 +348,7 @@ cmd_restart() {
         ;;
       -h|--help)
         cat <<'USAGE'
-Usage: reproctl restart <service> [<service>...] [--worktree <slug>] | --all
+Usage: reproctl restart <service> [<service>...] [--worktree <worktree>] | --all
 
 Rebuild and redeploy running services via tilt trigger.
 If a service has migrations, the migration job is triggered first.
@@ -355,8 +357,9 @@ If a service has migrations, the migration job is triggered first.
           configuration. Useful when Tiltfile changes need to be
           picked up or when Tilt gets into a bad state.
 
-  --worktree, -w <slug>  Target services in a specific worktree instead
-                         of the current working directory context.
+  --worktree, -w <worktree>  Target services in a specific worktree instead
+                          of the current working directory context.
+                          Accepts a branch name, slug, or prefix.
 
   --pick, -p  Interactively choose services.
 USAGE
@@ -399,11 +402,14 @@ USAGE
     die "At least one service is required.\nUsage: reproctl restart <service> [<service>...] | --all"
   fi
 
+  local wt_slug=""
+  if [[ -n "$worktree_flag" ]]; then
+    wt_slug="$(_resolve_worktree_flag "$worktree_flag")"
+  fi
+
   for svc in "${positional[@]}"; do
     local resource
-    if [[ -n "$worktree_flag" ]]; then
-      local wt_slug
-      wt_slug="$(_resolve_worktree_flag "$worktree_flag")"
+    if [[ -n "$wt_slug" ]]; then
       resource="$(_wt_name "$svc" "$wt_slug")"
     else
       resource="$(resolve_worktree_resource_name "$svc")"

@@ -173,7 +173,7 @@ _reproctl_start() {
 _reproctl_stop() {
   _arguments \
     '--all[Tear down Tilt entirely]' \
-    '(--worktree -w)'{--worktree,-w}'[Target a specific worktree]:branch:' \
+    '(--worktree -w)'{--worktree,-w}'[Target a specific worktree]:branch:__reproctl_worktree_branches' \
     '(--pick -p)'{--pick,-p}'[Interactively select a service]' \
     '*:service:_reproctl_services_arg'
 }
@@ -181,7 +181,7 @@ _reproctl_stop() {
 _reproctl_restart() {
   _arguments \
     '--all[Restart entire Tilt daemon]' \
-    '(--worktree -w)'{--worktree,-w}'[Target a specific worktree]:branch:' \
+    '(--worktree -w)'{--worktree,-w}'[Target a specific worktree]:branch:__reproctl_worktree_branches' \
     '(--pick -p)'{--pick,-p}'[Interactively select a service]' \
     '(-h --help)'{-h,--help}'[Show help]' \
     '*:service:_reproctl_services_arg'

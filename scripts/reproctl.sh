@@ -77,6 +77,7 @@ Commands:
                                   (reset, migrate, shell, status)
   start <service> [...]           Start services from the current context
   stop [<service>...] | --all     Remove services or tear down Tilt
+                                  Use --worktree / -w to target another worktree
   restart <service> [...] | --all Rebuild services or restart the Tilt daemon
                                   Use --worktree / -w to target another worktree
   status                          Show running services and dashboard URL
