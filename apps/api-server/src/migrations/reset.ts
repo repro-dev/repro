@@ -46,9 +46,9 @@ END $$`
     process.exit(1)
   }
 
-  console.log('Running seed...')
+  console.log('Running database seed...')
   await seed(db)
-  console.log('Seed complete.')
+  console.log('Database seed complete.')
 
   await seedFixtures(db)
 }
