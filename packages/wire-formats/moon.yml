@@ -11,5 +11,5 @@ tasks:
       cache: true
     outputs:
     - src/generated/**/*
-toolchain:
+toolchains:
   default: node

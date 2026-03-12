@@ -4,5 +4,5 @@ layer: library
 tags:
 - type.package
 tasks: {}
-toolchain:
+toolchains:
   default: node

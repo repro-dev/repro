@@ -1,11 +1,12 @@
 "asdf:ctlptl" = "0.8.43"
-moon = "1.41.5"
+moon = "2.0.4"
 node = "22.19.0"
 pnpm = "10.17.0"
-proto = "0.53.4"
+proto = "0.55.4"
 tilt = "0.35.1"
 helm = "3.19.2"
 
 [plugins.tools]
+moon = "https://github.com/moonrepo/plugins/releases/download/moon_tool-v0.4.1/moon_tool.wasm"
 tilt = "https://raw.githubusercontent.com/appthrust/proto-toml-plugins/main/tilt/plugin.toml"
 helm = "https://raw.githubusercontent.com/stk0vrfl0w/proto-toml-plugins/main/plugins/helm.toml"

@@ -9,7 +9,7 @@ RUN apt update \
 
 WORKDIR /app
 
-RUN npm add --global @moonrepo/cli@1.41.5
+RUN npm add --global @moonrepo/cli@2.0.4
 
 FROM base AS scaffold
 
@@ -20,7 +20,7 @@ RUN moon docker scaffold $MOON_SCAFFOLD_PROJECTS
 
 FROM base AS prepare
 
-COPY --from=scaffold /app/.moon/docker/workspace .
+COPY --from=scaffold /app/.moon/docker/configs .
 COPY --from=scaffold /app/patches ./patches
 RUN moon docker setup
 COPY . .
