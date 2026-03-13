@@ -90,6 +90,22 @@ if service_config:
   # feature parity (db-reset, etc.). Worktree services use the
   # generic register_service() from services.Tiltfile.
 
+  for entry in service_config:
+    slug = entry.get('slug', '')
+    source = entry.get('source', '.')
+    if slug:
+      wt_path = source if source.startswith('/') else os.path.join(PROJECT_ROOT, source)
+      wt_services_file = os.path.join(wt_path, 'infra', 'services.json')
+      result = str(local(
+        'test -f "%s" && echo yes || echo no' % wt_services_file,
+        quiet=True,
+      ))
+      if result.strip() == 'yes':
+        wt_services = read_json(wt_services_file)
+        for k, v in wt_services.items():
+          if k not in SERVICES:
+            SERVICES[k] = v
+
   service_config = resolve_dependencies(service_config, SERVICES)
 
   register_shared_infra()
