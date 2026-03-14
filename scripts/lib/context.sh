@@ -43,10 +43,52 @@ if matches:
   fi
 }
 
+_context_json() {
+  local branch="$1"
+  local ctx_type="main"
+  local slug=""
+
+  if is_worktree "$REPO_ROOT"; then
+    ctx_type="worktree"
+    slug="$(detect_worktree_slug)"
+  fi
+
+  local issue_id
+  issue_id="$(_extract_issue_id "$branch")"
+
+  local ahead="" behind=""
+  ahead="$(git -C "$REPO_ROOT" rev-list --count main..HEAD 2>/dev/null)" || ahead=""
+  behind="$(git -C "$REPO_ROOT" rev-list --count HEAD..main 2>/dev/null)" || behind=""
+
+  local services_csv
+  services_csv="$(_context_services "$slug")"
+
+  python3 -c '
+import json, sys
+obj = {"type": sys.argv[1], "branch": sys.argv[2], "path": sys.argv[3]}
+if sys.argv[4]:
+    obj["worktree"] = sys.argv[4]
+if sys.argv[5]:
+    obj["issue"] = sys.argv[5]
+svcs = [s.strip() for s in sys.argv[6].split(",") if s.strip()] if sys.argv[6] else []
+obj["services"] = svcs
+if sys.argv[7]:
+    obj["ahead"] = int(sys.argv[7])
+if sys.argv[8]:
+    obj["behind"] = int(sys.argv[8])
+print(json.dumps(obj))
+' "$ctx_type" "$branch" "$REPO_ROOT" "$slug" "$issue_id" "$services_csv" "$ahead" "$behind"
+}
+
 cmd_context() {
   local branch
   branch="$(git -C "$REPO_ROOT" symbolic-ref -q --short HEAD 2>/dev/null)" || \
     branch="(detached: $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo 'unknown'))"
+
+  if [ "${REPROCTL_JSON:-false}" = true ]; then
+    _context_json "$branch"
+    return
+  fi
 
   local labels=() values=()
 

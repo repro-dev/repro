@@ -28,6 +28,8 @@ database.
 .TP
 \f[B]status\f[R]
 Display connection information and the current migration state.
+With the global \f[B]\(enjson\f[R] flag, outputs a JSON object with
+host, port, database, and migration arrays (applied, pending, orphaned).
 .SH OPTIONS
 .TP
 \f[B]\-y\f[R], \f[B]\(enyes\f[R]
@@ -37,6 +39,9 @@ Skip the confirmation prompt.
 .TP
 reproctl db status
 Show connection info and migration state.
+.TP
+reproctl \(enjson db status
+Machine\-readable database and migration info.
 .TP
 reproctl db migrate
 Apply pending migrations.

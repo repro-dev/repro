@@ -128,6 +128,11 @@ cmd_db_shell() {
 cmd_db_status() {
   require_tilt
 
+  if [ "${REPROCTL_JSON:-false}" = true ]; then
+    _db_status_json
+    return
+  fi
+
   local w
   w="$(_label_width "Host:" "User:" "Database:")"
 
@@ -149,7 +154,6 @@ cmd_db_status() {
     return
   fi
 
-  # Compare on-disk migration files against what's been applied in the DB.
   local applied
   applied="$(PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" \
     -U "$DB_USER" -d "$DB_NAME" -t -A \
@@ -159,7 +163,6 @@ cmd_db_status() {
     return
   }
 
-  # Build lists of on-disk and applied migration names
   local on_disk
   on_disk="$(ls "$migrations_dir"/*.sql 2>/dev/null | xargs -n1 basename | sort)"
 
@@ -186,6 +189,51 @@ cmd_db_status() {
       done
     fi
   fi
+}
+
+_db_status_json() {
+  local applied_list="" pending_list="" orphaned_list=""
+  local migrations_dir="$REPO_ROOT/apps/api-server/src/migrations/data"
+
+  if [ -n "$PSQL" ] && [ -d "$migrations_dir" ]; then
+    local applied
+    applied="$(PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" \
+      -U "$DB_USER" -d "$DB_NAME" -t -A \
+      -c "SELECT name FROM kysely_migration ORDER BY name" 2>/dev/null)" || applied=""
+
+    local on_disk
+    on_disk="$(ls "$migrations_dir"/*.sql 2>/dev/null | xargs -n1 basename | sort)"
+
+    if [ -n "$applied" ]; then
+      applied_list="$applied"
+    fi
+
+    if [ -n "$on_disk" ] && [ -n "$applied" ]; then
+      pending_list="$(comm -23 <(echo "$on_disk") <(echo "$applied"))"
+      orphaned_list="$(comm -13 <(echo "$on_disk") <(echo "$applied"))"
+    elif [ -n "$on_disk" ]; then
+      pending_list="$on_disk"
+    fi
+  fi
+
+  python3 -c '
+import json, sys
+
+def lines_to_list(s):
+    return [l for l in s.splitlines() if l.strip()] if s else []
+
+obj = {
+    "host": sys.argv[1],
+    "port": int(sys.argv[2]),
+    "database": sys.argv[3],
+    "migrations": {
+        "applied": lines_to_list(sys.argv[4]),
+        "pending": lines_to_list(sys.argv[5]),
+        "orphaned": lines_to_list(sys.argv[6]),
+    }
+}
+print(json.dumps(obj))
+' "$DB_HOST" "$DB_PORT" "$DB_NAME" "$applied_list" "$pending_list" "$orphaned_list"
 }
 
 # ── Router ──────────────────────────────────────────────────────────

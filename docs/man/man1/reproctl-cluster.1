@@ -24,6 +24,8 @@ the operation is aborted unless \f[B]\(enforce\f[R] is specified.
 \f[B]status\f[R]
 Show the current state of the cluster and registry (running, stopped, or
 not found).
+With the global \f[B]\(enjson\f[R] flag, outputs a JSON object with
+cluster running state and registry details.
 .TP
 \f[B]reset\f[R]
 Equivalent to \f[B]down \(enforce\f[R] followed by \f[B]up\f[R].
@@ -40,6 +42,9 @@ Create the cluster (no\-op if it already exists).
 .TP
 reproctl cluster status
 Check whether the cluster is running.
+.TP
+reproctl \(enjson cluster status
+Machine\-readable cluster and registry state.
 .TP
 reproctl cluster down \(enforce
 Tear down even with running services.

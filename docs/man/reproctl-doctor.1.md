@@ -8,11 +8,13 @@ reproctl-doctor - diagnose the development environment
 
 # SYNOPSIS
 
-**reproctl doctor**
+**reproctl** [**--json**] **doctor**
 
 # DESCRIPTION
 
 Runs a series of health checks against the local development environment and reports pass, warn, or fail for each item.
+
+With the global **--json** flag, outputs a JSON object with an **items** array where each item has **name**, **status** (ok, warn, or fail), and optional **expected**, **actual**, and **message** fields.
 
 The following checks are performed:
 
@@ -46,6 +48,9 @@ The following checks are performed:
 
 reproctl doctor
 : Run all health checks.
+
+reproctl --json doctor
+: Output health checks as JSON.
 
 # SEE ALSO
 

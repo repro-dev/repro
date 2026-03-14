@@ -8,13 +8,18 @@ reproctl - unified CLI for local development with Tilt, kind, and git worktrees
 
 # SYNOPSIS
 
-**reproctl** *command* [*args*...]
+**reproctl** [**--json**] *command* [*args*...]
 
 # DESCRIPTION
 
 reproctl manages the local development environment for the Repro monorepo. It handles cluster lifecycle, service orchestration via Tilt, database operations, git worktree management, and log streaming.
 
 Context is detected automatically: from the main checkout, services run as main; from a worktree, services are isolated to that branch.
+
+# GLOBAL OPTIONS
+
+**--json**
+: Output machine-readable JSON instead of human-readable text. Supported by: **checkhealth**, **cluster status**, **context**, **db status**, **doctor**, **logs**, **status**, **wt list**.
 
 # COMMANDS
 
@@ -41,7 +46,7 @@ Context is detected automatically: from the main checkout, services run as main;
 : Rebuild services or restart the Tilt daemon. See **reproctl-restart**(1).
 
 **status**
-: Show running services and Tilt dashboard URL.
+: Show running services and Tilt dashboard URL. With **--json**, outputs a JSON object with Tilt state and a list of resource objects.
 
 **logs** [*options*] [*service*...]
 : Show or stream service logs. See **reproctl-logs**(1).
@@ -83,7 +88,7 @@ Context is detected automatically: from the main checkout, services run as main;
 ## General
 
 **context**
-: Show the current development context (worktree, branch, issue, delta vs main, services).
+: Show the current development context (worktree, branch, issue, delta vs main, services). With **--json**, outputs a JSON object with context fields.
 
 **help** [*command*]
 : Show manpage for reproctl or a subcommand.

@@ -5,7 +5,8 @@
 reproctl \- unified CLI for local development with Tilt, kind, and git
 worktrees
 .SH SYNOPSIS
-\f[B]reproctl\f[R] \f[I]command\f[R] [\f[I]args\f[R]\&...]
+\f[B]reproctl\f[R] [\f[B]\(enjson\f[R]] \f[I]command\f[R]
+[\f[I]args\f[R]\&...]
 .SH DESCRIPTION
 reproctl manages the local development environment for the Repro
 monorepo.
@@ -14,6 +15,13 @@ operations, git worktree management, and log streaming.
 .PP
 Context is detected automatically: from the main checkout, services run
 as main; from a worktree, services are isolated to that branch.
+.SH GLOBAL OPTIONS
+.TP
+\f[B]\(enjson\f[R]
+Output machine\-readable JSON instead of human\-readable text.
+Supported by: \f[B]checkhealth\f[R], \f[B]cluster status\f[R],
+\f[B]context\f[R], \f[B]db status\f[R], \f[B]doctor\f[R],
+\f[B]logs\f[R], \f[B]status\f[R], \f[B]wt list\f[R].
 .SH COMMANDS
 .SS Environment
 .TP
@@ -43,6 +51,8 @@ See \f[B]reproctl\-restart\f[R](1).
 .TP
 \f[B]status\f[R]
 Show running services and Tilt dashboard URL.
+With \f[B]\(enjson\f[R], outputs a JSON object with Tilt state and a
+list of resource objects.
 .TP
 \f[B]logs\f[R] [\f[I]options\f[R]] [\f[I]service\f[R]\&...]
 Show or stream service logs.
@@ -87,6 +97,7 @@ Remove worktrees whose branches are merged.
 \f[B]context\f[R]
 Show the current development context (worktree, branch, issue, delta vs
 main, services).
+With \f[B]\(enjson\f[R], outputs a JSON object with context fields.
 .TP
 \f[B]worktree\f[R] \f[I]subcommand\f[R]
 Manage git worktrees.

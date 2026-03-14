@@ -54,6 +54,7 @@ _diag_flush() {
 }
 
 cmd_checkhealth() {
+  CHECKHEALTH_JSON="${REPROCTL_JSON:-false}"
   local has_errors=false
   local has_warnings=false
   local issues=()

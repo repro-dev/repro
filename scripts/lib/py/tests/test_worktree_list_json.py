@@ -14,7 +14,9 @@ def run(porcelain: str, config: str = "") -> list[dict]:
         text=True,
     )
     assert result.returncode == 0, result.stderr
-    return json.loads(result.stdout)
+    envelope = json.loads(result.stdout)
+    assert "items" in envelope
+    return envelope["items"]
 
 
 class TestWorktreeListJson:

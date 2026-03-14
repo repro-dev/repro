@@ -94,6 +94,11 @@ cmd_cluster_status() {
   require_docker
   require_kind
 
+  if [ "${REPROCTL_JSON:-false}" = true ]; then
+    _cluster_status_json
+    return
+  fi
+
   local w
   w="$(_label_width "Status:" "Context:" "Port:")"
 
@@ -115,6 +120,34 @@ cmd_cluster_status() {
   else
     _kv "$w" "Status:" "not running" "  "
   fi
+}
+
+_cluster_status_json() {
+  local cluster_running=false
+  local context=""
+  if cluster_exists; then
+    cluster_running=true
+    context="kind-$CLUSTER_NAME"
+  fi
+
+  local reg_running=false
+  local reg_port=""
+  if registry_exists; then
+    reg_running=true
+    reg_port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "5000/tcp") 0).HostPort}}' "$REGISTRY_NAME" 2>/dev/null || echo "5000")"
+  fi
+
+  python3 -c '
+import json, sys
+obj = {"cluster": sys.argv[1], "running": sys.argv[2] == "true"}
+if sys.argv[3]:
+    obj["context"] = sys.argv[3]
+reg = {"running": sys.argv[4] == "true"}
+if sys.argv[5]:
+    reg["port"] = int(sys.argv[5])
+obj["registry"] = reg
+print(json.dumps(obj))
+' "$CLUSTER_NAME" "$cluster_running" "$context" "$reg_running" "$reg_port"
 }
 
 cmd_cluster_reset() {

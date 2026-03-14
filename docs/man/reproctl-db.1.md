@@ -26,7 +26,7 @@ Perform database operations against the PostgreSQL instance running inside the l
 : Open an interactive **psql** session connected to the development database.
 
 **status**
-: Display connection information and the current migration state.
+: Display connection information and the current migration state. With the global **--json** flag, outputs a JSON object with host, port, database, and migration arrays (applied, pending, orphaned).
 
 # OPTIONS
 
@@ -37,6 +37,9 @@ Perform database operations against the PostgreSQL instance running inside the l
 
 reproctl db status
 : Show connection info and migration state.
+
+reproctl --json db status
+: Machine-readable database and migration info.
 
 reproctl db migrate
 : Apply pending migrations.

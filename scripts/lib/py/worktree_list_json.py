@@ -91,7 +91,7 @@ def main() -> None:
             }
         )
 
-    print(json.dumps(result))
+    print(json.dumps({"items": result}))
 
 
 if __name__ == "__main__":
