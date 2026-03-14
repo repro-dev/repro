@@ -28,6 +28,17 @@ __reproctl_services() {
   python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1])).keys()))" "$json" 2>/dev/null
 }
 
+__reproctl_launchable_services() {
+  local repo
+  repo="$(__reproctl_repo_root)"
+  local json="$repo/infra/services.json"
+  echo "workspace"
+  echo "api-server"
+  echo "admin"
+  [[ -f "$json" ]] || return
+  python3 "$repo/scripts/lib/py/launchable_local_services.py" "$json" 2>/dev/null
+}
+
 # List worktree branch slugs (stripped of repro-wt- prefix).
 __reproctl_worktree_branches() {
   git worktree list --porcelain 2>/dev/null \
@@ -208,7 +219,7 @@ _reproctl_logs() {
 
 _reproctl_launch() {
   local -a launch_services
-  launch_services=(workspace api-server admin)
+  launch_services=(${(f)"$(__reproctl_launchable_services)"})
   _arguments \
     '(--worktree -w)'{--worktree,-w}'[Target a specific worktree]:branch:__reproctl_worktree_branches' \
     '(-h --help)'{-h,--help}'[Show help]' \
