@@ -58,6 +58,7 @@ export const DropdownMenuContent = forwardRef<
       }
 
       setOpen(false)
+      ;(refs.domReference.current as HTMLElement | null)?.focus()
     },
     [refs, setOpen]
   )

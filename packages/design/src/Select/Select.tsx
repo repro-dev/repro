@@ -346,6 +346,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
         }
 
         setIsOpen(false)
+        ;(refs.domReference.current as HTMLElement | null)?.focus()
       },
       [refs, setIsOpen]
     )
