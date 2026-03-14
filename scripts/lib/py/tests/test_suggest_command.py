@@ -99,3 +99,18 @@ class TestSuggestCommand:
         assert result.returncode == 0
         lines = result.stdout.strip().splitlines()
         assert lines == sorted(lines)
+
+    def test_prefix_false_positive_helper_not_help(self):
+        result = run_script("suggest_command.py", args=["helper"] + KNOWN_COMMANDS)
+        lines = result.stdout.strip().splitlines() if result.stdout.strip() else []
+        assert "help" not in lines
+
+    def test_prefix_false_positive_uiconfig_not_ui(self):
+        result = run_script("suggest_command.py", args=["uiconfig"] + KNOWN_COMMANDS)
+        lines = result.stdout.strip().splitlines() if result.stdout.strip() else []
+        assert "ui" not in lines
+
+    def test_prefix_short_overshoot_still_matches(self):
+        result = run_script("suggest_command.py", args=["helps"] + KNOWN_COMMANDS)
+        assert result.returncode == 0
+        assert "help" in result.stdout.strip().splitlines()

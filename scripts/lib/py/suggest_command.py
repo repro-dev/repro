@@ -25,9 +25,14 @@ def suggest(unknown, known_commands, max_distance=2):
     suggestions = set()
 
     for cmd in known_commands:
-        if cmd.startswith(unknown) or unknown.startswith(cmd):
+        if cmd.startswith(unknown) or (
+            unknown.startswith(cmd) and len(unknown) < len(cmd) + 2
+        ):
             suggestions.add(cmd)
-        elif levenshtein(unknown, cmd) <= max_distance:
+        elif (
+            abs(len(unknown) - len(cmd)) < max_distance
+            and levenshtein(unknown, cmd) <= max_distance
+        ):
             suggestions.add(cmd)
 
     return sorted(suggestions)
