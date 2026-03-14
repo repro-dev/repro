@@ -28,6 +28,8 @@ source "$SCRIPT_DIR/lib/checkhealth.sh"
 source "$SCRIPT_DIR/lib/launch.sh"
 # shellcheck source=scripts/lib/completion.sh
 source "$SCRIPT_DIR/lib/completion.sh"
+# shellcheck source=scripts/lib/version.sh
+source "$SCRIPT_DIR/lib/version.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -64,6 +66,7 @@ ${CLR_BOLD}WORKTREES${CLR_RESET}
 ${CLR_BOLD}GENERAL${CLR_RESET}
   context                         Show current development context
   completion <shell>              Generate shell completions (bash, zsh, fish)
+  version [--json]                Print the reproctl commit and date
   help [<command>]                Show manpage for reproctl or a subcommand
 
 Examples:
@@ -132,6 +135,7 @@ USAGE
   context) cmd_context "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
   completion)  cmd_completion "$@" ;;
+  version)     cmd_version "$@" ;;
   help)
     topic="${1:-reproctl}"
     case "$topic" in
@@ -152,7 +156,8 @@ USAGE
       die "No manual entry for $page.\nRun 'reproctl --help' for a command list."
     fi
     ;;
-  -h|--help)   usage ;;
+  -h|--help)      usage ;;
+  --version|-V)    cmd_version ;;
   *)
     die "Unknown command: $COMMAND\nRun 'reproctl --help' for usage."
     ;;

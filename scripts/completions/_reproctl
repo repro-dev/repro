@@ -75,6 +75,7 @@ _reproctl() {
     'worktree:Manage git worktrees'
     'wt:Manage git worktrees (alias)'
     'completion:Generate shell completions'
+    'version:Print the reproctl commit and date'
     'help:Show help for a command'
   )
 
@@ -83,6 +84,7 @@ _reproctl() {
 
   _arguments -C \
     '(-h --help)'{-h,--help}'[Show help]' \
+    '(--version -V)'{--version,-V}'[Print version]' \
     '1:command:->command' \
     '*::arg:->args' && return
 
@@ -107,6 +109,7 @@ _reproctl() {
         context)    ;; # no args
         worktree|wt) _reproctl_worktree ;;
         completion) _reproctl_completion ;;
+        version)    _reproctl_version ;;
         help)       _reproctl_help ;;
       esac
       ;;
@@ -300,13 +303,20 @@ _reproctl_completion() {
   _describe -t shells 'shell' shells
 }
 
+_reproctl_version() {
+  _arguments \
+    '--json[Output structured JSON]' \
+    '(-h --help)'{-h,--help}'[Show help]'
+}
+}
+
 _reproctl_help() {
   local -a help_topics
   help_topics=(
     'setup' 'doctor' 'checkhealth' 'cluster' 'db'
     'start' 'stop' 'restart' 'status' 'logs'
     'ui' 'launch' 'context' 'worktree' 'wt'
-    'completion'
+    'completion' 'version'
   )
   _values 'topic' "${help_topics[@]}"
 }
