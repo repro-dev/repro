@@ -50,27 +50,7 @@ export const DropdownMenuContent = forwardRef<
 
       e.preventDefault()
       setOpen(false)
-
-      const trigger = refs.domReference.current as HTMLElement | null
-
-      if (!e.shiftKey) {
-        trigger?.focus()
-        return
-      }
-
-      const all = Array.from<HTMLElement>(
-        document.querySelectorAll(
-          'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
-        )
-      ).filter(el => el.offsetParent !== null)
-
-      const triggerIndex = trigger ? all.indexOf(trigger) : -1
-
-      if (triggerIndex > 0) {
-        all[triggerIndex - 1]?.focus()
-      } else {
-        trigger?.focus()
-      }
+      ;(refs.domReference.current as HTMLElement | null)?.focus()
     },
     [refs, setOpen]
   )
