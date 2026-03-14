@@ -330,6 +330,39 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       [flatItems, onChange, isControlled, refs]
     )
 
+    const handleFloatingKeyDown = useCallback(
+      (e: React.KeyboardEvent) => {
+        if (e.key !== 'Tab') {
+          return
+        }
+
+        e.preventDefault()
+        setIsOpen(false)
+
+        const trigger = refs.domReference.current as HTMLElement | null
+
+        if (!e.shiftKey) {
+          trigger?.focus()
+          return
+        }
+
+        const all = Array.from<HTMLElement>(
+          document.querySelectorAll(
+            'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null)
+
+        const triggerIndex = trigger ? all.indexOf(trigger) : -1
+
+        if (triggerIndex > 0) {
+          all[triggerIndex - 1]?.focus()
+        } else {
+          trigger?.focus()
+        }
+      },
+      [refs, setIsOpen]
+    )
+
     const handleFloatingBlur = useCallback(
       (e: React.FocusEvent) => {
         const relatedTarget = e.relatedTarget as Node | null
@@ -346,7 +379,6 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
         }
 
         setIsOpen(false)
-        ;(refs.domReference.current as HTMLElement | null)?.focus()
       },
       [refs, setIsOpen]
     )
@@ -448,6 +480,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                 ref: refs.setFloating,
                 style: floatingStyles,
                 ...getFloatingProps(),
+                onKeyDown: handleFloatingKeyDown,
                 onBlur: handleFloatingBlur,
                 'aria-label': ariaLabelledBy ? undefined : ariaLabel,
                 'aria-labelledby': ariaLabelledBy ?? (id ? id : undefined),
