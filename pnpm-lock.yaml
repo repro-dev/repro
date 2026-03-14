@@ -844,6 +844,9 @@ importers:
       '@repro/theme':
         specifier: workspace:*
         version: link:../../packages/theme
+      '@repro/wire-formats':
+        specifier: workspace:*
+        version: link:../../packages/wire-formats
     devDependencies:
       '@storybook/addon-a11y':
         specifier: ^10.2.13
