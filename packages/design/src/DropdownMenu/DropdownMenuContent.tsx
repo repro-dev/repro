@@ -53,6 +53,7 @@ export const DropdownMenuContent = forwardRef<
     <Portal>
       <Block
         zIndex={zIndex.portal}
+        outline="none"
         props={{
           ref: mergeRefs([ref, refs.setFloating].filter(Boolean)),
           style: floatingStyles,

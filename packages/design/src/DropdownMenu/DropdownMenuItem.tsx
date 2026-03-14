@@ -3,8 +3,6 @@ import React, { forwardRef, useCallback, useRef, useState } from 'react'
 import mergeRefs from 'react-merge-refs'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
-import { focusRing } from '../tokens/interaction'
-import { transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
 import { useDropdownMenuContext } from './DropdownMenuContext'
@@ -72,29 +70,31 @@ export const DropdownMenuItem = forwardRef<
     }
   }, [disabled, onSelect, setOpen, refs])
 
+  const isActive = activeIndex === itemIndex
+
   const textColor = disabled
     ? color.text.muted
     : destructive
     ? color.danger
     : color.text.default
 
-  const hoverBg = disabled
-    ? undefined
-    : destructive
-    ? color.dangerSubtle
-    : color.bg.hover
+  const bgColor =
+    isActive && !disabled && destructive
+      ? color.dangerSubtle
+      : isActive && !disabled
+      ? color.bg.hover
+      : 'transparent'
 
   return (
     <Block
       {...textStyles.bodySmall}
       color={textColor}
+      backgroundColor={bgColor}
       padding={`${spacing.md}px ${spacing.lg}px`}
       borderRadius={radius.sm}
+      outline="none"
       cursor={disabled ? 'not-allowed' : 'pointer'}
       opacity={disabled ? 0.5 : 1}
-      transition={transition.fast}
-      hoverBackgroundColor={hoverBg}
-      {...focusRing()}
       props={{
         ref: mergeRefs([ref, setItemRef].filter(Boolean)),
         role: 'menuitem',
