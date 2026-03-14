@@ -11,8 +11,8 @@ import { Database } from '~/modules/database/types'
 import { Storage } from '~/modules/storage'
 import { createS3StorageClient } from '~/modules/storage-s3'
 
-function encodeRecordingData(fixture: FixtureRecording): Buffer {
-  const views = fixture.events.map(event => SourceEventView.encode(event))
+function encodeRecordingData(recording: FixtureRecording): Buffer {
+  const views = recording.events.map(event => SourceEventView.encode(event))
   const binaryData = toBinaryWireFormat(views)
   return Buffer.from(
     gzipSync(
@@ -29,31 +29,31 @@ function bufferToReadable(buf: Buffer): Readable {
   return Readable.from(buf)
 }
 
-async function seedRecording(
+async function insertRecording(
   db: Database,
   storage: Storage,
-  fixture: FixtureRecording,
+  recording: FixtureRecording,
   projectId: number,
   authorId: number
 ) {
   const row = await db
     .insertInto('recordings')
     .values({
-      title: fixture.title,
-      url: fixture.url,
-      description: fixture.description,
-      mode: fixture.mode,
-      duration: fixture.duration,
-      browserName: fixture.browserName,
-      browserVersion: fixture.browserVersion,
-      operatingSystem: fixture.operatingSystem,
+      title: recording.title,
+      url: recording.url,
+      description: recording.description,
+      mode: recording.mode,
+      duration: recording.duration,
+      browserName: recording.browserName,
+      browserVersion: recording.browserVersion,
+      operatingSystem: recording.operatingSystem,
       codecVersion: CODEC_VERSION,
     })
     .returning(['id'])
     .executeTakeFirstOrThrow()
 
   const recordingId = encodeId(row.id)
-  const data = encodeRecordingData(fixture)
+  const data = encodeRecordingData(recording)
   const path = `${recordingId}/data`
 
   await promise(storage.write(path, bufferToReadable(data)))
@@ -67,19 +67,11 @@ async function seedRecording(
     })
     .execute()
 
-  console.log(`  Seeded recording: ${fixture.title} (${recordingId})`)
+  console.log(`  Seeded recording: ${recording.title} (${recordingId})`)
 }
 
-export async function seedFixtures(db: Database) {
-  console.log('Seeding fixture recordings...')
-
-  const storage = createS3StorageClient({
-    endpoint: env.STORAGE_ENDPOINT,
-    region: env.STORAGE_REGION,
-    bucket: env.STORAGE_BUCKET,
-    accessKeyId: env.STORAGE_ACCESS_KEY_ID,
-    secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
-  })
+export async function seedRecordings(db: Database, storage: Storage) {
+  console.log('Seeding recordings...')
 
   const acmeAccount = await db
     .selectFrom('accounts')
@@ -115,11 +107,21 @@ export async function seedFixtures(db: Database) {
     return
   }
 
-  for (const fixture of fixtureRecordings) {
-    await seedRecording(db, storage, fixture, project.id, member.id)
+  for (const recording of fixtureRecordings) {
+    await insertRecording(db, storage, recording, project.id, member.id)
   }
 
-  console.log('Fixture recordings seeded.')
+  console.log('Recordings seeded.')
+}
+
+function createStorageClient() {
+  return createS3StorageClient({
+    endpoint: env.STORAGE_ENDPOINT,
+    region: env.STORAGE_REGION,
+    bucket: env.STORAGE_BUCKET,
+    accessKeyId: env.STORAGE_ACCESS_KEY_ID,
+    secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
+  })
 }
 
 async function main() {
@@ -132,10 +134,12 @@ async function main() {
     ssl: env.DB_SSL,
   })
 
+  const storage = createStorageClient()
+
   try {
-    await seedFixtures(db)
+    await seedRecordings(db, storage)
   } catch (error) {
-    console.error('Fixture seeding failed:', error)
+    console.error('Recording seed failed:', error)
     process.exit(1)
   } finally {
     await db.destroy()

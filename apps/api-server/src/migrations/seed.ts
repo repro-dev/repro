@@ -3,6 +3,9 @@ import { ProjectRole } from '@repro/domain'
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
 import { Database } from '~/modules/database/types'
+import { Storage } from '~/modules/storage'
+import { createS3StorageClient } from '~/modules/storage-s3'
+import { seedRecordings } from './seed-recordings'
 
 const PASSWORD = 'password'
 
@@ -435,7 +438,7 @@ async function seedFeatureGates(db: Database) {
     .execute()
 }
 
-export async function seed(db: Database) {
+export async function seed(db: Database, storage: Storage) {
   const plans = await seedBillingPlans(db)
   const accounts = await seedAccounts(db)
   const users = await seedUsers(db, accounts)
@@ -443,6 +446,7 @@ export async function seed(db: Database) {
   await seedProjects(db, accounts, users)
   await seedBillingCustomers(db, accounts, plans)
   await seedFeatureGates(db)
+  await seedRecordings(db, storage)
 
   console.log('Seed complete.')
 }
@@ -457,8 +461,16 @@ async function main() {
     ssl: env.DB_SSL,
   })
 
+  const storage = createS3StorageClient({
+    endpoint: env.STORAGE_ENDPOINT,
+    region: env.STORAGE_REGION,
+    bucket: env.STORAGE_BUCKET,
+    accessKeyId: env.STORAGE_ACCESS_KEY_ID,
+    secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
+  })
+
   try {
-    await seed(db)
+    await seed(db, storage)
   } catch (error) {
     console.error('Seed failed:', error)
     process.exit(1)
@@ -467,4 +479,6 @@ async function main() {
   }
 }
 
-main()
+if (process.argv[1] === import.meta.filename) {
+  main()
+}

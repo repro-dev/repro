@@ -1,9 +1,9 @@
 import { sql } from 'kysely'
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
+import { createS3StorageClient } from '~/modules/storage-s3'
 import { migrate } from './migrate'
 import { seed } from './seed'
-import { seedFixtures } from './seed-fixtures'
 
 async function main() {
   const db = createPostgresDatabaseClient({
@@ -13,6 +13,14 @@ async function main() {
     password: env.DB_PASSWORD,
     database: env.DB_NAME,
     ssl: env.DB_SSL,
+  })
+
+  const storage = createS3StorageClient({
+    endpoint: env.STORAGE_ENDPOINT,
+    region: env.STORAGE_REGION,
+    bucket: env.STORAGE_BUCKET,
+    accessKeyId: env.STORAGE_ACCESS_KEY_ID,
+    secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
   })
 
   console.log('Dropping all tables...')
@@ -46,11 +54,8 @@ END $$`
     process.exit(1)
   }
 
-  console.log('Running database seed...')
-  await seed(db)
-  console.log('Database seed complete.')
-
-  await seedFixtures(db)
+  console.log('Running seed...')
+  await seed(db, storage)
 }
 
 main()
