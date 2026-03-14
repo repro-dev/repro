@@ -2,7 +2,7 @@
 
 cmd_config() {
   if [ $# -lt 1 ]; then
-    cat <<'USAGE'
+    cat <<'USAGE' >&2
 Usage: reproctl config <subcommand>
 
 Subcommands:
@@ -42,8 +42,8 @@ cmd_config_path() {
 
 cmd_config_show() {
   if [ ! -f "$CONFIG_FILE" ]; then
-    echo "No config file found at $CONFIG_FILE"
-    echo "Run 'reproctl start <service>' to create one."
+    _err "No config file found at $CONFIG_FILE"
+    _err "Run 'reproctl start <service>' to create one."
     return 1
   fi
 
@@ -51,11 +51,11 @@ cmd_config_show() {
 }
 
 cmd_config_edit() {
-  local editor="${EDITOR:-vi}"
+  local editor="${VISUAL:-${EDITOR:-vi}}"
 
   if [ ! -f "$CONFIG_FILE" ]; then
     die "No config file found at $CONFIG_FILE\nRun 'reproctl start <service>' to create one."
   fi
 
-  "$editor" "$CONFIG_FILE"
+  eval "$editor \"$CONFIG_FILE\""
 }
