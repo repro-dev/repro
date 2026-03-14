@@ -157,7 +157,7 @@ USAGE
     fi
     ;;
   -h|--help)      usage ;;
-  --version|-V)    cmd_version ;;
+  --version|-V)    cmd_version "$@" ;;
   *)
     die "Unknown command: $COMMAND\nRun 'reproctl --help' for usage."
     ;;

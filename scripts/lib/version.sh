@@ -54,7 +54,7 @@ cmd_version() {
   date="$(_get_commit_date)"
 
   if [[ "$json" = true ]]; then
-    printf '{"version":"%s","commit":"%s","date":"%s"}\n' "$version" "$commit" "$date"
+    python3 -c "import json; print(json.dumps({'version': '$version', 'commit': '$commit', 'date': '$date'}))"
   else
     printf 'reproctl v%s (%s)\n' "$version" "$commit"
   fi
