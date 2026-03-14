@@ -36,7 +36,7 @@ export const Avatar: React.FC<Props> = ({
           height={size}
         >
           <img
-            src={`https://www.gravatar.com/avatar/${hash}?s=${size}&d=initials`}
+            src={`https://www.gravatar.com/avatar/${hash}?s=${size}&d=retro`}
             alt={name}
           />
         </Block>
