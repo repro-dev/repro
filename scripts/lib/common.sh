@@ -286,6 +286,32 @@ _pick_multi() {
   [[ "$found" = true ]] || return 1
 }
 
+_label_width() {
+  local max=0
+  for label in "$@"; do
+    local len=${#label}
+    if [ "$len" -gt "$max" ]; then
+      max=$len
+    fi
+  done
+  echo "$max"
+}
+
+_kv() {
+  local width="$1" label="$2" value="$3" indent="${4:-}"
+  printf '%s%s%-*s%s %s\n' "$indent" "$CLR_BOLD" "$width" "$label" "$CLR_RESET" "$value"
+}
+
+_status_clr() {
+  local status="$1"
+  case "$status" in
+    ok)                    printf '%s%s%s' "$CLR_GREEN" "$status" "$CLR_RESET" ;;
+    warn|building|pending) printf '%s%s%s' "$CLR_YELLOW" "$status" "$CLR_RESET" ;;
+    error)                 printf '%s%s%s' "$CLR_RED" "$status" "$CLR_RESET" ;;
+    *)                     printf '%s' "$status" ;;
+  esac
+}
+
 _list_service_names() {
   [[ -f "$SERVICES_JSON" ]] || return
   python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1])).keys()))" "$SERVICES_JSON" 2>/dev/null

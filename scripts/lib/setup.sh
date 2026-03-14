@@ -7,16 +7,48 @@
 
 # ── Doctor output helpers ───────────────────────────────────────────
 
-check_ok() {
-  printf '  \033[32m ok\033[0m  %-16s %s\n' "$1" "$2"
+_doctor_statuses=()
+_doctor_names=()
+_doctor_details=()
+
+_doctor_row() {
+  _doctor_statuses+=("$1")
+  _doctor_names+=("$2")
+  _doctor_details+=("$3")
 }
 
-check_warn() {
-  printf ' \033[33mWARN\033[0m  %-16s %s\n' "$1" "$2"
-}
+_doctor_flush() {
+  local sw=0 nw=0
+  local i=0
+  while [ "$i" -lt "${#_doctor_names[@]}" ]; do
+    local sl=${#_doctor_statuses[$i]}
+    local nl=${#_doctor_names[$i]}
+    if [ "$sl" -gt "$sw" ]; then sw=$sl; fi
+    if [ "$nl" -gt "$nw" ]; then nw=$nl; fi
+    i=$((i + 1))
+  done
 
-check_fail() {
-  printf ' \033[31mFAIL\033[0m  %-16s %s\n' "$1" "$2"
+  i=0
+  while [ "$i" -lt "${#_doctor_names[@]}" ]; do
+    local status="${_doctor_statuses[$i]}"
+    local pad=""
+    local j=${#status}
+    while [ "$j" -lt "$sw" ]; do
+      pad="$pad "
+      j=$((j + 1))
+    done
+    local clr
+    clr="$(_status_clr "$status")"
+    printf '  %s%s  %-*s  %s\n' \
+      "$pad" "$clr" \
+      "$nw" "${_doctor_names[$i]}" \
+      "${_doctor_details[$i]}"
+    i=$((i + 1))
+  done
+
+  _doctor_statuses=()
+  _doctor_names=()
+  _doctor_details=()
 }
 
 # ── .prototools parser ──────────────────────────────────────────────
@@ -81,9 +113,9 @@ cmd_doctor() {
   if command -v brew > /dev/null 2>&1; then
     local brew_version
     brew_version="$(brew --version 2>/dev/null | head -1)"
-    check_ok "brew" "$brew_version"
+    _doctor_row "ok" "brew" "$brew_version"
   else
-    check_fail "brew" "not installed — https://brew.sh"
+    _doctor_row "error" "brew" "not installed — https://brew.sh"
     has_failures=true
   fi
 
@@ -93,9 +125,9 @@ cmd_doctor() {
     if command -v brew > /dev/null 2>&1 && brew list "$dep" > /dev/null 2>&1; then
       local dep_version
       dep_version="$(brew list --versions "$dep" 2>/dev/null | awk '{print $2}')"
-      check_ok "$dep" "${dep_version:-installed}"
+      _doctor_row "ok" "$dep" "${dep_version:-installed}"
     else
-      check_fail "$dep" "not installed — run 'reproctl setup'"
+      _doctor_row "error" "$dep" "not installed — run 'reproctl setup'"
       has_failures=true
     fi
   done
@@ -107,13 +139,13 @@ cmd_doctor() {
     local expected_proto
     expected_proto="$(read_prototools_version proto)"
     if [ -n "$expected_proto" ] && [ "$proto_version" != "$expected_proto" ]; then
-      check_warn "proto" "$proto_version (expected $expected_proto)"
+      _doctor_row "warn" "proto" "$proto_version (expected $expected_proto)"
       has_warnings=true
     else
-      check_ok "proto" "$proto_version"
+      _doctor_row "ok" "proto" "$proto_version"
     fi
   else
-    check_fail "proto" "not installed — run 'reproctl setup'"
+    _doctor_row "error" "proto" "not installed — run 'reproctl setup'"
     has_failures=true
   fi
 
@@ -124,7 +156,7 @@ cmd_doctor() {
     expected="$(read_prototools_version "$tool")"
 
     if ! command -v "$tool" > /dev/null 2>&1; then
-      check_fail "$tool" "not installed — run 'reproctl setup'"
+      _doctor_row "error" "$tool" "not installed — run 'reproctl setup'"
       has_failures=true
       continue
     fi
@@ -140,10 +172,10 @@ cmd_doctor() {
     esac
 
     if [ -n "$expected" ] && [ -n "$actual" ] && [ "$actual" != "$expected" ]; then
-      check_warn "$tool" "v$actual (expected v$expected) — run 'reproctl setup'"
+      _doctor_row "warn" "$tool" "v$actual (expected v$expected) — run 'reproctl setup'"
       has_warnings=true
     else
-      check_ok "$tool" "v${actual:-unknown}"
+      _doctor_row "ok" "$tool" "v${actual:-unknown}"
     fi
   done
 
@@ -152,13 +184,13 @@ cmd_doctor() {
     if docker info > /dev/null 2>&1; then
       local docker_version
       docker_version="$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "unknown")"
-      check_ok "docker" "Docker $docker_version, daemon running"
+      _doctor_row "ok" "docker" "Docker $docker_version, daemon running"
     else
-      check_fail "docker" "daemon not running — start Docker Desktop"
+      _doctor_row "error" "docker" "daemon not running — start Docker Desktop"
       has_failures=true
     fi
   else
-    check_fail "docker" "not installed — https://www.docker.com/products/docker-desktop"
+    _doctor_row "error" "docker" "not installed — https://www.docker.com/products/docker-desktop"
     has_failures=true
   fi
 
@@ -166,63 +198,65 @@ cmd_doctor() {
   if [ -d "$MAIN_CHECKOUT/node_modules" ]; then
     if [ -f "$MAIN_CHECKOUT/node_modules/.package-lock.json" ] || [ -f "$MAIN_CHECKOUT/node_modules/.modules.yaml" ]; then
       if [ "$MAIN_CHECKOUT/pnpm-lock.yaml" -nt "$MAIN_CHECKOUT/node_modules/.modules.yaml" ] 2>/dev/null; then
-        check_warn "pnpm install" "node_modules may be out of date — run 'reproctl setup'"
+        _doctor_row "warn" "pnpm install" "node_modules may be out of date — run 'reproctl setup'"
         has_warnings=true
       else
-        check_ok "pnpm install" "node_modules present"
+        _doctor_row "ok" "pnpm install" "node_modules present"
       fi
     else
-      check_ok "pnpm install" "node_modules present"
+      _doctor_row "ok" "pnpm install" "node_modules present"
     fi
   else
-    check_fail "pnpm install" "node_modules missing — run 'reproctl setup'"
+    _doctor_row "error" "pnpm install" "node_modules missing — run 'reproctl setup'"
     has_failures=true
   fi
 
   # 7. LINEAR_API_KEY (optional — needed for reproctl wt create --from-issue)
   if [[ -n "${LINEAR_API_KEY:-}" ]]; then
     if [[ "$LINEAR_API_KEY" == lin_api_* ]]; then
-      check_ok "LINEAR_API_KEY" "set"
+      _doctor_row "ok" "LINEAR_API_KEY" "set"
     else
-      check_warn "LINEAR_API_KEY" "set but does not start with lin_api_ — may be invalid"
+      _doctor_row "warn" "LINEAR_API_KEY" "set but does not start with lin_api_ — may be invalid"
       has_warnings=true
     fi
   else
-    check_warn "LINEAR_API_KEY" "not set — wt create --from-issue will not fetch issue details"
+    _doctor_row "warn" "LINEAR_API_KEY" "not set — wt create --from-issue will not fetch issue details"
     has_warnings=true
   fi
 
   # 8. direnv
   if command -v direnv > /dev/null 2>&1; then
     if [ -n "${DIRENV_DIR:-}" ]; then
-      check_ok "direnv" "shell hook active"
+      _doctor_row "ok" "direnv" "shell hook active"
     else
-      check_warn "direnv" "shell hook not detected — add 'eval \"\$(direnv hook <shell>)\"' to your shell config"
+      _doctor_row "warn" "direnv" "shell hook not detected — add 'eval \"\$(direnv hook <shell>)\"' to your shell config"
       has_warnings=true
     fi
 
     if [ -f "$MAIN_CHECKOUT/.envrc" ]; then
       if direnv status 2>/dev/null | grep -q "Found RC allowed true"; then
-        check_ok ".envrc" "allowed"
+        _doctor_row "ok" ".envrc" "allowed"
       elif direnv status 2>/dev/null | grep -q "Found RC allowed false"; then
-        check_fail ".envrc" "not allowed — run 'direnv allow'"
+        _doctor_row "error" ".envrc" "not allowed — run 'direnv allow'"
         has_failures=true
       else
-        check_warn ".envrc" "unable to determine status"
+        _doctor_row "warn" ".envrc" "unable to determine status"
         has_warnings=true
       fi
     fi
   else
-    check_fail "direnv" "not installed — run 'reproctl setup'"
+    _doctor_row "error" "direnv" "not installed — run 'reproctl setup'"
     has_failures=true
   fi
 
   if python3 -c "import socket; socket.getaddrinfo('test.sub.repro.localhost', 80)" 2>/dev/null; then
-    check_ok ".localhost DNS" "multi-level subdomains resolve correctly"
+    _doctor_row "ok" ".localhost DNS" "multi-level subdomains resolve correctly"
   else
-    check_warn ".localhost DNS" "multi-level .localhost subdomains do not resolve — browser DoH may prevent worktree URLs from loading. Disable DNS-over-HTTPS or add entries to /etc/hosts."
+    _doctor_row "warn" ".localhost DNS" "multi-level .localhost subdomains do not resolve — browser DoH may prevent worktree URLs from loading. Disable DNS-over-HTTPS or add entries to /etc/hosts."
     has_warnings=true
   fi
+
+  _doctor_flush
 
   echo ""
 
