@@ -5,8 +5,8 @@
 reproctl \- unified CLI for local development with Tilt, kind, and git
 worktrees
 .SH SYNOPSIS
-\f[B]reproctl\f[R] [\f[B]\(enjson\f[R]] \f[I]command\f[R]
-[\f[I]args\f[R]\&...]
+\f[B]reproctl\f[R] [\f[B]\-\-json\f[R]] \f[I]command\f[R]
+[\f[I]args\f[R]...]
 .SH DESCRIPTION
 reproctl manages the local development environment for the Repro
 monorepo.
@@ -17,7 +17,7 @@ Context is detected automatically: from the main checkout, services run
 as main; from a worktree, services are isolated to that branch.
 .SH GLOBAL OPTIONS
 .TP
-\f[B]\(enjson\f[R]
+\f[B]\-\-json\f[R]
 Output machine\-readable JSON instead of human\-readable text.
 Supported by: \f[B]checkhealth\f[R], \f[B]cluster status\f[R],
 \f[B]context\f[R], \f[B]db status\f[R], \f[B]doctor\f[R],
@@ -37,24 +37,24 @@ See \f[B]reproctl\-doctor\f[R](1).
 Runtime health checks (Tilt, k8s, services).
 .SS Services
 .TP
-\f[B]start\f[R] \f[I]service\f[R] [\f[I]service\f[R]\&...]
+\f[B]start\f[R] \f[I]service\f[R] [\f[I]service\f[R]...]
 Start services from the current context.
 See \f[B]reproctl\-start\f[R](1).
 .TP
-\f[B]stop\f[R] [\f[I]service\f[R]\&...] | \f[B]\(enall\f[R]
+\f[B]stop\f[R] [\f[I]service\f[R]...] | \f[B]\-\-all\f[R]
 Stop services or tear down Tilt.
 See \f[B]reproctl\-stop\f[R](1).
 .TP
-\f[B]restart\f[R] \f[I]service\f[R] [\f[I]service\f[R]\&...] | \f[B]\(enall\f[R]
+\f[B]restart\f[R] \f[I]service\f[R] [\f[I]service\f[R]...] | \f[B]\-\-all\f[R]
 Rebuild services or restart the Tilt daemon.
 See \f[B]reproctl\-restart\f[R](1).
 .TP
 \f[B]status\f[R]
 Show running services and Tilt dashboard URL.
-With \f[B]\(enjson\f[R], outputs a JSON object with Tilt state and a
+With \f[B]\-\-json\f[R], outputs a JSON object with Tilt state and a
 list of resource objects.
 .TP
-\f[B]logs\f[R] [\f[I]options\f[R]] [\f[I]service\f[R]\&...]
+\f[B]logs\f[R] [\f[I]options\f[R]] [\f[I]service\f[R]...]
 Show or stream service logs.
 See \f[B]reproctl\-logs\f[R](1).
 .TP
@@ -97,7 +97,7 @@ Remove worktrees whose branches are merged.
 \f[B]context\f[R]
 Show the current development context (worktree, branch, issue, delta vs
 main, services).
-With \f[B]\(enjson\f[R], outputs a JSON object with context fields.
+With \f[B]\-\-json\f[R], outputs a JSON object with context fields.
 .TP
 \f[B]worktree\f[R] \f[I]subcommand\f[R]
 Manage git worktrees.
@@ -118,7 +118,7 @@ Bootstrap the entire environment.
 reproctl start api\-server workspace
 Start api\-server and workspace from main checkout.
 .TP
-reproctl stop \(enall
+reproctl stop \-\-all
 Tear down all services and Tilt.
 .SH SHELL COMPLETION
 Shell completions can be generated via the \f[B]completion\f[R]
@@ -137,7 +137,7 @@ Completions are also available as static files in
 or shell profiles.
 .SH INTERACTIVE PICKER
 Commands that accept a service name (\f[B]start\f[R], \f[B]stop\f[R],
-\f[B]restart\f[R], \f[B]logs\f[R]) support a \f[B]\(enpick\f[R] /
+\f[B]restart\f[R], \f[B]logs\f[R]) support a \f[B]\-\-pick\f[R] /
 \f[B]\-p\f[R] flag to interactively select from available services.
 If \f[B]fzf\f[R] is installed, it is used for fuzzy selection; otherwise
 a numbered prompt is shown.

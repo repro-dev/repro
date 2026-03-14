@@ -88,22 +88,27 @@ Examples:
 EOF
 }
 
-if [ $# -lt 1 ]; then
-  usage >&2
-  exit 1
-fi
-
 REPROCTL_JSON=false
 
 _args=()
+_found_cmd=false
 for _a in "$@"; do
-  case "$_a" in
-    --json) REPROCTL_JSON=true ;;
-    *)      _args+=("$_a") ;;
-  esac
+  if [ "$_found_cmd" = false ]; then
+    case "$_a" in
+      --json) REPROCTL_JSON=true; continue ;;
+      -*)     ;;
+      *)      _found_cmd=true ;;
+    esac
+  fi
+  _args+=("$_a")
 done
 set -- ${_args[@]+"${_args[@]}"}
-unset _args _a
+unset _args _a _found_cmd
+
+if [ $# -eq 0 ]; then
+  usage >&2
+  exit 1
+fi
 
 COMMAND="$1"
 shift

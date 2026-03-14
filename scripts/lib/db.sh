@@ -194,25 +194,35 @@ cmd_db_status() {
 _db_status_json() {
   local applied_list="" pending_list="" orphaned_list=""
   local migrations_dir="$REPO_ROOT/apps/api-server/src/migrations/data"
+  local available=true
 
-  if [ -n "$PSQL" ] && [ -d "$migrations_dir" ]; then
+  if [ -z "$PSQL" ] || [ ! -d "$migrations_dir" ]; then
+    available=false
+  fi
+
+  if [ "$available" = true ]; then
     local applied
     applied="$(PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" \
       -U "$DB_USER" -d "$DB_NAME" -t -A \
-      -c "SELECT name FROM kysely_migration ORDER BY name" 2>/dev/null)" || applied=""
+      -c "SELECT name FROM kysely_migration ORDER BY name" 2>/dev/null)" || {
+      available=false
+      applied=""
+    }
 
-    local on_disk
-    on_disk="$(ls "$migrations_dir"/*.sql 2>/dev/null | xargs -n1 basename | sort)"
+    if [ "$available" = true ]; then
+      local on_disk
+      on_disk="$(ls "$migrations_dir"/*.sql 2>/dev/null | xargs -n1 basename | sort)"
 
-    if [ -n "$applied" ]; then
-      applied_list="$applied"
-    fi
+      if [ -n "$applied" ]; then
+        applied_list="$applied"
+      fi
 
-    if [ -n "$on_disk" ] && [ -n "$applied" ]; then
-      pending_list="$(comm -23 <(echo "$on_disk") <(echo "$applied"))"
-      orphaned_list="$(comm -13 <(echo "$on_disk") <(echo "$applied"))"
-    elif [ -n "$on_disk" ]; then
-      pending_list="$on_disk"
+      if [ -n "$on_disk" ] && [ -n "$applied" ]; then
+        pending_list="$(comm -23 <(echo "$on_disk") <(echo "$applied"))"
+        orphaned_list="$(comm -13 <(echo "$on_disk") <(echo "$applied"))"
+      elif [ -n "$on_disk" ]; then
+        pending_list="$on_disk"
+      fi
     fi
   fi
 
@@ -226,14 +236,15 @@ obj = {
     "host": sys.argv[1],
     "port": int(sys.argv[2]),
     "database": sys.argv[3],
+    "available": sys.argv[4] == "true",
     "migrations": {
-        "applied": lines_to_list(sys.argv[4]),
-        "pending": lines_to_list(sys.argv[5]),
-        "orphaned": lines_to_list(sys.argv[6]),
+        "applied": lines_to_list(sys.argv[5]),
+        "pending": lines_to_list(sys.argv[6]),
+        "orphaned": lines_to_list(sys.argv[7]),
     }
 }
 print(json.dumps(obj))
-' "$DB_HOST" "$DB_PORT" "$DB_NAME" "$applied_list" "$pending_list" "$orphaned_list"
+' "$DB_HOST" "$DB_PORT" "$DB_NAME" "$available" "$applied_list" "$pending_list" "$orphaned_list"
 }
 
 # ── Router ──────────────────────────────────────────────────────────

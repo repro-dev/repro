@@ -46,6 +46,7 @@ items = data.get("items", [])
 svc_path = os.environ.get("SERVICES_JSON", "")
 cfg_path = os.environ.get("CONFIG_FILE", "")
 output_json = os.environ.get("REPROCTL_JSON", "") == "true"
+tilt_running = os.environ.get("TILT_RUNNING", "true") != "false"
 
 known_services = set()
 if svc_path and os.path.isfile(svc_path):
@@ -126,7 +127,10 @@ for svc_name in sorted(configured):
             svc_type = "service [wt:" + wt_slug + "]"
         else:
             svc_type = "service"
-        rows.append((svc_name, "warn", svc_type, "not in Tilt"))
+        if tilt_running:
+            rows.append((svc_name, "warn", svc_type, "not in Tilt"))
+        else:
+            rows.append((svc_name, "stopped", svc_type, ""))
 
 if output_json:
     json_rows = []

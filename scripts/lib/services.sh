@@ -341,23 +341,34 @@ USAGE
 _status_json() {
   local tilt_running=false
   local tilt_url="http://localhost:$TILT_PORT"
-  local tilt_pid=0
+  local tilt_pid=""
   local items_json="[]"
 
   if tilt_is_running; then
     tilt_running=true
     if [ -f "$TILT_PID_FILE" ]; then
-      tilt_pid="$(cat "$TILT_PID_FILE")"
+      tilt_pid="$(tr -d '[:space:]' < "$TILT_PID_FILE")"
     fi
 
     items_json="$(tilt get uiresources -o json --port "$TILT_PORT" 2>/dev/null | \
       SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" \
       REPROCTL_JSON=true \
       python3 "$SCRIPTS_DIR/lib/py/format_status.py")"
+  else
+    if [ -f "$CONFIG_FILE" ]; then
+      items_json="$(SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" \
+        REPROCTL_JSON=true TILT_RUNNING=false \
+        python3 "$SCRIPTS_DIR/lib/py/format_status.py" <<< '{"items":[]}')"
+    fi
   fi
 
-  printf '{"tilt":{"running":%s,"url":"%s","pid":%d},"items":%s}\n' \
-    "$tilt_running" "$tilt_url" "$tilt_pid" "$items_json"
+  local pid_json="null"
+  if [[ "$tilt_pid" =~ ^[0-9]+$ ]]; then
+    pid_json="$tilt_pid"
+  fi
+
+  printf '{"tilt":{"running":%s,"url":"%s","pid":%s},"items":%s}\n' \
+    "$tilt_running" "$tilt_url" "$pid_json" "$items_json"
 }
 
 cmd_restart() {

@@ -4,23 +4,23 @@
 .SH NAME
 reproctl\-stop \- stop services or tear down Tilt
 .SH SYNOPSIS
-\f[B]reproctl stop\f[R] [\f[I]service\f[R]\&...]
-| \f[B]\(enall\f[R]
+\f[B]reproctl stop\f[R] [\f[I]service\f[R]...]
+| \f[B]\-\-all\f[R]
 .SH DESCRIPTION
 Stop running services or tear down the entire Tilt session.
 .PP
-Without \f[B]\(enall\f[R], the specified services are removed from the
+Without \f[B]\-\-all\f[R], the specified services are removed from the
 active service configuration.
 If no services remain after removal, Tilt is stopped automatically.
 .PP
-With \f[B]\(enall\f[R], the Tilt daemon is stopped entirely, tearing
+With \f[B]\-\-all\f[R], the Tilt daemon is stopped entirely, tearing
 down all running services regardless of which context started them.
 .SH OPTIONS
 .TP
-\f[B]\(enall\f[R]
+\f[B]\-\-all\f[R]
 Stop the Tilt daemon entirely instead of removing individual services.
 .TP
-\f[B]\(enpick\f[R], \f[B]\-p\f[R]
+\f[B]\-\-pick\f[R], \f[B]\-p\f[R]
 Interactively select a service to stop.
 Uses \f[B]fzf\f[R] if installed, otherwise a numbered prompt.
 When no service names are given and stdin is a terminal, the picker is
@@ -30,7 +30,7 @@ shown automatically.
 reproctl stop api\-server
 Remove api\-server from the running set.
 .TP
-reproctl stop \(enall
+reproctl stop \-\-all
 Tear down Tilt and all services.
 .SH SEE ALSO
 \f[B]reproctl\f[R](1), \f[B]reproctl\-start\f[R](1),

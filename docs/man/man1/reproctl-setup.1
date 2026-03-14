@@ -4,7 +4,7 @@
 .SH NAME
 reproctl\-setup \- bootstrap the local development environment
 .SH SYNOPSIS
-\f[B]reproctl setup\f[R] [\f[B]\(enskip\-cluster\f[R]]
+\f[B]reproctl setup\f[R] [\f[B]\-\-skip\-cluster\f[R]]
 .SH DESCRIPTION
 Runs a 5\-step bootstrap sequence to prepare the local development
 environment:
@@ -24,7 +24,7 @@ registry.
 Each step is idempotent and safe to re\-run.
 .SH OPTIONS
 .TP
-\f[B]\(enskip\-cluster\f[R]
+\f[B]\-\-skip\-cluster\f[R]
 Skip step 5 (kind cluster creation).
 Useful when you only need to update dependencies without touching the
 cluster.
@@ -33,7 +33,7 @@ cluster.
 reproctl setup
 Run the full bootstrap sequence.
 .TP
-reproctl setup \(enskip\-cluster
+reproctl setup \-\-skip\-cluster
 Bootstrap without creating the cluster.
 .SH SEE ALSO
 \f[B]reproctl\f[R](1), \f[B]reproctl\-doctor\f[R](1),

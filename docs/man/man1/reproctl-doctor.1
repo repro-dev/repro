@@ -4,12 +4,12 @@
 .SH NAME
 reproctl\-doctor \- diagnose the development environment
 .SH SYNOPSIS
-\f[B]reproctl\f[R] [\f[B]\(enjson\f[R]] \f[B]doctor\f[R]
+\f[B]reproctl\f[R] [\f[B]\-\-json\f[R]] \f[B]doctor\f[R]
 .SH DESCRIPTION
 Runs a series of health checks against the local development environment
 and reports pass, warn, or fail for each item.
 .PP
-With the global \f[B]\(enjson\f[R] flag, outputs a JSON object with an
+With the global \f[B]\-\-json\f[R] flag, outputs a JSON object with an
 \f[B]items\f[R] array where each item has \f[B]name\f[R],
 \f[B]status\f[R] (ok, warn, or fail), and optional \f[B]expected\f[R],
 \f[B]actual\f[R], and \f[B]message\f[R] fields.
@@ -63,7 +63,7 @@ One or more checks failed.
 reproctl doctor
 Run all health checks.
 .TP
-reproctl \(enjson doctor
+reproctl \-\-json doctor
 Output health checks as JSON.
 .SH SEE ALSO
 \f[B]reproctl\f[R](1), \f[B]reproctl\-setup\f[R](1)

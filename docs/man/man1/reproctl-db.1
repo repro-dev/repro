@@ -5,7 +5,7 @@
 reproctl\-db \- database operations
 .SH SYNOPSIS
 \f[B]reproctl db\f[R] \f[B]reset\f[R] [\f[B]\-y\f[R] |
-\f[B]\(enyes\f[R]] | \f[B]migrate\f[R] | \f[B]shell\f[R] |
+\f[B]\-\-yes\f[R]] | \f[B]migrate\f[R] | \f[B]shell\f[R] |
 \f[B]status\f[R]
 .SH DESCRIPTION
 Perform database operations against the PostgreSQL instance running
@@ -13,10 +13,10 @@ inside the local cluster.
 Tilt must be running for all subcommands.
 .SS Subcommands
 .TP
-\f[B]reset\f[R] [\f[B]\-y\f[R] | \f[B]\(enyes\f[R]]
+\f[B]reset\f[R] [\f[B]\-y\f[R] | \f[B]\-\-yes\f[R]]
 Drop and recreate the database.
 This is only allowed from the main checkout, not from a worktree.
-Prompts for confirmation unless \f[B]\-y\f[R] / \f[B]\(enyes\f[R] is
+Prompts for confirmation unless \f[B]\-y\f[R] / \f[B]\-\-yes\f[R] is
 given.
 .TP
 \f[B]migrate\f[R]
@@ -28,11 +28,11 @@ database.
 .TP
 \f[B]status\f[R]
 Display connection information and the current migration state.
-With the global \f[B]\(enjson\f[R] flag, outputs a JSON object with
+With the global \f[B]\-\-json\f[R] flag, outputs a JSON object with
 host, port, database, and migration arrays (applied, pending, orphaned).
 .SH OPTIONS
 .TP
-\f[B]\-y\f[R], \f[B]\(enyes\f[R]
+\f[B]\-y\f[R], \f[B]\-\-yes\f[R]
 Used with \f[B]reset\f[R].
 Skip the confirmation prompt.
 .SH EXAMPLES
@@ -40,7 +40,7 @@ Skip the confirmation prompt.
 reproctl db status
 Show connection info and migration state.
 .TP
-reproctl \(enjson db status
+reproctl \-\-json db status
 Machine\-readable database and migration info.
 .TP
 reproctl db migrate
