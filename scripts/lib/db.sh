@@ -121,7 +121,7 @@ cmd_db_shell() {
   require_tilt
   require_psql
 
-  _step 1 1 "Connecting to cluster database ($DB_NAME via Tilt port-forward)..."
+  _step 1 1 "Connecting to cluster database ($DB_NAME via Tilt port-forward)..." >&2
   PGPASSWORD="$DB_PASSWORD" exec "$PSQL" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$@"
 }
 

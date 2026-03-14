@@ -430,7 +430,7 @@ USAGE
       python3 "$SCRIPTS_DIR/lib/py/check_migrations.py")
 
     if [ "$has_migrations" = "yes" ]; then
-      _step "$step" "$total" "Triggering migrations for $svc..."
+      echo "  Triggering migrations for $svc..." >&2
       tilt trigger "${resource}-migrations" --port "$TILT_PORT"
     fi
 

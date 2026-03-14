@@ -75,7 +75,7 @@ cmd_cluster_down() {
     count="$(service_count "$(cat "$CONFIG_FILE")")"
     if [ "$count" != "0" ]; then
       if [ "$force" = true ]; then
-        echo "$count service(s) still configured — forcing teardown"
+        echo "$count service(s) still configured — forcing teardown" >&2
         stop_tilt_daemon
       else
         echo "Warning: $count service(s) are still configured." >&2
