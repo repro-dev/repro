@@ -330,6 +330,26 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       [flatItems, onChange, isControlled, refs]
     )
 
+    const handleFloatingBlur = useCallback(
+      (e: React.FocusEvent) => {
+        const relatedTarget = e.relatedTarget as Node | null
+        const floating = e.currentTarget as HTMLElement
+        const reference = refs.domReference.current as HTMLElement | null
+
+        if (
+          relatedTarget &&
+          (floating.contains(relatedTarget) ||
+            reference?.contains(relatedTarget) ||
+            relatedTarget === reference)
+        ) {
+          return
+        }
+
+        setIsOpen(false)
+      },
+      [refs, setIsOpen]
+    )
+
     return (
       <Block>
         <Row
@@ -422,10 +442,12 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           <Portal>
             <Block
               zIndex={zIndex.portal}
+              outline="none"
               props={{
                 ref: refs.setFloating,
                 style: floatingStyles,
                 ...getFloatingProps(),
+                onBlur: handleFloatingBlur,
                 'aria-label': ariaLabelledBy ? undefined : ariaLabel,
                 'aria-labelledby': ariaLabelledBy ?? (id ? id : undefined),
                 'aria-hidden': !isOpen,
