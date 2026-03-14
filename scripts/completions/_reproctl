@@ -67,6 +67,7 @@ _reproctl() {
     'context:Show current development context'
     'worktree:Manage git worktrees'
     'wt:Manage git worktrees (alias)'
+    'completion:Generate shell completions'
     'help:Show help for a command'
   )
 
@@ -98,6 +99,7 @@ _reproctl() {
         launch)     _reproctl_launch ;;
         context)    ;; # no args
         worktree|wt) _reproctl_worktree ;;
+        completion) _reproctl_completion ;;
         help)       _reproctl_help ;;
       esac
       ;;
@@ -281,12 +283,23 @@ _reproctl_worktree() {
   esac
 }
 
+_reproctl_completion() {
+  local -a shells
+  shells=(
+    'bash:Generate Bash completions'
+    'zsh:Generate Zsh completions'
+    'fish:Generate Fish completions'
+  )
+  _describe -t shells 'shell' shells
+}
+
 _reproctl_help() {
   local -a help_topics
   help_topics=(
     'setup' 'doctor' 'checkhealth' 'cluster' 'db'
     'start' 'stop' 'restart' 'status' 'logs'
     'ui' 'launch' 'context' 'worktree' 'wt'
+    'completion'
   )
   _values 'topic' "${help_topics[@]}"
 }
