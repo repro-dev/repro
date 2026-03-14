@@ -13,6 +13,14 @@ def _hash_suffix(s):
   return '%x' % h
 
 
+def _slug_port_offset(slug):
+  """Return a deterministic port offset (1-999) for a worktree slug."""
+  h = 0
+  for c in slug.elems():
+    h = (h * 31 + ord(c)) & 0xFFFFFFFF
+  return (h % 999) + 1
+
+
 def wt_label(slug):
   """Build a Tilt label for a worktree slug, truncated to 63 chars."""
   label = 'wt.' + slug
@@ -231,6 +239,16 @@ def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_pa
   if wt_slug:
     labels = [label]
 
+  base_port = svc.get('port', 0)
+  links = []
+
+  if base_port:
+    port = base_port
+    if wt_slug:
+      port = base_port + _slug_port_offset(wt_slug)
+    serve_env['PORT'] = str(port)
+    links = ['http://localhost:' + str(port)]
+
   local_resource(
     resource_name,
     serve_cmd=svc['serve_cmd'],
@@ -238,6 +256,7 @@ def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_pa
     dir=work_dir,
     resource_deps=resource_deps,
     allow_parallel=True,
+    links=links,
     labels=labels,
   )
 
