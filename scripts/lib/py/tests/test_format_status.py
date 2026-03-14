@@ -304,12 +304,7 @@ class TestFormatStatus:
         assert len(lines) == 2
         assert "NAME" not in result.stdout
 
-    def test_colored_status_when_tty(self):
-        """Color codes appear when NO_COLOR is unset and stdout is a tty.
-
-        Since subprocess stdout is a pipe (not a tty), we verify that
-        color codes are NOT present by default (the non-tty path).
-        """
+    def test_no_color_when_not_tty(self):
         data = {"items": [_make_item("redis")]}
         result = run_script("format_status.py", stdin=json.dumps(data))
         assert "\033[" not in result.stdout

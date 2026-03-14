@@ -18,15 +18,9 @@ _doctor_row() {
 }
 
 _doctor_flush() {
-  local sw=0 nw=0
-  local i=0
-  while [ "$i" -lt "${#_doctor_names[@]}" ]; do
-    local sl=${#_doctor_statuses[$i]}
-    local nl=${#_doctor_names[$i]}
-    if [ "$sl" -gt "$sw" ]; then sw=$sl; fi
-    if [ "$nl" -gt "$nw" ]; then nw=$nl; fi
-    i=$((i + 1))
-  done
+  local sw nw
+  sw="$(_label_width "${_doctor_statuses[@]}")"
+  nw="$(_label_width "${_doctor_names[@]}")"
 
   i=0
   while [ "$i" -lt "${#_doctor_names[@]}" ]; do

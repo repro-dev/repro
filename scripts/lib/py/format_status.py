@@ -15,7 +15,7 @@ import sys
 
 from wt_name import wt_name
 
-_use_color = not os.environ.get("NO_COLOR") and sys.stdout.isatty()
+_use_color = "NO_COLOR" not in os.environ and sys.stdout.isatty()
 
 _CLR_GREEN = "\033[32m" if _use_color else ""
 _CLR_YELLOW = "\033[33m" if _use_color else ""

@@ -11,7 +11,7 @@
 # Respect NO_COLOR (https://no-color.org/) and non-interactive
 # terminals by falling back to empty strings.
 
-if [ -z "${NO_COLOR:-}" ] && [ -t 1 ]; then
+if [ -z "${NO_COLOR+set}" ] && [ -t 1 ]; then
   CLR_BOLD=$'\033[1m'
   CLR_DIM=$'\033[2m'
   CLR_RED=$'\033[31m'
