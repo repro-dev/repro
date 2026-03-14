@@ -170,7 +170,7 @@ cmd_start() {
   fi
 
   echo "Validating services.json..."
-  if ! python3 "$SCRIPTS_DIR/validate-services.py" "$SERVICES_JSON" "$INFRA_DIR" "$@"; then
+  if ! python3 "$SCRIPTS_DIR/validate-services.py" "$SERVICES_JSON" "$REPO_ROOT/infra" "$@"; then
     die "services.json validation failed. Fix the errors above before starting."
   fi
 

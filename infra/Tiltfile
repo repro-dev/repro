@@ -199,6 +199,10 @@ else:
       'dev-toolbar'
     ],
 
+    'storybook-only': [
+      'storybook-ui'
+    ],
+
     'api-server': [
       'storage',
       'database',
@@ -236,6 +240,9 @@ else:
   # Extensions
   load_dynamic('./apps/capture/Tiltfile')
   load_dynamic('./apps/dev-toolbar/Tiltfile')
+
+  # Design
+  load_dynamic('./apps/storybook-ui/Tiltfile')
 
   # Data
   load_dynamic('./apps/data/Tiltfile')

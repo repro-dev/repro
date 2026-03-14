@@ -1,0 +1,9 @@
+local_resource(
+  'storybook-ui',
+  serve_cmd='moon run repro/storybook-ui:dev',
+  serve_env={'PORT': '6006'},
+  resource_deps=['dependencies'],
+  allow_parallel=True,
+  links=['http://localhost:6006'],
+  labels=['design']
+)

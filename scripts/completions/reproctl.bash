@@ -35,6 +35,17 @@ __reproctl_services() {
   python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1])).keys()))" "$json" 2>/dev/null
 }
 
+__reproctl_launchable_services() {
+  local repo
+  repo="$(__reproctl_repo_root)"
+  local json="$repo/infra/services.json"
+  echo "workspace"
+  echo "api-server"
+  echo "admin"
+  [[ -f "$json" ]] || return
+  python3 "$repo/scripts/lib/py/launchable_local_services.py" "$json" 2>/dev/null
+}
+
 __reproctl_worktree_branches() {
   git worktree list --porcelain 2>/dev/null \
     | awk '/^branch refs\/heads\//{sub(/^branch refs\/heads\//, ""); print}'
@@ -140,7 +151,7 @@ _reproctl() {
       case "$prev" in
         --worktree|-w) COMPREPLY=($(compgen -W "$(__reproctl_worktree_branches)" -- "$cur")); return ;;
       esac
-      COMPREPLY=($(compgen -W "--worktree -w -h --help workspace api-server admin" -- "$cur"))
+      COMPREPLY=($(compgen -W "--worktree -w -h --help $(__reproctl_launchable_services)" -- "$cur"))
       ;;
 
     context)
