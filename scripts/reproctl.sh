@@ -203,6 +203,19 @@ USAGE
     ;;
   -h|--help)   usage ;;
   *)
-    die "Unknown command: $COMMAND\nRun 'reproctl --help' for usage."
+    KNOWN_COMMANDS="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt help"
+    suggestions=$(python3 "$SCRIPT_DIR/lib/py/suggest_command.py" "$COMMAND" $KNOWN_COMMANDS 2>/dev/null) || true
+    if [ -n "$suggestions" ]; then
+      printf 'Error: Unknown command "%s"\n' "$COMMAND" >&2
+      printf 'Did you mean:\n' >&2
+      while IFS= read -r s; do
+        printf '  %s\n' "$s" >&2
+      done <<EOF
+$suggestions
+EOF
+    else
+      die "Unknown command: $COMMAND\nRun 'reproctl --help' for usage."
+    fi
+    exit 1
     ;;
 esac
