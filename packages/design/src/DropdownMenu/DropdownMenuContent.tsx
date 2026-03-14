@@ -91,8 +91,9 @@ export const DropdownMenuContent = forwardRef<
         props={{
           ref: mergeRefs([ref, refs.setFloating].filter(Boolean)),
           style: floatingStyles,
-          ...getFloatingProps(),
-          onKeyDown: handleKeyDown,
+          ...getFloatingProps({
+            onKeyDown: handleKeyDown,
+          }),
           onBlur: handleBlur,
         }}
       >

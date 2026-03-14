@@ -459,8 +459,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
               props={{
                 ref: refs.setFloating,
                 style: floatingStyles,
-                ...getFloatingProps(),
-                onKeyDown: handleFloatingKeyDown,
+                ...getFloatingProps({
+                  onKeyDown: handleFloatingKeyDown,
+                }),
                 onBlur: handleFloatingBlur,
                 'aria-label': ariaLabelledBy ? undefined : ariaLabel,
                 'aria-labelledby': ariaLabelledBy ?? (id ? id : undefined),

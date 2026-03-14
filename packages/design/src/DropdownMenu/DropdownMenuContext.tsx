@@ -13,8 +13,12 @@ export interface DropdownMenuContextValue {
   }
   floatingStyles: React.CSSProperties
   context: FloatingContext
-  getReferenceProps: () => Record<string, unknown>
-  getFloatingProps: () => Record<string, unknown>
+  getReferenceProps: (
+    userProps?: React.HTMLProps<Element>
+  ) => Record<string, unknown>
+  getFloatingProps: (
+    userProps?: React.HTMLProps<HTMLElement>
+  ) => Record<string, unknown>
   getItemProps: (props?: Record<string, unknown>) => Record<string, unknown>
   listRef: React.MutableRefObject<(HTMLElement | null)[]>
   activeIndex: number | null
