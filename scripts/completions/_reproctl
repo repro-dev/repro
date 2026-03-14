@@ -64,6 +64,7 @@ _reproctl() {
     'logs:Show or stream service logs'
     'ui:Open Tilt dashboard in browser'
     'launch:Open a service URL in the browser'
+    'config:Inspect service configuration'
     'context:Show current development context'
     'worktree:Manage git worktrees'
     'wt:Manage git worktrees (alias)'
@@ -96,6 +97,7 @@ _reproctl() {
         logs)       _reproctl_logs ;;
         ui)         ;; # no args
         launch)     _reproctl_launch ;;
+        config)     _reproctl_config ;;
         context)    ;; # no args
         worktree|wt) _reproctl_worktree ;;
         help)       _reproctl_help ;;
@@ -227,6 +229,23 @@ _reproctl_launch() {
 }
 
 
+_reproctl_config() {
+  local -a config_commands
+  config_commands=(
+    'path:Print path to the active config file'
+    'show:Print current config contents (pretty-printed JSON)'
+    'edit:Open the config file in \$EDITOR'
+  )
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '1:subcommand:->subcommand' && return
+
+  case "$state" in
+    subcommand) _describe -t commands 'config subcommand' config_commands ;;
+  esac
+}
+
 _reproctl_worktree() {
   local -a wt_commands
   wt_commands=(
@@ -286,7 +305,7 @@ _reproctl_help() {
   help_topics=(
     'setup' 'doctor' 'checkhealth' 'cluster' 'db'
     'start' 'stop' 'restart' 'status' 'logs'
-    'ui' 'launch' 'context' 'worktree' 'wt'
+    'ui' 'launch' 'config' 'context' 'worktree' 'wt'
   )
   _values 'topic' "${help_topics[@]}"
 }

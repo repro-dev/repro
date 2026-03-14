@@ -59,11 +59,12 @@ _reproctl() {
   local cur prev words cword
   _init_completion || return
 
-  local top_commands="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt help"
+  local top_commands="setup doctor checkhealth cluster db start stop restart status logs ui launch config context worktree wt help"
   local cluster_sub="up down status reset"
   local db_sub="reset migrate shell status"
+  local config_sub="path show edit"
   local wt_sub="create remove list attach prune"
-  local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt"
+  local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui launch config context worktree wt"
 
   # Find the subcommand position (skip global flags)
   local cmd="" subcmd=""
@@ -152,6 +153,12 @@ _reproctl() {
         --worktree|-w) COMPREPLY=($(compgen -W "$(__reproctl_worktree_branches)" -- "$cur")); return ;;
       esac
       COMPREPLY=($(compgen -W "--worktree -w -h --help $(__reproctl_launchable_services)" -- "$cur"))
+      ;;
+
+    config)
+      if [[ -z "$subcmd" ]]; then
+        COMPREPLY=($(compgen -W "$config_sub -h --help" -- "$cur"))
+      fi
       ;;
 
     context)

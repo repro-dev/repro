@@ -16,6 +16,7 @@
 #   reproctl logs [options] [service...]       Show or stream service logs
 #   reproctl ui                               Open the Tilt dashboard in a browser
 #   reproctl launch <service>                  Open service URL in the browser
+#   reproctl config path|show|edit              Inspect service configuration
 #   reproctl context                           Show current development context
 #   reproctl worktree attach <branch>          Attach to a worktree subshell
 #   reproctl worktree create <branch>         Create a worktree
@@ -61,6 +62,8 @@ source "$SCRIPT_DIR/lib/context.sh"
 source "$SCRIPT_DIR/lib/checkhealth.sh"
 # shellcheck source=scripts/lib/launch.sh
 source "$SCRIPT_DIR/lib/launch.sh"
+# shellcheck source=scripts/lib/config.sh
+source "$SCRIPT_DIR/lib/config.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -85,6 +88,7 @@ Commands:
   logs [options] [service...]     Show or stream service logs
   ui                              Open the Tilt dashboard in a browser
   launch <service>                Open a service URL in the browser
+  config <subcommand>             Inspect service configuration (path, show, edit)
   context                         Show current development context
   worktree <subcommand>           Manage git worktrees (create, remove, list, attach)
                                   (alias: wt)
@@ -125,6 +129,9 @@ Examples:
   reproctl launch workspace                  # open workspace in browser
   reproctl launch api-server -w feat/my-feat # open worktree api-server URL
   reproctl context                            # show current worktree/branch context
+  reproctl config path                       # print config file path
+  reproctl config show                       # pretty-print current config
+  reproctl config edit                       # open config in $EDITOR
   reproctl wt attach feat/my-feat              # drop into worktree subshell
   reproctl wt create feat/my-feat             # shorthand for worktree
   reproctl worktree create feat/my-feat       # create worktree (auto-creates branch)
@@ -179,6 +186,7 @@ USAGE
   logs)    cmd_logs "$@" ;;
   ui)      cmd_ui "$@" ;;
   launch)  cmd_launch "$@" ;;
+  config)  cmd_config "$@" ;;
   context) cmd_context "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
   help)
