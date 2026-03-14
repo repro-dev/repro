@@ -215,7 +215,7 @@ _cleanup_worktree_services() {
     local err_msg
     err_msg="$(cat "$svc_err")"
     rm -f "$svc_err"
-    echo "  Warning: could not determine services for worktree '${slug}': ${err_msg}" >&2
+    _warn "could not determine services for worktree '${slug}': ${err_msg}"
     return 0
   }
   rm -f "$svc_err"
@@ -267,7 +267,7 @@ _drop_worktree_db() {
   fi
 
   if [ -z "$psql_bin" ]; then
-    echo "  Warning: psql not found — skipping database cleanup for $db_name" >&2
+    _warn "psql not found — skipping database cleanup for $db_name"
     return 0
   fi
 
@@ -279,7 +279,7 @@ _drop_worktree_db() {
   echo "  Dropping worktree database: $db_name"
   PGPASSWORD=repro "$psql_bin" -h localhost -p 15432 -U repro -d postgres \
     -c "DROP DATABASE IF EXISTS $db_name" 2>/dev/null || {
-    echo "  Warning: failed to drop database $db_name" >&2
+    _warn "failed to drop database $db_name"
   }
 }
 

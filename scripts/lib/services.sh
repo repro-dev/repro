@@ -93,7 +93,7 @@ start_tilt_daemon() {
     retries=$((retries + 1))
   done
 
-  echo "Warning: Tilt may still be starting. Check logs: $TILT_LOG_FILE"
+  _warn "Tilt may still be starting. Check logs: $TILT_LOG_FILE"
 }
 
 stop_tilt_daemon() {

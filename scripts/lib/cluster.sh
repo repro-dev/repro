@@ -78,7 +78,7 @@ cmd_cluster_down() {
         echo "$count service(s) still configured — forcing teardown" >&2
         stop_tilt_daemon
       else
-        echo "Warning: $count service(s) are still configured." >&2
+        _warn "$count service(s) are still configured."
         echo "Run 'reproctl stop --all' first, or pass --force to proceed." >&2
         return 1
       fi
