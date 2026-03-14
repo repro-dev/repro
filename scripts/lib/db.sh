@@ -78,7 +78,7 @@ cmd_db_reset() {
   fi
 
   if is_worktree "$REPO_ROOT"; then
-    echo "Dropping and recreating worktree database ($DB_NAME)..."
+    _step 1 2 "Dropping and recreating worktree database ($DB_NAME)..."
     PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" \
       -U "$DB_USER" -d postgres \
       -c "DROP DATABASE IF EXISTS $DB_NAME" \
@@ -86,20 +86,20 @@ cmd_db_reset() {
 
     local resource
     resource="$(migrations_resource_name)"
-    echo "Triggering migrations ($resource)..."
+    _step 2 2 "Triggering migrations ($resource)..."
     if tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
       tilt trigger "$resource" --port "$TILT_PORT"
-      echo "db-reset complete. Migrations triggered."
+      _ok "Database reset complete — migrations triggered"
     else
-      echo "Migrations resource '$resource' is not loaded — run migrations manually."
+      echo "Warning: Migrations resource '$resource' is not loaded — run migrations manually." >&2
     fi
   else
-    echo "Triggering database reset..."
+    _step 1 1 "Triggering database reset..."
     if ! tilt get uiresource db-reset --port "$TILT_PORT" > /dev/null 2>&1; then
       die "The db-reset resource is not loaded in Tilt.\nStart services first with 'reproctl start api-server'."
     fi
     tilt trigger db-reset --port "$TILT_PORT"
-    echo "db-reset triggered. Watch Tilt for progress."
+    _ok "Database reset triggered — watch Tilt for progress"
   fi
 }
 
@@ -109,19 +109,19 @@ cmd_db_migrate() {
   local resource
   resource="$(migrations_resource_name)"
 
-  echo "Triggering migrations ($resource)..."
+  _step 1 1 "Triggering migrations ($resource)..."
   if ! tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
     die "Migrations resource '$resource' is not loaded in Tilt.\nStart the service first with 'reproctl start api-server'."
   fi
   tilt trigger "$resource" --port "$TILT_PORT"
-  echo "Migrations triggered. Watch Tilt for progress."
+  _ok "Migrations triggered — watch Tilt for progress"
 }
 
 cmd_db_shell() {
   require_tilt
   require_psql
 
-  echo "Connecting to cluster database ($DB_NAME via Tilt port-forward)..."
+  _step 1 1 "Connecting to cluster database ($DB_NAME via Tilt port-forward)..."
   PGPASSWORD="$DB_PASSWORD" exec "$PSQL" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$@"
 }
 

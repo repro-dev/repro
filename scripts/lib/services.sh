@@ -86,7 +86,7 @@ start_tilt_daemon() {
   local retries=0
   while [ "$retries" -lt 15 ]; do
     if tilt_is_running; then
-      echo "Tilt is running (pid $pid)."
+      _ok "Tilt is running (pid $pid)"
       return 0
     fi
     sleep 1
@@ -120,7 +120,7 @@ stop_tilt_daemon() {
   fi
 
   rm -f "$CONFIG_FILE"
-  echo "Done."
+  _ok "Tilt stopped"
 }
 
 # ── Service commands ────────────────────────────────────────────────
@@ -169,10 +169,12 @@ cmd_start() {
     die "Cannot start services without a running cluster.\nRun 'reproctl cluster up' first."
   fi
 
-  echo "Validating services.json..."
+  _step 1 3 "Validating services.json..."
   if ! python3 "$SCRIPTS_DIR/validate-services.py" "$SERVICES_JSON" "$REPO_ROOT/infra" "$@"; then
     die "services.json validation failed. Fix the errors above before starting."
   fi
+
+  _step 2 3 "Updating configuration..."
 
   local entries=()
 
@@ -193,15 +195,15 @@ cmd_start() {
   new_config="$(merge_services "$current_config" "${entries[@]}")"
   write_config "$new_config"
 
-  echo "Services:"
+  echo "Services:" >&2
   print_services "$new_config"
 
   if tilt_is_running; then
-    echo ""
-    echo "Tilt is running. Config updated — Tilt will reload automatically."
+    echo "" >&2
+    _ok "Config updated — Tilt will reload automatically"
     touch "$CONFIG_FILE"
   else
-    echo ""
+    _step 3 3 "Starting Tilt..."
     start_tilt_daemon
   fi
 }
@@ -278,19 +280,19 @@ cmd_stop() {
   new_config="$(remove_services "$current_config" "${entries[@]}")"
   write_config "$new_config"
 
-  echo "Remaining services:"
+  echo "Remaining services:" >&2
   print_services "$new_config"
 
   local remaining
   remaining="$(service_count "$new_config")"
 
   if [ "$remaining" = "0" ]; then
-    echo ""
-    echo "No services remaining."
+    echo "" >&2
+    echo "No services remaining." >&2
     stop_tilt_daemon
   elif tilt_is_running; then
-    echo ""
-    echo "Tilt will reload with updated config."
+    echo "" >&2
+    _ok "Config updated — Tilt will reload automatically"
   fi
 }
 
@@ -407,7 +409,11 @@ USAGE
     wt_slug="$(_resolve_worktree_flag "$worktree_flag")"
   fi
 
+  local step=0
+  local total="${#positional[@]}"
+
   for svc in "${positional[@]}"; do
+    step=$((step + 1))
     local resource
     if [[ -n "$wt_slug" ]]; then
       resource="$(_wt_name "$svc" "$wt_slug")"
@@ -424,15 +430,15 @@ USAGE
       python3 "$SCRIPTS_DIR/lib/py/check_migrations.py")
 
     if [ "$has_migrations" = "yes" ]; then
-      echo "Triggering migrations for $svc..."
+      _step "$step" "$total" "Triggering migrations for $svc..."
       tilt trigger "${resource}-migrations" --port "$TILT_PORT"
     fi
 
-    echo "Triggering restart for $svc..."
+    _step "$step" "$total" "Restarting $svc..."
     tilt trigger "$resource" --port "$TILT_PORT"
   done
 
-  echo "Done."
+  _ok "Restart complete"
 }
 
 cmd_ui() {

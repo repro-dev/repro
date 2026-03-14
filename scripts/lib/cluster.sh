@@ -48,13 +48,13 @@ cmd_cluster_up() {
   require_kind
 
   if cluster_exists && registry_exists; then
-    echo "Cluster '$CLUSTER_NAME' and registry '$REGISTRY_NAME' are already running."
+    _ok "Cluster '$CLUSTER_NAME' and registry '$REGISTRY_NAME' are already running"
     return 0
   fi
 
-  echo "Creating cluster and registry..."
+  _step 1 1 "Creating cluster and registry..."
   ctlptl apply -f "$CLUSTER_YAML"
-  echo "Cluster '$CLUSTER_NAME' is ready."
+  _ok "Cluster '$CLUSTER_NAME' is ready"
 }
 
 cmd_cluster_down() {
@@ -75,19 +75,19 @@ cmd_cluster_down() {
     count="$(service_count "$(cat "$CONFIG_FILE")")"
     if [ "$count" != "0" ]; then
       if [ "$force" = true ]; then
-        echo "Forcing cluster teardown — stopping $count service(s)..."
+        echo "$count service(s) still configured — forcing teardown"
         stop_tilt_daemon
       else
-        echo "Warning: $count service(s) are still configured."
-        echo "Run 'reproctl stop --all' first, or pass --force to proceed."
+        echo "Warning: $count service(s) are still configured." >&2
+        echo "Run 'reproctl stop --all' first, or pass --force to proceed." >&2
         return 1
       fi
     fi
   fi
 
-  echo "Tearing down cluster and registry..."
+  _step 1 1 "Tearing down cluster and registry..."
   ctlptl delete -f "$CLUSTER_YAML" 2>/dev/null || true
-  echo "Cluster '$CLUSTER_NAME' has been removed."
+  _ok "Cluster '$CLUSTER_NAME' has been removed"
 }
 
 cmd_cluster_status() {

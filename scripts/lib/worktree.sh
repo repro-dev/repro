@@ -137,7 +137,7 @@ cmd_wt_create() {
   fi
 
   if [ -d "$wt_path" ]; then
-    _err "Error: Worktree already exists at $wt_path"
+    _err "Worktree already exists at $wt_path"
     echo "  To remove it: reproctl worktree remove $branch" >&2
     exit 1
   fi
@@ -293,7 +293,7 @@ cmd_wt_remove() {
       echo "${CLR_DIM}[dry-run]${CLR_RESET} No worktree found for branch: $branch"
       return 0
     fi
-    _err "Error: No worktree found for branch: $branch"
+    _err "No worktree found for branch: $branch"
     echo "  Run 'reproctl worktree list' to see active worktrees." >&2
     git worktree prune
     return 1
