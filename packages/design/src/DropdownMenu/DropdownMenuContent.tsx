@@ -1,6 +1,6 @@
 import { Placement } from '@floating-ui/react'
 import { Block, Col } from '@jsxstyle/react'
-import React, { forwardRef, useEffect } from 'react'
+import React, { forwardRef, useCallback, useEffect } from 'react'
 import mergeRefs from 'react-merge-refs'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
@@ -39,7 +39,41 @@ export const DropdownMenuContent = forwardRef<
     isMounted,
     transitionStyles,
     setPlacement,
+    setOpen,
   } = useDropdownMenuContext()
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== 'Tab') {
+        return
+      }
+
+      e.preventDefault()
+      setOpen(false)
+      ;(refs.domReference.current as HTMLElement | null)?.focus()
+    },
+    [refs, setOpen]
+  )
+
+  const handleBlur = useCallback(
+    (e: React.FocusEvent) => {
+      const relatedTarget = e.relatedTarget as Node | null
+      const floating = e.currentTarget as HTMLElement
+      const reference = refs.domReference.current as HTMLElement | null
+
+      if (
+        relatedTarget &&
+        (floating.contains(relatedTarget) ||
+          reference?.contains(relatedTarget) ||
+          relatedTarget === reference)
+      ) {
+        return
+      }
+
+      setOpen(false)
+    },
+    [refs, setOpen]
+  )
 
   useEffect(() => {
     setPlacement(buildPlacement(side, align))
@@ -53,10 +87,14 @@ export const DropdownMenuContent = forwardRef<
     <Portal>
       <Block
         zIndex={zIndex.portal}
+        outline="none"
         props={{
           ref: mergeRefs([ref, refs.setFloating].filter(Boolean)),
           style: floatingStyles,
-          ...getFloatingProps(),
+          ...getFloatingProps({
+            onKeyDown: handleKeyDown,
+          }),
+          onBlur: handleBlur,
         }}
       >
         <Col
