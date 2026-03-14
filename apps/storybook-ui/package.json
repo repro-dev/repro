@@ -17,7 +17,7 @@
     "storybook": "^10.2.13"
   },
   "scripts": {
-    "storybook": "storybook dev -p 6006",
+    "storybook": "storybook dev -p ${PORT:-6006}",
     "build-storybook": "storybook build",
     "build": "storybook build"
   }
