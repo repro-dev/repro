@@ -14,16 +14,21 @@
 # ---------------------------------------------------------------------------
 
 __reproctl_repo_root() {
+  local root
+  root="$(git rev-parse --show-toplevel 2>/dev/null)"
+  if [[ -n "$root" ]]; then
+    echo "$root"
+    return
+  fi
+
   local source="${BASH_SOURCE[0]}"
   local dir
-  # Resolve symlinks
   while [[ -L "$source" ]]; do
     dir="$(cd -P "$(dirname "$source")" && pwd)"
     source="$(readlink "$source")"
     [[ "$source" != /* ]] && source="$dir/$source"
   done
   dir="$(cd -P "$(dirname "$source")" && pwd)"
-  # Up two levels: completions → scripts → repo
   echo "$(dirname "$(dirname "$dir")")"
 }
 

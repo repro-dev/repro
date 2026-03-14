@@ -15,8 +15,15 @@
 
 # Locate the repo root relative to this completion file.
 __reproctl_repo_root() {
-  local dir="${${(%):-%x}:A:h}"   # directory of this file (resolved)
-  echo "${dir:h:h}"                # up two levels: completions → scripts → repo
+  local root
+  root="$(git rev-parse --show-toplevel 2>/dev/null)"
+  if [[ -n "$root" ]]; then
+    echo "$root"
+    return
+  fi
+
+  local dir="${${(%):-%x}:A:h}"
+  echo "${dir:h:h}"
 }
 
 # List service names from infra/services.json.

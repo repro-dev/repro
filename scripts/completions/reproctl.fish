@@ -15,9 +15,19 @@ function __reproctl_using_subcommand
     test (count $cmd) -gt 2; and test "$cmd[2]" = "$argv[1]"; and test "$cmd[3]" = "$argv[2]"
 end
 
+function __reproctl_repo_root
+    set -l root (git rev-parse --show-toplevel 2>/dev/null)
+    if test -n "$root"
+        echo $root
+        return
+    end
+
+    set -l dir (status dirname)
+    echo (string replace /scripts/completions '' $dir)
+end
+
 function __reproctl_services
-    set -l repo (status dirname)
-    set -l repo (string replace /scripts/completions '' $repo)
+    set -l repo (__reproctl_repo_root)
     set -l json "$repo/infra/services.json"
     if test -f "$json"
         python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1])).keys()))" "$json" 2>/dev/null
@@ -25,8 +35,7 @@ function __reproctl_services
 end
 
 function __reproctl_launchable_services
-    set -l repo (status dirname)
-    set -l repo (string replace /scripts/completions '' $repo)
+    set -l repo (__reproctl_repo_root)
     set -l json "$repo/infra/services.json"
     echo workspace
     echo api-server

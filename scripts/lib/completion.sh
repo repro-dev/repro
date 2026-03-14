@@ -4,8 +4,7 @@ cmd_completion() {
   local shell="${1:-}"
 
   if [ "$shell" = "-h" ] || [ "$shell" = "--help" ] || [ -z "$shell" ]; then
-    if [ -z "$shell" ] || [ "$shell" = "-h" ] || [ "$shell" = "--help" ]; then
-      cat <<'EOF'
+    cat >&2 <<'EOF'
 Generate shell completions for reproctl.
 
 Usage: reproctl completion <shell>
@@ -22,11 +21,10 @@ Or eval directly in your shell profile:
   Zsh:   eval "$(reproctl completion zsh)"
   Fish:  reproctl completion fish | source
 EOF
-      if [ "$shell" = "-h" ] || [ "$shell" = "--help" ]; then
-        exit 0
-      fi
-      exit 1
+    if [ "$shell" = "-h" ] || [ "$shell" = "--help" ]; then
+      exit 0
     fi
+    exit 1
   fi
 
   local completions_dir="$SCRIPT_DIR/completions"
