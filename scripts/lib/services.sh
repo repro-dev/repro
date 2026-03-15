@@ -94,7 +94,7 @@ start_tilt_daemon() {
   done
 
   _warn "Tilt may still be starting. Check logs: $TILT_LOG_FILE"
-}
+} >&2
 
 stop_tilt_daemon() {
   if tilt_is_running; then
@@ -489,4 +489,4 @@ cmd_ui() {
   local url="http://localhost:$TILT_PORT"
   echo "Opening $url"
   open "$url"
-}
+} >&2

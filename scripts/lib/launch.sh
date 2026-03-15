@@ -156,4 +156,4 @@ cmd_launch() {
 
   echo "Opening $url"
   open "$url"
-}
+} >&2

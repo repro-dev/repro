@@ -11,7 +11,7 @@
 # Respect NO_COLOR (https://no-color.org/) and non-interactive
 # terminals by falling back to empty strings.
 
-if [ -z "${NO_COLOR+set}" ] && [ -t 1 ]; then
+if [ -z "${NO_COLOR+set}" ] && [ -t 2 ]; then
   CLR_BOLD=$'\033[1m'
   CLR_DIM=$'\033[2m'
   CLR_RED=$'\033[31m'
@@ -31,11 +31,11 @@ fi
 
 _step() {
   local current="$1" total="$2" msg="$3"
-  printf '%s[%d/%d]%s %s\n' "$CLR_BOLD" "$current" "$total" "$CLR_RESET" "$msg"
+  printf '%s[%d/%d]%s %s\n' "$CLR_BOLD" "$current" "$total" "$CLR_RESET" "$msg" >&2
 }
 
 _ok() {
-  printf '%s✔ %s%s\n' "$CLR_GREEN" "$1" "$CLR_RESET"
+  printf '%s✔ %s%s\n' "$CLR_GREEN" "$1" "$CLR_RESET" >&2
 }
 
 _err() {

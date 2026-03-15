@@ -43,7 +43,7 @@ _doctor_flush() {
   _doctor_statuses=()
   _doctor_names=()
   _doctor_details=()
-}
+} >&2
 
 _doctor_items=()
 
@@ -127,8 +127,8 @@ cmd_doctor() {
   _doctor_items=()
 
   if [ "$json_mode" != true ]; then
-    echo "Checking development environment..."
-    echo ""
+    echo "Checking development environment..." >&2
+    echo "" >&2
   fi
 
   if command -v brew > /dev/null 2>&1; then
@@ -308,16 +308,16 @@ cmd_doctor() {
 
   _doctor_flush
 
-  echo ""
+  echo "" >&2
 
   if [ "$has_failures" = true ]; then
-    echo "Some checks failed. Run 'reproctl setup' to fix most issues."
+    echo "Some checks failed. Run 'reproctl setup' to fix most issues." >&2
     return 1
   elif [ "$has_warnings" = true ]; then
-    echo "All critical checks passed, but some warnings were found."
+    echo "All critical checks passed, but some warnings were found." >&2
     return 0
   else
-    echo "All checks passed."
+    echo "All checks passed." >&2
     return 0
   fi
 }

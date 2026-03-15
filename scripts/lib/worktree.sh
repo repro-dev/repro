@@ -111,7 +111,7 @@ cmd_wt_create_from_issue() {
       echo "  ${CLR_DIM}Could not find 'In Progress' state — skipping status update${CLR_RESET}"
     fi
   fi
-}
+} >&2
 
 cmd_wt_create() {
   local branch="$1"
@@ -194,7 +194,7 @@ cmd_wt_create() {
   echo ""
   echo "  cd $wt_path"
   echo ""
-}
+} >&2
 
 _cleanup_worktree_services() {
   local wt_path="$1"
@@ -247,7 +247,7 @@ _cleanup_worktree_services() {
   else
     write_config "$new_config"
   fi
-}
+} >&2
 
 _drop_worktree_db() {
   local slug="$1"
@@ -281,7 +281,7 @@ _drop_worktree_db() {
     -c "DROP DATABASE IF EXISTS $db_name" 2>/dev/null || {
     _warn "failed to drop database $db_name"
   }
-}
+} >&2
 
 cmd_wt_remove() {
   local branch="$1"
@@ -321,7 +321,7 @@ cmd_wt_remove() {
 
   echo ""
   _ok "Worktree removed: $wt_path"
-}
+} >&2
 
 cmd_wt_prune() {
   if [ "$WT_DRY_RUN" = true ]; then
@@ -444,7 +444,7 @@ cmd_wt_prune() {
   else
     _err "Pruned with $failed error(s)"
   fi
-}
+} >&2
 
 cmd_wt_list() {
   echo "${CLR_BOLD}Active worktrees:${CLR_RESET}"
@@ -680,7 +680,7 @@ cmd_attach() {
     exec "$SHELL")
 
   echo "Detached from worktree: $branch"
-}
+} >&2
 
 wt_usage() {
   cat <<'EOF'
