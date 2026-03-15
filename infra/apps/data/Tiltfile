@@ -50,6 +50,7 @@ helm_resource(
     namespace='default',
     resource_deps=['seaweedfs', 'storage-bucket-hook-cleanup', 'storage-s3-config'],
     flags=['--values=./storage-values.yaml'],
+    port_forwards='18333:8333',
     labels=['infra']
 )
 

@@ -23,39 +23,44 @@ async function main() {
     secretAccessKey: env.STORAGE_SECRET_ACCESS_KEY,
   })
 
-  console.log('Dropping all tables...')
+  try {
+    console.log('Dropping all tables...')
 
-  await db.executeQuery(
-    sql
-      .raw(
-        `DO $$ DECLARE
+    await db.executeQuery(
+      sql
+        .raw(
+          `DO $$ DECLARE
   r RECORD;
 BEGIN
   FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
     EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
   END LOOP;
 END $$`
-      )
-      .compile(db)
-  )
+        )
+        .compile(db)
+    )
 
-  console.log('All tables dropped. Running migrations...')
+    console.log('All tables dropped. Running migrations...')
 
-  const { error, results } = await migrate(db)
+    const { error, results } = await migrate(db)
 
-  if (results) {
-    for (const result of results) {
-      console.log(`Migration ${result.migrationName} was ${result.status}`)
+    if (results) {
+      for (const result of results) {
+        console.log(`Migration ${result.migrationName} was ${result.status}`)
+      }
     }
-  }
 
-  if (error) {
-    console.error(error)
-    process.exit(1)
-  }
+    if (error) {
+      console.error(error)
+      process.exit(1)
+    }
 
-  console.log('Running seed...')
-  await seed(db, storage)
+    console.log('Migrations complete. Running seed...')
+    await seed(db, storage)
+    console.log('Reset complete.')
+  } finally {
+    await db.destroy()
+  }
 }
 
 main()

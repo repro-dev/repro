@@ -55,6 +55,16 @@ migrations_resource_name() {
   fi
 }
 
+seed_resource_name() {
+  if is_worktree "$REPO_ROOT"; then
+    local slug
+    slug="$(detect_worktree_slug)"
+    echo "db-seed-wt-$slug"
+  else
+    echo "db-seed"
+  fi
+}
+
 # ── Subcommands ─────────────────────────────────────────────────────
 
 cmd_db_reset() {
@@ -78,7 +88,7 @@ cmd_db_reset() {
   fi
 
   if is_worktree "$REPO_ROOT"; then
-    _step 1 2 "Dropping and recreating worktree database ($DB_NAME)..."
+    _step 1 3 "Dropping and recreating worktree database ($DB_NAME)..."
     PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" \
       -U "$DB_USER" -d postgres \
       -c "DROP DATABASE IF EXISTS $DB_NAME" \
@@ -86,13 +96,23 @@ cmd_db_reset() {
 
     local resource
     resource="$(migrations_resource_name)"
-    _step 2 2 "Triggering migrations ($resource)..."
+    _step 2 3 "Triggering migrations ($resource)..."
     if tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
       tilt trigger "$resource" --port "$TILT_PORT"
-      _ok "Database reset complete — migrations triggered"
     else
-      echo "Warning: Migrations resource '$resource' is not loaded — run migrations manually." >&2
+      _warn "Migrations resource '$resource' is not loaded — run migrations manually."
     fi
+
+    local seed
+    seed="$(seed_resource_name)"
+    _step 3 3 "Triggering seed ($seed)..."
+    if tilt get uiresource "$seed" --port "$TILT_PORT" > /dev/null 2>&1; then
+      tilt trigger "$seed" --port "$TILT_PORT"
+    else
+      _warn "Seed resource '$seed' is not loaded — run seed manually."
+    fi
+
+    _ok "Database reset complete — migrations and seed triggered"
   else
     _step 1 1 "Triggering database reset..."
     if ! tilt get uiresource db-reset --port "$TILT_PORT" > /dev/null 2>&1; then
@@ -115,6 +135,20 @@ cmd_db_migrate() {
   fi
   tilt trigger "$resource" --port "$TILT_PORT"
   _ok "Migrations triggered — watch Tilt for progress"
+}
+
+cmd_db_seed() {
+  require_tilt
+
+  local resource
+  resource="$(seed_resource_name)"
+
+  _step 1 1 "Triggering seed ($resource)..."
+  if ! tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
+    die "Seed resource '$resource' is not loaded in Tilt.\nStart the service first with 'reproctl start api-server'."
+  fi
+  tilt trigger "$resource" --port "$TILT_PORT"
+  _ok "Seed triggered — watch Tilt for progress"
 }
 
 cmd_db_shell() {
@@ -250,7 +284,7 @@ print(json.dumps(obj))
 # ── Router ──────────────────────────────────────────────────────────
 
 cmd_db() {
-  local usage="Usage: reproctl db <reset|migrate|shell|status>"
+  local usage="Usage: reproctl db <reset|migrate|seed|shell|status>"
 
   if [ $# -eq 0 ]; then
     echo "$usage" >&2
@@ -263,6 +297,7 @@ cmd_db() {
   case "$subcmd" in
     reset)   cmd_db_reset "$@" ;;
     migrate) cmd_db_migrate "$@" ;;
+    seed)    cmd_db_seed "$@" ;;
     shell)   cmd_db_shell "$@" ;;
     status)  cmd_db_status "$@" ;;
     -h|--help)
@@ -270,8 +305,9 @@ cmd_db() {
 Usage: reproctl db <subcommand>
 
 Subcommands:
-  reset    Drop and recreate the database
+  reset    Drop and recreate the database, then migrate and seed
   migrate  Run pending database migrations
+  seed     Run database seed (idempotent)
   shell    Open a psql session against the cluster database
   status   Show connection info and whether migrations are up to date
 

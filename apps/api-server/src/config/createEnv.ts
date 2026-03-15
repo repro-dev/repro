@@ -34,7 +34,7 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().default('repro'),
   DB_SSL: booleanStringTransform.default(false),
   OPENROUTER_API_KEY: z.string().default('this-is-a-private-api-key'),
-  STORAGE_ENDPOINT: z.string().default('http://localhost:9000'),
+  STORAGE_ENDPOINT: z.string().default('http://localhost:18333'),
   STORAGE_REGION: z.string().default('us-east-1'),
   STORAGE_BUCKET: z.string().default('repro'),
   STORAGE_ACCESS_KEY_ID: z.string().default(''),

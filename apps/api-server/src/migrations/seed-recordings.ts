@@ -2,6 +2,7 @@ import { CODEC_VERSION, SourceEventView } from '@repro/domain'
 import { toBinaryWireFormat } from '@repro/wire-formats'
 import { promise } from 'fluture'
 import { Readable } from 'node:stream'
+import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
 import { defaultEnv as env } from '~/config/env'
 import { FixtureRecording, fixtureRecordings } from '~/fixtures/recordings'
@@ -26,7 +27,7 @@ function encodeRecordingData(recording: FixtureRecording): Buffer {
 }
 
 function bufferToReadable(buf: Buffer): Readable {
-  return Readable.from(buf)
+  return Readable.from([buf])
 }
 
 async function insertRecording(
@@ -36,6 +37,18 @@ async function insertRecording(
   projectId: number,
   authorId: number
 ) {
+  const existing = await db
+    .selectFrom('recordings')
+    .select('id')
+    .where('title', '=', recording.title)
+    .where('url', '=', recording.url)
+    .executeTakeFirst()
+
+  if (existing) {
+    console.log(`  Skipped (exists): ${recording.title}`)
+    return
+  }
+
   const row = await db
     .insertInto('recordings')
     .values({
@@ -146,6 +159,6 @@ async function main() {
   }
 }
 
-if (process.argv[1] === import.meta.filename) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main()
 }

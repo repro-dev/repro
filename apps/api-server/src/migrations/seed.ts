@@ -1,5 +1,6 @@
 import * as argon2 from '@node-rs/argon2'
 import { ProjectRole } from '@repro/domain'
+import { fileURLToPath } from 'node:url'
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
 import { Database } from '~/modules/database/types'
@@ -16,113 +17,113 @@ async function hashPassword(password: string): Promise<string> {
 async function seedBillingPlans(db: Database) {
   console.log('Seeding billing plans...')
 
-  const freePlan = await db
-    .insertInto('billing_plans')
-    .values({
-      name: 'Free',
-      providerPriceId: 'dev_pri_free_month',
-      providerProductId: 'dev_pro_free',
-      interval: 'month',
-      active: 1,
-    })
-    .onConflict(oc => oc.column('providerPriceId').doNothing())
-    .returning(['id'])
-    .executeTakeFirst()
+  async function upsertPlan(
+    name: string,
+    providerPriceId: string,
+    providerProductId: string
+  ) {
+    const inserted = await db
+      .insertInto('billing_plans')
+      .values({
+        name,
+        providerPriceId,
+        providerProductId,
+        interval: 'month',
+        active: 1,
+      })
+      .onConflict(oc => oc.column('providerPriceId').doNothing())
+      .returning(['id'])
+      .executeTakeFirst()
 
-  const plusPlan = await db
-    .insertInto('billing_plans')
-    .values({
-      name: 'Repro+',
-      providerPriceId: 'dev_pri_plus_month',
-      providerProductId: 'dev_pro_plus',
-      interval: 'month',
-      active: 1,
-    })
-    .onConflict(oc => oc.column('providerPriceId').doNothing())
-    .returning(['id'])
-    .executeTakeFirst()
+    if (inserted) {
+      return inserted
+    }
 
-  const proPlan = await db
-    .insertInto('billing_plans')
-    .values({
-      name: 'Repro++',
-      providerPriceId: 'dev_pri_pro_month',
-      providerProductId: 'dev_pro_pro',
-      interval: 'month',
-      active: 1,
-    })
-    .onConflict(oc => oc.column('providerPriceId').doNothing())
-    .returning(['id'])
-    .executeTakeFirst()
-
-  if (freePlan) {
-    await db
-      .insertInto('billing_plan_entitlements')
-      .values([
-        {
-          planId: freePlan.id,
-          feature: 'recordings',
-          enabled: 1,
-          limit: 10,
-        },
-        {
-          planId: freePlan.id,
-          feature: 'team',
-          enabled: 0,
-          limit: null,
-        },
-      ])
-      .onConflict(oc => oc.columns(['planId', 'feature']).doNothing())
-      .execute()
+    return db
+      .selectFrom('billing_plans')
+      .select('id')
+      .where('providerPriceId', '=', providerPriceId)
+      .executeTakeFirstOrThrow()
   }
 
-  if (plusPlan) {
-    await db
-      .insertInto('billing_plan_entitlements')
-      .values([
-        {
-          planId: plusPlan.id,
-          feature: 'recordings',
-          enabled: 1,
-          limit: null,
-        },
-        {
-          planId: plusPlan.id,
-          feature: 'team',
-          enabled: 1,
-          limit: null,
-        },
-      ])
-      .onConflict(oc => oc.columns(['planId', 'feature']).doNothing())
-      .execute()
-  }
+  const freePlan = await upsertPlan(
+    'Free',
+    'dev_pri_free_month',
+    'dev_pro_free'
+  )
+  const plusPlan = await upsertPlan(
+    'Repro+',
+    'dev_pri_plus_month',
+    'dev_pro_plus'
+  )
+  const proPlan = await upsertPlan(
+    'Repro++',
+    'dev_pri_pro_month',
+    'dev_pro_pro'
+  )
 
-  if (proPlan) {
-    await db
-      .insertInto('billing_plan_entitlements')
-      .values([
-        {
-          planId: proPlan.id,
-          feature: 'recordings',
-          enabled: 1,
-          limit: null,
-        },
-        {
-          planId: proPlan.id,
-          feature: 'team',
-          enabled: 1,
-          limit: null,
-        },
-        {
-          planId: proPlan.id,
-          feature: 'priority_support',
-          enabled: 1,
-          limit: null,
-        },
-      ])
-      .onConflict(oc => oc.columns(['planId', 'feature']).doNothing())
-      .execute()
-  }
+  await db
+    .insertInto('billing_plan_entitlements')
+    .values([
+      {
+        planId: freePlan.id,
+        feature: 'recordings',
+        enabled: 1,
+        limit: 10,
+      },
+      {
+        planId: freePlan.id,
+        feature: 'team',
+        enabled: 0,
+        limit: null,
+      },
+    ])
+    .onConflict(oc => oc.columns(['planId', 'feature']).doNothing())
+    .execute()
+
+  await db
+    .insertInto('billing_plan_entitlements')
+    .values([
+      {
+        planId: plusPlan.id,
+        feature: 'recordings',
+        enabled: 1,
+        limit: null,
+      },
+      {
+        planId: plusPlan.id,
+        feature: 'team',
+        enabled: 1,
+        limit: null,
+      },
+    ])
+    .onConflict(oc => oc.columns(['planId', 'feature']).doNothing())
+    .execute()
+
+  await db
+    .insertInto('billing_plan_entitlements')
+    .values([
+      {
+        planId: proPlan.id,
+        feature: 'recordings',
+        enabled: 1,
+        limit: null,
+      },
+      {
+        planId: proPlan.id,
+        feature: 'team',
+        enabled: 1,
+        limit: null,
+      },
+      {
+        planId: proPlan.id,
+        feature: 'priority_support',
+        enabled: 1,
+        limit: null,
+      },
+    ])
+    .onConflict(oc => oc.columns(['planId', 'feature']).doNothing())
+    .execute()
 
   return { freePlan, plusPlan, proPlan }
 }
@@ -130,124 +131,124 @@ async function seedBillingPlans(db: Database) {
 async function seedAccounts(db: Database) {
   console.log('Seeding accounts...')
 
-  const acme = await db
-    .insertInto('accounts')
-    .values({ name: 'Acme Corp', active: 1 })
-    .onConflict(oc => oc.doNothing())
-    .returning(['id'])
-    .executeTakeFirst()
+  async function findOrCreateAccount(name: string) {
+    const existing = await db
+      .selectFrom('accounts')
+      .select('id')
+      .where('name', '=', name)
+      .executeTakeFirst()
 
-  const beta = await db
-    .insertInto('accounts')
-    .values({ name: 'Beta Corp', active: 1 })
-    .onConflict(oc => oc.doNothing())
-    .returning(['id'])
-    .executeTakeFirst()
+    if (existing) {
+      return existing
+    }
+
+    return db
+      .insertInto('accounts')
+      .values({ name, active: 1 })
+      .returning(['id'])
+      .executeTakeFirstOrThrow()
+  }
+
+  const acme = await findOrCreateAccount('Acme Corp')
+  const beta = await findOrCreateAccount('Beta Corp')
 
   return { acme, beta }
 }
 
 async function seedUsers(
   db: Database,
-  accounts: { acme?: { id: number }; beta?: { id: number } }
+  accounts: { acme: { id: number }; beta: { id: number } }
 ) {
   console.log('Seeding users...')
 
   const hashedPassword = await hashPassword(PASSWORD)
-  const users: Record<string, { id: number } | undefined> = {}
 
-  if (accounts.acme) {
-    const admin = await db
+  async function upsertUser(
+    values: {
+      name: string
+      email: string
+      password: string
+      accountId: number
+      verificationToken: string
+      verified: number
+      active: number
+      admin: number
+    }
+  ) {
+    const inserted = await db
       .insertInto('users')
-      .values({
-        name: 'Acme Admin',
-        email: 'admin@acme.repro.test',
-        password: hashedPassword,
-        accountId: accounts.acme.id,
-        verificationToken: '',
-        verified: 1,
-        active: 1,
-        admin: 1,
-      })
+      .values(values)
       .onConflict(oc => oc.column('email').doNothing())
       .returning(['id'])
       .executeTakeFirst()
 
-    const member = await db
-      .insertInto('users')
-      .values({
-        name: 'Acme Member',
-        email: 'member@acme.repro.test',
-        password: hashedPassword,
-        accountId: accounts.acme.id,
-        verificationToken: '',
-        verified: 1,
-        active: 1,
-        admin: 0,
-      })
-      .onConflict(oc => oc.column('email').doNothing())
-      .returning(['id'])
-      .executeTakeFirst()
+    if (inserted) {
+      return inserted
+    }
 
-    const viewer = await db
-      .insertInto('users')
-      .values({
-        name: 'Acme Viewer',
-        email: 'viewer@acme.repro.test',
-        password: hashedPassword,
-        accountId: accounts.acme.id,
-        verificationToken: '',
-        verified: 1,
-        active: 1,
-        admin: 0,
-      })
-      .onConflict(oc => oc.column('email').doNothing())
-      .returning(['id'])
-      .executeTakeFirst()
-
-    users.acmeAdmin = admin
-    users.acmeMember = member
-    users.acmeViewer = viewer
+    return db
+      .selectFrom('users')
+      .select('id')
+      .where('email', '=', values.email)
+      .executeTakeFirstOrThrow()
   }
 
-  if (accounts.beta) {
-    const admin = await db
-      .insertInto('users')
-      .values({
-        name: 'Beta Admin',
-        email: 'admin@beta.repro.test',
-        password: hashedPassword,
-        accountId: accounts.beta.id,
-        verificationToken: '',
-        verified: 1,
-        active: 1,
-        admin: 1,
-      })
-      .onConflict(oc => oc.column('email').doNothing())
-      .returning(['id'])
-      .executeTakeFirst()
+  const acmeAdmin = await upsertUser({
+    name: 'Acme Admin',
+    email: 'admin@acme.repro.test',
+    password: hashedPassword,
+    accountId: accounts.acme.id,
+    verificationToken: '',
+    verified: 1,
+    active: 1,
+    admin: 1,
+  })
 
-    const unverified = await db
-      .insertInto('users')
-      .values({
-        name: 'Beta Unverified',
-        email: 'unverified@beta.repro.test',
-        password: hashedPassword,
-        accountId: accounts.beta.id,
-        verificationToken: 'dev_verification_token',
-        verified: 0,
-        active: 1,
-        admin: 0,
-      })
-      .onConflict(oc => oc.column('email').doNothing())
-      .returning(['id'])
-      .executeTakeFirst()
+  const acmeMember = await upsertUser({
+    name: 'Acme Member',
+    email: 'member@acme.repro.test',
+    password: hashedPassword,
+    accountId: accounts.acme.id,
+    verificationToken: '',
+    verified: 1,
+    active: 1,
+    admin: 0,
+  })
 
-    users.betaAdmin = admin
-    users.betaUnverified = unverified
-  }
+  const acmeViewer = await upsertUser({
+    name: 'Acme Viewer',
+    email: 'viewer@acme.repro.test',
+    password: hashedPassword,
+    accountId: accounts.acme.id,
+    verificationToken: '',
+    verified: 1,
+    active: 1,
+    admin: 0,
+  })
 
-  return users
+  const betaAdmin = await upsertUser({
+    name: 'Beta Admin',
+    email: 'admin@beta.repro.test',
+    password: hashedPassword,
+    accountId: accounts.beta.id,
+    verificationToken: '',
+    verified: 1,
+    active: 1,
+    admin: 1,
+  })
+
+  const betaUnverified = await upsertUser({
+    name: 'Beta Unverified',
+    email: 'unverified@beta.repro.test',
+    password: hashedPassword,
+    accountId: accounts.beta.id,
+    verificationToken: 'dev_verification_token',
+    verified: 0,
+    active: 1,
+    admin: 0,
+  })
+
+  return { acmeAdmin, acmeMember, acmeViewer, betaAdmin, betaUnverified }
 }
 
 async function seedStaffUsers(db: Database) {
@@ -282,83 +283,70 @@ async function seedStaffUsers(db: Database) {
 
 async function seedProjects(
   db: Database,
-  accounts: { acme?: { id: number }; beta?: { id: number } },
-  users: Record<string, { id: number } | undefined>
+  accounts: { acme: { id: number }; beta: { id: number } },
+  users: {
+    acmeAdmin: { id: number }
+    acmeMember: { id: number }
+    acmeViewer: { id: number }
+  }
 ) {
   console.log('Seeding projects...')
 
-  if (accounts.acme) {
-    const project = await db
-      .insertInto('projects')
-      .values({
-        name: 'Default Project',
-        accountId: accounts.acme.id,
-        active: 1,
-      })
-      .onConflict(oc => oc.doNothing())
-      .returning(['id'])
+  async function findOrCreateProject(name: string, accountId: number) {
+    const existing = await db
+      .selectFrom('projects')
+      .select('id')
+      .where('accountId', '=', accountId)
+      .where('name', '=', name)
       .executeTakeFirst()
 
-    if (project) {
-      const memberships: Array<{
-        userId: number
-        projectId: number
-        role: ProjectRole
-      }> = []
-
-      if (users.acmeAdmin) {
-        memberships.push({
-          userId: users.acmeAdmin.id,
-          projectId: project.id,
-          role: ProjectRole.Admin,
-        })
-      }
-
-      if (users.acmeMember) {
-        memberships.push({
-          userId: users.acmeMember.id,
-          projectId: project.id,
-          role: ProjectRole.Contributor,
-        })
-      }
-
-      if (users.acmeViewer) {
-        memberships.push({
-          userId: users.acmeViewer.id,
-          projectId: project.id,
-          role: ProjectRole.Viewer,
-        })
-      }
-
-      if (memberships.length > 0) {
-        await db
-          .insertInto('memberships')
-          .values(memberships)
-          .onConflict(oc => oc.columns(['userId', 'projectId']).doNothing())
-          .execute()
-      }
+    if (existing) {
+      return existing
     }
+
+    return db
+      .insertInto('projects')
+      .values({ name, accountId, active: 1 })
+      .returning(['id'])
+      .executeTakeFirstOrThrow()
   }
 
-  if (accounts.beta) {
-    await db
-      .insertInto('projects')
-      .values({
-        name: 'Default Project',
-        accountId: accounts.beta.id,
-        active: 1,
-      })
-      .onConflict(oc => oc.doNothing())
-      .execute()
-  }
+  const acmeProject = await findOrCreateProject(
+    'Default Project',
+    accounts.acme.id
+  )
+
+  await db
+    .insertInto('memberships')
+    .values([
+      {
+        userId: users.acmeAdmin.id,
+        projectId: acmeProject.id,
+        role: ProjectRole.Admin,
+      },
+      {
+        userId: users.acmeMember.id,
+        projectId: acmeProject.id,
+        role: ProjectRole.Contributor,
+      },
+      {
+        userId: users.acmeViewer.id,
+        projectId: acmeProject.id,
+        role: ProjectRole.Viewer,
+      },
+    ])
+    .onConflict(oc => oc.columns(['userId', 'projectId']).doNothing())
+    .execute()
+
+  await findOrCreateProject('Default Project', accounts.beta.id)
 }
 
 async function seedBillingCustomers(
   db: Database,
-  accounts: { acme?: { id: number }; beta?: { id: number } },
+  accounts: { acme: { id: number }; beta: { id: number } },
   plans: {
-    freePlan?: { id: number }
-    plusPlan?: { id: number }
+    freePlan: { id: number }
+    plusPlan: { id: number }
   }
 ) {
   console.log('Seeding billing customers and subscriptions...')
@@ -367,61 +355,53 @@ async function seedBillingCustomers(
   const periodEnd = new Date(now)
   periodEnd.setMonth(periodEnd.getMonth() + 1)
 
-  if (accounts.acme) {
-    await db
-      .insertInto('billing_customers')
-      .values({
-        accountId: accounts.acme.id,
-        providerCustomerId: 'dev_cus_acme',
-      })
-      .onConflict(oc => oc.column('accountId').doNothing())
-      .execute()
+  await db
+    .insertInto('billing_customers')
+    .values({
+      accountId: accounts.acme.id,
+      providerCustomerId: 'dev_cus_acme',
+    })
+    .onConflict(oc => oc.column('accountId').doNothing())
+    .execute()
 
-    if (plans.freePlan) {
-      await db
-        .insertInto('billing_subscriptions')
-        .values({
-          accountId: accounts.acme.id,
-          providerSubscriptionId: 'dev_sub_acme',
-          planId: plans.freePlan.id,
-          status: 'active',
-          currentPeriodStart: now,
-          currentPeriodEnd: periodEnd,
-          cancelAtPeriodEnd: 0,
-          canceledAt: null,
-        })
-        .onConflict(oc => oc.column('providerSubscriptionId').doNothing())
-        .execute()
-    }
-  }
+  await db
+    .insertInto('billing_subscriptions')
+    .values({
+      accountId: accounts.acme.id,
+      providerSubscriptionId: 'dev_sub_acme',
+      planId: plans.freePlan.id,
+      status: 'active',
+      currentPeriodStart: now,
+      currentPeriodEnd: periodEnd,
+      cancelAtPeriodEnd: 0,
+      canceledAt: null,
+    })
+    .onConflict(oc => oc.column('providerSubscriptionId').doNothing())
+    .execute()
 
-  if (accounts.beta) {
-    await db
-      .insertInto('billing_customers')
-      .values({
-        accountId: accounts.beta.id,
-        providerCustomerId: 'dev_cus_beta',
-      })
-      .onConflict(oc => oc.column('accountId').doNothing())
-      .execute()
+  await db
+    .insertInto('billing_customers')
+    .values({
+      accountId: accounts.beta.id,
+      providerCustomerId: 'dev_cus_beta',
+    })
+    .onConflict(oc => oc.column('accountId').doNothing())
+    .execute()
 
-    if (plans.plusPlan) {
-      await db
-        .insertInto('billing_subscriptions')
-        .values({
-          accountId: accounts.beta.id,
-          providerSubscriptionId: 'dev_sub_beta',
-          planId: plans.plusPlan.id,
-          status: 'active',
-          currentPeriodStart: now,
-          currentPeriodEnd: periodEnd,
-          cancelAtPeriodEnd: 0,
-          canceledAt: null,
-        })
-        .onConflict(oc => oc.column('providerSubscriptionId').doNothing())
-        .execute()
-    }
-  }
+  await db
+    .insertInto('billing_subscriptions')
+    .values({
+      accountId: accounts.beta.id,
+      providerSubscriptionId: 'dev_sub_beta',
+      planId: plans.plusPlan.id,
+      status: 'active',
+      currentPeriodStart: now,
+      currentPeriodEnd: periodEnd,
+      cancelAtPeriodEnd: 0,
+      canceledAt: null,
+    })
+    .onConflict(oc => oc.column('providerSubscriptionId').doNothing())
+    .execute()
 }
 
 async function seedFeatureGates(db: Database) {
@@ -479,6 +459,6 @@ async function main() {
   }
 }
 
-if (process.argv[1] === import.meta.filename) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main()
 }

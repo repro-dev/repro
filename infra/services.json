@@ -15,6 +15,10 @@
       "moon_task": "repro/api-server:migrate",
       "resource_deps": ["database-ready", "storage-ready"]
     },
+    "seed": {
+      "pnpm_package": "@repro/api-server",
+      "resource_deps": ["storage-ready"]
+    },
     "ingress": {
       "apiRoutes": "service"
     },
