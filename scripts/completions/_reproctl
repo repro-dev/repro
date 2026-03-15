@@ -308,7 +308,6 @@ _reproctl_version() {
     '--json[Output structured JSON]' \
     '(-h --help)'{-h,--help}'[Show help]'
 }
-}
 
 _reproctl_help() {
   local -a help_topics
