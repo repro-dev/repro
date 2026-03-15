@@ -64,12 +64,12 @@ _reproctl() {
   local cur prev words cword
   _init_completion || return
 
-  local top_commands="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion help"
+  local top_commands="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version help"
   local cluster_sub="up down status reset"
   local db_sub="reset migrate shell status"
   local wt_sub="create remove list attach prune"
   local completion_shells="bash zsh fish"
-  local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion"
+  local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version"
 
   # Find the subcommand position (skip global flags)
   local cmd="" subcmd=""
@@ -90,7 +90,7 @@ _reproctl() {
 
   # Top-level completion
   if [[ -z "$cmd" ]]; then
-    COMPREPLY=($(compgen -W "$top_commands -h --help" -- "$cur"))
+    COMPREPLY=($(compgen -W "$top_commands -h --help --version -V" -- "$cur"))
     return
   fi
 
@@ -202,6 +202,10 @@ _reproctl() {
       ;;
 
     ui|status)
+      ;;
+
+    version)
+      COMPREPLY=($(compgen -W "--json -h --help" -- "$cur"))
       ;;
   esac
 }
