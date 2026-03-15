@@ -311,5 +311,8 @@ _reproctl_help() {
   _values 'topic' "${help_topics[@]}"
 }
 
-# Register
-_reproctl "$@"
+if [[ "${funcstack[1]}" == _reproctl ]]; then
+  _reproctl "$@"
+else
+  compdef _reproctl reproctl
+fi
