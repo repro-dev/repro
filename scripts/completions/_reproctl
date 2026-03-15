@@ -15,8 +15,15 @@
 
 # Locate the repo root relative to this completion file.
 __reproctl_repo_root() {
-  local dir="${${(%):-%x}:A:h}"   # directory of this file (resolved)
-  echo "${dir:h:h}"                # up two levels: completions → scripts → repo
+  local root
+  root="$(git rev-parse --show-toplevel 2>/dev/null)"
+  if [[ -n "$root" ]]; then
+    echo "$root"
+    return
+  fi
+
+  local dir="${${(%):-%x}:A:h}"
+  echo "${dir:h:h}"
 }
 
 # List service names from infra/services.json.
@@ -67,6 +74,8 @@ _reproctl() {
     'context:Show current development context'
     'worktree:Manage git worktrees'
     'wt:Manage git worktrees (alias)'
+    'completion:Generate shell completions'
+    'version:Print the reproctl commit and date'
     'help:Show help for a command'
   )
 
@@ -75,6 +84,7 @@ _reproctl() {
 
   _arguments -C \
     '(-h --help)'{-h,--help}'[Show help]' \
+    '(--version -V)'{--version,-V}'[Print version]' \
     '1:command:->command' \
     '*::arg:->args' && return
 
@@ -98,6 +108,8 @@ _reproctl() {
         launch)     _reproctl_launch ;;
         context)    ;; # no args
         worktree|wt) _reproctl_worktree ;;
+        completion) _reproctl_completion ;;
+        version)    _reproctl_version ;;
         help)       _reproctl_help ;;
       esac
       ;;
@@ -281,15 +293,35 @@ _reproctl_worktree() {
   esac
 }
 
+_reproctl_completion() {
+  local -a shells
+  shells=(
+    'bash:Generate Bash completions'
+    'zsh:Generate Zsh completions'
+    'fish:Generate Fish completions'
+  )
+  _describe -t shells 'shell' shells
+}
+
+_reproctl_version() {
+  _arguments \
+    '--json[Output structured JSON]' \
+    '(-h --help)'{-h,--help}'[Show help]'
+}
+
 _reproctl_help() {
   local -a help_topics
   help_topics=(
     'setup' 'doctor' 'checkhealth' 'cluster' 'db'
     'start' 'stop' 'restart' 'status' 'logs'
     'ui' 'launch' 'context' 'worktree' 'wt'
+    'completion' 'version'
   )
   _values 'topic' "${help_topics[@]}"
 }
 
-# Register
-_reproctl "$@"
+if [[ "${funcstack[1]}" == _reproctl ]]; then
+  _reproctl "$@"
+else
+  compdef _reproctl reproctl
+fi

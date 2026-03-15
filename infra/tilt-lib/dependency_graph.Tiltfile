@@ -46,7 +46,7 @@ def non_dependency_ignore_patterns(project_id, root_path, work_dir=None):
     keep[dep['source']] = True
 
   result = local(
-    'moon query projects --json',
+    'moon query projects',
     quiet=True,
     dir=work_dir,
   )

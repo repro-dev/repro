@@ -1,39 +1,4 @@
 #!/bin/bash
-#
-# reproctl — unified CLI for cluster management, worktree lifecycle,
-#            and Tilt service orchestration
-#
-# Usage:
-#   reproctl setup                            Bootstrap the development environment
-#   reproctl doctor                           Check development environment prerequisites
-#   reproctl checkhealth [--json]              Runtime health checks
-#   reproctl cluster up|down|status|reset     Manage the local k8s cluster
-#   reproctl db reset|migrate|shell|status    Database operations
-#   reproctl start <service> [...]            Start services from current context
-#   reproctl stop [<service>...] [-w <wt>] | --all  Remove services or tear down Tilt
-#   reproctl restart <service> [...] [-w <wt>] | --all  Rebuild services or restart Tilt
-#   reproctl status                           Show running services and dashboard URL
-#   reproctl logs [options] [service...]       Show or stream service logs
-#   reproctl ui                               Open the Tilt dashboard in a browser
-#   reproctl launch <service>                  Open service URL in the browser
-#   reproctl context                           Show current development context
-#   reproctl worktree attach <branch>          Attach to a worktree subshell
-#   reproctl worktree create <branch>         Create a worktree
-#   reproctl worktree remove <branch>         Remove a worktree
-#   reproctl worktree list                    List active worktrees
-#
-# Context is detected automatically:
-#   - From the main checkout, services run as main.
-#   - From a worktree, services are isolated to that branch.
-#
-# Examples:
-#   reproctl start workspace                # main checkout services
-#   reproctl start api-server               # from worktree: isolated api-server
-#   reproctl stop --all                     # tear down everything
-#   reproctl restart api-server             # rebuild + redeploy a running service
-#   reproctl worktree create feat/my-feat   # create worktree for existing branch
-#   reproctl worktree list                  # list all worktrees
-
 set -euo pipefail
 
 # Resolve scripts/lib relative to this script's location, so it works
@@ -61,75 +26,63 @@ source "$SCRIPT_DIR/lib/context.sh"
 source "$SCRIPT_DIR/lib/checkhealth.sh"
 # shellcheck source=scripts/lib/launch.sh
 source "$SCRIPT_DIR/lib/launch.sh"
+# shellcheck source=scripts/lib/completion.sh
+source "$SCRIPT_DIR/lib/completion.sh"
+# shellcheck source=scripts/lib/version.sh
+source "$SCRIPT_DIR/lib/version.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
 usage() {
-  cat <<'EOF'
+  cat <<EOF
 Usage: reproctl <command> [args]
 
-Commands:
-  setup                             Bootstrap the development environment
-  doctor                            Check development environment prerequisites
-  checkhealth [--json]              Runtime health checks (Tilt, k8s, services)
-  cluster <subcommand>            Manage the local k8s cluster and registry
-                                  (up, down, status, reset)
-  db <subcommand>                 Database operations
-                                  (reset, migrate, shell, status)
+${CLR_BOLD}ENVIRONMENT${CLR_RESET}
+  setup                           Bootstrap the development environment
+  doctor                          Check development environment prerequisites
+  checkhealth [--json]            Runtime health checks (Tilt, k8s, services)
+
+${CLR_BOLD}SERVICES${CLR_RESET}
   start <service> [...]           Start services from the current context
   stop [<service>...] | --all     Remove services or tear down Tilt
-                                  Use --worktree / -w to target another worktree
   restart <service> [...] | --all Rebuild services or restart the Tilt daemon
-                                  Use --worktree / -w to target another worktree
   status                          Show running services and dashboard URL
   logs [options] [service...]     Show or stream service logs
   ui                              Open the Tilt dashboard in a browser
   launch <service>                Open a service URL in the browser
+
+${CLR_BOLD}INFRASTRUCTURE${CLR_RESET}
+  cluster <subcommand>            Manage the local k8s cluster and registry
+  db <subcommand>                 Database operations
+
+${CLR_BOLD}WORKTREES${CLR_RESET}
+  wt create <branch>              Create a new worktree for a branch
+  wt create --from-issue <id>     Create a worktree from a Linear issue
+  wt remove <branch>              Remove the worktree for a branch
+  wt list [--json]                List active worktrees
+  wt attach <branch>              Drop into a worktree subshell
+  wt prune [--yes]                Remove worktrees whose branches are merged
+
+${CLR_BOLD}GENERAL${CLR_RESET}
   context                         Show current development context
-  worktree <subcommand>           Manage git worktrees (create, remove, list, attach)
-                                  (alias: wt)
+  completion <shell>              Generate shell completions (bash, zsh, fish)
+  version [--json]                Print the reproctl commit and date
   help [<command>]                Show manpage for reproctl or a subcommand
-
-Context is detected automatically:
-  - From the main checkout, services run as main.
-  - From a worktree, services are isolated to that branch.
-
-To run services from multiple contexts, invoke reproctl from each
-checkout in separate terminals. The shared config and single Tilt
-process handle coordination.
 
 Examples:
   reproctl setup                              # bootstrap entire environment
-  reproctl setup --skip-cluster               # skip cluster creation
   reproctl doctor                             # check installed tools and versions
-  reproctl checkhealth                         # runtime health checks
-  reproctl checkhealth --json                  # machine-readable health check
+  reproctl checkhealth --json                 # machine-readable health check
   reproctl cluster up                         # create cluster and registry
-  reproctl cluster status                     # check cluster state
-  reproctl db reset                           # drop + recreate database
   reproctl db migrate                         # run pending migrations
-  reproctl db shell                           # open psql session
-  reproctl db status                          # show migration status
   reproctl start workspace                    # main checkout services
-  reproctl start api-server                   # from worktree: isolated api-server
-  reproctl stop api-server                    # remove from current context
-  reproctl stop -w rep-123 api-server        # stop in another worktree
   reproctl stop --all                         # tear down everything
   reproctl restart api-server                 # rebuild + redeploy a running service
-  reproctl restart -w rep-123 workspace      # restart in another worktree
-  reproctl restart --all                      # restart the Tilt daemon
-  reproctl status                             # show what's running
   reproctl logs -f api-server                 # tail logs for a service
-  reproctl logs --json --since 5m api-server  # structured recent logs
-  reproctl ui                                 # open Tilt dashboard
-  reproctl launch workspace                  # open workspace in browser
-  reproctl launch api-server -w feat/my-feat # open worktree api-server URL
+  reproctl launch workspace                   # open workspace in browser
+  reproctl wt create --from-issue REP-123     # create worktree from Linear issue
+  reproctl wt list                            # list all worktrees
   reproctl context                            # show current worktree/branch context
-  reproctl wt attach feat/my-feat              # drop into worktree subshell
-  reproctl wt create feat/my-feat             # shorthand for worktree
-  reproctl worktree create feat/my-feat       # create worktree (auto-creates branch)
-  reproctl worktree remove feat/my-feat       # remove worktree
-  reproctl worktree list                      # list all worktrees
 EOF
 }
 
@@ -181,6 +134,8 @@ USAGE
   launch)  cmd_launch "$@" ;;
   context) cmd_context "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
+  completion)  cmd_completion "$@" ;;
+  version)     cmd_version "$@" ;;
   help)
     topic="${1:-reproctl}"
     case "$topic" in
@@ -201,8 +156,22 @@ USAGE
       die "No manual entry for $page.\nRun 'reproctl --help' for a command list."
     fi
     ;;
-  -h|--help)   usage ;;
+  -h|--help)      usage ;;
+  --version|-V)    cmd_version "$@" ;;
   *)
-    die "Unknown command: $COMMAND\nRun 'reproctl --help' for usage."
+    KNOWN_COMMANDS="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt help"
+    suggestions=$(python3 "$SCRIPT_DIR/lib/py/suggest_command.py" "$COMMAND" $KNOWN_COMMANDS 2>/dev/null) || true
+    if [ -n "$suggestions" ]; then
+      printf 'Error: Unknown command: %s\n' "$COMMAND" >&2
+      printf 'Did you mean:\n' >&2
+      while IFS= read -r s; do
+        printf '  %s\n' "$s" >&2
+      done <<EOF
+$suggestions
+EOF
+    else
+      die "Unknown command: $COMMAND\nRun 'reproctl --help' for usage."
+    fi
+    exit 1
     ;;
 esac

@@ -18,17 +18,18 @@ Context is detected automatically: from the main checkout, services run as main;
 
 # COMMANDS
 
+## Environment
+
 **setup**
 : Bootstrap the development environment. See **reproctl-setup**(1).
 
 **doctor**
 : Diagnose the development environment. See **reproctl-doctor**(1).
 
-**cluster** *subcommand*
-: Manage the local kind cluster. See **reproctl-cluster**(1).
+**checkhealth** [**--json**]
+: Runtime health checks (Tilt, k8s, services).
 
-**db** *subcommand*
-: Database operations. See **reproctl-db**(1).
+## Services
 
 **start** *service* [*service*...]
 : Start services from the current context. See **reproctl-start**(1).
@@ -48,11 +49,47 @@ Context is detected automatically: from the main checkout, services run as main;
 **ui**
 : Open the Tilt dashboard in a browser.
 
+**launch** *service*
+: Open a service URL in the browser.
+
+## Infrastructure
+
+**cluster** *subcommand*
+: Manage the local kind cluster. See **reproctl-cluster**(1).
+
+**db** *subcommand*
+: Database operations. See **reproctl-db**(1).
+
+## Worktrees
+
+**wt create** *branch*
+: Create a new worktree for a branch.
+
+**wt create --from-issue** *id*
+: Create a worktree from a Linear issue.
+
+**wt remove** *branch*
+: Remove the worktree for a branch. See **reproctl-worktree**(1).
+
+**wt list** [**--json**]
+: List active worktrees.
+
+**wt attach** *branch*
+: Drop into a worktree subshell.
+
+**wt prune** [**--yes**]
+: Remove worktrees whose branches are merged.
+
+## General
+
 **context**
 : Show the current development context (worktree, branch, issue, delta vs main, services).
 
-**worktree** *subcommand*
-: Manage git worktrees. See **reproctl-worktree**(1). Alias: **wt**.
+**help** [*command*]
+: Show manpage for reproctl or a subcommand.
+
+**completion** *shell*
+: Generate shell completion scripts. See **reproctl-completion**(1).
 
 # EXAMPLES
 
@@ -67,20 +104,16 @@ reproctl stop --all
 
 # SHELL COMPLETION
 
-Zsh and Bash completions are provided in **scripts/completions/**.
+Shell completions can be generated via the **completion** subcommand:
 
-## Zsh
+    reproctl completion bash
+    reproctl completion zsh
+    reproctl completion fish
 
-Add the completions directory to **fpath** in **~/.zshrc**, before **compinit**:
+See **reproctl-completion**(1) for installation instructions.
 
-    fpath=(/path/to/repro/scripts/completions $fpath)
-    autoload -Uz compinit && compinit
-
-## Bash
-
-Source the completion script in **~/.bashrc**:
-
-    source /path/to/repro/scripts/completions/reproctl.bash
+Completions are also available as static files in **scripts/completions/**
+for direct sourcing via **.envrc** or shell profiles.
 
 # INTERACTIVE PICKER
 
@@ -90,4 +123,4 @@ For **worktree attach** and **worktree remove**, omitting the branch argument tr
 
 # SEE ALSO
 
-**reproctl-setup**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-worktree**(1)
+**reproctl-setup**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-worktree**(1), **reproctl-completion**(1)
