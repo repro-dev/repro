@@ -9,7 +9,7 @@ _get_commit_date() {
 }
 
 cmd_version() {
-  local json=false
+  local json="${REPROCTL_JSON:-false}"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -19,12 +19,11 @@ cmd_version() {
         ;;
       -h|--help)
         printf '%s\n' \
-          "Usage: reproctl version [--json]" \
+          "Usage: reproctl [--json] version" \
           "" \
           "Print the reproctl commit and date." \
           "" \
-          "Options:" \
-          "  --json    Output structured JSON"
+          "The --json global flag outputs structured JSON."
         return 0
         ;;
       *)
