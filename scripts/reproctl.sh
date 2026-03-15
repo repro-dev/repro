@@ -91,19 +91,15 @@ EOF
 REPROCTL_JSON=false
 
 _args=()
-_found_cmd=false
 for _a in "$@"; do
-  if [ "$_found_cmd" = false ]; then
-    case "$_a" in
-      --json) REPROCTL_JSON=true; continue ;;
-      -*)     ;;
-      *)      _found_cmd=true ;;
-    esac
+  if [ "$_a" = "--json" ]; then
+    REPROCTL_JSON=true
+  else
+    _args+=("$_a")
   fi
-  _args+=("$_a")
 done
 set -- ${_args[@]+"${_args[@]}"}
-unset _args _a _found_cmd
+unset _args _a
 
 if [ $# -eq 0 ]; then
   usage >&2

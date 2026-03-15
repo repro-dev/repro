@@ -9,14 +9,8 @@ _get_commit_date() {
 }
 
 cmd_version() {
-  local json="${REPROCTL_JSON:-false}"
-
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --json)
-        json=true
-        shift
-        ;;
       -h|--help)
         printf '%s\n' \
           "Usage: reproctl [--json] version" \
@@ -36,7 +30,7 @@ cmd_version() {
   commit="$(_get_commit_sha)"
   date="$(_get_commit_date)"
 
-  if [[ "$json" = true ]]; then
+  if [[ "$REPROCTL_JSON" = true ]]; then
     python3 -c "import json; print(json.dumps({'commit': '$commit', 'date': '$date'}))"
   else
     printf 'reproctl (%s) %s\n' "$commit" "$date"
