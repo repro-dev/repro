@@ -18,17 +18,18 @@ Context is detected automatically: from the main checkout, services run as main;
 
 # COMMANDS
 
+## Environment
+
 **setup**
 : Bootstrap the development environment. See **reproctl-setup**(1).
 
 **doctor**
 : Diagnose the development environment. See **reproctl-doctor**(1).
 
-**cluster** *subcommand*
-: Manage the local kind cluster. See **reproctl-cluster**(1).
+**checkhealth** [**--json**]
+: Runtime health checks (Tilt, k8s, services).
 
-**db** *subcommand*
-: Database operations. See **reproctl-db**(1).
+## Services
 
 **start** *service* [*service*...]
 : Start services from the current context. See **reproctl-start**(1).
@@ -48,11 +49,44 @@ Context is detected automatically: from the main checkout, services run as main;
 **ui**
 : Open the Tilt dashboard in a browser.
 
+**launch** *service*
+: Open a service URL in the browser.
+
+## Infrastructure
+
+**cluster** *subcommand*
+: Manage the local kind cluster. See **reproctl-cluster**(1).
+
+**db** *subcommand*
+: Database operations. See **reproctl-db**(1).
+
+## Worktrees
+
+**wt create** *branch*
+: Create a new worktree for a branch.
+
+**wt create --from-issue** *id*
+: Create a worktree from a Linear issue.
+
+**wt remove** *branch*
+: Remove the worktree for a branch. See **reproctl-worktree**(1).
+
+**wt list** [**--json**]
+: List active worktrees.
+
+**wt attach** *branch*
+: Drop into a worktree subshell.
+
+**wt prune** [**--yes**]
+: Remove worktrees whose branches are merged.
+
+## General
+
 **context**
 : Show the current development context (worktree, branch, issue, delta vs main, services).
 
-**worktree** *subcommand*
-: Manage git worktrees. See **reproctl-worktree**(1). Alias: **wt**.
+**help** [*command*]
+: Show manpage for reproctl or a subcommand.
 
 # EXAMPLES
 
