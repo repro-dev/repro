@@ -88,6 +88,9 @@ Context is detected automatically: from the main checkout, services run as main;
 **help** [*command*]
 : Show manpage for reproctl or a subcommand.
 
+**completion** *shell*
+: Generate shell completion scripts. See **reproctl-completion**(1).
+
 # EXAMPLES
 
 reproctl setup
@@ -101,20 +104,16 @@ reproctl stop --all
 
 # SHELL COMPLETION
 
-Zsh and Bash completions are provided in **scripts/completions/**.
+Shell completions can be generated via the **completion** subcommand:
 
-## Zsh
+    reproctl completion bash
+    reproctl completion zsh
+    reproctl completion fish
 
-Add the completions directory to **fpath** in **~/.zshrc**, before **compinit**:
+See **reproctl-completion**(1) for installation instructions.
 
-    fpath=(/path/to/repro/scripts/completions $fpath)
-    autoload -Uz compinit && compinit
-
-## Bash
-
-Source the completion script in **~/.bashrc**:
-
-    source /path/to/repro/scripts/completions/reproctl.bash
+Completions are also available as static files in **scripts/completions/**
+for direct sourcing via **.envrc** or shell profiles.
 
 # INTERACTIVE PICKER
 
@@ -124,4 +123,4 @@ For **worktree attach** and **worktree remove**, omitting the branch argument tr
 
 # SEE ALSO
 
-**reproctl-setup**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-worktree**(1)
+**reproctl-setup**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-worktree**(1), **reproctl-completion**(1)

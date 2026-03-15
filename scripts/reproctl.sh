@@ -26,6 +26,8 @@ source "$SCRIPT_DIR/lib/context.sh"
 source "$SCRIPT_DIR/lib/checkhealth.sh"
 # shellcheck source=scripts/lib/launch.sh
 source "$SCRIPT_DIR/lib/launch.sh"
+# shellcheck source=scripts/lib/completion.sh
+source "$SCRIPT_DIR/lib/completion.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -61,6 +63,7 @@ ${CLR_BOLD}WORKTREES${CLR_RESET}
 
 ${CLR_BOLD}GENERAL${CLR_RESET}
   context                         Show current development context
+  completion <shell>              Generate shell completions (bash, zsh, fish)
   help [<command>]                Show manpage for reproctl or a subcommand
 
 Examples:
@@ -128,6 +131,7 @@ USAGE
   launch)  cmd_launch "$@" ;;
   context) cmd_context "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
+  completion)  cmd_completion "$@" ;;
   help)
     topic="${1:-reproctl}"
     case "$topic" in
