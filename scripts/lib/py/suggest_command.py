@@ -30,7 +30,8 @@ def suggest(unknown, known_commands, max_distance=2):
         ):
             suggestions.add(cmd)
         elif (
-            abs(len(unknown) - len(cmd)) < max_distance
+            abs(len(unknown) - len(cmd)) <= max_distance
+            and min(len(unknown), len(cmd)) > max_distance
             and levenshtein(unknown, cmd) <= max_distance
         ):
             suggestions.add(cmd)

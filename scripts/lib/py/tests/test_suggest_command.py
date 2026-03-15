@@ -100,10 +100,10 @@ class TestSuggestCommand:
         lines = result.stdout.strip().splitlines()
         assert lines == sorted(lines)
 
-    def test_prefix_false_positive_helper_not_help(self):
+    def test_close_overshoot_helper_suggests_help(self):
         result = run_script("suggest_command.py", args=["helper"] + KNOWN_COMMANDS)
-        lines = result.stdout.strip().splitlines() if result.stdout.strip() else []
-        assert "help" not in lines
+        assert result.returncode == 0
+        assert "help" in result.stdout.strip().splitlines()
 
     def test_prefix_false_positive_uiconfig_not_ui(self):
         result = run_script("suggest_command.py", args=["uiconfig"] + KNOWN_COMMANDS)
@@ -114,3 +114,27 @@ class TestSuggestCommand:
         result = run_script("suggest_command.py", args=["helps"] + KNOWN_COMMANDS)
         assert result.returncode == 0
         assert "help" in result.stdout.strip().splitlines()
+
+    def test_key_bounce_extra_chars_still_matches(self):
+        result = run_script("suggest_command.py", args=["statusss"] + KNOWN_COMMANDS)
+        assert result.returncode == 0
+        assert "status" in result.stdout.strip().splitlines()
+
+    def test_short_command_not_suggested_for_unrelated_typo(self):
+        result = run_script("suggest_command.py", args=["set"] + KNOWN_COMMANDS)
+        assert result.returncode == 0
+        lines = result.stdout.strip().splitlines()
+        assert "setup" in lines
+        assert "wt" not in lines
+
+    def test_short_command_not_suggested_for_unrelated_prefix(self):
+        result = run_script("suggest_command.py", args=["doc"] + KNOWN_COMMANDS)
+        assert result.returncode == 0
+        lines = result.stdout.strip().splitlines()
+        assert "doctor" in lines
+        assert "db" not in lines
+
+    def test_transposition_on_short_command_still_matches(self):
+        result = run_script("suggest_command.py", args=["stpo"] + KNOWN_COMMANDS)
+        assert result.returncode == 0
+        assert "stop" in result.stdout.strip().splitlines()
