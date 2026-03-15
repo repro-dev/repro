@@ -85,6 +85,7 @@ _reproctl() {
   _arguments -C \
     '(-h --help)'{-h,--help}'[Show help]' \
     '(--version -V)'{--version,-V}'[Print version]' \
+    '--json[Output machine-readable JSON]' \
     '1:command:->command' \
     '*::arg:->args' && return
 
@@ -128,7 +129,6 @@ _reproctl_setup() {
 
 _reproctl_checkhealth() {
   _arguments \
-    '--json[Output machine-readable JSON]' \
     '(-h --help)'{-h,--help}'[Show help]'
 }
 

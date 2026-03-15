@@ -297,13 +297,20 @@ cmd_stop() {
 cmd_status() {
   if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
     cat <<'USAGE'
-Usage: reproctl status
+Usage: reproctl [--json] status
 
 Show the current state of Tilt and all running resources.
 When Tilt is running, queries live resource status.
 When Tilt is not running, shows configured services only.
+
+The --json global flag outputs machine-readable JSON instead of human text.
 USAGE
     return 0
+  fi
+
+  if [ "${REPROCTL_JSON:-false}" = true ]; then
+    _status_json
+    return
   fi
 
   if tilt_is_running; then
@@ -329,6 +336,39 @@ USAGE
   tilt get uiresources -o json --port "$TILT_PORT" 2>/dev/null | \
     SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" \
     python3 "$SCRIPTS_DIR/lib/py/format_status.py"
+}
+
+_status_json() {
+  local tilt_running=false
+  local tilt_url="http://localhost:$TILT_PORT"
+  local tilt_pid=""
+  local items_json="[]"
+
+  if tilt_is_running; then
+    tilt_running=true
+    if [ -f "$TILT_PID_FILE" ]; then
+      tilt_pid="$(tr -d '[:space:]' < "$TILT_PID_FILE")"
+    fi
+
+    items_json="$(tilt get uiresources -o json --port "$TILT_PORT" 2>/dev/null | \
+      SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" \
+      REPROCTL_JSON=true \
+      python3 "$SCRIPTS_DIR/lib/py/format_status.py")"
+  else
+    if [ -f "$CONFIG_FILE" ]; then
+      items_json="$(SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" \
+        REPROCTL_JSON=true TILT_RUNNING=false \
+        python3 "$SCRIPTS_DIR/lib/py/format_status.py" <<< '{"items":[]}')"
+    fi
+  fi
+
+  local pid_json="null"
+  if [[ "$tilt_pid" =~ ^[0-9]+$ ]]; then
+    pid_json="$tilt_pid"
+  fi
+
+  printf '{"tilt":{"running":%s,"url":"%s","pid":%s},"items":%s}\n' \
+    "$tilt_running" "$tilt_url" "$pid_json" "$items_json"
 }
 
 cmd_restart() {

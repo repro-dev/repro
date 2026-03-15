@@ -5,7 +5,7 @@
 reproctl\-cluster \- manage the local kind cluster
 .SH SYNOPSIS
 \f[B]reproctl cluster\f[R] \f[B]up\f[R] | \f[B]down\f[R]
-[\f[B]\(enforce\f[R]] | \f[B]status\f[R] | \f[B]reset\f[R]
+[\f[B]\-\-force\f[R]] | \f[B]status\f[R] | \f[B]reset\f[R]
 .SH DESCRIPTION
 Manage the local kind Kubernetes cluster and its associated container
 registry.
@@ -16,21 +16,23 @@ Create the kind cluster and local container registry.
 This operation is idempotent \(em if the cluster already exists, it is
 left untouched.
 .TP
-\f[B]down\f[R] [\f[B]\(enforce\f[R]]
+\f[B]down\f[R] [\f[B]\-\-force\f[R]]
 Tear down the cluster and registry.
 If services are currently running in Tilt, a warning is displayed and
-the operation is aborted unless \f[B]\(enforce\f[R] is specified.
+the operation is aborted unless \f[B]\-\-force\f[R] is specified.
 .TP
 \f[B]status\f[R]
 Show the current state of the cluster and registry (running, stopped, or
 not found).
+With the global \f[B]\-\-json\f[R] flag, outputs a JSON object with
+cluster running state and registry details.
 .TP
 \f[B]reset\f[R]
-Equivalent to \f[B]down \(enforce\f[R] followed by \f[B]up\f[R].
+Equivalent to \f[B]down \-\-force\f[R] followed by \f[B]up\f[R].
 Destroys the existing cluster and creates a fresh one.
 .SH OPTIONS
 .TP
-\f[B]\(enforce\f[R]
+\f[B]\-\-force\f[R]
 Used with \f[B]down\f[R].
 Tears down the cluster even when services are still running in Tilt.
 .SH EXAMPLES
@@ -41,7 +43,10 @@ Create the cluster (no\-op if it already exists).
 reproctl cluster status
 Check whether the cluster is running.
 .TP
-reproctl cluster down \(enforce
+reproctl \-\-json cluster status
+Machine\-readable cluster and registry state.
+.TP
+reproctl cluster down \-\-force
 Tear down even with running services.
 .TP
 reproctl cluster reset

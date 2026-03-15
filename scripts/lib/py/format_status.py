@@ -5,8 +5,9 @@ Reads Tilt uiresources JSON from stdin and prints a formatted table
 of resources with their status and type.
 
 Environment variables:
-  SERVICES_JSON — path to services.json (for known-service detection)
-  CONFIG_FILE   — path to reproctl_services.json (for configured set)
+  SERVICES_JSON  — path to services.json (for known-service detection)
+  CONFIG_FILE    — path to reproctl_services.json (for configured set)
+  REPROCTL_JSON  — when "true", output JSON instead of a human table
 """
 
 import json
@@ -44,6 +45,8 @@ items = data.get("items", [])
 
 svc_path = os.environ.get("SERVICES_JSON", "")
 cfg_path = os.environ.get("CONFIG_FILE", "")
+output_json = os.environ.get("REPROCTL_JSON", "") == "true"
+tilt_running = os.environ.get("TILT_RUNNING", "true") != "false"
 
 known_services = set()
 if svc_path and os.path.isfile(svc_path):
@@ -124,9 +127,20 @@ for svc_name in sorted(configured):
             svc_type = "service [wt:" + wt_slug + "]"
         else:
             svc_type = "service"
-        rows.append((svc_name, "warn", svc_type, "not in Tilt"))
+        if tilt_running:
+            rows.append((svc_name, "warn", svc_type, "not in Tilt"))
+        else:
+            rows.append((svc_name, "stopped", svc_type, ""))
 
-if not rows:
+if output_json:
+    json_rows = []
+    for name_val, status_val, type_val, detail_val in rows:
+        obj = {"name": name_val, "status": status_val, "type": type_val}
+        if detail_val:
+            obj["detail"] = detail_val
+        json_rows.append(obj)
+    print(json.dumps(json_rows))
+elif not rows:
     print("  (none)")
 else:
     col0 = max(len(r[0]) for r in rows)

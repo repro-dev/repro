@@ -1,9 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# Resolve scripts/lib relative to this script's location, so it works
-# regardless of the caller's cwd (e.g. from bin/reproctl wrapper or
-# from a worktree's copy of the script).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=scripts/lib/common.sh
@@ -35,12 +32,15 @@ source "$SCRIPT_DIR/lib/version.sh"
 
 usage() {
   cat <<EOF
-Usage: reproctl <command> [args]
+Usage: reproctl [--json] <command> [args]
+
+${CLR_BOLD}GLOBAL OPTIONS${CLR_RESET}
+  --json                          Output machine-readable JSON where supported
 
 ${CLR_BOLD}ENVIRONMENT${CLR_RESET}
   setup                           Bootstrap the development environment
   doctor                          Check development environment prerequisites
-  checkhealth [--json]            Runtime health checks (Tilt, k8s, services)
+  checkhealth                     Runtime health checks (Tilt, k8s, services)
 
 ${CLR_BOLD}SERVICES${CLR_RESET}
   start <service> [...]           Start services from the current context
@@ -59,20 +59,22 @@ ${CLR_BOLD}WORKTREES${CLR_RESET}
   wt create <branch>              Create a new worktree for a branch
   wt create --from-issue <id>     Create a worktree from a Linear issue
   wt remove <branch>              Remove the worktree for a branch
-  wt list [--json]                List active worktrees
+  wt list                         List active worktrees
   wt attach <branch>              Drop into a worktree subshell
   wt prune [--yes]                Remove worktrees whose branches are merged
 
 ${CLR_BOLD}GENERAL${CLR_RESET}
   context                         Show current development context
   completion <shell>              Generate shell completions (bash, zsh, fish)
-  version [--json]                Print the reproctl commit and date
+  version                         Print the reproctl commit and date
   help [<command>]                Show manpage for reproctl or a subcommand
 
 Examples:
   reproctl setup                              # bootstrap entire environment
   reproctl doctor                             # check installed tools and versions
-  reproctl checkhealth --json                 # machine-readable health check
+  reproctl --json checkhealth                 # machine-readable health check
+  reproctl --json status                      # machine-readable service status
+  reproctl --json context                     # machine-readable context info
   reproctl cluster up                         # create cluster and registry
   reproctl db migrate                         # run pending migrations
   reproctl start workspace                    # main checkout services
@@ -86,7 +88,20 @@ Examples:
 EOF
 }
 
-if [ $# -lt 1 ]; then
+REPROCTL_JSON=false
+
+_args=()
+for _a in "$@"; do
+  if [ "$_a" = "--json" ]; then
+    REPROCTL_JSON=true
+  else
+    _args+=("$_a")
+  fi
+done
+set -- ${_args[@]+"${_args[@]}"}
+unset _args _a
+
+if [ $# -eq 0 ]; then
   usage >&2
   exit 1
 fi
@@ -98,19 +113,16 @@ case "$COMMAND" in
   setup)   cmd_setup "$@" ;;
   doctor)  cmd_doctor "$@" ;;
   checkhealth)
-    CHECKHEALTH_JSON=false
     for arg in "$@"; do
       case "$arg" in
-        --json) CHECKHEALTH_JSON=true ;;
         -h|--help)
           cat <<'USAGE'
-Usage: reproctl checkhealth [--json]
+Usage: reproctl [--json] checkhealth
 
 Check the runtime health of the development environment — Tilt daemon,
 Kubernetes cluster, container registry, services, and worktree resources.
 
-Options:
-  --json    Output machine-readable JSON instead of human-readable text
+The --json global flag outputs machine-readable JSON instead of human text.
 
 Exit codes:
   0   All healthy (or only warnings)

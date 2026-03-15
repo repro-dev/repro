@@ -9,22 +9,15 @@ _get_commit_date() {
 }
 
 cmd_version() {
-  local json=false
-
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --json)
-        json=true
-        shift
-        ;;
       -h|--help)
         printf '%s\n' \
-          "Usage: reproctl version [--json]" \
+          "Usage: reproctl [--json] version" \
           "" \
           "Print the reproctl commit and date." \
           "" \
-          "Options:" \
-          "  --json    Output structured JSON"
+          "The --json global flag outputs structured JSON."
         return 0
         ;;
       *)
@@ -37,7 +30,7 @@ cmd_version() {
   commit="$(_get_commit_sha)"
   date="$(_get_commit_date)"
 
-  if [[ "$json" = true ]]; then
+  if [[ "$REPROCTL_JSON" = true ]]; then
     python3 -c "import json; print(json.dumps({'commit': '$commit', 'date': '$date'}))"
   else
     printf 'reproctl (%s) %s\n' "$commit" "$date"

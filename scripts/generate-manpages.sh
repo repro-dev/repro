@@ -35,13 +35,13 @@ for src in "$MAN_SRC"/*.1.md; do
 
   if [ "$check_mode" = true ]; then
     tmp="$(mktemp)"
-    pandoc -s -t man "$src" -o "$tmp"
+    pandoc -s --from markdown-smart -t man "$src" -o "$tmp"
     if [ ! -f "$out" ] || ! diff -q "$tmp" "$out" > /dev/null 2>&1; then
       stale+=("$name")
     fi
     rm -f "$tmp"
   else
-    pandoc -s -t man "$src" -o "$out"
+    pandoc -s --from markdown-smart -t man "$src" -o "$out"
     echo "  generated $name"
   fi
 done

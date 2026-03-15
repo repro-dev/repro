@@ -861,7 +861,7 @@ cmd_wt() {
       cmd_wt_remove "${args[0]}"
       ;;
     list)
-      if [ "$WT_JSON" = true ]; then
+      if [ "$WT_JSON" = true ] || [ "${REPROCTL_JSON:-false}" = true ]; then
         cmd_wt_list_json
       else
         cmd_wt_list

@@ -4,12 +4,12 @@
 .SH NAME
 reproctl\-start \- start services via Tilt
 .SH SYNOPSIS
-\f[B]reproctl start\f[R] \f[I]service\f[R] [\f[I]service\f[R]\&...]
+\f[B]reproctl start\f[R] \f[I]service\f[R] [\f[I]service\f[R]...]
 .SH DESCRIPTION
 Start one or more services from the current context (main checkout or
 worktree).
 .PP
-Service names are validated against the project\(cqs
+Service names are validated against the project\(aqs
 \f[B]services.json\f[R] manifest.
 The requested services are written to \f[B]reproctl_services.json\f[R],
 which the Tiltfile reads to determine which resources to enable.
@@ -25,7 +25,7 @@ picker is shown (using \f[B]fzf\f[R] if available, or a numbered
 prompt).
 .SH OPTIONS
 .TP
-\f[B]\(enpick\f[R], \f[B]\-p\f[R]
+\f[B]\-\-pick\f[R], \f[B]\-p\f[R]
 Interactively select a service.
 Uses \f[B]fzf\f[R] if installed, otherwise a numbered prompt.
 .SH EXAMPLES

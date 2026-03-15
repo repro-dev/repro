@@ -4,36 +4,36 @@
 .SH NAME
 reproctl\-logs \- show or stream service logs
 .SH SYNOPSIS
-\f[B]reproctl logs\f[R] [\f[I]options\f[R]] [\f[I]service\f[R]\&...]
+\f[B]reproctl logs\f[R] [\f[I]options\f[R]] [\f[I]service\f[R]...]
 .SH DESCRIPTION
 Show or stream logs from running services.
 Without \f[B]\-f\f[R] or explicit service names, displays the last 50
 lines across all resources.
 .PP
 When service names are given, output is filtered to only those services.
-When \f[B]\-f\f[R] / \f[B]\(enfollow\f[R] is specified, new log lines
+When \f[B]\-f\f[R] / \f[B]\-\-follow\f[R] is specified, new log lines
 are streamed in real time.
 .SH OPTIONS
 .TP
-\f[B]\-f\f[R], \f[B]\(enfollow\f[R]
+\f[B]\-f\f[R], \f[B]\-\-follow\f[R]
 Stream logs in real time instead of displaying a snapshot.
 .TP
-\f[B]\(enlevel\f[R] \f[I]warn\f[R] | \f[I]error\f[R]
+\f[B]\-\-level\f[R] \f[I]warn\f[R] | \f[I]error\f[R]
 Filter log output to the specified severity level or above.
 .TP
-\f[B]\(ensource\f[R] \f[I]all\f[R] | \f[I]build\f[R] | \f[I]runtime\f[R]
+\f[B]\-\-source\f[R] \f[I]all\f[R] | \f[I]build\f[R] | \f[I]runtime\f[R]
 Select the log source.
 \f[B]all\f[R] (default) shows both build and runtime logs.
 \f[B]build\f[R] shows only image build output.
 \f[B]runtime\f[R] shows only container runtime output.
 .TP
-\f[B]\(engrep\f[R] \f[I]pattern\f[R]
+\f[B]\-\-grep\f[R] \f[I]pattern\f[R]
 Filter log lines to those matching \f[I]pattern\f[R] (a regular
 expression).
 .TP
-\f[B]\-C\f[R], \f[B]\(encontext\f[R] \f[I]duration\f[R]
+\f[B]\-C\f[R], \f[B]\-\-context\f[R] \f[I]duration\f[R]
 Show \f[I]duration\f[R] of context around matching lines (implies
-\f[B]\(engrep\f[R]).
+\f[B]\-\-grep\f[R]).
 .TP
 \f[B]\-B\f[R] \f[I]duration\f[R]
 Show \f[I]duration\f[R] of context before matching lines.
@@ -41,20 +41,20 @@ Show \f[I]duration\f[R] of context before matching lines.
 \f[B]\-A\f[R] \f[I]duration\f[R]
 Show \f[I]duration\f[R] of context after matching lines.
 .TP
-\f[B]\(ensince\f[R] \f[I]duration\f[R] | \f[I]timestamp\f[R]
+\f[B]\-\-since\f[R] \f[I]duration\f[R] | \f[I]timestamp\f[R]
 Only show logs newer than \f[I]duration\f[R] (e.g., \f[B]5m\f[R],
 \f[B]1h\f[R]) or an absolute \f[I]timestamp\f[R].
 .TP
-\f[B]\(enjson\f[R]
+\f[B]\-\-json\f[R]
 Output logs in JSON format (one object per line).
 .TP
-\f[B]\(enno\-prefix\f[R]
+\f[B]\-\-no\-prefix\f[R]
 Omit the service\-name prefix from each log line.
 .TP
-\f[B]\-n\f[R], \f[B]\(entail\f[R] \f[I]lines\f[R]
+\f[B]\-n\f[R], \f[B]\-\-tail\f[R] \f[I]lines\f[R]
 Number of recent lines to display (default: \f[B]50\f[R]).
 .TP
-\f[B]\(enpick\f[R], \f[B]\-p\f[R]
+\f[B]\-\-pick\f[R], \f[B]\-p\f[R]
 Interactively select a service to view logs for.
 Uses \f[B]fzf\f[R] if installed, otherwise a numbered prompt.
 .SH EXAMPLES
@@ -65,13 +65,13 @@ Show the last 50 lines from all services.
 reproctl logs \-f api\-server
 Stream api\-server logs in real time.
 .TP
-reproctl logs \(enjson \(ensince 5m api\-server
+reproctl logs \-\-json \-\-since 5m api\-server
 Show structured JSON logs from the last 5 minutes.
 .TP
-reproctl logs \(enlevel error
+reproctl logs \-\-level error
 Show only error\-level logs across all services.
 .TP
-reproctl logs \(engrep \(lqconnection refused\(rq \-C 10s
+reproctl logs \-\-grep \(dqconnection refused\(dq \-C 10s
 Search for a pattern with 10 seconds of surrounding context.
 .SH SEE ALSO
 \f[B]reproctl\f[R](1), \f[B]reproctl\-start\f[R](1)
