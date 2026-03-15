@@ -15,6 +15,30 @@ import sys
 
 from wt_name import wt_name
 
+_use_color = "NO_COLOR" not in os.environ and sys.stdout.isatty()
+
+_CLR_GREEN = "\033[32m" if _use_color else ""
+_CLR_YELLOW = "\033[33m" if _use_color else ""
+_CLR_RED = "\033[31m" if _use_color else ""
+_CLR_DIM = "\033[2m" if _use_color else ""
+_CLR_RESET = "\033[0m" if _use_color else ""
+
+_STATUS_COLORS = {
+    "ok": _CLR_GREEN,
+    "warn": _CLR_YELLOW,
+    "building": _CLR_YELLOW,
+    "pending": _CLR_YELLOW,
+    "error": _CLR_RED,
+}
+
+
+def _colorize_status(status):
+    clr = _STATUS_COLORS.get(status, "")
+    if clr:
+        return clr + status + _CLR_RESET
+    return status
+
+
 data = json.load(sys.stdin)
 items = data.get("items", [])
 
@@ -108,12 +132,35 @@ else:
     col0 = max(len(r[0]) for r in rows)
     col1 = max(len(r[1]) for r in rows)
     col2 = max(len(r[2]) for r in rows)
+
+    show_header = len(rows) >= 3
+    if show_header:
+        col0 = max(col0, len("NAME"))
+        col1 = max(col1, len("STATUS"))
+        col2 = max(col2, len("TYPE"))
+        has_detail = any(r[3] for r in rows)
+        header = "  " + "NAME".ljust(col0) + "  " + "STATUS".ljust(col1) + "  " + "TYPE"
+        if has_detail:
+            header += " " * (col2 - len("TYPE")) + "  DETAIL"
+        print(_CLR_DIM + header + _CLR_RESET)
+
     for name_val, status_val, type_val, detail_val in rows:
         pad0 = name_val.ljust(col0)
-        pad1 = status_val.ljust(col1)
+        colored_status = _colorize_status(status_val)
+        status_pad = " " * (col1 - len(status_val))
         if detail_val:
             pad2 = type_val.ljust(col2)
-            line = "  " + pad0 + "  " + pad1 + "  " + pad2 + "  " + detail_val
+            line = (
+                "  "
+                + pad0
+                + "  "
+                + colored_status
+                + status_pad
+                + "  "
+                + pad2
+                + "  "
+                + detail_val
+            )
         else:
-            line = "  " + pad0 + "  " + pad1 + "  " + type_val
+            line = "  " + pad0 + "  " + colored_status + status_pad + "  " + type_val
         print(line)

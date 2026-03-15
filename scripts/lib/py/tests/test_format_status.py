@@ -233,9 +233,14 @@ class TestFormatStatus:
                 env={"SERVICES_JSON": svc_path},
             )
             lines = [l for l in result.stdout.splitlines() if l.strip()]
-            assert len(lines) == 3
+            assert len(lines) == 4
+            header = lines[0]
+            assert "NAME" in header
+            assert "STATUS" in header
+            assert "TYPE" in header
+            data_lines = lines[1:]
             ok_positions = set()
-            for line in lines:
+            for line in data_lines:
                 idx = line.index("ok")
                 ok_positions.add(idx)
             assert len(ok_positions) == 1
@@ -275,3 +280,40 @@ class TestFormatStatus:
         for line in result.stdout.splitlines():
             if line.strip():
                 assert line == line.rstrip(), f"Trailing whitespace: {line!r}"
+
+    def test_header_row_with_three_or_more_items(self):
+        data = {
+            "items": [
+                _make_item("redis"),
+                _make_item("postgres"),
+                _make_item("storage"),
+            ]
+        }
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        lines = [l for l in result.stdout.splitlines() if l.strip()]
+        assert len(lines) == 4
+        header = lines[0]
+        assert "NAME" in header
+        assert "STATUS" in header
+        assert "TYPE" in header
+
+    def test_no_header_row_with_fewer_than_three_items(self):
+        data = {"items": [_make_item("redis"), _make_item("postgres")]}
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        lines = [l for l in result.stdout.splitlines() if l.strip()]
+        assert len(lines) == 2
+        assert "NAME" not in result.stdout
+
+    def test_no_color_when_not_tty(self):
+        data = {"items": [_make_item("redis")]}
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        assert "\033[" not in result.stdout
+
+    def test_no_color_env_suppresses_color(self):
+        data = {"items": [_make_item("redis")]}
+        result = run_script(
+            "format_status.py",
+            stdin=json.dumps(data),
+            env={"NO_COLOR": "1"},
+        )
+        assert "\033[" not in result.stdout

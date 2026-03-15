@@ -128,10 +128,13 @@ cmd_db_shell() {
 cmd_db_status() {
   require_tilt
 
+  local w
+  w="$(_label_width "Host:" "User:" "Database:")"
+
   echo "Cluster database (via Tilt port-forward):"
-  echo "  Host:     $DB_HOST:$DB_PORT"
-  echo "  User:     $DB_USER"
-  echo "  Database: $DB_NAME"
+  _kv "$w" "Host:" "$DB_HOST:$DB_PORT" "  "
+  _kv "$w" "User:" "$DB_USER" "  "
+  _kv "$w" "Database:" "$DB_NAME" "  "
 
   if [ -z "$PSQL" ]; then
     echo ""

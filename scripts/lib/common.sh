@@ -11,7 +11,7 @@
 # Respect NO_COLOR (https://no-color.org/) and non-interactive
 # terminals by falling back to empty strings.
 
-if [ -z "${NO_COLOR:-}" ] && [ -t 1 ]; then
+if [ -z "${NO_COLOR+set}" ] && [ -t 1 ]; then
   CLR_BOLD=$'\033[1m'
   CLR_DIM=$'\033[2m'
   CLR_RED=$'\033[31m'
@@ -284,6 +284,32 @@ _pick_multi() {
   done
 
   [[ "$found" = true ]] || return 1
+}
+
+_label_width() {
+  local max=0
+  for label in "$@"; do
+    local len=${#label}
+    if [ "$len" -gt "$max" ]; then
+      max=$len
+    fi
+  done
+  echo "$max"
+}
+
+_kv() {
+  local width="$1" label="$2" value="$3" indent="${4:-}"
+  printf '%s%s%-*s%s %s\n' "$indent" "$CLR_BOLD" "$width" "$label" "$CLR_RESET" "$value"
+}
+
+_status_clr() {
+  local status="$1"
+  case "$status" in
+    ok)                    printf '%s%s%s' "$CLR_GREEN" "$status" "$CLR_RESET" ;;
+    warn|building|pending) printf '%s%s%s' "$CLR_YELLOW" "$status" "$CLR_RESET" ;;
+    error)                 printf '%s%s%s' "$CLR_RED" "$status" "$CLR_RESET" ;;
+    *)                     printf '%s' "$status" ;;
+  esac
 }
 
 _list_service_names() {

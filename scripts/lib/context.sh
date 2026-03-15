@@ -48,57 +48,68 @@ cmd_context() {
   branch="$(git -C "$REPO_ROOT" symbolic-ref -q --short HEAD 2>/dev/null)" || \
     branch="(detached: $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo 'unknown'))"
 
+  local labels=() values=()
+
   if is_worktree "$REPO_ROOT"; then
     local slug
     slug="$(detect_worktree_slug)"
 
-    echo "${CLR_BOLD}Worktree:${CLR_RESET}    $slug"
-    echo "${CLR_BOLD}Branch:${CLR_RESET}      $branch"
-    echo "${CLR_BOLD}Path:${CLR_RESET}        $REPO_ROOT"
-    echo "${CLR_BOLD}Main:${CLR_RESET}        $MAIN_CHECKOUT"
+    labels+=("Worktree:") ; values+=("$slug")
+    labels+=("Branch:")   ; values+=("$branch")
+    labels+=("Path:")     ; values+=("$REPO_ROOT")
+    labels+=("Main:")     ; values+=("$MAIN_CHECKOUT")
 
     local issue_id
     issue_id="$(_extract_issue_id "$branch")"
     if [ -n "$issue_id" ]; then
-      echo "${CLR_BOLD}Issue:${CLR_RESET}       $issue_id"
+      labels+=("Issue:") ; values+=("$issue_id")
     fi
 
     local delta
     delta="$(_commit_delta)"
     if [ -n "$delta" ]; then
-      echo "${CLR_BOLD}vs main:${CLR_RESET}     $delta"
+      labels+=("vs main:") ; values+=("$delta")
     fi
 
     if [ -n "${REPRO_WORKTREE:-}" ]; then
-      echo "${CLR_BOLD}Session:${CLR_RESET}     attached (subshell)"
+      labels+=("Session:") ; values+=("attached (subshell)")
     fi
 
     local services
     services="$(_context_services "$slug")"
     if [ -n "$services" ]; then
-      echo "${CLR_BOLD}Services:${CLR_RESET}    $services"
+      labels+=("Services:") ; values+=("$services")
     fi
   else
     echo "${CLR_BOLD}Main checkout${CLR_RESET}"
-    echo "${CLR_BOLD}Branch:${CLR_RESET}    $branch"
-    echo "${CLR_BOLD}Path:${CLR_RESET}      $REPO_ROOT"
+
+    labels+=("Branch:") ; values+=("$branch")
+    labels+=("Path:")   ; values+=("$REPO_ROOT")
 
     local issue_id
     issue_id="$(_extract_issue_id "$branch")"
     if [ -n "$issue_id" ]; then
-      echo "${CLR_BOLD}Issue:${CLR_RESET}     $issue_id"
+      labels+=("Issue:") ; values+=("$issue_id")
     fi
 
     local delta
     delta="$(_commit_delta)"
     if [ -n "$delta" ]; then
-      echo "${CLR_BOLD}vs main:${CLR_RESET}   $delta"
+      labels+=("vs main:") ; values+=("$delta")
     fi
 
     local services
     services="$(_context_services "")"
     if [ -n "$services" ]; then
-      echo "${CLR_BOLD}Services:${CLR_RESET}  $services"
+      labels+=("Services:") ; values+=("$services")
     fi
   fi
+
+  local w
+  w="$(_label_width "${labels[@]}")"
+  local i=0
+  while [ "$i" -lt "${#labels[@]}" ]; do
+    _kv "$w" "${labels[$i]}" "${values[$i]}"
+    i=$((i + 1))
+  done
 }

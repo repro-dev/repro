@@ -94,22 +94,26 @@ cmd_cluster_status() {
   require_docker
   require_kind
 
-  echo "Cluster: $CLUSTER_NAME"
+  local w
+  w="$(_label_width "Status:" "Context:" "Port:")"
+
+  echo "${CLR_BOLD}Cluster:${CLR_RESET} $CLUSTER_NAME"
   if cluster_exists; then
-    echo "  Status: running"
-    echo "  Context: kind-$CLUSTER_NAME"
+    _kv "$w" "Status:" "running" "  "
+    _kv "$w" "Context:" "kind-$CLUSTER_NAME" "  "
   else
-    echo "  Status: not running"
+    _kv "$w" "Status:" "not running" "  "
   fi
 
   echo ""
-  echo "Registry: $REGISTRY_NAME"
+  echo "${CLR_BOLD}Registry:${CLR_RESET} $REGISTRY_NAME"
   if registry_exists; then
     local port
     port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "5000/tcp") 0).HostPort}}' "$REGISTRY_NAME" 2>/dev/null || echo "5000")"
-    echo "  Status: running (port $port)"
+    _kv "$w" "Status:" "running" "  "
+    _kv "$w" "Port:" "$port" "  "
   else
-    echo "  Status: not running"
+    _kv "$w" "Status:" "not running" "  "
   fi
 }
 
