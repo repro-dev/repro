@@ -42,6 +42,10 @@ _err() {
   printf '%s✖ %s%s\n' "$CLR_RED" "$1" "$CLR_RESET" >&2
 }
 
+_warn() {
+  printf '%s⚠ %s%s\n' "$CLR_YELLOW" "$*" "$CLR_RESET" >&2
+}
+
 # ── Error handling ──────────────────────────────────────────────────
 
 die() {

@@ -164,7 +164,7 @@ cmd_logs() {
 
   if [ -n "$context_before" ] || [ -n "$context_after" ]; then
     if [ -z "$grep_pattern" ]; then
-      echo "Warning: -A/-B/-C ignored without --grep" >&2
+      _warn "-A/-B/-C ignored without --grep"
       context_before=""
       context_after=""
     fi

@@ -432,9 +432,9 @@ print(json.dumps(items))
       sev="$(printf '%s' "$issue_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["severity"])')"
       msg="$(printf '%s' "$issue_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["message"])')"
       if [ "$sev" = "error" ]; then
-        printf '  %s✗ %s%s\n' "$CLR_RED" "$msg" "$CLR_RESET"
+        _err "$msg"
       else
-        printf '  %s⚠ %s%s\n' "$CLR_YELLOW" "$msg" "$CLR_RESET"
+        _warn "$msg"
       fi
     done
   fi
