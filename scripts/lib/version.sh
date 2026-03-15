@@ -1,19 +1,4 @@
 #!/bin/bash
-#
-# scripts/lib/version.sh — version output for reproctl
-#
-# Sourced by reproctl.sh. Expects scripts/lib/common.sh to be loaded
-# first (provides REPO_ROOT, die).
-
-_get_version_tag() {
-  git -C "$REPO_ROOT" describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0"
-}
-
-_get_version_string() {
-  local tag
-  tag="$(_get_version_tag)"
-  echo "${tag#v}"
-}
 
 _get_commit_sha() {
   git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown"
@@ -36,7 +21,7 @@ cmd_version() {
         printf '%s\n' \
           "Usage: reproctl version [--json]" \
           "" \
-          "Print the reproctl version." \
+          "Print the reproctl commit and date." \
           "" \
           "Options:" \
           "  --json    Output structured JSON"
@@ -48,14 +33,13 @@ cmd_version() {
     esac
   done
 
-  local version commit date
-  version="$(_get_version_string)"
+  local commit date
   commit="$(_get_commit_sha)"
   date="$(_get_commit_date)"
 
   if [[ "$json" = true ]]; then
-    python3 -c "import json; print(json.dumps({'version': '$version', 'commit': '$commit', 'date': '$date'}))"
+    python3 -c "import json; print(json.dumps({'commit': '$commit', 'date': '$date'}))"
   else
-    printf 'reproctl v%s (%s)\n' "$version" "$commit"
+    printf 'reproctl (%s) %s\n' "$commit" "$date"
   fi
 }
