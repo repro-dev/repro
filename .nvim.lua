@@ -9,7 +9,7 @@ local function get_worktrees()
     vim.notify("Failed to parse worktree JSON", vim.log.levels.ERROR)
     return {}
   end
-  return data
+  return data.items or {}
 end
 
 local function build_items()
