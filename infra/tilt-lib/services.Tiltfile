@@ -278,6 +278,7 @@ def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_pa
   local_resource(
     resource_name,
     serve_cmd=svc['serve_cmd'],
+    serve_dir=work_dir,
     serve_env=serve_env,
     dir=work_dir,
     resource_deps=resource_deps,
