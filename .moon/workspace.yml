@@ -2,6 +2,10 @@ $schema: ./cache/schemas/workspace.json
 projects:
 - apps/*
 - packages/*
+docker:
+  scaffold:
+    configsPhaseGlobs:
+      - '.prototools'
 vcs:
   defaultBranch: main
   client: git
