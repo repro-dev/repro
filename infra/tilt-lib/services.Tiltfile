@@ -193,11 +193,37 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
       labels=[label],
     )
 
+    migrations_resource = prefix + '-migrations'
     k8s_resource(
-      prefix + '-migrations',
+      migrations_resource,
       resource_deps=[db_ready_name] + svc['migrations']['resource_deps'],
       labels=[label]
     )
+
+    if svc.get('seed'):
+      seed_pkg = svc['seed']['pnpm_package']
+      seed_deps = svc['seed'].get('resource_deps', [])
+      seed_env = {'DB_NAME': db_name}
+
+      local_resource(
+        'db-seed-wt-' + wt_slug,
+        cmd='pnpm --filter %s run seed' % seed_pkg,
+        dir=source_path,
+        env=seed_env,
+        resource_deps=[migrations_resource] + seed_deps,
+        labels=[label],
+      )
+
+      local_resource(
+        'db-reset-wt-' + wt_slug,
+        cmd='pnpm --filter %s run reset-db' % seed_pkg,
+        dir=source_path,
+        env=seed_env,
+        resource_deps=['database-ready'] + seed_deps,
+        labels=[label],
+        trigger_mode=TRIGGER_MODE_MANUAL,
+        auto_init=False,
+      )
 
   resource_deps = [prefix + '-migrations'] if svc.get('migrations') else []
 

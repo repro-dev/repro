@@ -54,6 +54,13 @@ helm_resource(
 )
 
 local_resource(
+    'storage-s3-forward',
+    serve_cmd='kubectl port-forward svc/storage-seaweedfs-s3 18333:8333',
+    resource_deps=['storage-ready'],
+    labels=['infra'],
+)
+
+local_resource(
     'database-ready',
     cmd='kubectl wait --namespace default --for=condition=ready pod -l app.kubernetes.io/instance=database,app.kubernetes.io/name=postgresql --timeout=120s',
     resource_deps=['database'],
