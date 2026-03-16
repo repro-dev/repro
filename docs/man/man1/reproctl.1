@@ -5,7 +5,8 @@
 reproctl \- unified CLI for local development with Tilt, kind, and git
 worktrees
 .SH SYNOPSIS
-\f[B]reproctl\f[R] \f[I]command\f[R] [\f[I]args\f[R]\&...]
+\f[B]reproctl\f[R] [\f[B]\-\-json\f[R]] \f[I]command\f[R]
+[\f[I]args\f[R]...]
 .SH DESCRIPTION
 reproctl manages the local development environment for the Repro
 monorepo.
@@ -14,7 +15,15 @@ operations, git worktree management, and log streaming.
 .PP
 Context is detected automatically: from the main checkout, services run
 as main; from a worktree, services are isolated to that branch.
+.SH GLOBAL OPTIONS
+.TP
+\f[B]\-\-json\f[R]
+Output machine\-readable JSON instead of human\-readable text.
+Supported by: \f[B]checkhealth\f[R], \f[B]cluster status\f[R],
+\f[B]context\f[R], \f[B]db status\f[R], \f[B]doctor\f[R],
+\f[B]logs\f[R], \f[B]status\f[R], \f[B]wt list\f[R].
 .SH COMMANDS
+.SS Environment
 .TP
 \f[B]setup\f[R]
 Bootstrap the development environment.
@@ -24,6 +33,38 @@ See \f[B]reproctl\-setup\f[R](1).
 Diagnose the development environment.
 See \f[B]reproctl\-doctor\f[R](1).
 .TP
+\f[B]checkhealth\f[R] [\f[B]\(enjson\f[R]]
+Runtime health checks (Tilt, k8s, services).
+.SS Services
+.TP
+\f[B]start\f[R] \f[I]service\f[R] [\f[I]service\f[R]...]
+Start services from the current context.
+See \f[B]reproctl\-start\f[R](1).
+.TP
+\f[B]stop\f[R] [\f[I]service\f[R]...] | \f[B]\-\-all\f[R]
+Stop services or tear down Tilt.
+See \f[B]reproctl\-stop\f[R](1).
+.TP
+\f[B]restart\f[R] \f[I]service\f[R] [\f[I]service\f[R]...] | \f[B]\-\-all\f[R]
+Rebuild services or restart the Tilt daemon.
+See \f[B]reproctl\-restart\f[R](1).
+.TP
+\f[B]status\f[R]
+Show running services and Tilt dashboard URL.
+With \f[B]\-\-json\f[R], outputs a JSON object with Tilt state and a
+list of resource objects.
+.TP
+\f[B]logs\f[R] [\f[I]options\f[R]] [\f[I]service\f[R]...]
+Show or stream service logs.
+See \f[B]reproctl\-logs\f[R](1).
+.TP
+\f[B]ui\f[R]
+Open the Tilt dashboard in a browser.
+.TP
+\f[B]launch\f[R] \f[I]service\f[R]
+Open a service URL in the browser.
+.SS Infrastructure
+.TP
 \f[B]cluster\f[R] \f[I]subcommand\f[R]
 Manage the local kind cluster.
 See \f[B]reproctl\-cluster\f[R](1).
@@ -31,37 +72,44 @@ See \f[B]reproctl\-cluster\f[R](1).
 \f[B]db\f[R] \f[I]subcommand\f[R]
 Database operations.
 See \f[B]reproctl\-db\f[R](1).
+.SS Worktrees
 .TP
-\f[B]start\f[R] \f[I]service\f[R] [\f[I]service\f[R]\&...]
-Start services from the current context.
-See \f[B]reproctl\-start\f[R](1).
+\f[B]wt create\f[R] \f[I]branch\f[R]
+Create a new worktree for a branch.
 .TP
-\f[B]stop\f[R] [\f[I]service\f[R]\&...] | \f[B]\(enall\f[R]
-Stop services or tear down Tilt.
-See \f[B]reproctl\-stop\f[R](1).
+\f[B]wt create \(enfrom\-issue\f[R] \f[I]id\f[R]
+Create a worktree from a Linear issue.
 .TP
-\f[B]restart\f[R] \f[I]service\f[R] [\f[I]service\f[R]\&...] | \f[B]\(enall\f[R]
-Rebuild services or restart the Tilt daemon.
-See \f[B]reproctl\-restart\f[R](1).
+\f[B]wt remove\f[R] \f[I]branch\f[R]
+Remove the worktree for a branch.
+See \f[B]reproctl\-worktree\f[R](1).
 .TP
-\f[B]status\f[R]
-Show running services and Tilt dashboard URL.
+\f[B]wt list\f[R] [\f[B]\(enjson\f[R]]
+List active worktrees.
 .TP
-\f[B]logs\f[R] [\f[I]options\f[R]] [\f[I]service\f[R]\&...]
-Show or stream service logs.
-See \f[B]reproctl\-logs\f[R](1).
+\f[B]wt attach\f[R] \f[I]branch\f[R]
+Drop into a worktree subshell.
 .TP
-\f[B]ui\f[R]
-Open the Tilt dashboard in a browser.
+\f[B]wt prune\f[R] [\f[B]\(enyes\f[R]]
+Remove worktrees whose branches are merged.
+.SS General
 .TP
 \f[B]context\f[R]
 Show the current development context (worktree, branch, issue, delta vs
 main, services).
+With \f[B]\-\-json\f[R], outputs a JSON object with context fields.
 .TP
 \f[B]worktree\f[R] \f[I]subcommand\f[R]
 Manage git worktrees.
 See \f[B]reproctl\-worktree\f[R](1).
 Alias: \f[B]wt\f[R].
+.TP
+\f[B]completion\f[R] \f[I]shell\f[R]
+Generate shell completion scripts.
+See \f[B]reproctl\-completion\f[R](1).
+.TP
+\f[B]help\f[R] [\f[I]command\f[R]]
+Show manpage for reproctl or a subcommand.
 .SH EXAMPLES
 .TP
 reproctl setup
@@ -70,27 +118,26 @@ Bootstrap the entire environment.
 reproctl start api\-server workspace
 Start api\-server and workspace from main checkout.
 .TP
-reproctl stop \(enall
+reproctl stop \-\-all
 Tear down all services and Tilt.
 .SH SHELL COMPLETION
-Zsh and Bash completions are provided in \f[B]scripts/completions/\f[R].
-.SS Zsh
-Add the completions directory to \f[B]fpath\f[R] in
-\f[B]\(ti/.zshrc\f[R], before \f[B]compinit\f[R]:
+Shell completions can be generated via the \f[B]completion\f[R]
+subcommand:
 .IP
 .EX
-fpath=(/path/to/repro/scripts/completions $fpath)
-autoload \-Uz compinit && compinit
+reproctl completion bash
+reproctl completion zsh
+reproctl completion fish
 .EE
-.SS Bash
-Source the completion script in \f[B]\(ti/.bashrc\f[R]:
-.IP
-.EX
-source /path/to/repro/scripts/completions/reproctl.bash
-.EE
+.PP
+See \f[B]reproctl\-completion\f[R](1) for installation instructions.
+.PP
+Completions are also available as static files in
+\f[B]scripts/completions/\f[R] for direct sourcing via \f[B].envrc\f[R]
+or shell profiles.
 .SH INTERACTIVE PICKER
 Commands that accept a service name (\f[B]start\f[R], \f[B]stop\f[R],
-\f[B]restart\f[R], \f[B]logs\f[R]) support a \f[B]\(enpick\f[R] /
+\f[B]restart\f[R], \f[B]logs\f[R]) support a \f[B]\-\-pick\f[R] /
 \f[B]\-p\f[R] flag to interactively select from available services.
 If \f[B]fzf\f[R] is installed, it is used for fuzzy selection; otherwise
 a numbered prompt is shown.
@@ -103,6 +150,6 @@ terminal.
 \f[B]reproctl\-cluster\f[R](1), \f[B]reproctl\-db\f[R](1),
 \f[B]reproctl\-start\f[R](1), \f[B]reproctl\-stop\f[R](1),
 \f[B]reproctl\-restart\f[R](1), \f[B]reproctl\-logs\f[R](1),
-\f[B]reproctl\-worktree\f[R](1)
+\f[B]reproctl\-worktree\f[R](1), \f[B]reproctl\-completion\f[R](1)
 .SH AUTHORS
 Repro.

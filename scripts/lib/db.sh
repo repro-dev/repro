@@ -55,6 +55,16 @@ migrations_resource_name() {
   fi
 }
 
+seed_resource_name() {
+  if is_worktree "$REPO_ROOT"; then
+    local slug
+    slug="$(detect_worktree_slug)"
+    echo "db-seed-wt-$slug"
+  else
+    echo "db-seed"
+  fi
+}
+
 # ── Subcommands ─────────────────────────────────────────────────────
 
 cmd_db_reset() {
@@ -78,7 +88,7 @@ cmd_db_reset() {
   fi
 
   if is_worktree "$REPO_ROOT"; then
-    echo "Dropping and recreating worktree database ($DB_NAME)..."
+    _step 1 3 "Dropping and recreating worktree database ($DB_NAME)..."
     PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" \
       -U "$DB_USER" -d postgres \
       -c "DROP DATABASE IF EXISTS $DB_NAME" \
@@ -86,22 +96,32 @@ cmd_db_reset() {
 
     local resource
     resource="$(migrations_resource_name)"
-    echo "Triggering migrations ($resource)..."
+    _step 2 3 "Triggering migrations ($resource)..."
     if tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
       tilt trigger "$resource" --port "$TILT_PORT"
-      echo "db-reset complete. Migrations triggered."
     else
-      echo "Migrations resource '$resource' is not loaded — run migrations manually."
+      _warn "Migrations resource '$resource' is not loaded — run migrations manually."
     fi
+
+    local seed
+    seed="$(seed_resource_name)"
+    _step 3 3 "Triggering seed ($seed)..."
+    if tilt get uiresource "$seed" --port "$TILT_PORT" > /dev/null 2>&1; then
+      tilt trigger "$seed" --port "$TILT_PORT"
+    else
+      _warn "Seed resource '$seed' is not loaded — run seed manually."
+    fi
+
+    _ok "Database reset complete — migrations and seed triggered"
   else
-    echo "Triggering database reset..."
+    _step 1 1 "Triggering database reset..."
     if ! tilt get uiresource db-reset --port "$TILT_PORT" > /dev/null 2>&1; then
       die "The db-reset resource is not loaded in Tilt.\nStart services first with 'reproctl start api-server'."
     fi
     tilt trigger db-reset --port "$TILT_PORT"
-    echo "db-reset triggered. Watch Tilt for progress."
+    _ok "Database reset triggered — watch Tilt for progress"
   fi
-}
+} >&2
 
 cmd_db_migrate() {
   require_tilt
@@ -109,29 +129,51 @@ cmd_db_migrate() {
   local resource
   resource="$(migrations_resource_name)"
 
-  echo "Triggering migrations ($resource)..."
+  _step 1 1 "Triggering migrations ($resource)..."
   if ! tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
     die "Migrations resource '$resource' is not loaded in Tilt.\nStart the service first with 'reproctl start api-server'."
   fi
   tilt trigger "$resource" --port "$TILT_PORT"
-  echo "Migrations triggered. Watch Tilt for progress."
+  _ok "Migrations triggered — watch Tilt for progress"
+}
+
+cmd_db_seed() {
+  require_tilt
+
+  local resource
+  resource="$(seed_resource_name)"
+
+  _step 1 1 "Triggering seed ($resource)..."
+  if ! tilt get uiresource "$resource" --port "$TILT_PORT" > /dev/null 2>&1; then
+    die "Seed resource '$resource' is not loaded in Tilt.\nStart the service first with 'reproctl start api-server'."
+  fi
+  tilt trigger "$resource" --port "$TILT_PORT"
+  _ok "Seed triggered — watch Tilt for progress"
 }
 
 cmd_db_shell() {
   require_tilt
   require_psql
 
-  echo "Connecting to cluster database ($DB_NAME via Tilt port-forward)..."
+  _step 1 1 "Connecting to cluster database ($DB_NAME via Tilt port-forward)..." >&2
   PGPASSWORD="$DB_PASSWORD" exec "$PSQL" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$@"
-}
+} >&2
 
 cmd_db_status() {
   require_tilt
 
+  if [ "${REPROCTL_JSON:-false}" = true ]; then
+    _db_status_json
+    return
+  fi
+
+  local w
+  w="$(_label_width "Host:" "User:" "Database:")"
+
   echo "Cluster database (via Tilt port-forward):"
-  echo "  Host:     $DB_HOST:$DB_PORT"
-  echo "  User:     $DB_USER"
-  echo "  Database: $DB_NAME"
+  _kv "$w" "Host:" "$DB_HOST:$DB_PORT" "  "
+  _kv "$w" "User:" "$DB_USER" "  "
+  _kv "$w" "Database:" "$DB_NAME" "  "
 
   if [ -z "$PSQL" ]; then
     echo ""
@@ -146,7 +188,6 @@ cmd_db_status() {
     return
   fi
 
-  # Compare on-disk migration files against what's been applied in the DB.
   local applied
   applied="$(PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" \
     -U "$DB_USER" -d "$DB_NAME" -t -A \
@@ -156,7 +197,6 @@ cmd_db_status() {
     return
   }
 
-  # Build lists of on-disk and applied migration names
   local on_disk
   on_disk="$(ls "$migrations_dir"/*.sql 2>/dev/null | xargs -n1 basename | sort)"
 
@@ -185,10 +225,66 @@ cmd_db_status() {
   fi
 }
 
+_db_status_json() {
+  local applied_list="" pending_list="" orphaned_list=""
+  local migrations_dir="$REPO_ROOT/apps/api-server/src/migrations/data"
+  local available=true
+
+  if [ -z "$PSQL" ] || [ ! -d "$migrations_dir" ]; then
+    available=false
+  fi
+
+  if [ "$available" = true ]; then
+    local applied
+    applied="$(PGPASSWORD="$DB_PASSWORD" "$PSQL" -h "$DB_HOST" -p "$DB_PORT" \
+      -U "$DB_USER" -d "$DB_NAME" -t -A \
+      -c "SELECT name FROM kysely_migration ORDER BY name" 2>/dev/null)" || {
+      available=false
+      applied=""
+    }
+
+    if [ "$available" = true ]; then
+      local on_disk
+      on_disk="$(ls "$migrations_dir"/*.sql 2>/dev/null | xargs -n1 basename | sort)"
+
+      if [ -n "$applied" ]; then
+        applied_list="$applied"
+      fi
+
+      if [ -n "$on_disk" ] && [ -n "$applied" ]; then
+        pending_list="$(comm -23 <(echo "$on_disk") <(echo "$applied"))"
+        orphaned_list="$(comm -13 <(echo "$on_disk") <(echo "$applied"))"
+      elif [ -n "$on_disk" ]; then
+        pending_list="$on_disk"
+      fi
+    fi
+  fi
+
+  python3 -c '
+import json, sys
+
+def lines_to_list(s):
+    return [l for l in s.splitlines() if l.strip()] if s else []
+
+obj = {
+    "host": sys.argv[1],
+    "port": int(sys.argv[2]),
+    "database": sys.argv[3],
+    "available": sys.argv[4] == "true",
+    "migrations": {
+        "applied": lines_to_list(sys.argv[5]),
+        "pending": lines_to_list(sys.argv[6]),
+        "orphaned": lines_to_list(sys.argv[7]),
+    }
+}
+print(json.dumps(obj))
+' "$DB_HOST" "$DB_PORT" "$DB_NAME" "$available" "$applied_list" "$pending_list" "$orphaned_list"
+}
+
 # ── Router ──────────────────────────────────────────────────────────
 
 cmd_db() {
-  local usage="Usage: reproctl db <reset|migrate|shell|status>"
+  local usage="Usage: reproctl db <reset|migrate|seed|shell|status>"
 
   if [ $# -eq 0 ]; then
     echo "$usage" >&2
@@ -201,6 +297,7 @@ cmd_db() {
   case "$subcmd" in
     reset)   cmd_db_reset "$@" ;;
     migrate) cmd_db_migrate "$@" ;;
+    seed)    cmd_db_seed "$@" ;;
     shell)   cmd_db_shell "$@" ;;
     status)  cmd_db_status "$@" ;;
     -h|--help)
@@ -208,8 +305,9 @@ cmd_db() {
 Usage: reproctl db <subcommand>
 
 Subcommands:
-  reset    Drop and recreate the database
+  reset    Drop and recreate the database, then migrate and seed
   migrate  Run pending database migrations
+  seed     Run database seed (idempotent)
   shell    Open a psql session against the cluster database
   status   Show connection info and whether migrations are up to date
 

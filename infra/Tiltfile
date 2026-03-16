@@ -105,6 +105,10 @@ if service_config:
         for k, v in wt_services.items():
           if k not in SERVICES:
             SERVICES[k] = v
+          else:
+            for field, val in v.items():
+              if field not in SERVICES[k] or SERVICES[k][field] == None:
+                SERVICES[k][field] = val
 
   service_config = resolve_dependencies(service_config, SERVICES)
 

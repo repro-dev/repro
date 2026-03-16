@@ -14,16 +14,21 @@
 # ---------------------------------------------------------------------------
 
 __reproctl_repo_root() {
+  local root
+  root="$(git rev-parse --show-toplevel 2>/dev/null)"
+  if [[ -n "$root" ]]; then
+    echo "$root"
+    return
+  fi
+
   local source="${BASH_SOURCE[0]}"
   local dir
-  # Resolve symlinks
   while [[ -L "$source" ]]; do
     dir="$(cd -P "$(dirname "$source")" && pwd)"
     source="$(readlink "$source")"
     [[ "$source" != /* ]] && source="$dir/$source"
   done
   dir="$(cd -P "$(dirname "$source")" && pwd)"
-  # Up two levels: completions → scripts → repo
   echo "$(dirname "$(dirname "$dir")")"
 }
 
@@ -59,18 +64,19 @@ _reproctl() {
   local cur prev words cword
   _init_completion || return
 
-  local top_commands="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt help"
+  local top_commands="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version help"
   local cluster_sub="up down status reset"
   local db_sub="reset migrate shell status"
   local wt_sub="create remove list attach prune"
-  local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt"
+  local completion_shells="bash zsh fish"
+  local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version"
 
   # Find the subcommand position (skip global flags)
   local cmd="" subcmd=""
   local i
   for ((i = 1; i < cword; i++)); do
     case "${words[i]}" in
-      -h|--help) continue ;;
+      -h|--help|--json) continue ;;
       -*) continue ;;
       *)
         if [[ -z "$cmd" ]]; then
@@ -84,7 +90,7 @@ _reproctl() {
 
   # Top-level completion
   if [[ -z "$cmd" ]]; then
-    COMPREPLY=($(compgen -W "$top_commands -h --help" -- "$cur"))
+    COMPREPLY=($(compgen -W "$top_commands --json -h --help --version -V" -- "$cur"))
     return
   fi
 
@@ -97,7 +103,7 @@ _reproctl() {
       ;;
 
     checkhealth)
-      COMPREPLY=($(compgen -W "--json -h --help" -- "$cur"))
+      COMPREPLY=($(compgen -W "-h --help" -- "$cur"))
       ;;
 
     cluster)
@@ -187,11 +193,19 @@ _reproctl() {
       fi
       ;;
 
+    completion)
+      COMPREPLY=($(compgen -W "$completion_shells" -- "$cur"))
+      ;;
+
     help)
       COMPREPLY=($(compgen -W "$help_topics" -- "$cur"))
       ;;
 
     ui|status)
+      ;;
+
+    version)
+      COMPREPLY=($(compgen -W "--json -h --help" -- "$cur"))
       ;;
   esac
 }

@@ -4,27 +4,27 @@
 .SH NAME
 reproctl\-restart \- rebuild services or restart Tilt
 .SH SYNOPSIS
-\f[B]reproctl restart\f[R] \f[I]service\f[R] [\f[I]service\f[R]\&...]
-| \f[B]\(enall\f[R]
+\f[B]reproctl restart\f[R] \f[I]service\f[R] [\f[I]service\f[R]...]
+| \f[B]\-\-all\f[R]
 .SH DESCRIPTION
 Rebuild and redeploy running services, or restart the entire Tilt
 daemon.
 .PP
-Without \f[B]\(enall\f[R], triggers a rebuild of the specified services
+Without \f[B]\-\-all\f[R], triggers a rebuild of the specified services
 via \f[B]tilt trigger\f[R].
 If a service has an associated migration resource, the migration is
 triggered first.
 .PP
-With \f[B]\(enall\f[R], the Tilt daemon is stopped and restarted while
+With \f[B]\-\-all\f[R], the Tilt daemon is stopped and restarted while
 preserving the current service configuration from
 \f[B]reproctl_services.json\f[R].
 .SH OPTIONS
 .TP
-\f[B]\(enall\f[R]
+\f[B]\-\-all\f[R]
 Stop and restart the Tilt daemon instead of rebuilding individual
 services.
 .TP
-\f[B]\(enpick\f[R], \f[B]\-p\f[R]
+\f[B]\-\-pick\f[R], \f[B]\-p\f[R]
 Interactively select a service to restart.
 Uses \f[B]fzf\f[R] if installed, otherwise a numbered prompt.
 When no service names are given and stdin is a terminal, the picker is
@@ -37,7 +37,7 @@ Rebuild and redeploy api\-server.
 reproctl restart api\-server workspace
 Rebuild multiple services.
 .TP
-reproctl restart \(enall
+reproctl restart \-\-all
 Restart the Tilt daemon with the same services.
 .SH SEE ALSO
 \f[B]reproctl\f[R](1), \f[B]reproctl\-start\f[R](1),

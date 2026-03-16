@@ -48,13 +48,13 @@ cmd_cluster_up() {
   require_kind
 
   if cluster_exists && registry_exists; then
-    echo "Cluster '$CLUSTER_NAME' and registry '$REGISTRY_NAME' are already running."
+    _ok "Cluster '$CLUSTER_NAME' and registry '$REGISTRY_NAME' are already running"
     return 0
   fi
 
-  echo "Creating cluster and registry..."
+  _step 1 1 "Creating cluster and registry..."
   ctlptl apply -f "$CLUSTER_YAML"
-  echo "Cluster '$CLUSTER_NAME' is ready."
+  _ok "Cluster '$CLUSTER_NAME' is ready"
 }
 
 cmd_cluster_down() {
@@ -75,42 +75,79 @@ cmd_cluster_down() {
     count="$(service_count "$(cat "$CONFIG_FILE")")"
     if [ "$count" != "0" ]; then
       if [ "$force" = true ]; then
-        echo "Forcing cluster teardown — stopping $count service(s)..."
+        echo "$count service(s) still configured — forcing teardown" >&2
         stop_tilt_daemon
       else
-        echo "Warning: $count service(s) are still configured."
-        echo "Run 'reproctl stop --all' first, or pass --force to proceed."
+        _warn "$count service(s) are still configured."
+        echo "Run 'reproctl stop --all' first, or pass --force to proceed." >&2
         return 1
       fi
     fi
   fi
 
-  echo "Tearing down cluster and registry..."
+  _step 1 1 "Tearing down cluster and registry..."
   ctlptl delete -f "$CLUSTER_YAML" 2>/dev/null || true
-  echo "Cluster '$CLUSTER_NAME' has been removed."
+  _ok "Cluster '$CLUSTER_NAME' has been removed"
 }
 
 cmd_cluster_status() {
   require_docker
   require_kind
 
-  echo "Cluster: $CLUSTER_NAME"
+  if [ "${REPROCTL_JSON:-false}" = true ]; then
+    _cluster_status_json
+    return
+  fi
+
+  local w
+  w="$(_label_width "Status:" "Context:" "Port:")"
+
+  echo "${CLR_BOLD}Cluster:${CLR_RESET} $CLUSTER_NAME"
   if cluster_exists; then
-    echo "  Status: running"
-    echo "  Context: kind-$CLUSTER_NAME"
+    _kv "$w" "Status:" "running" "  "
+    _kv "$w" "Context:" "kind-$CLUSTER_NAME" "  "
   else
-    echo "  Status: not running"
+    _kv "$w" "Status:" "not running" "  "
   fi
 
   echo ""
-  echo "Registry: $REGISTRY_NAME"
+  echo "${CLR_BOLD}Registry:${CLR_RESET} $REGISTRY_NAME"
   if registry_exists; then
     local port
     port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "5000/tcp") 0).HostPort}}' "$REGISTRY_NAME" 2>/dev/null || echo "5000")"
-    echo "  Status: running (port $port)"
+    _kv "$w" "Status:" "running" "  "
+    _kv "$w" "Port:" "$port" "  "
   else
-    echo "  Status: not running"
+    _kv "$w" "Status:" "not running" "  "
   fi
+}
+
+_cluster_status_json() {
+  local cluster_running=false
+  local context=""
+  if cluster_exists; then
+    cluster_running=true
+    context="kind-$CLUSTER_NAME"
+  fi
+
+  local reg_running=false
+  local reg_port=""
+  if registry_exists; then
+    reg_running=true
+    reg_port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "5000/tcp") 0).HostPort}}' "$REGISTRY_NAME" 2>/dev/null || echo "5000")"
+  fi
+
+  python3 -c '
+import json, sys
+obj = {"cluster": sys.argv[1], "running": sys.argv[2] == "true"}
+if sys.argv[3]:
+    obj["context"] = sys.argv[3]
+reg = {"running": sys.argv[4] == "true"}
+if sys.argv[5]:
+    reg["port"] = int(sys.argv[5])
+obj["registry"] = reg
+print(json.dumps(obj))
+' "$CLUSTER_NAME" "$cluster_running" "$context" "$reg_running" "$reg_port"
 }
 
 cmd_cluster_reset() {

@@ -233,9 +233,14 @@ class TestFormatStatus:
                 env={"SERVICES_JSON": svc_path},
             )
             lines = [l for l in result.stdout.splitlines() if l.strip()]
-            assert len(lines) == 3
+            assert len(lines) == 4
+            header = lines[0]
+            assert "NAME" in header
+            assert "STATUS" in header
+            assert "TYPE" in header
+            data_lines = lines[1:]
             ok_positions = set()
-            for line in lines:
+            for line in data_lines:
                 idx = line.index("ok")
                 ok_positions.add(idx)
             assert len(ok_positions) == 1
@@ -275,3 +280,125 @@ class TestFormatStatus:
         for line in result.stdout.splitlines():
             if line.strip():
                 assert line == line.rstrip(), f"Trailing whitespace: {line!r}"
+
+    def test_header_row_with_three_or_more_items(self):
+        data = {
+            "items": [
+                _make_item("redis"),
+                _make_item("postgres"),
+                _make_item("storage"),
+            ]
+        }
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        lines = [l for l in result.stdout.splitlines() if l.strip()]
+        assert len(lines) == 4
+        header = lines[0]
+        assert "NAME" in header
+        assert "STATUS" in header
+        assert "TYPE" in header
+
+    def test_no_header_row_with_fewer_than_three_items(self):
+        data = {"items": [_make_item("redis"), _make_item("postgres")]}
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        lines = [l for l in result.stdout.splitlines() if l.strip()]
+        assert len(lines) == 2
+        assert "NAME" not in result.stdout
+
+    def test_no_color_when_not_tty(self):
+        data = {"items": [_make_item("redis")]}
+        result = run_script("format_status.py", stdin=json.dumps(data))
+        assert "\033[" not in result.stdout
+
+    def test_no_color_env_suppresses_color(self):
+        data = {"items": [_make_item("redis")]}
+        result = run_script(
+            "format_status.py",
+            stdin=json.dumps(data),
+            env={"NO_COLOR": "1"},
+        )
+        assert "\033[" not in result.stdout
+
+    def test_json_output_basic(self):
+        data = {"items": [_make_item("redis", "ok", "ok")]}
+        result = run_script(
+            "format_status.py",
+            stdin=json.dumps(data),
+            env={"REPROCTL_JSON": "true"},
+        )
+        assert result.returncode == 0
+        parsed = json.loads(result.stdout)
+        assert isinstance(parsed, list)
+        assert len(parsed) == 1
+        assert parsed[0]["name"] == "redis"
+        assert parsed[0]["status"] == "ok"
+        assert "type" in parsed[0]
+
+    def test_json_output_error_with_detail(self):
+        data = {
+            "items": [
+                _make_item(
+                    "web-wt-x",
+                    runtime="error",
+                    pod_restarts=3,
+                    pod_status="CrashLoopBackOff",
+                )
+            ]
+        }
+        result = run_script(
+            "format_status.py",
+            stdin=json.dumps(data),
+            env={"REPROCTL_JSON": "true"},
+        )
+        assert result.returncode == 0
+        parsed = json.loads(result.stdout)
+        assert parsed[0]["status"] == "error"
+        assert "detail" in parsed[0]
+        assert "CrashLoopBackOff" in parsed[0]["detail"]
+
+    def test_json_output_empty_items(self):
+        result = run_script(
+            "format_status.py",
+            stdin=json.dumps({"items": []}),
+            env={"REPROCTL_JSON": "true"},
+        )
+        assert result.returncode == 0
+        parsed = json.loads(result.stdout)
+        assert parsed == []
+
+    def test_json_configured_but_not_in_tilt(self):
+        cfg_path = _write_json({"services": [{"name": "capture", "slug": "y"}]})
+        try:
+            data = {"items": []}
+            result = run_script(
+                "format_status.py",
+                stdin=json.dumps(data),
+                env={"REPROCTL_JSON": "true", "CONFIG_FILE": cfg_path},
+            )
+            assert result.returncode == 0
+            parsed = json.loads(result.stdout)
+            assert len(parsed) == 1
+            assert parsed[0]["name"] == "capture-wt-y"
+            assert parsed[0]["status"] == "warn"
+        finally:
+            os.unlink(cfg_path)
+
+    def test_json_stopped_when_tilt_not_running(self):
+        cfg_path = _write_json({"services": [{"name": "web", "slug": ""}]})
+        try:
+            data = {"items": []}
+            result = run_script(
+                "format_status.py",
+                stdin=json.dumps(data),
+                env={
+                    "REPROCTL_JSON": "true",
+                    "CONFIG_FILE": cfg_path,
+                    "TILT_RUNNING": "false",
+                },
+            )
+            assert result.returncode == 0
+            parsed = json.loads(result.stdout)
+            assert len(parsed) == 1
+            assert parsed[0]["name"] == "web"
+            assert parsed[0]["status"] == "stopped"
+        finally:
+            os.unlink(cfg_path)

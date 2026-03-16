@@ -111,7 +111,7 @@ cmd_wt_create_from_issue() {
       echo "  ${CLR_DIM}Could not find 'In Progress' state — skipping status update${CLR_RESET}"
     fi
   fi
-}
+} >&2
 
 cmd_wt_create() {
   local branch="$1"
@@ -137,7 +137,7 @@ cmd_wt_create() {
   fi
 
   if [ -d "$wt_path" ]; then
-    _err "Error: Worktree already exists at $wt_path"
+    _err "Worktree already exists at $wt_path"
     echo "  To remove it: reproctl worktree remove $branch" >&2
     exit 1
   fi
@@ -194,7 +194,7 @@ cmd_wt_create() {
   echo ""
   echo "  cd $wt_path"
   echo ""
-}
+} >&2
 
 _cleanup_worktree_services() {
   local wt_path="$1"
@@ -215,7 +215,7 @@ _cleanup_worktree_services() {
     local err_msg
     err_msg="$(cat "$svc_err")"
     rm -f "$svc_err"
-    echo "  Warning: could not determine services for worktree '${slug}': ${err_msg}" >&2
+    _warn "could not determine services for worktree '${slug}': ${err_msg}"
     return 0
   }
   rm -f "$svc_err"
@@ -247,7 +247,7 @@ _cleanup_worktree_services() {
   else
     write_config "$new_config"
   fi
-}
+} >&2
 
 _drop_worktree_db() {
   local slug="$1"
@@ -267,7 +267,7 @@ _drop_worktree_db() {
   fi
 
   if [ -z "$psql_bin" ]; then
-    echo "  Warning: psql not found — skipping database cleanup for $db_name" >&2
+    _warn "psql not found — skipping database cleanup for $db_name"
     return 0
   fi
 
@@ -279,9 +279,9 @@ _drop_worktree_db() {
   echo "  Dropping worktree database: $db_name"
   PGPASSWORD=repro "$psql_bin" -h localhost -p 15432 -U repro -d postgres \
     -c "DROP DATABASE IF EXISTS $db_name" 2>/dev/null || {
-    echo "  Warning: failed to drop database $db_name" >&2
+    _warn "failed to drop database $db_name"
   }
-}
+} >&2
 
 cmd_wt_remove() {
   local branch="$1"
@@ -293,7 +293,7 @@ cmd_wt_remove() {
       echo "${CLR_DIM}[dry-run]${CLR_RESET} No worktree found for branch: $branch"
       return 0
     fi
-    _err "Error: No worktree found for branch: $branch"
+    _err "No worktree found for branch: $branch"
     echo "  Run 'reproctl worktree list' to see active worktrees." >&2
     git worktree prune
     return 1
@@ -321,7 +321,7 @@ cmd_wt_remove() {
 
   echo ""
   _ok "Worktree removed: $wt_path"
-}
+} >&2
 
 cmd_wt_prune() {
   if [ "$WT_DRY_RUN" = true ]; then
@@ -444,7 +444,7 @@ cmd_wt_prune() {
   else
     _err "Pruned with $failed error(s)"
   fi
-}
+} >&2
 
 cmd_wt_list() {
   echo "${CLR_BOLD}Active worktrees:${CLR_RESET}"
@@ -680,7 +680,7 @@ cmd_attach() {
     exec "$SHELL")
 
   echo "Detached from worktree: $branch"
-}
+} >&2
 
 wt_usage() {
   cat <<'EOF'
@@ -861,7 +861,7 @@ cmd_wt() {
       cmd_wt_remove "${args[0]}"
       ;;
     list)
-      if [ "$WT_JSON" = true ]; then
+      if [ "$WT_JSON" = true ] || [ "${REPROCTL_JSON:-false}" = true ]; then
         cmd_wt_list_json
       else
         cmd_wt_list

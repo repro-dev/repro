@@ -5,7 +5,7 @@ ENV BUILD_VERSION=$BUILD_VERSION
 
 RUN apt update \
   && apt upgrade -y \
-  && apt install -y gettext-base
+  && apt install -y ca-certificates git gettext-base
 
 WORKDIR /app
 

@@ -51,9 +51,10 @@ _diag_flush() {
   done
 
   _diag_rows=()
-}
+} >&2
 
 cmd_checkhealth() {
+  CHECKHEALTH_JSON="${REPROCTL_JSON:-false}"
   local has_errors=false
   local has_warnings=false
   local issues=()
@@ -70,10 +71,10 @@ cmd_checkhealth() {
   }
 
   if [ "$CHECKHEALTH_JSON" != true ]; then
-    echo ""
-    echo "${CLR_BOLD}Runtime health check${CLR_RESET}"
-    echo ""
-    echo "${CLR_BOLD}Infrastructure:${CLR_RESET}"
+    echo "" >&2
+    echo "${CLR_BOLD}Runtime health check${CLR_RESET}" >&2
+    echo "" >&2
+    echo "${CLR_BOLD}Infrastructure:${CLR_RESET}" >&2
   fi
 
   if tilt_is_running; then
@@ -150,8 +151,8 @@ cmd_checkhealth() {
   _diag_flush
 
   if [ "$CHECKHEALTH_JSON" != true ]; then
-    echo ""
-    echo "${CLR_BOLD}Services:${CLR_RESET}"
+    echo "" >&2
+    echo "${CLR_BOLD}Services:${CLR_RESET}" >&2
   fi
 
   if tilt_is_running; then
@@ -219,8 +220,8 @@ for issue in data.get("issues", []):
   fi
 
   if [ "$CHECKHEALTH_JSON" != true ]; then
-    echo ""
-    echo "${CLR_BOLD}Worktree resources:${CLR_RESET}"
+    echo "" >&2
+    echo "${CLR_BOLD}Worktree resources:${CLR_RESET}" >&2
   fi
 
   local wt_slugs=()
@@ -331,7 +332,7 @@ for item in data.get("items", []):
     fi
   else
     if [ "$CHECKHEALTH_JSON" != true ]; then
-      echo "  ${CLR_DIM}(no worktrees)${CLR_RESET}"
+      echo "  ${CLR_DIM}(no worktrees)${CLR_RESET}" >&2
     fi
   fi
 
@@ -424,30 +425,30 @@ print(json.dumps(items))
   fi
 
   if [ ${#issues[@]} -gt 0 ]; then
-    echo ""
-    echo "${CLR_BOLD}Issues found:${CLR_RESET}"
+    echo "" >&2
+    echo "${CLR_BOLD}Issues found:${CLR_RESET}" >&2
     for issue_json in "${issues[@]}"; do
       local sev msg
       sev="$(printf '%s' "$issue_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["severity"])')"
       msg="$(printf '%s' "$issue_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["message"])')"
       if [ "$sev" = "error" ]; then
-        printf '  %s✗ %s%s\n' "$CLR_RED" "$msg" "$CLR_RESET"
+        _err "$msg"
       else
-        printf '  %s⚠ %s%s\n' "$CLR_YELLOW" "$msg" "$CLR_RESET"
+        _warn "$msg"
       fi
     done
   fi
 
-  echo ""
+  echo "" >&2
 
   if [ "$has_errors" = true ]; then
-    echo "Runtime health check: ${CLR_RED}issues found${CLR_RESET}"
+    echo "Runtime health check: ${CLR_RED}issues found${CLR_RESET}" >&2
     return 1
   elif [ "$has_warnings" = true ]; then
-    echo "Runtime health check: ${CLR_BOLD}warnings${CLR_RESET} (non-critical)"
+    echo "Runtime health check: ${CLR_BOLD}warnings${CLR_RESET} (non-critical)" >&2
     return 0
   else
-    echo "${CLR_GREEN}Runtime health check: all healthy${CLR_RESET}"
+    echo "${CLR_GREEN}Runtime health check: all healthy${CLR_RESET}" >&2
     return 0
   fi
 }

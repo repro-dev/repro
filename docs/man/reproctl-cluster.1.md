@@ -23,7 +23,7 @@ Manage the local kind Kubernetes cluster and its associated container registry.
 : Tear down the cluster and registry. If services are currently running in Tilt, a warning is displayed and the operation is aborted unless **--force** is specified.
 
 **status**
-: Show the current state of the cluster and registry (running, stopped, or not found).
+: Show the current state of the cluster and registry (running, stopped, or not found). With the global **--json** flag, outputs a JSON object with cluster running state and registry details.
 
 **reset**
 : Equivalent to **down --force** followed by **up**. Destroys the existing cluster and creates a fresh one.
@@ -40,6 +40,9 @@ reproctl cluster up
 
 reproctl cluster status
 : Check whether the cluster is running.
+
+reproctl --json cluster status
+: Machine-readable cluster and registry state.
 
 reproctl cluster down --force
 : Tear down even with running services.
