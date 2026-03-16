@@ -127,7 +127,10 @@ _reproctl() {
       ;;
 
     start)
-      COMPREPLY=($(compgen -W "--pick -p $(__reproctl_services)" -- "$cur"))
+      case "$prev" in
+        --timeout|-t) return ;; # expect value
+      esac
+      COMPREPLY=($(compgen -W "--pick -p --wait -w --timeout -t -h --help $(__reproctl_services)" -- "$cur"))
       ;;
 
     stop)

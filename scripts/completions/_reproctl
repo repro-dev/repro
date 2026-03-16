@@ -190,6 +190,9 @@ _reproctl_services_arg() {
 _reproctl_start() {
   _arguments \
     '(--pick -p)'{--pick,-p}'[Interactively select a service]' \
+    '(--wait -w)'{--wait,-w}'[Block until all services are healthy]' \
+    '(--timeout -t)'{--timeout,-t}'[Timeout for --wait (default 120s)]:duration:' \
+    '(-h --help)'{-h,--help}'[Show help]' \
     '*:service:_reproctl_services_arg'
 }
 

@@ -8,7 +8,7 @@ reproctl-start - start services via Tilt
 
 # SYNOPSIS
 
-**reproctl start** *service* [*service*...]
+**reproctl start** [**--wait**] [**--timeout** *duration*] *service* [*service*...]
 
 # DESCRIPTION
 
@@ -27,6 +27,20 @@ If no service names are provided and stdin is a terminal, an interactive picker 
 **--pick**, **-p**
 : Interactively select a service. Uses **fzf** if installed, otherwise a numbered prompt.
 
+**--wait**, **-w**
+: Block until all started services report healthy status. While waiting, a spinner is shown on stderr when stdout is a TTY, or periodic status lines are printed when not a TTY. Exits 0 on success, 1 on timeout. In **--json** mode, outputs the final service status JSON on success, or an error object on timeout.
+
+**--timeout**, **-t** *duration*
+: How long to wait before giving up when **--wait** is set. Accepts a number of seconds, optionally with an **s** suffix (e.g. **120s**, **60**). Default: **120s**. Only meaningful with **--wait**.
+
+# EXIT CODES
+
+**0**
+: Services started successfully (and healthy, if **--wait** was used).
+
+**1**
+: Error, or timeout when waiting for services.
+
 # EXAMPLES
 
 reproctl start api-server
@@ -34,6 +48,15 @@ reproctl start api-server
 
 reproctl start api-server workspace
 : Start multiple services at once.
+
+reproctl start --wait api-server
+: Start the api-server and block until it is healthy.
+
+reproctl start --wait --timeout 60s api-server workspace
+: Start services and wait up to 60 seconds for all to become healthy.
+
+reproctl --json start --wait api-server
+: Start the api-server, wait for healthy, and output final status as JSON.
 
 # SEE ALSO
 

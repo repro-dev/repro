@@ -4,7 +4,8 @@
 .SH NAME
 reproctl\-start \- start services via Tilt
 .SH SYNOPSIS
-\f[B]reproctl start\f[R] \f[I]service\f[R] [\f[I]service\f[R]...]
+\f[B]reproctl start\f[R] [\f[B]\-\-wait\f[R]] [\f[B]\-\-timeout\f[R]
+\f[I]duration\f[R]] \f[I]service\f[R] [\f[I]service\f[R]...]
 .SH DESCRIPTION
 Start one or more services from the current context (main checkout or
 worktree).
@@ -28,6 +29,29 @@ prompt).
 \f[B]\-\-pick\f[R], \f[B]\-p\f[R]
 Interactively select a service.
 Uses \f[B]fzf\f[R] if installed, otherwise a numbered prompt.
+.TP
+\f[B]\-\-wait\f[R], \f[B]\-w\f[R]
+Block until all started services report healthy status.
+While waiting, a spinner is shown on stderr when stdout is a TTY, or
+periodic status lines are printed when not a TTY.
+Exits 0 on success, 1 on timeout.
+In \f[B]\-\-json\f[R] mode, outputs the final service status JSON on
+success, or an error object on timeout.
+.TP
+\f[B]\-\-timeout\f[R], \f[B]\-t\f[R] \f[I]duration\f[R]
+How long to wait before giving up when \f[B]\-\-wait\f[R] is set.
+Accepts a number of seconds, optionally with an \f[B]s\f[R] suffix (e.g.
+\f[B]120s\f[R], \f[B]60\f[R]).
+Default: \f[B]120s\f[R].
+Only meaningful with \f[B]\-\-wait\f[R].
+.SH EXIT CODES
+.TP
+\f[B]0\f[R]
+Services started successfully (and healthy, if \f[B]\-\-wait\f[R] was
+used).
+.TP
+\f[B]1\f[R]
+Error, or timeout when waiting for services.
 .SH EXAMPLES
 .TP
 reproctl start api\-server
@@ -35,6 +59,16 @@ Start the api\-server from the current context.
 .TP
 reproctl start api\-server workspace
 Start multiple services at once.
+.TP
+reproctl start \-\-wait api\-server
+Start the api\-server and block until it is healthy.
+.TP
+reproctl start \-\-wait \-\-timeout 60s api\-server workspace
+Start services and wait up to 60 seconds for all to become healthy.
+.TP
+reproctl \-\-json start \-\-wait api\-server
+Start the api\-server, wait for healthy, and output final status as
+JSON.
 .SH SEE ALSO
 \f[B]reproctl\f[R](1), \f[B]reproctl\-stop\f[R](1),
 \f[B]reproctl\-restart\f[R](1), \f[B]reproctl\-logs\f[R](1)

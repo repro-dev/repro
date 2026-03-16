@@ -138,13 +138,171 @@ _resolve_worktree_flag() {
   echo "${basename#repro-wt-}"
 }
 
+_parse_timeout() {
+  local input="$1"
+  local num="${input%s}"
+  if [[ "$num" =~ ^[0-9]+$ ]]; then
+    echo "$num"
+  else
+    return 1
+  fi
+}
+
+_wait_for_healthy() {
+  local timeout="$1"
+  shift
+  local services=("$@")
+
+  local resource_names=()
+  for svc in "${services[@]}"; do
+    resource_names+=("$(resolve_worktree_resource_name "$svc")")
+  done
+
+  local deadline=$(($(date +%s) + timeout))
+  local poll_interval=3
+  local log_interval=10
+  local last_log=0
+  local is_tty=false
+  if [ -t 2 ]; then
+    is_tty=true
+  fi
+
+  while true; do
+    local now
+    now=$(date +%s)
+    if [ "$now" -ge "$deadline" ]; then
+      local result
+      result="$(python3 "$SCRIPTS_DIR/lib/py/wait_healthy.py" \
+        "$TILT_PORT" "${resource_names[@]}" 2>/dev/null)" || true
+
+      if [ "$is_tty" = true ]; then
+        printf '\r\033[K' >&2
+      fi
+
+      if [ "${REPROCTL_JSON:-false}" = true ]; then
+        local status_json
+        status_json="$(tilt get uiresources -o json --port "$TILT_PORT" 2>/dev/null | \
+          SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" \
+          REPROCTL_JSON=true \
+          python3 "$SCRIPTS_DIR/lib/py/format_status.py")"
+        printf '{"error":"timeout","message":"Timed out after %ds waiting for services","items":%s}\n' \
+          "$timeout" "$status_json"
+      fi
+
+      local unhealthy_line
+      while IFS= read -r unhealthy_line; do
+        [ -z "$unhealthy_line" ] && continue
+        _err "$unhealthy_line"
+      done <<< "$(printf '%s' "${result:-}" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for r in data.get("resources", []):
+        if r.get("status") != "ok":
+            print(r["name"] + ": " + r.get("status", "unknown") + " (" + r.get("detail", "") + ")")
+except:
+    pass
+' 2>/dev/null)"
+
+      _err "Timed out after ${timeout}s waiting for services to become healthy"
+      return 1
+    fi
+
+    local result
+    result="$(python3 "$SCRIPTS_DIR/lib/py/wait_healthy.py" \
+      "$TILT_PORT" "${resource_names[@]}" 2>/dev/null)" || true
+
+    local all_healthy
+    all_healthy="$(printf '%s' "$result" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    print("true" if data.get("healthy") else "false")
+except:
+    print("false")
+' 2>/dev/null)" || all_healthy="false"
+
+    if [ "$all_healthy" = "true" ]; then
+      if [ "$is_tty" = true ]; then
+        printf '\r\033[K' >&2
+      fi
+      _ok "All services are healthy"
+
+      if [ "${REPROCTL_JSON:-false}" = true ]; then
+        local status_json
+        status_json="$(tilt get uiresources -o json --port "$TILT_PORT" 2>/dev/null | \
+          SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" \
+          REPROCTL_JSON=true \
+          python3 "$SCRIPTS_DIR/lib/py/format_status.py")"
+        printf '{"items":%s}\n' "$status_json"
+      fi
+
+      return 0
+    fi
+
+    local summary
+    summary="$(printf '%s' "$result" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    parts = []
+    for r in data.get("resources", []):
+        if r.get("status") != "ok":
+            parts.append(r["name"] + "... (" + r.get("status", "unknown") + ")")
+    print(", ".join(parts) if parts else "waiting...")
+except:
+    print("waiting...")
+' 2>/dev/null)" || summary="waiting..."
+
+    local elapsed=$((now - (deadline - timeout)))
+
+    if [ "$is_tty" = true ]; then
+      printf '\r\033[K  ⏳ Waiting for %s [%ds/%ds]' "$summary" "$elapsed" "$timeout" >&2
+    else
+      local since_log=$((now - last_log))
+      if [ "$last_log" -eq 0 ] || [ "$since_log" -ge "$log_interval" ]; then
+        printf 'Waiting for %s [%ds/%ds]\n' "$summary" "$elapsed" "$timeout" >&2
+        last_log=$now
+      fi
+    fi
+
+    sleep "$poll_interval"
+  done
+}
+
 cmd_start() {
   local pick=false
+  local wait=false
+  local timeout_secs=120
   local args=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --pick|-p) pick=true; shift ;;
+      --wait|-w) wait=true; shift ;;
+      --timeout|-t)
+        [[ -n "${2:-}" ]] || die "Missing value for $1"
+        timeout_secs="$(_parse_timeout "$2")" || die "Invalid timeout: $2\nExpected a duration like '120s' or '120'."
+        shift 2
+        ;;
+      -h|--help)
+        cat <<'USAGE'
+Usage: reproctl start [options] <service> [<service>...]
+
+Start one or more services from the current context.
+
+Options:
+  --pick, -p               Interactively select services
+  --wait, -w               Block until all services are healthy
+  --timeout, -t <duration> How long to wait before giving up (default: 120s)
+                           Only meaningful with --wait
+
+Exit codes:
+  0   Services started (and healthy, if --wait)
+  1   Error or timeout
+USAGE
+        return 0
+        ;;
       *) args+=("$1"); shift ;;
     esac
   done
@@ -166,18 +324,25 @@ cmd_start() {
     die "At least one service is required.\nUsage: reproctl start <service> [<service>...]"
   fi
 
+  local started_services=("$@")
+
   mkdir -p "$TMP_DIR"
 
   if ! cluster_preflight; then
     die "Cannot start services without a running cluster.\nRun 'reproctl cluster up' first."
   fi
 
-  _step 1 3 "Validating services.json..."
+  local total_steps=3
+  if [ "$wait" = true ]; then
+    total_steps=4
+  fi
+
+  _step 1 "$total_steps" "Validating services.json..."
   if ! python3 "$SCRIPTS_DIR/validate-services.py" "$SERVICES_JSON" "$REPO_ROOT/infra" "$@"; then
     die "services.json validation failed. Fix the errors above before starting."
   fi
 
-  _step 2 3 "Updating configuration..."
+  _step 2 "$total_steps" "Updating configuration..."
 
   local entries=()
 
@@ -206,8 +371,13 @@ cmd_start() {
     _ok "Config updated — Tilt will reload automatically"
     touch "$CONFIG_FILE"
   else
-    _step 3 3 "Starting Tilt..."
+    _step 3 "$total_steps" "Starting Tilt..."
     start_tilt_daemon
+  fi
+
+  if [ "$wait" = true ]; then
+    _step "$total_steps" "$total_steps" "Waiting for services to become healthy (timeout: ${timeout_secs}s)..."
+    _wait_for_healthy "$timeout_secs" "${started_services[@]}"
   fi
 }
 
