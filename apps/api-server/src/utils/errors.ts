@@ -85,3 +85,11 @@ export function serviceUnavailable(message: string = '') {
 export function isServiceUnavailable(error: Error) {
   return error.name === 'ServiceUnavailable'
 }
+
+export function tooManyRequests(message: string = '') {
+  return createError('TooManyRequests', message)
+}
+
+export function isTooManyRequests(error: Error) {
+  return error.name === 'TooManyRequests'
+}

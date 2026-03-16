@@ -28,6 +28,7 @@ import {
   notFound,
   permissionDenied,
   resourceConflict,
+  tooManyRequests,
 } from '~/utils/errors'
 
 // Used for password comparison in the case of
@@ -656,6 +657,75 @@ export function createAccountService(
     )
   }
 
+  const MAX_FAILED_ATTEMPTS = 5
+  const LOCKOUT_DURATION_MS = 15 * 60 * 1000
+
+  function ensureNotLocked(email: string): FutureInstance<Error, void> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('users')
+        .select(['lockedUntil'])
+        .where('email', '=', email.toLowerCase())
+        .where('active', '=', 1)
+        .executeTakeFirst()
+    ).pipe(
+      chain(row => {
+        if (row?.lockedUntil && row.lockedUntil.getTime() > Date.now()) {
+          return reject(
+            tooManyRequests('Account temporarily locked. Try again later.')
+          )
+        }
+
+        return resolve(undefined)
+      })
+    )
+  }
+
+  function recordFailedLogin(email: string): FutureInstance<Error, void> {
+    return attemptQuery(async () => {
+      const row = await database
+        .selectFrom('users')
+        .select(['id', 'failedLoginCount'])
+        .where('email', '=', email.toLowerCase())
+        .where('active', '=', 1)
+        .executeTakeFirst()
+
+      if (!row) {
+        return
+      }
+
+      const newCount = row.failedLoginCount + 1
+
+      if (newCount >= MAX_FAILED_ATTEMPTS) {
+        await database
+          .updateTable('users')
+          .set({
+            failedLoginCount: newCount,
+            lockedUntil: new Date(Date.now() + LOCKOUT_DURATION_MS),
+          })
+          .where('id', '=', row.id)
+          .execute()
+      } else {
+        await database
+          .updateTable('users')
+          .set({ failedLoginCount: newCount })
+          .where('id', '=', row.id)
+          .execute()
+      }
+    })
+  }
+
+  function resetFailedLoginCount(email: string): FutureInstance<Error, void> {
+    return attemptQuery(async () => {
+      await database
+        .updateTable('users')
+        .set({ failedLoginCount: 0, lockedUntil: null })
+        .where('email', '=', email.toLowerCase())
+        .where('active', '=', 1)
+        .execute()
+    })
+  }
+
   function createSession(
     subjectId: string,
     subjectType: 'user' | 'staff'
@@ -769,6 +839,11 @@ export function createAccountService(
     getUserIsAdmin,
     sendVerificationEmail,
     verifyUser,
+
+    // Lockout
+    ensureNotLocked,
+    recordFailedLogin,
+    resetFailedLoginCount,
 
     // Sessions
     createSession,

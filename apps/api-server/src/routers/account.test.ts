@@ -521,4 +521,84 @@ describe('Routers > Account', () => {
       ).resolves.not.toMatchObject({ verified: true })
     })
   })
+
+  describe('Account lockout', () => {
+    async function createUserWithCredentials(
+      email: string,
+      password: string
+    ) {
+      const account = await promise(
+        accountService.createAccount('Lockout Test')
+      )
+
+      return promise(
+        accountService.createUser(account.id, 'Test User', email, password)
+      )
+    }
+
+    async function attemptLogin(email: string, password: string) {
+      return app.inject({
+        method: 'POST',
+        url: '/login',
+        body: { email, password },
+      })
+    }
+
+    it('should allow login attempts below the lockout threshold', async () => {
+      const email = harness.generateRandomEmailAddress()
+      await createUserWithCredentials(email, 'hunter2')
+
+      for (let i = 0; i < 4; i++) {
+        const res = await attemptLogin(email, 'wrong-password')
+        expect(res.statusCode).toEqual(401)
+      }
+
+      const res = await attemptLogin(email, 'hunter2')
+      expect(res.statusCode).toEqual(200)
+    })
+
+    it('should return 429 after 5 consecutive failed login attempts', async () => {
+      const email = harness.generateRandomEmailAddress()
+      await createUserWithCredentials(email, 'hunter2')
+
+      for (let i = 0; i < 5; i++) {
+        await attemptLogin(email, 'wrong-password')
+      }
+
+      const res = await attemptLogin(email, 'wrong-password')
+      expect(res.statusCode).toEqual(429)
+    })
+
+    it('should return 429 even with correct credentials when account is locked', async () => {
+      const email = harness.generateRandomEmailAddress()
+      await createUserWithCredentials(email, 'hunter2')
+
+      for (let i = 0; i < 5; i++) {
+        await attemptLogin(email, 'wrong-password')
+      }
+
+      const res = await attemptLogin(email, 'hunter2')
+      expect(res.statusCode).toEqual(429)
+    })
+
+    it('should reset lockout counter after a successful login', async () => {
+      const email = harness.generateRandomEmailAddress()
+      await createUserWithCredentials(email, 'hunter2')
+
+      for (let i = 0; i < 4; i++) {
+        await attemptLogin(email, 'wrong-password')
+      }
+
+      const successRes = await attemptLogin(email, 'hunter2')
+      expect(successRes.statusCode).toEqual(200)
+
+      for (let i = 0; i < 4; i++) {
+        const res = await attemptLogin(email, 'wrong-password')
+        expect(res.statusCode).toEqual(401)
+      }
+
+      const finalRes = await attemptLogin(email, 'hunter2')
+      expect(finalRes.statusCode).toEqual(200)
+    })
+  })
 })

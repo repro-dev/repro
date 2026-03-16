@@ -75,14 +75,21 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
     setLoading(true)
 
     return fork<Error>(err => {
-      if (isValidationError(err) || err.name === 'NotAuthenticatedError') {
+      if (
+        err.name === 'TooManyRequests' ||
+        (err as any).statusCode === 429
+      ) {
+        setErrorMessage('Too many login attempts. Please try again later.')
+      } else if (
+        isValidationError(err) ||
+        err.name === 'NotAuthenticatedError'
+      ) {
         setErrorMessage('Incorrect email or password')
-        setLoading(false)
       } else {
         setErrorMessage('Unable to log in. Please try again')
-        setLoading(false)
       }
 
+      setLoading(false)
       onFailure(err)
     })(() => {
       onSuccess()

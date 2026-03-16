@@ -12,6 +12,7 @@ import {
   isPermissionDenied,
   isResourceConflict,
   isServiceUnavailable,
+  isTooManyRequests,
 } from './errors'
 
 function isReadableStream(value: any): value is NodeJS.ReadableStream {
@@ -37,6 +38,9 @@ export function createResponseUtils(config: SystemConfig) {
     } else if (isResourceConflict(error)) {
       message = error.message || 'Conflict'
       res.status(409)
+    } else if (isTooManyRequests(error)) {
+      message = error.message || 'Too many requests'
+      res.status(429)
     } else if (isNotImplemented(error)) {
       message = error.message || 'Not implemented'
       res.log.error(error)

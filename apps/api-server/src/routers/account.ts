@@ -7,8 +7,8 @@ import {
   bichain,
   both,
   chain,
+  chainRej,
   go,
-  mapRej,
   reject,
   resolve,
 } from 'fluture'
@@ -81,6 +81,12 @@ export function createAccountRouter(
       '/register',
       {
         schema: registerSchema,
+        config: {
+          rateLimit: {
+            max: 10,
+            timeWindow: '15 minutes',
+          },
+        },
       },
       (req, res) => {
         respondWith(
@@ -195,16 +201,43 @@ export function createAccountRouter(
       '/login',
       {
         schema: loginSchema,
+        config: {
+          rateLimit: {
+            max: 20,
+            timeWindow: '15 minutes',
+          },
+        },
       },
       (req, res) => {
         respondWith(
           res,
           accountService
-            .getUserByEmailAndPassword(req.body.email, req.body.password)
+            .ensureNotLocked(req.body.email)
             .pipe(
-              mapRej(error => (isNotFound(error) ? notAuthenticated() : error))
+              chain(() =>
+                accountService.getUserByEmailAndPassword(
+                  req.body.email,
+                  req.body.password
+                )
+              )
+            )
+            .pipe(
+              chainRej(error => {
+                if (isNotFound(error)) {
+                  return accountService
+                    .recordFailedLogin(req.body.email)
+                    .pipe(chain(() => reject(notAuthenticated())))
+                }
+
+                return reject(error)
+              })
             )
             .pipe(tapF(user => req.createSession(user)))
+            .pipe(
+              tapF(() =>
+                accountService.resetFailedLoginCount(req.body.email)
+              )
+            )
         )
       }
     )

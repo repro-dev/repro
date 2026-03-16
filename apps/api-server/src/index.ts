@@ -1,5 +1,6 @@
 import compress from '@fastify/compress'
 import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
 
 import fastify, { FastifyPluginAsync } from 'fastify'
 import {
@@ -119,6 +120,11 @@ function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   })
 
   app.register(compress)
+
+  app.register(rateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+  })
 
   app.setValidatorCompiler(validatorCompiler)
   app.setSerializerCompiler(serializerCompiler)
