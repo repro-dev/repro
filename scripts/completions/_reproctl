@@ -59,6 +59,8 @@ __reproctl_worktree_branches() {
 _reproctl() {
   local -a top_commands
   top_commands=(
+    'up:Bring the environment online (cluster + services)'
+    'down:Stop all services (optionally tear down cluster)'
     'setup:Bootstrap the development environment'
     'doctor:Check development prerequisites'
     'checkhealth:Runtime health checks'
@@ -95,6 +97,8 @@ _reproctl() {
       ;;
     args)
       case "${line[1]}" in
+        up)         _reproctl_up ;;
+        down)       _reproctl_down ;;
         setup)      _reproctl_setup ;;
         doctor)     ;; # no args
         checkhealth) _reproctl_checkhealth ;;
@@ -120,6 +124,19 @@ _reproctl() {
 # ---------------------------------------------------------------------------
 # Subcommand completions
 # ---------------------------------------------------------------------------
+
+_reproctl_up() {
+  _arguments \
+    '--wait[Block until services are healthy]' \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '*:service:_reproctl_services_arg'
+}
+
+_reproctl_down() {
+  _arguments \
+    '--cluster[Also tear down cluster and registry]' \
+    '(-h --help)'{-h,--help}'[Show help]'
+}
 
 _reproctl_setup() {
   _arguments \
@@ -312,7 +329,7 @@ _reproctl_version() {
 _reproctl_help() {
   local -a help_topics
   help_topics=(
-    'setup' 'doctor' 'checkhealth' 'cluster' 'db'
+    'up' 'down' 'setup' 'doctor' 'checkhealth' 'cluster' 'db'
     'start' 'stop' 'restart' 'status' 'logs'
     'ui' 'launch' 'context' 'worktree' 'wt'
     'completion' 'version'

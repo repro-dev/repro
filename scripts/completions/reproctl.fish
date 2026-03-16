@@ -1,4 +1,4 @@
-set -l commands setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion help
+set -l commands up down setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion help
 
 function __reproctl_no_subcommand
     set -l cmd (commandline -opc)
@@ -51,6 +51,8 @@ end
 
 complete -c reproctl -e
 
+complete -c reproctl -n __reproctl_no_subcommand -f -a up -d 'Bring the environment online (cluster + services)'
+complete -c reproctl -n __reproctl_no_subcommand -f -a down -d 'Stop all services (optionally tear down cluster)'
 complete -c reproctl -n __reproctl_no_subcommand -f -a setup -d 'Bootstrap the development environment'
 complete -c reproctl -n __reproctl_no_subcommand -f -a doctor -d 'Check development prerequisites'
 complete -c reproctl -n __reproctl_no_subcommand -f -a checkhealth -d 'Runtime health checks'
@@ -68,6 +70,11 @@ complete -c reproctl -n __reproctl_no_subcommand -f -a worktree -d 'Manage git w
 complete -c reproctl -n __reproctl_no_subcommand -f -a wt -d 'Manage git worktrees (alias)'
 complete -c reproctl -n __reproctl_no_subcommand -f -a completion -d 'Generate shell completions'
 complete -c reproctl -n __reproctl_no_subcommand -f -a help -d 'Show help for a command'
+
+complete -c reproctl -n '__reproctl_using_command up' -f -a '(__reproctl_services)' -d 'Service'
+complete -c reproctl -n '__reproctl_using_command up' -f -l wait -d 'Block until services are healthy'
+
+complete -c reproctl -n '__reproctl_using_command down' -f -l cluster -d 'Also tear down cluster and registry'
 
 complete -c reproctl -n '__reproctl_using_command setup' -f -l skip-cluster -d 'Skip kind cluster creation'
 
@@ -143,4 +150,4 @@ complete -c reproctl -n '__reproctl_using_subcommand wt prune' -f -s y -l yes -d
 
 complete -c reproctl -n '__reproctl_using_command completion' -f -a 'bash zsh fish' -d 'Shell'
 
-complete -c reproctl -n '__reproctl_using_command help' -f -a 'setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion'
+complete -c reproctl -n '__reproctl_using_command help' -f -a 'up down setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion'

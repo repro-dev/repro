@@ -23,6 +23,8 @@ source "$SCRIPT_DIR/lib/context.sh"
 source "$SCRIPT_DIR/lib/checkhealth.sh"
 # shellcheck source=scripts/lib/launch.sh
 source "$SCRIPT_DIR/lib/launch.sh"
+# shellcheck source=scripts/lib/lifecycle.sh
+source "$SCRIPT_DIR/lib/lifecycle.sh"
 # shellcheck source=scripts/lib/completion.sh
 source "$SCRIPT_DIR/lib/completion.sh"
 # shellcheck source=scripts/lib/version.sh
@@ -36,6 +38,10 @@ Usage: reproctl [--json] <command> [args]
 
 ${CLR_BOLD}GLOBAL OPTIONS${CLR_RESET}
   --json                          Output machine-readable JSON where supported
+
+${CLR_BOLD}LIFECYCLE${CLR_RESET}
+  up [service...] [--wait]        Bring the environment online (cluster + services)
+  down [--cluster]                Stop all services (optionally tear down cluster)
 
 ${CLR_BOLD}ENVIRONMENT${CLR_RESET}
   setup                           Bootstrap the development environment
@@ -70,6 +76,11 @@ ${CLR_BOLD}GENERAL${CLR_RESET}
   help [<command>]                Show manpage for reproctl or a subcommand
 
 Examples:
+  reproctl up                                 # bring everything online
+  reproctl up api-server workspace            # start specific services
+  reproctl up --wait                          # start all, wait for healthy
+  reproctl down                               # stop services, keep cluster
+  reproctl down --cluster                     # stop services and cluster
   reproctl setup                              # bootstrap entire environment
   reproctl doctor                             # check installed tools and versions
   reproctl --json checkhealth                 # machine-readable health check
@@ -110,6 +121,8 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
+  up)      cmd_up "$@" ;;
+  down)    cmd_down "$@" ;;
   setup)   cmd_setup "$@" ;;
   doctor)  cmd_doctor "$@" ;;
   checkhealth)
@@ -171,7 +184,7 @@ USAGE
   -h|--help)      usage ;;
   --version|-V)    cmd_version "$@" ;;
   *)
-    KNOWN_COMMANDS="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt help"
+    KNOWN_COMMANDS="up down setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt help"
     suggestions=$(python3 "$SCRIPT_DIR/lib/py/suggest_command.py" "$COMMAND" $KNOWN_COMMANDS 2>/dev/null) || true
     if [ -n "$suggestions" ]; then
       printf 'Error: Unknown command: %s\n' "$COMMAND" >&2

@@ -21,8 +21,21 @@ as main; from a worktree, services are isolated to that branch.
 Output machine\-readable JSON instead of human\-readable text.
 Supported by: \f[B]checkhealth\f[R], \f[B]cluster status\f[R],
 \f[B]context\f[R], \f[B]db status\f[R], \f[B]doctor\f[R],
-\f[B]logs\f[R], \f[B]status\f[R], \f[B]wt list\f[R].
+\f[B]down\f[R], \f[B]logs\f[R], \f[B]status\f[R], \f[B]up\f[R], \f[B]wt
+list\f[R].
 .SH COMMANDS
+.SS Lifecycle
+.TP
+\f[B]up\f[R] [\f[I]service\f[R]...] [\f[B]\-\-wait\f[R]]
+Bring the environment online \(em ensure the cluster is running, then
+start services.
+Without arguments, starts all services.
+See \f[B]reproctl\-up\f[R](1).
+.TP
+\f[B]down\f[R] [\f[B]\-\-cluster\f[R]]
+Stop all services.
+With \f[B]\-\-cluster\f[R], also tear down the kind cluster.
+See \f[B]reproctl\-down\f[R](1).
 .SS Environment
 .TP
 \f[B]setup\f[R]
@@ -33,7 +46,7 @@ See \f[B]reproctl\-setup\f[R](1).
 Diagnose the development environment.
 See \f[B]reproctl\-doctor\f[R](1).
 .TP
-\f[B]checkhealth\f[R] [\f[B]\(enjson\f[R]]
+\f[B]checkhealth\f[R] [\f[B]\-\-json\f[R]]
 Runtime health checks (Tilt, k8s, services).
 .SS Services
 .TP
@@ -77,20 +90,20 @@ See \f[B]reproctl\-db\f[R](1).
 \f[B]wt create\f[R] \f[I]branch\f[R]
 Create a new worktree for a branch.
 .TP
-\f[B]wt create \(enfrom\-issue\f[R] \f[I]id\f[R]
+\f[B]wt create \-\-from\-issue\f[R] \f[I]id\f[R]
 Create a worktree from a Linear issue.
 .TP
 \f[B]wt remove\f[R] \f[I]branch\f[R]
 Remove the worktree for a branch.
 See \f[B]reproctl\-worktree\f[R](1).
 .TP
-\f[B]wt list\f[R] [\f[B]\(enjson\f[R]]
+\f[B]wt list\f[R] [\f[B]\-\-json\f[R]]
 List active worktrees.
 .TP
 \f[B]wt attach\f[R] \f[I]branch\f[R]
 Drop into a worktree subshell.
 .TP
-\f[B]wt prune\f[R] [\f[B]\(enyes\f[R]]
+\f[B]wt prune\f[R] [\f[B]\-\-yes\f[R]]
 Remove worktrees whose branches are merged.
 .SS General
 .TP
@@ -99,18 +112,25 @@ Show the current development context (worktree, branch, issue, delta vs
 main, services).
 With \f[B]\-\-json\f[R], outputs a JSON object with context fields.
 .TP
-\f[B]worktree\f[R] \f[I]subcommand\f[R]
-Manage git worktrees.
-See \f[B]reproctl\-worktree\f[R](1).
-Alias: \f[B]wt\f[R].
+\f[B]help\f[R] [\f[I]command\f[R]]
+Show manpage for reproctl or a subcommand.
 .TP
 \f[B]completion\f[R] \f[I]shell\f[R]
 Generate shell completion scripts.
 See \f[B]reproctl\-completion\f[R](1).
-.TP
-\f[B]help\f[R] [\f[I]command\f[R]]
-Show manpage for reproctl or a subcommand.
 .SH EXAMPLES
+.TP
+reproctl up
+Bring the full development environment online.
+.TP
+reproctl up api\-server workspace
+Start only specific services.
+.TP
+reproctl down
+Stop all services, keep cluster running.
+.TP
+reproctl down \-\-cluster
+Stop all services and tear down the cluster.
 .TP
 reproctl setup
 Bootstrap the entire environment.
@@ -146,6 +166,7 @@ For \f[B]worktree attach\f[R] and \f[B]worktree remove\f[R], omitting
 the branch argument triggers the picker automatically when stdin is a
 terminal.
 .SH SEE ALSO
+\f[B]reproctl\-up\f[R](1), \f[B]reproctl\-down\f[R](1),
 \f[B]reproctl\-setup\f[R](1), \f[B]reproctl\-doctor\f[R](1),
 \f[B]reproctl\-cluster\f[R](1), \f[B]reproctl\-db\f[R](1),
 \f[B]reproctl\-start\f[R](1), \f[B]reproctl\-stop\f[R](1),

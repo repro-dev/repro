@@ -19,9 +19,19 @@ Context is detected automatically: from the main checkout, services run as main;
 # GLOBAL OPTIONS
 
 **--json**
-: Output machine-readable JSON instead of human-readable text. Supported by: **checkhealth**, **cluster status**, **context**, **db status**, **doctor**, **logs**, **status**, **wt list**.
+: Output machine-readable JSON instead of human-readable text. Supported by: **checkhealth**, **cluster status**, **context**, **db status**, **doctor**, **down**, **logs**, **status**, **up**, **wt list**.
 
 # COMMANDS
+
+## Lifecycle
+
+**up** [*service*...] [**--wait**]
+: Bring the environment online — ensure the cluster is running, then start
+  services. Without arguments, starts all services. See **reproctl-up**(1).
+
+**down** [**--cluster**]
+: Stop all services. With **--cluster**, also tear down the kind cluster.
+  See **reproctl-down**(1).
 
 ## Environment
 
@@ -98,6 +108,18 @@ Context is detected automatically: from the main checkout, services run as main;
 
 # EXAMPLES
 
+reproctl up
+: Bring the full development environment online.
+
+reproctl up api-server workspace
+: Start only specific services.
+
+reproctl down
+: Stop all services, keep cluster running.
+
+reproctl down --cluster
+: Stop all services and tear down the cluster.
+
 reproctl setup
 : Bootstrap the entire environment.
 
@@ -128,4 +150,4 @@ For **worktree attach** and **worktree remove**, omitting the branch argument tr
 
 # SEE ALSO
 
-**reproctl-setup**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-worktree**(1), **reproctl-completion**(1)
+**reproctl-up**(1), **reproctl-down**(1), **reproctl-setup**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-worktree**(1), **reproctl-completion**(1)

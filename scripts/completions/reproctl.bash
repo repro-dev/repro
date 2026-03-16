@@ -64,12 +64,12 @@ _reproctl() {
   local cur prev words cword
   _init_completion || return
 
-  local top_commands="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version help"
+  local top_commands="up down setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version help"
   local cluster_sub="up down status reset"
   local db_sub="reset migrate shell status"
   local wt_sub="create remove list attach prune"
   local completion_shells="bash zsh fish"
-  local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version"
+  local help_topics="up down setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version"
 
   # Find the subcommand position (skip global flags)
   local cmd="" subcmd=""
@@ -95,6 +95,14 @@ _reproctl() {
   fi
 
   case "$cmd" in
+    up)
+      COMPREPLY=($(compgen -W "--wait -h --help $(__reproctl_services)" -- "$cur"))
+      ;;
+
+    down)
+      COMPREPLY=($(compgen -W "--cluster -h --help" -- "$cur"))
+      ;;
+
     setup)
       COMPREPLY=($(compgen -W "--skip-cluster -h --help" -- "$cur"))
       ;;
