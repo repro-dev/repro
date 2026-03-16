@@ -86,6 +86,8 @@ _reproctl() {
     '(-h --help)'{-h,--help}'[Show help]' \
     '(--version -V)'{--version,-V}'[Print version]' \
     '--json[Output machine-readable JSON]' \
+    '(--quiet -q)'{--quiet,-q}'[Suppress non-error output]' \
+    '--verbose[Show diagnostic details]' \
     '1:command:->command' \
     '*::arg:->args' && return
 

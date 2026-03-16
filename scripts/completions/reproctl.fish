@@ -69,6 +69,10 @@ complete -c reproctl -n __reproctl_no_subcommand -f -a wt -d 'Manage git worktre
 complete -c reproctl -n __reproctl_no_subcommand -f -a completion -d 'Generate shell completions'
 complete -c reproctl -n __reproctl_no_subcommand -f -a help -d 'Show help for a command'
 
+complete -c reproctl -l json -d 'Output machine-readable JSON'
+complete -c reproctl -s q -l quiet -d 'Suppress non-error output'
+complete -c reproctl -l verbose -d 'Show diagnostic details'
+
 complete -c reproctl -n '__reproctl_using_command setup' -f -l skip-cluster -d 'Skip kind cluster creation'
 
 complete -c reproctl -n '__reproctl_using_command checkhealth' -f -l json -d 'Output machine-readable JSON'

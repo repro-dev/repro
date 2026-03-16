@@ -32,10 +32,12 @@ source "$SCRIPT_DIR/lib/version.sh"
 
 usage() {
   cat <<EOF
-Usage: reproctl [--json] <command> [args]
+Usage: reproctl [--json] [--quiet] [--verbose] <command> [args]
 
 ${CLR_BOLD}GLOBAL OPTIONS${CLR_RESET}
   --json                          Output machine-readable JSON where supported
+  --quiet, -q                     Suppress non-error output on stderr
+  --verbose                       Show diagnostic details (or set REPROCTL_DEBUG=1)
 
 ${CLR_BOLD}ENVIRONMENT${CLR_RESET}
   setup                           Bootstrap the development environment
@@ -89,17 +91,28 @@ EOF
 }
 
 REPROCTL_JSON=false
+REPROCTL_QUIET=false
+REPROCTL_DEBUG="${REPROCTL_DEBUG:-false}"
+if [ "$REPROCTL_DEBUG" = "1" ] || [ "$REPROCTL_DEBUG" = "true" ]; then
+  REPROCTL_DEBUG=true
+else
+  REPROCTL_DEBUG=false
+fi
 
 _args=()
 for _a in "$@"; do
-  if [ "$_a" = "--json" ]; then
-    REPROCTL_JSON=true
-  else
-    _args+=("$_a")
-  fi
+  case "$_a" in
+    --json) REPROCTL_JSON=true ;;
+    --quiet|-q) REPROCTL_QUIET=true ;;
+    --verbose) REPROCTL_DEBUG=true ;;
+    *) _args+=("$_a") ;;
+  esac
 done
 set -- ${_args[@]+"${_args[@]}"}
 unset _args _a
+
+_debug "command line: reproctl $*"
+_debug "REPROCTL_JSON=$REPROCTL_JSON REPROCTL_QUIET=$REPROCTL_QUIET REPROCTL_DEBUG=$REPROCTL_DEBUG"
 
 if [ $# -eq 0 ]; then
   usage >&2
