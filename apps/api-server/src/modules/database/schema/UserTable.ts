@@ -9,9 +9,9 @@ export interface UserTable {
   email: string
   password: string
   verificationToken: string
-  verified: number | null
-  active: number | null
-  admin: number | null
+  verified: Generated<boolean>
+  active: Generated<boolean>
+  admin: Generated<boolean>
   failedLoginCount: Generated<number>
   lockedUntil: Date | null
   createdAt: GeneratedAlways<Date>
@@ -24,6 +24,6 @@ export function asUser<T extends DomainObject>(values: T): User {
     type: 'user',
     id: encodeId(values.id),
     name: values.name,
-    verified: !!values.verified,
+    verified: values.verified,
   }
 }

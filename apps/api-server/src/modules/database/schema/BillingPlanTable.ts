@@ -6,6 +6,6 @@ export interface BillingPlanTable {
   providerPriceId: string
   providerProductId: string
   interval: 'month' | 'year'
-  active: number
+  active: boolean
   createdAt: GeneratedAlways<Date>
 }

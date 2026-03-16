@@ -47,7 +47,7 @@ export function createProjectService(
         .selectFrom('projects')
         .select(['id', 'name'])
         .where('id', '=', decodeId(projectId))
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
     }).pipe(map(withEncodedId))
   }
@@ -58,7 +58,7 @@ export function createProjectService(
         attemptQuery(async () => {
           await database
             .updateTable('projects')
-            .set('active', 0)
+            .set('active', false)
             .where('id', '=', decodeId(projectId))
             .execute()
         })
@@ -151,7 +151,7 @@ export function createProjectService(
         .innerJoin('projects as p', 'p.id', 'm.projectId')
         .select(['p.id', 'p.name'])
         .where('m.userId', '=', decodeId(userId))
-        .where('p.active', '=', 1)
+        .where('p.active', '=', true)
         .orderBy('p.createdAt desc')
         .execute()
     }).pipe(map(rows => rows.map(withEncodedId)))
