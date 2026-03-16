@@ -1,6 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import md5 from 'md5'
 import React, { useMemo } from 'react'
+import { spacing } from '../tokens/spacing'
 
 interface Props {
   email?: string
@@ -10,13 +11,6 @@ interface Props {
   color?: string
 }
 
-/**
- * User avatar backed by Gravatar. Displays an image derived from `email`,
- * a text name, or both depending on `mode`.
- *
- * Use wherever a user identity needs visual representation. The `size` prop
- * controls the image dimensions in pixels.
- */
 export const Avatar: React.FC<Props> = ({
   email,
   name = email,
@@ -25,27 +19,26 @@ export const Avatar: React.FC<Props> = ({
   color = 'inherit',
 }) => {
   const hash = useMemo(() => {
-    return email != null ? md5(email.trim()) : null
-  }, [email])
+    const key = email?.trim() ?? name?.trim()
+    return key != null ? md5(key) : null
+  }, [email, name])
 
   const showImage = mode === 'full' || mode === 'image-only'
   const showText = mode === 'full' || mode === 'text-only'
 
   return (
-    <Row alignItems="center" gap={10}>
-      {showImage && (
+    <Row alignItems="center" gap={spacing.md}>
+      {showImage && hash !== null && (
         <Block
           overflow="hidden"
           borderRadius="99rem"
           width={size}
           height={size}
         >
-          {hash != null && (
-            <img
-              src={`https://www.gravatar.com/avatar/${hash}?s=${size}&d=mp`}
-              alt={name}
-            />
-          )}
+          <img
+            src={`https://www.gravatar.com/avatar/${hash}?s=${size}&d=retro`}
+            alt={name}
+          />
         </Block>
       )}
 
