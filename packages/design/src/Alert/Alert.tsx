@@ -53,7 +53,6 @@ export const Alert: React.FC<Props> = ({ children, icon, type }) => (
     alignItems="center"
     padding={spacing.xl}
     background={backgroundColorMap[type]}
-    border={`1px solid ${colorMap[type]}`}
     color={colorMap[type]}
     fontSize={fontSize.xs}
     lineHeight={lineHeight.tight}
