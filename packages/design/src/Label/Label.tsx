@@ -19,9 +19,9 @@ export interface LabelProps {
 const defaultIcon = null
 
 const labelFontSizes: Record<SizeVariant, number> = {
-  small: fontSize.sm,
-  medium: fontSize.base,
-  large: fontSize.md,
+  small: fontSize.xs,
+  medium: fontSize.sm,
+  large: fontSize.base,
 }
 
 /**
@@ -55,8 +55,8 @@ export const Label: React.FC<PropsWithChildren<LabelProps>> = ({
       gap={spacing.sm}
       alignItems="center"
       fontSize={labelFontSizes[size]}
-      fontWeight={fontWeight.bold}
-      color={color.text.secondary}
+      fontWeight={fontWeight.semibold}
+      color={color.text.muted}
       props={{ htmlFor }}
     >
       {icon}

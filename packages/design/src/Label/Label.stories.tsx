@@ -31,14 +31,14 @@ export const Optional: Story = {
 export const WithIcon: Story = {
   args: {
     children: 'Email address',
-    icon: <MailIcon size={16} color={color.text.secondary} />,
+    icon: <MailIcon size={16} color={color.text.muted} />,
   },
 }
 
 export const WithIconAndOptional: Story = {
   args: {
     children: 'Notifications',
-    icon: <InfoIcon size={16} color={color.text.secondary} />,
+    icon: <InfoIcon size={16} color={color.text.muted} />,
     optional: true,
   },
 }
@@ -49,11 +49,11 @@ export const AllVariants: Story = {
     <Col gap={16} padding={16}>
       <Label>Required field</Label>
       <Label optional>Optional field</Label>
-      <Label icon={<MailIcon size={16} color={color.text.secondary} />}>
+      <Label icon={<MailIcon size={16} color={color.text.muted} />}>
         With icon
       </Label>
       <Label
-        icon={<InfoIcon size={16} color={color.text.secondary} />}
+        icon={<InfoIcon size={16} color={color.text.muted} />}
         optional
       >
         Icon + optional
