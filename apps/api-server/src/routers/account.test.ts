@@ -55,6 +55,36 @@ describe('Routers > Account', () => {
       })
     })
 
+    it('should create a session on registration', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/register',
+        body: {
+          accountName: 'Repro Test',
+          userName: 'John Smith',
+          email: 'jsmith@example.com',
+          password: 'hunter2',
+        },
+      })
+
+      expect(res.statusCode).toEqual(201)
+
+      const cookie = res.cookies.find(
+        c => c.name === harness.env.SESSION_COOKIE
+      )
+
+      const sessionToken = cookie?.value
+      expect(sessionToken).not.toBeUndefined()
+
+      await expect(
+        promise(accountService.getSessionByToken(sessionToken as string))
+      ).resolves.toMatchObject({
+        id: expect.any(String),
+        sessionToken,
+        subjectType: 'user',
+      })
+    })
+
     it('should return resource-conflict and not create a new account or user for a duplicate email', async () => {
       const [account] = await harness.loadFixtures([fixtures.account.AccountA])
 
