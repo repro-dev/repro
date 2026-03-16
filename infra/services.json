@@ -17,7 +17,7 @@
     },
     "seed": {
       "pnpm_package": "@repro/api-server",
-      "resource_deps": ["storage-ready"]
+      "resource_deps": ["storage-s3-forward"]
     },
     "ingress": {
       "apiRoutes": "service"
