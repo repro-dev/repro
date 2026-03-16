@@ -1,13 +1,15 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
+import { SettingsIcon, UsersIcon, VideoIcon } from 'lucide-react'
 import React from 'react'
 import { Avatar } from '../Avatar'
 import { Card } from '../Card'
 import { Logo } from '../Logo'
+import { SideNav } from '../SideNav'
 import { Skeleton } from '../Skeleton'
 import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
-import { fontSize, fontWeight } from '../tokens/typography'
+import { textStyles } from '../tokens/typography'
 import { AppShell } from './index'
 
 const meta: Meta<typeof AppShell> = {
@@ -23,33 +25,17 @@ export default meta
 
 type Story = StoryObj<typeof AppShell>
 
-const SidebarNavItem: React.FC<{ label: string; active?: boolean }> = ({
-  label,
-  active = false,
-}) => (
-  <Block
-    padding={spacing.md}
-    paddingH={spacing.lg}
-    fontSize={fontSize.sm}
-    fontWeight={active ? fontWeight.semibold : fontWeight.medium}
-    color={active ? color.primary : color.text.secondary}
-    backgroundColor={active ? color.primarySubtle : 'transparent'}
-    borderRadius={4}
-    cursor="pointer"
-  >
-    {label}
-  </Block>
-)
-
 const SampleSidebar: React.FC = () => (
   <Col height="100%">
-    <Block padding={spacing.xl}>
+    <Col padding={spacing.xl} paddingBottom={spacing.md}>
       <Logo size={28} />
-    </Block>
-    <Col padding={spacing.md} gap={spacing.xs} flex={1}>
-      <SidebarNavItem label="Sessions" active />
-      <SidebarNavItem label="Team" />
-      <SidebarNavItem label="Settings" />
+    </Col>
+    <Col flex={1}>
+      <SideNav>
+        <SideNav.Item icon={VideoIcon} label="Sessions" active />
+        <SideNav.Item icon={UsersIcon} label="Team" />
+        <SideNav.Item icon={SettingsIcon} label="Settings" />
+      </SideNav>
     </Col>
     <Row
       padding={spacing.xl}
@@ -63,11 +49,7 @@ const SampleSidebar: React.FC = () => (
         mode="image-only"
         size={28}
       />
-      <Block
-        fontSize={fontSize.sm}
-        fontWeight={fontWeight.medium}
-        color={color.text.default}
-      >
+      <Block {...textStyles.body} color={color.text.default}>
         Jane Smith
       </Block>
     </Row>
