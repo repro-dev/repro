@@ -20,7 +20,7 @@ RUN moon docker scaffold $MOON_SCAFFOLD_PROJECTS
 
 FROM base AS prepare
 
-COPY --from=scaffold /app/.moon/docker/configs .
+COPY --from=scaffold /app/.moon/docker/workspace .
 COPY --from=scaffold /app/patches ./patches
 RUN moon docker setup
 COPY . .
