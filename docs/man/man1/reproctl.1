@@ -142,6 +142,27 @@ a numbered prompt is shown.
 For \f[B]worktree attach\f[R] and \f[B]worktree remove\f[R], omitting
 the branch argument triggers the picker automatically when stdin is a
 terminal.
+.SH EXIT CODES
+.TP
+\f[B]0\f[R]
+Success \(em the operation completed as expected.
+.TP
+\f[B]1\f[R]
+Error \(em the operation failed (bad input, runtime failure, missing
+prerequisite).
+.TP
+\f[B]2\f[R]
+User cancelled \(em an interactive prompt was cancelled (Ctrl\-C in a
+picker, empty input).
+.PP
+Status commands (\f[B]status\f[R], \f[B]cluster status\f[R], \f[B]db
+status\f[R], \f[B]context\f[R]) return 0 when they successfully produce
+output, even if the thing being checked is unhealthy.
+Health\-assertion commands (\f[B]checkhealth\f[R], \f[B]doctor\f[R])
+return 1 when errors are found.
+.PP
+See \f[B]reproctl\-exit\-codes\f[R](1) for the full exit code
+conventions.
 .SH HELP TOPICS
 .TP
 \f[B]reproctl\-help\-environment\f[R](7)
@@ -158,6 +179,7 @@ JSON output conventions for commands that support \f[B]\-\-json\f[R].
 \f[B]reproctl\-start\f[R](1), \f[B]reproctl\-stop\f[R](1),
 \f[B]reproctl\-restart\f[R](1), \f[B]reproctl\-logs\f[R](1),
 \f[B]reproctl\-worktree\f[R](1), \f[B]reproctl\-completion\f[R](1),
+\f[B]reproctl\-exit\-codes\f[R](1),
 \f[B]reproctl\-help\-environment\f[R](7),
 \f[B]reproctl\-help\-exit\-codes\f[R](7),
 \f[B]reproctl\-help\-json\f[R](7)

@@ -425,8 +425,8 @@ cmd_wt_prune() {
     case "$answer" in
       [yY]) ;;
       *)
-        echo "Aborted."
-        return 0
+        echo "Aborted." >&2
+        exit 2
         ;;
     esac
   fi
@@ -849,7 +849,7 @@ cmd_wt() {
           local candidates=()
           while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_worktree_branches)
           local selected
-          selected="$(_pick "Select worktree to remove" "${candidates[@]}")" || exit 1
+          selected="$(_pick "Select worktree to remove" "${candidates[@]}")" || exit $?
           args=("$selected")
         else
           die "'worktree remove' requires a branch name"
@@ -873,7 +873,7 @@ cmd_wt() {
           local candidates=()
           while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_worktree_branches)
           local selected
-          selected="$(_pick "Select worktree to attach" "${candidates[@]}")" || exit 1
+          selected="$(_pick "Select worktree to attach" "${candidates[@]}")" || exit $?
           args=("$selected")
         else
           die "'worktree attach' requires a branch name"

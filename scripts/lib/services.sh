@@ -153,9 +153,12 @@ cmd_start() {
   if [ "$pick" = true ] || { [ $# -eq 0 ] && [ -t 0 ]; }; then
     local candidates=()
     while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
+    local _pick_out _pick_rc=0
+    _pick_out="$(_pick_multi "Select services to start" "${candidates[@]}")" || _pick_rc=$?
+    if [[ $_pick_rc -ne 0 ]]; then exit "$_pick_rc"; fi
     local selected=()
-    while IFS= read -r _line; do selected+=("$_line"); done < <(_pick_multi "Select services to start" "${candidates[@]}")
-    [[ ${#selected[@]} -gt 0 ]] || exit 1
+    while IFS= read -r _line; do selected+=("$_line"); done <<< "$_pick_out"
+    [[ ${#selected[@]} -gt 0 ]] || exit 2
     set -- "${selected[@]}"
   fi
 
@@ -247,9 +250,12 @@ cmd_stop() {
   if [ "$pick" = true ] || { [ "${#targets[@]}" -eq 0 ] && [ -t 0 ]; }; then
     local candidates=()
     while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
+    local _pick_out _pick_rc=0
+    _pick_out="$(_pick_multi "Select services to stop" "${candidates[@]}")" || _pick_rc=$?
+    if [[ $_pick_rc -ne 0 ]]; then exit "$_pick_rc"; fi
     local selected=()
-    while IFS= read -r _line; do selected+=("$_line"); done < <(_pick_multi "Select services to stop" "${candidates[@]}")
-    [[ ${#selected[@]} -gt 0 ]] || exit 1
+    while IFS= read -r _line; do selected+=("$_line"); done <<< "$_pick_out"
+    [[ ${#selected[@]} -gt 0 ]] || exit 2
     targets=("${selected[@]}")
   fi
 
@@ -434,9 +440,12 @@ USAGE
   if [ "$pick" = true ] || { [ "${#positional[@]}" -eq 0 ] && [ -t 0 ]; }; then
     local candidates=()
     while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
+    local _pick_out _pick_rc=0
+    _pick_out="$(_pick_multi "Select services to restart" "${candidates[@]}")" || _pick_rc=$?
+    if [[ $_pick_rc -ne 0 ]]; then exit "$_pick_rc"; fi
     local selected=()
-    while IFS= read -r _line; do selected+=("$_line"); done < <(_pick_multi "Select services to restart" "${candidates[@]}")
-    [[ ${#selected[@]} -gt 0 ]] || exit 1
+    while IFS= read -r _line; do selected+=("$_line"); done <<< "$_pick_out"
+    [[ ${#selected[@]} -gt 0 ]] || exit 2
     positional=("${selected[@]}")
   fi
 
