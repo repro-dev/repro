@@ -109,7 +109,7 @@ Delegation adds overhead. Skip it for:
 
 The typical flow for a feature or fix:
 
-1. **Outer conversation**: Fetch the Linear issue, explore the codebase, discuss design with the user, produce a plan (optionally via the `planner` agent).
+1. **Outer conversation**: Fetch the Linear issue, explore the codebase, discuss design with the user. For complex features (3+ packages or significant codebase exploration needed), delegate planning to the `planner` agent to produce a structured plan document. For simpler changes, plan inline.
 2. **`develop` agent**: Receives the plan and implements it using TDD. Returns when tests pass and code is verified.
 3. **`test` agent**: Audits coverage, writes regression tests, flags gaps.
 4. **Outer conversation**: Reviews the result, commits, creates the PR.

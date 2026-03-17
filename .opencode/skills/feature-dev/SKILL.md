@@ -78,6 +78,7 @@ For 2+ independent issues, create one worktree per issue and use the Task tool t
 1. Break the issue down into concrete tasks using the todo list.
 2. Identify which packages are affected (`apps/*`, `packages/*`).
 3. For each affected package, check for an `AGENTS.md` file in the package root. If one exists, read it — it contains package-specific conventions, checklists, and pitfalls that must be followed.
+4. For complex features (3+ packages or significant codebase exploration needed), delegate planning to the `planner` agent to produce a structured plan document that the `develop` agent will consume. For simpler changes, plan inline in the outer conversation.
 
 ## Phase 3: Implementation
 
