@@ -32,8 +32,13 @@ Uses \f[B]fzf\f[R] if installed, otherwise a numbered prompt.
 .TP
 \f[B]\-\-wait\f[R], \f[B]\-w\f[R]
 Block until all started services report healthy status.
-While waiting, a spinner is shown on stderr when stdout is a TTY, or
-periodic status lines are printed when not a TTY.
+While waiting, the full transitive dependency tree is resolved from
+\f[B]services.json\f[R] and the status of all dependencies
+(infrastructure, migrations, dependent services) is shown alongside the
+target services.
+In a TTY, a multi\-line updating display is shown on stderr.
+When not a TTY, periodic single\-line status updates are printed to
+stderr every 10 seconds.
 Exits 0 on success, 1 on timeout.
 In \f[B]\-\-json\f[R] mode, outputs the final service status JSON on
 success, or an error object on timeout.
@@ -42,7 +47,7 @@ success, or an error object on timeout.
 How long to wait before giving up when \f[B]\-\-wait\f[R] is set.
 Accepts a number of seconds, optionally with an \f[B]s\f[R] suffix (e.g.
 \f[B]120s\f[R], \f[B]60\f[R]).
-Default: \f[B]120s\f[R].
+By default, \f[B]\-\-wait\f[R] blocks indefinitely with no timeout.
 Only meaningful with \f[B]\-\-wait\f[R].
 .SH EXIT CODES
 .TP
@@ -62,6 +67,7 @@ Start multiple services at once.
 .TP
 reproctl start \-\-wait api\-server
 Start the api\-server and block until it is healthy.
+Shows database, storage, and migration dependency status while waiting.
 .TP
 reproctl start \-\-wait \-\-timeout 60s api\-server workspace
 Start services and wait up to 60 seconds for all to become healthy.

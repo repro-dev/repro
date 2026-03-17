@@ -153,16 +153,39 @@ _wait_for_healthy() {
   shift
   local services=("$@")
 
-  local resource_names=()
+  local target_names=()
   for svc in "${services[@]}"; do
-    resource_names+=("$(resolve_worktree_resource_name "$svc")")
+    target_names+=("$(resolve_worktree_resource_name "$svc")")
   done
 
-  local deadline=$(($(date +%s) + timeout))
+  local dep_tree
+  dep_tree="$(python3 "$SCRIPTS_DIR/lib/py/resolve_deps.py" "$SERVICES_JSON" "${services[@]}" 2>/dev/null)" || dep_tree='{"targets":[],"deps":[]}'
+
+  local dep_resource_names=()
+  while IFS= read -r _line; do
+    [ -z "$_line" ] && continue
+    dep_resource_names+=("$_line")
+  done < <(printf '%s' "$dep_tree" | python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+for d in data.get("deps", []):
+    print(d)
+' 2>/dev/null)
+
+  local dep_args=()
+  if [ ${#dep_resource_names[@]} -gt 0 ]; then
+    dep_args+=("--deps")
+    dep_args+=("${dep_resource_names[@]}")
+    dep_args+=("--")
+  fi
+
+  local start_time
+  start_time=$(date +%s)
   local poll_interval=3
   local log_interval=10
   local last_log=0
   local is_tty=false
+  local tty_lines=0
   if [ -t 2 ]; then
     is_tty=true
   fi
@@ -170,13 +193,18 @@ _wait_for_healthy() {
   while true; do
     local now
     now=$(date +%s)
-    if [ "$now" -ge "$deadline" ]; then
+
+    if [ "$timeout" -gt 0 ] && [ "$now" -ge "$((start_time + timeout))" ]; then
       local result
       result="$(python3 "$SCRIPTS_DIR/lib/py/wait_healthy.py" \
-        "$TILT_PORT" "${resource_names[@]}" 2>/dev/null)" || true
+        "$TILT_PORT" "${dep_args[@]}" "${target_names[@]}" 2>/dev/null)" || true
 
-      if [ "$is_tty" = true ]; then
-        printf '\r\033[K' >&2
+      if [ "$is_tty" = true ] && [ "$tty_lines" -gt 0 ]; then
+        local i
+        for ((i = 0; i < tty_lines; i++)); do
+          printf '\033[A\033[K' >&2
+        done
+        tty_lines=0
       fi
 
       if [ "${REPROCTL_JSON:-false}" = true ]; then
@@ -199,7 +227,10 @@ try:
     data = json.load(sys.stdin)
     for r in data.get("resources", []):
         if r.get("status") != "ok":
-            print(r["name"] + ": " + r.get("status", "unknown") + " (" + r.get("detail", "") + ")")
+            label = r["name"]
+            if not r.get("target", False):
+                label = label + " (dependency)"
+            print(label + ": " + r.get("status", "unknown") + " (" + r.get("detail", "") + ")")
 except:
     pass
 ' 2>/dev/null)"
@@ -210,7 +241,7 @@ except:
 
     local result
     result="$(python3 "$SCRIPTS_DIR/lib/py/wait_healthy.py" \
-      "$TILT_PORT" "${resource_names[@]}" 2>/dev/null)" || true
+      "$TILT_PORT" "${dep_args[@]}" "${target_names[@]}" 2>/dev/null)" || true
 
     local all_healthy
     all_healthy="$(printf '%s' "$result" | python3 -c '
@@ -223,8 +254,11 @@ except:
 ' 2>/dev/null)" || all_healthy="false"
 
     if [ "$all_healthy" = "true" ]; then
-      if [ "$is_tty" = true ]; then
-        printf '\r\033[K' >&2
+      if [ "$is_tty" = true ] && [ "$tty_lines" -gt 0 ]; then
+        local i
+        for ((i = 0; i < tty_lines; i++)); do
+          printf '\033[A\033[K' >&2
+        done
       fi
       _ok "All services are healthy"
 
@@ -240,28 +274,77 @@ except:
       return 0
     fi
 
-    local summary
-    summary="$(printf '%s' "$result" | python3 -c '
+    local elapsed=$((now - start_time))
+
+    if [ "$is_tty" = true ]; then
+      if [ "$tty_lines" -gt 0 ]; then
+        local i
+        for ((i = 0; i < tty_lines; i++)); do
+          printf '\033[A\033[K' >&2
+        done
+      fi
+
+      local time_display
+      if [ "$timeout" -gt 0 ]; then
+        time_display="${elapsed}s/${timeout}s"
+      else
+        time_display="${elapsed}s"
+      fi
+
+      local new_lines=0
+      printf '  ⏳ Waiting for services [%s]\n' "$time_display" >&2
+      new_lines=$((new_lines + 1))
+
+      while IFS= read -r _line; do
+        [ -z "$_line" ] && continue
+        printf '     %s\n' "$_line" >&2
+        new_lines=$((new_lines + 1))
+      done <<< "$(printf '%s' "${result:-}" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for r in data.get("resources", []):
+        s = r.get("status", "unknown")
+        if s == "ok":
+            icon = "✓"
+        elif s == "error":
+            icon = "✗"
+        elif s == "building":
+            icon = "⟳"
+        else:
+            icon = "·"
+        label = r["name"]
+        if r.get("target", False):
+            label = label + " ←"
+        detail = r.get("detail", "")
+        print(icon + " " + label.ljust(30) + " " + s + (" (" + detail + ")" if detail and s != "ok" else ""))
+except:
+    print("· waiting...")
+' 2>/dev/null)"
+      tty_lines=$new_lines
+    else
+      local since_log=$((now - last_log))
+      if [ "$last_log" -eq 0 ] || [ "$since_log" -ge "$log_interval" ]; then
+        local summary
+        summary="$(printf '%s' "${result:-}" | python3 -c '
 import json, sys
 try:
     data = json.load(sys.stdin)
     parts = []
     for r in data.get("resources", []):
-        if r.get("status") != "ok":
-            parts.append(r["name"] + "... (" + r.get("status", "unknown") + ")")
-    print(", ".join(parts) if parts else "waiting...")
+        parts.append(r["name"] + "=" + r.get("status", "unknown"))
+    print(" ".join(parts) if parts else "waiting...")
 except:
     print("waiting...")
 ' 2>/dev/null)" || summary="waiting..."
 
-    local elapsed=$((now - (deadline - timeout)))
-
-    if [ "$is_tty" = true ]; then
-      printf '\r\033[K  ⏳ Waiting for %s [%ds/%ds]' "$summary" "$elapsed" "$timeout" >&2
-    else
-      local since_log=$((now - last_log))
-      if [ "$last_log" -eq 0 ] || [ "$since_log" -ge "$log_interval" ]; then
-        printf 'Waiting for %s [%ds/%ds]\n' "$summary" "$elapsed" "$timeout" >&2
+        local time_display
+        if [ "$timeout" -gt 0 ]; then
+          time_display="${elapsed}s/${timeout}s"
+        else
+          time_display="${elapsed}s"
+        fi
+        printf 'Waiting: %s [%s]\n' "$summary" "$time_display" >&2
         last_log=$now
       fi
     fi
@@ -273,7 +356,7 @@ except:
 cmd_start() {
   local pick=false
   local wait=false
-  local timeout_secs=120
+  local timeout_secs=0
   local args=()
 
   while [[ $# -gt 0 ]]; do
@@ -294,8 +377,9 @@ Start one or more services from the current context.
 Options:
   --pick, -p               Interactively select services
   --wait, -w               Block until all services are healthy
-  --timeout, -t <duration> How long to wait before giving up (default: 120s)
-                           Only meaningful with --wait
+  --timeout, -t <duration> How long to wait before giving up (no default;
+                            waits indefinitely unless set)
+                            Only meaningful with --wait
 
 Exit codes:
   0   Services started (and healthy, if --wait)
@@ -376,7 +460,11 @@ USAGE
   fi
 
   if [ "$wait" = true ]; then
-    _step "$total_steps" "$total_steps" "Waiting for services to become healthy (timeout: ${timeout_secs}s)..."
+    local wait_msg="Waiting for services to become healthy"
+    if [ "$timeout_secs" -gt 0 ]; then
+      wait_msg="$wait_msg (timeout: ${timeout_secs}s)"
+    fi
+    _step "$total_steps" "$total_steps" "$wait_msg..."
     _wait_for_healthy "$timeout_secs" "${started_services[@]}"
   fi
 }
