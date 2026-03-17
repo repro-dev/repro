@@ -1,6 +1,6 @@
-import { FastifyPluginAsync } from 'fastify'
+import { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
-import { map } from 'fluture'
+import { go, map } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
@@ -9,7 +9,7 @@ import { createResponseUtils } from '~/utils/response'
 
 export function createAgenticRouter(
   agenticService: AgenticService,
-  _accountService: AccountService,
+  accountService: AccountService,
   config = defaultSystemConfig
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
@@ -40,14 +40,28 @@ export function createAgenticRouter(
 
     app.post<{ Body: z.infer<typeof createResponseSchema.body> }>(
       '/response',
+      {
+        config: {
+          rateLimit: {
+            max: 30,
+            timeWindow: '1 minute',
+            keyGenerator: (req: FastifyRequest) =>
+              req.session?.subjectId ?? req.ip,
+          },
+        },
+      },
       (req, res) => {
         const { messages, tools } = req.body
         res.header('content-type', 'text/event-stream')
         respondWith(
           res,
-          agenticService
-            .getStreamingResponse(messages, tools ?? [])
-            .pipe(map(data => data.body))
+          go(function* () {
+            const user = yield req.getCurrentUser()
+            yield accountService.ensureUser(user)
+            return yield agenticService
+              .getStreamingResponse(messages, tools ?? [])
+              .pipe(map(data => data.body))
+          })
         )
       }
     )
