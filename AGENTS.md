@@ -88,3 +88,28 @@ One team: **Repro** (key `REP`). All issues use the `REP-<number>` identifier.
 ## Learning from Corrections
 
 When the user corrects a code choice, style issue, or any fundamental rule about how the project should be developed, built, run, tested, or deployed, offer to update the relevant skill file in `.opencode/skills/` (or a package-level `AGENTS.md` closer to the relevant code) with the new information so the lesson is retained for future sessions.
+
+## Agent Delegation Policy
+
+The outer conversation (frontier model) handles diagnosis, design, planning, and user interaction. Implementation and testing run on cost-optimized models via the `develop` and `test` agents. This is an economic architecture — the frontier model does high-judgment work, then delegates mechanical implementation to cheaper models with well-specified instructions.
+
+### Mandatory delegation
+
+- **`develop` agent**: Use for ALL implementation work that touches 2+ files. Do NOT write code directly in the outer conversation except for trivial single-file edits (e.g. fixing a typo, updating a config value). Provide the develop agent with: (1) the worktree path, (2) the exact file paths and line ranges to modify, (3) the specific changes to make, (4) how to verify (test commands), and (5) the Linear issue ID for commit messages.
+- **`test` agent**: Use after implementation to audit test coverage and write additional tests. Do NOT write tests in the outer conversation. Provide the test agent with: (1) the worktree path, (2) which files were changed, (3) the relevant test commands.
+
+### When to skip delegation
+
+Delegation adds overhead. Skip it for:
+- Single-file edits under ~20 lines (e.g. updating a config, fixing a linting error)
+- Documentation-only changes (AGENTS.md, skill files, READMEs)
+- Exploratory changes during diagnosis where you need immediate feedback
+
+### Workflow
+
+The typical flow for a feature or fix:
+
+1. **Outer conversation**: Fetch the Linear issue, explore the codebase, discuss design with the user, produce a plan (optionally via the `planner` agent).
+2. **`develop` agent**: Receives the plan and implements it using TDD. Returns when tests pass and code is verified.
+3. **`test` agent**: Audits coverage, writes regression tests, flags gaps.
+4. **Outer conversation**: Reviews the result, commits, creates the PR.
