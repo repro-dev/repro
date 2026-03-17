@@ -1,1 +1,1 @@
-export {}
+export { useFocusTrap } from './useFocusTrap'

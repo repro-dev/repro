@@ -12,14 +12,17 @@
     "react": "^18.2.0"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
     "@types/expect": "overridden",
     "@types/node": "overridden",
     "@types/react": "^18.2.21",
+    "@types/react-dom": "^18.2.7",
     "@types/repro-shared-types": "workspace:*",
     "expect": "overridden",
     "global-jsdom": "overridden",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
+    "react-dom": "^18.2.0",
     "ts-eager": "^2.0.2",
     "tsx": "^4.19.3",
     "typescript": "overridden"

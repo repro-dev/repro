@@ -1081,6 +1081,9 @@ importers:
         specifier: 18.3.1
         version: 18.3.1
     devDependencies:
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.0)(@types/react@18.3.10)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@types/expect':
         specifier: 24.3.2
         version: 24.3.2
@@ -1090,6 +1093,9 @@ importers:
       '@types/react':
         specifier: 18.3.10
         version: 18.3.10
+      '@types/react-dom':
+        specifier: 18.3.0
+        version: 18.3.0
       '@types/repro-shared-types':
         specifier: workspace:*
         version: link:../shared-types
@@ -1105,6 +1111,9 @@ importers:
       prettier-plugin-organize-imports:
         specifier: ^3.2.3
         version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+      react-dom:
+        specifier: 18.3.1
+        version: 18.3.1(react@18.3.1)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
