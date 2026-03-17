@@ -78,8 +78,26 @@ For 2+ independent issues, create one worktree per issue and use the Task tool t
 1. Break the issue down into concrete tasks using the todo list.
 2. Identify which packages are affected (`apps/*`, `packages/*`).
 3. For each affected package, check for an `AGENTS.md` file in the package root. If one exists, read it — it contains package-specific conventions, checklists, and pitfalls that must be followed.
+4. For complex features (3+ packages or significant codebase exploration needed), delegate planning to the `planner` agent to produce a structured plan document that the `develop` agent will consume. For simpler changes, plan inline in the outer conversation.
 
 ## Phase 3: Implementation
+
+### Mandatory delegation
+
+**Delegate all implementation work that touches 2+ files to the `develop` agent.** The outer conversation handles diagnosis, design, planning, and user interaction; the `develop` agent grinds through the mechanical implementation on a cost-optimized model.
+
+When launching the `develop` agent, provide:
+1. The **worktree path** (e.g. `/Users/gary/Projects/repro-dev/repro-wt-rep-123`)
+2. The **exact file paths and line ranges** to modify
+3. The **specific changes** to make (not vague instructions — concrete edits)
+4. **How to verify** (test commands, typecheck commands)
+5. The **Linear issue ID** for commit messages
+
+Skip delegation only for: single-file edits under ~20 lines, documentation-only changes, or exploratory changes during diagnosis where you need immediate feedback.
+
+After the `develop` agent completes, launch the `test` agent to audit coverage and write additional tests. Provide it with: (1) the worktree path, (2) which files were changed, (3) the relevant test commands.
+
+### Domain conventions
 
 Follow the project conventions for each domain. Domain-specific rules are loaded on demand from their respective skills — do not guess, load the skill when working in that domain.
 
@@ -110,7 +128,7 @@ Use red/green/refactor TDD for each requirement:
 6. Run all related tests — confirm nothing regressed.
 7. Move to the next requirement.
 
-The `@develop` agent enforces this cycle in its system prompt. When working manually (without the agent pipeline), follow the same discipline.
+The `develop` agent enforces this cycle in its system prompt. When working manually (without the agent pipeline), follow the same discipline.
 
 ## Phase 4: Verification
 
