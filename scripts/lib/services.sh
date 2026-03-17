@@ -186,6 +186,9 @@ for d in data.get("deps", []):
   local last_log=0
   local is_tty=false
   local tty_lines=0
+  local spin_frame=0
+  local spin_set
+  spin_set=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
   if [ -t 2 ]; then
     is_tty=true
   fi
@@ -260,6 +263,26 @@ except:
           printf '\033[A\033[K' >&2
         done
       fi
+
+      if [ "$is_tty" = true ]; then
+        while IFS= read -r _line; do
+          [ -z "$_line" ] && continue
+          printf '     %s\n' "$_line" >&2
+        done <<< "$(printf '%s' "${result:-}" | CLR_GREEN="$CLR_GREEN" CLR_RESET="$CLR_RESET" python3 -c '
+import json, sys, os
+clr_green = os.environ.get("CLR_GREEN", "")
+clr_reset = os.environ.get("CLR_RESET", "")
+try:
+    data = json.load(sys.stdin)
+    for r in data.get("resources", []):
+        label = r["name"]
+        if r.get("target", False):
+            label = label + " (target)"
+        print(clr_green + "\u2714 " + label.ljust(30) + " ok" + clr_reset)
+except:
+    pass
+' 2>/dev/null)"
+      fi
       _ok "All services are healthy"
 
       if [ "${REPROCTL_JSON:-false}" = true ]; then
@@ -291,35 +314,55 @@ except:
         time_display="${elapsed}s"
       fi
 
+      local spinner_char
+      local frame_idx=$((spin_frame % 10))
+      spinner_char="${spin_set[$frame_idx]}"
+      spin_frame=$((spin_frame + 1))
+
       local new_lines=0
-      printf '  ⏳ Waiting for services [%s]\n' "$time_display" >&2
+      printf '  %s%s%s Waiting for services [%s]\n' "$CLR_YELLOW" "$spinner_char" "$CLR_RESET" "$time_display" >&2
       new_lines=$((new_lines + 1))
 
       while IFS= read -r _line; do
         [ -z "$_line" ] && continue
         printf '     %s\n' "$_line" >&2
         new_lines=$((new_lines + 1))
-      done <<< "$(printf '%s' "${result:-}" | python3 -c '
-import json, sys
+      done <<< "$(printf '%s' "${result:-}" | \
+        SPIN="$spinner_char" \
+        CLR_GREEN="$CLR_GREEN" CLR_YELLOW="$CLR_YELLOW" CLR_RED="$CLR_RED" CLR_RESET="$CLR_RESET" \
+        python3 -c '
+import json, sys, os
+spin = os.environ.get("SPIN", "~")
+clr_green = os.environ.get("CLR_GREEN", "")
+clr_yellow = os.environ.get("CLR_YELLOW", "")
+clr_red = os.environ.get("CLR_RED", "")
+clr_reset = os.environ.get("CLR_RESET", "")
 try:
     data = json.load(sys.stdin)
     for r in data.get("resources", []):
         s = r.get("status", "unknown")
         if s == "ok":
-            icon = "✓"
+            icon = clr_green + "\u2714" + clr_reset
+            st = clr_green + s + clr_reset
         elif s == "error":
-            icon = "✗"
+            icon = clr_red + "\u2718" + clr_reset
+            st = clr_red + s + clr_reset
         elif s == "building":
-            icon = "⟳"
+            icon = clr_yellow + spin + clr_reset
+            st = clr_yellow + s + clr_reset
         else:
-            icon = "·"
+            icon = clr_yellow + spin + clr_reset
+            st = clr_yellow + s + clr_reset
         label = r["name"]
         if r.get("target", False):
-            label = label + " ←"
+            label = label + " (target)"
         detail = r.get("detail", "")
-        print(icon + " " + label.ljust(30) + " " + s + (" (" + detail + ")" if detail and s != "ok" else ""))
+        line = icon + " " + label.ljust(30) + " " + st
+        if detail and s != "ok":
+            line += " (" + detail + ")"
+        print(line)
 except:
-    print("· waiting...")
+    print(spin + " waiting...")
 ' 2>/dev/null)"
       tty_lines=$new_lines
     else
