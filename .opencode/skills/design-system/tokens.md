@@ -16,6 +16,7 @@ import { color, spacing, fontSize, fontWeight, lineHeight, fontFamily, textStyle
 | `color.text.default` | slate-900 | Body text |
 | `color.text.secondary` | slate-700 | Secondary text |
 | `color.text.muted` | slate-500 | Placeholder, disabled text |
+| `color.text.label` | slate-600 | Form field labels |
 | `color.text.inverse` | white | Text on dark backgrounds |
 | `color.bg.surface` | white | Card/page surface |
 | `color.bg.subtle` | slate-50 | Subtle background (zebra rows, code blocks) |
