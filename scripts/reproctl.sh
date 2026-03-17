@@ -67,7 +67,8 @@ ${CLR_BOLD}GENERAL${CLR_RESET}
   context                         Show current development context
   completion <shell>              Generate shell completions (bash, zsh, fish)
   version                         Print the reproctl commit and date
-  help [<command>]                Show manpage for reproctl or a subcommand
+  help [<command>|<topic>]        Show manpage for a command or topic
+                                  Topics: environment, exit-codes, json
 
 Examples:
   reproctl setup                              # bootstrap entire environment
@@ -153,19 +154,24 @@ USAGE
     case "$topic" in
       wt) topic="worktree" ;;
     esac
+    mandir="$REPO_ROOT/docs/man"
     if [ "$topic" = "reproctl" ]; then
       page="reproctl"
+      manfile="$mandir/man1/${page}.1"
     else
       page="reproctl-$topic"
+      manfile="$mandir/man1/${page}.1"
+      if [ ! -f "$manfile" ]; then
+        page="reproctl-help-$topic"
+        manfile="$mandir/man7/${page}.7"
+      fi
     fi
-    mandir="$REPO_ROOT/docs/man"
-    manfile="$mandir/man1/${page}.1"
     if [ -f "$manfile" ] && command -v man > /dev/null 2>&1; then
       MANPATH="$mandir" man "$page"
     elif [ -f "$manfile" ]; then
       cat "$manfile"
     else
-      die "No manual entry for $page.\nRun 'reproctl --help' for a command list."
+      die "No manual entry for $topic.\nRun 'reproctl --help' for a command list."
     fi
     ;;
   -h|--help)      usage ;;
