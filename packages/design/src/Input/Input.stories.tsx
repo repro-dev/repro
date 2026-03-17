@@ -91,23 +91,6 @@ export const WithLabel: Story = {
   ),
 }
 
-export const WithOptionalLabel: Story = {
-  args: {
-    ...reg,
-    id: 'bio-input',
-    size: 'medium',
-    placeholder: 'Tell us about yourself...',
-  },
-  render: args => (
-    <FormField>
-      <Label htmlFor="bio-input" optional>
-        Bio
-      </Label>
-      <Input {...args} />
-    </FormField>
-  ),
-}
-
 export const ErrorContext: Story = {
   args: {
     ...reg,

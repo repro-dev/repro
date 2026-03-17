@@ -1,4 +1,5 @@
-import { Block, Inline, Row } from '@jsxstyle/react'
+import { Inline, Row } from '@jsxstyle/react'
+import { StarIcon } from 'lucide-react'
 import React, { PropsWithChildren } from 'react'
 import { useFormFieldContext } from '../FormField/FormFieldContext'
 import { color } from '../tokens/colors'
@@ -8,11 +9,8 @@ import type { SizeVariant } from '../types'
 
 export interface LabelProps {
   icon?: React.ReactNode
-  optional?: boolean
   required?: boolean
-  /** Associates this label with an input via its `id`. */
   htmlFor?: string
-  /** Size variant to match the paired form control. */
   size?: SizeVariant
 }
 
@@ -24,23 +22,15 @@ const labelFontSizes: Record<SizeVariant, number> = {
   large: fontSize.base,
 }
 
-/**
- * Form field label with optional icon, "OPTIONAL" badge, and required indicator.
- *
- * Renders a semantic `<label>` element. Pass `htmlFor` matching the
- * input's `id` to create an accessible label–input association.
- *
- * When used inside a `FormField`, `htmlFor` and `required` are
- * automatically provided via context. Explicit props always override
- * context values.
- *
- * This is the standard way to label all form fields (`Input`, `Select`,
- * etc.) in the design system.
- */
+const requiredIconSizes: Record<SizeVariant, number> = {
+  small: 9,
+  medium: 10,
+  large: 11,
+}
+
 export const Label: React.FC<PropsWithChildren<LabelProps>> = ({
   children,
   icon = defaultIcon,
-  optional = false,
   required: requiredProp,
   htmlFor: htmlForProp,
   size = 'medium',
@@ -52,28 +42,34 @@ export const Label: React.FC<PropsWithChildren<LabelProps>> = ({
   return (
     <Row
       component="label"
-      gap={spacing.sm}
-      alignItems="center"
+      alignItems="flex-start"
+      justifyContent="space-between"
       fontSize={labelFontSizes[size]}
       fontWeight={fontWeight.semibold}
-      color={color.text.muted}
+      color={color.text.label}
       props={{ htmlFor }}
     >
-      {icon}
-      {children}
+      <Row gap={spacing.sm} alignItems="center">
+        {icon}
+        {children}
+      </Row>
       {required && (
-        <Inline color={color.danger} aria-hidden="true">
-          *
-        </Inline>
-      )}
-      {optional && (
-        <Block
-          color={color.text.muted}
-          fontSize={fontSize.xs}
-          textTransform="uppercase"
-        >
-          optional
-        </Block>
+        <Row alignItems="center" gap={spacing.xs}>
+          <StarIcon
+            size={requiredIconSizes[size]}
+            color={color.info}
+            fill={color.info}
+            strokeWidth={0}
+          />
+          <Inline
+            fontSize={fontSize.xs}
+            lineHeight={1}
+            fontWeight={fontWeight.normal}
+            color={color.text.muted}
+          >
+            Required
+          </Inline>
+        </Row>
       )}
     </Row>
   )

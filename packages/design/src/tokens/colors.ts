@@ -47,6 +47,8 @@ export const color = {
     secondary: twColors.slate['700'],
     /** slate-500 — placeholder, muted, de-emphasised text */
     muted: twColors.slate['500'],
+    /** slate-600 — form field labels, slightly stronger than muted */
+    label: twColors.slate['600'],
     /** white — text on dark/emphasis backgrounds */
     inverse: twColors.white,
   },
