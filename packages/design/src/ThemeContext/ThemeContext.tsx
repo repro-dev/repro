@@ -1,49 +1,38 @@
-import React, { createContext, useContext, useMemo } from 'react'
-import { colors } from '../tokens/colors'
+import React, { createContext, useContext } from 'react'
+import { color, type ColorToken } from '../tokens/colors'
 
-export interface BrandGradient {
-  from: string
-  to: string
-}
+type Widen<T> = T extends string ? string : T extends number ? number : T
 
-export interface BrandConfig {
-  gradient: BrandGradient
+type WidenLeaves<T> = {
+  [K in keyof T]: T[K] extends object ? WidenLeaves<T[K]> : Widen<T[K]>
 }
 
 export interface ThemeConfig {
-  brand: BrandConfig
+  color: ColorToken
 }
 
-const defaultTheme: ThemeConfig = {
-  brand: {
-    gradient: {
-      from: colors.blue['900'],
-      to: colors.blue['700'],
-    },
-  },
+export type ThemeDefinition = WidenLeaves<ThemeConfig>
+
+export const defaultTheme: ThemeConfig = {
+  color,
 }
 
 const ThemeContext = createContext<ThemeConfig>(defaultTheme)
 
 export interface ThemeProviderProps {
-  brand?: Partial<BrandConfig>
+  theme: ThemeDefinition
   children?: React.ReactNode
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({
-  brand,
+  theme,
   children,
 }) => {
-  const value = useMemo<ThemeConfig>(
-    () => ({
-      brand: {
-        gradient: brand?.gradient ?? defaultTheme.brand.gradient,
-      },
-    }),
-    [brand?.gradient]
+  return (
+    <ThemeContext.Provider value={theme as ThemeConfig}>
+      {children}
+    </ThemeContext.Provider>
   )
-
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
 
 export function useTheme(): ThemeConfig {

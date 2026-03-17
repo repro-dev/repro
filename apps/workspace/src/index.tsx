@@ -2,7 +2,7 @@ import { Analytics } from '@repro/analytics'
 import { createMixpanelBrowserConsumer } from '@repro/analytics-provider-mixpanel'
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { AuthProvider, GateProvider, SessionRouteBoundary } from '@repro/auth'
-import { colors, PortalRootProvider, ThemeProvider } from '@repro/design'
+import { defaultTheme, PortalRootProvider, ThemeProvider } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import { getDefaultAgent } from '@repro/messaging'
 import { applyResetStyles } from '@repro/theme'
@@ -67,14 +67,7 @@ if (rootElem) {
       <ApiProvider client={apiClient}>
         <GateProvider>
           <AuthProvider>
-            <ThemeProvider
-              brand={{
-                gradient: {
-                  from: colors.blue['900'],
-                  to: colors.blue['700'],
-                },
-              }}
-            >
+            <ThemeProvider theme={defaultTheme}>
               <PortalRootProvider>
                 <Suspense fallback={<Loading />}>
                   <Routes>

@@ -1,7 +1,6 @@
-export { ThemeProvider, useTheme } from './ThemeContext'
+export { defaultTheme, ThemeProvider, useTheme } from './ThemeContext'
 export type {
-  BrandConfig,
-  BrandGradient,
   ThemeConfig,
+  ThemeDefinition,
   ThemeProviderProps,
 } from './ThemeContext'
