@@ -69,7 +69,7 @@ _reproctl() {
   local db_sub="reset migrate shell status"
   local wt_sub="create remove list attach prune"
   local completion_shells="bash zsh fish"
-  local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version"
+  local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version environment exit-codes json"
 
   # Find the subcommand position (skip global flags)
   local cmd="" subcmd=""

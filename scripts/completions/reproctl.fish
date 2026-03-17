@@ -143,4 +143,4 @@ complete -c reproctl -n '__reproctl_using_subcommand wt prune' -f -s y -l yes -d
 
 complete -c reproctl -n '__reproctl_using_command completion' -f -a 'bash zsh fish' -d 'Shell'
 
-complete -c reproctl -n '__reproctl_using_command help' -f -a 'setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion'
+complete -c reproctl -n '__reproctl_using_command help' -f -a 'setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion environment exit-codes json'
