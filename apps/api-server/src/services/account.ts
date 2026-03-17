@@ -246,7 +246,7 @@ export function createAccountService(
         .select('admin')
         .where('id', '=', decodeId(staffUserId))
         .executeTakeFirstOrThrow(() => notFound())
-    }).pipe(map(row => !!row.admin))
+    }).pipe(map(row => row.admin))
   }
 
   function getStaffUserByEmailAndPassword(
@@ -258,7 +258,7 @@ export function createAccountService(
         .selectFrom('staff_users')
         .select(['id', 'name', 'email', 'password'])
         .where('email', '=', email.toLowerCase())
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .executeTakeFirst()
 
       // Run password verification even if user record is not
@@ -284,7 +284,7 @@ export function createAccountService(
         .selectFrom('staff_users')
         .select(['id', 'name', 'email'])
         .where('id', '=', decodeId(staffUserId))
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
     ).pipe(map(asStaffUser))
   }
@@ -314,7 +314,7 @@ export function createAccountService(
         attemptQuery(async () => {
           await database
             .updateTable('staff_users')
-            .set('active', 0)
+            .set('active', false)
             .where('id', '=', decodeId(staffUserId))
             .execute()
         })
@@ -326,7 +326,7 @@ export function createAccountService(
     return attemptQuery(() => {
       return database
         .insertInto('accounts')
-        .values({ name, active: 1 })
+        .values({ name, active: true })
         .returning(['id', 'name'])
         .executeTakeFirstOrThrow()
     }).pipe(map(withEncodedId))
@@ -415,7 +415,7 @@ export function createAccountService(
           email,
           accountId: decodedAccountId,
         })
-        .onConflict(cb => cb.column('email').doUpdateSet({ token, active: 1 }))
+        .onConflict(cb => cb.column('email').doUpdateSet({ token, active: true }))
         .returning(['id', 'token', 'email'])
         .executeTakeFirstOrThrow()
     }).pipe(map(withEncodedId))
@@ -443,7 +443,7 @@ export function createAccountService(
         .select(['id', 'token', 'email'])
         .where('token', '=', token)
         .where('email', '=', email)
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
     }).pipe(map(withEncodedId))
   }
@@ -456,7 +456,7 @@ export function createAccountService(
         attemptQuery(async () => {
           await database
             .updateTable('invitations')
-            .set('active', 0)
+            .set('active', false)
             .where('id', '=', decodeId(invitationId))
             .execute()
         })
@@ -512,7 +512,7 @@ export function createAccountService(
         .select('admin')
         .where('id', '=', decodeId(userId))
         .executeTakeFirstOrThrow()
-    }).pipe(map(row => !!row.admin))
+    }).pipe(map(row => row.admin))
   }
 
   function setUserIsAdmin(
@@ -524,7 +524,7 @@ export function createAccountService(
         attemptQuery(async () => {
           await database
             .updateTable('users')
-            .set('admin', admin ? 1 : 0)
+            .set('admin', admin)
             .where('id', '=', decodeId(userId))
             .execute()
         })
@@ -551,7 +551,7 @@ export function createAccountService(
         .selectFrom('users')
         .select(['id', 'name', 'email', 'verified'])
         .where('id', '=', decodeId(id))
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
     ).pipe(map(asUser))
   }
@@ -562,7 +562,7 @@ export function createAccountService(
         .selectFrom('users')
         .select(['email'])
         .where('id', '=', decodeId(id))
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
     ).pipe(map(row => row.email))
   }
@@ -573,7 +573,7 @@ export function createAccountService(
         .selectFrom('users')
         .select(['id', 'name', 'email', 'verified'])
         .where('email', '=', email.toLowerCase())
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
     }).pipe(map(asUser))
   }
@@ -587,7 +587,7 @@ export function createAccountService(
         .selectFrom('users')
         .select(['id', 'name', 'email', 'password', 'verified'])
         .where('email', '=', email.toLowerCase())
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .executeTakeFirst()
 
       // Run password verification even if user record is not
@@ -607,9 +607,9 @@ export function createAccountService(
 
   function deactivateUser(userId: string): FutureInstance<Error, void> {
     return attemptQuery(async () => {
-      await database
-        .updateTable('users')
-        .set('active', 0)
+          await database
+            .updateTable('users')
+            .set('active', false)
         .where('id', '=', decodeId(userId))
         .execute()
     })
@@ -648,7 +648,7 @@ export function createAccountService(
         attemptQuery(async () => {
           await database
             .updateTable('users')
-            .set('verified', 1)
+            .set('verified', true)
             .where('email', '=', email)
             .where('verificationToken', '=', verificationToken)
             .executeTakeFirst()
@@ -666,7 +666,7 @@ export function createAccountService(
         .selectFrom('users')
         .select(['lockedUntil'])
         .where('email', '=', email.toLowerCase())
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .executeTakeFirst()
     ).pipe(
       chain(row => {
@@ -687,7 +687,7 @@ export function createAccountService(
         .selectFrom('users')
         .select(['id', 'failedLoginCount'])
         .where('email', '=', email.toLowerCase())
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .executeTakeFirst()
 
       if (!row) {
@@ -721,7 +721,7 @@ export function createAccountService(
         .updateTable('users')
         .set({ failedLoginCount: 0, lockedUntil: null })
         .where('email', '=', email.toLowerCase())
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .execute()
     })
   }

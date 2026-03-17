@@ -3,6 +3,6 @@ import { GeneratedAlways } from 'kysely'
 export interface AccountTable {
   id: GeneratedAlways<number>
   name: string
-  active: number
+  active: boolean
   createdAt: GeneratedAlways<Date>
 }

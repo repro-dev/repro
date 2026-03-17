@@ -144,7 +144,7 @@ export function createDevBillingService(
           providerPriceId: params.providerPriceId,
           providerProductId: params.providerProductId,
           interval: params.interval,
-          active: 1,
+          active: true,
         })
         .returning([
           'id',
@@ -163,7 +163,7 @@ export function createDevBillingService(
         providerPriceId: row.providerPriceId,
         providerProductId: row.providerProductId,
         interval: row.interval,
-        active: !!row.active,
+        active: row.active,
         createdAt: row.createdAt,
       }))
     )
@@ -181,7 +181,7 @@ export function createDevBillingService(
         .values({
           planId: decodeId(planId)!,
           feature,
-          enabled: enabled ? 1 : 0,
+          enabled,
           limit,
         })
         .returning(['feature', 'enabled', 'limit'])
@@ -189,7 +189,7 @@ export function createDevBillingService(
     ).pipe(
       map(row => ({
         feature: row.feature,
-        enabled: !!row.enabled,
+        enabled: row.enabled,
         limit: row.limit,
       }))
     )
@@ -217,7 +217,7 @@ export function createDevBillingService(
         providerPriceId: row.providerPriceId,
         providerProductId: row.providerProductId,
         interval: row.interval,
-        active: !!row.active,
+        active: row.active,
         createdAt: row.createdAt,
       }))
     )
@@ -247,7 +247,7 @@ export function createDevBillingService(
         providerPriceId: row.providerPriceId,
         providerProductId: row.providerProductId,
         interval: row.interval,
-        active: !!row.active,
+        active: row.active,
         createdAt: row.createdAt,
       }))
     )
@@ -266,7 +266,7 @@ export function createDevBillingService(
           'active',
           'createdAt',
         ])
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .orderBy('name asc')
         .execute()
     ).pipe(
@@ -277,7 +277,7 @@ export function createDevBillingService(
           providerPriceId: row.providerPriceId,
           providerProductId: row.providerProductId,
           interval: row.interval,
-          active: !!row.active,
+          active: row.active,
           createdAt: row.createdAt,
         }))
       )
@@ -304,7 +304,7 @@ export function createDevBillingService(
           'billing_plan_entitlements.enabled',
           'billing_plan_entitlements.limit',
         ])
-        .where('billing_plans.active', '=', 1)
+        .where('billing_plans.active', '=', true)
         .orderBy('billing_plans.name asc')
         .execute()
     ).pipe(
@@ -324,7 +324,7 @@ export function createDevBillingService(
           if (row.feature !== null) {
             planMap.get(row.id)!.entitlements.push({
               feature: row.feature,
-              enabled: !!row.enabled,
+              enabled: row.enabled!,
               limit: row.limit,
             })
           }
@@ -365,7 +365,7 @@ export function createDevBillingService(
         status: row.status,
         currentPeriodStart: row.currentPeriodStart,
         currentPeriodEnd: row.currentPeriodEnd,
-        cancelAtPeriodEnd: !!row.cancelAtPeriodEnd,
+        cancelAtPeriodEnd: row.cancelAtPeriodEnd,
         canceledAt: row.canceledAt,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
@@ -409,7 +409,7 @@ export function createDevBillingService(
               status: row.status,
               currentPeriodStart: row.currentPeriodStart,
               currentPeriodEnd: row.currentPeriodEnd,
-              cancelAtPeriodEnd: !!row.cancelAtPeriodEnd,
+              cancelAtPeriodEnd: row.cancelAtPeriodEnd,
               canceledAt: row.canceledAt,
               createdAt: row.createdAt,
               updatedAt: row.updatedAt,
@@ -434,7 +434,7 @@ export function createDevBillingService(
           database
             .updateTable('billing_subscriptions')
             .set({
-              cancelAtPeriodEnd: 1,
+              cancelAtPeriodEnd: true,
             })
             .where('id', '=', decodeId(subscription.id))
             .returning([
@@ -460,7 +460,7 @@ export function createDevBillingService(
             status: row.status,
             currentPeriodStart: row.currentPeriodStart,
             currentPeriodEnd: row.currentPeriodEnd,
-            cancelAtPeriodEnd: !!row.cancelAtPeriodEnd,
+            cancelAtPeriodEnd: row.cancelAtPeriodEnd,
             canceledAt: row.canceledAt,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
@@ -576,7 +576,7 @@ export function createDevBillingService(
                 status: params.status,
                 currentPeriodStart: params.currentPeriodStart,
                 currentPeriodEnd: params.currentPeriodEnd,
-                cancelAtPeriodEnd: params.cancelAtPeriodEnd ? 1 : 0,
+                cancelAtPeriodEnd: params.cancelAtPeriodEnd,
                 canceledAt: params.canceledAt,
               })
               .where('id', '=', existing.id)
@@ -594,7 +594,7 @@ export function createDevBillingService(
               status: params.status,
               currentPeriodStart: params.currentPeriodStart,
               currentPeriodEnd: params.currentPeriodEnd,
-              cancelAtPeriodEnd: params.cancelAtPeriodEnd ? 1 : 0,
+              cancelAtPeriodEnd: params.cancelAtPeriodEnd,
               canceledAt: params.canceledAt,
             })
             .execute()
