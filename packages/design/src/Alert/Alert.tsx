@@ -14,6 +14,13 @@ const backgroundColorMap: Record<AlertType, string> = {
   danger: color.dangerSubtle,
 }
 
+const borderColorMap: Record<AlertType, string> = {
+  info: color.infoBorderSubtle,
+  success: color.successBorderSubtle,
+  warning: color.warningBorderSubtle,
+  danger: color.dangerBorderSubtle,
+}
+
 const colorMap: Record<AlertType, string> = {
   info: color.info,
   success: color.success,
@@ -50,12 +57,13 @@ type Props = PropsWithChildren<{
  */
 export const Alert: React.FC<Props> = ({ children, icon, type }) => (
   <Row
-    alignItems="center"
+    alignItems="start"
     padding={spacing.xl}
     background={backgroundColorMap[type]}
+    border={`1px solid ${borderColorMap[type]}`}
     color={colorMap[type]}
     fontSize={fontSize.xs}
-    lineHeight={lineHeight.tight}
+    lineHeight={lineHeight.relaxed}
     borderRadius={radius.sm}
     props={{ role: ariaRoleMap[type] }}
   >
