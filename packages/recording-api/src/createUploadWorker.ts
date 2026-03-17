@@ -33,6 +33,7 @@ const defaultOptions: Options = {
 
 export function createUploadWorker(
   apiClient: ApiClient,
+  projectId: string,
   customOptions: Partial<Options> = {}
 ) {
   const options = { ...defaultOptions, ...customOptions }
@@ -148,19 +149,22 @@ export function createUploadWorker(
     input: UploadInput,
     progress: UploadProgress
   ): FutureInstance<Error, RecordingInfo> {
-    const res = apiClient.fetch<RecordingInfo>('/recordings', {
-      method: 'POST',
-      body: JSON.stringify({
-        title: input.title,
-        description: input.description,
-        url: input.url,
-        mode: input.mode,
-        duration: input.duration,
-        browserName: input.browserName,
-        browserVersion: input.browserVersion,
-        operatingSystem: input.operatingSystem,
-      }),
-    })
+    const res = apiClient.fetch<RecordingInfo>(
+      `/projects/${projectId}/recordings`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          title: input.title,
+          description: input.description,
+          url: input.url,
+          mode: input.mode,
+          duration: input.duration,
+          browserName: input.browserName,
+          browserVersion: input.browserVersion,
+          operatingSystem: input.operatingSystem,
+        }),
+      }
+    )
 
     return res.pipe(
       tap(() => updateStage(UploadStage.CreateRecording, 1, progress))
@@ -200,7 +204,7 @@ export function createUploadWorker(
 
     return serialized.pipe(
       chain(value => {
-        const res = apiClient.fetch(`/recordings/${recordingId}/data`, {
+        const res = apiClient.fetch(`/projects/${projectId}/recordings/${recordingId}/data`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/octet-stream' },
           body: gzipSync(new Uint8Array(value.buffer)),
@@ -265,7 +269,7 @@ export function createUploadWorker(
           resources.map(([resourceId, resource]) => {
             return apiClient
               .fetch<void>(
-                `/recordings/${recordingId}/resources/${resourceId}`,
+                `/projects/${projectId}/recordings/${recordingId}/resources/${resourceId}`,
                 {
                   method: 'PUT',
                   body: resource,
@@ -292,7 +296,7 @@ export function createUploadWorker(
       .pipe(map(resourceIds => filterResourceMap(resourceMap, resourceIds)))
       .pipe(
         chain(filteredResourceMap =>
-          apiClient.fetch(`/recordings/${recordingId}/resource-map`, {
+          apiClient.fetch(`/projects/${projectId}/recordings/${recordingId}/resource-map`, {
             method: 'PUT',
             body: JSON.stringify(filteredResourceMap),
           })
