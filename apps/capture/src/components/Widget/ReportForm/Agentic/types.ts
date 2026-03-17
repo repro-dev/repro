@@ -9,45 +9,14 @@ export interface UserMessage {
 
 export type UserMessageContext = Pick<UserMessage, 'role' | 'content'>
 
-export interface ToolCall {
-  id: string
-  index: number
-  function: {
-    name: string
-    arguments: string
-  }
-}
-
 export interface AssistantMessage {
   id: string
   timestamp: Date
   role: 'assistant'
   content: string
-  toolCalls: Array<ToolCall>
 }
 
-export interface AssistantMessageContext {
-  role: 'assistant'
-  content: string
-  tool_calls?: Array<{
-    id: string
-    type: 'function'
-    function: { name: string; arguments: string }
-  }>
-}
-
-export interface ToolMessage {
-  id: string
-  timestamp: Date
-  role: 'tool'
-  content: string
-  tool_call_id: string
-}
-
-export type ToolMessageContext = Pick<
-  ToolMessage,
-  'role' | 'content' | 'tool_call_id'
->
+export type AssistantMessageContext = Pick<AssistantMessage, 'role' | 'content'>
 
 export interface SystemMessage {
   id: string
@@ -58,16 +27,13 @@ export interface SystemMessage {
 
 export type SystemMessageContext = Pick<SystemMessage, 'role' | 'content'>
 
-export type Entry = UserMessage | AssistantMessage | SystemMessage | ToolMessage
+export type Entry = UserMessage | AssistantMessage | SystemMessage
 
 export type Context = Array<
-  | UserMessageContext
-  | AssistantMessageContext
-  | ToolMessageContext
-  | SystemMessageContext
+  UserMessageContext | AssistantMessageContext | SystemMessageContext
 >
 
-export type Loading = 'reasoning' | 'responding' | 'tool-executing' | 'none'
+export type Loading = 'reasoning' | 'responding' | 'none'
 
 export interface AgenticState {
   $entries: Atom<Array<Entry>>

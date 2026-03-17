@@ -57,7 +57,6 @@ export const Reasoning: StoryObj = {
           role: 'assistant',
           content:
             'The answer to the meaning of life, the universe and everything is widely agreed to be the number **42**.',
-          toolCalls: [],
         },
         {
           id: '3',
@@ -71,7 +70,6 @@ export const Reasoning: StoryObj = {
           timestamp: new Date(),
           role: 'assistant',
           content: '',
-          toolCalls: [],
         },
       ]),
       $loading: atom<Loading>('reasoning'),
@@ -97,7 +95,6 @@ export const Responding: StoryObj = {
           role: 'assistant',
           content:
             'The answer to the meaning of life, the universe and everything is widely agreed to be the number **42**.',
-          toolCalls: [],
         },
         {
           id: '3',
@@ -115,7 +112,6 @@ export const Responding: StoryObj = {
 Integer tempus, risus sed commodo tincidunt, urna tortor scelerisque enim, vel mattis lectus sapien ac elit. Sed condimentum ultricies rhoncus. Integer condimentum ut metus quis sodales. Integer est lorem, eleifend sodales metus eu, rhoncus volutpat ex. Donec sed feugiat nisi. Etiam quis lectus in felis congue accumsan vitae ut nulla. Praesent scelerisque neque quis leo malesuada congue. Cras malesuada, ante a bibendum accumsan, tellus metus tristique risus, venenatis iaculis dolor nunc in elit. Proin vel augue laoreet urna faucibus semper eget vel orci. In aliquet ut nisi ut venenatis. Sed at euismod dui. Integer fermentum placerat viverra. Suspendisse varius dolor at nisi fermentum tempus. Vivamus vitae tortor dictum, convallis nunc ac, auctor est.
 
 Sed vitae orci vulputate eros maximus scelerisque. Fusce id nisi odio. Proin sollicitudin luctus elit, a condimentum eros accumsan sodales. Vestibulum vitae neque diam. Morbi fermentum id felis vel luctus. Integer nibh orci, commodo sit amet porta auctor, consequat vulputate felis. Quisque a dui augue. Fusce ac consequat est, a maximus massa.`,
-          toolCalls: [],
         },
       ]),
       $loading: atom<Loading>('responding'),

@@ -1,6 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
-import { map } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
@@ -25,30 +24,15 @@ export function createAgenticRouter(
             content: z.string(),
           })
         ),
-        tools: z
-          .array(
-            z.object({
-              type: z.literal('function'),
-              name: z.string(),
-              description: z.string(),
-              parameters: z.any(),
-            })
-          )
-          .optional(),
       }),
     }
 
     app.post<{ Body: z.infer<typeof createResponseSchema.body> }>(
       '/response',
       (req, res) => {
-        const { messages, tools } = req.body
+        const { messages } = req.body
         res.header('content-type', 'text/event-stream')
-        respondWith(
-          res,
-          agenticService
-            .getStreamingResponse(messages, tools ?? [])
-            .pipe(map(data => data.body))
-        )
+        respondWith(res, agenticService.getResponse(messages))
       }
     )
   }

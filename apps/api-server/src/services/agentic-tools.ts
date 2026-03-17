@@ -1,4 +1,13 @@
-const GET_RECORDING_DURATION = {
+interface ToolDefinition {
+  type: 'function'
+  function: {
+    name: string
+    description: string
+    parameters?: object
+  }
+}
+
+const GET_RECORDING_DURATION: ToolDefinition = {
   type: 'function',
   function: {
     name: 'getRecordingDuration',
@@ -6,7 +15,7 @@ const GET_RECORDING_DURATION = {
   },
 }
 
-const GET_CONSOLE_MESSAGES = {
+const GET_CONSOLE_MESSAGES: ToolDefinition = {
   type: 'function',
   function: {
     name: 'getConsoleMessages',
@@ -36,7 +45,10 @@ const GET_CONSOLE_MESSAGES = {
   },
 }
 
-export const tools = [GET_RECORDING_DURATION, GET_CONSOLE_MESSAGES]
+export const tools: Array<ToolDefinition> = [
+  GET_RECORDING_DURATION,
+  GET_CONSOLE_MESSAGES,
+]
 
 const toolHandlers: Record<
   string,
