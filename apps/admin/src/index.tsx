@@ -1,6 +1,6 @@
 import { ApiProvider } from '@repro/api-client'
 import { AuthProvider, SessionRouteBoundary } from '@repro/auth'
-import { PortalRootProvider } from '@repro/design'
+import { colors, PortalRootProvider, ThemeProvider } from '@repro/design'
 import { applyResetStyles } from '@repro/theme'
 import React, { Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -39,28 +39,37 @@ if (rootElem) {
     <BrowserRouter basename={basename}>
       <ApiProvider>
         <AuthProvider>
-          <PortalRootProvider>
-            <Suspense fallback={<Loading />}>
-              <Routes>
-                <Route element={<AuthLayout />}>
-                  <Route path="account/login" element={<LoginRoute />} />
-                </Route>
-
-                <Route element={<Layout />}>
-                  <Route element={<SessionRouteBoundary />}>
-                    <Route index element={<HomeRoute />} />
+          <ThemeProvider
+            brand={{
+              gradient: {
+                from: colors.slate['900'],
+                to: colors.slate['700'],
+              },
+            }}
+          >
+            <PortalRootProvider>
+              <Suspense fallback={<Loading />}>
+                <Routes>
+                  <Route element={<AuthLayout />}>
+                    <Route path="account/login" element={<LoginRoute />} />
                   </Route>
-                </Route>
 
-                <Route element={<SessionRouteBoundary />}>
-                  <Route
-                    path="recordings/:recordingId"
-                    element={<RecordingRoute />}
-                  />
-                </Route>
-              </Routes>
-            </Suspense>
-          </PortalRootProvider>
+                  <Route element={<Layout />}>
+                    <Route element={<SessionRouteBoundary />}>
+                      <Route index element={<HomeRoute />} />
+                    </Route>
+                  </Route>
+
+                  <Route element={<SessionRouteBoundary />}>
+                    <Route
+                      path="recordings/:recordingId"
+                      element={<RecordingRoute />}
+                    />
+                  </Route>
+                </Routes>
+              </Suspense>
+            </PortalRootProvider>
+          </ThemeProvider>
         </AuthProvider>
       </ApiProvider>
     </BrowserRouter>

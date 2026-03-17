@@ -130,51 +130,51 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
-  const { base, fontSize } = sizes[size]
-  const height = base * 5
-  const paddingH = base * 2
-  const gap = base
-  const ctx = contextColors[context]
+    const { base, fontSize } = sizes[size]
+    const height = base * 5
+    const paddingH = base * 2
+    const gap = base
+    const ctx = contextColors[context]
 
-  return (
-    <Row
-      position="relative"
-      component="button"
-      props={{ disabled, type, onClick, ref }}
-      gap={gap}
-      height={height}
-      paddingH={paddingH}
-      alignItems="center"
-      justifyContent="center"
-      backgroundColor={variant === 'contained' ? ctx.bg : 'transparent'}
-      hoverBackgroundColor={
-        disabled ? null : variant === 'contained' ? ctx.bgHover : ctx.subtle
-      }
-      boxSizing="border-box"
-      borderColor={variant === 'outlined' ? ctx.border : 'transparent'}
-      borderStyle="solid"
-      borderWidth={1}
-      borderRadius={rounded ? base : radius.none}
-      color={variant === 'contained' ? ctx.containedFg : ctx.fg}
-      boxShadow={
-        disabled
-          ? shadow.none
-          : variant === 'contained'
-          ? containedShadow(ctx.highlightOpacity)
-          : shadow.none
-      }
-      opacity={disabled ? 0.5 : 1}
-      cursor={disabled ? 'default' : 'pointer'}
-      fontSize={fontSize}
-      lineHeight="1em"
-      transition={transition.fast}
-      {...focusRing(context)}
-      {...activePress()}
-    >
-      {children}
-    </Row>
-  )
-}
+    return (
+      <Row
+        position="relative"
+        component="button"
+        props={{ disabled, type, onClick, ref }}
+        gap={gap}
+        height={height}
+        paddingH={paddingH}
+        alignItems="center"
+        justifyContent="center"
+        backgroundColor={variant === 'contained' ? ctx.bg : 'transparent'}
+        hoverBackgroundColor={
+          disabled ? null : variant === 'contained' ? ctx.bgHover : ctx.subtle
+        }
+        boxSizing="border-box"
+        borderColor={variant === 'outlined' ? ctx.border : 'transparent'}
+        borderStyle="solid"
+        borderWidth={1}
+        borderRadius={rounded ? base : radius.none}
+        color={variant === 'contained' ? ctx.containedFg : ctx.fg}
+        boxShadow={
+          disabled
+            ? shadow.none
+            : variant === 'contained'
+            ? containedShadow(ctx.highlightOpacity)
+            : shadow.none
+        }
+        opacity={disabled ? 0.5 : 1}
+        cursor={disabled ? 'default' : 'pointer'}
+        fontSize={fontSize}
+        lineHeight="1em"
+        transition={transition.fast}
+        {...focusRing(context)}
+        {...activePress()}
+      >
+        {children}
+      </Row>
+    )
+  }
 )
 
 Button.displayName = 'Button'
