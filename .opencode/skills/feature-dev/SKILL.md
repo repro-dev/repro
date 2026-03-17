@@ -98,6 +98,20 @@ Key rules that apply to every implementation (details in the skills above):
 - **All visual values** must come from `@repro/design` tokens. No hardcoded pixels, hex colors, or transition strings.
 - **Package naming**: `@repro/<name>` with `workspace:*` protocol.
 
+### TDD discipline
+
+Use red/green/refactor TDD for each requirement:
+
+1. **Red**: Write a failing test that captures the requirement.
+2. Run the test — confirm it fails for the expected reason.
+3. **Green**: Write the minimum implementation to make the test pass.
+4. Run the test — confirm it passes.
+5. **Refactor**: Clean up implementation and test code while keeping tests green.
+6. Run all related tests — confirm nothing regressed.
+7. Move to the next requirement.
+
+The `@develop` agent enforces this cycle in its system prompt. When working manually (without the agent pipeline), follow the same discipline.
+
 ## Phase 4: Verification
 
 Run these checks before committing. Fix any failures before proceeding. For full command reference, load the `build-and-test` skill.
