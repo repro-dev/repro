@@ -37,11 +37,22 @@ const apiClient = createApiClient({
   authStorage: (process.env.AUTH_STORAGE as any) || 'local-storage',
 })
 
-const uploadWorker = createUploadWorker(apiClient, {
-  withEncryptionScheme: 'none',
-})
+const uploadWorkers = new Map<string, ReturnType<typeof createUploadWorker>>()
+const refWorkerMap = new Map<string, ReturnType<typeof createUploadWorker>>()
+
+function getUploadWorker(projectId: string) {
+  let worker = uploadWorkers.get(projectId)
+  if (!worker) {
+    worker = createUploadWorker(apiClient, projectId, {
+      withEncryptionScheme: 'none',
+    })
+    uploadWorkers.set(projectId, worker)
+  }
+  return worker
+}
 
 const UploadEnqueuePayloadSchema = z.object({
+  projectId: z.string(),
   title: z.string(),
   description: z.string(),
   url: z.string(),
@@ -57,14 +68,17 @@ type UploadEnqueuePayload = z.infer<typeof UploadEnqueuePayloadSchema>
 
 agent.subscribeToIntent('upload:enqueue', (payload: UploadEnqueuePayload) => {
   return parseSchema(UploadEnqueuePayloadSchema, payload).pipe(
-    map(input =>
-      uploadWorker.enqueue({
+    map(({ projectId, ...input }) => {
+      const worker = getUploadWorker(projectId)
+      const ref = worker.enqueue({
         ...input,
         events: input.events.map(data =>
           SourceEventView.over(new DataView(fromByteString(data).buffer))
         ),
       })
-    )
+      refWorkerMap.set(ref, worker)
+      return ref
+    })
   )
 })
 
@@ -76,7 +90,7 @@ type UploadProgressPayload = z.infer<typeof UploadProgressPayloadSchema>
 
 agent.subscribeToIntent('upload:progress', (payload: UploadProgressPayload) => {
   return parseSchema(UploadProgressPayloadSchema, payload).pipe(
-    map(({ ref }) => uploadWorker.getProgress(ref))
+    map(({ ref }) => refWorkerMap.get(ref)?.getProgress(ref) ?? null)
   )
 })
 

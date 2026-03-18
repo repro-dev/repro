@@ -1,12 +1,15 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
+import { useApiClient } from '@repro/api-client'
 import { colors } from '@repro/design'
-import { RecordingMode } from '@repro/domain'
+import { ListResponse, Project, RecordingMode } from '@repro/domain'
+import { useFuture } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
 import { usePlayback } from '@repro/playback'
 import { sliceEventsAtRange } from '@repro/recording'
 import { toByteString } from '@repro/wire-formats'
 import { detect } from 'detect-browser'
+import { resolve } from 'fluture'
 import React, { Fragment, useCallback } from 'react'
 import { ReadyState, useReadyState, useRecordingMode } from '~/state'
 import { Launcher } from './Launcher'
@@ -21,6 +24,14 @@ export const Widget: React.FC = () => {
   const [recordingMode, setRecordingMode] = useRecordingMode()
   const [readyState, setReadyState] = useReadyState()
   const agent = useMessaging()
+  const apiClient = useApiClient()
+  const projectsResult = useFuture(
+    () => apiClient.fetch<ListResponse<Project>>('/projects'),
+    [apiClient]
+  )
+  const projectId = projectsResult.success
+    ? projectsResult.data.items[0]?.id ?? null
+    : null
 
   const isReady = readyState === ReadyState.Ready
   const isPendingLiveRecording =
@@ -36,6 +47,10 @@ export const Widget: React.FC = () => {
 
   const upload = useCallback(
     (values: FormValues) => {
+      if (!projectId) {
+        return resolve<string>('')
+      }
+
       let events = playback.getSourceEvents()
       const maxTime = playback.getDuration()
       const minTime = Math.max(0, maxTime - (values.duration ?? 0))
@@ -55,6 +70,7 @@ export const Widget: React.FC = () => {
       return agent.raiseIntent<string>({
         type: 'upload:enqueue',
         payload: {
+          projectId,
           title: values.title,
           description: values.description,
           url: location.href,
@@ -73,7 +89,7 @@ export const Widget: React.FC = () => {
         },
       })
     },
-    [playback, recordingMode, agent]
+    [playback, recordingMode, agent, projectId]
   )
 
   return (

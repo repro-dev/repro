@@ -36,9 +36,7 @@ export const AgenticInputSection: React.FC<AgenticInputSectionProps> = ({
       position="absolute"
       right={0}
       transform={
-        disabled
-          ? `translateY(calc(100% + 20px))`
-          : `translateY(-20px)`
+        disabled ? `translateY(calc(100% + 20px))` : `translateY(-20px)`
       }
       transition="margin ease-in-out 100ms, padding ease-in-out 100ms, transform ease-in-out 250ms"
     >

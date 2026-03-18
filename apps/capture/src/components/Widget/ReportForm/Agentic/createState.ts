@@ -381,7 +381,7 @@ export function createAgenticState(
         case 'completion': {
           const entryMap = $entryMap.getValue()
           const lastId = entryMap.orderedIds.at(-1)
-          const lastEntry = lastId ? (entryMap.entries[lastId] ?? null) : null
+          const lastEntry = lastId ? entryMap.entries[lastId] ?? null : null
 
           if (
             lastEntry !== null &&
