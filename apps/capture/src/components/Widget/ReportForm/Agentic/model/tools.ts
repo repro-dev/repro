@@ -6,6 +6,10 @@ import {
   SourceEvent,
   SourceEventType,
 } from '@repro/domain'
+import {
+  findIndexedNetworkEvents,
+  groupNetworkEvents,
+} from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { RecordingDataAccessor } from '../types'
 
@@ -102,7 +106,51 @@ const GET_CONSOLE_MESSAGES = {
   },
 }
 
-export const tools = [GET_RECORDING_DURATION, GET_CONSOLE_MESSAGES]
+const GET_NETWORK_REQUESTS = {
+  type: 'function',
+  function: {
+    name: 'getNetworkRequests',
+    description:
+      'Get recorded network requests (fetch/XHR/WebSocket), with optional filters.',
+    parameters: {
+      type: 'object',
+      properties: {
+        statusMin: {
+          type: 'number',
+          description:
+            'Minimum HTTP status code to include (e.g. 400 for errors only).',
+        },
+        statusMax: {
+          type: 'number',
+          description: 'Maximum HTTP status code to include.',
+        },
+        method: {
+          type: 'string',
+          description: 'Filter by HTTP method (e.g. GET, POST).',
+        },
+        urlPattern: {
+          type: 'string',
+          description: 'Substring to match against request URLs.',
+        },
+        timeRangeStartMs: {
+          type: 'number',
+          description:
+            'Start of time range in ms from recording start.',
+        },
+        timeRangeEndMs: {
+          type: 'number',
+          description: 'End of time range in ms from recording start.',
+        },
+      },
+    },
+  },
+}
+
+export const tools = [
+  GET_RECORDING_DURATION,
+  GET_CONSOLE_MESSAGES,
+  GET_NETWORK_REQUESTS,
+]
 
 export type ToolHandler = (
   recording: RecordingDataAccessor,
@@ -167,6 +215,94 @@ const toolHandlers: Record<string, ToolHandler> = {
     }
 
     return { messages }
+  },
+
+  getNetworkRequests: (recording, args) => {
+    const events = recording.getSourceEvents()
+    const indexed = findIndexedNetworkEvents(events)
+    const groups = groupNetworkEvents(indexed)
+
+    const statusMin = args.statusMin as number | undefined
+    const statusMax = args.statusMax as number | undefined
+    const method = args.method as string | undefined
+    const urlPattern = args.urlPattern as string | undefined
+    const timeStart = args.timeRangeStartMs as number | undefined
+    const timeEnd = args.timeRangeEndMs as number | undefined
+
+    const requests: Array<{
+      timeMs: number
+      type: 'fetch' | 'ws'
+      method?: string
+      url: string
+      status?: number
+      responseTimeMs?: number
+      durationMs?: number
+      requestHeaders?: Record<string, string>
+      responseHeaders?: Record<string, string>
+    }> = []
+
+    for (const group of groups) {
+      if (group.type === 'fetch') {
+        const time = group.requestTime
+        if (timeStart !== undefined && time < timeStart) continue
+        if (timeEnd !== undefined && time > timeEnd) continue
+        if (
+          method !== undefined &&
+          group.request.method.toUpperCase() !== method.toUpperCase()
+        )
+          continue
+        if (
+          urlPattern !== undefined &&
+          !group.request.url.includes(urlPattern)
+        )
+          continue
+
+        const status = group.response?.status
+        if (statusMin !== undefined && (status === undefined || status < statusMin))
+          continue
+        if (statusMax !== undefined && (status === undefined || status > statusMax))
+          continue
+
+        requests.push({
+          timeMs: time,
+          type: 'fetch',
+          method: group.request.method,
+          url: group.request.url,
+          status,
+          responseTimeMs: group.responseTime,
+          durationMs:
+            group.responseTime !== undefined
+              ? group.responseTime - time
+              : undefined,
+          requestHeaders: group.request.headers,
+          responseHeaders: group.response?.headers,
+        })
+      } else {
+        const time = group.openTime
+        if (timeStart !== undefined && time < timeStart) continue
+        if (timeEnd !== undefined && time > timeEnd) continue
+        if (urlPattern !== undefined && !group.open.url.includes(urlPattern))
+          continue
+        if (
+          statusMin !== undefined ||
+          statusMax !== undefined ||
+          method !== undefined
+        )
+          continue
+
+        requests.push({
+          timeMs: time,
+          type: 'ws',
+          url: group.open.url,
+          durationMs:
+            group.closeTime !== undefined
+              ? group.closeTime - time
+              : undefined,
+        })
+      }
+    }
+
+    return { requests }
   },
 }
 
