@@ -46,17 +46,32 @@ Sidebar + content area grid shell. Primary authenticated layout.
 | Sub-component | Purpose | Key props |
 |---------------|---------|-----------|
 | `AppShell` | Root grid shell, `100vh`, `gridTemplateColumns="220px 1fr"` | — |
-| `AppShell.Sidebar` | Flex column for logo, `SideNav`, user menu | — |
+| `AppShell.Sidebar` | Flex column with header/footer slots | `header`, `footer`, `ariaLabel` |
 | `AppShell.Content` | Scrollable content area for `<Outlet />` | — |
+
+**Sidebar slots:**
+
+`AppShell.Sidebar` uses named slot props to enforce the standard 3-part sidebar layout (header → nav → footer). The component owns the vertical flex distribution, spacing, and border — apps provide content for each slot.
+
+| Prop | Slot | Typical content |
+|------|------|----------------|
+| `header` | Top, with `padding={spacing.lg}` | Logo or workspace switcher |
+| `children` | Middle, `flex: 1` | `SideNav` with route-aware items |
+| `footer` | Bottom, with `border-top` | `UserMenu` from `@repro/auth` |
+
+When neither `header` nor `footer` is provided, children fill the entire sidebar for full layout control (backward compatible).
 
 **Structure:**
 
 ```tsx
+import { IfSession, UnlessSession, UserMenu } from '@repro/auth'
 import { AppShell, SideNav } from '@repro/design'
 
 <AppShell>
-  <AppShell.Sidebar>
-    {/* App-level: WorkspaceHeader, SideNav, UserMenu */}
+  <AppShell.Sidebar header={<WorkspaceHeader />} footer={<UserMenu />}>
+    <SideNav aria-label="Main navigation">
+      <SideNav.Item icon={PlayIcon} label="Sessions" ... />
+    </SideNav>
   </AppShell.Sidebar>
   <AppShell.Content>
     <Outlet />
@@ -64,7 +79,7 @@ import { AppShell, SideNav } from '@repro/design'
 </AppShell>
 ```
 
-**Sidebar content is app-level** — `WorkspaceHeader`, `SideNav` with route-aware items, and `UserMenu` are compositions built in `apps/workspace/src/` (not design system components). The design system provides the structural shell and the navigation primitives; the app wires them to routes and session data.
+**Slot content is app-level** — `WorkspaceHeader`, `SideNav` items, and `UserMenu` are provided by the consuming application. The design system owns the sidebar's structural layout (spacing, flex distribution, borders); the app provides the content for each slot and wires it to routes and session data.
 
 ### `ToolView` (REP-370)
 
@@ -467,6 +482,9 @@ React Router v6 layout routes scope each shell:
 ```tsx
 // Tier 1 shells
 import { AppShell, ToolView } from '@repro/design'
+
+// Auth components (session-aware UI)
+import { IfSession, UnlessSession, UserMenu } from '@repro/auth'
 
 // Tier 2 page frame
 import { PageFrame } from '@repro/design'
