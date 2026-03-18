@@ -1,3 +1,4 @@
+import { calculateDuration } from '@repro/source-utils'
 import { RecordingDataAccessor } from '../types'
 
 const GET_RECORDING_DURATION = {
@@ -47,7 +48,7 @@ export type ToolHandler = (
 
 const toolHandlers: Record<string, ToolHandler> = {
   getRecordingDuration: recording => ({
-    durationMs: recording.getDuration(),
+    durationMs: calculateDuration(recording.getSourceEvents()),
   }),
   getConsoleMessages: () => ({ messages: [] }),
 }
