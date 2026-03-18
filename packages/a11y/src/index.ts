@@ -1,4 +1,4 @@
-export { addAriaAttribute, removeAriaAttribute } from '~/ariaAttributes'
+export { addAriaAttribute, removeAriaAttribute } from './ariaAttributes'
 export { useFocusTrap } from './useFocusTrap'
-export { useStableId } from '~/useStableId'
-export { visuallyHidden } from '~/visuallyHidden'
+export { useStableId } from './useStableId'
+export { visuallyHidden } from './visuallyHidden'
