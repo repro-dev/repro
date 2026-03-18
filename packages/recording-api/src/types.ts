@@ -1,6 +1,7 @@
 import { RecordingMode, SourceEvent } from '@repro/domain'
 
 export interface UploadInput {
+  projectId: string
   title: string
   description: string
   url: string
