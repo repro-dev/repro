@@ -76,7 +76,7 @@ _reproctl() {
   local i
   for ((i = 1; i < cword; i++)); do
     case "${words[i]}" in
-      -h|--help|--json) continue ;;
+      -h|--help|--json|--quiet|-q|--verbose) continue ;;
       -*) continue ;;
       *)
         if [[ -z "$cmd" ]]; then
@@ -90,7 +90,7 @@ _reproctl() {
 
   # Top-level completion
   if [[ -z "$cmd" ]]; then
-    COMPREPLY=($(compgen -W "$top_commands --json -h --help --version -V" -- "$cur"))
+    COMPREPLY=($(compgen -W "$top_commands --json --quiet -q --verbose -h --help --version -V" -- "$cur"))
     return
   fi
 

@@ -53,6 +53,7 @@ cmd_cluster_up() {
   fi
 
   _step 1 1 "Creating cluster and registry..."
+  _debug "exec: ctlptl apply -f $CLUSTER_YAML"
   ctlptl apply -f "$CLUSTER_YAML"
   _ok "Cluster '$CLUSTER_NAME' is ready"
 }
@@ -86,6 +87,7 @@ cmd_cluster_down() {
   fi
 
   _step 1 1 "Tearing down cluster and registry..."
+  _debug "exec: ctlptl delete -f $CLUSTER_YAML"
   ctlptl delete -f "$CLUSTER_YAML" 2>/dev/null || true
   _ok "Cluster '$CLUSTER_NAME' has been removed"
 }

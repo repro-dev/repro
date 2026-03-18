@@ -14,6 +14,7 @@ tilt_is_running() {
 # ── Config management ───────────────────────────────────────────────
 
 read_config() {
+  _debug "reading config from $CONFIG_FILE"
   if [ -f "$CONFIG_FILE" ]; then
     cat "$CONFIG_FILE"
   else
@@ -75,6 +76,7 @@ service_count() {
 start_tilt_daemon() {
   echo "Starting Tilt (dashboard: http://localhost:$TILT_PORT)..."
 
+  _debug "exec: tilt up --port $TILT_PORT --file $INFRA_DIR/Tiltfile"
   nohup tilt up \
     --port "$TILT_PORT" \
     --file "$INFRA_DIR/Tiltfile" \
@@ -99,6 +101,7 @@ start_tilt_daemon() {
 stop_tilt_daemon() {
   if tilt_is_running; then
     echo "Stopping Tilt..."
+    _debug "exec: tilt down --file $INFRA_DIR/Tiltfile"
     TILT_PORT="$TILT_PORT" tilt down --file "$INFRA_DIR/Tiltfile" 2>/dev/null || true
   fi
 

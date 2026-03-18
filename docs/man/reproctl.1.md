@@ -8,7 +8,7 @@ reproctl - unified CLI for local development with Tilt, kind, and git worktrees
 
 # SYNOPSIS
 
-**reproctl** [**--json**] *command* [*args*...]
+**reproctl** [**--json**] [**--quiet**] [**--verbose**] *command* [*args*...]
 
 # DESCRIPTION
 
@@ -20,6 +20,12 @@ Context is detected automatically: from the main checkout, services run as main;
 
 **--json**
 : Output machine-readable JSON instead of human-readable text. Supported by: **checkhealth**, **cluster status**, **context**, **db status**, **doctor**, **logs**, **status**, **wt list**.
+
+**--quiet**, **-q**
+: Suppress all non-error output on stderr. Only data (stdout) and errors (stderr) are emitted. Useful for scripts and agents that only need the exit code or **--json** data.
+
+**--verbose**
+: Show detailed diagnostic information on stderr, including external commands being executed, config file paths, and context detection. Can also be enabled by setting the **REPROCTL_DEBUG=1** environment variable.
 
 # COMMANDS
 

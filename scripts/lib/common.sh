@@ -29,12 +29,19 @@ fi
 
 # ── Output helpers ──────────────────────────────────────────────────
 
+_debug() {
+  [ "${REPROCTL_DEBUG:-false}" = "true" ] || [ "${REPROCTL_DEBUG:-0}" = "1" ] && printf "${CLR_DIM}debug: %s${CLR_RESET}\n" "$*" >&2
+  return 0
+}
+
 _step() {
+  [ "${REPROCTL_QUIET:-false}" = "true" ] && return 0
   local current="$1" total="$2" msg="$3"
   printf '%s[%d/%d]%s %s\n' "$CLR_BOLD" "$current" "$total" "$CLR_RESET" "$msg" >&2
 }
 
 _ok() {
+  [ "${REPROCTL_QUIET:-false}" = "true" ] && return 0
   printf '%s✔ %s%s\n' "$CLR_GREEN" "$1" "$CLR_RESET" >&2
 }
 
@@ -43,6 +50,7 @@ _err() {
 }
 
 _warn() {
+  [ "${REPROCTL_QUIET:-false}" = "true" ] && return 0
   printf '%s⚠ %s%s\n' "$CLR_YELLOW" "$*" "$CLR_RESET" >&2
 }
 
@@ -91,6 +99,10 @@ CONFIG_FILE="$TMP_DIR/reproctl_services.json"
 TILT_PID_FILE="$TMP_DIR/tilt.pid"
 TILT_LOG_FILE="$TMP_DIR/tilt.log"
 TILT_PORT="${TILT_PORT:-10350}"
+
+_debug "REPO_ROOT=$REPO_ROOT"
+_debug "MAIN_CHECKOUT=$MAIN_CHECKOUT"
+_debug "CONFIG_FILE=$CONFIG_FILE"
 
 detect_worktree_slug() {
   local basename

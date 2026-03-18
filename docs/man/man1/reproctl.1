@@ -5,8 +5,8 @@
 reproctl \- unified CLI for local development with Tilt, kind, and git
 worktrees
 .SH SYNOPSIS
-\f[B]reproctl\f[R] [\f[B]\-\-json\f[R]] \f[I]command\f[R]
-[\f[I]args\f[R]...]
+\f[B]reproctl\f[R] [\f[B]\-\-json\f[R]] [\f[B]\-\-quiet\f[R]]
+[\f[B]\-\-verbose\f[R]] \f[I]command\f[R] [\f[I]args\f[R]...]
 .SH DESCRIPTION
 reproctl manages the local development environment for the Repro
 monorepo.
@@ -22,6 +22,18 @@ Output machine\-readable JSON instead of human\-readable text.
 Supported by: \f[B]checkhealth\f[R], \f[B]cluster status\f[R],
 \f[B]context\f[R], \f[B]db status\f[R], \f[B]doctor\f[R],
 \f[B]logs\f[R], \f[B]status\f[R], \f[B]wt list\f[R].
+.TP
+\f[B]\-\-quiet\f[R], \f[B]\-q\f[R]
+Suppress all non\-error output on stderr.
+Only data (stdout) and errors (stderr) are emitted.
+Useful for scripts and agents that only need the exit code or
+\f[B]\-\-json\f[R] data.
+.TP
+\f[B]\-\-verbose\f[R]
+Show detailed diagnostic information on stderr, including external
+commands being executed, config file paths, and context detection.
+Can also be enabled by setting the \f[B]REPROCTL_DEBUG=1\f[R]
+environment variable.
 .SH COMMANDS
 .SS Environment
 .TP
