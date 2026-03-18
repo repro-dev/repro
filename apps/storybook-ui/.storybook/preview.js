@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { PortalRootProvider } from "@repro/design";
+import { ConfirmDialogProvider, PortalRootProvider, ToastProvider } from "@repro/design";
 import { applyResetStyles } from "@repro/theme";
 
 const globalStyleRoot = document.getElementById("global-styles");
@@ -30,7 +30,15 @@ const preview = {
       createElement(
         PortalRootProvider,
         null,
-        createElement("div", { style: { padding: "1rem" } }, createElement(Story))
+        createElement(
+          ToastProvider,
+          null,
+          createElement(
+            ConfirmDialogProvider,
+            null,
+            createElement("div", { style: { padding: "1rem" } }, createElement(Story))
+          )
+        )
       ),
   ],
 };
