@@ -17,24 +17,50 @@ export function createAgenticRouter(
   return async function (fastify) {
     const app = fastify.withTypeProvider<ZodTypeProvider>()
 
+    const toolCallSchema = z.object({
+      id: z.string(),
+      type: z.literal('function'),
+      function: z.object({
+        name: z.string(),
+        arguments: z.string(),
+      }),
+    })
+
+    const messageSchema = z.discriminatedUnion('role', [
+      z.object({
+        role: z.literal('system'),
+        content: z.string(),
+      }),
+      z.object({
+        role: z.literal('user'),
+        content: z.string(),
+      }),
+      z.object({
+        role: z.literal('assistant'),
+        content: z.string(),
+        tool_calls: z.array(toolCallSchema).optional(),
+      }),
+      z.object({
+        role: z.literal('tool'),
+        content: z.string(),
+        tool_call_id: z.string(),
+      }),
+    ])
+
+    const toolSchema = z.object({
+      type: z.literal('function'),
+      function: z.object({
+        name: z.string(),
+        description: z.string(),
+        parameters: z.any().optional(),
+      }),
+    })
+
     const createResponseSchema = {
       body: z.object({
-        messages: z.array(
-          z.object({
-            role: z.enum(['system', 'user', 'assistant']),
-            content: z.string(),
-          })
-        ),
-        tools: z
-          .array(
-            z.object({
-              type: z.literal('function'),
-              name: z.string(),
-              description: z.string(),
-              parameters: z.any(),
-            })
-          )
-          .optional(),
+        messages: z.array(messageSchema),
+        tools: z.array(toolSchema).optional(),
+        tool_choice: z.string().optional(),
       }),
     }
 
@@ -51,7 +77,7 @@ export function createAgenticRouter(
         },
       },
       (req, res) => {
-        const { messages, tools } = req.body
+        const { messages, tools, tool_choice } = req.body
         res.header('content-type', 'text/event-stream')
         respondWith(
           res,
@@ -59,7 +85,7 @@ export function createAgenticRouter(
             const user = yield req.getCurrentUser()
             yield accountService.ensureUser(user)
             return yield agenticService
-              .getStreamingResponse(messages, tools ?? [])
+              .getStreamingResponse(messages, tools ?? [], tool_choice)
               .pipe(map(data => data.body))
           })
         )

@@ -6,7 +6,7 @@ export interface FeatureGateTable {
   id: GeneratedAlways<number>
   name: string
   description: string
-  enabled: number
+  enabled: boolean
   createdAt: GeneratedAlways<Date>
 }
 
@@ -15,6 +15,5 @@ export function asFeatureGate(
 ): FeatureGate {
   return {
     ...withEncodedId(values),
-    enabled: !!values.enabled,
   }
 }

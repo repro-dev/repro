@@ -129,7 +129,7 @@ cmd_launch() {
     while IFS= read -r line; do
       [[ -n "$line" ]] && candidates+=("$line")
     done < <(_launchable_services)
-    service="$(_pick "Select a service" "${candidates[@]}")" || exit 1
+    service="$(_pick "Select a service" "${candidates[@]}")" || exit $?
   fi
 
   local slug=""

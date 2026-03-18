@@ -46,17 +46,32 @@ Sidebar + content area grid shell. Primary authenticated layout.
 | Sub-component | Purpose | Key props |
 |---------------|---------|-----------|
 | `AppShell` | Root grid shell, `100vh`, `gridTemplateColumns="220px 1fr"` | — |
-| `AppShell.Sidebar` | Flex column for logo, `SideNav`, user menu | — |
+| `AppShell.Sidebar` | Flex column with header/footer slots | `header`, `footer`, `ariaLabel` |
 | `AppShell.Content` | Scrollable content area for `<Outlet />` | — |
+
+**Sidebar slots:**
+
+`AppShell.Sidebar` uses named slot props to enforce the standard 3-part sidebar layout (header → nav → footer). The component owns the vertical flex distribution, spacing, and border — apps provide content for each slot.
+
+| Prop | Slot | Typical content |
+|------|------|----------------|
+| `header` | Top, with `padding={spacing.lg}` | Logo or workspace switcher |
+| `children` | Middle, `flex: 1` | `SideNav` with route-aware items |
+| `footer` | Bottom, with `border-top` | `UserMenu` from `@repro/auth` |
+
+When neither `header` nor `footer` is provided, children fill the entire sidebar for full layout control (backward compatible).
 
 **Structure:**
 
 ```tsx
+import { IfSession, UnlessSession, UserMenu } from '@repro/auth'
 import { AppShell, SideNav } from '@repro/design'
 
 <AppShell>
-  <AppShell.Sidebar>
-    {/* App-level: WorkspaceHeader, SideNav, UserMenu */}
+  <AppShell.Sidebar header={<WorkspaceHeader />} footer={<UserMenu />}>
+    <SideNav aria-label="Main navigation">
+      <SideNav.Item icon={PlayIcon} label="Sessions" ... />
+    </SideNav>
   </AppShell.Sidebar>
   <AppShell.Content>
     <Outlet />
@@ -64,7 +79,7 @@ import { AppShell, SideNav } from '@repro/design'
 </AppShell>
 ```
 
-**Sidebar content is app-level** — `WorkspaceHeader`, `SideNav` with route-aware items, and `UserMenu` are compositions built in `apps/workspace/src/` (not design system components). The design system provides the structural shell and the navigation primitives; the app wires them to routes and session data.
+**Slot content is app-level** — `WorkspaceHeader`, `SideNav` items, and `UserMenu` are provided by the consuming application. The design system owns the sidebar's structural layout (spacing, flex distribution, borders); the app provides the content for each slot and wires it to routes and session data.
 
 ### `ToolView` (REP-370)
 
@@ -122,7 +137,7 @@ import { Block, Col } from '@jsxstyle/react'
 </Block>
 ```
 
-**Storybook:** `Patterns/Layouts` > `auth-flow`
+**Storybook:** `Patterns/Shells` > `auth-flow`
 
 **Legacy implementations:**
 - `apps/workspace/src/AuthLayout.tsx` — workspace login/register
@@ -354,18 +369,51 @@ import { spacing } from '@repro/design'
 
 ---
 
-## Route-to-Shell Mapping
+## Route-to-Convention Mapping
 
-| Route pattern | Shell | Convention | Notes |
-|---------------|-------|------------|-------|
-| `/account/login` | `auth-flow` | — | Standalone centered card |
-| `/account/register` | `auth-flow` | — | Same as login |
-| `/` | `app-shell` | redirect | Redirects to `/sessions` |
-| `/sessions` | `app-shell` | `page-list` | Session recordings list |
-| `/sessions/:id` | `tool-view` | — | Full-screen replay with `DevTools` |
-| `/settings` | `app-shell` | `page-settings` | Secondary sidebar nav |
-| `/settings/team` | `app-shell` | `page-settings` | Nested under settings |
-| `/share/:id` | standalone | — | No shell — public share page |
+Every route in both apps is mapped to a Tier 1 shell and a Tier 3 page convention. Use this as a lookup when building or migrating any route.
+
+**Status key:**
+- **Existing** — route already uses the target shell/convention
+- **Migration** — route exists but needs migration to the target architecture
+- **Planned** — route does not exist yet; convention is pre-assigned for when it is built
+
+### Workspace App (`apps/workspace`)
+
+| Route | Shell | Page Convention | Status |
+|-------|-------|-----------------|--------|
+| `/account/login` | `auth-flow` | — | Existing |
+| `/account/register` | `auth-flow` | — | Existing |
+| `/account/verify` | `auth-flow` | — | Existing |
+| `/` | `app-shell` | redirect → `/sessions` | Migration |
+| `/sessions` | `app-shell` | `page-list` | Migration |
+| `/recordings/:recordingId` | `tool-view` | — | Migration |
+| `/settings` | `app-shell` | `page-settings` | Planned |
+| `/settings/team` | `app-shell` | `page-settings` | Planned |
+| `/settings/api-keys` | `app-shell` | `page-settings` | Planned |
+| `/share/:recordingId` | standalone | — | Existing |
+| `/accept-invitation` | `auth-flow` | — | Existing |
+
+### Admin App (`apps/admin`)
+
+| Route | Shell | Page Convention | Status |
+|-------|-------|-----------------|--------|
+| `/account/login` | `auth-flow` | — | Existing |
+| `/` | `app-shell` | `page-list` | Migration |
+| `/recordings/:recordingId` | `tool-view` | — | Migration |
+
+### Convention Reference
+
+| Convention | Storybook Location |
+|------------|--------------------|
+| `app-shell` | `Patterns/Shells` > `app-shell` |
+| `tool-view` | `Patterns/Shells` > `tool-view` |
+| `auth-flow` | `Patterns/Shells` > `auth-flow` |
+| `page-list` | `Patterns/Pages` > `page-list` |
+| `page-detail` | `Patterns/Pages` > `page-detail` |
+| `page-dashboard` | `Patterns/Pages` > `page-dashboard` |
+| `page-settings` | `Patterns/Pages` > `page-settings` |
+| `page-single` | `Patterns/Pages` > `page-single` |
 
 ---
 
@@ -373,31 +421,57 @@ import { spacing } from '@repro/design'
 
 React Router v6 layout routes scope each shell:
 
+### Workspace App (target)
+
 ```tsx
 <Routes>
   {/* Auth flow — standalone layout */}
   <Route element={<AuthLayout />}>
-    <Route path="/account/login" element={<Login />} />
-    <Route path="/account/register" element={<Register />} />
+    <Route path="account/login" element={<LoginRoute />} />
+    <Route path="account/register" element={<RegisterRoute />} />
+    <Route path="account/verify" element={<VerifyRoute />} />
   </Route>
 
   {/* App shell — sidebar nav */}
   <Route element={<RequireSession><AppShellLayout /></RequireSession>}>
     <Route index element={<Navigate to="/sessions" />} />
-    <Route path="/sessions" element={<SessionsList />} />
-    <Route path="/settings" element={<SettingsLayout />}>
+    <Route path="sessions" element={<SessionsList />} />
+    <Route path="settings" element={<SettingsLayout />}>
       <Route index element={<GeneralSettings />} />
       <Route path="team" element={<TeamSettings />} />
+      <Route path="api-keys" element={<ApiKeysSettings />} />
     </Route>
   </Route>
 
   {/* Tool view — full-screen playback */}
   <Route element={<RequireSession><ToolViewLayout /></RequireSession>}>
-    <Route path="/sessions/:id" element={<RecordingRoute />} />
+    <Route path="recordings/:recordingId" element={<RecordingRoute />} />
   </Route>
 
-  {/* Standalone */}
-  <Route path="/share/:id" element={<ShareRoute />} />
+  {/* Standalone — no shell */}
+  <Route path="share/:recordingId" element={<PublicRecordingRoute />} />
+  <Route path="accept-invitation" element={<AcceptInvitationRoute />} />
+</Routes>
+```
+
+### Admin App (target)
+
+```tsx
+<Routes>
+  {/* Auth flow */}
+  <Route element={<AuthLayout />}>
+    <Route path="account/login" element={<LoginRoute />} />
+  </Route>
+
+  {/* App shell */}
+  <Route element={<RequireSession><AppShellLayout /></RequireSession>}>
+    <Route index element={<HomeRoute />} />
+  </Route>
+
+  {/* Tool view */}
+  <Route element={<RequireSession><ToolViewLayout /></RequireSession>}>
+    <Route path="recordings/:recordingId" element={<RecordingRoute />} />
+  </Route>
 </Routes>
 ```
 
@@ -408,6 +482,9 @@ React Router v6 layout routes scope each shell:
 ```tsx
 // Tier 1 shells
 import { AppShell, ToolView } from '@repro/design'
+
+// Auth components (session-aware UI)
+import { IfSession, UnlessSession, UserMenu } from '@repro/auth'
 
 // Tier 2 page frame
 import { PageFrame } from '@repro/design'

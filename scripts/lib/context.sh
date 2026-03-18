@@ -85,6 +85,8 @@ cmd_context() {
   branch="$(git -C "$REPO_ROOT" symbolic-ref -q --short HEAD 2>/dev/null)" || \
     branch="(detached: $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo 'unknown'))"
 
+  _debug "detected branch: $branch"
+
   if [ "${REPROCTL_JSON:-false}" = true ]; then
     _context_json "$branch"
     return

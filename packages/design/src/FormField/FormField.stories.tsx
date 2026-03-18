@@ -98,24 +98,6 @@ export const NoVisibleLabel: Story = {
   ),
 }
 
-export const OptionalField: Story = {
-  render: () => (
-    <Block maxWidth={300} padding={16}>
-      <FormField>
-        <Label htmlFor="bio" optional>
-          Bio
-        </Label>
-        <Input
-          {...reg}
-          id="bio"
-          placeholder="Tell us about yourself..."
-          rows={3}
-        />
-      </FormField>
-    </Block>
-  ),
-}
-
 export const MultipleFields: Story = {
   render: () => (
     <Block maxWidth={300} padding={16}>

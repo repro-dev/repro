@@ -8,18 +8,25 @@ import { chainRej, fork, map, resolve } from 'fluture'
 
 const EMPTY_RESOURCE_MAP: Record<string, string> = {}
 
-export function getRecordingInfo(apiClient: ApiClient, recordingId: string) {
-  return apiClient.fetch<RecordingInfo>(`/recordings/${recordingId}/info`)
+export function getRecordingInfo(
+  apiClient: ApiClient,
+  projectId: string,
+  recordingId: string
+) {
+  return apiClient.fetch<RecordingInfo>(
+    `/projects/${projectId}/recordings/${recordingId}/info`
+  )
 }
 
 export function getRecordingEventsStream(
   apiClient: ApiClient,
+  projectId: string,
   recordingId: string,
   encryptionKey?: string
 ) {
   return apiClient
     .fetch<ReadableStream<ArrayBuffer>>(
-      `/recordings/${recordingId}/data`,
+      `/projects/${projectId}/recordings/${recordingId}/data`,
       undefined,
       'json',
       'stream'
@@ -62,8 +69,14 @@ export function getRecordingEventsStream(
     )
 }
 
-export function getResourceMap(apiClient: ApiClient, recordingId: string) {
+export function getResourceMap(
+  apiClient: ApiClient,
+  projectId: string,
+  recordingId: string
+) {
   return apiClient
-    .fetch<Record<string, string>>(`/recordings/${recordingId}/resource-map`)
+    .fetch<Record<string, string>>(
+      `/projects/${projectId}/recordings/${recordingId}/resource-map`
+    )
     .pipe(chainRej(() => resolve(EMPTY_RESOURCE_MAP)))
 }
