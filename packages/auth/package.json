@@ -16,6 +16,7 @@
     "@repro/design": "workspace:*",
     "@repro/domain": "workspace:*",
     "@repro/future-utils": "workspace:*",
+    "@repro/logger": "workspace:*",
     "@repro/validation": "workspace:*",
     "fluture": "^14.0.0",
     "lucide-react": "^0.277.0",

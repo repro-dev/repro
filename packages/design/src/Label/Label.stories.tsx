@@ -21,42 +21,41 @@ export const Default: Story = {
   },
 }
 
-export const Optional: Story = {
+export const Required: Story = {
   args: {
-    children: 'Phone number',
-    optional: true,
+    children: 'Email address',
+    required: true,
   },
 }
 
 export const WithIcon: Story = {
   args: {
     children: 'Email address',
-    icon: <MailIcon size={16} color={color.text.secondary} />,
+    icon: <MailIcon size={16} color={color.text.label} />,
   },
 }
 
-export const WithIconAndOptional: Story = {
+export const WithIconAndRequired: Story = {
   args: {
-    children: 'Notifications',
-    icon: <InfoIcon size={16} color={color.text.secondary} />,
-    optional: true,
+    children: 'Email address',
+    icon: <MailIcon size={16} color={color.text.label} />,
+    required: true,
   },
 }
 
-/** All label variants at a glance */
 export const AllVariants: Story = {
   render: () => (
     <Col gap={16} padding={16}>
-      <Label>Required field</Label>
-      <Label optional>Optional field</Label>
-      <Label icon={<MailIcon size={16} color={color.text.secondary} />}>
+      <Label>Default label</Label>
+      <Label required>Required field</Label>
+      <Label icon={<MailIcon size={16} color={color.text.label} />}>
         With icon
       </Label>
       <Label
-        icon={<InfoIcon size={16} color={color.text.secondary} />}
-        optional
+        icon={<InfoIcon size={16} color={color.text.label} />}
+        required
       >
-        Icon + optional
+        Icon + required
       </Label>
     </Col>
   ),
@@ -68,6 +67,15 @@ export const Sizes: Story = {
       <Label size="small">Small label</Label>
       <Label size="medium">Medium label (default)</Label>
       <Label size="large">Large label</Label>
+      <Label size="small" required>
+        Small required
+      </Label>
+      <Label size="medium" required>
+        Medium required
+      </Label>
+      <Label size="large" required>
+        Large required
+      </Label>
     </Col>
   ),
 }

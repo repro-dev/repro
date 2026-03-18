@@ -58,7 +58,7 @@ export function createBillingEntitlementService(database: Database) {
       map(rows =>
         rows.map(row => ({
           feature: row.feature,
-          enabled: !!row.enabled,
+          enabled: row.enabled,
           limit: row.limit,
         }))
       )

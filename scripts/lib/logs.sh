@@ -158,7 +158,7 @@ cmd_logs() {
     local candidates=()
     while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
     local selected
-    selected="$(_pick "Select service for logs" "${candidates[@]}")" || exit 1
+    selected="$(_pick "Select service for logs" "${candidates[@]}")" || exit $?
     services=("$selected")
   fi
 

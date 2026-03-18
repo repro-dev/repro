@@ -41,7 +41,7 @@ export function createFeatureGateService(database: Database) {
             .values({
               name,
               description,
-              enabled: 0,
+              enabled: false,
             })
             .returning(['id', 'name', 'description', 'enabled', 'createdAt'])
             .executeTakeFirstOrThrow()
@@ -79,7 +79,7 @@ export function createFeatureGateService(database: Database) {
       return database
         .selectFrom('feature_gates')
         .select(['id', 'name', 'description', 'enabled', 'createdAt'])
-        .where('enabled', '=', 1)
+        .where('enabled', '=', true)
         .orderBy(`name ${order}`)
         .execute()
     }).pipe(map(rows => rows.map(asFeatureGate)))
@@ -117,7 +117,7 @@ export function createFeatureGateService(database: Database) {
             .set({
               ...(name && { name }),
               ...(description !== undefined && { description }),
-              ...(enabled !== undefined && { enabled: enabled ? 1 : 0 }),
+              ...(enabled !== undefined && { enabled }),
             })
             .where('id', '=', decodeId(id))
             .returning(['id', 'name', 'description', 'enabled', 'createdAt'])

@@ -96,8 +96,8 @@ Context is detected automatically: from the main checkout, services run as main;
 **context**
 : Show the current development context (worktree, branch, issue, delta vs main, services). With **--json**, outputs a JSON object with context fields.
 
-**help** [*command*]
-: Show manpage for reproctl or a subcommand.
+**help** [*command*|*topic*]
+: Show manpage for reproctl, a subcommand, or a topic. Available topics: **environment**, **exit-codes**, **json**.
 
 **completion** *shell*
 : Generate shell completion scripts. See **reproctl-completion**(1).
@@ -132,6 +132,32 @@ Commands that accept a service name (**start**, **stop**, **restart**, **logs**)
 
 For **worktree attach** and **worktree remove**, omitting the branch argument triggers the picker automatically when stdin is a terminal.
 
+# EXIT CODES
+
+**0**
+: Success — the operation completed as expected.
+
+**1**
+: Error — the operation failed (bad input, runtime failure, missing prerequisite).
+
+**2**
+: User cancelled — an interactive prompt was cancelled (Ctrl-C in a picker, empty input).
+
+Status commands (**status**, **cluster status**, **db status**, **context**) return 0 when they successfully produce output, even if the thing being checked is unhealthy. Health-assertion commands (**checkhealth**, **doctor**) return 1 when errors are found.
+
+See **reproctl-exit-codes**(1) for the full exit code conventions.
+
+# HELP TOPICS
+
+**reproctl-help-environment**(7)
+: Environment variables used by reproctl.
+
+**reproctl-help-exit-codes**(7)
+: Exit codes returned by reproctl commands.
+
+**reproctl-help-json**(7)
+: JSON output conventions for commands that support **--json**.
+
 # SEE ALSO
 
-**reproctl-setup**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-worktree**(1), **reproctl-completion**(1)
+**reproctl-setup**(1), **reproctl-doctor**(1), **reproctl-cluster**(1), **reproctl-db**(1), **reproctl-start**(1), **reproctl-stop**(1), **reproctl-restart**(1), **reproctl-logs**(1), **reproctl-worktree**(1), **reproctl-completion**(1), **reproctl-exit-codes**(1), **reproctl-help-environment**(7), **reproctl-help-exit-codes**(7), **reproctl-help-json**(7)
