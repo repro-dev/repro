@@ -841,6 +841,9 @@ importers:
 
   apps/storybook-ui:
     dependencies:
+      '@repro/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@repro/design':
         specifier: workspace:*
         version: link:../../packages/design
@@ -1337,6 +1340,9 @@ importers:
       '@repro/future-utils':
         specifier: workspace:*
         version: link:../future-utils
+      '@repro/logger':
+        specifier: workspace:*
+        version: link:../logger
       '@repro/validation':
         specifier: workspace:*
         version: link:../validation
