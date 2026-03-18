@@ -841,6 +841,9 @@ importers:
 
   apps/storybook-ui:
     dependencies:
+      '@repro/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@repro/design':
         specifier: workspace:*
         version: link:../../packages/design
