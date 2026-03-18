@@ -44,6 +44,7 @@ ${CLR_BOLD}ENVIRONMENT${CLR_RESET}
 
 ${CLR_BOLD}SERVICES${CLR_RESET}
   start <service> [...]           Start services from the current context
+                                   --wait / --timeout to block until healthy
   stop [<service>...] | --all     Remove services or tear down Tilt
   restart <service> [...] | --all Rebuild services or restart the Tilt daemon
   status                          Show running services and dashboard URL
@@ -79,6 +80,7 @@ Examples:
   reproctl cluster up                         # create cluster and registry
   reproctl db migrate                         # run pending migrations
   reproctl start workspace                    # main checkout services
+  reproctl start --wait api-server            # start and block until healthy
   reproctl stop --all                         # tear down everything
   reproctl restart api-server                 # rebuild + redeploy a running service
   reproctl logs -f api-server                 # tail logs for a service
