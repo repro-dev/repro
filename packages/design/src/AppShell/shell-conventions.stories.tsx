@@ -1,4 +1,4 @@
-import { Block, Row } from '@jsxstyle/react'
+import { Block, Col, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import {
   BarChart3Icon,
