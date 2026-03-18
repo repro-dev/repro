@@ -220,8 +220,13 @@ describe('Services > Billing (dev adapter)', () => {
   })
 
   describe('getPortalLink', () => {
-    it('should return a portal URL in dev mode', async () => {
-      const portal = await promise(billingService.getPortalLink('any-id'))
+    it('should return a portal URL', async () => {
+      const [account] = await harness.loadFixtures([
+        fixtures.account.AccountA,
+        fixtures.billing.AccountA_FreePlan_Checkout,
+      ])
+
+      const portal = await promise(billingService.getPortalLink(account.id))
 
       expect(portal).toMatchObject({
         url: expect.any(String),
