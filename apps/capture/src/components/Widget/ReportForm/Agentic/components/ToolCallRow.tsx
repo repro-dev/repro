@@ -26,9 +26,7 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false)
 
-  const summary = result
-    ? summarizeToolResult(toolName, result.content)
-    : null
+  const summary = result ? summarizeToolResult(toolName, result.content) : null
 
   return (
     <Col>
@@ -42,9 +40,15 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
         hoverBackgroundColor={color.bg.hover}
         transition={transition.fast}
         component="button"
+        background="none"
+        border="none"
+        padding={0}
+        fontFamily="inherit"
         props={{
           type: 'button',
           onClick: () => setExpanded(prev => !prev),
+          'aria-expanded': expanded,
+          'aria-label': `Toggle details for ${toolName}`,
         }}
         {...focusRing()}
       >
@@ -52,11 +56,7 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
           <WrenchIcon size={12} color={color.text.muted} />
         </Row>
 
-        <Block
-          {...textStyles.code}
-          color={color.text.secondary}
-          flexShrink={0}
-        >
+        <Block {...textStyles.code} color={color.text.secondary} flexShrink={0}>
           {toolName}
         </Block>
 

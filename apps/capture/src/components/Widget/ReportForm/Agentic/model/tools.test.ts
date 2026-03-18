@@ -345,9 +345,19 @@ describe('executeTool — getNetworkRequests', () => {
 
   it('filters by urlPattern substring match', () => {
     const events = new List(SourceEventView, [
-      makeFetchRequestEvent(100, 'req1', 'https://example.com/users/123', 'GET'),
+      makeFetchRequestEvent(
+        100,
+        'req1',
+        'https://example.com/users/123',
+        'GET'
+      ),
       makeFetchResponseEvent(150, 'req1', 200),
-      makeFetchRequestEvent(200, 'req2', 'https://example.com/products/456', 'GET'),
+      makeFetchRequestEvent(
+        200,
+        'req2',
+        'https://example.com/products/456',
+        'GET'
+      ),
       makeFetchResponseEvent(250, 'req2', 200),
     ])
     const accessor = makeAccessor(events)
@@ -473,13 +483,9 @@ describe('executeTool — getNetworkRequests', () => {
 
   it('includes request and response headers for fetch', () => {
     const events = new List(SourceEventView, [
-      makeFetchRequestEvent(
-        100,
-        'req1',
-        'https://example.com/api',
-        'GET',
-        { 'x-request-header': 'req-value' }
-      ),
+      makeFetchRequestEvent(100, 'req1', 'https://example.com/api', 'GET', {
+        'x-request-header': 'req-value',
+      }),
       makeFetchResponseEvent(200, 'req1', 200, {
         'content-type': 'application/json',
       }),

@@ -41,8 +41,6 @@ export function groupToolCalls(entries: Array<Entry>): Array<RenderItem> {
     }
   }
 
-  const consumed = new Set<string>()
-
   for (const entry of entries) {
     if (entry.role === 'user') {
       result.push({ type: 'user-message', entry })
@@ -50,9 +48,6 @@ export function groupToolCalls(entries: Array<Entry>): Array<RenderItem> {
       if (entry.toolCalls.length > 0) {
         const pairs: Array<ToolCallPair> = entry.toolCalls.map(toolCall => {
           const toolResult = toolMessages.get(toolCall.id) ?? null
-          if (toolResult) {
-            consumed.add(toolResult.id)
-          }
           return { toolCall, result: toolResult }
         })
         result.push({ type: 'tool-call-group', pairs })

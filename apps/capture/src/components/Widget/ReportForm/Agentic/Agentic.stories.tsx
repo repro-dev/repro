@@ -133,7 +133,8 @@ export const WithToolCalls: StoryObj = {
           id: '1',
           timestamp: new Date(),
           role: 'user',
-          content: 'How long is the recording and are there any console errors?',
+          content:
+            'How long is the recording and are there any console errors?',
         },
         {
           id: '2',
@@ -166,7 +167,10 @@ export const WithToolCalls: StoryObj = {
           role: 'tool',
           content: JSON.stringify({
             messages: [
-              { level: 'error', text: 'Uncaught TypeError: Cannot read property' },
+              {
+                level: 'error',
+                text: 'Uncaught TypeError: Cannot read property',
+              },
               { level: 'warn', text: 'Deprecated API usage' },
               { level: 'error', text: 'Network request failed' },
             ],

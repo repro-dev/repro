@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { AssistantMessage, Entry, ToolMessage, UserMessage } from '../types'
 import {
   AssistantMessageItem,
   ToolCallGroupItem,
   UserMessageItem,
   groupToolCalls,
 } from './groupToolCalls'
-import { AssistantMessage, Entry, ToolMessage, UserMessage } from '../types'
 
 function makeUser(id: string, content: string): UserMessage {
   return { id, timestamp: new Date(), role: 'user', content }
@@ -30,8 +30,18 @@ function makeAssistant(
   }
 }
 
-function makeTool(id: string, toolCallId: string, content: string): ToolMessage {
-  return { id, timestamp: new Date(), role: 'tool', content, tool_call_id: toolCallId }
+function makeTool(
+  id: string,
+  toolCallId: string,
+  content: string
+): ToolMessage {
+  return {
+    id,
+    timestamp: new Date(),
+    role: 'tool',
+    content,
+    tool_call_id: toolCallId,
+  }
 }
 
 describe('groupToolCalls', () => {
@@ -107,16 +117,19 @@ describe('groupToolCalls', () => {
   })
 
   it('skips standalone tool messages not consumed by any assistant', () => {
-    const entries: Array<Entry> = [
-      makeTool('t1', 'tc1', '{}'),
-    ]
+    const entries: Array<Entry> = [makeTool('t1', 'tc1', '{}')]
     const result = groupToolCalls(entries)
     assert.equal(result.length, 0)
   })
 
   it('handles system messages by skipping them', () => {
     const entries: Array<Entry> = [
-      { id: 's1', timestamp: new Date(), role: 'system', content: 'system prompt' },
+      {
+        id: 's1',
+        timestamp: new Date(),
+        role: 'system',
+        content: 'system prompt',
+      },
       makeUser('u1', 'hello'),
     ]
     const result = groupToolCalls(entries)
