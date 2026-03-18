@@ -1,5 +1,5 @@
 import { StaffUser } from '@repro/domain'
-import { GeneratedAlways, Selectable } from 'kysely'
+import { Generated, GeneratedAlways, Selectable } from 'kysely'
 import { encodeId } from '../helpers'
 
 export interface StaffUserTable {
@@ -7,8 +7,8 @@ export interface StaffUserTable {
   name: string
   email: string
   password: string
-  active: number | null
-  admin: number | null
+  active: Generated<boolean>
+  admin: Generated<boolean>
   createdAt: GeneratedAlways<Date>
 }
 

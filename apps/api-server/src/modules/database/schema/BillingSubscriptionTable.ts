@@ -8,7 +8,7 @@ export interface BillingSubscriptionTable {
   status: 'active' | 'past_due' | 'paused' | 'canceled' | 'trialing'
   currentPeriodStart: Date
   currentPeriodEnd: Date
-  cancelAtPeriodEnd: number
+  cancelAtPeriodEnd: boolean
   canceledAt: Date | null
   createdAt: GeneratedAlways<Date>
   updatedAt: GeneratedAlways<Date>

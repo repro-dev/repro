@@ -83,7 +83,7 @@ cmd_db_reset() {
     read -r answer
     case "$answer" in
       [yY]) ;;
-      *) echo "Aborted."; return 0 ;;
+      *) echo "Aborted." >&2; exit 2 ;;
     esac
   fi
 
@@ -160,20 +160,28 @@ cmd_db_shell() {
 } >&2
 
 cmd_db_status() {
-  require_tilt
+  local tilt_running=true
+  if ! tilt_is_running; then
+    tilt_running=false
+  fi
 
   if [ "${REPROCTL_JSON:-false}" = true ]; then
-    _db_status_json
+    _db_status_json "$tilt_running"
     return
   fi
 
   local w
-  w="$(_label_width "Host:" "User:" "Database:")"
+  w="$(_label_width "Host:" "User:" "Database:" "Tilt:")"
 
   echo "Cluster database (via Tilt port-forward):"
   _kv "$w" "Host:" "$DB_HOST:$DB_PORT" "  "
   _kv "$w" "User:" "$DB_USER" "  "
   _kv "$w" "Database:" "$DB_NAME" "  "
+
+  if [ "$tilt_running" = false ]; then
+    _kv "$w" "Tilt:" "not running — port-forward unavailable" "  "
+    return
+  fi
 
   if [ -z "$PSQL" ]; then
     echo ""
@@ -226,11 +234,12 @@ cmd_db_status() {
 }
 
 _db_status_json() {
+  local tilt_running="${1:-true}"
   local applied_list="" pending_list="" orphaned_list=""
   local migrations_dir="$REPO_ROOT/apps/api-server/src/migrations/data"
   local available=true
 
-  if [ -z "$PSQL" ] || [ ! -d "$migrations_dir" ]; then
+  if [ "$tilt_running" = false ] || [ -z "$PSQL" ] || [ ! -d "$migrations_dir" ]; then
     available=false
   fi
 

@@ -82,11 +82,11 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 Omit attributes the component should not support using `Omit<>`.
 
-## Compound Components (Target Pattern)
+## Composition Patterns
 
-Complex components with distinct structural regions should use sub-components. `AppShell` already implements this pattern (`.Header`, `.Body`, `.Nav`). Modal, Drawer, and Card are candidates for future refactoring to this pattern.
+### Compound sub-components
 
-Target usage:
+Use sub-components when consumers need to **control the ordering, optionality, or repetition** of regions — i.e. the structure is variable, not fixed. Examples: `PageFrame` (header is optional), `SideNav` (N items), `Modal` (header/body/footer can be omitted).
 
 ```tsx
 <Modal>
@@ -97,6 +97,26 @@ Target usage:
   </Modal.Footer>
 </Modal>
 ```
+
+### Named slot props
+
+Use named props (slots) when the component has a **fixed layout with content injection points** — the structure is an invariant owned by the component, and consumers only provide content for predetermined regions. This avoids forcing consumers to re-implement internal layout details (spacing, borders, flex distribution) that should be a design system concern.
+
+```tsx
+<AppShell.Sidebar header={<Logo />} footer={<UserMenu />}>
+  <SideNav />
+</AppShell.Sidebar>
+```
+
+### Choosing between them
+
+| Signal | Use compound sub-components | Use named slot props |
+|--------|---------------------------|---------------------|
+| Regions are optional or variable in number | Yes | — |
+| Layout structure is fixed (e.g. header/body/footer column) | — | Yes |
+| Consumers frequently re-order or omit regions | Yes | — |
+| Drift risk: consumers must replicate internal layout | — | Yes (slot owns the layout) |
+| The component has only 2–3 fixed content regions | — | Yes |
 
 ## File Structure
 

@@ -21,8 +21,7 @@ export interface AppShellProps {
  *
  * @example
  *   <AppShell>
- *     <AppShell.Sidebar>
- *       <Logo />
+ *     <AppShell.Sidebar header={<Logo />} footer={<UserMenu />}>
  *       <SideNav />
  *     </AppShell.Sidebar>
  *     <AppShell.Content>

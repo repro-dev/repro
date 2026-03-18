@@ -37,3 +37,24 @@ const GET_CONSOLE_MESSAGES = {
 }
 
 export const tools = [GET_RECORDING_DURATION, GET_CONSOLE_MESSAGES]
+
+const toolHandlers: Record<
+  string,
+  (args: Record<string, unknown>) => unknown
+> = {
+  getRecordingDuration: () => ({ durationMs: 0 }),
+  getConsoleMessages: () => ({ messages: [] }),
+}
+
+export function executeTool(
+  name: string,
+  args: Record<string, unknown>
+): unknown {
+  const handler = toolHandlers[name]
+
+  if (!handler) {
+    return { error: `Unknown tool: ${name}` }
+  }
+
+  return handler(args)
+}

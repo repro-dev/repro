@@ -29,12 +29,19 @@ fi
 
 # ── Output helpers ──────────────────────────────────────────────────
 
+_debug() {
+  [ "${REPROCTL_DEBUG:-false}" = "true" ] || [ "${REPROCTL_DEBUG:-0}" = "1" ] && printf "${CLR_DIM}debug: %s${CLR_RESET}\n" "$*" >&2
+  return 0
+}
+
 _step() {
+  [ "${REPROCTL_QUIET:-false}" = "true" ] && return 0
   local current="$1" total="$2" msg="$3"
   printf '%s[%d/%d]%s %s\n' "$CLR_BOLD" "$current" "$total" "$CLR_RESET" "$msg" >&2
 }
 
 _ok() {
+  [ "${REPROCTL_QUIET:-false}" = "true" ] && return 0
   printf '%s✔ %s%s\n' "$CLR_GREEN" "$1" "$CLR_RESET" >&2
 }
 
@@ -43,6 +50,7 @@ _err() {
 }
 
 _warn() {
+  [ "${REPROCTL_QUIET:-false}" = "true" ] && return 0
   printf '%s⚠ %s%s\n' "$CLR_YELLOW" "$*" "$CLR_RESET" >&2
 }
 
@@ -91,6 +99,10 @@ CONFIG_FILE="$TMP_DIR/reproctl_services.json"
 TILT_PID_FILE="$TMP_DIR/tilt.pid"
 TILT_LOG_FILE="$TMP_DIR/tilt.log"
 TILT_PORT="${TILT_PORT:-10350}"
+
+_debug "REPO_ROOT=$REPO_ROOT"
+_debug "MAIN_CHECKOUT=$MAIN_CHECKOUT"
+_debug "CONFIG_FILE=$CONFIG_FILE"
 
 detect_worktree_slug() {
   local basename
@@ -170,16 +182,14 @@ _pick() {
     return 0
   fi
 
-  # fzf path
   if command -v fzf > /dev/null 2>&1; then
     local selected
-    selected="$(printf '%s\n' "$@" | fzf --prompt="$prompt: " --height=~15 --reverse)" || return 1
-    [[ -n "$selected" ]] || return 1
+    selected="$(printf '%s\n' "$@" | fzf --prompt="$prompt: " --height=~15 --reverse)" || return 2
+    [[ -n "$selected" ]] || return 2
     echo "$selected"
     return 0
   fi
 
-  # Numbered-prompt fallback (requires a terminal)
   if [[ ! -t 0 ]]; then
     _err "Cannot show interactive picker: stdin is not a terminal and fzf is not installed."
     return 1
@@ -196,6 +206,7 @@ _pick() {
 
   local choice
   read -r -p "Enter number (1-$#): " choice </dev/tty
+  [[ -n "$choice" ]] || return 2
   if [[ ! "$choice" =~ ^[0-9]+$ ]] || [[ "$choice" -lt 1 ]] || [[ "$choice" -gt $# ]]; then
     _err "Invalid selection."
     return 1
@@ -240,16 +251,14 @@ _pick_multi() {
     return 0
   fi
 
-  # fzf path (multi-select)
   if command -v fzf > /dev/null 2>&1; then
     local selected
-    selected="$(printf '%s\n' "$@" | fzf --prompt="$prompt: " --height=~15 --reverse --multi)" || return 1
-    [[ -n "$selected" ]] || return 1
+    selected="$(printf '%s\n' "$@" | fzf --prompt="$prompt: " --height=~15 --reverse --multi)" || return 2
+    [[ -n "$selected" ]] || return 2
     echo "$selected"
     return 0
   fi
 
-  # Numbered-prompt fallback (requires a terminal)
   if [[ ! -t 0 ]]; then
     _err "Cannot show interactive picker: stdin is not a terminal and fzf is not installed."
     return 1
@@ -266,7 +275,7 @@ _pick_multi() {
 
   local choices
   read -r -p "Enter numbers separated by commas (1-$#): " choices </dev/tty
-  [[ -n "$choices" ]] || return 1
+  [[ -n "$choices" ]] || return 2
 
   local IFS=','
   local found=false
@@ -287,7 +296,7 @@ _pick_multi() {
     done
   done
 
-  [[ "$found" = true ]] || return 1
+  [[ "$found" = true ]] || return 2
 }
 
 _label_width() {

@@ -29,7 +29,7 @@ async function seedBillingPlans(db: Database) {
         providerPriceId,
         providerProductId,
         interval: 'month',
-        active: 1,
+        active: true,
       })
       .onConflict(oc => oc.column('providerPriceId').doNothing())
       .returning(['id'])
@@ -68,13 +68,13 @@ async function seedBillingPlans(db: Database) {
       {
         planId: freePlan.id,
         feature: 'recordings',
-        enabled: 1,
+        enabled: true,
         limit: 10,
       },
       {
         planId: freePlan.id,
         feature: 'team',
-        enabled: 0,
+        enabled: false,
         limit: null,
       },
     ])
@@ -87,13 +87,13 @@ async function seedBillingPlans(db: Database) {
       {
         planId: plusPlan.id,
         feature: 'recordings',
-        enabled: 1,
+        enabled: true,
         limit: null,
       },
       {
         planId: plusPlan.id,
         feature: 'team',
-        enabled: 1,
+        enabled: true,
         limit: null,
       },
     ])
@@ -106,19 +106,19 @@ async function seedBillingPlans(db: Database) {
       {
         planId: proPlan.id,
         feature: 'recordings',
-        enabled: 1,
+        enabled: true,
         limit: null,
       },
       {
         planId: proPlan.id,
         feature: 'team',
-        enabled: 1,
+        enabled: true,
         limit: null,
       },
       {
         planId: proPlan.id,
         feature: 'priority_support',
-        enabled: 1,
+        enabled: true,
         limit: null,
       },
     ])
@@ -144,7 +144,7 @@ async function seedAccounts(db: Database) {
 
     return db
       .insertInto('accounts')
-      .values({ name, active: 1 })
+      .values({ name, active: true })
       .returning(['id'])
       .executeTakeFirstOrThrow()
   }
@@ -170,9 +170,9 @@ async function seedUsers(
       password: string
       accountId: number
       verificationToken: string
-      verified: number
-      active: number
-      admin: number
+      verified: boolean
+      active: boolean
+      admin: boolean
     }
   ) {
     const inserted = await db
@@ -199,9 +199,9 @@ async function seedUsers(
     password: hashedPassword,
     accountId: accounts.acme.id,
     verificationToken: '',
-    verified: 1,
-    active: 1,
-    admin: 1,
+    verified: true,
+    active: true,
+    admin: true,
   })
 
   const acmeMember = await upsertUser({
@@ -210,9 +210,9 @@ async function seedUsers(
     password: hashedPassword,
     accountId: accounts.acme.id,
     verificationToken: '',
-    verified: 1,
-    active: 1,
-    admin: 0,
+    verified: true,
+    active: true,
+    admin: false,
   })
 
   const acmeViewer = await upsertUser({
@@ -221,9 +221,9 @@ async function seedUsers(
     password: hashedPassword,
     accountId: accounts.acme.id,
     verificationToken: '',
-    verified: 1,
-    active: 1,
-    admin: 0,
+    verified: true,
+    active: true,
+    admin: false,
   })
 
   const betaAdmin = await upsertUser({
@@ -232,9 +232,9 @@ async function seedUsers(
     password: hashedPassword,
     accountId: accounts.beta.id,
     verificationToken: '',
-    verified: 1,
-    active: 1,
-    admin: 1,
+    verified: true,
+    active: true,
+    admin: true,
   })
 
   const betaUnverified = await upsertUser({
@@ -243,9 +243,9 @@ async function seedUsers(
     password: hashedPassword,
     accountId: accounts.beta.id,
     verificationToken: 'dev_verification_token',
-    verified: 0,
-    active: 1,
-    admin: 0,
+    verified: false,
+    active: true,
+    admin: false,
   })
 
   return { acmeAdmin, acmeMember, acmeViewer, betaAdmin, betaUnverified }
@@ -262,8 +262,8 @@ async function seedStaffUsers(db: Database) {
       name: 'Staff User',
       email: 'staff@repro.test',
       password: hashedPassword,
-      active: 1,
-      admin: 0,
+      active: true,
+      admin: false,
     })
     .onConflict(oc => oc.column('email').doNothing())
     .execute()
@@ -274,8 +274,8 @@ async function seedStaffUsers(db: Database) {
       name: 'Staff Admin',
       email: 'staffadmin@repro.test',
       password: hashedPassword,
-      active: 1,
-      admin: 1,
+      active: true,
+      admin: true,
     })
     .onConflict(oc => oc.column('email').doNothing())
     .execute()
@@ -306,7 +306,7 @@ async function seedProjects(
 
     return db
       .insertInto('projects')
-      .values({ name, accountId, active: 1 })
+      .values({ name, accountId, active: true })
       .returning(['id'])
       .executeTakeFirstOrThrow()
   }
@@ -373,7 +373,7 @@ async function seedBillingCustomers(
       status: 'active',
       currentPeriodStart: now,
       currentPeriodEnd: periodEnd,
-      cancelAtPeriodEnd: 0,
+      cancelAtPeriodEnd: false,
       canceledAt: null,
     })
     .onConflict(oc => oc.column('providerSubscriptionId').doNothing())
@@ -397,7 +397,7 @@ async function seedBillingCustomers(
       status: 'active',
       currentPeriodStart: now,
       currentPeriodEnd: periodEnd,
-      cancelAtPeriodEnd: 0,
+      cancelAtPeriodEnd: false,
       canceledAt: null,
     })
     .onConflict(oc => oc.column('providerSubscriptionId').doNothing())
@@ -412,7 +412,7 @@ async function seedFeatureGates(db: Database) {
     .values({
       name: 'legacy-report-form',
       description: 'Enable the legacy report form UI',
-      enabled: 0,
+      enabled: false,
     })
     .onConflict(oc => oc.column('name').doNothing())
     .execute()
