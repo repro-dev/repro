@@ -1,22 +1,35 @@
 import { defaultEnv as env } from '~/config/env'
 import { HttpClient } from '~/modules/http'
 
-interface ChatContextMessage {
-  role: 'assistant' | 'system' | 'user'
-  content: string
+interface ToolCallContext {
+  id: string
+  type: 'function'
+  function: {
+    name: string
+    arguments: string
+  }
 }
+
+type ChatContextMessage =
+  | { role: 'system'; content: string }
+  | { role: 'user'; content: string }
+  | { role: 'assistant'; content: string; tool_calls?: Array<ToolCallContext> }
+  | { role: 'tool'; content: string; tool_call_id: string }
 
 interface Tool {
   type: 'function'
-  name: string
-  description: string
-  parameters?: object
+  function: {
+    name: string
+    description: string
+    parameters?: object
+  }
 }
 
 export function createAgenticService(httpClient: HttpClient) {
   function getStreamingResponse(
     messages: Array<ChatContextMessage>,
-    tools: Array<Tool>
+    tools: Array<Tool>,
+    toolChoice?: string
   ) {
     return httpClient.request({
       method: 'POST',
@@ -31,7 +44,7 @@ export function createAgenticService(httpClient: HttpClient) {
       body: JSON.stringify({
         model: 'openai/gpt-5-mini',
         stream: true,
-        tool_choice: 'auto',
+        tool_choice: toolChoice ?? 'auto',
         tools,
         messages,
         reasoning: {
