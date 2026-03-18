@@ -27,6 +27,7 @@ import {
   Context,
   Entry,
   Loading,
+  RecordingDataAccessor,
   ToolCall,
   ToolMessage,
 } from './types'
@@ -124,7 +125,10 @@ function accumulateToolCalls(
   return toolCalls
 }
 
-export function createAgenticState(apiClient: ApiClient): AgenticState {
+export function createAgenticState(
+  apiClient: ApiClient,
+  recording: RecordingDataAccessor
+): AgenticState {
   const [$entryMap, setEntryMap] = createAtom<OrderedEntryMap>({
     orderedIds: [],
     entries: {},
@@ -205,7 +209,9 @@ export function createAgenticState(apiClient: ApiClient): AgenticState {
         const args = toolCall.function.arguments
           ? (JSON.parse(toolCall.function.arguments) as Record<string, unknown>)
           : {}
-        content = JSON.stringify(executeTool(toolCall.function.name, args))
+        content = JSON.stringify(
+          executeTool(recording, toolCall.function.name, args)
+        )
       } catch (err) {
         content = JSON.stringify({
           error: err instanceof Error ? err.message : 'Tool execution failed',
@@ -375,7 +381,7 @@ export function createAgenticState(apiClient: ApiClient): AgenticState {
         case 'completion': {
           const entryMap = $entryMap.getValue()
           const lastId = entryMap.orderedIds.at(-1)
-          const lastEntry = lastId ? (entryMap.entries[lastId] ?? null) : null
+          const lastEntry = lastId ? entryMap.entries[lastId] ?? null : null
 
           if (
             lastEntry !== null &&

@@ -33,7 +33,6 @@ const defaultOptions: Options = {
 
 export function createUploadWorker(
   apiClient: ApiClient,
-  projectId: string,
   customOptions: Partial<Options> = {}
 ) {
   const options = { ...defaultOptions, ...customOptions }
@@ -91,8 +90,8 @@ export function createUploadWorker(
         .pipe(
           chain(recording =>
             parallel(Infinity)([
-              saveEvents(recording.id, input.events, progress),
-              saveResources(recording.id, input.events, progress),
+              saveEvents(input.projectId, recording.id, input.events, progress),
+              saveResources(input.projectId, recording.id, input.events, progress),
             ])
           )
         )
@@ -150,7 +149,7 @@ export function createUploadWorker(
     progress: UploadProgress
   ): FutureInstance<Error, RecordingInfo> {
     const res = apiClient.fetch<RecordingInfo>(
-      `/projects/${projectId}/recordings`,
+      `/projects/${input.projectId}/recordings`,
       {
         method: 'POST',
         body: JSON.stringify({
@@ -172,6 +171,7 @@ export function createUploadWorker(
   }
 
   function saveEvents(
+    projectId: string,
     recordingId: string,
     events: Array<SourceEvent>,
     progress: UploadProgress
@@ -218,6 +218,7 @@ export function createUploadWorker(
   }
 
   function saveResources(
+    projectId: string,
     recordingId: string,
     events: Array<SourceEvent>,
     progress: UploadProgress

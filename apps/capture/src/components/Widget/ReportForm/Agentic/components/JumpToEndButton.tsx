@@ -3,8 +3,8 @@ import { colors } from '@repro/design'
 import { ArrowDownIcon } from 'lucide-react'
 import React from 'react'
 import {
-  INPUT_CONTAINER_OFFSET_PX,
   GUTTER_PX,
+  INPUT_CONTAINER_OFFSET_PX,
   LOADING_CONTAINER_OFFSET_PX,
 } from '../constants'
 import { Loading } from '../types'

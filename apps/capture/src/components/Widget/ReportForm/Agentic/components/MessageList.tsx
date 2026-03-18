@@ -34,11 +34,7 @@ export const MessageList: React.FC<MessageListProps> = ({
       transition="block-size 250ms ease-in-out"
       props={{ ref: scrollContainerRef }}
     >
-      <Col
-        gap={10}
-        minBlockSize="100%"
-        props={{ ref: contentContainerRef }}
-      >
+      <Col gap={10} minBlockSize="100%" props={{ ref: contentContainerRef }}>
         {entries.length === 0 && <EmptyState />}
 
         {entries.map(entry => (

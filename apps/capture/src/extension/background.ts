@@ -42,6 +42,7 @@ const uploadWorker = createUploadWorker(apiClient, {
 })
 
 const UploadEnqueuePayloadSchema = z.object({
+  projectId: z.string(),
   title: z.string(),
   description: z.string(),
   url: z.string(),

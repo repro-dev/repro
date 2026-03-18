@@ -40,9 +40,7 @@ export const DetailsFields: React.FC<Props> = ({ onSubmit }) => {
         </FormField>
 
         <FormField>
-          <Label htmlFor="report-description">
-            Description
-          </Label>
+          <Label htmlFor="report-description">Description</Label>
           <Input
             {...register('description')}
             id="report-description"

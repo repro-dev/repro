@@ -1,4 +1,11 @@
 import { Atom } from '@repro/atom'
+import { SourceEventView } from '@repro/domain'
+import { List } from '@repro/tdl'
+
+export interface RecordingDataAccessor {
+  getSourceEvents(): List<SourceEventView>
+  getDuration(): number
+}
 
 export interface UserMessage {
   id: string

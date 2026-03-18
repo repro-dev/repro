@@ -1,3 +1,5 @@
+import { RecordingDataAccessor } from '../types'
+
 const GET_RECORDING_DURATION = {
   type: 'function',
   function: {
@@ -38,15 +40,20 @@ const GET_CONSOLE_MESSAGES = {
 
 export const tools = [GET_RECORDING_DURATION, GET_CONSOLE_MESSAGES]
 
-const toolHandlers: Record<
-  string,
-  (args: Record<string, unknown>) => unknown
-> = {
-  getRecordingDuration: () => ({ durationMs: 0 }),
+export type ToolHandler = (
+  recording: RecordingDataAccessor,
+  args: Record<string, unknown>
+) => unknown
+
+const toolHandlers: Record<string, ToolHandler> = {
+  getRecordingDuration: recording => ({
+    durationMs: recording.getDuration(),
+  }),
   getConsoleMessages: () => ({ messages: [] }),
 }
 
 export function executeTool(
+  recording: RecordingDataAccessor,
   name: string,
   args: Record<string, unknown>
 ): unknown {
@@ -56,5 +63,5 @@ export function executeTool(
     return { error: `Unknown tool: ${name}` }
   }
 
-  return handler(args)
+  return handler(recording, args)
 }

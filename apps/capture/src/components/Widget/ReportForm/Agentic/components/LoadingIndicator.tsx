@@ -22,11 +22,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
       paddingBlock={10}
       paddingInline={15}
       position="absolute"
-      translate={
-        loading === 'none'
-          ? `-50% calc(100% + 20px)`
-          : `-50% -20px`
-      }
+      translate={loading === 'none' ? `-50% calc(100% + 20px)` : `-50% -20px`}
       transition="all ease-in-out 250ms"
     >
       <FX.Pulse>
