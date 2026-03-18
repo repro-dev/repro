@@ -37,7 +37,7 @@ interface OrderedEntryMap {
   entries: Record<string, Entry>
 }
 
-interface ToolCallDelta {
+export interface ToolCallDelta {
   index: number
   id?: string
   function?: {
@@ -46,7 +46,7 @@ interface ToolCallDelta {
   }
 }
 
-interface MessageDeltaLike {
+export interface MessageDeltaLike {
   choices: [
     {
       delta: {
@@ -81,16 +81,17 @@ function safeParse(data: unknown) {
   }
 }
 
-function isValidMessageDelta(data: any): data is MessageDeltaLike {
+export function isValidMessageDelta(data: any): data is MessageDeltaLike {
   return (
     data != null &&
+    typeof data === 'object' &&
     'choices' in data &&
     Array.isArray(data.choices) &&
     data.choices[0]?.delta != null
   )
 }
 
-function accumulateToolCalls(
+export function accumulateToolCalls(
   existing: Array<ToolCall>,
   deltas: Array<ToolCallDelta>
 ): Array<ToolCall> {
@@ -123,6 +124,44 @@ function accumulateToolCalls(
   }
 
   return toolCalls
+}
+
+export function executeToolCalls(
+  recording: RecordingDataAccessor,
+  toolCalls: Array<ToolCall>,
+  createId: () => string = createEntryId
+): Array<ToolMessage> {
+  const results: Array<ToolMessage> = []
+  const denseToolCalls = toolCalls.filter(Boolean)
+
+  for (const toolCall of denseToolCalls) {
+    let content: string
+
+    try {
+      const args = toolCall.function.arguments
+        ? (JSON.parse(toolCall.function.arguments) as Record<string, unknown>)
+        : {}
+      content = JSON.stringify(
+        executeTool(recording, toolCall.function.name, args)
+      )
+    } catch (err) {
+      content = JSON.stringify({
+        error: err instanceof Error ? err.message : 'Tool execution failed',
+      })
+    }
+
+    const toolMessage: ToolMessage = {
+      id: createId(),
+      timestamp: new Date(),
+      role: 'tool',
+      content,
+      tool_call_id: toolCall.id,
+    }
+
+    results.push(toolMessage)
+  }
+
+  return results
 }
 
 export function createAgenticState(
@@ -194,42 +233,6 @@ export function createAgenticState(
         [toolMessage.id]: toolMessage,
       },
     }))
-  }
-
-  async function executeToolCalls(
-    toolCalls: Array<ToolCall>
-  ): Promise<Array<ToolMessage>> {
-    const results: Array<ToolMessage> = []
-    const denseToolCalls = toolCalls.filter(Boolean)
-
-    for (const toolCall of denseToolCalls) {
-      let content: string
-
-      try {
-        const args = toolCall.function.arguments
-          ? (JSON.parse(toolCall.function.arguments) as Record<string, unknown>)
-          : {}
-        content = JSON.stringify(
-          executeTool(recording, toolCall.function.name, args)
-        )
-      } catch (err) {
-        content = JSON.stringify({
-          error: err instanceof Error ? err.message : 'Tool execution failed',
-        })
-      }
-
-      const toolMessage: ToolMessage = {
-        id: createEntryId(),
-        timestamp: new Date(),
-        role: 'tool',
-        content,
-        tool_call_id: toolCall.id,
-      }
-
-      results.push(toolMessage)
-    }
-
-    return results
   }
 
   const entries$ = $entryMap
@@ -390,14 +393,14 @@ export function createAgenticState(
           ) {
             setLoading('tool-executing')
 
-            executeToolCalls(lastEntry.toolCalls).then(toolMessages => {
-              for (const toolMessage of toolMessages) {
-                appendToolMessage(toolMessage)
-              }
+            const toolMessages = executeToolCalls(recording, lastEntry.toolCalls)
 
-              setLoading('reasoning')
-              toolCallTrigger$.next()
-            })
+            for (const toolMessage of toolMessages) {
+              appendToolMessage(toolMessage)
+            }
+
+            setLoading('reasoning')
+            toolCallTrigger$.next()
           } else {
             setLoading('none')
           }
