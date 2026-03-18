@@ -13,6 +13,7 @@ import {
 } from './queries'
 
 export function createApiSource(
+  projectId: string,
   recordingId: string,
   apiClient: ApiClient,
   extra: { encryptionKey?: string } = {}
@@ -23,10 +24,15 @@ export function createApiSource(
   const [$error, setError] = createAtom<Error | null>(null)
   const [$resourceMap, setResourceMap] = createAtom<Record<string, string>>({})
 
-  both(getRecordingInfo(apiClient, recordingId))(
-    both(getRecordingEventsStream(apiClient, recordingId, extra.encryptionKey))(
-      getResourceMap(apiClient, recordingId)
-    )
+  both(getRecordingInfo(apiClient, projectId, recordingId))(
+    both(
+      getRecordingEventsStream(
+        apiClient,
+        projectId,
+        recordingId,
+        extra.encryptionKey
+      )
+    )(getResourceMap(apiClient, projectId, recordingId))
   ).pipe(
     fork(error => {
       logger.error(error)
