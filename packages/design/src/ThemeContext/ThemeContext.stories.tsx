@@ -271,7 +271,11 @@ export const SideBySide: Story = {
               <ThemeDemo title="Admin" />
             </ThemeProvider>
           </Block>
-          <Block flex={1} backgroundColor={colors.slate['950']} borderRadius={8}>
+          <Block
+            flex={1}
+            backgroundColor={colors.slate['950']}
+            borderRadius={8}
+          >
             <ThemeProvider theme={darkTheme}>
               <ThemeDemo title="Dark" />
             </ThemeProvider>

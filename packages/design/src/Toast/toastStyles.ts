@@ -1,11 +1,7 @@
 import { color } from '../tokens/colors'
-import {
-  fontFamily,
-  fontSize,
-  lineHeight,
-} from '../tokens/typography'
 import { radius, shadow } from '../tokens/elevation'
 import { spacing } from '../tokens/spacing'
+import { fontFamily, fontSize, lineHeight } from '../tokens/typography'
 
 export const TOAST_OFFSET = spacing.xl
 export const TOAST_GAP = spacing.md

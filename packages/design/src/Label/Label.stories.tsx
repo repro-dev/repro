@@ -51,10 +51,7 @@ export const AllVariants: Story = {
       <Label icon={<MailIcon size={16} color={color.text.label} />}>
         With icon
       </Label>
-      <Label
-        icon={<InfoIcon size={16} color={color.text.label} />}
-        required
-      >
+      <Label icon={<InfoIcon size={16} color={color.text.label} />} required>
         Icon + required
       </Label>
     </Col>
