@@ -1,21 +1,19 @@
-import { Col } from '@jsxstyle/react'
+import { Block, Col } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
+import { spacing } from '../tokens/spacing'
 
 export interface AppShellSidebarProps {
   ariaLabel?: string
+  header?: React.ReactNode
+  footer?: React.ReactNode
   children?: React.ReactNode
 }
 
-/**
- * Sidebar region of an AppShell.
- *
- * Renders as an `<aside>` flex column that fills the sidebar grid track.
- * Content is app-level: logo, SideNav, workspace switcher, and user menu
- * are composed here by the consuming application.
- */
 export const AppShellSidebar = forwardRef<HTMLElement, AppShellSidebarProps>(
-  ({ ariaLabel = 'Sidebar', children }, ref) => {
+  ({ ariaLabel = 'Sidebar', header, footer, children }, ref) => {
+    const hasSlots = header !== undefined || footer !== undefined
+
     return (
       <Col
         component="aside"
@@ -25,7 +23,21 @@ export const AppShellSidebar = forwardRef<HTMLElement, AppShellSidebarProps>(
         borderRight={`1px solid ${color.border.default}`}
         props={{ ref, 'aria-label': ariaLabel }}
       >
-        {children}
+        {hasSlots ? (
+          <>
+            {header !== undefined && (
+              <Block padding={spacing.lg}>{header}</Block>
+            )}
+            <Col flex={1}>{children}</Col>
+            {footer !== undefined && (
+              <Block borderTop={`1px solid ${color.border.default}`}>
+                {footer}
+              </Block>
+            )}
+          </>
+        ) : (
+          children
+        )}
       </Col>
     )
   }

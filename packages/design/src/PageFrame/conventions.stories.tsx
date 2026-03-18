@@ -1,4 +1,4 @@
-import { Col, Grid } from '@jsxstyle/react'
+import { Block, Col, Grid } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import {
   BarChart3Icon,
@@ -17,7 +17,6 @@ import { EmptyState } from '../EmptyState'
 import { Logo } from '../Logo'
 import { SideNav } from '../SideNav'
 import { Skeleton } from '../Skeleton'
-import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
 import { PageFrame } from './index'
@@ -44,52 +43,46 @@ const SampleShell: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
   <AppShell>
-    <AppShell.Sidebar>
-      <Col height="100%">
-        <Col padding={spacing.xl} paddingBottom={spacing.md}>
-          <Logo size={28} />
-        </Col>
-        <Col flex={1}>
-          <SideNav>
-            <SideNav.Item
-              icon={VideoIcon}
-              label="Sessions"
-              component={FakeLink}
-              props={{ href: '#' }}
-              active
-            />
-            <SideNav.Item
-              icon={BarChart3Icon}
-              label="Dashboard"
-              component={FakeLink}
-              props={{ href: '#' }}
-            />
-            <SideNav.Item
-              icon={UsersIcon}
-              label="Team"
-              component={FakeLink}
-              props={{ href: '#' }}
-            />
-            <SideNav.Item
-              icon={SettingsIcon}
-              label="Settings"
-              component={FakeLink}
-              props={{ href: '#' }}
-            />
-          </SideNav>
-        </Col>
-        <Col
-          padding={spacing.xl}
-          borderTop={`1px solid ${color.border.default}`}
-        >
+    <AppShell.Sidebar
+      header={<Logo size={28} />}
+      footer={
+        <Block padding={spacing.lg}>
           <Avatar
             name="Jane Smith"
             email="jane@example.com"
             mode="image-only"
             size={28}
           />
-        </Col>
-      </Col>
+        </Block>
+      }
+    >
+      <SideNav>
+        <SideNav.Item
+          icon={VideoIcon}
+          label="Sessions"
+          component={FakeLink}
+          props={{ href: '#' }}
+          active
+        />
+        <SideNav.Item
+          icon={BarChart3Icon}
+          label="Dashboard"
+          component={FakeLink}
+          props={{ href: '#' }}
+        />
+        <SideNav.Item
+          icon={UsersIcon}
+          label="Team"
+          component={FakeLink}
+          props={{ href: '#' }}
+        />
+        <SideNav.Item
+          icon={SettingsIcon}
+          label="Settings"
+          component={FakeLink}
+          props={{ href: '#' }}
+        />
+      </SideNav>
     </AppShell.Sidebar>
     <AppShell.Content>{children}</AppShell.Content>
   </AppShell>

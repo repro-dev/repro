@@ -25,42 +25,35 @@ export default meta
 
 type Story = StoryObj<typeof AppShell>
 
-const SampleSidebar: React.FC = () => (
-  <Col height="100%">
-    <Col padding={spacing.xl} paddingBottom={spacing.md}>
-      <Logo size={28} />
-    </Col>
-    <Col flex={1}>
-      <SideNav>
-        <SideNav.Item icon={VideoIcon} label="Sessions" active />
-        <SideNav.Item icon={UsersIcon} label="Team" />
-        <SideNav.Item icon={SettingsIcon} label="Settings" />
-      </SideNav>
-    </Col>
-    <Row
-      padding={spacing.xl}
-      alignItems="center"
-      gap={spacing.md}
-      borderTop={`1px solid ${color.border.default}`}
-    >
-      <Avatar
-        name="Jane Smith"
-        email="jane@example.com"
-        mode="image-only"
-        size={28}
-      />
-      <Block {...textStyles.body} color={color.text.default}>
-        Jane Smith
-      </Block>
-    </Row>
-  </Col>
+const SampleHeader: React.FC = () => <Logo size={28} />
+
+const SampleFooter: React.FC = () => (
+  <Row padding={spacing.lg} alignItems="center" gap={spacing.md}>
+    <Avatar
+      name="Jane Smith"
+      email="jane@example.com"
+      mode="image-only"
+      size={28}
+    />
+    <Block {...textStyles.body} color={color.text.default}>
+      Jane Smith
+    </Block>
+  </Row>
+)
+
+const SampleNav: React.FC = () => (
+  <SideNav>
+    <SideNav.Item icon={VideoIcon} label="Sessions" active />
+    <SideNav.Item icon={UsersIcon} label="Team" />
+    <SideNav.Item icon={SettingsIcon} label="Settings" />
+  </SideNav>
 )
 
 export const Default: Story = {
   render: () => (
     <AppShell>
-      <AppShell.Sidebar>
-        <SampleSidebar />
+      <AppShell.Sidebar header={<SampleHeader />} footer={<SampleFooter />}>
+        <SampleNav />
       </AppShell.Sidebar>
       <AppShell.Content>
         <Block padding={spacing.xl}>
@@ -81,8 +74,8 @@ export const WithScrollableContent: Story = {
   name: 'Scrollable Content',
   render: () => (
     <AppShell>
-      <AppShell.Sidebar>
-        <SampleSidebar />
+      <AppShell.Sidebar header={<SampleHeader />} footer={<SampleFooter />}>
+        <SampleNav />
       </AppShell.Sidebar>
       <AppShell.Content>
         <Block padding={spacing.xl}>
@@ -106,11 +99,7 @@ export const EmptySidebar: Story = {
   name: 'Empty Sidebar',
   render: () => (
     <AppShell>
-      <AppShell.Sidebar>
-        <Block padding={spacing.xl}>
-          <Logo size={28} />
-        </Block>
-      </AppShell.Sidebar>
+      <AppShell.Sidebar header={<Logo size={28} />}>{null}</AppShell.Sidebar>
       <AppShell.Content>
         <Block padding={spacing.xl}>
           <Card>

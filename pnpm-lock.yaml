@@ -1331,6 +1331,9 @@ importers:
       '@repro/future-utils':
         specifier: workspace:*
         version: link:../future-utils
+      '@repro/logger':
+        specifier: workspace:*
+        version: link:../logger
       '@repro/validation':
         specifier: workspace:*
         version: link:../validation
