@@ -113,7 +113,7 @@ function accumulateToolCalls(
         ...current,
         id: current.id || (delta.id ?? ''),
         function: {
-          name: current.function.name + (delta.function?.name ?? ''),
+          name: delta.function?.name || current.function.name,
           arguments:
             current.function.arguments + (delta.function?.arguments ?? ''),
         },
@@ -196,8 +196,9 @@ export function createAgenticState(apiClient: ApiClient): AgenticState {
     toolCalls: Array<ToolCall>
   ): Promise<Array<ToolMessage>> {
     const results: Array<ToolMessage> = []
+    const denseToolCalls = toolCalls.filter(Boolean)
 
-    for (const toolCall of toolCalls) {
+    for (const toolCall of denseToolCalls) {
       let content: string
 
       try {
