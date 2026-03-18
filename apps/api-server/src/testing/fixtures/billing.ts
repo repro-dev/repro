@@ -16,7 +16,7 @@ export const FreePlan: Fixture<BillingPlan> = {
   load: ({ billingService }) =>
     billingService
       .createPlan({
-        name: 'free',
+        name: 'Free',
         providerPriceId: 'pri_free_001',
         providerProductId: 'prod_free',
         interval: 'month',
@@ -25,7 +25,8 @@ export const FreePlan: Fixture<BillingPlan> = {
         tapF(plan =>
           parallel(1)([
             billingService.createEntitlement(plan.id, 'recordings', true, 10),
-            billingService.createEntitlement(plan.id, 'projects', true, 1),
+            billingService.createEntitlement(plan.id, 'seats', true, 1),
+            billingService.createEntitlement(plan.id, 'ai_credits', false, null),
           ])
         )
       ),
@@ -36,16 +37,17 @@ export const ProPlan: Fixture<BillingPlan> = {
   load: ({ billingService }) =>
     billingService
       .createPlan({
-        name: 'pro',
-        providerPriceId: 'pri_pro_001',
-        providerProductId: 'prod_pro',
+        name: 'Repro+',
+        providerPriceId: 'pri_plus_001',
+        providerProductId: 'prod_plus',
         interval: 'month',
       })
       .pipe(
         tapF(plan =>
           parallel(1)([
             billingService.createEntitlement(plan.id, 'recordings', true, null),
-            billingService.createEntitlement(plan.id, 'projects', true, null),
+            billingService.createEntitlement(plan.id, 'seats', true, 5),
+            billingService.createEntitlement(plan.id, 'ai_credits', true, 100),
           ])
         )
       ),
