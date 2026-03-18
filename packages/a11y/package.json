@@ -16,6 +16,7 @@
     "@types/expect": "overridden",
     "@types/node": "overridden",
     "@types/react": "^18.2.21",
+    "@types/react-dom": "^18.2.7",
     "@types/repro-shared-types": "workspace:*",
     "expect": "overridden",
     "global-jsdom": "overridden",

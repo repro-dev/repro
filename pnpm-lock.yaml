@@ -1096,6 +1096,9 @@ importers:
       '@types/react':
         specifier: 18.3.10
         version: 18.3.10
+      '@types/react-dom':
+        specifier: 18.3.0
+        version: 18.3.0
       '@types/repro-shared-types':
         specifier: workspace:*
         version: link:../shared-types
