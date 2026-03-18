@@ -138,13 +138,298 @@ _resolve_worktree_flag() {
   echo "${basename#repro-wt-}"
 }
 
+_parse_timeout() {
+  local input="$1"
+  local num="${input%s}"
+  if [[ "$num" =~ ^[0-9]+$ ]]; then
+    echo "$num"
+  else
+    return 1
+  fi
+}
+
+_wait_for_healthy() {
+  local timeout="$1"
+  shift
+  local services=("$@")
+
+  local target_names=()
+  for svc in "${services[@]}"; do
+    target_names+=("$(resolve_worktree_resource_name "$svc")")
+  done
+
+  local dep_tree
+  dep_tree="$(python3 "$SCRIPTS_DIR/lib/py/resolve_deps.py" "$SERVICES_JSON" "${services[@]}" 2>/dev/null)" || dep_tree='{"targets":[],"deps":[]}'
+
+  local dep_resource_names=()
+  while IFS= read -r _line; do
+    [ -z "$_line" ] && continue
+    dep_resource_names+=("$_line")
+  done < <(printf '%s' "$dep_tree" | python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+for d in data.get("deps", []):
+    print(d)
+' 2>/dev/null)
+
+  local dep_args=()
+  if [ ${#dep_resource_names[@]} -gt 0 ]; then
+    dep_args+=("--deps")
+    dep_args+=("${dep_resource_names[@]}")
+    dep_args+=("--")
+  fi
+
+  local start_time
+  start_time=$(date +%s)
+  local poll_interval=3
+  local log_interval=10
+  local last_log=0
+  local is_tty=false
+  local tty_lines=0
+  local spin_frame=0
+  local spin_set
+  spin_set=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+  if [ -t 2 ]; then
+    is_tty=true
+  fi
+
+  while true; do
+    local now
+    now=$(date +%s)
+
+    if [ "$timeout" -gt 0 ] && [ "$now" -ge "$((start_time + timeout))" ]; then
+      local result
+      result="$(python3 "$SCRIPTS_DIR/lib/py/wait_healthy.py" \
+        "$TILT_PORT" "${dep_args[@]}" "${target_names[@]}" 2>/dev/null)" || true
+
+      if [ "$is_tty" = true ] && [ "$tty_lines" -gt 0 ]; then
+        local i
+        for ((i = 0; i < tty_lines; i++)); do
+          printf '\033[A\033[K' >&2
+        done
+        tty_lines=0
+      fi
+
+      if [ "${REPROCTL_JSON:-false}" = true ]; then
+        local status_json
+        status_json="$(tilt get uiresources -o json --port "$TILT_PORT" 2>/dev/null | \
+          SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" \
+          REPROCTL_JSON=true \
+          python3 "$SCRIPTS_DIR/lib/py/format_status.py")"
+        printf '{"error":"timeout","message":"Timed out after %ds waiting for services","items":%s}\n' \
+          "$timeout" "$status_json"
+      fi
+
+      local unhealthy_line
+      while IFS= read -r unhealthy_line; do
+        [ -z "$unhealthy_line" ] && continue
+        _err "$unhealthy_line"
+      done <<< "$(printf '%s' "${result:-}" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for r in data.get("resources", []):
+        if r.get("status") != "ok":
+            label = r["name"]
+            if not r.get("target", False):
+                label = label + " (dependency)"
+            print(label + ": " + r.get("status", "unknown") + " (" + r.get("detail", "") + ")")
+except:
+    pass
+' 2>/dev/null)"
+
+      _err "Timed out after ${timeout}s waiting for services to become healthy"
+      return 1
+    fi
+
+    local result
+    result="$(python3 "$SCRIPTS_DIR/lib/py/wait_healthy.py" \
+      "$TILT_PORT" "${dep_args[@]}" "${target_names[@]}" 2>/dev/null)" || true
+
+    local all_healthy
+    all_healthy="$(printf '%s' "$result" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    print("true" if data.get("healthy") else "false")
+except:
+    print("false")
+' 2>/dev/null)" || all_healthy="false"
+
+    if [ "$all_healthy" = "true" ]; then
+      if [ "$is_tty" = true ] && [ "$tty_lines" -gt 0 ]; then
+        local i
+        for ((i = 0; i < tty_lines; i++)); do
+          printf '\033[A\033[K' >&2
+        done
+      fi
+
+      if [ "$is_tty" = true ]; then
+        while IFS= read -r _line; do
+          [ -z "$_line" ] && continue
+          printf '     %s\n' "$_line" >&2
+        done <<< "$(printf '%s' "${result:-}" | CLR_GREEN="$CLR_GREEN" CLR_RESET="$CLR_RESET" python3 -c '
+import json, sys, os
+clr_green = os.environ.get("CLR_GREEN", "")
+clr_reset = os.environ.get("CLR_RESET", "")
+try:
+    data = json.load(sys.stdin)
+    for r in data.get("resources", []):
+        label = r["name"]
+        if r.get("target", False):
+            label = label + " (target)"
+        print(clr_green + "\u2714 " + label.ljust(30) + " ok" + clr_reset)
+except:
+    pass
+' 2>/dev/null)"
+      fi
+      _ok "All services are healthy"
+
+      if [ "${REPROCTL_JSON:-false}" = true ]; then
+        local status_json
+        status_json="$(tilt get uiresources -o json --port "$TILT_PORT" 2>/dev/null | \
+          SERVICES_JSON="$SERVICES_JSON" CONFIG_FILE="$CONFIG_FILE" \
+          REPROCTL_JSON=true \
+          python3 "$SCRIPTS_DIR/lib/py/format_status.py")"
+        printf '{"items":%s}\n' "$status_json"
+      fi
+
+      return 0
+    fi
+
+    local elapsed=$((now - start_time))
+
+    if [ "$is_tty" = true ]; then
+      if [ "$tty_lines" -gt 0 ]; then
+        local i
+        for ((i = 0; i < tty_lines; i++)); do
+          printf '\033[A\033[K' >&2
+        done
+      fi
+
+      local time_display
+      if [ "$timeout" -gt 0 ]; then
+        time_display="${elapsed}s/${timeout}s"
+      else
+        time_display="${elapsed}s"
+      fi
+
+      local spinner_char
+      local frame_idx=$((spin_frame % 10))
+      spinner_char="${spin_set[$frame_idx]}"
+      spin_frame=$((spin_frame + 1))
+
+      local new_lines=0
+      printf '  %s%s%s Waiting for services [%s]\n' "$CLR_YELLOW" "$spinner_char" "$CLR_RESET" "$time_display" >&2
+      new_lines=$((new_lines + 1))
+
+      while IFS= read -r _line; do
+        [ -z "$_line" ] && continue
+        printf '     %s\n' "$_line" >&2
+        new_lines=$((new_lines + 1))
+      done <<< "$(printf '%s' "${result:-}" | \
+        SPIN="$spinner_char" \
+        CLR_GREEN="$CLR_GREEN" CLR_YELLOW="$CLR_YELLOW" CLR_RED="$CLR_RED" CLR_RESET="$CLR_RESET" \
+        python3 -c '
+import json, sys, os
+spin = os.environ.get("SPIN", "~")
+clr_green = os.environ.get("CLR_GREEN", "")
+clr_yellow = os.environ.get("CLR_YELLOW", "")
+clr_red = os.environ.get("CLR_RED", "")
+clr_reset = os.environ.get("CLR_RESET", "")
+try:
+    data = json.load(sys.stdin)
+    for r in data.get("resources", []):
+        s = r.get("status", "unknown")
+        if s == "ok":
+            icon = clr_green + "\u2714" + clr_reset
+            st = clr_green + s + clr_reset
+        elif s == "error":
+            icon = clr_red + "\u2718" + clr_reset
+            st = clr_red + s + clr_reset
+        elif s == "building":
+            icon = clr_yellow + spin + clr_reset
+            st = clr_yellow + s + clr_reset
+        else:
+            icon = clr_yellow + spin + clr_reset
+            st = clr_yellow + s + clr_reset
+        label = r["name"]
+        if r.get("target", False):
+            label = label + " (target)"
+        detail = r.get("detail", "")
+        line = icon + " " + label.ljust(30) + " " + st
+        if detail and s != "ok":
+            line += " (" + detail + ")"
+        print(line)
+except:
+    print(spin + " waiting...")
+' 2>/dev/null)"
+      tty_lines=$new_lines
+    else
+      local since_log=$((now - last_log))
+      if [ "$last_log" -eq 0 ] || [ "$since_log" -ge "$log_interval" ]; then
+        local summary
+        summary="$(printf '%s' "${result:-}" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    parts = []
+    for r in data.get("resources", []):
+        parts.append(r["name"] + "=" + r.get("status", "unknown"))
+    print(" ".join(parts) if parts else "waiting...")
+except:
+    print("waiting...")
+' 2>/dev/null)" || summary="waiting..."
+
+        local time_display
+        if [ "$timeout" -gt 0 ]; then
+          time_display="${elapsed}s/${timeout}s"
+        else
+          time_display="${elapsed}s"
+        fi
+        printf 'Waiting: %s [%s]\n' "$summary" "$time_display" >&2
+        last_log=$now
+      fi
+    fi
+
+    sleep "$poll_interval"
+  done
+}
+
 cmd_start() {
   local pick=false
+  local wait=false
+  local timeout_secs=0
   local args=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --pick|-p) pick=true; shift ;;
+      --wait|-w) wait=true; shift ;;
+      --timeout|-t)
+        [[ -n "${2:-}" ]] || die "Missing value for $1"
+        timeout_secs="$(_parse_timeout "$2")" || die "Invalid timeout: $2\nExpected a duration like '120s' or '120'."
+        shift 2
+        ;;
+      -h|--help)
+        cat <<'USAGE'
+Usage: reproctl start [options] <service> [<service>...]
+
+Start one or more services from the current context.
+
+Options:
+  --pick, -p               Interactively select services
+  --wait, -w               Block until all services are healthy
+  --timeout, -t <duration> How long to wait before giving up (no default;
+                            waits indefinitely unless set)
+                            Only meaningful with --wait
+
+Exit codes:
+  0   Services started (and healthy, if --wait)
+  1   Error or timeout
+USAGE
+        return 0
+        ;;
       *) args+=("$1"); shift ;;
     esac
   done
@@ -153,9 +438,12 @@ cmd_start() {
   if [ "$pick" = true ] || { [ $# -eq 0 ] && [ -t 0 ]; }; then
     local candidates=()
     while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
+    local _pick_out _pick_rc=0
+    _pick_out="$(_pick_multi "Select services to start" "${candidates[@]}")" || _pick_rc=$?
+    if [[ $_pick_rc -ne 0 ]]; then exit "$_pick_rc"; fi
     local selected=()
-    while IFS= read -r _line; do selected+=("$_line"); done < <(_pick_multi "Select services to start" "${candidates[@]}")
-    [[ ${#selected[@]} -gt 0 ]] || exit 1
+    while IFS= read -r _line; do selected+=("$_line"); done <<< "$_pick_out"
+    [[ ${#selected[@]} -gt 0 ]] || exit 2
     set -- "${selected[@]}"
   fi
 
@@ -163,18 +451,25 @@ cmd_start() {
     die "At least one service is required.\nUsage: reproctl start <service> [<service>...]"
   fi
 
+  local started_services=("$@")
+
   mkdir -p "$TMP_DIR"
 
   if ! cluster_preflight; then
     die "Cannot start services without a running cluster.\nRun 'reproctl cluster up' first."
   fi
 
-  _step 1 3 "Validating services.json..."
+  local total_steps=3
+  if [ "$wait" = true ]; then
+    total_steps=4
+  fi
+
+  _step 1 "$total_steps" "Validating services.json..."
   if ! python3 "$SCRIPTS_DIR/validate-services.py" "$SERVICES_JSON" "$REPO_ROOT/infra" "$@"; then
     die "services.json validation failed. Fix the errors above before starting."
   fi
 
-  _step 2 3 "Updating configuration..."
+  _step 2 "$total_steps" "Updating configuration..."
 
   local entries=()
 
@@ -203,8 +498,17 @@ cmd_start() {
     _ok "Config updated — Tilt will reload automatically"
     touch "$CONFIG_FILE"
   else
-    _step 3 3 "Starting Tilt..."
+    _step 3 "$total_steps" "Starting Tilt..."
     start_tilt_daemon
+  fi
+
+  if [ "$wait" = true ]; then
+    local wait_msg="Waiting for services to become healthy"
+    if [ "$timeout_secs" -gt 0 ]; then
+      wait_msg="$wait_msg (timeout: ${timeout_secs}s)"
+    fi
+    _step "$total_steps" "$total_steps" "$wait_msg..."
+    _wait_for_healthy "$timeout_secs" "${started_services[@]}"
   fi
 }
 
@@ -247,9 +551,12 @@ cmd_stop() {
   if [ "$pick" = true ] || { [ "${#targets[@]}" -eq 0 ] && [ -t 0 ]; }; then
     local candidates=()
     while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
+    local _pick_out _pick_rc=0
+    _pick_out="$(_pick_multi "Select services to stop" "${candidates[@]}")" || _pick_rc=$?
+    if [[ $_pick_rc -ne 0 ]]; then exit "$_pick_rc"; fi
     local selected=()
-    while IFS= read -r _line; do selected+=("$_line"); done < <(_pick_multi "Select services to stop" "${candidates[@]}")
-    [[ ${#selected[@]} -gt 0 ]] || exit 1
+    while IFS= read -r _line; do selected+=("$_line"); done <<< "$_pick_out"
+    [[ ${#selected[@]} -gt 0 ]] || exit 2
     targets=("${selected[@]}")
   fi
 
@@ -434,9 +741,12 @@ USAGE
   if [ "$pick" = true ] || { [ "${#positional[@]}" -eq 0 ] && [ -t 0 ]; }; then
     local candidates=()
     while IFS= read -r _line; do candidates+=("$_line"); done < <(_list_service_names)
+    local _pick_out _pick_rc=0
+    _pick_out="$(_pick_multi "Select services to restart" "${candidates[@]}")" || _pick_rc=$?
+    if [[ $_pick_rc -ne 0 ]]; then exit "$_pick_rc"; fi
     local selected=()
-    while IFS= read -r _line; do selected+=("$_line"); done < <(_pick_multi "Select services to restart" "${candidates[@]}")
-    [[ ${#selected[@]} -gt 0 ]] || exit 1
+    while IFS= read -r _line; do selected+=("$_line"); done <<< "$_pick_out"
+    [[ ${#selected[@]} -gt 0 ]] || exit 2
     positional=("${selected[@]}")
   fi
 

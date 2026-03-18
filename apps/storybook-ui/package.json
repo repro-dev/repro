@@ -6,6 +6,7 @@
   "main": "index.js",
   "license": "UNLICENSED",
   "dependencies": {
+    "@repro/auth": "workspace:*",
     "@repro/design": "workspace:*",
     "@repro/theme": "workspace:*",
     "@repro/wire-formats": "workspace:*"

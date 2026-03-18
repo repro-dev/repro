@@ -13,14 +13,11 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MAN_SRC="$REPO_ROOT/docs/man"
-MAN_OUT="$REPO_ROOT/docs/man/man1"
 
 if ! command -v pandoc > /dev/null 2>&1; then
   echo "error: pandoc is not installed. Run 'reproctl setup' or 'brew install pandoc'." >&2
   exit 1
 fi
-
-mkdir -p "$MAN_OUT"
 
 check_mode=false
 if [ "${1:-}" = "--check" ]; then
@@ -28,22 +25,28 @@ if [ "${1:-}" = "--check" ]; then
 fi
 
 stale=()
-for src in "$MAN_SRC"/*.1.md; do
-  [ -f "$src" ] || continue
-  name="$(basename "$src" .md)"  # e.g. reproctl.1
-  out="$MAN_OUT/$name"
+total=0
+for section in 1 7; do
+  outdir="$MAN_SRC/man${section}"
+  mkdir -p "$outdir"
+  for src in "$MAN_SRC"/*."${section}".md; do
+    [ -f "$src" ] || continue
+    name="$(basename "$src" .md)"
+    out="$outdir/$name"
 
-  if [ "$check_mode" = true ]; then
-    tmp="$(mktemp)"
-    pandoc -s --from markdown-smart -t man "$src" -o "$tmp"
-    if [ ! -f "$out" ] || ! diff -q "$tmp" "$out" > /dev/null 2>&1; then
-      stale+=("$name")
+    if [ "$check_mode" = true ]; then
+      tmp="$(mktemp)"
+      pandoc -s --from markdown-smart -t man "$src" -o "$tmp"
+      if [ ! -f "$out" ] || ! diff -q "$tmp" "$out" > /dev/null 2>&1; then
+        stale+=("$name")
+      fi
+      rm -f "$tmp"
+    else
+      pandoc -s --from markdown-smart -t man "$src" -o "$out"
+      echo "  generated $name"
+      total=$((total + 1))
     fi
-    rm -f "$tmp"
-  else
-    pandoc -s --from markdown-smart -t man "$src" -o "$out"
-    echo "  generated $name"
-  fi
+  done
 done
 
 if [ "$check_mode" = true ]; then
@@ -58,5 +61,5 @@ if [ "$check_mode" = true ]; then
     echo "All manpages are up to date."
   fi
 else
-  echo "Done. Generated $(find "$MAN_OUT" -name '*.1' | wc -l | tr -d ' ') manpage(s) in docs/man/man1/"
+  echo "Done. Generated $total manpage(s)."
 fi

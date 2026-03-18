@@ -88,6 +88,8 @@ complete -c reproctl -n '__reproctl_using_subcommand db reset' -f -s y -l yes -d
 
 complete -c reproctl -n '__reproctl_using_command start' -f -a '(__reproctl_services)' -d 'Service'
 complete -c reproctl -n '__reproctl_using_command start' -f -s p -l pick -d 'Interactively select a service'
+complete -c reproctl -n '__reproctl_using_command start' -f -s w -l wait -d 'Block until all services are healthy'
+complete -c reproctl -n '__reproctl_using_command start' -f -s t -l timeout -d 'Timeout for --wait (no default)'
 
 complete -c reproctl -n '__reproctl_using_command stop' -f -a '(__reproctl_services)' -d 'Service'
 complete -c reproctl -n '__reproctl_using_command stop' -f -l all -d 'Tear down Tilt entirely'
@@ -143,4 +145,4 @@ complete -c reproctl -n '__reproctl_using_subcommand wt prune' -f -s y -l yes -d
 
 complete -c reproctl -n '__reproctl_using_command completion' -f -a 'bash zsh fish' -d 'Shell'
 
-complete -c reproctl -n '__reproctl_using_command help' -f -a 'setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion'
+complete -c reproctl -n '__reproctl_using_command help' -f -a 'setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion environment exit-codes json'

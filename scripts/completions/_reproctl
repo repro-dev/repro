@@ -190,6 +190,9 @@ _reproctl_services_arg() {
 _reproctl_start() {
   _arguments \
     '(--pick -p)'{--pick,-p}'[Interactively select a service]' \
+    '(--wait -w)'{--wait,-w}'[Block until all services are healthy]' \
+    '(--timeout -t)'{--timeout,-t}'[Timeout for --wait (no default)]:duration:' \
+    '(-h --help)'{-h,--help}'[Show help]' \
     '*:service:_reproctl_services_arg'
 }
 
@@ -316,6 +319,7 @@ _reproctl_help() {
     'start' 'stop' 'restart' 'status' 'logs'
     'ui' 'launch' 'context' 'worktree' 'wt'
     'completion' 'version'
+    'environment' 'exit-codes' 'json'
   )
   _values 'topic' "${help_topics[@]}"
 }

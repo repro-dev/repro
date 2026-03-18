@@ -26,7 +26,15 @@ export interface AssistantMessage {
   toolCalls: Array<ToolCall>
 }
 
-export type AssistantMessageContext = Pick<AssistantMessage, 'role' | 'content'>
+export interface AssistantMessageContext {
+  role: 'assistant'
+  content: string
+  tool_calls?: Array<{
+    id: string
+    type: 'function'
+    function: { name: string; arguments: string }
+  }>
+}
 
 export interface ToolMessage {
   id: string
@@ -59,7 +67,7 @@ export type Context = Array<
   | SystemMessageContext
 >
 
-export type Loading = 'reasoning' | 'responding' | 'none'
+export type Loading = 'reasoning' | 'responding' | 'tool-executing' | 'none'
 
 export interface AgenticState {
   $entries: Atom<Array<Entry>>

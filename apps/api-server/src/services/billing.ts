@@ -75,7 +75,7 @@ function asBillingPlan(row: {
   providerPriceId: string
   providerProductId: string
   interval: 'month' | 'year'
-  active: number
+  active: boolean
   createdAt: Date
 }): BillingPlan {
   return {
@@ -84,7 +84,7 @@ function asBillingPlan(row: {
     providerPriceId: row.providerPriceId,
     providerProductId: row.providerProductId,
     interval: row.interval,
-    active: !!row.active,
+    active: row.active,
     createdAt: row.createdAt,
   }
 }
@@ -97,7 +97,7 @@ function asBillingSubscription(row: {
   status: 'active' | 'past_due' | 'paused' | 'canceled' | 'trialing'
   currentPeriodStart: Date
   currentPeriodEnd: Date
-  cancelAtPeriodEnd: number
+  cancelAtPeriodEnd: boolean
   canceledAt: Date | null
   createdAt: Date
   updatedAt: Date
@@ -110,7 +110,7 @@ function asBillingSubscription(row: {
     status: row.status,
     currentPeriodStart: row.currentPeriodStart,
     currentPeriodEnd: row.currentPeriodEnd,
-    cancelAtPeriodEnd: !!row.cancelAtPeriodEnd,
+    cancelAtPeriodEnd: row.cancelAtPeriodEnd,
     canceledAt: row.canceledAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -240,7 +240,7 @@ export function createBillingService(database: Database, env: Env) {
           providerPriceId: params.providerPriceId,
           providerProductId: params.providerProductId,
           interval: params.interval,
-          active: 1,
+          active: true,
         })
         .returning([
           'id',
@@ -267,7 +267,7 @@ export function createBillingService(database: Database, env: Env) {
         .values({
           planId: decodeId(planId)!,
           feature,
-          enabled: enabled ? 1 : 0,
+          enabled: enabled,
           limit,
         })
         .returning(['feature', 'enabled', 'limit'])
@@ -275,7 +275,7 @@ export function createBillingService(database: Database, env: Env) {
     ).pipe(
       map(row => ({
         feature: row.feature,
-        enabled: !!row.enabled,
+        enabled: row.enabled,
         limit: row.limit,
       }))
     )
@@ -332,7 +332,7 @@ export function createBillingService(database: Database, env: Env) {
           'active',
           'createdAt',
         ])
-        .where('active', '=', 1)
+        .where('active', '=', true)
         .orderBy('name asc')
         .execute()
     ).pipe(map(rows => rows.map(asBillingPlan)))
@@ -358,7 +358,7 @@ export function createBillingService(database: Database, env: Env) {
           'billing_plan_entitlements.enabled',
           'billing_plan_entitlements.limit',
         ])
-        .where('billing_plans.active', '=', 1)
+        .where('billing_plans.active', '=', true)
         .orderBy('billing_plans.name asc')
         .execute()
     ).pipe(
@@ -378,7 +378,7 @@ export function createBillingService(database: Database, env: Env) {
           if (row.feature !== null) {
             planMap.get(row.id)!.entitlements.push({
               feature: row.feature,
-              enabled: !!row.enabled,
+              enabled: row.enabled!,
               limit: row.limit,
             })
           }
@@ -487,7 +487,7 @@ export function createBillingService(database: Database, env: Env) {
               attemptQuery(() =>
                 database
                   .updateTable('billing_subscriptions')
-                  .set({ cancelAtPeriodEnd: 1 })
+                  .set({ cancelAtPeriodEnd: true })
                   .where('id', '=', decodeId(subscription.id))
                   .returning([
                     'id',
@@ -630,7 +630,7 @@ export function createBillingService(database: Database, env: Env) {
                 status: params.status,
                 currentPeriodStart: params.currentPeriodStart,
                 currentPeriodEnd: params.currentPeriodEnd,
-                cancelAtPeriodEnd: params.cancelAtPeriodEnd ? 1 : 0,
+                cancelAtPeriodEnd: params.cancelAtPeriodEnd,
                 canceledAt: params.canceledAt,
               })
               .where('id', '=', existing.id)
@@ -648,7 +648,7 @@ export function createBillingService(database: Database, env: Env) {
               status: params.status,
               currentPeriodStart: params.currentPeriodStart,
               currentPeriodEnd: params.currentPeriodEnd,
-              cancelAtPeriodEnd: params.cancelAtPeriodEnd ? 1 : 0,
+              cancelAtPeriodEnd: params.cancelAtPeriodEnd,
               canceledAt: params.canceledAt,
             })
             .execute()
