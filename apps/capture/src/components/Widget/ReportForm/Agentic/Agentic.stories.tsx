@@ -124,3 +124,98 @@ Sed vitae orci vulputate eros maximus scelerisque. Fusce id nisi odio. Proin sol
     }),
   ],
 }
+
+export const WithToolCalls: StoryObj = {
+  decorators: [
+    withState({
+      $entries: atom<Array<Entry>>([
+        {
+          id: '1',
+          timestamp: new Date(),
+          role: 'user',
+          content: 'How long is the recording and are there any console errors?',
+        },
+        {
+          id: '2',
+          timestamp: new Date(),
+          role: 'assistant',
+          content: '',
+          toolCalls: [
+            {
+              id: 'tc1',
+              index: 0,
+              function: { name: 'getRecordingDuration', arguments: '{}' },
+            },
+            {
+              id: 'tc2',
+              index: 1,
+              function: { name: 'getConsoleMessages', arguments: '{}' },
+            },
+          ],
+        },
+        {
+          id: '3',
+          timestamp: new Date(),
+          role: 'tool',
+          content: JSON.stringify({ duration: 12.5 }),
+          tool_call_id: 'tc1',
+        },
+        {
+          id: '4',
+          timestamp: new Date(),
+          role: 'tool',
+          content: JSON.stringify({
+            messages: [
+              { level: 'error', text: 'Uncaught TypeError: Cannot read property' },
+              { level: 'warn', text: 'Deprecated API usage' },
+              { level: 'error', text: 'Network request failed' },
+            ],
+          }),
+          tool_call_id: 'tc2',
+        },
+        {
+          id: '5',
+          timestamp: new Date(),
+          role: 'assistant',
+          content:
+            'The recording is **12.5 seconds** long. I found **3 console messages** including 2 errors: a `TypeError` and a failed network request.',
+          toolCalls: [],
+        },
+      ]),
+      $loading: atom<Loading>('none'),
+      destroy: () => {},
+      query: () => {},
+    }),
+  ],
+}
+
+export const ToolExecuting: StoryObj = {
+  decorators: [
+    withState({
+      $entries: atom<Array<Entry>>([
+        {
+          id: '1',
+          timestamp: new Date(),
+          role: 'user',
+          content: 'What network requests were made during the session?',
+        },
+        {
+          id: '2',
+          timestamp: new Date(),
+          role: 'assistant',
+          content: '',
+          toolCalls: [
+            {
+              id: 'tc1',
+              index: 0,
+              function: { name: 'getNetworkRequests', arguments: '{}' },
+            },
+          ],
+        },
+      ]),
+      $loading: atom<Loading>('tool-executing'),
+      destroy: () => {},
+      query: () => {},
+    }),
+  ],
+}
