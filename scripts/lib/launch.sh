@@ -5,7 +5,7 @@
 # Sourced by reproctl.sh. Expects scripts/lib/common.sh to be loaded
 # first (provides REPO_ROOT, is_worktree, detect_worktree_slug, die).
 
-_ingress_service_url() {
+_portless_service_url() {
   local service="$1" slug="$2"
   local host
 
@@ -36,7 +36,7 @@ _ingress_service_url() {
       ;;
   esac
 
-  echo "http://${host}"
+  echo "http://${host}:1355"
 }
 
 _local_service_url() {
@@ -52,7 +52,7 @@ _local_service_url() {
 }
 
 _service_url() {
-  _ingress_service_url "$@" 2>/dev/null && return 0
+  _portless_service_url "$@" 2>/dev/null && return 0
   _local_service_url "$@" 2>/dev/null && return 0
   return 1
 }

@@ -13,7 +13,6 @@ load(
   './tilt-lib/services.Tiltfile',
   'register_service',
   'register_local_service',
-  'register_ingress',
   'resolve_dependencies',
   'wt_label',
 )
@@ -21,8 +20,6 @@ load(
   './tilt-lib/worktree.Tiltfile',
   'is_worktree',
 )
-load('ext://helm_resource', 'helm_resource', 'helm_repo')
-
 config.define_string_list('groups', args=True)
 cfg = config.parse()
 
@@ -115,7 +112,6 @@ if service_config:
   register_shared_infra()
 
   wt_sources_seen = {}
-  wt_slugs_with_services = {}
 
   for entry in service_config:
     name = entry.get('name', '')
@@ -139,14 +135,11 @@ if service_config:
           labels=[wt_label(slug)],
         )
 
-      if SERVICES[name].get('type', 'k8s') == 'local':
-        register_local_service(name, SERVICES[name], INFRA_DIR, slug, wt_path)
-      else:
+      svc = SERVICES[name]
+      if svc.get('portless_name'):
         register_service(name, SERVICES[name], slug, wt_path, INFRA_DIR)
-
-      if slug not in wt_slugs_with_services:
-        wt_slugs_with_services[slug] = []
-      wt_slugs_with_services[slug].append(name)
+      else:
+        register_local_service(name, SERVICES[name], INFRA_DIR, slug, wt_path)
 
     else:
       if SERVICES[name].get('type', 'k8s') == 'local':
@@ -178,9 +171,6 @@ if service_config:
       labels=['infra'],
     )
 
-  for slug, svc_names in wt_slugs_with_services.items():
-    register_ingress(slug, svc_names, SERVICES, INFRA_DIR)
-
 else:
   # Legacy mode: no reproctl_services.json, original `tilt up <group>` behaviour.
   # This path is identical to the pre-REP-219 main checkout mode.
@@ -211,7 +201,7 @@ else:
       'storage',
       'database',
       'api-server',
-      'gateway-ingress',
+      'portless-proxy',
     ],
 
     'workspace': [
@@ -219,7 +209,7 @@ else:
       'database',
       'api-server',
       'workspace',
-      'gateway-ingress',
+      'portless-proxy',
     ]
   }
 

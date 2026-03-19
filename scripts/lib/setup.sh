@@ -224,6 +224,23 @@ cmd_doctor() {
     has_failures=true
   fi
 
+  if command -v portless > /dev/null 2>&1; then
+    local portless_version
+    portless_version="$(portless --version 2>/dev/null | awk '{print $NF}')"
+    if echo "$portless_version" | grep -q "^0\.7"; then
+      [ "$json_mode" != true ] && _doctor_row "ok" "portless" "v$portless_version"
+      _doctor_add "portless" "ok" --actual "$portless_version"
+    else
+      [ "$json_mode" != true ] && _doctor_row "warn" "portless" "v$portless_version (expected 0.7.x) — run 'npm install -g portless@0.7'"
+      _doctor_add "portless" "warn" --expected "0.7.x" --actual "$portless_version"
+      has_warnings=true
+    fi
+  else
+    [ "$json_mode" != true ] && _doctor_row "error" "portless" "not installed — run 'npm install -g portless@0.7'"
+    _doctor_add "portless" "fail" --message "not installed — run 'npm install -g portless@0.7'"
+    has_failures=true
+  fi
+
   if [ -d "$MAIN_CHECKOUT/node_modules" ]; then
     if [ -f "$MAIN_CHECKOUT/node_modules/.package-lock.json" ] || [ -f "$MAIN_CHECKOUT/node_modules/.modules.yaml" ]; then
       if [ "$MAIN_CHECKOUT/pnpm-lock.yaml" -nt "$MAIN_CHECKOUT/node_modules/.modules.yaml" ] 2>/dev/null; then
