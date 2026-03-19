@@ -1,16 +1,23 @@
 {
   "api-server": {
+    "type": "local",
     "moon_project": "repro/api-server",
-    "docker_target": "api-server",
-    "chart": "apps/api-server/chart",
     "app_dir": "apps/api-server",
-    "helm_sets": [
-      "vars.PORT=8080",
-      "vars.STORAGE_ENDPOINT=http://storage-seaweedfs-s3:8333"
-    ],
-    "helm_env_sets": {
-      "OPENROUTER_API_KEY": "vars.OPENROUTER_API_KEY"
+    "serve_cmd": "portless api.repro moon run repro/api-server:dev",
+    "serve_env": {
+      "DB_HOST": "localhost",
+      "DB_PORT": "15432",
+      "DB_NAME": "repro",
+      "DB_USER": "repro",
+      "DB_PASSWORD": "repro",
+      "STORAGE_ENDPOINT": "http://localhost:18333",
+      "REPRO_APP_URL": "http://app.repro.localhost:1355",
+      "REPRO_API_URL": "http://api.repro.localhost:1355"
     },
+    "env_passthrough": ["OPENROUTER_API_KEY"],
+    "resource_deps": ["dependencies", "portless-proxy"],
+    "labels": ["api"],
+    "portless_name": "api.repro",
     "migrations": {
       "moon_task": "repro/api-server:migrate",
       "resource_deps": ["database-ready", "storage-ready"]
@@ -18,9 +25,6 @@
     "seed": {
       "pnpm_package": "@repro/api-server",
       "resource_deps": ["storage-s3-forward"]
-    },
-    "ingress": {
-      "apiRoutes": "service"
     },
     "deps": []
   },
@@ -65,8 +69,8 @@
     "serve_cmd": "moon run repro/capture:watch",
     "serve_env": {
       "BUILD_ENV": "development",
-      "REPRO_APP_URL": "http://app.repro.localhost",
-      "REPRO_API_URL": "http://api.repro.localhost"
+      "REPRO_APP_URL": "http://app.repro.localhost:1355",
+      "REPRO_API_URL": "http://api.repro.localhost:1355"
     },
     "resource_deps": ["dependencies"],
     "labels": ["extension"],

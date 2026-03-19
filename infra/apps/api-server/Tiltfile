@@ -1,173 +1,61 @@
-# IMPROVED VERSION: Optimized Docker sync for api-server
-# 
-# Changes from original:
-# 1. target="api-server" instead of "build-all" (builds only api-server, not all packages)
-# 2. Expanded ignore patterns (excludes unrelated apps, tests, docs)
-# 3. App-specific sync scope (only api-server/src and packages/)
-# 4. Direct dependency watch list (fall_back_on only api-server and direct deps)
-
 PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 
-load('../../tilt-lib/dependency_graph.Tiltfile', 'dependency_sync_paths', 'dependency_watch_paths', 'non_dependency_ignore_patterns')
-
-docker_build(
-  'api-server-migrations',
-  PROJECT_ROOT,
-  dockerfile='../../Dockerfile',
-  target='api-server',
-  build_args={
-    'MOON_SCAFFOLD_PROJECTS': 'repro/api-server',
-  },
-  ignore=[
-    'infra',
-    'dist',
-    'build',
-    'node_modules',
-  ] + non_dependency_ignore_patterns('repro/api-server', PROJECT_ROOT) + [
-    '**/*.test.ts',
-    '**/*.test.tsx',
-    '**/*.spec.ts',
-    '**/*.spec.tsx',
-    '**/fixtures/**',
-    '**/mocks/**',
-    '**/test-data/**',
-    '**/*.stories.tsx',
-    '**/*.stories.ts',
-    '**/*.demo.tsx',
-    '**/*.md',
-    '*.md',
-    '*.MD',
-    '.DS_Store',
-    '*.swp',
-    '*.swo',
-    '*~',
-    '*.log',
-  ],
-)
-
-docker_build(
-  'api-server',
-  PROJECT_ROOT,
-  dockerfile='../../Dockerfile',
-  # IMPROVEMENT 1: Changed from "build-all" to "api-server"
-  # This uses the Docker target that only builds api-server, not entire monorepo
-  target='api-server',
-
-  build_args={
-    'MOON_SCAFFOLD_PROJECTS': 'repro/api-server',
-  },
-  
-  entrypoint=["moon", "run", "repro/api-server:dev"],
-  
-  # IMPROVEMENT 2: Expanded ignore patterns
-  # Excludes:
-  # - Other apps (capture, workspace, admin, devtools-demo, storybook-ui)
-  # - Test files and fixtures
-  # - Documentation and demo files
-  # - Editor artifacts
-  ignore=[
-    'infra',
-    'dist',
-    'build',
-    'node_modules',
-    # Exclude unrelated apps
-  ] + non_dependency_ignore_patterns('repro/api-server', PROJECT_ROOT) + [
-    # Exclude test files and fixtures
-    '**/*.test.ts',
-    '**/*.test.tsx',
-    '**/*.spec.ts',
-    '**/*.spec.tsx',
-    '**/fixtures/**',
-    '**/mocks/**',
-    '**/test-data/**',
-    # Exclude demo/story files
-    '**/*.stories.tsx',
-    '**/*.stories.ts',
-    '**/*.demo.tsx',
-    # Documentation
-    '**/*.md',
-    '*.md',
-    '*.MD',
-    # Editor artifacts
-    '.DS_Store',
-    '*.swp',
-    '*.swo',
-    '*~',
-    '*.log',
-  ],
-  
-  live_update=[
-    # IMPROVEMENT 3: Two-level fallback strategy
-    # First: Check if app or direct dependencies changed (triggers full rebuild)
-    # Second: Check if lock file changed (triggers install + rebuild)
-    fall_back_on([
-      # Always watch the app's own config
-      os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
-      os.path.join(PROJECT_ROOT, 'apps/api-server/moon.yml'),
-      os.path.join(PROJECT_ROOT, 'apps/api-server/tsconfig.json'),
-      
-      # Watch only direct dependencies (extracted above)
-    ] + dependency_watch_paths('repro/api-server', PROJECT_ROOT) + [
-      # Fall back to full rebuild if lock file changes
-      # (This catches dependency updates from root-level package managers)
-      os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
-    ]),
-    
-    sync(
-      os.path.join(PROJECT_ROOT, 'apps/api-server/src'),
-      '/app/apps/api-server/src'
-    ),
-    
-  ] + [
-    sync(path, '/app/' + path.removeprefix(PROJECT_ROOT + '/'))
-    for path in dependency_sync_paths('repro/api-server', PROJECT_ROOT)
-  ]
-)
-
-k8s_yaml(helm(
-  './chart',
-  name='api-server',
-  set=[
-    'container.image=api-server',
-    'migrations.image=api-server-migrations',
-    'vars.REPRO_APP_URL=http://app.repro.localhost',
-    'vars.REPRO_API_URL=http://api.repro.localhost',
-    'vars.PORT=8080',
-    'vars.STORAGE_ENDPOINT=http://storage-seaweedfs-s3:8333',
-    'vars.OPENROUTER_API_KEY=' + os.getenv('OPENROUTER_API_KEY', ''),
-  ]
-))
-
-k8s_resource(
-  'api-server-migrations',
-  resource_deps=['database-ready', 'storage-ready'],
-  labels=['api']
+local_resource(
+    'api-server-migrations',
+    cmd='moon run repro/api-server:migrate',
+    dir=PROJECT_ROOT,
+    env={
+        'DB_HOST': 'localhost',
+        'DB_PORT': '15432',
+        'DB_NAME': 'repro',
+        'DB_USER': 'repro',
+        'DB_PASSWORD': 'repro',
+    },
+    resource_deps=['database-ready', 'storage-ready'],
+    labels=['api'],
 )
 
 local_resource(
-  'db-reset',
-  cmd='pnpm --filter @repro/api-server run reset-db',
-  resource_deps=['database-ready', 'storage-ready'],
-  labels=['api'],
-  trigger_mode=TRIGGER_MODE_MANUAL,
-  auto_init=False,
+    'db-reset',
+    cmd='pnpm --filter @repro/api-server run reset-db',
+    dir=PROJECT_ROOT,
+    resource_deps=['database-ready', 'storage-ready'],
+    labels=['api'],
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    auto_init=False,
 )
 
 local_resource(
-  'db-seed',
-  cmd='pnpm --filter @repro/api-server run seed',
-  resource_deps=['database-ready', 'storage-ready'],
-  labels=['api'],
-  trigger_mode=TRIGGER_MODE_MANUAL,
-  auto_init=False,
+    'db-seed',
+    cmd='pnpm --filter @repro/api-server run seed',
+    dir=PROJECT_ROOT,
+    resource_deps=['database-ready', 'storage-ready'],
+    labels=['api'],
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    auto_init=False,
 )
 
-k8s_resource(
-  'api-server-deployment',
-  new_name='api-server',
-  links=[
-    'http://api.repro.localhost',
-  ],
-  resource_deps=['api-server-migrations'],
-  labels=['api']
+local_resource(
+    'api-server',
+    serve_cmd='portless api.repro moon run repro/api-server:dev',
+    serve_dir=PROJECT_ROOT,
+    serve_env={
+        'DB_HOST': 'localhost',
+        'DB_PORT': '15432',
+        'DB_NAME': 'repro',
+        'DB_USER': 'repro',
+        'DB_PASSWORD': 'repro',
+        'STORAGE_ENDPOINT': 'http://localhost:18333',
+        'REPRO_APP_URL': 'http://app.repro.localhost:1355',
+        'REPRO_API_URL': 'http://api.repro.localhost:1355',
+        'OPENROUTER_API_KEY': os.getenv('OPENROUTER_API_KEY', ''),
+    },
+    deps=[
+        os.path.join(PROJECT_ROOT, 'apps/api-server/src'),
+        os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
+    ],
+    resource_deps=['api-server-migrations', 'portless-proxy'],
+    allow_parallel=True,
+    links=['http://api.repro.localhost:1355'],
+    labels=['api'],
 )
