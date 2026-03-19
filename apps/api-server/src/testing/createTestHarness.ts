@@ -6,8 +6,9 @@ import { createSessionDecorator } from '~/decorators/session'
 import { Database } from '~/modules/database'
 import { SendParams, createStubEmailUtils } from '~/modules/email-utils'
 import { Storage } from '~/modules/storage'
+import { createStubPaddleClient } from '~/modules/billing'
 import { createAccountService } from '~/services/account'
-import { createDevBillingService } from '~/services/billingDev'
+import { createBillingService } from '~/services/billing'
 import { createFeatureGateService } from '~/services/featureGate'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
@@ -48,7 +49,8 @@ export async function createTestHarness(): Promise<Harness> {
   }
 
   const accountService = createAccountService(db, emailUtils)
-  const billingService = createDevBillingService(db, env)
+  const stubPaddleClient = createStubPaddleClient(db)
+  const billingService = createBillingService(db, env, stubPaddleClient)
   const featureGateService = createFeatureGateService(db)
   const projectService = createProjectService(db)
   const recordingService = createRecordingService(db, storage)
