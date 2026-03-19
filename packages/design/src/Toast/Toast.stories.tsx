@@ -2,19 +2,11 @@ import { Block } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { Button } from '../Button'
-import { ToastProvider } from './ToastProvider'
 import { useToast } from './useToast'
 
 const meta: Meta = {
   title: 'Components/Feedback/Toast',
-  tags: ['autodocs', 'design-system'],
-  decorators: [
-    Story => (
-      <ToastProvider>
-        <Story />
-      </ToastProvider>
-    ),
-  ],
+  tags: ['design-system'],
 }
 
 export default meta
