@@ -32,7 +32,7 @@ export const RecordingRoute: React.FC = () => {
 
   useEffect(() => {
     if (recordingId && !loading && !error) {
-      setSource(createApiSource(recordingId, apiClient))
+      setSource(createApiSource('', recordingId, apiClient))
     }
   }, [error, loading, recordingId, apiClient, setSource])
 

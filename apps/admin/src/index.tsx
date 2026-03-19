@@ -36,6 +36,7 @@ const adminTheme: ThemeDefinition = {
       default: colors.slate['900'],
       secondary: colors.slate['700'],
       muted: colors.slate['500'],
+      label: colors.slate['600'],
       inverse: colors.white,
     },
 
