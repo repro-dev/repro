@@ -68,7 +68,7 @@ describe('Services > Billing (dev adapter)', () => {
 
       expect(plans).toHaveLength(2)
       expect(plans.map(p => p.name)).toEqual(
-        expect.arrayContaining(['free', 'pro'])
+        expect.arrayContaining(['Free', 'Repro+'])
       )
     })
   })
@@ -83,7 +83,7 @@ describe('Services > Billing (dev adapter)', () => {
 
       expect(plan).toMatchObject({
         id: freePlan.id,
-        name: 'free',
+        name: 'Free',
       })
     })
 
@@ -191,11 +191,12 @@ describe('Services > Billing (dev adapter)', () => {
         billingService.getEntitlements(account.id)
       )
 
-      expect(entitlements).toHaveLength(2)
+      expect(entitlements).toHaveLength(3)
       expect(entitlements).toEqual(
         expect.arrayContaining([
           { feature: 'recordings', enabled: true, limit: null },
-          { feature: 'projects', enabled: true, limit: null },
+          { feature: 'seats', enabled: true, limit: 5 },
+          { feature: 'ai_credits', enabled: true, limit: 100 },
         ])
       )
     })
@@ -213,7 +214,7 @@ describe('Services > Billing (dev adapter)', () => {
       expect(entitlements).toEqual(
         expect.arrayContaining([
           { feature: 'recordings', enabled: true, limit: 10 },
-          { feature: 'projects', enabled: true, limit: 1 },
+          { feature: 'seats', enabled: true, limit: 1 },
         ])
       )
     })

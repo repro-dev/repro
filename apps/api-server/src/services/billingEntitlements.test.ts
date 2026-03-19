@@ -32,11 +32,12 @@ describe('Services > Billing Entitlements', () => {
         billingService.getEntitlements(account.id)
       )
 
-      expect(entitlements).toHaveLength(2)
+      expect(entitlements).toHaveLength(3)
       expect(entitlements).toEqual(
         expect.arrayContaining([
           { feature: 'recordings', enabled: true, limit: null },
-          { feature: 'projects', enabled: true, limit: null },
+          { feature: 'seats', enabled: true, limit: 5 },
+          { feature: 'ai_credits', enabled: true, limit: 100 },
         ])
       )
     })
@@ -54,7 +55,7 @@ describe('Services > Billing Entitlements', () => {
       expect(entitlements).toEqual(
         expect.arrayContaining([
           { feature: 'recordings', enabled: true, limit: 10 },
-          { feature: 'projects', enabled: true, limit: 1 },
+          { feature: 'seats', enabled: true, limit: 1 },
         ])
       )
     })
@@ -69,11 +70,12 @@ describe('Services > Billing Entitlements', () => {
         billingService.getEntitlements(account.id)
       )
 
-      expect(entitlements).toHaveLength(2)
+      expect(entitlements).toHaveLength(3)
       expect(entitlements).toEqual(
         expect.arrayContaining([
           { feature: 'recordings', enabled: true, limit: null },
-          { feature: 'projects', enabled: true, limit: null },
+          { feature: 'seats', enabled: true, limit: 5 },
+          { feature: 'ai_credits', enabled: true, limit: 100 },
         ])
       )
     })

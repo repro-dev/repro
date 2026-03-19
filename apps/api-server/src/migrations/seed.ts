@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { defaultEnv as env } from '~/config/env'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
 import { Database } from '~/modules/database/types'
+import { sandboxPlanConfig, seedPlans } from '~/modules/billing'
 import { Storage } from '~/modules/storage'
 import { createS3StorageClient } from '~/modules/storage-s3'
 import { seedRecordings } from './seed-recordings'
@@ -14,118 +15,9 @@ async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password)
 }
 
-async function seedBillingPlans(db: Database) {
+async function doSeedBillingPlans(db: Database) {
   console.log('Seeding billing plans...')
-
-  async function upsertPlan(
-    name: string,
-    providerPriceId: string,
-    providerProductId: string
-  ) {
-    const inserted = await db
-      .insertInto('billing_plans')
-      .values({
-        name,
-        providerPriceId,
-        providerProductId,
-        interval: 'month',
-        active: true,
-      })
-      .onConflict(oc => oc.column('providerPriceId').doNothing())
-      .returning(['id'])
-      .executeTakeFirst()
-
-    if (inserted) {
-      return inserted
-    }
-
-    return db
-      .selectFrom('billing_plans')
-      .select('id')
-      .where('providerPriceId', '=', providerPriceId)
-      .executeTakeFirstOrThrow()
-  }
-
-  const freePlan = await upsertPlan(
-    'Free',
-    'dev_pri_free_month',
-    'dev_pro_free'
-  )
-  const plusPlan = await upsertPlan(
-    'Repro+',
-    'dev_pri_plus_month',
-    'dev_pro_plus'
-  )
-  const proPlan = await upsertPlan(
-    'Repro++',
-    'dev_pri_pro_month',
-    'dev_pro_pro'
-  )
-
-  await db
-    .insertInto('billing_plan_entitlements')
-    .values([
-      {
-        planId: freePlan.id,
-        feature: 'recordings',
-        enabled: true,
-        limit: 10,
-      },
-      {
-        planId: freePlan.id,
-        feature: 'team',
-        enabled: false,
-        limit: null,
-      },
-    ])
-    .onConflict(oc => oc.columns(['planId', 'feature']).doNothing())
-    .execute()
-
-  await db
-    .insertInto('billing_plan_entitlements')
-    .values([
-      {
-        planId: plusPlan.id,
-        feature: 'recordings',
-        enabled: true,
-        limit: null,
-      },
-      {
-        planId: plusPlan.id,
-        feature: 'team',
-        enabled: true,
-        limit: null,
-      },
-    ])
-    .onConflict(oc => oc.columns(['planId', 'feature']).doNothing())
-    .execute()
-
-  await db
-    .insertInto('billing_plan_entitlements')
-    .values([
-      {
-        planId: proPlan.id,
-        feature: 'recordings',
-        enabled: true,
-        limit: null,
-      },
-      {
-        planId: proPlan.id,
-        feature: 'team',
-        enabled: true,
-        limit: null,
-      },
-      {
-        planId: proPlan.id,
-        feature: 'priority_support',
-        enabled: true,
-        limit: null,
-      },
-    ])
-    .onConflict(oc => oc.columns(['planId', 'feature']).doNothing())
-    .execute()
-
-  return { freePlan, plusPlan, proPlan }
+  await seedPlans(db, sandboxPlanConfig)
 }
 
 async function seedAccounts(db: Database) {
@@ -343,13 +235,21 @@ async function seedProjects(
 
 async function seedBillingCustomers(
   db: Database,
-  accounts: { acme: { id: number }; beta: { id: number } },
-  plans: {
-    freePlan: { id: number }
-    plusPlan: { id: number }
-  }
+  accounts: { acme: { id: number }; beta: { id: number } }
 ) {
   console.log('Seeding billing customers and subscriptions...')
+
+  const freePlan = await db
+    .selectFrom('billing_plans')
+    .select('id')
+    .where('providerPriceId', '=', 'pri_sandbox_free_month')
+    .executeTakeFirstOrThrow()
+
+  const plusPlan = await db
+    .selectFrom('billing_plans')
+    .select('id')
+    .where('providerPriceId', '=', 'pri_sandbox_plus_month')
+    .executeTakeFirstOrThrow()
 
   const now = new Date()
   const periodEnd = new Date(now)
@@ -369,7 +269,7 @@ async function seedBillingCustomers(
     .values({
       accountId: accounts.acme.id,
       providerSubscriptionId: 'dev_sub_acme',
-      planId: plans.freePlan.id,
+      planId: freePlan.id,
       status: 'active',
       currentPeriodStart: now,
       currentPeriodEnd: periodEnd,
@@ -393,7 +293,7 @@ async function seedBillingCustomers(
     .values({
       accountId: accounts.beta.id,
       providerSubscriptionId: 'dev_sub_beta',
-      planId: plans.plusPlan.id,
+      planId: plusPlan.id,
       status: 'active',
       currentPeriodStart: now,
       currentPeriodEnd: periodEnd,
@@ -419,12 +319,12 @@ async function seedFeatureGates(db: Database) {
 }
 
 export async function seed(db: Database, storage: Storage) {
-  const plans = await seedBillingPlans(db)
+  await doSeedBillingPlans(db)
   const accounts = await seedAccounts(db)
   const users = await seedUsers(db, accounts)
   await seedStaffUsers(db)
   await seedProjects(db, accounts, users)
-  await seedBillingCustomers(db, accounts, plans)
+  await seedBillingCustomers(db, accounts)
   await seedFeatureGates(db)
   await seedRecordings(db, storage)
 
