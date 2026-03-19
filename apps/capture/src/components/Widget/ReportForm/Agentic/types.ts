@@ -1,10 +1,11 @@
 import { Atom } from '@repro/atom'
-import { SourceEventView } from '@repro/domain'
+import { Snapshot, SourceEventView } from '@repro/domain'
 import { List } from '@repro/tdl'
 
 export interface RecordingDataAccessor {
   getSourceEvents(): List<SourceEventView>
   getDuration(): number
+  getSnapshotAtTime(timestampMs: number): Snapshot | null
 }
 
 export interface UserMessage {
