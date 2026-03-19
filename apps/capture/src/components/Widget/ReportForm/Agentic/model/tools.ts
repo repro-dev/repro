@@ -12,6 +12,7 @@ import {
 } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { RecordingDataAccessor } from '../types'
+import { estimateTokens } from './token-optimization'
 
 const LOG_LEVEL_MAP: Record<string, LogLevel> = {
   verbose: LogLevel.Verbose,
@@ -73,6 +74,18 @@ const GET_RECORDING_DURATION = {
   function: {
     name: 'getRecordingDuration',
     description: 'Get the duration of the recording.',
+    parameters: {
+      type: 'object',
+      properties: {
+        detail: {
+          type: 'string',
+          enum: ['summary', 'normal', 'full'],
+          default: 'normal',
+          description:
+            "Level of detail in the response. Use 'summary' for initial triage, 'normal' for standard debugging, 'full' for deep investigation.",
+        },
+      },
+    },
   },
 }
 
@@ -85,6 +98,13 @@ const GET_CONSOLE_MESSAGES = {
     parameters: {
       type: 'object',
       properties: {
+        detail: {
+          type: 'string',
+          enum: ['summary', 'normal', 'full'],
+          default: 'normal',
+          description:
+            "Level of detail in the response. Use 'summary' for initial triage, 'normal' for standard debugging, 'full' for deep investigation.",
+        },
         logLevel: {
           type: 'string',
           enum: ['verbose', 'info', 'warning', 'error'],
@@ -115,6 +135,13 @@ const GET_NETWORK_REQUESTS = {
     parameters: {
       type: 'object',
       properties: {
+        detail: {
+          type: 'string',
+          enum: ['summary', 'normal', 'full'],
+          default: 'normal',
+          description:
+            "Level of detail in the response. Use 'summary' for initial triage, 'normal' for standard debugging, 'full' for deep investigation.",
+        },
         statusMin: {
           type: 'number',
           description:
@@ -157,9 +184,10 @@ export type ToolHandler = (
 ) => unknown
 
 const toolHandlers: Record<string, ToolHandler> = {
-  getRecordingDuration: recording => ({
-    durationMs: recording.getDuration(),
-  }),
+  getRecordingDuration: recording => {
+    const result = { durationMs: recording.getDuration() }
+    return { ...result, _tokenEstimate: estimateTokens(result) }
+  },
 
   getConsoleMessages: (recording, args) => {
     const events = recording.getSourceEvents()
