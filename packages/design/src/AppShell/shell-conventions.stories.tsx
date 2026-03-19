@@ -1,11 +1,6 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
-import {
-  BarChart3Icon,
-  SettingsIcon,
-  UsersIcon,
-  VideoIcon,
-} from 'lucide-react'
+import { BarChart3Icon, SettingsIcon, UsersIcon, VideoIcon } from 'lucide-react'
 import React from 'react'
 import { Avatar } from '../Avatar'
 import { Button } from '../Button'

@@ -1,4 +1,4 @@
-export { defaultTheme, ThemeProvider, useTheme } from './ThemeContext'
+export { ThemeProvider, defaultTheme, useTheme } from './ThemeContext'
 export type {
   ThemeConfig,
   ThemeDefinition,

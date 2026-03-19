@@ -1,6 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
-import React, { PropsWithChildren, useCallback, useEffect } from 'react'
 import { useFocusTrap } from '@repro/a11y'
+import React, { PropsWithChildren, useCallback, useEffect } from 'react'
 import { color } from '../tokens/colors'
 import { shadow } from '../tokens/elevation'
 
