@@ -7,5 +7,10 @@ tags:
 tasks:
   build:
     command: pnpm run build
+  dev:
+    command: pnpm run dev-serve
+    deps:
+    - ^:build
+    preset: server
 toolchains:
   default: node

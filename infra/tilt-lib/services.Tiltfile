@@ -97,7 +97,24 @@ def wt_db_name(slug):
   return 'repro_wt_' + slug.replace('-', '_')
 
 
-def register_service(service_name, svc, wt_slug, source_path, infra_dir):
+def _service_host(portless_name, slug):
+  """Build a hostname for a service given its portless base name and slug.
+
+  Returns the .localhost:1355 hostname, with worktree prefix when slug
+  is non-empty.
+  """
+  if slug:
+    parts = portless_name.split('.')
+    if len(parts) >= 2 and parts[-1] == 'repro':
+      return '.'.join(parts[:-1]) + '.wt-' + slug + '.repro.localhost:1355'
+    return portless_name + '.wt-' + slug + '.localhost:1355'
+  return portless_name + '.localhost:1355'
+
+
+def register_service(service_name, svc, wt_slug, source_path, infra_dir, service_slugs=None):
+  if not service_slugs:
+    service_slugs = {}
+
   prefix = wt_name(service_name, wt_slug)
   label = wt_label(wt_slug)
   moon_project = svc['moon_project']
@@ -109,8 +126,10 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
   else:
     portless_wt_name = portless_base + '.wt-' + wt_slug
 
-  app_host = 'app.wt-' + wt_slug + '.repro.localhost:1355'
-  api_host = 'api.wt-' + wt_slug + '.repro.localhost:1355'
+  app_slug = service_slugs.get('workspace', '')
+  api_slug = service_slugs.get('api-server', '')
+  app_host = _service_host('app.repro', app_slug)
+  api_host = _service_host('api.repro', api_slug)
 
   serve_env = dict(svc.get('serve_env', {}))
   serve_env['REPRO_APP_URL'] = 'http://' + app_host
@@ -187,12 +206,15 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
     ],
     resource_deps=resource_deps_list,
     allow_parallel=True,
-    links=['http://' + (api_host if service_name == 'api-server' else app_host)],
+    links=['http://' + _service_host(portless_base, wt_slug)],
     labels=[label],
   )
 
 
-def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_path=None):
+def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_path=None, service_slugs=None):
+  if not service_slugs:
+    service_slugs = {}
+
   if wt_slug:
     resource_name = wt_name(service_name, wt_slug)
     label = wt_label(wt_slug)
@@ -205,10 +227,10 @@ def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_pa
   serve_env = dict(svc.get('serve_env', {}))
 
   if wt_slug:
-    app_host = 'app.wt-' + wt_slug + '.repro.localhost:1355'
-    api_host = 'api.wt-' + wt_slug + '.repro.localhost:1355'
-    serve_env['REPRO_APP_URL'] = 'http://' + app_host
-    serve_env['REPRO_API_URL'] = 'http://' + api_host
+    app_slug = service_slugs.get('workspace', '')
+    api_slug = service_slugs.get('api-server', '')
+    serve_env['REPRO_APP_URL'] = 'http://' + _service_host('app.repro', app_slug)
+    serve_env['REPRO_API_URL'] = 'http://' + _service_host('api.repro', api_slug)
 
   resource_deps = list(svc.get('resource_deps', []))
   if wt_slug and 'dependencies' in resource_deps:

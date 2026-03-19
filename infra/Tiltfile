@@ -111,6 +111,10 @@ if service_config:
 
   register_shared_infra()
 
+  service_slugs = {}
+  for entry in service_config:
+    service_slugs[entry.get('name', '')] = entry.get('slug', '')
+
   wt_sources_seen = {}
 
   for entry in service_config:
@@ -137,24 +141,24 @@ if service_config:
 
       svc = SERVICES[name]
       if svc.get('portless_name'):
-        register_service(name, SERVICES[name], slug, wt_path, INFRA_DIR)
+        register_service(name, SERVICES[name], slug, wt_path, INFRA_DIR, service_slugs)
       else:
-        register_local_service(name, SERVICES[name], INFRA_DIR, slug, wt_path)
+        register_local_service(name, SERVICES[name], INFRA_DIR, slug, wt_path, service_slugs)
 
     else:
-      if SERVICES[name].get('type', 'k8s') == 'local':
-        register_local_service(name, SERVICES[name], INFRA_DIR)
+      svc = SERVICES[name]
+      app_tiltfile = './apps/%s/Tiltfile' % name
+      app_tiltfile_abs = os.path.join(INFRA_DIR, 'apps', name, 'Tiltfile')
+      result = str(local(
+        'test -f "%s" && echo yes || echo no' % app_tiltfile_abs,
+        quiet=True,
+      ))
+      if result.strip() == 'yes':
+        load_dynamic(app_tiltfile)
+      elif svc.get('type', 'k8s') == 'local':
+        register_local_service(name, svc, INFRA_DIR)
       else:
-        app_tiltfile = './apps/%s/Tiltfile' % name
-        app_tiltfile_abs = os.path.join(INFRA_DIR, 'apps', name, 'Tiltfile')
-        result = str(local(
-          'test -f "%s" && echo yes || echo no' % app_tiltfile_abs,
-          quiet=True,
-        ))
-        if result.strip() == 'yes':
-          load_dynamic(app_tiltfile)
-        else:
-          warn('No per-app Tiltfile for main checkout service: %s' % name)
+        warn('No per-app Tiltfile for main checkout service: %s' % name)
 
   has_main_services = False
   for entry in service_config:

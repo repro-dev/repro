@@ -115,7 +115,7 @@ EOF
     esac
   done
 
-  exec "$SCRIPTS_DIR/bootstrap.sh" "${args[@]}"
+  exec "$SCRIPTS_DIR/bootstrap.sh" ${args[@]+"${args[@]}"}
 }
 
 # ── Doctor command ──────────────────────────────────────────────────
