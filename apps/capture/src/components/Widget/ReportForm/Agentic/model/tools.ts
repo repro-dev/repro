@@ -12,7 +12,12 @@ import {
 } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { RecordingDataAccessor } from '../types'
-import { estimateTokens } from './token-optimization'
+import {
+  DetailLevel,
+  estimateTokens,
+  shortenUrl,
+  truncate,
+} from './token-optimization'
 
 const LOG_LEVEL_MAP: Record<string, LogLevel> = {
   verbose: LogLevel.Verbose,
@@ -178,6 +183,29 @@ export const tools = [
   GET_NETWORK_REQUESTS,
 ]
 
+const ALLOWED_HEADERS = ['content-type', 'x-request-id']
+
+function filterHeaders(
+  headers: Record<string, string>
+): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const [key, value] of Object.entries(headers)) {
+    const lower = key.toLowerCase()
+    if (ALLOWED_HEADERS.includes(lower)) {
+      result[key] = value
+    }
+  }
+  return result
+}
+
+function decodeBody(body: ArrayBuffer): string {
+  try {
+    return new TextDecoder().decode(body)
+  } catch {
+    return ''
+  }
+}
+
 export type ToolHandler = (
   recording: RecordingDataAccessor,
   args: Record<string, unknown>
@@ -249,6 +277,7 @@ const toolHandlers: Record<string, ToolHandler> = {
     const indexed = findIndexedNetworkEvents(events)
     const groups = groupNetworkEvents(indexed)
 
+    const detail = (args.detail as DetailLevel | undefined) ?? 'normal'
     const statusMin = args.statusMin as number | undefined
     const statusMax = args.statusMax as number | undefined
     const method = args.method as string | undefined
@@ -256,17 +285,11 @@ const toolHandlers: Record<string, ToolHandler> = {
     const timeStart = args.timeRangeStartMs as number | undefined
     const timeEnd = args.timeRangeEndMs as number | undefined
 
-    const requests: Array<{
-      timeMs: number
-      type: 'fetch' | 'ws'
-      method?: string
-      url: string
-      status?: number
-      responseTimeMs?: number
-      durationMs?: number
-      requestHeaders?: Record<string, string>
-      responseHeaders?: Record<string, string>
-    }> = []
+    const requests: Array<Record<string, unknown>> = []
+
+    let succeeded = 0
+    let failed = 0
+    const byMethod: Record<string, number> = {}
 
     for (const group of groups) {
       if (group.type === 'fetch') {
@@ -293,20 +316,90 @@ const toolHandlers: Record<string, ToolHandler> = {
         )
           continue
 
-        requests.push({
-          timeMs: time,
-          type: 'fetch',
-          method: group.request.method,
-          url: group.request.url,
-          status,
-          responseTimeMs: group.responseTime,
-          durationMs:
-            group.responseTime !== undefined
-              ? group.responseTime - time
-              : undefined,
-          requestHeaders: group.request.headers,
-          responseHeaders: group.response?.headers,
-        })
+        if (status !== undefined && status >= 400) {
+          failed++
+        } else {
+          succeeded++
+        }
+
+        const m = group.request.method.toUpperCase()
+        byMethod[m] = (byMethod[m] ?? 0) + 1
+
+        const rawUrl = group.request.url
+        let url: string
+        if (detail === 'summary') {
+          try {
+            url = new URL(rawUrl).pathname
+          } catch {
+            url = rawUrl
+          }
+        } else if (detail === 'normal') {
+          url = truncate(shortenUrl(rawUrl, 'pathname'), 100)
+        } else {
+          url = shortenUrl(rawUrl, 'full')
+        }
+
+        const durationMs =
+          group.responseTime !== undefined
+            ? group.responseTime - time
+            : undefined
+
+        if (detail === 'summary') {
+          const entry: Record<string, unknown> = {
+            timeMs: time,
+            type: 'fetch',
+            url,
+          }
+          if (status !== undefined) entry['status'] = status
+          requests.push(entry)
+        } else if (detail === 'normal') {
+          const entry: Record<string, unknown> = {
+            timeMs: time,
+            type: 'fetch',
+            method: group.request.method,
+            url,
+          }
+          if (status !== undefined) entry['status'] = status
+          const contentType = group.response?.headers?.['content-type']
+          if (contentType !== undefined) entry['contentType'] = contentType
+          if (durationMs !== undefined) entry['durationMs'] = durationMs
+          if (status !== undefined && status >= 400 && group.response?.body) {
+            const decoded = decodeBody(group.response.body)
+            if (decoded) entry['errorBody'] = truncate(decoded, 500)
+          }
+          requests.push(entry)
+        } else {
+          const entry: Record<string, unknown> = {
+            timeMs: time,
+            type: 'fetch',
+            method: group.request.method,
+            url,
+          }
+          if (status !== undefined) entry['status'] = status
+          const contentType = group.response?.headers?.['content-type']
+          if (contentType !== undefined) entry['contentType'] = contentType
+          if (durationMs !== undefined) entry['durationMs'] = durationMs
+          if (group.responseTime !== undefined)
+            entry['responseTimeMs'] = group.responseTime
+          const filteredHeaders = filterHeaders(
+            group.response?.headers ?? {}
+          )
+          if (Object.keys(filteredHeaders).length > 0)
+            entry['headers'] = filteredHeaders
+          if (status !== undefined && status >= 400 && group.response?.body) {
+            const decoded = decodeBody(group.response.body)
+            if (decoded) entry['errorBody'] = truncate(decoded, 2000)
+          }
+          const mutationMethods = ['POST', 'PUT', 'PATCH', 'DELETE']
+          if (
+            mutationMethods.includes(group.request.method.toUpperCase()) &&
+            group.request.body
+          ) {
+            const decoded = decodeBody(group.request.body)
+            if (decoded) entry['requestBody'] = truncate(decoded, 500)
+          }
+          requests.push(entry)
+        }
       } else {
         const time = group.openTime
         if (timeStart !== undefined && time < timeStart) continue
@@ -320,17 +413,42 @@ const toolHandlers: Record<string, ToolHandler> = {
         )
           continue
 
-        requests.push({
-          timeMs: time,
-          type: 'ws',
-          url: group.open.url,
-          durationMs:
-            group.closeTime !== undefined ? group.closeTime - time : undefined,
-        })
+        const rawUrl = group.open.url
+        let url: string
+        if (detail === 'summary') {
+          try {
+            url = new URL(rawUrl).pathname
+          } catch {
+            url = rawUrl
+          }
+        } else if (detail === 'normal') {
+          url = truncate(shortenUrl(rawUrl, 'pathname'), 100)
+        } else {
+          url = shortenUrl(rawUrl, 'full')
+        }
+
+        const durationMs =
+          group.closeTime !== undefined ? group.closeTime - time : undefined
+
+        if (detail === 'summary') {
+          requests.push({ timeMs: time, type: 'ws', url })
+        } else {
+          const entry: Record<string, unknown> = { timeMs: time, type: 'ws', url }
+          if (durationMs !== undefined) entry['durationMs'] = durationMs
+          requests.push(entry)
+        }
       }
     }
 
-    return { requests }
+    const summary = {
+      total: requests.length,
+      succeeded,
+      failed,
+      byMethod,
+    }
+
+    const result = { requests, summary }
+    return { ...result, _tokenEstimate: estimateTokens(result) }
   },
 }
 
