@@ -1,10 +1,20 @@
 import {
+  Click,
   ConsoleEvent,
   DateMessagePart,
+  DOMPatchEvent,
+  DoubleClick,
+  InteractionEvent,
+  InteractionType,
+  KeyDown,
   LogLevel,
   MessagePartType,
+  NetworkEvent,
+  PageTransition,
+  Scroll,
   SourceEvent,
   SourceEventType,
+  ViewportResize,
 } from '@repro/domain'
 import {
   findIndexedNetworkEvents,
@@ -29,6 +39,86 @@ const LOG_LEVEL_NAMES: Record<number, string> = {
 
 function isConsoleEvent(event: SourceEvent): event is Box<ConsoleEvent> {
   return event.match(e => e.type === SourceEventType.Console)
+}
+
+function isInteractionEvent(event: SourceEvent): event is Box<InteractionEvent> {
+  return event.match(e => e.type === SourceEventType.Interaction)
+}
+
+function isDOMPatchEvent(event: SourceEvent): event is Box<DOMPatchEvent> {
+  return event.match(e => e.type === SourceEventType.DOMPatch)
+}
+
+function isNetworkEvent(event: SourceEvent): event is Box<NetworkEvent> {
+  return event.match(e => e.type === SourceEventType.Network)
+}
+
+function summarizeInteraction(
+  event: Box<InteractionEvent>
+): { type: string; [key: string]: unknown } | null {
+  const interaction = event.get('data').flat() as Box<
+    | ViewportResize
+    | Scroll
+    | KeyDown
+    | Click
+    | DoubleClick
+    | PageTransition
+  >
+  const interactionType = interaction.get('type').orElse(-1 as InteractionType)
+
+  switch (interactionType) {
+    case InteractionType.PointerMove:
+    case InteractionType.PointerDown:
+    case InteractionType.PointerUp:
+      return null
+
+    case InteractionType.Click:
+    case InteractionType.DoubleClick: {
+      const clickEvent = interaction as Box<Click | DoubleClick>
+      const label = clickEvent.get('meta').get('humanReadableLabel').orElse(null)
+      return {
+        type: interactionType === InteractionType.Click ? 'click' : 'doubleClick',
+        ...(label ? { label } : {}),
+      }
+    }
+
+    case InteractionType.KeyDown: {
+      const keyEvent = interaction as Box<KeyDown>
+      return { type: 'keyDown', key: keyEvent.get('key').orElse('') }
+    }
+
+    case InteractionType.KeyUp:
+      return null
+
+    case InteractionType.Scroll: {
+      const scrollEvent = interaction as Box<Scroll>
+      const target = scrollEvent.get('target').orElse('' as unknown as number)
+      return { type: 'scroll', target: String(target) }
+    }
+
+    case InteractionType.PageTransition: {
+      const pageEvent = interaction as Box<PageTransition>
+      const from = pageEvent.get('from').orElse(null)
+      const to = pageEvent.get('to').orElse('')
+      return {
+        type: 'pageTransition',
+        ...(from ? { from } : {}),
+        to,
+      }
+    }
+
+    case InteractionType.ViewportResize: {
+      const resizeEvent = interaction as Box<ViewportResize>
+      const to = resizeEvent.get('to').orElse([0, 0] as [number, number])
+      return {
+        type: 'viewportResize',
+        to: { width: to[0], height: to[1] },
+      }
+    }
+
+    default:
+      return null
+  }
 }
 
 function formatDatePart(part: DateMessagePart): string {
@@ -145,10 +235,36 @@ const GET_NETWORK_REQUESTS = {
   },
 }
 
+const GET_EVENTS_AROUND_TIME = {
+  type: 'function',
+  function: {
+    name: 'getEventsAroundTime',
+    description:
+      'Get events that occurred around a specific timestamp. Useful for understanding context around an error or user action.',
+    parameters: {
+      type: 'object',
+      properties: {
+        timestampMs: {
+          type: 'number',
+          description:
+            'The timestamp in ms from recording start to center the window on.',
+        },
+        windowMs: {
+          type: 'number',
+          description:
+            'Total window size in ms (default 5000). Events from [timestampMs - windowMs/2, timestampMs + windowMs/2] are returned.',
+        },
+      },
+      required: ['timestampMs'],
+    },
+  },
+}
+
 export const tools = [
   GET_RECORDING_DURATION,
   GET_CONSOLE_MESSAGES,
   GET_NETWORK_REQUESTS,
+  GET_EVENTS_AROUND_TIME,
 ]
 
 export type ToolHandler = (
@@ -303,6 +419,78 @@ const toolHandlers: Record<string, ToolHandler> = {
     }
 
     return { requests }
+  },
+
+  getEventsAroundTime: (recording, args) => {
+    const timestampMs = args.timestampMs as number
+    const windowMs = (args.windowMs as number) ?? 5000
+    const halfWindow = windowMs / 2
+    const startTime = Math.max(0, timestampMs - halfWindow)
+    const endTime = Math.min(recording.getDuration(), timestampMs + halfWindow)
+
+    const events = recording.getSourceEvents()
+    const result: Array<{
+      timeMs: number
+      type: string
+      [key: string]: unknown
+    }> = []
+
+    for (let i = 0, len = events.size(); i < len; i++) {
+      const event = events.over(i)
+      if (!event) continue
+
+      const time = event.get('time').orElse(0)
+      if (time < startTime) continue
+      if (time > endTime) break
+
+      if (isInteractionEvent(event)) {
+        const summary = summarizeInteraction(event)
+        if (!summary) continue
+        result.push({ timeMs: time, ...summary })
+        continue
+      }
+
+      if (isDOMPatchEvent(event)) {
+        continue
+      }
+
+      if (event.match(e => e.type === SourceEventType.Snapshot)) {
+        continue
+      }
+
+      if (isNetworkEvent(event)) {
+        result.push({ timeMs: time, type: 'network' })
+        continue
+      }
+
+      if (isConsoleEvent(event)) {
+        const consoleEvent: Box<ConsoleEvent> = event
+        const level = consoleEvent.get('data').get('level').orElse(LogLevel.Info)
+        const parts = consoleEvent.get('data').get('parts').orElse([])
+        const text = parts.map(serializeMessagePart).join(' ')
+        result.push({
+          timeMs: time,
+          type: 'console',
+          level: LOG_LEVEL_NAMES[level] ?? 'info',
+          text,
+        })
+        continue
+      }
+
+      if (event.match(e => e.type === SourceEventType.Performance)) {
+        result.push({ timeMs: time, type: 'performance' })
+        continue
+      }
+    }
+
+    return {
+      centerMs: timestampMs,
+      windowMs,
+      rangeStartMs: startTime,
+      rangeEndMs: endTime,
+      events: result,
+      _tokenEstimate: Math.ceil(JSON.stringify(result).length / 4) + 20,
+    }
   },
 }
 
