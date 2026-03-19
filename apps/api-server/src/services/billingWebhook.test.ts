@@ -182,7 +182,7 @@ describe('Services > BillingWebhook', () => {
 
       const freePlan = (
         await promise(harness.services.billingService.listPlans())
-      ).find(p => p.name === 'free')!
+      ).find(p => p.name === 'Free')!
 
       const subscriptionData = {
         id: 'dev_sub_' + customer.accountId,
