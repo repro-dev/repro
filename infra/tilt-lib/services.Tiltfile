@@ -98,93 +98,30 @@ def wt_db_name(slug):
 
 
 def register_service(service_name, svc, wt_slug, source_path, infra_dir):
-  """Register a single service from a worktree source tree.
-
-  Creates Docker builds, Helm deployments, and k8s resources using the
-  provided service descriptor, pointing at the given source tree.
-
-  Args:
-    service_name: Service key (e.g. 'api-server', 'workspace').
-    svc: Service descriptor dict from services.json.
-    wt_slug: Worktree slug for namespacing (e.g. 'feat-new-api').
-    source_path: Absolute path to the source tree (worktree root).
-    infra_dir: Absolute path to the infra/ directory.
-  """
   prefix = wt_name(service_name, wt_slug)
   label = wt_label(wt_slug)
   moon_project = svc['moon_project']
-  app_dir = svc['app_dir']
-  chart_path = os.path.join(infra_dir, svc['chart'])
 
-  app_host = 'app.wt-' + wt_slug + '.repro.localhost'
-  api_host = 'api.wt-' + wt_slug + '.repro.localhost'
+  portless_base = svc.get('portless_name', service_name + '.repro')
+  parts = portless_base.split('.')
+  if len(parts) >= 2 and parts[-1] == 'repro':
+    portless_wt_name = '.'.join(parts[:-1]) + '.wt-' + wt_slug + '.repro'
+  else:
+    portless_wt_name = portless_base + '.wt-' + wt_slug
 
-  ignore = COMMON_IGNORE + non_dependency_ignore_patterns(moon_project, source_path, source_path) + COMMON_IGNORE_GLOBS
+  app_host = 'app.wt-' + wt_slug + '.repro.localhost:1355'
+  api_host = 'api.wt-' + wt_slug + '.repro.localhost:1355'
 
-  if svc['migrations']:
-    migrations_image = prefix + '-migrations'
+  serve_env = dict(svc.get('serve_env', {}))
+  serve_env['REPRO_APP_URL'] = 'http://' + app_host
+  serve_env['REPRO_API_URL'] = 'http://' + api_host
 
-    docker_build(
-      migrations_image,
-      source_path,
-      dockerfile=os.path.join(source_path, 'infra/Dockerfile'),
-      target=svc['docker_target'],
-      build_args={
-        'MOON_SCAFFOLD_PROJECTS': moon_project,
-      },
-      ignore=ignore,
-    )
-
-  docker_build(
-    prefix,
-    source_path,
-    dockerfile=os.path.join(source_path, 'infra/Dockerfile'),
-    target=svc['docker_target'],
-    build_args={
-      'MOON_SCAFFOLD_PROJECTS': moon_project,
-    },
-    entrypoint=['moon', 'run', moon_project + ':dev'],
-    ignore=ignore,
-    live_update=[
-      fall_back_on([
-        os.path.join(source_path, app_dir, 'package.json'),
-        os.path.join(source_path, app_dir, 'moon.yml'),
-        os.path.join(source_path, app_dir, 'tsconfig.json'),
-      ] + dependency_watch_paths(moon_project, source_path, source_path) + [
-        os.path.join(source_path, 'pnpm-lock.yaml'),
-      ]),
-      sync(
-        os.path.join(source_path, app_dir, 'src'),
-        '/app/' + app_dir + '/src'
-      ),
-    ] + [
-      sync(path, '/app/' + path.removeprefix(source_path + '/'))
-      for path in dependency_sync_paths(moon_project, source_path, source_path)
-    ]
-  )
+  for env_key in svc.get('env_passthrough', []):
+    serve_env[env_key] = os.getenv(env_key, '')
 
   db_name = wt_db_name(wt_slug)
 
-  helm_set = [
-    'container.image=' + prefix,
-    'vars.REPRO_APP_URL=http://' + app_host,
-    'vars.REPRO_API_URL=http://' + api_host,
-  ] + svc['helm_sets']
-
-  if svc['migrations']:
-    helm_set.append('migrations.image=' + prefix + '-migrations')
-    helm_set.append('vars.DB_NAME=' + db_name)
-
-  for env_key, helm_key in svc.get('helm_env_sets', {}).items():
-    helm_set.append(helm_key + '=' + os.getenv(env_key, ''))
-
-  k8s_yaml(helm(
-    chart_path,
-    name=prefix,
-    set=helm_set,
-  ))
-
-  if svc['migrations']:
+  if svc.get('migrations'):
     db_ready_name = 'db-ready-wt-' + wt_slug
     local_resource(
       db_ready_name,
@@ -194,10 +131,15 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
     )
 
     migrations_resource = prefix + '-migrations'
-    k8s_resource(
+    migration_env = dict(serve_env)
+    migration_env['DB_NAME'] = db_name
+    local_resource(
       migrations_resource,
+      cmd='moon run ' + svc['migrations']['moon_task'],
+      dir=source_path,
+      env=migration_env,
       resource_deps=[db_ready_name] + svc['migrations']['resource_deps'],
-      labels=[label]
+      labels=[label],
     )
 
     if svc.get('seed'):
@@ -225,16 +167,28 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir):
         auto_init=False,
       )
 
-  resource_deps = [prefix + '-migrations'] if svc.get('migrations') else []
+  serve_env_final = dict(serve_env)
+  if svc.get('migrations'):
+    serve_env_final['DB_NAME'] = db_name
 
-  k8s_resource(
-    prefix + '-deployment',
-    new_name=prefix,
-    links=[
-      'http://' + api_host if 'apiRoutes' in svc.get('ingress', {}) else 'http://' + app_host,
+  resource_deps_list = [prefix + '-migrations'] if svc.get('migrations') else []
+  resource_deps_list.append('portless-proxy')
+  wt_dep_name = 'dependencies-wt-' + wt_slug
+  resource_deps_list.append(wt_dep_name)
+
+  local_resource(
+    prefix,
+    serve_cmd='portless %s moon run %s:dev' % (portless_wt_name, moon_project),
+    serve_dir=source_path,
+    serve_env=serve_env_final,
+    deps=[
+      os.path.join(source_path, svc['app_dir'], 'src'),
+      os.path.join(source_path, svc['app_dir'], 'package.json'),
     ],
-    resource_deps=resource_deps,
-    labels=[label]
+    resource_deps=resource_deps_list,
+    allow_parallel=True,
+    links=['http://' + (api_host if service_name == 'api-server' else app_host)],
+    labels=[label],
   )
 
 
@@ -251,8 +205,8 @@ def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_pa
   serve_env = dict(svc.get('serve_env', {}))
 
   if wt_slug:
-    app_host = 'app.wt-' + wt_slug + '.repro.localhost'
-    api_host = 'api.wt-' + wt_slug + '.repro.localhost'
+    app_host = 'app.wt-' + wt_slug + '.repro.localhost:1355'
+    api_host = 'api.wt-' + wt_slug + '.repro.localhost:1355'
     serve_env['REPRO_APP_URL'] = 'http://' + app_host
     serve_env['REPRO_API_URL'] = 'http://' + api_host
 
@@ -339,63 +293,4 @@ def resolve_dependencies(service_config, services):
   return result
 
 
-def register_ingress(wt_slug, service_names, services, infra_dir):
-  """Register a per-worktree gateway with ingress routes.
 
-  For each requested service, the ingress route points to the worktree's
-  service. For services NOT requested, routes fall back to the main
-  checkout's service names (e.g. api-server-service, workspace-service).
-
-  Args:
-    wt_slug: Worktree slug.
-    service_names: List of service names being isolated in this worktree.
-    services: dict of service descriptors keyed by name.
-    infra_dir: Absolute path to the infra/ directory.
-  """
-  app_host = 'app.wt-' + wt_slug + '.repro.localhost'
-  api_host = 'api.wt-' + wt_slug + '.repro.localhost'
-  label = wt_label(wt_slug)
-
-  route_defaults = {
-    'appRoutes': 'workspace',
-    'apiRoutes': 'api-server',
-    'adminRoutes': 'admin',
-  }
-
-  overrides = {}
-  for svc_name in service_names:
-    svc = services.get(svc_name, {})
-    for route_key, suffix in svc.get('ingress', {}).items():
-      overrides[route_key] = wt_name(svc_name, wt_slug) + '-' + suffix
-
-  helm_sets = [
-    'ingress.appRoutes.host=' + app_host,
-    'ingress.apiRoutes.host=' + api_host,
-    'ingress.adminRoutes.host=admin.wt-' + wt_slug + '.repro.localhost',
-  ]
-
-  for route_key, default_svc in route_defaults.items():
-    service_name = overrides.get(route_key, default_svc + '-service')
-    helm_sets.append('ingress.%s.paths[0].path=/(.*)' % route_key)
-    helm_sets.append('ingress.%s.paths[0].pathType=ImplementationSpecific' % route_key)
-    helm_sets.append('ingress.%s.paths[0].serviceName=%s' % (route_key, service_name))
-    helm_sets.append('ingress.%s.paths[0].servicePort=http' % route_key)
-
-  gw_release = wt_name('gateway', wt_slug)
-
-  k8s_yaml(helm(
-    os.path.join(infra_dir, 'apps/gateway/chart'),
-    name=gw_release,
-    set=helm_sets,
-  ))
-
-  k8s_resource(
-    new_name='gateway-ingress-wt-' + wt_slug,
-    objects=[
-      '%s-ingress-app:Ingress:default' % gw_release,
-      '%s-ingress-api:Ingress:default' % gw_release,
-      '%s-ingress-admin:Ingress:default' % gw_release,
-    ],
-    resource_deps=['ingress-admission-ready'],
-    labels=[label]
-  )

@@ -336,57 +336,6 @@ for item in data.get("items", []):
     fi
   fi
 
-  if command -v helm > /dev/null 2>&1 && command -v kubectl > /dev/null 2>&1 && kubectl cluster-info > /dev/null 2>&1; then
-    local helm_releases
-    helm_releases="$(helm list --all-namespaces --output json 2>/dev/null || echo '[]')"
-
-    local wt_releases
-    wt_releases="$(printf '%s' "$helm_releases" | python3 -c '
-import json, sys
-releases = json.load(sys.stdin)
-wt = [r for r in releases if "-wt-" in r.get("name", "")]
-for r in wt:
-    print(r["name"] + "\t" + r.get("namespace", "default"))
-' 2>/dev/null || true)"
-
-    local orphaned_releases=()
-    if [ -n "$wt_releases" ]; then
-      while IFS=$'\t' read -r release_name release_ns; do
-        [ -z "$release_name" ] && continue
-
-        local found=false
-        if [ ${#wt_slugs[@]} -gt 0 ]; then
-          for slug in "${wt_slugs[@]}"; do
-            local expected
-            for svc_base in $(_list_service_names) gateway; do
-              expected="$(python3 "$SCRIPTS_DIR/lib/py/wt_name.py" "$svc_base" "$slug")"
-              if [ "$release_name" = "$expected" ]; then
-                found=true
-                break
-              fi
-            done
-            [ "$found" = true ] && break
-          done
-        fi
-
-        if [ "$found" = false ]; then
-          orphaned_releases+=("$release_name"$'\t'"${release_ns:-default}")
-        fi
-      done <<< "$wt_releases"
-    fi
-
-    if [ ${#orphaned_releases[@]} -gt 0 ]; then
-      for entry in "${orphaned_releases[@]}"; do
-        local release_name release_ns
-        IFS=$'\t' read -r release_name release_ns <<< "$entry"
-        _diag_row "orphan: $release_name" "warn" "no matching worktree"
-        _add_check "orphan_$release_name" "warn" "orphaned Helm release — no matching worktree"
-        _add_issue "warning" "Orphaned Helm release '$release_name' — no matching worktree. Clean up with: helm uninstall $release_name --namespace $release_ns"
-        has_warnings=true
-      done
-    fi
-  fi
-
   _diag_flush
 
   if [ "$CHECKHEALTH_JSON" = true ]; then
