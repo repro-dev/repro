@@ -67,6 +67,7 @@ export function createAgenticRouter(
     app.post<{ Body: z.infer<typeof createResponseSchema.body> }>(
       '/response',
       {
+        schema: createResponseSchema,
         config: {
           rateLimit: {
             max: 30,
