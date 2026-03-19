@@ -12,7 +12,12 @@ import {
 } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
 import { RecordingDataAccessor } from '../types'
-import { estimateTokens } from './token-optimization'
+import {
+  DetailLevel,
+  estimateTokens,
+  shortenStackFrame,
+  truncate,
+} from './token-optimization'
 
 const LOG_LEVEL_MAP: Record<string, LogLevel> = {
   verbose: LogLevel.Verbose,
@@ -191,22 +196,41 @@ const toolHandlers: Record<string, ToolHandler> = {
 
   getConsoleMessages: (recording, args) => {
     const events = recording.getSourceEvents()
+    const detail = (args.detail as DetailLevel) ?? 'normal'
     const logLevelStr = (args.logLevel as string) ?? 'info'
-    const minLevel = LOG_LEVEL_MAP[logLevelStr] ?? LogLevel.Info
     const timeStart = args.timeRangeStartMs as number | undefined
     const timeEnd = args.timeRangeEndMs as number | undefined
 
-    const messages: Array<{
+    const userMinLevel = LOG_LEVEL_MAP[logLevelStr] ?? LogLevel.Info
+
+    let tierMinLevel = userMinLevel
+    if (detail === 'summary') {
+      tierMinLevel = Math.max(userMinLevel, LogLevel.Error)
+    } else if (detail === 'normal') {
+      tierMinLevel = Math.max(userMinLevel, LogLevel.Warning)
+    }
+
+    const TEXT_MAX: Record<DetailLevel, number> = {
+      summary: 100,
+      normal: 200,
+      full: 500,
+    }
+    const STACK_MAX: Record<DetailLevel, number> = {
+      summary: 0,
+      normal: 3,
+      full: 10,
+    }
+
+    const levelSummary = { verbose: 0, info: 0, warning: 0, error: 0 }
+
+    type CollectedMessage = {
       timeMs: number
-      level: string
+      levelName: string
       text: string
-      stack?: Array<{
-        functionName?: string
-        fileName: string
-        line: number
-        column: number
-      }>
-    }> = []
+      stack: string[]
+    }
+
+    const collected: CollectedMessage[] = []
 
     for (let i = 0, len = events.size(); i < len; i++) {
       const event = events.over(i)
@@ -220,28 +244,82 @@ const toolHandlers: Record<string, ToolHandler> = {
       if (timeEnd !== undefined && time > timeEnd) continue
 
       const level = consoleEvent.get('data').get('level').orElse(LogLevel.Info)
-      if (level < minLevel) continue
+      if (level < userMinLevel) continue
+
+      const levelName = LOG_LEVEL_NAMES[level] ?? 'info'
+      if (levelName === 'verbose') levelSummary.verbose++
+      else if (levelName === 'info') levelSummary.info++
+      else if (levelName === 'warning') levelSummary.warning++
+      else if (levelName === 'error') levelSummary.error++
+
+      if (level < tierMinLevel) continue
 
       const parts = consoleEvent.get('data').get('parts').orElse([])
-      const text = parts.map(serializeMessagePart).join(' ')
+      const rawText = parts.map(serializeMessagePart).join(' ')
+      const text = truncate(rawText, TEXT_MAX[detail])
 
       const stackEntries = consoleEvent.get('data').get('stack').orElse([])
-      const stack = stackEntries.map(entry => ({
-        functionName: entry.functionName ?? undefined,
-        fileName: entry.fileName,
-        line: entry.lineNumber,
-        column: entry.columnNumber,
-      }))
+      const maxFrames = STACK_MAX[detail]
+      const stack =
+        maxFrames === 0
+          ? []
+          : stackEntries.slice(0, maxFrames).map(entry =>
+              shortenStackFrame(
+                `${entry.fileName}:${entry.lineNumber}:${entry.columnNumber}`
+              )
+            )
 
-      messages.push({
-        timeMs: time,
-        level: LOG_LEVEL_NAMES[level] ?? 'info',
-        text,
-        ...(stack.length > 0 ? { stack } : {}),
-      })
+      collected.push({ timeMs: time, levelName, text, stack })
     }
 
-    return { messages }
+    type OutputMessage = {
+      timeMs: number
+      level: string
+      text: string
+      stack?: string[]
+      count?: number
+    }
+
+    let messages: OutputMessage[]
+
+    if (detail === 'full') {
+      messages = collected.map(m => {
+        const msg: OutputMessage = {
+          timeMs: m.timeMs,
+          level: m.levelName,
+          text: m.text,
+        }
+        if (m.stack.length > 0) msg.stack = m.stack
+        return msg
+      })
+    } else {
+      const dedupMap = new Map<string, OutputMessage>()
+      for (const m of collected) {
+        const existing = dedupMap.get(m.text)
+        if (existing) {
+          existing.count = (existing.count ?? 1) + 1
+        } else {
+          const msg: OutputMessage = {
+            timeMs: m.timeMs,
+            level: m.levelName,
+            text: m.text,
+            count: 1,
+          }
+          if (m.stack.length > 0) msg.stack = m.stack
+          dedupMap.set(m.text, msg)
+        }
+      }
+      messages = Array.from(dedupMap.values())
+      if (detail === 'summary') {
+        messages = messages.slice(0, 3)
+      }
+    }
+
+    const response = {
+      messages,
+      summary: levelSummary,
+    }
+    return { ...response, _tokenEstimate: estimateTokens(response) }
   },
 
   getNetworkRequests: (recording, args) => {
