@@ -1,0 +1,36 @@
+import { Col } from '@jsxstyle/react'
+import { color, radius, spacing } from '@repro/design'
+import React from 'react'
+import { ToolCallPair } from '../utils/groupToolCalls'
+import { ToolCallRow } from './ToolCallRow'
+
+interface ToolCallGroupProps {
+  pairs: Array<ToolCallPair>
+  isExecuting: boolean
+}
+
+export const ToolCallGroup: React.FC<ToolCallGroupProps> = ({
+  pairs,
+  isExecuting,
+}) => {
+  return (
+    <Col
+      backgroundColor={color.bg.subtle}
+      borderColor={color.border.default}
+      borderStyle="solid"
+      borderWidth={1}
+      borderRadius={radius.md}
+      padding={spacing.sm}
+      gap={spacing.xs}
+    >
+      {pairs.map(pair => (
+        <ToolCallRow
+          key={pair.toolCall.id}
+          toolName={pair.toolCall.function.name}
+          result={pair.result}
+          isExecuting={isExecuting}
+        />
+      ))}
+    </Col>
+  )
+}

@@ -7,3 +7,4 @@ export {
   validatePlanConfig,
 } from './planConfig'
 export { seedPlans } from './seedPlans'
+export { createStubPaddleClient } from './stubPaddleClient'

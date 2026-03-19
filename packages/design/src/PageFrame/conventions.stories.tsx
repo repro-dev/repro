@@ -39,9 +39,7 @@ const FakeLink = React.forwardRef<
 >((props, ref) => <a ref={ref} {...props} />)
 FakeLink.displayName = 'FakeLink'
 
-const SampleShell: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => (
+const SampleShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <AppShell>
     <AppShell.Sidebar
       header={<Logo size={28} />}

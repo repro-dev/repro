@@ -117,10 +117,14 @@ function asBillingSubscription(row: {
   }
 }
 
-export function createBillingService(database: Database, env: Env) {
-  let paddleClient: PaddleClient | null = null
+export function createBillingService(
+  database: Database,
+  env: Env,
+  injectedPaddleClient?: PaddleClient
+) {
+  let paddleClient: PaddleClient | null = injectedPaddleClient ?? null
 
-  if (!env.BILLING_STUBBED) {
+  if (!paddleClient && !env.BILLING_STUBBED) {
     if (!env.PADDLE_API_KEY || !env.PADDLE_WEBHOOK_SECRET) {
       throw new Error(
         'PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET are required when BILLING_STUBBED=false'

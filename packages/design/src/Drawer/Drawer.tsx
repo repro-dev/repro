@@ -1,7 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
+import { useFocusTrap } from '@repro/a11y'
 import { X as CloseIcon } from 'lucide-react'
 import React, { PropsWithChildren, useCallback, useEffect } from 'react'
-import { useFocusTrap } from '@repro/a11y'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'

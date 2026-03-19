@@ -134,8 +134,7 @@ const GET_NETWORK_REQUESTS = {
         },
         timeRangeStartMs: {
           type: 'number',
-          description:
-            'Start of time range in ms from recording start.',
+          description: 'Start of time range in ms from recording start.',
         },
         timeRangeEndMs: {
           type: 'number',
@@ -251,16 +250,19 @@ const toolHandlers: Record<string, ToolHandler> = {
           group.request.method.toUpperCase() !== method.toUpperCase()
         )
           continue
-        if (
-          urlPattern !== undefined &&
-          !group.request.url.includes(urlPattern)
-        )
+        if (urlPattern !== undefined && !group.request.url.includes(urlPattern))
           continue
 
         const status = group.response?.status
-        if (statusMin !== undefined && (status === undefined || status < statusMin))
+        if (
+          statusMin !== undefined &&
+          (status === undefined || status < statusMin)
+        )
           continue
-        if (statusMax !== undefined && (status === undefined || status > statusMax))
+        if (
+          statusMax !== undefined &&
+          (status === undefined || status > statusMax)
+        )
           continue
 
         requests.push({
@@ -295,9 +297,7 @@ const toolHandlers: Record<string, ToolHandler> = {
           type: 'ws',
           url: group.open.url,
           durationMs:
-            group.closeTime !== undefined
-              ? group.closeTime - time
-              : undefined,
+            group.closeTime !== undefined ? group.closeTime - time : undefined,
         })
       }
     }
