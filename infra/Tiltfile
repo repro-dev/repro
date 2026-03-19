@@ -20,8 +20,6 @@ load(
   './tilt-lib/worktree.Tiltfile',
   'is_worktree',
 )
-load('ext://helm_resource', 'helm_resource', 'helm_repo')
-
 config.define_string_list('groups', args=True)
 cfg = config.parse()
 
