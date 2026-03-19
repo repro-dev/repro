@@ -1,44 +1,10 @@
-load('ext://helm_resource', 'helm_resource', 'helm_repo')
-
-helm_repo(
-    'ingress-nginx',
-    'https://kubernetes.github.io/ingress-nginx',
-    labels=['infra']
-)
-
-helm_resource(
-    name='ingress-controller',
-    chart='ingress-nginx/ingress-nginx',
-    namespace='default',
-    flags=[
-      '--set=controller.config.use-http2=false',
-      '--set=controller.hostPort.enabled=true',
-      '--set=controller.service.type=NodePort'
-    ],
-    resource_deps=['ingress-nginx'],
-    labels=['infra']
-)
-
 local_resource(
-    'ingress-admission-ready',
-    # Waits for the controller deployment to be available and the admission endpoint to publish ready addresses, which prevents initial ingress webhook failures.
-    cmd='kubectl wait --namespace default --for=condition=available deployment/ingress-controller-ingress-nginx-controller --timeout=120s && kubectl wait --namespace default --for=jsonpath="{.subsets[*].addresses[*].ip}" endpoints/ingress-controller-ingress-nginx-controller-admission --timeout=120s',
-    resource_deps=['ingress-controller'],
-    labels=['infra']
-)
-
-k8s_yaml(helm(
-  './chart',
-  name='gateway',
-))
-
-k8s_resource(
-  new_name='gateway-ingress',
-  objects=[
-    'gateway-ingress-app:Ingress:default',
-    'gateway-ingress-api:Ingress:default',
-    'gateway-ingress-admin:Ingress:default'
-  ],
-  resource_deps=['ingress-admission-ready'],
-  labels=['infra']
+    'portless-proxy',
+    serve_cmd='portless proxy start --foreground',
+    readiness_probe=probe(
+        tcp_socket=tcp_socket_action(port=1355),
+        initial_delay_secs=1,
+        period_secs=5,
+    ),
+    labels=['infra'],
 )

@@ -121,8 +121,8 @@ cmd_checkhealth() {
     has_errors=true
   fi
 
-  local ports=(80 443 15432)
-  local port_names=("HTTP/ingress" "HTTPS/ingress" "PostgreSQL")
+  local ports=(1355 15432)
+  local port_names=("portless proxy" "PostgreSQL")
   if command -v lsof > /dev/null 2>&1; then
     for i in "${!ports[@]}"; do
       local port="${ports[$i]}"

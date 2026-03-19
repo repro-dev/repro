@@ -36,7 +36,7 @@ _ingress_service_url() {
       ;;
   esac
 
-  echo "http://${host}"
+  echo "http://${host}:1355"
 }
 
 _local_service_url() {

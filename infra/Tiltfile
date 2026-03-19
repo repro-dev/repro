@@ -211,7 +211,7 @@ else:
       'storage',
       'database',
       'api-server',
-      'gateway-ingress',
+      'portless-proxy',
     ],
 
     'workspace': [
@@ -219,7 +219,7 @@ else:
       'database',
       'api-server',
       'workspace',
-      'gateway-ingress',
+      'portless-proxy',
     ]
   }
 

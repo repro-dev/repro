@@ -26,18 +26,35 @@
   },
 
   "workspace": {
+    "type": "local",
     "moon_project": "repro/workspace",
-    "docker_target": "workspace",
-    "chart": "apps/workspace/chart",
     "app_dir": "apps/workspace",
-    "helm_sets": [
-      "vars.PORT=8080"
-    ],
-    "helm_env_sets": {},
-    "migrations": null,
-    "ingress": {
-      "appRoutes": "service"
+    "serve_cmd": "portless app.repro moon run repro/workspace:dev",
+    "serve_env": {
+      "BUILD_ENV": "development",
+      "REPRO_APP_URL": "http://app.repro.localhost:1355",
+      "REPRO_API_URL": "http://api.repro.localhost:1355"
     },
+    "resource_deps": ["dependencies", "portless-proxy"],
+    "labels": ["app"],
+    "portless_name": "app.repro",
+    "deps": ["api-server"]
+  },
+
+  "admin": {
+    "type": "local",
+    "moon_project": "repro/admin",
+    "app_dir": "apps/admin",
+    "serve_cmd": "portless admin.repro moon run repro/admin:dev",
+    "serve_env": {
+      "BUILD_ENV": "development",
+      "REPRO_WORKSPACE_URL": "http://app.repro.localhost:1355",
+      "REPRO_ADMIN_URL": "http://admin.repro.localhost:1355",
+      "REPRO_API_URL": "http://api.repro.localhost:1355"
+    },
+    "resource_deps": ["dependencies", "portless-proxy"],
+    "labels": ["app"],
+    "portless_name": "admin.repro",
     "deps": ["api-server"]
   },
 

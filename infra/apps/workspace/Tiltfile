@@ -1,79 +1,20 @@
 PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
 
-load('../../tilt-lib/dependency_graph.Tiltfile', 'dependency_sync_paths', 'dependency_watch_paths', 'non_dependency_ignore_patterns')
-
-docker_build(
-  'workspace',
-  PROJECT_ROOT,
-  dockerfile='../../Dockerfile',
-  target="workspace",
-
-  build_args={
-    'MOON_SCAFFOLD_PROJECTS': 'repro/workspace',
-  },
-
-  entrypoint=["moon", "run", "repro/workspace:dev"],
-  ignore=[
-    'infra',
-    'dist',
-    'build',
-    'node_modules',
-  ] + non_dependency_ignore_patterns('repro/workspace', PROJECT_ROOT) + [
-    '**/*.test.ts',
-    '**/*.test.tsx',
-    '**/*.spec.ts',
-    '**/*.spec.tsx',
-    '**/fixtures/**',
-    '**/mocks/**',
-    '**/test-data/**',
-    '**/*.stories.tsx',
-    '**/*.stories.ts',
-    '**/*.demo.tsx',
-    '**/*.md',
-    '*.md',
-    '*.MD',
-    '.DS_Store',
-    '*.swp',
-    '*.swo',
-    '*~',
-    '*.log',
-  ],
-  live_update=[
-    fall_back_on([
-      os.path.join(PROJECT_ROOT, 'apps/workspace/package.json'),
-      os.path.join(PROJECT_ROOT, 'apps/workspace/moon.yml'),
-      os.path.join(PROJECT_ROOT, 'apps/workspace/tsconfig.json'),
-    ] + dependency_watch_paths('repro/workspace', PROJECT_ROOT) + [
-      os.path.join(PROJECT_ROOT, 'pnpm-lock.yaml'),
-    ]),
-
-    sync(
-      os.path.join(PROJECT_ROOT, 'apps/workspace/src'),
-      '/app/apps/workspace/src'
-    ),
-
-  ] + [
-    sync(path, '/app/' + path.removeprefix(PROJECT_ROOT + '/'))
-    for path in dependency_sync_paths('repro/workspace', PROJECT_ROOT)
-  ]
-)
-
-k8s_yaml(helm(
-  './chart',
-  name='workspace',
-  set=[
-    'container.image=workspace',
-    'vars.REPRO_APP_URL=http://app.repro.localhost',
-    'vars.REPRO_API_URL=http://api.repro.localhost',
-    'vars.PORT=8080'
-  ]
-))
-
-k8s_resource(
-  'workspace-deployment',
-  new_name='workspace',
-  links=[
-    'http://app.repro.localhost',
-  ],
-  labels=['app']
+local_resource(
+    'workspace',
+    serve_cmd='portless app.repro moon run repro/workspace:dev',
+    serve_dir=PROJECT_ROOT,
+    serve_env={
+        'BUILD_ENV': 'development',
+        'REPRO_APP_URL': 'http://app.repro.localhost:1355',
+        'REPRO_API_URL': 'http://api.repro.localhost:1355',
+    },
+    deps=[
+        os.path.join(PROJECT_ROOT, 'apps/workspace/src'),
+        os.path.join(PROJECT_ROOT, 'apps/workspace/package.json'),
+    ],
+    resource_deps=['dependencies', 'portless-proxy'],
+    allow_parallel=True,
+    links=['http://app.repro.localhost:1355'],
+    labels=['app'],
 )
