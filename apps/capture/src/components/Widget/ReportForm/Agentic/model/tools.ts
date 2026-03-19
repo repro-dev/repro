@@ -3,6 +3,7 @@ import {
   DateMessagePart,
   LogLevel,
   MessagePartType,
+  NodeType,
   SourceEvent,
   SourceEventType,
 } from '@repro/domain'
@@ -11,7 +12,12 @@ import {
   groupNetworkEvents,
 } from '@repro/source-utils'
 import { Box } from '@repro/tdl'
+import { buildA11yTree, formatA11yTree } from '@repro/vdom-utils'
 import { RecordingDataAccessor } from '../types'
+
+function estimateTokens(obj: unknown): number {
+  return Math.ceil(JSON.stringify(obj).length / 4)
+}
 
 const LOG_LEVEL_MAP: Record<string, LogLevel> = {
   verbose: LogLevel.Verbose,
@@ -145,10 +151,37 @@ const GET_NETWORK_REQUESTS = {
   },
 }
 
+const GET_DOM_STATE = {
+  type: 'function',
+  function: {
+    name: 'getDOMState',
+    description:
+      'Get the state of the DOM at a specific timestamp, either as an accessibility tree (a11y mode) or a summary of element counts (summary mode).',
+    parameters: {
+      type: 'object',
+      properties: {
+        timestampMs: {
+          type: 'number',
+          description:
+            'Timestamp in milliseconds from the start of the recording.',
+        },
+        mode: {
+          type: 'string',
+          enum: ['a11y', 'summary'],
+          default: 'a11y',
+          description:
+            'The mode for DOM state output. Use "a11y" for accessibility tree, "summary" for element counts.',
+        },
+      },
+    },
+  },
+}
+
 export const tools = [
   GET_RECORDING_DURATION,
   GET_CONSOLE_MESSAGES,
   GET_NETWORK_REQUESTS,
+  GET_DOM_STATE,
 ]
 
 export type ToolHandler = (
@@ -303,6 +336,64 @@ const toolHandlers: Record<string, ToolHandler> = {
     }
 
     return { requests }
+  },
+
+  getDOMState: (recording, args) => {
+    const timestampMs = (args.timestampMs as number) ?? 0
+    const mode = (args.mode as string) ?? 'a11y'
+    const snapshot = recording.getSnapshotAtTime(timestampMs)
+
+    if (!snapshot || !snapshot.dom) {
+      const err = { error: 'No DOM snapshot available at this timestamp' }
+      return { ...err, _tokenEstimate: estimateTokens(err) }
+    }
+
+    const vtree = snapshot.dom
+
+    if (mode === 'a11y') {
+      const tree = buildA11yTree(vtree)
+
+      if (!tree) {
+        const err = { error: 'Could not build accessibility tree' }
+        return { ...err, _tokenEstimate: estimateTokens(err) }
+      }
+
+      const formatted = formatA11yTree(tree)
+      const result = { mode: 'a11y' as const, tree: formatted, timestampMs }
+      return { ...result, _tokenEstimate: estimateTokens(result) }
+    }
+
+    let elementCount = 0
+    let textCount = 0
+    const tagCounts: Record<string, number> = {}
+
+    for (const node of Object.values(vtree.nodes)) {
+      if (node.match(n => n.type === NodeType.Element)) {
+        elementCount++
+        const tagName = (
+          node as Box<{ type: typeof NodeType.Element; tagName: string }>
+        )
+          .get('tagName')
+          .orElse('unknown')
+        tagCounts[tagName] = (tagCounts[tagName] ?? 0) + 1
+      } else if (node.match(n => n.type === NodeType.Text)) {
+        textCount++
+      }
+    }
+
+    const topTags = Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([tag, count]) => ({ tag, count }))
+
+    const result = {
+      mode: 'summary' as const,
+      elementCount,
+      textCount,
+      topTags,
+      timestampMs,
+    }
+    return { ...result, _tokenEstimate: estimateTokens(result) }
   },
 }
 

@@ -1,6 +1,8 @@
 import {
   NetworkMessageType,
+  NodeType,
   RequestType,
+  Snapshot,
   SourceEventType,
   SourceEventView,
 } from '@repro/domain'
@@ -12,16 +14,51 @@ import { executeTool, tools } from './tools'
 
 function makeAccessor(
   events: List<SourceEventView>,
-  duration?: number
+  duration?: number,
+  snapshotFn?: (timestampMs: number) => Snapshot | null
 ): RecordingDataAccessor {
   return {
     getSourceEvents: () => events,
     getDuration: () => duration ?? 0,
+    getSnapshotAtTime: snapshotFn ?? (() => null),
   }
 }
 
 function makeEmptyAccessor(): RecordingDataAccessor {
   return makeAccessor(new List(SourceEventView, []))
+}
+
+function makeSimpleSnapshot(): Snapshot {
+  return {
+    dom: {
+      rootId: 'root',
+      nodes: {
+        root: new Box({
+          type: NodeType.Document as NodeType.Document,
+          id: 'root',
+          parentId: null,
+          children: ['btn'],
+        }),
+        btn: new Box({
+          type: NodeType.Element as NodeType.Element,
+          id: 'btn',
+          parentId: 'root',
+          tagName: 'button',
+          children: ['txt'],
+          attributes: { 'aria-label': 'Submit' },
+          properties: { value: null, checked: null, selectedIndex: null },
+          shadowRoot: false,
+        }),
+        txt: new Box({
+          type: NodeType.Text as NodeType.Text,
+          id: 'txt',
+          parentId: 'btn',
+          value: 'Submit',
+        }),
+      },
+    },
+    interaction: null,
+  }
 }
 
 function makeFetchRequestEvent(
@@ -503,5 +540,101 @@ describe('executeTool — getNetworkRequests', () => {
     assert.deepStrictEqual(result.requests[0]!.responseHeaders, {
       'content-type': 'application/json',
     })
+  })
+})
+
+describe('executeTool — getDOMState', () => {
+  it('returns error when no snapshot available', () => {
+    const accessor = makeEmptyAccessor()
+    const result = executeTool(accessor, 'getDOMState', {
+      timestampMs: 1000,
+    }) as { error: string }
+    assert.ok(typeof result.error === 'string')
+    assert.ok(result.error.includes('No DOM snapshot'))
+  })
+
+  it('returns a11y tree for simple DOM in a11y mode', () => {
+    const accessor = makeAccessor(
+      new List(SourceEventView, []),
+      0,
+      () => makeSimpleSnapshot()
+    )
+    const result = executeTool(accessor, 'getDOMState', {
+      timestampMs: 0,
+      mode: 'a11y',
+    }) as { mode: string; tree: string; timestampMs: number }
+    assert.strictEqual(result.mode, 'a11y')
+    assert.ok(typeof result.tree === 'string')
+    assert.ok(result.tree.includes('button'))
+    assert.strictEqual(result.timestampMs, 0)
+  })
+
+  it('defaults to a11y mode when mode not specified', () => {
+    const accessor = makeAccessor(
+      new List(SourceEventView, []),
+      0,
+      () => makeSimpleSnapshot()
+    )
+    const result = executeTool(accessor, 'getDOMState', {
+      timestampMs: 500,
+    }) as { mode: string }
+    assert.strictEqual(result.mode, 'a11y')
+  })
+
+  it('returns summary mode with element counts', () => {
+    const accessor = makeAccessor(
+      new List(SourceEventView, []),
+      0,
+      () => makeSimpleSnapshot()
+    )
+    const result = executeTool(accessor, 'getDOMState', {
+      timestampMs: 0,
+      mode: 'summary',
+    }) as {
+      mode: string
+      elementCount: number
+      textCount: number
+      topTags: Array<{ tag: string; count: number }>
+    }
+    assert.strictEqual(result.mode, 'summary')
+    assert.ok(typeof result.elementCount === 'number')
+    assert.ok(result.elementCount > 0)
+    assert.ok(Array.isArray(result.topTags))
+  })
+
+  it('includes _tokenEstimate in a11y mode response', () => {
+    const accessor = makeAccessor(
+      new List(SourceEventView, []),
+      0,
+      () => makeSimpleSnapshot()
+    )
+    const result = executeTool(accessor, 'getDOMState', {
+      timestampMs: 0,
+      mode: 'a11y',
+    }) as { _tokenEstimate: number }
+    assert.ok(typeof result._tokenEstimate === 'number')
+    assert.ok(result._tokenEstimate > 0)
+  })
+
+  it('includes _tokenEstimate in summary mode response', () => {
+    const accessor = makeAccessor(
+      new List(SourceEventView, []),
+      0,
+      () => makeSimpleSnapshot()
+    )
+    const result = executeTool(accessor, 'getDOMState', {
+      timestampMs: 0,
+      mode: 'summary',
+    }) as { _tokenEstimate: number }
+    assert.ok(typeof result._tokenEstimate === 'number')
+    assert.ok(result._tokenEstimate > 0)
+  })
+
+  it('tool definition is included in tools array', () => {
+    const def = tools.find(
+      t =>
+        (t as { function: { name: string } }).function.name === 'getDOMState'
+    )
+    assert.ok(def !== undefined)
   })
 })
