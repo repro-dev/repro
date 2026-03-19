@@ -3,6 +3,8 @@ import {
   FX,
   color,
   focusRing,
+  fontFamily,
+  fontSize,
   radius,
   spacing,
   textStyles,
@@ -56,7 +58,13 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
           <WrenchIcon size={12} color={color.text.muted} />
         </Row>
 
-        <Block {...textStyles.code} color={color.text.secondary} flexShrink={0}>
+        <Block
+          fontSize={fontSize.xs}
+          fontFamily={fontFamily.mono}
+          color={color.text.secondary}
+          flexGrow={1}
+          textAlign="left"
+        >
           {toolName}
         </Block>
 
@@ -75,10 +83,10 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
           <Block
             {...textStyles.caption}
             color={color.text.muted}
-            flex={1}
             overflow="hidden"
             textOverflow="ellipsis"
             whiteSpace="nowrap"
+            flexShrink={1}
           >
             {summary}
           </Block>
@@ -96,7 +104,8 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
 
       {expanded && result !== null && (
         <Block
-          {...textStyles.code}
+          fontSize={fontSize.xs}
+          fontFamily={fontFamily.mono}
           color={color.text.secondary}
           backgroundColor={color.bg.muted}
           borderRadius={radius.sm}
