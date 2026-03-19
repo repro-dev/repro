@@ -1,12 +1,13 @@
 import { IfSession, UnlessSession, UserMenu } from '@repro/auth'
 import { AppShell, Link, SideNav } from '@repro/design'
-import { PlayIcon } from 'lucide-react'
+import { PlayIcon, ZapIcon } from 'lucide-react'
 import React from 'react'
 import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
 import { WorkspaceHeader } from '~/components/WorkspaceHeader'
 
 export const Layout: React.FC = () => {
   const sessionsActive = useMatch({ path: '/', end: true })
+  const pricingActive = useMatch({ path: '/pricing', end: true })
 
   return (
     <AppShell>
@@ -26,6 +27,13 @@ export const Layout: React.FC = () => {
               active={!!sessionsActive}
               component={RouterNavLink}
               props={{ to: '/' }}
+            />
+            <SideNav.Item
+              icon={ZapIcon}
+              label="Plans"
+              active={!!pricingActive}
+              component={RouterNavLink}
+              props={{ to: '/pricing' }}
             />
           </SideNav>
         </IfSession>
