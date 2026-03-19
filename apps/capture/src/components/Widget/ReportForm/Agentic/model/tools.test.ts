@@ -135,6 +135,64 @@ describe('tools', () => {
     )
     assert.ok(def !== undefined)
   })
+
+  it('getRecordingDuration tool includes detail parameter', () => {
+    const def = tools.find(
+      t =>
+        (t as { function: { name: string } }).function.name ===
+        'getRecordingDuration'
+    ) as {
+      function: {
+        parameters: { properties: Record<string, { type: string; enum?: string[] }> }
+      }
+    }
+    assert.ok(def !== undefined)
+    assert.ok(def.function.parameters !== undefined)
+    assert.ok(def.function.parameters.properties.detail !== undefined)
+    assert.deepStrictEqual(def.function.parameters.properties.detail.enum, [
+      'summary',
+      'normal',
+      'full',
+    ])
+  })
+
+  it('getConsoleMessages tool includes detail parameter', () => {
+    const def = tools.find(
+      t =>
+        (t as { function: { name: string } }).function.name ===
+        'getConsoleMessages'
+    ) as {
+      function: {
+        parameters: { properties: Record<string, { type: string; enum?: string[] }> }
+      }
+    }
+    assert.ok(def !== undefined)
+    assert.ok(def.function.parameters.properties.detail !== undefined)
+    assert.deepStrictEqual(def.function.parameters.properties.detail.enum, [
+      'summary',
+      'normal',
+      'full',
+    ])
+  })
+
+  it('getNetworkRequests tool includes detail parameter', () => {
+    const def = tools.find(
+      t =>
+        (t as { function: { name: string } }).function.name ===
+        'getNetworkRequests'
+    ) as {
+      function: {
+        parameters: { properties: Record<string, { type: string; enum?: string[] }> }
+      }
+    }
+    assert.ok(def !== undefined)
+    assert.ok(def.function.parameters.properties.detail !== undefined)
+    assert.deepStrictEqual(def.function.parameters.properties.detail.enum, [
+      'summary',
+      'normal',
+      'full',
+    ])
+  })
 })
 
 describe('executeTool — unknown tool', () => {
@@ -152,8 +210,19 @@ describe('executeTool — getRecordingDuration', () => {
     const accessor = makeAccessor(new List(SourceEventView, []), 9876)
     const result = executeTool(accessor, 'getRecordingDuration', {}) as {
       durationMs: number
+      _tokenEstimate: number
     }
     assert.strictEqual(result.durationMs, 9876)
+  })
+
+  it('includes _tokenEstimate in response', () => {
+    const accessor = makeAccessor(new List(SourceEventView, []), 9876)
+    const result = executeTool(accessor, 'getRecordingDuration', {}) as {
+      durationMs: number
+      _tokenEstimate: number
+    }
+    assert.ok(typeof result._tokenEstimate === 'number')
+    assert.ok(result._tokenEstimate > 0)
   })
 })
 
