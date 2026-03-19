@@ -1,10 +1,12 @@
 import { Block, Col } from '@jsxstyle/react'
 import { Md } from '@m2d/react-markdown'
 import { colors } from '@repro/design'
-import React from 'react'
+import React, { useMemo } from 'react'
 import { INPUT_CONTAINER_OFFSET_PX } from '../constants'
 import { EmptyState } from '../EmptyState'
 import { Entry, Loading } from '../types'
+import { groupToolCalls } from '../utils/groupToolCalls'
+import { ToolCallGroup } from './ToolCallGroup'
 
 interface MessageListProps {
   entries: Array<Entry>
@@ -19,6 +21,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   scrollContainerRef,
   contentContainerRef,
 }) => {
+  const renderItems = useMemo(() => groupToolCalls(entries), [entries])
+
   return (
     <Block
       blockSize={
@@ -37,30 +41,44 @@ export const MessageList: React.FC<MessageListProps> = ({
       <Col gap={10} minBlockSize="100%" props={{ ref: contentContainerRef }}>
         {entries.length === 0 && <EmptyState />}
 
-        {entries.map(entry => (
-          <Col key={entry.id} lineHeight={1.5}>
-            {entry.role === 'assistant' && (
-              <Block>
-                <Md>{entry.content}</Md>
-              </Block>
-            )}
+        {renderItems.map(item => {
+          if (item.type === 'user-message') {
+            return (
+              <Col key={item.entry.id} lineHeight={1.5}>
+                <Block
+                  marginInlineStart={30}
+                  paddingInline={10}
+                  backgroundColor={colors.blue['50']}
+                  borderColor={colors.blue['100']}
+                  borderStyle="solid"
+                  borderWidth={0}
+                  borderBlockEndWidth={3}
+                  borderRadius={8}
+                >
+                  <Md>{item.entry.content}</Md>
+                </Block>
+              </Col>
+            )
+          }
 
-            {entry.role === 'user' && (
-              <Block
-                marginInlineStart={30}
-                paddingInline={10}
-                backgroundColor={colors.blue['50']}
-                borderColor={colors.blue['100']}
-                borderStyle="solid"
-                borderWidth={0}
-                borderBlockEndWidth={3}
-                borderRadius={8}
-              >
-                <Md>{entry.content}</Md>
-              </Block>
-            )}
-          </Col>
-        ))}
+          if (item.type === 'assistant-message') {
+            return (
+              <Col key={item.entry.id} lineHeight={1.5}>
+                <Block>
+                  <Md>{item.entry.content}</Md>
+                </Block>
+              </Col>
+            )
+          }
+
+          return (
+            <ToolCallGroup
+              key={`tool-group-${item.pairs[0]?.toolCall.id}`}
+              pairs={item.pairs}
+              isExecuting={loading === 'tool-executing'}
+            />
+          )
+        })}
       </Col>
     </Block>
   )
