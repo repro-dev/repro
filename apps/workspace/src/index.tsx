@@ -91,7 +91,6 @@ if (rootElem) {
                         element={<RecordingRoute />}
                       />
                     </Route>
-
                   </Routes>
                 </Suspense>
               </PortalRootProvider>
