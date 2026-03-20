@@ -22,10 +22,6 @@ import {
   truncate,
 } from './token-optimization'
 
-function estimateTokens(obj: unknown): number {
-  return Math.ceil(JSON.stringify(obj).length / 4)
-}
-
 const LOG_LEVEL_MAP: Record<string, LogLevel> = {
   verbose: LogLevel.Verbose,
   info: LogLevel.Info,
@@ -210,11 +206,36 @@ const GET_DOM_STATE = {
   },
 }
 
+const FIND_ERRORS = {
+  type: 'function',
+  function: {
+    name: 'findErrors',
+    description:
+      'Find all errors in the recording — console errors and failed network requests — sorted chronologically. Use this as the first tool to understand what went wrong.',
+    parameters: {
+      type: 'object',
+      properties: {
+        timeRangeStartMs: {
+          type: 'number',
+          description:
+            'Start of time range in ms from recording start. If omitted, defaults to recording start.',
+        },
+        timeRangeEndMs: {
+          type: 'number',
+          description:
+            'End of time range in ms from recording start. If omitted, defaults to recording end.',
+        },
+      },
+    },
+  },
+}
+
 export const tools = [
   GET_RECORDING_DURATION,
   GET_CONSOLE_MESSAGES,
   GET_NETWORK_REQUESTS,
   GET_DOM_STATE,
+  FIND_ERRORS,
 ]
 
 const ALLOWED_HEADERS = ['content-type', 'x-request-id']
@@ -614,6 +635,90 @@ const toolHandlers: Record<string, ToolHandler> = {
       timestampMs,
     }
     return { ...result, _tokenEstimate: estimateTokens(result) }
+  },
+
+  findErrors: (recording, args) => {
+    const events = recording.getSourceEvents()
+    const timeStart = args.timeRangeStartMs as number | undefined
+    const timeEnd = args.timeRangeEndMs as number | undefined
+
+    const errors: Array<{
+      time: number
+      source: 'console' | 'network'
+      summary: string
+      stack?: string[]
+    }> = []
+
+    for (let i = 0, len = events.size(); i < len; i++) {
+      const event = events.over(i)
+      if (!event) continue
+      if (!isConsoleEvent(event)) continue
+
+      const consoleEvent: Box<ConsoleEvent> = event
+      const time = consoleEvent.get('time').orElse(0)
+      if (timeStart !== undefined && time < timeStart) continue
+      if (timeEnd !== undefined && time > timeEnd) continue
+
+      const level = consoleEvent.get('data').get('level').orElse(LogLevel.Info)
+      if (level !== LogLevel.Error) continue
+
+      const parts = consoleEvent.get('data').get('parts').orElse([])
+      const text = parts.map(serializeMessagePart).join(' ')
+      const summary = text.length > 200 ? text.slice(0, 200) + '…' : text
+
+      const stackEntries = consoleEvent.get('data').get('stack').orElse([])
+      const stack = stackEntries.slice(0, 3).map(entry => {
+        const fileName = entry.fileName
+        const basename = fileName.split('/').pop() ?? fileName
+        return `${basename}:${entry.lineNumber}:${entry.columnNumber}`
+      })
+
+      errors.push({
+        time,
+        source: 'console',
+        summary,
+        ...(stack.length > 0 ? { stack } : {}),
+      })
+    }
+
+    const indexed = findIndexedNetworkEvents(events)
+    const groups = groupNetworkEvents(indexed)
+
+    for (const group of groups) {
+      if (group.type !== 'fetch') continue
+      if (!group.response || group.response.status < 400) continue
+
+      const time = group.requestTime
+      if (timeStart !== undefined && time < timeStart) continue
+      if (timeEnd !== undefined && time > timeEnd) continue
+
+      let pathname: string
+      try {
+        pathname = new URL(group.request.url).pathname
+      } catch {
+        pathname = group.request.url
+      }
+
+      errors.push({
+        time,
+        source: 'network',
+        summary: `${group.request.method} ${pathname} → ${group.response.status}`,
+      })
+    }
+
+    errors.sort((a, b) => a.time - b.time)
+
+    const consoleCount = errors.filter(e => e.source === 'console').length
+    const networkCount = errors.filter(e => e.source === 'network').length
+
+    return {
+      errors,
+      summary: {
+        console: consoleCount,
+        network: networkCount,
+        total: consoleCount + networkCount,
+      },
+    }
   },
 }
 

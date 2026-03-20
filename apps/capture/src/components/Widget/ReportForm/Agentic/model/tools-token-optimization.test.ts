@@ -17,6 +17,7 @@ function makeAccessor(
   return {
     getSourceEvents: () => events,
     getDuration: () => duration ?? 0,
+    getSnapshotAtTime: () => null,
   }
 }
 
