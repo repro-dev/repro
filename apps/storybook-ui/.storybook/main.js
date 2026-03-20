@@ -21,10 +21,10 @@ const config = {
       "process.env.REPRO_APP_URL": JSON.stringify(""),
     };
 
-    // In pnpm monorepos, the MDX compiler can inject file:// URLs for the
-    // mdx-react-shim import, which Rollup cannot resolve. This plugin
-    // rewrites those file:// imports back to bare filesystem paths.
+    const tailwindcss = (await import("@tailwindcss/vite")).default;
+
     config.plugins = [
+      tailwindcss(),
       ...(config.plugins ?? []),
       {
         name: "resolve-file-urls",

@@ -1,3 +1,4 @@
+import './tailwind.css'
 import { Block, Grid, Row } from '@jsxstyle/react'
 import { Card, Logo, colors } from '@repro/design'
 import { DevTools, EventHighlights } from '@repro/devtools'

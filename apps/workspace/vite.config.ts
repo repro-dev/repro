@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
+import tailwindcss from '@tailwindcss/vite'
 import { defineConfig, Plugin } from 'vite'
 
 function htmlEnvPlugin(envVars: Record<string, string>): Plugin {
@@ -49,6 +50,7 @@ const envVars = Object.fromEntries(
 
 export default defineConfig(({ mode }) => ({
   plugins: [
+    tailwindcss(),
     react(),
     htmlEnvPlugin(envVars),
     htmlTemplatePlugin(envVarNames),

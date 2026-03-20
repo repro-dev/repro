@@ -1,3 +1,4 @@
+import './tailwind.css'
 import { cache as styleCache } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { ApiProvider, createApiClientBridge } from '@repro/api-client'

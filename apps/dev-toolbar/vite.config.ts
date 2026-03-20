@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
+import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 
 const mode = process.env.MODE || 'extension'
@@ -26,7 +27,7 @@ if (!entry || !entries[entry]) {
 const needsReact = entry === 'page' || entry === 'toolbar-standalone'
 
 export default defineConfig(({ mode: viteMode }) => ({
-  plugins: needsReact ? [react()] : [],
+  plugins: needsReact ? [tailwindcss(), react()] : [],
 
   resolve: {
     alias: {
