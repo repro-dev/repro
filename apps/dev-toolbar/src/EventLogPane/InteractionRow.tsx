@@ -1,5 +1,5 @@
-import { InteractionEvent, InteractionType } from '@repro/domain'
 import { Block } from '@jsxstyle/react'
+import { InteractionEvent, InteractionType } from '@repro/domain'
 import React from 'react'
 import { BaseRow } from './BaseRow'
 

@@ -1,5 +1,5 @@
-import { PerformanceEntryType, PerformanceEvent } from '@repro/domain'
 import { Block } from '@jsxstyle/react'
+import { PerformanceEntryType, PerformanceEvent } from '@repro/domain'
 import React from 'react'
 import { BaseRow } from './BaseRow'
 

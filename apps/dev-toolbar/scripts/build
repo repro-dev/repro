@@ -6,7 +6,7 @@ project_dir=$(realpath "$(dirname $0)/..")
 source_dir="$project_dir/src"
 build_dir="$project_dir/dist"
 
-flags="--config webpack.config.js"
+mode="${MODE:-extension}"
 watch=false
 
 while getopts "w" param; do
@@ -15,12 +15,22 @@ while getopts "w" param; do
   esac
 done
 
-if [ "$watch" = true ]; then
-  flags="$flags --watch"
-fi
-
 mkdir -p "$build_dir"
 
-cp -r $source_dir/extension/static/* $build_dir/
+if [ "$mode" = "standalone" ]; then
+  entries="toolbar-standalone"
+else
+  cp -r "$source_dir/extension/static/"* "$build_dir/"
+  entries="background content page"
+fi
 
-eval "pnpm exec webpack $flags"
+if [ "$watch" = true ]; then
+  for entry in $entries; do
+    VITE_ENTRY="$entry" pnpm exec vite build --watch &
+  done
+  wait
+else
+  for entry in $entries; do
+    VITE_ENTRY="$entry" pnpm exec vite build
+  done
+fi
