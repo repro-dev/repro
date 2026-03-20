@@ -13,6 +13,7 @@ function makeEmptyAccessor(): RecordingDataAccessor {
   return {
     getSourceEvents: () => new List(SourceEventView, []),
     getDuration: () => 0,
+    getSnapshotAtTime: () => null,
   }
 }
 
