@@ -1,3 +1,4 @@
+import './tailwind.css';
 import { createElement } from "react";
 import { ConfirmDialogProvider, PortalRootProvider, ToastProvider } from "@repro/design";
 import { applyResetStyles } from "@repro/theme";

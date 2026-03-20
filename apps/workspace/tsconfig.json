@@ -15,7 +15,11 @@
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "paths": { "~/*": ["*"] },
+    "paths": {
+      "~/*": ["*"],
+      "@tailwindcss/vite": ["../node_modules/@tailwindcss/vite/dist/index.d.mts"],
+      "tailwindcss/colors": ["../node_modules/tailwindcss/dist/colors.d.ts"]
+    },
     "skipLibCheck": true,
     "strict": true,
     "target": "es2021",

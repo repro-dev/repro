@@ -7,6 +7,12 @@ tags:
 tasks:
   build:
     command: pnpm run build
+    deps:
+    - ^:build
+    outputs:
+    - dist
+    options:
+      cache: true
   dev:
     command: pnpm run dev-serve
     deps:

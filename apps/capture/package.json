@@ -53,6 +53,7 @@
   },
   "devDependencies": {
     "@storybook/react": "^10.2.13",
+    "@tailwindcss/vite": "overridden",
     "@types/chrome": "^0.0.176",
     "@types/node": "22.14.0",
     "@types/react": "^18.0.14",
@@ -62,6 +63,7 @@
     "patch-package": "^6.4.7",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
+    "tailwindcss": "overridden",
     "tsx": "4.19.3",
     "typescript": "overridden",
     "vite": "overridden"

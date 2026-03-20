@@ -8,7 +8,7 @@ build_dir="$project_dir/dist"
 for input in "$build_dir"/*.template.html; do
   if [ -f "$input" ]; then
     output="${input%.template.html}.html"
-    vars=$(grep -oE '\$[a-zA-Z0-9_]+' "$input" | sort -u | tr '\n' ',')
+    vars=$(grep -oE '\$[a-zA-Z0-9_]+' "$input" | sort -u | tr '\n' ',' || true)
     envsubst "$vars" < "$input" > "$output"
   fi
 done

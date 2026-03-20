@@ -15,8 +15,10 @@
     "@storybook/addon-a11y": "^10.2.13",
     "@storybook/addon-docs": "^10.2.13",
     "@storybook/react-vite": "^10.2.13",
+    "@tailwindcss/vite": "overridden",
     "prop-types": "^15.8.1",
-    "storybook": "^10.2.13"
+    "storybook": "^10.2.13",
+    "tailwindcss": "overridden"
   },
   "scripts": {
     "storybook": "storybook dev -p ${PORT:-6006}",
