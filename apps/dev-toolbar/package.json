@@ -48,12 +48,12 @@
     "@types/react-dom": "^18.0.5",
     "@types/react-window": "^1.8.5",
     "@types/repro-shared-types": "workspace:*",
-    "@vitejs/plugin-react": "^4.5.2",
+    "@vitejs/plugin-react": "overridden",
     "expect": "^29.7.0",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
     "tsx": "4.19.3",
     "typescript": "overridden",
-    "vite": "^6.3.5"
+    "vite": "overridden"
   }
 }
