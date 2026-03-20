@@ -174,7 +174,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     const [internalValue, setInternalValue] = useState(defaultValue ?? '')
     const wasControlledRef = useRef(isControlled)
 
-    if (process.env['NODE_ENV'] !== 'production') {
+    if (process.env.NODE_ENV !== 'production') {
       if (wasControlledRef.current !== isControlled) {
         console.warn(
           `Select: A component is changing from ${
@@ -214,7 +214,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
 
     const listboxId = useId()
 
-    if (process.env['NODE_ENV'] !== 'production') {
+    if (process.env.NODE_ENV !== 'production') {
       if (!ariaLabel && !ariaLabelledBy && !id) {
         console.warn(
           'Select: No accessible label provided. Pass `aria-label`, `aria-labelledby`, or `id` (with a corresponding <Label htmlFor>) to ensure screen reader accessibility.'

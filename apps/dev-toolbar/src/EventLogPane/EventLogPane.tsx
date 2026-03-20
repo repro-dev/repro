@@ -1,7 +1,7 @@
+import { Block, Grid, Row } from '@jsxstyle/react'
 import { colors } from '@repro/design'
 import { SourceEvent, SourceEventType } from '@repro/domain'
 import { InterruptSignal, useRecordingStream } from '@repro/recording'
-import { Block, Grid, Row } from '@jsxstyle/react'
 import { TablePropertiesIcon } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import { FixedSizeList, ListChildComponentProps } from 'react-window'

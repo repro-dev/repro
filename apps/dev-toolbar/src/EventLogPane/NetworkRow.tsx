@@ -1,5 +1,5 @@
-import { NetworkEvent, NetworkMessageType } from '@repro/domain'
 import { Block } from '@jsxstyle/react'
+import { NetworkEvent, NetworkMessageType } from '@repro/domain'
 import React from 'react'
 import { BaseRow } from './BaseRow'
 

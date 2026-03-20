@@ -98,7 +98,7 @@ export const Input = forwardRef<
     const base = sizes[size]
     const fontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
 
-    if (process.env['NODE_ENV'] !== 'production') {
+    if (process.env.NODE_ENV !== 'production') {
       if (!ariaLabel && !ariaLabelledBy && !id) {
         console.warn(
           'Input: No accessible label provided. Pass `aria-label`, `aria-labelledby`, or `id` (with a corresponding <Label htmlFor>) to ensure screen reader accessibility.'

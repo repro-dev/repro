@@ -1,3 +1,4 @@
+import { Block, Grid, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
 import { Button, colors } from '@repro/design'
 import { JSONView } from '@repro/devtools'
@@ -11,7 +12,6 @@ import {
 import { useRecordingStream } from '@repro/recording'
 import { calculateDuration } from '@repro/source-utils'
 import { approxByteLength } from '@repro/tdl'
-import { Block, Grid, Row } from '@jsxstyle/react'
 import { CopyIcon } from 'lucide-react'
 import prettyBytes from 'pretty-bytes'
 import React, { useEffect, useState } from 'react'
