@@ -1,4 +1,0 @@
-@import 'tailwindcss/theme' prefix(tw) source(none);
-@import 'tailwindcss/utilities' prefix(tw) source(none);
-@source '../../../packages';
-@import '../../../packages/design/src/theme-extension.css';

@@ -17,10 +17,7 @@
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "paths": {
-      "~/*": ["*"],
-      "tailwindcss/colors": ["../node_modules/tailwindcss/dist/colors.d.ts"]
-    },
+    "paths": { "~/*": ["*"] },
     "resolveJsonModule": true,
     "rootDir": "./src",
     "skipLibCheck": true,

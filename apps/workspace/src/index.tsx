@@ -1,4 +1,3 @@
-import './tailwind.css'
 import { Analytics } from '@repro/analytics'
 import { createMixpanelBrowserConsumer } from '@repro/analytics-provider-mixpanel'
 import { ApiProvider, createApiClient } from '@repro/api-client'

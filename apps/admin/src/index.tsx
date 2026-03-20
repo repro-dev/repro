@@ -1,4 +1,3 @@
-import './tailwind.css'
 import { ApiProvider } from '@repro/api-client'
 import { AuthProvider, SessionRouteBoundary } from '@repro/auth'
 import {
