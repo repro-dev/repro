@@ -114,6 +114,7 @@ function makeAccessor(events: MockEvent[], duration = 10000): RecordingDataAcces
   return {
     getSourceEvents: () => fakeList as unknown as ReturnType<RecordingDataAccessor['getSourceEvents']>,
     getDuration: () => duration,
+    getSnapshotAtTime: () => null,
   }
 }
 

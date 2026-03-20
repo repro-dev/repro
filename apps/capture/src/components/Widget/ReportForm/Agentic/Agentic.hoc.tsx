@@ -10,7 +10,16 @@ export const Agentic: React.FC = () => {
   const playback = usePlayback()
 
   const state = useMemo(
-    () => createAgenticState(apiClient, playback),
+    () =>
+      createAgenticState(apiClient, {
+        getSourceEvents: () => playback.getSourceEvents(),
+        getDuration: () => playback.getDuration(),
+        getSnapshotAtTime: (timestampMs: number) => {
+          const pb = playback.copy()
+          pb.seekToTime(timestampMs)
+          return pb.getSnapshot()
+        },
+      }),
     [apiClient, playback]
   )
 
