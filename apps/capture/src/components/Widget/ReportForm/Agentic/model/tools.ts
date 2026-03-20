@@ -22,10 +22,6 @@ import {
   truncate,
 } from './token-optimization'
 
-function estimateTokens(obj: unknown): number {
-  return Math.ceil(JSON.stringify(obj).length / 4)
-}
-
 const LOG_LEVEL_MAP: Record<string, LogLevel> = {
   verbose: LogLevel.Verbose,
   info: LogLevel.Info,
