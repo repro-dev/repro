@@ -1,4 +1,6 @@
 import {
+  LogLevel,
+  MessagePartType,
   NetworkMessageType,
   RequestType,
   SourceEventType,
@@ -226,13 +228,333 @@ describe('executeTool — getRecordingDuration', () => {
   })
 })
 
+function makeConsoleEvent(
+  time: number,
+  level: LogLevel,
+  text: string,
+  stack?: Array<{
+    functionName?: string
+    fileName: string
+    lineNumber: number
+    columnNumber: number
+  }>
+): ReturnType<typeof SourceEventView.from> {
+  return SourceEventView.from(
+    new Box({
+      type: SourceEventType.Console,
+      time,
+      data: {
+        level,
+        parts: [
+          new Box({
+            type: MessagePartType.String,
+            value: text,
+          }),
+        ],
+        stack: (stack ?? []).map(s => ({
+          functionName: s.functionName ?? null,
+          fileName: s.fileName,
+          lineNumber: s.lineNumber,
+          columnNumber: s.columnNumber,
+        })),
+      },
+    })
+  )
+}
+
 describe('executeTool — getConsoleMessages (stub)', () => {
-  it('returns empty messages array', () => {
+  it('returns empty messages array with summary and _tokenEstimate', () => {
     const accessor = makeEmptyAccessor()
     const result = executeTool(accessor, 'getConsoleMessages', {}) as {
       messages: unknown[]
+      summary: { verbose: number; info: number; warning: number; error: number }
+      _tokenEstimate: number
     }
-    assert.deepStrictEqual(result, { messages: [] })
+    assert.deepStrictEqual(result.messages, [])
+    assert.ok(result.summary !== undefined)
+    assert.ok(typeof result._tokenEstimate === 'number')
+  })
+})
+
+describe('executeTool — getConsoleMessages (token optimization)', () => {
+  it('detail=summary returns only error messages, max 3', () => {
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Info, 'info message'),
+      makeConsoleEvent(200, LogLevel.Warning, 'warning message'),
+      makeConsoleEvent(300, LogLevel.Error, 'error one'),
+      makeConsoleEvent(400, LogLevel.Error, 'error two'),
+      makeConsoleEvent(500, LogLevel.Error, 'error three'),
+      makeConsoleEvent(600, LogLevel.Error, 'error four'),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {
+      detail: 'summary',
+    }) as { messages: Array<{ level: string }> }
+    assert.ok(result.messages.every(m => m.level === 'error'))
+    assert.ok(result.messages.length <= 3)
+  })
+
+  it('detail=summary truncates text to 100 chars', () => {
+    const longText = 'a'.repeat(150)
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Error, longText),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {
+      detail: 'summary',
+    }) as { messages: Array<{ text: string }> }
+    assert.ok(result.messages[0]!.text.length <= 100)
+    assert.ok(result.messages[0]!.text.endsWith('…'))
+  })
+
+  it('detail=summary omits stack traces', () => {
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Error, 'error', [
+        {
+          fileName: 'https://cdn.example.com/app.js',
+          lineNumber: 10,
+          columnNumber: 5,
+        },
+      ]),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {
+      detail: 'summary',
+    }) as { messages: Array<{ stack?: unknown }> }
+    assert.ok(result.messages[0]!.stack === undefined)
+  })
+
+  it('detail=summary deduplicates identical messages with count', () => {
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Error, 'same error'),
+      makeConsoleEvent(200, LogLevel.Error, 'same error'),
+      makeConsoleEvent(300, LogLevel.Error, 'same error'),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {
+      detail: 'summary',
+    }) as { messages: Array<{ text: string; count: number; timeMs: number }> }
+    assert.strictEqual(result.messages.length, 1)
+    assert.strictEqual(result.messages[0]!.count, 3)
+    assert.strictEqual(result.messages[0]!.timeMs, 100)
+  })
+
+  it('detail=normal includes errors and warnings', () => {
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Verbose, 'verbose message'),
+      makeConsoleEvent(200, LogLevel.Info, 'info message'),
+      makeConsoleEvent(300, LogLevel.Warning, 'warning message'),
+      makeConsoleEvent(400, LogLevel.Error, 'error message'),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {
+      detail: 'normal',
+    }) as { messages: Array<{ level: string }> }
+    const levels = result.messages.map(m => m.level)
+    assert.ok(levels.includes('warning'))
+    assert.ok(levels.includes('error'))
+    assert.ok(!levels.includes('verbose'))
+    assert.ok(!levels.includes('info'))
+  })
+
+  it('detail=normal truncates text to 200 chars', () => {
+    const longText = 'b'.repeat(300)
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Warning, longText),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {
+      detail: 'normal',
+    }) as { messages: Array<{ text: string }> }
+    assert.ok(result.messages[0]!.text.length <= 200)
+    assert.ok(result.messages[0]!.text.endsWith('…'))
+  })
+
+  it('detail=normal shortens stack frames to basename:line:col format, max 3 frames', () => {
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Warning, 'warn', [
+        {
+          fileName: 'https://cdn.example.com/static/js/ProductList.tsx',
+          lineNumber: 42,
+          columnNumber: 10,
+        },
+        {
+          fileName: 'https://cdn.example.com/static/js/renderWithHooks.js',
+          lineNumber: 18,
+          columnNumber: 5,
+        },
+        {
+          fileName: 'https://cdn.example.com/static/js/App.tsx',
+          lineNumber: 10,
+          columnNumber: 3,
+        },
+        {
+          fileName: 'https://cdn.example.com/static/js/index.js',
+          lineNumber: 1,
+          columnNumber: 1,
+        },
+      ]),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {
+      detail: 'normal',
+    }) as { messages: Array<{ stack?: string[] }> }
+    const stack = result.messages[0]!.stack!
+    assert.ok(Array.isArray(stack))
+    assert.ok(stack.length <= 3)
+    assert.strictEqual(stack[0], 'ProductList.tsx:42:10')
+    assert.strictEqual(stack[1], 'renderWithHooks.js:18:5')
+  })
+
+  it('detail=normal deduplicates identical messages with count', () => {
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Warning, 'same warning'),
+      makeConsoleEvent(200, LogLevel.Warning, 'same warning'),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {
+      detail: 'normal',
+    }) as { messages: Array<{ text: string; count: number }> }
+    assert.strictEqual(result.messages.length, 1)
+    assert.strictEqual(result.messages[0]!.count, 2)
+  })
+
+  it('detail=full includes all messages at requested level', () => {
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Verbose, 'verbose message'),
+      makeConsoleEvent(200, LogLevel.Info, 'info message'),
+      makeConsoleEvent(300, LogLevel.Warning, 'warning message'),
+      makeConsoleEvent(400, LogLevel.Error, 'error message'),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {
+      detail: 'full',
+      logLevel: 'verbose',
+    }) as { messages: Array<{ level: string }> }
+    const levels = result.messages.map(m => m.level)
+    assert.ok(levels.includes('verbose'))
+    assert.ok(levels.includes('info'))
+    assert.ok(levels.includes('warning'))
+    assert.ok(levels.includes('error'))
+  })
+
+  it('detail=full truncates text to 500 chars', () => {
+    const longText = 'c'.repeat(600)
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Info, longText),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {
+      detail: 'full',
+      logLevel: 'info',
+    }) as { messages: Array<{ text: string }> }
+    assert.ok(result.messages[0]!.text.length <= 500)
+    assert.ok(result.messages[0]!.text.endsWith('…'))
+  })
+
+  it('detail=full includes stack frames up to 10 with no dedup', () => {
+    const stack = Array.from({ length: 12 }, (_, i) => ({
+      fileName: `https://cdn.example.com/file${i}.js`,
+      lineNumber: i + 1,
+      columnNumber: 1,
+    }))
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Error, 'error one', stack),
+      makeConsoleEvent(200, LogLevel.Error, 'error one', stack),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {
+      detail: 'full',
+    }) as {
+      messages: Array<{ text: string; stack?: string[]; count?: number }>
+    }
+    assert.strictEqual(result.messages.length, 2)
+    assert.ok(result.messages[0]!.count === undefined)
+    assert.ok(result.messages[0]!.stack!.length <= 10)
+  })
+
+  it('all tiers include summary with level counts', () => {
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Verbose, 'v1'),
+      makeConsoleEvent(200, LogLevel.Info, 'i1'),
+      makeConsoleEvent(300, LogLevel.Info, 'i2'),
+      makeConsoleEvent(400, LogLevel.Warning, 'w1'),
+      makeConsoleEvent(500, LogLevel.Error, 'e1'),
+      makeConsoleEvent(600, LogLevel.Error, 'e2'),
+      makeConsoleEvent(700, LogLevel.Error, 'e3'),
+    ])
+    const accessor = makeAccessor(events)
+
+    for (const detail of ['summary', 'normal', 'full'] as const) {
+      const result = executeTool(accessor, 'getConsoleMessages', {
+        detail,
+        logLevel: 'verbose',
+      }) as {
+        summary: {
+          verbose: number
+          info: number
+          warning: number
+          error: number
+        }
+      }
+      assert.ok(result.summary !== undefined, `${detail} should have summary`)
+      assert.strictEqual(result.summary.verbose, 1, `${detail} verbose count`)
+      assert.strictEqual(result.summary.info, 2, `${detail} info count`)
+      assert.strictEqual(result.summary.warning, 1, `${detail} warning count`)
+      assert.strictEqual(result.summary.error, 3, `${detail} error count`)
+    }
+  })
+
+  it('all tiers include _tokenEstimate', () => {
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Error, 'error message'),
+    ])
+    const accessor = makeAccessor(events)
+
+    for (const detail of ['summary', 'normal', 'full'] as const) {
+      const result = executeTool(accessor, 'getConsoleMessages', {
+        detail,
+      }) as { _tokenEstimate: number }
+      assert.ok(
+        typeof result._tokenEstimate === 'number',
+        `${detail} should have _tokenEstimate`
+      )
+      assert.ok(result._tokenEstimate > 0, `${detail} _tokenEstimate > 0`)
+    }
+  })
+
+  it('default detail is normal when not specified', () => {
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Verbose, 'verbose'),
+      makeConsoleEvent(200, LogLevel.Info, 'info'),
+      makeConsoleEvent(300, LogLevel.Warning, 'warning'),
+      makeConsoleEvent(400, LogLevel.Error, 'error'),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {}) as {
+      messages: Array<{ level: string }>
+    }
+    const levels = result.messages.map(m => m.level)
+    assert.ok(levels.includes('warning'))
+    assert.ok(levels.includes('error'))
+    assert.ok(!levels.includes('verbose'))
+    assert.ok(!levels.includes('info'))
+  })
+
+  it('time range filtering still works with detail parameter', () => {
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Error, 'early error'),
+      makeConsoleEvent(500, LogLevel.Error, 'mid error'),
+      makeConsoleEvent(900, LogLevel.Error, 'late error'),
+    ])
+    const accessor = makeAccessor(events)
+    const result = executeTool(accessor, 'getConsoleMessages', {
+      detail: 'normal',
+      timeRangeStartMs: 200,
+      timeRangeEndMs: 700,
+    }) as { messages: Array<{ text: string }> }
+    assert.strictEqual(result.messages.length, 1)
+    assert.ok(result.messages[0]!.text.includes('mid error'))
   })
 })
 
