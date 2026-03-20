@@ -1,4 +1,4 @@
-import { dirname, join } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -39,6 +39,10 @@ const config = {
     // Dedupe React and Storybook packages across the monorepo.
     config.resolve = {
       ...config.resolve,
+      alias: {
+        ...(config.resolve?.alias ?? {}),
+        "~": resolve(__dirname, "../../../packages/design/src"),
+      },
       dedupe: [
         ...(config.resolve?.dedupe ?? []),
         "@storybook/addon-docs",

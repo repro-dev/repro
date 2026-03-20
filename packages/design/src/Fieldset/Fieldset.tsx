@@ -1,35 +1,22 @@
-import { Block, Col } from '@jsxstyle/react'
-import React, { forwardRef } from 'react'
-import { Text } from '../Text'
-import { spacing } from '../tokens/spacing'
+import React from 'react'
+import {
+  Fieldset as CatalystFieldset,
+  FieldGroup,
+  Legend,
+} from '~/catalyst/fieldset'
 
 interface FieldsetProps {
   heading?: string
   children?: React.ReactNode
 }
 
-export const Fieldset = forwardRef<HTMLFieldSetElement, FieldsetProps>(
-  ({ heading, children }, ref) => {
-    return (
-      <Col
-        component="fieldset"
-        border="none"
-        margin={0}
-        padding={0}
-        gap={spacing.xl}
-        props={{ ref }}
-      >
-        {heading != null && (
-          <Block marginBottom={spacing.md}>
-            <Text variant="heading3" as="legend">
-              {heading}
-            </Text>
-          </Block>
-        )}
-        {children}
-      </Col>
-    )
-  }
-)
+export const Fieldset: React.FC<FieldsetProps> = ({ heading, children }) => {
+  return (
+    <CatalystFieldset>
+      {heading != null && <Legend>{heading}</Legend>}
+      <FieldGroup>{children}</FieldGroup>
+    </CatalystFieldset>
+  )
+}
 
 Fieldset.displayName = 'Fieldset'

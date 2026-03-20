@@ -1,19 +1,6 @@
-import { Col } from '@jsxstyle/react'
-import React, { forwardRef, useCallback, useId, useMemo, useRef } from 'react'
-import mergeRefs from 'react-merge-refs'
-import { color } from '../tokens/colors'
-import { spacing } from '../tokens/spacing'
-import { fontWeight, lineHeight, MINIMUM_FONT_SIZE } from '../tokens/typography'
-import {
-  RadioGroupProvider,
-  type RadioGroupContextValue,
-} from './RadioGroupContext'
-
-const sizes = {
-  small: 6,
-  medium: 8,
-  large: 10,
-}
+import React, { forwardRef } from 'react'
+import { RadioGroup as CatalystRadioGroup } from '~/catalyst/radio'
+import { Legend } from '~/catalyst/fieldset'
 
 export interface RadioGroupProps {
   label: string
@@ -24,108 +11,19 @@ export interface RadioGroupProps {
   children: React.ReactNode
 }
 
-/**
- * Container for a set of `Radio` options where only one can be selected.
- *
- * Renders a `<fieldset>` with `role="radiogroup"` and provides context to
- * child `Radio` components. Supports keyboard navigation (Arrow Up/Down,
- * Home/End) with roving tabindex.
- */
 export const RadioGroup = forwardRef<HTMLFieldSetElement, RadioGroupProps>(
-  (
-    { label, value, onChange, disabled = false, size = 'medium', children },
-    ref
-  ) => {
-    const generatedName = useId()
-    const fieldsetRef = useRef<HTMLFieldSetElement>(null)
-    const base = sizes[size]
-    const legendFontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
-
-    const ctx = useMemo<RadioGroupContextValue>(
-      () => ({ name: generatedName, value, onChange, disabled, size }),
-      [generatedName, value, onChange, disabled, size]
-    )
-
-    const getRadioInputs = useCallback(() => {
-      if (!fieldsetRef.current) return []
-      return Array.from(
-        fieldsetRef.current.querySelectorAll<HTMLInputElement>(
-          'input[type="radio"]'
-        )
-      )
-    }, [])
-
-    const getEnabledRadioInputs = useCallback(() => {
-      return getRadioInputs().filter(input => !input.disabled)
-    }, [getRadioInputs])
-
-    const handleKeyDown = useCallback(
-      (evt: React.KeyboardEvent<HTMLFieldSetElement>) => {
-        const enabledInputs = getEnabledRadioInputs()
-        if (enabledInputs.length === 0) return
-
-        const currentIndex = enabledInputs.findIndex(
-          input => input.value === value
-        )
-        const safeCurrentIndex = currentIndex === -1 ? 0 : currentIndex
-        let nextIndex: number | null = null
-
-        if (evt.key === 'ArrowDown' || evt.key === 'ArrowRight') {
-          evt.preventDefault()
-          nextIndex = (safeCurrentIndex + 1) % enabledInputs.length
-        } else if (evt.key === 'ArrowUp' || evt.key === 'ArrowLeft') {
-          evt.preventDefault()
-          nextIndex =
-            (safeCurrentIndex - 1 + enabledInputs.length) % enabledInputs.length
-        } else if (evt.key === 'Home') {
-          evt.preventDefault()
-          nextIndex = 0
-        } else if (evt.key === 'End') {
-          evt.preventDefault()
-          nextIndex = enabledInputs.length - 1
-        }
-
-        if (nextIndex !== null) {
-          const input = enabledInputs[nextIndex]
-          if (input) {
-            onChange(input.value)
-            input.focus()
-          }
-        }
-      },
-      [value, onChange, getEnabledRadioInputs]
-    )
-
+  ({ label, value, onChange, disabled = false, children }, ref) => {
     return (
-      <Col
-        component="fieldset"
-        gap={spacing.lg}
-        border="none"
-        margin={0}
-        padding={0}
-        props={{
-          ref: mergeRefs([ref, fieldsetRef]),
-          role: 'radiogroup',
-          'aria-label': label,
-          disabled: disabled || undefined,
-          onKeyDown: handleKeyDown,
-        }}
+      <fieldset
+        className="space-y-4"
+        ref={ref}
+        disabled={disabled || undefined}
       >
-        <legend
-          style={{
-            fontSize: legendFontSize,
-            fontWeight: fontWeight.semibold,
-            lineHeight: lineHeight.tight,
-            color: disabled ? color.text.muted : color.text.default,
-            padding: 0,
-            marginBottom: spacing.md,
-          }}
-        >
-          {label}
-        </legend>
-
-        <RadioGroupProvider value={ctx}>{children}</RadioGroupProvider>
-      </Col>
+        <Legend>{label}</Legend>
+        <CatalystRadioGroup value={value} onChange={onChange} disabled={disabled}>
+          {children}
+        </CatalystRadioGroup>
+      </fieldset>
     )
   }
 )

@@ -1,16 +1,7 @@
-import { Block } from '@jsxstyle/react'
-import type { MutableRefObject } from 'react'
-import React, { forwardRef, useRef } from 'react'
-import mergeRefs from 'react-merge-refs'
+import React, { forwardRef } from 'react'
+import { Input as CatalystInput } from '~/catalyst/input'
+import { Textarea as CatalystTextarea } from '~/catalyst/textarea'
 import { useFormFieldContext } from '../FormField/FormFieldContext'
-import { color } from '../tokens/colors'
-import { radius } from '../tokens/elevation'
-import { focusWithinRing } from '../tokens/interaction'
-import { transition } from '../tokens/motion'
-import { MINIMUM_FONT_SIZE } from '../tokens/typography'
-
-type Context = 'normal' | 'error'
-type Size = 'small' | 'medium' | 'large'
 
 export interface InputProps {
   'aria-describedby'?: string
@@ -19,7 +10,7 @@ export interface InputProps {
   'aria-labelledby'?: string
   autoComplete?: string
   autoFocus?: boolean
-  context?: Context
+  context?: 'normal' | 'error'
   disabled?: boolean
   id?: string
   max?: string | number
@@ -33,28 +24,11 @@ export interface InputProps {
   placeholder?: string
   required?: boolean
   rows?: number
-  size?: Size
+  size?: 'small' | 'medium' | 'large'
   type?: string
+  value?: string | number | readonly string[]
 }
 
-const sizes = {
-  small: 6,
-  medium: 8,
-  large: 10,
-}
-
-/**
- * Form text input with error styling and configurable validation attributes.
- *
- * Renders a single-line `<input>` by default, or a `<textarea>` when
- * `rows` is greater than 1. Pair with an external `<Label htmlFor>` for
- * accessible labeling. Stops keyboard event propagation to prevent
- * conflicts with global shortcuts.
- *
- * When used inside a `FormField`, `id`, `aria-describedby`,
- * `aria-invalid`, `context`, and `disabled` are automatically provided
- * via context. Explicit props always override context values.
- */
 export const Input = forwardRef<
   HTMLInputElement | HTMLTextAreaElement,
   InputProps
@@ -62,112 +36,84 @@ export const Input = forwardRef<
   (
     {
       autoFocus = false,
-      context: contextProp,
       disabled: disabledProp,
       placeholder = '',
       rows = 1,
-      size = 'medium',
       type = 'text',
       id: idProp,
       name,
+      value,
       onBlur,
       onChange,
-      'aria-describedby': ariaDescribedByProp,
+      'aria-describedby': ariaDescribedBy,
       'aria-invalid': ariaInvalidProp,
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledBy,
-      ...restProps
+      autoComplete,
+      max,
+      maxLength,
+      min,
+      minLength,
+      pattern,
+      required,
     },
-    outerRef
+    ref
   ) => {
     const fieldCtx = useFormFieldContext()
 
     const id = idProp ?? fieldCtx?.id
     const disabled = disabledProp ?? fieldCtx?.disabled ?? false
-    const context = contextProp ?? (fieldCtx?.invalid ? 'error' : 'normal')
-    const ariaInvalid =
-      ariaInvalidProp ?? (fieldCtx?.invalid ? true : undefined)
-    const ariaDescribedBy =
-      ariaDescribedByProp ?? (fieldCtx?.invalid ? fieldCtx.errorId : undefined)
+    const invalid =
+      ariaInvalidProp === true || (fieldCtx?.invalid ?? false)
+    const describedBy =
+      ariaDescribedBy ?? (fieldCtx?.invalid ? fieldCtx.errorId : undefined)
 
-    const innerRef = useRef() as MutableRefObject<
-      HTMLInputElement | HTMLTextAreaElement
-    >
-    const ref = mergeRefs([innerRef, outerRef])
-
-    const base = sizes[size]
-    const fontSize = Math.max(base * 1.5, MINIMUM_FONT_SIZE)
-
-    if (process.env.NODE_ENV !== 'production') {
-      if (!ariaLabel && !ariaLabelledBy && !id) {
-        console.warn(
-          'Input: No accessible label provided. Pass `aria-label`, `aria-labelledby`, or `id` (with a corresponding <Label htmlFor>) to ensure screen reader accessibility.'
-        )
-      }
-    }
-
-    function preventKeyCapture(evt: React.KeyboardEvent<HTMLElement>) {
-      evt.stopPropagation()
+    if (rows > 1) {
+      return (
+        <CatalystTextarea
+          id={id}
+          name={name}
+          value={value as string | undefined}
+          disabled={disabled}
+          autoFocus={autoFocus}
+          placeholder={placeholder}
+          required={required}
+          rows={rows}
+          invalid={invalid}
+          onBlur={onBlur as React.FocusEventHandler<HTMLTextAreaElement>}
+          onChange={onChange as React.ChangeEventHandler<HTMLTextAreaElement>}
+          aria-describedby={describedBy}
+          aria-label={ariaLabel}
+          aria-labelledby={ariaLabelledBy}
+          ref={ref as React.ForwardedRef<HTMLTextAreaElement>}
+        />
+      )
     }
 
     return (
-      <Block
-        backgroundColor={color.bg.surface}
-        borderColor={context === 'error' ? color.danger : color.border.strong}
-        borderRadius={radius.sm}
-        borderStyle="solid"
-        borderWidth={1}
-        boxShadow={`0 0.5px 1.5px ${color.border.strong}DA`}
-        opacity={disabled ? 0.5 : 1}
-        cursor={disabled ? 'not-allowed' : undefined}
-        transition={transition.fast}
-        hoverBorderColor={
-          disabled
-            ? undefined
-            : context === 'error'
-            ? color.dangerHover
-            : color.border.emphasis
-        }
-        {...focusWithinRing(context === 'error' ? 'danger' : 'default')}
-      >
-        <Block
-          component={rows > 1 ? 'textarea' : 'input'}
-          padding={`${base}px ${base * 1.5}px`}
-          width="100%"
-          fontFamily="inherit"
-          fontSize={fontSize}
-          lineHeight={1.5}
-          color={color.text.default}
-          placeholderColor={color.text.muted}
-          backgroundColor="transparent"
-          borderColor="transparent"
-          borderRadius={radius.sm}
-          outline="none"
-          resize="none"
-          isolation="isolate"
-          cursor={disabled ? 'not-allowed' : undefined}
-          props={{
-            id,
-            name,
-            autoFocus,
-            disabled,
-            placeholder,
-            rows: rows > 1 ? rows : undefined,
-            type,
-            'aria-describedby': ariaDescribedBy,
-            'aria-invalid': ariaInvalid,
-            'aria-label': ariaLabel,
-            'aria-labelledby': ariaLabelledBy,
-            onKeyDown: preventKeyCapture,
-            onKeyUp: preventKeyCapture,
-            onKeyPress: preventKeyCapture,
-            onBlur,
-            onChange,
-            ref: ref as any,
-            ...restProps,
-          }}
-        />
-      </Block>
+      <CatalystInput
+        id={id}
+        name={name}
+        value={value}
+        disabled={disabled}
+        autoFocus={autoFocus}
+        placeholder={placeholder}
+        required={required}
+        type={type as any}
+        max={max}
+        maxLength={maxLength}
+        min={min}
+        minLength={minLength}
+        pattern={pattern}
+        autoComplete={autoComplete}
+        invalid={invalid}
+        onBlur={onBlur as React.FocusEventHandler<HTMLInputElement>}
+        onChange={onChange as React.ChangeEventHandler<HTMLInputElement>}
+        aria-describedby={describedBy}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledBy}
+        ref={ref as React.ForwardedRef<HTMLInputElement>}
+      />
     )
   }
 )
