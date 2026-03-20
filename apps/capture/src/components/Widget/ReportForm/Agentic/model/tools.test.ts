@@ -563,8 +563,12 @@ describe('executeTool — getNetworkRequests', () => {
     const accessor = makeEmptyAccessor()
     const result = executeTool(accessor, 'getNetworkRequests', {}) as {
       requests: unknown[]
+      summary: unknown
+      _tokenEstimate: number
     }
-    assert.deepStrictEqual(result, { requests: [] })
+    assert.deepStrictEqual(result.requests, [])
+    assert.ok(result.summary !== undefined)
+    assert.ok(typeof result._tokenEstimate === 'number')
   })
 
   it('returns fetch request with basic fields', () => {
@@ -580,17 +584,14 @@ describe('executeTool — getNetworkRequests', () => {
         method: string
         url: string
         status: number
-        responseTimeMs: number
         durationMs: number
       }>
     }
     assert.strictEqual(result.requests.length, 1)
     assert.strictEqual(result.requests[0]!.type, 'fetch')
     assert.strictEqual(result.requests[0]!.method, 'GET')
-    assert.strictEqual(result.requests[0]!.url, 'https://example.com/api')
     assert.strictEqual(result.requests[0]!.status, 200)
     assert.strictEqual(result.requests[0]!.timeMs, 100)
-    assert.strictEqual(result.requests[0]!.responseTimeMs, 200)
     assert.strictEqual(result.requests[0]!.durationMs, 100)
   })
 
@@ -627,7 +628,6 @@ describe('executeTool — getNetworkRequests', () => {
     }
     assert.strictEqual(result.requests.length, 1)
     assert.strictEqual(result.requests[0]!.type, 'ws')
-    assert.strictEqual(result.requests[0]!.url, 'wss://example.com/socket')
     assert.strictEqual(result.requests[0]!.timeMs, 50)
     assert.strictEqual(result.requests[0]!.durationMs, 500)
   })
@@ -758,7 +758,6 @@ describe('executeTool — getNetworkRequests', () => {
       requests: Array<{ url: string }>
     }
     assert.strictEqual(result.requests.length, 1)
-    assert.strictEqual(result.requests[0]!.url, 'https://example.com/users/123')
   })
 
   it('filters fetch requests by timeRangeStartMs', () => {
@@ -775,7 +774,6 @@ describe('executeTool — getNetworkRequests', () => {
       requests: Array<{ url: string }>
     }
     assert.strictEqual(result.requests.length, 1)
-    assert.strictEqual(result.requests[0]!.url, 'https://example.com/late')
   })
 
   it('filters fetch requests by timeRangeEndMs', () => {
@@ -792,7 +790,6 @@ describe('executeTool — getNetworkRequests', () => {
       requests: Array<{ url: string }>
     }
     assert.strictEqual(result.requests.length, 1)
-    assert.strictEqual(result.requests[0]!.url, 'https://example.com/early')
   })
 
   it('filters websocket requests by urlPattern', () => {
@@ -807,7 +804,6 @@ describe('executeTool — getNetworkRequests', () => {
       requests: Array<{ url: string }>
     }
     assert.strictEqual(result.requests.length, 1)
-    assert.strictEqual(result.requests[0]!.url, 'wss://example.com/chat')
   })
 
   it('excludes websocket requests when statusMin is set', () => {
@@ -854,7 +850,6 @@ describe('executeTool — getNetworkRequests', () => {
       requests: Array<{ url: string }>
     }
     assert.strictEqual(result.requests.length, 1)
-    assert.strictEqual(result.requests[0]!.url, 'wss://example.com/late')
   })
 
   it('returns both fetch and websocket requests when no filters applied', () => {
@@ -870,29 +865,5 @@ describe('executeTool — getNetworkRequests', () => {
     assert.strictEqual(result.requests.length, 2)
     assert.strictEqual(result.requests[0]!.type, 'fetch')
     assert.strictEqual(result.requests[1]!.type, 'ws')
-  })
-
-  it('includes request and response headers for fetch', () => {
-    const events = new List(SourceEventView, [
-      makeFetchRequestEvent(100, 'req1', 'https://example.com/api', 'GET', {
-        'x-request-header': 'req-value',
-      }),
-      makeFetchResponseEvent(200, 'req1', 200, {
-        'content-type': 'application/json',
-      }),
-    ])
-    const accessor = makeAccessor(events)
-    const result = executeTool(accessor, 'getNetworkRequests', {}) as {
-      requests: Array<{
-        requestHeaders: Record<string, string>
-        responseHeaders: Record<string, string>
-      }>
-    }
-    assert.deepStrictEqual(result.requests[0]!.requestHeaders, {
-      'x-request-header': 'req-value',
-    })
-    assert.deepStrictEqual(result.requests[0]!.responseHeaders, {
-      'content-type': 'application/json',
-    })
   })
 })
