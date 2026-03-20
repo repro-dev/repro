@@ -16,7 +16,6 @@ For detailed sub-topics, read the reference files in this directory:
 | `layouts.md` | Building page layouts (3-tier hierarchy: AppShell/ToolView/auth-flow shells, PageFrame, page conventions) |
 | `forms-and-state.md` | Building forms (react-hook-form + zod), state management (@repro/atom), loading/empty/error patterns |
 | `design-package.md` | Working inside `packages/design/` (directory structure, inventory, add/modify checklists, pitfalls) |
-| `tailwind.md` | Tailwind v4 CSS architecture: theme files, entry files, Vite plugin, Shadow DOM isolation, extension prefixing |
 
 ---
 

@@ -1,4 +1,3 @@
-import './tailwind.css'
 import { cache as styleCache } from '@jsxstyle/react'
 import { PortalRootProvider } from '@repro/design'
 import {
