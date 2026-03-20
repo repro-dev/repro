@@ -6,7 +6,6 @@ project_dir=$(realpath "$(dirname $0)/..")
 source_dir="$project_dir/src"
 build_dir="$project_dir/dist"
 
-flags="--config webpack.config.js"
 watch=false
 
 while getopts "w" param; do
@@ -15,12 +14,19 @@ while getopts "w" param; do
   esac
 done
 
-if [ "$watch" = true ]; then
-  flags="$flags --watch"
-fi
-
 mkdir -p "$build_dir"
 
-cp -r $source_dir/extension/static/* $build_dir/
+cp -r "$source_dir/extension/static/"* "$build_dir/"
 
-eval "pnpm exec webpack $flags"
+entries="background content bridgeHost capture"
+
+if [ "$watch" = true ]; then
+  for entry in $entries; do
+    VITE_ENTRY="$entry" pnpm exec vite build --watch &
+  done
+  wait
+else
+  for entry in $entries; do
+    VITE_ENTRY="$entry" pnpm exec vite build
+  done
+fi
