@@ -441,7 +441,6 @@ function decodeBody(body: ArrayBuffer): string {
     return ''
   }
 }
-}
 
 export type ToolHandler = (
   recording: RecordingDataAccessor,
