@@ -35,6 +35,7 @@ export default defineConfig(({ mode: viteMode }) => ({
   },
 
   define: {
+    'process.env.NODE_ENV': JSON.stringify(viteMode),
     __BUILD_VERSION__: JSON.stringify(process.env.BUILD_VERSION ?? 'unknown'),
     'process.env.AUTH_STORAGE': JSON.stringify(
       process.env.AUTH_STORAGE ?? 'local-storage'
