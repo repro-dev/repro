@@ -15,6 +15,8 @@
     "@jsxstyle/react": "^3.0.1",
     "@m2d/react-markdown": "^1.0.0",
     "@react-spring/web": "^9.7.5",
+    "@repro/agentic": "workspace:*",
+    "@repro/agentic-ui": "workspace:*",
     "@repro/analytics": "workspace:*",
     "@repro/analytics-provider-mixpanel": "workspace:*",
     "@repro/api-client": "workspace:*",

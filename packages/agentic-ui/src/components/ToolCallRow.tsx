@@ -1,0 +1,128 @@
+import { Block, Col, Row } from "@jsxstyle/react";
+import { ToolMessage, summarizeToolResult } from "@repro/agentic";
+import {
+  FX,
+  color,
+  focusRing,
+  fontFamily,
+  fontSize,
+  radius,
+  spacing,
+  textStyles,
+  transition,
+} from "@repro/design";
+import { ChevronRightIcon, WrenchIcon } from "lucide-react";
+import React, { useState } from "react";
+
+interface ToolCallRowProps {
+  toolName: string;
+  result: ToolMessage | null;
+  isExecuting: boolean;
+}
+
+export const ToolCallRow: React.FC<ToolCallRowProps> = ({
+  toolName,
+  result,
+  isExecuting,
+}) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const summary = result ? summarizeToolResult(toolName, result.content) : null;
+
+  return (
+    <Col>
+      <Row
+        alignItems="center"
+        gap={spacing.sm}
+        paddingV={spacing.sm}
+        paddingH={spacing.md}
+        cursor="pointer"
+        borderRadius={radius.sm}
+        hoverBackgroundColor={color.bg.hover}
+        transition={transition.fast}
+        component="button"
+        background="none"
+        border="none"
+        padding={0}
+        fontFamily="inherit"
+        props={{
+          type: "button",
+          onClick: () => setExpanded((prev) => !prev),
+          "aria-expanded": expanded,
+          "aria-label": `Toggle details for ${toolName}`,
+        }}
+        {...focusRing()}
+      >
+        <Row alignItems="center" flexShrink={0}>
+          <WrenchIcon size={12} color={color.text.muted} />
+        </Row>
+
+        <Block
+          fontSize={fontSize.xs}
+          fontFamily={fontFamily.mono}
+          color={color.text.secondary}
+          flexGrow={1}
+          textAlign="left"
+        >
+          {toolName}
+        </Block>
+
+        {isExecuting && result === null ? (
+          <Row alignItems="center" gap={spacing.xs}>
+            <FX.Pulse>
+              <Block
+                width={6}
+                height={6}
+                borderRadius={radius.full}
+                backgroundColor={color.text.muted}
+              />
+            </FX.Pulse>
+          </Row>
+        ) : (
+          <Block
+            {...textStyles.caption}
+            color={color.text.muted}
+            overflow="hidden"
+            textOverflow="ellipsis"
+            whiteSpace="nowrap"
+            flexShrink={1}
+          >
+            {summary}
+          </Block>
+        )}
+
+        <Row
+          alignItems="center"
+          flexShrink={0}
+          transform={expanded ? "rotate(90deg)" : "rotate(0deg)"}
+          transition={transition.fast}
+        >
+          <ChevronRightIcon size={12} color={color.text.muted} />
+        </Row>
+      </Row>
+
+      {expanded && result !== null && (
+        <Block
+          fontSize={fontSize.xs}
+          fontFamily={fontFamily.mono}
+          color={color.text.secondary}
+          backgroundColor={color.bg.muted}
+          borderRadius={radius.sm}
+          padding={spacing.md}
+          overflowX="auto"
+          whiteSpace="pre-wrap"
+          wordBreak="break-all"
+          component="pre"
+        >
+          {(() => {
+            try {
+              return JSON.stringify(JSON.parse(result.content), null, 2);
+            } catch {
+              return result.content;
+            }
+          })()}
+        </Block>
+      )}
+    </Col>
+  );
+};

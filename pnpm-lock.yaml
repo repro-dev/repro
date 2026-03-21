@@ -375,6 +375,12 @@ importers:
       '@react-spring/web':
         specifier: ^9.7.5
         version: 9.7.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@repro/agentic':
+        specifier: workspace:*
+        version: link:../../packages/agentic
+      '@repro/agentic-ui':
+        specifier: workspace:*
+        version: link:../../packages/agentic-ui
       '@repro/analytics':
         specifier: workspace:*
         version: link:../../packages/analytics
@@ -996,6 +1002,101 @@ importers:
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
+  packages/agentic:
+    dependencies:
+      '@repro/atom':
+        specifier: workspace:*
+        version: link:../atom
+      '@repro/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@repro/future-utils':
+        specifier: workspace:*
+        version: link:../future-utils
+      '@repro/random-string':
+        specifier: workspace:*
+        version: link:../random-string
+      '@repro/source-utils':
+        specifier: workspace:*
+        version: link:../source-utils
+      '@repro/tdl':
+        specifier: workspace:*
+        version: link:../tdl
+      '@repro/vdom-utils':
+        specifier: workspace:*
+        version: link:../vdom-utils
+      fluture:
+        specifier: ^14.0.0
+        version: 14.0.0
+      rxjs:
+        specifier: ^7.8.0
+        version: 7.8.0
+    devDependencies:
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      '@types/repro-shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+      prettier:
+        specifier: ^3.0.0
+        version: 3.0.0
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
+  packages/agentic-ui:
+    dependencies:
+      '@jsxstyle/react':
+        specifier: ^3.0.1
+        version: 3.0.1(@types/react@18.3.10)(react@18.3.1)
+      '@m2d/react-markdown':
+        specifier: ^1.0.0
+        version: 1.0.0(@types/react@18.3.10)(react@18.3.1)
+      '@repro/agentic':
+        specifier: workspace:*
+        version: link:../agentic
+      '@repro/atom':
+        specifier: workspace:*
+        version: link:../atom
+      '@repro/design':
+        specifier: workspace:*
+        version: link:../design
+      lucide-react:
+        specifier: 0.542.0
+        version: 0.542.0(react@18.3.1)
+      react:
+        specifier: 18.3.1
+        version: 18.3.1
+    devDependencies:
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      '@types/react':
+        specifier: 18.3.10
+        version: 18.3.10
+      '@types/repro-shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+      prettier:
+        specifier: ^3.0.0
+        version: 3.0.0
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
