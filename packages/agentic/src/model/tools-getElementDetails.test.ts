@@ -146,6 +146,14 @@ describe("executeTool — getElementDetails", () => {
     assert.ok((result.error as string).toLowerCase().includes("nodeid"));
   });
 
+  it("missing nodeId returns reason and suggestion mentioning getDOMState", () => {
+    const accessor = makeEmptyAccessor();
+    const result = executeTool(accessor, "getElementDetails", {}) as any;
+    assert.ok(result.reason);
+    assert.ok(result.suggestion);
+    assert.ok((result.suggestion as string).includes("getDOMState"));
+  });
+
   it("missing timestampMs returns error", () => {
     const accessor = makeEmptyAccessor();
     const result = executeTool(accessor, "getElementDetails", {
@@ -153,6 +161,16 @@ describe("executeTool — getElementDetails", () => {
     }) as any;
     assert.ok("error" in result);
     assert.ok((result.error as string).toLowerCase().includes("timestampms"));
+  });
+
+  it("missing timestampMs returns reason and suggestion mentioning getRecordingDuration", () => {
+    const accessor = makeEmptyAccessor();
+    const result = executeTool(accessor, "getElementDetails", {
+      nodeId: "x",
+    }) as any;
+    assert.ok(result.reason);
+    assert.ok(result.suggestion);
+    assert.ok((result.suggestion as string).includes("getRecordingDuration"));
   });
 
   it("no snapshot returns error", () => {
@@ -165,6 +183,17 @@ describe("executeTool — getElementDetails", () => {
     assert.ok((result.error as string).toLowerCase().includes("snapshot"));
   });
 
+  it("no snapshot returns reason and suggestion mentioning getRecordingDuration", () => {
+    const accessor = makeEmptyAccessor();
+    const result = executeTool(accessor, "getElementDetails", {
+      nodeId: "abc",
+      timestampMs: 1000,
+    }) as any;
+    assert.ok(result.reason);
+    assert.ok(result.suggestion);
+    assert.ok((result.suggestion as string).includes("getRecordingDuration"));
+  });
+
   it("node not found returns error containing the nodeId", () => {
     const vtree = makeStandardVTree();
     const accessor = makeAccessor(() => makeSnapshot(vtree));
@@ -174,6 +203,18 @@ describe("executeTool — getElementDetails", () => {
     }) as any;
     assert.ok("error" in result);
     assert.ok((result.error as string).includes("zzz99"));
+  });
+
+  it("node not found returns reason and suggestion mentioning getDOMState", () => {
+    const vtree = makeStandardVTree();
+    const accessor = makeAccessor(() => makeSnapshot(vtree));
+    const result = executeTool(accessor, "getElementDetails", {
+      nodeId: "zzz99",
+      timestampMs: 1000,
+    }) as any;
+    assert.ok(result.reason);
+    assert.ok(result.suggestion);
+    assert.ok((result.suggestion as string).includes("getDOMState"));
   });
 
   it("self context returns element, parents, siblings, textContent; no children", () => {

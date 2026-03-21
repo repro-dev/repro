@@ -443,4 +443,45 @@ describe("executeTool — getEventsAroundTime", () => {
     assert.strictEqual(result.events[0]!.type, "viewportResize");
     assert.deepStrictEqual(result.events[0]!.to, { width: 1280, height: 720 });
   });
+
+  it("returns structured error when timestamp is below 0", () => {
+    const accessor = makeAccessor([], 10000);
+    const result = executeTool(accessor, "getEventsAroundTime", {
+      timestampMs: -1,
+    }) as { error: string; reason: string; suggestion: string };
+    assert.ok(result.error.includes("-1ms"));
+    assert.ok(result.reason);
+    assert.ok(result.suggestion);
+    assert.ok(result.suggestion.includes("getRecordingDuration"));
+  });
+
+  it("returns structured error when timestamp exceeds recording duration", () => {
+    const accessor = makeAccessor([], 10000);
+    const result = executeTool(accessor, "getEventsAroundTime", {
+      timestampMs: 99999,
+    }) as { error: string; reason: string; suggestion: string };
+    assert.ok(result.error.includes("99999ms"));
+    assert.ok(result.error.includes("10000ms"));
+    assert.ok(result.reason);
+    assert.ok(result.suggestion);
+    assert.ok(result.suggestion.includes("getRecordingDuration"));
+  });
+
+  it("does not return error when timestamp is exactly 0", () => {
+    const accessor = makeAccessor([], 10000);
+    const result = executeTool(accessor, "getEventsAroundTime", {
+      timestampMs: 0,
+    }) as { events?: unknown[]; error?: string };
+    assert.strictEqual(result.error, undefined);
+    assert.ok(Array.isArray(result.events));
+  });
+
+  it("does not return error when timestamp equals recording duration", () => {
+    const accessor = makeAccessor([], 10000);
+    const result = executeTool(accessor, "getEventsAroundTime", {
+      timestampMs: 10000,
+    }) as { events?: unknown[]; error?: string };
+    assert.strictEqual(result.error, undefined);
+    assert.ok(Array.isArray(result.events));
+  });
 });

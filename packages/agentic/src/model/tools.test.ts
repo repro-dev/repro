@@ -246,7 +246,19 @@ describe("executeTool — unknown tool", () => {
     const result = executeTool(accessor, "doesNotExist", {}) as {
       error: string;
     };
-    assert.deepStrictEqual(result, { error: "Unknown tool: doesNotExist" });
+    assert.ok(result.error.includes("Unknown tool: doesNotExist"));
+  });
+
+  it("returns reason and suggestion for unknown tool", () => {
+    const accessor = makeEmptyAccessor();
+    const result = executeTool(accessor, "doesNotExist", {}) as {
+      error: string;
+      reason: string;
+      suggestion: string;
+    };
+    assert.ok(result.reason);
+    assert.ok(result.suggestion);
+    assert.ok(result.suggestion.includes("getRecordingDuration"));
   });
 });
 
@@ -604,6 +616,29 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
     assert.strictEqual(result.messages.length, 1);
     assert.ok(result.messages[0]!.text.includes("mid error"));
   });
+
+  it("returns _hint when messages are empty and logLevel filter was provided", () => {
+    const events = new List(SourceEventView, [
+      makeConsoleEvent(100, LogLevel.Info, "info message"),
+    ]);
+    const accessor = makeAccessor(events);
+    const result = executeTool(accessor, "getConsoleMessages", {
+      logLevel: "error",
+    }) as { messages: unknown[]; _hint?: string };
+    assert.strictEqual(result.messages.length, 0);
+    assert.ok(result._hint);
+    assert.ok(result._hint.includes("getConsoleMessages"));
+  });
+
+  it("does not return _hint when no logLevel filter and messages are empty", () => {
+    const accessor = makeEmptyAccessor();
+    const result = executeTool(accessor, "getConsoleMessages", {}) as {
+      messages: unknown[];
+      _hint?: string;
+    };
+    assert.strictEqual(result.messages.length, 0);
+    assert.strictEqual(result._hint, undefined);
+  });
 });
 
 describe("executeTool — getNetworkRequests", () => {
@@ -914,7 +949,75 @@ describe("executeTool — getNetworkRequests", () => {
     assert.strictEqual(result.requests[0]!.type, "fetch");
     assert.strictEqual(result.requests[1]!.type, "ws");
   });
+
+  it("returns _hint when requests are empty and filters were provided", () => {
+    const accessor = makeEmptyAccessor();
+    const result = executeTool(accessor, "getNetworkRequests", {
+      urlPattern: "/nonexistent",
+    }) as { requests: unknown[]; _hint?: string };
+    assert.strictEqual(result.requests.length, 0);
+    assert.ok(result._hint);
+    assert.ok(result._hint.includes("getNetworkRequests"));
+  });
+
+  it("does not return _hint when no filters were provided and requests are empty", () => {
+    const accessor = makeEmptyAccessor();
+    const result = executeTool(accessor, "getNetworkRequests", {}) as {
+      requests: unknown[];
+      _hint?: string;
+    };
+    assert.strictEqual(result.requests.length, 0);
+    assert.strictEqual(result._hint, undefined);
+  });
+
+  it("returns _hint when method filter yields zero results", () => {
+    const accessor = makeEmptyAccessor();
+    const result = executeTool(accessor, "getNetworkRequests", {
+      method: "DELETE",
+    }) as { requests: unknown[]; _hint?: string };
+    assert.strictEqual(result.requests.length, 0);
+    assert.ok(result._hint);
+    assert.ok(result._hint.includes("getNetworkRequests"));
+  });
+
+  it("returns _hint when statusMin filter yields zero results", () => {
+    const events = new List(SourceEventView, [
+      makeFetchRequestEvent(100, "req1", "https://example.com/ok", "GET"),
+      makeFetchResponseEvent(150, "req1", 200),
+    ]);
+    const accessor = makeAccessor(events);
+    const result = executeTool(accessor, "getNetworkRequests", {
+      statusMin: 400,
+    }) as { requests: unknown[]; _hint?: string };
+    assert.strictEqual(result.requests.length, 0);
+    assert.ok(result._hint);
+    assert.ok(result._hint.includes("getNetworkRequests"));
+  });
+
+  it("returns _hint when statusMax filter yields zero results", () => {
+    const events = new List(SourceEventView, [
+      makeFetchRequestEvent(100, "req1", "https://example.com/error", "GET"),
+      makeFetchResponseEvent(150, "req1", 500),
+    ]);
+    const accessor = makeAccessor(events);
+    const result = executeTool(accessor, "getNetworkRequests", {
+      statusMax: 299,
+    }) as { requests: unknown[]; _hint?: string };
+    assert.strictEqual(result.requests.length, 0);
+    assert.ok(result._hint);
+    assert.ok(result._hint.includes("getNetworkRequests"));
+  });
 });
+
+function makeSnapshotWithMissingRoot(): {
+  dom: { rootId: string; nodes: Record<string, never> };
+  interaction: null;
+} {
+  return {
+    dom: { rootId: "nonexistent-root", nodes: {} },
+    interaction: null,
+  };
+}
 
 describe("executeTool — getDOMState", () => {
   it("returns error when no snapshot available", () => {
@@ -924,6 +1027,42 @@ describe("executeTool — getDOMState", () => {
     }) as { error: string };
     assert.ok(typeof result.error === "string");
     assert.ok(result.error.includes("No DOM snapshot"));
+  });
+
+  it("returns error with reason and suggestion when a11y tree cannot be built", () => {
+    const accessor = makeAccessor(
+      new List(SourceEventView, []),
+      0,
+      () =>
+        makeSnapshotWithMissingRoot() as unknown as ReturnType<
+          typeof makeSimpleSnapshot
+        >,
+    );
+    const result = executeTool(accessor, "getDOMState", {
+      timestampMs: 0,
+      mode: "a11y",
+    }) as { error: string; reason: string; suggestion: string };
+    assert.ok(typeof result.error === "string");
+    assert.ok(result.error.includes("accessibility tree"));
+    assert.ok(result.reason);
+    assert.ok(result.suggestion);
+    assert.ok(result.suggestion.includes("summary"));
+  });
+
+  it("includes _tokenEstimate when a11y tree cannot be built", () => {
+    const accessor = makeAccessor(
+      new List(SourceEventView, []),
+      0,
+      () =>
+        makeSnapshotWithMissingRoot() as unknown as ReturnType<
+          typeof makeSimpleSnapshot
+        >,
+    );
+    const result = executeTool(accessor, "getDOMState", {
+      timestampMs: 0,
+      mode: "a11y",
+    }) as { _tokenEstimate: number };
+    assert.ok(typeof result._tokenEstimate === "number");
   });
 
   it("returns a11y tree for simple DOM in a11y mode", () => {
@@ -999,6 +1138,16 @@ describe("executeTool — getDOMState", () => {
         (t as { function: { name: string } }).function.name === "getDOMState",
     );
     assert.ok(def !== undefined);
+  });
+
+  it("returns reason and suggestion when no DOM snapshot available", () => {
+    const accessor = makeEmptyAccessor();
+    const result = executeTool(accessor, "getDOMState", {
+      timestampMs: 1000,
+    }) as { error: string; reason: string; suggestion: string };
+    assert.ok(result.reason);
+    assert.ok(result.suggestion);
+    assert.ok(result.suggestion.includes("getRecordingDuration"));
   });
 });
 
