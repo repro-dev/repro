@@ -162,6 +162,18 @@ export function executeToolCalls(
   return results;
 }
 
+export const MAX_TOOL_ITERATIONS = 25;
+
+export function buildIterationLimitMessage(id: string): AssistantMessage {
+  return {
+    id,
+    timestamp: new Date(),
+    role: "assistant",
+    content: `Analysis reached the iteration limit (${MAX_TOOL_ITERATIONS} tool calls). The investigation was cut short — please try a more specific question or review the findings above.`,
+    toolCalls: [],
+  };
+}
+
 export function createAgenticState(
   streamProvider: StreamProvider,
   recording: RecordingDataAccessor,
@@ -175,6 +187,7 @@ export function createAgenticState(
 
   const subscription = new Subscription();
   const toolCallTrigger$ = new Subject<void>();
+  let iterationCount = 0;
 
   function destroy() {
     toolCallTrigger$.complete();
@@ -182,6 +195,7 @@ export function createAgenticState(
   }
 
   function query(input: string) {
+    iterationCount = 0;
     setLoading("reasoning");
 
     const id = createEntryId();
@@ -372,6 +386,23 @@ export function createAgenticState(
             lastEntry.role === "assistant" &&
             lastEntry.toolCalls.length > 0
           ) {
+            iterationCount += 1;
+
+            if (iterationCount >= MAX_TOOL_ITERATIONS) {
+              const limitMessage = buildIterationLimitMessage(createEntryId());
+
+              setEntryMap((prev) => ({
+                orderedIds: [...prev.orderedIds, limitMessage.id],
+                entries: {
+                  ...prev.entries,
+                  [limitMessage.id]: limitMessage,
+                },
+              }));
+
+              setLoading("none");
+              break;
+            }
+
             setLoading("tool-executing");
 
             const toolMessages = executeToolCalls(

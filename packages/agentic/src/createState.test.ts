@@ -3,7 +3,9 @@ import { List } from "@repro/tdl";
 import assert from "node:assert";
 import { describe, it } from "node:test";
 import {
+  MAX_TOOL_ITERATIONS,
   accumulateToolCalls,
+  buildIterationLimitMessage,
   executeToolCalls,
   isValidMessageDelta,
 } from "./createState";
@@ -336,5 +338,44 @@ describe("executeToolCalls", () => {
     const result = executeToolCalls(accessor, sparse, () => "fixed-id");
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0]!.tool_call_id, "tc2");
+  });
+});
+
+describe("MAX_TOOL_ITERATIONS", () => {
+  it("is a positive integer of at least 10", () => {
+    assert.ok(typeof MAX_TOOL_ITERATIONS === "number");
+    assert.ok(Number.isInteger(MAX_TOOL_ITERATIONS));
+    assert.ok(MAX_TOOL_ITERATIONS >= 10);
+  });
+
+  it("defaults to 25", () => {
+    assert.strictEqual(MAX_TOOL_ITERATIONS, 25);
+  });
+});
+
+describe("buildIterationLimitMessage", () => {
+  it("returns an assistant message", () => {
+    const msg = buildIterationLimitMessage("fixed-id");
+    assert.strictEqual(msg.role, "assistant");
+  });
+
+  it("uses the provided id", () => {
+    const msg = buildIterationLimitMessage("my-id");
+    assert.strictEqual(msg.id, "my-id");
+  });
+
+  it("content mentions iteration limit", () => {
+    const msg = buildIterationLimitMessage("x");
+    assert.ok(msg.content.includes("iteration limit"));
+  });
+
+  it("content includes the MAX_TOOL_ITERATIONS count", () => {
+    const msg = buildIterationLimitMessage("x");
+    assert.ok(msg.content.includes(String(MAX_TOOL_ITERATIONS)));
+  });
+
+  it("has empty toolCalls array", () => {
+    const msg = buildIterationLimitMessage("x");
+    assert.deepStrictEqual(msg.toolCalls, []);
   });
 });

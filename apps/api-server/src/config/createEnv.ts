@@ -55,6 +55,7 @@ const envSchema = z.object({
   BILLING_DEFAULT_PLAN: z.string().default('free'),
   BILLING_STUBBED: booleanStringTransform.default(true),
   DEBUG: z.string().optional(),
+  AGENTIC_MAX_ITERATIONS: z.coerce.number().default(25),
 })
 
 export type Env = z.infer<typeof envSchema>
