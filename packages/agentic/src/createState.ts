@@ -17,6 +17,9 @@ import {
   takeWhile,
   withLatestFrom,
 } from "rxjs";
+import { computeContextBudget, truncateToContextBudget } from "./model/context-window";
+import { SYSTEM_CARD_MESSAGE } from "./model/system";
+import { estimateTokens } from "./model/token-optimization";
 import { executeTool, tools } from "./model/tools";
 import {
   AgenticState,
@@ -66,6 +69,8 @@ interface CompletionChunk {
 }
 
 type Chunk = MessageChunk | CompletionChunk;
+
+const AGENTIC_MODEL = "openai/gpt-5-mini";
 
 function createEntryId() {
   return randomString(5);
@@ -203,7 +208,14 @@ export function createAgenticState(
   function fetchResponse(
     context: Context,
   ): FutureInstance<unknown, ReadableStream<{ data: string }>> {
-    return streamProvider(context, tools);
+    const systemTokens = estimateTokens(SYSTEM_CARD_MESSAGE);
+    const budget = computeContextBudget(AGENTIC_MODEL, systemTokens);
+    const truncatedContext = truncateToContextBudget(
+      context,
+      budget,
+      (msg) => estimateTokens(msg),
+    );
+    return streamProvider(truncatedContext, tools);
   }
 
   function appendToolMessage(toolMessage: ToolMessage) {
