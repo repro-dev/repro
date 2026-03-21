@@ -1,0 +1,31 @@
+{
+  "name": "@repro/agentic-ui",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "fmt": "prettier --write src",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@jsxstyle/react": "^3.0.1",
+    "@m2d/react-markdown": "^1.0.0",
+    "@repro/agentic": "workspace:*",
+    "@repro/atom": "workspace:*",
+    "@repro/design": "workspace:*",
+    "lucide-react": "^0.277.0",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.14.0",
+    "@types/react": "^18.0.14",
+    "@types/repro-shared-types": "workspace:*",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "tsx": "4.19.3",
+    "typescript": "overridden"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0"
+  }
+}

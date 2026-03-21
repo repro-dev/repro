@@ -1,0 +1,13 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+id: agentic-ui
+language: typescript
+toolchains:
+  node:
+    version: '22.19.0'
+tasks:
+  typecheck:
+    command: tsc --noEmit
+    inputs:
+      - 'src/**/*.ts'
+      - 'src/**/*.tsx'
+      - 'tsconfig.json'
