@@ -1,0 +1,24 @@
+PROJECT_ROOT = os.path.join(os.getcwd(), '../../..')
+
+local_resource(
+    'mcp-server',
+    serve_cmd='portless mcp.repro moon run repro/mcp-server:dev',
+    serve_dir=PROJECT_ROOT,
+    serve_env={
+        'DB_HOST': 'localhost',
+        'DB_PORT': '15432',
+        'DB_NAME': 'repro',
+        'DB_USER': 'repro',
+        'DB_PASSWORD': 'repro',
+        'STORAGE_ENDPOINT': 'http://localhost:18333',
+        'API_SERVER_URL': 'http://api.repro.localhost:1355',
+    },
+    deps=[
+        os.path.join(PROJECT_ROOT, 'apps/mcp-server/src'),
+        os.path.join(PROJECT_ROOT, 'apps/mcp-server/package.json'),
+    ],
+    resource_deps=['api-server-migrations', 'portless-proxy'],
+    allow_parallel=True,
+    links=['http://mcp.repro.localhost:1355'],
+    labels=['mcp'],
+)
