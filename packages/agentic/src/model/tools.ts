@@ -35,6 +35,19 @@ import {
   truncate,
 } from "./token-optimization";
 
+function createError(
+  error: string,
+  reason?: string,
+  suggestion?: string,
+): { error: string; reason?: string; suggestion?: string } {
+  const result: { error: string; reason?: string; suggestion?: string } = {
+    error,
+  };
+  if (reason !== undefined) result.reason = reason;
+  if (suggestion !== undefined) result.suggestion = suggestion;
+  return result;
+}
+
 const LOG_LEVEL_MAP: Record<string, LogLevel> = {
   verbose: LogLevel.Verbose,
   info: LogLevel.Info,
@@ -756,6 +769,18 @@ const toolHandlers: Record<string, ToolHandler> = {
       messages,
       summary: levelSummary,
     };
+
+    const logLevelFilterProvided = args.logLevel !== undefined;
+
+    if (messages.length === 0 && logLevelFilterProvided) {
+      return {
+        ...response,
+        _hint:
+          "No console messages matched the provided filter. Call getConsoleMessages() without filters to see all available messages.",
+        _tokenEstimate: estimateTokens(response),
+      };
+    }
+
     return { ...response, _tokenEstimate: estimateTokens(response) };
   },
 
@@ -936,6 +961,22 @@ const toolHandlers: Record<string, ToolHandler> = {
       byMethod,
     };
 
+    const hasFilters =
+      urlPattern !== undefined ||
+      method !== undefined ||
+      statusMin !== undefined ||
+      statusMax !== undefined;
+
+    if (requests.length === 0 && hasFilters) {
+      return {
+        requests: [],
+        summary,
+        _hint:
+          "No requests matched the provided filters. Call getNetworkRequests() without filters to see all available network requests.",
+        _tokenEstimate: estimateTokens({ requests: [], summary }),
+      };
+    }
+
     const result = { requests, summary };
     return { ...result, _tokenEstimate: estimateTokens(result) };
   },
@@ -946,7 +987,11 @@ const toolHandlers: Record<string, ToolHandler> = {
     const snapshot = recording.getSnapshotAtTime(timestampMs);
 
     if (!snapshot || !snapshot.dom) {
-      const err = { error: "No DOM snapshot available at this timestamp" };
+      const err = createError(
+        "No DOM snapshot available at this timestamp",
+        "The timestamp may be outside the recording range or no DOM snapshot was captured at this point",
+        "Call getRecordingDuration() to get the valid recording time range, then retry with a timestamp within that range",
+      );
       return { ...err, _tokenEstimate: estimateTokens(err) };
     }
 
@@ -956,7 +1001,11 @@ const toolHandlers: Record<string, ToolHandler> = {
       const tree = buildA11yTree(vtree);
 
       if (!tree) {
-        const err = { error: "Could not build accessibility tree" };
+        const err = createError(
+          "Could not build accessibility tree",
+          "The DOM snapshot may be incomplete or corrupted at this timestamp",
+          "Retry with mode: \"summary\" for a lighter-weight view, or try a different timestamp using getRecordingDuration() to find a valid range",
+        );
         return { ...err, _tokenEstimate: estimateTokens(err) };
       }
 
@@ -1088,21 +1137,37 @@ const toolHandlers: Record<string, ToolHandler> = {
     const context = (args.context as string) ?? "self";
 
     if (!nodeId) {
-      return { error: "nodeId parameter is required" };
+      return createError(
+        "nodeId parameter is required",
+        "The nodeId parameter was not provided",
+        "Call getDOMState() to get a DOM snapshot, then use the nodeId values from the [ref=<nodeId>] attributes in the output",
+      );
     }
     if (timestampMs === undefined) {
-      return { error: "timestampMs parameter is required" };
+      return createError(
+        "timestampMs parameter is required",
+        "The timestampMs parameter was not provided",
+        "Call getRecordingDuration() to get the valid recording time range, then provide a timestamp within that range",
+      );
     }
 
     const snapshot = recording.getSnapshotAtTime(timestampMs);
     if (!snapshot || !snapshot.dom) {
-      return { error: "No DOM snapshot available at the specified time" };
+      return createError(
+        "No DOM snapshot available at the specified time",
+        "The timestamp may be outside the recording range or no DOM snapshot was captured at this point",
+        "Call getRecordingDuration() to get the valid recording time range, then retry with a timestamp within that range",
+      );
     }
 
     const vtree = snapshot.dom;
     const element = getVNodeById(vtree, nodeId as SyntheticId);
     if (!element) {
-      return { error: `Element with nodeId "${nodeId}" not found` };
+      return createError(
+        `Element with nodeId "${nodeId}" not found`,
+        "The nodeId may be stale or from a different timestamp",
+        "Call getDOMState() at the same timestamp to get fresh nodeId values from the current DOM snapshot",
+      );
     }
 
     const attrs: Record<string, string> = {};
@@ -1410,6 +1475,17 @@ const toolHandlers: Record<string, ToolHandler> = {
   getEventsAroundTime: (recording, args) => {
     const timestampMs = args.timestampMs as number;
     const windowMs = (args.windowMs as number) ?? 5000;
+
+    const duration = recording.getDuration();
+
+    if (timestampMs < 0 || timestampMs > duration) {
+      return createError(
+        `Timestamp ${timestampMs}ms is outside the recording range (0–${duration}ms)`,
+        "The provided timestamp falls outside the bounds of the recording",
+        "Call getRecordingDuration() to get the valid time range, then retry with a timestamp between 0 and the recording duration",
+      );
+    }
+
     const halfWindow = windowMs / 2;
     const startTime = Math.max(0, timestampMs - halfWindow);
     const endTime = Math.min(recording.getDuration(), timestampMs + halfWindow);
@@ -1491,7 +1567,21 @@ export function executeTool(
   const handler = toolHandlers[name];
 
   if (!handler) {
-    return { error: `Unknown tool: ${name}` };
+    const availableTools = [
+      "getRecordingDuration",
+      "getEvents",
+      "getEventsAroundTime",
+      "getConsoleMessages",
+      "getNetworkRequests",
+      "getDOMState",
+      "getElementDetails",
+      "findErrors",
+    ];
+    return createError(
+      `Unknown tool: ${name}`,
+      "The tool name does not match any registered tool",
+      `Available tools are: ${availableTools.join(", ")}`,
+    );
   }
 
   return handler(recording, args);
