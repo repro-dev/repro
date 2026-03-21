@@ -1,0 +1,19 @@
+id: repro/mcp-server
+language: typescript
+layer: application
+tags:
+  - type.app
+tasks:
+  dev:
+    command: pnpm run dev-watch
+    deps:
+      - ^:build
+    preset: server
+  start:
+    command: pnpm run start
+    deps:
+      - ^:build
+  typecheck:
+    command: pnpm run typecheck
+toolchains:
+  default: node
