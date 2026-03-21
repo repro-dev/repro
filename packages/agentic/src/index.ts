@@ -4,7 +4,9 @@ export { groupToolCalls } from "./utils/groupToolCalls";
 export type { ToolCallPair } from "./utils/groupToolCalls";
 export { summarizeToolResult } from "./utils/summarizeToolResult";
 export {
+  MAX_TOOL_ITERATIONS,
   accumulateToolCalls,
+  buildIterationLimitMessage,
   createAgenticState,
   executeToolCalls,
   isValidMessageDelta,
