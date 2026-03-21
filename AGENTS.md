@@ -8,6 +8,7 @@
 - **Paths**: Use `~/*` alias for local imports within packages
 - **React**: Functional components with hooks. Inside `@repro/design`, use `@jsxstyle/react` for component styling. In app code, use `@repro/design` components for UI elements and jsxstyle layout primitives (`Row`, `Col`, `Grid`, `Block`, `Inline`) for structural arrangement. Do not use jsxstyle appearance props (backgroundColor, fontSize, color, etc.) to replicate what a design system component should provide.
 - **jsxstyle prop precedence**: jsxstyle forwards a fixed set of HTML attributes (`disabled`, `checked`, `value`, `type`, `placeholder`, `href`, `id`, `name`, `src`, `alt`, `title`) directly to the DOM when passed as top-level props. Top-level props **overwrite** values in the `props` bag. Never split the same attribute across both — always use the `props` bag for HTML attributes that need computed or conditional values (e.g. `props={{ disabled: disabled || !hasValue }}`), and omit the top-level prop.
+- **jsxstyle pseudo-prefix types**: Any package that uses prefixed pseudo-class props (e.g. `hoverBackgroundColor`, `focusOutline`, `emptyDisplay`) must include `"@types/repro-shared-types": "workspace:*"` in `devDependencies`. This package augments `@jsxstyle/core`'s `PseudoPrefixedProps` interface with the custom prefix props used in this codebase. Without it, TypeScript will reject those props.
 - **Naming**: PascalCase for components/types, camelCase for functions/variables
 - **Async**: Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer Future-based signatures in interfaces that may involve I/O.
   - `.pipe()` accepts exactly **one** argument; chain multiple operators with successive `.pipe()` calls
@@ -21,6 +22,7 @@
 - **Package naming**: `@repro/<name>` with workspace protocol (`workspace:*`)
 - Always check existing imports/patterns before adding new dependencies
 - **API list endpoints** must return `{ items: Array<T> }` envelope — never bare arrays. Use a generic `items` key (not resource-specific keys). A shared `ListResponse<T>` type exists in `packages/domain`. Existing endpoints currently return bare arrays and are pending uplift in REP-129; new endpoints must follow the envelope convention.
+- **Agentic tool errors must use the self-healing pattern**: Every tool error response must include (1) what failed, (2) why it likely failed, and (3) specific tool calls the agent should make to recover. This is a hard requirement for all tool implementations, not optional guidance.
 
 ## Environment Variables
 
