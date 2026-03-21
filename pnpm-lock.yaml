@@ -19,7 +19,7 @@ overrides:
   typescript: 5.7.3
   vite: 6.4.1
   '@vitejs/plugin-react': 4.7.0
-  zod: 3.24.4
+  zod: 3.25.76
 
 patchedDependencies:
   '@jsxstyle/core@3.0.1':
@@ -122,8 +122,8 @@ importers:
         specifier: ^6.4.3
         version: 6.4.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zod:
-        specifier: 3.24.4
-        version: 3.24.4
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@repro/testing-utils':
         specifier: workspace:*
@@ -232,7 +232,7 @@ importers:
         version: 5.2.1
       fastify-type-provider-zod:
         specifier: ^4.0.2
-        version: 4.0.2(fastify@5.2.1)(zod@3.24.4)
+        version: 4.0.2(fastify@5.2.1)(zod@3.25.76)
       fluture:
         specifier: ^14.0.0
         version: 14.0.0
@@ -267,8 +267,8 @@ importers:
         specifier: ^17.7.2
         version: 17.7.2
       zod:
-        specifier: 3.24.4
-        version: 3.24.4
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@babel/core':
         specifier: ^7.26.7
@@ -484,8 +484,8 @@ importers:
         specifier: ^7.8.0
         version: 7.8.0
       zod:
-        specifier: 3.24.4
-        version: 3.24.4
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@storybook/react':
         specifier: ^10.2.13
@@ -752,7 +752,7 @@ importers:
         version: 3.787.0
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
-        version: 1.27.1(zod@3.24.4)
+        version: 1.27.1(zod@3.25.76)
       '@repro/agentic':
         specifier: workspace:*
         version: link:../../packages/agentic
@@ -790,8 +790,8 @@ importers:
         specifier: ^0.3.0
         version: 0.3.0
       zod:
-        specifier: 3.24.4
-        version: 3.24.4
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: 22.14.0
@@ -975,8 +975,8 @@ importers:
         specifier: ^11.0.3
         version: 11.0.3
       zod:
-        specifier: 3.24.4
-        version: 3.24.4
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@repro/testing-utils':
         specifier: workspace:*
@@ -1293,8 +1293,8 @@ importers:
         specifier: 18.3.1
         version: 18.3.1
       zod:
-        specifier: 3.24.4
-        version: 3.24.4
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/expect':
         specifier: 24.3.2
@@ -1409,8 +1409,8 @@ importers:
         specifier: ^6.4.3
         version: 6.4.3(react@18.3.1)
       zod:
-        specifier: 3.24.4
-        version: 3.24.4
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: 22.14.0
@@ -2659,8 +2659,8 @@ importers:
         specifier: ^14.0.0
         version: 14.0.0
       zod:
-        specifier: 3.24.4
-        version: 3.24.4
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: 22.14.0
@@ -4018,7 +4018,7 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
-      zod: 3.24.4
+      zod: 3.25.76
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
@@ -6288,7 +6288,7 @@ packages:
     resolution: {integrity: sha512-FDRzSL3ZuoZ+4YDevR1YOinmDKkxOdy3QB9dDR845sK+bQvDroPKhHAXLEAOObDxL7SMA0OZN/A4osrNBTdDTQ==}
     peerDependencies:
       fastify: ^5.0.0
-      zod: 3.24.4
+      zod: 3.25.76
 
   fastify@5.2.1:
     resolution: {integrity: sha512-rslrNBF67eg8/Gyn7P2URV8/6pz8kSAscFL4EThZJ8JBMaXacVdVE4hmUcnPNKERl5o/xTiBSLfdowBRhVF1WA==}
@@ -9231,15 +9231,15 @@ packages:
   zod-to-json-schema@3.24.5:
     resolution: {integrity: sha512-/AuWwMP+YqiPbsJx5D6TfgRTc4kTLjsh5SOcd4bLsfUg2RcEXrFMJl1DGgdHy2aCfsIA/cr/1JM0xcB2GZji8g==}
     peerDependencies:
-      zod: 3.24.4
+      zod: 3.25.76
 
   zod-to-json-schema@3.25.1:
     resolution: {integrity: sha512-pM/SU9d3YAggzi6MtR4h7ruuQlqKtad8e9S0fmxcMi+ueAK5Korys/aWcV9LIIHTVbj01NdzxcnXSN+O74ZIVA==}
     peerDependencies:
-      zod: 3.24.4
+      zod: 3.25.76
 
-  zod@3.24.4:
-    resolution: {integrity: sha512-OdqJE9UDRPwWsrHjLN2F8bPxvwJBK22EHLWtanu0LSYr5YqzsaaW3RMgmjwr8Rypg5k+meEJdSPXJZXE/yqOMg==}
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
@@ -11067,7 +11067,7 @@ snapshots:
       '@types/react': 18.3.10
       react: 18.3.1
 
-  '@modelcontextprotocol/sdk@1.27.1(zod@3.24.4)':
+  '@modelcontextprotocol/sdk@1.27.1(zod@3.25.76)':
     dependencies:
       '@hono/node-server': 1.19.11(hono@4.12.8)
       ajv: 8.17.1
@@ -11084,8 +11084,8 @@ snapshots:
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
-      zod: 3.24.4
-      zod-to-json-schema: 3.25.1(zod@3.24.4)
+      zod: 3.25.76
+      zod-to-json-schema: 3.25.1(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
 
@@ -13712,12 +13712,12 @@ snapshots:
 
   fastify-plugin@5.0.1: {}
 
-  fastify-type-provider-zod@4.0.2(fastify@5.2.1)(zod@3.24.4):
+  fastify-type-provider-zod@4.0.2(fastify@5.2.1)(zod@3.25.76):
     dependencies:
       '@fastify/error': 4.0.0
       fastify: 5.2.1
-      zod: 3.24.4
-      zod-to-json-schema: 3.24.5(zod@3.24.4)
+      zod: 3.25.76
+      zod-to-json-schema: 3.24.5(zod@3.25.76)
 
   fastify@5.2.1:
     dependencies:
@@ -17112,14 +17112,14 @@ snapshots:
 
   yoctocolors-cjs@2.1.2: {}
 
-  zod-to-json-schema@3.24.5(zod@3.24.4):
+  zod-to-json-schema@3.24.5(zod@3.25.76):
     dependencies:
-      zod: 3.24.4
+      zod: 3.25.76
 
-  zod-to-json-schema@3.25.1(zod@3.24.4):
+  zod-to-json-schema@3.25.1(zod@3.25.76):
     dependencies:
-      zod: 3.24.4
+      zod: 3.25.76
 
-  zod@3.24.4: {}
+  zod@3.25.76: {}
 
   zwitch@2.0.4: {}
