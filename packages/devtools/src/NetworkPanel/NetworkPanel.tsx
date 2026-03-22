@@ -1,6 +1,7 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
 import { colors } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
+import { SourceEvent } from '@repro/domain'
 import { ControlFrame, ElapsedMarker, usePlayback } from '@repro/playback'
 import {
   FetchGroup,
@@ -29,7 +30,9 @@ export const NetworkPanel: React.FC = () => {
       'NetworkPanel -> get network messages from source events',
       () => {
         const sourceEvents = playback.getSourceEvents()
-        const indexedNetworkEvents = findIndexedNetworkEvents(sourceEvents)
+        const indexedNetworkEvents = findIndexedNetworkEvents(
+          Array.from(sourceEvents) as unknown as Array<SourceEvent>
+        )
         return groupNetworkEvents(indexedNetworkEvents)
       }
     )

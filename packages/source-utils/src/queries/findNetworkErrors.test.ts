@@ -3,17 +3,18 @@ import {
   MessagePartType,
   NetworkMessageType,
   RequestType,
+  SourceEvent,
   SourceEventType,
   SourceEventView,
 } from '@repro/domain'
-import { Box, List } from '@repro/tdl'
+import { Box } from '@repro/tdl'
 import assert from 'node:assert'
 import { describe, it } from 'node:test'
 import { findNetworkErrors } from './findNetworkErrors'
 
 describe('findNetworkErrors', () => {
   it('returns empty array when no network errors are present', () => {
-    const events = new List(SourceEventView, [
+    const events = [
       SourceEventView.from(
         new Box({
           type: SourceEventType.Network,
@@ -42,7 +43,7 @@ describe('findNetworkErrors', () => {
           }),
         })
       ),
-    ])
+    ] as unknown as Array<SourceEvent>
 
     const errors = findNetworkErrors(events)
     assert.strictEqual(
@@ -53,7 +54,7 @@ describe('findNetworkErrors', () => {
   })
 
   it('filters and returns only fetch groups with 4xx/5xx status codes', () => {
-    const events = new List(SourceEventView, [
+    const events = [
       SourceEventView.from(
         new Box({
           type: SourceEventType.Console,
@@ -154,7 +155,7 @@ describe('findNetworkErrors', () => {
           }),
         })
       ),
-    ])
+    ] as unknown as Array<SourceEvent>
 
     const errors = findNetworkErrors(events)
     assert.strictEqual(errors.length, 2, 'should return only 4xx/5xx errors')
@@ -163,7 +164,7 @@ describe('findNetworkErrors', () => {
   })
 
   it('ignores websocket groups and non-error responses', () => {
-    const events = new List(SourceEventView, [
+    const events = [
       SourceEventView.from(
         new Box({
           type: SourceEventType.Network,
@@ -215,7 +216,7 @@ describe('findNetworkErrors', () => {
           }),
         })
       ),
-    ])
+    ] as unknown as Array<SourceEvent>
 
     const errors = findNetworkErrors(events)
     assert.strictEqual(
@@ -226,7 +227,7 @@ describe('findNetworkErrors', () => {
   })
 
   it('handles empty event list', () => {
-    const events = new List(SourceEventView, [])
+    const events: Array<SourceEvent> = []
 
     const errors = findNetworkErrors(events)
     assert.strictEqual(
