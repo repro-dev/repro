@@ -3,28 +3,54 @@ import {
   NodeId,
   NodeType,
   PatchType,
+  SourceEvent,
   SourceEventType,
   SourceEventView,
 } from "@repro/domain";
-import { Box, List } from "@repro/tdl";
+import { Box } from "@repro/tdl";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { RecordingDataAccessor } from "../types";
 import { executeTool } from "./tools";
 
 function makeAccessor(
-  events: List<typeof SourceEventView>,
+  events: Array<ReturnType<typeof SourceEventView.from>>,
   duration?: number,
 ): RecordingDataAccessor {
   return {
-    getSourceEvents: () => events,
-    getDuration: () => duration ?? 0,
+    getDuration: () => duration ?? Number.MAX_SAFE_INTEGER,
     getSnapshotAtTime: () => null,
+    getEventsByType: (types, opts) => {
+      const results: Array<SourceEvent> = [];
+      for (const event of events) {
+        const type = event.get("type").orElse(-1);
+        if (!types.includes(type as SourceEventType)) continue;
+        const time = event.get("time").orElse(0);
+        if (opts?.startMs !== undefined && time < opts.startMs) continue;
+        if (opts?.endMs !== undefined && time > opts.endMs) continue;
+        results.push(event as unknown as SourceEvent);
+      }
+      return results;
+    },
+    getEventsInRange: (startMs, endMs, opts) => {
+      const results: Array<SourceEvent> = [];
+      for (const event of events) {
+        const time = event.get("time").orElse(0);
+        if (time < startMs) continue;
+        if (time > endMs) break;
+        if (opts?.types && opts.types.length > 0) {
+          const type = event.get("type").orElse(-1);
+          if (!opts.types.includes(type as SourceEventType)) continue;
+        }
+        results.push(event as unknown as SourceEvent);
+      }
+      return results;
+    },
   };
 }
 
 function makeEmptyAccessor(): RecordingDataAccessor {
-  return makeAccessor(new List(SourceEventView, []));
+  return makeAccessor([]);
 }
 
 function makePageTransitionEvent(
@@ -256,10 +282,10 @@ describe("executeTool — getEvents — empty recording", () => {
 
 describe("executeTool — getEvents — basic events", () => {
   it("returns pageTransition and click events at normal tier", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makePageTransitionEvent(0, "/products"),
       makeClickEvent(1200, '"Widget Pro" link'),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", {}) as {
       events: Array<Record<string, unknown>>;
@@ -274,12 +300,12 @@ describe("executeTool — getEvents — basic events", () => {
 
 describe("executeTool — getEvents — PointerMove/Down/Up excluded", () => {
   it("excludes PointerMove, PointerDown, PointerUp at all tiers", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makePointerMoveEvent(100),
       makePointerDownEvent(200),
       makePointerUpEvent(300),
       makeClickEvent(400, "button"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
 
     for (const detail of ["summary", "normal", "full"] as const) {
@@ -308,12 +334,12 @@ describe("executeTool — getEvents — PointerMove/Down/Up excluded", () => {
 
 describe("executeTool — getEvents — KeyDown coalescing", () => {
   it("coalesces sequential KeyDown events into typed string at normal tier", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeKeyDownEvent(1000, "d"),
       makeKeyDownEvent(1050, "i"),
       makeKeyDownEvent(1100, "s"),
       makeKeyDownEvent(1150, "c"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
       events: Array<Record<string, unknown>>;
@@ -324,10 +350,7 @@ describe("executeTool — getEvents — KeyDown coalescing", () => {
   });
 
   it("returns individual keyDown events at full tier", () => {
-    const events = new List(SourceEventView, [
-      makeKeyDownEvent(1000, "a"),
-      makeKeyDownEvent(1050, "b"),
-    ]);
+    const events = [makeKeyDownEvent(1000, "a"), makeKeyDownEvent(1050, "b")];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { detail: "full" }) as {
       events: Array<Record<string, unknown>>;
@@ -340,10 +363,7 @@ describe("executeTool — getEvents — KeyDown coalescing", () => {
   });
 
   it("excludes KeyDown events at summary tier", () => {
-    const events = new List(SourceEventView, [
-      makeKeyDownEvent(1000, "x"),
-      makeKeyDownEvent(1050, "y"),
-    ]);
+    const events = [makeKeyDownEvent(1000, "x"), makeKeyDownEvent(1050, "y")];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", {
       detail: "summary",
@@ -357,10 +377,10 @@ describe("executeTool — getEvents — KeyDown coalescing", () => {
   });
 
   it("wraps special keys in brackets at normal tier", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeKeyDownEvent(1000, "Enter"),
       makeKeyDownEvent(1050, "Backspace"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
       events: Array<Record<string, unknown>>;
@@ -372,9 +392,7 @@ describe("executeTool — getEvents — KeyDown coalescing", () => {
 
 describe("executeTool — getEvents — Click with humanReadableLabel", () => {
   it("includes humanReadableLabel when present", () => {
-    const events = new List(SourceEventView, [
-      makeClickEvent(500, "Submit button"),
-    ]);
+    const events = [makeClickEvent(500, "Submit button")];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
       events: Array<Record<string, unknown>>;
@@ -384,9 +402,7 @@ describe("executeTool — getEvents — Click with humanReadableLabel", () => {
   });
 
   it("includes at coordinates at full tier", () => {
-    const events = new List(SourceEventView, [
-      makeClickEvent(500, "Submit", [150, 250]),
-    ]);
+    const events = [makeClickEvent(500, "Submit", [150, 250])];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { detail: "full" }) as {
       events: Array<Record<string, unknown>>;
@@ -395,7 +411,7 @@ describe("executeTool — getEvents — Click with humanReadableLabel", () => {
   });
 
   it("omits label when null", () => {
-    const events = new List(SourceEventView, [makeClickEvent(500, null)]);
+    const events = [makeClickEvent(500, null)];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
       events: Array<Record<string, unknown>>;
@@ -406,13 +422,13 @@ describe("executeTool — getEvents — Click with humanReadableLabel", () => {
 
 describe("executeTool — getEvents — DOM patches bucketed", () => {
   it("buckets DOM patches into per-second windows", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeDOMPatchEvent(100),
       makeDOMPatchEvent(500),
       makeDOMPatchEvent(1200),
       makeDOMPatchEvent(1800),
       makeDOMPatchEvent(1900),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
       events: Array<Record<string, unknown>>;
@@ -430,11 +446,11 @@ describe("executeTool — getEvents — DOM patches bucketed", () => {
 
 describe("executeTool — getEvents — time range filtering", () => {
   it("filters events by startTimeMs", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makePageTransitionEvent(100, "/early"),
       makePageTransitionEvent(500, "/mid"),
       makePageTransitionEvent(1000, "/late"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { startTimeMs: 400 }) as {
       events: Array<Record<string, unknown>>;
@@ -444,11 +460,11 @@ describe("executeTool — getEvents — time range filtering", () => {
   });
 
   it("filters events by endTimeMs", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makePageTransitionEvent(100, "/early"),
       makePageTransitionEvent(500, "/mid"),
       makePageTransitionEvent(1000, "/late"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { endTimeMs: 600 }) as {
       events: Array<Record<string, unknown>>;
@@ -460,11 +476,11 @@ describe("executeTool — getEvents — time range filtering", () => {
 
 describe("executeTool — getEvents — eventTypes filter", () => {
   it("filters to only specified event types", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makePageTransitionEvent(100, "/page"),
       makeClickEvent(200, "button"),
       makeScrollEvent(300),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", {
       eventTypes: ["click"],
@@ -478,13 +494,13 @@ describe("executeTool — getEvents — eventTypes filter", () => {
 
 describe("executeTool — getEvents — limit and hasMore", () => {
   it("truncates results and sets hasMore when limit exceeded", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makePageTransitionEvent(100, "/a"),
       makePageTransitionEvent(200, "/b"),
       makePageTransitionEvent(300, "/c"),
       makePageTransitionEvent(400, "/d"),
       makePageTransitionEvent(500, "/e"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { limit: 2 }) as {
       events: Array<Record<string, unknown>>;
@@ -495,10 +511,10 @@ describe("executeTool — getEvents — limit and hasMore", () => {
   });
 
   it("does not set hasMore when results fit within limit", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makePageTransitionEvent(100, "/a"),
       makePageTransitionEvent(200, "/b"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { limit: 10 }) as {
       events: Array<Record<string, unknown>>;
@@ -511,12 +527,12 @@ describe("executeTool — getEvents — limit and hasMore", () => {
 
 describe("executeTool — getEvents — summary tier", () => {
   it("returns counts object not individual events at summary tier", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makePageTransitionEvent(100, "/a"),
       makeClickEvent(200, "button"),
       makeClickEvent(300, "link"),
       makeDOMPatchEvent(400),
-    ]);
+    ];
     const accessor = makeAccessor(events, 5000);
     const result = executeTool(accessor, "getEvents", {
       detail: "summary",
@@ -538,9 +554,7 @@ describe("executeTool — getEvents — summary tier", () => {
 
 describe("executeTool — getEvents — scroll event", () => {
   it("includes target and to at normal tier", () => {
-    const events = new List(SourceEventView, [
-      makeScrollEvent(500, "00042" as NodeId, [0, 0], [0, 400]),
-    ]);
+    const events = [makeScrollEvent(500, "00042" as NodeId, [0, 0], [0, 400])];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
       events: Array<Record<string, unknown>>;
@@ -553,9 +567,9 @@ describe("executeTool — getEvents — scroll event", () => {
   });
 
   it("includes from and to at full tier", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeScrollEvent(500, "00042" as NodeId, [0, 100], [0, 400]),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { detail: "full" }) as {
       events: Array<Record<string, unknown>>;
@@ -568,9 +582,7 @@ describe("executeTool — getEvents — scroll event", () => {
 
 describe("executeTool — getEvents — pageTransition", () => {
   it("includes from and to when from is set", () => {
-    const events = new List(SourceEventView, [
-      makePageTransitionEvent(500, "/next", "/current"),
-    ]);
+    const events = [makePageTransitionEvent(500, "/next", "/current")];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", {}) as {
       events: Array<Record<string, unknown>>;
@@ -581,9 +593,7 @@ describe("executeTool — getEvents — pageTransition", () => {
   });
 
   it("omits from when null", () => {
-    const events = new List(SourceEventView, [
-      makePageTransitionEvent(500, "/initial", null),
-    ]);
+    const events = [makePageTransitionEvent(500, "/initial", null)];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", {}) as {
       events: Array<Record<string, unknown>>;
@@ -596,9 +606,7 @@ describe("executeTool — getEvents — pageTransition", () => {
 
 describe("executeTool — getEvents — viewportResize", () => {
   it("returns to dimensions at normal tier", () => {
-    const events = new List(SourceEventView, [
-      makeViewportResizeEvent(500, [1024, 768], [800, 600]),
-    ]);
+    const events = [makeViewportResizeEvent(500, [1024, 768], [800, 600])];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
       events: Array<Record<string, unknown>>;
@@ -610,9 +618,7 @@ describe("executeTool — getEvents — viewportResize", () => {
   });
 
   it("returns from and to at full tier", () => {
-    const events = new List(SourceEventView, [
-      makeViewportResizeEvent(500, [1024, 768], [800, 600]),
-    ]);
+    const events = [makeViewportResizeEvent(500, [1024, 768], [800, 600])];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { detail: "full" }) as {
       events: Array<Record<string, unknown>>;
@@ -625,9 +631,7 @@ describe("executeTool — getEvents — viewportResize", () => {
 
 describe("executeTool — getEvents — doubleClick", () => {
   it("returns doubleClick event with label at normal tier", () => {
-    const events = new List(SourceEventView, [
-      makeDoubleClickEvent(700, "image"),
-    ]);
+    const events = [makeDoubleClickEvent(700, "image")];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
       events: Array<Record<string, unknown>>;
