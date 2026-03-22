@@ -1,6 +1,7 @@
-import { InteractionType, LogLevel, SourceEvent, SourceEventType } from "@repro/domain";
+import { InteractionType, LogLevel, SourceEventType } from "@repro/domain";
 import assert from "node:assert";
 import { describe, it } from "node:test";
+import { makeAccessorFromEventList } from "../recordingDataAccessor";
 import { RecordingDataAccessor } from "../types";
 import { executeTool } from "./tools";
 
@@ -123,32 +124,12 @@ function makeAccessor(
   return {
     getDuration: () => duration,
     getSnapshotAtTime: () => null,
-    getEventsByType: (types, opts) => {
-      const results: Array<SourceEvent> = []
-      for (const event of events) {
-        const type = event.get('type').orElse(-1 as SourceEventType)
-        if (!types.includes(type as SourceEventType)) continue
-        const time = event.get('time').orElse(0)
-        if (opts?.startMs !== undefined && time < opts.startMs) continue
-        if (opts?.endMs !== undefined && time > opts.endMs) continue
-        results.push(event as unknown as SourceEvent)
-      }
-      return results
-    },
-    getEventsInRange: (startMs, endMs, opts) => {
-      const results: Array<SourceEvent> = []
-      for (const event of events) {
-        const time = event.get('time').orElse(0)
-        if (time < startMs) continue
-        if (time > endMs) break
-        if (opts?.types && opts.types.length > 0) {
-          const type = event.get('type').orElse(-1 as SourceEventType)
-          if (!opts.types.includes(type as SourceEventType)) continue
-        }
-        results.push(event as unknown as SourceEvent)
-      }
-      return results
-    },
+    ...makeAccessorFromEventList({
+      size: () => events.length,
+      over: (i) => events[i] as unknown as ReturnType<
+        typeof import('@repro/domain').SourceEventView.from
+      > | null,
+    }),
   }
 }
 
