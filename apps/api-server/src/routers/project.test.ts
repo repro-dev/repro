@@ -13,7 +13,10 @@ import { chain, promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { encodeId } from '~/modules/database'
 import { Harness, createTestHarness, fixtures } from '~/testing'
-import { createRecordingDataWireFormat } from '~/testing/recording'
+import {
+  createRecordingDataUncompressed,
+  createRecordingDataWireFormat,
+} from '~/testing/recording'
 import { readableToString } from '~/testing/utils'
 import { errorType, notFound } from '~/utils/errors'
 import { createProjectRouter } from './project'
@@ -1221,6 +1224,7 @@ describe('Routers > Project', () => {
       ]
 
       const input = createRecordingDataWireFormat(events)
+      const stored = createRecordingDataUncompressed(events)
 
       const res = await app.inject({
         method: 'PUT',
@@ -1239,7 +1243,7 @@ describe('Routers > Project', () => {
             .readDataAsStream(recording.id)
             .pipe(chain(readableToString))
         )
-      ).resolves.toEqual(input)
+      ).resolves.toEqual(stored.toString())
     })
 
     it('should return not-found when writing data for a recording that does not exist', async () => {
