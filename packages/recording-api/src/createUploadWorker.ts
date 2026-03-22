@@ -4,7 +4,7 @@ import { createExportedKeyF, encryptF } from '@repro/encryption'
 import { tap } from '@repro/future-utils'
 import { randomString } from '@repro/random-string'
 import { createResourceMap, filterResourceMap } from '@repro/vdom-utils'
-import { toBinaryWireFormat } from '@repro/wire-formats'
+import { EventIndexEntry, toBinaryWireFormatWithIndex } from '@repro/wire-formats'
 import { gzipSync } from 'fflate'
 import {
   FutureInstance,
@@ -199,22 +199,46 @@ export function createUploadWorker(
     }
 
     const serialized = transformedEvents.pipe(
-      map(views => toBinaryWireFormat(views))
+      map(views => toBinaryWireFormatWithIndex(views))
     )
 
     return serialized.pipe(
-      chain(value => {
-        const res = apiClient.fetch(`/projects/${projectId}/recordings/${recordingId}/data`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/octet-stream' },
-          body: gzipSync(new Uint8Array(value.buffer)),
-        })
+      chain(({ buffer, index }) => {
+        const dataReq = apiClient
+          .fetch(`/projects/${projectId}/recordings/${recordingId}/data`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: gzipSync(new Uint8Array(buffer.buffer)),
+          })
+          .pipe(tap(() => updateStage(UploadStage.SaveEvents, 1, progress)))
 
-        return res.pipe(
-          tap(() => updateStage(UploadStage.SaveEvents, 1, progress))
-        )
+        const indexReq = saveEventIndex(projectId, recordingId, events, index)
+
+        return parallel(Infinity)([dataReq, indexReq]).pipe(map(() => undefined))
       })
     )
+  }
+
+  function saveEventIndex(
+    projectId: string,
+    recordingId: string,
+    events: Array<SourceEvent>,
+    index: Array<EventIndexEntry>
+  ): FutureInstance<Error, void> {
+    const entries = index.map(entry => ({
+      eventIndex: entry.eventIndex,
+      eventType: events[entry.eventIndex]!.get('type').orElse(0) as number,
+      timeMs: events[entry.eventIndex]!.get('time').orElse(0) as number,
+      byteOffset: entry.byteOffset,
+      byteLength: entry.byteLength,
+    }))
+
+    return apiClient
+      .fetch(`/projects/${projectId}/recordings/${recordingId}/event-index`, {
+        method: 'PUT',
+        body: JSON.stringify({ entries }),
+      })
+      .pipe(map(() => undefined))
   }
 
   function saveResources(

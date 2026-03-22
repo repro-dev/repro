@@ -8,6 +8,7 @@ import {
   reject,
   resolve,
 } from 'fluture'
+import { createGunzip } from 'node:zlib'
 import { Readable } from 'node:stream'
 import {
   Database,
@@ -72,7 +73,7 @@ export function createRecordingService(database: Database, storage: Storage) {
                     `Data for recording "${recordingId}" already exists`
                   )
                 )
-              : storage.write(`${recordingId}/data`, data)
+              : storage.write(`${recordingId}/data`, data.pipe(createGunzip()))
           })
         )
       })
@@ -248,6 +249,38 @@ export function createRecordingService(database: Database, storage: Storage) {
     )
   }
 
+  function writeEventIndex(
+    recordingId: string,
+    entries: Array<{
+      eventIndex: number
+      eventType: number
+      timeMs: number
+      byteOffset: number
+      byteLength: number
+    }>
+  ): FutureInstance<Error, void> {
+    const decodedRecordingId = decodeId(recordingId)
+
+    if (decodedRecordingId == null) {
+      return reject(badRequest(`Invalid recording ID "${recordingId}"`))
+    }
+
+    return go(function* () {
+      yield readInfo(recordingId)
+
+      if (!entries.length) {
+        return yield resolve(undefined)
+      }
+
+      return yield attemptQuery(() =>
+        database
+          .insertInto('recording_event_index')
+          .values(entries.map(e => ({ ...e, recordingId: decodedRecordingId })))
+          .execute()
+      ).pipe(map(() => undefined))
+    })
+  }
+
   return {
     // Access control
     ensureIsPublicRecording,
@@ -264,6 +297,7 @@ export function createRecordingService(database: Database, storage: Storage) {
     writeDataFromStream,
     writeResourceFromStream,
     writeResourceMap,
+    writeEventIndex,
     writeInfo,
   }
 }

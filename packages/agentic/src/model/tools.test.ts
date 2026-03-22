@@ -5,29 +5,55 @@ import {
   NodeType,
   RequestType,
   Snapshot,
+  SourceEvent,
   SourceEventType,
   SourceEventView,
 } from "@repro/domain";
-import { Box, List } from "@repro/tdl";
+import { Box } from "@repro/tdl";
 import assert from "node:assert";
 import { describe, it } from "node:test";
 import { RecordingDataAccessor } from "../types";
 import { executeTool, tools } from "./tools";
 
 function makeAccessor(
-  events: List<SourceEventView>,
+  events: Array<ReturnType<typeof SourceEventView.from>>,
   duration?: number,
   snapshotFn?: (timestampMs: number) => Snapshot | null,
 ): RecordingDataAccessor {
   return {
-    getSourceEvents: () => events,
-    getDuration: () => duration ?? 0,
+    getDuration: () => duration ?? Number.MAX_SAFE_INTEGER,
     getSnapshotAtTime: snapshotFn ?? (() => null),
+    getEventsByType: (types, opts) => {
+      const results: Array<SourceEvent> = [];
+      for (const event of events) {
+        const type = event.get("type").orElse(-1);
+        if (!types.includes(type as SourceEventType)) continue;
+        const time = event.get("time").orElse(0);
+        if (opts?.startMs !== undefined && time < opts.startMs) continue;
+        if (opts?.endMs !== undefined && time > opts.endMs) continue;
+        results.push(event as unknown as SourceEvent);
+      }
+      return results;
+    },
+    getEventsInRange: (startMs, endMs, opts) => {
+      const results: Array<SourceEvent> = [];
+      for (const event of events) {
+        const time = event.get("time").orElse(0);
+        if (time < startMs) continue;
+        if (time > endMs) break;
+        if (opts?.types && opts.types.length > 0) {
+          const type = event.get("type").orElse(-1);
+          if (!opts.types.includes(type as SourceEventType)) continue;
+        }
+        results.push(event as unknown as SourceEvent);
+      }
+      return results;
+    },
   };
 }
 
 function makeEmptyAccessor(): RecordingDataAccessor {
-  return makeAccessor(new List(SourceEventView, []));
+  return makeAccessor([]);
 }
 
 function makeSimpleSnapshot(): Snapshot {
@@ -264,7 +290,7 @@ describe("executeTool — unknown tool", () => {
 
 describe("executeTool — getRecordingDuration", () => {
   it("returns duration from getDuration()", () => {
-    const accessor = makeAccessor(new List(SourceEventView, []), 9876);
+    const accessor = makeAccessor([], 9876);
     const result = executeTool(accessor, "getRecordingDuration", {}) as {
       durationMs: number;
       _tokenEstimate: number;
@@ -273,7 +299,7 @@ describe("executeTool — getRecordingDuration", () => {
   });
 
   it("includes _tokenEstimate in response", () => {
-    const accessor = makeAccessor(new List(SourceEventView, []), 9876);
+    const accessor = makeAccessor([], 9876);
     const result = executeTool(accessor, "getRecordingDuration", {}) as {
       durationMs: number;
       _tokenEstimate: number;
@@ -338,14 +364,14 @@ describe("executeTool — getConsoleMessages (stub)", () => {
 
 describe("executeTool — getConsoleMessages (token optimization)", () => {
   it("detail=summary returns only error messages, max 3", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleEvent(100, LogLevel.Info, "info message"),
       makeConsoleEvent(200, LogLevel.Warning, "warning message"),
       makeConsoleEvent(300, LogLevel.Error, "error one"),
       makeConsoleEvent(400, LogLevel.Error, "error two"),
       makeConsoleEvent(500, LogLevel.Error, "error three"),
       makeConsoleEvent(600, LogLevel.Error, "error four"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       detail: "summary",
@@ -356,9 +382,7 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
 
   it("detail=summary truncates text to 100 chars", () => {
     const longText = "a".repeat(150);
-    const events = new List(SourceEventView, [
-      makeConsoleEvent(100, LogLevel.Error, longText),
-    ]);
+    const events = [makeConsoleEvent(100, LogLevel.Error, longText)];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       detail: "summary",
@@ -368,7 +392,7 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
   });
 
   it("detail=summary omits stack traces", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleEvent(100, LogLevel.Error, "error", [
         {
           fileName: "https://cdn.example.com/app.js",
@@ -376,7 +400,7 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
           columnNumber: 5,
         },
       ]),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       detail: "summary",
@@ -385,11 +409,11 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
   });
 
   it("detail=summary deduplicates identical messages with count", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleEvent(100, LogLevel.Error, "same error"),
       makeConsoleEvent(200, LogLevel.Error, "same error"),
       makeConsoleEvent(300, LogLevel.Error, "same error"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       detail: "summary",
@@ -400,12 +424,12 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
   });
 
   it("detail=normal includes errors and warnings", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleEvent(100, LogLevel.Verbose, "verbose message"),
       makeConsoleEvent(200, LogLevel.Info, "info message"),
       makeConsoleEvent(300, LogLevel.Warning, "warning message"),
       makeConsoleEvent(400, LogLevel.Error, "error message"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       detail: "normal",
@@ -419,9 +443,7 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
 
   it("detail=normal truncates text to 200 chars", () => {
     const longText = "b".repeat(300);
-    const events = new List(SourceEventView, [
-      makeConsoleEvent(100, LogLevel.Warning, longText),
-    ]);
+    const events = [makeConsoleEvent(100, LogLevel.Warning, longText)];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       detail: "normal",
@@ -431,7 +453,7 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
   });
 
   it("detail=normal shortens stack frames to basename:line:col format, max 3 frames", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleEvent(100, LogLevel.Warning, "warn", [
         {
           fileName: "https://cdn.example.com/static/js/ProductList.tsx",
@@ -454,7 +476,7 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
           columnNumber: 1,
         },
       ]),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       detail: "normal",
@@ -467,10 +489,10 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
   });
 
   it("detail=normal deduplicates identical messages with count", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleEvent(100, LogLevel.Warning, "same warning"),
       makeConsoleEvent(200, LogLevel.Warning, "same warning"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       detail: "normal",
@@ -480,12 +502,12 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
   });
 
   it("detail=full includes all messages at requested level", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleEvent(100, LogLevel.Verbose, "verbose message"),
       makeConsoleEvent(200, LogLevel.Info, "info message"),
       makeConsoleEvent(300, LogLevel.Warning, "warning message"),
       makeConsoleEvent(400, LogLevel.Error, "error message"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       detail: "full",
@@ -500,9 +522,7 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
 
   it("detail=full truncates text to 500 chars", () => {
     const longText = "c".repeat(600);
-    const events = new List(SourceEventView, [
-      makeConsoleEvent(100, LogLevel.Info, longText),
-    ]);
+    const events = [makeConsoleEvent(100, LogLevel.Info, longText)];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       detail: "full",
@@ -518,10 +538,10 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
       lineNumber: i + 1,
       columnNumber: 1,
     }));
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleEvent(100, LogLevel.Error, "error one", stack),
       makeConsoleEvent(200, LogLevel.Error, "error one", stack),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       detail: "full",
@@ -534,7 +554,7 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
   });
 
   it("all tiers include summary with level counts", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleEvent(100, LogLevel.Verbose, "v1"),
       makeConsoleEvent(200, LogLevel.Info, "i1"),
       makeConsoleEvent(300, LogLevel.Info, "i2"),
@@ -542,7 +562,7 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
       makeConsoleEvent(500, LogLevel.Error, "e1"),
       makeConsoleEvent(600, LogLevel.Error, "e2"),
       makeConsoleEvent(700, LogLevel.Error, "e3"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
 
     for (const detail of ["summary", "normal", "full"] as const) {
@@ -566,9 +586,7 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
   });
 
   it("all tiers include _tokenEstimate", () => {
-    const events = new List(SourceEventView, [
-      makeConsoleEvent(100, LogLevel.Error, "error message"),
-    ]);
+    const events = [makeConsoleEvent(100, LogLevel.Error, "error message")];
     const accessor = makeAccessor(events);
 
     for (const detail of ["summary", "normal", "full"] as const) {
@@ -584,12 +602,12 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
   });
 
   it("default detail is normal when not specified", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleEvent(100, LogLevel.Verbose, "verbose"),
       makeConsoleEvent(200, LogLevel.Info, "info"),
       makeConsoleEvent(300, LogLevel.Warning, "warning"),
       makeConsoleEvent(400, LogLevel.Error, "error"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {}) as {
       messages: Array<{ level: string }>;
@@ -602,11 +620,11 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
   });
 
   it("time range filtering still works with detail parameter", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleEvent(100, LogLevel.Error, "early error"),
       makeConsoleEvent(500, LogLevel.Error, "mid error"),
       makeConsoleEvent(900, LogLevel.Error, "late error"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       detail: "normal",
@@ -618,9 +636,7 @@ describe("executeTool — getConsoleMessages (token optimization)", () => {
   });
 
   it("returns _hint when messages are empty and logLevel filter was provided", () => {
-    const events = new List(SourceEventView, [
-      makeConsoleEvent(100, LogLevel.Info, "info message"),
-    ]);
+    const events = [makeConsoleEvent(100, LogLevel.Info, "info message")];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getConsoleMessages", {
       logLevel: "error",
@@ -655,10 +671,10 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("returns fetch request with basic fields", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(200, "req1", 200),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {}) as {
       requests: Array<{
@@ -679,9 +695,9 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("returns fetch request without response when no response event exists", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "POST"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {}) as {
       requests: Array<{
@@ -696,10 +712,10 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("returns websocket request with basic fields", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       makeWebSocketCloseEvent(550, "ws1"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {}) as {
       requests: Array<{
@@ -716,9 +732,9 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("returns websocket without durationMs when no close event", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {}) as {
       requests: Array<{ durationMs: number | undefined }>;
@@ -728,14 +744,14 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("filters by statusMin", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/ok", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
       makeFetchRequestEvent(200, "req2", "https://example.com/notfound", "GET"),
       makeFetchResponseEvent(250, "req2", 404),
       makeFetchRequestEvent(300, "req3", "https://example.com/error", "GET"),
       makeFetchResponseEvent(350, "req3", 500),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       statusMin: 400,
@@ -748,14 +764,14 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("filters by statusMax", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/ok", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
       makeFetchRequestEvent(200, "req2", "https://example.com/redir", "GET"),
       makeFetchResponseEvent(250, "req2", 301),
       makeFetchRequestEvent(300, "req3", "https://example.com/error", "GET"),
       makeFetchResponseEvent(350, "req3", 500),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       statusMax: 399,
@@ -768,14 +784,14 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("filters by both statusMin and statusMax", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/ok", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
       makeFetchRequestEvent(200, "req2", "https://example.com/notfound", "GET"),
       makeFetchResponseEvent(250, "req2", 404),
       makeFetchRequestEvent(300, "req3", "https://example.com/error", "GET"),
       makeFetchResponseEvent(350, "req3", 500),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       statusMin: 400,
@@ -788,9 +804,9 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("excludes fetch requests with no response when statusMin is set", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/pending", "GET"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       statusMin: 400,
@@ -801,12 +817,12 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("filters by method (case-insensitive)", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/1", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
       makeFetchRequestEvent(200, "req2", "https://example.com/2", "POST"),
       makeFetchResponseEvent(250, "req2", 201),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       method: "post",
@@ -818,7 +834,7 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("filters by urlPattern substring match", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(
         100,
         "req1",
@@ -833,7 +849,7 @@ describe("executeTool — getNetworkRequests", () => {
         "GET",
       ),
       makeFetchResponseEvent(250, "req2", 200),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       urlPattern: "/users/",
@@ -844,12 +860,12 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("filters fetch requests by timeRangeStartMs", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/early", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
       makeFetchRequestEvent(500, "req2", "https://example.com/late", "GET"),
       makeFetchResponseEvent(550, "req2", 200),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       timeRangeStartMs: 400,
@@ -860,12 +876,12 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("filters fetch requests by timeRangeEndMs", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/early", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
       makeFetchRequestEvent(900, "req2", "https://example.com/late", "GET"),
       makeFetchResponseEvent(950, "req2", 200),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       timeRangeEndMs: 500,
@@ -876,10 +892,10 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("filters websocket requests by urlPattern", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/chat"),
       makeWebSocketOpenEvent(100, "ws2", "wss://example.com/notifications"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       urlPattern: "/chat",
@@ -890,11 +906,11 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("excludes websocket requests when statusMin is set", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(150, "req1", 500),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       statusMin: 400,
@@ -906,11 +922,11 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("excludes websocket requests when method is set", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       method: "GET",
@@ -922,10 +938,10 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("filters websocket requests by timeRangeStartMs", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeWebSocketOpenEvent(100, "ws1", "wss://example.com/early"),
       makeWebSocketOpenEvent(800, "ws2", "wss://example.com/late"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       timeRangeStartMs: 500,
@@ -936,11 +952,11 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("returns both fetch and websocket requests when no filters applied", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
       makeWebSocketOpenEvent(200, "ws1", "wss://example.com/socket"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {}) as {
       requests: Array<{ type: string }>;
@@ -981,10 +997,10 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("returns _hint when statusMin filter yields zero results", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/ok", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       statusMin: 400,
@@ -995,10 +1011,10 @@ describe("executeTool — getNetworkRequests", () => {
   });
 
   it("returns _hint when statusMax filter yields zero results", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/error", "GET"),
       makeFetchResponseEvent(150, "req1", 500),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       statusMax: 299,
@@ -1031,7 +1047,7 @@ describe("executeTool — getDOMState", () => {
 
   it("returns error with reason and suggestion when a11y tree cannot be built", () => {
     const accessor = makeAccessor(
-      new List(SourceEventView, []),
+      [],
       0,
       () =>
         makeSnapshotWithMissingRoot() as unknown as ReturnType<
@@ -1051,7 +1067,7 @@ describe("executeTool — getDOMState", () => {
 
   it("includes _tokenEstimate when a11y tree cannot be built", () => {
     const accessor = makeAccessor(
-      new List(SourceEventView, []),
+      [],
       0,
       () =>
         makeSnapshotWithMissingRoot() as unknown as ReturnType<
@@ -1066,9 +1082,7 @@ describe("executeTool — getDOMState", () => {
   });
 
   it("returns a11y tree for simple DOM in a11y mode", () => {
-    const accessor = makeAccessor(new List(SourceEventView, []), 0, () =>
-      makeSimpleSnapshot(),
-    );
+    const accessor = makeAccessor([], 0, () => makeSimpleSnapshot());
     const result = executeTool(accessor, "getDOMState", {
       timestampMs: 0,
       mode: "a11y",
@@ -1080,9 +1094,7 @@ describe("executeTool — getDOMState", () => {
   });
 
   it("defaults to a11y mode when mode not specified", () => {
-    const accessor = makeAccessor(new List(SourceEventView, []), 0, () =>
-      makeSimpleSnapshot(),
-    );
+    const accessor = makeAccessor([], 0, () => makeSimpleSnapshot());
     const result = executeTool(accessor, "getDOMState", {
       timestampMs: 500,
     }) as { mode: string };
@@ -1090,9 +1102,7 @@ describe("executeTool — getDOMState", () => {
   });
 
   it("returns summary mode with element counts", () => {
-    const accessor = makeAccessor(new List(SourceEventView, []), 0, () =>
-      makeSimpleSnapshot(),
-    );
+    const accessor = makeAccessor([], 0, () => makeSimpleSnapshot());
     const result = executeTool(accessor, "getDOMState", {
       timestampMs: 0,
       mode: "summary",
@@ -1109,9 +1119,7 @@ describe("executeTool — getDOMState", () => {
   });
 
   it("includes _tokenEstimate in a11y mode response", () => {
-    const accessor = makeAccessor(new List(SourceEventView, []), 0, () =>
-      makeSimpleSnapshot(),
-    );
+    const accessor = makeAccessor([], 0, () => makeSimpleSnapshot());
     const result = executeTool(accessor, "getDOMState", {
       timestampMs: 0,
       mode: "a11y",
@@ -1121,9 +1129,7 @@ describe("executeTool — getDOMState", () => {
   });
 
   it("includes _tokenEstimate in summary mode response", () => {
-    const accessor = makeAccessor(new List(SourceEventView, []), 0, () =>
-      makeSimpleSnapshot(),
-    );
+    const accessor = makeAccessor([], 0, () => makeSimpleSnapshot());
     const result = executeTool(accessor, "getDOMState", {
       timestampMs: 0,
       mode: "summary",
@@ -1232,9 +1238,9 @@ describe("executeTool — findErrors", () => {
   });
 
   it("finds console errors", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleErrorEvent(500, "TypeError: Cannot read property x"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "findErrors", {}) as {
       errors: Array<{ time: number; source: string; summary: string }>;
@@ -1249,10 +1255,10 @@ describe("executeTool — findErrors", () => {
   });
 
   it("excludes non-error console messages", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleInfoEvent(100, "debug info"),
       makeConsoleErrorEvent(200, "real error"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "findErrors", {}) as {
       errors: Array<{ source: string }>;
@@ -1262,7 +1268,7 @@ describe("executeTool — findErrors", () => {
   });
 
   it("finds network errors (status >= 400)", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(
         100,
         "req1",
@@ -1270,7 +1276,7 @@ describe("executeTool — findErrors", () => {
         "GET",
       ),
       makeFetchResponseEvent(200, "req1", 500),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "findErrors", {}) as {
       errors: Array<{ time: number; source: string; summary: string }>;
@@ -1284,10 +1290,10 @@ describe("executeTool — findErrors", () => {
   });
 
   it("excludes successful network requests", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/ok", "GET"),
       makeFetchResponseEvent(200, "req1", 200),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "findErrors", {}) as {
       errors: unknown[];
@@ -1296,11 +1302,11 @@ describe("executeTool — findErrors", () => {
   });
 
   it("combines and sorts console and network errors chronologically", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleErrorEvent(300, "Error after request"),
       makeFetchRequestEvent(100, "req1", "https://example.com/fail", "POST"),
       makeFetchResponseEvent(200, "req1", 500),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "findErrors", {}) as {
       errors: Array<{ time: number; source: string }>;
@@ -1313,11 +1319,11 @@ describe("executeTool — findErrors", () => {
   });
 
   it("filters by time range", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleErrorEvent(100, "early error"),
       makeConsoleErrorEvent(500, "mid error"),
       makeConsoleErrorEvent(900, "late error"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "findErrors", {
       timeRangeStartMs: 200,
@@ -1330,7 +1336,7 @@ describe("executeTool — findErrors", () => {
   });
 
   it("includes stack traces from console errors as basename:line:col", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeConsoleErrorEvent(100, "TypeError", [
         {
           functionName: "render",
@@ -1345,7 +1351,7 @@ describe("executeTool — findErrors", () => {
           columnNumber: 5,
         },
       ]),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "findErrors", {}) as {
       errors: Array<{ stack?: string[] }>;
@@ -1366,9 +1372,7 @@ describe("executeTool — findErrors", () => {
       lineNumber: i + 1,
       columnNumber: 0,
     }));
-    const events = new List(SourceEventView, [
-      makeConsoleErrorEvent(100, "Error", frames),
-    ]);
+    const events = [makeConsoleErrorEvent(100, "Error", frames)];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "findErrors", {}) as {
       errors: Array<{ stack?: string[] }>;
@@ -1378,9 +1382,7 @@ describe("executeTool — findErrors", () => {
 
   it("truncates long console error messages to 200 chars", () => {
     const longMessage = "x".repeat(300);
-    const events = new List(SourceEventView, [
-      makeConsoleErrorEvent(100, longMessage),
-    ]);
+    const events = [makeConsoleErrorEvent(100, longMessage)];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "findErrors", {}) as {
       errors: Array<{ summary: string }>;
@@ -1390,7 +1392,7 @@ describe("executeTool — findErrors", () => {
   });
 
   it("uses pathname in network error summary", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(
         100,
         "req1",
@@ -1398,7 +1400,7 @@ describe("executeTool — findErrors", () => {
         "DELETE",
       ),
       makeFetchResponseEvent(200, "req1", 403),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "findErrors", {}) as {
       errors: Array<{ summary: string }>;

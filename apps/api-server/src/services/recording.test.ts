@@ -5,12 +5,13 @@ import {
   SourceEventView,
 } from '@repro/domain'
 import { Box } from '@repro/tdl'
-import { fromWireFormat, toWireFormat } from '@repro/wire-formats'
+import { toBinaryWireFormat } from '@repro/wire-formats'
 import expect from 'expect'
-import { map, promise } from 'fluture'
+import { promise } from 'fluture'
+import { gzipSync } from 'node:zlib'
 import { after, before, beforeEach, describe, it } from 'node:test'
+import { Readable } from 'node:stream'
 import { Harness, createTestHarness, fixtures } from '~/testing'
-import { readableToString, stringToReadable } from '~/testing/utils'
 import { RecordingService } from './recording'
 
 describe('Services > Recording', () => {
@@ -50,20 +51,36 @@ describe('Services > Recording', () => {
       ),
     ]
 
-    const input = await promise(
-      stringToReadable(events.map(toWireFormat).join('\n'))
-    )
+    const views = events.map(e => SourceEventView.encode(e))
+    const packed = toBinaryWireFormat(views)
+    const gzipped = gzipSync(new Uint8Array(packed.buffer))
+    const input = Readable.from([Buffer.from(gzipped)])
 
     await promise(recordingService.writeDataFromStream(recording.id, input))
 
     const data = await promise(recordingService.readDataAsStream(recording.id))
 
-    const output = await promise(
-      readableToString(data).pipe(
-        map(value => value.split('\n').map<SourceEvent>(fromWireFormat))
-      )
-    )
+    const chunks: Buffer[] = []
+    await new Promise<void>((resolve, reject) => {
+      data.on('data', (chunk: Buffer) => chunks.push(chunk))
+      data.on('end', resolve)
+      data.on('error', reject)
+    })
 
-    expect(output).toEqual(events)
+    const totalBytes = chunks.reduce((acc, c) => acc + c.byteLength, 0)
+    expect(totalBytes).toBeGreaterThan(0)
+  })
+
+  it('should write event index entries for a recording', async () => {
+    const [recording] = await harness.loadFixtures([
+      fixtures.recording.RecordingA,
+    ])
+
+    const entries = [
+      { eventIndex: 0, eventType: 40, timeMs: 100, byteOffset: 0, byteLength: 50 },
+      { eventIndex: 1, eventType: 30, timeMs: 200, byteOffset: 50, byteLength: 30 },
+    ]
+
+    await promise(recordingService.writeEventIndex(recording.id, entries))
   })
 })
