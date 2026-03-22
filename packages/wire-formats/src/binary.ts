@@ -1,40 +1,10 @@
 import { ReadableStream } from '@repro/stream-utils'
 import { BufferListView } from './generated/buffer-list'
 
-export interface EventIndexEntry {
-  eventIndex: number
-  byteOffset: number
-  byteLength: number
-}
-
 export function toBinaryWireFormat(items: Array<DataView>) {
   return BufferListView.encode(
     items.map(item => item.buffer.slice(item.byteOffset, item.byteLength))
   )
-}
-
-export function toBinaryWireFormatWithIndex(
-  items: Array<DataView>
-): { buffer: DataView; index: Array<EventIndexEntry> } {
-  const buffer = toBinaryWireFormat(items)
-
-  const payloadSectionStart =
-    LIST_SIZE_BYTE_LENGTH + items.length * FIELD_OFFSET_BYTE_LENGTH
-
-  const index: Array<EventIndexEntry> = []
-  let cumulativeOffset = payloadSectionStart
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]!
-    index.push({
-      eventIndex: i,
-      byteOffset: cumulativeOffset + BUFFER_SIZE_BYTE_LENGTH,
-      byteLength: item.byteLength,
-    })
-    cumulativeOffset += BUFFER_SIZE_BYTE_LENGTH + item.byteLength
-  }
-
-  return { buffer, index }
 }
 
 export function fromBinaryWireFormat(buffer: DataView) {

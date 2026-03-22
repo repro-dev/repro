@@ -21,7 +21,7 @@
     "target": "es2021"
   },
 
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "inspect.ts"],
 
   "ts-node": {
     "files": true
