@@ -1,28 +1,54 @@
 import {
   NetworkMessageType,
   RequestType,
+  SourceEvent,
   SourceEventType,
   SourceEventView,
 } from "@repro/domain";
-import { Box, List } from "@repro/tdl";
+import { Box } from "@repro/tdl";
 import assert from "node:assert";
 import { describe, it } from "node:test";
 import { RecordingDataAccessor } from "../types";
 import { executeTool } from "./tools";
 
 function makeAccessor(
-  events: List<SourceEventView>,
+  events: Array<ReturnType<typeof SourceEventView.from>>,
   duration?: number,
 ): RecordingDataAccessor {
   return {
-    getSourceEvents: () => events,
     getDuration: () => duration ?? 0,
     getSnapshotAtTime: () => null,
+    getEventsByType: (types, opts) => {
+      const results: Array<SourceEvent> = []
+      for (const event of events) {
+        const type = event.get('type').orElse(-1)
+        if (!types.includes(type as SourceEventType)) continue
+        const time = event.get('time').orElse(0)
+        if (opts?.startMs !== undefined && time < opts.startMs) continue
+        if (opts?.endMs !== undefined && time > opts.endMs) continue
+        results.push(event as unknown as SourceEvent)
+      }
+      return results
+    },
+    getEventsInRange: (startMs, endMs, opts) => {
+      const results: Array<SourceEvent> = []
+      for (const event of events) {
+        const time = event.get('time').orElse(0)
+        if (time < startMs) continue
+        if (time > endMs) break
+        if (opts?.types && opts.types.length > 0) {
+          const type = event.get('type').orElse(-1)
+          if (!opts.types.includes(type as SourceEventType)) continue
+        }
+        results.push(event as unknown as SourceEvent)
+      }
+      return results
+    },
   };
 }
 
 function makeEmptyAccessor(): RecordingDataAccessor {
-  return makeAccessor(new List(SourceEventView, []));
+  return makeAccessor([]);
 }
 
 function makeFetchRequestEvent(
@@ -137,7 +163,7 @@ function makeFetchRequestEventWithBody(
 
 describe("executeTool — getNetworkRequests (token optimization)", () => {
   it("summary tier: returns pathname-only URL for fetch", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(
         100,
         "req1",
@@ -145,7 +171,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
         "GET",
       ),
       makeFetchResponseEvent(200, "req1", 200),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "summary",
@@ -158,7 +184,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
 
   it("normal tier: returns pathname+query URL truncated to 100 chars for fetch", () => {
     const longPath = "/api/" + "a".repeat(200);
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(
         100,
         "req1",
@@ -166,7 +192,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
         "GET",
       ),
       makeFetchResponseEvent(200, "req1", 200),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
@@ -177,7 +203,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
   });
 
   it("full tier: returns full URL for fetch", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(
         100,
         "req1",
@@ -185,7 +211,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
         "GET",
       ),
       makeFetchResponseEvent(200, "req1", 200),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "full",
@@ -199,10 +225,10 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
   });
 
   it("normal tier: includes errorBody for failed responses", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEventWithBody(200, "req1", 500, "Internal Server Error"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
@@ -213,10 +239,10 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
   });
 
   it("normal tier: does not include errorBody for successful responses", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEventWithBody(200, "req1", 200, "OK body"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
@@ -228,10 +254,10 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
 
   it("normal tier: errorBody is truncated to 500 chars", () => {
     const longBody = "e".repeat(600);
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEventWithBody(200, "req1", 500, longBody),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
@@ -244,10 +270,10 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
 
   it("full tier: errorBody is truncated to 2000 chars", () => {
     const longBody = "e".repeat(2500);
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEventWithBody(200, "req1", 500, longBody),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "full",
@@ -259,7 +285,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
   });
 
   it("full tier: includes requestBody for POST requests", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEventWithBody(
         100,
         "req1",
@@ -268,7 +294,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
         '{"name":"test"}',
       ),
       makeFetchResponseEvent(200, "req1", 201),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "full",
@@ -279,7 +305,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
   });
 
   it("full tier: does not include requestBody for GET requests", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEventWithBody(
         100,
         "req1",
@@ -288,7 +314,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
         "should-not-appear",
       ),
       makeFetchResponseEvent(200, "req1", 200),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "full",
@@ -299,7 +325,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
   });
 
   it("full tier: includes filtered headers (content-type, x-request-id only)", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(200, "req1", 200, {
         "content-type": "application/json",
@@ -308,7 +334,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
         "set-cookie": "session=xyz",
         "x-custom-header": "custom-value",
       }),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "full",
@@ -326,14 +352,14 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
 
   it("never includes cookies at any tier", () => {
     for (const detail of ["summary", "normal", "full"] as const) {
-      const events = new List(SourceEventView, [
+      const events = [
         makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET", {
           cookie: "session=abc",
         }),
         makeFetchResponseEvent(200, "req1", 200, {
           "set-cookie": "session=xyz",
         }),
-      ]);
+      ];
       const accessor = makeAccessor(events);
       const result = executeTool(accessor, "getNetworkRequests", {
         detail,
@@ -354,13 +380,13 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
   });
 
   it("always includes summary stats", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
       makeFetchRequestEvent(200, "req2", "https://example.com/api", "POST"),
       makeFetchResponseEvent(250, "req2", 404),
       makeWebSocketOpenEvent(300, "ws1", "wss://example.com/socket"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {}) as {
       summary: {
@@ -380,9 +406,9 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
   });
 
   it("summary stats: byMethod excludes websocket requests", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {}) as {
       summary: { byMethod: Record<string, number> };
@@ -391,9 +417,9 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
   });
 
   it("summary stats: pending fetch (no response) counts as succeeded", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {}) as {
       summary: { succeeded: number; failed: number };
@@ -412,7 +438,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
   });
 
   it("urlPattern filter applies to original URL (not shortened)", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(
         100,
         "req1",
@@ -427,7 +453,7 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
         "GET",
       ),
       makeFetchResponseEvent(250, "req2", 200),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "summary",
@@ -439,9 +465,9 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
   });
 
   it("summary tier: returns pathname-only URL for websocket", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket?token=abc"),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "summary",
@@ -452,12 +478,12 @@ describe("executeTool — getNetworkRequests (token optimization)", () => {
   });
 
   it("normal tier: does not include headers", () => {
-    const events = new List(SourceEventView, [
+    const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(200, "req1", 200, {
         "content-type": "application/json",
       }),
-    ]);
+    ];
     const accessor = makeAccessor(events);
     const result = executeTool(accessor, "getNetworkRequests", {
       detail: "normal",

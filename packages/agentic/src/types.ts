@@ -1,12 +1,19 @@
 import { Atom } from "@repro/atom";
-import { Snapshot, SourceEventView } from "@repro/domain";
+import { Snapshot, SourceEvent, SourceEventType } from "@repro/domain";
 import { FutureInstance } from "fluture";
-import { List } from "@repro/tdl";
 
 export interface RecordingDataAccessor {
-  getSourceEvents(): List<SourceEventView>;
   getDuration(): number;
   getSnapshotAtTime(timestampMs: number): Snapshot | null;
+  getEventsByType(
+    types: Array<SourceEventType>,
+    opts?: { startMs?: number; endMs?: number; limit?: number; offset?: number }
+  ): Array<SourceEvent>;
+  getEventsInRange(
+    startMs: number,
+    endMs: number,
+    opts?: { types?: Array<SourceEventType>; limit?: number; offset?: number }
+  ): Array<SourceEvent>;
 }
 
 export interface UserMessage {

@@ -1,5 +1,3 @@
-import { SourceEventView } from "@repro/domain";
-import { List } from "@repro/tdl";
 import assert from "node:assert";
 import { describe, it } from "node:test";
 import {
@@ -13,9 +11,10 @@ import { RecordingDataAccessor, ToolCall } from "./types";
 
 function makeEmptyAccessor(): RecordingDataAccessor {
   return {
-    getSourceEvents: () => new List(SourceEventView, []),
     getDuration: () => 0,
     getSnapshotAtTime: () => null,
+    getEventsByType: () => [],
+    getEventsInRange: () => [],
   };
 }
 

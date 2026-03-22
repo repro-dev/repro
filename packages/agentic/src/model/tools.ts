@@ -643,7 +643,6 @@ const toolHandlers: Record<string, ToolHandler> = {
   },
 
   getConsoleMessages: (recording, args) => {
-    const events = recording.getSourceEvents();
     const detail = (args.detail as DetailLevel) ?? "normal";
     const logLevelStr = (args.logLevel as string) ?? "info";
     const timeStart = args.timeRangeStartMs as number | undefined;
@@ -680,16 +679,15 @@ const toolHandlers: Record<string, ToolHandler> = {
 
     const collected: CollectedMessage[] = [];
 
-    for (let i = 0, len = events.size(); i < len; i++) {
-      const event = events.over(i);
-      if (!event) continue;
-      if (!isConsoleEvent(event)) continue;
+    const events = recording.getEventsByType([SourceEventType.Console], {
+      startMs: timeStart,
+      endMs: timeEnd,
+    });
 
-      const consoleEvent: Box<ConsoleEvent> = event;
+    for (const event of events) {
+      const consoleEvent: Box<ConsoleEvent> = event as Box<ConsoleEvent>;
 
       const time = consoleEvent.get("time").orElse(0);
-      if (timeStart !== undefined && time < timeStart) continue;
-      if (timeEnd !== undefined && time > timeEnd) continue;
 
       const level = consoleEvent.get("data").get("level").orElse(LogLevel.Info);
       if (level < userMinLevel) continue;
@@ -785,7 +783,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   },
 
   getNetworkRequests: (recording, args) => {
-    const events = recording.getSourceEvents();
+    const events = recording.getEventsByType([SourceEventType.Network]);
     const indexed = findIndexedNetworkEvents(events);
     const groups = groupNetworkEvents(indexed);
 
@@ -1048,7 +1046,6 @@ const toolHandlers: Record<string, ToolHandler> = {
   },
 
   findErrors: (recording, args) => {
-    const events = recording.getSourceEvents();
     const timeStart = args.timeRangeStartMs as number | undefined;
     const timeEnd = args.timeRangeEndMs as number | undefined;
 
@@ -1059,15 +1056,14 @@ const toolHandlers: Record<string, ToolHandler> = {
       stack?: string[];
     }> = [];
 
-    for (let i = 0, len = events.size(); i < len; i++) {
-      const event = events.over(i);
-      if (!event) continue;
-      if (!isConsoleEvent(event)) continue;
+    const consoleEvents = recording.getEventsByType([SourceEventType.Console], {
+      startMs: timeStart,
+      endMs: timeEnd,
+    });
 
-      const consoleEvent: Box<ConsoleEvent> = event;
+    for (const event of consoleEvents) {
+      const consoleEvent: Box<ConsoleEvent> = event as Box<ConsoleEvent>;
       const time = consoleEvent.get("time").orElse(0);
-      if (timeStart !== undefined && time < timeStart) continue;
-      if (timeEnd !== undefined && time > timeEnd) continue;
 
       const level = consoleEvent.get("data").get("level").orElse(LogLevel.Info);
       if (level !== LogLevel.Error) continue;
@@ -1091,7 +1087,8 @@ const toolHandlers: Record<string, ToolHandler> = {
       });
     }
 
-    const indexed = findIndexedNetworkEvents(events);
+    const networkEvents = recording.getEventsByType([SourceEventType.Network]);
+    const indexed = findIndexedNetworkEvents(networkEvents);
     const groups = groupNetworkEvents(indexed);
 
     for (const group of groups) {
@@ -1215,7 +1212,6 @@ const toolHandlers: Record<string, ToolHandler> = {
   },
 
   getEvents: (recording, args) => {
-    const events = recording.getSourceEvents();
     const detail = (args.detail as string) ?? "normal";
     const startTime = args.startTimeMs as number | undefined;
     const endTime = args.endTimeMs as number | undefined;
@@ -1251,13 +1247,11 @@ const toolHandlers: Record<string, ToolHandler> = {
       pendingKeys = [];
     }
 
-    for (let i = 0, len = events.size(); i < len; i++) {
-      const event = events.over(i);
-      if (!event) continue;
+    const duration = recording.getDuration();
+    const events = recording.getEventsInRange(startTime ?? 0, endTime ?? duration);
 
+    for (const event of events) {
       const time = event.get("time").orElse(0);
-      if (startTime !== undefined && time < startTime) continue;
-      if (endTime !== undefined && time > endTime) continue;
 
       if (isInteractionEvent(event)) {
         const interactionData = (event as Box<InteractionEvent>)
@@ -1490,20 +1484,15 @@ const toolHandlers: Record<string, ToolHandler> = {
     const startTime = Math.max(0, timestampMs - halfWindow);
     const endTime = Math.min(recording.getDuration(), timestampMs + halfWindow);
 
-    const events = recording.getSourceEvents();
+    const events = recording.getEventsInRange(startTime, endTime);
     const result: Array<{
       timeMs: number;
       type: string;
       [key: string]: unknown;
     }> = [];
 
-    for (let i = 0, len = events.size(); i < len; i++) {
-      const event = events.over(i);
-      if (!event) continue;
-
+    for (const event of events) {
       const time = event.get("time").orElse(0);
-      if (time < startTime) continue;
-      if (time > endTime) break;
 
       if (isInteractionEvent(event)) {
         const summary = summarizeInteraction(event);
