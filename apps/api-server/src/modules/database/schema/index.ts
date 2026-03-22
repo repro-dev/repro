@@ -9,6 +9,7 @@ import { InvitationTable } from './InvitationTable'
 import { MembershipTable } from './MembershipTable'
 import { ProjectRecordingTable } from './ProjectRecordingTable'
 import { ProjectTable } from './ProjectTable'
+import { RecordingEventIndexTable } from './RecordingEventIndexTable'
 import { RecordingResourceTable } from './RecordingResourceTable'
 import { RecordingTable } from './RecordingTable'
 import { SessionTable } from './SessionTable'
@@ -26,6 +27,7 @@ export interface Schema {
   invitations: InvitationTable
   memberships: MembershipTable
   recordings: RecordingTable
+  recording_event_index: RecordingEventIndexTable
   recording_resources: RecordingResourceTable
   projects: ProjectTable
   project_recordings: ProjectRecordingTable
@@ -34,4 +36,10 @@ export interface Schema {
   users: UserTable
 }
 
-export { RecordingResourceTable, RecordingTable, asStaffUser, asUser }
+export {
+  RecordingEventIndexTable,
+  RecordingResourceTable,
+  RecordingTable,
+  asStaffUser,
+  asUser,
+}

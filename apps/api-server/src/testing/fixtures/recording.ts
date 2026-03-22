@@ -60,9 +60,8 @@ export const RecordingA_Data: Fixture<string> = {
         }),
       ]
 
-      const input: Readable = yield stringToReadable(
-        createRecordingDataWireFormat(events)
-      )
+      const gzipped = createRecordingDataWireFormat(events)
+      const input: Readable = Readable.from([gzipped])
 
       yield recordingService.writeDataFromStream(recording.id, input)
 

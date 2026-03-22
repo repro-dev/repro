@@ -762,5 +762,51 @@ export function createProjectRouter(
         )
       }
     )
+
+    const updateProjectRecordingEventIndexSchema = {
+      body: z.object({
+        entries: z.array(
+          z.object({
+            eventIndex: z.number(),
+            eventType: z.number(),
+            timeMs: z.number(),
+            byteOffset: z.number(),
+            byteLength: z.number(),
+          })
+        ),
+      }),
+      params: z.object({
+        projectId: z.string(),
+        recordingId: z.string(),
+      }),
+    } as const
+
+    app.put<{
+      Body: z.infer<typeof updateProjectRecordingEventIndexSchema.body>
+      Params: z.infer<typeof updateProjectRecordingEventIndexSchema.params>
+    }>(
+      '/:projectId/recordings/:recordingId/event-index',
+
+      {
+        schema: updateProjectRecordingEventIndexSchema,
+      },
+
+      (req, res) => {
+        const { projectId, recordingId } = req.params
+
+        respondWith(
+          res,
+          go<Error, void>(function* () {
+            const user: User | StaffUser = yield req.getCurrentUser()
+            yield ensureCanAccessProject(user, projectId)
+            return yield recordingService.writeEventIndex(
+              recordingId,
+              req.body.entries
+            )
+          }),
+          204
+        )
+      }
+    )
   }
 }
