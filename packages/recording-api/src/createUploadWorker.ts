@@ -3,12 +3,8 @@ import { RecordingInfo, SourceEvent, SourceEventView } from '@repro/domain'
 import { createExportedKeyF, encryptF } from '@repro/encryption'
 import { tap } from '@repro/future-utils'
 import { randomString } from '@repro/random-string'
-import {
-  getBufferFrameByteLength,
-  getVectorHeaderByteLength,
-} from '@repro/tdl/inspect'
 import { createResourceMap, filterResourceMap } from '@repro/vdom-utils'
-import { toBinaryWireFormat } from '@repro/wire-formats'
+import { EventIndexEntry, toBinaryWireFormatWithIndex } from '@repro/wire-formats'
 import { gzipSync } from 'fflate'
 import {
   FutureInstance,
@@ -208,11 +204,11 @@ export function createUploadWorker(
     }
 
     const serialized = transformedEvents.pipe(
-      map(views => ({ buffer: toBinaryWireFormat(views), views }))
+      map(views => toBinaryWireFormatWithIndex(views))
     )
 
     return serialized.pipe(
-      chain(({ buffer, views }) => {
+      chain(({ buffer, index }) => {
         const dataReq = apiClient
           .fetch(`/projects/${projectId}/recordings/${recordingId}/data`, {
             method: 'PUT',
@@ -221,11 +217,9 @@ export function createUploadWorker(
           })
           .pipe(tap(() => updateStage(UploadStage.SaveEvents, 1, progress)))
 
-        const indexReq = saveEventIndex(projectId, recordingId, events, views)
+        const indexReq = saveEventIndex(projectId, recordingId, events, index)
 
-        return parallel(Infinity)([dataReq, indexReq]).pipe(
-          map(() => undefined)
-        )
+        return parallel(Infinity)([dataReq, indexReq]).pipe(map(() => undefined))
       })
     )
   }
@@ -234,26 +228,15 @@ export function createUploadWorker(
     projectId: string,
     recordingId: string,
     events: Array<SourceEvent>,
-    views: Array<DataView>
+    index: Array<EventIndexEntry>
   ): FutureInstance<Error, void> {
-    const vectorHeaderByteLength = getVectorHeaderByteLength(views.length)
-    const bufferFrameByteLength = getBufferFrameByteLength()
-
-    let cumulativeOffset = vectorHeaderByteLength
-
-    const entries = views.map((view, i) => {
-      const byteOffset = cumulativeOffset + bufferFrameByteLength
-      const byteLength = view.byteLength
-      cumulativeOffset += bufferFrameByteLength + byteLength
-
-      return {
-        eventIndex: i,
-        eventType: events[i]!.get('type').orElse(0) as number,
-        timeMs: events[i]!.get('time').orElse(0) as number,
-        byteOffset,
-        byteLength,
-      }
-    })
+    const entries = index.map(entry => ({
+      eventIndex: entry.eventIndex,
+      eventType: events[entry.eventIndex]!.get('type').orElse(0) as number,
+      timeMs: events[entry.eventIndex]!.get('time').orElse(0) as number,
+      byteOffset: entry.byteOffset,
+      byteLength: entry.byteLength,
+    }))
 
     return apiClient
       .fetch(`/projects/${projectId}/recordings/${recordingId}/event-index`, {
