@@ -5,6 +5,7 @@ import {
   fromBinaryWireFormat,
   fromBinaryWireFormatStream,
   toBinaryWireFormat,
+  toBinaryWireFormatWithIndex,
 } from './binary'
 import { Entity, EntityView } from './generated/binary-test-schema'
 
@@ -93,5 +94,46 @@ describe('wire-formats: binary', () => {
         })
       )
     })
+  })
+
+  it('should return byte offset index alongside packed buffer', () => {
+    const input: Array<Entity> = [
+      {
+        id: 1,
+        name: 'foo',
+        properties: { bar: 'baz' },
+      },
+      {
+        id: 2,
+        name: 'hello world',
+        properties: { baz: 'quux' },
+      },
+      {
+        id: 3,
+        name: 'x',
+        properties: {},
+      },
+    ]
+
+    const encoded = input.map(entity => EntityView.encode(entity))
+    const { buffer, index } = toBinaryWireFormatWithIndex(encoded)
+
+    expect(index.length).toBe(3)
+
+    for (let i = 0; i < encoded.length; i++) {
+      const entry = index[i]!
+      expect(entry.eventIndex).toBe(i)
+      expect(entry.byteLength).toBe(encoded[i]!.byteLength)
+
+      const slice = buffer.buffer.slice(
+        buffer.byteOffset + entry.byteOffset,
+        buffer.byteOffset + entry.byteOffset + entry.byteLength
+      )
+      const original = encoded[i]!.buffer.slice(
+        encoded[i]!.byteOffset,
+        encoded[i]!.byteOffset + encoded[i]!.byteLength
+      )
+      expect(new Uint8Array(slice)).toEqual(new Uint8Array(original))
+    }
   })
 })
