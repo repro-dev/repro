@@ -24,11 +24,11 @@ export function makeAccessorFromEventList(
       for (let i = 0, len = events.size(); i < len; i++) {
         const event = events.over(i)
         if (!event) continue
-        const type = event.get('type').orElse(-1)
-        if (!types.includes(type as SourceEventType)) continue
         const time = event.get('time').orElse(0)
         if (opts?.startMs !== undefined && time < opts.startMs) continue
-        if (opts?.endMs !== undefined && time > opts.endMs) continue
+        if (opts?.endMs !== undefined && time > opts.endMs) break
+        const type = event.get('type').orElse(-1)
+        if (!types.includes(type as SourceEventType)) continue
         if (skipped < offset) {
           skipped++
           continue

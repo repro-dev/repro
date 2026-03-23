@@ -619,3 +619,66 @@ describe("executeTool — getEvents — doubleClick", () => {
     assert.strictEqual(ev.label, "image");
   });
 });
+
+describe("executeTool — getEvents — endTimeMs and duration fallback", () => {
+  it("returns events when endTimeMs is omitted and getDuration returns zero", () => {
+    const events = [
+      makePageTransitionEvent(100, "/a"),
+      makePageTransitionEvent(500, "/b"),
+    ];
+    const accessor: RecordingDataAccessor = {
+      getDuration: () => 0,
+      getSnapshotAtTime: () => null,
+      ...makeAccessorFromEventList({
+        size: () => events.length,
+        over: i => events[i] ?? null,
+      }),
+    };
+    const result = executeTool(accessor, "getEvents", {}) as {
+      events: Array<Record<string, unknown>>;
+    };
+    assert.strictEqual(result.events.length, 2);
+  });
+
+  it("uses explicit endTimeMs when provided even if getDuration is zero", () => {
+    const events = [
+      makePageTransitionEvent(100, "/a"),
+      makePageTransitionEvent(500, "/b"),
+      makePageTransitionEvent(900, "/c"),
+    ];
+    const accessor: RecordingDataAccessor = {
+      getDuration: () => 0,
+      getSnapshotAtTime: () => null,
+      ...makeAccessorFromEventList({
+        size: () => events.length,
+        over: i => events[i] ?? null,
+      }),
+    };
+    const result = executeTool(accessor, "getEvents", { endTimeMs: 600 }) as {
+      events: Array<Record<string, unknown>>;
+    };
+    assert.strictEqual(result.events.length, 2);
+    assert.strictEqual(result.events[1]!.to, "/b");
+  });
+
+  it("uses getDuration as upper bound when positive and endTimeMs is omitted", () => {
+    const events = [
+      makePageTransitionEvent(100, "/a"),
+      makePageTransitionEvent(500, "/b"),
+      makePageTransitionEvent(900, "/c"),
+    ];
+    const accessor: RecordingDataAccessor = {
+      getDuration: () => 700,
+      getSnapshotAtTime: () => null,
+      ...makeAccessorFromEventList({
+        size: () => events.length,
+        over: i => events[i] ?? null,
+      }),
+    };
+    const result = executeTool(accessor, "getEvents", {}) as {
+      events: Array<Record<string, unknown>>;
+    };
+    assert.strictEqual(result.events.length, 2);
+    assert.strictEqual(result.events[1]!.to, "/b");
+  });
+});

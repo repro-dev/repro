@@ -1250,8 +1250,14 @@ const toolHandlers: Record<string, ToolHandler> = {
       pendingKeys = [];
     }
 
-    const duration = recording.getDuration();
-    const events = recording.getEventsInRange(startTime ?? 0, endTime ?? duration);
+    const duration = recording.getDuration()
+    const effectiveEnd =
+      endTime !== undefined
+        ? endTime
+        : duration > 0
+          ? duration
+          : Number.MAX_SAFE_INTEGER
+    const events = recording.getEventsInRange(startTime ?? 0, effectiveEnd)
 
     for (const event of events) {
       const time = event.get("time").orElse(0);

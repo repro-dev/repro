@@ -255,3 +255,47 @@ describe('makeAccessorFromEventList — getEventsInRange', () => {
     assert.strictEqual(result.length, 3)
   })
 })
+
+describe('makeAccessorFromEventList — getEventsByType early exit', () => {
+  it('stops iterating once time exceeds endMs (sorted list break optimization)', () => {
+    let maxIndexVisited = -1
+    const events = [
+      makeConsoleEvent(100),
+      makeConsoleEvent(200),
+      makeConsoleEvent(800),
+      makeConsoleEvent(900),
+    ]
+    const eventSource: EventList = {
+      size: () => events.length,
+      over: (i: number) => {
+        if (i > maxIndexVisited) maxIndexVisited = i
+        return events[i] as unknown as ReturnType<
+          typeof import('@repro/domain').SourceEventView.from
+        > | null
+      },
+    }
+    const accessor = makeAccessorFromEventList(eventSource)
+    const result = accessor.getEventsByType([SourceEventType.Console], {
+      startMs: 50,
+      endMs: 300,
+    })
+    assert.strictEqual(result.length, 2)
+    assert.deepStrictEqual(result.map(getTime), [100, 200])
+    assert.ok(maxIndexVisited < events.length - 1, 'should not visit all events')
+  })
+
+  it('skips events below startMs using continue, not break', () => {
+    const events = [
+      makeConsoleEvent(100),
+      makeConsoleEvent(500),
+      makeConsoleEvent(900),
+    ]
+    const accessor = makeAccessorFromEventList(makeEventSource(events))
+    const result = accessor.getEventsByType([SourceEventType.Console], {
+      startMs: 400,
+      endMs: 1000,
+    })
+    assert.strictEqual(result.length, 2)
+    assert.deepStrictEqual(result.map(getTime), [500, 900])
+  })
+})
