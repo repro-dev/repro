@@ -1,7 +1,0 @@
-local_resource(
-  'dev-toolbar',
-  serve_cmd='moon run repro/dev-toolbar:watch',
-  resource_deps=['dependencies', 'workspace'],
-  allow_parallel=True,
-  labels=['extension']
-)
