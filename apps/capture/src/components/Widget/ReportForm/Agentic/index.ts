@@ -1,1 +1,1 @@
-export { Agentic } from './Agentic.hoc'
+export { AgenticAuthGate as Agentic } from './AgenticAuthGate'
