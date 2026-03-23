@@ -1,4 +1,5 @@
 import { AccountTable } from './AccountTable'
+import { ApiKeyTable } from './ApiKeyTable'
 import { BillingCustomerTable } from './BillingCustomerTable'
 import { BillingEventTable } from './BillingEventTable'
 import { BillingPlanEntitlementTable } from './BillingPlanEntitlementTable'
@@ -7,6 +8,8 @@ import { BillingSubscriptionTable } from './BillingSubscriptionTable'
 import { FeatureGateTable } from './FeatureGateTable'
 import { InvitationTable } from './InvitationTable'
 import { MembershipTable } from './MembershipTable'
+import { OAuthAuthorizationCodeTable } from './OAuthAuthorizationCodeTable'
+import { OAuthClientTable } from './OAuthClientTable'
 import { ProjectRecordingTable } from './ProjectRecordingTable'
 import { ProjectTable } from './ProjectTable'
 import { RecordingEventIndexTable } from './RecordingEventIndexTable'
@@ -18,6 +21,7 @@ import { UserTable, asUser } from './UserTable'
 
 export interface Schema {
   accounts: AccountTable
+  api_keys: ApiKeyTable
   billing_customers: BillingCustomerTable
   billing_events: BillingEventTable
   billing_plan_entitlements: BillingPlanEntitlementTable
@@ -26,6 +30,8 @@ export interface Schema {
   feature_gates: FeatureGateTable
   invitations: InvitationTable
   memberships: MembershipTable
+  oauth_authorization_codes: OAuthAuthorizationCodeTable
+  oauth_clients: OAuthClientTable
   recordings: RecordingTable
   recording_event_index: RecordingEventIndexTable
   recording_resources: RecordingResourceTable
@@ -37,6 +43,9 @@ export interface Schema {
 }
 
 export {
+  ApiKeyTable,
+  OAuthAuthorizationCodeTable,
+  OAuthClientTable,
   RecordingEventIndexTable,
   RecordingResourceTable,
   RecordingTable,

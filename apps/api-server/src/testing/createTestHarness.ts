@@ -10,6 +10,7 @@ import { createStubPaddleClient } from '~/modules/billing'
 import { createAccountService } from '~/services/account'
 import { createBillingService } from '~/services/billing'
 import { createFeatureGateService } from '~/services/featureGate'
+import { createOAuthService } from '~/services/oauth'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { setUpTestDatabase } from './database'
@@ -52,6 +53,7 @@ export async function createTestHarness(): Promise<Harness> {
   const stubPaddleClient = createStubPaddleClient(db)
   const billingService = createBillingService(db, env, stubPaddleClient)
   const featureGateService = createFeatureGateService(db)
+  const oauthService = createOAuthService(db)
   const projectService = createProjectService(db)
   const recordingService = createRecordingService(db, storage)
 
@@ -59,6 +61,7 @@ export async function createTestHarness(): Promise<Harness> {
     accountService,
     billingService,
     featureGateService,
+    oauthService,
     projectService,
     recordingService,
   }

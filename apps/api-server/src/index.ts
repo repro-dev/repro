@@ -18,12 +18,14 @@ import { createBillingRouter } from '~/routers/billing'
 import { createBillingWebhookRouter } from '~/routers/billingWebhook'
 import { createFeatureGateRouter } from '~/routers/featureGate'
 import { createHealthRouter } from '~/routers/health'
+import { createOAuthRouter } from '~/routers/oauth'
 import { createProjectRouter } from '~/routers/project'
 import { createAccountService } from '~/services/account'
 import { createBillingService } from '~/services/billing'
 import { createBillingWebhookService } from '~/services/billingWebhook'
 import { createFeatureGateService } from '~/services/featureGate'
 import { createHealthService } from '~/services/health'
+import { createOAuthService } from '~/services/oauth'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { serverError } from '~/utils/errors'
@@ -69,6 +71,7 @@ const emailUtils = createSMTPEmailUtils({
 const accountService = createAccountService(database, emailUtils)
 const agenticService = createAgenticService(httpClient)
 const billingService = createBillingService(database, env)
+const oauthService = createOAuthService(database)
 const featureGateService = createFeatureGateService(database)
 const healthService = createHealthService(database, storage)
 const projectService = createProjectService(database)
@@ -77,8 +80,7 @@ const recordingService = createRecordingService(database, storage)
 const accountRouter = createAccountRouter(accountService)
 const agenticRouter = createAgenticRouter(agenticService, accountService)
 const billingRouter = createBillingRouter(billingService, accountService)
-const billingWebhookRouter =
-  !env.BILLING_STUBBED && env.PADDLE_API_KEY && env.PADDLE_WEBHOOK_SECRET
+const billingWebhookRouter =  !env.BILLING_STUBBED && env.PADDLE_API_KEY && env.PADDLE_WEBHOOK_SECRET
     ? createBillingWebhookRouter(
         createBillingWebhookService(
           database,
@@ -96,6 +98,7 @@ const featureGateRouter = createFeatureGateRouter(
   accountService
 )
 const healthRouter = createHealthRouter(healthService)
+const oauthRouter = createOAuthRouter(oauthService, accountService)
 const projectRouter = createProjectRouter(
   projectService,
   recordingService,
@@ -162,6 +165,7 @@ bootstrap({
     : {}),
   '/feature-gates': featureGateRouter,
   '/health': healthRouter,
+  '/oauth': oauthRouter,
   '/projects': projectRouter,
   '/staff': staffRouter,
 })
