@@ -1,6 +1,7 @@
 import { InteractionType, LogLevel, SourceEventType } from "@repro/domain";
 import assert from "node:assert";
 import { describe, it } from "node:test";
+import { makeAccessorFromEventList } from "../recordingDataAccessor";
 import { RecordingDataAccessor } from "../types";
 import { executeTool } from "./tools";
 
@@ -120,18 +121,16 @@ function makeAccessor(
   events: MockEvent[],
   duration = 10000,
 ): RecordingDataAccessor {
-  const fakeList = {
-    size: () => events.length,
-    over: (i: number) => events[i] ?? null,
-  };
   return {
-    getSourceEvents: () =>
-      fakeList as unknown as ReturnType<
-        RecordingDataAccessor["getSourceEvents"]
-      >,
     getDuration: () => duration,
     getSnapshotAtTime: () => null,
-  };
+    ...makeAccessorFromEventList({
+      size: () => events.length,
+      over: (i) => events[i] as unknown as ReturnType<
+        typeof import('@repro/domain').SourceEventView.from
+      > | null,
+    }),
+  }
 }
 
 describe("executeTool — getEventsAroundTime", () => {

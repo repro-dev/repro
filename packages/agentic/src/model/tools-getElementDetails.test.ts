@@ -1,5 +1,4 @@
-import { NodeType, Snapshot, SourceEventView } from "@repro/domain";
-import { List } from "@repro/tdl";
+import { NodeType, Snapshot, SourceEvent } from "@repro/domain";
 import assert from "node:assert";
 import { describe, it } from "node:test";
 import { RecordingDataAccessor } from "../types";
@@ -33,17 +32,19 @@ function makeAccessor(
   snapshotFn: (timestampMs: number) => Snapshot | null,
 ): RecordingDataAccessor {
   return {
-    getSourceEvents: () => new List(SourceEventView, []),
     getDuration: () => 5000,
     getSnapshotAtTime: snapshotFn,
+    getEventsByType: () => [] as Array<SourceEvent>,
+    getEventsInRange: () => [] as Array<SourceEvent>,
   };
 }
 
 function makeEmptyAccessor(): RecordingDataAccessor {
   return {
-    getSourceEvents: () => new List(SourceEventView, []),
     getDuration: () => 0,
     getSnapshotAtTime: () => null,
+    getEventsByType: () => [] as Array<SourceEvent>,
+    getEventsInRange: () => [] as Array<SourceEvent>,
   };
 }
 

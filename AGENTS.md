@@ -15,7 +15,7 @@
   - Use `tapF` from `@repro/future-utils` to sequence a Future as a side-effect while passing the original value through (e.g. cache invalidation after a mutation). Never call a Future-returning function inside `map` — the Future will never be forked.
 - **Error handling**: Use `serialize-error` for serialization
 - **Shell scripts (Bash)**: Target **Bash 3.2** (the version shipped with macOS). Do not use Bash 4+ features such as `mapfile`/`readarray`, associative arrays (`declare -A`), or `${var,,}` case-conversion. Use `while IFS= read -r` loops to capture multi-line output into arrays.
-- **NO COMMENTS**: Do not add code comments unless explicitly requested
+- **Comments**: Add brief code comments when they clarify non-obvious intent, invariants, sentinel values, or protocol quirks. Avoid comments that simply restate the code.
 
 ## Conventions
 

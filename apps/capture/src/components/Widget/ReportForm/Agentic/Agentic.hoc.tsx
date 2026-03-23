@@ -1,6 +1,7 @@
 import {
   SYSTEM_CARD_MESSAGE,
   createAgenticState,
+  makeAccessorFromEventList,
   type Context,
   type StreamProvider,
   type ToolDefinition,
@@ -43,13 +44,13 @@ export const Agentic: React.FC = () => {
   const state = useMemo(
     () =>
       createAgenticState(streamProvider, {
-        getSourceEvents: () => playback.getSourceEvents(),
         getDuration: () => playback.getDuration(),
         getSnapshotAtTime: (timestampMs: number) => {
           const pb = playback.copy()
           pb.seekToTime(timestampMs)
           return pb.getSnapshot()
         },
+        ...makeAccessorFromEventList(playback.getSourceEvents()),
       }),
     [streamProvider, playback]
   )
