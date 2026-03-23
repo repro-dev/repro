@@ -76,6 +76,50 @@ export const createFetchTestSuite = (options: TestSuiteOptions) => {
       })
     })
 
+    it('should reject with status object for non-OK streaming responses', async ctx => {
+      addMock({
+        url: 'https://api.example.com/test-endpoint',
+        method: 'GET',
+        status: 503,
+        responseHeaders: {
+          'Content-Type': 'text/plain',
+        },
+        responseBody: 'Service Unavailable',
+      })
+
+      const authStore = createAuthStore()
+
+      const config = {
+        baseUrl: 'https://api.example.com',
+        authStorage: 'memory' as const,
+      }
+
+      ctx.mock.module('isomorphic-unfetch', {
+        defaultExport: fetchImplMock,
+      })
+
+      const fetchImpl = (await import('isomorphic-unfetch')).default
+      const fetch = createFetch(authStore, config, fetchImpl)
+
+      return new Promise<void>((resolve, reject) => {
+        fetch<ReadableStream<Uint8Array>>(
+          '/test-endpoint',
+          {},
+          'json',
+          'stream'
+        ).pipe(
+          fork(error => {
+            try {
+              expect(error).toMatchObject({ status: 503 })
+              resolve()
+            } catch (e) {
+              reject(e)
+            }
+          })(() => reject(new Error('Expected rejection but got success')))
+        )
+      })
+    })
+
     it('should support streaming responses', async ctx => {
       addMock({
         url: 'https://api.example.com/test-endpoint',

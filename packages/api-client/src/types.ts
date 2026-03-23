@@ -19,6 +19,7 @@ export interface FetchOptions {
   method?: Method | Uppercase<Method>
   headers?: Record<string, string>
   body?: XMLHttpRequestBodyInit
+  signal?: AbortSignal
 }
 
 export type Fetch = <R = any>(

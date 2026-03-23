@@ -53,6 +53,7 @@ export function createFetch(
           method: options.method ?? reqOptions.method,
           headers: { ...reqOptions.headers, ...options.headers },
           body: options.body,
+          ...(options.signal != null ? { signal: options.signal } : {}),
         }
 
         return attemptP<Error, Response>(() => {
@@ -70,6 +71,9 @@ export function createFetch(
       chain<Error, Response, R>(res =>
         attemptP(async () => {
           if (responseType === 'stream') {
+            if (!res.ok) {
+              throw { status: res.status, statusText: res.statusText }
+            }
             // From https://developer.mozilla.org/en-US/docs/Web/API/Response/body:
             // > Note: Current browsers don't actually conform to the spec requirement
             // > to set the body property to null for responses with no body (for example,
