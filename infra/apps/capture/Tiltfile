@@ -6,7 +6,7 @@ local_resource(
     'REPRO_APP_URL': 'http://app.repro.localhost',
     'REPRO_API_URL': 'http://api.repro.localhost'
   },
-  resource_deps=['dependencies'],
+  resource_deps=['dependencies', 'workspace'],
   allow_parallel=True,
   labels=['extension']
 )

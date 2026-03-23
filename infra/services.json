@@ -75,7 +75,7 @@
     },
     "resource_deps": ["dependencies"],
     "labels": ["extension"],
-    "deps": []
+    "deps": ["workspace"]
   },
 
   "dev-toolbar": {
@@ -86,7 +86,7 @@
     "serve_env": {},
     "resource_deps": ["dependencies"],
     "labels": ["extension"],
-    "deps": []
+    "deps": ["workspace"]
   },
 
   "storybook-ui": {
