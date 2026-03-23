@@ -1,6 +1,7 @@
 import { useAuthContext, useSession, useSessionLoading } from '@repro/auth'
 import { Button, EmptyState, FullPageLoading } from '@repro/design'
 import { forget } from '@repro/future-utils'
+import { LockIcon } from 'lucide-react'
 import React, { useEffect } from 'react'
 import { Agentic } from './Agentic.hoc'
 
@@ -31,9 +32,12 @@ export const AgenticAuthGate: React.FC = () => {
   if (session === null) {
     return (
       <EmptyState>
+        <EmptyState.Icon>
+          <LockIcon size={40} />
+        </EmptyState.Icon>
         <EmptyState.Title>Sign in to Repro</EmptyState.Title>
         <EmptyState.Description>
-          Sign in to your Repro account to use AI-powered debugging.
+          Sign in to use AI-powered debugging.
         </EmptyState.Description>
         <EmptyState.Action>
           <Button
