@@ -18,7 +18,7 @@ export const Agentic: React.FC = () => {
   const playback = usePlayback()
 
   const streamProvider: StreamProvider = useMemo(
-    () => (context: Context, toolDefs: ToolDefinition[]) => {
+    () => (context: Context, toolDefs: ToolDefinition[], signal?: AbortSignal) => {
       const response = apiClient.fetch<ReadableStream>(
         '/agentic/response',
         {
@@ -31,6 +31,7 @@ export const Agentic: React.FC = () => {
             tools: toolDefs,
             tool_choice: 'auto',
           }),
+          ...(signal != null ? { signal } : {}),
         },
         'json',
         'stream'

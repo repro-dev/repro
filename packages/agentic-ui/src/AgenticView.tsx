@@ -1,34 +1,45 @@
-import { Block } from "@jsxstyle/react";
-import { useAtomValue } from "@repro/atom";
-import { AgenticInputFormState } from "@repro/design";
-import React, { useState } from "react";
-import { AgenticInputSection } from "./components/AgenticInputSection";
-import { JumpToEndButton } from "./components/JumpToEndButton";
-import { LoadingIndicator } from "./components/LoadingIndicator";
-import { MessageList } from "./components/MessageList";
-import { GUTTER_PX } from "./constants";
-import { useAgenticState } from "./context";
-import { useHistoryScroll } from "./hooks/useHistoryScroll";
+import { Block, Col } from '@jsxstyle/react'
+import { useAtomValue } from '@repro/atom'
+import { AgenticInputFormState } from '@repro/design'
+import React, { useRef, useState } from 'react'
+import { AgenticInputSection } from './components/AgenticInputSection'
+import { CancelButton } from './components/CancelButton'
+import { ErrorMessage } from './components/ErrorMessage'
+import { JumpToEndButton } from './components/JumpToEndButton'
+import { LoadingIndicator } from './components/LoadingIndicator'
+import { MessageList } from './components/MessageList'
+import { GUTTER_PX } from './constants'
+import { useAgenticState } from './context'
+import { useHistoryScroll } from './hooks/useHistoryScroll'
 
 export const AgenticView: React.FC = () => {
-  const [inputHasFocus, setInputHasFocus] = useState(false);
+  const [inputHasFocus, setInputHasFocus] = useState(false)
 
-  const agentic = useAgenticState();
-  const entries = useAtomValue(agentic.$entries);
-  const loading = useAtomValue(agentic.$loading);
+  const agentic = useAgenticState()
+  const entries = useAtomValue(agentic.$entries)
+  const loading = useAtomValue(agentic.$loading)
+  const error = useAtomValue(agentic.$error)
+
+  const lastPromptRef = useRef('')
 
   const {
     scrollContainerRef,
     contentContainerRef,
     shouldShowJumpToEndAction,
     handleJumpToEnd,
-  } = useHistoryScroll(loading);
+  } = useHistoryScroll(loading)
 
-  const shouldRaiseInput = inputHasFocus || entries.length > 0;
+  const isActive = loading !== 'none' && loading !== 'cancelled'
+  const shouldRaiseInput = inputHasFocus || entries.length > 0
 
   function handleSubmit({ value }: AgenticInputFormState) {
-    agentic.query(value);
-    setInputHasFocus(false);
+    lastPromptRef.current = value
+    agentic.query(value)
+    setInputHasFocus(false)
+  }
+
+  function handleRetry() {
+    agentic.query(lastPromptRef.current)
   }
 
   return (
@@ -38,19 +49,38 @@ export const AgenticView: React.FC = () => {
       marginBlockStart={`-${GUTTER_PX}px`}
       position="relative"
     >
-      <MessageList
-        entries={entries}
-        loading={loading}
-        scrollContainerRef={scrollContainerRef}
-        contentContainerRef={contentContainerRef}
-      />
+      <Col height="100%" overflow="hidden">
+        <MessageList
+          entries={entries}
+          loading={loading}
+          scrollContainerRef={scrollContainerRef}
+          contentContainerRef={contentContainerRef}
+        />
+
+        {error !== null && (
+          <Block paddingInline={GUTTER_PX} paddingBlockEnd={8}>
+            <ErrorMessage error={error} onRetry={handleRetry} />
+          </Block>
+        )}
+      </Col>
 
       <AgenticInputSection
-        disabled={loading !== "none"}
+        disabled={isActive}
         shouldRaise={shouldRaiseInput}
         onFocusChange={setInputHasFocus}
         onSubmit={handleSubmit}
       />
+
+      {isActive && (
+        <Block
+          bottom={0}
+          left="50%"
+          position="absolute"
+          translate="-50% -64px"
+        >
+          <CancelButton onClick={agentic.cancel} />
+        </Block>
+      )}
 
       <LoadingIndicator loading={loading} />
 
@@ -60,5 +90,5 @@ export const AgenticView: React.FC = () => {
         onJumpToEnd={handleJumpToEnd}
       />
     </Block>
-  );
-};
+  )
+}

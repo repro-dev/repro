@@ -14,6 +14,7 @@ export {
   isValidMessageDelta,
 } from "./createState";
 export type {
+  AgenticError,
   AgenticState,
   AssistantMessage,
   AssistantMessageContext,
@@ -30,4 +31,4 @@ export type {
   ToolMessageContext,
   UserMessage,
   UserMessageContext,
-} from "./types";
+} from './types'
