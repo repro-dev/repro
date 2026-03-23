@@ -1,6 +1,6 @@
 import { FutureInstance, chain, map, reject, resolve } from 'fluture'
 import { createHash, randomBytes } from 'node:crypto'
-import { Database, attemptQuery } from '~/modules/database'
+import { Database, attemptQuery, encodeId } from '~/modules/database'
 import { notAuthenticated, notFound } from '~/utils/errors'
 
 export interface OAuthClient {
@@ -46,12 +46,12 @@ export function createOAuthService(database: Database) {
         .executeTakeFirstOrThrow()
     ).pipe(
       map(row => ({
-        id: String(row.id),
+        id: encodeId(row.id),
         clientId: row.clientId,
         clientSecret: row.clientSecret,
         name: row.name,
         redirectUris: row.redirectUris,
-        userId: String(row.userId),
+        userId: encodeId(row.userId),
       }))
     )
   }
@@ -91,60 +91,28 @@ export function createOAuthService(database: Database) {
     redirectUri: string
   ): FutureInstance<Error, ApiKey> {
     const now = new Date()
+    const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url')
 
     return attemptQuery(() =>
       database
-        .selectFrom('oauth_authorization_codes')
-        .selectAll()
+        .updateTable('oauth_authorization_codes')
+        .set({ used: true })
         .where('code', '=', code)
+        .where('used', '=', false)
         .where('expiresAt', '>', now)
+        .where('clientId', '=', clientId)
+        .where('redirectUri', '=', redirectUri)
+        .where('codeChallenge', '=', codeChallenge)
+        .where('codeChallengeMethod', '=', 'S256')
+        .returning(['userId', 'clientId', 'scopes'])
         .executeTakeFirst()
     ).pipe(
       chain(row => {
         if (!row) {
           return reject(notAuthenticated())
         }
-        return resolve(row)
+        return createApiKey(row.userId, `OAuth exchange for client ${row.clientId}`, row.scopes)
       })
-    ).pipe(
-      chain(row => {
-        if (row.used) {
-          return reject(notAuthenticated())
-        }
-        return resolve(row)
-      })
-    ).pipe(
-      chain(row => {
-        if (row.clientId !== clientId || row.redirectUri !== redirectUri) {
-          return reject(notAuthenticated())
-        }
-        return resolve(row)
-      })
-    ).pipe(
-      chain(row => {
-        const hash = createHash('sha256')
-          .update(codeVerifier)
-          .digest('base64url')
-
-        if (hash !== row.codeChallenge) {
-          return reject(notAuthenticated())
-        }
-        return resolve(row)
-      })
-    ).pipe(
-      chain(row =>
-        attemptQuery(() =>
-          database
-            .updateTable('oauth_authorization_codes')
-            .set({ used: true })
-            .where('id', '=', row.id)
-            .execute()
-        ).pipe(map(() => row))
-      )
-    ).pipe(
-      chain(row =>
-        createApiKey(row.userId, `OAuth exchange for client ${row.clientId}`, row.scopes)
-      )
     )
   }
 

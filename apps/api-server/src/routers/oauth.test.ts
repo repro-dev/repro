@@ -2,7 +2,7 @@ import expect from 'expect'
 import { FastifyInstance } from 'fastify'
 import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
-import { decodeId } from '~/modules/database'
+import { decodeId, encodeId } from '~/modules/database'
 import { OAuthService, createOAuthService } from '~/services/oauth'
 import { Harness, createTestHarness, fixtures } from '~/testing'
 import { createOAuthRouter } from './oauth'
@@ -39,11 +39,13 @@ describe('Routers > OAuth', () => {
         .update(codeVerifier)
         .digest('base64url')
 
-      const clientId = randomBytes(16).toString('hex')
+      const client = await promise(
+        oauthService.registerClient(userId, 'Test Client', ['https://example.com/callback'])
+      )
 
       const code = await promise(
         oauthService.createAuthorizationCode(
-          clientId,
+          client.clientId,
           userId,
           'https://example.com/callback',
           codeChallenge,
@@ -59,7 +61,7 @@ describe('Routers > OAuth', () => {
           grant_type: 'authorization_code',
           code,
           code_verifier: codeVerifier,
-          client_id: clientId,
+          client_id: client.clientId,
           redirect_uri: 'https://example.com/callback',
         },
       })
@@ -82,11 +84,13 @@ describe('Routers > OAuth', () => {
         .update(codeVerifier)
         .digest('base64url')
 
-      const clientId = randomBytes(16).toString('hex')
+      const client = await promise(
+        oauthService.registerClient(userId, 'Test Client', ['https://example.com/callback'])
+      )
 
       const code = await promise(
         oauthService.createAuthorizationCode(
-          clientId,
+          client.clientId,
           userId,
           'https://example.com/callback',
           codeChallenge,
@@ -102,7 +106,7 @@ describe('Routers > OAuth', () => {
           grant_type: 'authorization_code',
           code,
           code_verifier: 'wrong-verifier',
-          client_id: clientId,
+          client_id: client.clientId,
           redirect_uri: 'https://example.com/callback',
         },
       })
@@ -152,6 +156,33 @@ describe('Routers > OAuth', () => {
       expect(body.items).toHaveLength(2)
     })
 
+    it('should return encoded string id for each key', async () => {
+      const [user, session] = await harness.loadFixtures([
+        fixtures.account.UserA,
+        fixtures.account.UserA_Session,
+      ])
+      const userId = decodeId(user.id)!
+
+      const key = await promise(oauthService.createApiKey(userId, 'Key A', ['recordings:read']))
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/keys',
+        cookies: {
+          [harness.env.SESSION_COOKIE]: session.sessionToken,
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      const body = res.json()
+      expect(body.items).toHaveLength(1)
+
+      const item = body.items[0]
+      expect(typeof item.id).toEqual('string')
+      expect(item.id).toEqual(encodeId(key.id))
+      expect(decodeId(item.id)).toEqual(key.id)
+    })
+
     it('should return 404 when no session is active', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -163,7 +194,7 @@ describe('Routers > OAuth', () => {
   })
 
   describe('POST /revoke', () => {
-    it('should revoke a key owned by the current user', async () => {
+    it('should revoke a key by encoded string keyId', async () => {
       const [user, session] = await harness.loadFixtures([
         fixtures.account.UserA,
         fixtures.account.UserA_Session,
@@ -174,10 +205,12 @@ describe('Routers > OAuth', () => {
         oauthService.createApiKey(userId, 'Revokable Key', ['recordings:read'])
       )
 
+      const encodedKeyId = encodeId(key.id)
+
       const res = await app.inject({
         method: 'POST',
         url: '/revoke',
-        body: { keyId: key.id },
+        body: { keyId: encodedKeyId },
         cookies: {
           [harness.env.SESSION_COOKIE]: session.sessionToken,
         },
@@ -186,11 +219,29 @@ describe('Routers > OAuth', () => {
       expect(res.statusCode).toEqual(204)
     })
 
+    it('should return 400 for an invalid (non-decodable) encoded keyId', async () => {
+      const [_user, session] = await harness.loadFixtures([
+        fixtures.account.UserA,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/revoke',
+        body: { keyId: 'not-a-valid-sqids-id!!!' },
+        cookies: {
+          [harness.env.SESSION_COOKIE]: session.sessionToken,
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+    })
+
     it('should return 404 when no session is active', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/revoke',
-        body: { keyId: 1 },
+        body: { keyId: encodeId(1) },
       })
 
       expect(res.statusCode).toEqual(404)
@@ -220,6 +271,35 @@ describe('Routers > OAuth', () => {
         clientId: expect.any(String),
         name: 'My MCP Client',
       })
+    })
+
+    it('should return encoded id and userId in client registration response', async () => {
+      const [user, session] = await harness.loadFixtures([
+        fixtures.account.UserA,
+        fixtures.account.UserA_Session,
+      ])
+      const userId = decodeId(user.id)!
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/clients',
+        body: {
+          name: 'My MCP Client',
+          redirectUris: ['https://example.com/callback'],
+        },
+        cookies: {
+          [harness.env.SESSION_COOKIE]: session.sessionToken,
+        },
+      })
+
+      expect(res.statusCode).toEqual(201)
+      const body = res.json()
+
+      expect(typeof body.id).toEqual('string')
+      expect(typeof body.userId).toEqual('string')
+
+      expect(decodeId(body.id)).toBeGreaterThan(0)
+      expect(decodeId(body.userId)).toEqual(userId)
     })
 
     it('should return 404 when no session is active', async () => {

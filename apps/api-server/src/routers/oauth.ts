@@ -3,7 +3,7 @@ import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { chain, map, reject } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
-import { decodeId } from '~/modules/database'
+import { decodeId, withEncodedId } from '~/modules/database'
 import { AccountService } from '~/services/account'
 import { OAuthService } from '~/services/oauth'
 import { badRequest } from '~/utils/errors'
@@ -21,7 +21,7 @@ const tokenSchema = {
 
 const revokeSchema = {
   body: z.object({
-    keyId: z.number(),
+    keyId: z.string(),
   }),
 } as const
 
@@ -74,7 +74,7 @@ export function createOAuthRouter(
           const userId = decodeId(user.id)!
           return oauthService.listApiKeys(userId)
         })
-      ).pipe(map(items => ({ items })))
+      ).pipe(map(keys => ({ items: keys.map(withEncodedId) })))
 
       respondWith(res, future)
     })
@@ -82,10 +82,17 @@ export function createOAuthRouter(
     app.post<{
       Body: z.infer<typeof revokeSchema.body>
     }>('/revoke', { schema: revokeSchema }, (req, res) => {
+      const keyId = decodeId(req.body.keyId)
+
+      if (keyId === null) {
+        respondWith(res, reject(badRequest('Invalid keyId')))
+        return
+      }
+
       const future = req.getCurrentUser().pipe(
         chain(user => {
           const userId = decodeId(user.id)!
-          return oauthService.revokeApiKey(req.body.keyId, userId)
+          return oauthService.revokeApiKey(keyId, userId)
         })
       ).pipe(map(() => undefined))
 

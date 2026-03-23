@@ -1,7 +1,7 @@
 import expect from 'expect'
 import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
-import { decodeId } from '~/modules/database'
+import { decodeId, encodeId } from '~/modules/database'
 import { Harness, createTestHarness, fixtures } from '~/testing'
 import { notAuthenticated, notFound } from '~/utils/errors'
 import { OAuthService, createOAuthService } from './oauth'
@@ -131,22 +131,56 @@ describe('Services > OAuth', () => {
     })
   })
 
-  describe('exchangeCode (PKCE)', () => {
-    it('should validate PKCE correctly and return an API key on happy path', async () => {
+  describe('registerClient', () => {
+    it('should return encoded id and userId', async () => {
       const [user] = await harness.loadFixtures([fixtures.account.UserA])
       const userId = decodeId(user.id)!
 
+      const client = await promise(
+        oauthService.registerClient(userId, 'My Client', ['https://example.com/callback'])
+      )
+
+      expect(client.id).toEqual(expect.any(String))
+      expect(client.userId).toEqual(expect.any(String))
+
+      const decodedId = decodeId(client.id)
+      const decodedUserId = decodeId(client.userId)
+
+      expect(decodedId).toBeGreaterThan(0)
+      expect(decodedUserId).toEqual(userId)
+    })
+
+    it('should encode id as valid Sqids string (not raw numeric string)', async () => {
+      const [user] = await harness.loadFixtures([fixtures.account.UserA])
+      const userId = decodeId(user.id)!
+
+      const client = await promise(
+        oauthService.registerClient(userId, 'Client', ['https://example.com/cb'])
+      )
+
+      expect(Number.isNaN(Number(client.id))).toBe(true)
+      expect(Number.isNaN(Number(client.userId))).toBe(true)
+
+      expect(client.id).toEqual(encodeId(decodeId(client.id)!))
+      expect(client.userId).toEqual(encodeId(userId))
+    })
+  })
+
+  describe('exchangeCode (PKCE)', () => {
+    async function setupCode(userId: number) {
       const { createHash, randomBytes } = await import('node:crypto')
       const codeVerifier = randomBytes(32).toString('hex')
       const codeChallenge = createHash('sha256')
         .update(codeVerifier)
         .digest('base64url')
 
-      const clientId = randomBytes(16).toString('hex')
+      const client = await promise(
+        oauthService.registerClient(userId, 'Test Client', ['https://example.com/callback'])
+      )
 
       const code = await promise(
         oauthService.createAuthorizationCode(
-          clientId,
+          client.clientId,
           userId,
           'https://example.com/callback',
           codeChallenge,
@@ -154,6 +188,15 @@ describe('Services > OAuth', () => {
           ['recordings:read']
         )
       )
+
+      return { code, codeVerifier, clientId: client.clientId }
+    }
+
+    it('should validate PKCE correctly and return an API key on happy path', async () => {
+      const [user] = await harness.loadFixtures([fixtures.account.UserA])
+      const userId = decodeId(user.id)!
+
+      const { code, codeVerifier, clientId } = await setupCode(userId)
 
       const apiKey = await promise(
         oauthService.exchangeCode(
@@ -177,24 +220,7 @@ describe('Services > OAuth', () => {
       const [user] = await harness.loadFixtures([fixtures.account.UserA])
       const userId = decodeId(user.id)!
 
-      const { createHash, randomBytes } = await import('node:crypto')
-      const codeVerifier = randomBytes(32).toString('hex')
-      const codeChallenge = createHash('sha256')
-        .update(codeVerifier)
-        .digest('base64url')
-
-      const clientId = randomBytes(16).toString('hex')
-
-      const code = await promise(
-        oauthService.createAuthorizationCode(
-          clientId,
-          userId,
-          'https://example.com/callback',
-          codeChallenge,
-          'S256',
-          ['recordings:read']
-        )
-      )
+      const { code, clientId } = await setupCode(userId)
 
       await expect(
         promise(
@@ -208,28 +234,11 @@ describe('Services > OAuth', () => {
       ).rejects.toThrow(notAuthenticated())
     })
 
-    it('should reject already-used codes', async () => {
+    it('should reject already-used codes (atomic single-use)', async () => {
       const [user] = await harness.loadFixtures([fixtures.account.UserA])
       const userId = decodeId(user.id)!
 
-      const { createHash, randomBytes } = await import('node:crypto')
-      const codeVerifier = randomBytes(32).toString('hex')
-      const codeChallenge = createHash('sha256')
-        .update(codeVerifier)
-        .digest('base64url')
-
-      const clientId = randomBytes(16).toString('hex')
-
-      const code = await promise(
-        oauthService.createAuthorizationCode(
-          clientId,
-          userId,
-          'https://example.com/callback',
-          codeChallenge,
-          'S256',
-          ['recordings:read']
-        )
-      )
+      const { code, codeVerifier, clientId } = await setupCode(userId)
 
       await promise(
         oauthService.exchangeCode(
@@ -247,6 +256,74 @@ describe('Services > OAuth', () => {
             codeVerifier,
             clientId,
             'https://example.com/callback'
+          )
+        )
+      ).rejects.toThrow(notAuthenticated())
+    })
+
+    it('should reject concurrent duplicate exchange attempts (race condition safety)', async () => {
+      const [user] = await harness.loadFixtures([fixtures.account.UserA])
+      const userId = decodeId(user.id)!
+
+      const { code, codeVerifier, clientId } = await setupCode(userId)
+
+      const results = await Promise.allSettled([
+        promise(
+          oauthService.exchangeCode(
+            code,
+            codeVerifier,
+            clientId,
+            'https://example.com/callback'
+          )
+        ),
+        promise(
+          oauthService.exchangeCode(
+            code,
+            codeVerifier,
+            clientId,
+            'https://example.com/callback'
+          )
+        ),
+      ])
+
+      const successes = results.filter(r => r.status === 'fulfilled')
+      const failures = results.filter(r => r.status === 'rejected')
+
+      expect(successes).toHaveLength(1)
+      expect(failures).toHaveLength(1)
+    })
+
+    it('should reject mismatched clientId', async () => {
+      const [user] = await harness.loadFixtures([fixtures.account.UserA])
+      const userId = decodeId(user.id)!
+
+      const { code, codeVerifier } = await setupCode(userId)
+
+      await expect(
+        promise(
+          oauthService.exchangeCode(
+            code,
+            codeVerifier,
+            'wrong-client-id',
+            'https://example.com/callback'
+          )
+        )
+      ).rejects.toThrow(notAuthenticated())
+    })
+
+    it('should reject mismatched redirectUri', async () => {
+      const [user] = await harness.loadFixtures([fixtures.account.UserA])
+      const userId = decodeId(user.id)!
+
+      const { code, codeVerifier, clientId } = await setupCode(userId)
+
+      await expect(
+        promise(
+          oauthService.exchangeCode(
+            code,
+            codeVerifier,
+            clientId,
+            'https://evil.com/callback'
           )
         )
       ).rejects.toThrow(notAuthenticated())
