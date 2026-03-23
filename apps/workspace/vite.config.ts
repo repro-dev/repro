@@ -14,6 +14,23 @@ function htmlEnvPlugin(envVars: Record<string, string>): Plugin {
   }
 }
 
+function antiFramingPlugin(): Plugin {
+  return {
+    name: 'anti-framing',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        // apiBridge.html must remain embeddable — skip framing headers for it
+        if (req.url && req.url.startsWith('/apiBridge')) {
+          return next()
+        }
+        res.setHeader('X-Frame-Options', 'DENY')
+        res.setHeader('Content-Security-Policy', "frame-ancestors 'none'")
+        next()
+      })
+    },
+  }
+}
+
 function htmlTemplatePlugin(envVarNames: string[]): Plugin {
   return {
     name: 'html-template',
@@ -52,6 +69,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     htmlEnvPlugin(envVars),
     htmlTemplatePlugin(envVarNames),
+    antiFramingPlugin(),
   ],
 
   resolve: {
