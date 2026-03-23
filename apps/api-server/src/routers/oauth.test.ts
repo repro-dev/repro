@@ -3,7 +3,7 @@ import { FastifyInstance } from 'fastify'
 import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { decodeId, encodeId } from '~/modules/database'
-import { OAuthService, createOAuthService } from '~/services/oauth'
+import { OAuthService } from '~/services/oauth'
 import { Harness, createTestHarness, fixtures } from '~/testing'
 import { createOAuthRouter } from './oauth'
 
@@ -14,7 +14,7 @@ describe('Routers > OAuth', () => {
 
   before(async () => {
     harness = await createTestHarness()
-    oauthService = createOAuthService(harness.db)
+    oauthService = harness.services.oauth
     app = harness.bootstrap(
       createOAuthRouter(oauthService, harness.services.accountService)
     )
