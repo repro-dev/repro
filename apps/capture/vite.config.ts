@@ -37,10 +37,10 @@ export default defineConfig(({ mode }) => ({
       process.env.MIXPANEL_TOKEN ?? ''
     ),
     'process.env.REPRO_APP_URL': JSON.stringify(
-      process.env.REPRO_APP_URL ?? 'http://app.repro.localhost'
+      process.env.REPRO_APP_URL ?? 'https://app.repro.localhost'
     ),
     'process.env.REPRO_API_URL': JSON.stringify(
-      process.env.REPRO_API_URL ?? 'http://api.repro.localhost'
+      process.env.REPRO_API_URL ?? 'https://api.repro.localhost'
     ),
     'process.env.AUTH_STORAGE': JSON.stringify(
       process.env.AUTH_STORAGE ?? 'memory'

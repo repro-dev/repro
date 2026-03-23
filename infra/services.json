@@ -11,8 +11,8 @@
       "DB_USER": "repro",
       "DB_PASSWORD": "repro",
       "STORAGE_ENDPOINT": "http://localhost:18333",
-      "REPRO_APP_URL": "http://app.repro.localhost:1355",
-      "REPRO_API_URL": "http://api.repro.localhost:1355"
+      "REPRO_APP_URL": "https://app.repro.localhost:1355",
+      "REPRO_API_URL": "https://api.repro.localhost:1355"
     },
     "env_passthrough": ["OPENROUTER_API_KEY"],
     "resource_deps": ["dependencies", "portless-proxy"],
@@ -36,8 +36,8 @@
     "serve_cmd": "portless app.repro moon run repro/workspace:dev",
     "serve_env": {
       "BUILD_ENV": "development",
-      "REPRO_APP_URL": "http://app.repro.localhost:1355",
-      "REPRO_API_URL": "http://api.repro.localhost:1355"
+      "REPRO_APP_URL": "https://app.repro.localhost:1355",
+      "REPRO_API_URL": "https://api.repro.localhost:1355"
     },
     "resource_deps": ["dependencies", "portless-proxy"],
     "labels": ["app"],
@@ -52,9 +52,9 @@
     "serve_cmd": "portless admin.repro moon run repro/admin:dev",
     "serve_env": {
       "BUILD_ENV": "development",
-      "REPRO_WORKSPACE_URL": "http://app.repro.localhost:1355",
-      "REPRO_ADMIN_URL": "http://admin.repro.localhost:1355",
-      "REPRO_API_URL": "http://api.repro.localhost:1355"
+      "REPRO_WORKSPACE_URL": "https://app.repro.localhost:1355",
+      "REPRO_ADMIN_URL": "https://admin.repro.localhost:1355",
+      "REPRO_API_URL": "https://api.repro.localhost:1355"
     },
     "resource_deps": ["dependencies", "portless-proxy"],
     "labels": ["app"],
@@ -69,8 +69,8 @@
     "serve_cmd": "moon run repro/capture:watch",
     "serve_env": {
       "BUILD_ENV": "development",
-      "REPRO_APP_URL": "http://app.repro.localhost:1355",
-      "REPRO_API_URL": "http://api.repro.localhost:1355",
+      "REPRO_APP_URL": "https://app.repro.localhost:1355",
+      "REPRO_API_URL": "https://api.repro.localhost:1355",
       "AGENTIC_MAX_ITERATIONS": "25"
     },
     "resource_deps": ["dependencies"],

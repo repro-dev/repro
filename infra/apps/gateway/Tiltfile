@@ -1,7 +1,7 @@
 local_resource(
     'portless-proxy',
     cmd='portless proxy stop || true',
-    serve_cmd='portless proxy start --foreground',
+    serve_cmd='portless proxy start --https --foreground',
     readiness_probe=probe(
         tcp_socket=tcp_socket_action(port=1355),
         initial_delay_secs=1,

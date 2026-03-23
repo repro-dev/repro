@@ -46,8 +46,8 @@ local_resource(
         'DB_USER': 'repro',
         'DB_PASSWORD': 'repro',
         'STORAGE_ENDPOINT': 'http://localhost:18333',
-        'REPRO_APP_URL': 'http://app.repro.localhost:1355',
-        'REPRO_API_URL': 'http://api.repro.localhost:1355',
+        'REPRO_APP_URL': 'https://app.repro.localhost:1355',
+        'REPRO_API_URL': 'https://api.repro.localhost:1355',
         'OPENROUTER_API_KEY': os.getenv('OPENROUTER_API_KEY', ''),
     },
     deps=[
@@ -56,6 +56,6 @@ local_resource(
     ],
     resource_deps=['api-server-migrations', 'portless-proxy'],
     allow_parallel=True,
-    links=['http://api.repro.localhost:1355'],
+    links=['https://api.repro.localhost:1355'],
     labels=['api'],
 )
