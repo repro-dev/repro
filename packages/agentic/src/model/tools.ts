@@ -783,6 +783,7 @@ const toolHandlers: Record<string, ToolHandler> = {
     const events = recording.getEventsByType([SourceEventType.Network]);
     const indexed: Array<[NetworkEvent, number]> = []
     for (const e of events) {
+      // Use a dummy index here because this path only groups network events; replay indices are not needed.
       ;(e as Box<NetworkEvent>).apply(n => indexed.push([n, 0]))
     }
     const groups = groupNetworkEvents(indexed);
