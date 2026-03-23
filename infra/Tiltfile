@@ -4,10 +4,6 @@
 # worktrees — from one instance. The `scripts/reproctl.sh` CLI
 # writes reproctl_services.json with the resolved service list; this
 # Tiltfile reads it and registers everything generically.
-#
-# Backwards compatibility: when no reproctl_services.json exists, the
-# original `tilt up <group>` workflow works exactly as before via
-# the legacy groups path.
 
 load(
   './tilt-lib/services.Tiltfile',
@@ -16,12 +12,6 @@ load(
   'resolve_dependencies',
   'wt_label',
 )
-load(
-  './tilt-lib/worktree.Tiltfile',
-  'is_worktree',
-)
-config.define_string_list('groups', args=True)
-cfg = config.parse()
 
 PROJECT_ROOT = os.path.join(os.getcwd(), '..')
 INFRA_DIR = os.getcwd()
@@ -83,9 +73,8 @@ if service_config:
   # run and from which source tree.
   #
   # Shared infrastructure (database, storage, ingress) is registered
-  # once. Main-checkout services use per-app Tiltfiles for full
-  # feature parity (db-reset, etc.). Worktree services use the
-  # generic register_service() from services.Tiltfile.
+  # once. Main-checkout services use the generic registration paths.
+  # Worktree services use register_service() from services.Tiltfile.
 
   for entry in service_config:
     slug = entry.get('slug', '')
@@ -147,18 +136,36 @@ if service_config:
 
     else:
       svc = SERVICES[name]
-      app_tiltfile = './apps/%s/Tiltfile' % name
-      app_tiltfile_abs = os.path.join(INFRA_DIR, 'apps', name, 'Tiltfile')
-      result = str(local(
-        'test -f "%s" && echo yes || echo no' % app_tiltfile_abs,
-        quiet=True,
-      ))
-      if result.strip() == 'yes':
-        load_dynamic(app_tiltfile)
+      # api-server has a dedicated per-app Tiltfile for its migration/seed/reset resources
+      if name == 'api-server':
+        load_dynamic('./apps/api-server/Tiltfile')
+      elif svc.get('portless_name'):
+        # Portless main-checkout service: register inline using base portless_name directly.
+        # register_service() requires a non-empty slug (wt_name/wt_label break with slug=""),
+        # so we inline the local_resource registration here.
+        portless_name = svc['portless_name']
+        serve_env = dict(svc.get('serve_env', {}))
+        for env_key in svc.get('env_passthrough', []):
+          serve_env[env_key] = os.getenv(env_key, '')
+        resource_deps = list(svc.get('resource_deps', []))
+        local_resource(
+          name,
+          serve_cmd=svc['serve_cmd'],
+          serve_dir=PROJECT_ROOT,
+          serve_env=serve_env,
+          deps=[
+            os.path.join(PROJECT_ROOT, svc['app_dir'], 'src'),
+            os.path.join(PROJECT_ROOT, svc['app_dir'], 'package.json'),
+          ],
+          resource_deps=resource_deps,
+          allow_parallel=True,
+          links=['http://' + portless_name + '.localhost:1355'],
+          labels=list(svc.get('labels', ['app'])),
+        )
       elif svc.get('type', 'k8s') == 'local':
         register_local_service(name, svc, INFRA_DIR)
       else:
-        warn('No per-app Tiltfile for main checkout service: %s' % name)
+        warn('No registration path for main checkout service: %s' % name)
 
   has_main_services = False
   for entry in service_config:
@@ -176,80 +183,8 @@ if service_config:
     )
 
 else:
-  # Legacy mode: no reproctl_services.json, original `tilt up <group>` behaviour.
-  # This path is identical to the pre-REP-219 main checkout mode.
-
-  if is_worktree(PROJECT_ROOT):
-    fail(
-      'Worktree detected but no reproctl_services.json found.\n' +
-      'Use `scripts/reproctl.sh start <service>` to configure and start Tilt,\n' +
-      'or create tmp/reproctl_services.json manually.\n\n' +
-      'Direct `tilt up` from a worktree is no longer supported.\n' +
-      'The unified orchestrator runs from the main checkout.'
-    )
-
-  groups = {
-    'capture-only': [
-      'capture'
-    ],
-
-    'dev-toolbar-only': [
-      'dev-toolbar'
-    ],
-
-    'storybook-only': [
-      'storybook-ui'
-    ],
-
-    'api-server': [
-      'storage',
-      'database',
-      'api-server',
-      'portless-proxy',
-    ],
-
-    'workspace': [
-      'storage',
-      'database',
-      'api-server',
-      'workspace',
-      'portless-proxy',
-    ]
-  }
-
-  resources = []
-
-  for arg in cfg.get('groups', []):
-    if arg in groups:
-      resources += groups[arg]
-    else:
-      resources.append(arg)
-
-  config.set_enabled_resources(resources)
-
-  local_resource(
-    'dependencies',
-    cmd='pnpm fetch && pnpm install --offline',
-    dir='..',
-    deps=['pnpm-lock.yaml'],
-    labels=['infra'],
+  fail(
+    'No reproctl_services.json found at: ' + CONFIG_FILE + '\n' +
+    'Use `reproctl start <service>` to start services.\n' +
+    'Direct `tilt up` without reproctl is no longer supported.'
   )
-
-  # Extensions
-  load_dynamic('./apps/capture/Tiltfile')
-  load_dynamic('./apps/dev-toolbar/Tiltfile')
-
-  # Design
-  load_dynamic('./apps/storybook-ui/Tiltfile')
-
-  # Data
-  load_dynamic('./apps/data/Tiltfile')
-
-  # APIs
-  load_dynamic('./apps/api-server/Tiltfile')
-
-  # Apps
-  load_dynamic('./apps/workspace/Tiltfile')
-
-  # Infra
-  load_dynamic('./apps/gateway/Tiltfile')
