@@ -14,7 +14,7 @@ describe('Routers > OAuth', () => {
 
   before(async () => {
     harness = await createTestHarness()
-    oauthService = harness.services.oauth
+    oauthService = harness.services.oauthService
     app = harness.bootstrap(
       createOAuthRouter(oauthService, harness.services.accountService)
     )

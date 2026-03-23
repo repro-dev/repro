@@ -10,7 +10,7 @@ export interface Services {
   accountService: AccountService
   billingService: BillingService
   featureGateService: FeatureGateService
-  oauth: OAuthService
+  oauthService: OAuthService
   projectService: ProjectService
   recordingService: RecordingService
 }

@@ -53,7 +53,7 @@ export async function createTestHarness(): Promise<Harness> {
   const stubPaddleClient = createStubPaddleClient(db)
   const billingService = createBillingService(db, env, stubPaddleClient)
   const featureGateService = createFeatureGateService(db)
-  const oauth = createOAuthService(db)
+  const oauthService = createOAuthService(db)
   const projectService = createProjectService(db)
   const recordingService = createRecordingService(db, storage)
 
@@ -61,7 +61,7 @@ export async function createTestHarness(): Promise<Harness> {
     accountService,
     billingService,
     featureGateService,
-    oauth,
+    oauthService,
     projectService,
     recordingService,
   }

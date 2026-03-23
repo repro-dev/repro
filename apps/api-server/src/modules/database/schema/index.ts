@@ -12,6 +12,7 @@ import { OAuthAuthorizationCodeTable } from './OAuthAuthorizationCodeTable'
 import { OAuthClientTable } from './OAuthClientTable'
 import { ProjectRecordingTable } from './ProjectRecordingTable'
 import { ProjectTable } from './ProjectTable'
+import { RecordingEventIndexTable } from './RecordingEventIndexTable'
 import { RecordingResourceTable } from './RecordingResourceTable'
 import { RecordingTable } from './RecordingTable'
 import { SessionTable } from './SessionTable'
@@ -32,6 +33,7 @@ export interface Schema {
   oauth_authorization_codes: OAuthAuthorizationCodeTable
   oauth_clients: OAuthClientTable
   recordings: RecordingTable
+  recording_event_index: RecordingEventIndexTable
   recording_resources: RecordingResourceTable
   projects: ProjectTable
   project_recordings: ProjectRecordingTable
@@ -44,6 +46,7 @@ export {
   ApiKeyTable,
   OAuthAuthorizationCodeTable,
   OAuthClientTable,
+  RecordingEventIndexTable,
   RecordingResourceTable,
   RecordingTable,
   asStaffUser,
