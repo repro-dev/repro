@@ -1,6 +1,10 @@
 local_resource(
   'dev-toolbar',
   serve_cmd='moon run repro/dev-toolbar:watch',
+  serve_env={
+    'REPRO_APP_URL': 'http://app.repro.localhost:1355',
+    'REPRO_API_URL': 'http://api.repro.localhost:1355',
+  },
   resource_deps=['dependencies', 'workspace'],
   allow_parallel=True,
   labels=['extension']
