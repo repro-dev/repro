@@ -5,6 +5,9 @@ import { defineConfig, Plugin } from 'vite'
 function htmlEnvPlugin(envVars: Record<string, string>): Plugin {
   return {
     name: 'html-env',
+    // Only applies during dev server — replaces %NAME% with the actual value
+    // so the dev server serves a fully-resolved HTML page.
+    apply: 'serve',
     transformIndexHtml: {
       order: 'pre',
       handler(html) {
@@ -39,12 +42,12 @@ function htmlTemplatePlugin(envVarNames: string[]): Plugin {
     generateBundle(_, bundle) {
       for (const [fileName, chunk] of Object.entries(bundle)) {
         if (chunk.type === 'asset' && fileName.endsWith('.html')) {
+          // At build time htmlEnvPlugin is not active, so %NAME% placeholders
+          // are still present in the HTML. Replace them with $NAME so that
+          // prepare-env can run envsubst at deploy time.
           let html = chunk.source as string
           for (const name of envVarNames) {
-            const value = process.env[name]
-            if (value) {
-              html = html.replaceAll(value, `$${name}`)
-            }
+            html = html.replaceAll(`%${name}%`, `$${name}`)
           }
           const templateName = fileName.replace('.html', '.template.html')
           this.emitFile({
