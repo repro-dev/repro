@@ -20,7 +20,12 @@ const Ring: React.FC<{ distance: number }> = ({ distance }) => (
 
 export const EmptyState: React.FC = () => {
   return (
-    <Block position="relative" blockSize="100%" containerType="inline-size">
+    <Block
+      position="relative"
+      blockSize="100%"
+      containerType="inline-size"
+      overflow="hidden"
+    >
       <Ring distance={4} />
       <Ring distance={3} />
       <Ring distance={2} />

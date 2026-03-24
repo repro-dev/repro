@@ -1,5 +1,10 @@
 import { Block } from "@jsxstyle/react";
-import { AgenticInput, AgenticInputFormState, colors } from "@repro/design";
+import {
+  AgenticInput,
+  AgenticInputFormState,
+  colors,
+  spacing,
+} from "@repro/design";
 import React from "react";
 import { PLACEHOLDER_COPY } from "../constants";
 
@@ -27,15 +32,17 @@ export const AgenticInputSection: React.FC<AgenticInputSectionProps> = ({
       bottom={0}
       boxShadow={shouldRaise ? "0 -4px 8px rgba(0, 0, 0, 0.05)" : "none"}
       left={0}
-      marginBlock={shouldRaise ? -20 : 0}
-      marginInline={shouldRaise ? -20 : 0}
+      marginBlock={shouldRaise ? -spacing["2xl"] : 0}
+      marginInline={shouldRaise ? -spacing["2xl"] : 0}
       overflow="hidden"
-      paddingBlock={shouldRaise ? 20 : 0}
-      paddingInline={shouldRaise ? 20 : 0}
+      paddingBlock={shouldRaise ? spacing["2xl"] : 0}
+      paddingInline={shouldRaise ? spacing["2xl"] : 0}
       position="absolute"
       right={0}
       transform={
-        disabled ? `translateY(calc(100% + 20px))` : `translateY(-20px)`
+        disabled
+          ? `translateY(calc(100% + ${spacing["2xl"]}px))`
+          : `translateY(-${spacing["2xl"]}px)`
       }
       transition="margin ease-in-out 100ms, padding ease-in-out 100ms, transform ease-in-out 250ms"
     >
