@@ -747,6 +747,9 @@ importers:
 
   apps/storybook-ui:
     dependencies:
+      '@repro/agentic-ui':
+        specifier: workspace:*
+        version: link:../../packages/agentic-ui
       '@repro/auth':
         specifier: workspace:*
         version: link:../../packages/auth

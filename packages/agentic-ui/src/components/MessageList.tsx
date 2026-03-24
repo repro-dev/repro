@@ -1,7 +1,7 @@
 import { Block, Col } from "@jsxstyle/react";
 import { Md } from "@m2d/react-markdown";
 import { Entry, Loading, groupToolCalls } from "@repro/agentic";
-import { colors } from "@repro/design";
+import { colors, spacing } from "@repro/design";
 import React, { useMemo } from "react";
 import { INPUT_CONTAINER_OFFSET_PX } from "../constants";
 import { EmptyState } from "../EmptyState";
@@ -30,10 +30,9 @@ export const MessageList: React.FC<MessageListProps> = ({
           : "100cqb"
       }
       fontSize={13}
-      marginBlockEnd={20}
       overflowY="scroll"
-      paddingInline={20}
-      paddingBlock={10}
+      paddingBlock={spacing.lg}
+      paddingInline={spacing["2xl"]}
       transition="block-size 250ms ease-in-out"
       props={{ ref: scrollContainerRef }}
     >
@@ -45,8 +44,8 @@ export const MessageList: React.FC<MessageListProps> = ({
             return (
               <Col key={item.entry.id} lineHeight={1.5}>
                 <Block
-                  marginInlineStart={30}
-                  paddingInline={10}
+                  marginInlineStart={spacing["3xl"]}
+                  paddingInline={spacing.lg}
                   backgroundColor={colors.blue["50"]}
                   borderColor={colors.blue["100"]}
                   borderStyle="solid"
