@@ -1,4 +1,5 @@
 import { randomString } from '@repro/random-string'
+import { forget } from '@repro/future-utils'
 import { Agent } from '@repro/messaging'
 import { ApiClient, defaultClient } from './createApiClient'
 import { FetchOptions } from './types'
@@ -30,10 +31,12 @@ export function createApiClientBridge(
               signal.addEventListener(
                 'abort',
                 () => {
-                  agent.raiseIntent({
-                    type: 'api-client:abort',
-                    payload: { requestId },
-                  })
+                  forget(
+                    agent.raiseIntent({
+                      type: 'api-client:abort',
+                      payload: { requestId },
+                    })
+                  )
                 },
                 { once: true }
               )
