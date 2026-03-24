@@ -23,16 +23,16 @@ agent.subscribeToIntent<{ requestId: string; args: Parameters<Fetch> }, unknown>
   'api-client:fetch',
   payload => {
     const { requestId, args } = payload
+    const [url, options, requestType, responseType] = args
     const controller = new AbortController()
     abortControllers.set(requestId, controller)
 
     // Merge the locally-created signal into the fetch options
-    const options = { ...args[1], signal: controller.signal }
     const argsWithSignal: Parameters<Fetch> = [
-      args[0],
-      options,
-      args[2],
-      args[3],
+      url,
+      { ...options, signal: controller.signal },
+      requestType,
+      responseType,
     ]
 
     // Clean up the abort controller map regardless of success or failure
