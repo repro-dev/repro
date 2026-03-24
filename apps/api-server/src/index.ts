@@ -112,6 +112,11 @@ function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   const app = fastify({
     bodyLimit: 16777216, // 16MiB
     logger: true,
+    // Trust the portless reverse proxy so that secure:'auto' on the session
+    // cookie evaluates to true (portless terminates TLS and forwards over HTTP).
+    // Without this, SameSite=None cookies are sent without the Secure flag and
+    // browsers reject them, breaking cross-site requests from the apiBridge iframe.
+    trustProxy: true,
   })
 
   app.addContentTypeParser('*', async () => {})
