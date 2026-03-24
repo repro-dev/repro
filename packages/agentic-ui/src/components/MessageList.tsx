@@ -31,9 +31,9 @@ export const MessageList: React.FC<MessageListProps> = ({
       }
       fontSize={13}
       marginBlockEnd={20}
-      marginInline={-20}
       overflowY="scroll"
-      padding={10}
+      paddingInline={20}
+      paddingBlock={10}
       transition="block-size 250ms ease-in-out"
       props={{ ref: scrollContainerRef }}
     >
