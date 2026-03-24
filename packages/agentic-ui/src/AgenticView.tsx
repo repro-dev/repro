@@ -3,7 +3,6 @@ import { useAtomValue } from "@repro/atom";
 import { AgenticInputFormState, spacing } from "@repro/design";
 import React, { useRef, useState } from "react";
 import { AgenticInputSection } from "./components/AgenticInputSection";
-import { CancelButton } from "./components/CancelButton";
 import { ErrorMessage } from "./components/ErrorMessage";
 import { JumpToEndButton } from "./components/JumpToEndButton";
 import { LoadingIndicator } from "./components/LoadingIndicator";
@@ -71,13 +70,10 @@ export const AgenticView: React.FC = () => {
         onSubmit={handleSubmit}
       />
 
-      {isActive && (
-        <Block bottom={0} left="50%" position="absolute" translate="-50% -64px">
-          <CancelButton onClick={agentic.cancel} />
-        </Block>
-      )}
-
-      <LoadingIndicator loading={loading} />
+      <LoadingIndicator
+        loading={loading}
+        onCancel={isActive ? agentic.cancel : undefined}
+      />
 
       <JumpToEndButton
         shouldShow={shouldShowJumpToEndAction}

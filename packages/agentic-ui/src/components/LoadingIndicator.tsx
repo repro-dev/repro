@@ -1,25 +1,29 @@
-import { Block } from '@jsxstyle/react'
-import { colors, FX } from '@repro/design'
+import { Block, Row } from '@jsxstyle/react'
 import { Loading } from '@repro/agentic'
-import { CircleIcon } from 'lucide-react'
+import { colors, FX, spacing, transition } from '@repro/design'
+import { CircleIcon, XIcon } from 'lucide-react'
 import React from 'react'
 
 interface LoadingIndicatorProps {
   loading: Loading
+  onCancel?: () => void
 }
 
 export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   loading,
+  onCancel,
 }) => {
   const isHidden = loading === 'none' || loading === 'cancelled'
 
   return (
-    <Block
+    <Row
+      alignItems="center"
       backgroundColor={colors.blue['800']}
       backgroundImage={`linear-gradient(to bottom right, ${colors.blue['900']}, ${colors.blue['700']})`}
       borderRadius="99em"
       bottom={0}
       boxShadow={isHidden ? 'none' : '0 0 16px rgba(0, 0, 0, 0.15)'}
+      gap={spacing.md}
       left="50%"
       paddingBlock={10}
       paddingInline={15}
@@ -38,6 +42,38 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
       <FX.Pulse animationDelay="200ms">
         <CircleIcon size={8} fill={colors.white} stroke={colors.white} />
       </FX.Pulse>
-    </Block>
+
+      {onCancel && (
+        <>
+          {/* Faint separator */}
+          <Block
+            alignSelf="stretch"
+            backgroundColor="rgba(255, 255, 255, 0.25)"
+            marginInline={spacing.xs}
+            width={1}
+          />
+
+          {/* Cancel X button */}
+          <Block
+            alignItems="center"
+            background="none"
+            border="none"
+            borderRadius="99em"
+            color={colors.white}
+            component="button"
+            cursor="pointer"
+            display="flex"
+            justifyContent="center"
+            lineHeight={1}
+            padding={spacing.xs}
+            transition={transition.fast}
+            hoverBackgroundColor="rgba(255, 255, 255, 0.15)"
+            props={{ type: 'button', 'aria-label': 'Cancel', onClick: onCancel }}
+          >
+            <XIcon size={12} />
+          </Block>
+        </>
+      )}
+    </Row>
   )
 }
