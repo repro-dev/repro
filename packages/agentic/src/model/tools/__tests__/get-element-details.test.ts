@@ -1,20 +1,23 @@
 import { NodeType, Snapshot, SourceEvent } from "@repro/domain";
-import assert from "node:assert";
+import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { RecordingDataAccessor } from "../types";
-import { executeTool, tools } from "./tools";
+import { RecordingDataAccessor } from "../../../types";
+import { executeTool, tools } from "../index";
 
-function makeVTree(nodes: Record<string, any>, rootId: string) {
-  const boxedNodes: Record<string, any> = {};
+// These helpers use a hand-rolled Box mock because getElementDetails uses
+// the vtree node API (get/match/apply) rather than SourceEventView.
+function makeVTree(nodes: Record<string, unknown>, rootId: string) {
+  const boxedNodes: Record<string, unknown> = {};
   for (const [id, node] of Object.entries(nodes)) {
     boxedNodes[id] = {
-      match: (fn: (n: any) => boolean) => fn(node),
-      apply: (fn: (n: any) => void) => fn(node),
+      match: (fn: (n: unknown) => boolean) => fn(node),
+      apply: (fn: (n: unknown) => void) => fn(node),
       get: (key: string) => ({
-        orElse: (fallback: any) => (node as any)[key] ?? fallback,
-        map: (fn: (v: any) => any) => ({
-          orElse: (fb: any) => {
-            const val = (node as any)[key];
+        orElse: (fallback: unknown) =>
+          (node as Record<string, unknown>)[key] ?? fallback,
+        map: (fn: (v: unknown) => unknown) => ({
+          orElse: (fb: unknown) => {
+            const val = (node as Record<string, unknown>)[key];
             return val != null ? fn(val) : fb;
           },
         }),
@@ -24,11 +27,11 @@ function makeVTree(nodes: Record<string, any>, rootId: string) {
   return { rootId, nodes: boxedNodes };
 }
 
-function makeSnapshot(vtree: any): Snapshot {
+function makeSnapshot(vtree: unknown): Snapshot {
   return { dom: vtree, interaction: null } as unknown as Snapshot;
 }
 
-function makeAccessor(
+function makeAccessorWithSnapshot(
   snapshotFn: (timestampMs: number) => Snapshot | null,
 ): RecordingDataAccessor {
   return {
@@ -132,46 +135,58 @@ function makeStandardVTree() {
   );
 }
 
-describe("executeTool — getElementDetails", () => {
+describe("tools array — getElementDetails", () => {
   it("tool definition exists in tools array", () => {
     const found = tools.find(
       (t) => "function" in t && t.function.name === "getElementDetails",
     );
     assert.ok(found !== undefined);
   });
+});
 
+describe("executeTool — getElementDetails — errors", () => {
   it("missing nodeId returns error", () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "getElementDetails", {}) as any;
+    const result = executeTool(accessor, "getElementDetails", {}) as Record<
+      string,
+      unknown
+    >;
     assert.ok("error" in result);
-    assert.ok((result.error as string).toLowerCase().includes("nodeid"));
+    assert.ok((result["error"] as string).toLowerCase().includes("nodeid"));
   });
 
   it("missing nodeId returns reason and suggestion mentioning getDOMState", () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "getElementDetails", {}) as any;
-    assert.ok(result.reason);
-    assert.ok(result.suggestion);
-    assert.ok((result.suggestion as string).includes("getDOMState"));
+    const result = executeTool(accessor, "getElementDetails", {}) as Record<
+      string,
+      unknown
+    >;
+    assert.ok(result["reason"]);
+    assert.ok(result["suggestion"]);
+    assert.ok((result["suggestion"] as string).includes("getDOMState"));
   });
 
   it("missing timestampMs returns error", () => {
     const accessor = makeEmptyAccessor();
     const result = executeTool(accessor, "getElementDetails", {
       nodeId: "x",
-    }) as any;
+    }) as Record<string, unknown>;
     assert.ok("error" in result);
-    assert.ok((result.error as string).toLowerCase().includes("timestampms"));
+    assert.ok(
+      (result["error"] as string).toLowerCase().includes("timestampms"),
+    );
   });
 
   it("missing timestampMs returns reason and suggestion mentioning getRecordingDuration", () => {
     const accessor = makeEmptyAccessor();
     const result = executeTool(accessor, "getElementDetails", {
       nodeId: "x",
-    }) as any;
-    assert.ok(result.reason);
-    assert.ok(result.suggestion);
-    assert.ok((result.suggestion as string).includes("getRecordingDuration"));
+    }) as Record<string, unknown>;
+    assert.ok(result["reason"]);
+    assert.ok(result["suggestion"]);
+    assert.ok(
+      (result["suggestion"] as string).includes("getRecordingDuration"),
+    );
   });
 
   it("no snapshot returns error", () => {
@@ -179,9 +194,9 @@ describe("executeTool — getElementDetails", () => {
     const result = executeTool(accessor, "getElementDetails", {
       nodeId: "abc",
       timestampMs: 1000,
-    }) as any;
+    }) as Record<string, unknown>;
     assert.ok("error" in result);
-    assert.ok((result.error as string).toLowerCase().includes("snapshot"));
+    assert.ok((result["error"] as string).toLowerCase().includes("snapshot"));
   });
 
   it("no snapshot returns reason and suggestion mentioning getRecordingDuration", () => {
@@ -189,94 +204,113 @@ describe("executeTool — getElementDetails", () => {
     const result = executeTool(accessor, "getElementDetails", {
       nodeId: "abc",
       timestampMs: 1000,
-    }) as any;
-    assert.ok(result.reason);
-    assert.ok(result.suggestion);
-    assert.ok((result.suggestion as string).includes("getRecordingDuration"));
+    }) as Record<string, unknown>;
+    assert.ok(result["reason"]);
+    assert.ok(result["suggestion"]);
+    assert.ok(
+      (result["suggestion"] as string).includes("getRecordingDuration"),
+    );
   });
 
   it("node not found returns error containing the nodeId", () => {
     const vtree = makeStandardVTree();
-    const accessor = makeAccessor(() => makeSnapshot(vtree));
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
     const result = executeTool(accessor, "getElementDetails", {
       nodeId: "zzz99",
       timestampMs: 1000,
-    }) as any;
+    }) as Record<string, unknown>;
     assert.ok("error" in result);
-    assert.ok((result.error as string).includes("zzz99"));
+    assert.ok((result["error"] as string).includes("zzz99"));
   });
 
   it("node not found returns reason and suggestion mentioning getDOMState", () => {
     const vtree = makeStandardVTree();
-    const accessor = makeAccessor(() => makeSnapshot(vtree));
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
     const result = executeTool(accessor, "getElementDetails", {
       nodeId: "zzz99",
       timestampMs: 1000,
-    }) as any;
-    assert.ok(result.reason);
-    assert.ok(result.suggestion);
-    assert.ok((result.suggestion as string).includes("getDOMState"));
+    }) as Record<string, unknown>;
+    assert.ok(result["reason"]);
+    assert.ok(result["suggestion"]);
+    assert.ok((result["suggestion"] as string).includes("getDOMState"));
   });
+});
 
-  it("self context returns element, parents, siblings, textContent; no children", () => {
+describe("executeTool — getElementDetails — self context", () => {
+  it("returns element, parents, siblings, textContent; no children", () => {
     const vtree = makeStandardVTree();
-    const accessor = makeAccessor(() => makeSnapshot(vtree));
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
     const result = executeTool(accessor, "getElementDetails", {
       nodeId: "btn1",
       timestampMs: 1000,
-    }) as any;
+    }) as Record<string, unknown>;
 
-    assert.strictEqual(result.element.nodeId, "btn1");
-    assert.strictEqual(result.element.tagName, "button");
-    assert.ok("class" in result.element.attributes);
-    assert.ok("data-testid" in result.element.attributes);
-    assert.ok("disabled" in result.element.attributes);
+    const element = result["element"] as Record<string, unknown>;
+    assert.strictEqual(element["nodeId"], "btn1");
+    assert.strictEqual(element["tagName"], "button");
+    assert.ok("class" in (element["attributes"] as Record<string, unknown>));
+    assert.ok(
+      "data-testid" in (element["attributes"] as Record<string, unknown>),
+    );
+    assert.ok("disabled" in (element["attributes"] as Record<string, unknown>));
 
-    assert.strictEqual(result.parents.length, 3);
-    assert.strictEqual(result.parents[0].nodeId, "div1");
-    assert.strictEqual(result.parents[1].nodeId, "body");
-    assert.strictEqual(result.parents[2].nodeId, "html");
+    const parents = result["parents"] as Array<Record<string, unknown>>;
+    assert.strictEqual(parents.length, 3);
+    assert.strictEqual(parents[0]!["nodeId"], "div1");
+    assert.strictEqual(parents[1]!["nodeId"], "body");
+    assert.strictEqual(parents[2]!["nodeId"], "html");
 
-    assert.strictEqual(result.siblings.length, 1);
-    assert.strictEqual(result.siblings[0].nodeId, "span1");
-    assert.ok("class" in result.siblings[0].attributes);
+    const siblings = result["siblings"] as Array<Record<string, unknown>>;
+    assert.strictEqual(siblings.length, 1);
+    assert.strictEqual(siblings[0]!["nodeId"], "span1");
+    assert.ok(
+      "class" in (siblings[0]!["attributes"] as Record<string, unknown>),
+    );
 
-    assert.strictEqual(result.textContent, "Click me");
-    assert.strictEqual(result.children, undefined);
+    assert.strictEqual(result["textContent"], "Click me");
+    assert.strictEqual(result["children"], undefined);
   });
+});
 
-  it("subtree context includes direct children", () => {
+describe("executeTool — getElementDetails — subtree context", () => {
+  it("includes direct children", () => {
     const vtree = makeStandardVTree();
-    const accessor = makeAccessor(() => makeSnapshot(vtree));
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
     const result = executeTool(accessor, "getElementDetails", {
       nodeId: "div1",
       timestampMs: 1000,
       context: "subtree",
-    }) as any;
+    }) as Record<string, unknown>;
 
-    assert.ok(Array.isArray(result.children));
-    assert.strictEqual(result.children.length, 2);
-    const childIds = result.children.map((c: any) => c.nodeId);
+    const children = result["children"] as Array<Record<string, unknown>>;
+    assert.ok(Array.isArray(children));
+    assert.strictEqual(children.length, 2);
+    const childIds = children.map((c) => c["nodeId"]);
     assert.ok(childIds.includes("btn1"));
     assert.ok(childIds.includes("span1"));
   });
+});
 
-  it("ancestry context returns full parent chain", () => {
+describe("executeTool — getElementDetails — ancestry context", () => {
+  it("returns full parent chain", () => {
     const vtree = makeStandardVTree();
-    const accessor = makeAccessor(() => makeSnapshot(vtree));
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
     const result = executeTool(accessor, "getElementDetails", {
       nodeId: "btn1",
       timestampMs: 1000,
       context: "ancestry",
-    }) as any;
+    }) as Record<string, unknown>;
 
-    const parentIds = result.parents.map((p: any) => p.nodeId);
+    const parents = result["parents"] as Array<Record<string, unknown>>;
+    const parentIds = parents.map((p) => p["nodeId"]);
     assert.ok(parentIds.includes("div1"));
     assert.ok(parentIds.includes("body"));
     assert.ok(parentIds.includes("html"));
   });
+});
 
-  it("properties included when non-null, null ones omitted", () => {
+describe("executeTool — getElementDetails — properties", () => {
+  it("includes non-null properties and omits null ones", () => {
     const vtree = makeVTree(
       {
         input1: {
@@ -292,19 +326,51 @@ describe("executeTool — getElementDetails", () => {
       },
       "input1",
     );
-    const accessor = makeAccessor(() => makeSnapshot(vtree));
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
     const result = executeTool(accessor, "getElementDetails", {
       nodeId: "input1",
       timestampMs: 0,
-    }) as any;
+    }) as Record<string, unknown>;
 
-    assert.ok("properties" in result.element);
-    assert.strictEqual(result.element.properties.value, "hello");
-    assert.strictEqual(result.element.properties.checked, true);
-    assert.ok(!("selectedIndex" in result.element.properties));
+    const element = result["element"] as Record<string, unknown>;
+    assert.ok("properties" in element);
+    const props = element["properties"] as Record<string, unknown>;
+    assert.strictEqual(props["value"], "hello");
+    assert.strictEqual(props["checked"], true);
+    assert.ok(!("selectedIndex" in props));
   });
 
-  it("text content truncated to 200 chars", () => {
+  it("null attributes are omitted from element.attributes", () => {
+    const vtree = makeVTree(
+      {
+        div1: {
+          type: NodeType.Element,
+          id: "div1",
+          parentId: null,
+          tagName: "div",
+          children: [],
+          attributes: { class: "foo", style: null },
+          properties: { value: null, checked: null, selectedIndex: null },
+          shadowRoot: false,
+        },
+      },
+      "div1",
+    );
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
+    const result = executeTool(accessor, "getElementDetails", {
+      nodeId: "div1",
+      timestampMs: 0,
+    }) as Record<string, unknown>;
+
+    const element = result["element"] as Record<string, unknown>;
+    const attrs = element["attributes"] as Record<string, unknown>;
+    assert.ok("class" in attrs);
+    assert.ok(!("style" in attrs));
+  });
+});
+
+describe("executeTool — getElementDetails — textContent", () => {
+  it("truncates to 200 chars", () => {
     const longText = "x".repeat(300);
     const vtree = makeVTree(
       {
@@ -327,40 +393,14 @@ describe("executeTool — getElementDetails", () => {
       },
       "div1",
     );
-    const accessor = makeAccessor(() => makeSnapshot(vtree));
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
     const result = executeTool(accessor, "getElementDetails", {
       nodeId: "div1",
       timestampMs: 0,
-    }) as any;
+    }) as Record<string, unknown>;
 
-    assert.ok(typeof result.textContent === "string");
-    assert.ok(result.textContent.length <= 200);
-  });
-
-  it("null attributes are omitted from element.attributes", () => {
-    const vtree = makeVTree(
-      {
-        div1: {
-          type: NodeType.Element,
-          id: "div1",
-          parentId: null,
-          tagName: "div",
-          children: [],
-          attributes: { class: "foo", style: null },
-          properties: { value: null, checked: null, selectedIndex: null },
-          shadowRoot: false,
-        },
-      },
-      "div1",
-    );
-    const accessor = makeAccessor(() => makeSnapshot(vtree));
-    const result = executeTool(accessor, "getElementDetails", {
-      nodeId: "div1",
-      timestampMs: 0,
-    }) as any;
-
-    assert.ok("class" in result.element.attributes);
-    assert.ok(!("style" in result.element.attributes));
+    assert.ok(typeof result["textContent"] === "string");
+    assert.ok((result["textContent"] as string).length <= 200);
   });
 
   it("empty text content is omitted", () => {
@@ -379,12 +419,12 @@ describe("executeTool — getElementDetails", () => {
       },
       "div1",
     );
-    const accessor = makeAccessor(() => makeSnapshot(vtree));
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
     const result = executeTool(accessor, "getElementDetails", {
       nodeId: "div1",
       timestampMs: 0,
-    }) as any;
+    }) as Record<string, unknown>;
 
-    assert.strictEqual(result.textContent, undefined);
+    assert.strictEqual(result["textContent"], undefined);
   });
 });

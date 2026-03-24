@@ -1,5 +1,5 @@
-import assert from 'node:assert'
-import { describe, it } from 'node:test'
+import assert from "node:assert";
+import { describe, it } from "node:test";
 import {
   MAX_TOOL_ITERATIONS,
   accumulateToolCalls,
@@ -7,9 +7,9 @@ import {
   createAgenticState,
   executeToolCalls,
   isValidMessageDelta,
-} from './createState'
-import { RecordingDataAccessor, StreamProvider, ToolCall } from './types'
-import { resolve, reject as futureReject } from 'fluture'
+} from "./createState";
+import { RecordingDataAccessor, StreamProvider, ToolCall } from "./types";
+import { resolve, reject as futureReject } from "fluture";
 
 function makeEmptyAccessor(): RecordingDataAccessor {
   return {
@@ -387,448 +387,462 @@ function makeEmptyAccessorNew(): RecordingDataAccessor {
     getSnapshotAtTime: () => null,
     getEventsByType: () => [],
     getEventsInRange: () => [],
-  }
+  };
 }
 
 function makeMessageEvent(data: string): { data: string } {
-  return { data }
+  return { data };
 }
 
 function makeDeltaEvent(content: string): { data: string } {
   return makeMessageEvent(
     JSON.stringify({
       choices: [{ delta: { content } }],
-    })
-  )
+    }),
+  );
 }
 
 function makeSseStream(
-  events: Array<{ data: string }>
+  events: Array<{ data: string }>,
 ): ReadableStream<{ data: string }> {
-  let index = 0
+  let index = 0;
   return new ReadableStream<{ data: string }>({
     pull(controller) {
       if (index < events.length) {
-        controller.enqueue(events[index++]!)
+        controller.enqueue(events[index++]!);
       } else {
-        controller.close()
+        controller.close();
       }
     },
-  })
+  });
 }
 
 function waitForCondition(
   condition: () => boolean,
-  timeout = 2000
+  timeout = 2000,
 ): Promise<void> {
   return new Promise((res, rej) => {
-    const start = Date.now()
+    const start = Date.now();
     const interval = setInterval(() => {
       if (condition()) {
-        clearInterval(interval)
-        res()
+        clearInterval(interval);
+        res();
       } else if (Date.now() - start > timeout) {
-        clearInterval(interval)
-        rej(new Error('Condition timed out'))
+        clearInterval(interval);
+        rej(new Error("Condition timed out"));
       }
-    }, 10)
-  })
+    }, 10);
+  });
 }
 
-describe('createAgenticState — cancel and error handling', () => {
-  it('cancel() sets loading to cancelled', async () => {
+describe("createAgenticState — cancel and error handling", () => {
+  it("cancel() sets loading to cancelled", async () => {
     const streamProvider: StreamProvider = () =>
-      resolve(makeSseStream([makeDeltaEvent('partial'), makeMessageEvent('[DONE]')])) as never
+      resolve(
+        makeSseStream([makeDeltaEvent("partial"), makeMessageEvent("[DONE]")]),
+      ) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
-    state.cancel()
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
+    state.cancel();
 
-    assert.strictEqual(state.$loading.getValue(), 'cancelled')
+    assert.strictEqual(state.$loading.getValue(), "cancelled");
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('cancel() aborts the signal passed to the stream provider', async () => {
-    let capturedSignal: AbortSignal | undefined
+  it("cancel() aborts the signal passed to the stream provider", async () => {
+    let capturedSignal: AbortSignal | undefined;
     const streamProvider: StreamProvider = (_ctx, _tools, signal) => {
-      capturedSignal = signal
-      return resolve(new ReadableStream()) as never
-    }
+      capturedSignal = signal;
+      return resolve(new ReadableStream()) as never;
+    };
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => capturedSignal !== undefined)
+    await waitForCondition(() => capturedSignal !== undefined);
 
-    assert.ok(capturedSignal !== undefined)
-    assert.strictEqual(capturedSignal.aborted, false)
+    assert.ok(capturedSignal !== undefined);
+    assert.strictEqual(capturedSignal.aborted, false);
 
-    state.cancel()
+    state.cancel();
 
-    assert.strictEqual(capturedSignal.aborted, true)
+    assert.strictEqual(capturedSignal.aborted, true);
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('network error (TypeError) sets $error with retryable=true', async () => {
-    const networkError = new TypeError('Failed to fetch')
-    const streamProvider: StreamProvider = () => futureReject(networkError) as never
-
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
-
-    await waitForCondition(() => state.$error.getValue() !== null, 10000)
-
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.retryable, true)
-
-    state.destroy()
-  })
-
-  it('HTTP 500 sets $error with retryable=false and loading to none', async () => {
-    const httpError = { status: 500, statusText: 'Internal Server Error' }
-    const streamProvider: StreamProvider = () => futureReject(httpError) as never
-
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
-
-    await waitForCondition(() => state.$error.getValue() !== null, 5000)
-
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.retryable, false)
-    assert.strictEqual(state.$loading.getValue(), 'none')
-
-    state.destroy()
-  })
-
-  it('HTTP 401 sets $error with retryable=false', async () => {
-    const httpError = { status: 401, statusText: 'Unauthorized' }
-    const streamProvider: StreamProvider = () => futureReject(httpError) as never
-
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
-
-    await waitForCondition(() => state.$error.getValue() !== null, 5000)
-
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.retryable, false)
-
-    state.destroy()
-  })
-
-  it('new query() clears $error', async () => {
-    const httpError = { status: 500, statusText: 'Internal Server Error' }
-    let callCount = 0
-    const streamProvider: StreamProvider = () => {
-      callCount++
-      if (callCount === 1) {
-        return futureReject(httpError) as never
-      }
-      return resolve(new ReadableStream()) as never
-    }
-
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('first')
-
-    await waitForCondition(() => state.$error.getValue() !== null, 5000)
-    assert.ok(state.$error.getValue() !== null)
-
-    state.query('second')
-
-    assert.strictEqual(state.$error.getValue(), null)
-
-    state.destroy()
-  })
-
-  it('cancel() when no in-flight request still sets loading to cancelled', () => {
+  it("network error (TypeError) sets $error with retryable=true", async () => {
+    const networkError = new TypeError("Failed to fetch");
     const streamProvider: StreamProvider = () =>
-      resolve(new ReadableStream()) as never
+      futureReject(networkError) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.cancel()
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    assert.strictEqual(state.$loading.getValue(), 'cancelled')
+    await waitForCondition(() => state.$error.getValue() !== null, 10000);
 
-    state.destroy()
-  })
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(error.retryable, true);
 
-  it('AbortError from stream is silently swallowed — loading stays cancelled', async () => {
-    let resolveAbort!: () => void
-    const abortPromise = new Promise<void>(res => {
-      resolveAbort = res
-    })
+    state.destroy();
+  });
+
+  it("HTTP 500 sets $error with retryable=false and loading to none", async () => {
+    const httpError = { status: 500, statusText: "Internal Server Error" };
+    const streamProvider: StreamProvider = () =>
+      futureReject(httpError) as never;
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
+
+    await waitForCondition(() => state.$error.getValue() !== null, 5000);
+
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(error.retryable, false);
+    assert.strictEqual(state.$loading.getValue(), "none");
+
+    state.destroy();
+  });
+
+  it("HTTP 401 sets $error with retryable=false", async () => {
+    const httpError = { status: 401, statusText: "Unauthorized" };
+    const streamProvider: StreamProvider = () =>
+      futureReject(httpError) as never;
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
+
+    await waitForCondition(() => state.$error.getValue() !== null, 5000);
+
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(error.retryable, false);
+
+    state.destroy();
+  });
+
+  it("new query() clears $error", async () => {
+    const httpError = { status: 500, statusText: "Internal Server Error" };
+    let callCount = 0;
+    const streamProvider: StreamProvider = () => {
+      callCount++;
+      if (callCount === 1) {
+        return futureReject(httpError) as never;
+      }
+      return resolve(new ReadableStream()) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("first");
+
+    await waitForCondition(() => state.$error.getValue() !== null, 5000);
+    assert.ok(state.$error.getValue() !== null);
+
+    state.query("second");
+
+    assert.strictEqual(state.$error.getValue(), null);
+
+    state.destroy();
+  });
+
+  it("cancel() when no in-flight request still sets loading to cancelled", () => {
+    const streamProvider: StreamProvider = () =>
+      resolve(new ReadableStream()) as never;
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.cancel();
+
+    assert.strictEqual(state.$loading.getValue(), "cancelled");
+
+    state.destroy();
+  });
+
+  it("AbortError from stream is silently swallowed — loading stays cancelled", async () => {
+    let resolveAbort!: () => void;
+    const abortPromise = new Promise<void>((res) => {
+      resolveAbort = res;
+    });
 
     const streamProvider: StreamProvider = (_ctx, _tools, signal) => {
       if (signal) {
-        signal.addEventListener('abort', () => resolveAbort())
+        signal.addEventListener("abort", () => resolveAbort());
       }
-      return resolve(new ReadableStream()) as never
-    }
+      return resolve(new ReadableStream()) as never;
+    };
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
-    state.cancel()
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
+    state.cancel();
 
-    await abortPromise
+    await abortPromise;
 
-    assert.strictEqual(state.$loading.getValue(), 'cancelled')
-    assert.strictEqual(state.$error.getValue(), null)
+    assert.strictEqual(state.$loading.getValue(), "cancelled");
+    assert.strictEqual(state.$error.getValue(), null);
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('HTTP 429 is retryable and sets $error after exhausting retries', async () => {
-    const rateLimitError = { status: 429 }
-    let callCount = 0
+  it("HTTP 429 is retryable and sets $error after exhausting retries", async () => {
+    const rateLimitError = { status: 429 };
+    let callCount = 0;
     const streamProvider: StreamProvider = () => {
-      callCount++
-      return futureReject(rateLimitError) as never
-    }
+      callCount++;
+      return futureReject(rateLimitError) as never;
+    };
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000)
+    await waitForCondition(() => state.$error.getValue() !== null, 10000);
 
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.retryable, true)
-    assert.ok(callCount >= 3)
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(error.retryable, true);
+    assert.ok(callCount >= 3);
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('HTTP 503 is retryable and sets $error after exhausting retries', async () => {
-    const serviceUnavailableError = { status: 503 }
+  it("HTTP 503 is retryable and sets $error after exhausting retries", async () => {
+    const serviceUnavailableError = { status: 503 };
     const streamProvider: StreamProvider = () =>
-      futureReject(serviceUnavailableError) as never
+      futureReject(serviceUnavailableError) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000)
+    await waitForCondition(() => state.$error.getValue() !== null, 10000);
 
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.retryable, true)
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(error.retryable, true);
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('HTTP 408 is retryable and sets $error after exhausting retries', async () => {
-    const timeoutError = { status: 408 }
+  it("HTTP 408 is retryable and sets $error after exhausting retries", async () => {
+    const timeoutError = { status: 408 };
     const streamProvider: StreamProvider = () =>
-      futureReject(timeoutError) as never
+      futureReject(timeoutError) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000)
+    await waitForCondition(() => state.$error.getValue() !== null, 10000);
 
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.retryable, true)
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(error.retryable, true);
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('HTTP 403 sets $error with retryable=false and message \'Access denied.\'', async () => {
-    const forbiddenError = { status: 403 }
+  it("HTTP 403 sets $error with retryable=false and message 'Access denied.'", async () => {
+    const forbiddenError = { status: 403 };
     const streamProvider: StreamProvider = () =>
-      futureReject(forbiddenError) as never
+      futureReject(forbiddenError) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => state.$error.getValue() !== null, 5000)
+    await waitForCondition(() => state.$error.getValue() !== null, 5000);
 
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.retryable, false)
-    assert.strictEqual(error.message, 'Access denied.')
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(error.retryable, false);
+    assert.strictEqual(error.message, "Access denied.");
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('HTTP 401 sets friendly authentication-failed message', async () => {
-    const authError = { status: 401 }
+  it("HTTP 401 sets friendly authentication-failed message", async () => {
+    const authError = { status: 401 };
     const streamProvider: StreamProvider = () =>
-      futureReject(authError) as never
+      futureReject(authError) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => state.$error.getValue() !== null, 5000)
+    await waitForCondition(() => state.$error.getValue() !== null, 5000);
 
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.message, 'Authentication failed. Please refresh and try again.')
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(
+      error.message,
+      "Authentication failed. Please refresh and try again.",
+    );
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('HTTP 500 sets server-error message', async () => {
-    const serverError = { status: 500 }
+  it("HTTP 500 sets server-error message", async () => {
+    const serverError = { status: 500 };
     const streamProvider: StreamProvider = () =>
-      futureReject(serverError) as never
+      futureReject(serverError) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => state.$error.getValue() !== null, 5000)
+    await waitForCondition(() => state.$error.getValue() !== null, 5000);
 
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.message, 'Server error. Please try again.')
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(error.message, "Server error. Please try again.");
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('network error sets generic fallback message', async () => {
-    const networkError = new TypeError('Failed to fetch')
+  it("network error sets generic fallback message", async () => {
+    const networkError = new TypeError("Failed to fetch");
     const streamProvider: StreamProvider = () =>
-      futureReject(networkError) as never
+      futureReject(networkError) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000)
+    await waitForCondition(() => state.$error.getValue() !== null, 10000);
 
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.message, 'Something went wrong. Please try again.')
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(
+      error.message,
+      "Something went wrong. Please try again.",
+    );
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('$error.attempt is 0 for first immediate non-retryable failure', async () => {
-    const httpError = { status: 500 }
+  it("$error.attempt is 0 for first immediate non-retryable failure", async () => {
+    const httpError = { status: 500 };
     const streamProvider: StreamProvider = () =>
-      futureReject(httpError) as never
+      futureReject(httpError) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => state.$error.getValue() !== null, 5000)
+    await waitForCondition(() => state.$error.getValue() !== null, 5000);
 
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.attempt, 0)
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(error.attempt, 0);
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('$error.attempt records retryAttempt at time of final failure (should be 2 for 429 after 3 tries)', async () => {
-    const rateLimitError = { status: 429 }
+  it("$error.attempt records retryAttempt at time of final failure (should be 2 for 429 after 3 tries)", async () => {
+    const rateLimitError = { status: 429 };
     const streamProvider: StreamProvider = () =>
-      futureReject(rateLimitError) as never
+      futureReject(rateLimitError) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000)
+    await waitForCondition(() => state.$error.getValue() !== null, 10000);
 
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.attempt, 2)
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(error.attempt, 2);
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('destroy() aborts in-flight work', async () => {
-    let capturedSignal: AbortSignal | undefined
+  it("destroy() aborts in-flight work", async () => {
+    let capturedSignal: AbortSignal | undefined;
     const streamProvider: StreamProvider = (_ctx, _tools, signal) => {
-      capturedSignal = signal
-      return resolve(new ReadableStream()) as never
-    }
+      capturedSignal = signal;
+      return resolve(new ReadableStream()) as never;
+    };
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => capturedSignal !== undefined)
+    await waitForCondition(() => capturedSignal !== undefined);
 
-    assert.strictEqual(capturedSignal!.aborted, false)
+    assert.strictEqual(capturedSignal!.aborted, false);
 
-    state.destroy()
+    state.destroy();
 
-    assert.strictEqual(capturedSignal!.aborted, true)
-  })
+    assert.strictEqual(capturedSignal!.aborted, true);
+  });
 
-  it('successful completion sets loading to none and $error stays null', async () => {
-    const stream = makeSseStream([makeDeltaEvent('response text'), makeMessageEvent('[DONE]')])
-    const streamProvider: StreamProvider = () => resolve(stream) as never
+  it("successful completion sets loading to none and $error stays null", async () => {
+    const stream = makeSseStream([
+      makeDeltaEvent("response text"),
+      makeMessageEvent("[DONE]"),
+    ]);
+    const streamProvider: StreamProvider = () => resolve(stream) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => state.$loading.getValue() === 'none', 5000)
+    await waitForCondition(() => state.$loading.getValue() === "none", 5000);
 
-    assert.strictEqual(state.$loading.getValue(), 'none')
-    assert.strictEqual(state.$error.getValue(), null)
+    assert.strictEqual(state.$loading.getValue(), "none");
+    assert.strictEqual(state.$error.getValue(), null);
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
   it('HTTP 429 final failure sets try-again message (not "Retrying...")', async () => {
-    const rateLimitError = { status: 429 }
+    const rateLimitError = { status: 429 };
     const streamProvider: StreamProvider = () =>
-      futureReject(rateLimitError) as never
+      futureReject(rateLimitError) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000)
+    await waitForCondition(() => state.$error.getValue() !== null, 10000);
 
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.message, 'Rate limit reached. Please try again.')
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(error.message, "Rate limit reached. Please try again.");
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
   it('HTTP 503 final failure sets try-again message (not "Retrying...")', async () => {
-    const serviceUnavailableError = { status: 503 }
+    const serviceUnavailableError = { status: 503 };
     const streamProvider: StreamProvider = () =>
-      futureReject(serviceUnavailableError) as never
+      futureReject(serviceUnavailableError) as never;
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000)
+    await waitForCondition(() => state.$error.getValue() !== null, 10000);
 
-    const error = state.$error.getValue()
-    assert.ok(error !== null)
-    assert.strictEqual(error.message, 'Connection lost. Please try again.')
+    const error = state.$error.getValue();
+    assert.ok(error !== null);
+    assert.strictEqual(error.message, "Connection lost. Please try again.");
 
-    state.destroy()
-  })
+    state.destroy();
+  });
 
-  it('cancel() while retry is pending does not trigger another request', async () => {
-    const rateLimitError = { status: 429 }
-    let callCount = 0
+  it("cancel() while retry is pending does not trigger another request", async () => {
+    const rateLimitError = { status: 429 };
+    let callCount = 0;
     const streamProvider: StreamProvider = () => {
-      callCount++
-      return futureReject(rateLimitError) as never
-    }
+      callCount++;
+      return futureReject(rateLimitError) as never;
+    };
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
-    state.query('hello')
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
 
-    await waitForCondition(() => callCount >= 1)
+    await waitForCondition(() => callCount >= 1);
 
-    state.cancel()
+    state.cancel();
 
-    const countAfterCancel = callCount
+    const countAfterCancel = callCount;
 
-    await new Promise(res => setTimeout(res, 1500))
+    await new Promise((res) => setTimeout(res, 1500));
 
-    assert.strictEqual(callCount, countAfterCancel)
-    assert.strictEqual(state.$loading.getValue(), 'cancelled')
+    assert.strictEqual(callCount, countAfterCancel);
+    assert.strictEqual(state.$loading.getValue(), "cancelled");
 
-    state.destroy()
-  })
-})
+    state.destroy();
+  });
+});
