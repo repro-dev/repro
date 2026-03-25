@@ -35,7 +35,7 @@ export function makeAccessor(
   return {
     getDuration: () => duration ?? Number.MAX_SAFE_INTEGER,
     getSnapshotAtTime: snapshotFn ?? (() => null),
-    captureScreenshot: () => Promise.reject(new Error('captureScreenshot not implemented in test accessor')),
+    getResourceMap: () => ({}),
     ...makeAccessorFromEventList({
       size: () => events.length,
       over: (i) => events[i] ?? null,

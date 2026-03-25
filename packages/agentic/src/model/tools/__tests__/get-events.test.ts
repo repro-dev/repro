@@ -413,7 +413,7 @@ describe("executeTool — getEvents — endTimeMs and duration fallback", () => 
     const accessor: RecordingDataAccessor = {
       getDuration: () => 0,
       getSnapshotAtTime: () => null,
-      captureScreenshot: () => Promise.resolve(''),
+      getResourceMap: () => ({}),
       ...makeAccessorFromEventList({
         size: () => events.length,
         over: (i) => events[i] ?? null,
@@ -434,7 +434,7 @@ describe("executeTool — getEvents — endTimeMs and duration fallback", () => 
     const accessor: RecordingDataAccessor = {
       getDuration: () => 0,
       getSnapshotAtTime: () => null,
-      captureScreenshot: () => Promise.resolve(''),
+      getResourceMap: () => ({}),
       ...makeAccessorFromEventList({
         size: () => events.length,
         over: (i) => events[i] ?? null,
@@ -456,7 +456,7 @@ describe("executeTool — getEvents — endTimeMs and duration fallback", () => 
     const accessor: RecordingDataAccessor = {
       getDuration: () => 700,
       getSnapshotAtTime: () => null,
-      captureScreenshot: () => Promise.resolve(''),
+      getResourceMap: () => ({}),
       ...makeAccessorFromEventList({
         size: () => events.length,
         over: (i) => events[i] ?? null,

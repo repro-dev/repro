@@ -138,7 +138,7 @@ function makeAccessor(
   return {
     getDuration: () => duration,
     getSnapshotAtTime: () => null,
-    captureScreenshot: () => Promise.resolve(''),
+    getResourceMap: () => ({}),
     ...makeAccessorFromEventList({
       size: () => events.length,
       over: (i) =>

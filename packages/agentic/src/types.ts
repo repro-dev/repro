@@ -5,6 +5,7 @@ import { FutureInstance } from "fluture";
 export interface RecordingDataAccessor {
   getDuration(): number;
   getSnapshotAtTime(timestampMs: number): Snapshot | null;
+  getResourceMap(): Record<string, string>;
   getEventsByType(
     types: Array<SourceEventType>,
     opts?: {
@@ -19,7 +20,6 @@ export interface RecordingDataAccessor {
     endMs: number,
     opts?: { types?: Array<SourceEventType>; limit?: number; offset?: number },
   ): Array<SourceEvent>;
-  captureScreenshot(timestampMs: number): Promise<string>;
 }
 
 export interface UserMessage {

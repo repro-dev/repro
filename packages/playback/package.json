@@ -26,6 +26,7 @@
     "@repro/source-utils": "workspace:*",
     "@repro/std": "workspace:*",
     "@repro/tdl": "workspace:*",
+    "@repro/vdom-renderer": "workspace:*",
     "@repro/vdom-utils": "workspace:*",
     "@repro/wire-formats": "workspace:*",
     "fluture": "^14.0.0",

@@ -17,7 +17,7 @@ function makeEmptyAccessor(): RecordingDataAccessor {
     getSnapshotAtTime: () => null,
     getEventsByType: () => [],
     getEventsInRange: () => [],
-    captureScreenshot: () => Promise.resolve(''),
+    getResourceMap: () => ({}),
   };
 }
 
@@ -416,7 +416,7 @@ function makeEmptyAccessorNew(): RecordingDataAccessor {
     getSnapshotAtTime: () => null,
     getEventsByType: () => [],
     getEventsInRange: () => [],
-    captureScreenshot: () => Promise.resolve(''),
+    getResourceMap: () => ({}),
   };
 }
 

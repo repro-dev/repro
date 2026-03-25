@@ -48,7 +48,7 @@ function makeAccessorWithSnapshot(
     getSnapshotAtTime: snapshotFn,
     getEventsByType: () => [] as Array<SourceEvent>,
     getEventsInRange: () => [] as Array<SourceEvent>,
-    captureScreenshot: () => Promise.resolve(''),
+    getResourceMap: () => ({}),
   };
 }
 
@@ -58,7 +58,7 @@ function makeEmptyAccessor(): RecordingDataAccessor {
     getSnapshotAtTime: () => null,
     getEventsByType: () => [] as Array<SourceEvent>,
     getEventsInRange: () => [] as Array<SourceEvent>,
-    captureScreenshot: () => Promise.resolve(''),
+    getResourceMap: () => ({}),
   };
 }
 
