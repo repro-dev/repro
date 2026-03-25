@@ -10,6 +10,7 @@ import {
   Snapshot,
   SourceEventType,
   SourceEventView,
+  WebSocketMessageType,
 } from "@repro/domain";
 import { Box } from "@repro/tdl";
 import { makeAccessorFromEventList } from "../../../recordingDataAccessor";
@@ -159,6 +160,63 @@ export function makeWebSocketCloseEvent(
       data: new Box({
         type: NetworkMessageType.WebSocketClose,
         correlationId,
+      }),
+    }),
+  );
+}
+
+export function makeWebSocketInboundEvent(
+  time: number,
+  correlationId: string,
+  payload: string,
+): ReturnType<typeof SourceEventView.from> {
+  return SourceEventView.from(
+    new Box({
+      type: SourceEventType.Network,
+      time,
+      data: new Box({
+        type: NetworkMessageType.WebSocketInbound,
+        correlationId,
+        messageType: WebSocketMessageType.Text,
+        data: new TextEncoder().encode(payload).buffer as ArrayBuffer,
+      }),
+    }),
+  );
+}
+
+export function makeWebSocketOutboundEvent(
+  time: number,
+  correlationId: string,
+  payload: string,
+): ReturnType<typeof SourceEventView.from> {
+  return SourceEventView.from(
+    new Box({
+      type: SourceEventType.Network,
+      time,
+      data: new Box({
+        type: NetworkMessageType.WebSocketOutbound,
+        correlationId,
+        messageType: WebSocketMessageType.Text,
+        data: new TextEncoder().encode(payload).buffer as ArrayBuffer,
+      }),
+    }),
+  );
+}
+
+export function makeWebSocketBinaryInboundEvent(
+  time: number,
+  correlationId: string,
+  byteLength: number,
+): ReturnType<typeof SourceEventView.from> {
+  return SourceEventView.from(
+    new Box({
+      type: SourceEventType.Network,
+      time,
+      data: new Box({
+        type: NetworkMessageType.WebSocketInbound,
+        correlationId,
+        messageType: WebSocketMessageType.Binary,
+        data: new ArrayBuffer(byteLength),
       }),
     }),
   );

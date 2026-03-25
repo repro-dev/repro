@@ -8,8 +8,11 @@ import {
   makeFetchRequestEventWithBody,
   makeFetchResponseEvent,
   makeFetchResponseEventWithBody,
+  makeWebSocketBinaryInboundEvent,
   makeWebSocketCloseEvent,
+  makeWebSocketInboundEvent,
   makeWebSocketOpenEvent,
+  makeWebSocketOutboundEvent,
 } from "./helpers";
 
 describe("tools array — getNetworkRequests", () => {
@@ -745,5 +748,171 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
     assert.strictEqual(result.requests[0]!["headers"], undefined);
     assert.strictEqual(result.requests[0]!["requestHeaders"], undefined);
     assert.strictEqual(result.requests[0]!["responseHeaders"], undefined);
+  });
+});
+
+describe("executeTool — getNetworkRequests — WebSocket messages", () => {
+  it("summary tier returns messageCount with inbound/outbound counts and no messages array", () => {
+    const events = [
+      makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
+      makeWebSocketInboundEvent(100, "ws1", "msg1"),
+      makeWebSocketInboundEvent(200, "ws1", "msg2"),
+      makeWebSocketInboundEvent(300, "ws1", "msg3"),
+      makeWebSocketOutboundEvent(150, "ws1", "out1"),
+      makeWebSocketOutboundEvent(250, "ws1", "out2"),
+      makeWebSocketCloseEvent(600, "ws1"),
+    ];
+    const accessor = makeAccessor(events);
+    const result = executeTool(accessor, "getNetworkRequests", {
+      detail: "summary",
+    }) as {
+      requests: Array<{
+        type: string;
+        messageCount?: { inbound: number; outbound: number };
+        messages?: unknown[];
+      }>;
+    };
+    assert.strictEqual(result.requests.length, 1);
+    const ws = result.requests[0]!;
+    assert.strictEqual(ws.type, "ws");
+    assert.deepStrictEqual(ws.messageCount, { inbound: 3, outbound: 2 });
+    assert.strictEqual(ws.messages, undefined);
+  });
+
+  it("normal tier returns up to 10 messages with direction, timeMs, and payload", () => {
+    const events = [
+      makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
+      ...Array.from({ length: 8 }, (_, i) =>
+        makeWebSocketInboundEvent(100 + i * 10, "ws1", `inbound-${i}`),
+      ),
+      ...Array.from({ length: 7 }, (_, i) =>
+        makeWebSocketOutboundEvent(200 + i * 10, "ws1", `outbound-${i}`),
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = executeTool(accessor, "getNetworkRequests", {
+      detail: "normal",
+    }) as {
+      requests: Array<{
+        type: string;
+        messages?: Array<{ timeMs: number; direction: string; payload: string }>;
+      }>;
+    };
+    assert.strictEqual(result.requests.length, 1);
+    const ws = result.requests[0]!;
+    assert.ok(Array.isArray(ws.messages));
+    assert.strictEqual(ws.messages!.length, 10);
+    for (const msg of ws.messages!) {
+      assert.ok(typeof msg.timeMs === "number");
+      assert.ok(msg.direction === "inbound" || msg.direction === "outbound");
+      assert.ok(typeof msg.payload === "string");
+    }
+  });
+
+  it("normal tier truncates payload to 200 chars", () => {
+    const longPayload = "x".repeat(300);
+    const events = [
+      makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
+      makeWebSocketInboundEvent(100, "ws1", longPayload),
+    ];
+    const accessor = makeAccessor(events);
+    const result = executeTool(accessor, "getNetworkRequests", {
+      detail: "normal",
+    }) as {
+      requests: Array<{ messages?: Array<{ payload: string }> }>;
+    };
+    const ws = result.requests[0]!;
+    assert.ok(Array.isArray(ws.messages));
+    // 200 chars + ellipsis = 201
+    assert.ok(ws.messages![0]!.payload.length <= 201);
+    assert.ok(ws.messages![0]!.payload.startsWith("x".repeat(200)));
+  });
+
+  it("full tier returns all messages up to 100 with payload truncated to 2000 chars", () => {
+    const events = [
+      makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
+      ...Array.from({ length: 15 }, (_, i) =>
+        makeWebSocketInboundEvent(100 + i * 10, "ws1", `msg-${i}`),
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = executeTool(accessor, "getNetworkRequests", {
+      detail: "full",
+    }) as {
+      requests: Array<{
+        messages?: Array<{ payload: string; timeMs: number; direction: string }>;
+      }>;
+    };
+    const ws = result.requests[0]!;
+    assert.ok(Array.isArray(ws.messages));
+    assert.strictEqual(ws.messages!.length, 15);
+  });
+
+  it("full tier caps messages at 100", () => {
+    const events = [
+      makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
+      ...Array.from({ length: 150 }, (_, i) =>
+        makeWebSocketInboundEvent(100 + i * 10, "ws1", `msg-${i}`),
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = executeTool(accessor, "getNetworkRequests", {
+      detail: "full",
+    }) as {
+      requests: Array<{ messages?: unknown[] }>;
+    };
+    const ws = result.requests[0]!;
+    assert.ok(Array.isArray(ws.messages));
+    assert.strictEqual(ws.messages!.length, 100);
+  });
+
+  it("binary frames return payload as [binary frame, N bytes]", () => {
+    const events = [
+      makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
+      makeWebSocketBinaryInboundEvent(100, "ws1", 42),
+    ];
+    const accessor = makeAccessor(events);
+    const result = executeTool(accessor, "getNetworkRequests", {
+      detail: "normal",
+    }) as {
+      requests: Array<{ messages?: Array<{ payload: string }> }>;
+    };
+    const ws = result.requests[0]!;
+    assert.ok(Array.isArray(ws.messages));
+    assert.strictEqual(ws.messages![0]!.payload, "[binary frame, 42 bytes]");
+  });
+
+  it("WS connection with no messages returns zero counts (summary) and empty array (normal/full)", () => {
+    const events = [
+      makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
+      makeWebSocketCloseEvent(100, "ws1"),
+    ];
+    const accessor = makeAccessor(events);
+
+    const summaryResult = executeTool(accessor, "getNetworkRequests", {
+      detail: "summary",
+    }) as {
+      requests: Array<{
+        messageCount?: { inbound: number; outbound: number };
+        messages?: unknown[];
+      }>;
+    };
+    assert.deepStrictEqual(summaryResult.requests[0]!.messageCount, {
+      inbound: 0,
+      outbound: 0,
+    });
+    assert.strictEqual(summaryResult.requests[0]!.messages, undefined);
+
+    const normalResult = executeTool(accessor, "getNetworkRequests", {
+      detail: "normal",
+    }) as { requests: Array<{ messages?: unknown[] }> };
+    assert.ok(Array.isArray(normalResult.requests[0]!.messages));
+    assert.strictEqual(normalResult.requests[0]!.messages!.length, 0);
+
+    const fullResult = executeTool(accessor, "getNetworkRequests", {
+      detail: "full",
+    }) as { requests: Array<{ messages?: unknown[] }> };
+    assert.ok(Array.isArray(fullResult.requests[0]!.messages));
+    assert.strictEqual(fullResult.requests[0]!.messages!.length, 0);
   });
 });
