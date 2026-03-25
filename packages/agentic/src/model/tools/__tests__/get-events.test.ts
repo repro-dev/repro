@@ -1,247 +1,30 @@
-import {
-  InteractionType,
-  NodeId,
-  NodeType,
-  PatchType,
-  SourceEventType,
-  SourceEventView,
-} from "@repro/domain";
-import { Box } from "@repro/tdl";
+import { NodeId } from "@repro/domain";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { makeAccessorFromEventList } from "../recordingDataAccessor";
-import { RecordingDataAccessor } from "../types";
-import { executeTool } from "./tools";
+import { makeAccessorFromEventList } from "../../../recordingDataAccessor";
+import { RecordingDataAccessor } from "../../../types";
+import { executeTool, tools } from "../index";
+import {
+  makeAccessor,
+  makeClickEvent,
+  makeDOMPatchEvent,
+  makeDoubleClickEvent,
+  makeEmptyAccessor,
+  makeKeyDownEvent,
+  makePageTransitionEvent,
+  makePointerDownEvent,
+  makePointerMoveEvent,
+  makePointerUpEvent,
+  makeScrollEvent,
+  makeViewportResizeEvent,
+} from "./helpers";
 
-function makeAccessor(
-  events: Array<ReturnType<typeof SourceEventView.from>>,
-  duration?: number,
-): RecordingDataAccessor {
-  return {
-    getDuration: () => duration ?? Number.MAX_SAFE_INTEGER,
-    getSnapshotAtTime: () => null,
-    ...makeAccessorFromEventList({
-      size: () => events.length,
-      over: (i) => events[i] ?? null,
-    }),
-  };
-}
-
-function makeEmptyAccessor(): RecordingDataAccessor {
-  return makeAccessor([]);
-}
-
-function makePageTransitionEvent(
-  time: number,
-  to: string,
-  from: string | null = null,
-): ReturnType<typeof SourceEventView.from> {
-  return SourceEventView.from(
-    new Box({
-      type: SourceEventType.Interaction,
-      time,
-      data: new Box({
-        type: InteractionType.PageTransition,
-        from,
-        to,
-      }),
-    }),
-  );
-}
-
-function makeClickEvent(
-  time: number,
-  label: string | null = null,
-  at: [number, number] = [100, 200],
-): ReturnType<typeof SourceEventView.from> {
-  return SourceEventView.from(
-    new Box({
-      type: SourceEventType.Interaction,
-      time,
-      data: new Box({
-        type: InteractionType.Click,
-        button: 0,
-        targets: [],
-        at,
-        meta: {
-          node: {
-            type: NodeType.Element,
-            id: "00001" as NodeId,
-            parentId: null,
-            tagName: "button",
-            children: [],
-            attributes: {},
-            properties: { value: null, checked: null, selectedIndex: null },
-            shadowRoot: false,
-          },
-          humanReadableLabel: label,
-        },
-      }),
-    }),
-  );
-}
-
-function makeDoubleClickEvent(
-  time: number,
-  label: string | null = null,
-  at: [number, number] = [50, 60],
-): ReturnType<typeof SourceEventView.from> {
-  return SourceEventView.from(
-    new Box({
-      type: SourceEventType.Interaction,
-      time,
-      data: new Box({
-        type: InteractionType.DoubleClick,
-        button: 0,
-        targets: [],
-        at,
-        meta: {
-          node: {
-            type: NodeType.Element,
-            id: "00001" as NodeId,
-            parentId: null,
-            tagName: "button",
-            children: [],
-            attributes: {},
-            properties: { value: null, checked: null, selectedIndex: null },
-            shadowRoot: false,
-          },
-          humanReadableLabel: label,
-        },
-      }),
-    }),
-  );
-}
-
-function makePointerMoveEvent(
-  time: number,
-): ReturnType<typeof SourceEventView.from> {
-  return SourceEventView.from(
-    new Box({
-      type: SourceEventType.Interaction,
-      time,
-      data: new Box({
-        type: InteractionType.PointerMove,
-        from: [0, 0],
-        to: [10, 10],
-        duration: 100,
-      }),
-    }),
-  );
-}
-
-function makePointerDownEvent(
-  time: number,
-): ReturnType<typeof SourceEventView.from> {
-  return SourceEventView.from(
-    new Box({
-      type: SourceEventType.Interaction,
-      time,
-      data: new Box({
-        type: InteractionType.PointerDown,
-        targets: [],
-        at: [0, 0],
-      }),
-    }),
-  );
-}
-
-function makePointerUpEvent(
-  time: number,
-): ReturnType<typeof SourceEventView.from> {
-  return SourceEventView.from(
-    new Box({
-      type: SourceEventType.Interaction,
-      time,
-      data: new Box({
-        type: InteractionType.PointerUp,
-        targets: [],
-        at: [0, 0],
-      }),
-    }),
-  );
-}
-
-function makeKeyDownEvent(
-  time: number,
-  key: string,
-): ReturnType<typeof SourceEventView.from> {
-  return SourceEventView.from(
-    new Box({
-      type: SourceEventType.Interaction,
-      time,
-      data: new Box({
-        type: InteractionType.KeyDown,
-        key,
-      }),
-    }),
-  );
-}
-
-function makeScrollEvent(
-  time: number,
-  target: NodeId = "00001" as NodeId,
-  from: [number, number] = [0, 0],
-  to: [number, number] = [0, 300],
-): ReturnType<typeof SourceEventView.from> {
-  return SourceEventView.from(
-    new Box({
-      type: SourceEventType.Interaction,
-      time,
-      data: new Box({
-        type: InteractionType.Scroll,
-        target,
-        from,
-        to,
-        duration: 0,
-      }),
-    }),
-  );
-}
-
-function makeViewportResizeEvent(
-  time: number,
-  from: [number, number] = [1024, 768],
-  to: [number, number] = [800, 600],
-): ReturnType<typeof SourceEventView.from> {
-  return SourceEventView.from(
-    new Box({
-      type: SourceEventType.Interaction,
-      time,
-      data: new Box({
-        type: InteractionType.ViewportResize,
-        from,
-        to,
-        duration: 0,
-      }),
-    }),
-  );
-}
-
-function makeDOMPatchEvent(
-  time: number,
-): ReturnType<typeof SourceEventView.from> {
-  return SourceEventView.from(
-    new Box({
-      type: SourceEventType.DOMPatch,
-      time,
-      data: new Box({
-        type: PatchType.Attribute,
-        targetId: "00001" as NodeId,
-        name: "class",
-        value: null,
-        oldValue: null,
-      }),
-    }),
-  );
-}
-
-describe("executeTool — getEvents — includes tool definition", () => {
+describe("tools array — getEvents", () => {
   it("includes getEvents in tools array", () => {
-    const { tools } = require("./tools") as {
-      tools: Array<{ function: { name: string } }>;
-    };
-    const def = tools.find((t) => t.function.name === "getEvents");
+    const def = tools.find(
+      (t) =>
+        (t as { function: { name: string } }).function.name === "getEvents",
+    );
     assert.ok(def !== undefined);
   });
 });
@@ -631,7 +414,7 @@ describe("executeTool — getEvents — endTimeMs and duration fallback", () => 
       getSnapshotAtTime: () => null,
       ...makeAccessorFromEventList({
         size: () => events.length,
-        over: i => events[i] ?? null,
+        over: (i) => events[i] ?? null,
       }),
     };
     const result = executeTool(accessor, "getEvents", {}) as {
@@ -651,7 +434,7 @@ describe("executeTool — getEvents — endTimeMs and duration fallback", () => 
       getSnapshotAtTime: () => null,
       ...makeAccessorFromEventList({
         size: () => events.length,
-        over: i => events[i] ?? null,
+        over: (i) => events[i] ?? null,
       }),
     };
     const result = executeTool(accessor, "getEvents", { endTimeMs: 600 }) as {
@@ -672,7 +455,7 @@ describe("executeTool — getEvents — endTimeMs and duration fallback", () => 
       getSnapshotAtTime: () => null,
       ...makeAccessorFromEventList({
         size: () => events.length,
-        over: i => events[i] ?? null,
+        over: (i) => events[i] ?? null,
       }),
     };
     const result = executeTool(accessor, "getEvents", {}) as {

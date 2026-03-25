@@ -28,4 +28,4 @@ Use timestamps in seconds (e.g. "at 3.4s") when referencing events. Omit section
 
 ## When to ask
 Ask a clarifying question only if the recording contains no relevant signals for the user's question. Do not ask before attempting to investigate.
-`
+`;

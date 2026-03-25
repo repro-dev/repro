@@ -1,10 +1,12 @@
 import { InteractionType, LogLevel, SourceEventType } from "@repro/domain";
-import assert from "node:assert";
+import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { makeAccessorFromEventList } from "../recordingDataAccessor";
-import { RecordingDataAccessor } from "../types";
-import { executeTool } from "./tools";
+import { makeAccessorFromEventList } from "../../../recordingDataAccessor";
+import { RecordingDataAccessor } from "../../../types";
+import { executeTool, tools } from "../index";
 
+// This test file uses a lightweight Box mock rather than real SourceEventView.from()
+// because getEventsAroundTime only reads type/time/data fields via .get().orElse().
 type DeepBoxable = Record<string, unknown>;
 
 function makeBox<T>(value: T): {
@@ -72,6 +74,9 @@ function makeScrollEvent(time: number, target: string) {
   });
 }
 
+// NOTE: argument order here is (time, from, to) — matching the old test file.
+// In helpers.ts, makePageTransitionEvent uses (time, to, from). Use the local
+// factory here to keep the old test expectations intact.
 function makePageTransitionEvent(
   time: number,
   from: string | null,
@@ -126,23 +131,26 @@ function makeAccessor(
     getSnapshotAtTime: () => null,
     ...makeAccessorFromEventList({
       size: () => events.length,
-      over: (i) => events[i] as unknown as ReturnType<
-        typeof import('@repro/domain').SourceEventView.from
-      > | null,
+      over: (i) =>
+        events[i] as unknown as ReturnType<
+          typeof import("@repro/domain").SourceEventView.from
+        > | null,
     }),
-  }
+  };
 }
 
-describe("executeTool — getEventsAroundTime", () => {
+describe("tools array — getEventsAroundTime", () => {
   it("includes getEventsAroundTime in tools array", () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { tools } = require("./tools") as {
-      tools: Array<{ function: { name: string } }>;
-    };
-    const def = tools.find((t) => t.function.name === "getEventsAroundTime");
+    const def = tools.find(
+      (t) =>
+        (t as { function: { name: string } }).function.name ===
+        "getEventsAroundTime",
+    );
     assert.ok(def !== undefined);
   });
+});
 
+describe("executeTool — getEventsAroundTime — windowing", () => {
   it("returns events within the default 5000ms window", () => {
     const events = [
       makeClickEvent(0),
@@ -221,7 +229,9 @@ describe("executeTool — getEventsAroundTime", () => {
 
     assert.strictEqual(result.rangeEndMs, 10000);
   });
+});
 
+describe("executeTool — getEventsAroundTime — excluded events", () => {
   it("excludes PointerMove, PointerDown, PointerUp events", () => {
     const events = [
       makePointerEvent(5000, InteractionType.PointerMove),
@@ -264,6 +274,20 @@ describe("executeTool — getEventsAroundTime", () => {
     assert.strictEqual(result.events[0]!.type, "click");
   });
 
+  it("excludes keyUp events", () => {
+    const events = [makeKeyDownEvent(5000, "a"), makeKeyUpEvent(5001, "a")];
+    const accessor = makeAccessor(events);
+    const result = executeTool(accessor, "getEventsAroundTime", {
+      timestampMs: 5000,
+      windowMs: 1000,
+    }) as { events: Array<{ type: string }> };
+
+    assert.strictEqual(result.events.length, 1);
+    assert.strictEqual(result.events[0]!.type, "keyDown");
+  });
+});
+
+describe("executeTool — getEventsAroundTime — included events", () => {
   it("includes click with humanReadableLabel", () => {
     const events = [makeClickEvent(5000, "Submit button")];
     const accessor = makeAccessor(events);
@@ -319,18 +343,6 @@ describe("executeTool — getEventsAroundTime", () => {
     assert.strictEqual(result.events[0]!.key, "Enter");
   });
 
-  it("excludes keyUp events", () => {
-    const events = [makeKeyDownEvent(5000, "a"), makeKeyUpEvent(5001, "a")];
-    const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    }) as { events: Array<{ type: string }> };
-
-    assert.strictEqual(result.events.length, 1);
-    assert.strictEqual(result.events[0]!.type, "keyDown");
-  });
-
   it("includes pageTransition with from and to", () => {
     const events = [makePageTransitionEvent(5000, "/home", "/about")];
     const accessor = makeAccessor(events);
@@ -343,39 +355,6 @@ describe("executeTool — getEventsAroundTime", () => {
     assert.strictEqual(result.events[0]!.type, "pageTransition");
     assert.strictEqual(result.events[0]!.from, "/home");
     assert.strictEqual(result.events[0]!.to, "/about");
-  });
-
-  it("returns empty events array when no events in window", () => {
-    const events = [makeClickEvent(1000), makeClickEvent(9000)];
-    const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 100,
-    }) as { events: Array<unknown> };
-
-    assert.strictEqual(result.events.length, 0);
-  });
-
-  it("returns correct response metadata shape", () => {
-    const accessor = makeAccessor([]);
-    const result = executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 2000,
-    }) as {
-      centerMs: number;
-      windowMs: number;
-      rangeStartMs: number;
-      rangeEndMs: number;
-      events: unknown[];
-      _tokenEstimate: number;
-    };
-
-    assert.strictEqual(result.centerMs, 5000);
-    assert.strictEqual(result.windowMs, 2000);
-    assert.strictEqual(result.rangeStartMs, 4000);
-    assert.strictEqual(result.rangeEndMs, 6000);
-    assert.ok(Array.isArray(result.events));
-    assert.ok(typeof result._tokenEstimate === "number");
   });
 
   it("includes network events", () => {
@@ -442,7 +421,44 @@ describe("executeTool — getEventsAroundTime", () => {
     assert.strictEqual(result.events[0]!.type, "viewportResize");
     assert.deepStrictEqual(result.events[0]!.to, { width: 1280, height: 720 });
   });
+});
 
+describe("executeTool — getEventsAroundTime — edge cases", () => {
+  it("returns empty events array when no events in window", () => {
+    const events = [makeClickEvent(1000), makeClickEvent(9000)];
+    const accessor = makeAccessor(events);
+    const result = executeTool(accessor, "getEventsAroundTime", {
+      timestampMs: 5000,
+      windowMs: 100,
+    }) as { events: Array<unknown> };
+
+    assert.strictEqual(result.events.length, 0);
+  });
+
+  it("returns correct response metadata shape", () => {
+    const accessor = makeAccessor([]);
+    const result = executeTool(accessor, "getEventsAroundTime", {
+      timestampMs: 5000,
+      windowMs: 2000,
+    }) as {
+      centerMs: number;
+      windowMs: number;
+      rangeStartMs: number;
+      rangeEndMs: number;
+      events: unknown[];
+      _tokenEstimate: number;
+    };
+
+    assert.strictEqual(result.centerMs, 5000);
+    assert.strictEqual(result.windowMs, 2000);
+    assert.strictEqual(result.rangeStartMs, 4000);
+    assert.strictEqual(result.rangeEndMs, 6000);
+    assert.ok(Array.isArray(result.events));
+    assert.ok(typeof result._tokenEstimate === "number");
+  });
+});
+
+describe("executeTool — getEventsAroundTime — validation errors", () => {
   it("returns structured error when timestamp is below 0", () => {
     const accessor = makeAccessor([], 10000);
     const result = executeTool(accessor, "getEventsAroundTime", {

@@ -113,7 +113,10 @@ describe("summarizeToolResult", () => {
   it("returns 0 errors for findErrors with empty errors array", () => {
     const result = summarizeToolResult(
       "findErrors",
-      JSON.stringify({ errors: [], summary: { console: 0, network: 0, total: 0 } }),
+      JSON.stringify({
+        errors: [],
+        summary: { console: 0, network: 0, total: 0 },
+      }),
     );
     assert.equal(result, "Found 0 error(s)");
   });
