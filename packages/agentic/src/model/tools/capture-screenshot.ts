@@ -56,15 +56,15 @@ export const handler: ToolHandler = (recording: RecordingDataAccessor, args) => 
     try {
       clearDocument(doc)
 
-      const [rootNode, nodeMap] = createDOMFromVTree(
+      const [rootNode, nodeMap] = createDOMFromVTree({
         vtree,
         doc,
-        {},
-        pageURL,
-        '',
+        rootNodeMap: {},
+        currentPageURL: pageURL,
+        resourceBaseURL: '',
         resourceMap,
-        false
-      )
+        isUnderStyleRoot: false,
+      })
 
       patchDocumentElement(vtree, nodeMap, doc.documentElement)
 

@@ -87,15 +87,15 @@ export const NativeDOMRenderer: React.FC<Props> = ({
                 const [rootNode, vtreeNodeMap] = Stats.time(
                   'NativeDOMRenderer (effect): create DOM from VTree',
                   () => {
-                    return createDOMFromVTree(
+                    return createDOMFromVTree({
                       vtree,
-                      ownerDocument,
-                      nodeMap,
-                      pageURL,
-                      resourceBaseURL || '',
-                      invertedResourceMap,
-                      isUnderStyleRoot
-                    )
+                      doc: ownerDocument,
+                      rootNodeMap: nodeMap,
+                      currentPageURL: pageURL,
+                      resourceBaseURL: resourceBaseURL || '',
+                      resourceMap: invertedResourceMap,
+                      isUnderStyleRoot,
+                    })
                   }
                 )
 

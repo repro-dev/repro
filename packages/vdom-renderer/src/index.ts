@@ -178,15 +178,15 @@ export function applyDOMPatchEvent(
           if (parent) {
             const [fragment, newNodeMap] = data.nodes
               .map(vtree =>
-                createDOMFromVTree(
+                createDOMFromVTree({
                   vtree,
                   doc,
-                  nodeMap,
+                  rootNodeMap: nodeMap,
                   currentPageURL,
                   resourceBaseURL,
                   resourceMap,
-                  parentIsStyleRoot
-                )
+                  isUnderStyleRoot: parentIsStyleRoot,
+                })
               )
               .reduce(
                 ([fragment, nodeMap], [node, nextNodeMap]) => {
@@ -266,15 +266,23 @@ export function applyDOMPatchEvent(
   })
 }
 
-export function createDOMFromVTree(
-  vtree: VTree,
-  doc: Document,
-  rootNodeMap: MutableNodeMap,
-  currentPageURL: string,
-  resourceBaseURL: string,
-  resourceMap: Record<string, string>,
+export function createDOMFromVTree({
+  vtree,
+  doc,
+  rootNodeMap,
+  currentPageURL,
+  resourceBaseURL,
+  resourceMap,
+  isUnderStyleRoot,
+}: {
+  vtree: VTree
+  doc: Document
+  rootNodeMap: MutableNodeMap
+  currentPageURL: string
+  resourceBaseURL: string
+  resourceMap: Record<string, string>
   isUnderStyleRoot: boolean
-): [Node | null, MutableNodeMap] {
+}): [Node | null, MutableNodeMap] {
   const nodeMap: MutableNodeMap = {}
 
   const createNode = (
