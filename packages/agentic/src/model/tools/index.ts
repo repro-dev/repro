@@ -18,6 +18,10 @@ import {
   handler as getElementDetails,
 } from "./get-element-details";
 import {
+  TOOL_DEFINITION as getDOMDiffDef,
+  handler as getDOMDiff,
+} from "./get-dom-diff";
+import {
   TOOL_DEFINITION as getEventsAroundTimeDef,
   handler as getEventsAroundTime,
 } from "./get-events-around-time";
@@ -44,6 +48,7 @@ export const tools = [
   getElementDetailsDef,
   getEventsDef,
   getEventsAroundTimeDef,
+  getDOMDiffDef,
 ];
 
 const toolHandlers: Record<string, ToolHandler> = {
@@ -55,6 +60,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   getElementDetails,
   getEvents,
   getEventsAroundTime,
+  getDOMDiff,
 };
 
 export function executeTool(
