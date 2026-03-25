@@ -6,6 +6,7 @@ import {
 } from "@repro/domain";
 import { groupNetworkEvents } from "@repro/source-utils";
 import { Box } from "@repro/tdl";
+import { resolve } from "fluture";
 import {
   DetailLevel,
   estimateTokens,
@@ -83,7 +84,7 @@ export const TOOL_DEFINITION = {
   },
 };
 
-export const handler: ToolHandler = async (recording, args) => {
+export const handler: ToolHandler = (recording, args) => {
   const events = recording.getEventsByType([SourceEventType.Network]);
   const indexed: Array<[NetworkEvent, number]> = [];
   for (const e of events) {
@@ -312,15 +313,15 @@ export const handler: ToolHandler = async (recording, args) => {
     statusMax !== undefined;
 
   if (requests.length === 0 && hasFilters) {
-    return {
+    return resolve({
       requests: [],
       summary,
       _hint:
         "No requests matched the provided filters. Call getNetworkRequests() without filters to see all available network requests.",
       _tokenEstimate: estimateTokens({ requests: [], summary }),
-    };
+    });
   }
 
   const result = { requests, summary };
-  return { ...result, _tokenEstimate: estimateTokens(result) };
+  return resolve({ ...result, _tokenEstimate: estimateTokens(result) });
 };

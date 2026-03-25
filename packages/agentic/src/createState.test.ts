@@ -9,7 +9,7 @@ import {
   isValidMessageDelta,
 } from "./createState";
 import { RecordingDataAccessor, StreamProvider, ToolCall } from "./types";
-import { resolve, reject as futureReject } from "fluture";
+import { fork, isFuture, FutureInstance, resolve, reject as futureReject } from "fluture";
 
 function makeEmptyAccessor(): RecordingDataAccessor {
   return {
@@ -238,15 +238,21 @@ describe("accumulateToolCalls", () => {
 });
 
 describe("executeToolCalls", () => {
-  it("returns a Promise", () => {
+  function runFuture<L, R>(fut: FutureInstance<L, R>): Promise<R> {
+    return new Promise((res, rej) => {
+      fut.pipe(fork(rej)(res))
+    })
+  }
+
+  it("returns a FutureInstance", () => {
     const accessor = makeEmptyAccessor();
     const result = executeToolCalls(accessor, []);
-    assert.ok(result instanceof Promise);
+    assert.ok(isFuture(result));
   });
 
   it("returns empty array for empty input", async () => {
     const accessor = makeEmptyAccessor();
-    const result = await executeToolCalls(accessor, []);
+    const result = await runFuture(executeToolCalls(accessor, []));
     assert.deepStrictEqual(result, []);
   });
 
@@ -259,7 +265,7 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "{}" },
       },
     ];
-    const result = await executeToolCalls(accessor, toolCalls, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0]!.role, "tool");
   });
@@ -273,7 +279,7 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "{}" },
       },
     ];
-    const result = await executeToolCalls(accessor, toolCalls, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
     assert.strictEqual(result[0]!.tool_call_id, "my-call-id");
   });
 
@@ -286,7 +292,7 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "{}" },
       },
     ];
-    const result = await executeToolCalls(accessor, toolCalls, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
     const parsed = JSON.parse(result[0]!.content) as { durationMs: number };
     assert.strictEqual(parsed.durationMs, 0);
   });
@@ -300,7 +306,7 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "not-json" },
       },
     ];
-    const result = await executeToolCalls(accessor, toolCalls, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
     const parsed = JSON.parse(result[0]!.content) as { error: string };
     assert.ok(typeof parsed.error === "string");
   });
@@ -314,7 +320,7 @@ describe("executeToolCalls", () => {
         function: { name: "nonExistentTool", arguments: "{}" },
       },
     ];
-    const result = await executeToolCalls(accessor, toolCalls, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
     const parsed = JSON.parse(result[0]!.content) as { error: string };
     assert.ok(parsed.error.includes("nonExistentTool"));
   });
@@ -328,7 +334,7 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "" },
       },
     ];
-    const result = await executeToolCalls(accessor, toolCalls, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
     assert.strictEqual(result.length, 1);
     const parsed = JSON.parse(result[0]!.content) as { durationMs: number };
     assert.strictEqual(parsed.durationMs, 0);
@@ -342,14 +348,14 @@ describe("executeToolCalls", () => {
       index: 2,
       function: { name: "getRecordingDuration", arguments: "{}" },
     };
-    const result = await executeToolCalls(accessor, sparse, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, sparse, () => "fixed-id"));
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0]!.tool_call_id, "tc2");
   });
 
-  it("awaits async tool handlers before serializing result", async () => {
+  it("resolves Future tool handlers before serializing result", async () => {
     const accessor = makeEmptyAccessor();
-    // getRecordingDuration is now async; verify the resolved value is serialized
+    // getRecordingDuration now returns a Future; verify the resolved value is serialized
     const toolCalls: Array<ToolCall> = [
       {
         id: "async-tc",
@@ -357,8 +363,8 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "{}" },
       },
     ];
-    const result = await executeToolCalls(accessor, toolCalls, () => "fixed-id");
-    // If the Promise were not awaited, content would be "{}" (empty serialized Promise object)
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
+    // If the Future were not resolved, content would be "{}" (empty serialized Future object)
     const parsed = JSON.parse(result[0]!.content) as { durationMs: number };
     assert.strictEqual(typeof parsed.durationMs, "number");
   });

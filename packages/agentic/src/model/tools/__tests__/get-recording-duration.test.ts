@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { executeTool, tools } from "../index";
-import { makeAccessor, makeEmptyAccessor } from "./helpers";
+import { makeAccessor, makeEmptyAccessor, runFuture } from "./helpers";
 
 describe("tools array", () => {
   it("exports a non-empty array of tool definitions", async () => {
@@ -43,7 +43,7 @@ describe("tools array", () => {
 describe("executeTool — getRecordingDuration", () => {
   it("returns duration from getDuration()", async () => {
     const accessor = makeAccessor([], 9876);
-    const result = await executeTool(accessor, "getRecordingDuration", {}) as {
+    const result = await runFuture(executeTool(accessor, "getRecordingDuration", {})) as {
       durationMs: number;
       _tokenEstimate: number;
     };
@@ -52,7 +52,7 @@ describe("executeTool — getRecordingDuration", () => {
 
   it("includes _tokenEstimate in response", async () => {
     const accessor = makeAccessor([], 9876);
-    const result = await executeTool(accessor, "getRecordingDuration", {}) as {
+    const result = await runFuture(executeTool(accessor, "getRecordingDuration", {})) as {
       durationMs: number;
       _tokenEstimate: number;
     };
@@ -62,7 +62,7 @@ describe("executeTool — getRecordingDuration", () => {
 
   it("returns duration of 0 for empty recording", async () => {
     const accessor = makeAccessor([], 0);
-    const result = await executeTool(accessor, "getRecordingDuration", {}) as {
+    const result = await runFuture(executeTool(accessor, "getRecordingDuration", {})) as {
       durationMs: number;
     };
     assert.strictEqual(result.durationMs, 0);
@@ -72,7 +72,7 @@ describe("executeTool — getRecordingDuration", () => {
 describe("executeTool — unknown tool", () => {
   it("returns error for an unknown tool name", async () => {
     const accessor = makeEmptyAccessor();
-    const result = await executeTool(accessor, "doesNotExist", {}) as {
+    const result = await runFuture(executeTool(accessor, "doesNotExist", {})) as {
       error: string;
     };
     assert.ok(result.error.includes("Unknown tool: doesNotExist"));
@@ -80,7 +80,7 @@ describe("executeTool — unknown tool", () => {
 
   it("returns reason and suggestion for unknown tool", async () => {
     const accessor = makeEmptyAccessor();
-    const result = await executeTool(accessor, "doesNotExist", {}) as {
+    const result = await runFuture(executeTool(accessor, "doesNotExist", {})) as {
       error: string;
       reason: string;
       suggestion: string;

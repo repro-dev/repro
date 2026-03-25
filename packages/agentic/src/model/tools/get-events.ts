@@ -6,6 +6,7 @@ import {
   SourceEventType,
 } from "@repro/domain";
 import { Box } from "@repro/tdl";
+import { resolve } from "fluture";
 import {
   isConsoleEvent,
   isDOMPatchEvent,
@@ -69,7 +70,7 @@ export const TOOL_DEFINITION = {
   },
 };
 
-export const handler: ToolHandler = async (recording, args) => {
+export const handler: ToolHandler = (recording, args) => {
   const detail = (args.detail as string) ?? "normal";
   const startTime = args.startTimeMs as number | undefined;
   const endTime = args.endTimeMs as number | undefined;
@@ -294,12 +295,12 @@ export const handler: ToolHandler = async (recording, args) => {
       counts["domPatch"] = totalDomPatches;
     }
     const totalEvents = Object.values(counts).reduce((a, b) => a + b, 0);
-    return {
+    return resolve({
       totalEvents,
       counts,
       durationMs: recording.getDuration(),
       _tokenEstimate: Math.ceil(JSON.stringify(counts).length / 4) + 20,
-    };
+    });
   }
 
   const domActivity: Array<{ window: string; patchCount: number }> = [];
@@ -314,7 +315,7 @@ export const handler: ToolHandler = async (recording, args) => {
     });
   }
 
-  return {
+  return resolve({
     events: limitedEvents,
     ...(domActivity.length > 0 ? { domActivity } : {}),
     ...(hasMore ? { hasMore: true } : {}),
@@ -324,5 +325,5 @@ export const handler: ToolHandler = async (recording, args) => {
         ? Math.ceil(JSON.stringify(domActivity).length / 4)
         : 0) +
       10,
-  };
+  });
 };

@@ -12,9 +12,18 @@ import {
   SourceEventView,
   WebSocketMessageType,
 } from "@repro/domain";
+import { fork } from "fluture";
 import { Box } from "@repro/tdl";
 import { makeAccessorFromEventList } from "../../../recordingDataAccessor";
 import { RecordingDataAccessor } from "../../../types";
+import type { FutureInstance } from "fluture";
+
+// Forks a FutureInstance into a Promise so tests can use await.
+export function runFuture<L, R>(future: FutureInstance<L, R>): Promise<R> {
+  return new Promise<R>((resolve, reject) => {
+    fork(reject)(resolve)(future)
+  })
+}
 
 // ─── Accessor helpers ────────────────────────────────────────────────────────
 

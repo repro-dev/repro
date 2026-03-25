@@ -1,7 +1,7 @@
 import { atom, createAtom } from "@repro/atom";
 import { observeFuture } from "@repro/future-utils";
 import { randomString } from "@repro/random-string";
-import { FutureInstance } from "fluture";
+import { chain, FutureInstance, resolve } from "fluture";
 import {
   catchError,
   distinctUntilChanged,
@@ -135,42 +135,51 @@ export function accumulateToolCalls(
   return toolCalls;
 }
 
-export async function executeToolCalls(
+export function executeToolCalls(
   recording: RecordingDataAccessor,
   toolCalls: Array<ToolCall>,
   createId: () => string = createEntryId,
-): Promise<Array<ToolMessage>> {
+): FutureInstance<unknown, Array<ToolMessage>> {
   const results: Array<ToolMessage> = [];
   const denseToolCalls = toolCalls.filter(Boolean);
 
+  // Sequence tool calls using Future chain
+  let fut: FutureInstance<unknown, Array<ToolMessage>> = resolve([]);
+
   for (const toolCall of denseToolCalls) {
-    let content: string;
+    const captured = toolCall;
+    fut = fut.pipe(
+      chain(() => {
+        let toolFut: FutureInstance<unknown, unknown>;
+        try {
+          const args = captured.function.arguments
+            ? (JSON.parse(captured.function.arguments) as Record<string, unknown>)
+            : {};
+          toolFut = executeTool(recording, captured.function.name, args);
+        } catch (err) {
+          toolFut = resolve({
+            error: err instanceof Error ? err.message : 'Tool execution failed',
+          });
+        }
 
-    try {
-      const args = toolCall.function.arguments
-        ? (JSON.parse(toolCall.function.arguments) as Record<string, unknown>)
-        : {};
-      content = JSON.stringify(
-        await executeTool(recording, toolCall.function.name, args),
-      );
-    } catch (err) {
-      content = JSON.stringify({
-        error: err instanceof Error ? err.message : "Tool execution failed",
-      });
-    }
-
-    const toolMessage: ToolMessage = {
-      id: createId(),
-      timestamp: new Date(),
-      role: "tool",
-      content,
-      tool_call_id: toolCall.id,
-    };
-
-    results.push(toolMessage);
+        return toolFut.pipe(
+          chain(output => {
+            const toolMessage: ToolMessage = {
+              id: createId(),
+              timestamp: new Date(),
+              role: 'tool',
+              content: JSON.stringify(output),
+              tool_call_id: captured.id,
+            };
+            results.push(toolMessage);
+            return resolve(results);
+          }),
+        );
+      }),
+    );
   }
 
-  return results;
+  return fut;
 }
 
 export const MAX_TOOL_ITERATIONS = 25;
@@ -510,7 +519,7 @@ export function createAgenticState(
 
             setLoading("tool-executing");
 
-            from(executeToolCalls(recording, lastEntry.toolCalls)).subscribe(
+            observeFuture(executeToolCalls(recording, lastEntry.toolCalls)).subscribe(
               (toolMessages) => {
                 for (const toolMessage of toolMessages) {
                   appendToolMessage(toolMessage);
