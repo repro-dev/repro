@@ -127,7 +127,7 @@ export function applyDOMPatchEvent(
                 }
               }
 
-              node.setAttribute(data.name, data.value ?? '')
+              node.setAttribute(data.name, value ?? '')
             }
           }
 
@@ -438,6 +438,26 @@ export function createDOMFromVTree({
                       resourceBaseURL,
                       resourceMap
                     )
+                  } else if (
+                    (name === 'href' || name === 'xlink:href') &&
+                    vNode.tagName === 'use' &&
+                    !value.startsWith('#')
+                  ) {
+                    // Resolve the base URL of external SVG sprite hrefs.
+                    // The resource map stores the base file URL (hash stripped);
+                    // reconstruct the full href with the original fragment intact.
+                    const hashIndex = value.indexOf('#')
+                    const baseURL =
+                      hashIndex !== -1 ? value.slice(0, hashIndex) : value
+                    const fragment =
+                      hashIndex !== -1 ? value.slice(hashIndex) : ''
+                    value =
+                      resolveURLToResource(
+                        baseURL,
+                        currentPageURL,
+                        resourceBaseURL,
+                        resourceMap
+                      ) + fragment
                   }
                 }
 

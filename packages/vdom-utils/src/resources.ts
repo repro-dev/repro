@@ -10,10 +10,29 @@ import { isElementVNode } from './matchers'
 
 const MATCH_URL_PATTERN = /url\(['"]?((?:\S*?\(\S*?\))*\S*?)['"]?\)/g
 
+// Matches @import "url" or @import 'url' or @import url(...) — captures the URL
+const MATCH_CSS_IMPORT_PATTERN =
+  /@import\s+(?:url\(['"]?([^'")\s]+)['"]?\)|['"]([^'"]+)['"])/g
+
 export function extractCSSEmbeddedURLs(line: string) {
   return [...line.matchAll(MATCH_URL_PATTERN)].map(
     match => match[1]
   ) as Array<string>
+}
+
+export function extractCSSImportURLs(cssText: string): Array<string> {
+  const urls: Array<string> = []
+
+  for (const match of cssText.matchAll(MATCH_CSS_IMPORT_PATTERN)) {
+    // group 1 = url(...) form, group 2 = quoted string form
+    const url = match[1] ?? match[2]
+
+    if (url) {
+      urls.push(url)
+    }
+  }
+
+  return urls
 }
 
 function isDataURI(uri: string) {
@@ -99,6 +118,27 @@ export function createResourceMap(events: Array<SourceEvent>) {
           addResource(node.attributes.href)
         }
       }
+
+      // SVG <use> elements may reference external sprite sheets via href or
+      // xlink:href. Pure hash refs (e.g. "#symbol") are inline references and
+      // do not require a network resource, but anything with a URL before the
+      // hash (e.g. "icons.svg#arrow") must be captured. Strip the fragment and
+      // record only the base URL.
+      if (node.tagName === 'use') {
+        const hrefAttr =
+          node.attributes['href'] ?? node.attributes['xlink:href']
+
+        if (hrefAttr && !hrefAttr.startsWith('#')) {
+          // Remove the hash fragment before adding to the resource map
+          const hashIndex = hrefAttr.indexOf('#')
+          const baseURL =
+            hashIndex !== -1 ? hrefAttr.slice(0, hashIndex) : hrefAttr
+
+          if (baseURL) {
+            addResource(baseURL)
+          }
+        }
+      }
     },
 
     textNode(node, vtree) {
@@ -112,6 +152,14 @@ export function createResourceMap(events: Array<SourceEvent>) {
         const urls = extractCSSEmbeddedURLs(node.value)
 
         for (const url of urls) {
+          addResource(url)
+        }
+
+        // Also capture URLs from @import directives — these are not caught
+        // by the url() pattern above since @import "url" uses bare strings.
+        const importURLs = extractCSSImportURLs(node.value)
+
+        for (const url of importURLs) {
           addResource(url)
         }
       }
@@ -182,6 +230,17 @@ export function createResourceMap(events: Array<SourceEvent>) {
 
                 for (const url of urls) {
                   addResource(url)
+                }
+              }
+
+              // Capture url() references in dynamic inline style mutations
+              if (attributeName === 'style') {
+                const urls = extractCSSEmbeddedURLs(attributeValue)
+
+                for (const url of urls) {
+                  if (!isDataURI(url)) {
+                    addResource(url)
+                  }
                 }
               }
             }
