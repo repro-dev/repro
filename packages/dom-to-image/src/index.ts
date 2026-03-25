@@ -78,6 +78,43 @@ export function toPng(node: Element, options?: Options): Promise<string> {
   return draw(node, options ?? {}).then(canvas => canvas.toDataURL())
 }
 
+/**
+ * Renders a pre-built Document to a PNG data URL.
+ *
+ * Handles the full offscreen-capture lifecycle:
+ *   1. Creates an offscreen wrapper <div> sized to {width, height}
+ *   2. Clones doc.documentElement into it (workaround for dom-to-image issue #201)
+ *   3. Waits one animation frame for layout to settle
+ *   4. Calls toPng on the wrapper
+ *   5. Cleans up in a finally block
+ *
+ * @param doc - A fully-populated Document (e.g. from a hidden iframe).
+ * @param options - Must include width and height (the recording's viewport dimensions).
+ * @returns Promise resolving to a `data:image/png;base64,...` string.
+ */
+export function captureDocument(
+  doc: Document,
+  options: { width: number; height: number }
+): Promise<string> {
+  const { width, height } = options
+  const wrapper = document.createElement('div')
+  wrapper.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${width}px;height:${height}px;overflow:hidden`
+  wrapper.appendChild(doc.documentElement.cloneNode(true))
+  document.body.appendChild(wrapper)
+
+  return new Promise<string>((resolve, reject) => {
+    requestAnimationFrame(() => {
+      toPng(wrapper, { width, height })
+        .then(resolve, reject)
+        .finally(() => {
+          if (wrapper.parentNode) {
+            wrapper.parentNode.removeChild(wrapper)
+          }
+        })
+    })
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers — draw / toSvg
 // ---------------------------------------------------------------------------

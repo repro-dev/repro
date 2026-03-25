@@ -1,4 +1,4 @@
-import { toPng } from '@repro/dom-to-image'
+import { captureDocument } from '@repro/dom-to-image'
 import {
   clearDocument,
   createDOMFromVTree,
@@ -47,21 +47,20 @@ export const handler: ToolHandler = (recording: RecordingDataAccessor, args) => 
 
   const vtree = snapshot.dom
   const pageURL = snapshot.interaction?.pageURL ?? ''
+  const [viewportWidth, viewportHeight] = snapshot.interaction?.viewport ?? [1280, 720]
   const resourceMap = recording.getResourceMap()
 
   return attemptP(async () => {
     const iframe = document.createElement('iframe')
-    iframe.width = '1280'
-    iframe.height = '720'
+    iframe.width = String(viewportWidth)
+    iframe.height = String(viewportHeight)
     iframe.style.cssText =
       'position:fixed;top:-9999px;left:-9999px;border:0;visibility:hidden'
     document.body.appendChild(iframe)
 
-    let wrapper: HTMLDivElement | null = null
-
     try {
-      // Wait for iframe to be ready (no-src iframes load synchronously in Chrome,
-      // but we guard with a promise in case the timing varies)
+      // No-src iframes load synchronously in Chrome, but guard with a promise
+      // in case timing varies across environments.
       if (!iframe.contentDocument) {
         await new Promise<void>(resolve => {
           iframe.onload = () => resolve()
@@ -88,27 +87,14 @@ export const handler: ToolHandler = (recording: RecordingDataAccessor, args) => 
         iframeDoc.documentElement.appendChild(rootNode)
       }
 
-      // Wait one animation frame for layout to settle
-      await new Promise<void>(resolve =>
-        requestAnimationFrame(() => resolve())
-      )
-
-      // Workaround for dom-to-image issue #201: wrap documentElement in a div
-      // appended to the main document before calling toPng
-      wrapper = document.createElement('div')
-      wrapper.style.cssText =
-        'position:fixed;top:-9999px;left:-9999px;width:1280px;height:720px;overflow:hidden'
-      wrapper.appendChild(iframeDoc.documentElement.cloneNode(true))
-      document.body.appendChild(wrapper)
-
-      const dataUrl = await toPng(wrapper, { width: 1280, height: 720 })
+      const dataUrl = await captureDocument(iframeDoc, {
+        width: viewportWidth,
+        height: viewportHeight,
+      })
 
       const result = { timestampMs, dataUrl }
       return { ...result, _tokenEstimate: estimateTokens(result) }
     } finally {
-      if (wrapper && wrapper.parentNode) {
-        wrapper.parentNode.removeChild(wrapper)
-      }
       if (iframe.parentNode) {
         iframe.parentNode.removeChild(iframe)
       }
