@@ -19,6 +19,7 @@ export interface RecordingDataAccessor {
     endMs: number,
     opts?: { types?: Array<SourceEventType>; limit?: number; offset?: number },
   ): Array<SourceEvent>;
+  captureScreenshot(timestampMs: number): Promise<string>;
 }
 
 export interface UserMessage {

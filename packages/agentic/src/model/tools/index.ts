@@ -3,6 +3,10 @@ import { RecordingDataAccessor } from "../../types";
 import { createError } from "./common";
 export type { ToolHandler } from "./common";
 import {
+  TOOL_DEFINITION as captureScreenshotDef,
+  handler as captureScreenshot,
+} from "./capture-screenshot";
+import {
   TOOL_DEFINITION as findErrorsDef,
   handler as findErrors,
 } from "./find-errors";
@@ -50,6 +54,7 @@ export const tools = [
   getEventsDef,
   getEventsAroundTimeDef,
   getDOMDiffDef,
+  captureScreenshotDef,
 ];
 
 const toolHandlers: Record<string, ToolHandler> = {
@@ -62,6 +67,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   getEvents,
   getEventsAroundTime,
   getDOMDiff,
+  captureScreenshot,
 };
 
 export function executeTool(
