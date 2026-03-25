@@ -21,7 +21,7 @@ export const TOOL_DEFINITION = {
   },
 };
 
-export const handler: ToolHandler = (recording) => {
+export const handler: ToolHandler = async (recording) => {
   const result = { durationMs: recording.getDuration() };
   return { ...result, _tokenEstimate: estimateTokens(result) };
 };

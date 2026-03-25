@@ -115,7 +115,7 @@ function summarizeInteraction(
   }
 }
 
-export const handler: ToolHandler = (recording, args) => {
+export const handler: ToolHandler = async (recording, args) => {
   const timestampMs = args.timestampMs as number;
   const windowMs = (args.windowMs as number) ?? 5000;
 

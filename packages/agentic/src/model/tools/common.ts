@@ -15,7 +15,7 @@ import { RecordingDataAccessor } from "../../types";
 export type ToolHandler = (
   recording: RecordingDataAccessor,
   args: Record<string, unknown>,
-) => unknown;
+) => Promise<unknown>;
 
 export function createError(
   error: string,

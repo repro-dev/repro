@@ -83,7 +83,7 @@ export const TOOL_DEFINITION = {
   },
 };
 
-export const handler: ToolHandler = (recording, args) => {
+export const handler: ToolHandler = async (recording, args) => {
   const events = recording.getEventsByType([SourceEventType.Network]);
   const indexed: Array<[NetworkEvent, number]> = [];
   for (const e of events) {

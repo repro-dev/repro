@@ -117,7 +117,7 @@ function makeAccessorWithSnapshot(
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('getDOMDiff tool registration', () => {
-  it('tool exists in the tools array', () => {
+  it('tool exists in the tools array', async () => {
     const found = tools.find(
       t => 'function' in t && t.function.name === 'getDOMDiff'
     )
@@ -126,9 +126,9 @@ describe('getDOMDiff tool registration', () => {
 })
 
 describe('getDOMDiff input validation (self-healing errors)', () => {
-  it('missing nodeId → error, message mentions getDOMState', () => {
+  it('missing nodeId → error, message mentions getDOMState', async () => {
     const accessor = makeAccessorWithSnapshot(() => null)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       fromTimestampMs: 0,
       toTimestampMs: 1000,
     }) as Record<string, unknown>
@@ -136,9 +136,9 @@ describe('getDOMDiff input validation (self-healing errors)', () => {
     assert.ok((result['suggestion'] as string).includes('getDOMState'))
   })
 
-  it('missing fromTimestampMs → error, message mentions getRecordingDuration', () => {
+  it('missing fromTimestampMs → error, message mentions getRecordingDuration', async () => {
     const accessor = makeAccessorWithSnapshot(() => null)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       toTimestampMs: 1000,
     }) as Record<string, unknown>
@@ -146,9 +146,9 @@ describe('getDOMDiff input validation (self-healing errors)', () => {
     assert.ok((result['suggestion'] as string).includes('getRecordingDuration'))
   })
 
-  it('missing toTimestampMs → error, message mentions getRecordingDuration', () => {
+  it('missing toTimestampMs → error, message mentions getRecordingDuration', async () => {
     const accessor = makeAccessorWithSnapshot(() => null)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
     }) as Record<string, unknown>
@@ -156,9 +156,9 @@ describe('getDOMDiff input validation (self-healing errors)', () => {
     assert.ok((result['suggestion'] as string).includes('getRecordingDuration'))
   })
 
-  it('fromTimestampMs >= toTimestampMs → error about invalid range', () => {
+  it('fromTimestampMs >= toTimestampMs → error about invalid range', async () => {
     const accessor = makeAccessorWithSnapshot(() => null)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 1000,
       toTimestampMs: 1000,
@@ -171,9 +171,9 @@ describe('getDOMDiff input validation (self-healing errors)', () => {
     )
   })
 
-  it('no snapshot → error about no snapshot, mentions getRecordingDuration', () => {
+  it('no snapshot → error about no snapshot, mentions getRecordingDuration', async () => {
     const accessor = makeAccessorWithSnapshot(() => null)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -182,10 +182,10 @@ describe('getDOMDiff input validation (self-healing errors)', () => {
     assert.ok((result['suggestion'] as string).includes('getRecordingDuration'))
   })
 
-  it('node not in snapshot → error about stale nodeId, mentions getDOMState', () => {
+  it('node not in snapshot → error about stale nodeId, mentions getDOMState', async () => {
     const vtree = makeDiffVTree()
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree))
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'nonexistent-node',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -196,13 +196,13 @@ describe('getDOMDiff input validation (self-healing errors)', () => {
 })
 
 describe('getDOMDiff attribute changes', () => {
-  it('attribute change on target node → appears in changes', () => {
+  it('attribute change on target node → appears in changes', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeAttributePatchEvent(500, 'root', 'class', 'new-class', 'container'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -218,13 +218,13 @@ describe('getDOMDiff attribute changes', () => {
     assert.ok(attrChange, 'attribute change on target should appear in changes')
   })
 
-  it('attribute change on child node (in subtree) → appears in changes', () => {
+  it('attribute change on child node (in subtree) → appears in changes', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeAttributePatchEvent(500, 'child1', 'class', 'new-section', 'section'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -239,13 +239,13 @@ describe('getDOMDiff attribute changes', () => {
     assert.ok(childChange, 'attribute change on child should appear in changes')
   })
 
-  it('attribute change on unrelated node → filtered out', () => {
+  it('attribute change on unrelated node → filtered out', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeAttributePatchEvent(500, 'unrelated', 'class', 'new', 'old'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -262,13 +262,13 @@ describe('getDOMDiff attribute changes', () => {
     )
   })
 
-  it('value and oldValue both present in normal/full tier', () => {
+  it('value and oldValue both present in normal/full tier', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeAttributePatchEvent(500, 'root', 'class', 'new-class', 'container'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -284,11 +284,11 @@ describe('getDOMDiff attribute changes', () => {
 })
 
 describe('getDOMDiff text changes', () => {
-  it('text change on text node child of target → appears in changes', () => {
+  it('text change on text node child of target → appears in changes', async () => {
     const vtree = makeDiffVTree()
     const events = [makeTextPatchEvent(500, 'txt1', 'World', 'Hello')]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -302,11 +302,11 @@ describe('getDOMDiff text changes', () => {
     assert.strictEqual(textChange!['nodeId'], 'txt1')
   })
 
-  it('text change on unrelated node → filtered out', () => {
+  it('text change on unrelated node → filtered out', async () => {
     const vtree = makeDiffVTree()
     const events = [makeTextPatchEvent(500, 'unrelated-txt', 'new', 'old')]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -321,11 +321,11 @@ describe('getDOMDiff text changes', () => {
 })
 
 describe('getDOMDiff structural changes', () => {
-  it('AddNodes under target → nodesAdded count incremented', () => {
+  it('AddNodes under target → nodesAdded count incremented', async () => {
     const vtree = makeDiffVTree()
     const events = [makeAddNodesPatchEvent(500, 'root', ['new-node-1'])]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -336,11 +336,11 @@ describe('getDOMDiff structural changes', () => {
     assert.strictEqual(result['nodesAdded'], 1)
   })
 
-  it('RemoveNodes under target → nodesRemoved count incremented', () => {
+  it('RemoveNodes under target → nodesRemoved count incremented', async () => {
     const vtree = makeDiffVTree()
     const events = [makeRemoveNodesPatchEvent(500, 'root', ['child1'])]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -351,14 +351,14 @@ describe('getDOMDiff structural changes', () => {
     assert.strictEqual(result['nodesRemoved'], 1)
   })
 
-  it('full tier includes addedNodeIds and removedNodeIds', () => {
+  it('full tier includes addedNodeIds and removedNodeIds', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeAddNodesPatchEvent(400, 'root', ['new-node-1']),
       makeRemoveNodesPatchEvent(600, 'root', ['child1']),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -378,14 +378,14 @@ describe('getDOMDiff structural changes', () => {
     )
   })
 
-  it('normal tier does NOT include addedNodeIds or removedNodeIds', () => {
+  it('normal tier does NOT include addedNodeIds or removedNodeIds', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeAddNodesPatchEvent(400, 'root', ['new-node-1']),
       makeRemoveNodesPatchEvent(600, 'root', ['child1']),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -399,13 +399,13 @@ describe('getDOMDiff structural changes', () => {
 })
 
 describe('getDOMDiff detail tiers', () => {
-  it('summary → returns counts only, no changes array', () => {
+  it('summary → returns counts only, no changes array', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeAttributePatchEvent(500, 'root', 'class', 'new', 'old'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -418,14 +418,14 @@ describe('getDOMDiff detail tiers', () => {
     assert.ok('_tokenEstimate' in result)
   })
 
-  it('normal → includes changes with truncated values (max 100 chars)', () => {
+  it('normal → includes changes with truncated values (max 100 chars)', async () => {
     const vtree = makeDiffVTree()
     const longValue = 'x'.repeat(200)
     const events = [
       makeAttributePatchEvent(500, 'root', 'class', longValue, 'old'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -445,14 +445,14 @@ describe('getDOMDiff detail tiers', () => {
     assert.ok('_tokenEstimate' in result)
   })
 
-  it('full → includes changes with full values', () => {
+  it('full → includes changes with full values', async () => {
     const vtree = makeDiffVTree()
     const longValue = 'x'.repeat(200)
     const events = [
       makeAttributePatchEvent(500, 'root', 'class', longValue, 'old'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -472,7 +472,7 @@ describe('getDOMDiff detail tiers', () => {
     assert.ok('_tokenEstimate' in result)
   })
 
-  it('all tiers include _tokenEstimate', () => {
+  it('all tiers include _tokenEstimate', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeAttributePatchEvent(500, 'root', 'class', 'new', 'old'),
@@ -482,7 +482,7 @@ describe('getDOMDiff detail tiers', () => {
         () => makeSnapshot(vtree),
         events
       )
-      const result = executeTool(accessor, 'getDOMDiff', {
+      const result = await executeTool(accessor, 'getDOMDiff', {
         nodeId: 'root',
         fromTimestampMs: 0,
         toTimestampMs: 1000,
@@ -503,13 +503,13 @@ describe('getDOMDiff detail tiers', () => {
 })
 
 describe('getDOMDiff time range filtering', () => {
-  it('only patches within [fromTimestampMs, toTimestampMs] range are included', () => {
+  it('only patches within [fromTimestampMs, toTimestampMs] range are included', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeAttributePatchEvent(500, 'root', 'class', 'in-range', 'old'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -521,7 +521,7 @@ describe('getDOMDiff time range filtering', () => {
     assert.ok(changes.length > 0, 'in-range patch should be included')
   })
 
-  it('patches before fromTimestampMs are excluded', () => {
+  it('patches before fromTimestampMs are excluded', async () => {
     const vtree = makeDiffVTree()
     // The makeAccessor uses getEventsByType which filters by startMs/endMs.
     // We test this by checking that events at time=50 are not included
@@ -530,7 +530,7 @@ describe('getDOMDiff time range filtering', () => {
       makeAttributePatchEvent(50, 'root', 'class', 'before-range', 'old'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 100,
       toTimestampMs: 1000,
@@ -550,13 +550,13 @@ describe('getDOMDiff time range filtering', () => {
     )
   })
 
-  it('patches after toTimestampMs are excluded', () => {
+  it('patches after toTimestampMs are excluded', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeAttributePatchEvent(2000, 'root', 'class', 'after-range', 'old'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -577,10 +577,10 @@ describe('getDOMDiff time range filtering', () => {
 })
 
 describe('getDOMDiff edge cases', () => {
-  it('no patches in range → zero counts, empty/absent changes', () => {
+  it('no patches in range → zero counts, empty/absent changes', async () => {
     const vtree = makeDiffVTree()
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), [])
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -597,7 +597,7 @@ describe('getDOMDiff edge cases', () => {
     )
   })
 
-  it('empty subtree (no children) → still processes patches on root node itself', () => {
+  it('empty subtree (no children) → still processes patches on root node itself', async () => {
     const vtree = makeVTree(
       {
         root: {
@@ -617,7 +617,7 @@ describe('getDOMDiff edge cases', () => {
       makeAttributePatchEvent(500, 'root', 'class', 'updated', 'empty'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -630,13 +630,13 @@ describe('getDOMDiff edge cases', () => {
 })
 
 describe('getDOMDiff property changes', () => {
-  it('TextProperty change on in-scope node → propertyChanges incremented and appears in changes', () => {
+  it('TextProperty change on in-scope node → propertyChanges incremented and appears in changes', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeTextPropertyPatchEvent(500, 'root', 'value', 'new-val', 'old-val'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -654,13 +654,13 @@ describe('getDOMDiff property changes', () => {
     assert.strictEqual(propChange!['oldValue'], 'old-val')
   })
 
-  it('BooleanProperty change on in-scope node → propertyChanges incremented, value coerced to string', () => {
+  it('BooleanProperty change on in-scope node → propertyChanges incremented, value coerced to string', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeBooleanPropertyPatchEvent(500, 'root', 'checked', true, false),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -677,13 +677,13 @@ describe('getDOMDiff property changes', () => {
     assert.strictEqual(propChange!['oldValue'], 'false')
   })
 
-  it('NumberProperty change on in-scope node → propertyChanges incremented, value coerced to string', () => {
+  it('NumberProperty change on in-scope node → propertyChanges incremented, value coerced to string', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeNumberPropertyPatchEvent(500, 'root', 'selectedIndex', 2, 0),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -699,13 +699,13 @@ describe('getDOMDiff property changes', () => {
     assert.strictEqual(propChange!['oldValue'], '0')
   })
 
-  it('property change on unrelated node → filtered out', () => {
+  it('property change on unrelated node → filtered out', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeTextPropertyPatchEvent(500, 'unrelated', 'value', 'x', 'y'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -719,13 +719,13 @@ describe('getDOMDiff property changes', () => {
     assert.strictEqual(unrelated, undefined)
   })
 
-  it('summary tier counts property changes but omits changes array', () => {
+  it('summary tier counts property changes but omits changes array', async () => {
     const vtree = makeDiffVTree()
     const events = [
       makeTextPropertyPatchEvent(500, 'root', 'value', 'new', 'old'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -739,7 +739,7 @@ describe('getDOMDiff property changes', () => {
 })
 
 describe('getDOMDiff scope-set expansion', () => {
-  it('patch on a node added via AddNodes is included in changes', () => {
+  it('patch on a node added via AddNodes is included in changes', async () => {
     // This tests the core scope-set expansion feature: when AddNodes fires for
     // parentId in scope, the newly-added node rootId is added to scopeIds.
     // A subsequent attribute patch on that new node must be captured.
@@ -751,7 +751,7 @@ describe('getDOMDiff scope-set expansion', () => {
       makeAttributePatchEvent(600, 'new-node-1', 'class', 'active', ''),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -772,7 +772,7 @@ describe('getDOMDiff scope-set expansion', () => {
     )
   })
 
-  it('patch on a node added under an unrelated parent is NOT included', () => {
+  it('patch on a node added under an unrelated parent is NOT included', async () => {
     const vtree = makeDiffVTree()
     const events = [
       // Add a node under the unrelated node (not in scope)
@@ -781,7 +781,7 @@ describe('getDOMDiff scope-set expansion', () => {
       makeAttributePatchEvent(600, 'new-node-2', 'class', 'active', ''),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,
@@ -796,7 +796,7 @@ describe('getDOMDiff scope-set expansion', () => {
     assert.strictEqual(patchOnNewNode, undefined)
   })
 
-  it('RemoveNodes removes node from scope; subsequent patch on removed node is excluded', () => {
+  it('RemoveNodes removes node from scope; subsequent patch on removed node is excluded', async () => {
     const vtree = makeDiffVTree()
     const events = [
       // Remove child1 from root
@@ -805,7 +805,7 @@ describe('getDOMDiff scope-set expansion', () => {
       makeAttributePatchEvent(600, 'child1', 'class', 'ghost', 'section'),
     ]
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
-    const result = executeTool(accessor, 'getDOMDiff', {
+    const result = await executeTool(accessor, 'getDOMDiff', {
       nodeId: 'root',
       fromTimestampMs: 0,
       toTimestampMs: 1000,

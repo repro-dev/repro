@@ -225,7 +225,7 @@ function collectTextContent(
   return text.slice(0, maxLength)
 }
 
-export const handler: ToolHandler = (recording, args) => {
+export const handler: ToolHandler = async (recording, args) => {
   const nodeId = args.nodeId as string | undefined
   const timestampMs = args.timestampMs as number | undefined
   const context = (args.context as string) ?? 'self'

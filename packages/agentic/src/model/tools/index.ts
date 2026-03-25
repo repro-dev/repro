@@ -63,11 +63,11 @@ const toolHandlers: Record<string, ToolHandler> = {
   getDOMDiff,
 };
 
-export function executeTool(
+export async function executeTool(
   recording: RecordingDataAccessor,
   name: string,
   args: Record<string, unknown>,
-): unknown {
+): Promise<unknown> {
   const handler = toolHandlers[name];
   if (!handler) {
     return createError(

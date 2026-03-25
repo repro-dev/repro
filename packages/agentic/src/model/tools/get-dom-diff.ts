@@ -74,7 +74,7 @@ interface DOMChange {
   oldValue: string | null
 }
 
-export const handler: ToolHandler = (recording, args) => {
+export const handler: ToolHandler = async (recording, args) => {
   const nodeId = args.nodeId as string | undefined
   const fromTimestampMs = args.fromTimestampMs as number | undefined
   const toTimestampMs = args.toTimestampMs as number | undefined

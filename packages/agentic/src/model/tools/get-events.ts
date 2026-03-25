@@ -69,7 +69,7 @@ export const TOOL_DEFINITION = {
   },
 };
 
-export const handler: ToolHandler = (recording, args) => {
+export const handler: ToolHandler = async (recording, args) => {
   const detail = (args.detail as string) ?? "normal";
   const startTime = args.startTimeMs as number | undefined;
   const endTime = args.endTimeMs as number | undefined;

@@ -31,7 +31,7 @@ export const TOOL_DEFINITION = {
   },
 };
 
-export const handler: ToolHandler = (recording, args) => {
+export const handler: ToolHandler = async (recording, args) => {
   const timestampMs = (args.timestampMs as number) ?? 0;
   const mode = (args.mode as string) ?? "a11y";
   const snapshot = recording.getSnapshotAtTime(timestampMs);

@@ -135,11 +135,11 @@ export function accumulateToolCalls(
   return toolCalls;
 }
 
-export function executeToolCalls(
+export async function executeToolCalls(
   recording: RecordingDataAccessor,
   toolCalls: Array<ToolCall>,
   createId: () => string = createEntryId,
-): Array<ToolMessage> {
+): Promise<Array<ToolMessage>> {
   const results: Array<ToolMessage> = [];
   const denseToolCalls = toolCalls.filter(Boolean);
 
@@ -151,7 +151,7 @@ export function executeToolCalls(
         ? (JSON.parse(toolCall.function.arguments) as Record<string, unknown>)
         : {};
       content = JSON.stringify(
-        executeTool(recording, toolCall.function.name, args),
+        await executeTool(recording, toolCall.function.name, args),
       );
     } catch (err) {
       content = JSON.stringify({
@@ -510,17 +510,15 @@ export function createAgenticState(
 
             setLoading("tool-executing");
 
-            const toolMessages = executeToolCalls(
-              recording,
-              lastEntry.toolCalls,
+            from(executeToolCalls(recording, lastEntry.toolCalls)).subscribe(
+              (toolMessages) => {
+                for (const toolMessage of toolMessages) {
+                  appendToolMessage(toolMessage);
+                }
+                setLoading("reasoning");
+                toolCallTrigger$.next();
+              },
             );
-
-            for (const toolMessage of toolMessages) {
-              appendToolMessage(toolMessage);
-            }
-
-            setLoading("reasoning");
-            toolCallTrigger$.next();
           } else {
             retryAttempt = 0;
             setLoading("none");

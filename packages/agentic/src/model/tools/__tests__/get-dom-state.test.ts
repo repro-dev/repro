@@ -9,7 +9,7 @@ import {
 } from "./helpers";
 
 describe("tools array — getDOMState", () => {
-  it("tool definition is included in tools array", () => {
+  it("tool definition is included in tools array", async () => {
     const def = tools.find(
       (t) =>
         (t as { function: { name: string } }).function.name === "getDOMState",
@@ -19,18 +19,18 @@ describe("tools array — getDOMState", () => {
 });
 
 describe("executeTool — getDOMState — errors", () => {
-  it("returns error when no snapshot available", () => {
+  it("returns error when no snapshot available", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "getDOMState", {
+    const result = await executeTool(accessor, "getDOMState", {
       timestampMs: 1000,
     }) as { error: string };
     assert.ok(typeof result.error === "string");
     assert.ok(result.error.includes("No DOM snapshot"));
   });
 
-  it("returns reason and suggestion when no DOM snapshot available", () => {
+  it("returns reason and suggestion when no DOM snapshot available", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "getDOMState", {
+    const result = await executeTool(accessor, "getDOMState", {
       timestampMs: 1000,
     }) as { error: string; reason: string; suggestion: string };
     assert.ok(result.reason);
@@ -38,7 +38,7 @@ describe("executeTool — getDOMState — errors", () => {
     assert.ok(result.suggestion.includes("getRecordingDuration"));
   });
 
-  it("returns error with reason and suggestion when a11y tree cannot be built", () => {
+  it("returns error with reason and suggestion when a11y tree cannot be built", async () => {
     const accessor = makeAccessor(
       [],
       0,
@@ -47,7 +47,7 @@ describe("executeTool — getDOMState — errors", () => {
           typeof makeSimpleSnapshot
         >,
     );
-    const result = executeTool(accessor, "getDOMState", {
+    const result = await executeTool(accessor, "getDOMState", {
       timestampMs: 0,
       mode: "a11y",
     }) as { error: string; reason: string; suggestion: string };
@@ -58,7 +58,7 @@ describe("executeTool — getDOMState — errors", () => {
     assert.ok(result.suggestion.includes("summary"));
   });
 
-  it("includes _tokenEstimate when a11y tree cannot be built", () => {
+  it("includes _tokenEstimate when a11y tree cannot be built", async () => {
     const accessor = makeAccessor(
       [],
       0,
@@ -67,7 +67,7 @@ describe("executeTool — getDOMState — errors", () => {
           typeof makeSimpleSnapshot
         >,
     );
-    const result = executeTool(accessor, "getDOMState", {
+    const result = await executeTool(accessor, "getDOMState", {
       timestampMs: 0,
       mode: "a11y",
     }) as { _tokenEstimate: number };
@@ -76,9 +76,9 @@ describe("executeTool — getDOMState — errors", () => {
 });
 
 describe("executeTool — getDOMState — a11y mode", () => {
-  it("returns a11y tree for simple DOM in a11y mode", () => {
+  it("returns a11y tree for simple DOM in a11y mode", async () => {
     const accessor = makeAccessor([], 0, () => makeSimpleSnapshot());
-    const result = executeTool(accessor, "getDOMState", {
+    const result = await executeTool(accessor, "getDOMState", {
       timestampMs: 0,
       mode: "a11y",
     }) as { mode: string; tree: string; timestampMs: number };
@@ -88,17 +88,17 @@ describe("executeTool — getDOMState — a11y mode", () => {
     assert.strictEqual(result.timestampMs, 0);
   });
 
-  it("defaults to a11y mode when mode not specified", () => {
+  it("defaults to a11y mode when mode not specified", async () => {
     const accessor = makeAccessor([], 0, () => makeSimpleSnapshot());
-    const result = executeTool(accessor, "getDOMState", {
+    const result = await executeTool(accessor, "getDOMState", {
       timestampMs: 500,
     }) as { mode: string };
     assert.strictEqual(result.mode, "a11y");
   });
 
-  it("includes _tokenEstimate in a11y mode response", () => {
+  it("includes _tokenEstimate in a11y mode response", async () => {
     const accessor = makeAccessor([], 0, () => makeSimpleSnapshot());
-    const result = executeTool(accessor, "getDOMState", {
+    const result = await executeTool(accessor, "getDOMState", {
       timestampMs: 0,
       mode: "a11y",
     }) as { _tokenEstimate: number };
@@ -108,9 +108,9 @@ describe("executeTool — getDOMState — a11y mode", () => {
 });
 
 describe("executeTool — getDOMState — summary mode", () => {
-  it("returns summary mode with element counts", () => {
+  it("returns summary mode with element counts", async () => {
     const accessor = makeAccessor([], 0, () => makeSimpleSnapshot());
-    const result = executeTool(accessor, "getDOMState", {
+    const result = await executeTool(accessor, "getDOMState", {
       timestampMs: 0,
       mode: "summary",
     }) as {
@@ -125,9 +125,9 @@ describe("executeTool — getDOMState — summary mode", () => {
     assert.ok(Array.isArray(result.topTags));
   });
 
-  it("includes _tokenEstimate in summary mode response", () => {
+  it("includes _tokenEstimate in summary mode response", async () => {
     const accessor = makeAccessor([], 0, () => makeSimpleSnapshot());
-    const result = executeTool(accessor, "getDOMState", {
+    const result = await executeTool(accessor, "getDOMState", {
       timestampMs: 0,
       mode: "summary",
     }) as { _tokenEstimate: number };
