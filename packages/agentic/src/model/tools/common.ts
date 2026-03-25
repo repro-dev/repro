@@ -10,12 +10,13 @@ import {
   SourceEventType,
 } from "@repro/domain";
 import { Box } from "@repro/tdl";
+import { FutureInstance } from "fluture";
 import { RecordingDataAccessor } from "../../types";
 
 export type ToolHandler = (
   recording: RecordingDataAccessor,
   args: Record<string, unknown>,
-) => unknown;
+) => FutureInstance<unknown, unknown>;
 
 export function createError(
   error: string,

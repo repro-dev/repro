@@ -13,10 +13,11 @@ import {
   makeWebSocketInboundEvent,
   makeWebSocketOpenEvent,
   makeWebSocketOutboundEvent,
+  runFuture,
 } from "./helpers";
 
 describe("tools array — getNetworkRequests", () => {
-  it("includes getNetworkRequests tool definition", () => {
+  it("includes getNetworkRequests tool definition", async () => {
     const def = tools.find(
       (t) =>
         (t as { function: { name: string } }).function.name ===
@@ -25,7 +26,7 @@ describe("tools array — getNetworkRequests", () => {
     assert.ok(def !== undefined);
   });
 
-  it("includes detail parameter with summary/normal/full enum", () => {
+  it("includes detail parameter with summary/normal/full enum", async () => {
     const def = tools.find(
       (t) =>
         (t as { function: { name: string } }).function.name ===
@@ -45,9 +46,9 @@ describe("tools array — getNetworkRequests", () => {
 });
 
 describe("executeTool — getNetworkRequests — basic", () => {
-  it("returns empty requests array for empty event list", () => {
+  it("returns empty requests array for empty event list", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "getNetworkRequests", {}) as {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
       requests: unknown[];
       summary: unknown;
       _tokenEstimate: number;
@@ -57,13 +58,13 @@ describe("executeTool — getNetworkRequests — basic", () => {
     assert.ok(typeof result._tokenEstimate === "number");
   });
 
-  it("returns fetch request with basic fields", () => {
+  it("returns fetch request with basic fields", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(200, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {}) as {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
       requests: Array<{
         timeMs: number;
         type: string;
@@ -81,12 +82,12 @@ describe("executeTool — getNetworkRequests — basic", () => {
     assert.strictEqual(result.requests[0]!.durationMs, 100);
   });
 
-  it("returns fetch request without response when no response event exists", () => {
+  it("returns fetch request without response when no response event exists", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "POST"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {}) as {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
       requests: Array<{
         type: string;
         status: number | undefined;
@@ -98,13 +99,13 @@ describe("executeTool — getNetworkRequests — basic", () => {
     assert.strictEqual(result.requests[0]!.durationMs, undefined);
   });
 
-  it("returns websocket request with basic fields", () => {
+  it("returns websocket request with basic fields", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       makeWebSocketCloseEvent(550, "ws1"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {}) as {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
       requests: Array<{
         timeMs: number;
         type: string;
@@ -118,26 +119,26 @@ describe("executeTool — getNetworkRequests — basic", () => {
     assert.strictEqual(result.requests[0]!.durationMs, 500);
   });
 
-  it("returns websocket without durationMs when no close event", () => {
+  it("returns websocket without durationMs when no close event", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {}) as {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
       requests: Array<{ durationMs: number | undefined }>;
     };
     assert.strictEqual(result.requests.length, 1);
     assert.strictEqual(result.requests[0]!.durationMs, undefined);
   });
 
-  it("returns both fetch and websocket requests when no filters applied", () => {
+  it("returns both fetch and websocket requests when no filters applied", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
       makeWebSocketOpenEvent(200, "ws1", "wss://example.com/socket"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {}) as {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
       requests: Array<{ type: string }>;
     };
     assert.strictEqual(result.requests.length, 2);
@@ -147,7 +148,7 @@ describe("executeTool — getNetworkRequests — basic", () => {
 });
 
 describe("executeTool — getNetworkRequests — filters", () => {
-  it("filters by statusMin", () => {
+  it("filters by statusMin", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/ok", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
@@ -157,9 +158,9 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(350, "req3", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       statusMin: 400,
-    }) as {
+    })) as {
       requests: Array<{ status: number }>;
     };
     assert.strictEqual(result.requests.length, 2);
@@ -167,7 +168,7 @@ describe("executeTool — getNetworkRequests — filters", () => {
     assert.strictEqual(result.requests[1]!.status, 500);
   });
 
-  it("filters by statusMax", () => {
+  it("filters by statusMax", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/ok", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
@@ -177,9 +178,9 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(350, "req3", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       statusMax: 399,
-    }) as {
+    })) as {
       requests: Array<{ status: number }>;
     };
     assert.strictEqual(result.requests.length, 2);
@@ -187,7 +188,7 @@ describe("executeTool — getNetworkRequests — filters", () => {
     assert.strictEqual(result.requests[1]!.status, 301);
   });
 
-  it("filters by both statusMin and statusMax", () => {
+  it("filters by both statusMin and statusMax", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/ok", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
@@ -197,30 +198,30 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(350, "req3", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       statusMin: 400,
       statusMax: 499,
-    }) as {
+    })) as {
       requests: Array<{ status: number }>;
     };
     assert.strictEqual(result.requests.length, 1);
     assert.strictEqual(result.requests[0]!.status, 404);
   });
 
-  it("excludes fetch requests with no response when statusMin is set", () => {
+  it("excludes fetch requests with no response when statusMin is set", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/pending", "GET"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       statusMin: 400,
-    }) as {
+    })) as {
       requests: unknown[];
     };
     assert.strictEqual(result.requests.length, 0);
   });
 
-  it("filters by method (case-insensitive)", () => {
+  it("filters by method (case-insensitive)", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/1", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
@@ -228,16 +229,16 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(250, "req2", 201),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       method: "post",
-    }) as {
+    })) as {
       requests: Array<{ method: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
     assert.strictEqual(result.requests[0]!.method, "POST");
   });
 
-  it("filters by urlPattern substring match", () => {
+  it("filters by urlPattern substring match", async () => {
     const events = [
       makeFetchRequestEvent(
         100,
@@ -255,15 +256,15 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(250, "req2", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       urlPattern: "/users/",
-    }) as {
+    })) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
   });
 
-  it("filters fetch requests by timeRangeStartMs", () => {
+  it("filters fetch requests by timeRangeStartMs", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/early", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
@@ -271,15 +272,15 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(550, "req2", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       timeRangeStartMs: 400,
-    }) as {
+    })) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
   });
 
-  it("filters fetch requests by timeRangeEndMs", () => {
+  it("filters fetch requests by timeRangeEndMs", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/early", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
@@ -287,69 +288,69 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(950, "req2", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       timeRangeEndMs: 500,
-    }) as {
+    })) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
   });
 
-  it("filters websocket requests by urlPattern", () => {
+  it("filters websocket requests by urlPattern", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/chat"),
       makeWebSocketOpenEvent(100, "ws2", "wss://example.com/notifications"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       urlPattern: "/chat",
-    }) as {
+    })) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
   });
 
-  it("excludes websocket requests when statusMin is set", () => {
+  it("excludes websocket requests when statusMin is set", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(150, "req1", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       statusMin: 400,
-    }) as {
+    })) as {
       requests: Array<{ type: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
     assert.strictEqual(result.requests[0]!.type, "fetch");
   });
 
-  it("excludes websocket requests when method is set", () => {
+  it("excludes websocket requests when method is set", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       method: "GET",
-    }) as {
+    })) as {
       requests: Array<{ type: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
     assert.strictEqual(result.requests[0]!.type, "fetch");
   });
 
-  it("filters websocket requests by timeRangeStartMs", () => {
+  it("filters websocket requests by timeRangeStartMs", async () => {
     const events = [
       makeWebSocketOpenEvent(100, "ws1", "wss://example.com/early"),
       makeWebSocketOpenEvent(800, "ws2", "wss://example.com/late"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       timeRangeStartMs: 500,
-    }) as {
+    })) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
@@ -357,19 +358,19 @@ describe("executeTool — getNetworkRequests — filters", () => {
 });
 
 describe("executeTool — getNetworkRequests — _hint", () => {
-  it("returns _hint when requests are empty and filters were provided", () => {
+  it("returns _hint when requests are empty and filters were provided", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       urlPattern: "/nonexistent",
-    }) as { requests: unknown[]; _hint?: string };
+    })) as { requests: unknown[]; _hint?: string };
     assert.strictEqual(result.requests.length, 0);
     assert.ok(result._hint);
     assert.ok(result._hint.includes("getNetworkRequests"));
   });
 
-  it("does not return _hint when no filters were provided and requests are empty", () => {
+  it("does not return _hint when no filters were provided and requests are empty", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "getNetworkRequests", {}) as {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
       requests: unknown[];
       _hint?: string;
     };
@@ -377,39 +378,39 @@ describe("executeTool — getNetworkRequests — _hint", () => {
     assert.strictEqual(result._hint, undefined);
   });
 
-  it("returns _hint when method filter yields zero results", () => {
+  it("returns _hint when method filter yields zero results", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       method: "DELETE",
-    }) as { requests: unknown[]; _hint?: string };
+    })) as { requests: unknown[]; _hint?: string };
     assert.strictEqual(result.requests.length, 0);
     assert.ok(result._hint);
     assert.ok(result._hint.includes("getNetworkRequests"));
   });
 
-  it("returns _hint when statusMin filter yields zero results", () => {
+  it("returns _hint when statusMin filter yields zero results", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/ok", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       statusMin: 400,
-    }) as { requests: unknown[]; _hint?: string };
+    })) as { requests: unknown[]; _hint?: string };
     assert.strictEqual(result.requests.length, 0);
     assert.ok(result._hint);
     assert.ok(result._hint.includes("getNetworkRequests"));
   });
 
-  it("returns _hint when statusMax filter yields zero results", () => {
+  it("returns _hint when statusMax filter yields zero results", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/error", "GET"),
       makeFetchResponseEvent(150, "req1", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       statusMax: 299,
-    }) as { requests: unknown[]; _hint?: string };
+    })) as { requests: unknown[]; _hint?: string };
     assert.strictEqual(result.requests.length, 0);
     assert.ok(result._hint);
     assert.ok(result._hint.includes("getNetworkRequests"));
@@ -417,7 +418,7 @@ describe("executeTool — getNetworkRequests — _hint", () => {
 });
 
 describe("executeTool — getNetworkRequests — token optimization / detail tiers", () => {
-  it("summary tier: returns pathname-only URL for fetch", () => {
+  it("summary tier: returns pathname-only URL for fetch", async () => {
     const events = [
       makeFetchRequestEvent(
         100,
@@ -428,16 +429,16 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEvent(200, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "summary",
-    }) as {
+    })) as {
       requests: Array<{ url: string; method?: string }>;
     };
     assert.strictEqual(result.requests[0]!.url, "/api/users");
     assert.strictEqual(result.requests[0]!.method, undefined);
   });
 
-  it("normal tier: returns pathname+query URL truncated to 100 chars for fetch", () => {
+  it("normal tier: returns pathname+query URL truncated to 100 chars for fetch", async () => {
     const longPath = "/api/" + "a".repeat(200);
     const events = [
       makeFetchRequestEvent(
@@ -449,15 +450,15 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEvent(200, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
-    }) as {
+    })) as {
       requests: Array<{ url: string }>;
     };
     assert.ok(result.requests[0]!.url.length <= 100);
   });
 
-  it("full tier: returns full URL for fetch", () => {
+  it("full tier: returns full URL for fetch", async () => {
     const events = [
       makeFetchRequestEvent(
         100,
@@ -468,9 +469,9 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEvent(200, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "full",
-    }) as {
+    })) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(
@@ -479,67 +480,67 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
     );
   });
 
-  it("normal tier: includes errorBody for failed responses", () => {
+  it("normal tier: includes errorBody for failed responses", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEventWithBody(200, "req1", 500, "Internal Server Error"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
-    }) as {
+    })) as {
       requests: Array<{ errorBody?: string }>;
     };
     assert.strictEqual(result.requests[0]!.errorBody, "Internal Server Error");
   });
 
-  it("normal tier: does not include errorBody for successful responses", () => {
+  it("normal tier: does not include errorBody for successful responses", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEventWithBody(200, "req1", 200, "OK body"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
-    }) as {
+    })) as {
       requests: Array<{ errorBody?: string }>;
     };
     assert.strictEqual(result.requests[0]!.errorBody, undefined);
   });
 
-  it("normal tier: errorBody is truncated to 500 chars", () => {
+  it("normal tier: errorBody is truncated to 500 chars", async () => {
     const longBody = "e".repeat(600);
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEventWithBody(200, "req1", 500, longBody),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
-    }) as {
+    })) as {
       requests: Array<{ errorBody?: string }>;
     };
     assert.ok(result.requests[0]!.errorBody !== undefined);
     assert.ok(result.requests[0]!.errorBody!.length <= 500);
   });
 
-  it("full tier: errorBody is truncated to 2000 chars", () => {
+  it("full tier: errorBody is truncated to 2000 chars", async () => {
     const longBody = "e".repeat(2500);
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEventWithBody(200, "req1", 500, longBody),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "full",
-    }) as {
+    })) as {
       requests: Array<{ errorBody?: string }>;
     };
     assert.ok(result.requests[0]!.errorBody !== undefined);
     assert.ok(result.requests[0]!.errorBody!.length <= 2000);
   });
 
-  it("full tier: includes requestBody for POST requests", () => {
+  it("full tier: includes requestBody for POST requests", async () => {
     const events = [
       makeFetchRequestEventWithBody(
         100,
@@ -551,15 +552,15 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEvent(200, "req1", 201),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "full",
-    }) as {
+    })) as {
       requests: Array<{ requestBody?: string }>;
     };
     assert.strictEqual(result.requests[0]!.requestBody, '{"name":"test"}');
   });
 
-  it("full tier: does not include requestBody for GET requests", () => {
+  it("full tier: does not include requestBody for GET requests", async () => {
     const events = [
       makeFetchRequestEventWithBody(
         100,
@@ -571,15 +572,15 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEvent(200, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "full",
-    }) as {
+    })) as {
       requests: Array<{ requestBody?: string }>;
     };
     assert.strictEqual(result.requests[0]!.requestBody, undefined);
   });
 
-  it("full tier: includes filtered headers (content-type, x-request-id only)", () => {
+  it("full tier: includes filtered headers (content-type, x-request-id only)", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(200, "req1", 200, {
@@ -591,9 +592,9 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       }),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "full",
-    }) as {
+    })) as {
       requests: Array<{ headers?: Record<string, string> }>;
     };
     const headers = result.requests[0]!.headers;
@@ -605,7 +606,7 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
     assert.strictEqual(headers["x-custom-header"], undefined);
   });
 
-  it("never includes cookies at any tier", () => {
+  it("never includes cookies at any tier", async () => {
     for (const detail of ["summary", "normal", "full"] as const) {
       const events = [
         makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET", {
@@ -616,9 +617,9 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
         }),
       ];
       const accessor = makeAccessor(events);
-      const result = executeTool(accessor, "getNetworkRequests", {
+      const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
         detail,
-      }) as {
+      })) as {
         requests: Array<Record<string, unknown>>;
       };
       const req = result.requests[0]!;
@@ -634,7 +635,7 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
     }
   });
 
-  it("always includes summary stats", () => {
+  it("always includes summary stats", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(150, "req1", 200),
@@ -643,7 +644,7 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeWebSocketOpenEvent(300, "ws1", "wss://example.com/socket"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {}) as {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
       summary: {
         total: number;
         succeeded: number;
@@ -660,39 +661,39 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
     assert.ok(typeof result._tokenEstimate === "number");
   });
 
-  it("summary stats: byMethod excludes websocket requests", () => {
+  it("summary stats: byMethod excludes websocket requests", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {}) as {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
       summary: { byMethod: Record<string, number> };
     };
     assert.deepStrictEqual(result.summary.byMethod, {});
   });
 
-  it("summary stats: pending fetch (no response) counts as succeeded", () => {
+  it("summary stats: pending fetch (no response) counts as succeeded", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {}) as {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
       summary: { succeeded: number; failed: number };
     };
     assert.strictEqual(result.summary.succeeded, 1);
     assert.strictEqual(result.summary.failed, 0);
   });
 
-  it("always includes _tokenEstimate", () => {
+  it("always includes _tokenEstimate", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "getNetworkRequests", {}) as {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
       _tokenEstimate: number;
     };
     assert.ok(typeof result._tokenEstimate === "number");
     assert.ok(result._tokenEstimate >= 0);
   });
 
-  it("urlPattern filter applies to original URL (not shortened)", () => {
+  it("urlPattern filter applies to original URL (not shortened)", async () => {
     const events = [
       makeFetchRequestEvent(
         100,
@@ -710,29 +711,29 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEvent(250, "req2", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "summary",
       urlPattern: "/users",
-    }) as {
+    })) as {
       requests: unknown[];
     };
     assert.strictEqual(result.requests.length, 1);
   });
 
-  it("summary tier: returns pathname-only URL for websocket", () => {
+  it("summary tier: returns pathname-only URL for websocket", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket?token=abc"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "summary",
-    }) as {
+    })) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(result.requests[0]!.url, "/socket");
   });
 
-  it("normal tier: does not include headers", () => {
+  it("normal tier: does not include headers", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
       makeFetchResponseEvent(200, "req1", 200, {
@@ -740,9 +741,9 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       }),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
-    }) as {
+    })) as {
       requests: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.requests[0]!["headers"], undefined);
@@ -752,7 +753,7 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
 });
 
 describe("executeTool — getNetworkRequests — WebSocket messages", () => {
-  it("summary tier returns messageCount with inbound/outbound counts and no messages array", () => {
+  it("summary tier returns messageCount with inbound/outbound counts and no messages array", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       makeWebSocketInboundEvent(100, "ws1", "msg1"),
@@ -763,9 +764,9 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
       makeWebSocketCloseEvent(600, "ws1"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "summary",
-    }) as {
+    })) as {
       requests: Array<{
         type: string;
         messageCount?: { inbound: number; outbound: number };
@@ -779,7 +780,7 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
     assert.strictEqual(ws.messages, undefined);
   });
 
-  it("normal tier returns up to 10 messages with direction, timeMs, and payload", () => {
+  it("normal tier returns up to 10 messages with direction, timeMs, and payload", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       ...Array.from({ length: 8 }, (_, i) =>
@@ -790,9 +791,9 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
       ),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
-    }) as {
+    })) as {
       requests: Array<{
         type: string;
         messages?: Array<{ timeMs: number; direction: string; payload: string }>;
@@ -809,16 +810,16 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
     }
   });
 
-  it("normal tier truncates payload to 200 chars", () => {
+  it("normal tier truncates payload to 200 chars", async () => {
     const longPayload = "x".repeat(300);
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       makeWebSocketInboundEvent(100, "ws1", longPayload),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
-    }) as {
+    })) as {
       requests: Array<{ messages?: Array<{ payload: string }> }>;
     };
     const ws = result.requests[0]!;
@@ -828,7 +829,7 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
     assert.ok(ws.messages![0]!.payload.startsWith("x".repeat(200)));
   });
 
-  it("full tier returns all messages up to 100 with payload truncated to 2000 chars", () => {
+  it("full tier returns all messages up to 100 with payload truncated to 2000 chars", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       ...Array.from({ length: 15 }, (_, i) =>
@@ -836,9 +837,9 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
       ),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "full",
-    }) as {
+    })) as {
       requests: Array<{
         messages?: Array<{ payload: string; timeMs: number; direction: string }>;
       }>;
@@ -848,7 +849,7 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
     assert.strictEqual(ws.messages!.length, 15);
   });
 
-  it("full tier caps messages at 100", () => {
+  it("full tier caps messages at 100", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       ...Array.from({ length: 150 }, (_, i) =>
@@ -856,9 +857,9 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
       ),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "full",
-    }) as {
+    })) as {
       requests: Array<{ messages?: unknown[] }>;
     };
     const ws = result.requests[0]!;
@@ -866,15 +867,15 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
     assert.strictEqual(ws.messages!.length, 100);
   });
 
-  it("binary frames return payload as [binary frame, N bytes]", () => {
+  it("binary frames return payload as [binary frame, N bytes]", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       makeWebSocketBinaryInboundEvent(100, "ws1", 42),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getNetworkRequests", {
+    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
-    }) as {
+    })) as {
       requests: Array<{ messages?: Array<{ payload: string }> }>;
     };
     const ws = result.requests[0]!;
@@ -882,16 +883,16 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
     assert.strictEqual(ws.messages![0]!.payload, "[binary frame, 42 bytes]");
   });
 
-  it("WS connection with no messages returns zero counts (summary) and empty array (normal/full)", () => {
+  it("WS connection with no messages returns zero counts (summary) and empty array (normal/full)", async () => {
     const events = [
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
       makeWebSocketCloseEvent(100, "ws1"),
     ];
     const accessor = makeAccessor(events);
 
-    const summaryResult = executeTool(accessor, "getNetworkRequests", {
+    const summaryResult = (await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "summary",
-    }) as {
+    }))) as {
       requests: Array<{
         messageCount?: { inbound: number; outbound: number };
         messages?: unknown[];
@@ -903,15 +904,15 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
     });
     assert.strictEqual(summaryResult.requests[0]!.messages, undefined);
 
-    const normalResult = executeTool(accessor, "getNetworkRequests", {
+    const normalResult = (await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "normal",
-    }) as { requests: Array<{ messages?: unknown[] }> };
+    }))) as { requests: Array<{ messages?: unknown[] }> };
     assert.ok(Array.isArray(normalResult.requests[0]!.messages));
     assert.strictEqual(normalResult.requests[0]!.messages!.length, 0);
 
-    const fullResult = executeTool(accessor, "getNetworkRequests", {
+    const fullResult = (await runFuture(executeTool(accessor, "getNetworkRequests", {
       detail: "full",
-    }) as { requests: Array<{ messages?: unknown[] }> };
+    }))) as { requests: Array<{ messages?: unknown[] }> };
     assert.ok(Array.isArray(fullResult.requests[0]!.messages));
     assert.strictEqual(fullResult.requests[0]!.messages!.length, 0);
   });

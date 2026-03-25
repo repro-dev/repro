@@ -17,10 +17,11 @@ import {
   makePointerUpEvent,
   makeScrollEvent,
   makeViewportResizeEvent,
+  runFuture,
 } from "./helpers";
 
 describe("tools array — getEvents", () => {
-  it("includes getEvents in tools array", () => {
+  it("includes getEvents in tools array", async () => {
     const def = tools.find(
       (t) =>
         (t as { function: { name: string } }).function.name === "getEvents",
@@ -30,9 +31,9 @@ describe("tools array — getEvents", () => {
 });
 
 describe("executeTool — getEvents — empty recording", () => {
-  it("returns empty events for empty recording", () => {
+  it("returns empty events for empty recording", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "getEvents", {}) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", {})) as {
       events: unknown[];
       _tokenEstimate: number;
     };
@@ -42,13 +43,13 @@ describe("executeTool — getEvents — empty recording", () => {
 });
 
 describe("executeTool — getEvents — basic events", () => {
-  it("returns pageTransition and click events at normal tier", () => {
+  it("returns pageTransition and click events at normal tier", async () => {
     const events = [
       makePageTransitionEvent(0, "/products"),
       makeClickEvent(1200, '"Widget Pro" link'),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", {}) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", {})) as {
       events: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.events.length, 2);
@@ -60,7 +61,7 @@ describe("executeTool — getEvents — basic events", () => {
 });
 
 describe("executeTool — getEvents — PointerMove/Down/Up excluded", () => {
-  it("excludes PointerMove, PointerDown, PointerUp at all tiers", () => {
+  it("excludes PointerMove, PointerDown, PointerUp at all tiers", async () => {
     const events = [
       makePointerMoveEvent(100),
       makePointerDownEvent(200),
@@ -70,7 +71,7 @@ describe("executeTool — getEvents — PointerMove/Down/Up excluded", () => {
     const accessor = makeAccessor(events);
 
     for (const detail of ["summary", "normal", "full"] as const) {
-      const result = executeTool(accessor, "getEvents", { detail }) as {
+      const result = await runFuture(executeTool(accessor, "getEvents", { detail })) as {
         events?: Array<Record<string, unknown>>;
         counts?: Record<string, number>;
         totalEvents?: number;
@@ -94,7 +95,7 @@ describe("executeTool — getEvents — PointerMove/Down/Up excluded", () => {
 });
 
 describe("executeTool — getEvents — KeyDown coalescing", () => {
-  it("coalesces sequential KeyDown events into typed string at normal tier", () => {
+  it("coalesces sequential KeyDown events into typed string at normal tier", async () => {
     const events = [
       makeKeyDownEvent(1000, "d"),
       makeKeyDownEvent(1050, "i"),
@@ -102,7 +103,7 @@ describe("executeTool — getEvents — KeyDown coalescing", () => {
       makeKeyDownEvent(1150, "c"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { detail: "normal" })) as {
       events: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.events.length, 1);
@@ -110,10 +111,10 @@ describe("executeTool — getEvents — KeyDown coalescing", () => {
     assert.strictEqual(result.events[0]!.text, "disc");
   });
 
-  it("returns individual keyDown events at full tier", () => {
+  it("returns individual keyDown events at full tier", async () => {
     const events = [makeKeyDownEvent(1000, "a"), makeKeyDownEvent(1050, "b")];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { detail: "full" }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { detail: "full" })) as {
       events: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.events.length, 2);
@@ -123,12 +124,12 @@ describe("executeTool — getEvents — KeyDown coalescing", () => {
     assert.strictEqual(result.events[1]!.key, "b");
   });
 
-  it("excludes KeyDown events at summary tier", () => {
+  it("excludes KeyDown events at summary tier", async () => {
     const events = [makeKeyDownEvent(1000, "x"), makeKeyDownEvent(1050, "y")];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", {
+    const result = await runFuture(executeTool(accessor, "getEvents", {
       detail: "summary",
-    }) as {
+    })) as {
       counts: Record<string, number>;
       totalEvents: number;
     };
@@ -137,13 +138,13 @@ describe("executeTool — getEvents — KeyDown coalescing", () => {
     assert.ok(!result.counts["typed"]);
   });
 
-  it("wraps special keys in brackets at normal tier", () => {
+  it("wraps special keys in brackets at normal tier", async () => {
     const events = [
       makeKeyDownEvent(1000, "Enter"),
       makeKeyDownEvent(1050, "Backspace"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { detail: "normal" })) as {
       events: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.events[0]!.type, "typed");
@@ -152,29 +153,29 @@ describe("executeTool — getEvents — KeyDown coalescing", () => {
 });
 
 describe("executeTool — getEvents — Click with humanReadableLabel", () => {
-  it("includes humanReadableLabel when present", () => {
+  it("includes humanReadableLabel when present", async () => {
     const events = [makeClickEvent(500, "Submit button")];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { detail: "normal" })) as {
       events: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.events[0]!.label, "Submit button");
     assert.ok(!("at" in result.events[0]!));
   });
 
-  it("includes at coordinates at full tier", () => {
+  it("includes at coordinates at full tier", async () => {
     const events = [makeClickEvent(500, "Submit", [150, 250])];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { detail: "full" }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { detail: "full" })) as {
       events: Array<Record<string, unknown>>;
     };
     assert.deepStrictEqual(result.events[0]!.at, { x: 150, y: 250 });
   });
 
-  it("omits label when null", () => {
+  it("omits label when null", async () => {
     const events = [makeClickEvent(500, null)];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { detail: "normal" })) as {
       events: Array<Record<string, unknown>>;
     };
     assert.ok(!("label" in result.events[0]!));
@@ -182,7 +183,7 @@ describe("executeTool — getEvents — Click with humanReadableLabel", () => {
 });
 
 describe("executeTool — getEvents — DOM patches bucketed", () => {
-  it("buckets DOM patches into per-second windows", () => {
+  it("buckets DOM patches into per-second windows", async () => {
     const events = [
       makeDOMPatchEvent(100),
       makeDOMPatchEvent(500),
@@ -191,7 +192,7 @@ describe("executeTool — getEvents — DOM patches bucketed", () => {
       makeDOMPatchEvent(1900),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { detail: "normal" })) as {
       events: Array<Record<string, unknown>>;
       domActivity: Array<{ window: string; patchCount: number }>;
     };
@@ -206,28 +207,28 @@ describe("executeTool — getEvents — DOM patches bucketed", () => {
 });
 
 describe("executeTool — getEvents — time range filtering", () => {
-  it("filters events by startTimeMs", () => {
+  it("filters events by startTimeMs", async () => {
     const events = [
       makePageTransitionEvent(100, "/early"),
       makePageTransitionEvent(500, "/mid"),
       makePageTransitionEvent(1000, "/late"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { startTimeMs: 400 }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { startTimeMs: 400 })) as {
       events: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.events.length, 2);
     assert.strictEqual(result.events[0]!.to, "/mid");
   });
 
-  it("filters events by endTimeMs", () => {
+  it("filters events by endTimeMs", async () => {
     const events = [
       makePageTransitionEvent(100, "/early"),
       makePageTransitionEvent(500, "/mid"),
       makePageTransitionEvent(1000, "/late"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { endTimeMs: 600 }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { endTimeMs: 600 })) as {
       events: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.events.length, 2);
@@ -236,16 +237,16 @@ describe("executeTool — getEvents — time range filtering", () => {
 });
 
 describe("executeTool — getEvents — eventTypes filter", () => {
-  it("filters to only specified event types", () => {
+  it("filters to only specified event types", async () => {
     const events = [
       makePageTransitionEvent(100, "/page"),
       makeClickEvent(200, "button"),
       makeScrollEvent(300),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", {
+    const result = await runFuture(executeTool(accessor, "getEvents", {
       eventTypes: ["click"],
-    }) as {
+    })) as {
       events: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.events.length, 1);
@@ -254,7 +255,7 @@ describe("executeTool — getEvents — eventTypes filter", () => {
 });
 
 describe("executeTool — getEvents — limit and hasMore", () => {
-  it("truncates results and sets hasMore when limit exceeded", () => {
+  it("truncates results and sets hasMore when limit exceeded", async () => {
     const events = [
       makePageTransitionEvent(100, "/a"),
       makePageTransitionEvent(200, "/b"),
@@ -263,7 +264,7 @@ describe("executeTool — getEvents — limit and hasMore", () => {
       makePageTransitionEvent(500, "/e"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { limit: 2 }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { limit: 2 })) as {
       events: Array<Record<string, unknown>>;
       hasMore: boolean;
     };
@@ -271,13 +272,13 @@ describe("executeTool — getEvents — limit and hasMore", () => {
     assert.strictEqual(result.hasMore, true);
   });
 
-  it("does not set hasMore when results fit within limit", () => {
+  it("does not set hasMore when results fit within limit", async () => {
     const events = [
       makePageTransitionEvent(100, "/a"),
       makePageTransitionEvent(200, "/b"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { limit: 10 }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { limit: 10 })) as {
       events: Array<Record<string, unknown>>;
       hasMore?: boolean;
     };
@@ -287,7 +288,7 @@ describe("executeTool — getEvents — limit and hasMore", () => {
 });
 
 describe("executeTool — getEvents — summary tier", () => {
-  it("returns counts object not individual events at summary tier", () => {
+  it("returns counts object not individual events at summary tier", async () => {
     const events = [
       makePageTransitionEvent(100, "/a"),
       makeClickEvent(200, "button"),
@@ -295,9 +296,9 @@ describe("executeTool — getEvents — summary tier", () => {
       makeDOMPatchEvent(400),
     ];
     const accessor = makeAccessor(events, 5000);
-    const result = executeTool(accessor, "getEvents", {
+    const result = await runFuture(executeTool(accessor, "getEvents", {
       detail: "summary",
-    }) as {
+    })) as {
       totalEvents: number;
       counts: Record<string, number>;
       durationMs: number;
@@ -314,10 +315,10 @@ describe("executeTool — getEvents — summary tier", () => {
 });
 
 describe("executeTool — getEvents — scroll event", () => {
-  it("includes target and to at normal tier", () => {
+  it("includes target and to at normal tier", async () => {
     const events = [makeScrollEvent(500, "00042" as NodeId, [0, 0], [0, 400])];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { detail: "normal" })) as {
       events: Array<Record<string, unknown>>;
     };
     const ev = result.events[0]!;
@@ -327,12 +328,12 @@ describe("executeTool — getEvents — scroll event", () => {
     assert.ok(!("from" in ev));
   });
 
-  it("includes from and to at full tier", () => {
+  it("includes from and to at full tier", async () => {
     const events = [
       makeScrollEvent(500, "00042" as NodeId, [0, 100], [0, 400]),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { detail: "full" }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { detail: "full" })) as {
       events: Array<Record<string, unknown>>;
     };
     const ev = result.events[0]!;
@@ -342,10 +343,10 @@ describe("executeTool — getEvents — scroll event", () => {
 });
 
 describe("executeTool — getEvents — pageTransition", () => {
-  it("includes from and to when from is set", () => {
+  it("includes from and to when from is set", async () => {
     const events = [makePageTransitionEvent(500, "/next", "/current")];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", {}) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", {})) as {
       events: Array<Record<string, unknown>>;
     };
     const ev = result.events[0]!;
@@ -353,10 +354,10 @@ describe("executeTool — getEvents — pageTransition", () => {
     assert.strictEqual(ev.to, "/next");
   });
 
-  it("omits from when null", () => {
+  it("omits from when null", async () => {
     const events = [makePageTransitionEvent(500, "/initial", null)];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", {}) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", {})) as {
       events: Array<Record<string, unknown>>;
     };
     const ev = result.events[0]!;
@@ -366,10 +367,10 @@ describe("executeTool — getEvents — pageTransition", () => {
 });
 
 describe("executeTool — getEvents — viewportResize", () => {
-  it("returns to dimensions at normal tier", () => {
+  it("returns to dimensions at normal tier", async () => {
     const events = [makeViewportResizeEvent(500, [1024, 768], [800, 600])];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { detail: "normal" })) as {
       events: Array<Record<string, unknown>>;
     };
     const ev = result.events[0]!;
@@ -378,10 +379,10 @@ describe("executeTool — getEvents — viewportResize", () => {
     assert.ok(!("from" in ev));
   });
 
-  it("returns from and to at full tier", () => {
+  it("returns from and to at full tier", async () => {
     const events = [makeViewportResizeEvent(500, [1024, 768], [800, 600])];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { detail: "full" }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { detail: "full" })) as {
       events: Array<Record<string, unknown>>;
     };
     const ev = result.events[0]!;
@@ -391,10 +392,10 @@ describe("executeTool — getEvents — viewportResize", () => {
 });
 
 describe("executeTool — getEvents — doubleClick", () => {
-  it("returns doubleClick event with label at normal tier", () => {
+  it("returns doubleClick event with label at normal tier", async () => {
     const events = [makeDoubleClickEvent(700, "image")];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getEvents", { detail: "normal" }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { detail: "normal" })) as {
       events: Array<Record<string, unknown>>;
     };
     const ev = result.events[0]!;
@@ -404,7 +405,7 @@ describe("executeTool — getEvents — doubleClick", () => {
 });
 
 describe("executeTool — getEvents — endTimeMs and duration fallback", () => {
-  it("returns events when endTimeMs is omitted and getDuration returns zero", () => {
+  it("returns events when endTimeMs is omitted and getDuration returns zero", async () => {
     const events = [
       makePageTransitionEvent(100, "/a"),
       makePageTransitionEvent(500, "/b"),
@@ -417,13 +418,13 @@ describe("executeTool — getEvents — endTimeMs and duration fallback", () => 
         over: (i) => events[i] ?? null,
       }),
     };
-    const result = executeTool(accessor, "getEvents", {}) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", {})) as {
       events: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.events.length, 2);
   });
 
-  it("uses explicit endTimeMs when provided even if getDuration is zero", () => {
+  it("uses explicit endTimeMs when provided even if getDuration is zero", async () => {
     const events = [
       makePageTransitionEvent(100, "/a"),
       makePageTransitionEvent(500, "/b"),
@@ -437,14 +438,14 @@ describe("executeTool — getEvents — endTimeMs and duration fallback", () => 
         over: (i) => events[i] ?? null,
       }),
     };
-    const result = executeTool(accessor, "getEvents", { endTimeMs: 600 }) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", { endTimeMs: 600 })) as {
       events: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.events.length, 2);
     assert.strictEqual(result.events[1]!.to, "/b");
   });
 
-  it("uses getDuration as upper bound when positive and endTimeMs is omitted", () => {
+  it("uses getDuration as upper bound when positive and endTimeMs is omitted", async () => {
     const events = [
       makePageTransitionEvent(100, "/a"),
       makePageTransitionEvent(500, "/b"),
@@ -458,7 +459,7 @@ describe("executeTool — getEvents — endTimeMs and duration fallback", () => 
         over: (i) => events[i] ?? null,
       }),
     };
-    const result = executeTool(accessor, "getEvents", {}) as {
+    const result = await runFuture(executeTool(accessor, "getEvents", {})) as {
       events: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.events.length, 2);

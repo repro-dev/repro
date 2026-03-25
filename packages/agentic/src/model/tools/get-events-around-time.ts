@@ -12,6 +12,7 @@ import {
   ViewportResize,
 } from "@repro/domain";
 import { Box } from "@repro/tdl";
+import { resolve } from "fluture";
 import {
   createError,
   isConsoleEvent,
@@ -122,11 +123,11 @@ export const handler: ToolHandler = (recording, args) => {
   const duration = recording.getDuration();
 
   if (timestampMs < 0 || timestampMs > duration) {
-    return createError(
+    return resolve(createError(
       `Timestamp ${timestampMs}ms is outside the recording range (0–${duration}ms)`,
       "The provided timestamp falls outside the bounds of the recording",
       "Call getRecordingDuration() to get the valid time range, then retry with a timestamp between 0 and the recording duration",
-    );
+    ));
   }
 
   const halfWindow = windowMs / 2;
@@ -183,12 +184,12 @@ export const handler: ToolHandler = (recording, args) => {
     }
   }
 
-  return {
+  return resolve({
     centerMs: timestampMs,
     windowMs,
     rangeStartMs: startTime,
     rangeEndMs: endTime,
     events: result,
     _tokenEstimate: Math.ceil(JSON.stringify(result).length / 4) + 20,
-  };
+  });
 };

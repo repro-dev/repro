@@ -1,3 +1,4 @@
+import { resolve } from "fluture";
 import { estimateTokens } from "../token-optimization";
 import type { ToolHandler } from "./common";
 
@@ -23,5 +24,5 @@ export const TOOL_DEFINITION = {
 
 export const handler: ToolHandler = (recording) => {
   const result = { durationMs: recording.getDuration() };
-  return { ...result, _tokenEstimate: estimateTokens(result) };
+  return resolve({ ...result, _tokenEstimate: estimateTokens(result) });
 };

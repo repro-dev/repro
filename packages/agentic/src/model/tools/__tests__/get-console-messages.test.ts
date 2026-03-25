@@ -2,10 +2,10 @@ import { LogLevel } from "@repro/domain";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { executeTool, tools } from "../index";
-import { makeAccessor, makeConsoleEvent, makeEmptyAccessor } from "./helpers";
+import { makeAccessor, makeConsoleEvent, makeEmptyAccessor, runFuture } from "./helpers";
 
 describe("tools array — getConsoleMessages", () => {
-  it("includes getConsoleMessages tool definition", () => {
+  it("includes getConsoleMessages tool definition", async () => {
     const def = tools.find(
       (t) =>
         (t as { function: { name: string } }).function.name ===
@@ -14,7 +14,7 @@ describe("tools array — getConsoleMessages", () => {
     assert.ok(def !== undefined);
   });
 
-  it("includes detail parameter with summary/normal/full enum", () => {
+  it("includes detail parameter with summary/normal/full enum", async () => {
     const def = tools.find(
       (t) =>
         (t as { function: { name: string } }).function.name ===
@@ -34,9 +34,9 @@ describe("tools array — getConsoleMessages", () => {
 });
 
 describe("executeTool — getConsoleMessages — empty", () => {
-  it("returns empty messages array with summary and _tokenEstimate", () => {
+  it("returns empty messages array with summary and _tokenEstimate", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "getConsoleMessages", {}) as {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {})) as {
       messages: unknown[];
       summary: {
         verbose: number;
@@ -53,7 +53,7 @@ describe("executeTool — getConsoleMessages — empty", () => {
 });
 
 describe("executeTool — getConsoleMessages — summary tier", () => {
-  it("returns only error messages, max 3", () => {
+  it("returns only error messages, max 3", async () => {
     const events = [
       makeConsoleEvent(100, LogLevel.Info, "info message"),
       makeConsoleEvent(200, LogLevel.Warning, "warning message"),
@@ -63,25 +63,25 @@ describe("executeTool — getConsoleMessages — summary tier", () => {
       makeConsoleEvent(600, LogLevel.Error, "error four"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       detail: "summary",
-    }) as { messages: Array<{ level: string }> };
+    })) as { messages: Array<{ level: string }> };
     assert.ok(result.messages.every((m) => m.level === "error"));
     assert.ok(result.messages.length <= 3);
   });
 
-  it("truncates text to 100 chars", () => {
+  it("truncates text to 100 chars", async () => {
     const longText = "a".repeat(150);
     const events = [makeConsoleEvent(100, LogLevel.Error, longText)];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       detail: "summary",
-    }) as { messages: Array<{ text: string }> };
+    })) as { messages: Array<{ text: string }> };
     assert.ok(result.messages[0]!.text.length <= 100);
     assert.ok(result.messages[0]!.text.endsWith("…"));
   });
 
-  it("omits stack traces", () => {
+  it("omits stack traces", async () => {
     const events = [
       makeConsoleEvent(100, LogLevel.Error, "error", [
         {
@@ -92,22 +92,22 @@ describe("executeTool — getConsoleMessages — summary tier", () => {
       ]),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       detail: "summary",
-    }) as { messages: Array<{ stack?: unknown }> };
+    })) as { messages: Array<{ stack?: unknown }> };
     assert.ok(result.messages[0]!.stack === undefined);
   });
 
-  it("deduplicates identical messages with count", () => {
+  it("deduplicates identical messages with count", async () => {
     const events = [
       makeConsoleEvent(100, LogLevel.Error, "same error"),
       makeConsoleEvent(200, LogLevel.Error, "same error"),
       makeConsoleEvent(300, LogLevel.Error, "same error"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       detail: "summary",
-    }) as { messages: Array<{ text: string; count: number; timeMs: number }> };
+    })) as { messages: Array<{ text: string; count: number; timeMs: number }> };
     assert.strictEqual(result.messages.length, 1);
     assert.strictEqual(result.messages[0]!.count, 3);
     assert.strictEqual(result.messages[0]!.timeMs, 100);
@@ -115,7 +115,7 @@ describe("executeTool — getConsoleMessages — summary tier", () => {
 });
 
 describe("executeTool — getConsoleMessages — normal tier", () => {
-  it("includes errors and warnings", () => {
+  it("includes errors and warnings", async () => {
     const events = [
       makeConsoleEvent(100, LogLevel.Verbose, "verbose message"),
       makeConsoleEvent(200, LogLevel.Info, "info message"),
@@ -123,9 +123,9 @@ describe("executeTool — getConsoleMessages — normal tier", () => {
       makeConsoleEvent(400, LogLevel.Error, "error message"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       detail: "normal",
-    }) as { messages: Array<{ level: string }> };
+    })) as { messages: Array<{ level: string }> };
     const levels = result.messages.map((m) => m.level);
     assert.ok(levels.includes("warning"));
     assert.ok(levels.includes("error"));
@@ -133,18 +133,18 @@ describe("executeTool — getConsoleMessages — normal tier", () => {
     assert.ok(!levels.includes("info"));
   });
 
-  it("truncates text to 200 chars", () => {
+  it("truncates text to 200 chars", async () => {
     const longText = "b".repeat(300);
     const events = [makeConsoleEvent(100, LogLevel.Warning, longText)];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       detail: "normal",
-    }) as { messages: Array<{ text: string }> };
+    })) as { messages: Array<{ text: string }> };
     assert.ok(result.messages[0]!.text.length <= 200);
     assert.ok(result.messages[0]!.text.endsWith("…"));
   });
 
-  it("shortens stack frames to basename:line:col format, max 3 frames", () => {
+  it("shortens stack frames to basename:line:col format, max 3 frames", async () => {
     const events = [
       makeConsoleEvent(100, LogLevel.Warning, "warn", [
         {
@@ -170,9 +170,9 @@ describe("executeTool — getConsoleMessages — normal tier", () => {
       ]),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       detail: "normal",
-    }) as { messages: Array<{ stack?: string[] }> };
+    })) as { messages: Array<{ stack?: string[] }> };
     const stack = result.messages[0]!.stack!;
     assert.ok(Array.isArray(stack));
     assert.ok(stack.length <= 3);
@@ -180,20 +180,20 @@ describe("executeTool — getConsoleMessages — normal tier", () => {
     assert.strictEqual(stack[1], "renderWithHooks.js:18:5");
   });
 
-  it("deduplicates identical messages with count", () => {
+  it("deduplicates identical messages with count", async () => {
     const events = [
       makeConsoleEvent(100, LogLevel.Warning, "same warning"),
       makeConsoleEvent(200, LogLevel.Warning, "same warning"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       detail: "normal",
-    }) as { messages: Array<{ text: string; count: number }> };
+    })) as { messages: Array<{ text: string; count: number }> };
     assert.strictEqual(result.messages.length, 1);
     assert.strictEqual(result.messages[0]!.count, 2);
   });
 
-  it("default detail is normal when not specified", () => {
+  it("default detail is normal when not specified", async () => {
     const events = [
       makeConsoleEvent(100, LogLevel.Verbose, "verbose"),
       makeConsoleEvent(200, LogLevel.Info, "info"),
@@ -201,7 +201,7 @@ describe("executeTool — getConsoleMessages — normal tier", () => {
       makeConsoleEvent(400, LogLevel.Error, "error"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {}) as {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {})) as {
       messages: Array<{ level: string }>;
     };
     const levels = result.messages.map((m) => m.level);
@@ -213,7 +213,7 @@ describe("executeTool — getConsoleMessages — normal tier", () => {
 });
 
 describe("executeTool — getConsoleMessages — full tier", () => {
-  it("includes all messages at requested level", () => {
+  it("includes all messages at requested level", async () => {
     const events = [
       makeConsoleEvent(100, LogLevel.Verbose, "verbose message"),
       makeConsoleEvent(200, LogLevel.Info, "info message"),
@@ -221,10 +221,10 @@ describe("executeTool — getConsoleMessages — full tier", () => {
       makeConsoleEvent(400, LogLevel.Error, "error message"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       detail: "full",
       logLevel: "verbose",
-    }) as { messages: Array<{ level: string }> };
+    })) as { messages: Array<{ level: string }> };
     const levels = result.messages.map((m) => m.level);
     assert.ok(levels.includes("verbose"));
     assert.ok(levels.includes("info"));
@@ -232,19 +232,19 @@ describe("executeTool — getConsoleMessages — full tier", () => {
     assert.ok(levels.includes("error"));
   });
 
-  it("truncates text to 500 chars", () => {
+  it("truncates text to 500 chars", async () => {
     const longText = "c".repeat(600);
     const events = [makeConsoleEvent(100, LogLevel.Info, longText)];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       detail: "full",
       logLevel: "info",
-    }) as { messages: Array<{ text: string }> };
+    })) as { messages: Array<{ text: string }> };
     assert.ok(result.messages[0]!.text.length <= 500);
     assert.ok(result.messages[0]!.text.endsWith("…"));
   });
 
-  it("includes stack frames up to 10 with no dedup", () => {
+  it("includes stack frames up to 10 with no dedup", async () => {
     const stack = Array.from({ length: 12 }, (_, i) => ({
       fileName: `https://cdn.example.com/file${i}.js`,
       lineNumber: i + 1,
@@ -255,9 +255,9 @@ describe("executeTool — getConsoleMessages — full tier", () => {
       makeConsoleEvent(200, LogLevel.Error, "error one", stack),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       detail: "full",
-    }) as {
+    })) as {
       messages: Array<{ text: string; stack?: string[]; count?: number }>;
     };
     assert.strictEqual(result.messages.length, 2);
@@ -267,7 +267,7 @@ describe("executeTool — getConsoleMessages — full tier", () => {
 });
 
 describe("executeTool — getConsoleMessages — cross-tier", () => {
-  it("all tiers include summary with level counts", () => {
+  it("all tiers include summary with level counts", async () => {
     const events = [
       makeConsoleEvent(100, LogLevel.Verbose, "v1"),
       makeConsoleEvent(200, LogLevel.Info, "i1"),
@@ -279,10 +279,10 @@ describe("executeTool — getConsoleMessages — cross-tier", () => {
     ];
     const accessor = makeAccessor(events);
     for (const detail of ["summary", "normal", "full"] as const) {
-      const result = executeTool(accessor, "getConsoleMessages", {
+      const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
         detail,
         logLevel: "verbose",
-      }) as {
+      })) as {
         summary: {
           verbose: number;
           info: number;
@@ -298,13 +298,13 @@ describe("executeTool — getConsoleMessages — cross-tier", () => {
     }
   });
 
-  it("all tiers include _tokenEstimate", () => {
+  it("all tiers include _tokenEstimate", async () => {
     const events = [makeConsoleEvent(100, LogLevel.Error, "error message")];
     const accessor = makeAccessor(events);
     for (const detail of ["summary", "normal", "full"] as const) {
-      const result = executeTool(accessor, "getConsoleMessages", {
+      const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
         detail,
-      }) as { _tokenEstimate: number };
+      })) as { _tokenEstimate: number };
       assert.ok(
         typeof result._tokenEstimate === "number",
         `${detail} should have _tokenEstimate`,
@@ -313,36 +313,36 @@ describe("executeTool — getConsoleMessages — cross-tier", () => {
     }
   });
 
-  it("time range filtering works with detail parameter", () => {
+  it("time range filtering works with detail parameter", async () => {
     const events = [
       makeConsoleEvent(100, LogLevel.Error, "early error"),
       makeConsoleEvent(500, LogLevel.Error, "mid error"),
       makeConsoleEvent(900, LogLevel.Error, "late error"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       detail: "normal",
       timeRangeStartMs: 200,
       timeRangeEndMs: 700,
-    }) as { messages: Array<{ text: string }> };
+    })) as { messages: Array<{ text: string }> };
     assert.strictEqual(result.messages.length, 1);
     assert.ok(result.messages[0]!.text.includes("mid error"));
   });
 
-  it("returns _hint when messages are empty and logLevel filter was provided", () => {
+  it("returns _hint when messages are empty and logLevel filter was provided", async () => {
     const events = [makeConsoleEvent(100, LogLevel.Info, "info message")];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "getConsoleMessages", {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {
       logLevel: "error",
-    }) as { messages: unknown[]; _hint?: string };
+    })) as { messages: unknown[]; _hint?: string };
     assert.strictEqual(result.messages.length, 0);
     assert.ok(result._hint);
     assert.ok(result._hint.includes("getConsoleMessages"));
   });
 
-  it("does not return _hint when no logLevel filter and messages are empty", () => {
+  it("does not return _hint when no logLevel filter and messages are empty", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "getConsoleMessages", {}) as {
+    const result = await runFuture(executeTool(accessor, "getConsoleMessages", {})) as {
       messages: unknown[];
       _hint?: string;
     };

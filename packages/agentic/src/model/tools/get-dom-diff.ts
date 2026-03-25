@@ -1,5 +1,6 @@
 import { PatchType, SourceEventType, SyntheticId, VTree } from '@repro/domain'
 import { Box } from '@repro/tdl'
+import { resolve } from 'fluture'
 import { DetailLevel, estimateTokens, truncate } from '../token-optimization'
 import { createError, isDOMPatchEvent } from './common'
 import type { ToolHandler } from './common'
@@ -82,55 +83,55 @@ export const handler: ToolHandler = (recording, args) => {
 
   // Input validation with self-healing errors
   if (!nodeId) {
-    return createError(
+    return resolve(createError(
       'nodeId parameter is required',
       'The nodeId parameter was not provided',
       'Call getDOMState() to get a DOM snapshot, then use a nodeId value from the [ref=<nodeId>] attributes in the output'
-    )
+    ))
   }
 
   if (fromTimestampMs === undefined) {
-    return createError(
+    return resolve(createError(
       'fromTimestampMs parameter is required',
       'The fromTimestampMs parameter was not provided',
       'Call getRecordingDuration() to get the valid recording time range, then provide a start timestamp'
-    )
+    ))
   }
 
   if (toTimestampMs === undefined) {
-    return createError(
+    return resolve(createError(
       'toTimestampMs parameter is required',
       'The toTimestampMs parameter was not provided',
       'Call getRecordingDuration() to get the valid recording time range, then provide an end timestamp'
-    )
+    ))
   }
 
   if (fromTimestampMs >= toTimestampMs) {
-    return createError(
+    return resolve(createError(
       'Invalid time range: fromTimestampMs must be less than toTimestampMs',
       'The provided timestamp range is empty or reversed',
       'Call getRecordingDuration() to get the valid recording time range, then provide a non-empty range'
-    )
+    ))
   }
 
   const snapshot = recording.getSnapshotAtTime(fromTimestampMs)
   if (!snapshot || !snapshot.dom) {
-    return createError(
+    return resolve(createError(
       'No DOM snapshot available at the specified time',
       'The timestamp may be outside the recording range or no DOM snapshot was captured at this point',
       'Call getRecordingDuration() to get the valid recording time range, then retry with a timestamp within that range'
-    )
+    ))
   }
 
   const vtree = snapshot.dom as VTree
 
   // Verify the target node exists in the snapshot
   if (!vtree.nodes[nodeId as SyntheticId]) {
-    return createError(
+    return resolve(createError(
       `Element with nodeId "${nodeId}" not found in the DOM snapshot`,
       'The nodeId may be stale, from a different timestamp, or the element may not yet exist at this point in the recording',
       'Call getDOMState() at the same timestamp to get fresh nodeId values from the current DOM snapshot'
-    )
+    ))
   }
 
   // Build initial set of node IDs in the target subtree
@@ -270,7 +271,7 @@ export const handler: ToolHandler = (recording, args) => {
 
   if (detail === 'summary') {
     const result = { attributeChanges, textChanges, propertyChanges, nodesAdded, nodesRemoved }
-    return { ...result, _tokenEstimate: estimateTokens(result) }
+    return resolve({ ...result, _tokenEstimate: estimateTokens(result) })
   }
 
   const result: Record<string, unknown> = {
@@ -287,5 +288,5 @@ export const handler: ToolHandler = (recording, args) => {
     result.removedNodeIds = removedNodeIds
   }
 
-  return { ...result, _tokenEstimate: estimateTokens(result) }
+  return resolve({ ...result, _tokenEstimate: estimateTokens(result) })
 }

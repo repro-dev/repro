@@ -1,5 +1,6 @@
 import { NodeType } from "@repro/domain";
 import { Box } from "@repro/tdl";
+import { resolve } from "fluture";
 import { buildA11yTree, formatA11yTree } from "@repro/vdom-utils";
 import { estimateTokens } from "../token-optimization";
 import { createError } from "./common";
@@ -42,7 +43,7 @@ export const handler: ToolHandler = (recording, args) => {
       "The timestamp may be outside the recording range or no DOM snapshot was captured at this point",
       "Call getRecordingDuration() to get the valid recording time range, then retry with a timestamp within that range",
     );
-    return { ...err, _tokenEstimate: estimateTokens(err) };
+    return resolve({ ...err, _tokenEstimate: estimateTokens(err) });
   }
 
   const vtree = snapshot.dom;
@@ -56,12 +57,12 @@ export const handler: ToolHandler = (recording, args) => {
         "The DOM snapshot may be incomplete or corrupted at this timestamp",
         'Retry with mode: "summary" for a lighter-weight view, or try a different timestamp using getRecordingDuration() to find a valid range',
       );
-      return { ...err, _tokenEstimate: estimateTokens(err) };
+      return resolve({ ...err, _tokenEstimate: estimateTokens(err) });
     }
 
     const formatted = formatA11yTree(tree);
     const result = { mode: "a11y" as const, tree: formatted, timestampMs };
-    return { ...result, _tokenEstimate: estimateTokens(result) };
+    return resolve({ ...result, _tokenEstimate: estimateTokens(result) });
   }
 
   let elementCount = 0;
@@ -94,5 +95,5 @@ export const handler: ToolHandler = (recording, args) => {
     topTags,
     timestampMs,
   };
-  return { ...result, _tokenEstimate: estimateTokens(result) };
+  return resolve({ ...result, _tokenEstimate: estimateTokens(result) });
 };

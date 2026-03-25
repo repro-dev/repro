@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { executeTool, tools } from "../index";
-import { makeAccessor, makeEmptyAccessor } from "./helpers";
+import { makeAccessor, makeEmptyAccessor, runFuture } from "./helpers";
 
 describe("tools array", () => {
-  it("exports a non-empty array of tool definitions", () => {
+  it("exports a non-empty array of tool definitions", async () => {
     assert.ok(Array.isArray(tools));
     assert.ok(tools.length > 0);
   });
 
-  it("includes getRecordingDuration tool definition", () => {
+  it("includes getRecordingDuration tool definition", async () => {
     const def = tools.find(
       (t) =>
         (t as { function: { name: string } }).function.name ===
@@ -18,7 +18,7 @@ describe("tools array", () => {
     assert.ok(def !== undefined);
   });
 
-  it("getRecordingDuration tool includes detail parameter with enum", () => {
+  it("getRecordingDuration tool includes detail parameter with enum", async () => {
     const def = tools.find(
       (t) =>
         (t as { function: { name: string } }).function.name ===
@@ -41,18 +41,18 @@ describe("tools array", () => {
 });
 
 describe("executeTool — getRecordingDuration", () => {
-  it("returns duration from getDuration()", () => {
+  it("returns duration from getDuration()", async () => {
     const accessor = makeAccessor([], 9876);
-    const result = executeTool(accessor, "getRecordingDuration", {}) as {
+    const result = await runFuture(executeTool(accessor, "getRecordingDuration", {})) as {
       durationMs: number;
       _tokenEstimate: number;
     };
     assert.strictEqual(result.durationMs, 9876);
   });
 
-  it("includes _tokenEstimate in response", () => {
+  it("includes _tokenEstimate in response", async () => {
     const accessor = makeAccessor([], 9876);
-    const result = executeTool(accessor, "getRecordingDuration", {}) as {
+    const result = await runFuture(executeTool(accessor, "getRecordingDuration", {})) as {
       durationMs: number;
       _tokenEstimate: number;
     };
@@ -60,9 +60,9 @@ describe("executeTool — getRecordingDuration", () => {
     assert.ok(result._tokenEstimate > 0);
   });
 
-  it("returns duration of 0 for empty recording", () => {
+  it("returns duration of 0 for empty recording", async () => {
     const accessor = makeAccessor([], 0);
-    const result = executeTool(accessor, "getRecordingDuration", {}) as {
+    const result = await runFuture(executeTool(accessor, "getRecordingDuration", {})) as {
       durationMs: number;
     };
     assert.strictEqual(result.durationMs, 0);
@@ -70,17 +70,17 @@ describe("executeTool — getRecordingDuration", () => {
 });
 
 describe("executeTool — unknown tool", () => {
-  it("returns error for an unknown tool name", () => {
+  it("returns error for an unknown tool name", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "doesNotExist", {}) as {
+    const result = await runFuture(executeTool(accessor, "doesNotExist", {})) as {
       error: string;
     };
     assert.ok(result.error.includes("Unknown tool: doesNotExist"));
   });
 
-  it("returns reason and suggestion for unknown tool", () => {
+  it("returns reason and suggestion for unknown tool", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "doesNotExist", {}) as {
+    const result = await runFuture(executeTool(accessor, "doesNotExist", {})) as {
       error: string;
       reason: string;
       suggestion: string;

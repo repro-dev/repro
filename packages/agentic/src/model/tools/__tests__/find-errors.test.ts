@@ -8,10 +8,11 @@ import {
   makeEmptyAccessor,
   makeFetchRequestEvent,
   makeFetchResponseEvent,
+  runFuture,
 } from "./helpers";
 
 describe("tools array — findErrors", () => {
-  it("includes findErrors tool definition", () => {
+  it("includes findErrors tool definition", async () => {
     const def = tools.find(
       (t) =>
         (t as { function: { name: string } }).function.name === "findErrors",
@@ -19,7 +20,7 @@ describe("tools array — findErrors", () => {
     assert.ok(def !== undefined);
   });
 
-  it("includes detail parameter with summary/normal/full enum", () => {
+  it("includes detail parameter with summary/normal/full enum", async () => {
     const def = tools.find(
       (t) =>
         (t as { function: { name: string } }).function.name === "findErrors",
@@ -34,9 +35,9 @@ describe("tools array — findErrors", () => {
 });
 
 describe("executeTool — findErrors — basic", () => {
-  it("returns empty errors for recording with no errors", () => {
+  it("returns empty errors for recording with no errors", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "findErrors", {}) as {
+    const result = await runFuture(executeTool(accessor, "findErrors", {})) as {
       errors: unknown[];
       summary: { console: number; network: number; total: number };
     };
@@ -48,12 +49,12 @@ describe("executeTool — findErrors — basic", () => {
     });
   });
 
-  it("finds console errors", () => {
+  it("finds console errors", async () => {
     const events = [
       makeConsoleErrorEvent(500, "TypeError: Cannot read property x"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", {}) as {
+    const result = await runFuture(executeTool(accessor, "findErrors", {})) as {
       errors: Array<{ time: number; source: string; summary: string }>;
       summary: { console: number; network: number; total: number };
     };
@@ -65,20 +66,20 @@ describe("executeTool — findErrors — basic", () => {
     assert.strictEqual(result.summary.total, 1);
   });
 
-  it("excludes non-error console messages", () => {
+  it("excludes non-error console messages", async () => {
     const events = [
       makeConsoleInfoEvent(100, "debug info"),
       makeConsoleErrorEvent(200, "real error"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", {}) as {
+    const result = await runFuture(executeTool(accessor, "findErrors", {})) as {
       errors: Array<{ source: string }>;
     };
     assert.strictEqual(result.errors.length, 1);
     assert.strictEqual(result.errors[0]!.source, "console");
   });
 
-  it("finds network errors (status >= 400)", () => {
+  it("finds network errors (status >= 400)", async () => {
     const events = [
       makeFetchRequestEvent(
         100,
@@ -89,7 +90,7 @@ describe("executeTool — findErrors — basic", () => {
       makeFetchResponseEvent(200, "req1", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", {}) as {
+    const result = await runFuture(executeTool(accessor, "findErrors", {})) as {
       errors: Array<{ time: number; source: string; summary: string }>;
       summary: { network: number };
     };
@@ -100,26 +101,26 @@ describe("executeTool — findErrors — basic", () => {
     assert.strictEqual(result.summary.network, 1);
   });
 
-  it("excludes successful network requests", () => {
+  it("excludes successful network requests", async () => {
     const events = [
       makeFetchRequestEvent(100, "req1", "https://example.com/ok", "GET"),
       makeFetchResponseEvent(200, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", {}) as {
+    const result = await runFuture(executeTool(accessor, "findErrors", {})) as {
       errors: unknown[];
     };
     assert.strictEqual(result.errors.length, 0);
   });
 
-  it("combines and sorts console and network errors chronologically", () => {
+  it("combines and sorts console and network errors chronologically", async () => {
     const events = [
       makeConsoleErrorEvent(300, "Error after request"),
       makeFetchRequestEvent(100, "req1", "https://example.com/fail", "POST"),
       makeFetchResponseEvent(200, "req1", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", {}) as {
+    const result = await runFuture(executeTool(accessor, "findErrors", {})) as {
       errors: Array<{ time: number; source: string }>;
     };
     assert.strictEqual(result.errors.length, 2);
@@ -129,24 +130,24 @@ describe("executeTool — findErrors — basic", () => {
     assert.strictEqual(result.errors[1]!.time, 300);
   });
 
-  it("filters by time range", () => {
+  it("filters by time range", async () => {
     const events = [
       makeConsoleErrorEvent(100, "early error"),
       makeConsoleErrorEvent(500, "mid error"),
       makeConsoleErrorEvent(900, "late error"),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", {
+    const result = await runFuture(executeTool(accessor, "findErrors", {
       timeRangeStartMs: 200,
       timeRangeEndMs: 600,
-    }) as {
+    })) as {
       errors: Array<{ time: number }>;
     };
     assert.strictEqual(result.errors.length, 1);
     assert.strictEqual(result.errors[0]!.time, 500);
   });
 
-  it("uses pathname in network error summary", () => {
+  it("uses pathname in network error summary", async () => {
     const events = [
       makeFetchRequestEvent(
         100,
@@ -157,7 +158,7 @@ describe("executeTool — findErrors — basic", () => {
       makeFetchResponseEvent(200, "req1", 403),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", {}) as {
+    const result = await runFuture(executeTool(accessor, "findErrors", {})) as {
       errors: Array<{ summary: string }>;
     };
     assert.ok(result.errors[0]!.summary.includes("/v2/users"));
@@ -167,7 +168,7 @@ describe("executeTool — findErrors — basic", () => {
 });
 
 describe("executeTool — findErrors — normal tier (default)", () => {
-  it("includes stack traces from console errors as basename:line:col", () => {
+  it("includes stack traces from console errors as basename:line:col", async () => {
     const events = [
       makeConsoleErrorEvent(100, "TypeError", [
         {
@@ -185,7 +186,7 @@ describe("executeTool — findErrors — normal tier (default)", () => {
       ]),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", {}) as {
+    const result = await runFuture(executeTool(accessor, "findErrors", {})) as {
       errors: Array<{ stack?: string[] }>;
     };
     assert.ok(result.errors[0]!.stack);
@@ -197,7 +198,7 @@ describe("executeTool — findErrors — normal tier (default)", () => {
     assert.strictEqual(result.errors[0]!.stack![1], "react-dom.prod.js:1234:5");
   });
 
-  it("limits stack traces to 3 frames", () => {
+  it("limits stack traces to 3 frames", async () => {
     const frames = Array.from({ length: 5 }, (_, i) => ({
       functionName: `fn${i}`,
       fileName: `file${i}.js`,
@@ -206,29 +207,29 @@ describe("executeTool — findErrors — normal tier (default)", () => {
     }));
     const events = [makeConsoleErrorEvent(100, "Error", frames)];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", {}) as {
+    const result = await runFuture(executeTool(accessor, "findErrors", {})) as {
       errors: Array<{ stack?: string[] }>;
     };
     assert.strictEqual(result.errors[0]!.stack!.length, 3);
   });
 
-  it("truncates long console error messages to 200 chars", () => {
+  it("truncates long console error messages to 200 chars", async () => {
     const longMessage = "x".repeat(300);
     const events = [makeConsoleErrorEvent(100, longMessage)];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", {}) as {
+    const result = await runFuture(executeTool(accessor, "findErrors", {})) as {
       errors: Array<{ summary: string }>;
     };
     assert.ok(result.errors[0]!.summary.length <= 201);
     assert.ok(result.errors[0]!.summary.endsWith("…"));
   });
 
-  it("includes _tokenEstimate", () => {
+  it("includes _tokenEstimate", async () => {
     const events = [makeConsoleErrorEvent(100, "An error occurred")];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", {
+    const result = await runFuture(executeTool(accessor, "findErrors", {
       detail: "normal",
-    }) as {
+    })) as {
       errors: unknown[];
       _tokenEstimate: number;
     };
@@ -238,7 +239,7 @@ describe("executeTool — findErrors — normal tier (default)", () => {
 });
 
 describe("executeTool — findErrors — summary tier", () => {
-  it("returns counts and at most one error per source without stack frames", () => {
+  it("returns counts and at most one error per source without stack frames", async () => {
     const events = [
       makeConsoleErrorEvent(100, "First error"),
       makeConsoleErrorEvent(150, "Second error"),
@@ -246,9 +247,9 @@ describe("executeTool — findErrors — summary tier", () => {
       makeFetchResponseEvent(300, "req1", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", {
+    const result = await runFuture(executeTool(accessor, "findErrors", {
       detail: "summary",
-    }) as {
+    })) as {
       errors: Array<{
         time: number;
         source: string;
@@ -276,11 +277,11 @@ describe("executeTool — findErrors — summary tier", () => {
     assert.ok(result._tokenEstimate > 0);
   });
 
-  it("returns only counts when there are no errors", () => {
+  it("returns only counts when there are no errors", async () => {
     const accessor = makeEmptyAccessor();
-    const result = executeTool(accessor, "findErrors", {
+    const result = await runFuture(executeTool(accessor, "findErrors", {
       detail: "summary",
-    }) as {
+    })) as {
       errors: unknown[];
       summary: { console: number; network: number; total: number };
       _tokenEstimate: number;
@@ -293,7 +294,7 @@ describe("executeTool — findErrors — summary tier", () => {
 });
 
 describe("executeTool — findErrors — full tier", () => {
-  it("includes up to 10 stack frames", () => {
+  it("includes up to 10 stack frames", async () => {
     const frames = Array.from({ length: 12 }, (_, i) => ({
       functionName: `fn${i}`,
       fileName: `file${i}.js`,
@@ -304,17 +305,17 @@ describe("executeTool — findErrors — full tier", () => {
       makeConsoleErrorEvent(100, "Error with many frames", frames),
     ];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", { detail: "full" }) as {
+    const result = await runFuture(executeTool(accessor, "findErrors", { detail: "full" })) as {
       errors: Array<{ stack?: string[] }>;
     };
     assert.strictEqual(result.errors[0]!.stack!.length, 10);
   });
 
-  it("does not truncate message at 200 chars", () => {
+  it("does not truncate message at 200 chars", async () => {
     const longMessage = "x".repeat(400);
     const events = [makeConsoleErrorEvent(100, longMessage)];
     const accessor = makeAccessor(events);
-    const result = executeTool(accessor, "findErrors", { detail: "full" }) as {
+    const result = await runFuture(executeTool(accessor, "findErrors", { detail: "full" })) as {
       errors: Array<{ summary: string }>;
     };
     assert.ok(result.errors[0]!.summary.length > 200);

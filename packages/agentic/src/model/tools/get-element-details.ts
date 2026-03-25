@@ -1,4 +1,5 @@
 import { NodeType, SyntheticId, VElement, VTree } from '@repro/domain'
+import { resolve } from 'fluture'
 import { estimateTokens } from '../token-optimization'
 import { createError } from './common'
 import type { ToolHandler } from './common'
@@ -232,37 +233,37 @@ export const handler: ToolHandler = (recording, args) => {
   const depth = (args.depth as number) ?? 3
 
   if (!nodeId) {
-    return createError(
+    return resolve(createError(
       'nodeId parameter is required',
       'The nodeId parameter was not provided',
       'Call getDOMState() to get a DOM snapshot, then use the nodeId values from the [ref=<nodeId>] attributes in the output'
-    )
+    ))
   }
   if (timestampMs === undefined) {
-    return createError(
+    return resolve(createError(
       'timestampMs parameter is required',
       'The timestampMs parameter was not provided',
       'Call getRecordingDuration() to get the valid recording time range, then provide a timestamp within that range'
-    )
+    ))
   }
 
   const snapshot = recording.getSnapshotAtTime(timestampMs)
   if (!snapshot || !snapshot.dom) {
-    return createError(
+    return resolve(createError(
       'No DOM snapshot available at the specified time',
       'The timestamp may be outside the recording range or no DOM snapshot was captured at this point',
       'Call getRecordingDuration() to get the valid recording time range, then retry with a timestamp within that range'
-    )
+    ))
   }
 
   const vtree = snapshot.dom
   const element = getVNodeById(vtree, nodeId as SyntheticId)
   if (!element) {
-    return createError(
+    return resolve(createError(
       `Element with nodeId "${nodeId}" not found`,
       'The nodeId may be stale or from a different timestamp',
       'Call getDOMState() at the same timestamp to get fresh nodeId values from the current DOM snapshot'
-    )
+    ))
   }
 
   const attrs: Record<string, string> = {}
@@ -303,7 +304,7 @@ export const handler: ToolHandler = (recording, args) => {
     if (textContent.length > 0) {
       result.textContent = textContent
     }
-    return { ...result, _tokenEstimate: estimateTokens(result) }
+    return resolve({ ...result, _tokenEstimate: estimateTokens(result) })
   }
 
   const textContent = collectTextContent(vtree, element.children, 200)
@@ -311,5 +312,5 @@ export const handler: ToolHandler = (recording, args) => {
     result.textContent = textContent
   }
 
-  return result
+  return resolve(result)
 }

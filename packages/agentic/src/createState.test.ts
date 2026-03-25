@@ -9,7 +9,7 @@ import {
   isValidMessageDelta,
 } from "./createState";
 import { RecordingDataAccessor, StreamProvider, ToolCall } from "./types";
-import { resolve, reject as futureReject } from "fluture";
+import { fork, isFuture, FutureInstance, resolve, reject as futureReject } from "fluture";
 
 function makeEmptyAccessor(): RecordingDataAccessor {
   return {
@@ -238,13 +238,25 @@ describe("accumulateToolCalls", () => {
 });
 
 describe("executeToolCalls", () => {
-  it("returns empty array for empty input", () => {
+  function runFuture<L, R>(fut: FutureInstance<L, R>): Promise<R> {
+    return new Promise((res, rej) => {
+      fut.pipe(fork(rej)(res))
+    })
+  }
+
+  it("returns a FutureInstance", () => {
     const accessor = makeEmptyAccessor();
     const result = executeToolCalls(accessor, []);
+    assert.ok(isFuture(result));
+  });
+
+  it("returns empty array for empty input", async () => {
+    const accessor = makeEmptyAccessor();
+    const result = await runFuture(executeToolCalls(accessor, []));
     assert.deepStrictEqual(result, []);
   });
 
-  it("produces ToolMessage entries for valid tool calls", () => {
+  it("produces ToolMessage entries for valid tool calls", async () => {
     const accessor = makeEmptyAccessor();
     const toolCalls: Array<ToolCall> = [
       {
@@ -253,12 +265,12 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "{}" },
       },
     ];
-    const result = executeToolCalls(accessor, toolCalls, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0]!.role, "tool");
   });
 
-  it("each result includes correct tool_call_id", () => {
+  it("each result includes correct tool_call_id", async () => {
     const accessor = makeEmptyAccessor();
     const toolCalls: Array<ToolCall> = [
       {
@@ -267,11 +279,11 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "{}" },
       },
     ];
-    const result = executeToolCalls(accessor, toolCalls, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
     assert.strictEqual(result[0]!.tool_call_id, "my-call-id");
   });
 
-  it("result content is JSON-serialized tool output", () => {
+  it("result content is JSON-serialized tool output", async () => {
     const accessor = makeEmptyAccessor();
     const toolCalls: Array<ToolCall> = [
       {
@@ -280,12 +292,12 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "{}" },
       },
     ];
-    const result = executeToolCalls(accessor, toolCalls, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
     const parsed = JSON.parse(result[0]!.content) as { durationMs: number };
     assert.strictEqual(parsed.durationMs, 0);
   });
 
-  it("malformed JSON arguments produce error message", () => {
+  it("malformed JSON arguments produce error message", async () => {
     const accessor = makeEmptyAccessor();
     const toolCalls: Array<ToolCall> = [
       {
@@ -294,12 +306,12 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "not-json" },
       },
     ];
-    const result = executeToolCalls(accessor, toolCalls, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
     const parsed = JSON.parse(result[0]!.content) as { error: string };
     assert.ok(typeof parsed.error === "string");
   });
 
-  it("unknown tool name produces error message", () => {
+  it("unknown tool name produces error message", async () => {
     const accessor = makeEmptyAccessor();
     const toolCalls: Array<ToolCall> = [
       {
@@ -308,12 +320,12 @@ describe("executeToolCalls", () => {
         function: { name: "nonExistentTool", arguments: "{}" },
       },
     ];
-    const result = executeToolCalls(accessor, toolCalls, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
     const parsed = JSON.parse(result[0]!.content) as { error: string };
     assert.ok(parsed.error.includes("nonExistentTool"));
   });
 
-  it("empty arguments string treated as empty object", () => {
+  it("empty arguments string treated as empty object", async () => {
     const accessor = makeEmptyAccessor();
     const toolCalls: Array<ToolCall> = [
       {
@@ -322,13 +334,13 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "" },
       },
     ];
-    const result = executeToolCalls(accessor, toolCalls, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
     assert.strictEqual(result.length, 1);
     const parsed = JSON.parse(result[0]!.content) as { durationMs: number };
     assert.strictEqual(parsed.durationMs, 0);
   });
 
-  it("filters out falsy entries in sparse array", () => {
+  it("filters out falsy entries in sparse array", async () => {
     const accessor = makeEmptyAccessor();
     const sparse = [] as Array<ToolCall>;
     sparse[2] = {
@@ -336,9 +348,25 @@ describe("executeToolCalls", () => {
       index: 2,
       function: { name: "getRecordingDuration", arguments: "{}" },
     };
-    const result = executeToolCalls(accessor, sparse, () => "fixed-id");
+    const result = await runFuture(executeToolCalls(accessor, sparse, () => "fixed-id"));
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0]!.tool_call_id, "tc2");
+  });
+
+  it("resolves Future tool handlers before serializing result", async () => {
+    const accessor = makeEmptyAccessor();
+    // getRecordingDuration now returns a Future; verify the resolved value is serialized
+    const toolCalls: Array<ToolCall> = [
+      {
+        id: "async-tc",
+        index: 0,
+        function: { name: "getRecordingDuration", arguments: "{}" },
+      },
+    ];
+    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
+    // If the Future were not resolved, content would be "{}" (empty serialized Future object)
+    const parsed = JSON.parse(result[0]!.content) as { durationMs: number };
+    assert.strictEqual(typeof parsed.durationMs, "number");
   });
 });
 

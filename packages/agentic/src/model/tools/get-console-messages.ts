@@ -1,5 +1,6 @@
 import { ConsoleEvent, LogLevel, SourceEventType } from "@repro/domain";
 import { Box } from "@repro/tdl";
+import { resolve } from "fluture";
 import {
   DetailLevel,
   estimateTokens,
@@ -175,13 +176,13 @@ export const handler: ToolHandler = (recording, args) => {
   const logLevelFilterProvided = args.logLevel !== undefined;
 
   if (messages.length === 0 && logLevelFilterProvided) {
-    return {
+    return resolve({
       ...response,
       _hint:
         "No console messages matched the provided filter. Call getConsoleMessages() without filters to see all available messages.",
       _tokenEstimate: estimateTokens(response),
-    };
+    });
   }
 
-  return { ...response, _tokenEstimate: estimateTokens(response) };
+  return resolve({ ...response, _tokenEstimate: estimateTokens(response) });
 };

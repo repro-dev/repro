@@ -6,6 +6,7 @@ import {
 } from "@repro/domain";
 import { groupNetworkEvents } from "@repro/source-utils";
 import { Box } from "@repro/tdl";
+import { resolve } from "fluture";
 import { DetailLevel, estimateTokens, truncate } from "../token-optimization";
 import { serializeMessagePart } from "./common";
 import type { ToolHandler } from "./common";
@@ -138,9 +139,9 @@ export const handler: ToolHandler = (recording, args) => {
       .filter((e): e is NonNullable<typeof e> => e !== undefined)
       .map(({ time, source, summary }) => ({ time, source, summary }));
     const result = { errors: representativeErrors, summary: summaryStats };
-    return { ...result, _tokenEstimate: estimateTokens(result) };
+    return resolve({ ...result, _tokenEstimate: estimateTokens(result) });
   }
 
   const result = { errors, summary: summaryStats };
-  return { ...result, _tokenEstimate: estimateTokens(result) };
+  return resolve({ ...result, _tokenEstimate: estimateTokens(result) });
 };

@@ -1,3 +1,4 @@
+import { FutureInstance, resolve } from "fluture";
 import { RecordingDataAccessor } from "../../types";
 import { createError } from "./common";
 export type { ToolHandler } from "./common";
@@ -67,14 +68,14 @@ export function executeTool(
   recording: RecordingDataAccessor,
   name: string,
   args: Record<string, unknown>,
-): unknown {
+): FutureInstance<unknown, unknown> {
   const handler = toolHandlers[name];
   if (!handler) {
-    return createError(
+    return resolve(createError(
       `Unknown tool: ${name}`,
       "The tool name does not match any registered tool",
       `Available tools are: ${Object.keys(toolHandlers).join(", ")}`,
-    );
+    ));
   }
   return handler(recording, args);
 }
