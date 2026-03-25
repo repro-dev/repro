@@ -26,9 +26,9 @@
 
 ## Environment Variables
 
-**Tilt + portless is the single source of truth** for environment variable configuration in development. App services run as `local_resource` entries on the host (via portless), receiving their env vars through `serve_env` in their per-app Tiltfiles and `infra/services.json`.
+**Tilt + portless is the single source of truth** for environment variable configuration in development. App services run as `local_resource` entries on the host (via portless), receiving their env vars through `serve_env` in `infra/services.json`.
 
-- **Canonical source**: `infra/services.json` defines `serve_env` defaults for each service. Per-app Tiltfiles (`infra/apps/<service>/Tiltfile`) may add overrides (e.g. API keys via `os.getenv()`). The `env_passthrough` array in `services.json` lists host env vars forwarded into the serve environment.
+- **Canonical source**: `infra/services.json` defines `serve_env` for each service. The `env_passthrough` array lists host env vars forwarded into the serve environment. Only `api-server`, `data`, and `gateway` retain per-app Tiltfiles — all other services are configured solely via `services.json`.
 - **Runtime validation**: Each app uses a `createEnv()` function with a Zod schema (`apps/<service>/src/config/createEnv.ts`) that validates `process.env` and provides fallback defaults. This is a safety net, not a configuration source.
 - **No `.env` file loading**: No code path loads `.env` files at runtime. The `.env*` files in `apps/` are gitignored local artifacts copied by `reproctl wt create` for convenience — they are not authoritative.
 - **Frontend apps**: Webpack `EnvironmentPlugin` / `templateParameters` read `process.env` at build time, set by the `serve_env` environment in the Tiltfile.
@@ -36,7 +36,7 @@
 ### Adding a new environment variable
 
 1. Add the variable to `infra/services.json` under the service's `serve_env` object (for static values) or `env_passthrough` array (for host env vars like API keys).
-2. If the service has a per-app Tiltfile (`infra/apps/<service>/Tiltfile`), add it to `serve_env` there as well.
+2. If the service has a per-app Tiltfile (`infra/apps/<service>/Tiltfile`), add it to `serve_env` there as well. (Only `api-server`, `data`, and `gateway` have per-app Tiltfiles.)
 3. Add the variable to the service's `createEnv()` Zod schema with an appropriate default.
 4. Access the variable through the validated env object — never read `process.env` directly in application code.
 
