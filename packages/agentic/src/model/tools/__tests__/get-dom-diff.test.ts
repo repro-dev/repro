@@ -7,8 +7,11 @@ import {
   makeAccessor,
   makeAddNodesPatchEvent,
   makeAttributePatchEvent,
+  makeBooleanPropertyPatchEvent,
+  makeNumberPropertyPatchEvent,
   makeRemoveNodesPatchEvent,
   makeTextPatchEvent,
+  makeTextPropertyPatchEvent,
 } from './helpers'
 
 // ─── VTree helpers ─────────────────────────────────────────────────────────────
@@ -623,5 +626,202 @@ describe('getDOMDiff edge cases', () => {
 
     assert.ok(!('error' in result))
     assert.strictEqual(result['attributeChanges'], 1)
+  })
+})
+
+describe('getDOMDiff property changes', () => {
+  it('TextProperty change on in-scope node → propertyChanges incremented and appears in changes', () => {
+    const vtree = makeDiffVTree()
+    const events = [
+      makeTextPropertyPatchEvent(500, 'root', 'value', 'new-val', 'old-val'),
+    ]
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
+    const result = executeTool(accessor, 'getDOMDiff', {
+      nodeId: 'root',
+      fromTimestampMs: 0,
+      toTimestampMs: 1000,
+      detail: 'normal',
+    }) as Record<string, unknown>
+
+    assert.ok(!('error' in result))
+    assert.strictEqual(result['propertyChanges'], 1)
+    const changes = result['changes'] as Array<Record<string, unknown>>
+    const propChange = changes.find(c => c['type'] === 'property')
+    assert.ok(propChange, 'TextProperty change should appear as type:property in changes')
+    assert.strictEqual(propChange!['nodeId'], 'root')
+    assert.strictEqual(propChange!['name'], 'value')
+    assert.strictEqual(propChange!['value'], 'new-val')
+    assert.strictEqual(propChange!['oldValue'], 'old-val')
+  })
+
+  it('BooleanProperty change on in-scope node → propertyChanges incremented, value coerced to string', () => {
+    const vtree = makeDiffVTree()
+    const events = [
+      makeBooleanPropertyPatchEvent(500, 'root', 'checked', true, false),
+    ]
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
+    const result = executeTool(accessor, 'getDOMDiff', {
+      nodeId: 'root',
+      fromTimestampMs: 0,
+      toTimestampMs: 1000,
+      detail: 'normal',
+    }) as Record<string, unknown>
+
+    assert.ok(!('error' in result))
+    assert.strictEqual(result['propertyChanges'], 1)
+    const changes = result['changes'] as Array<Record<string, unknown>>
+    const propChange = changes.find(c => c['type'] === 'property')
+    assert.ok(propChange, 'BooleanProperty change should appear as type:property in changes')
+    // Boolean values are coerced to strings in normal/full tier
+    assert.strictEqual(propChange!['value'], 'true')
+    assert.strictEqual(propChange!['oldValue'], 'false')
+  })
+
+  it('NumberProperty change on in-scope node → propertyChanges incremented, value coerced to string', () => {
+    const vtree = makeDiffVTree()
+    const events = [
+      makeNumberPropertyPatchEvent(500, 'root', 'selectedIndex', 2, 0),
+    ]
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
+    const result = executeTool(accessor, 'getDOMDiff', {
+      nodeId: 'root',
+      fromTimestampMs: 0,
+      toTimestampMs: 1000,
+      detail: 'normal',
+    }) as Record<string, unknown>
+
+    assert.ok(!('error' in result))
+    assert.strictEqual(result['propertyChanges'], 1)
+    const changes = result['changes'] as Array<Record<string, unknown>>
+    const propChange = changes.find(c => c['type'] === 'property')
+    assert.ok(propChange, 'NumberProperty change should appear as type:property in changes')
+    assert.strictEqual(propChange!['value'], '2')
+    assert.strictEqual(propChange!['oldValue'], '0')
+  })
+
+  it('property change on unrelated node → filtered out', () => {
+    const vtree = makeDiffVTree()
+    const events = [
+      makeTextPropertyPatchEvent(500, 'unrelated', 'value', 'x', 'y'),
+    ]
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
+    const result = executeTool(accessor, 'getDOMDiff', {
+      nodeId: 'root',
+      fromTimestampMs: 0,
+      toTimestampMs: 1000,
+      detail: 'normal',
+    }) as Record<string, unknown>
+
+    assert.ok(!('error' in result))
+    assert.strictEqual(result['propertyChanges'], 0)
+    const changes = result['changes'] as Array<Record<string, unknown>>
+    const unrelated = changes?.find(c => c['nodeId'] === 'unrelated')
+    assert.strictEqual(unrelated, undefined)
+  })
+
+  it('summary tier counts property changes but omits changes array', () => {
+    const vtree = makeDiffVTree()
+    const events = [
+      makeTextPropertyPatchEvent(500, 'root', 'value', 'new', 'old'),
+    ]
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
+    const result = executeTool(accessor, 'getDOMDiff', {
+      nodeId: 'root',
+      fromTimestampMs: 0,
+      toTimestampMs: 1000,
+      detail: 'summary',
+    }) as Record<string, unknown>
+
+    assert.ok(!('error' in result))
+    assert.strictEqual(result['propertyChanges'], 1)
+    assert.ok(!('changes' in result), 'summary tier should not include changes array')
+  })
+})
+
+describe('getDOMDiff scope-set expansion', () => {
+  it('patch on a node added via AddNodes is included in changes', () => {
+    // This tests the core scope-set expansion feature: when AddNodes fires for
+    // parentId in scope, the newly-added node rootId is added to scopeIds.
+    // A subsequent attribute patch on that new node must be captured.
+    const vtree = makeDiffVTree()
+    const events = [
+      // First: add a new node under root
+      makeAddNodesPatchEvent(300, 'root', ['new-node-1']),
+      // Second: patch on the newly-added node — should now be in scope
+      makeAttributePatchEvent(600, 'new-node-1', 'class', 'active', ''),
+    ]
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
+    const result = executeTool(accessor, 'getDOMDiff', {
+      nodeId: 'root',
+      fromTimestampMs: 0,
+      toTimestampMs: 1000,
+      detail: 'normal',
+    }) as Record<string, unknown>
+
+    assert.ok(!('error' in result))
+    assert.strictEqual(result['nodesAdded'], 1)
+    // The attribute change on the newly-added node should be captured
+    assert.strictEqual(result['attributeChanges'], 1)
+    const changes = result['changes'] as Array<Record<string, unknown>>
+    const patchOnNewNode = changes.find(
+      c => c['type'] === 'attribute' && c['nodeId'] === 'new-node-1'
+    )
+    assert.ok(
+      patchOnNewNode,
+      'attribute patch on node added via AddNodes should appear in changes (scope expansion)'
+    )
+  })
+
+  it('patch on a node added under an unrelated parent is NOT included', () => {
+    const vtree = makeDiffVTree()
+    const events = [
+      // Add a node under the unrelated node (not in scope)
+      makeAddNodesPatchEvent(300, 'unrelated', ['new-node-2']),
+      // Patch on the newly-added node — parent was not in scope, so this should be excluded
+      makeAttributePatchEvent(600, 'new-node-2', 'class', 'active', ''),
+    ]
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
+    const result = executeTool(accessor, 'getDOMDiff', {
+      nodeId: 'root',
+      fromTimestampMs: 0,
+      toTimestampMs: 1000,
+      detail: 'normal',
+    }) as Record<string, unknown>
+
+    assert.ok(!('error' in result))
+    assert.strictEqual(result['nodesAdded'], 0)
+    assert.strictEqual(result['attributeChanges'], 0)
+    const changes = result['changes'] as Array<Record<string, unknown>>
+    const patchOnNewNode = changes?.find(c => c['nodeId'] === 'new-node-2')
+    assert.strictEqual(patchOnNewNode, undefined)
+  })
+
+  it('RemoveNodes removes node from scope; subsequent patch on removed node is excluded', () => {
+    const vtree = makeDiffVTree()
+    const events = [
+      // Remove child1 from root
+      makeRemoveNodesPatchEvent(300, 'root', ['child1']),
+      // Patch on child1 after removal — should no longer be in scope
+      makeAttributePatchEvent(600, 'child1', 'class', 'ghost', 'section'),
+    ]
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree), events)
+    const result = executeTool(accessor, 'getDOMDiff', {
+      nodeId: 'root',
+      fromTimestampMs: 0,
+      toTimestampMs: 1000,
+      detail: 'normal',
+    }) as Record<string, unknown>
+
+    assert.ok(!('error' in result))
+    assert.strictEqual(result['nodesRemoved'], 1)
+    // After removal, child1 is out of scope — the attribute change should NOT be counted
+    assert.strictEqual(result['attributeChanges'], 0)
+    const changes = result['changes'] as Array<Record<string, unknown>>
+    const patchAfterRemoval = changes?.find(c => c['nodeId'] === 'child1')
+    assert.strictEqual(
+      patchAfterRemoval,
+      undefined,
+      'patch on removed node should not appear in changes'
+    )
   })
 })
