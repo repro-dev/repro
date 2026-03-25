@@ -1,0 +1,18 @@
+{
+  "name": "@repro/dom-to-image",
+  "version": "1.0.0",
+  "description": "Vendored fork of dom-to-image-more v3.7.2 — Chrome/same-origin only, upstream fixes #218, #215, #191 applied",
+  "main": "src/index.ts",
+  "scripts": {
+    "fmt": "prettier --write src",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "22.14.0",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "tsx": "4.19.3",
+    "typescript": "overridden"
+  }
+}

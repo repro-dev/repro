@@ -1,0 +1,23 @@
+{
+  "name": "@repro/vdom-renderer",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "fmt": "prettier --write src",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@repro/dom-utils": "workspace:*",
+    "@repro/domain": "workspace:*",
+    "@repro/logger": "workspace:*",
+    "@repro/vdom-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.14.0",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "tsx": "4.19.3",
+    "typescript": "overridden"
+  }
+}

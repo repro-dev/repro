@@ -17,6 +17,7 @@ function makeEmptyAccessor(): RecordingDataAccessor {
     getSnapshotAtTime: () => null,
     getEventsByType: () => [],
     getEventsInRange: () => [],
+    getResourceMap: () => ({}),
   };
 }
 
@@ -415,6 +416,7 @@ function makeEmptyAccessorNew(): RecordingDataAccessor {
     getSnapshotAtTime: () => null,
     getEventsByType: () => [],
     getEventsInRange: () => [],
+    getResourceMap: () => ({}),
   };
 }
 

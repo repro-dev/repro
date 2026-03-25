@@ -27,6 +27,8 @@
     "@repro/design": "workspace:*",
     "@repro/devtools": "workspace:*",
     "@repro/diagnostics": "workspace:*",
+    "@repro/dom-to-image": "workspace:*",
+    "@repro/dom-utils": "workspace:*",
     "@repro/domain": "workspace:*",
     "@repro/future-utils": "workspace:*",
     "@repro/logger": "workspace:*",

@@ -35,6 +35,7 @@ export function makeAccessor(
   return {
     getDuration: () => duration ?? Number.MAX_SAFE_INTEGER,
     getSnapshotAtTime: snapshotFn ?? (() => null),
+    getResourceMap: () => ({}),
     ...makeAccessorFromEventList({
       size: () => events.length,
       over: (i) => events[i] ?? null,

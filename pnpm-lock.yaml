@@ -411,6 +411,12 @@ importers:
       '@repro/diagnostics':
         specifier: workspace:*
         version: link:../../packages/diagnostics
+      '@repro/dom-to-image':
+        specifier: workspace:*
+        version: link:../../packages/dom-to-image
+      '@repro/dom-utils':
+        specifier: workspace:*
+        version: link:../../packages/dom-utils
       '@repro/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -1017,6 +1023,9 @@ importers:
       '@repro/atom':
         specifier: workspace:*
         version: link:../atom
+      '@repro/dom-to-image':
+        specifier: workspace:*
+        version: link:../dom-to-image
       '@repro/domain':
         specifier: workspace:*
         version: link:../domain
@@ -1032,6 +1041,9 @@ importers:
       '@repro/tdl':
         specifier: workspace:*
         version: link:../tdl
+      '@repro/vdom-renderer':
+        specifier: workspace:*
+        version: link:../vdom-renderer
       '@repro/vdom-utils':
         specifier: workspace:*
         version: link:../vdom-utils
@@ -1766,6 +1778,24 @@ importers:
         specifier: 5.7.3
         version: 5.7.3
 
+  packages/dom-to-image:
+    devDependencies:
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      prettier:
+        specifier: ^3.0.0
+        version: 3.0.0
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
   packages/dom-utils:
     dependencies:
       '@repro/std':
@@ -2074,6 +2104,9 @@ importers:
       '@repro/tdl':
         specifier: workspace:*
         version: link:../tdl
+      '@repro/vdom-renderer':
+        specifier: workspace:*
+        version: link:../vdom-renderer
       '@repro/vdom-utils':
         specifier: workspace:*
         version: link:../vdom-utils
@@ -2604,6 +2637,37 @@ importers:
       '@types/repro-shared-types':
         specifier: workspace:*
         version: link:../shared-types
+      prettier:
+        specifier: ^3.0.0
+        version: 3.0.0
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
+  packages/vdom-renderer:
+    dependencies:
+      '@repro/dom-utils':
+        specifier: workspace:*
+        version: link:../dom-utils
+      '@repro/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@repro/logger':
+        specifier: workspace:*
+        version: link:../logger
+      '@repro/vdom-utils':
+        specifier: workspace:*
+        version: link:../vdom-utils
+    devDependencies:
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
       prettier:
         specifier: ^3.0.0
         version: 3.0.0

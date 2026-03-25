@@ -138,6 +138,7 @@ function makeAccessor(
   return {
     getDuration: () => duration,
     getSnapshotAtTime: () => null,
+    getResourceMap: () => ({}),
     ...makeAccessorFromEventList({
       size: () => events.length,
       over: (i) =>
