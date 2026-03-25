@@ -1,4 +1,9 @@
-import { NetworkEvent, SourceEventType } from "@repro/domain";
+import {
+  NetworkEvent,
+  NetworkMessageType,
+  SourceEventType,
+  WebSocketMessageType,
+} from "@repro/domain";
 import { groupNetworkEvents } from "@repro/source-utils";
 import { Box } from "@repro/tdl";
 import {
@@ -238,13 +243,54 @@ export const handler: ToolHandler = (recording, args) => {
       const durationMs =
         group.closeTime !== undefined ? group.closeTime - time : undefined;
 
+      const allMessages = group.messages ?? [];
+
       if (detail === "summary") {
-        requests.push({ timeMs: time, type: "ws", url });
+        let inbound = 0;
+        let outbound = 0;
+        for (const msg of allMessages) {
+          if (msg.data.type === NetworkMessageType.WebSocketInbound) {
+            inbound++;
+          } else {
+            outbound++;
+          }
+        }
+        requests.push({
+          timeMs: time,
+          type: "ws",
+          url,
+          messageCount: { inbound, outbound },
+        });
       } else {
+        const msgLimit = detail === "normal" ? 10 : 100;
+        const payloadLimit = detail === "normal" ? 200 : 2000;
+
+        const messages = allMessages.slice(0, msgLimit).map(msg => {
+          const direction =
+            msg.data.type === NetworkMessageType.WebSocketInbound
+              ? "inbound"
+              : "outbound";
+          let payload: string;
+          if (msg.data.messageType === WebSocketMessageType.Binary) {
+            payload = `[binary frame, ${(msg.data.data as ArrayBuffer).byteLength} bytes]`;
+          } else {
+            // Text frames are UTF-8 by the WebSocket spec. Apps that send
+            // binary-encoded data (e.g. MessagePack) over text frames will
+            // produce garbled output here, but that's an app-level protocol
+            // issue we can't resolve without schema knowledge.
+            payload = truncate(
+              new TextDecoder().decode(msg.data.data as ArrayBuffer),
+              payloadLimit,
+            );
+          }
+          return { timeMs: msg.time, direction, payload };
+        });
+
         const entry: Record<string, unknown> = {
           timeMs: time,
           type: "ws",
           url,
+          messages,
         };
         if (durationMs !== undefined) entry["durationMs"] = durationMs;
         requests.push(entry);
