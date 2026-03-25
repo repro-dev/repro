@@ -11,7 +11,7 @@ import { UploadProgress } from '@repro/recording-api'
 import { fork, FutureInstance } from 'fluture'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Subscription, switchMap, timer } from 'rxjs'
-import { useRecordingMode } from '~/state'
+import { useAppState, useRecordingMode } from '~/state'
 import { Agentic } from './Agentic'
 import { DetailsFields } from './DetailsFields'
 import { AsideRegion, Layout, PlaybackRegion } from './Layout'
@@ -43,6 +43,7 @@ export const ReportForm: React.FC<ReportFormProps> = ({
   const [selectedDuration, setSelectedDuration] = useState(
     DEFAULT_SELECTED_DURATION
   )
+  const state = useAppState()
 
   const maxTime = playback.getDuration()
   const minTime = Math.max(0, maxTime - selectedDuration)
@@ -84,6 +85,12 @@ export const ReportForm: React.FC<ReportFormProps> = ({
         progress$.subscribe(progress => {
           setProgress(progress)
 
+          // Once the server has assigned a recordingId, publish it to shared
+          // state so that Controller can fetch the resource map.
+          if (progress.recordingId != null) {
+            state.setRecordingId(progress.recordingId)
+          }
+
           if (progress.completed) {
             setUploading(false)
           }
@@ -94,7 +101,7 @@ export const ReportForm: React.FC<ReportFormProps> = ({
     return () => {
       subscription.unsubscribe()
     }
-  }, [setProgress, uploadRef, uploading, agent])
+  }, [setProgress, uploadRef, uploading, agent, state])
 
   const onSubmit = useCallback(
     (values: FormValues) => {

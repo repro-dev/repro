@@ -1,4 +1,5 @@
 import { Block } from '@jsxstyle/react'
+import { useApiClient } from '@repro/api-client'
 import { RecordingMode, SourceEventType, SourceEventView } from '@repro/domain'
 import {
   Playback,
@@ -6,8 +7,10 @@ import {
   createSourcePlayback,
 } from '@repro/playback'
 import { InterruptSignal, useRecordingStream } from '@repro/recording'
+import { getResourceMap } from '@repro/recording-api'
 import { calculateDuration } from '@repro/source-utils'
 import { Box, List } from '@repro/tdl'
+import { fork } from 'fluture'
 import React, { useEffect, useState } from 'react'
 import {
   Subscription,
@@ -19,14 +22,17 @@ import {
   toArray,
 } from 'rxjs'
 import { MAX_INT32 } from '~/constants'
-import { useRecordingMode } from '~/state'
+import { useProjectId, useRecordingId, useRecordingMode } from '~/state'
 import { Widget } from './Widget'
 
 export const Controller: React.FC = () => {
   const stream = useRecordingStream()
+  const apiClient = useApiClient()
 
   const [playback, setPlayback] = useState<Playback | null>(null)
   const [recordingMode] = useRecordingMode()
+  const [projectId] = useProjectId()
+  const [recordingId] = useRecordingId()
 
   useEffect(() => {
     stream.start()
@@ -111,6 +117,40 @@ export const Controller: React.FC = () => {
       subscription.unsubscribe()
     }
   }, [recordingMode, setPlayback])
+
+  // Once the recording has been uploaded and the server has assigned an ID,
+  // fetch the resource map and rebuild the playback with real resource URLs so
+  // that screenshots include images, fonts, and CSS backgrounds.
+  useEffect(() => {
+    if (!projectId || !recordingId) {
+      return
+    }
+
+    // getResourceMap falls back to {} on error, so we only need the success
+    // branch. fork returns a Cancel function that React will call on cleanup.
+    const cancel = getResourceMap(apiClient, projectId, recordingId).pipe(
+      fork(() => {
+        // getResourceMap already falls back to {} on rejection; nothing to do.
+      })(resourceMap => {
+        // Use functional updater so that `playback` is not a dependency of
+        // this effect (which would cause a re-fetch loop).
+        setPlayback(prev => {
+          if (!prev) {
+            return prev
+          }
+
+          return createSourcePlayback(
+            prev.getSourceEvents(),
+            prev.getDuration(),
+            resourceMap
+          )
+        })
+      })
+    )
+
+    return cancel
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiClient, projectId, recordingId])
 
   return (
     <PlaybackProvider playback={playback}>

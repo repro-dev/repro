@@ -15,3 +15,13 @@ export function useRecordingMode() {
   const state = useAppState()
   return useAtomState(state.$recordingMode)
 }
+
+export function useProjectId() {
+  const state = useAppState()
+  return useAtomState(state.$projectId)
+}
+
+export function useRecordingId() {
+  const state = useAppState()
+  return useAtomState(state.$recordingId)
+}

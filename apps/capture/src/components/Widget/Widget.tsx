@@ -10,8 +10,8 @@ import { sliceEventsAtRange } from '@repro/recording'
 import { toByteString } from '@repro/wire-formats'
 import { detect } from 'detect-browser'
 import { resolve } from 'fluture'
-import React, { Fragment, useCallback } from 'react'
-import { ReadyState, useReadyState, useRecordingMode } from '~/state'
+import React, { Fragment, useCallback, useEffect } from 'react'
+import { ReadyState, useAppState, useReadyState, useRecordingMode } from '~/state'
 import { Launcher } from './Launcher'
 import { LiveControls } from './LiveControls'
 import { ReportFormModal } from './ReportForm/ReportFormModal'
@@ -25,6 +25,7 @@ export const Widget: React.FC = () => {
   const [readyState, setReadyState] = useReadyState()
   const agent = useMessaging()
   const apiClient = useApiClient()
+  const state = useAppState()
   const projectsResult = useFuture(
     () => apiClient.fetch<ListResponse<Project>>('/projects'),
     [apiClient]
@@ -32,6 +33,12 @@ export const Widget: React.FC = () => {
   const projectId = projectsResult.success
     ? projectsResult.data.items[0]?.id ?? null
     : null
+
+  // Keep projectId in shared state so Controller can use it to fetch the
+  // resource map after the recording has been uploaded.
+  useEffect(() => {
+    state.setProjectId(projectId)
+  }, [state, projectId])
 
   const isReady = readyState === ReadyState.Ready
   const isPendingLiveRecording =
