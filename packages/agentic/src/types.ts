@@ -5,6 +5,9 @@ import { FutureInstance } from "fluture";
 export interface RecordingDataAccessor {
   getDuration(): number;
   getSnapshotAtTime(timestampMs: number): Snapshot | null;
+  // Returns a map of absolute original URL → resolved URL (blob URL or proxied
+  // API URL) ready to pass directly to createDOMFromVTree as its resourceMap
+  // argument. Inversion and base-URL construction are the caller's responsibility.
   getResourceMap(): Record<string, string>;
   getEventsByType(
     types: Array<SourceEventType>,
