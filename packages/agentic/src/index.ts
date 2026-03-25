@@ -1,4 +1,8 @@
-export { SYSTEM_CARD_MESSAGE } from "./model/system";
+export {
+  EXTENSION_SYSTEM_CARD_MESSAGE,
+  SYSTEM_CARD_MESSAGE,
+  WORKSPACE_SYSTEM_CARD_MESSAGE,
+} from "./model/system";
 export { makeAccessorFromEventList } from "./recordingDataAccessor";
 export type { EventList } from "./recordingDataAccessor";
 export { executeTool, tools } from "./model/tools";
