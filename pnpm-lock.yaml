@@ -411,6 +411,12 @@ importers:
       '@repro/diagnostics':
         specifier: workspace:*
         version: link:../../packages/diagnostics
+      '@repro/dom-to-image':
+        specifier: workspace:*
+        version: link:../../packages/dom-to-image
+      '@repro/dom-utils':
+        specifier: workspace:*
+        version: link:../../packages/dom-utils
       '@repro/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -1759,6 +1765,24 @@ importers:
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
+  packages/dom-to-image:
+    devDependencies:
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      prettier:
+        specifier: ^3.0.0
+        version: 3.0.0
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
