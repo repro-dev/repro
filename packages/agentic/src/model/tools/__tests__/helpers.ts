@@ -583,3 +583,183 @@ export function makePerformanceEvent(
     }),
   );
 }
+
+// ─── DOMPatch event factories ─────────────────────────────────────────────────
+
+export function makeAttributePatchEvent(
+  time: number,
+  targetId: string,
+  name: string,
+  value: string | null,
+  oldValue: string | null,
+): ReturnType<typeof SourceEventView.from> {
+  // Bypass SourceEventView.from(): NodeId is fixed-width 5 bytes in the
+  // binary codec, so IDs longer than 5 chars would be silently truncated.
+  // Plain Box avoids the codec entirely and works with arbitrary test IDs.
+  return new Box({
+    type: SourceEventType.DOMPatch,
+    time,
+    data: new Box({
+      type: PatchType.Attribute,
+      targetId: targetId as NodeId,
+      name,
+      value,
+      oldValue,
+    }),
+  }) as unknown as ReturnType<typeof SourceEventView.from>
+}
+
+export function makeTextPatchEvent(
+  time: number,
+  targetId: string,
+  value: string,
+  oldValue: string,
+): ReturnType<typeof SourceEventView.from> {
+  // Bypass SourceEventView.from() — see comment in makeAttributePatchEvent.
+  return new Box({
+    type: SourceEventType.DOMPatch,
+    time,
+    data: new Box({
+      type: PatchType.Text,
+      targetId: targetId as NodeId,
+      value,
+      oldValue,
+      parentId: null,
+    }),
+  }) as unknown as ReturnType<typeof SourceEventView.from>
+}
+
+export function makeAddNodesPatchEvent(
+  time: number,
+  parentId: string,
+  nodeIds: string[],
+): ReturnType<typeof SourceEventView.from> {
+  // Each entry in nodes is a minimal VTree with a single root element.
+  // We bypass SourceEventView.from() here because the binary codec hangs when
+  // encoding the nested VTree nodes map (encodeMap + encodeUnion recursion).
+  // A plain Box is sufficient — getEventsByType only calls .get("time") and
+  // .get("type"), and the getDOMDiff handler calls .get("data").get(...).
+  const nodes = nodeIds.map(id => ({
+    rootId: id as NodeId,
+    nodes: {
+      [id]: new Box({
+        type: NodeType.Element as NodeType.Element,
+        id: id as NodeId,
+        parentId: parentId as NodeId,
+        tagName: 'div',
+        children: [] as NodeId[],
+        attributes: {} as Record<string, string | null>,
+        properties: { value: null, checked: null, selectedIndex: null },
+        shadowRoot: false,
+      }),
+    },
+  }));
+  return new Box({
+    type: SourceEventType.DOMPatch,
+    time,
+    data: new Box({
+      type: PatchType.AddNodes,
+      parentId: parentId as NodeId,
+      previousSiblingId: null,
+      nextSiblingId: null,
+      nodes,
+    }),
+  }) as unknown as ReturnType<typeof SourceEventView.from>;
+}
+
+export function makeRemoveNodesPatchEvent(
+  time: number,
+  parentId: string,
+  nodeIds: string[],
+): ReturnType<typeof SourceEventView.from> {
+  // Bypass SourceEventView.from() — see comment in makeAddNodesPatchEvent.
+  const nodes = nodeIds.map(id => ({
+    rootId: id as NodeId,
+    nodes: {
+      [id]: new Box({
+        type: NodeType.Element as NodeType.Element,
+        id: id as NodeId,
+        parentId: parentId as NodeId,
+        tagName: 'div',
+        children: [] as NodeId[],
+        attributes: {} as Record<string, string | null>,
+        properties: { value: null, checked: null, selectedIndex: null },
+        shadowRoot: false,
+      }),
+    },
+  }));
+  return new Box({
+    type: SourceEventType.DOMPatch,
+    time,
+    data: new Box({
+      type: PatchType.RemoveNodes,
+      parentId: parentId as NodeId,
+      previousSiblingId: null,
+      nextSiblingId: null,
+      nodes,
+    }),
+  }) as unknown as ReturnType<typeof SourceEventView.from>;
+}
+
+export function makeTextPropertyPatchEvent(
+  time: number,
+  targetId: string,
+  name: string,
+  value: string,
+  oldValue: string,
+): ReturnType<typeof SourceEventView.from> {
+  // Bypass SourceEventView.from() — see comment in makeAttributePatchEvent.
+  return new Box({
+    type: SourceEventType.DOMPatch,
+    time,
+    data: new Box({
+      type: PatchType.TextProperty,
+      targetId: targetId as NodeId,
+      name,
+      value,
+      oldValue,
+    }),
+  }) as unknown as ReturnType<typeof SourceEventView.from>
+}
+
+export function makeBooleanPropertyPatchEvent(
+  time: number,
+  targetId: string,
+  name: string,
+  value: boolean,
+  oldValue: boolean,
+): ReturnType<typeof SourceEventView.from> {
+  // Bypass SourceEventView.from() — see comment in makeAttributePatchEvent.
+  return new Box({
+    type: SourceEventType.DOMPatch,
+    time,
+    data: new Box({
+      type: PatchType.BooleanProperty,
+      targetId: targetId as NodeId,
+      name,
+      value,
+      oldValue,
+    }),
+  }) as unknown as ReturnType<typeof SourceEventView.from>
+}
+
+export function makeNumberPropertyPatchEvent(
+  time: number,
+  targetId: string,
+  name: string,
+  value: number,
+  oldValue: number,
+): ReturnType<typeof SourceEventView.from> {
+  // Bypass SourceEventView.from() — see comment in makeAttributePatchEvent.
+  return new Box({
+    type: SourceEventType.DOMPatch,
+    time,
+    data: new Box({
+      type: PatchType.NumberProperty,
+      targetId: targetId as NodeId,
+      name,
+      value,
+      oldValue,
+    }),
+  }) as unknown as ReturnType<typeof SourceEventView.from>
+}

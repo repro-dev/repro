@@ -428,3 +428,234 @@ describe("executeTool — getElementDetails — textContent", () => {
     assert.strictEqual(result["textContent"], undefined);
   });
 });
+
+// 4-level deep VTree: div > section > article > span
+function makeDeepVTree() {
+  return makeVTree(
+    {
+      root: {
+        type: NodeType.Document,
+        id: "root",
+        parentId: null,
+        children: ["div1"],
+      },
+      div1: {
+        type: NodeType.Element,
+        id: "div1",
+        parentId: "root",
+        tagName: "div",
+        children: ["section1"],
+        attributes: { id: "root-div" },
+        properties: { value: null, checked: null, selectedIndex: null },
+        shadowRoot: false,
+      },
+      section1: {
+        type: NodeType.Element,
+        id: "section1",
+        parentId: "div1",
+        tagName: "section",
+        children: ["article1"],
+        attributes: {},
+        properties: { value: null, checked: null, selectedIndex: null },
+        shadowRoot: false,
+      },
+      article1: {
+        type: NodeType.Element,
+        id: "article1",
+        parentId: "section1",
+        tagName: "article",
+        children: ["span1"],
+        attributes: {},
+        properties: { value: null, checked: null, selectedIndex: null },
+        shadowRoot: false,
+      },
+      span1: {
+        type: NodeType.Element,
+        id: "span1",
+        parentId: "article1",
+        tagName: "span",
+        children: ["txt1"],
+        attributes: {},
+        properties: { value: null, checked: null, selectedIndex: null },
+        shadowRoot: false,
+      },
+      txt1: {
+        type: NodeType.Text,
+        id: "txt1",
+        parentId: "span1",
+        value: "deep text",
+      },
+    },
+    "root",
+  );
+}
+
+describe("executeTool — getElementDetails — subtree depth", () => {
+  it("depth:1 → children has elements but none have children property", () => {
+    const vtree = makeDeepVTree();
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
+    const result = executeTool(accessor, "getElementDetails", {
+      nodeId: "div1",
+      timestampMs: 1000,
+      context: "subtree",
+      depth: 1,
+    }) as Record<string, unknown>;
+
+    const children = result["children"] as Array<Record<string, unknown>>;
+    assert.ok(Array.isArray(children));
+    assert.ok(children.length > 0);
+    for (const child of children) {
+      assert.strictEqual(
+        child["children"],
+        undefined,
+        "depth:1 children should not have children property",
+      );
+    }
+  });
+
+  it("depth:2 → children have their own children but grandchildren do not", () => {
+    const vtree = makeDeepVTree();
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
+    const result = executeTool(accessor, "getElementDetails", {
+      nodeId: "div1",
+      timestampMs: 1000,
+      context: "subtree",
+      depth: 2,
+    }) as Record<string, unknown>;
+
+    const children = result["children"] as Array<Record<string, unknown>>;
+    assert.ok(Array.isArray(children));
+    assert.ok(children.length > 0);
+
+    // Level 2 children (section) should have children
+    const section = children.find((c) => c["nodeId"] === "section1");
+    assert.ok(section, "section1 should be in children");
+    const sectionChildren = section!["children"] as Array<
+      Record<string, unknown>
+    >;
+    assert.ok(
+      Array.isArray(sectionChildren),
+      "section should have children array",
+    );
+
+    // Level 3 (article) should NOT have children
+    for (const grandchild of sectionChildren) {
+      assert.strictEqual(
+        grandchild["children"],
+        undefined,
+        "depth:2 grandchildren should not have children",
+      );
+    }
+  });
+
+  it("depth:3 (default when not passed) → 3 levels deep", () => {
+    const vtree = makeDeepVTree();
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
+    const result = executeTool(accessor, "getElementDetails", {
+      nodeId: "div1",
+      timestampMs: 1000,
+      context: "subtree",
+      // no depth provided — default is 3
+    }) as Record<string, unknown>;
+
+    const children = result["children"] as Array<Record<string, unknown>>;
+    assert.ok(Array.isArray(children));
+
+    // Level 2: section should have children
+    const section = children.find((c) => c["nodeId"] === "section1") as Record<
+      string,
+      unknown
+    >;
+    assert.ok(section);
+    const sectionChildren = section["children"] as Array<
+      Record<string, unknown>
+    >;
+    assert.ok(Array.isArray(sectionChildren));
+
+    // Level 3: article should have children
+    const article = sectionChildren.find(
+      (c) => c["nodeId"] === "article1",
+    ) as Record<string, unknown>;
+    assert.ok(article);
+    const articleChildren = article["children"] as Array<
+      Record<string, unknown>
+    >;
+    assert.ok(Array.isArray(articleChildren));
+
+    // Level 4: span should NOT have children (exceeds depth 3)
+    const span = articleChildren.find(
+      (c) => c["nodeId"] === "span1",
+    ) as Record<string, unknown>;
+    assert.ok(span);
+    assert.strictEqual(
+      span["children"],
+      undefined,
+      "depth:3 level-4 nodes should not have children",
+    );
+  });
+
+  it("explicit depth:3 → same as default", () => {
+    const vtree = makeDeepVTree();
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
+    const resultDefault = executeTool(accessor, "getElementDetails", {
+      nodeId: "div1",
+      timestampMs: 1000,
+      context: "subtree",
+    }) as Record<string, unknown>;
+    const resultExplicit = executeTool(accessor, "getElementDetails", {
+      nodeId: "div1",
+      timestampMs: 1000,
+      context: "subtree",
+      depth: 3,
+    }) as Record<string, unknown>;
+
+    // Both should have the same structure (excluding _tokenEstimate)
+    const defaultChildren = JSON.stringify(resultDefault["children"]);
+    const explicitChildren = JSON.stringify(resultExplicit["children"]);
+    assert.strictEqual(defaultChildren, explicitChildren);
+  });
+
+  it("depth:0 → children is empty array or not present", () => {
+    const vtree = makeDeepVTree();
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
+    const result = executeTool(accessor, "getElementDetails", {
+      nodeId: "div1",
+      timestampMs: 1000,
+      context: "subtree",
+      depth: 0,
+    }) as Record<string, unknown>;
+
+    const children = result["children"];
+    // Either empty array or not present
+    assert.ok(
+      children === undefined ||
+        (Array.isArray(children) && (children as unknown[]).length === 0),
+      "depth:0 should yield no children",
+    );
+  });
+});
+
+describe("executeTool — getElementDetails — _tokenEstimate on subtree context", () => {
+  it("response for context:subtree includes _tokenEstimate field (number > 0)", () => {
+    const vtree = makeStandardVTree();
+    const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
+    const result = executeTool(accessor, "getElementDetails", {
+      nodeId: "div1",
+      timestampMs: 1000,
+      context: "subtree",
+    }) as Record<string, unknown>;
+
+    assert.ok(
+      "_tokenEstimate" in result,
+      "subtree response should include _tokenEstimate",
+    );
+    assert.ok(
+      typeof result["_tokenEstimate"] === "number",
+      "_tokenEstimate should be a number",
+    );
+    assert.ok(
+      (result["_tokenEstimate"] as number) > 0,
+      "_tokenEstimate should be > 0",
+    );
+  });
+});
