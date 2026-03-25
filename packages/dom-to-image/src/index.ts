@@ -79,6 +79,46 @@ export function toPng(node: Element, options?: Options): Promise<string> {
 }
 
 /**
+ * Creates an offscreen iframe and returns its Document along with a cleanup
+ * function that removes the iframe from the DOM.
+ *
+ * The iframe is sized to match the recording's viewport so that percentage
+ * widths, viewport units (vw/vh), and media queries resolve correctly.
+ * It is positioned off-screen so it does not affect the visible layout.
+ *
+ * @param width - Viewport width in pixels.
+ * @param height - Viewport height in pixels.
+ * @returns Promise resolving to { doc, cleanup }.
+ */
+export function createOffscreenDocument(
+  width: number,
+  height: number
+): Promise<{ doc: Document; cleanup: () => void }> {
+  const iframe = document.createElement('iframe')
+  iframe.width = String(width)
+  iframe.height = String(height)
+  iframe.style.cssText =
+    'position:fixed;top:-9999px;left:-9999px;border:0;visibility:hidden'
+  document.body.appendChild(iframe)
+
+  function cleanup(): void {
+    if (iframe.parentNode) {
+      iframe.parentNode.removeChild(iframe)
+    }
+  }
+
+  // No-src iframes load synchronously in Chrome, but guard with a promise
+  // in case timing varies across environments.
+  if (iframe.contentDocument) {
+    return Promise.resolve({ doc: iframe.contentDocument, cleanup })
+  }
+
+  return new Promise(resolve => {
+    iframe.onload = () => resolve({ doc: iframe.contentDocument!, cleanup })
+  })
+}
+
+/**
  * Renders a pre-built Document to a PNG data URL.
  *
  * Handles the full offscreen-capture lifecycle:

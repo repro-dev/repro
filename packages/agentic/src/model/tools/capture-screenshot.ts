@@ -1,4 +1,4 @@
-import { captureDocument } from '@repro/dom-to-image'
+import { captureDocument, createOffscreenDocument } from '@repro/dom-to-image'
 import {
   clearDocument,
   createDOMFromVTree,
@@ -51,29 +51,14 @@ export const handler: ToolHandler = (recording: RecordingDataAccessor, args) => 
   const resourceMap = recording.getResourceMap()
 
   return attemptP(async () => {
-    const iframe = document.createElement('iframe')
-    iframe.width = String(viewportWidth)
-    iframe.height = String(viewportHeight)
-    iframe.style.cssText =
-      'position:fixed;top:-9999px;left:-9999px;border:0;visibility:hidden'
-    document.body.appendChild(iframe)
+    const { doc, cleanup } = await createOffscreenDocument(viewportWidth, viewportHeight)
 
     try {
-      // No-src iframes load synchronously in Chrome, but guard with a promise
-      // in case timing varies across environments.
-      if (!iframe.contentDocument) {
-        await new Promise<void>(resolve => {
-          iframe.onload = () => resolve()
-        })
-      }
-
-      const iframeDoc = iframe.contentDocument!
-
-      clearDocument(iframeDoc)
+      clearDocument(doc)
 
       const [rootNode, nodeMap] = createDOMFromVTree(
         vtree,
-        iframeDoc,
+        doc,
         {},
         pageURL,
         '',
@@ -81,13 +66,13 @@ export const handler: ToolHandler = (recording: RecordingDataAccessor, args) => 
         false
       )
 
-      patchDocumentElement(vtree, nodeMap, iframeDoc.documentElement)
+      patchDocumentElement(vtree, nodeMap, doc.documentElement)
 
       if (rootNode !== null) {
-        iframeDoc.documentElement.appendChild(rootNode)
+        doc.documentElement.appendChild(rootNode)
       }
 
-      const dataUrl = await captureDocument(iframeDoc, {
+      const dataUrl = await captureDocument(doc, {
         width: viewportWidth,
         height: viewportHeight,
       })
@@ -95,9 +80,7 @@ export const handler: ToolHandler = (recording: RecordingDataAccessor, args) => 
       const result = { timestampMs, dataUrl }
       return { ...result, _tokenEstimate: estimateTokens(result) }
     } finally {
-      if (iframe.parentNode) {
-        iframe.parentNode.removeChild(iframe)
-      }
+      cleanup()
     }
   })
 }
