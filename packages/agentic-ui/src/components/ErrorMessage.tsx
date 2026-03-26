@@ -1,12 +1,5 @@
-import { Col, Row } from "@jsxstyle/react";
-import {
-  Button,
-  color,
-  fontSize,
-  fontWeight,
-  radius,
-  spacing,
-} from "@repro/design";
+import { Block, Row } from "@jsxstyle/react";
+import { Button, Text, color, radius, spacing } from "@repro/design";
 import { AgenticError } from "@repro/agentic";
 import { AlertCircleIcon } from "lucide-react";
 import React from "react";
@@ -21,7 +14,8 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
   onRetry,
 }) => {
   return (
-    <Col
+    <Row
+      alignItems="center"
       backgroundColor={color.dangerSubtle}
       borderColor={color.dangerBorderSubtle}
       borderRadius={radius.md}
@@ -30,29 +24,24 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
       gap={spacing.md}
       padding={spacing.lg}
     >
-      <Row alignItems="center" gap={spacing.md}>
+      <Block flexShrink={0}>
         <AlertCircleIcon color={color.danger} size={16} />
-        <Row
-          color={color.dangerFg}
-          fontSize={fontSize.xs}
-          fontWeight={fontWeight.semibold}
-        >
+      </Block>
+      <Block flexGrow={1}>
+        <Text variant="caption" color={color.dangerFg} weight="semibold" as="span">
           {error.message}
-        </Row>
-      </Row>
-
+        </Text>
+      </Block>
       {error.retryable && (
-        <Row>
-          <Button
-            context="danger"
-            size="small"
-            variant="outlined"
-            onClick={onRetry}
-          >
-            Retry
-          </Button>
-        </Row>
+        <Button
+          context="danger"
+          size="small"
+          variant="outlined"
+          onClick={onRetry}
+        >
+          Retry
+        </Button>
       )}
-    </Col>
+    </Row>
   );
 };
