@@ -199,8 +199,21 @@ cmd_launch() {
     local profile_dir="$HOME/.repro/browser-profiles/${slug:-main}"
     mkdir -p "$profile_dir"
 
-    local workspace_url
+    # Resolve workspace URL — prefer the worktree-specific URL if that service is
+    # running, otherwise fall back to the main checkout URL so the browser opens
+    # to a working page rather than a 404.
+    local workspace_url workspace_url_note=""
     workspace_url="$(_service_url workspace "$slug" 2>/dev/null)" || workspace_url=""
+    if [[ -n "$workspace_url" ]] && [[ -n "$slug" ]] && [[ "$slug" != "main" ]]; then
+      if ! curl --silent --max-time 2 --head "$workspace_url" >/dev/null 2>&1; then
+        local fallback_url
+        fallback_url="$(_service_url workspace "" 2>/dev/null)" || fallback_url=""
+        if [[ -n "$fallback_url" ]]; then
+          workspace_url="$fallback_url"
+          workspace_url_note=" (worktree not running, using main)"
+        fi
+      fi
+    fi
 
     {
       echo ""
@@ -209,7 +222,7 @@ cmd_launch() {
       printf '  %-16s %s\n' "Extension:" "$ext_dist"
       printf '  %-16s %s\n' "Profile:"   "$profile_dir"
       if [[ -n "$workspace_url" ]]; then
-        printf '  %-16s %s\n' "URL:" "$workspace_url"
+        printf '  %-16s %s%s\n' "URL:" "$workspace_url" "$workspace_url_note"
       fi
       echo ""
     } >&2
