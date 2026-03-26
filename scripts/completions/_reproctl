@@ -279,13 +279,13 @@ _reproctl_worktree() {
           [[ "$state" == branch ]] && {
             local -a branches
             branches=("${(@f)$(__reproctl_worktree_branches)}")
-            [[ ${#branches} -gt 0 ]] && _values 'branch' "${branches[@]}"
+            [[ ${#branches} -gt 0 ]] && compadd -a branches
           }
           ;;
         attach)
           local -a branches
           branches=("${(@f)$(__reproctl_worktree_branches)}")
-          [[ ${#branches} -gt 0 ]] && _values 'branch' "${branches[@]}"
+          [[ ${#branches} -gt 0 ]] && compadd -a branches
           ;;
         prune)
           _arguments \
