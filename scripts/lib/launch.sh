@@ -205,7 +205,9 @@ cmd_launch() {
     local workspace_url workspace_url_note=""
     workspace_url="$(_service_url workspace "$slug" 2>/dev/null)" || workspace_url=""
     if [[ -n "$workspace_url" ]] && [[ -n "$slug" ]] && [[ "$slug" != "main" ]]; then
-      if ! curl --silent --max-time 2 --head "$workspace_url" >/dev/null 2>&1; then
+      local _http_status
+      _http_status="$(curl --silent --max-time 2 --head --write-out '%{http_code}' --output /dev/null "$workspace_url" 2>/dev/null || echo "000")"
+      if [[ "$_http_status" == "404" ]] || [[ "$_http_status" == "000" ]]; then
         local fallback_url
         fallback_url="$(_service_url workspace "" 2>/dev/null)" || fallback_url=""
         if [[ -n "$fallback_url" ]]; then
