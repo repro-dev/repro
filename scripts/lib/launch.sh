@@ -199,15 +199,22 @@ cmd_launch() {
     local profile_dir="$HOME/.repro/browser-profiles/${slug:-main}"
     mkdir -p "$profile_dir"
 
-    # Resolve workspace URL — prefer the worktree-specific URL if that service is
-    # running, otherwise fall back to the main checkout URL so the browser opens
-    # to a working page rather than a 404.
+    # Resolve workspace URL — prefer the worktree-specific URL if that worktree's
+    # workspace service is currently running (per reproctl_services.json), otherwise
+    # fall back to the main checkout URL so the browser opens to a working page.
     local workspace_url workspace_url_note=""
     workspace_url="$(_service_url workspace "$slug" 2>/dev/null)" || workspace_url=""
     if [[ -n "$workspace_url" ]] && [[ -n "$slug" ]] && [[ "$slug" != "main" ]]; then
-      local _http_status
-      _http_status="$(curl --silent --max-time 2 --head --write-out '%{http_code}' --output /dev/null "$workspace_url" 2>/dev/null || echo "000")"
-      if [[ "$_http_status" == "404" ]] || [[ "$_http_status" == "000" ]]; then
+      local _wt_running=false
+      if [[ -f "$CONFIG_FILE" ]]; then
+        local _config _svc_names
+        _config="$(cat "$CONFIG_FILE")"
+        _svc_names="$(python3 "$SCRIPTS_DIR/lib/py/worktree_services.py" "$_config" "$slug" 2>/dev/null || true)"
+        case ",$_svc_names," in
+          *,workspace,*) _wt_running=true ;;
+        esac
+      fi
+      if [[ "$_wt_running" == false ]]; then
         local fallback_url
         fallback_url="$(_service_url workspace "" 2>/dev/null)" || fallback_url=""
         if [[ -n "$fallback_url" ]]; then
