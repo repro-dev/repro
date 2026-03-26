@@ -1,15 +1,18 @@
 import { Block, Col } from "@jsxstyle/react";
 import { Md } from "@m2d/react-markdown";
-import { Entry, Loading, groupToolCalls } from "@repro/agentic";
+import { AgenticError, Entry, Loading, groupToolCalls } from "@repro/agentic";
 import { colors, spacing } from "@repro/design";
 import React, { useMemo } from "react";
 import { INPUT_CONTAINER_OFFSET_PX } from "../constants";
 import { EmptyState } from "../EmptyState";
+import { ErrorMessage } from "./ErrorMessage";
 import { ToolCallGroup } from "./ToolCallGroup";
 
 interface MessageListProps {
   entries: Array<Entry>;
   loading: Loading;
+  error: AgenticError | null;
+  onRetry: () => void;
   scrollContainerRef: React.RefObject<HTMLDivElement>;
   contentContainerRef: React.RefObject<HTMLDivElement>;
 }
@@ -17,6 +20,8 @@ interface MessageListProps {
 export const MessageList: React.FC<MessageListProps> = ({
   entries,
   loading,
+  error,
+  onRetry,
   scrollContainerRef,
   contentContainerRef,
 }) => {
@@ -77,6 +82,10 @@ export const MessageList: React.FC<MessageListProps> = ({
             />
           );
         })}
+
+        {error !== null && (
+          <ErrorMessage error={error} onRetry={onRetry} />
+        )}
       </Col>
     </Block>
   );

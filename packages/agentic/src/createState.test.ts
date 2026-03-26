@@ -4,6 +4,7 @@ import {
   MAX_TOOL_ITERATIONS,
   accumulateToolCalls,
   buildIterationLimitMessage,
+  buildToolMessageContent,
   createAgenticState,
   executeToolCalls,
   isValidMessageDelta,
@@ -306,7 +307,9 @@ describe("executeToolCalls", () => {
     const result = await runFuture(
       executeToolCalls(accessor, toolCalls, () => "fixed-id"),
     );
-    const parsed = JSON.parse(result[0]!.content) as { durationMs: number };
+    const parsed = JSON.parse(result[0]!.content as string) as {
+      durationMs: number;
+    };
     assert.strictEqual(parsed.durationMs, 0);
   });
 
@@ -322,7 +325,9 @@ describe("executeToolCalls", () => {
     const result = await runFuture(
       executeToolCalls(accessor, toolCalls, () => "fixed-id"),
     );
-    const parsed = JSON.parse(result[0]!.content) as { error: string };
+    const parsed = JSON.parse(result[0]!.content as string) as {
+      error: string;
+    };
     assert.ok(typeof parsed.error === "string");
   });
 
@@ -338,7 +343,9 @@ describe("executeToolCalls", () => {
     const result = await runFuture(
       executeToolCalls(accessor, toolCalls, () => "fixed-id"),
     );
-    const parsed = JSON.parse(result[0]!.content) as { error: string };
+    const parsed = JSON.parse(result[0]!.content as string) as {
+      error: string;
+    };
     assert.ok(parsed.error.includes("nonExistentTool"));
   });
 
@@ -355,7 +362,9 @@ describe("executeToolCalls", () => {
       executeToolCalls(accessor, toolCalls, () => "fixed-id"),
     );
     assert.strictEqual(result.length, 1);
-    const parsed = JSON.parse(result[0]!.content) as { durationMs: number };
+    const parsed = JSON.parse(result[0]!.content as string) as {
+      durationMs: number;
+    };
     assert.strictEqual(parsed.durationMs, 0);
   });
 
@@ -388,8 +397,58 @@ describe("executeToolCalls", () => {
       executeToolCalls(accessor, toolCalls, () => "fixed-id"),
     );
     // If the Future were not resolved, content would be "{}" (empty serialized Future object)
-    const parsed = JSON.parse(result[0]!.content) as { durationMs: number };
+    const parsed = JSON.parse(result[0]!.content as string) as {
+      durationMs: number;
+    };
     assert.strictEqual(typeof parsed.durationMs, "number");
+  });
+});
+
+describe("buildToolMessageContent", () => {
+  it("returns plain JSON string for non-screenshot tool output", () => {
+    const output = { durationMs: 1234 };
+    const result = buildToolMessageContent("getRecordingDuration", output);
+    assert.strictEqual(typeof result, "string");
+    assert.strictEqual(result, JSON.stringify(output));
+  });
+
+  it("returns vision content blocks when captureScreenshot returns a dataUrl", () => {
+    const dataUrl = "data:image/png;base64,abc123";
+    const output = { timestampMs: 500, dataUrl };
+    const result = buildToolMessageContent("captureScreenshot", output);
+    assert.ok(Array.isArray(result));
+    const blocks = result as Array<{ type: string }>;
+    assert.strictEqual(blocks.length, 2);
+    assert.strictEqual(blocks[0]!.type, "text");
+    assert.strictEqual(blocks[1]!.type, "image_url");
+    const imageBlock = blocks[1] as {
+      type: string;
+      image_url: { url: string };
+    };
+    assert.strictEqual(imageBlock.image_url.url, dataUrl);
+  });
+
+  it("falls back to plain JSON string when captureScreenshot output has no dataUrl", () => {
+    const output = { error: "No snapshot available" };
+    const result = buildToolMessageContent("captureScreenshot", output);
+    assert.strictEqual(typeof result, "string");
+    assert.strictEqual(result, JSON.stringify(output));
+  });
+
+  it("falls back to plain JSON string when captureScreenshot dataUrl is not a string", () => {
+    const output = { timestampMs: 0, dataUrl: null };
+    const result = buildToolMessageContent("captureScreenshot", output);
+    assert.strictEqual(typeof result, "string");
+  });
+
+  it("text block includes the timestamp for context", () => {
+    const dataUrl = "data:image/png;base64,xyz";
+    const output = { timestampMs: 1000, dataUrl };
+    const result = buildToolMessageContent("captureScreenshot", output);
+    assert.ok(Array.isArray(result));
+    const textBlock = (result as Array<{ type: string; text?: string }>)[0]!;
+    assert.ok(typeof textBlock.text === "string");
+    assert.ok(textBlock.text.includes("1000"));
   });
 });
 

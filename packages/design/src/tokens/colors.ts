@@ -95,6 +95,8 @@ export const color = {
   danger: twColors.rose['700'],
   /** rose-800 — hover state for danger elements */
   dangerHover: twColors.rose['800'],
+  /** rose-50 — lightest danger tint, for container backgrounds */
+  dangerTint: twColors.rose['50'],
   /** rose-100 — danger tint background */
   dangerSubtle: twColors.rose['100'],
   /** rose-500 — border for outlined danger buttons and error states */
@@ -104,6 +106,8 @@ export const color = {
   /** rose-900 — text on subtle danger backgrounds */
   dangerFg: twColors.rose['900'],
 
+  /** green-50 — lightest success tint, for container backgrounds */
+  successTint: twColors.green['50'],
   /** green-700 — success states */
   success: twColors.green['700'],
   /** green-800 — hover state for success elements */
@@ -117,6 +121,8 @@ export const color = {
   /** green-900 — text on subtle success backgrounds */
   successFg: twColors.green['900'],
 
+  /** amber-50 — lightest warning tint, for container backgrounds */
+  warningTint: twColors.amber['50'],
   /** amber-700 — warning states (text, borders on light backgrounds) */
   warning: twColors.amber['700'],
   /** amber-800 — hover state for warning text/borders */
@@ -134,6 +140,8 @@ export const color = {
   /** amber-900 — text on subtle warning backgrounds */
   warningFg: twColors.amber['900'],
 
+  /** blue-50 — lightest info tint, for container backgrounds */
+  infoTint: twColors.blue['50'],
   /**
    * blue-700 — informational states.
    * Resolves to the same value as `primary` today but is a separate token so

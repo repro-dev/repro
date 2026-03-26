@@ -8,10 +8,10 @@ import { fontSize, lineHeight } from '../tokens/typography'
 type AlertType = 'info' | 'success' | 'warning' | 'danger'
 
 const backgroundColorMap: Record<AlertType, string> = {
-  info: color.infoSubtle,
-  success: color.successSubtle,
-  warning: color.warningSubtle,
-  danger: color.dangerSubtle,
+  info: color.infoTint,
+  success: color.successTint,
+  warning: color.warningTint,
+  danger: color.dangerTint,
 }
 
 const borderColorMap: Record<AlertType, string> = {

@@ -30,6 +30,7 @@ import {
   AgenticError,
   AgenticState,
   AssistantMessage,
+  ContentBlock,
   Context,
   Entry,
   Loading,
@@ -88,6 +89,36 @@ function safeParse(data: unknown) {
   } catch {
     return data;
   }
+}
+
+// Builds the content for a ToolMessage. For captureScreenshot results that
+// include a dataUrl, returns an array of vision content blocks so the LLM
+// can actually see the image. Falls back to plain JSON string for all other
+// tools and for screenshot results where the dataUrl is missing/invalid.
+export function buildToolMessageContent(
+  toolName: string,
+  output: unknown,
+): string | Array<ContentBlock> {
+  if (
+    toolName === "captureScreenshot" &&
+    output !== null &&
+    typeof output === "object" &&
+    "dataUrl" in output &&
+    typeof (output as Record<string, unknown>).dataUrl === "string"
+  ) {
+    const { timestampMs, dataUrl } = output as {
+      timestampMs?: number;
+      dataUrl: string;
+    };
+    const timestampLabel =
+      timestampMs !== undefined ? ` at ${timestampMs}ms` : "";
+    return [
+      { type: "text", text: `Screenshot captured${timestampLabel}.` },
+      { type: "image_url", image_url: { url: dataUrl } },
+    ];
+  }
+
+  return JSON.stringify(output);
 }
 
 export function isValidMessageDelta(data: any): data is MessageDeltaLike {
@@ -171,7 +202,7 @@ export function executeToolCalls(
               id: createId(),
               timestamp: new Date(),
               role: "tool",
-              content: JSON.stringify(output),
+              content: buildToolMessageContent(captured.function.name, output),
               tool_call_id: captured.id,
             };
             results.push(toolMessage);
