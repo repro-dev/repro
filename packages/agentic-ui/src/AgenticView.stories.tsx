@@ -262,3 +262,56 @@ export const WithError: StoryObj = {
     ),
   ],
 };
+
+// A minimal 1×1 transparent PNG encoded as a data URL, used in place of a real screenshot in stories.
+const PLACEHOLDER_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+export const WithScreenshotResult: StoryObj = {
+  decorators: [
+    withState(
+      makeState(
+        [
+          {
+            id: "1",
+            timestamp: new Date(),
+            role: "user",
+            content: "Take a screenshot of the current state.",
+          },
+          {
+            id: "2",
+            timestamp: new Date(),
+            role: "assistant",
+            content: "",
+            toolCalls: [
+              {
+                id: "tc1",
+                index: 0,
+                function: { name: "captureScreenshot", arguments: "{}" },
+              },
+            ],
+          },
+          {
+            id: "3",
+            timestamp: new Date(),
+            role: "tool",
+            content: JSON.stringify({
+              dataUrl: PLACEHOLDER_DATA_URL,
+              timestampMs: 1234,
+              _tokenEstimate: 100,
+            }),
+            tool_call_id: "tc1",
+          },
+          {
+            id: "4",
+            timestamp: new Date(),
+            role: "assistant",
+            content: "Here is the screenshot of the current state.",
+            toolCalls: [],
+          },
+        ],
+        "none",
+      ),
+    ),
+  ],
+};

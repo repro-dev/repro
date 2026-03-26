@@ -20,6 +20,71 @@ interface ToolCallRowProps {
   isExecuting: boolean;
 }
 
+interface ToolResultDetailProps {
+  toolName: string;
+  content: string;
+}
+
+// Renders a screenshot dataUrl as an inline image; falls back to pretty-printed JSON for all other tools.
+const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
+  toolName,
+  content,
+}) => {
+  if (toolName === "captureScreenshot") {
+    let dataUrl: string | null = null;
+    try {
+      const parsed = JSON.parse(content) as Record<string, unknown>;
+      if (typeof parsed.dataUrl === "string") {
+        dataUrl = parsed.dataUrl;
+      }
+    } catch {
+      // fall through to JSON block below
+    }
+
+    if (dataUrl !== null) {
+      return (
+        <Block
+          backgroundColor={color.bg.muted}
+          borderRadius={radius.sm}
+          padding={spacing.md}
+          overflow="hidden"
+        >
+          <Block
+            component="img"
+            maxWidth="100%"
+            display="block"
+            borderRadius={radius.sm}
+            props={{ src: dataUrl, alt: "Screenshot" }}
+          />
+        </Block>
+      );
+    }
+  }
+
+  return (
+    <Block
+      fontSize={fontSize.xs}
+      fontFamily={fontFamily.mono}
+      color={color.text.secondary}
+      backgroundColor={color.bg.muted}
+      borderRadius={radius.sm}
+      padding={spacing.md}
+      overflowX="auto"
+      whiteSpace="pre-wrap"
+      wordBreak="break-all"
+      component="pre"
+    >
+      {(() => {
+        try {
+          return JSON.stringify(JSON.parse(content), null, 2);
+        } catch {
+          return content;
+        }
+      })()}
+    </Block>
+  );
+};
+
 export const ToolCallRow: React.FC<ToolCallRowProps> = ({
   toolName,
   result,
@@ -102,26 +167,7 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
       </Row>
 
       {expanded && result !== null && (
-        <Block
-          fontSize={fontSize.xs}
-          fontFamily={fontFamily.mono}
-          color={color.text.secondary}
-          backgroundColor={color.bg.muted}
-          borderRadius={radius.sm}
-          padding={spacing.md}
-          overflowX="auto"
-          whiteSpace="pre-wrap"
-          wordBreak="break-all"
-          component="pre"
-        >
-          {(() => {
-            try {
-              return JSON.stringify(JSON.parse(result.content), null, 2);
-            } catch {
-              return result.content;
-            }
-          })()}
-        </Block>
+        <ToolResultDetail toolName={toolName} content={result.content} />
       )}
     </Col>
   );

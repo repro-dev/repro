@@ -72,6 +72,10 @@ export function summarizeToolResult(toolName: string, content: string): string {
     return "Completed";
   }
 
+  if (toolName === "captureScreenshot") {
+    return "Screenshot captured";
+  }
+
   if (toolName === "getEventsAroundTime") {
     const data = parsed as Record<string, unknown>;
     if (

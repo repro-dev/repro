@@ -200,4 +200,24 @@ describe("summarizeToolResult", () => {
     );
     assert.equal(result, "Completed");
   });
+
+  it("returns 'Screenshot captured' for captureScreenshot with dataUrl", () => {
+    const result = summarizeToolResult(
+      "captureScreenshot",
+      JSON.stringify({
+        dataUrl: "data:image/png;base64,abc123",
+        timestampMs: 1000,
+        _tokenEstimate: 500,
+      }),
+    );
+    assert.equal(result, "Screenshot captured");
+  });
+
+  it("returns 'Screenshot captured' for captureScreenshot without dataUrl", () => {
+    const result = summarizeToolResult(
+      "captureScreenshot",
+      JSON.stringify({ timestampMs: 1000 }),
+    );
+    assert.equal(result, "Screenshot captured");
+  });
 });
