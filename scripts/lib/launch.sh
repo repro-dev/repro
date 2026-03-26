@@ -74,6 +74,20 @@ try {
   echo "$bin"
 }
 
+# Ensure Playwright Chromium is installed, downloading it if needed.
+_ensure_playwright_chromium() {
+  local bin
+  bin="$(_playwright_chromium_bin 2>/dev/null)" && echo "$bin" && return 0
+
+  printf 'Playwright Chromium not found — installing now...\n' >&2
+  npx --yes playwright install chromium >&2 || \
+    die "Failed to install Playwright Chromium. Run manually: npx playwright install chromium"
+
+  bin="$(_playwright_chromium_bin 2>/dev/null)" || \
+    die "Playwright Chromium still not found after install. Check: npx playwright install chromium"
+  echo "$bin"
+}
+
 _launchable_services() {
   local services=()
   services=(workspace api-server admin capture)
@@ -168,8 +182,7 @@ cmd_launch() {
   # Special case: launch capture extension in Playwright Chromium
   if [[ "$service" == "capture" ]]; then
     local chromium_bin
-    chromium_bin="$(_playwright_chromium_bin)" || \
-      die "Playwright Chromium not found. Run: npx playwright install chromium"
+    chromium_bin="$(_ensure_playwright_chromium)"
 
     local ext_dist="$REPO_ROOT/apps/capture/dist"
     if [[ -n "$slug" ]] && [[ "$slug" != "main" ]]; then
