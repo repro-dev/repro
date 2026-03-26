@@ -8,6 +8,7 @@ import {
 } from '@repro/agentic'
 import { AgenticStateContext, AgenticView } from '@repro/agentic-ui'
 import { useApiClient } from '@repro/api-client'
+import { useMessaging } from '@repro/messaging'
 import { usePlayback } from '@repro/playback'
 import { parse } from 'event-stream-parser'
 import { attemptP, chain } from 'fluture'
@@ -16,6 +17,7 @@ import React, { useMemo } from 'react'
 export const Agentic: React.FC = () => {
   const apiClient = useApiClient()
   const playback = usePlayback()
+  const agent = useMessaging()
 
   const streamProvider: StreamProvider = useMemo(
     () =>
@@ -54,8 +56,8 @@ export const Agentic: React.FC = () => {
         },
         // Invert from Record<resourceId, absoluteURL> to
         // Record<absoluteURL, resourceId>. In the capture widget the resource
-        // map is always empty (resources aren't fetched client-side), so this
-        // produces {} in practice — see REP-XXX for the follow-up.
+        // map is always empty (resources aren't fetched client-side before upload);
+        // prefetchResources handles the pre-save case via resources:prefetch intent.
         getResourceMap: () =>
           Object.fromEntries(
             Object.entries(playback.getResourceMap()).map(([id, url]) => [
@@ -63,9 +65,14 @@ export const Agentic: React.FC = () => {
               id,
             ])
           ),
+        prefetchResources: urls =>
+          agent.raiseIntent<Record<string, string>>({
+            type: 'resources:prefetch',
+            payload: { urls },
+          }),
         ...makeAccessorFromEventList(playback.getSourceEvents()),
       }),
-    [streamProvider, playback]
+    [streamProvider, playback, agent]
   )
 
   return (

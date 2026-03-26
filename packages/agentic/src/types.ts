@@ -9,6 +9,11 @@ export interface RecordingDataAccessor {
   // API URL) ready to pass directly to createDOMFromVTree as its resourceMap
   // argument. Inversion and base-URL construction are the caller's responsibility.
   getResourceMap(): Record<string, string>;
+  // Pre-fetches external resource URLs and returns a map of absoluteURL →
+  // dataURL. Implementations that cannot prefetch should resolve with {}.
+  prefetchResources?(
+    urls: string[],
+  ): FutureInstance<Error, Record<string, string>>;
   getEventsByType(
     types: Array<SourceEventType>,
     opts?: {

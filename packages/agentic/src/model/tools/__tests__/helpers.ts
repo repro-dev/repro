@@ -12,7 +12,7 @@ import {
   SourceEventView,
   WebSocketMessageType,
 } from "@repro/domain";
-import { fork } from "fluture";
+import { fork, resolve } from "fluture";
 import { Box } from "@repro/tdl";
 import { makeAccessorFromEventList } from "../../../recordingDataAccessor";
 import { RecordingDataAccessor } from "../../../types";
@@ -21,8 +21,8 @@ import type { FutureInstance } from "fluture";
 // Forks a FutureInstance into a Promise so tests can use await.
 export function runFuture<L, R>(future: FutureInstance<L, R>): Promise<R> {
   return new Promise<R>((resolve, reject) => {
-    fork(reject)(resolve)(future)
-  })
+    fork(reject)(resolve)(future);
+  });
 }
 
 // ─── Accessor helpers ────────────────────────────────────────────────────────
@@ -36,6 +36,7 @@ export function makeAccessor(
     getDuration: () => duration ?? Number.MAX_SAFE_INTEGER,
     getSnapshotAtTime: snapshotFn ?? (() => null),
     getResourceMap: () => ({}),
+    prefetchResources: (_urls) => resolve({}),
     ...makeAccessorFromEventList({
       size: () => events.length,
       over: (i) => events[i] ?? null,
@@ -616,7 +617,7 @@ export function makeAttributePatchEvent(
       value,
       oldValue,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>
+  }) as unknown as ReturnType<typeof SourceEventView.from>;
 }
 
 export function makeTextPatchEvent(
@@ -636,7 +637,7 @@ export function makeTextPatchEvent(
       oldValue,
       parentId: null,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>
+  }) as unknown as ReturnType<typeof SourceEventView.from>;
 }
 
 export function makeAddNodesPatchEvent(
@@ -649,14 +650,14 @@ export function makeAddNodesPatchEvent(
   // encoding the nested VTree nodes map (encodeMap + encodeUnion recursion).
   // A plain Box is sufficient — getEventsByType only calls .get("time") and
   // .get("type"), and the getDOMDiff handler calls .get("data").get(...).
-  const nodes = nodeIds.map(id => ({
+  const nodes = nodeIds.map((id) => ({
     rootId: id as NodeId,
     nodes: {
       [id]: new Box({
         type: NodeType.Element as NodeType.Element,
         id: id as NodeId,
         parentId: parentId as NodeId,
-        tagName: 'div',
+        tagName: "div",
         children: [] as NodeId[],
         attributes: {} as Record<string, string | null>,
         properties: { value: null, checked: null, selectedIndex: null },
@@ -683,14 +684,14 @@ export function makeRemoveNodesPatchEvent(
   nodeIds: string[],
 ): ReturnType<typeof SourceEventView.from> {
   // Bypass SourceEventView.from() — see comment in makeAddNodesPatchEvent.
-  const nodes = nodeIds.map(id => ({
+  const nodes = nodeIds.map((id) => ({
     rootId: id as NodeId,
     nodes: {
       [id]: new Box({
         type: NodeType.Element as NodeType.Element,
         id: id as NodeId,
         parentId: parentId as NodeId,
-        tagName: 'div',
+        tagName: "div",
         children: [] as NodeId[],
         attributes: {} as Record<string, string | null>,
         properties: { value: null, checked: null, selectedIndex: null },
@@ -729,7 +730,7 @@ export function makeTextPropertyPatchEvent(
       value,
       oldValue,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>
+  }) as unknown as ReturnType<typeof SourceEventView.from>;
 }
 
 export function makeBooleanPropertyPatchEvent(
@@ -750,7 +751,7 @@ export function makeBooleanPropertyPatchEvent(
       value,
       oldValue,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>
+  }) as unknown as ReturnType<typeof SourceEventView.from>;
 }
 
 export function makeNumberPropertyPatchEvent(
@@ -771,5 +772,5 @@ export function makeNumberPropertyPatchEvent(
       value,
       oldValue,
     }),
-  }) as unknown as ReturnType<typeof SourceEventView.from>
+  }) as unknown as ReturnType<typeof SourceEventView.from>;
 }
