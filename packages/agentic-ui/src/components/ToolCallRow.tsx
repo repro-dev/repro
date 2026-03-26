@@ -1,5 +1,5 @@
 import { Block, Col, Row } from "@jsxstyle/react";
-import { ToolMessage, summarizeToolResult } from "@repro/agentic";
+import { ContentBlock, ToolMessage, summarizeToolResult } from "@repro/agentic";
 import {
   FX,
   color,
@@ -31,7 +31,10 @@ const TOOL_LABELS: Record<string, string> = {
 
 // Detects whether a tool result content JSON contains a top-level error key,
 // indicating the tool call failed at runtime.
-function isErrorResult(content: string): boolean {
+function isErrorResult(content: string | Array<ContentBlock>): boolean {
+  if (typeof content !== "string") {
+    return false;
+  }
   try {
     const parsed = JSON.parse(content) as Record<string, unknown>;
     return typeof parsed.error === "string";
@@ -46,46 +49,89 @@ interface ToolCallRowProps {
   isExecuting: boolean;
 }
 
-interface ToolResultDetailProps {
-  toolName: string;
-  content: string;
+// Resolve tool message content to a plain string for display. When content
+// is an array of vision content blocks (e.g. captureScreenshot), produce a
+// human-readable summary rather than attempting to JSON-parse raw blocks.
+function contentToString(content: string | Array<ContentBlock>): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  const textBlock = content.find((b) => b.type === "text");
+  if (textBlock && textBlock.type === "text") {
+    return textBlock.text;
+  }
+  return "[vision content]";
 }
 
-// Renders a screenshot dataUrl as an inline image; falls back to pretty-printed JSON for all other tools.
+interface ToolResultDetailProps {
+  toolName: string;
+  content: string | Array<ContentBlock>;
+}
+
+// Renders a screenshot dataUrl as an inline image; falls back to pretty-printed
+// JSON for all other tools. Handles both plain string and ContentBlock[] content.
 const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
   toolName,
   content,
 }) => {
   if (toolName === "captureScreenshot") {
-    let dataUrl: string | null = null;
-    try {
-      const parsed = JSON.parse(content) as Record<string, unknown>;
-      if (typeof parsed.dataUrl === "string") {
-        dataUrl = parsed.dataUrl;
+    // Check for dataUrl in a ContentBlock array (image_url block)
+    if (Array.isArray(content)) {
+      const imageBlock = content.find((b) => b.type === "image_url");
+      if (imageBlock && imageBlock.type === "image_url") {
+        return (
+          <Block
+            backgroundColor={color.bg.muted}
+            borderRadius={radius.sm}
+            padding={spacing.md}
+            overflow="hidden"
+          >
+            <Block
+              component="img"
+              maxWidth="100%"
+              display="block"
+              borderRadius={radius.sm}
+              props={{ src: imageBlock.image_url.url, alt: "Screenshot" }}
+            />
+          </Block>
+        );
       }
-    } catch {
-      // fall through to JSON block below
     }
 
-    if (dataUrl !== null) {
-      return (
-        <Block
-          backgroundColor={color.bg.muted}
-          borderRadius={radius.sm}
-          padding={spacing.md}
-          overflow="hidden"
-        >
+    // Check for dataUrl in a plain JSON string (legacy / fallback path)
+    if (typeof content === "string") {
+      let dataUrl: string | null = null;
+      try {
+        const parsed = JSON.parse(content) as Record<string, unknown>;
+        if (typeof parsed.dataUrl === "string") {
+          dataUrl = parsed.dataUrl;
+        }
+      } catch {
+        // fall through to JSON block below
+      }
+
+      if (dataUrl !== null) {
+        return (
           <Block
-            component="img"
-            maxWidth="100%"
-            display="block"
+            backgroundColor={color.bg.muted}
             borderRadius={radius.sm}
-            props={{ src: dataUrl, alt: "Screenshot" }}
-          />
-        </Block>
-      );
+            padding={spacing.md}
+            overflow="hidden"
+          >
+            <Block
+              component="img"
+              maxWidth="100%"
+              display="block"
+              borderRadius={radius.sm}
+              props={{ src: dataUrl, alt: "Screenshot" }}
+            />
+          </Block>
+        );
+      }
     }
   }
+
+  const raw = contentToString(content);
 
   return (
     <Block
@@ -102,9 +148,9 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
     >
       {(() => {
         try {
-          return JSON.stringify(JSON.parse(content), null, 2);
+          return JSON.stringify(JSON.parse(raw), null, 2);
         } catch {
-          return content;
+          return raw;
         }
       })()}
     </Block>
@@ -118,7 +164,9 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
 
-  const summary = result ? summarizeToolResult(toolName, result.content) : null;
+  const summary = result
+    ? summarizeToolResult(toolName, contentToString(result.content))
+    : null;
   const hasError = result !== null && isErrorResult(result.content);
   const label = TOOL_LABELS[toolName] ?? toolName;
 
