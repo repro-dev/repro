@@ -279,13 +279,13 @@ _reproctl_worktree() {
           [[ "$state" == branch ]] && {
             local -a branches
             branches=("${(@f)$(__reproctl_worktree_branches)}")
-            [[ ${#branches} -gt 0 ]] && _values 'branch' "${branches[@]}"
+            [[ ${#branches} -gt 0 ]] && compadd -a branches
           }
           ;;
         attach)
           local -a branches
           branches=("${(@f)$(__reproctl_worktree_branches)}")
-          [[ ${#branches} -gt 0 ]] && _values 'branch' "${branches[@]}"
+          [[ ${#branches} -gt 0 ]] && compadd -a branches
           ;;
         prune)
           _arguments \
@@ -323,7 +323,7 @@ _reproctl_help() {
     'completion' 'version'
     'environment' 'exit-codes' 'json'
   )
-  _values 'topic' "${help_topics[@]}"
+  compadd -a help_topics
 }
 
 if [[ "${funcstack[1]}" == _reproctl ]]; then
