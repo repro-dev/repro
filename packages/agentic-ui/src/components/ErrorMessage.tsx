@@ -1,5 +1,12 @@
 import { Col, Row } from "@jsxstyle/react";
-import { Button, colors } from "@repro/design";
+import {
+  Button,
+  color,
+  fontSize,
+  fontWeight,
+  radius,
+  spacing,
+} from "@repro/design";
 import { AgenticError } from "@repro/agentic";
 import { AlertCircleIcon } from "lucide-react";
 import React from "react";
@@ -15,17 +22,21 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
 }) => {
   return (
     <Col
-      backgroundColor={colors.red["50"]}
-      borderColor={colors.red["200"]}
-      borderRadius={8}
+      backgroundColor={color.dangerSubtle}
+      borderColor={color.dangerBorderSubtle}
+      borderRadius={radius.md}
       borderStyle="solid"
       borderWidth={1}
-      gap={8}
-      padding={12}
+      gap={spacing.md}
+      padding={spacing.lg}
     >
-      <Row alignItems="center" gap={8}>
-        <AlertCircleIcon color={colors.red["600"]} size={16} />
-        <Row color={colors.red["800"]} fontSize={12} fontWeight={500}>
+      <Row alignItems="center" gap={spacing.md}>
+        <AlertCircleIcon color={color.danger} size={16} />
+        <Row
+          color={color.dangerFg}
+          fontSize={fontSize.xs}
+          fontWeight={fontWeight.semibold}
+        >
           {error.message}
         </Row>
       </Row>
