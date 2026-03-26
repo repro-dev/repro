@@ -116,6 +116,7 @@ export interface AgenticState {
   cancel(): void;
   destroy(): void;
   query(input: string): void;
+  reset(): void;
 }
 
 export interface ToolDefinition {

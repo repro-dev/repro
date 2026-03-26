@@ -262,12 +262,25 @@ export function createAgenticState(
   }
 
   function cancel() {
-    clearPendingRetry();
+    clearPendingRetry()
     if (currentAbortController) {
-      currentAbortController.abort();
-      currentAbortController = null;
+      currentAbortController.abort()
+      currentAbortController = null
     }
     setLoading("cancelled");
+  }
+
+  function reset() {
+    clearPendingRetry()
+    if (currentAbortController) {
+      currentAbortController.abort()
+      currentAbortController = null
+    }
+    setEntryMap({ orderedIds: [], entries: {} })
+    setLoading('none')
+    setError(null)
+    iterationCount = 0
+    retryAttempt = 0
   }
 
   function query(input: string) {
@@ -546,5 +559,6 @@ export function createAgenticState(
     cancel,
     destroy,
     query,
+    reset,
   };
 }

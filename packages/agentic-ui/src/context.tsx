@@ -9,6 +9,7 @@ export const AgenticStateContext = React.createContext<AgenticState>({
   cancel: () => {},
   destroy: () => {},
   query: () => {},
+  reset: () => {},
 })
 
 export function useAgenticState() {

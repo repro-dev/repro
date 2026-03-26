@@ -876,3 +876,121 @@ describe("createAgenticState — cancel and error handling", () => {
     state.destroy();
   });
 });
+
+describe("reset()", () => {
+  function makeEmptyAccessorNew(): RecordingDataAccessor {
+    return {
+      getDuration: () => 0,
+      getSnapshotAtTime: () => null,
+      getEventsByType: () => [],
+      getEventsInRange: () => [],
+      getResourceMap: () => ({}),
+    };
+  }
+
+  function waitForCondition(
+    predicate: () => boolean,
+    timeout = 5000,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      function check() {
+        if (predicate()) return resolve();
+        if (Date.now() - start > timeout) return reject(new Error("timeout"));
+        setTimeout(check, 10);
+      }
+      check();
+    });
+  }
+
+  function makeSseStream(events: Array<{ data: string }>): ReadableStream<{ data: string }> {
+    return new ReadableStream({
+      start(controller) {
+        for (const event of events) {
+          controller.enqueue(event);
+        }
+        controller.close();
+      },
+    });
+  }
+
+  function makeDeltaEvent(content: string): { data: string } {
+    return {
+      data: JSON.stringify({
+        choices: [{ delta: { content } }],
+      }),
+    };
+  }
+
+  function makeMessageEvent(data: string): { data: string } {
+    return { data };
+  }
+
+  it("reset() clears all entries", async () => {
+    const stream = makeSseStream([
+      makeDeltaEvent("hello"),
+      makeMessageEvent("[DONE]"),
+    ]);
+    const streamProvider: StreamProvider = () => resolve(stream) as never;
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("test");
+
+    await waitForCondition(() => state.$entries.getValue().length > 0);
+
+    state.reset();
+
+    assert.deepStrictEqual(state.$entries.getValue(), []);
+    state.destroy();
+  });
+
+  it("reset() sets $loading to 'none'", () => {
+    const streamProvider: StreamProvider = () =>
+      new Promise(() => {}) as never;
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("test");
+
+    state.reset();
+
+    assert.strictEqual(state.$loading.getValue(), "none");
+    state.destroy();
+  });
+
+  it("reset() clears $error", async () => {
+    const forbiddenError = { status: 403 };
+    const streamProvider: StreamProvider = () =>
+      futureReject(forbiddenError) as never;
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("test");
+
+    await waitForCondition(() => state.$error.getValue() !== null, 5000);
+
+    state.reset();
+
+    assert.strictEqual(state.$error.getValue(), null);
+    state.destroy();
+  });
+
+  it("reset() aborts any in-flight request", async () => {
+    let aborted = false;
+    const streamProvider: StreamProvider = (_ctx, _tools, signal) => {
+      if (signal) {
+        signal.addEventListener("abort", () => {
+          aborted = true;
+        });
+      }
+      return resolve(new ReadableStream()) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("test");
+    state.reset();
+
+    await new Promise((res) => setTimeout(res, 50));
+
+    assert.strictEqual(aborted, true);
+    state.destroy();
+  });
+});
