@@ -28,7 +28,7 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
         <AlertCircleIcon color={color.danger} size={16} />
       </Block>
       <Block flexGrow={1}>
-        <Text variant="caption" color={color.dangerFg} weight="semibold" as="span">
+        <Text variant="caption" color={color.dangerFg} as="span">
           {error.message}
         </Text>
       </Block>
