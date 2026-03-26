@@ -296,10 +296,10 @@ export function createAgenticState(
   }
 
   function cancel() {
-    clearPendingRetry();
+    clearPendingRetry()
     if (currentAbortController) {
-      currentAbortController.abort();
-      currentAbortController = null;
+      currentAbortController.abort()
+      currentAbortController = null
     }
     setLoading("cancelled");
     // Briefly show cancelled state, then reset to idle so the UI unlocks
@@ -319,6 +319,19 @@ export function createAgenticState(
     setEntryMap({ orderedIds: [], entries: {} });
     setLoading("none");
     setError(null);
+  }
+
+  function reset() {
+    clearPendingRetry()
+    if (currentAbortController) {
+      currentAbortController.abort()
+      currentAbortController = null
+    }
+    setEntryMap({ orderedIds: [], entries: {} })
+    setLoading('none')
+    setError(null)
+    iterationCount = 0
+    retryAttempt = 0
   }
 
   function query(input: string) {

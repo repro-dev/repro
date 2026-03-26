@@ -1,6 +1,15 @@
 import { Block, Col } from "@jsxstyle/react";
 import { useAtomValue } from "@repro/atom";
-import { AgenticInputFormState, spacing } from "@repro/design";
+import {
+  AgenticInputFormState,
+  color,
+  focusRing,
+  radius,
+  spacing,
+  Tooltip,
+  transition,
+} from "@repro/design";
+import { RotateCcwIcon } from "lucide-react";
 import React, { useRef, useState } from "react";
 import { AgenticInputSection } from "./components/AgenticInputSection";
 import { JumpToEndButton } from "./components/JumpToEndButton";
@@ -37,6 +46,11 @@ export const AgenticView: React.FC = () => {
 
   function handleRetry() {
     agentic.query(lastPromptRef.current);
+  }
+
+  function handleReset() {
+    agentic.reset();
+    setInputHasFocus(false);
   }
 
   return (
@@ -78,6 +92,35 @@ export const AgenticView: React.FC = () => {
         loading={loading}
         onJumpToEnd={handleJumpToEnd}
       />
+
+      {entries.length > 0 && (
+        <Block
+          alignItems="center"
+          background="transparent"
+          border="none"
+          borderRadius={radius.sm}
+          color={color.text.muted}
+          component="button"
+          cursor="pointer"
+          display="flex"
+          justifyContent="center"
+          padding={spacing.sm}
+          position="absolute"
+          left={-(spacing.xl + spacing.sm)}
+          top={spacing.sm}
+          transition={transition.fast}
+          hoverBackgroundColor={color.bg.hover}
+          {...focusRing('neutral')}
+          props={{
+            type: "button",
+            "aria-label": "Start new session",
+            onClick: handleReset,
+          }}
+        >
+          <Tooltip>Start new session</Tooltip>
+          <RotateCcwIcon size={14} />
+        </Block>
+      )}
     </Block>
   );
 };
