@@ -6,9 +6,10 @@ import {
   focusRing,
   radius,
   spacing,
+  Tooltip,
   transition,
 } from "@repro/design";
-import { RotateCcwIcon } from "lucide-react";
+import { ListRestartIcon } from "lucide-react";
 import React, { useRef, useState } from "react";
 import { AgenticInputSection } from "./components/AgenticInputSection";
 import { JumpToEndButton } from "./components/JumpToEndButton";
@@ -101,8 +102,8 @@ export const AgenticView: React.FC = () => {
           justifyContent="center"
           padding={spacing.sm}
           position="absolute"
-          right={spacing.md}
-          top={spacing.md}
+          left={-(spacing.xl + spacing.sm)}
+          top={spacing.sm}
           transition={transition.fast}
           hoverBackgroundColor={color.bg.hover}
           {...focusRing('neutral')}
@@ -112,7 +113,8 @@ export const AgenticView: React.FC = () => {
             onClick: handleReset,
           }}
         >
-          <RotateCcwIcon size={14} />
+          <Tooltip>Start new session</Tooltip>
+          <ListRestartIcon size={14} />
         </Block>
       )}
     </Block>
