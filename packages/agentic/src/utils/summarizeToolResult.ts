@@ -17,8 +17,8 @@ export function summarizeToolResult(toolName: string, content: string): string {
 
   if (toolName === "getRecordingDuration") {
     const data = parsed as Record<string, unknown>;
-    if ("duration" in data) {
-      return `Duration: ${data.duration}s`;
+    if ("durationMs" in data && typeof data.durationMs === "number") {
+      return `Duration: ${(data.durationMs / 1000).toFixed(1)}s`;
     }
     return "Completed";
   }
