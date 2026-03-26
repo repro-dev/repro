@@ -252,6 +252,7 @@ _reproctl_worktree() {
     'list:List active worktrees'
     'attach:Drop into a worktree subshell'
     'prune:Remove worktrees with merged branches'
+    'use:Set the machine-wide active worktree'
   )
 
   _arguments -C \
@@ -292,6 +293,16 @@ _reproctl_worktree() {
             '--dry-run[Preview without making changes]' \
             '(-y --yes)'{-y,--yes}'[Skip confirmation]' \
             '(-h --help)'{-h,--help}'[Show help]'
+          ;;
+        use)
+          _arguments \
+            '(-h --help)'{-h,--help}'[Show help]' \
+            '1:branch:->branch' && return
+          [[ "$state" == branch ]] && {
+            local -a branches
+            branches=("${(@f)$(__reproctl_worktree_branches)}")
+            [[ ${#branches} -gt 0 ]] && compadd -a branches
+          }
           ;;
       esac
       ;;

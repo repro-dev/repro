@@ -11,6 +11,8 @@ source "$SCRIPT_DIR/lib/services.sh"
 source "$SCRIPT_DIR/lib/cluster.sh"
 # shellcheck source=scripts/lib/worktree.sh
 source "$SCRIPT_DIR/lib/worktree.sh"
+# shellcheck source=scripts/lib/use.sh
+source "$SCRIPT_DIR/lib/use.sh"
 # shellcheck source=scripts/lib/setup.sh
 source "$SCRIPT_DIR/lib/setup.sh"
 # shellcheck source=scripts/lib/logs.sh

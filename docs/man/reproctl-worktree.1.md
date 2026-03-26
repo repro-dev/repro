@@ -33,6 +33,9 @@ Manage git worktrees for isolated development. **wt** is a shorthand alias for *
 **prune** [**--dry-run**] [**--yes**]
 : Remove worktrees whose branches have been merged into main or whose upstream tracking branch no longer exists on the remote.
 
+**use** [*branch*]
+: Set the machine-wide active worktree. Writes the slug to `~/.repro/active` and repoints `~/.repro/active-extension` to `<wt-path>/apps/capture/dist`. On first invocation, prints instructions for loading the extension in Chrome. Subsequent calls only require clicking **Update** in `chrome://extensions`. If *branch* is omitted and stdin is a terminal, an interactive picker is shown.
+
 # OPTIONS
 
 **--dry-run**
@@ -49,7 +52,7 @@ Manage git worktrees for isolated development. **wt** is a shorthand alias for *
 
 # INTERACTIVE PICKER
 
-When **attach** or **remove** is called without a branch name and stdin is a terminal, an interactive picker is shown. If **fzf** is installed, it provides fuzzy selection; otherwise a numbered prompt is displayed.
+When **attach**, **remove**, or **use** is called without a branch name and stdin is a terminal, an interactive picker is shown. If **fzf** is installed, it provides fuzzy selection; otherwise a numbered prompt is displayed.
 
 # EXAMPLES
 
@@ -79,6 +82,9 @@ reproctl wt create -i REP-123
 
 reproctl worktree prune --dry-run
 : Preview which worktrees would be pruned.
+
+reproctl wt use rep-123
+: Activate a worktree as the machine-wide focus.
 
 # SEE ALSO
 
