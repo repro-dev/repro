@@ -271,6 +271,8 @@ export function createAgenticState(
   const [$error, setError] = createAtom<AgenticError | null>(null);
 
   let currentAbortController: AbortController | null = null;
+  let currentToolSubscription: Subscription | null = null;
+  let cancelled = false;
   let retryAttempt = 0;
   let pendingRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -287,9 +289,14 @@ export function createAgenticState(
 
   function destroy() {
     clearPendingRetry();
+    cancelled = true;
     if (currentAbortController) {
       currentAbortController.abort();
       currentAbortController = null;
+    }
+    if (currentToolSubscription) {
+      currentToolSubscription.unsubscribe();
+      currentToolSubscription = null;
     }
     toolCallTrigger$.complete();
     subscription.unsubscribe();
@@ -297,9 +304,14 @@ export function createAgenticState(
 
   function cancel() {
     clearPendingRetry()
+    cancelled = true
     if (currentAbortController) {
       currentAbortController.abort()
       currentAbortController = null
+    }
+    if (currentToolSubscription) {
+      currentToolSubscription.unsubscribe()
+      currentToolSubscription = null
     }
     setLoading("cancelled");
     // Briefly show cancelled state, then reset to idle so the UI unlocks
@@ -310,9 +322,14 @@ export function createAgenticState(
 
   function reset() {
     clearPendingRetry();
+    cancelled = false;
     if (currentAbortController) {
       currentAbortController.abort();
       currentAbortController = null;
+    }
+    if (currentToolSubscription) {
+      currentToolSubscription.unsubscribe();
+      currentToolSubscription = null;
     }
     iterationCount = 0;
     retryAttempt = 0;
@@ -323,6 +340,7 @@ export function createAgenticState(
 
   function query(input: string) {
     iterationCount = 0;
+    cancelled = false;
     setError(null);
     retryAttempt = 0;
     setLoading("reasoning");
@@ -522,7 +540,7 @@ export function createAgenticState(
         case "message": {
           const message = chunk.data;
 
-          if (message.content !== "") {
+          if (!cancelled && message.content !== "") {
             setLoading("responding");
           }
 
@@ -564,24 +582,33 @@ export function createAgenticState(
                 },
               }));
 
-              setLoading("none");
+              if (!cancelled) {
+                setLoading("none");
+              }
               break;
             }
 
-            setLoading("tool-executing");
+            if (!cancelled) {
+              setLoading("tool-executing");
+            }
 
-            observeFuture(
+            currentToolSubscription = observeFuture(
               executeToolCalls(recording, lastEntry.toolCalls),
             ).subscribe((toolMessages) => {
-              for (const toolMessage of toolMessages) {
-                appendToolMessage(toolMessage);
+              currentToolSubscription = null
+              if (!cancelled) {
+                for (const toolMessage of toolMessages) {
+                  appendToolMessage(toolMessage);
+                }
+                setLoading("reasoning");
+                toolCallTrigger$.next();
               }
-              setLoading("reasoning");
-              toolCallTrigger$.next();
             });
           } else {
             retryAttempt = 0;
-            setLoading("none");
+            if (!cancelled) {
+              setLoading("none");
+            }
           }
 
           break;
