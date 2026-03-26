@@ -29,7 +29,7 @@ cd "$REPO_ROOT"
 # ── Helpers ─────────────────────────────────────────────────────────
 
 step=0
-total=8
+total=7
 
 next_step() {
   step=$((step + 1))
@@ -163,22 +163,6 @@ else
   next_step "Creating kind cluster and container registry..."
   "$REPO_ROOT/scripts/reproctl.sh" cluster up
   ok "Cluster and registry ready"
-fi
-
-# ── Step 8: Machine-wide active worktree ────────────────────────────
-
-next_step "Setting up machine-wide active worktree..."
-
-repro_dir="$HOME/.repro"
-if [[ ! -d "$repro_dir" ]]; then
-  mkdir -p "$repro_dir"
-fi
-
-if [[ ! -L "$repro_dir/active" ]]; then
-  ln -sfn "$REPO_ROOT" "$repro_dir/active"
-  ok "~/.repro/active -> $REPO_ROOT (main checkout)"
-else
-  ok "~/.repro/active already set ($(readlink "$repro_dir/active"))"
 fi
 
 # ── Done ────────────────────────────────────────────────────────────

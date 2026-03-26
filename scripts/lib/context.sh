@@ -63,19 +63,6 @@ _context_json() {
   local services_csv
   services_csv="$(_context_services "$slug")"
 
-  local active_slug=""
-  local _active_target
-  _active_target="$(readlink "$HOME/.repro/active" 2>/dev/null || true)"
-  if [[ -n "$_active_target" ]]; then
-    local _active_base
-    _active_base="$(basename "$_active_target")"
-    if [[ "$_active_base" == repro-wt-* ]]; then
-      active_slug="${_active_base#repro-wt-}"
-    else
-      active_slug="main"
-    fi
-  fi
-
   python3 -c '
 import json, sys
 obj = {"type": sys.argv[1], "branch": sys.argv[2], "path": sys.argv[3]}
@@ -89,10 +76,8 @@ if sys.argv[7]:
     obj["ahead"] = int(sys.argv[7])
 if sys.argv[8]:
     obj["behind"] = int(sys.argv[8])
-if sys.argv[9]:
-    obj["active"] = sys.argv[9]
 print(json.dumps(obj))
-' "$ctx_type" "$branch" "$REPO_ROOT" "$slug" "$issue_id" "$services_csv" "$ahead" "$behind" "$active_slug"
+' "$ctx_type" "$branch" "$REPO_ROOT" "$slug" "$issue_id" "$services_csv" "$ahead" "$behind"
 }
 
 cmd_context() {
@@ -108,20 +93,6 @@ cmd_context() {
   fi
 
   local labels=() values=()
-
-  # Read machine-wide active worktree slug (if set)
-  local active_slug=""
-  local _active_target
-  _active_target="$(readlink "$HOME/.repro/active" 2>/dev/null || true)"
-  if [[ -n "$_active_target" ]]; then
-    local _active_base
-    _active_base="$(basename "$_active_target")"
-    if [[ "$_active_base" == repro-wt-* ]]; then
-      active_slug="${_active_base#repro-wt-}"
-    else
-      active_slug="main"
-    fi
-  fi
 
   if is_worktree "$REPO_ROOT"; then
     local slug
@@ -153,15 +124,6 @@ cmd_context() {
     if [ -n "$services" ]; then
       labels+=("Services:") ; values+=("$services")
     fi
-
-    # Show active worktree from ~/.repro/active
-    if [ -n "$active_slug" ]; then
-      if [ "$active_slug" = "$slug" ]; then
-        labels+=("Active:") ; values+=("$active_slug (this worktree)")
-      else
-        labels+=("Active:") ; values+=("$active_slug")
-      fi
-    fi
   else
     echo "${CLR_BOLD}Main checkout${CLR_RESET}"
 
@@ -184,11 +146,6 @@ cmd_context() {
     services="$(_context_services "")"
     if [ -n "$services" ]; then
       labels+=("Services:") ; values+=("$services")
-    fi
-
-    # Show active worktree from ~/.repro/active
-    if [ -n "$active_slug" ]; then
-      labels+=("Active:") ; values+=("$active_slug")
     fi
   fi
 

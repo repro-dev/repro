@@ -195,11 +195,6 @@ cmd_wt_create() {
   echo "  cd $wt_path"
   echo ""
 
-  # First-time extension setup hint
-  if [[ ! -L "$HOME/.repro/active" ]]; then
-    echo "  Tip: run 'reproctl wt use $slug' to activate this worktree's extension."
-    echo ""
-  fi
 } >&2
 
 _cleanup_worktree_services() {
@@ -324,20 +319,6 @@ cmd_wt_remove() {
 
   _step 2 2 "Pruning stale entries..."
   git worktree prune
-
-  # Clear machine-wide active pointer if it was pointing at this worktree
-  local active_file="$HOME/.repro/active"
-  if [[ -L "$active_file" ]]; then
-    local current_target
-    current_target="$(readlink "$active_file" 2>/dev/null || true)"
-    if [[ "$current_target" == "$wt_path" ]]; then
-      local removed_slug
-      removed_slug="$(basename "$wt_path")"
-      removed_slug="${removed_slug#repro-wt-}"
-      rm -f "$active_file"
-      echo "  Active worktree cleared (was: $removed_slug)"
-    fi
-  fi
 
   echo ""
   _ok "Worktree removed: $wt_path"
@@ -713,7 +694,6 @@ Commands:
   list                        List all active worktrees
   attach <branch>             Drop into a subshell in the given worktree
   prune  [options]            Remove worktrees whose branches are merged
-  use    [branch]             Set the machine-wide active worktree
 
 Options (create):
   --from-issue, -i <id>   Fetch branch name from a Linear issue (e.g. REP-123)
@@ -730,7 +710,7 @@ Options (prune):
   --yes, -y         Skip confirmation prompt
 
 Interactive picker:
-  When 'attach', 'remove', or 'use' is invoked without a branch name and
+  When 'attach' or 'remove' is invoked without a branch name and
   stdin is a terminal, an interactive picker is shown (fzf if available,
   numbered prompt otherwise).
 
@@ -746,8 +726,6 @@ Examples:
   reproctl worktree attach                      # pick interactively
   reproctl worktree prune --dry-run             # preview merged worktrees
   reproctl worktree prune --yes                 # prune without confirmation
-  reproctl worktree use feat/my-feature         # set machine-wide active worktree
-  reproctl worktree use                         # pick interactively
 EOF
 }
 
@@ -772,7 +750,7 @@ cmd_wt() {
         wt_usage
         exit 0
         ;;
-      create|remove|list|attach|prune|use)
+      create|remove|list|attach|prune)
         subcmd="$1"
         shift
         break
@@ -906,9 +884,6 @@ cmd_wt() {
       ;;
     prune)
       cmd_wt_prune
-      ;;
-    use)
-      cmd_wt_use "${args[@]+"${args[@]}"}"
       ;;
   esac
 }

@@ -57,9 +57,26 @@ _service_url() {
   return 1
 }
 
+_playwright_chromium_bin() {
+  local repo_root="$REPO_ROOT"
+  local bin
+  bin="$(node -e "
+try {
+  const {chromium} = require('$repo_root/node_modules/@playwright/test');
+  process.stdout.write(chromium.executablePath());
+} catch(e) {
+  process.exit(1);
+}
+" 2>/dev/null)" || return 1
+  if [[ ! -x "$bin" ]]; then
+    return 1
+  fi
+  echo "$bin"
+}
+
 _launchable_services() {
   local services=()
-  services=(workspace api-server admin)
+  services=(workspace api-server admin capture)
 
   if [[ -f "$SERVICES_JSON" ]]; then
     local line
@@ -92,7 +109,8 @@ cmd_launch() {
           "Services:" \
           "  workspace      App frontend   (app.repro.localhost)" \
           "  api-server     API backend    (api.repro.localhost)" \
-          "  admin          Admin panel    (admin.repro.localhost)"
+          "  admin          Admin panel    (admin.repro.localhost)" \
+          "  capture        Chrome extension  (Playwright Chromium + --load-extension)"
         if [[ -f "$SERVICES_JSON" ]]; then
           local line
           while IFS= read -r line; do
@@ -145,6 +163,53 @@ cmd_launch() {
     fi
   elif is_worktree "$REPO_ROOT"; then
     slug="$(detect_worktree_slug)"
+  fi
+
+  # Special case: launch capture extension in Playwright Chromium
+  if [[ "$service" == "capture" ]]; then
+    local chromium_bin
+    chromium_bin="$(_playwright_chromium_bin)" || \
+      die "Playwright Chromium not found. Run: npx playwright install chromium"
+
+    local ext_dist="$REPO_ROOT/apps/capture/dist"
+    if [[ -n "$slug" ]] && [[ "$slug" != "main" ]]; then
+      local capture_wt_path
+      capture_wt_path="$(worktree_path "$slug")"
+      ext_dist="$capture_wt_path/apps/capture/dist"
+    fi
+
+    if [[ ! -d "$ext_dist" ]]; then
+      _warn "Extension dist not found at: $ext_dist"
+      printf "  Run 'moon run capture:build' to build the extension first.\n" >&2
+    fi
+
+    local profile_dir="$HOME/.repro/browser-profiles/${slug:-main}"
+    mkdir -p "$profile_dir"
+
+    local workspace_url
+    workspace_url="$(_service_url workspace "$slug" 2>/dev/null)" || workspace_url=""
+
+    {
+      echo ""
+      _ok "Launching Chromium with capture extension"
+      echo ""
+      printf '  %-16s %s\n' "Extension:" "$ext_dist"
+      printf '  %-16s %s\n' "Profile:"   "$profile_dir"
+      if [[ -n "$workspace_url" ]]; then
+        printf '  %-16s %s\n' "URL:" "$workspace_url"
+      fi
+      echo ""
+    } >&2
+
+    "$chromium_bin" \
+      --user-data-dir="$profile_dir" \
+      --load-extension="$ext_dist" \
+      --no-first-run \
+      ${workspace_url:+"$workspace_url"} \
+      >/dev/null 2>&1 &
+    disown
+
+    return 0
   fi
 
   local url
