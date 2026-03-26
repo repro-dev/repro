@@ -54,6 +54,10 @@ export const AgenticView: React.FC = () => {
           loading={loading}
           scrollContainerRef={scrollContainerRef}
           contentContainerRef={contentContainerRef}
+          onSelectPrompt={(prompt) => {
+            lastPromptRef.current = prompt;
+            agentic.query(prompt);
+          }}
         />
 
         {error !== null && (

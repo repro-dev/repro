@@ -12,6 +12,7 @@ interface MessageListProps {
   loading: Loading;
   scrollContainerRef: React.RefObject<HTMLDivElement>;
   contentContainerRef: React.RefObject<HTMLDivElement>;
+  onSelectPrompt: (prompt: string) => void;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -19,6 +20,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   loading,
   scrollContainerRef,
   contentContainerRef,
+  onSelectPrompt,
 }) => {
   const renderItems = useMemo(() => groupToolCalls(entries), [entries]);
 
@@ -37,7 +39,7 @@ export const MessageList: React.FC<MessageListProps> = ({
       props={{ ref: scrollContainerRef }}
     >
       <Col gap={10} minBlockSize="100%" props={{ ref: contentContainerRef }}>
-        {entries.length === 0 && <EmptyState />}
+        {entries.length === 0 && <EmptyState onSelectPrompt={onSelectPrompt} />}
 
         {renderItems.map((item) => {
           if (item.type === "user-message") {
