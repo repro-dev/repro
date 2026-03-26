@@ -1,6 +1,6 @@
 import { Block, Row } from "@jsxstyle/react";
 import { Loading } from "@repro/agentic";
-import { colors, FX, spacing, transition } from "@repro/design";
+import { colors, fontFamily, fontSize, FX, spacing, transition } from "@repro/design";
 import { CircleIcon, XIcon } from "lucide-react";
 import React from "react";
 
@@ -14,6 +14,18 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   onCancel,
 }) => {
   const isHidden = loading === "none" || loading === "cancelled";
+
+  // State-specific labels give users a meaningful signal at each phase.
+  const stateLabel: Record<Exclude<Loading, "none" | "cancelled">, string> = {
+    reasoning: "Thinking…",
+    responding: "Responding…",
+    "tool-executing": "Analysing…",
+  };
+
+  const label =
+    loading !== "none" && loading !== "cancelled"
+      ? stateLabel[loading]
+      : null;
 
   return (
     <Row
@@ -46,6 +58,17 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
           <CircleIcon size={8} fill={colors.white} stroke={colors.white} />
         </FX.Pulse>
       </Row>
+
+      {label && (
+        <Block
+          color={colors.white}
+          fontFamily={fontFamily.sans}
+          fontSize={fontSize.xs}
+          paddingInlineEnd={spacing.lg}
+        >
+          {label}
+        </Block>
+      )}
 
       {onCancel && (
         <>
