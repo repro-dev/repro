@@ -54,6 +54,10 @@ export const AgenticView: React.FC = () => {
             onRetry={handleRetry}
             scrollContainerRef={scrollContainerRef}
             contentContainerRef={contentContainerRef}
+            onSelectPrompt={(prompt) => {
+              lastPromptRef.current = prompt;
+              agentic.query(prompt);
+            }}
           />
         </Col>
 
