@@ -323,7 +323,7 @@ _reproctl_help() {
     'completion' 'version'
     'environment' 'exit-codes' 'json'
   )
-  _values 'topic' "${help_topics[@]}"
+  compadd -a help_topics
 }
 
 if [[ "${funcstack[1]}" == _reproctl ]]; then
