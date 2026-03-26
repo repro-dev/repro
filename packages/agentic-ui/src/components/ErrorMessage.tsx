@@ -16,7 +16,7 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
   return (
     <Row
       alignItems="center"
-      backgroundColor={color.dangerSubtle}
+      backgroundColor={color.dangerTint}
       borderColor={color.dangerBorderSubtle}
       borderRadius={radius.md}
       borderStyle="solid"

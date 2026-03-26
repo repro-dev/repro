@@ -62,7 +62,7 @@ const contextColors = {
     bgHover: color.dangerHover,
     containedFg: color.text.inverse,
     highlightOpacity: 0.15,
-    subtle: color.dangerSubtleHover,
+    subtle: color.dangerSubtle,
     border: color.dangerBorder,
     fg: color.dangerFg,
   },
