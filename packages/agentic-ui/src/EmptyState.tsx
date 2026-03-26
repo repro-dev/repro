@@ -72,7 +72,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
         </Row>
       </Block>
 
-      <Col alignItems="center" gap={spacing.md}>
+      <Col alignItems="center" gap={spacing.xl}>
         {/* Tagline */}
         <Block
           color={color.text.secondary}
@@ -83,21 +83,24 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
         </Block>
 
         {/* Example prompt chips */}
-        <Col gap={spacing.sm} alignItems="center">
+        <Col gap={spacing.md} alignItems="center">
           {EXAMPLE_PROMPTS.map((prompt) => (
             <Block
               key={prompt}
               component="button"
               color={color.text.default}
               backgroundColor={color.bg.subtle}
+              borderColor={color.border.default}
               borderRadius={radius.lg}
-              borderWidth={0}
-              paddingBlock={spacing.sm}
-              paddingInline={spacing.md}
+              borderStyle="solid"
+              borderWidth={1}
+              paddingBlock={spacing.md}
+              paddingInline={spacing.lg}
               fontSize={fontSize.xs}
               cursor="pointer"
               transition={transition.fast}
               hoverBackgroundColor={color.bg.hover}
+              hoverBorderColor={color.border.emphasis}
               props={{ onClick: () => onSelectPrompt(prompt) }}
             >
               {prompt}
