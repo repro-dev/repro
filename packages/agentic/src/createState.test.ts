@@ -9,7 +9,13 @@ import {
   isValidMessageDelta,
 } from "./createState";
 import { RecordingDataAccessor, StreamProvider, ToolCall } from "./types";
-import { fork, isFuture, FutureInstance, resolve, reject as futureReject } from "fluture";
+import {
+  fork,
+  isFuture,
+  FutureInstance,
+  resolve,
+  reject as futureReject,
+} from "fluture";
 
 function makeEmptyAccessor(): RecordingDataAccessor {
   return {
@@ -241,8 +247,8 @@ describe("accumulateToolCalls", () => {
 describe("executeToolCalls", () => {
   function runFuture<L, R>(fut: FutureInstance<L, R>): Promise<R> {
     return new Promise((res, rej) => {
-      fut.pipe(fork(rej)(res))
-    })
+      fut.pipe(fork(rej)(res));
+    });
   }
 
   it("returns a FutureInstance", () => {
@@ -266,7 +272,9 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "{}" },
       },
     ];
-    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
+    const result = await runFuture(
+      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
+    );
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0]!.role, "tool");
   });
@@ -280,7 +288,9 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "{}" },
       },
     ];
-    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
+    const result = await runFuture(
+      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
+    );
     assert.strictEqual(result[0]!.tool_call_id, "my-call-id");
   });
 
@@ -293,7 +303,9 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "{}" },
       },
     ];
-    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
+    const result = await runFuture(
+      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
+    );
     const parsed = JSON.parse(result[0]!.content) as { durationMs: number };
     assert.strictEqual(parsed.durationMs, 0);
   });
@@ -307,7 +319,9 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "not-json" },
       },
     ];
-    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
+    const result = await runFuture(
+      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
+    );
     const parsed = JSON.parse(result[0]!.content) as { error: string };
     assert.ok(typeof parsed.error === "string");
   });
@@ -321,7 +335,9 @@ describe("executeToolCalls", () => {
         function: { name: "nonExistentTool", arguments: "{}" },
       },
     ];
-    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
+    const result = await runFuture(
+      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
+    );
     const parsed = JSON.parse(result[0]!.content) as { error: string };
     assert.ok(parsed.error.includes("nonExistentTool"));
   });
@@ -335,7 +351,9 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "" },
       },
     ];
-    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
+    const result = await runFuture(
+      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
+    );
     assert.strictEqual(result.length, 1);
     const parsed = JSON.parse(result[0]!.content) as { durationMs: number };
     assert.strictEqual(parsed.durationMs, 0);
@@ -349,7 +367,9 @@ describe("executeToolCalls", () => {
       index: 2,
       function: { name: "getRecordingDuration", arguments: "{}" },
     };
-    const result = await runFuture(executeToolCalls(accessor, sparse, () => "fixed-id"));
+    const result = await runFuture(
+      executeToolCalls(accessor, sparse, () => "fixed-id"),
+    );
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0]!.tool_call_id, "tc2");
   });
@@ -364,7 +384,9 @@ describe("executeToolCalls", () => {
         function: { name: "getRecordingDuration", arguments: "{}" },
       },
     ];
-    const result = await runFuture(executeToolCalls(accessor, toolCalls, () => "fixed-id"));
+    const result = await runFuture(
+      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
+    );
     // If the Future were not resolved, content would be "{}" (empty serialized Future object)
     const parsed = JSON.parse(result[0]!.content) as { durationMs: number };
     assert.strictEqual(typeof parsed.durationMs, "number");
@@ -868,10 +890,30 @@ describe("createAgenticState — cancel and error handling", () => {
 
     const countAfterCancel = callCount;
 
-    await new Promise((res) => setTimeout(res, 1500));
+    // Wait long enough for the cancelled→none transition (1500ms) to have fired
+    await new Promise((res) => setTimeout(res, 2000));
 
     assert.strictEqual(callCount, countAfterCancel);
+    // After the transition delay, loading should be back to 'none'
+    assert.strictEqual(state.$loading.getValue(), "none");
+
+    state.destroy();
+  });
+
+  it("cancel() transitions loading from 'cancelled' to 'none' after ~1500ms", async () => {
+    const streamProvider: StreamProvider = () =>
+      resolve(new ReadableStream()) as never;
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
+    state.cancel();
+
+    // Immediately after cancel(), loading should be 'cancelled'
     assert.strictEqual(state.$loading.getValue(), "cancelled");
+
+    // After ~1500ms, loading should reset to 'none'
+    await waitForCondition(() => state.$loading.getValue() === "none", 3000);
+    assert.strictEqual(state.$loading.getValue(), "none");
 
     state.destroy();
   });

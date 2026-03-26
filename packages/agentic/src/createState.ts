@@ -153,21 +153,24 @@ export function executeToolCalls(
         let toolFut: FutureInstance<unknown, unknown>;
         try {
           const args = captured.function.arguments
-            ? (JSON.parse(captured.function.arguments) as Record<string, unknown>)
+            ? (JSON.parse(captured.function.arguments) as Record<
+                string,
+                unknown
+              >)
             : {};
           toolFut = executeTool(recording, captured.function.name, args);
         } catch (err) {
           toolFut = resolve({
-            error: err instanceof Error ? err.message : 'Tool execution failed',
+            error: err instanceof Error ? err.message : "Tool execution failed",
           });
         }
 
         return toolFut.pipe(
-          chain(output => {
+          chain((output) => {
             const toolMessage: ToolMessage = {
               id: createId(),
               timestamp: new Date(),
-              role: 'tool',
+              role: "tool",
               content: JSON.stringify(output),
               tool_call_id: captured.id,
             };
@@ -268,6 +271,10 @@ export function createAgenticState(
       currentAbortController = null;
     }
     setLoading("cancelled");
+    // Briefly show cancelled state, then reset to idle so the UI unlocks
+    setTimeout(() => {
+      setLoading("none");
+    }, 1500);
   }
 
   function query(input: string) {
@@ -519,15 +526,15 @@ export function createAgenticState(
 
             setLoading("tool-executing");
 
-            observeFuture(executeToolCalls(recording, lastEntry.toolCalls)).subscribe(
-              (toolMessages) => {
-                for (const toolMessage of toolMessages) {
-                  appendToolMessage(toolMessage);
-                }
-                setLoading("reasoning");
-                toolCallTrigger$.next();
-              },
-            );
+            observeFuture(
+              executeToolCalls(recording, lastEntry.toolCalls),
+            ).subscribe((toolMessages) => {
+              for (const toolMessage of toolMessages) {
+                appendToolMessage(toolMessage);
+              }
+              setLoading("reasoning");
+              toolCallTrigger$.next();
+            });
           } else {
             retryAttempt = 0;
             setLoading("none");
