@@ -49,7 +49,11 @@ export function useHistoryScroll(loading: Loading): UseHistoryScrollReturn {
     };
 
     const resizeObserver = new ResizeObserver(checkHistoryScrollPosition);
+    // Observe both the content (grows as messages stream in) and the scroll
+    // container itself (shrinks when the input transitions back into view after
+    // loading finishes, reducing clientHeight over ~250ms).
     resizeObserver.observe(contentContainer);
+    resizeObserver.observe(scrollContainer);
 
     scrollContainer.addEventListener("scroll", checkHistoryScrollPosition, {
       passive: true,
