@@ -49,6 +49,7 @@ function makeState(
     cancel: () => {},
     destroy: () => {},
     query: () => {},
+    reset: () => {},
   };
 }
 
