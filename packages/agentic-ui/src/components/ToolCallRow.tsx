@@ -11,8 +11,34 @@ import {
   textStyles,
   transition,
 } from "@repro/design";
-import { ChevronRightIcon, WrenchIcon } from "lucide-react";
+import { AlertCircleIcon, ChevronRightIcon, WrenchIcon } from "lucide-react";
 import React, { useState } from "react";
+
+// Maps raw camelCase tool names to human-readable labels for display.
+// Raw names are preserved in aria-label for developer context.
+const TOOL_LABELS: Record<string, string> = {
+  getRecordingDuration: "Get recording duration",
+  getConsoleMessages: "Get console messages",
+  getNetworkRequests: "Get network requests",
+  getDOMState: "Get DOM state",
+  findErrors: "Find errors",
+  getElementDetails: "Get element details",
+  getEvents: "Get events",
+  getEventsAroundTime: "Get events around time",
+  captureScreenshot: "Capture screenshot",
+  getDOMDiff: "Get DOM diff",
+};
+
+// Detects whether a tool result content JSON contains a top-level error key,
+// indicating the tool call failed at runtime.
+function isErrorResult(content: string): boolean {
+  try {
+    const parsed = JSON.parse(content) as Record<string, unknown>;
+    return typeof parsed.error === "string";
+  } catch {
+    return false;
+  }
+}
 
 interface ToolCallRowProps {
   toolName: string;
@@ -93,6 +119,8 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
   const [expanded, setExpanded] = useState(false);
 
   const summary = result ? summarizeToolResult(toolName, result.content) : null;
+  const hasError = result !== null && isErrorResult(result.content);
+  const label = TOOL_LABELS[toolName] ?? toolName;
 
   return (
     <Col>
@@ -118,18 +146,21 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
         }}
         {...focusRing()}
       >
-        <Row alignItems="center" flexShrink={0}>
-          <WrenchIcon size={12} color={color.text.muted} />
+        <Row alignItems="center" flexShrink={0} gap={spacing.xs}>
+          <WrenchIcon
+            size={12}
+            color={hasError ? color.danger : color.text.muted}
+          />
+          {hasError && <AlertCircleIcon size={10} color={color.danger} />}
         </Row>
 
         <Block
           fontSize={fontSize.xs}
-          fontFamily={fontFamily.mono}
-          color={color.text.secondary}
+          color={hasError ? color.danger : color.text.secondary}
           flexGrow={1}
           textAlign="left"
         >
-          {toolName}
+          {label}
         </Block>
 
         {isExecuting && result === null ? (
