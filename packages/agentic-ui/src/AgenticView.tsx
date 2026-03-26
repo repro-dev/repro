@@ -3,11 +3,9 @@ import { useAtomValue } from "@repro/atom";
 import { AgenticInputFormState, spacing } from "@repro/design";
 import React, { useRef, useState } from "react";
 import { AgenticInputSection } from "./components/AgenticInputSection";
-import { ErrorMessage } from "./components/ErrorMessage";
 import { JumpToEndButton } from "./components/JumpToEndButton";
 import { LoadingIndicator } from "./components/LoadingIndicator";
 import { MessageList } from "./components/MessageList";
-import { GUTTER_PX } from "./constants";
 import { useAgenticState } from "./context";
 import { useHistoryScroll } from "./hooks/useHistoryScroll";
 
@@ -49,23 +47,19 @@ export const AgenticView: React.FC = () => {
       position="relative"
     >
       <Col height="100%" overflow="hidden" marginInline={-spacing["2xl"]}>
-        <MessageList
-          entries={entries}
-          loading={loading}
-          scrollContainerRef={scrollContainerRef}
-          contentContainerRef={contentContainerRef}
-          onSelectPrompt={(prompt) => {
-            lastPromptRef.current = prompt;
-            agentic.query(prompt);
-          }}
-        />
-
-        {error !== null && (
-          <Block paddingInline={GUTTER_PX} paddingBlockEnd={8}>
-            <ErrorMessage error={error} onRetry={handleRetry} />
-          </Block>
-        )}
-      </Col>
+          <MessageList
+            entries={entries}
+            loading={loading}
+            error={error}
+            onRetry={handleRetry}
+            scrollContainerRef={scrollContainerRef}
+            contentContainerRef={contentContainerRef}
+            onSelectPrompt={(prompt) => {
+              lastPromptRef.current = prompt;
+              agentic.query(prompt);
+            }}
+          />
+        </Col>
 
       <AgenticInputSection
         disabled={isActive}

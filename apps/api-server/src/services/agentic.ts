@@ -10,11 +10,17 @@ interface ToolCallContext {
   }
 }
 
+// Vision content block types for OpenAI-compatible APIs (e.g. image_url)
+type ContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } }
+
 type ChatContextMessage =
   | { role: 'system'; content: string }
   | { role: 'user'; content: string }
   | { role: 'assistant'; content: string; tool_calls?: Array<ToolCallContext> }
-  | { role: 'tool'; content: string; tool_call_id: string }
+  // Tool results may carry an image content block (e.g. captureScreenshot)
+  | { role: 'tool'; content: string | Array<ContentBlock>; tool_call_id: string }
 
 interface Tool {
   type: 'function'

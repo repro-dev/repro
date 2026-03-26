@@ -42,7 +42,20 @@ export function createAgenticRouter(
       }),
       z.object({
         role: z.literal('tool'),
-        content: z.string(),
+        // Most tool results are plain strings; captureScreenshot sends an
+        // array of vision content blocks (text + image_url).
+        content: z.union([
+          z.string(),
+          z.array(
+            z.union([
+              z.object({ type: z.literal('text'), text: z.string() }),
+              z.object({
+                type: z.literal('image_url'),
+                image_url: z.object({ url: z.string() }),
+              }),
+            ])
+          ),
+        ]),
         tool_call_id: z.string(),
       }),
     ])

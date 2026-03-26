@@ -6,7 +6,7 @@ describe("summarizeToolResult", () => {
   it("returns duration for getRecordingDuration", () => {
     const result = summarizeToolResult(
       "getRecordingDuration",
-      JSON.stringify({ duration: 42.5 }),
+      JSON.stringify({ durationMs: 42500 }),
     );
     assert.equal(result, "Duration: 42.5s");
   });
