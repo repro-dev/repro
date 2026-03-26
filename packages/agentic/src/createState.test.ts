@@ -949,10 +949,30 @@ describe("createAgenticState — cancel and error handling", () => {
 
     const countAfterCancel = callCount;
 
-    await new Promise((res) => setTimeout(res, 1500));
+    // Wait long enough for the cancelled→none transition (1500ms) to have fired
+    await new Promise((res) => setTimeout(res, 2000));
 
     assert.strictEqual(callCount, countAfterCancel);
+    // After the transition delay, loading should be back to 'none'
+    assert.strictEqual(state.$loading.getValue(), "none");
+
+    state.destroy();
+  });
+
+  it("cancel() transitions loading from 'cancelled' to 'none' after ~1500ms", async () => {
+    const streamProvider: StreamProvider = () =>
+      resolve(new ReadableStream()) as never;
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
+    state.cancel();
+
+    // Immediately after cancel(), loading should be 'cancelled'
     assert.strictEqual(state.$loading.getValue(), "cancelled");
+
+    // After ~1500ms, loading should reset to 'none'
+    await waitForCondition(() => state.$loading.getValue() === "none", 3000);
+    assert.strictEqual(state.$loading.getValue(), "none");
 
     state.destroy();
   });
