@@ -9,7 +9,7 @@ import {
   Tooltip,
   transition,
 } from "@repro/design";
-import { ListRestartIcon } from "lucide-react";
+import { RotateCcwIcon } from "lucide-react";
 import React, { useRef, useState } from "react";
 import { AgenticInputSection } from "./components/AgenticInputSection";
 import { JumpToEndButton } from "./components/JumpToEndButton";
@@ -114,7 +114,7 @@ export const AgenticView: React.FC = () => {
           }}
         >
           <Tooltip>Start new session</Tooltip>
-          <ListRestartIcon size={14} />
+          <RotateCcwIcon size={14} />
         </Block>
       )}
     </Block>
