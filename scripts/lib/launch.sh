@@ -80,11 +80,11 @@ _ensure_playwright_chromium() {
   bin="$(_playwright_chromium_bin 2>/dev/null)" && echo "$bin" && return 0
 
   printf 'Playwright Chromium not found — installing now...\n' >&2
-  npx --yes playwright install chromium >&2 || \
-    die "Failed to install Playwright Chromium. Run manually: npx playwright install chromium"
+  (cd "$REPO_ROOT" && pnpm exec playwright install chromium) >&2 || \
+    die "Failed to install Playwright Chromium. Run manually: pnpm exec playwright install chromium"
 
   bin="$(_playwright_chromium_bin 2>/dev/null)" || \
-    die "Playwright Chromium still not found after install. Check: npx playwright install chromium"
+    die "Playwright Chromium still not found after install. Check: pnpm exec playwright install chromium"
   echo "$bin"
 }
 
