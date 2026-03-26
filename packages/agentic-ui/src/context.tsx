@@ -1,17 +1,17 @@
-import { atom } from '@repro/atom'
-import { AgenticError, AgenticState, Entry, Loading } from '@repro/agentic'
-import React, { useContext } from 'react'
+import { atom } from "@repro/atom";
+import { AgenticError, AgenticState, Entry, Loading } from "@repro/agentic";
+import React, { useContext } from "react";
 
 export const AgenticStateContext = React.createContext<AgenticState>({
   $entries: atom<Array<Entry>>([]),
-  $loading: atom<Loading>('none'),
+  $loading: atom<Loading>("none"),
   $error: atom<AgenticError | null>(null),
   cancel: () => {},
   destroy: () => {},
   query: () => {},
   reset: () => {},
-})
+});
 
 export function useAgenticState() {
-  return useContext(AgenticStateContext)
+  return useContext(AgenticStateContext);
 }

@@ -1,5 +1,5 @@
 import {
-  SYSTEM_CARD_MESSAGE,
+  EXTENSION_SYSTEM_CARD_MESSAGE,
   createAgenticState,
   makeAccessorFromEventList,
   type Context,
@@ -26,7 +26,7 @@ export const Agentic: React.FC = () => {
             method: 'POST',
             body: JSON.stringify({
               messages: [
-                { role: 'system', content: SYSTEM_CARD_MESSAGE },
+                { role: 'system', content: EXTENSION_SYSTEM_CARD_MESSAGE },
                 ...context,
               ],
               tools: toolDefs,

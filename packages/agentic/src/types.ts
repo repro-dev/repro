@@ -61,18 +61,34 @@ export interface AssistantMessageContext {
   }>;
 }
 
+// Vision content blocks for OpenAI-compatible APIs
+export interface TextContentBlock {
+  type: "text";
+  text: string;
+}
+
+export interface ImageUrlContentBlock {
+  type: "image_url";
+  image_url: { url: string };
+}
+
+export type ContentBlock = TextContentBlock | ImageUrlContentBlock;
+
 export interface ToolMessage {
   id: string;
   timestamp: Date;
   role: "tool";
-  content: string;
+  // Plain string for most tools; array of content blocks for tools that
+  // return visual data (e.g. captureScreenshot returns an image_url block).
+  content: string | Array<ContentBlock>;
   tool_call_id: string;
 }
 
-export type ToolMessageContext = Pick<
-  ToolMessage,
-  "role" | "content" | "tool_call_id"
->;
+export interface ToolMessageContext {
+  role: "tool";
+  content: string | Array<ContentBlock>;
+  tool_call_id: string;
+}
 
 export interface SystemMessage {
   id: string;

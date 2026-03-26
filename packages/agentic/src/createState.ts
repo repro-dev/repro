@@ -30,6 +30,7 @@ import {
   AgenticError,
   AgenticState,
   AssistantMessage,
+  ContentBlock,
   Context,
   Entry,
   Loading,
@@ -88,6 +89,36 @@ function safeParse(data: unknown) {
   } catch {
     return data;
   }
+}
+
+// Builds the content for a ToolMessage. For captureScreenshot results that
+// include a dataUrl, returns an array of vision content blocks so the LLM
+// can actually see the image. Falls back to plain JSON string for all other
+// tools and for screenshot results where the dataUrl is missing/invalid.
+export function buildToolMessageContent(
+  toolName: string,
+  output: unknown,
+): string | Array<ContentBlock> {
+  if (
+    toolName === "captureScreenshot" &&
+    output !== null &&
+    typeof output === "object" &&
+    "dataUrl" in output &&
+    typeof (output as Record<string, unknown>).dataUrl === "string"
+  ) {
+    const { timestampMs, dataUrl } = output as {
+      timestampMs?: number;
+      dataUrl: string;
+    };
+    const timestampLabel =
+      timestampMs !== undefined ? ` at ${timestampMs}ms` : "";
+    return [
+      { type: "text", text: `Screenshot captured${timestampLabel}.` },
+      { type: "image_url", image_url: { url: dataUrl } },
+    ];
+  }
+
+  return JSON.stringify(output);
 }
 
 export function isValidMessageDelta(data: any): data is MessageDeltaLike {
@@ -153,22 +184,25 @@ export function executeToolCalls(
         let toolFut: FutureInstance<unknown, unknown>;
         try {
           const args = captured.function.arguments
-            ? (JSON.parse(captured.function.arguments) as Record<string, unknown>)
+            ? (JSON.parse(captured.function.arguments) as Record<
+                string,
+                unknown
+              >)
             : {};
           toolFut = executeTool(recording, captured.function.name, args);
         } catch (err) {
           toolFut = resolve({
-            error: err instanceof Error ? err.message : 'Tool execution failed',
+            error: err instanceof Error ? err.message : "Tool execution failed",
           });
         }
 
         return toolFut.pipe(
-          chain(output => {
+          chain((output) => {
             const toolMessage: ToolMessage = {
               id: createId(),
               timestamp: new Date(),
-              role: 'tool',
-              content: JSON.stringify(output),
+              role: "tool",
+              content: buildToolMessageContent(captured.function.name, output),
               tool_call_id: captured.id,
             };
             results.push(toolMessage);
@@ -532,15 +566,15 @@ export function createAgenticState(
 
             setLoading("tool-executing");
 
-            observeFuture(executeToolCalls(recording, lastEntry.toolCalls)).subscribe(
-              (toolMessages) => {
-                for (const toolMessage of toolMessages) {
-                  appendToolMessage(toolMessage);
-                }
-                setLoading("reasoning");
-                toolCallTrigger$.next();
-              },
-            );
+            observeFuture(
+              executeToolCalls(recording, lastEntry.toolCalls),
+            ).subscribe((toolMessages) => {
+              for (const toolMessage of toolMessages) {
+                appendToolMessage(toolMessage);
+              }
+              setLoading("reasoning");
+              toolCallTrigger$.next();
+            });
           } else {
             retryAttempt = 0;
             setLoading("none");
