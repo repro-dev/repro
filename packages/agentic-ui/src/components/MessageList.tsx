@@ -16,6 +16,7 @@ interface MessageListProps {
   scrollContainerRef: React.RefObject<HTMLDivElement>;
   contentContainerRef: React.RefObject<HTMLDivElement>;
   onSelectPrompt: (prompt: string) => void;
+  wasCancelled: boolean;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -26,6 +27,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   scrollContainerRef,
   contentContainerRef,
   onSelectPrompt,
+  wasCancelled,
 }) => {
   const renderItems = useMemo(() => groupToolCalls(entries), [entries]);
 
@@ -81,6 +83,7 @@ export const MessageList: React.FC<MessageListProps> = ({
               key={`tool-group-${item.pairs[0]?.toolCall.id}`}
               pairs={item.pairs}
               isExecuting={loading === "tool-executing"}
+              wasCancelled={wasCancelled}
             />
           );
         })}

@@ -9,7 +9,7 @@ import {
   transition,
 } from "@repro/design";
 import { CircleIcon, XIcon } from "lucide-react";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface LoadingIndicatorProps {
   loading: Loading;
@@ -20,8 +20,27 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   loading,
   onCancel,
 }) => {
-  const isHidden = loading === "none";
-  const isCancelled = loading === "cancelled";
+  // Keep the last non-"none" loading value so the exit animation
+  // doesn't flash a blank/wrong state while the pill slides away.
+  const prevLoadingRef = useRef<Loading>(loading)
+  const [displayLoading, setDisplayLoading] = useState<Loading>(loading)
+
+  useEffect(() => {
+    if (loading !== "none") {
+      prevLoadingRef.current = loading
+      setDisplayLoading(loading)
+      return
+    }
+    // "none" means the pill is exiting. Keep showing whatever was last visible
+    // until the CSS transition completes (250ms), then switch to "none".
+    const timer = setTimeout(() => {
+      setDisplayLoading("none")
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [loading])
+
+  const isHidden = displayLoading === "none";
+  const isCancelled = displayLoading === "cancelled";
 
   // State-specific labels give users a meaningful signal at each phase.
   const stateLabel: Record<Exclude<Loading, "none" | "cancelled">, string> = {
@@ -31,8 +50,8 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   };
 
   const label =
-    loading !== "none" && loading !== "cancelled"
-      ? stateLabel[loading]
+    displayLoading !== "none" && displayLoading !== "cancelled"
+      ? stateLabel[displayLoading]
       : null;
 
   return (

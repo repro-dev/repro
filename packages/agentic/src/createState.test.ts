@@ -1137,7 +1137,6 @@ describe("createAgenticState — cancel and error handling", () => {
 
     // Second query: cancelled flag must be cleared so the stream can set loading
     // to 'responding' when message content arrives
-    let resolveSecond!: (stream: ReadableStream<{ data: string }>) => void
     const secondStreamProvider: StreamProvider = () =>
       // Return a stream that yields a content chunk then done
       resolve(

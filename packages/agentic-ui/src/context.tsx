@@ -6,6 +6,7 @@ export const AgenticStateContext = React.createContext<AgenticState>({
   $entries: atom<Array<Entry>>([]),
   $loading: atom<Loading>("none"),
   $error: atom<AgenticError | null>(null),
+  $wasCancelled: atom<boolean>(false),
   cancel: () => {},
   destroy: () => {},
   query: () => {},

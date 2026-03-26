@@ -7,11 +7,13 @@ import { ToolCallRow } from "./ToolCallRow";
 interface ToolCallGroupProps {
   pairs: Array<ToolCallPair>;
   isExecuting: boolean;
+  wasCancelled: boolean;
 }
 
 export const ToolCallGroup: React.FC<ToolCallGroupProps> = ({
   pairs,
   isExecuting,
+  wasCancelled,
 }) => {
   return (
     <Col
@@ -29,6 +31,7 @@ export const ToolCallGroup: React.FC<ToolCallGroupProps> = ({
           toolName={pair.toolCall.function.name}
           result={pair.result}
           isExecuting={isExecuting}
+          wasCancelled={wasCancelled}
         />
       ))}
     </Col>

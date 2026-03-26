@@ -46,6 +46,7 @@ function makeState(
     $entries: atom<Array<Entry>>(entries),
     $loading: atom<Loading>(loading),
     $error: atom<AgenticError | null>(error),
+    $wasCancelled: atom<boolean>(false),
     cancel: () => {},
     destroy: () => {},
     query: () => {},

@@ -47,6 +47,7 @@ interface ToolCallRowProps {
   toolName: string;
   result: ToolMessage | null;
   isExecuting: boolean;
+  wasCancelled: boolean;
 }
 
 // Resolve tool message content to a plain string for display. When content
@@ -161,6 +162,7 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
   toolName,
   result,
   isExecuting,
+  wasCancelled,
 }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -212,6 +214,7 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
         </Block>
 
         {isExecuting && result === null ? (
+          // Pulsing dot while tool is running
           <Row alignItems="center" gap={spacing.xs}>
             <FX.Pulse>
               <Block
@@ -222,7 +225,17 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
               />
             </FX.Pulse>
           </Row>
+        ) : wasCancelled && result === null ? (
+          // Cancelled before result arrived
+          <Block
+            fontSize={fontSize.xs}
+            color={color.text.muted}
+            fontFamily={fontFamily.sans}
+          >
+            Cancelled
+          </Block>
         ) : (
+          // Normal result summary (or empty)
           <Block
             {...textStyles.caption}
             color={color.text.muted}

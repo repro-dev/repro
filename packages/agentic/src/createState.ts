@@ -269,6 +269,7 @@ export function createAgenticState(
 
   const [$loading, setLoading] = createAtom<Loading>("none");
   const [$error, setError] = createAtom<AgenticError | null>(null);
+  const [$wasCancelled, setWasCancelled] = createAtom<boolean>(false);
 
   let currentAbortController: AbortController | null = null;
   let currentToolSubscription: Subscription | null = null;
@@ -313,6 +314,7 @@ export function createAgenticState(
       currentToolSubscription.unsubscribe()
       currentToolSubscription = null
     }
+    setWasCancelled(true)
     setLoading("cancelled");
     // Briefly show cancelled state, then reset to idle so the UI unlocks
     setTimeout(() => {
@@ -334,6 +336,7 @@ export function createAgenticState(
     iterationCount = 0;
     retryAttempt = 0;
     setEntryMap({ orderedIds: [], entries: {} });
+    setWasCancelled(false);
     setLoading("none");
     setError(null);
   }
@@ -341,6 +344,7 @@ export function createAgenticState(
   function query(input: string) {
     iterationCount = 0;
     cancelled = false;
+    setWasCancelled(false);
     setError(null);
     retryAttempt = 0;
     setLoading("reasoning");
@@ -621,6 +625,7 @@ export function createAgenticState(
     $entries: atom.from(entries$, []),
     $loading,
     $error,
+    $wasCancelled,
     cancel,
     destroy,
     query,
