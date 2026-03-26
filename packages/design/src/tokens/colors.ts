@@ -97,6 +97,8 @@ export const color = {
   dangerHover: twColors.rose['800'],
   /** rose-100 — danger tint background */
   dangerSubtle: twColors.rose['100'],
+  /** rose-200 — hover state on danger tint surfaces */
+  dangerSubtleHover: twColors.rose['200'],
   /** rose-500 — border for outlined danger buttons and error states */
   dangerBorder: twColors.rose['500'],
   /** rose-300 — subtle border for badges and tinted containers */
