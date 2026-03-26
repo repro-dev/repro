@@ -196,7 +196,7 @@ cmd_wt_create() {
   echo ""
 
   # First-time extension setup hint
-  if [[ ! -L "$HOME/.repro/active-extension" ]]; then
+  if [[ ! -L "$HOME/.repro/active" ]]; then
     echo "  Tip: run 'reproctl wt use $slug' to activate this worktree's extension."
     echo ""
   fi
@@ -326,16 +326,15 @@ cmd_wt_remove() {
   git worktree prune
 
   # Clear machine-wide active pointer if it was pointing at this worktree
-  local removed_slug
-  removed_slug="$(basename "$wt_path")"
-  removed_slug="${removed_slug#repro-wt-}"
   local active_file="$HOME/.repro/active"
-  if [[ -f "$active_file" ]]; then
-    local current_active
-    current_active="$(cat "$active_file" 2>/dev/null || true)"
-    if [[ "$current_active" == "$removed_slug" ]]; then
+  if [[ -L "$active_file" ]]; then
+    local current_target
+    current_target="$(readlink "$active_file" 2>/dev/null || true)"
+    if [[ "$current_target" == "$wt_path" ]]; then
+      local removed_slug
+      removed_slug="$(basename "$wt_path")"
+      removed_slug="${removed_slug#repro-wt-}"
       rm -f "$active_file"
-      rm -f "$HOME/.repro/active-extension"
       echo "  Active worktree cleared (was: $removed_slug)"
     fi
   fi

@@ -46,9 +46,10 @@ upstream tracking branch no longer exists on the remote.
 .TP
 \f[B]use\f[R] [\f[I]branch\f[R]]
 Set the machine\-wide active worktree.
-Writes the slug to \f[CR]\(ti/.repro/active\f[R] and repoints
-\f[CR]\(ti/.repro/active\-extension\f[R] to
-\f[CR]<wt\-path>/apps/capture/dist\f[R].
+Points \f[CR]\(ti/.repro/active\f[R] at the worktree root as a symlink.
+The Chrome extension can be loaded permanently from
+\f[CR]\(ti/.repro/active/apps/capture/dist\f[R] \(em a path that always
+resolves to the currently active worktree\(aqs build output.
 On first invocation, prints instructions for loading the extension in
 Chrome.
 Subsequent calls only require clicking \f[B]Update\f[R] in

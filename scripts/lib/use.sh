@@ -5,18 +5,17 @@
 # Sourced by reproctl.sh. Expects common.sh and worktree.sh to be loaded first.
 #
 # State directory: ~/.repro/  (machine-local, never committed to git)
-#   ~/.repro/active             — slug of the active worktree (plain text)
-#   ~/.repro/active-extension   — symlink → <wt-path>/apps/capture/dist
+#   ~/.repro/active   — symlink → <wt-path> (worktree root)
+#                       Extension loads from ~/.repro/active/apps/capture/dist
 
 wt_use_usage() {
   cat <<'EOF' >&2
 Usage: reproctl wt use [<branch-or-slug>]
 
-Set the machine-wide active worktree. Writes the slug to ~/.repro/active
-and repoints ~/.repro/active-extension to <wt-path>/apps/capture/dist.
-
-On first invocation, prints instructions for loading the extension in
-Chrome. Subsequent calls only require clicking Update in chrome://extensions.
+Set the machine-wide active worktree. Points ~/.repro/active at the
+worktree root directory as a symlink. The Chrome extension can be
+loaded permanently from:
+  ~/.repro/active/apps/capture/dist
 
 If <branch-or-slug> is omitted and stdin is a terminal, an interactive
 picker is shown.
@@ -92,24 +91,20 @@ cmd_wt_use() {
 
   # Detect first-time setup: was the symlink absent before this call?
   local first_time=false
-  if [[ ! -L "$repro_dir/active-extension" ]]; then
+  if [[ ! -L "$repro_dir/active" ]]; then
     first_time=true
   fi
 
-  # Write the slug to ~/.repro/active (no trailing newline)
-  printf '%s' "$slug" > "$repro_dir/active"
-
-  # Determine the extension dist path
-  local ext_dist
-  ext_dist="$wt_path/apps/capture/dist"
+  # Derive the extension dist path
+  local ext_dist="$wt_path/apps/capture/dist"
 
   local dist_missing=false
   if [[ ! -d "$ext_dist" ]]; then
     dist_missing=true
   fi
 
-  # Create/repoint ~/.repro/active-extension symlink (atomic on macOS/Linux)
-  ln -sfn "$ext_dist" "$repro_dir/active-extension"
+  # Point ~/.repro/active at the worktree root (atomic replace on macOS/Linux)
+  ln -sfn "$wt_path" "$repro_dir/active"
 
   # Print confirmation summary
   {
@@ -118,7 +113,7 @@ cmd_wt_use() {
     echo ""
     printf '  %-18s %s\n' "Slug:"      "$slug"
     printf '  %-18s %s\n' "Branch:"    "$branch"
-    printf '  %-18s %s\n' "Extension:" "$repro_dir/active-extension -> $ext_dist"
+    printf '  %-18s %s\n' "Extension:" "$repro_dir/active/apps/capture/dist"
     echo ""
   } >&2
 
@@ -126,9 +121,9 @@ cmd_wt_use() {
   if [[ "$first_time" == true ]]; then
     {
       printf '%sFirst-time setup:%s load the extension in Chrome from:\n' "$CLR_BOLD" "$CLR_RESET"
-      printf '  ~/.repro/active-extension\n'
       printf '\n'
       printf 'Go to chrome://extensions → Enable Developer mode → Load unpacked\n'
+      printf '  Load from: ~/.repro/active/apps/capture/dist\n'
       printf '\n'
     } >&2
   fi

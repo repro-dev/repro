@@ -64,7 +64,17 @@ _context_json() {
   services_csv="$(_context_services "$slug")"
 
   local active_slug=""
-  active_slug="$(cat "$HOME/.repro/active" 2>/dev/null || true)"
+  local _active_target
+  _active_target="$(readlink "$HOME/.repro/active" 2>/dev/null || true)"
+  if [[ -n "$_active_target" ]]; then
+    local _active_base
+    _active_base="$(basename "$_active_target")"
+    if [[ "$_active_base" == repro-wt-* ]]; then
+      active_slug="${_active_base#repro-wt-}"
+    else
+      active_slug="main"
+    fi
+  fi
 
   python3 -c '
 import json, sys
@@ -101,7 +111,17 @@ cmd_context() {
 
   # Read machine-wide active worktree slug (if set)
   local active_slug=""
-  active_slug="$(cat "$HOME/.repro/active" 2>/dev/null || true)"
+  local _active_target
+  _active_target="$(readlink "$HOME/.repro/active" 2>/dev/null || true)"
+  if [[ -n "$_active_target" ]]; then
+    local _active_base
+    _active_base="$(basename "$_active_target")"
+    if [[ "$_active_base" == repro-wt-* ]]; then
+      active_slug="${_active_base#repro-wt-}"
+    else
+      active_slug="main"
+    fi
+  fi
 
   if is_worktree "$REPO_ROOT"; then
     local slug

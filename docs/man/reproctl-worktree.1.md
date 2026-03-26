@@ -34,7 +34,7 @@ Manage git worktrees for isolated development. **wt** is a shorthand alias for *
 : Remove worktrees whose branches have been merged into main or whose upstream tracking branch no longer exists on the remote.
 
 **use** [*branch*]
-: Set the machine-wide active worktree. Writes the slug to `~/.repro/active` and repoints `~/.repro/active-extension` to `<wt-path>/apps/capture/dist`. On first invocation, prints instructions for loading the extension in Chrome. Subsequent calls only require clicking **Update** in `chrome://extensions`. If *branch* is omitted and stdin is a terminal, an interactive picker is shown.
+: Set the machine-wide active worktree. Points `~/.repro/active` at the worktree root as a symlink. The Chrome extension can be loaded permanently from `~/.repro/active/apps/capture/dist` — a path that always resolves to the currently active worktree's build output. On first invocation, prints instructions for loading the extension in Chrome. Subsequent calls only require clicking **Update** in `chrome://extensions`. If *branch* is omitted and stdin is a terminal, an interactive picker is shown.
 
 # OPTIONS
 
