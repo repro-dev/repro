@@ -6,6 +6,37 @@ import { XIcon } from 'lucide-react'
 import React from 'react'
 import { ReadyState, useReadyState, useRecordingMode } from '~/state'
 
+// DevBadge renders a small identifier chip over the Launcher in non-production
+// builds, showing which branch/worktree built the extension. Production builds
+// have this component tree-shaken out entirely via the BUILD_ENV guard below.
+const DevBadge: React.FC<{ branch: string }> = ({ branch }) => {
+  const issueId = branch.match(/([A-Z]+-\d+)/i)?.[1]?.toUpperCase() ?? null
+  const label =
+    issueId ?? branch.split('/').pop()?.slice(0, 10) ?? 'dev'
+
+  return (
+    <Block
+      position="absolute"
+      bottom={-8}
+      left="50%"
+      transform="translateX(-50%)"
+      backgroundColor={colors.amber['400']}
+      color={colors.gray['900']}
+      fontSize={9}
+      fontWeight={700}
+      fontFamily="monospace"
+      paddingH={4}
+      paddingV={1}
+      borderRadius={3}
+      whiteSpace="nowrap"
+      pointerEvents="none"
+      userSelect="none"
+    >
+      {label}
+    </Block>
+  )
+}
+
 export const Launcher: React.FC = () => {
   const [recordingMode, setRecordingMode] = useRecordingMode()
   const [, setReadyState] = useReadyState()
@@ -41,6 +72,7 @@ export const Launcher: React.FC = () => {
 
   return (
     <Row
+      position="relative"
       alignItems="center"
       justifyContent="center"
       gap={10}
@@ -81,6 +113,10 @@ export const Launcher: React.FC = () => {
           )
         })}
       </Block>
+
+      {process.env.BUILD_ENV !== 'production' && (
+        <DevBadge branch={process.env.GIT_BRANCH} />
+      )}
     </Row>
   )
 }

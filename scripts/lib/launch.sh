@@ -57,9 +57,40 @@ _service_url() {
   return 1
 }
 
+_playwright_chromium_bin() {
+  local repo_root="$REPO_ROOT"
+  local bin
+  bin="$(node -e "
+try {
+  const {chromium} = require('$repo_root/node_modules/@playwright/test');
+  process.stdout.write(chromium.executablePath());
+} catch(e) {
+  process.exit(1);
+}
+" 2>/dev/null)" || return 1
+  if [[ ! -x "$bin" ]]; then
+    return 1
+  fi
+  echo "$bin"
+}
+
+# Ensure Playwright Chromium is installed, downloading it if needed.
+_ensure_playwright_chromium() {
+  local bin
+  bin="$(_playwright_chromium_bin 2>/dev/null)" && echo "$bin" && return 0
+
+  printf 'Playwright Chromium not found — installing now...\n' >&2
+  (cd "$REPO_ROOT" && pnpm exec playwright install chromium) >&2 || \
+    die "Failed to install Playwright Chromium. Run manually: pnpm exec playwright install chromium"
+
+  bin="$(_playwright_chromium_bin 2>/dev/null)" || \
+    die "Playwright Chromium still not found after install. Check: pnpm exec playwright install chromium"
+  echo "$bin"
+}
+
 _launchable_services() {
   local services=()
-  services=(workspace api-server admin)
+  services=(workspace api-server admin capture)
 
   if [[ -f "$SERVICES_JSON" ]]; then
     local line
@@ -92,7 +123,8 @@ cmd_launch() {
           "Services:" \
           "  workspace      App frontend   (app.repro.localhost)" \
           "  api-server     API backend    (api.repro.localhost)" \
-          "  admin          Admin panel    (admin.repro.localhost)"
+          "  admin          Admin panel    (admin.repro.localhost)" \
+          "  capture        Chrome extension  (Playwright Chromium + --load-extension)"
         if [[ -f "$SERVICES_JSON" ]]; then
           local line
           while IFS= read -r line; do
@@ -145,6 +177,74 @@ cmd_launch() {
     fi
   elif is_worktree "$REPO_ROOT"; then
     slug="$(detect_worktree_slug)"
+  fi
+
+  # Special case: launch capture extension in Playwright Chromium
+  if [[ "$service" == "capture" ]]; then
+    local chromium_bin
+    chromium_bin="$(_ensure_playwright_chromium)"
+
+    local ext_dist="$REPO_ROOT/apps/capture/dist"
+    if [[ -n "$slug" ]] && [[ "$slug" != "main" ]]; then
+      local capture_wt_path
+      capture_wt_path="$(worktree_path "$slug")"
+      ext_dist="$capture_wt_path/apps/capture/dist"
+    fi
+
+    if [[ ! -d "$ext_dist" ]]; then
+      _warn "Extension dist not found at: $ext_dist"
+      printf "  Run 'moon run capture:build' to build the extension first.\n" >&2
+    fi
+
+    local profile_dir="$HOME/.repro/browser-profiles/${slug:-main}"
+    mkdir -p "$profile_dir"
+
+    # Resolve workspace URL — prefer the worktree-specific URL if that worktree's
+    # workspace service is currently running (per reproctl_services.json), otherwise
+    # fall back to the main checkout URL so the browser opens to a working page.
+    local workspace_url workspace_url_note=""
+    workspace_url="$(_service_url workspace "$slug" 2>/dev/null)" || workspace_url=""
+    if [[ -n "$workspace_url" ]] && [[ -n "$slug" ]] && [[ "$slug" != "main" ]]; then
+      local _wt_running=false
+      if [[ -f "$CONFIG_FILE" ]]; then
+        local _config _svc_names
+        _config="$(cat "$CONFIG_FILE")"
+        _svc_names="$(python3 "$SCRIPTS_DIR/lib/py/worktree_services.py" "$_config" "$slug" 2>/dev/null || true)"
+        case ",$_svc_names," in
+          *,workspace,*) _wt_running=true ;;
+        esac
+      fi
+      if [[ "$_wt_running" == false ]]; then
+        local fallback_url
+        fallback_url="$(_service_url workspace "" 2>/dev/null)" || fallback_url=""
+        if [[ -n "$fallback_url" ]]; then
+          workspace_url="$fallback_url"
+          workspace_url_note=" (worktree not running, using main)"
+        fi
+      fi
+    fi
+
+    {
+      echo ""
+      _ok "Launching Chromium with capture extension"
+      echo ""
+      printf '  %-16s %s\n' "Extension:" "$ext_dist"
+      printf '  %-16s %s\n' "Profile:"   "$profile_dir"
+      if [[ -n "$workspace_url" ]]; then
+        printf '  %-16s %s%s\n' "URL:" "$workspace_url" "$workspace_url_note"
+      fi
+      echo ""
+    } >&2
+
+    "$chromium_bin" \
+      --user-data-dir="$profile_dir" \
+      --load-extension="$ext_dist" \
+      --no-first-run \
+      ${workspace_url:+"$workspace_url"} \
+      >/dev/null 2>&1 &
+    disown
+
+    return 0
   fi
 
   local url

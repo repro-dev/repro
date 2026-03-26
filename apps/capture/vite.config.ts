@@ -1,6 +1,24 @@
 import react from '@vitejs/plugin-react'
+import { execSync } from 'node:child_process'
 import path from 'node:path'
 import { defineConfig } from 'vite'
+
+function gitInfo() {
+  try {
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+      encoding: 'utf-8',
+    }).trim()
+    const slug = branch
+      .replace(/\//g, '-')
+      .replace(/[^a-zA-Z0-9._-]/g, '-')
+      .toLowerCase()
+    return { branch, slug }
+  } catch {
+    return { branch: 'unknown', slug: 'unknown' }
+  }
+}
+
+const { branch: GIT_BRANCH, slug: GIT_SLUG } = gitInfo()
 
 const entries: Record<string, string> = {
   background: path.resolve(__dirname, 'src/extension/background.ts'),
@@ -48,6 +66,8 @@ export default defineConfig(({ mode }) => ({
     'process.env.STATS_LEVEL': JSON.stringify(
       process.env.STATS_LEVEL ?? 'debug'
     ),
+    'process.env.GIT_BRANCH': JSON.stringify(GIT_BRANCH),
+    'process.env.GIT_SLUG': JSON.stringify(GIT_SLUG),
   },
 
   build: {

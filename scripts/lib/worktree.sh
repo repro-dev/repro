@@ -194,6 +194,7 @@ cmd_wt_create() {
   echo ""
   echo "  cd $wt_path"
   echo ""
+
 } >&2
 
 _cleanup_worktree_services() {
@@ -709,8 +710,8 @@ Options (prune):
   --yes, -y         Skip confirmation prompt
 
 Interactive picker:
-  When 'attach' or 'remove' is invoked without a branch name and stdin
-  is a terminal, an interactive picker is shown (fzf if available,
+  When 'attach' or 'remove' is invoked without a branch name and
+  stdin is a terminal, an interactive picker is shown (fzf if available,
   numbered prompt otherwise).
 
 Examples:

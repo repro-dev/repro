@@ -321,19 +321,6 @@ export function createAgenticState(
     setError(null);
   }
 
-  function reset() {
-    clearPendingRetry()
-    if (currentAbortController) {
-      currentAbortController.abort()
-      currentAbortController = null
-    }
-    setEntryMap({ orderedIds: [], entries: {} })
-    setLoading('none')
-    setError(null)
-    iterationCount = 0
-    retryAttempt = 0
-  }
-
   function query(input: string) {
     iterationCount = 0;
     setError(null);

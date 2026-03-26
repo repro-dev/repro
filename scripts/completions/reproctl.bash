@@ -67,7 +67,7 @@ _reproctl() {
   local top_commands="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version help"
   local cluster_sub="up down status reset"
   local db_sub="reset migrate shell status"
-  local wt_sub="create remove list attach prune"
+    local wt_sub="create remove list attach prune"
   local completion_shells="bash zsh fish"
   local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version environment exit-codes json"
 
