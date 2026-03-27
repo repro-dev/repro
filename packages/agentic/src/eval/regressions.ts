@@ -10,6 +10,8 @@ export interface BaselineEntry {
   correctnessRate: number
   avgErrorRate: number
   avgToolCalls: number
+  // Composite average of brevity, directness, signalNoise (1–3 scale; seeded at 2.0)
+  avgQuality: number
 }
 
 /** A subset of EvalResult that regression detection needs. */
@@ -18,9 +20,11 @@ export interface EvalResultSnapshot {
   correctnessRate: number
   averageToolErrorRate: number
   averageIterationDepth: number
+  // Composite average of quality dimensions (brevity + directness + signalNoise) / 3
+  compositeQualityScore: number
 }
 
-export type RegressionMetric = 'correctnessRate' | 'avgErrorRate' | 'avgToolCalls'
+export type RegressionMetric = 'correctnessRate' | 'avgErrorRate' | 'avgToolCalls' | 'avgQuality'
 
 export interface RegressionEntry {
   fixtureName: string
@@ -39,6 +43,7 @@ export interface RegressionEntry {
  *   - correctnessRate: any drop is a regression (no tolerance)
  *   - avgErrorRate: >baseline + 0.10 absolute
  *   - avgToolCalls: >baseline + 3 absolute
+ *   - avgQuality: composite average dropped by >0.5 points
  *
  * New fixtures (no baseline entry) are never treated as regressions.
  */
@@ -87,6 +92,19 @@ export function findRegressions(
         delta: toolCallsDelta,
         baseline: b.avgToolCalls,
         current: r.averageIterationDepth,
+      })
+      continue
+    }
+
+    // Check avgQuality: composite drop of >0.5 points from baseline
+    const qualityDelta = b.avgQuality - r.compositeQualityScore
+    if (qualityDelta > 0.5) {
+      regressions.push({
+        fixtureName: r.fixtureName,
+        metric: 'avgQuality',
+        delta: qualityDelta,
+        baseline: b.avgQuality,
+        current: r.compositeQualityScore,
       })
     }
   }

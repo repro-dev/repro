@@ -2,7 +2,7 @@ import { filter, firstValueFrom } from "rxjs";
 import { createAgenticState } from "../createState";
 import { StreamProvider } from "../types";
 import { EvalFixture } from "./fixtures/console-error-and-network-failure";
-import { EvalScore, scoreEvalRun } from "./scorer";
+import { EvalScore, QualityScores, scoreEvalRun } from "./scorer";
 
 export interface EvalResult {
   fixtureName: string;
@@ -14,6 +14,8 @@ export interface EvalResult {
   averageIterationDepth: number;
   averageToolErrorRate: number;
   anyHitIterationLimit: boolean;
+  // Average of each quality dimension across all runs (1 decimal place)
+  averageQualityScore: QualityScores;
 }
 
 async function runSingle(
@@ -71,6 +73,34 @@ export async function runEval(
 
   const anyHitIterationLimit = scores.some((s) => s.hitIterationLimit);
 
+  // Average each quality dimension across all runs, rounded to 1 decimal place.
+  // Cast back to 1|2|3 — the average is used for display/comparison, not as a
+  // strict enum value, so we widen the type to number via a cast.
+  const avgBrevity =
+    Math.round(
+      (scores.reduce((sum, s) => sum + s.qualityScore.brevity, 0) /
+        scores.length) *
+        10,
+    ) / 10;
+  const avgDirectness =
+    Math.round(
+      (scores.reduce((sum, s) => sum + s.qualityScore.directness, 0) /
+        scores.length) *
+        10,
+    ) / 10;
+  const avgSignalNoise =
+    Math.round(
+      (scores.reduce((sum, s) => sum + s.qualityScore.signalNoise, 0) /
+        scores.length) *
+        10,
+    ) / 10;
+
+  const averageQualityScore: QualityScores = {
+    brevity: avgBrevity as QualityScores["brevity"],
+    directness: avgDirectness as QualityScores["directness"],
+    signalNoise: avgSignalNoise as QualityScores["signalNoise"],
+  };
+
   return {
     fixtureName: fixture.name,
     prompt: fixture.prompt,
@@ -80,6 +110,7 @@ export async function runEval(
     averageIterationDepth,
     averageToolErrorRate,
     anyHitIterationLimit,
+    averageQualityScore,
   };
 }
 

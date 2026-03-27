@@ -19,22 +19,25 @@ function makeBaseline(
   fixtureName: string,
   correctnessRate: number,
   avgErrorRate: number,
-  avgToolCalls: number
+  avgToolCalls: number,
+  avgQuality = 2.0
 ) {
-  return { fixtureName, correctnessRate, avgErrorRate, avgToolCalls }
+  return { fixtureName, correctnessRate, avgErrorRate, avgToolCalls, avgQuality }
 }
 
 function makeResult(
   fixtureName: string,
   correctnessRate: number,
   avgErrorRate: number,
-  avgToolCalls: number
+  avgToolCalls: number,
+  compositeQualityScore = 2.0
 ) {
   return {
     fixtureName,
     correctnessRate,
     averageToolErrorRate: avgErrorRate,
     averageIterationDepth: avgToolCalls,
+    compositeQualityScore,
   }
 }
 
