@@ -1,5 +1,6 @@
 import { AssistantMessage, Entry, ToolMessage } from "../types";
 import { MAX_TOOL_ITERATIONS } from "../createState";
+import type { CritiqueItem } from "./introspector";
 
 export interface QualityScores {
   // 1=verbose/padded, 2=acceptable, 3=concise
@@ -30,6 +31,8 @@ export interface EvalScore {
   hitIterationLimit: boolean;
   // Output quality scores from the judge (independent of correctness)
   qualityScore: QualityScores;
+  // Per-run critique items produced by --introspect mode (optional)
+  critique?: Array<CritiqueItem>;
 }
 
 // Extracts the final assistant response from an entry list.
@@ -175,7 +178,11 @@ Reply with JSON only (no markdown code fences):
     };
   } catch {
     // Malformed JSON — treat as incorrect, use neutral quality defaults
-    return { correct: false, reasoning: content, qualityScore: DEFAULT_QUALITY_SCORES };
+    return {
+      correct: false,
+      reasoning: content,
+      qualityScore: DEFAULT_QUALITY_SCORES,
+    };
   }
 }
 
