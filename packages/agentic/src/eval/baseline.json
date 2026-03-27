@@ -2,8 +2,8 @@
   {
     "fixtureName": "console-error-and-network-failure",
     "correctnessRate": 1.0,
-    "avgErrorRate": 0.111,
-    "avgToolCalls": 7.7
+    "avgErrorRate": 0.252,
+    "avgToolCalls": 9.3
   },
   {
     "fixtureName": "conditional-rendering-bug",
