@@ -25,6 +25,7 @@ export const AgenticView: React.FC = () => {
   const entries = useAtomValue(agentic.$entries);
   const loading = useAtomValue(agentic.$loading);
   const error = useAtomValue(agentic.$error);
+  const wasCancelled = useAtomValue(agentic.$wasCancelled);
 
   const lastPromptRef = useRef("");
 
@@ -68,6 +69,7 @@ export const AgenticView: React.FC = () => {
             onRetry={handleRetry}
             scrollContainerRef={scrollContainerRef}
             contentContainerRef={contentContainerRef}
+            wasCancelled={wasCancelled}
             onSelectPrompt={(prompt) => {
               lastPromptRef.current = prompt;
               agentic.query(prompt);

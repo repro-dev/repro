@@ -976,6 +976,302 @@ describe("createAgenticState — cancel and error handling", () => {
 
     state.destroy();
   });
+
+  it("cancel() while streaming does not let subsequent stream chunks revert loading to 'responding'", async () => {
+    // A slow SSE stream that pauses between events via a promise
+    let releasePull!: () => void;
+    let pullCount = 0;
+    const events = [
+      makeDeltaEvent("chunk1"),
+      makeDeltaEvent("chunk2"),
+      makeMessageEvent("[DONE]"),
+    ];
+    let eventIndex = 0;
+
+    const slowStream = new ReadableStream<{ data: string }>({
+      pull(controller) {
+        pullCount++
+        // Pause after the first pull so we can cancel mid-stream
+        return new Promise<void>(res => {
+          releasePull = res
+          // Auto-release after a short delay to avoid test hanging
+          setTimeout(() => {
+            if (eventIndex < events.length) {
+              controller.enqueue(events[eventIndex++]!)
+            } else {
+              controller.close()
+            }
+            res()
+          }, 50)
+        })
+      },
+    })
+
+    const streamProvider: StreamProvider = () => resolve(slowStream) as never
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
+
+    // Wait for the pull function to be called at least once (stream started)
+    await waitForCondition(() => pullCount >= 1)
+
+    state.cancel()
+
+    // Immediately after cancel, loading must be 'cancelled'
+    assert.strictEqual(state.$loading.getValue(), 'cancelled')
+
+    // Release the paused pull so any pending chunks can arrive
+    if (releasePull) releasePull()
+
+    // Wait 100ms for any async events to process
+    await new Promise(res => setTimeout(res, 100))
+
+    // Loading must still be 'cancelled' — not reverted to 'responding'
+    assert.strictEqual(state.$loading.getValue(), 'cancelled')
+
+    state.destroy()
+  })
+
+  it("cancel() during tool-executing stops tool calls and does not trigger a new LLM request", async () => {
+    // Build an SSE event that carries a tool call (no content — assistant requests a tool)
+    const toolCallEvent = JSON.stringify({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: 'tc1',
+                function: { name: 'getRecordingDuration', arguments: '{}' },
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    // Block the second LLM request indefinitely so we can detect if it fires at all
+    let streamCallCount = 0
+    const streamProvider: StreamProvider = () => {
+      streamCallCount++
+      if (streamCallCount === 1) {
+        // First call: return a tool-call completion stream
+        return resolve(
+          new ReadableStream<{ data: string }>({
+            start(controller) {
+              controller.enqueue({ data: toolCallEvent })
+              controller.enqueue({ data: '[DONE]' })
+              controller.close()
+            },
+          }),
+        ) as never
+      }
+      // Any subsequent call: return a stream that never emits, so we can detect
+      // that it was triggered at all
+      return resolve(new ReadableStream()) as never
+    }
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
+
+    // Wait until the first LLM request has been initiated (streamCallCount >= 1)
+    // and the stream has had time to process its events asynchronously
+    await waitForCondition(() => streamCallCount >= 1)
+
+    // Give the stream a tick to process its events (tool_calls + [DONE])
+    await new Promise(res => setTimeout(res, 50))
+
+    // Now cancel — at this point the tool Future may or may not have run.
+    // The key invariant: after cancel(), no *new* LLM request should fire.
+    state.cancel()
+
+    const countAtCancel = streamCallCount
+
+    // Wait long enough for any async tool completion and toolCallTrigger to fire
+    await new Promise(res => setTimeout(res, 500))
+
+    // No new LLM request should have been triggered after cancel()
+    assert.strictEqual(
+      streamCallCount,
+      countAtCancel,
+      `Expected no new LLM request after cancel(), but streamCallCount went from ${countAtCancel} to ${streamCallCount}`,
+    )
+
+    // Loading must not be in an active state — must be 'cancelled' or 'none'
+    const loadingVal = state.$loading.getValue()
+    assert.ok(
+      loadingVal === 'cancelled' || loadingVal === 'none',
+      `Expected loading to be 'cancelled' or 'none', got '${loadingVal}'`,
+    )
+
+    state.destroy()
+  })
+
+  it("cancel() is idempotent — calling it twice does not throw", () => {
+    const streamProvider: StreamProvider = () =>
+      resolve(new ReadableStream()) as never
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
+
+    // First cancel: sets currentAbortController to null and flags cancelled
+    assert.doesNotThrow(() => state.cancel())
+    // Second cancel: currentAbortController is already null — must not throw
+    assert.doesNotThrow(() => state.cancel())
+
+    assert.strictEqual(state.$loading.getValue(), 'cancelled')
+
+    state.destroy()
+  })
+
+  it("query() after cancel() resets cancelled flag so new stream chunks update loading normally", async () => {
+    // First query: cancel it immediately
+    const streamProvider: StreamProvider = () =>
+      resolve(new ReadableStream()) as never
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('first')
+    state.cancel()
+
+    assert.strictEqual(state.$loading.getValue(), 'cancelled')
+
+    // Second query: cancelled flag must be cleared so the stream can set loading
+    // to 'responding' when message content arrives
+    const secondStreamProvider: StreamProvider = () =>
+      // Return a stream that yields a content chunk then done
+      resolve(
+        makeSseStream([makeDeltaEvent('hello'), makeMessageEvent('[DONE]')]),
+      ) as never
+
+    // We need a new state instance because the stream provider is captured at
+    // construction time — but we can verify the same behaviour inline by
+    // re-issuing query() on the same state after cancelling.
+    const state2 = createAgenticState(
+      secondStreamProvider,
+      makeEmptyAccessorNew(),
+    )
+    state2.query('first')
+    state2.cancel()
+    // Now query again — cancelled must be cleared
+    state2.query('second')
+
+    // Wait for loading to reach 'none' (successful completion)
+    await waitForCondition(() => state2.$loading.getValue() === 'none', 5000)
+    assert.strictEqual(state2.$loading.getValue(), 'none')
+
+    state.destroy()
+    state2.destroy()
+  })
+
+  it("cancelled flag does not block setEntryMap() — message content accumulates after cancel", async () => {
+    // Build a stream that delivers a content chunk AFTER we cancel.
+    // We pause the stream using a promise, cancel, then let it proceed.
+    let releaseChunk!: () => void
+    const chunkReleased = new Promise<void>(res => {
+      releaseChunk = res
+    })
+
+    let streamStarted = false
+    const slowStream = new ReadableStream<{ data: string }>({
+      async pull(controller) {
+        streamStarted = true
+        // Block until we release
+        await chunkReleased
+        controller.enqueue(makeDeltaEvent('content after cancel'))
+        controller.enqueue(makeMessageEvent('[DONE]'))
+        controller.close()
+      },
+    })
+
+    const streamProvider: StreamProvider = () => resolve(slowStream) as never
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
+
+    // Wait until the stream pull has been invoked
+    await waitForCondition(() => streamStarted)
+
+    state.cancel()
+
+    // Release the stream — chunk arrives after cancel
+    releaseChunk()
+
+    // Give RxJS time to process the chunk
+    await new Promise(res => setTimeout(res, 150))
+
+    // The assistant entry should have been written (setEntryMap is not guarded)
+    const entries = state.$entries.getValue()
+    const assistantEntries = entries.filter(e => e.role === 'assistant')
+    assert.ok(
+      assistantEntries.length > 0,
+      'Expected at least one assistant entry even though cancelled',
+    )
+
+    // But loading must NOT have been set to 'responding' — it stays 'cancelled'
+    // (or 'none' after the 1500ms timeout, but 150ms have not elapsed that long)
+    const loading = state.$loading.getValue()
+    assert.ok(
+      loading === 'cancelled' || loading === 'none',
+      `Expected loading to remain 'cancelled', got '${loading}'`,
+    )
+
+    state.destroy()
+  })
+
+  it("destroy() cleans up currentToolSubscription", async () => {
+    // Build a stream that triggers a tool call, then destroy before the
+    // tool Future settles — the subscription should be unsubscribed without error.
+    const toolCallEvent = JSON.stringify({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: 'tc1',
+                function: { name: 'getRecordingDuration', arguments: '{}' },
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    let streamCallCount = 0
+    const streamProvider: StreamProvider = () => {
+      streamCallCount++
+      if (streamCallCount === 1) {
+        return resolve(
+          new ReadableStream<{ data: string }>({
+            start(controller) {
+              controller.enqueue({ data: toolCallEvent })
+              controller.enqueue({ data: '[DONE]' })
+              controller.close()
+            },
+          }),
+        ) as never
+      }
+      // Subsequent calls: never-ending stream (should not be reached)
+      return resolve(new ReadableStream()) as never
+    }
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
+
+    // Wait until the first stream has been consumed (tool-executing state)
+    await waitForCondition(
+      () =>
+        state.$loading.getValue() === 'tool-executing' ||
+        streamCallCount >= 1,
+      5000,
+    )
+
+    // Give the Future a tick to start executing (but not necessarily finish)
+    await new Promise(res => setTimeout(res, 10))
+
+    // destroy() must not throw even if currentToolSubscription is set
+    assert.doesNotThrow(() => state.destroy())
+  })
 });
 
 describe("reset()", () => {

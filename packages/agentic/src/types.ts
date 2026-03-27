@@ -129,6 +129,7 @@ export interface AgenticState {
   $entries: Atom<Array<Entry>>;
   $loading: Atom<Loading>;
   $error: Atom<AgenticError | null>;
+  $wasCancelled: Atom<boolean>;
   cancel(): void;
   destroy(): void;
   query(input: string): void;
