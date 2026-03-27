@@ -23,6 +23,7 @@ import {
   withEncodedId,
 } from '~/modules/database'
 import { EmailUtils } from '~/modules/email-utils'
+import { BillingService } from '~/services/billing'
 import {
   badRequest,
   notFound,
@@ -44,7 +45,8 @@ function createToken(): string {
 export function createAccountService(
   database: Database,
   emailUtils: EmailUtils,
-  _config: SystemConfig = defaultSystemConfig
+  _config: SystemConfig = defaultSystemConfig,
+  billingService?: BillingService
 ) {
   function ensureStaffUser(
     user: User | StaffUser | null
@@ -329,7 +331,19 @@ export function createAccountService(
         .values({ name, active: true })
         .returning(['id', 'name'])
         .executeTakeFirstOrThrow()
-    }).pipe(map(withEncodedId))
+    })
+      .pipe(map(withEncodedId))
+      .pipe(
+        chain(account => {
+          if (!billingService) {
+            return resolve(account)
+          }
+
+          return billingService
+            .provisionFreeSubscription(account.id)
+            .pipe(map(() => account))
+        })
+      )
   }
 
   function getAccountById(accountId: string): FutureInstance<Error, Account> {
@@ -415,7 +429,9 @@ export function createAccountService(
           email,
           accountId: decodedAccountId,
         })
-        .onConflict(cb => cb.column('email').doUpdateSet({ token, active: true }))
+        .onConflict(cb =>
+          cb.column('email').doUpdateSet({ token, active: true })
+        )
         .returning(['id', 'token', 'email'])
         .executeTakeFirstOrThrow()
     }).pipe(map(withEncodedId))
@@ -607,9 +623,9 @@ export function createAccountService(
 
   function deactivateUser(userId: string): FutureInstance<Error, void> {
     return attemptQuery(async () => {
-          await database
-            .updateTable('users')
-            .set('active', false)
+      await database
+        .updateTable('users')
+        .set('active', false)
         .where('id', '=', decodeId(userId))
         .execute()
     })

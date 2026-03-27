@@ -52,7 +52,7 @@ const envSchema = z.object({
   PADDLE_CLIENT_TOKEN: z.string().optional(),
   PADDLE_WEBHOOK_SECRET: z.string().optional(),
   PADDLE_ENVIRONMENT: z.enum(['sandbox', 'production']).default('sandbox'),
-  BILLING_DEFAULT_PLAN: z.string().default('free'),
+  BILLING_DEFAULT_PLAN: z.string().default('Free'),
   BILLING_STUBBED: booleanStringTransform.default(true),
   DEBUG: z.string().optional(),
   AGENTIC_MAX_ITERATIONS: z.coerce.number().default(25),

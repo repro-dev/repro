@@ -3,7 +3,7 @@ import expect from 'expect'
 import { chain, map, parallel, promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { decodeId, encodeId } from '~/modules/database'
-import { Harness, createTestHarness } from '~/testing'
+import { Harness, createTestHarness, fixtures } from '~/testing'
 import {
   notFound,
   permissionDenied,
@@ -11,6 +11,7 @@ import {
   tooManyRequests,
 } from '~/utils/errors'
 import { AccountService } from './account'
+import { BillingService } from './billing'
 
 // TODO: lift into functional utilities
 function range(size: number) {
@@ -20,10 +21,12 @@ function range(size: number) {
 describe('Services > Account', () => {
   let harness: Harness
   let accountService: AccountService
+  let billingService: BillingService
 
   before(async () => {
     harness = await createTestHarness()
     accountService = harness.services.accountService
+    billingService = harness.services.billingService
   })
 
   beforeEach(async () => {
@@ -208,6 +211,38 @@ describe('Services > Account', () => {
       ).resolves.toMatchObject({
         id: expect.any(String),
         name: 'New Account',
+      })
+    })
+
+    it('should auto-provision a free subscription when creating an account (if plan is seeded)', async () => {
+      // Seed the free plan before creating the account
+      await harness.loadFixtures([fixtures.billing.FreePlan])
+
+      const account = await promise(
+        accountService.createAccount('Auto Sub Account')
+      )
+
+      const subscription = await promise(
+        billingService.getSubscriptionByAccountId(account.id)
+      )
+
+      expect(subscription).toMatchObject({
+        accountId: account.id,
+        status: 'active',
+      })
+
+      expect(subscription.providerSubscriptionId).toBe(
+        `self_provisioned_${account.id}`
+      )
+    })
+
+    it('should create an account successfully even when the free plan is not seeded', async () => {
+      // No plan seeded - should not throw
+      await expect(
+        promise(accountService.createAccount('No Plan Account'))
+      ).resolves.toMatchObject({
+        id: expect.any(String),
+        name: 'No Plan Account',
       })
     })
 

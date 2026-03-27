@@ -9,6 +9,7 @@ import {
 } from 'fastify-type-provider-zod'
 import { defaultEnv as env } from '~/config/env'
 import { createSessionDecorator } from '~/decorators/session'
+import { createPaddleClient } from '~/modules/billing'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
 import { createSMTPEmailUtils } from '~/modules/email-utils'
 import { createS3StorageClient } from '~/modules/storage-s3'
@@ -29,7 +30,6 @@ import { createOAuthService } from '~/services/oauth'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
 import { serverError } from '~/utils/errors'
-import { createPaddleClient } from '~/modules/billing'
 import { createHttpClient } from './modules/http'
 import { createStaffRouter } from './routers/staff'
 import { createAgenticService } from './services/agentic'
@@ -68,9 +68,14 @@ const emailUtils = createSMTPEmailUtils({
   },
 })
 
-const accountService = createAccountService(database, emailUtils)
-const agenticService = createAgenticService(httpClient)
 const billingService = createBillingService(database, env)
+const accountService = createAccountService(
+  database,
+  emailUtils,
+  undefined,
+  billingService
+)
+const agenticService = createAgenticService(httpClient)
 const oauthService = createOAuthService(database)
 const featureGateService = createFeatureGateService(database)
 const healthService = createHealthService(database, storage)
@@ -80,7 +85,8 @@ const recordingService = createRecordingService(database, storage)
 const accountRouter = createAccountRouter(accountService)
 const agenticRouter = createAgenticRouter(agenticService, accountService)
 const billingRouter = createBillingRouter(billingService, accountService)
-const billingWebhookRouter =  !env.BILLING_STUBBED && env.PADDLE_API_KEY && env.PADDLE_WEBHOOK_SECRET
+const billingWebhookRouter =
+  !env.BILLING_STUBBED && env.PADDLE_API_KEY && env.PADDLE_WEBHOOK_SECRET
     ? createBillingWebhookRouter(
         createBillingWebhookService(
           database,

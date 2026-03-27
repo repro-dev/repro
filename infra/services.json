@@ -12,7 +12,8 @@
       "DB_PASSWORD": "repro",
       "STORAGE_ENDPOINT": "http://localhost:18333",
       "REPRO_APP_URL": "https://app.repro.localhost:1355",
-      "REPRO_API_URL": "https://api.repro.localhost:1355"
+      "REPRO_API_URL": "https://api.repro.localhost:1355",
+      "BILLING_DEFAULT_PLAN": "Free"
     },
     "env_passthrough": ["OPENROUTER_API_KEY"],
     "resource_deps": ["dependencies", "portless-proxy"],
