@@ -19,9 +19,9 @@
  *   runner.ts          — Orchestrates multiple runs per fixture, computes aggregate stats
  *   index.ts           — CLI entry point: runs all fixtures, prints results, writes JSON
  *
- * Results are written to packages/agentic/eval-results.json (gitignored) for
- * baseline tracking. The file is also uploaded as a CI artifact by the nightly
- * evals workflow (.github/workflows/nightly-evals.yml).
+ * Results are written to tmp/agentic-eval-results.json (gitignored at workspace
+ * root) for baseline tracking. The file is also uploaded as a CI artifact by
+ * the nightly evals workflow (.github/workflows/nightly-evals.yml).
  */
 
 import * as fs from "fs";
@@ -32,11 +32,11 @@ import { createFixture as createFixture3 } from "./fixtures/user-interaction-sta
 import { EvalResult, runEval } from "./runner";
 import { createOpenRouterStreamProvider } from "./streamProvider";
 
-// Resolve the package root so we can write eval-results.json next to moon.yml.
-// __dirname is the compiled output dir; for src-direct tsx execution it points
-// to packages/agentic/src/eval — walk up 3 levels to reach packages/agentic.
-const PACKAGE_ROOT = path.resolve(__dirname, "..", "..", "..");
-const RESULTS_PATH = path.join(PACKAGE_ROOT, "eval-results.json");
+// Resolve the workspace root so we can write into tmp/ (gitignored, shared
+// scratch space). __dirname under tsx points to packages/agentic/src/eval —
+// walk up 4 levels to reach the workspace root.
+const WORKSPACE_ROOT = path.resolve(__dirname, "..", "..", "..", "..");
+const RESULTS_PATH = path.join(WORKSPACE_ROOT, "tmp", "agentic-eval-results.json");
 
 function pct(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`;
@@ -47,57 +47,14 @@ function avg(n: number): string {
 }
 
 function printResults(results: Array<EvalResult>): void {
-  // Column widths
-  const COL_FIXTURE = 37;
-  const COL_RESULT = 6;
-  const COL_CALLS = 12;
-  const COL_ERRORS = 10;
-
-  const hr = (
-    left: string,
-    _mid: string,
-    right: string,
-    sep: string,
-    fill: string,
-  ) =>
-    left +
-    fill.repeat(COL_FIXTURE + 2) +
-    sep +
-    fill.repeat(COL_RESULT + 2) +
-    sep +
-    fill.repeat(COL_CALLS + 2) +
-    sep +
-    fill.repeat(COL_ERRORS + 2) +
-    right;
-
-  const row = (
-    fixture: string,
-    result: string,
-    calls: string,
-    errors: string,
-  ) =>
-    `│ ${fixture.padEnd(COL_FIXTURE)} │ ${result.padEnd(
-      COL_RESULT,
-    )} │ ${calls.padEnd(COL_CALLS)} │ ${errors.padEnd(COL_ERRORS)} │`;
-
+  const rows = results.map((r) => ({
+    Fixture: r.fixtureName,
+    Result: r.majorityCorrect ? "PASS" : "FAIL",
+    "Avg Tool Calls": avg(r.averageIterationDepth),
+    "Avg Error Rate": pct(r.averageToolErrorRate),
+  }));
   console.log("\nSummary:");
-  console.log(hr("┌", "┬", "┐", "┬", "─"));
-  console.log(row("Fixture", "Result", "Avg Tool Calls", "Avg Errors"));
-  console.log(hr("├", "┼", "┤", "┼", "─"));
-
-  for (const r of results) {
-    const resultLabel = r.majorityCorrect ? "PASS" : "FAIL";
-    console.log(
-      row(
-        r.fixtureName,
-        resultLabel,
-        avg(r.averageIterationDepth),
-        pct(r.averageToolErrorRate),
-      ),
-    );
-  }
-
-  console.log(hr("└", "┴", "┘", "┴", "─"));
+  console.table(rows);
 }
 
 async function main(): Promise<void> {
