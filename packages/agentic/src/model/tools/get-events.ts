@@ -21,7 +21,7 @@ export const TOOL_DEFINITION = {
   function: {
     name: "getEvents",
     description:
-      "Get a timeline of events from the recording, filtered by type and time range. Returns user interactions, page transitions, and DOM activity.",
+      "Get a broad timeline of events from the recording. Use this for an initial overview of the session or a large time window. Supports filtering by event type, detail level (summary/normal/full), and pagination. Prefer getEventsAroundTime when you need detailed context around a single known timestamp.",
     parameters: {
       type: "object",
       properties: {

@@ -29,7 +29,7 @@ export const TOOL_DEFINITION = {
   function: {
     name: "getEventsAroundTime",
     description:
-      "Get events that occurred around a specific timestamp. Useful for understanding context around an error or user action.",
+      "Get detailed events in a small window around a specific timestamp. Use this as a targeted follow-up after identifying a moment of interest (e.g. an error or failed request) — not for broad exploration. Includes full console message text. Do not call if getEvents already returned sufficient data for the same time range.",
     parameters: {
       type: "object",
       properties: {

@@ -24,7 +24,10 @@ Never try to read the entire recording at once. Build up a picture selectively b
 ## Tool notes
 - Always start with a "summary" level of detail. Only escalate to "normal" or "full" if the summary confirms that deeper data is necessary.
 - Use time range parameters to focus on the interval around an anomaly rather than querying the whole session.
-- When you identify a specific moment of interest (e.g. when an error occurs), use a centred time window to retrieve the surrounding context — user actions before, consequences after.
+- **\`getEvents\` vs \`getEventsAroundTime\`**: These two tools serve different purposes and should not be used redundantly on the same time range.
+  - \`getEvents\` is a **broad timeline pass**. Use it early in an investigation (typically once) to build an overview of events across the session or a large time range. It supports filtering by event type, detail level, and pagination.
+  - \`getEventsAroundTime\` is a **targeted follow-up**. Use it only after you have identified a specific timestamp of interest (e.g. from an error, a failed request, or a suspicious user action). It returns a small window of detailed context around that moment, including full console message text.
+  - Do not call \`getEventsAroundTime\` if \`getEvents\` already returned sufficient detail for the same time range. Conversely, if you need richer context around a single moment (especially console output with message text), prefer \`getEventsAroundTime\` over a narrow \`getEvents\` call.
 - DOM tools (\`getDOMState\`, \`getElementDetails\`) require DOM snapshots. Only use them if the recording was captured with DOM recording enabled. If you are unsure, call \`findErrors()\` or \`getRecordingDuration()\` first — if the recording has no DOM data, DOM tools will return an error.
 
 ## Response format
