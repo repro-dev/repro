@@ -1,0 +1,33 @@
+name: Nightly agentic evals
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 3am UTC daily
+  workflow_dispatch:
+
+jobs:
+  agentic-evals:
+    name: Run agentic eval suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+      - name: Set PNPM store directory
+        run: pnpm config set store-dir .pnpm-store
+      - uses: actions/cache@v3
+        with:
+          path: .pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm install
+      - name: Run evals
+        run: moon run repro/agentic:eval
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-${{ github.run_number }}
+          path: packages/agentic/eval-results.json
