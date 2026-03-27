@@ -1,0 +1,14 @@
+[
+  {
+    "fixtureName": "console-error-and-network-failure",
+    "majorityCorrect": true
+  },
+  {
+    "fixtureName": "conditional-rendering-bug",
+    "majorityCorrect": true
+  },
+  {
+    "fixtureName": "user-interaction-state-change",
+    "majorityCorrect": true
+  }
+]
