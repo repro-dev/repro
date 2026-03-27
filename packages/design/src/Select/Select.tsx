@@ -67,6 +67,8 @@ export interface SelectProps {
   renderValue?(option: SelectOption): React.ReactNode
   'aria-label'?: string
   'aria-labelledby'?: string
+  /** When true, renders a text input at the top of the dropdown for filtering options. */
+  searchable?: boolean
 }
 
 const sizes = {
@@ -155,6 +157,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       renderValue,
       'aria-label': ariaLabel,
       'aria-labelledby': ariaLabelledBy,
+      searchable = false,
     },
     ref
   ) => {
@@ -189,11 +192,55 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
 
     const resolvedValue = isControlled ? valueProp : internalValue
 
+    const [filterValue, setFilterValue] = useState('')
+    const filterInputRef = useRef<HTMLInputElement>(null)
+
+    // When searchable, filter flatItems by label. Group headers are included
+    // only when they have at least one matching child option.
+    const filteredFlatItems = useMemo(() => {
+      if (!searchable || filterValue === '') return flatItems
+
+      const query = filterValue.toLowerCase()
+
+      // Determine which group IDs have at least one matching option
+      const matchingGroupIds = new Set<string>()
+      for (const item of flatItems) {
+        if (
+          item.type === 'option' &&
+          item.groupId &&
+          item.option?.label.toLowerCase().includes(query)
+        ) {
+          matchingGroupIds.add(item.groupId)
+        }
+      }
+
+      return flatItems.filter(item => {
+        if (item.type === 'group-header') {
+          return item.groupId ? matchingGroupIds.has(item.groupId) : false
+        }
+        return item.option?.label.toLowerCase().includes(query) ?? false
+      })
+    }, [searchable, filterValue, flatItems])
+
+    const filteredFlatOptions = useMemo(
+      () =>
+        filteredFlatItems.filter(i => i.type === 'option').map(i => i.option!),
+      [filteredFlatItems]
+    )
+
     const [isOpen, setIsOpen] = useState(false)
+
+    // Reset filter when the dropdown closes
+    const handleOpenChange = useCallback((open: boolean) => {
+      setIsOpen(open)
+      if (!open) {
+        setFilterValue('')
+      }
+    }, [])
     const [activeIndex, setActiveIndex] = useState<number | null>(null)
     const listRef = useRef<Array<HTMLElement | null>>([])
     const listContentRef = useRef<Array<string | null>>(
-      flatItems.map(item =>
+      filteredFlatItems.map(item =>
         item.type === 'group-header'
           ? null
           : item.option?.disabled
@@ -203,14 +250,30 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     )
 
     useEffect(() => {
-      listContentRef.current = flatItems.map(item =>
+      listContentRef.current = filteredFlatItems.map(item =>
         item.type === 'group-header'
           ? null
           : item.option?.disabled
           ? null
           : item.option?.label ?? null
       )
-    }, [flatItems])
+    }, [filteredFlatItems])
+
+    // Reset active index when filter changes so keyboard navigation starts fresh
+    useEffect(() => {
+      if (searchable) {
+        setActiveIndex(null)
+      }
+    }, [filterValue, searchable])
+
+    // Auto-focus the filter input when the searchable dropdown opens
+    useEffect(() => {
+      if (searchable && isOpen) {
+        requestAnimationFrame(() => {
+          filterInputRef.current?.focus()
+        })
+      }
+    }, [searchable, isOpen])
 
     const listboxId = useId()
 
@@ -234,26 +297,26 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
     )
 
     const selectedIndex = useMemo(() => {
-      const idx = flatItems.findIndex(
+      const idx = filteredFlatItems.findIndex(
         item => item.type === 'option' && item.option?.value === resolvedValue
       )
       return idx >= 0 ? idx : null
-    }, [flatItems, resolvedValue])
+    }, [filteredFlatItems, resolvedValue])
 
     const disabledIndices = useMemo(
       () =>
-        flatItems.reduce<number[]>((acc, item, i) => {
+        filteredFlatItems.reduce<number[]>((acc, item, i) => {
           if (item.type === 'group-header' || item.option?.disabled) {
             acc.push(i)
           }
           return acc
         }, []),
-      [flatItems]
+      [filteredFlatItems]
     )
 
     const { refs, floatingStyles, context } = useFloating({
       open: isOpen,
-      onOpenChange: setIsOpen,
+      onOpenChange: handleOpenChange,
       placement: 'bottom-start',
       whileElementsMounted: autoUpdate,
       middleware: [
@@ -293,6 +356,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           handleSelect(index)
         }
       },
+      // Disable floating-ui's built-in typeahead when searchable — the filter
+      // input takes over character input for filtering.
+      enabled: !searchable,
     })
 
     const { isMounted, styles: transitionStyles } = useTransitionStyles(
@@ -317,17 +383,18 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
 
     const handleSelect = useCallback(
       (index: number) => {
-        const item = flatItems[index]
+        const item = filteredFlatItems[index]
         if (item?.type === 'option' && item.option && !item.option.disabled) {
           if (!isControlled) {
             setInternalValue(item.option.value)
           }
           onChange?.(item.option.value)
+          setFilterValue('')
           setIsOpen(false)
           ;(refs.domReference.current as HTMLElement | null)?.focus()
         }
       },
-      [flatItems, onChange, isControlled, refs]
+      [filteredFlatItems, onChange, isControlled, refs]
     )
 
     const handleFloatingKeyDown = useCallback(
@@ -337,10 +404,10 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
         }
 
         e.preventDefault()
-        setIsOpen(false)
+        handleOpenChange(false)
         ;(refs.domReference.current as HTMLElement | null)?.focus()
       },
-      [refs, setIsOpen]
+      [refs, handleOpenChange]
     )
 
     const handleFloatingBlur = useCallback(
@@ -358,9 +425,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           return
         }
 
-        setIsOpen(false)
+        handleOpenChange(false)
       },
-      [refs, setIsOpen]
+      [refs, handleOpenChange]
     )
 
     return (
@@ -480,6 +547,54 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                   style: transitionStyles,
                 }}
               >
+                {searchable && (
+                  <Block
+                    component="input"
+                    display="block"
+                    width="100%"
+                    padding={`${spacing.sm}px ${spacing.md}px`}
+                    marginBottom={spacing.sm}
+                    backgroundColor={color.bg.subtle}
+                    border={`1px solid ${color.border.default}`}
+                    borderRadius={radius.sm}
+                    fontSize={triggerFontSize}
+                    lineHeight={lineHeight.relaxed}
+                    color={color.text.default}
+                    outline="none"
+                    boxSizing="border-box"
+                    props={{
+                      ref: filterInputRef,
+                      value: filterValue,
+                      placeholder: 'Search...',
+                      'aria-label': 'Filter options',
+                      autoComplete: 'off',
+                      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                        setFilterValue(e.target.value)
+                      },
+                      onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          // Select the first non-disabled option in the filtered list
+                          const firstEnabledIndex = filteredFlatItems.findIndex(
+                            item =>
+                              item.type === 'option' && !item.option?.disabled
+                          )
+                          if (firstEnabledIndex >= 0) {
+                            handleSelect(firstEnabledIndex)
+                          }
+                        } else if (
+                          e.key === 'ArrowDown' ||
+                          e.key === 'ArrowUp'
+                        ) {
+                          // Let arrow keys propagate to floating-ui list navigation
+                        } else {
+                          // Prevent other keys from bubbling to floating-ui
+                          e.stopPropagation()
+                        }
+                      },
+                    }}
+                  />
+                )}
                 <Block
                   component="ul"
                   margin={0}
@@ -490,113 +605,131 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                     role: 'presentation',
                   }}
                 >
-                  {flatItems.map((item, index) => {
-                    if (item.type === 'group-header') {
+                  {filteredFlatOptions.length === 0 && searchable ? (
+                    <Block
+                      component="li"
+                      padding={`${base}px ${base * 1.5}px`}
+                      fontSize={triggerFontSize}
+                      lineHeight={lineHeight.relaxed}
+                      color={color.text.muted}
+                      props={{
+                        role: 'presentation',
+                        ...({
+                          'data-testid': 'select-no-results',
+                        } as React.HTMLAttributes<HTMLLIElement>),
+                      }}
+                    >
+                      No results
+                    </Block>
+                  ) : (
+                    filteredFlatItems.map((item, index) => {
+                      if (item.type === 'group-header') {
+                        return (
+                          <Block
+                            key={item.groupId}
+                            component="li"
+                            padding={`${base * 0.75}px ${base * 1.5}px`}
+                            fontSize={triggerFontSize * 0.85}
+                            lineHeight={lineHeight.relaxed}
+                            fontWeight={600}
+                            color={color.text.muted}
+                            props={{
+                              ref: (node: HTMLElement | null) => {
+                                listRef.current[index] = node
+                              },
+                              role: 'presentation',
+                              id: item.groupId,
+                              'aria-hidden': true,
+                            }}
+                          >
+                            {item.groupLabel}
+                          </Block>
+                        )
+                      }
+
+                      const option = item.option!
+                      const isSelected = option.value === resolvedValue
+                      const isActive = activeIndex === index
+                      const isOptionDisabled = option.disabled === true
+
                       return (
-                        <Block
-                          key={item.groupId}
+                        <Row
+                          key={option.value}
                           component="li"
-                          padding={`${base * 0.75}px ${base * 1.5}px`}
-                          fontSize={triggerFontSize * 0.85}
+                          alignItems="center"
+                          justifyContent="space-between"
+                          gap={spacing.sm}
+                          padding={`${base}px ${base * 1.5}px`}
+                          paddingLeft={item.groupId ? base * 2.5 : base * 1.5}
+                          fontSize={triggerFontSize}
                           lineHeight={lineHeight.relaxed}
-                          fontWeight={600}
-                          color={color.text.muted}
+                          borderRadius={radius.sm}
+                          outline="none"
+                          cursor={isOptionDisabled ? 'not-allowed' : 'pointer'}
+                          color={
+                            isOptionDisabled
+                              ? color.text.muted
+                              : isSelected
+                              ? color.primary
+                              : color.text.default
+                          }
+                          backgroundColor={
+                            isActive && !isOptionDisabled && isSelected
+                              ? color.primarySubtleHover
+                              : isActive && !isOptionDisabled
+                              ? color.bg.hover
+                              : isSelected
+                              ? color.primarySubtle
+                              : 'transparent'
+                          }
+                          opacity={isOptionDisabled ? 0.5 : 1}
                           props={{
                             ref: (node: HTMLElement | null) => {
                               listRef.current[index] = node
                             },
-                            role: 'presentation',
-                            id: item.groupId,
-                            'aria-hidden': true,
+                            role: 'option',
+                            'aria-selected': isSelected,
+                            'aria-disabled': isOptionDisabled || undefined,
+                            tabIndex: !isOptionDisabled && isActive ? 0 : -1,
+                            ...getItemProps({
+                              onClick: () => {
+                                if (!isOptionDisabled) {
+                                  handleSelect(index)
+                                }
+                              },
+                              onKeyDown: (e: React.KeyboardEvent) => {
+                                if (
+                                  (e.key === 'Enter' || e.key === ' ') &&
+                                  !isOptionDisabled
+                                ) {
+                                  e.preventDefault()
+                                  handleSelect(index)
+                                }
+                              },
+                            }),
                           }}
                         >
-                          {item.groupLabel}
-                        </Block>
-                      )
-                    }
-
-                    const option = item.option!
-                    const isSelected = option.value === resolvedValue
-                    const isActive = activeIndex === index
-                    const isOptionDisabled = option.disabled === true
-
-                    return (
-                      <Row
-                        key={option.value}
-                        component="li"
-                        alignItems="center"
-                        justifyContent="space-between"
-                        gap={spacing.sm}
-                        padding={`${base}px ${base * 1.5}px`}
-                        paddingLeft={item.groupId ? base * 2.5 : base * 1.5}
-                        fontSize={triggerFontSize}
-                        lineHeight={lineHeight.relaxed}
-                        borderRadius={radius.sm}
-                        outline="none"
-                        cursor={isOptionDisabled ? 'not-allowed' : 'pointer'}
-                        color={
-                          isOptionDisabled
-                            ? color.text.muted
-                            : isSelected
-                            ? color.primary
-                            : color.text.default
-                        }
-                        backgroundColor={
-                          isActive && !isOptionDisabled && isSelected
-                            ? color.primarySubtleHover
-                            : isActive && !isOptionDisabled
-                            ? color.bg.hover
-                            : isSelected
-                            ? color.primarySubtle
-                            : 'transparent'
-                        }
-                        opacity={isOptionDisabled ? 0.5 : 1}
-                        props={{
-                          ref: (node: HTMLElement | null) => {
-                            listRef.current[index] = node
-                          },
-                          role: 'option',
-                          'aria-selected': isSelected,
-                          'aria-disabled': isOptionDisabled || undefined,
-                          tabIndex: !isOptionDisabled && isActive ? 0 : -1,
-                          ...getItemProps({
-                            onClick: () => {
-                              if (!isOptionDisabled) {
-                                handleSelect(index)
-                              }
-                            },
-                            onKeyDown: (e: React.KeyboardEvent) => {
-                              if (
-                                (e.key === 'Enter' || e.key === ' ') &&
-                                !isOptionDisabled
-                              ) {
-                                e.preventDefault()
-                                handleSelect(index)
-                              }
-                            },
-                          }),
-                        }}
-                      >
-                        <Block flex={1}>
-                          {renderOption
-                            ? renderOption(option, { isSelected, isActive })
-                            : option.label}
-                        </Block>
-                        {isSelected && (
-                          <Block
-                            flexShrink={0}
-                            display="flex"
-                            alignItems="center"
-                          >
-                            <Check
-                              size={Math.max(base * 1.5, 12)}
-                              color={color.primary}
-                            />
+                          <Block flex={1}>
+                            {renderOption
+                              ? renderOption(option, { isSelected, isActive })
+                              : option.label}
                           </Block>
-                        )}
-                      </Row>
-                    )
-                  })}
+                          {isSelected && (
+                            <Block
+                              flexShrink={0}
+                              display="flex"
+                              alignItems="center"
+                            >
+                              <Check
+                                size={Math.max(base * 1.5, 12)}
+                                color={color.primary}
+                              />
+                            </Block>
+                          )}
+                        </Row>
+                      )
+                    })
+                  )}
                 </Block>
               </Block>
             </Block>
