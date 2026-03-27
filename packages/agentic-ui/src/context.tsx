@@ -7,6 +7,7 @@ export const AgenticStateContext = React.createContext<AgenticState>({
   $loading: atom<Loading>("none"),
   $error: atom<AgenticError | null>(null),
   $wasCancelled: atom<boolean>(false),
+  $truncatedBefore: atom<string | null>(null),
   cancel: () => {},
   destroy: () => {},
   query: () => {},
