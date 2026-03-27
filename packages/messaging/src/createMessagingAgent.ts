@@ -10,6 +10,7 @@ import Future, {
 } from 'fluture'
 import { fromEvent, Subscription } from 'rxjs'
 import { getTransferables } from 'transferables'
+import { DEFERRED_INTENT_TIMEOUT_MS } from './constants'
 import { Agent, Intent, Resolver, Unsubscribe } from './types'
 
 interface BaseMessage {
@@ -131,6 +132,12 @@ export function createMessagingAgent({
 
   // Agent discovery & intent routing
   let deferredIntentMessages: Array<IntentMessage> = []
+  // Tracks per-intent timeout handles; keyed by correlationId.
+  // Cleared when an intent is flushed normally or when the agent is destroyed.
+  const deferredIntentTimers = new Map<
+    SyntheticId,
+    ReturnType<typeof setTimeout>
+  >()
   const resolutionTargets = new Map<string, SyntheticId>()
   const agentRegistry = new Map<
     SyntheticId,
@@ -381,6 +388,30 @@ export function createMessagingAgent({
           `MessagingAgent (${name}): No resolution target for "${message.intent.type}". Awaiting subscription.`
         )
         deferredIntentMessages.push(message)
+
+        // Reject the caller's Future after timeout if no resolution target appears.
+        // This prevents silent hangs when the workspace service is not running.
+        const timerId = setTimeout(() => {
+          deferredIntentTimers.delete(message.correlationId)
+
+          // Remove from the deferred queue so it won't be flushed later
+          deferredIntentMessages = deferredIntentMessages.filter(
+            m => m.correlationId !== message.correlationId
+          )
+
+          const callbacks = intentResponseCallbacks.get(message.correlationId)
+          if (callbacks) {
+            const [rejectCallback] = callbacks
+            rejectCallback(
+              new Error(
+                `Intent "${message.intent.type}" timed out after ${DEFERRED_INTENT_TIMEOUT_MS}ms: no resolution target found. The workspace service may not be running.`
+              )
+            )
+            intentResponseCallbacks.delete(message.correlationId)
+          }
+        }, DEFERRED_INTENT_TIMEOUT_MS)
+
+        deferredIntentTimers.set(message.correlationId, timerId)
       }
     }
   }
@@ -473,6 +504,12 @@ export function createMessagingAgent({
 
     while ((intentMessage = deferredIntentMessages.shift())) {
       if (intentTypes.includes(intentMessage.intent.type)) {
+        // Clear the timeout — the intent is being resolved normally
+        const timerId = deferredIntentTimers.get(intentMessage.correlationId)
+        if (timerId !== undefined) {
+          clearTimeout(timerId)
+          deferredIntentTimers.delete(intentMessage.correlationId)
+        }
         dispatchLocally(intentMessage)
       } else {
         nextDeferredIntentMessages.push(intentMessage)
@@ -553,6 +590,12 @@ export function createMessagingAgent({
   }
 
   function destroy() {
+    // Clear all deferred intent timers to prevent leaks and spurious rejections
+    for (const timerId of deferredIntentTimers.values()) {
+      clearTimeout(timerId)
+    }
+    deferredIntentTimers.clear()
+
     intentResolvers.clear()
     subscription.unsubscribe()
   }
