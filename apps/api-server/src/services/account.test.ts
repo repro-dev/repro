@@ -39,7 +39,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       const user = await promise(
-        accountService.createStaffUser('John Smith', email, 'hunter2')
+        accountService.createStaffUser('John Smith', email, 'hunter2!')
       )
 
       expect(user).toMatchObject({
@@ -54,12 +54,12 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       await promise(
-        accountService.createStaffUser('John Jackson', email, 'hunter2')
+        accountService.createStaffUser('John Jackson', email, 'hunter2!')
       )
 
       await expect(
         promise(
-          accountService.createStaffUser('Jack Johnson', email, 'hunter2')
+          accountService.createStaffUser('Jack Johnson', email, 'hunter2!')
         )
       ).rejects.toThrow(resourceConflict())
     })
@@ -76,11 +76,11 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       await promise(
-        accountService.createStaffUser('John Smith', email, 'hunter2')
+        accountService.createStaffUser('John Smith', email, 'hunter2!')
       )
 
       const user = await promise(
-        accountService.getStaffUserByEmailAndPassword(email, 'hunter2')
+        accountService.getStaffUserByEmailAndPassword(email, 'hunter2!')
       )
 
       expect(user).toMatchObject({
@@ -96,7 +96,7 @@ describe('Services > Account', () => {
         accountService.createStaffUser(
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -104,7 +104,7 @@ describe('Services > Account', () => {
         promise(
           accountService.getStaffUserByEmailAndPassword(
             harness.generateRandomEmailAddress(),
-            'hunter2'
+            'hunter2!'
           )
         )
       ).rejects.toThrow(notFound())
@@ -114,7 +114,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       await promise(
-        accountService.createStaffUser('John Smith', email, 'hunter2')
+        accountService.createStaffUser('John Smith', email, 'hunter2!')
       )
 
       await expect(
@@ -126,7 +126,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       const staffUser = await promise(
-        accountService.createStaffUser('John Smith', email, 'hunter2')
+        accountService.createStaffUser('John Smith', email, 'hunter2!')
       )
 
       await expect(
@@ -142,7 +142,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       await promise(
-        accountService.createStaffUser('John Smith', email, 'hunter2')
+        accountService.createStaffUser('John Smith', email, 'hunter2!')
       )
 
       await expect(
@@ -155,7 +155,7 @@ describe('Services > Account', () => {
         accountService.createStaffUser(
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -180,7 +180,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       const staffUser = await promise(
-        accountService.createStaffUser('John Smith', email, 'hunter2')
+        accountService.createStaffUser('John Smith', email, 'hunter2!')
       )
 
       await expect(
@@ -400,7 +400,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       const user = await promise(
-        accountService.createUser(account.id, 'John Smith', email, 'hunter2')
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
       )
 
       expect(user).toMatchObject({
@@ -439,7 +439,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       await promise(
-        accountService.createUser(account.id, 'John Jackson', email, 'hunter2')
+        accountService.createUser(account.id, 'John Jackson', email, 'hunter2!')
       )
 
       await expect(
@@ -448,7 +448,7 @@ describe('Services > Account', () => {
             account.id,
             'Jack Johnson',
             email,
-            'hunter2'
+            'hunter2!'
           )
         )
       ).rejects.toThrow(resourceConflict())
@@ -462,7 +462,7 @@ describe('Services > Account', () => {
           account.id,
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -471,7 +471,7 @@ describe('Services > Account', () => {
           account.id,
           'Jack Johnson',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -500,7 +500,7 @@ describe('Services > Account', () => {
           account.id,
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -523,7 +523,7 @@ describe('Services > Account', () => {
           account.id,
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -544,7 +544,7 @@ describe('Services > Account', () => {
           account.id,
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -558,7 +558,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       await promise(
-        accountService.createUser(account.id, 'John Smith', email, 'hunter2')
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
       )
 
       await expect(
@@ -583,11 +583,11 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       await promise(
-        accountService.createUser(account.id, 'John Smith', email, 'hunter2')
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
       )
 
       await expect(
-        promise(accountService.getUserByEmailAndPassword(email, 'hunter2'))
+        promise(accountService.getUserByEmailAndPassword(email, 'hunter2!'))
       ).resolves.toMatchObject({
         type: 'user',
         id: expect.any(String),
@@ -603,7 +603,7 @@ describe('Services > Account', () => {
           account.id,
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -611,7 +611,7 @@ describe('Services > Account', () => {
         promise(
           accountService.getUserByEmailAndPassword(
             harness.generateRandomEmailAddress(),
-            'hunter2'
+            'hunter2!'
           )
         )
       ).rejects.toThrow(notFound())
@@ -622,7 +622,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       await promise(
-        accountService.createUser(account.id, 'John Smith', email, 'hunter2')
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
       )
 
       await expect(
@@ -638,7 +638,7 @@ describe('Services > Account', () => {
           account.id,
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -667,7 +667,7 @@ describe('Services > Account', () => {
           account.id,
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -686,7 +686,7 @@ describe('Services > Account', () => {
           account.id,
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -705,7 +705,7 @@ describe('Services > Account', () => {
         accountService.createStaffUser(
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -724,7 +724,7 @@ describe('Services > Account', () => {
         accountService.createStaffUser(
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -748,7 +748,7 @@ describe('Services > Account', () => {
         accountService.createStaffUser(
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -778,7 +778,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       const user = await promise(
-        accountService.createUser(account.id, 'John Smith', email, 'hunter2')
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
       )
 
       const verificationToken = await harness.db
@@ -811,7 +811,7 @@ describe('Services > Account', () => {
         accountService.createStaffUser(
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -872,7 +872,7 @@ describe('Services > Account', () => {
           account.id,
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -893,7 +893,7 @@ describe('Services > Account', () => {
           account.id,
           'John Jackson',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -929,7 +929,7 @@ describe('Services > Account', () => {
           account.id,
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -951,7 +951,7 @@ describe('Services > Account', () => {
             account.id,
             'John Smith',
             harness.generateRandomEmailAddress(),
-            'hunter2'
+            'hunter2!'
           )
           .pipe(
             chain(user =>
@@ -991,7 +991,7 @@ describe('Services > Account', () => {
           accountA.id,
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -1009,7 +1009,7 @@ describe('Services > Account', () => {
           accountA.id,
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -1027,7 +1027,7 @@ describe('Services > Account', () => {
         accountService.createStaffUser(
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -1044,7 +1044,7 @@ describe('Services > Account', () => {
           account.id,
           'Jack Johnson',
           'jj@example.com',
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -1062,7 +1062,7 @@ describe('Services > Account', () => {
             account.id,
             'John Smith',
             harness.generateRandomEmailAddress(),
-            'hunter2'
+            'hunter2!'
           )
           .pipe(
             chain(user =>
@@ -1114,7 +1114,7 @@ describe('Services > Account', () => {
             accountA.id,
             'John Smith',
             harness.generateRandomEmailAddress(),
-            'hunter2'
+            'hunter2!'
           )
           .pipe(
             chain(user =>
@@ -1144,7 +1144,7 @@ describe('Services > Account', () => {
         accountService.createStaffUser(
           'John Smith',
           harness.generateRandomEmailAddress(),
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -1169,7 +1169,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       await promise(
-        accountService.createUser(account.id, 'John Smith', email, 'hunter2')
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
       )
 
       await expect(
@@ -1190,7 +1190,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       const user = await promise(
-        accountService.createUser(account.id, 'John Smith', email, 'hunter2')
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
       )
 
       await promise(accountService.recordFailedLogin(email))
@@ -1212,7 +1212,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       const user = await promise(
-        accountService.createUser(account.id, 'John Smith', email, 'hunter2')
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
       )
 
       for (let i = 0; i < 5; i++) {
@@ -1235,7 +1235,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       await promise(
-        accountService.createUser(account.id, 'John Smith', email, 'hunter2')
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
       )
 
       for (let i = 0; i < 5; i++) {
@@ -1254,7 +1254,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       const user = await promise(
-        accountService.createUser(account.id, 'John Smith', email, 'hunter2')
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
       )
 
       for (let i = 0; i < 5; i++) {
@@ -1278,7 +1278,7 @@ describe('Services > Account', () => {
       const email = harness.generateRandomEmailAddress()
 
       await promise(
-        accountService.createUser(account.id, 'John Smith', email, 'hunter2')
+        accountService.createUser(account.id, 'John Smith', email, 'hunter2!')
       )
 
       for (let i = 0; i < 5; i++) {
