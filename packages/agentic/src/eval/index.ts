@@ -18,11 +18,12 @@
  *        'packages/agentic/src/eval/baseline.json',
  *        JSON.stringify(
  *          JSON.parse(require('fs').readFileSync('tmp/agentic-eval-results.json','utf8'))
- *            .map(({fixtureName, correctnessRate, averageToolErrorRate, averageIterationDepth}) => ({
+ *            .map(({fixtureName, correctnessRate, averageToolErrorRate, averageIterationDepth, averageQualityScore}) => ({
  *              fixtureName,
  *              correctnessRate,
  *              avgErrorRate: averageToolErrorRate,
  *              avgToolCalls: averageIterationDepth,
+ *              avgQuality: parseFloat(((averageQualityScore.brevity + averageQualityScore.directness + averageQualityScore.signalNoise) / 3).toFixed(1)),
  *            })),
  *          null, 2
  *        ) + '\n'
@@ -76,13 +77,18 @@ function avg(n: number): string {
 }
 
 function printResults(results: Array<EvalResult>): void {
-  const rows = results.map(r => ({
-    Fixture: r.fixtureName,
-    Result: r.majorityCorrect ? 'PASS' : 'FAIL',
-    'Correctness Rate': pct(r.correctnessRate),
-    'Avg Tool Calls': avg(r.averageIterationDepth),
-    'Avg Error Rate': pct(r.averageToolErrorRate),
-  }))
+  const rows = results.map(r => {
+    const { brevity, directness, signalNoise } = r.averageQualityScore
+    const compositeQuality = ((brevity + directness + signalNoise) / 3).toFixed(1)
+    return {
+      Fixture: r.fixtureName,
+      Result: r.majorityCorrect ? 'PASS' : 'FAIL',
+      'Correctness Rate': pct(r.correctnessRate),
+      'Avg Tool Calls': avg(r.averageIterationDepth),
+      'Avg Error Rate': pct(r.averageToolErrorRate),
+      'Avg Quality': compositeQuality,
+    }
+  })
   console.log('\nSummary:')
   console.table(rows)
 }
@@ -126,6 +132,8 @@ function formatRegressionDetail(reg: RegressionEntry): string {
       return `error rate rose ${pct(reg.baseline)} → ${pct(reg.current)} (exceeded threshold by ${pct(reg.delta)})`
     case 'avgToolCalls':
       return `tool calls rose ${avg(reg.baseline)} → ${avg(reg.current)} (exceeded threshold by ${avg(reg.delta)})`
+    case 'avgQuality':
+      return `quality dropped ${avg(reg.baseline)} → ${avg(reg.current)} (Δ −${avg(reg.delta)})`
   }
 }
 
@@ -192,7 +200,17 @@ async function main(): Promise<void> {
   )
 
   // Regression check against committed baseline
-  const regressions = findRegressions(results, baseline)
+  const snapshots = results.map(r => {
+    const { brevity, directness, signalNoise } = r.averageQualityScore
+    return {
+      fixtureName: r.fixtureName,
+      correctnessRate: r.correctnessRate,
+      averageToolErrorRate: r.averageToolErrorRate,
+      averageIterationDepth: r.averageIterationDepth,
+      compositeQualityScore: (brevity + directness + signalNoise) / 3,
+    }
+  })
+  const regressions = findRegressions(snapshots, baseline)
   printRegressionReport(regressions, results, baseline)
 
   if (regressions.length > 0) {
