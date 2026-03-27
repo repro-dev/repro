@@ -5,9 +5,9 @@ tags:
 - type.package
 tasks:
   eval:
-    command: tsx packages/agentic/src/eval/index.ts
+    command: tsx src/eval/index.ts
     inputs:
-      - packages/agentic/src/eval/**/*.ts
+      - src/eval/**/*.ts
     env:
       OPENROUTER_API_KEY: $OPENROUTER_API_KEY
     options:
