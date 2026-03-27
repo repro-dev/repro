@@ -162,6 +162,27 @@ function formatRegressionDetail(reg: RegressionEntry): string {
   }
 }
 
+function printCritiques(results: Array<EvalResult>): void {
+  const hasCritiques = results.some(r =>
+    r.runs.some(run => (run.critique?.length ?? 0) > 0),
+  )
+  if (!hasCritiques) {
+    return
+  }
+  console.log('\nCritique findings:')
+  for (const r of results) {
+    for (const [runIdx, run] of r.runs.entries()) {
+      if (!run.critique || run.critique.length === 0) continue
+      console.log(`\n  ${r.fixtureName} — run ${runIdx + 1} (${run.correct ? 'correct' : 'incorrect'}):`)
+      for (const [i, item] of run.critique.entries()) {
+        console.log(`    [${i + 1}] ${item.issue}`)
+        console.log(`        Likely cause: ${item.likelyPromptCause}`)
+        console.log(`        Suggestion:   ${item.suggestion}`)
+      }
+    }
+  }
+}
+
 async function main(): Promise<void> {
   const apiKey = process.env["OPENROUTER_API_KEY"];
   if (!apiKey) {
@@ -261,6 +282,9 @@ async function main(): Promise<void> {
   );
 
   printResults(results);
+  if (introspect) {
+    printCritiques(results);
+  }
 
   // Write full results (with transcripts) to tmp/ for local inspection and CI artifact upload
   fs.writeFileSync(RESULTS_PATH, JSON.stringify(results, null, 2));
