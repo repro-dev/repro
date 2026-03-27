@@ -199,6 +199,27 @@ function formatSuggestionsMarkdown(
   return [header, "", ...sections].join("\n");
 }
 
+function printSuggestions(
+  suggestions: Array<{
+    target: string;
+    currentText: string;
+    suggestedText: string;
+    rationale: string;
+  }>,
+): void {
+  if (suggestions.length === 0) {
+    console.log("\nPrompt critic: no suggestions generated.");
+    return;
+  }
+  console.log(`\nPrompt suggestions (${suggestions.length}):`);
+  for (const [i, s] of suggestions.entries()) {
+    console.log(`\n  [${i + 1}] ${s.target}`);
+    console.log(`  Rationale: ${s.rationale}`);
+    console.log(`  Current:   ${s.currentText}`);
+    console.log(`  Suggested: ${s.suggestedText}`);
+  }
+}
+
 async function main(): Promise<void> {
   const apiKey = process.env["OPENROUTER_API_KEY"];
   if (!apiKey) {
@@ -293,6 +314,7 @@ async function main(): Promise<void> {
         SUGGESTIONS_PATH,
       )}`,
     );
+    printSuggestions(suggestions);
   }
 
   // Regression check against committed baseline
