@@ -11,7 +11,7 @@ import {
   resolve,
   swap,
 } from 'fluture'
-import crypto from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { SystemConfig, defaultSystemConfig } from '~/config/system'
 import {
   Database,
@@ -38,7 +38,13 @@ const DUMMY_HASH =
   '$argon2id$v=19$m=4096,t=3,p=1$YWJjZDEyMzQ$MFRSPmdxZVyBvGi95RcZlo5PqmfJhLXYj8JZm8atFdY'
 
 function createToken(): string {
-  return crypto.randomBytes(32).toString('base64url')
+  return randomBytes(32).toString('base64url')
+}
+
+// SHA-256 hash of a session token for safe database storage.
+// Session lookup is on every request — use a fast hash, not argon2.
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('base64url')
 }
 
 export function createAccountService(
@@ -736,17 +742,20 @@ export function createAccountService(
       return reject(badRequest('Cannot decode session.subjectId'))
     }
 
+    const rawToken = createToken()
+    const tokenHash = hashToken(rawToken)
+
     return attemptQuery(() => {
       return database
         .insertInto('sessions')
         .values({
-          sessionToken: createToken(),
+          sessionTokenHash: tokenHash,
           subjectId: decodedSubjectId,
           subjectType,
         })
         .returning([
           'id',
-          'sessionToken',
+          'sessionTokenHash',
           'subjectId',
           'subjectType',
           'createdAt',
@@ -755,6 +764,8 @@ export function createAccountService(
     }).pipe(
       map(values => ({
         ...withEncodedId(values),
+        // Return the raw token to the caller, not the stored hash
+        sessionToken: rawToken,
         subjectId: encodeId(values.subjectId),
         createdAt: values.createdAt.toISOString(),
       }))
@@ -764,15 +775,25 @@ export function createAccountService(
   function getSessionByToken(
     sessionToken: string
   ): FutureInstance<Error, Session> {
+    const tokenHash = hashToken(sessionToken)
+
     return attemptQuery(async () => {
       return database
         .selectFrom('sessions')
-        .select(['id', 'sessionToken', 'subjectId', 'subjectType', 'createdAt'])
-        .where('sessionToken', '=', sessionToken)
+        .select([
+          'id',
+          'sessionTokenHash',
+          'subjectId',
+          'subjectType',
+          'createdAt',
+        ])
+        .where('sessionTokenHash', '=', tokenHash)
         .executeTakeFirstOrThrow(() => notFound())
     }).pipe(
       map(values => ({
         ...withEncodedId(values),
+        // Return the raw token to the caller, not the stored hash
+        sessionToken,
         subjectId: encodeId(values.subjectId),
         createdAt: values.createdAt.toISOString(),
       }))
@@ -785,7 +806,7 @@ export function createAccountService(
         attemptQuery(async () => {
           await database
             .deleteFrom('sessions')
-            .where('sessionToken', '=', sessionToken)
+            .where('sessionTokenHash', '=', hashToken(sessionToken))
             .execute()
         })
       )
