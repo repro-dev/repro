@@ -17,6 +17,7 @@ const stubAgenticService: AgenticService = {
       context: null,
       body: Readable.from(['data: [DONE]\n\n']),
     } as never),
+  recordFeedback: () => resolve(undefined),
 }
 
 describe('Routers > Agentic', () => {

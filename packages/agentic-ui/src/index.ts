@@ -6,6 +6,7 @@ export { ErrorMessage } from "./components/ErrorMessage";
 export { JumpToEndButton } from "./components/JumpToEndButton";
 export { LoadingIndicator } from "./components/LoadingIndicator";
 export { MessageList } from "./components/MessageList";
+export { ResponseFeedback } from "./components/ResponseFeedback";
 export { ToolCallGroup } from "./components/ToolCallGroup";
 export { ToolCallRow } from "./components/ToolCallRow";
 export { useHistoryScroll } from "./hooks/useHistoryScroll";

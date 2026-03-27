@@ -18,7 +18,7 @@ import { MessageList } from "./components/MessageList";
 import { useAgenticState } from "./context";
 import { useHistoryScroll } from "./hooks/useHistoryScroll";
 
-export const AgenticView: React.FC = () => {
+export const AgenticView: React.FC<{ onFeedback?: (sentiment: 'positive' | 'negative') => void }> = ({ onFeedback }) => {
   const [inputHasFocus, setInputHasFocus] = useState(false);
 
   const agentic = useAgenticState();
@@ -70,6 +70,7 @@ export const AgenticView: React.FC = () => {
             scrollContainerRef={scrollContainerRef}
             contentContainerRef={contentContainerRef}
             wasCancelled={wasCancelled}
+            onFeedback={onFeedback}
             onSelectPrompt={(prompt) => {
               lastPromptRef.current = prompt;
               agentic.query(prompt);

@@ -10,7 +10,7 @@ import { AgenticStateContext, AgenticView } from '@repro/agentic-ui'
 import { useApiClient } from '@repro/api-client'
 import { usePlayback } from '@repro/playback'
 import { parse } from 'event-stream-parser'
-import { attemptP, chain } from 'fluture'
+import { attemptP, chain, fork } from 'fluture'
 import React, { useMemo } from 'react'
 
 export const Agentic: React.FC = () => {
@@ -70,7 +70,24 @@ export const Agentic: React.FC = () => {
 
   return (
     <AgenticStateContext.Provider value={state}>
-      <AgenticView />
+      <AgenticView
+        onFeedback={sentiment => {
+          // Fire-and-forget — no error handling beyond a console.warn
+          fork<Error>(() =>
+            console.warn('[Agentic] feedback submission failed')
+          )(() => undefined)(
+            apiClient.fetch(
+              '/agentic/feedback',
+              {
+                method: 'POST',
+                body: JSON.stringify({ sentiment }),
+              },
+              'json',
+              'json'
+            )
+          )
+        }}
+      />
     </AgenticStateContext.Provider>
   )
 }

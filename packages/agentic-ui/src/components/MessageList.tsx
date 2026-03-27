@@ -6,6 +6,7 @@ import React, { useMemo } from "react";
 import { INPUT_CONTAINER_OFFSET_PX } from "../constants";
 import { EmptyState } from "../EmptyState";
 import { ErrorMessage } from "./ErrorMessage";
+import { ResponseFeedback } from "./ResponseFeedback";
 import { ToolCallGroup } from "./ToolCallGroup";
 
 interface MessageListProps {
@@ -17,6 +18,7 @@ interface MessageListProps {
   contentContainerRef: React.RefObject<HTMLDivElement>;
   onSelectPrompt: (prompt: string) => void;
   wasCancelled: boolean;
+  onFeedback?: (sentiment: "positive" | "negative") => void;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -28,6 +30,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   contentContainerRef,
   onSelectPrompt,
   wasCancelled,
+  onFeedback,
 }) => {
   const renderItems = useMemo(() => groupToolCalls(entries), [entries]);
 
@@ -74,6 +77,11 @@ export const MessageList: React.FC<MessageListProps> = ({
                 <Block>
                   <Md>{item.entry.content}</Md>
                 </Block>
+                {item.entry.content.length > 0 &&
+                  loading === "none" &&
+                  onFeedback != null && (
+                    <ResponseFeedback onFeedback={onFeedback} />
+                  )}
               </Col>
             );
           }
