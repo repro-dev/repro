@@ -6,6 +6,8 @@ tags:
 tasks:
   eval:
     command: tsx src/eval/index.ts
+    deps:
+      - ^:build
     inputs:
       - src/eval/**/*.ts
     env:
