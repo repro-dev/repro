@@ -16,6 +16,7 @@ export async function suggestPromptImprovements(
     runs: Array<{ runIndex: number; correct: boolean; critiques: Array<CritiqueItem> }>
   }>,
   apiKey: string,
+  promptExportName: string,
 ): Promise<Array<PromptSuggestion>> {
   // Build a structured critique summary per fixture and run for the critic
   const critiqueSection = critiquesByFixture
@@ -64,7 +65,7 @@ export async function suggestPromptImprovements(
     'Based on the critique findings above, produce a JSON array of ready-to-apply text edits to the system prompt and tool descriptions.',
     '',
     'Rules:',
-    '- Each edit must have: target (which export, e.g. "SYSTEM_CARD_MESSAGE"), currentText (the verbatim substring to replace), suggestedText (the replacement text), rationale.',
+    '- Each edit must have: target (must be "' + promptExportName + '"), currentText (the verbatim substring to replace), suggestedText (the replacement text), rationale.',
     '- currentText MUST be copied verbatim from the fenced text above — do not paraphrase or reconstruct from memory. An automated agent will apply these edits as literal find-and-replace operations; if currentText does not match exactly, the edit will fail.',
     '- Preserve all formatting characters exactly as they appear in the fenced block: **bold markers**, `backticks`, and any other punctuation are part of the text and must be included.',
     '- Keep currentText as short as possible while still uniquely identifying the location.',
@@ -117,7 +118,9 @@ export async function suggestPromptImprovements(
       console.warn('Prompt critic returned non-array JSON — skipping suggestions')
       return []
     }
-    return parsed as Array<PromptSuggestion>
+    // Enforce promptExportName as the target on every suggestion, overriding any
+    // hallucinated value the model may have returned.
+    return (parsed as Array<PromptSuggestion>).map(s => ({ ...s, target: promptExportName }))
   } catch {
     console.warn('Prompt critic returned malformed JSON — skipping suggestions')
     return []

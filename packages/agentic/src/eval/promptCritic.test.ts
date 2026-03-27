@@ -53,6 +53,7 @@ describe('suggestPromptImprovements — malformed JSON', () => {
       [{ name: 'findErrors', description: 'Find errors' }],
       critiquesByFixture,
       'fake-key',
+      'SOME_PROMPT',
     )
     assert.deepEqual(suggestions, [])
   })
@@ -74,6 +75,7 @@ describe('suggestPromptImprovements — non-array JSON', () => {
       [{ name: 'findErrors', description: 'Find errors' }],
       critiquesByFixture,
       'fake-key',
+      'SOME_PROMPT',
     )
     assert.deepEqual(suggestions, [])
   })
@@ -96,9 +98,11 @@ describe('suggestPromptImprovements — valid response', () => {
       [{ name: 'findErrors', description: 'Find errors' }],
       critiquesByFixture,
       'fake-key',
+      'MY_PROMPT',
     )
     assert.equal(suggestions.length, 1)
-    assert.equal(suggestions[0]!.target, 'system.ts (SHARED_SYSTEM_CARD)')
+    // target is always overridden to promptExportName
+    assert.equal(suggestions[0]!.target, 'MY_PROMPT')
     assert.equal(suggestions[0]!.currentText, 'old text')
     assert.equal(suggestions[0]!.suggestedText, 'new text')
     assert.equal(suggestions[0]!.rationale, 'Better clarity')
@@ -136,6 +140,7 @@ describe('suggestPromptImprovements — prompt content', () => {
       [{ name: 'findErrors', description: 'Find errors' }],
       critiquesByFixture,
       'fake-key',
+      'SOME_PROMPT',
     )
 
     assert.ok(capturedBody !== null, 'fetch should have been called')
@@ -170,9 +175,11 @@ describe('suggestPromptImprovements — prompt content', () => {
       [{ name: 'findErrors', description: 'Find errors' }],
       critiquesByFixture,
       'fake-key',
+      'ENFORCED_PROMPT',
     )
     assert.equal(suggestions.length, 1)
-    assert.equal(suggestions[0]!.target, suggestion.target)
+    // target is always overridden to promptExportName, regardless of model output
+    assert.equal(suggestions[0]!.target, 'ENFORCED_PROMPT')
   })
 })
 
@@ -192,7 +199,39 @@ describe('suggestPromptImprovements — API error', () => {
       [{ name: 'findErrors', description: 'Find errors' }],
       critiquesByFixture,
       'fake-key',
+      'SOME_PROMPT',
     )
     assert.deepEqual(suggestions, [])
+  })
+})
+
+// ── 6. Enforces promptExportName as target on all suggestions ─────────────────
+
+describe('suggestPromptImprovements — promptExportName enforcement', () => {
+  it('enforces promptExportName as target on all suggestions regardless of model output', async () => {
+    // Mock returns a suggestion with the wrong target
+    const wrongTargetSuggestion = {
+      target: 'WRONG_TARGET',
+      currentText: 'old text',
+      suggestedText: 'new text',
+      rationale: 'Better clarity',
+    }
+    mockFetch(JSON.stringify([wrongTargetSuggestion]))
+    const { suggestPromptImprovements } = await import('./promptCritic.js')
+    const critiquesByFixture = [
+      makeCritiquesEntry('fixture-a', [
+        { runIndex: 0, correct: false, critiques: [makeCritique()] },
+      ]),
+    ]
+    const suggestions = await suggestPromptImprovements(
+      'system prompt text',
+      [{ name: 'findErrors', description: 'Find errors' }],
+      critiquesByFixture,
+      'fake-key',
+      'EXTENSION_SYSTEM_CARD_MESSAGE',
+    )
+    assert.equal(suggestions.length, 1)
+    // Target should be overridden to the promptExportName, not the model's hallucinated value
+    assert.equal(suggestions[0]!.target, 'EXTENSION_SYSTEM_CARD_MESSAGE')
   })
 })

@@ -9,6 +9,7 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { buildPromptGroups } from './index'
 import { findRegressions } from './regressions'
 
 // ---------------------------------------------------------------------------
@@ -159,5 +160,95 @@ describe('findRegressions — multiple metrics breached', () => {
     // delta = excess above threshold: 0.222 - (0.042 + 0.10) = 0.08
     assert.ok(regressions[0]!.delta > 0)
     assert.ok(regressions[0]!.delta < 0.1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// buildPromptGroups — groups critiquesByFixture by promptExportName
+// ---------------------------------------------------------------------------
+
+describe('buildPromptGroups', () => {
+  it('makes one group per distinct promptExportName', () => {
+    const fixtures = [
+      {
+        name: 'fixture-a',
+        prompt: 'prompt a',
+        expectedOutcomeDescription: 'desc a',
+        accessor: {} as never,
+        systemPrompt: 'system prompt A',
+        promptExportName: 'PROMPT_A',
+      },
+      {
+        name: 'fixture-b',
+        prompt: 'prompt b',
+        expectedOutcomeDescription: 'desc b',
+        accessor: {} as never,
+        systemPrompt: 'system prompt B',
+        promptExportName: 'PROMPT_B',
+      },
+      {
+        name: 'fixture-c',
+        prompt: 'prompt c',
+        expectedOutcomeDescription: 'desc c',
+        accessor: {} as never,
+        systemPrompt: 'system prompt A',
+        promptExportName: 'PROMPT_A',
+      },
+    ]
+    const critiquesByFixture = [
+      { fixtureName: 'fixture-a', runs: [] },
+      { fixtureName: 'fixture-b', runs: [] },
+      { fixtureName: 'fixture-c', runs: [] },
+    ]
+
+    const groups = buildPromptGroups(fixtures, critiquesByFixture)
+
+    // Two distinct promptExportNames → two groups
+    assert.equal(groups.size, 2)
+    assert.ok(groups.has('PROMPT_A'), 'should have PROMPT_A group')
+    assert.ok(groups.has('PROMPT_B'), 'should have PROMPT_B group')
+
+    // PROMPT_A group has two fixtures (fixture-a and fixture-c)
+    assert.equal(groups.get('PROMPT_A')!.entries.length, 2)
+    // PROMPT_B group has one fixture (fixture-b)
+    assert.equal(groups.get('PROMPT_B')!.entries.length, 1)
+
+    // systemPrompt is preserved per group
+    assert.equal(groups.get('PROMPT_A')!.systemPrompt, 'system prompt A')
+    assert.equal(groups.get('PROMPT_B')!.systemPrompt, 'system prompt B')
+  })
+
+  it('places all fixtures in one group when they share the same promptExportName', () => {
+    const fixtures = [
+      {
+        name: 'fixture-a',
+        prompt: 'p',
+        expectedOutcomeDescription: 'd',
+        accessor: {} as never,
+        systemPrompt: 'shared prompt',
+        promptExportName: 'EXTENSION_SYSTEM_CARD_MESSAGE',
+      },
+      {
+        name: 'fixture-b',
+        prompt: 'p',
+        expectedOutcomeDescription: 'd',
+        accessor: {} as never,
+        systemPrompt: 'shared prompt',
+        promptExportName: 'EXTENSION_SYSTEM_CARD_MESSAGE',
+      },
+    ]
+    const critiquesByFixture = [
+      { fixtureName: 'fixture-a', runs: [] },
+      { fixtureName: 'fixture-b', runs: [] },
+    ]
+
+    const groups = buildPromptGroups(fixtures, critiquesByFixture)
+
+    assert.equal(groups.size, 1)
+    assert.ok(groups.has('EXTENSION_SYSTEM_CARD_MESSAGE'))
+    assert.equal(
+      groups.get('EXTENSION_SYSTEM_CARD_MESSAGE')!.entries.length,
+      2,
+    )
   })
 })
