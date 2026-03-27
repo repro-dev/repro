@@ -44,181 +44,250 @@
  * the nightly evals workflow (.github/workflows/nightly-evals.yml).
  */
 
-import * as fs from 'fs'
-import * as path from 'path'
-import { createFixture as createFixture1 } from './fixtures/console-error-and-network-failure'
-import { createFixture as createFixture2 } from './fixtures/conditional-rendering-bug'
-import { createFixture as createFixture3 } from './fixtures/user-interaction-state-change'
-import {
-  BaselineEntry,
-  RegressionEntry,
-  findRegressions,
-} from './regressions'
-import { EvalResult, runEval } from './runner'
-import { createOpenRouterStreamProvider } from './streamProvider'
+import * as fs from "fs";
+import * as path from "path";
+import { SYSTEM_CARD_MESSAGE } from "../model/system";
+import { tools } from "../model/tools";
+import type { Entry } from "../types";
+import { createFixture as createFixture1 } from "./fixtures/console-error-and-network-failure";
+import { createFixture as createFixture2 } from "./fixtures/conditional-rendering-bug";
+import { createFixture as createFixture3 } from "./fixtures/user-interaction-state-change";
+import { critiqueRun } from "./introspector";
+import { BaselineEntry, RegressionEntry, findRegressions } from "./regressions";
+import type { EvalScore } from "./scorer";
+import { EvalResult, runEval } from "./runner";
+import { createOpenRouterStreamProvider } from "./streamProvider";
 
 // Resolve the workspace root so we can write into tmp/ (gitignored, shared
 // scratch space). __dirname under tsx points to packages/agentic/src/eval —
 // walk up 4 levels to reach the workspace root.
-const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..', '..')
+const WORKSPACE_ROOT = path.resolve(__dirname, "..", "..", "..", "..");
 const RESULTS_PATH = path.join(
   WORKSPACE_ROOT,
-  'tmp',
-  'agentic-eval-results.json'
-)
-const BASELINE_PATH = path.join(__dirname, 'baseline.json')
+  "tmp",
+  "agentic-eval-results.json",
+);
+const BASELINE_PATH = path.join(__dirname, "baseline.json");
 
 function pct(rate: number): string {
-  return `${(rate * 100).toFixed(1)}%`
+  return `${(rate * 100).toFixed(1)}%`;
 }
 
 function avg(n: number): string {
-  return n.toFixed(1)
+  return n.toFixed(1);
 }
 
 function printResults(results: Array<EvalResult>): void {
-  const rows = results.map(r => {
-    const { brevity, directness, signalNoise } = r.averageQualityScore
-    const compositeQuality = ((brevity + directness + signalNoise) / 3).toFixed(1)
-    return {
+  // Determine whether any result has critique data — only show the column when
+  // --introspect mode was used and at least one run has critique items.
+  const hasCritiques = results.some((r) =>
+    r.runs.some((run) => run.critique !== undefined),
+  );
+
+  const rows = results.map((r) => {
+    const { brevity, directness, signalNoise } = r.averageQualityScore;
+    const compositeQuality = ((brevity + directness + signalNoise) / 3).toFixed(
+      1,
+    );
+    const row: Record<string, string | number> = {
       Fixture: r.fixtureName,
-      Result: r.majorityCorrect ? 'PASS' : 'FAIL',
-      'Correctness Rate': pct(r.correctnessRate),
-      'Avg Tool Calls': avg(r.averageIterationDepth),
-      'Avg Error Rate': pct(r.averageToolErrorRate),
-      'Avg Quality': compositeQuality,
+      Result: r.majorityCorrect ? "PASS" : "FAIL",
+      "Correctness Rate": pct(r.correctnessRate),
+      "Avg Tool Calls": avg(r.averageIterationDepth),
+      "Avg Error Rate": pct(r.averageToolErrorRate),
+      "Avg Quality": compositeQuality,
+    };
+    if (hasCritiques) {
+      const totalCritiques = r.runs.reduce(
+        (sum, run) => sum + (run.critique?.length ?? 0),
+        0,
+      );
+      row["Critique Items"] = totalCritiques;
     }
-  })
-  console.log('\nSummary:')
-  console.table(rows)
+    return row;
+  });
+  console.log("\nSummary:");
+  console.table(rows);
 }
 
 function printRegressionReport(
   regressions: Array<RegressionEntry>,
   results: Array<EvalResult>,
-  baseline: Array<BaselineEntry>
+  baseline: Array<BaselineEntry>,
 ): void {
-  const baselineMap = new Map(baseline.map(b => [b.fixtureName, b]))
+  const baselineMap = new Map(baseline.map((b) => [b.fixtureName, b]));
 
   // New fixtures (no baseline entry)
-  const newFixtures = results.filter(r => !baselineMap.has(r.fixtureName))
+  const newFixtures = results.filter((r) => !baselineMap.has(r.fixtureName));
   if (newFixtures.length > 0) {
-    console.log('\nNew fixtures (no baseline):')
+    console.log("\nNew fixtures (no baseline):");
     for (const r of newFixtures) {
-      console.log(`  ${r.fixtureName}: ${r.majorityCorrect ? 'PASS' : 'FAIL'}`)
+      console.log(`  ${r.fixtureName}: ${r.majorityCorrect ? "PASS" : "FAIL"}`);
     }
   }
 
   if (regressions.length === 0) {
-    console.log('\nBaseline comparison: no regressions detected.')
-    return
+    console.log("\nBaseline comparison: no regressions detected.");
+    return;
   }
 
-  console.error(`\nBaseline comparison: ${regressions.length} regression(s):`)
+  console.error(`\nBaseline comparison: ${regressions.length} regression(s):`);
   for (const reg of regressions) {
-    const detail = formatRegressionDetail(reg)
-    console.error(`  REGRESSED  ${reg.fixtureName}  [${reg.metric}] ${detail}`)
+    const detail = formatRegressionDetail(reg);
+    console.error(`  REGRESSED  ${reg.fixtureName}  [${reg.metric}] ${detail}`);
   }
   console.error(
-    '\nTo update the baseline after an intentional change, see the instructions at the top of index.ts.'
-  )
+    "\nTo update the baseline after an intentional change, see the instructions at the top of index.ts.",
+  );
 }
 
 function formatRegressionDetail(reg: RegressionEntry): string {
   switch (reg.metric) {
-    case 'correctnessRate':
-      return `correctness dropped ${pct(reg.baseline)} → ${pct(reg.current)} (Δ −${pct(reg.delta)})`
-    case 'avgErrorRate':
-      return `error rate rose ${pct(reg.baseline)} → ${pct(reg.current)} (exceeded threshold by ${pct(reg.delta)})`
-    case 'avgToolCalls':
-      return `tool calls rose ${avg(reg.baseline)} → ${avg(reg.current)} (exceeded threshold by ${avg(reg.delta)})`
-    case 'avgQuality':
-      return `quality dropped ${avg(reg.baseline)} → ${avg(reg.current)} (Δ −${avg(reg.delta)})`
+    case "correctnessRate":
+      return `correctness dropped ${pct(reg.baseline)} → ${pct(
+        reg.current,
+      )} (Δ −${pct(reg.delta)})`;
+    case "avgErrorRate":
+      return `error rate rose ${pct(reg.baseline)} → ${pct(
+        reg.current,
+      )} (exceeded threshold by ${pct(reg.delta)})`;
+    case "avgToolCalls":
+      return `tool calls rose ${avg(reg.baseline)} → ${avg(
+        reg.current,
+      )} (exceeded threshold by ${avg(reg.delta)})`;
+    case "avgQuality":
+      return `quality dropped ${avg(reg.baseline)} → ${avg(
+        reg.current,
+      )} (Δ −${avg(reg.delta)})`;
   }
 }
 
 async function main(): Promise<void> {
-  const apiKey = process.env['OPENROUTER_API_KEY']
+  const apiKey = process.env["OPENROUTER_API_KEY"];
   if (!apiKey) {
-    console.error('OPENROUTER_API_KEY environment variable is required')
-    process.exit(1)
+    console.error("OPENROUTER_API_KEY environment variable is required");
+    process.exit(1);
   }
+
+  const introspect = process.argv.includes("--introspect");
 
   // Load baseline if present — missing baseline is not an error (first run)
-  let baseline: Array<BaselineEntry> = []
+  let baseline: Array<BaselineEntry> = [];
   if (fs.existsSync(BASELINE_PATH)) {
     baseline = JSON.parse(
-      fs.readFileSync(BASELINE_PATH, 'utf8')
-    ) as Array<BaselineEntry>
+      fs.readFileSync(BASELINE_PATH, "utf8"),
+    ) as Array<BaselineEntry>;
   } else {
     console.warn(
-      'No baseline.json found — regression detection disabled for this run.'
-    )
+      "No baseline.json found — regression detection disabled for this run.",
+    );
   }
 
-  const streamProvider = createOpenRouterStreamProvider(apiKey)
-  const fixtures = [createFixture1(), createFixture2(), createFixture3()]
-  const runsPerCase = 3
+  const streamProvider = createOpenRouterStreamProvider(apiKey);
+  const fixtures = [createFixture1(), createFixture2(), createFixture3()];
+  const runsPerCase = 3;
+
+  // Build tool descriptions from the registered tools array.
+  // tools[] has shape: { type: 'function', function: { name, description, parameters } }
+  const toolDescriptions = tools.map((t) => ({
+    name: t.function.name,
+    description: t.function.description,
+  }));
 
   // Run all fixtures in parallel. Progress lines are buffered per-fixture and
   // printed atomically on completion to avoid interleaved output.
   console.log(
-    `\nRunning ${fixtures.length} fixtures × ${runsPerCase} runs in parallel...`
-  )
+    `\nRunning ${fixtures.length} fixtures × ${runsPerCase} runs in parallel...`,
+  );
+  if (introspect) {
+    console.log(
+      "Introspect mode enabled — per-run critique calls will be made after each run.",
+    );
+  }
 
   const results = await Promise.all(
-    fixtures.map(async fixture => {
-      const result = await runEval(fixture, streamProvider, apiKey, runsPerCase)
-
+    fixtures.map(async (fixture) => {
       // Buffer this fixture's output and flush atomically
-      const lines: Array<string> = [`\nFixture: ${fixture.name}`]
-      let runIndex = 0
+      const lines: Array<string> = [`\nFixture: ${fixture.name}`];
+
+      const onRunComplete = introspect
+        ? async (score: EvalScore, entries: Array<Entry>) => {
+            const critiques = await critiqueRun(
+              entries,
+              SYSTEM_CARD_MESSAGE,
+              toolDescriptions,
+              score,
+              fixture.expectedOutcomeDescription,
+              apiKey,
+            );
+            score.critique = critiques;
+            if (critiques.length > 0) {
+              lines.push(`  Critique: ${critiques.length} item(s)`);
+            }
+          }
+        : undefined;
+
+      const result = await runEval(
+        fixture,
+        streamProvider,
+        apiKey,
+        runsPerCase,
+        onRunComplete,
+      );
+
+      let runIndex = 0;
       for (const run of result.runs) {
-        runIndex++
-        const status = run.correct ? '✓ correct' : '✗ incorrect'
+        runIndex++;
+        const status = run.correct ? "✓ correct" : "✗ incorrect";
         lines.push(
-          `  Run ${runIndex}/${runsPerCase}... ${status} (${run.iterationDepth} tool calls, ${pct(run.toolErrorRate)} errors)`
-        )
+          `  Run ${runIndex}/${runsPerCase}... ${status} (${
+            run.iterationDepth
+          } tool calls, ${pct(run.toolErrorRate)} errors)`,
+        );
       }
-      const correctCount = result.runs.filter(r => r.correct).length
-      const overallStatus = result.majorityCorrect ? 'PASS' : 'FAIL'
+      const correctCount = result.runs.filter((r) => r.correct).length;
+      const overallStatus = result.majorityCorrect ? "PASS" : "FAIL";
       lines.push(
-        `  Result: ${overallStatus} (${correctCount}/${runsPerCase} correct, ${pct(result.correctnessRate)} rate) — avg ${avg(result.averageIterationDepth)} tool calls, avg ${pct(result.averageToolErrorRate)} error rate`
-      )
-      console.log(lines.join('\n'))
+        `  Result: ${overallStatus} (${correctCount}/${runsPerCase} correct, ${pct(
+          result.correctnessRate,
+        )} rate) — avg ${avg(
+          result.averageIterationDepth,
+        )} tool calls, avg ${pct(result.averageToolErrorRate)} error rate`,
+      );
+      console.log(lines.join("\n"));
 
-      return result
-    })
-  )
+      return result;
+    }),
+  );
 
-  printResults(results)
+  printResults(results);
 
   // Write full results (with transcripts) to tmp/ for local inspection and CI artifact upload
-  fs.writeFileSync(RESULTS_PATH, JSON.stringify(results, null, 2))
+  fs.writeFileSync(RESULTS_PATH, JSON.stringify(results, null, 2));
   console.log(
-    `\nFull results written to ${path.relative(process.cwd(), RESULTS_PATH)}`
-  )
+    `\nFull results written to ${path.relative(process.cwd(), RESULTS_PATH)}`,
+  );
 
   // Regression check against committed baseline
-  const snapshots = results.map(r => {
-    const { brevity, directness, signalNoise } = r.averageQualityScore
+  const snapshots = results.map((r) => {
+    const { brevity, directness, signalNoise } = r.averageQualityScore;
     return {
       fixtureName: r.fixtureName,
       correctnessRate: r.correctnessRate,
       averageToolErrorRate: r.averageToolErrorRate,
       averageIterationDepth: r.averageIterationDepth,
       compositeQualityScore: (brevity + directness + signalNoise) / 3,
-    }
-  })
-  const regressions = findRegressions(snapshots, baseline)
-  printRegressionReport(regressions, results, baseline)
+    };
+  });
+  const regressions = findRegressions(snapshots, baseline);
+  printRegressionReport(regressions, results, baseline);
 
   if (regressions.length > 0) {
-    process.exit(1)
+    process.exit(1);
   }
 }
 
 main().catch((err: unknown) => {
-  console.error('Eval harness failed:', err)
-  process.exit(1)
-})
+  console.error("Eval harness failed:", err);
+  process.exit(1);
+});
