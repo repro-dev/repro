@@ -150,31 +150,38 @@ async function main(): Promise<void> {
 
   const streamProvider = createOpenRouterStreamProvider(apiKey)
   const fixtures = [createFixture1(), createFixture2(), createFixture3()]
-  const results: Array<EvalResult> = []
+  const runsPerCase = 3
 
-  for (const fixture of fixtures) {
-    console.log(`\nRunning eval: ${fixture.name}`)
-    const runsPerCase = 3
+  // Run all fixtures in parallel. Progress lines are buffered per-fixture and
+  // printed atomically on completion to avoid interleaved output.
+  console.log(
+    `\nRunning ${fixtures.length} fixtures × ${runsPerCase} runs in parallel...`
+  )
 
-    const result = await runEval(fixture, streamProvider, apiKey, runsPerCase)
+  const results = await Promise.all(
+    fixtures.map(async fixture => {
+      const result = await runEval(fixture, streamProvider, apiKey, runsPerCase)
 
-    let runIndex = 0
-    for (const run of result.runs) {
-      runIndex++
-      const status = run.correct ? '✓ correct' : '✗ incorrect'
-      console.log(
-        `  Run ${runIndex}/${runsPerCase}... ${status} (${run.iterationDepth} tool calls, ${pct(run.toolErrorRate)} errors)`
+      // Buffer this fixture's output and flush atomically
+      const lines: Array<string> = [`\nFixture: ${fixture.name}`]
+      let runIndex = 0
+      for (const run of result.runs) {
+        runIndex++
+        const status = run.correct ? '✓ correct' : '✗ incorrect'
+        lines.push(
+          `  Run ${runIndex}/${runsPerCase}... ${status} (${run.iterationDepth} tool calls, ${pct(run.toolErrorRate)} errors)`
+        )
+      }
+      const correctCount = result.runs.filter(r => r.correct).length
+      const overallStatus = result.majorityCorrect ? 'PASS' : 'FAIL'
+      lines.push(
+        `  Result: ${overallStatus} (${correctCount}/${runsPerCase} correct, ${pct(result.correctnessRate)} rate) — avg ${avg(result.averageIterationDepth)} tool calls, avg ${pct(result.averageToolErrorRate)} error rate`
       )
-    }
+      console.log(lines.join('\n'))
 
-    const correctCount = result.runs.filter(r => r.correct).length
-    const overallStatus = result.majorityCorrect ? 'PASS' : 'FAIL'
-    console.log(
-      `  Result: ${overallStatus} (${correctCount}/${runsPerCase} correct, ${pct(result.correctnessRate)} rate) — avg ${avg(result.averageIterationDepth)} tool calls, avg ${pct(result.averageToolErrorRate)} error rate`
-    )
-
-    results.push(result)
-  }
+      return result
+    })
+  )
 
   printResults(results)
 

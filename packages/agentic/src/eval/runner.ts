@@ -16,37 +16,47 @@ export interface EvalResult {
   anyHitIterationLimit: boolean;
 }
 
+async function runSingle(
+  fixture: EvalFixture,
+  streamProvider: StreamProvider,
+  apiKey: string,
+): Promise<EvalScore> {
+  const state = createAgenticState(streamProvider, fixture.accessor);
+
+  // query() synchronously sets $loading to "reasoning", so we issue the
+  // query first, then wait for loading to return to "none".
+  state.query(fixture.prompt);
+
+  await firstValueFrom(
+    state.$loading
+      .asObservable()
+      .pipe(filter((loading) => loading === "none")),
+  );
+
+  const entries = state.$entries.getValue();
+  const score = await scoreEvalRun(
+    entries,
+    fixture.expectedOutcomeDescription,
+    apiKey,
+  );
+
+  state.destroy();
+  return score;
+}
+
 export async function runEval(
   fixture: EvalFixture,
   streamProvider: StreamProvider,
   apiKey: string,
   runsPerCase = 3,
 ): Promise<EvalResult> {
-  const scores: Array<EvalScore> = [];
-
-  for (let i = 0; i < runsPerCase; i++) {
-    const state = createAgenticState(streamProvider, fixture.accessor);
-
-    // query() synchronously sets $loading to "reasoning", so we issue the
-    // query first, then wait for loading to return to "none".
-    state.query(fixture.prompt);
-
-    await firstValueFrom(
-      state.$loading
-        .asObservable()
-        .pipe(filter((loading) => loading === "none")),
-    );
-
-    const entries = state.$entries.getValue();
-    const score = await scoreEvalRun(
-      entries,
-      fixture.expectedOutcomeDescription,
-      apiKey,
-    );
-    scores.push(score);
-
-    state.destroy();
-  }
+  // Run all repetitions of this fixture in parallel — each run gets its own
+  // independent state instance so there is no shared mutable state.
+  const scores = await Promise.all(
+    Array.from({ length: runsPerCase }, () =>
+      runSingle(fixture, streamProvider, apiKey),
+    ),
+  );
 
   const correctCount = scores.filter((s) => s.correct).length;
   const majorityCorrect = correctCount > runsPerCase / 2;
