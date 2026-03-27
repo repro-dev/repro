@@ -44,6 +44,8 @@
   },
   "packageManager": "pnpm@10.17.0",
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "fmt:check": "pnpm -r --parallel exec prettier --check src",
+    "lint": "pnpm --filter @repro/design run lint"
   }
 }
