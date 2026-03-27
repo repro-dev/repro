@@ -15,7 +15,7 @@
 
 import assert from 'node:assert/strict'
 import { BehaviorSubject } from 'rxjs'
-import { describe, it, mock } from 'node:test'
+import { describe, it } from 'node:test'
 import type { Loading, RecordingDataAccessor, StreamProvider } from '../types'
 import type { EvalFixture } from './runner'
 

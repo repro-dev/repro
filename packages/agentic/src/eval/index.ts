@@ -473,7 +473,16 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err: unknown) => {
-  console.error('Eval harness failed:', err)
-  process.exit(1)
-})
+// Only run main() when this file is the direct entry point, not when imported
+// by test files (e.g. index.test.ts imports buildPromptGroups).
+const isEntryPoint =
+  process.argv[1] !== undefined &&
+  (process.argv[1].endsWith('/index.ts') ||
+    process.argv[1].endsWith('/index.js'))
+
+if (isEntryPoint) {
+  main().catch((err: unknown) => {
+    console.error('Eval harness failed:', err)
+    process.exit(1)
+  })
+}
