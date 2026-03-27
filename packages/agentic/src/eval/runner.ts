@@ -1,52 +1,67 @@
-import { filter, firstValueFrom } from "rxjs";
-import { createAgenticState } from "../createState";
-import { Entry, StreamProvider } from "../types";
-import { EvalFixture } from "./fixtures/console-error-and-network-failure";
-import { EvalScore, QualityScores, scoreEvalRun } from "./scorer";
+import { filter, firstValueFrom } from 'rxjs'
+import { createAgenticState } from '../createState'
+import { Entry, RecordingDataAccessor, StreamProvider } from '../types'
+import { EvalScore, QualityScores, scoreEvalRun } from './scorer'
+import { createOpenRouterStreamProvider } from './streamProvider'
+
+export interface EvalFixture {
+  name: string
+  prompt: string
+  expectedOutcomeDescription: string
+  accessor: RecordingDataAccessor
+  /** The evaluated system prompt string to pass to the agent for this fixture. */
+  systemPrompt: string
+  /** The export name of the system prompt, e.g. 'EXTENSION_SYSTEM_CARD_MESSAGE'. Used for grouping critique findings. */
+  promptExportName: string
+}
 
 export interface EvalResult {
-  fixtureName: string;
-  prompt: string;
-  runs: Array<EvalScore>;
-  majorityCorrect: boolean;
+  fixtureName: string
+  prompt: string
+  runs: Array<EvalScore>
+  majorityCorrect: boolean
   /** Fraction of runs that were correct (0–1). More precise than majorityCorrect. */
-  correctnessRate: number;
-  averageIterationDepth: number;
-  averageToolErrorRate: number;
-  anyHitIterationLimit: boolean;
+  correctnessRate: number
+  averageIterationDepth: number
+  averageToolErrorRate: number
+  anyHitIterationLimit: boolean
   // Average of each quality dimension across all runs (1 decimal place)
-  averageQualityScore: QualityScores;
+  averageQualityScore: QualityScores
 }
+
+// A factory that, given a system prompt, produces a StreamProvider.
+type StreamProviderFactory = (systemPrompt: string) => StreamProvider
 
 export async function runSingle(
   fixture: EvalFixture,
-  streamProvider: StreamProvider,
+  streamProviderFactory: StreamProviderFactory,
   apiKey: string,
 ): Promise<{ score: EvalScore; entries: Array<Entry> }> {
-  const state = createAgenticState(streamProvider, fixture.accessor);
+  const streamProvider = streamProviderFactory(fixture.systemPrompt)
+  const state = createAgenticState(streamProvider, fixture.accessor)
 
   // query() synchronously sets $loading to "reasoning", so we issue the
   // query first, then wait for loading to return to "none".
-  state.query(fixture.prompt);
+  state.query(fixture.prompt)
 
   await firstValueFrom(
-    state.$loading.asObservable().pipe(filter((loading) => loading === "none")),
-  );
+    state.$loading.asObservable().pipe(filter(loading => loading === 'none')),
+  )
 
-  const entries = state.$entries.getValue();
+  const entries = state.$entries.getValue()
   const score = await scoreEvalRun(
     entries,
     fixture.expectedOutcomeDescription,
     apiKey,
-  );
+  )
 
-  state.destroy();
-  return { score, entries };
+  state.destroy()
+  return { score, entries }
 }
 
 export async function runEval(
   fixture: EvalFixture,
-  streamProvider: StreamProvider,
+  streamProviderFactory: StreamProviderFactory,
   apiKey: string,
   runsPerCase = 3,
   onRunComplete?: (score: EvalScore, entries: Array<Entry>) => Promise<void>,
@@ -55,26 +70,30 @@ export async function runEval(
   // when many requests from the same fixture fire simultaneously, which inflates
   // tool error counts and produces noisy results. Fixture-level parallelism
   // (see index.ts) already provides a meaningful speed-up.
-  const scores: Array<EvalScore> = [];
+  const scores: Array<EvalScore> = []
   for (let i = 0; i < runsPerCase; i++) {
-    const { score, entries } = await runSingle(fixture, streamProvider, apiKey);
+    const { score, entries } = await runSingle(
+      fixture,
+      streamProviderFactory,
+      apiKey,
+    )
     if (onRunComplete) {
-      await onRunComplete(score, entries);
+      await onRunComplete(score, entries)
     }
-    scores.push(score);
+    scores.push(score)
   }
 
-  const correctCount = scores.filter((s) => s.correct).length;
-  const majorityCorrect = correctCount > runsPerCase / 2;
-  const correctnessRate = correctCount / runsPerCase;
+  const correctCount = scores.filter(s => s.correct).length
+  const majorityCorrect = correctCount > runsPerCase / 2
+  const correctnessRate = correctCount / runsPerCase
 
   const averageIterationDepth =
-    scores.reduce((sum, s) => sum + s.iterationDepth, 0) / scores.length;
+    scores.reduce((sum, s) => sum + s.iterationDepth, 0) / scores.length
 
   const averageToolErrorRate =
-    scores.reduce((sum, s) => sum + s.toolErrorRate, 0) / scores.length;
+    scores.reduce((sum, s) => sum + s.toolErrorRate, 0) / scores.length
 
-  const anyHitIterationLimit = scores.some((s) => s.hitIterationLimit);
+  const anyHitIterationLimit = scores.some(s => s.hitIterationLimit)
 
   // Average each quality dimension across all runs, rounded to 1 decimal place.
   // Cast back to 1|2|3 — the average is used for display/comparison, not as a
@@ -84,25 +103,25 @@ export async function runEval(
       (scores.reduce((sum, s) => sum + s.qualityScore.brevity, 0) /
         scores.length) *
         10,
-    ) / 10;
+    ) / 10
   const avgDirectness =
     Math.round(
       (scores.reduce((sum, s) => sum + s.qualityScore.directness, 0) /
         scores.length) *
         10,
-    ) / 10;
+    ) / 10
   const avgSignalNoise =
     Math.round(
       (scores.reduce((sum, s) => sum + s.qualityScore.signalNoise, 0) /
         scores.length) *
         10,
-    ) / 10;
+    ) / 10
 
   const averageQualityScore: QualityScores = {
-    brevity: avgBrevity as QualityScores["brevity"],
-    directness: avgDirectness as QualityScores["directness"],
-    signalNoise: avgSignalNoise as QualityScores["signalNoise"],
-  };
+    brevity: avgBrevity as QualityScores['brevity'],
+    directness: avgDirectness as QualityScores['directness'],
+    signalNoise: avgSignalNoise as QualityScores['signalNoise'],
+  }
 
   return {
     fixtureName: fixture.name,
@@ -114,9 +133,8 @@ export async function runEval(
     averageToolErrorRate,
     anyHitIterationLimit,
     averageQualityScore,
-  };
+  }
 }
 
-// Re-export EvalFixture from the canonical location so consumers only need
-// to import from runner.
-export type { EvalFixture };
+// Keep re-exporting the factory for consumers that need to create providers.
+export { createOpenRouterStreamProvider }
