@@ -50,13 +50,14 @@ export async function runEval(
   apiKey: string,
   runsPerCase = 3,
 ): Promise<EvalResult> {
-  // Run all repetitions of this fixture in parallel — each run gets its own
-  // independent state instance so there is no shared mutable state.
-  const scores = await Promise.all(
-    Array.from({ length: runsPerCase }, () =>
-      runSingle(fixture, streamProvider, apiKey),
-    ),
-  );
+  // Run repetitions of this fixture sequentially — the LLM API rate-limits
+  // when many requests from the same fixture fire simultaneously, which inflates
+  // tool error counts and produces noisy results. Fixture-level parallelism
+  // (see index.ts) already provides a meaningful speed-up.
+  const scores: Array<EvalScore> = [];
+  for (let i = 0; i < runsPerCase; i++) {
+    scores.push(await runSingle(fixture, streamProvider, apiKey));
+  }
 
   const correctCount = scores.filter((s) => s.correct).length;
   const majorityCorrect = correctCount > runsPerCase / 2;
