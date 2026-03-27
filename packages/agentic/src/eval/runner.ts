@@ -9,6 +9,8 @@ export interface EvalResult {
   prompt: string;
   runs: Array<EvalScore>;
   majorityCorrect: boolean;
+  /** Fraction of runs that were correct (0–1). More precise than majorityCorrect. */
+  correctnessRate: number;
   averageIterationDepth: number;
   averageToolErrorRate: number;
   anyHitIterationLimit: boolean;
@@ -48,6 +50,7 @@ export async function runEval(
 
   const correctCount = scores.filter((s) => s.correct).length;
   const majorityCorrect = correctCount > runsPerCase / 2;
+  const correctnessRate = correctCount / runsPerCase;
 
   const averageIterationDepth =
     scores.reduce((sum, s) => sum + s.iterationDepth, 0) / scores.length;
@@ -62,6 +65,7 @@ export async function runEval(
     prompt: fixture.prompt,
     runs: scores,
     majorityCorrect,
+    correctnessRate,
     averageIterationDepth,
     averageToolErrorRate,
     anyHitIterationLimit,
