@@ -15,5 +15,11 @@ tasks:
     options:
       cache: false
       runInCI: false
+  apply-prompt-suggestions:
+    command: tsx src/eval/applyPromptSuggestions.ts
+    deps:
+      - ^:build
+    options:
+      cache: false
 toolchains:
   default: node

@@ -27,7 +27,7 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm install
       - name: Run evals
-        run: moon run repro/agentic:eval
+        run: moon run repro/agentic:eval -- --analyse
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       - name: Locate eval results
@@ -86,3 +86,57 @@ jobs:
         with:
           name: eval-results-${{ github.run_number }}
           path: ${{ env.EVAL_RESULTS_PATH }}
+      - name: Upload prompt suggestions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt-suggestions-${{ github.run_number }}
+          path: tmp/agentic-prompt-suggestions.json
+          if-no-files-found: ignore
+
+  apply-prompt-suggestions:
+    name: Apply prompt suggestions
+    runs-on: ubuntu-latest
+    needs: agentic-evals
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+      - name: Set PNPM store directory
+        run: pnpm config set store-dir .pnpm-store
+      - uses: actions/cache@v3
+        with:
+          path: .pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm install
+      - name: Download suggestions
+        uses: actions/download-artifact@v4
+        with:
+          name: prompt-suggestions-${{ github.run_number }}
+          path: tmp/
+      - name: Apply suggestions
+        run: moon run repro/agentic:apply-prompt-suggestions
+      - name: Open PR if changes made
+        run: |
+          if git diff --quiet; then
+            echo "No changes — skipping PR"
+            exit 0
+          fi
+          BRANCH="chore/prompt-suggestions-${{ github.run_number }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add packages/agentic/src/model/
+          git commit -m "chore(agentic): apply eval prompt suggestions (run #${{ github.run_number }})"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "chore(agentic): apply eval prompt suggestions (run #${{ github.run_number }})" \
+            --body "$(cat tmp/agentic-prompt-suggestions.md)" \
+            --base main \
+            --head "$BRANCH"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
