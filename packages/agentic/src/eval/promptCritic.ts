@@ -92,7 +92,12 @@ export async function suggestPromptImprovements(
   const body = (await response.json()) as {
     choices: Array<{ message: { content: string } }>;
   };
-  const content = body.choices[0]?.message?.content ?? "[]";
+  const raw = body.choices[0]?.message?.content ?? "[]";
+  // Strip markdown code fences that some models wrap around JSON responses
+  const content = raw
+    .replace(/^```(?:json)?\n?/, '')
+    .replace(/\n?```$/, '')
+    .trim()
 
   try {
     const parsed: unknown = JSON.parse(content);
