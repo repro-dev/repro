@@ -1,0 +1,54 @@
+name: Nightly agentic evals
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 3am UTC daily
+  workflow_dispatch:
+
+jobs:
+  agentic-evals:
+    name: Run agentic eval suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+      - name: Set PNPM store directory
+        run: pnpm config set store-dir .pnpm-store
+      - uses: actions/cache@v3
+        with:
+          path: .pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm install
+      - name: Run evals
+        run: moon run repro/agentic:eval
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      - name: Write job summary
+        if: always()
+        run: |
+          if [ ! -f tmp/agentic-eval-results.json ]; then
+            echo "## Agentic evals" >> "$GITHUB_STEP_SUMMARY"
+            echo "No results file found — eval harness may have crashed before writing output." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "## Agentic evals" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Fixture | Result | Avg tool calls | Avg error rate |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          node -e "
+            const results = JSON.parse(require('fs').readFileSync('tmp/agentic-eval-results.json', 'utf8'));
+            for (const r of results) {
+              const result = r.majorityCorrect ? '✅ PASS' : '❌ FAIL';
+              const calls = r.averageIterationDepth.toFixed(1);
+              const errors = (r.averageToolErrorRate * 100).toFixed(1) + '%';
+              console.log('| ' + r.fixtureName + ' | ' + result + ' | ' + calls + ' | ' + errors + ' |');
+            }
+          " >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-${{ github.run_number }}
+          path: tmp/agentic-eval-results.json

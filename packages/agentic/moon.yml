@@ -3,6 +3,15 @@ language: typescript
 layer: library
 tags:
 - type.package
-tasks: {}
+tasks:
+  eval:
+    command: tsx src/eval/index.ts
+    inputs:
+      - src/eval/**/*.ts
+    env:
+      OPENROUTER_API_KEY: $OPENROUTER_API_KEY
+    options:
+      cache: false
+      runInCI: false
 toolchains:
   default: node
