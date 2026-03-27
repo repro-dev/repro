@@ -37,7 +37,9 @@
  *   streamProvider.ts  — StreamProvider that calls OpenRouter directly (bypasses API server)
  *   scorer.ts          — Extracts metrics and calls LLM-as-judge for correctness scoring
  *   runner.ts          — Orchestrates multiple runs per fixture, computes aggregate stats
- *   index.ts           — CLI entry point: runs all fixtures, prints results, writes JSON
+ *   introspector.ts    — Per-run critique LLM call; produces CritiqueItem[] linking behaviour to prompt causes
+ *   promptCritic.ts    — Post-run synthesis: aggregates all critique findings and proposes ready-to-apply prompt edits
+ *   index.ts           — CLI entry point: runs all fixtures, prints results, writes JSON; --analyse flag runs the full critique + suggestion pipeline
  *
  * Full results (including per-run transcripts) are written to
  * tmp/agentic-eval-results.json (gitignored) and uploaded as a CI artifact by
@@ -52,7 +54,8 @@ import type { Entry } from "../types";
 import { createFixture as createFixture1 } from "./fixtures/console-error-and-network-failure";
 import { createFixture as createFixture2 } from "./fixtures/conditional-rendering-bug";
 import { createFixture as createFixture3 } from "./fixtures/user-interaction-state-change";
-import { critiqueRun } from "./introspector";
+import { critiqueRun, type CritiqueItem } from "./introspector";
+import { suggestPromptImprovements, type PromptSuggestion } from "./promptCritic";
 import { BaselineEntry, RegressionEntry, findRegressions } from "./regressions";
 import type { EvalScore } from "./scorer";
 import { EvalResult, runEval } from "./runner";
@@ -68,6 +71,11 @@ const RESULTS_PATH = path.join(
   "agentic-eval-results.json",
 );
 const BASELINE_PATH = path.join(__dirname, "baseline.json");
+const ANALYSIS_PATH = path.join(
+  WORKSPACE_ROOT,
+  "tmp",
+  "agentic-prompt-suggestions.md",
+);
 
 function pct(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`;
@@ -79,7 +87,7 @@ function avg(n: number): string {
 
 function printResults(results: Array<EvalResult>): void {
   // Determine whether any result has critique data — only show the column when
-  // --introspect mode was used and at least one run has critique items.
+  // --analyse mode was used and at least one run has critique items.
   const hasCritiques = results.some((r) =>
     r.runs.some((run) => run.critique !== undefined),
   );
@@ -183,6 +191,61 @@ function printCritiques(results: Array<EvalResult>): void {
   }
 }
 
+function formatSuggestionsMarkdown(
+  suggestions: Array<PromptSuggestion>,
+  fixtureCount: number,
+): string {
+  const timestamp = new Date().toISOString();
+  const header = [
+    "# Prompt Improvement Suggestions",
+    "",
+    `Generated: ${timestamp}`,
+    `Fixtures run: ${fixtureCount}`,
+    "",
+    "---",
+  ].join("\n");
+
+  if (suggestions.length === 0) {
+    return header + "\n\nNo suggestions generated.";
+  }
+
+  const sections = suggestions.map((s, i) =>
+    [
+      `## Suggestion ${i + 1}: ${s.target}`,
+      "",
+      `**Rationale:** ${s.rationale}`,
+      "",
+      "**Current:**",
+      "```",
+      s.currentText,
+      "```",
+      "",
+      "**Suggested:**",
+      "```",
+      s.suggestedText,
+      "```",
+      "",
+      "---",
+    ].join("\n"),
+  );
+
+  return [header, "", ...sections].join("\n");
+}
+
+function printSuggestions(suggestions: Array<PromptSuggestion>): void {
+  if (suggestions.length === 0) {
+    console.log("\nPrompt critic: no suggestions generated.");
+    return;
+  }
+  console.log(`\nPrompt suggestions (${suggestions.length}):`);
+  for (const [i, s] of suggestions.entries()) {
+    console.log(`\n  [${i + 1}] ${s.target}`);
+    console.log(`  Rationale: ${s.rationale}`);
+    console.log(`  Current:   ${s.currentText}`);
+    console.log(`  Suggested: ${s.suggestedText}`);
+  }
+}
+
 async function main(): Promise<void> {
   const apiKey = process.env["OPENROUTER_API_KEY"];
   if (!apiKey) {
@@ -190,7 +253,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const introspect = process.argv.includes("--introspect");
+  const analyse = process.argv.includes("--analyse");
 
   // Load baseline if present — missing baseline is not an error (first run)
   let baseline: Array<BaselineEntry> = [];
@@ -220,19 +283,30 @@ async function main(): Promise<void> {
   console.log(
     `\nRunning ${fixtures.length} fixtures × ${runsPerCase} runs in parallel...`,
   );
-  if (introspect) {
+  if (analyse) {
     console.log(
-      "Introspect mode enabled — per-run critique calls will be made after each run.",
+      "Analyse mode enabled — per-run critique calls will be made, then prompt suggestions synthesised.",
     );
   }
 
+  // Per-fixture critique accumulator, keyed by fixture index. Populated in
+  // onRunComplete when --analyse is active.
+  const critiquesByFixture: Array<{
+    fixtureName: string
+    runs: Array<{ runIndex: number; correct: boolean; critiques: Array<CritiqueItem> }>
+  }> = [];
+
   const results = await Promise.all(
-    fixtures.map(async (fixture) => {
+    fixtures.map(async (fixture, fixtureIndex) => {
       // Buffer this fixture's output and flush atomically
       const lines: Array<string> = [`\nFixture: ${fixture.name}`];
 
-      const onRunComplete = introspect
+      const fixtureRuns: Array<{ runIndex: number; correct: boolean; critiques: Array<CritiqueItem> }> = [];
+      let runIndex = 0;
+
+      const onRunComplete = analyse
         ? async (score: EvalScore, entries: Array<Entry>) => {
+            const currentRunIndex = runIndex++;
             const critiques = await critiqueRun(
               entries,
               SYSTEM_CARD_MESSAGE,
@@ -242,6 +316,7 @@ async function main(): Promise<void> {
               apiKey,
             );
             score.critique = critiques;
+            fixtureRuns.push({ runIndex: currentRunIndex, correct: score.correct, critiques });
             if (critiques.length > 0) {
               lines.push(`  Critique: ${critiques.length} item(s)`);
             }
@@ -256,12 +331,14 @@ async function main(): Promise<void> {
         onRunComplete,
       );
 
-      let runIndex = 0;
+      critiquesByFixture[fixtureIndex] = { fixtureName: fixture.name, runs: fixtureRuns };
+
+      let displayRunIndex = 0;
       for (const run of result.runs) {
-        runIndex++;
+        displayRunIndex++;
         const status = run.correct ? "✓ correct" : "✗ incorrect";
         lines.push(
-          `  Run ${runIndex}/${runsPerCase}... ${status} (${
+          `  Run ${displayRunIndex}/${runsPerCase}... ${status} (${
             run.iterationDepth
           } tool calls, ${pct(run.toolErrorRate)} errors)`,
         );
@@ -282,7 +359,7 @@ async function main(): Promise<void> {
   );
 
   printResults(results);
-  if (introspect) {
+  if (analyse) {
     printCritiques(results);
   }
 
@@ -291,6 +368,26 @@ async function main(): Promise<void> {
   console.log(
     `\nFull results written to ${path.relative(process.cwd(), RESULTS_PATH)}`,
   );
+
+  // When --analyse is active, run the prompt critic against the aggregated
+  // critique findings and write suggestions to tmp/.
+  if (analyse) {
+    const suggestions = await suggestPromptImprovements(
+      SYSTEM_CARD_MESSAGE,
+      toolDescriptions,
+      critiquesByFixture,
+      apiKey,
+    );
+    const markdown = formatSuggestionsMarkdown(suggestions, results.length);
+    fs.writeFileSync(ANALYSIS_PATH, markdown);
+    printSuggestions(suggestions);
+    console.log(
+      `\nPrompt suggestions written to ${path.relative(
+        process.cwd(),
+        ANALYSIS_PATH,
+      )}`,
+    );
+  }
 
   // Regression check against committed baseline
   const snapshots = results.map((r) => {
