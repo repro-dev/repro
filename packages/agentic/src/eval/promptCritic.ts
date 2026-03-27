@@ -57,7 +57,13 @@ export async function suggestPromptImprovements(
     '',
     '## Task',
     '',
-    'Based on the critique findings above, produce a JSON array of ready-to-apply text edits to the system prompt and tool descriptions. Each edit must have: target (which file/export), currentText (short excerpt to replace), suggestedText (replacement), rationale.',
+    'Based on the critique findings above, produce a JSON array of ready-to-apply text edits to the system prompt and tool descriptions.',
+    '',
+    'Rules:',
+    '- Each edit must have: target (which export, e.g. "SYSTEM_CARD_MESSAGE"), currentText (the verbatim substring to replace), suggestedText (the replacement text), rationale.',
+    '- currentText MUST be copied verbatim from the text provided above — do not paraphrase or reconstruct from memory. An automated agent will apply these edits as literal find-and-replace operations; if currentText does not match exactly, the edit will fail.',
+    '- Keep currentText as short as possible while still uniquely identifying the location.',
+    '- If you cannot find a verbatim anchor for a suggestion, omit it rather than fabricating one.',
   ].join('\n')
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -73,7 +79,7 @@ export async function suggestPromptImprovements(
         {
           role: 'system',
           content:
-            'You are a prompt engineer reviewing per-run critique findings for an AI debugging agent. Your job is to synthesise the critiques into specific, targeted improvements to the system prompt and tool descriptions.',
+            'You are a prompt engineer reviewing per-run critique findings for an AI debugging agent. Your job is to synthesise the critiques into specific, targeted improvements to the system prompt and tool descriptions. You will output JSON edits that will be applied mechanically by an automated agent — every currentText field must be a verbatim substring of the prompt text provided in the user message. Never invent or paraphrase currentText.',
         },
         {
           role: 'user',
