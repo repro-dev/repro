@@ -9,7 +9,7 @@ export const TOOL_DEFINITION = {
   function: {
     name: 'getElementDetails',
     description:
-      'Get detailed information about a specific DOM element by its node ID. Use this to inspect attributes, styles, classes, parent context, and siblings of an element identified from getDOMState output.',
+      'Get detailed information about a specific DOM element by its node ID. Use this to inspect attributes, styles, classes, parent context, and siblings of an element identified from getDOMState output. Only works when the recording contains DOM snapshots — call getDOMState() first to confirm DOM data is available before using this tool.',
     parameters: {
       type: 'object',
       properties: {
