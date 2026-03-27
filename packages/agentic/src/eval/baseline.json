@@ -2,19 +2,19 @@
   {
     "fixtureName": "console-error-and-network-failure",
     "correctnessRate": 1.0,
-    "avgErrorRate": 0.252,
-    "avgToolCalls": 9.3
+    "avgErrorRate": 0.153,
+    "avgToolCalls": 8.7
   },
   {
     "fixtureName": "conditional-rendering-bug",
     "correctnessRate": 1.0,
     "avgErrorRate": 0.0,
-    "avgToolCalls": 6.7
+    "avgToolCalls": 7.3
   },
   {
     "fixtureName": "user-interaction-state-change",
     "correctnessRate": 1.0,
-    "avgErrorRate": 0.048,
-    "avgToolCalls": 7.3
+    "avgErrorRate": 0.075,
+    "avgToolCalls": 8.3
   }
 ]
