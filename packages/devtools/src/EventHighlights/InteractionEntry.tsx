@@ -1,6 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
 import { colors } from '@repro/design'
-import { ElementR } from '../DOM'
 import { Click, InteractionEvent, InteractionType } from '@repro/domain'
 import {
   MousePointerClick as ClickIcon,
@@ -8,6 +7,7 @@ import {
   Scaling as ViewportResizeIcon,
 } from 'lucide-react'
 import React from 'react'
+import { ElementR } from '../DOM'
 import { useDevToolsView, useSelectedNode } from '../hooks'
 import { View } from '../types'
 import { BaseEntry } from './BaseEntry'

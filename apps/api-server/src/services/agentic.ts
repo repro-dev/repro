@@ -20,7 +20,11 @@ type ChatContextMessage =
   | { role: 'user'; content: string }
   | { role: 'assistant'; content: string; tool_calls?: Array<ToolCallContext> }
   // Tool results may carry an image content block (e.g. captureScreenshot)
-  | { role: 'tool'; content: string | Array<ContentBlock>; tool_call_id: string }
+  | {
+      role: 'tool'
+      content: string | Array<ContentBlock>
+      tool_call_id: string
+    }
 
 interface Tool {
   type: 'function'

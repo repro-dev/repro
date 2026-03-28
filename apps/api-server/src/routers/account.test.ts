@@ -561,10 +561,7 @@ describe('Routers > Account', () => {
   })
 
   describe('Account lockout', () => {
-    async function createUserWithCredentials(
-      email: string,
-      password: string
-    ) {
+    async function createUserWithCredentials(email: string, password: string) {
       const account = await promise(
         accountService.createAccount('Lockout Test')
       )

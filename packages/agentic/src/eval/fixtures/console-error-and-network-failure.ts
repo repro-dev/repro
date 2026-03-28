@@ -1,5 +1,5 @@
-import { NodeId, NodeType, Snapshot } from '@repro/domain'
-import { Box } from '@repro/tdl'
+import { NodeId, NodeType, Snapshot } from "@repro/domain";
+import { Box } from "@repro/tdl";
 import {
   makeAccessor,
   makeClickEvent,
@@ -9,9 +9,9 @@ import {
   makeFetchResponseEvent,
   makePageTransitionEvent,
   makeSnapshotEvent,
-} from '../../model/tools/__tests__/helpers'
-import { EXTENSION_SYSTEM_CARD_MESSAGE } from '../../model/system'
-import { EvalFixture } from '../runner'
+} from "../../model/tools/__tests__/helpers";
+import { EXTENSION_SYSTEM_CARD_MESSAGE } from "../../model/system";
+import { EvalFixture } from "../runner";
 
 // Fixture: a button click triggers a POST /api/submit request that returns 500,
 // followed immediately by a TypeError in handleSubmit.
@@ -107,13 +107,13 @@ export function createFixture(): EvalFixture {
   const accessor = makeAccessor(events, 5000, snapshotFn);
 
   return {
-    name: 'console-error-and-network-failure',
+    name: "console-error-and-network-failure",
     prompt:
-      'The submit button on the form page seems to be broken. What went wrong?',
+      "The submit button on the form page seems to be broken. What went wrong?",
     expectedOutcomeDescription:
-      'The agent correctly identifies that the POST /api/submit request returned a 500 error and a TypeError was thrown in handleSubmit at form.js:42, likely because the server response was undefined when the handler tried to access .id',
+      "The agent correctly identifies that the POST /api/submit request returned a 500 error and a TypeError was thrown in handleSubmit at form.js:42, likely because the server response was undefined when the handler tried to access .id",
     accessor,
     systemPrompt: EXTENSION_SYSTEM_CARD_MESSAGE,
-    promptExportName: 'EXTENSION_SYSTEM_CARD_MESSAGE',
-  }
+    promptExportName: "EXTENSION_SYSTEM_CARD_MESSAGE",
+  };
 }

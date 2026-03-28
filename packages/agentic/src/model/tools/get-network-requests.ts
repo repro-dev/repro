@@ -266,14 +266,16 @@ export const handler: ToolHandler = (recording, args) => {
         const msgLimit = detail === "normal" ? 10 : 100;
         const payloadLimit = detail === "normal" ? 200 : 2000;
 
-        const messages = allMessages.slice(0, msgLimit).map(msg => {
+        const messages = allMessages.slice(0, msgLimit).map((msg) => {
           const direction =
             msg.data.type === NetworkMessageType.WebSocketInbound
               ? "inbound"
               : "outbound";
           let payload: string;
           if (msg.data.messageType === WebSocketMessageType.Binary) {
-            payload = `[binary frame, ${(msg.data.data as ArrayBuffer).byteLength} bytes]`;
+            payload = `[binary frame, ${
+              (msg.data.data as ArrayBuffer).byteLength
+            } bytes]`;
           } else {
             // Text frames are UTF-8 by the WebSocket spec. Apps that send
             // binary-encoded data (e.g. MessagePack) over text frames will

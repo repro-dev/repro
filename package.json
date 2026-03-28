@@ -10,7 +10,10 @@
     "@jsxstyle/core": "^3.0.1",
     "@playwright/test": "^1.58.2",
     "@types/trusted-types": "^2.0.7",
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3"
   },
   "pnpm": {
     "overrides": {
@@ -44,6 +47,10 @@
   },
   "packageManager": "pnpm@10.17.0",
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "fmt:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path .gitignore"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": "prettier --write"
   }
 }

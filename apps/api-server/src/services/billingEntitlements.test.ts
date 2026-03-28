@@ -118,9 +118,7 @@ describe('Services > Billing Entitlements', () => {
         ])
       )
 
-      const [proPlan] = await harness.loadFixtures([
-        fixtures.billing.ProPlan,
-      ])
+      const [proPlan] = await harness.loadFixtures([fixtures.billing.ProPlan])
       await promise(billingService.changePlan(account.id, proPlan.id))
 
       const after = await promise(billingService.getEntitlements(account.id))
@@ -132,9 +130,7 @@ describe('Services > Billing Entitlements', () => {
     })
 
     it('should return empty entitlements when no subscription exists', async () => {
-      const [account] = await harness.loadFixtures([
-        fixtures.account.AccountA,
-      ])
+      const [account] = await harness.loadFixtures([fixtures.account.AccountA])
 
       const entitlements = await promise(
         billingService.getEntitlements(account.id)

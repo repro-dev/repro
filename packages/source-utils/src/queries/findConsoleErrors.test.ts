@@ -181,11 +181,7 @@ describe('findConsoleErrors', () => {
     ])
 
     const errors = findConsoleErrors(events)
-    assert.strictEqual(
-      errors.size(),
-      1,
-      'should return only error level logs'
-    )
+    assert.strictEqual(errors.size(), 1, 'should return only error level logs')
   })
 
   it('handles empty event list', () => {

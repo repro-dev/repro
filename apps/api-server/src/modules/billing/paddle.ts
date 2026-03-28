@@ -30,9 +30,7 @@ export function createPaddleClient(config: PaddleConfig) {
     return attemptP(() => paddle.customers.create({ email, name }))
   }
 
-  function getCustomer(
-    customerId: string
-  ): FutureInstance<Error, Customer> {
+  function getCustomer(customerId: string): FutureInstance<Error, Customer> {
     return attemptP(() => paddle.customers.get(customerId))
   }
 

@@ -1,7 +1,7 @@
+import { Agent, Intent } from '@repro/messaging'
+import { FutureInstance, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { FutureInstance, resolve } from 'fluture'
-import { Agent, Intent } from '@repro/messaging'
 import { createApiClientBridge } from './bridge'
 import { ApiClient } from './createApiClient'
 

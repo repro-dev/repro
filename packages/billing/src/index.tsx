@@ -4,7 +4,10 @@ declare global {
   interface Window {
     Paddle?: {
       Environment: { set(env: string): void }
-      Initialize(config: { token: string; eventCallback?: (data: any) => void }): void
+      Initialize(config: {
+        token: string
+        eventCallback?: (data: any) => void
+      }): void
       Checkout: {
         open(config: any): void
         close(): void

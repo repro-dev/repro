@@ -48,7 +48,9 @@ describe("tools array — getNetworkRequests", () => {
 describe("executeTool — getNetworkRequests — basic", () => {
   it("returns empty requests array for empty event list", async () => {
     const accessor = makeEmptyAccessor();
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {}),
+    )) as {
       requests: unknown[];
       summary: unknown;
       _tokenEstimate: number;
@@ -64,7 +66,9 @@ describe("executeTool — getNetworkRequests — basic", () => {
       makeFetchResponseEvent(200, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {}),
+    )) as {
       requests: Array<{
         timeMs: number;
         type: string;
@@ -87,7 +91,9 @@ describe("executeTool — getNetworkRequests — basic", () => {
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "POST"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {}),
+    )) as {
       requests: Array<{
         type: string;
         status: number | undefined;
@@ -105,7 +111,9 @@ describe("executeTool — getNetworkRequests — basic", () => {
       makeWebSocketCloseEvent(550, "ws1"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {}),
+    )) as {
       requests: Array<{
         timeMs: number;
         type: string;
@@ -124,7 +132,9 @@ describe("executeTool — getNetworkRequests — basic", () => {
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {}),
+    )) as {
       requests: Array<{ durationMs: number | undefined }>;
     };
     assert.strictEqual(result.requests.length, 1);
@@ -138,7 +148,9 @@ describe("executeTool — getNetworkRequests — basic", () => {
       makeWebSocketOpenEvent(200, "ws1", "wss://example.com/socket"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {}),
+    )) as {
       requests: Array<{ type: string }>;
     };
     assert.strictEqual(result.requests.length, 2);
@@ -158,9 +170,11 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(350, "req3", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      statusMin: 400,
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        statusMin: 400,
+      }),
+    )) as {
       requests: Array<{ status: number }>;
     };
     assert.strictEqual(result.requests.length, 2);
@@ -178,9 +192,11 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(350, "req3", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      statusMax: 399,
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        statusMax: 399,
+      }),
+    )) as {
       requests: Array<{ status: number }>;
     };
     assert.strictEqual(result.requests.length, 2);
@@ -198,10 +214,12 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(350, "req3", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      statusMin: 400,
-      statusMax: 499,
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        statusMin: 400,
+        statusMax: 499,
+      }),
+    )) as {
       requests: Array<{ status: number }>;
     };
     assert.strictEqual(result.requests.length, 1);
@@ -213,9 +231,11 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchRequestEvent(100, "req1", "https://example.com/pending", "GET"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      statusMin: 400,
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        statusMin: 400,
+      }),
+    )) as {
       requests: unknown[];
     };
     assert.strictEqual(result.requests.length, 0);
@@ -229,9 +249,11 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(250, "req2", 201),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      method: "post",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        method: "post",
+      }),
+    )) as {
       requests: Array<{ method: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
@@ -256,9 +278,11 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(250, "req2", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      urlPattern: "/users/",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        urlPattern: "/users/",
+      }),
+    )) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
@@ -272,9 +296,11 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(550, "req2", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      timeRangeStartMs: 400,
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        timeRangeStartMs: 400,
+      }),
+    )) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
@@ -288,9 +314,11 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(950, "req2", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      timeRangeEndMs: 500,
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        timeRangeEndMs: 500,
+      }),
+    )) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
@@ -302,9 +330,11 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeWebSocketOpenEvent(100, "ws2", "wss://example.com/notifications"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      urlPattern: "/chat",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        urlPattern: "/chat",
+      }),
+    )) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
@@ -317,9 +347,11 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(150, "req1", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      statusMin: 400,
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        statusMin: 400,
+      }),
+    )) as {
       requests: Array<{ type: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
@@ -333,9 +365,11 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeFetchResponseEvent(150, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      method: "GET",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        method: "GET",
+      }),
+    )) as {
       requests: Array<{ type: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
@@ -348,9 +382,11 @@ describe("executeTool — getNetworkRequests — filters", () => {
       makeWebSocketOpenEvent(800, "ws2", "wss://example.com/late"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      timeRangeStartMs: 500,
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        timeRangeStartMs: 500,
+      }),
+    )) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(result.requests.length, 1);
@@ -360,9 +396,11 @@ describe("executeTool — getNetworkRequests — filters", () => {
 describe("executeTool — getNetworkRequests — _hint", () => {
   it("returns _hint when requests are empty and filters were provided", async () => {
     const accessor = makeEmptyAccessor();
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      urlPattern: "/nonexistent",
-    })) as { requests: unknown[]; _hint?: string };
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        urlPattern: "/nonexistent",
+      }),
+    )) as { requests: unknown[]; _hint?: string };
     assert.strictEqual(result.requests.length, 0);
     assert.ok(result._hint);
     assert.ok(result._hint.includes("getNetworkRequests"));
@@ -370,7 +408,9 @@ describe("executeTool — getNetworkRequests — _hint", () => {
 
   it("does not return _hint when no filters were provided and requests are empty", async () => {
     const accessor = makeEmptyAccessor();
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {}),
+    )) as {
       requests: unknown[];
       _hint?: string;
     };
@@ -380,9 +420,11 @@ describe("executeTool — getNetworkRequests — _hint", () => {
 
   it("returns _hint when method filter yields zero results", async () => {
     const accessor = makeEmptyAccessor();
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      method: "DELETE",
-    })) as { requests: unknown[]; _hint?: string };
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        method: "DELETE",
+      }),
+    )) as { requests: unknown[]; _hint?: string };
     assert.strictEqual(result.requests.length, 0);
     assert.ok(result._hint);
     assert.ok(result._hint.includes("getNetworkRequests"));
@@ -394,9 +436,11 @@ describe("executeTool — getNetworkRequests — _hint", () => {
       makeFetchResponseEvent(150, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      statusMin: 400,
-    })) as { requests: unknown[]; _hint?: string };
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        statusMin: 400,
+      }),
+    )) as { requests: unknown[]; _hint?: string };
     assert.strictEqual(result.requests.length, 0);
     assert.ok(result._hint);
     assert.ok(result._hint.includes("getNetworkRequests"));
@@ -408,9 +452,11 @@ describe("executeTool — getNetworkRequests — _hint", () => {
       makeFetchResponseEvent(150, "req1", 500),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      statusMax: 299,
-    })) as { requests: unknown[]; _hint?: string };
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        statusMax: 299,
+      }),
+    )) as { requests: unknown[]; _hint?: string };
     assert.strictEqual(result.requests.length, 0);
     assert.ok(result._hint);
     assert.ok(result._hint.includes("getNetworkRequests"));
@@ -429,9 +475,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEvent(200, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "summary",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "summary",
+      }),
+    )) as {
       requests: Array<{ url: string; method?: string }>;
     };
     assert.strictEqual(result.requests[0]!.url, "/api/users");
@@ -450,9 +498,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEvent(200, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "normal",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "normal",
+      }),
+    )) as {
       requests: Array<{ url: string }>;
     };
     assert.ok(result.requests[0]!.url.length <= 100);
@@ -469,9 +519,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEvent(200, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "full",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "full",
+      }),
+    )) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(
@@ -486,9 +538,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEventWithBody(200, "req1", 500, "Internal Server Error"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "normal",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "normal",
+      }),
+    )) as {
       requests: Array<{ errorBody?: string }>;
     };
     assert.strictEqual(result.requests[0]!.errorBody, "Internal Server Error");
@@ -500,9 +554,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEventWithBody(200, "req1", 200, "OK body"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "normal",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "normal",
+      }),
+    )) as {
       requests: Array<{ errorBody?: string }>;
     };
     assert.strictEqual(result.requests[0]!.errorBody, undefined);
@@ -515,9 +571,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEventWithBody(200, "req1", 500, longBody),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "normal",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "normal",
+      }),
+    )) as {
       requests: Array<{ errorBody?: string }>;
     };
     assert.ok(result.requests[0]!.errorBody !== undefined);
@@ -531,9 +589,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEventWithBody(200, "req1", 500, longBody),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "full",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "full",
+      }),
+    )) as {
       requests: Array<{ errorBody?: string }>;
     };
     assert.ok(result.requests[0]!.errorBody !== undefined);
@@ -552,9 +612,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEvent(200, "req1", 201),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "full",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "full",
+      }),
+    )) as {
       requests: Array<{ requestBody?: string }>;
     };
     assert.strictEqual(result.requests[0]!.requestBody, '{"name":"test"}');
@@ -572,9 +634,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEvent(200, "req1", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "full",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "full",
+      }),
+    )) as {
       requests: Array<{ requestBody?: string }>;
     };
     assert.strictEqual(result.requests[0]!.requestBody, undefined);
@@ -592,9 +656,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       }),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "full",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "full",
+      }),
+    )) as {
       requests: Array<{ headers?: Record<string, string> }>;
     };
     const headers = result.requests[0]!.headers;
@@ -617,9 +683,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
         }),
       ];
       const accessor = makeAccessor(events);
-      const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-        detail,
-      })) as {
+      const result = (await runFuture(
+        executeTool(accessor, "getNetworkRequests", {
+          detail,
+        }),
+      )) as {
         requests: Array<Record<string, unknown>>;
       };
       const req = result.requests[0]!;
@@ -644,7 +712,9 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeWebSocketOpenEvent(300, "ws1", "wss://example.com/socket"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {}),
+    )) as {
       summary: {
         total: number;
         succeeded: number;
@@ -666,7 +736,9 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {}),
+    )) as {
       summary: { byMethod: Record<string, number> };
     };
     assert.deepStrictEqual(result.summary.byMethod, {});
@@ -677,7 +749,9 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchRequestEvent(100, "req1", "https://example.com/api", "GET"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {}),
+    )) as {
       summary: { succeeded: number; failed: number };
     };
     assert.strictEqual(result.summary.succeeded, 1);
@@ -686,7 +760,9 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
 
   it("always includes _tokenEstimate", async () => {
     const accessor = makeEmptyAccessor();
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {})) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {}),
+    )) as {
       _tokenEstimate: number;
     };
     assert.ok(typeof result._tokenEstimate === "number");
@@ -711,10 +787,12 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeFetchResponseEvent(250, "req2", 200),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "summary",
-      urlPattern: "/users",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "summary",
+        urlPattern: "/users",
+      }),
+    )) as {
       requests: unknown[];
     };
     assert.strictEqual(result.requests.length, 1);
@@ -725,9 +803,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       makeWebSocketOpenEvent(50, "ws1", "wss://example.com/socket?token=abc"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "summary",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "summary",
+      }),
+    )) as {
       requests: Array<{ url: string }>;
     };
     assert.strictEqual(result.requests[0]!.url, "/socket");
@@ -741,9 +821,11 @@ describe("executeTool — getNetworkRequests — token optimization / detail tie
       }),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "normal",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "normal",
+      }),
+    )) as {
       requests: Array<Record<string, unknown>>;
     };
     assert.strictEqual(result.requests[0]!["headers"], undefined);
@@ -764,9 +846,11 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
       makeWebSocketCloseEvent(600, "ws1"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "summary",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "summary",
+      }),
+    )) as {
       requests: Array<{
         type: string;
         messageCount?: { inbound: number; outbound: number };
@@ -791,12 +875,18 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
       ),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "normal",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "normal",
+      }),
+    )) as {
       requests: Array<{
         type: string;
-        messages?: Array<{ timeMs: number; direction: string; payload: string }>;
+        messages?: Array<{
+          timeMs: number;
+          direction: string;
+          payload: string;
+        }>;
       }>;
     };
     assert.strictEqual(result.requests.length, 1);
@@ -817,9 +907,11 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
       makeWebSocketInboundEvent(100, "ws1", longPayload),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "normal",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "normal",
+      }),
+    )) as {
       requests: Array<{ messages?: Array<{ payload: string }> }>;
     };
     const ws = result.requests[0]!;
@@ -837,11 +929,17 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
       ),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "full",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "full",
+      }),
+    )) as {
       requests: Array<{
-        messages?: Array<{ payload: string; timeMs: number; direction: string }>;
+        messages?: Array<{
+          payload: string;
+          timeMs: number;
+          direction: string;
+        }>;
       }>;
     };
     const ws = result.requests[0]!;
@@ -857,9 +955,11 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
       ),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "full",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "full",
+      }),
+    )) as {
       requests: Array<{ messages?: unknown[] }>;
     };
     const ws = result.requests[0]!;
@@ -873,9 +973,11 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
       makeWebSocketBinaryInboundEvent(100, "ws1", 42),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "normal",
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "normal",
+      }),
+    )) as {
       requests: Array<{ messages?: Array<{ payload: string }> }>;
     };
     const ws = result.requests[0]!;
@@ -890,9 +992,11 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
     ];
     const accessor = makeAccessor(events);
 
-    const summaryResult = (await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "summary",
-    }))) as {
+    const summaryResult = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "summary",
+      }),
+    )) as {
       requests: Array<{
         messageCount?: { inbound: number; outbound: number };
         messages?: unknown[];
@@ -904,15 +1008,19 @@ describe("executeTool — getNetworkRequests — WebSocket messages", () => {
     });
     assert.strictEqual(summaryResult.requests[0]!.messages, undefined);
 
-    const normalResult = (await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "normal",
-    }))) as { requests: Array<{ messages?: unknown[] }> };
+    const normalResult = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "normal",
+      }),
+    )) as { requests: Array<{ messages?: unknown[] }> };
     assert.ok(Array.isArray(normalResult.requests[0]!.messages));
     assert.strictEqual(normalResult.requests[0]!.messages!.length, 0);
 
-    const fullResult = (await runFuture(executeTool(accessor, "getNetworkRequests", {
-      detail: "full",
-    }))) as { requests: Array<{ messages?: unknown[] }> };
+    const fullResult = (await runFuture(
+      executeTool(accessor, "getNetworkRequests", {
+        detail: "full",
+      }),
+    )) as { requests: Array<{ messages?: unknown[] }> };
     assert.ok(Array.isArray(fullResult.requests[0]!.messages));
     assert.strictEqual(fullResult.requests[0]!.messages!.length, 0);
   });

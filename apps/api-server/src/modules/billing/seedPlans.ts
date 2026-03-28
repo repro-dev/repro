@@ -1,7 +1,10 @@
 import { Database } from '~/modules/database/types'
 import { PlanConfig, validatePlanConfig } from './planConfig'
 
-export async function seedPlans(db: Database, config: PlanConfig): Promise<void> {
+export async function seedPlans(
+  db: Database,
+  config: PlanConfig
+): Promise<void> {
   validatePlanConfig(config)
 
   for (const plan of config) {

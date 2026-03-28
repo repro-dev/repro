@@ -6,33 +6,37 @@
  */
 
 export interface BaselineEntry {
-  fixtureName: string
-  correctnessRate: number
-  avgErrorRate: number
-  avgToolCalls: number
+  fixtureName: string;
+  correctnessRate: number;
+  avgErrorRate: number;
+  avgToolCalls: number;
   // Composite average of brevity, directness, signalNoise (1–3 scale; seeded at 2.0)
-  avgQuality: number
+  avgQuality: number;
 }
 
 /** A subset of EvalResult that regression detection needs. */
 export interface EvalResultSnapshot {
-  fixtureName: string
-  correctnessRate: number
-  averageToolErrorRate: number
-  averageIterationDepth: number
+  fixtureName: string;
+  correctnessRate: number;
+  averageToolErrorRate: number;
+  averageIterationDepth: number;
   // Composite average of quality dimensions (brevity + directness + signalNoise) / 3
-  compositeQualityScore: number
+  compositeQualityScore: number;
 }
 
-export type RegressionMetric = 'correctnessRate' | 'avgErrorRate' | 'avgToolCalls' | 'avgQuality'
+export type RegressionMetric =
+  | "correctnessRate"
+  | "avgErrorRate"
+  | "avgToolCalls"
+  | "avgQuality";
 
 export interface RegressionEntry {
-  fixtureName: string
-  metric: RegressionMetric
+  fixtureName: string;
+  metric: RegressionMetric;
   /** How far the current value exceeds the threshold (positive = worse). */
-  delta: number
-  baseline: number
-  current: number
+  delta: number;
+  baseline: number;
+  current: number;
 }
 
 /**
@@ -49,65 +53,65 @@ export interface RegressionEntry {
  */
 export function findRegressions(
   results: Array<EvalResultSnapshot>,
-  baseline: Array<BaselineEntry>
+  baseline: Array<BaselineEntry>,
 ): Array<RegressionEntry> {
-  const baselineMap = new Map(baseline.map(b => [b.fixtureName, b]))
-  const regressions: Array<RegressionEntry> = []
+  const baselineMap = new Map(baseline.map((b) => [b.fixtureName, b]));
+  const regressions: Array<RegressionEntry> = [];
 
   for (const r of results) {
-    const b = baselineMap.get(r.fixtureName)
-    if (b === undefined) continue // new fixture — not a regression
+    const b = baselineMap.get(r.fixtureName);
+    if (b === undefined) continue; // new fixture — not a regression
 
     // Check correctnessRate first (no tolerance — any drop is meaningful)
     if (r.correctnessRate < b.correctnessRate) {
       regressions.push({
         fixtureName: r.fixtureName,
-        metric: 'correctnessRate',
+        metric: "correctnessRate",
         delta: b.correctnessRate - r.correctnessRate,
         baseline: b.correctnessRate,
         current: r.correctnessRate,
-      })
-      continue
+      });
+      continue;
     }
 
     // Check avgErrorRate with ±10pp absolute tolerance
-    const errorRateDelta = r.averageToolErrorRate - (b.avgErrorRate + 0.10)
+    const errorRateDelta = r.averageToolErrorRate - (b.avgErrorRate + 0.1);
     if (errorRateDelta > 0) {
       regressions.push({
         fixtureName: r.fixtureName,
-        metric: 'avgErrorRate',
+        metric: "avgErrorRate",
         delta: errorRateDelta,
         baseline: b.avgErrorRate,
         current: r.averageToolErrorRate,
-      })
-      continue
+      });
+      continue;
     }
 
     // Check avgToolCalls with ±3 absolute tolerance
-    const toolCallsDelta = r.averageIterationDepth - (b.avgToolCalls + 3)
+    const toolCallsDelta = r.averageIterationDepth - (b.avgToolCalls + 3);
     if (toolCallsDelta > 0) {
       regressions.push({
         fixtureName: r.fixtureName,
-        metric: 'avgToolCalls',
+        metric: "avgToolCalls",
         delta: toolCallsDelta,
         baseline: b.avgToolCalls,
         current: r.averageIterationDepth,
-      })
-      continue
+      });
+      continue;
     }
 
     // Check avgQuality: composite drop of >0.5 points from baseline
-    const qualityDelta = b.avgQuality - r.compositeQualityScore
+    const qualityDelta = b.avgQuality - r.compositeQualityScore;
     if (qualityDelta > 0.5) {
       regressions.push({
         fixtureName: r.fixtureName,
-        metric: 'avgQuality',
+        metric: "avgQuality",
         delta: qualityDelta,
         baseline: b.avgQuality,
         current: r.compositeQualityScore,
-      })
+      });
     }
   }
 
-  return regressions
+  return regressions;
 }

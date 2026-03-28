@@ -70,6 +70,7 @@ export const FrameRealm = React.forwardRef<HTMLIFrameElement, Props>(
     return (
       <iframe
         ref={ref}
+        title="Frame realm"
         {...props}
         style={{
           border: '0',

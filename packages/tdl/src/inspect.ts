@@ -46,7 +46,10 @@ export function getBufferFrameByteLength(): number {
  * for vectors. Callers that need full encoded size should use
  * `getByteLength()` instead.
  */
-export function getHeaderByteLength(descriptor: AnyDescriptor, data: any): number {
+export function getHeaderByteLength(
+  descriptor: AnyDescriptor,
+  data: any
+): number {
   if (descriptor.type === 'vector') {
     return getVectorHeaderByteLength((data as any[]).length)
   }

@@ -1,10 +1,4 @@
-import {
-  FutureInstance,
-  chain,
-  map,
-  reject,
-  resolve,
-} from 'fluture'
+import { FutureInstance, chain, map, reject, resolve } from 'fluture'
 import { PaddleClient } from '~/modules/billing'
 import { Database, attemptQuery, encodeId } from '~/modules/database'
 import { BillingService } from '~/services/billing'
@@ -50,7 +44,10 @@ export function createBillingWebhookService(
   function verifyAndRecord(
     rawBody: string,
     signature: string
-  ): FutureInstance<Error, { eventId: string; eventType: string; data: any; skipped: boolean }> {
+  ): FutureInstance<
+    Error,
+    { eventId: string; eventType: string; data: any; skipped: boolean }
+  > {
     return paddleClient.verifyWebhook(rawBody, signature).pipe(
       chain(event =>
         billingService
@@ -76,9 +73,7 @@ export function createBillingWebhookService(
   ): FutureInstance<Error, { start: Date; end: Date }> {
     if (!data.current_billing_period) {
       return reject(
-        new Error(
-          `Missing current_billing_period for subscription: ${data.id}`
-        )
+        new Error(`Missing current_billing_period for subscription: ${data.id}`)
       )
     }
 
@@ -255,9 +250,7 @@ export function createBillingWebhookService(
         .selectFrom('billing_plans')
         .select(['id'])
         .where('providerPriceId', '=', priceId)
-        .executeTakeFirstOrThrow(
-          () => new Error(`Unknown price: ${priceId}`)
-        )
+        .executeTakeFirstOrThrow(() => new Error(`Unknown price: ${priceId}`))
     ).pipe(map(row => row.id))
   }
 
@@ -280,9 +273,7 @@ export function createBillingWebhookService(
     }
   }
 
-  function markSuccess(
-    eventId: string
-  ): FutureInstance<Error, WebhookResult> {
+  function markSuccess(eventId: string): FutureInstance<Error, WebhookResult> {
     return billingService
       .markWebhookEventProcessed(eventId, 'success')
       .pipe(map(() => ({ eventId, skipped: false })))

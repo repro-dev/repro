@@ -3,7 +3,10 @@ import { RecordingInfo, SourceEvent, SourceEventView } from '@repro/domain'
 import { createExportedKeyF, encryptF } from '@repro/encryption'
 import { tap } from '@repro/future-utils'
 import { randomString } from '@repro/random-string'
-import { getBufferFrameByteLength, getVectorHeaderByteLength } from '@repro/tdl/inspect'
+import {
+  getBufferFrameByteLength,
+  getVectorHeaderByteLength,
+} from '@repro/tdl/inspect'
 import { createResourceMap, filterResourceMap } from '@repro/vdom-utils'
 import { toBinaryWireFormat } from '@repro/wire-formats'
 import { gzipSync } from 'fflate'
@@ -92,7 +95,12 @@ export function createUploadWorker(
           chain(recording =>
             parallel(Infinity)([
               saveEvents(input.projectId, recording.id, input.events, progress),
-              saveResources(input.projectId, recording.id, input.events, progress),
+              saveResources(
+                input.projectId,
+                recording.id,
+                input.events,
+                progress
+              ),
             ])
           )
         )
@@ -215,7 +223,9 @@ export function createUploadWorker(
 
         const indexReq = saveEventIndex(projectId, recordingId, events, views)
 
-        return parallel(Infinity)([dataReq, indexReq]).pipe(map(() => undefined))
+        return parallel(Infinity)([dataReq, indexReq]).pipe(
+          map(() => undefined)
+        )
       })
     )
   }
@@ -333,10 +343,13 @@ export function createUploadWorker(
       .pipe(map(resourceIds => filterResourceMap(resourceMap, resourceIds)))
       .pipe(
         chain(filteredResourceMap =>
-          apiClient.fetch(`/projects/${projectId}/recordings/${recordingId}/resource-map`, {
-            method: 'PUT',
-            body: JSON.stringify(filteredResourceMap),
-          })
+          apiClient.fetch(
+            `/projects/${projectId}/recordings/${recordingId}/resource-map`,
+            {
+              method: 'PUT',
+              body: JSON.stringify(filteredResourceMap),
+            }
+          )
         )
       )
 

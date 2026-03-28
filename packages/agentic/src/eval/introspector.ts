@@ -113,9 +113,9 @@ Produce a JSON array of critique items, each with: issue (what diverged), likely
   const raw = body.choices[0]?.message?.content ?? "[]";
   // Strip markdown code fences that some models wrap around JSON responses
   const content = raw
-    .replace(/^```(?:json)?\n?/, '')
-    .replace(/\n?```$/, '')
-    .trim()
+    .replace(/^```(?:json)?\n?/, "")
+    .replace(/\n?```$/, "")
+    .trim();
 
   try {
     const parsed = JSON.parse(content) as unknown;

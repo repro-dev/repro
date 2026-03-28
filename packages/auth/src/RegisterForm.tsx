@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Block, Col } from '@jsxstyle/react'
 import { Button, FormField, Input, Label, colors } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { done } from 'fluture'
-import { Block, Col } from '@jsxstyle/react'
 import React, { useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import z from 'zod'
@@ -19,7 +19,9 @@ const formSchema = z
     userName: z.string(),
     email: z.string().email(),
     password: z.string().min(8, 'Password must be at least 8 characters'),
-    confirmedPassword: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmedPassword: z
+      .string()
+      .min(8, 'Password must be at least 8 characters'),
   })
   .refine(values => values.password === values.confirmedPassword, {
     message: 'Passwords do not match',
@@ -122,7 +124,9 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             <Input
               id="reg-account"
               autoFocus={true}
-              context={formState.errors.accountName != null ? 'error' : 'normal'}
+              context={
+                formState.errors.accountName != null ? 'error' : 'normal'
+              }
               {...register('accountName', { required: true })}
             />
           </FormField>

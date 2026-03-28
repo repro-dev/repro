@@ -42,7 +42,14 @@ export function createOAuthService(database: Database) {
           redirectUris,
           userId,
         })
-        .returning(['id', 'clientId', 'clientSecret', 'name', 'redirectUris', 'userId'])
+        .returning([
+          'id',
+          'clientId',
+          'clientSecret',
+          'name',
+          'redirectUris',
+          'userId',
+        ])
         .executeTakeFirstOrThrow()
     ).pipe(
       map(row => ({
@@ -91,7 +98,9 @@ export function createOAuthService(database: Database) {
     redirectUri: string
   ): FutureInstance<Error, ApiKey> {
     const now = new Date()
-    const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url')
+    const codeChallenge = createHash('sha256')
+      .update(codeVerifier)
+      .digest('base64url')
 
     return attemptQuery(() =>
       database
@@ -111,7 +120,11 @@ export function createOAuthService(database: Database) {
         if (!row) {
           return reject(notAuthenticated())
         }
-        return createApiKey(row.userId, `OAuth exchange for client ${row.clientId}`, row.scopes)
+        return createApiKey(
+          row.userId,
+          `OAuth exchange for client ${row.clientId}`,
+          row.scopes
+        )
       })
     )
   }
@@ -168,7 +181,10 @@ export function createOAuthService(database: Database) {
     )
   }
 
-  function revokeApiKey(id: number, userId: number): FutureInstance<Error, void> {
+  function revokeApiKey(
+    id: number,
+    userId: number
+  ): FutureInstance<Error, void> {
     return attemptQuery(() =>
       database
         .updateTable('api_keys')

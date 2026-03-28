@@ -1,6 +1,6 @@
-import { DocTypeR } from '../DOM'
 import { NodeType, SyntheticId, VDocType } from '@repro/domain'
 import React from 'react'
+import { DocTypeR } from '../DOM'
 import { TreeRow } from './TreeRow'
 import { useNode } from './context'
 

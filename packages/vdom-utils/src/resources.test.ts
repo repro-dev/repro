@@ -60,7 +60,11 @@ function makeElementNode(
   })
 }
 
-function makeTextNode(id: string, value: string, parentId: string | null = null) {
+function makeTextNode(
+  id: string,
+  value: string,
+  parentId: string | null = null
+) {
   return new Box({
     id,
     parentId,
@@ -216,7 +220,11 @@ describe('vdom-utils: resources', () => {
 
         const events: Array<SourceEvent> = [
           makeSnapshotEvent(vtree),
-          makeAttributePatchEvent('img1', 'src', 'http://example.com/photo.jpg'),
+          makeAttributePatchEvent(
+            'img1',
+            'src',
+            'http://example.com/photo.jpg'
+          ),
         ]
 
         const resourceMap = createResourceMap(events)
