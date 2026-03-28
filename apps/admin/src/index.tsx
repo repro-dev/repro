@@ -1,4 +1,4 @@
-import { ApiProvider } from '@repro/api-client'
+import { ApiProvider, createApiClient } from '@repro/api-client'
 import { AuthProvider, SessionRouteBoundary } from '@repro/auth'
 import {
   colors,
@@ -12,6 +12,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { Loading } from './components/Loading'
+import { defaultEnv as env } from './config/env'
 import { Layout } from './Layout'
 import { HomeRoute } from './routes/HomeRoute'
 import { LoginRoute } from './routes/LoginRoute'
@@ -24,6 +25,11 @@ declare global {
 }
 
 window.__REPRO_STANDALONE = true
+
+const apiClient = createApiClient({
+  baseUrl: env.REPRO_API_URL,
+  authStorage: 'local-storage',
+})
 
 const adminTheme: ThemeDefinition = {
   color: {
@@ -59,6 +65,7 @@ const adminTheme: ThemeDefinition = {
     danger: colors.rose['700'],
     dangerHover: colors.rose['800'],
     dangerSubtle: colors.rose['100'],
+    dangerTint: colors.rose['50'],
     dangerBorder: colors.rose['500'],
     dangerBorderSubtle: colors.rose['300'],
     dangerFg: colors.rose['900'],
@@ -66,6 +73,7 @@ const adminTheme: ThemeDefinition = {
     success: colors.green['700'],
     successHover: colors.green['800'],
     successSubtle: colors.green['100'],
+    successTint: colors.green['50'],
     successBorder: colors.green['600'],
     successBorderSubtle: colors.green['300'],
     successFg: colors.green['900'],
@@ -75,12 +83,14 @@ const adminTheme: ThemeDefinition = {
     warningEmphasis: colors.amber['400'],
     warningEmphasisHover: colors.amber['500'],
     warningSubtle: colors.amber['100'],
+    warningTint: colors.amber['50'],
     warningBorder: colors.amber['600'],
     warningBorderSubtle: colors.amber['300'],
     warningFg: colors.amber['900'],
 
     info: colors.blue['700'],
     infoSubtle: colors.blue['100'],
+    infoTint: colors.blue['50'],
     infoBorder: colors.blue['500'],
     infoBorderSubtle: colors.blue['300'],
     infoFg: colors.blue['900'],
@@ -109,8 +119,8 @@ if (rootElem) {
 
   root.render(
     <BrowserRouter basename={basename}>
-      <ApiProvider>
-        <AuthProvider>
+      <ApiProvider client={apiClient}>
+        <AuthProvider basePath="/staff">
           <ThemeProvider theme={adminTheme}>
             <PortalRootProvider>
               <Suspense fallback={<Loading />}>
