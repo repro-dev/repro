@@ -18,8 +18,8 @@ const formSchema = z
     accountName: z.string(),
     userName: z.string(),
     email: z.string().email(),
-    password: z.string().min(1),
-    confirmedPassword: z.string().min(1),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmedPassword: z.string().min(8, 'Password must be at least 8 characters'),
   })
   .refine(values => values.password === values.confirmedPassword, {
     message: 'Passwords do not match',
