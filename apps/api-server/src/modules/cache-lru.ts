@@ -44,7 +44,11 @@ export function createLRUCache<T>(config: Config): Cache<T> {
     return resolve(entry.value)
   }
 
-  function set(key: string, value: T, ttl?: number): FutureInstance<Error, void> {
+  function set(
+    key: string,
+    value: T,
+    ttl?: number
+  ): FutureInstance<Error, void> {
     if (config.maxSize <= 0) {
       return resolve(undefined)
     }

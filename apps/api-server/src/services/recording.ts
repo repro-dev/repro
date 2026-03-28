@@ -8,8 +8,8 @@ import {
   reject,
   resolve,
 } from 'fluture'
-import { createGunzip } from 'node:zlib'
 import { Readable } from 'node:stream'
+import { createGunzip } from 'node:zlib'
 import {
   Database,
   attemptQuery,

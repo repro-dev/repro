@@ -24,7 +24,7 @@ export function createASTWalker(): ASTWalker {
 
     function visit<
       T extends ASTNodeType,
-      U extends Extract<ASTNode, { type: T }>
+      U extends Extract<ASTNode, { type: T }>,
     >(type: T, node: U) {
       for (const visitor of visitors) {
         const callback = visitor[type]

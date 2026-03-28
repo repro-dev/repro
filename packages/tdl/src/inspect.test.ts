@@ -7,7 +7,11 @@ import {
   getHeaderByteLength,
   getVectorHeaderByteLength,
 } from './inspect'
-import { BufferDescriptor, StringDescriptor, VectorDescriptor } from './lib/descriptors'
+import {
+  BufferDescriptor,
+  StringDescriptor,
+  VectorDescriptor,
+} from './lib/descriptors'
 
 describe('tdl/inspect', () => {
   describe('getDataByteLength', () => {

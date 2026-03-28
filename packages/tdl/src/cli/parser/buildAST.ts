@@ -229,7 +229,7 @@ semantics.addOperation<ASTNode>('buildAST', {
       const [index, _, property] = childNode.children as [
         NonterminalNode,
         TerminalNode,
-        NonterminalNode
+        NonterminalNode,
       ]
 
       return [Number(index.sourceString), property.buildAST()]

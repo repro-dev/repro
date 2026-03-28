@@ -40,11 +40,7 @@ function createMockPaddleClient(
   } as any
 }
 
-function createWebhookPayload(
-  eventId: string,
-  eventType: string,
-  data: any
-) {
+function createWebhookPayload(eventId: string, eventType: string, data: any) {
   return {
     event_id: eventId,
     event_type: eventType,

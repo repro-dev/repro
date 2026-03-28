@@ -46,7 +46,10 @@ function makeDocument(id: string, children: string[]) {
 }
 
 function makeVTree(
-  nodes: Record<string, ReturnType<typeof makeElement | typeof makeText | typeof makeDocument>>,
+  nodes: Record<
+    string,
+    ReturnType<typeof makeElement | typeof makeText | typeof makeDocument>
+  >,
   rootId: string = 'root'
 ): VTree {
   return { rootId, nodes } as VTree
@@ -134,7 +137,10 @@ describe('buildA11yTree', () => {
   it('skips aria-hidden elements', () => {
     const vtree = makeVTree({
       root: makeDocument('root', ['hidden', 'btn']),
-      hidden: makeElement('hidden', 'div', [], { 'aria-hidden': 'true', role: 'complementary' }),
+      hidden: makeElement('hidden', 'div', [], {
+        'aria-hidden': 'true',
+        role: 'complementary',
+      }),
       btn: makeElement('btn', 'button', [], { 'aria-label': 'Go' }),
     })
     const result = buildA11yTree(vtree)
@@ -188,7 +194,10 @@ describe('buildA11yTree', () => {
   it('includes state for disabled elements', () => {
     const vtree = makeVTree({
       root: makeDocument('root', ['btn']),
-      btn: makeElement('btn', 'button', [], { disabled: '', 'aria-label': 'Submit' }),
+      btn: makeElement('btn', 'button', [], {
+        disabled: '',
+        'aria-label': 'Submit',
+      }),
     })
     const result = buildA11yTree(vtree)
     assert.ok(result !== null)
@@ -199,7 +208,10 @@ describe('buildA11yTree', () => {
   it('includes state for checked elements', () => {
     const vtree = makeVTree({
       root: makeDocument('root', ['cb']),
-      cb: makeElement('cb', 'input', [], { type: 'checkbox', 'aria-checked': 'true' }),
+      cb: makeElement('cb', 'input', [], {
+        type: 'checkbox',
+        'aria-checked': 'true',
+      }),
     })
     const result = buildA11yTree(vtree)
     assert.ok(result !== null)
@@ -246,9 +258,7 @@ describe('formatA11yTree', () => {
         {
           role: 'navigation',
           name: 'Main',
-          children: [
-            { role: 'link', name: 'Home', children: [] },
-          ],
+          children: [{ role: 'link', name: 'Home', children: [] }],
         },
       ],
     }

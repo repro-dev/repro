@@ -234,9 +234,7 @@ export function createAccountRouter(
             )
             .pipe(tapF(user => req.createSession(user)))
             .pipe(
-              tapF(() =>
-                accountService.resetFailedLoginCount(req.body.email)
-              )
+              tapF(() => accountService.resetFailedLoginCount(req.body.email))
             )
         )
       }

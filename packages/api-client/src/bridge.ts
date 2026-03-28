@@ -1,6 +1,6 @@
-import { randomString } from '@repro/random-string'
 import { forget } from '@repro/future-utils'
 import { Agent } from '@repro/messaging'
+import { randomString } from '@repro/random-string'
 import { ApiClient, defaultClient } from './createApiClient'
 
 export function createApiClientBridge(
@@ -13,7 +13,8 @@ export function createApiClientBridge(
         return new Proxy<ApiClient['fetch']>(target[namespace], {
           apply(_target, _thisArg, argArray) {
             const requestId = randomString(8)
-            const [url, options, requestType, responseType] = argArray as Parameters<ApiClient['fetch']>
+            const [url, options, requestType, responseType] =
+              argArray as Parameters<ApiClient['fetch']>
 
             // Strip AbortSignal from options — it cannot be structured-cloned
             // across postMessage boundaries. We replace it with a requestId-based

@@ -40,7 +40,9 @@ describe('Routers > OAuth', () => {
         .digest('base64url')
 
       const client = await promise(
-        oauthService.registerClient(userId, 'Test Client', ['https://example.com/callback'])
+        oauthService.registerClient(userId, 'Test Client', [
+          'https://example.com/callback',
+        ])
       )
 
       const code = await promise(
@@ -85,7 +87,9 @@ describe('Routers > OAuth', () => {
         .digest('base64url')
 
       const client = await promise(
-        oauthService.registerClient(userId, 'Test Client', ['https://example.com/callback'])
+        oauthService.registerClient(userId, 'Test Client', [
+          'https://example.com/callback',
+        ])
       )
 
       const code = await promise(
@@ -139,8 +143,12 @@ describe('Routers > OAuth', () => {
       ])
       const userId = decodeId(user.id)!
 
-      await promise(oauthService.createApiKey(userId, 'Key A', ['recordings:read']))
-      await promise(oauthService.createApiKey(userId, 'Key B', ['recordings:write']))
+      await promise(
+        oauthService.createApiKey(userId, 'Key A', ['recordings:read'])
+      )
+      await promise(
+        oauthService.createApiKey(userId, 'Key B', ['recordings:write'])
+      )
 
       const res = await app.inject({
         method: 'GET',
@@ -163,7 +171,9 @@ describe('Routers > OAuth', () => {
       ])
       const userId = decodeId(user.id)!
 
-      const key = await promise(oauthService.createApiKey(userId, 'Key A', ['recordings:read']))
+      const key = await promise(
+        oauthService.createApiKey(userId, 'Key A', ['recordings:read'])
+      )
 
       const res = await app.inject({
         method: 'GET',

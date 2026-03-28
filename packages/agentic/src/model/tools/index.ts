@@ -71,11 +71,13 @@ export function executeTool(
 ): FutureInstance<unknown, unknown> {
   const handler = toolHandlers[name];
   if (!handler) {
-    return resolve(createError(
-      `Unknown tool: ${name}`,
-      "The tool name does not match any registered tool",
-      `Available tools are: ${Object.keys(toolHandlers).join(", ")}`,
-    ));
+    return resolve(
+      createError(
+        `Unknown tool: ${name}`,
+        "The tool name does not match any registered tool",
+        `Available tools are: ${Object.keys(toolHandlers).join(", ")}`,
+      ),
+    );
   }
   return handler(recording, args);
 }

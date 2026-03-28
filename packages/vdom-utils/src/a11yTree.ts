@@ -144,7 +144,10 @@ function computeState(
   const ariaDisabled = attributes['aria-disabled']
   if (ariaDisabled === 'true' || ariaDisabled === '') {
     state['disabled'] = true
-  } else if (attributes['disabled'] !== undefined && attributes['disabled'] !== null) {
+  } else if (
+    attributes['disabled'] !== undefined &&
+    attributes['disabled'] !== null
+  ) {
     state['disabled'] = true
   }
 

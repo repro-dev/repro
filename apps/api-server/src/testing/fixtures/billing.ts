@@ -26,7 +26,12 @@ export const FreePlan: Fixture<BillingPlan> = {
           parallel(1)([
             billingService.createEntitlement(plan.id, 'recordings', true, 10),
             billingService.createEntitlement(plan.id, 'seats', true, 1),
-            billingService.createEntitlement(plan.id, 'ai_credits', false, null),
+            billingService.createEntitlement(
+              plan.id,
+              'ai_credits',
+              false,
+              null
+            ),
           ])
         )
       ),
@@ -56,19 +61,13 @@ export const ProPlan: Fixture<BillingPlan> = {
 export const CustomerA: Fixture<BillingCustomer> = {
   dependencies: [AccountA],
   load: ({ billingService }, account: Account) =>
-    billingService.getOrCreateCustomer(
-      account.id,
-      'billing-a@repro.test'
-    ),
+    billingService.getOrCreateCustomer(account.id, 'billing-a@repro.test'),
 }
 
 export const CustomerB: Fixture<BillingCustomer> = {
   dependencies: [AccountB],
   load: ({ billingService }, account: Account) =>
-    billingService.getOrCreateCustomer(
-      account.id,
-      'billing-b@repro.test'
-    ),
+    billingService.getOrCreateCustomer(account.id, 'billing-b@repro.test'),
 }
 
 export const AccountA_FreePlan_Checkout: Fixture<CheckoutResult> = {
@@ -91,55 +90,53 @@ export const AccountA_ProPlan_Checkout: Fixture<CheckoutResult> = {
     ),
 }
 
-export const AccountA_ProPlan_CanceledSubscription: Fixture<BillingSubscription> = {
-  dependencies: [AccountA_ProPlan_Checkout, AccountA],
-  load: ({ billingService }, _checkout: CheckoutResult, account: Account) =>
-    billingService.getSubscriptionByAccountId(account.id).pipe(
-      chain(subscription =>
-        billingService
-          .upsertSubscription({
-            accountId: decodeId(subscription.accountId)!,
-            providerSubscriptionId: subscription.providerSubscriptionId,
-            planId: decodeId(subscription.planId)!,
-            status: 'canceled',
-            currentPeriodStart: subscription.currentPeriodStart,
-            currentPeriodEnd: subscription.currentPeriodEnd,
-            cancelAtPeriodEnd: false,
-            canceledAt: new Date(),
-          })
-          .pipe(
-            chain(() =>
-              billingService.getSubscriptionByAccountId(account.id)
+export const AccountA_ProPlan_CanceledSubscription: Fixture<BillingSubscription> =
+  {
+    dependencies: [AccountA_ProPlan_Checkout, AccountA],
+    load: ({ billingService }, _checkout: CheckoutResult, account: Account) =>
+      billingService.getSubscriptionByAccountId(account.id).pipe(
+        chain(subscription =>
+          billingService
+            .upsertSubscription({
+              accountId: decodeId(subscription.accountId)!,
+              providerSubscriptionId: subscription.providerSubscriptionId,
+              planId: decodeId(subscription.planId)!,
+              status: 'canceled',
+              currentPeriodStart: subscription.currentPeriodStart,
+              currentPeriodEnd: subscription.currentPeriodEnd,
+              cancelAtPeriodEnd: false,
+              canceledAt: new Date(),
+            })
+            .pipe(
+              chain(() => billingService.getSubscriptionByAccountId(account.id))
             )
-          )
-      )
-    ),
-}
+        )
+      ),
+  }
 
-export const AccountA_ProPlan_PastDueSubscription: Fixture<BillingSubscription> = {
-  dependencies: [AccountA_ProPlan_Checkout, AccountA],
-  load: ({ billingService }, _checkout: CheckoutResult, account: Account) =>
-    billingService.getSubscriptionByAccountId(account.id).pipe(
-      chain(subscription =>
-        billingService
-          .upsertSubscription({
-            accountId: decodeId(subscription.accountId)!,
-            providerSubscriptionId: subscription.providerSubscriptionId,
-            planId: decodeId(subscription.planId)!,
-            status: 'past_due',
-            currentPeriodStart: subscription.currentPeriodStart,
-            currentPeriodEnd: subscription.currentPeriodEnd,
-            cancelAtPeriodEnd: false,
-            canceledAt: null,
-          })
-          .pipe(
-            chain(() =>
-              billingService.getSubscriptionByAccountId(account.id)
+export const AccountA_ProPlan_PastDueSubscription: Fixture<BillingSubscription> =
+  {
+    dependencies: [AccountA_ProPlan_Checkout, AccountA],
+    load: ({ billingService }, _checkout: CheckoutResult, account: Account) =>
+      billingService.getSubscriptionByAccountId(account.id).pipe(
+        chain(subscription =>
+          billingService
+            .upsertSubscription({
+              accountId: decodeId(subscription.accountId)!,
+              providerSubscriptionId: subscription.providerSubscriptionId,
+              planId: decodeId(subscription.planId)!,
+              status: 'past_due',
+              currentPeriodStart: subscription.currentPeriodStart,
+              currentPeriodEnd: subscription.currentPeriodEnd,
+              cancelAtPeriodEnd: false,
+              canceledAt: null,
+            })
+            .pipe(
+              chain(() => billingService.getSubscriptionByAccountId(account.id))
             )
-          )
-      )
-    ),
-}
+        )
+      ),
+  }
 
 export const AccountA_FreePlan_Subscription: Fixture<BillingSubscription> = {
   dependencies: [AccountA_FreePlan_Checkout, AccountA],

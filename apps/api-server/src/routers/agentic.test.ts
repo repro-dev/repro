@@ -1,8 +1,8 @@
 import expect from 'expect'
 import { FastifyInstance } from 'fastify'
 import { resolve } from 'fluture'
-import { after, before, beforeEach, describe, it } from 'node:test'
 import { Readable } from 'node:stream'
+import { after, before, beforeEach, describe, it } from 'node:test'
 import { AgenticService } from '~/services/agentic'
 import { Harness, createTestHarness, fixtures } from '~/testing'
 import { createAgenticRouter } from './agentic'
@@ -136,9 +136,7 @@ describe('Routers > Agentic', () => {
         method: 'POST',
         url: '/response',
         body: {
-          messages: [
-            { role: 'assistant', content: 'I can help with that.' },
-          ],
+          messages: [{ role: 'assistant', content: 'I can help with that.' }],
         },
         cookies: {
           [harness.env.SESSION_COOKIE]: session.sessionToken,

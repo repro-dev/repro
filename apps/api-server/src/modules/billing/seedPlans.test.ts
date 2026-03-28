@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, beforeEach, describe, it } from 'node:test'
-import { setUpTestDatabase } from '~/testing/database'
 import { Database } from '~/modules/database/types'
+import { setUpTestDatabase } from '~/testing/database'
 import { PlanConfig, sandboxPlanConfig } from './planConfig'
 import { seedPlans } from './seedPlans'
 
@@ -27,10 +27,7 @@ describe('seedPlans', () => {
   it('inserts all plans from config', async () => {
     await seedPlans(db, sandboxPlanConfig)
 
-    const plans = await db
-      .selectFrom('billing_plans')
-      .selectAll()
-      .execute()
+    const plans = await db.selectFrom('billing_plans').selectAll().execute()
 
     assert.equal(plans.length, sandboxPlanConfig.length)
 
@@ -63,10 +60,7 @@ describe('seedPlans', () => {
     await seedPlans(db, sandboxPlanConfig)
     await seedPlans(db, sandboxPlanConfig)
 
-    const plans = await db
-      .selectFrom('billing_plans')
-      .selectAll()
-      .execute()
+    const plans = await db.selectFrom('billing_plans').selectAll().execute()
 
     const entitlements = await db
       .selectFrom('billing_plan_entitlements')
@@ -108,9 +102,6 @@ describe('seedPlans', () => {
       },
     ]
 
-    await assert.rejects(
-      () => seedPlans(db, badConfig),
-      /zero entitlements/i
-    )
+    await assert.rejects(() => seedPlans(db, badConfig), /zero entitlements/i)
   })
 })

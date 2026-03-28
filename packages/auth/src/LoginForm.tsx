@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Block, Col } from '@jsxstyle/react'
 import {
   Button,
   colors,
@@ -9,7 +10,6 @@ import {
 } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { fork } from 'fluture'
-import { Block, Col } from '@jsxstyle/react'
 import React, { useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
@@ -75,10 +75,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
     setLoading(true)
 
     return fork<Error>(err => {
-      if (
-        err.name === 'TooManyRequests' ||
-        (err as any).statusCode === 429
-      ) {
+      if (err.name === 'TooManyRequests' || (err as any).statusCode === 429) {
         setErrorMessage('Too many login attempts. Please try again later.')
       } else if (
         isValidationError(err) ||

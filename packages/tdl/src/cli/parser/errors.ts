@@ -2,21 +2,30 @@ import { Interval } from 'ohm-js'
 
 export class MatchError extends Error {
   name = 'MatchError'
-  constructor(public message: string, public interval: Interval) {
+  constructor(
+    public message: string,
+    public interval: Interval
+  ) {
     super(message)
   }
 }
 
 export class ResolutionError extends Error {
   name = 'ResolutionError'
-  constructor(public message: string, public interval: Interval) {
+  constructor(
+    public message: string,
+    public interval: Interval
+  ) {
     super(message)
   }
 }
 
 export class ValidationError extends Error {
   name = 'ValidationError'
-  constructor(public message: string, public interval: Interval) {
+  constructor(
+    public message: string,
+    public interval: Interval
+  ) {
     super(message)
   }
 }

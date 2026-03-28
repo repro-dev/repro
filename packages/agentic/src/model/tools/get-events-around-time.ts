@@ -123,11 +123,13 @@ export const handler: ToolHandler = (recording, args) => {
   const duration = recording.getDuration();
 
   if (timestampMs < 0 || timestampMs > duration) {
-    return resolve(createError(
-      `Timestamp ${timestampMs}ms is outside the recording range (0–${duration}ms)`,
-      "The provided timestamp falls outside the bounds of the recording",
-      "Call getRecordingDuration() to get the valid time range, then retry with a timestamp between 0 and the recording duration",
-    ));
+    return resolve(
+      createError(
+        `Timestamp ${timestampMs}ms is outside the recording range (0–${duration}ms)`,
+        "The provided timestamp falls outside the bounds of the recording",
+        "Call getRecordingDuration() to get the valid time range, then retry with a timestamp between 0 and the recording duration",
+      ),
+    );
   }
 
   const halfWindow = windowMs / 2;

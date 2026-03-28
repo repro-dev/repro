@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Block, Col } from '@jsxstyle/react'
 import { Button, FormField, Input, Label, colors } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { done } from 'fluture'
-import { Block, Col } from '@jsxstyle/react'
 import React, { useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import z from 'zod'
@@ -122,7 +122,9 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             <Input
               id="reg-account"
               autoFocus={true}
-              context={formState.errors.accountName != null ? 'error' : 'normal'}
+              context={
+                formState.errors.accountName != null ? 'error' : 'normal'
+              }
               {...register('accountName', { required: true })}
             />
           </FormField>

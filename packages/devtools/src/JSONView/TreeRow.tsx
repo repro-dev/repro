@@ -1,6 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
-import React, { PropsWithChildren } from 'react'
 import { colors } from '@repro/design'
+import React, { PropsWithChildren } from 'react'
 
 const INDENT_SIZE = 15
 

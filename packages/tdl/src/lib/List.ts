@@ -6,7 +6,10 @@ type OutputOf<V extends View<any, any>> = ReturnType<V['decode']>
 export class List<V extends View<any, any>> implements Iterable<OutputOf<V>> {
   private readonly source: Array<DataView> = []
 
-  constructor(private view: V, items: Array<InputOf<V>> | Array<DataView>) {
+  constructor(
+    private view: V,
+    items: Array<InputOf<V>> | Array<DataView>
+  ) {
     const source: Array<DataView> = []
 
     for (const item of items) {

@@ -8,9 +8,9 @@ import { Box } from '@repro/tdl'
 import { toBinaryWireFormat } from '@repro/wire-formats'
 import expect from 'expect'
 import { promise } from 'fluture'
-import { gzipSync } from 'node:zlib'
-import { after, before, beforeEach, describe, it } from 'node:test'
 import { Readable } from 'node:stream'
+import { after, before, beforeEach, describe, it } from 'node:test'
+import { gzipSync } from 'node:zlib'
 import { Harness, createTestHarness, fixtures } from '~/testing'
 import { RecordingService } from './recording'
 
@@ -77,8 +77,20 @@ describe('Services > Recording', () => {
     ])
 
     const entries = [
-      { eventIndex: 0, eventType: 40, timeMs: 100, byteOffset: 0, byteLength: 50 },
-      { eventIndex: 1, eventType: 30, timeMs: 200, byteOffset: 50, byteLength: 30 },
+      {
+        eventIndex: 0,
+        eventType: 40,
+        timeMs: 100,
+        byteOffset: 0,
+        byteLength: 50,
+      },
+      {
+        eventIndex: 1,
+        eventType: 30,
+        timeMs: 200,
+        byteOffset: 50,
+        byteLength: 30,
+      },
     ]
 
     await promise(recordingService.writeEventIndex(recording.id, entries))
