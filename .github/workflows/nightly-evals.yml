@@ -9,8 +9,13 @@ jobs:
   agentic-evals:
     name: Run agentic eval suite
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Fetch full history so we can push the history.json commit back
+          fetch-depth: 0
       - uses: moonrepo/setup-toolchain@v0
         with:
           auto-install: true
@@ -25,6 +30,24 @@ jobs:
         run: moon run repro/agentic:eval
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      - name: Append results to history
+        if: success()
+        run: |
+          node packages/agentic/node_modules/.bin/tsx packages/agentic/src/eval/update-baseline.ts \
+            append-results tmp/agentic-eval-results.json
+      - name: Commit history update
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/agentic/src/eval/history.json
+          # Only commit if history.json actually changed
+          if git diff --cached --quiet; then
+            echo "history.json unchanged — nothing to commit"
+          else
+            git commit -m "chore(agentic): append nightly eval results to history [skip ci]"
+            git push
+          fi
       - name: Write job summary
         if: always()
         run: |

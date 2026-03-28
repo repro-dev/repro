@@ -1,0 +1,28 @@
+[
+  {
+    "date": "2026-03-28",
+    "runs": [
+      {
+        "fixtureName": "console-error-and-network-failure",
+        "correctnessRate": 1.0,
+        "avgErrorRate": 0.153,
+        "avgToolCalls": 8.7,
+        "avgQuality": 2.0
+      },
+      {
+        "fixtureName": "conditional-rendering-bug",
+        "correctnessRate": 1.0,
+        "avgErrorRate": 0.0,
+        "avgToolCalls": 7.3,
+        "avgQuality": 2.0
+      },
+      {
+        "fixtureName": "user-interaction-state-change",
+        "correctnessRate": 1.0,
+        "avgErrorRate": 0.075,
+        "avgToolCalls": 8.3,
+        "avgQuality": 2.0
+      }
+    ]
+  }
+]
