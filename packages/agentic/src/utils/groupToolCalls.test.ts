@@ -4,6 +4,7 @@ import { AssistantMessage, Entry, ToolMessage, UserMessage } from "../types";
 import {
   AssistantMessageItem,
   ToolCallGroupItem,
+  TruncationIndicatorItem,
   UserMessageItem,
   groupToolCalls,
 } from "./groupToolCalls";
@@ -148,5 +149,75 @@ describe("groupToolCalls", () => {
     assert.equal(result.length, 2);
     assert.equal(result[0]!.type, "tool-call-group");
     assert.equal(result[1]!.type, "tool-call-group");
+  });
+});
+
+describe("groupToolCalls with truncatedBeforeId", () => {
+  it("inserts a truncation-indicator item before the matching entry", () => {
+    const entries: Array<Entry> = [
+      makeUser("u1", "first"),
+      makeUser("u2", "second"),
+      makeUser("u3", "third"),
+    ];
+    const result = groupToolCalls(entries, "u2");
+    assert.equal(result.length, 4);
+    assert.equal(result[0]!.type, "user-message");
+    assert.equal((result[0] as UserMessageItem).entry.id, "u1");
+    assert.equal(result[1]!.type, "truncation-indicator");
+    assert.equal(result[2]!.type, "user-message");
+    assert.equal((result[2] as UserMessageItem).entry.id, "u2");
+    assert.equal(result[3]!.type, "user-message");
+    assert.equal((result[3] as UserMessageItem).entry.id, "u3");
+  });
+
+  it("does not insert indicator when truncatedBeforeId is null", () => {
+    const entries: Array<Entry> = [makeUser("u1", "a"), makeUser("u2", "b")];
+    const result = groupToolCalls(entries, null);
+    assert.equal(result.length, 2);
+    assert.ok(result.every((item) => item.type !== "truncation-indicator"));
+  });
+
+  it("does not insert indicator when truncatedBeforeId is undefined (default)", () => {
+    const entries: Array<Entry> = [makeUser("u1", "a")];
+    const result = groupToolCalls(entries);
+    assert.ok(result.every((item) => item.type !== "truncation-indicator"));
+  });
+
+  it("does not insert indicator when id does not match any entry", () => {
+    const entries: Array<Entry> = [makeUser("u1", "a"), makeUser("u2", "b")];
+    const result = groupToolCalls(entries, "no-match");
+    assert.equal(result.length, 2);
+    assert.ok(result.every((item) => item.type !== "truncation-indicator"));
+  });
+
+  it("inserts indicator before a tool-call-group entry when that group's assistant id matches", () => {
+    const entries: Array<Entry> = [
+      makeUser("u1", "query"),
+      makeAssistant("a1", "", ["tc1"]),
+      makeTool("t1", "tc1", "{}"),
+    ];
+    // The indicator should appear before the tool-call-group (whose source entry id is "a1")
+    const result = groupToolCalls(entries, "a1");
+    assert.equal(result.length, 3);
+    assert.equal(result[0]!.type, "user-message");
+    assert.equal(result[1]!.type, "truncation-indicator");
+    assert.equal(result[2]!.type, "tool-call-group");
+  });
+
+  it("inserts indicator at the very first position when first entry id matches", () => {
+    const entries: Array<Entry> = [makeUser("u1", "a"), makeUser("u2", "b")];
+    const result = groupToolCalls(entries, "u1");
+    assert.equal(result.length, 3);
+    assert.equal(result[0]!.type, "truncation-indicator");
+    assert.equal(result[1]!.type, "user-message");
+    assert.equal((result[1] as UserMessageItem).entry.id, "u1");
+    assert.equal(result[2]!.type, "user-message");
+  });
+
+  it("returns the TruncationIndicatorItem with correct type", () => {
+    const entries: Array<Entry> = [makeUser("u1", "a")];
+    const result = groupToolCalls(entries, "u1");
+    const indicator = result[0] as TruncationIndicatorItem;
+    assert.equal(indicator.type, "truncation-indicator");
   });
 });

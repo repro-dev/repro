@@ -7,7 +7,10 @@ export { makeAccessorFromEventList } from "./recordingDataAccessor";
 export type { EventList } from "./recordingDataAccessor";
 export { executeTool, tools } from "./model/tools";
 export { groupToolCalls } from "./utils/groupToolCalls";
-export type { ToolCallPair } from "./utils/groupToolCalls";
+export type {
+  ToolCallPair,
+  TruncationIndicatorItem,
+} from "./utils/groupToolCalls";
 export { summarizeToolResult } from "./utils/summarizeToolResult";
 export {
   MAX_TOOL_ITERATIONS,

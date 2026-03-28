@@ -41,12 +41,14 @@ function makeState(
   entries: Array<Entry>,
   loading: Loading,
   error: AgenticError | null = null,
+  truncatedBeforeId: string | null = null,
 ): AgenticState {
   return {
     $entries: atom<Array<Entry>>(entries),
     $loading: atom<Loading>(loading),
     $error: atom<AgenticError | null>(error),
     $wasCancelled: atom<boolean>(false),
+    $truncatedBefore: atom<string | null>(truncatedBeforeId),
     cancel: () => {},
     destroy: () => {},
     query: () => {},
@@ -313,6 +315,48 @@ export const WithScreenshotResult: StoryObj = {
           },
         ],
         "none",
+      ),
+    ),
+  ],
+};
+
+export const WithTruncation: StoryObj = {
+  decorators: [
+    withState(
+      makeState(
+        [
+          {
+            id: "1",
+            timestamp: new Date(),
+            role: "user",
+            content: "What is the meaning of life?",
+          },
+          {
+            id: "2",
+            timestamp: new Date(),
+            role: "assistant",
+            content: "The answer is 42.",
+            toolCalls: [],
+          },
+          {
+            id: "3",
+            timestamp: new Date(),
+            role: "user",
+            content: "Can you explain further?",
+          },
+          {
+            id: "4",
+            timestamp: new Date(),
+            role: "assistant",
+            content:
+              "It comes from the Hitchhiker's Guide to the Galaxy by Douglas Adams.",
+            toolCalls: [],
+          },
+        ],
+        "none",
+        null,
+        // Truncation indicator before entry "3" — earlier messages were dropped
+        "3",
       ),
     ),
   ],

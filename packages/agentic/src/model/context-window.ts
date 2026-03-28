@@ -15,11 +15,16 @@ export function computeContextBudget(
   );
 }
 
+export interface TruncationResult<T> {
+  messages: T[];
+  droppedCount: number;
+}
+
 export function truncateToContextBudget<T>(
   messages: T[],
   budget: number,
   estimateMessage: (msg: T) => number,
-): T[] {
+): TruncationResult<T> {
   let tokenCount = 0;
   let startIndex = messages.length;
 
@@ -33,5 +38,5 @@ export function truncateToContextBudget<T>(
     startIndex = i;
   }
 
-  return messages.slice(startIndex);
+  return { messages: messages.slice(startIndex), droppedCount: startIndex };
 }

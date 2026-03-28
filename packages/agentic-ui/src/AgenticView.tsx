@@ -26,6 +26,7 @@ export const AgenticView: React.FC = () => {
   const loading = useAtomValue(agentic.$loading);
   const error = useAtomValue(agentic.$error);
   const wasCancelled = useAtomValue(agentic.$wasCancelled);
+  const truncatedBeforeId = useAtomValue(agentic.$truncatedBefore);
 
   const lastPromptRef = useRef("");
 
@@ -62,20 +63,21 @@ export const AgenticView: React.FC = () => {
       position="relative"
     >
       <Col height="100%" overflow="hidden" marginInline={-spacing["2xl"]}>
-          <MessageList
-            entries={entries}
-            loading={loading}
-            error={error}
-            onRetry={handleRetry}
-            scrollContainerRef={scrollContainerRef}
-            contentContainerRef={contentContainerRef}
-            wasCancelled={wasCancelled}
-            onSelectPrompt={(prompt) => {
-              lastPromptRef.current = prompt;
-              agentic.query(prompt);
-            }}
-          />
-        </Col>
+        <MessageList
+          entries={entries}
+          loading={loading}
+          error={error}
+          onRetry={handleRetry}
+          scrollContainerRef={scrollContainerRef}
+          contentContainerRef={contentContainerRef}
+          wasCancelled={wasCancelled}
+          truncatedBeforeId={truncatedBeforeId}
+          onSelectPrompt={(prompt) => {
+            lastPromptRef.current = prompt;
+            agentic.query(prompt);
+          }}
+        />
+      </Col>
 
       <AgenticInputSection
         disabled={isActive}
@@ -112,7 +114,7 @@ export const AgenticView: React.FC = () => {
           top={spacing.sm}
           transition={transition.fast}
           hoverBackgroundColor={color.bg.hover}
-          {...focusRing('neutral')}
+          {...focusRing("neutral")}
           props={{
             type: "button",
             "aria-label": "Start new session",
