@@ -56,6 +56,9 @@ const envSchema = z.object({
   BILLING_STUBBED: booleanStringTransform.default(true),
   DEBUG: z.string().optional(),
   AGENTIC_MAX_ITERATIONS: z.coerce.number().default(25),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM_ADDRESS: z.string().default('Repro <noreply@repro.dev>'),
+  APP_BASE_URL: z.string().default('http://localhost:3000'),
 })
 
 export type Env = z.infer<typeof envSchema>
