@@ -17,6 +17,7 @@ import { Layout } from './Layout'
 
 const HomeRoute = lazy(() => import('./routes/HomeRoute'))
 const LoginRoute = lazy(() => import('./routes/LoginRoute'))
+const ApiKeysRoute = lazy(() => import('./routes/ApiKeysRoute'))
 const PricingRoute = lazy(() => import('./routes/PricingRoute'))
 const RecordingRoute = lazy(() => import('./routes/RecordingRoute'))
 const RegisterRoute = lazy(() => import('./routes/RegisterRoute'))
@@ -89,6 +90,10 @@ if (rootElem) {
                       <Route element={<SessionRouteBoundary />}>
                         <Route index element={<HomeRoute />} />
                         <Route path="pricing" element={<PricingRoute />} />
+                        <Route
+                          path="account/api-keys"
+                          element={<ApiKeysRoute />}
+                        />
                       </Route>
                     </Route>
 

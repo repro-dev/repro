@@ -16,6 +16,7 @@ import { createSMTPEmailUtils } from '~/modules/email-utils'
 import { createS3StorageClient } from '~/modules/storage-s3'
 import { createAccountRouter } from '~/routers/account'
 import { createAgenticRouter } from '~/routers/agentic'
+import { createApiKeysRouter } from '~/routers/apiKeys'
 import { createBillingRouter } from '~/routers/billing'
 import { createBillingWebhookRouter } from '~/routers/billingWebhook'
 import { createFeatureGateRouter } from '~/routers/featureGate'
@@ -24,6 +25,7 @@ import { createOAuthRouter } from '~/routers/oauth'
 import { createProjectRouter } from '~/routers/project'
 import { createSocialAuthRouter } from '~/routers/socialAuth'
 import { createAccountService } from '~/services/account'
+import { createApiKeyService } from '~/services/apiKeys'
 import { createBillingService } from '~/services/billing'
 import { createBillingWebhookService } from '~/services/billingWebhook'
 import { createFeatureGateService } from '~/services/featureGate'
@@ -79,6 +81,7 @@ const accountService = createAccountService(
 )
 const agenticService = createAgenticService(httpClient)
 const oauthService = createOAuthService(database)
+const apiKeyService = createApiKeyService(database)
 const featureGateService = createFeatureGateService(database)
 const healthService = createHealthService(database, storage)
 const projectService = createProjectService(database)
@@ -130,6 +133,7 @@ const socialAuthRouter = createSocialAuthRouter(
 
 const accountRouter = createAccountRouter(accountService)
 const agenticRouter = createAgenticRouter(agenticService, accountService)
+const apiKeysRouter = createApiKeysRouter(apiKeyService, accountService)
 const billingRouter = createBillingRouter(billingService, accountService)
 const billingWebhookRouter =
   !env.BILLING_STUBBED && env.PADDLE_API_KEY && env.PADDLE_WEBHOOK_SECRET
@@ -158,17 +162,22 @@ const projectRouter = createProjectRouter(
 )
 const staffRouter = createStaffRouter(accountService)
 
-const registerSessionDecorator = createSessionDecorator(accountService, env)
+const registerSessionDecorator = createSessionDecorator(
+  accountService,
+  env,
+  apiKeyService
+)
 
-// Combine accountRouter and socialAuthRouter under the same /account prefix.
-// Both are registered as sub-plugins so Fastify handles the same-prefix
-// registration correctly — an object literal cannot have duplicate keys.
+// Combine accountRouter, socialAuthRouter, and apiKeysRouter under the same
+// /account prefix. All are registered as sub-plugins so Fastify handles the
+// same-prefix registration correctly — an object literal cannot have duplicate keys.
 const accountPlugins: FastifyPluginAsync = async app => {
   await app.register(accountRouter)
   // Social auth routes (/oauth/:provider, /oauth/:provider/callback) are
   // co-located under /account so the full paths become
   // /account/oauth/:provider and /account/oauth/:provider/callback
   await app.register(socialAuthRouter)
+  await app.register(apiKeysRouter)
 }
 
 function bootstrap(routers: Record<string, FastifyPluginAsync>) {

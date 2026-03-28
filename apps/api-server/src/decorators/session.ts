@@ -15,6 +15,7 @@ import {
 } from 'fluture'
 import { Env } from '~/config/createEnv'
 import { AccountService } from '~/services/account'
+import { ApiKeyService } from '~/services/apiKeys'
 import { isNotFound, notFound } from '~/utils/errors'
 
 declare module 'fastify' {
@@ -32,7 +33,8 @@ type Request = FastifyRequest
 
 export function createSessionDecorator(
   accountService: AccountService,
-  env: Env
+  env: Env,
+  apiKeyService?: ApiKeyService
 ) {
   return function registerSessionDecorator(fastify: FastifyInstance) {
     const app = fastify.withTypeProvider<ZodTypeProvider>()
@@ -138,19 +140,51 @@ export function createSessionDecorator(
         return callback()
       }
 
-      done<Error, Session | null>(err => callback(err ?? undefined))(
-        accountService
-          .getSessionByToken(sessionToken)
-          .pipe(
-            chainRej(error =>
-              isNotFound(error) ? resolve(null) : reject(error)
+      // First try to look up as a regular session token.
+      // If not found and an API key service is available, fall back to
+      // validating as a PAT (Bearer repro_<token>).
+      const sessionFuture = accountService
+        .getSessionByToken(sessionToken)
+        .pipe(
+          chainRej(error => {
+            if (!isNotFound(error) || apiKeyService == null) {
+              return reject(error)
+            }
+
+            // Fall back to API key validation
+            return apiKeyService.validateApiKey(sessionToken).pipe(
+              map(result => {
+                if (result == null) {
+                  return null
+                }
+
+                // Synthesise a transient Session-shaped object so that
+                // existing route guards (`if (!req.session)`) and
+                // `getCurrentUser()` work without modification.
+                const syntheticSession: Session = {
+                  id: '',
+                  sessionToken,
+                  subjectId: result.userId,
+                  subjectType: 'user',
+                  createdAt: new Date().toISOString(),
+                }
+
+                return syntheticSession as Session | null
+              })
             )
-          )
-          .pipe(
-            tap(session => {
-              req.session = session
-            })
-          )
+          })
+        )
+        .pipe(
+          chainRej(error => (isNotFound(error) ? resolve(null) : reject(error)))
+        )
+        .pipe(
+          tap(session => {
+            req.session = session
+          })
+        )
+
+      done<Error, Session | null>(err => callback(err ?? undefined))(
+        sessionFuture
       )
     })
 
