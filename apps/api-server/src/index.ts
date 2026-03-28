@@ -69,7 +69,11 @@ const emailUtils = createSMTPEmailUtils({
 })
 
 const billingService = createBillingService(database, env)
-const accountService = createAccountService(database, emailUtils, billingService)
+const accountService = createAccountService(
+  database,
+  emailUtils,
+  billingService
+)
 const agenticService = createAgenticService(httpClient)
 const oauthService = createOAuthService(database)
 const featureGateService = createFeatureGateService(database)
