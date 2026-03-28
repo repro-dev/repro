@@ -884,25 +884,6 @@ export const Searchable: Story = {
   },
 }
 
-const groupedFoodOptions: SelectOptionsInput = [
-  {
-    label: 'Fruits',
-    options: [
-      { value: 'apple', label: 'Apple' },
-      { value: 'banana', label: 'Banana' },
-      { value: 'cherry', label: 'Cherry' },
-    ],
-  },
-  {
-    label: 'Vegetables',
-    options: [
-      { value: 'carrot', label: 'Carrot' },
-      { value: 'broccoli', label: 'Broccoli' },
-      { value: 'spinach', label: 'Spinach' },
-    ],
-  },
-]
-
 export const SearchableWithGroups: Story = {
   render: () => {
     const [value, setValue] = useState('')
