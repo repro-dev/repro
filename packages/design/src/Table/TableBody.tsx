@@ -1,4 +1,3 @@
-import { Block } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
 import { Skeleton } from '../Skeleton/Skeleton'
 import { color } from '../tokens/colors'
@@ -29,34 +28,26 @@ export const TableBody = forwardRef<HTMLTableSectionElement, TableBodyProps>(
   ) => {
     if (loading) {
       return (
-        <Block
-          component="tbody"
-          props={
-            {
-              ref,
-              'aria-busy': 'true',
-              role: 'status',
-            } as React.HTMLAttributes<HTMLTableSectionElement>
-          }
-        >
+        <tbody ref={ref} aria-busy="true" role="status">
           {Array.from({ length: loadingRows }, (_, i) => (
-            <Block component="tr" key={i}>
+            <tr key={i}>
               {Array.from({ length: columnCount }, (__, j) => (
-                <Block
-                  component="td"
+                <td
                   key={j}
-                  paddingTop={spacing.lg}
-                  paddingBottom={spacing.lg}
-                  paddingLeft={spacing.xl}
-                  paddingRight={spacing.xl}
-                  borderBottom={`1px solid ${color.border.default}`}
+                  style={{
+                    paddingTop: spacing.lg,
+                    paddingBottom: spacing.lg,
+                    paddingLeft: spacing.xl,
+                    paddingRight: spacing.xl,
+                    borderBottom: `1px solid ${color.border.default}`,
+                  }}
                 >
                   <Skeleton variant="text" />
-                </Block>
+                </td>
               ))}
-            </Block>
+            </tr>
           ))}
-        </Block>
+        </tbody>
       )
     }
 
@@ -65,36 +56,27 @@ export const TableBody = forwardRef<HTMLTableSectionElement, TableBodyProps>(
 
     if (!hasChildren && empty != null) {
       return (
-        <Block
-          component="tbody"
-          props={{ ref } as React.HTMLAttributes<HTMLTableSectionElement>}
-        >
-          <Block component="tr">
-            <Block
-              component="td"
-              textAlign="center"
-              paddingTop={spacing['3xl']}
-              paddingBottom={spacing['3xl']}
-              paddingLeft={spacing.xl}
-              paddingRight={spacing.xl}
-              color={color.text.muted}
-              props={{ colSpan: columnCount }}
+        <tbody ref={ref}>
+          <tr>
+            <td
+              style={{
+                textAlign: 'center',
+                paddingTop: spacing['3xl'],
+                paddingBottom: spacing['3xl'],
+                paddingLeft: spacing.xl,
+                paddingRight: spacing.xl,
+                color: color.text.muted,
+              }}
+              colSpan={columnCount}
             >
               {empty}
-            </Block>
-          </Block>
-        </Block>
+            </td>
+          </tr>
+        </tbody>
       )
     }
 
-    return (
-      <Block
-        component="tbody"
-        props={{ ref } as React.HTMLAttributes<HTMLTableSectionElement>}
-      >
-        {children}
-      </Block>
-    )
+    return <tbody ref={ref}>{children}</tbody>
   }
 )
 

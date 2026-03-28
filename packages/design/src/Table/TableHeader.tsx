@@ -1,4 +1,3 @@
-import { Block } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
 import { Checkbox } from '../Checkbox/Checkbox'
 import { color } from '../tokens/colors'
@@ -46,20 +45,17 @@ export const TableHeader = forwardRef<
             {
               children: (
                 <>
-                  <Block
-                    component="th"
-                    width={spacing['3xl']}
-                    paddingTop={spacing.sm}
-                    paddingBottom={spacing.sm}
-                    paddingLeft={spacing.xl}
-                    paddingRight={spacing.sm}
-                    verticalAlign="middle"
-                    borderBottom={`1px solid ${color.border.strong}`}
-                    props={
-                      {
-                        scope: 'col',
-                      } as React.ThHTMLAttributes<HTMLTableCellElement>
-                    }
+                  <th
+                    scope="col"
+                    style={{
+                      width: spacing['3xl'],
+                      paddingTop: spacing.sm,
+                      paddingBottom: spacing.sm,
+                      paddingLeft: spacing.xl,
+                      paddingRight: spacing.sm,
+                      verticalAlign: 'middle',
+                      borderBottom: `1px solid ${color.border.strong}`,
+                    }}
                   >
                     <Checkbox
                       label="Select all rows"
@@ -67,7 +63,7 @@ export const TableHeader = forwardRef<
                       onChange={handleSelectAll}
                       size="small"
                     />
-                  </Block>
+                  </th>
                   {
                     (
                       child as React.ReactElement<{
@@ -85,16 +81,17 @@ export const TableHeader = forwardRef<
     : children
 
   return (
-    <Block
-      component="thead"
-      backgroundColor={color.bg.surface}
-      position={stickyHeader ? 'sticky' : undefined}
-      top={stickyHeader ? 0 : undefined}
-      zIndex={stickyHeader ? 1 : undefined}
-      props={{ ref } as React.HTMLAttributes<HTMLTableSectionElement>}
+    <thead
+      ref={ref}
+      style={{
+        backgroundColor: color.bg.surface,
+        position: stickyHeader ? 'sticky' : undefined,
+        top: stickyHeader ? 0 : undefined,
+        zIndex: stickyHeader ? 1 : undefined,
+      }}
     >
       {renderedChildren}
-    </Block>
+    </thead>
   )
 })
 

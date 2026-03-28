@@ -2,7 +2,6 @@ import { Block, Row } from '@jsxstyle/react'
 import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react'
 import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
-import { focusRing } from '../tokens/interaction'
 import { spacing } from '../tokens/spacing'
 import { textStyles } from '../tokens/typography'
 import { useTableContext } from './TableContext'
@@ -68,27 +67,25 @@ export const TableHeaderCell = forwardRef<
   ) : null
 
   return (
-    <Block
-      component="th"
-      paddingTop={spacing.lg}
-      paddingBottom={spacing.lg}
-      paddingLeft={spacing.xl}
-      paddingRight={spacing.xl}
-      textAlign={align}
-      borderBottom={`1px solid ${color.border.strong}`}
-      cursor={sortable ? 'pointer' : 'default'}
-      width={width}
-      whiteSpace="nowrap"
-      userSelect="none"
-      props={{
-        ref,
-        scope: 'col',
-        'aria-sort': ariaSortValue,
-        onClick: sortable ? handleClick : undefined,
-        onKeyDown: sortable ? handleKeyDown : undefined,
-        tabIndex: sortable ? 0 : undefined,
+    <th
+      ref={ref}
+      scope="col"
+      aria-sort={ariaSortValue}
+      onClick={sortable ? handleClick : undefined}
+      onKeyDown={sortable ? handleKeyDown : undefined}
+      tabIndex={sortable ? 0 : undefined}
+      style={{
+        paddingTop: spacing.lg,
+        paddingBottom: spacing.lg,
+        paddingLeft: spacing.xl,
+        paddingRight: spacing.xl,
+        textAlign: align,
+        borderBottom: `1px solid ${color.border.strong}`,
+        cursor: sortable ? 'pointer' : 'default',
+        width: width,
+        whiteSpace: 'nowrap',
+        userSelect: 'none',
       }}
-      {...(sortable ? focusRing() : {})}
     >
       <Row alignItems="center" gap={spacing.xs} display="inline-flex">
         <Block {...textStyles.label} color={color.text.secondary}>
@@ -100,7 +97,7 @@ export const TableHeaderCell = forwardRef<
           </Block>
         )}
       </Row>
-    </Block>
+    </th>
   )
 })
 

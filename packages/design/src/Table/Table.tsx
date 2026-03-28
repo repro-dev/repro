@@ -45,7 +45,7 @@ export interface TableProps {
  *   </Table.Body>
  * </Table>
  */
-export const Table = forwardRef<HTMLDivElement, TableProps>(
+export const Table = forwardRef<HTMLTableElement, TableProps>(
   (
     {
       children,
@@ -78,19 +78,19 @@ export const Table = forwardRef<HTMLDivElement, TableProps>(
         }}
       >
         {/* Outer scroll container for responsive horizontal scrolling */}
-        <Block overflowX="auto" width="100%" props={{ ref }}>
-          <Block
-            component="table"
-            width="100%"
-            borderCollapse="collapse"
-            backgroundColor={color.bg.surface}
-            props={{
-              'aria-label': ariaLabel,
-              'aria-labelledby': ariaLabelledby,
+        <Block overflowX="auto" width="100%">
+          <table
+            ref={ref}
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              backgroundColor: color.bg.surface,
             }}
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledby}
           >
             {children}
-          </Block>
+          </table>
         </Block>
       </TableContext.Provider>
     )

@@ -1,8 +1,6 @@
-import { Block } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
 import { Checkbox } from '../Checkbox/Checkbox'
 import { color } from '../tokens/colors'
-import { transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { useTableContext } from './TableContext'
 
@@ -44,37 +42,30 @@ export const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
       }
     }
 
-    const ariaSortProps = isSelectable
-      ? { 'aria-selected': isSelected ? 'true' : 'false' }
-      : {}
-
     return (
-      <Block
-        component="tr"
-        backgroundColor={isSelected ? color.primarySubtle : undefined}
-        hoverBackgroundColor={
-          !disabled && isSelectable ? color.bg.hover : undefined
-        }
-        transition={transition.fast}
-        cursor={selectionMode === 'single' && !disabled ? 'pointer' : undefined}
-        borderBottom={`1px solid ${color.border.default}`}
-        props={
-          {
-            ref,
-            onClick: selectionMode === 'single' ? handleRowClick : undefined,
-            ...ariaSortProps,
-          } as unknown as React.HTMLAttributes<HTMLTableRowElement>
+      <tr
+        ref={ref}
+        style={{
+          backgroundColor: isSelected ? color.primarySubtle : undefined,
+          cursor:
+            selectionMode === 'single' && !disabled ? 'pointer' : undefined,
+          borderBottom: `1px solid ${color.border.default}`,
+        }}
+        onClick={selectionMode === 'single' ? handleRowClick : undefined}
+        aria-selected={
+          isSelectable ? (isSelected ? 'true' : 'false') : undefined
         }
       >
         {selectionMode === 'multi' && rowId != null && (
-          <Block
-            component="td"
-            width={spacing['3xl']}
-            paddingTop={spacing.sm}
-            paddingBottom={spacing.sm}
-            paddingLeft={spacing.xl}
-            paddingRight={spacing.sm}
-            verticalAlign="middle"
+          <td
+            style={{
+              width: spacing['3xl'],
+              paddingTop: spacing.sm,
+              paddingBottom: spacing.sm,
+              paddingLeft: spacing.xl,
+              paddingRight: spacing.sm,
+              verticalAlign: 'middle',
+            }}
           >
             <Checkbox
               label="Select row"
@@ -83,10 +74,10 @@ export const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
               size="small"
               disabled={disabled}
             />
-          </Block>
+          </td>
         )}
         {children}
-      </Block>
+      </tr>
     )
   }
 )
