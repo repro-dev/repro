@@ -51,12 +51,7 @@ export async function createTestHarness(): Promise<Harness> {
 
   const stubPaddleClient = createStubPaddleClient(db)
   const billingService = createBillingService(db, env, stubPaddleClient)
-  const accountService = createAccountService(
-    db,
-    emailUtils,
-    undefined,
-    billingService
-  )
+  const accountService = createAccountService(db, emailUtils, billingService)
   const featureGateService = createFeatureGateService(db)
   const oauthService = createOAuthService(db)
   const projectService = createProjectService(db)

@@ -45,8 +45,8 @@ function createToken(): string {
 export function createAccountService(
   database: Database,
   emailUtils: EmailUtils,
-  _config: SystemConfig = defaultSystemConfig,
-  billingService?: BillingService
+  billingService?: BillingService,
+  _config: SystemConfig = defaultSystemConfig
 ) {
   function ensureStaffUser(
     user: User | StaffUser | null
