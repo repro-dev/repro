@@ -118,7 +118,6 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
   return (
     <form
       onSubmit={handleSubmit}
-      aria-disabled={disabled}
       style={{ margin: 0 }}
     >
       <Block
