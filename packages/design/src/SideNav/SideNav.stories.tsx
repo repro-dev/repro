@@ -66,7 +66,7 @@ export const ActiveState: Story = {
 const FakeLink = React.forwardRef<
   HTMLAnchorElement,
   React.AnchorHTMLAttributes<HTMLAnchorElement>
-// eslint-disable-next-line jsx-a11y/anchor-has-content
+  // eslint-disable-next-line jsx-a11y/anchor-has-content
 >((props, ref) => <a ref={ref} {...props} />)
 FakeLink.displayName = 'FakeLink'
 
