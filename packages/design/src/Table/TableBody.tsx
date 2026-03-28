@@ -60,12 +60,7 @@ export const TableBody = forwardRef<HTMLTableSectionElement, TableBodyProps>(
           <tr>
             <td
               style={{
-                textAlign: 'center',
-                paddingTop: spacing['3xl'],
-                paddingBottom: spacing['3xl'],
-                paddingLeft: spacing.xl,
-                paddingRight: spacing.xl,
-                color: color.text.muted,
+                padding: `${spacing['3xl']} ${spacing.xl}`,
               }}
               colSpan={columnCount}
             >

@@ -45,7 +45,7 @@ export interface TableProps {
  *   </Table.Body>
  * </Table>
  */
-export const Table = forwardRef<HTMLTableElement, TableProps>(
+export const Table = forwardRef<HTMLDivElement, TableProps>(
   (
     {
       children,
@@ -75,12 +75,21 @@ export const Table = forwardRef<HTMLTableElement, TableProps>(
           onSelectAll: onSelectAll ?? null,
           allRowIds,
           stickyHeader,
+          isHeaderRow: false,
         }}
       >
-        {/* Outer scroll container for responsive horizontal scrolling */}
-        <Block overflowX="auto" width="100%">
+        {/*
+         * When stickyHeader is true, omit overflow-x:auto so that
+         * position:sticky on <thead> works against the page scroll.
+         * When stickyHeader is false, overflow-x:auto enables horizontal
+         * scrolling on narrow viewports.
+         */}
+        <Block
+          overflowX={stickyHeader ? undefined : 'auto'}
+          width="100%"
+          props={{ ref }}
+        >
           <table
-            ref={ref}
             style={{
               width: '100%',
               borderCollapse: 'collapse',
@@ -88,6 +97,7 @@ export const Table = forwardRef<HTMLTableElement, TableProps>(
             }}
             aria-label={ariaLabel}
             aria-labelledby={ariaLabelledby}
+            role={selectionMode !== 'none' ? 'grid' : undefined}
           >
             {children}
           </table>

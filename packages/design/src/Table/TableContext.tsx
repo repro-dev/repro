@@ -13,6 +13,8 @@ export interface TableContextValue {
   onSelectAll: ((selected: boolean) => void) | null
   allRowIds: readonly string[]
   stickyHeader: boolean
+  /** True when the row is rendered inside <TableHeader> (<thead>). */
+  isHeaderRow: boolean
 }
 
 const defaultContext: TableContextValue = {
@@ -25,6 +27,7 @@ const defaultContext: TableContextValue = {
   onSelectAll: null,
   allRowIds: [],
   stickyHeader: false,
+  isHeaderRow: false,
 }
 
 export const TableContext = createContext<TableContextValue>(defaultContext)

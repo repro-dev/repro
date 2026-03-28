@@ -1,8 +1,6 @@
 import React, { forwardRef } from 'react'
-import { Checkbox } from '../Checkbox/Checkbox'
 import { color } from '../tokens/colors'
-import { spacing } from '../tokens/spacing'
-import { useTableContext } from './TableContext'
+import { TableContext, useTableContext } from './TableContext'
 
 export interface TableHeaderProps {
   children?: React.ReactNode
@@ -13,7 +11,9 @@ export interface TableHeaderProps {
  * `Table.HeaderCell` sub-components.
  *
  * When the parent `Table` has `selectionMode="multi"`, a select-all checkbox
- * is automatically prepended to the first header row.
+ * is automatically rendered as the first cell of each header row via context.
+ * `TableRow` reads `isHeaderRow` from context and renders the select-all `<th>`
+ * itself — no cloneElement needed.
  *
  * When the parent `Table` has `stickyHeader={true}`, the header becomes
  * position-sticky and remains visible while scrolling through rows.
@@ -22,63 +22,8 @@ export const TableHeader = forwardRef<
   HTMLTableSectionElement,
   TableHeaderProps
 >(({ children }, ref) => {
-  const { stickyHeader, selectionMode, selectedRows, allRowIds, onSelectAll } =
-    useTableContext()
-
-  const showSelectAll = selectionMode === 'multi'
-  const allSelected =
-    allRowIds.length > 0 && allRowIds.every(id => selectedRows.has(id))
-
-  const handleSelectAll = (checked: boolean) => {
-    if (onSelectAll != null) {
-      onSelectAll(checked)
-    }
-  }
-
-  // Clone the first child row to prepend the select-all checkbox cell
-  const childrenArray = React.Children.toArray(children)
-  const renderedChildren = showSelectAll
-    ? childrenArray.map((child, idx) => {
-        if (idx === 0 && React.isValidElement(child)) {
-          return React.cloneElement(
-            child as React.ReactElement<{ children?: React.ReactNode }>,
-            {
-              children: (
-                <>
-                  <th
-                    scope="col"
-                    style={{
-                      width: spacing['3xl'],
-                      paddingTop: spacing.sm,
-                      paddingBottom: spacing.sm,
-                      paddingLeft: spacing.xl,
-                      paddingRight: spacing.sm,
-                      verticalAlign: 'middle',
-                      borderBottom: `1px solid ${color.border.strong}`,
-                    }}
-                  >
-                    <Checkbox
-                      label="Select all rows"
-                      checked={allSelected}
-                      onChange={handleSelectAll}
-                      size="small"
-                    />
-                  </th>
-                  {
-                    (
-                      child as React.ReactElement<{
-                        children?: React.ReactNode
-                      }>
-                    ).props.children
-                  }
-                </>
-              ),
-            }
-          )
-        }
-        return child
-      })
-    : children
+  const contextValue = useTableContext()
+  const { stickyHeader } = contextValue
 
   return (
     <thead
@@ -90,7 +35,10 @@ export const TableHeader = forwardRef<
         zIndex: stickyHeader ? 1 : undefined,
       }}
     >
-      {renderedChildren}
+      {/* Override isHeaderRow so TableRow renders a <th> select-all cell */}
+      <TableContext.Provider value={{ ...contextValue, isHeaderRow: true }}>
+        {children}
+      </TableContext.Provider>
     </thead>
   )
 })
