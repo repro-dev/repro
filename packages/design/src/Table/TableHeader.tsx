@@ -16,9 +16,10 @@ export interface TableHeaderProps {
  * itself — no cloneElement needed.
  *
  * When the parent `Table` has `stickyHeader={true}`, the header becomes
- * position-sticky and remains visible while scrolling through rows. An
- * IntersectionObserver detects when the header has stuck to the top and
- * applies a drop shadow to visually separate it from the content below.
+ * position-sticky and remains visible while scrolling through rows. A passive
+ * scroll listener on the nearest scrolling ancestor (falling back to window),
+ * throttled via requestAnimationFrame, detects when the header has stuck to
+ * the top and applies a drop shadow to visually separate it from the content.
  */
 export const TableHeader = forwardRef<
   HTMLTableSectionElement,
@@ -28,39 +29,51 @@ export const TableHeader = forwardRef<
   const { stickyHeader } = contextValue
 
   const [isScrolled, setIsScrolled] = useState(false)
-  // Internal ref for the IntersectionObserver — separate from the forwarded ref.
+  // Internal ref for scroll detection — separate from the forwarded ref.
   // Typed as MutableRefObject so we can assign .current in the callback ref.
   const theadRef = useRef<HTMLTableSectionElement | null>(null)
 
   useEffect(() => {
     if (!stickyHeader) return
-
     const el = theadRef.current
     if (el == null) return
 
-    // Detects when position:sticky activates: the thead's top pixel crosses the
-    // viewport top. rootMargin of -1px means it fires as soon as the top edge
-    // touches the top of the viewport (i.e. the header has stuck).
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry != null) {
-          setIsScrolled(!entry.isIntersecting)
-        }
-      },
-      { rootMargin: '-1px 0px 0px 0px', threshold: [1] }
-    )
+    // Find nearest scrolling ancestor (or fall back to window)
+    let scrollRoot: Element | Window = window
+    let parent = el.parentElement
+    while (parent != null) {
+      const overflow = getComputedStyle(parent).overflowY
+      if (overflow === 'auto' || overflow === 'scroll') {
+        scrollRoot = parent
+        break
+      }
+      parent = parent.parentElement
+    }
 
-    observer.observe(el)
+    let rafId: number | null = null
+
+    const onScroll = () => {
+      if (rafId != null) return
+      rafId = requestAnimationFrame(() => {
+        rafId = null
+        if (theadRef.current != null) {
+          setIsScrolled(theadRef.current.getBoundingClientRect().top <= 0)
+        }
+      })
+    }
+
+    scrollRoot.addEventListener('scroll', onScroll, { passive: true })
 
     return () => {
-      observer.disconnect()
+      scrollRoot.removeEventListener('scroll', onScroll)
+      if (rafId != null) cancelAnimationFrame(rafId)
     }
   }, [stickyHeader])
 
   return (
     <thead
       ref={node => {
-        // Attach the internal observer ref
+        // Attach the internal scroll-detection ref
         theadRef.current = node
         // Forward to the external ref
         if (typeof ref === 'function') {
@@ -76,7 +89,7 @@ export const TableHeader = forwardRef<
         zIndex: stickyHeader ? 1 : undefined,
         // Inset box-shadow acts as the bottom border (moves with the sticky
         // header unlike border-collapse cell borders). Drop shadow is added
-        // once the observer signals the header has stuck.
+        // once the scroll listener reports the header has stuck.
         boxShadow:
           stickyHeader && isScrolled
             ? `inset 0 -1px 0 ${color.border.strong}, 0 2px 4px rgba(0,0,0,0.08)`
