@@ -770,6 +770,36 @@ describe('Services > Account', () => {
         promise(accountService.destroySession(encodeId(99999)))
       ).rejects.toThrow(notFound())
     })
+
+    it('should store a hashed token in the database, not the raw token', async () => {
+      const account = await promise(accountService.createAccount('New Account'))
+
+      const user = await promise(
+        accountService.createUser(
+          account.id,
+          'John Smith',
+          harness.generateRandomEmailAddress(),
+          'hunter2'
+        )
+      )
+
+      const session = await promise(
+        accountService.createSession(user.id, 'user')
+      )
+
+      // Query the DB directly to verify the stored value
+      const row = await harness.db
+        .selectFrom('sessions')
+        .select('sessionTokenHash')
+        .where('id', '=', decodeId(session.id))
+        .executeTakeFirstOrThrow()
+
+      // The raw token must not appear in the database
+      expect(row.sessionTokenHash).not.toEqual(session.sessionToken)
+
+      // SHA-256 digest in base64url is always 43 characters
+      expect(row.sessionTokenHash).toHaveLength(43)
+    })
   })
 
   describe('Verification', () => {
