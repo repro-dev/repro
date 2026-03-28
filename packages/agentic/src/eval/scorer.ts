@@ -1,3 +1,4 @@
+import { EVAL_JUDGE_MODEL } from "@repro/domain";
 import { AssistantMessage, Entry, ToolMessage } from "../types";
 import { MAX_TOOL_ITERATIONS } from "../createState";
 import type { CritiqueItem } from "./introspector";
@@ -118,8 +119,10 @@ async function callOpenRouterForJudgement(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        // Use gpt-4o-mini as a cheap, capable judge model
-        model: "openai/gpt-4o-mini",
+        // gemini-2.5-flash: cheap judge with 1M context window (vs gpt-4o-mini's
+        // 128k), better suited for scoring long agent transcripts. See
+        // EVAL_JUDGE_MODEL in @repro/domain for full rationale.
+        model: EVAL_JUDGE_MODEL,
         stream: false,
         messages: [
           {
@@ -162,7 +165,13 @@ Reply with JSON only (no markdown code fences):
   const body = (await response.json()) as {
     choices: Array<{ message: { content: string } }>;
   };
-  const content = body.choices[0]?.message?.content ?? "{}";
+  const raw = body.choices[0]?.message?.content ?? "{}";
+  // Strip markdown code fences that some models wrap around JSON responses
+  // despite the prompt instructing otherwise (e.g. gemini-2.5-flash).
+  const content = raw
+    .replace(/^```(?:json)?\n?/, "")
+    .replace(/\n?```$/, "")
+    .trim();
 
   try {
     const parsed = JSON.parse(content) as Partial<JudgeResponse>;

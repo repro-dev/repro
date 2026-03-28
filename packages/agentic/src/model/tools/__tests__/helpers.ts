@@ -327,11 +327,42 @@ export function makeSnapshotWithMissingRoot(): {
 
 // ─── Interaction event factories ──────────────────────────────────────────────
 
+export interface MetaNode {
+  id: string;
+  tagName: string;
+  attributes: Record<string, string | null>;
+}
+
 export function makeClickEvent(
   time: number,
-  label: string | null = null,
-  at: [number, number] = [100, 200],
+  label?: string | null,
+  at?: [number, number],
+  metaNode?: MetaNode,
+  targets?: string[],
 ): ReturnType<typeof SourceEventView.from> {
+  const resolvedAt = at ?? [100, 200];
+  const resolvedLabel = label ?? null;
+  const node = metaNode
+    ? {
+        type: NodeType.Element,
+        id: metaNode.id as NodeId,
+        parentId: null,
+        tagName: metaNode.tagName,
+        children: [],
+        attributes: metaNode.attributes,
+        properties: { value: null, checked: null, selectedIndex: null },
+        shadowRoot: false,
+      }
+    : {
+        type: NodeType.Element,
+        id: "00001" as NodeId,
+        parentId: null,
+        tagName: "button",
+        children: [],
+        attributes: {},
+        properties: { value: null, checked: null, selectedIndex: null },
+        shadowRoot: false,
+      };
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
     type: SourceEventType.Interaction,
@@ -339,20 +370,11 @@ export function makeClickEvent(
     data: new Box({
       type: InteractionType.Click,
       button: 0,
-      targets: [],
-      at,
+      targets: targets ?? [],
+      at: resolvedAt,
       meta: {
-        node: {
-          type: NodeType.Element,
-          id: "00001" as NodeId,
-          parentId: null,
-          tagName: "button",
-          children: [],
-          attributes: {},
-          properties: { value: null, checked: null, selectedIndex: null },
-          shadowRoot: false,
-        },
-        humanReadableLabel: label,
+        node,
+        humanReadableLabel: resolvedLabel,
       },
     }),
   }) as unknown as ReturnType<typeof SourceEventView.from>;
@@ -360,9 +382,34 @@ export function makeClickEvent(
 
 export function makeDoubleClickEvent(
   time: number,
-  label: string | null = null,
-  at: [number, number] = [50, 60],
+  label?: string | null,
+  at?: [number, number],
+  metaNode?: MetaNode,
+  targets?: string[],
 ): ReturnType<typeof SourceEventView.from> {
+  const resolvedAt = at ?? [50, 60];
+  const resolvedLabel = label ?? null;
+  const node = metaNode
+    ? {
+        type: NodeType.Element,
+        id: metaNode.id as NodeId,
+        parentId: null,
+        tagName: metaNode.tagName,
+        children: [],
+        attributes: metaNode.attributes,
+        properties: { value: null, checked: null, selectedIndex: null },
+        shadowRoot: false,
+      }
+    : {
+        type: NodeType.Element,
+        id: "00001" as NodeId,
+        parentId: null,
+        tagName: "button",
+        children: [],
+        attributes: {},
+        properties: { value: null, checked: null, selectedIndex: null },
+        shadowRoot: false,
+      };
   // Bypass SourceEventView.from() — see comment in makeFetchRequestEvent.
   return new Box({
     type: SourceEventType.Interaction,
@@ -370,20 +417,11 @@ export function makeDoubleClickEvent(
     data: new Box({
       type: InteractionType.DoubleClick,
       button: 0,
-      targets: [],
-      at,
+      targets: targets ?? [],
+      at: resolvedAt,
       meta: {
-        node: {
-          type: NodeType.Element,
-          id: "00001" as NodeId,
-          parentId: null,
-          tagName: "button",
-          children: [],
-          attributes: {},
-          properties: { value: null, checked: null, selectedIndex: null },
-          shadowRoot: false,
-        },
-        humanReadableLabel: label,
+        node,
+        humanReadableLabel: resolvedLabel,
       },
     }),
   }) as unknown as ReturnType<typeof SourceEventView.from>;

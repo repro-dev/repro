@@ -321,3 +321,80 @@ describe('formatA11yTree', () => {
     assert.ok(!result.includes('depth-3'))
   })
 })
+
+// ─── Change 2: nodeId annotations ─────────────────────────────────────────────
+
+describe('buildA11yTree — nodeId population', () => {
+  it('populates nodeId on nodes that have a role', () => {
+    const vtree = makeVTree({
+      root: makeDocument('root', ['btn']),
+      btn: makeElement('btn', 'button', [], { 'aria-label': 'Click me' }),
+    })
+    const result = buildA11yTree(vtree)
+    assert.ok(result !== null)
+    const btn = result.children[0]!
+    assert.strictEqual(btn.role, 'button')
+    assert.strictEqual(btn.nodeId, 'btn')
+  })
+
+  it('does not produce nodeId on transparent (no-role) elements that are flattened', () => {
+    const vtree = makeVTree({
+      root: makeDocument('root', ['wrapper']),
+      wrapper: makeElement('wrapper', 'div', ['btn']),
+      btn: makeElement('btn', 'button', [], { 'aria-label': 'Go' }),
+    })
+    const result = buildA11yTree(vtree)
+    assert.ok(result !== null)
+    // wrapper div has no role so it's flattened; btn is hoisted to root.children
+    assert.strictEqual(result.children.length, 1)
+    assert.strictEqual(result.children[0]!.nodeId, 'btn')
+  })
+})
+
+describe('formatA11yTree — [ref=nodeId] annotations', () => {
+  it('includes [ref=nodeId] in formatted output', () => {
+    const tree: A11yNode = {
+      role: 'button',
+      name: 'Submit',
+      nodeId: 'btn-1',
+      children: [],
+    }
+    const result = formatA11yTree(tree)
+    assert.ok(
+      result.includes('[ref=btn-1]'),
+      `Expected [ref=btn-1] in: ${result}`
+    )
+  })
+
+  it('does not include [ref=...] when nodeId is absent', () => {
+    const tree: A11yNode = {
+      role: 'button',
+      name: 'Submit',
+      children: [],
+    }
+    const result = formatA11yTree(tree)
+    assert.ok(
+      !result.includes('[ref='),
+      `Should not have [ref=...] in: ${result}`
+    )
+  })
+
+  it('includes [ref=nodeId] alongside name in full format', () => {
+    const tree: A11yNode = {
+      role: 'navigation',
+      name: 'Main',
+      nodeId: 'nav-root',
+      children: [
+        {
+          role: 'link',
+          name: 'Home',
+          nodeId: 'link-1',
+          children: [],
+        },
+      ],
+    }
+    const result = formatA11yTree(tree)
+    assert.ok(result.includes('navigation "Main" [ref=nav-root]'))
+    assert.ok(result.includes('link "Home" [ref=link-1]'))
+  })
+})

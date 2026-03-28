@@ -3,20 +3,28 @@
  *
  * How to run:
  *   OPENROUTER_API_KEY=<key> moon run repro/agentic:eval
+ *   OPENROUTER_API_KEY=<key> moon run repro/agentic:eval -- --model google/gemini-2.5-flash
+ *   OPENROUTER_API_KEY=<key> moon run repro/agentic:eval -- --test-set
  *   # or directly:
  *   OPENROUTER_API_KEY=<key> tsx packages/agentic/src/eval/index.ts
+ *   OPENROUTER_API_KEY=<key> tsx packages/agentic/src/eval/index.ts --model google/gemini-2.5-flash
+ *   OPENROUTER_API_KEY=<key> tsx packages/agentic/src/eval/index.ts --test-set
+ *
+ * When --model is omitted, defaults to AGENTIC_DEFAULT_MODEL (google/gemini-2.5-flash).
+ * When --test-set is present, runs the test fixture set instead of the default training set.
  *
  * How to add a new eval case:
  *   1. Create a fixture file in src/eval/fixtures/ that exports:
  *        export function createFixture(): EvalFixture
  *      where EvalFixture is imported from ~/eval/runner and includes
  *      systemPrompt and promptExportName fields.
- *   2. Import createFixture in this file and add the result to the `fixtures` array below.
+ *   2. Import createFixture in this file and add the result to the appropriate
+ *      fixture array (trainingFixtures or testFixtures) below.
  *
  * How to update the baseline:
  *   1. Run the evals locally and verify the results in tmp/agentic-eval-results.json
  *   2. Run: node -e "require('fs').writeFileSync(
- *        'packages/agentic/src/eval/baseline.json',
+ *        'packages/agentic/src/eval/baseline.json',  // or baseline-test.json for --test-set
  *        JSON.stringify(
  *          JSON.parse(require('fs').readFileSync('tmp/agentic-eval-results.json','utf8'))
  *            .map(({fixtureName, correctnessRate, averageToolErrorRate, averageIterationDepth, averageQualityScore}) => ({
@@ -33,9 +41,10 @@
  *
  * File overview:
  *   fixtures/          — Synthetic recordings paired with expected debug outcomes
- *   baseline.json      — Committed pass/fail expectations; CI fails on regression
+ *   baseline.json      — Committed pass/fail expectations for training set; CI fails on regression
+ *   baseline-test.json — Committed pass/fail expectations for test set
  *   regressions.ts     — Pure regression detection logic (testable without CLI deps)
- *   streamProvider.ts  — StreamProvider factory that calls OpenRouter directly (bypasses API server)
+ *   streamProvider.ts  — StreamProvider factory that calls OpenRouter directly (bypasses API server); accepts modelId param
  *   scorer.ts          — Extracts metrics and calls LLM-as-judge for correctness scoring
  *   runner.ts          — Orchestrates multiple runs per fixture, computes aggregate stats
  *   introspector.ts    — Per-run critique LLM call; produces CritiqueItem[] linking behaviour to prompt causes
@@ -43,17 +52,32 @@
  *   index.ts           — CLI entry point: runs all fixtures, prints results, writes JSON; --analyse flag runs the full critique + suggestion pipeline
  *
  * Full results (including per-run transcripts) are written to
- * tmp/agentic-eval-results.json (gitignored) and uploaded as a CI artifact by
- * the nightly evals workflow (.github/workflows/nightly-evals.yml).
+ * tmp/agentic-evals/<ISO-timestamp>/results.json (gitignored) and uploaded as a
+ * CI artifact by the nightly evals workflow (.github/workflows/nightly-evals.yml).
+ * When --test-set is present, regression detection loads baseline-test.json instead
+ * of baseline.json.
  */
 
 import * as fs from "fs";
 import * as path from "path";
+import { AGENTIC_DEFAULT_MODEL } from "@repro/domain";
 import { tools } from "../model/tools";
 import type { Entry } from "../types";
 import { createFixture as createFixture1 } from "./fixtures/console-error-and-network-failure";
 import { createFixture as createFixture2 } from "./fixtures/conditional-rendering-bug";
 import { createFixture as createFixture3 } from "./fixtures/user-interaction-state-change";
+import { createFixture as createFixtureNetworkFailureNoConsoleError } from "./fixtures/network-failure-no-console-error";
+import { createFixture as createFixtureConsoleErrorNoNetworkFailure } from "./fixtures/console-error-no-network-failure";
+import { createFixture as createFixtureUnrelatedNoiseErrors } from "./fixtures/unrelated-noise-errors";
+import { createFixture as createFixtureDomChangeIntentionalToast } from "./fixtures/dom-change-intentional-toast";
+import { createFixture as createFixtureWebSocketMessageMissing } from "./fixtures/websocket-message-missing";
+import { createFixture as createFixtureFormValidationSilentFailure } from "./fixtures/form-validation-silent-failure";
+import { createFixture as createFixtureMultiStepErrorChain } from "./fixtures/multi-step-error-chain";
+import { createFixture as createFixtureSlowSessionNoErrors } from "./fixtures/slow-session-no-errors";
+import { createFixture as createFixtureDropdownStateNotReset } from "./fixtures/dropdown-state-not-reset";
+import { createFixture as createFixtureErrorWithDomSideEffect } from "./fixtures/error-with-dom-side-effect";
+import { createFixture as createFixtureUserActionsWalkthrough } from "./fixtures/user-actions-walkthrough";
+import { createFixture as createFixtureUserActionTriggeredNetworkError } from "./fixtures/user-action-triggered-network-error";
 import { critiqueRun, type CritiqueItem } from "./introspector";
 import {
   suggestPromptImprovements,
@@ -68,17 +92,6 @@ import { createOpenRouterStreamProvider } from "./streamProvider";
 // scratch space). __dirname under tsx points to packages/agentic/src/eval —
 // walk up 4 levels to reach the workspace root.
 const WORKSPACE_ROOT = path.resolve(__dirname, "..", "..", "..", "..");
-const RESULTS_PATH = path.join(
-  WORKSPACE_ROOT,
-  "tmp",
-  "agentic-eval-results.json",
-);
-const BASELINE_PATH = path.join(__dirname, "baseline.json");
-const ANALYSIS_PATH = path.join(
-  WORKSPACE_ROOT,
-  "tmp",
-  "agentic-prompt-suggestions.md",
-);
 
 // Exported for testing: groups critiquesByFixture entries by promptExportName.
 // Returns a Map from promptExportName → { systemPrompt, entries }.
@@ -315,6 +328,73 @@ async function main(): Promise<void> {
   }
 
   const analyse = process.argv.includes("--analyse");
+  const useTestSet = process.argv.includes("--test-set");
+
+  if (analyse && useTestSet) {
+    console.error(
+      "Error: --analyse and --test-set are mutually exclusive. " +
+        "--analyse runs the prompt critic against training fixtures only — " +
+        "running it against held-out test fixtures would contaminate the test set.",
+    );
+    process.exit(1);
+  }
+
+  // Create a timestamped output directory for this run under tmp/agentic-evals/.
+  // This prevents overwriting results from previous runs and provides a history.
+  const runTimestamp = new Date().toISOString().replace(/:/g, "-");
+  const RUN_OUTPUT_DIR = path.join(
+    WORKSPACE_ROOT,
+    "tmp",
+    "agentic-evals",
+    runTimestamp,
+  );
+  fs.mkdirSync(RUN_OUTPUT_DIR, { recursive: true });
+  const RESULTS_PATH = path.join(RUN_OUTPUT_DIR, "results.json");
+  const ANALYSIS_PATH = path.join(RUN_OUTPUT_DIR, "prompt-suggestions.md");
+  const BASELINE_PATH = path.join(
+    __dirname,
+    useTestSet ? "baseline-test.json" : "baseline.json",
+  );
+
+  // --model <id> selects the OpenRouter model for the eval run.
+  // Defaults to AGENTIC_DEFAULT_MODEL when omitted.
+  const modelArgIndex = process.argv.indexOf("--model");
+  const modelId =
+    modelArgIndex !== -1
+      ? process.argv[modelArgIndex + 1] ?? AGENTIC_DEFAULT_MODEL
+      : AGENTIC_DEFAULT_MODEL;
+
+  console.log(`\nModel: ${modelId}`);
+
+  // Training fixtures: used for the default eval run
+  const trainingFixtures = [
+    createFixture1(),
+    createFixture2(),
+    createFixture3(),
+    createFixtureNetworkFailureNoConsoleError(),
+    createFixtureConsoleErrorNoNetworkFailure(),
+    createFixtureUnrelatedNoiseErrors(),
+    createFixtureDomChangeIntentionalToast(),
+    createFixtureUserActionsWalkthrough(),
+    createFixtureUserActionTriggeredNetworkError(),
+  ];
+
+  // Test fixtures: run with --test-set; held out from the training/feedback loop
+  const testFixtures = [
+    createFixtureWebSocketMessageMissing(),
+    createFixtureFormValidationSilentFailure(),
+    createFixtureMultiStepErrorChain(),
+    createFixtureSlowSessionNoErrors(),
+    createFixtureDropdownStateNotReset(),
+    createFixtureErrorWithDomSideEffect(),
+  ];
+
+  const fixtures = useTestSet ? testFixtures : trainingFixtures;
+  console.log(
+    `\nFixture set: ${useTestSet ? "test" : "training"} (${
+      fixtures.length
+    } fixtures)`,
+  );
 
   // Load baseline if present — missing baseline is not an error (first run)
   let baseline: Array<BaselineEntry> = [];
@@ -328,8 +408,7 @@ async function main(): Promise<void> {
     );
   }
 
-  const streamProviderFactory = createOpenRouterStreamProvider(apiKey);
-  const fixtures = [createFixture1(), createFixture2(), createFixture3()];
+  const streamProviderFactory = createOpenRouterStreamProvider(apiKey, modelId);
   const runsPerCase = 3;
 
   // Build tool descriptions from the registered tools array.

@@ -523,3 +523,107 @@ describe("executeTool — getEvents — endTimeMs and duration fallback", () => 
     assert.strictEqual(result.events[1]!.to, "/b");
   });
 });
+
+// ─── Change 1: meta.node element extraction ───────────────────────────────────
+
+describe("executeTool — getEvents — click element at detail=full", () => {
+  it("includes element with nodeId, tagName, attributes (nulls filtered) at full tier", async () => {
+    const events = [
+      makeClickEvent(
+        500,
+        null,
+        [100, 200],
+        {
+          id: "node-42",
+          tagName: "button",
+          attributes: { class: "btn", "data-foo": null },
+        },
+        [],
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEvents", { detail: "full" }),
+    )) as {
+      events: Array<Record<string, unknown>>;
+    };
+    const ev = result.events[0]!;
+    assert.ok("element" in ev, "should have element field");
+    const element = ev.element as Record<string, unknown>;
+    assert.strictEqual(element.nodeId, "node-42");
+    assert.strictEqual(element.tagName, "button");
+    assert.deepStrictEqual(element.attributes, { class: "btn" });
+  });
+
+  it("includes targets when non-empty at full tier", async () => {
+    const events = [
+      makeClickEvent(500, null, [100, 200], undefined, ["node-1", "node-2"]),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEvents", { detail: "full" }),
+    )) as {
+      events: Array<Record<string, unknown>>;
+    };
+    const ev = result.events[0]!;
+    assert.ok("targets" in ev, "should have targets field");
+    assert.deepStrictEqual(ev.targets, ["node-1", "node-2"]);
+  });
+
+  it("omits targets when empty at full tier", async () => {
+    const events = [makeClickEvent(500, null, [100, 200], undefined, [])];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEvents", { detail: "full" }),
+    )) as {
+      events: Array<Record<string, unknown>>;
+    };
+    const ev = result.events[0]!;
+    assert.ok(!("targets" in ev), "should NOT have targets field when empty");
+  });
+
+  it("includes element for doubleClick at full tier", async () => {
+    const events = [
+      makeDoubleClickEvent(
+        700,
+        null,
+        [50, 60],
+        { id: "node-99", tagName: "img", attributes: { src: "photo.jpg" } },
+        [],
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEvents", { detail: "full" }),
+    )) as {
+      events: Array<Record<string, unknown>>;
+    };
+    const ev = result.events[0]!;
+    assert.strictEqual(ev.type, "doubleClick");
+    assert.ok("element" in ev, "should have element field for doubleClick");
+    const element = ev.element as Record<string, unknown>;
+    assert.strictEqual(element.nodeId, "node-99");
+    assert.strictEqual(element.tagName, "img");
+  });
+
+  it("does NOT include element or targets at normal tier", async () => {
+    const events = [
+      makeClickEvent(
+        500,
+        null,
+        [100, 200],
+        { id: "node-42", tagName: "button", attributes: {} },
+        ["node-1"],
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEvents", { detail: "normal" }),
+    )) as {
+      events: Array<Record<string, unknown>>;
+    };
+    const ev = result.events[0]!;
+    assert.ok(!("element" in ev), "should NOT have element at normal tier");
+    assert.ok(!("targets" in ev), "should NOT have targets at normal tier");
+  });
+});

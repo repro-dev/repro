@@ -9,7 +9,7 @@ export const TOOL_DEFINITION = {
   function: {
     name: "getElementDetails",
     description:
-      "Get detailed information about a specific DOM element by its node ID. Use this to inspect attributes, styles, classes, parent context, and siblings of an element identified from getDOMState output. Only works when the recording contains DOM snapshots — call getDOMState() first to confirm DOM data is available before using this tool.",
+      "Get detailed information about a specific DOM element by its nodeId. A nodeId is a unique identifier for an element (e.g. 'node-123') obtained from getUserActions (element.nodeId on click events), getDOMState ([ref=<nodeId>] in a11y tree output), or getDOMDiff. Use this to inspect attributes, styles, classes, parent context, and siblings of an element. Only works when the recording contains DOM snapshots — check for the presence of domSnapshot events via getEvents(detail='summary') before using this tool.",
     parameters: {
       type: "object",
       properties: {

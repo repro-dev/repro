@@ -16,7 +16,7 @@ export const TOOL_DEFINITION = {
   function: {
     name: "findErrors",
     description:
-      "Find errors in the recording — console errors and failed network requests — sorted chronologically. Start with detail='summary' to get counts and one representative error per source. Escalate to 'normal' or 'full' only if needed.",
+      "Find errors in the recording — console errors and failed network requests — sorted chronologically. Start with detail='summary' to get counts and one representative error per source. Escalate to 'normal' or 'full' to retrieve complete error details including stack traces, only if needed.",
     parameters: {
       type: "object",
       properties: {

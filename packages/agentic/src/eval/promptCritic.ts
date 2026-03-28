@@ -1,3 +1,4 @@
+import { EVAL_REASONING_MODEL } from "@repro/domain";
 import type { CritiqueItem } from "./introspector";
 
 export interface PromptSuggestion {
@@ -89,7 +90,7 @@ export async function suggestPromptImprovements(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o",
+        model: EVAL_REASONING_MODEL,
         stream: false,
         messages: [
           {

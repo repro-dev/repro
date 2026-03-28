@@ -29,7 +29,7 @@ export const TOOL_DEFINITION = {
   function: {
     name: "getEventsAroundTime",
     description:
-      "Get detailed events in a small window around a specific timestamp. Use this as a targeted follow-up after identifying a moment of interest (e.g. an error or failed request) — not for broad exploration. Includes full console message text. Do not call if getEvents already returned sufficient data for the same time range.",
+      "Get detailed events in a small window around a specific timestamp. Use this as a targeted follow-up after identifying a moment of interest (e.g. an error or failed request) — not for broad exploration. Includes full console message text. For a complete stack trace, use findErrors with detail='full' on the error's timestamp. Do not call if getEvents or findErrors already returned sufficient data for the same time range. After locating an error with findErrors(detail='summary'), your next step to get more detail is findErrors(detail='full'). You MUST NOT call getEventsAroundTime to re-fetch the same error's message text, as this provides no new information and is inefficient.",
     parameters: {
       type: "object",
       properties: {
@@ -70,10 +70,29 @@ function summarizeInteraction(
         .get("meta")
         .get("humanReadableLabel")
         .orElse(null);
+      const nodeId = clickEvent.get("meta").get("node").get("id").orElse(null);
+      const tagName = clickEvent
+        .get("meta")
+        .get("node")
+        .get("tagName")
+        .orElse("");
+      const rawAttributes = clickEvent
+        .get("meta")
+        .get("node")
+        .get("attributes")
+        .orElse({}) as Record<string, string | null>;
+      const attributes: Record<string, string> = {};
+      for (const [k, v] of Object.entries(rawAttributes)) {
+        if (v != null) attributes[k] = v;
+      }
+      const element = nodeId ? { nodeId, tagName, attributes } : null;
+      const targets = clickEvent.get("targets").orElse([]) as string[];
       return {
         type:
           interactionType === InteractionType.Click ? "click" : "doubleClick",
         ...(label ? { label } : {}),
+        ...(element ? { element } : {}),
+        ...(targets.length > 0 ? { targets } : {}),
       };
     }
 

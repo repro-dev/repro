@@ -1,23 +1,65 @@
 [
   {
     "fixtureName": "console-error-and-network-failure",
-    "correctnessRate": 1.0,
-    "avgErrorRate": 0.153,
-    "avgToolCalls": 8.7,
-    "avgQuality": 2.0
+    "correctnessRate": 1,
+    "avgErrorRate": 0,
+    "avgToolCalls": 4,
+    "avgQuality": 3
   },
   {
     "fixtureName": "conditional-rendering-bug",
-    "correctnessRate": 1.0,
-    "avgErrorRate": 0.0,
-    "avgToolCalls": 7.3,
-    "avgQuality": 2.0
+    "correctnessRate": 1,
+    "avgErrorRate": 0.136002886002886,
+    "avgToolCalls": 12.333333333333334,
+    "avgQuality": 2.9
   },
   {
     "fixtureName": "user-interaction-state-change",
-    "correctnessRate": 1.0,
-    "avgErrorRate": 0.075,
-    "avgToolCalls": 8.3,
-    "avgQuality": 2.0
+    "correctnessRate": 1,
+    "avgErrorRate": 0,
+    "avgToolCalls": 4.333333333333333,
+    "avgQuality": 3
+  },
+  {
+    "fixtureName": "network-failure-no-console-error",
+    "correctnessRate": 1,
+    "avgErrorRate": 0,
+    "avgToolCalls": 5,
+    "avgQuality": 2.9
+  },
+  {
+    "fixtureName": "console-error-no-network-failure",
+    "correctnessRate": 1,
+    "avgErrorRate": 0,
+    "avgToolCalls": 3.3333333333333335,
+    "avgQuality": 3
+  },
+  {
+    "fixtureName": "unrelated-noise-errors",
+    "correctnessRate": 1,
+    "avgErrorRate": 0,
+    "avgToolCalls": 4,
+    "avgQuality": 2.9
+  },
+  {
+    "fixtureName": "dom-change-intentional-toast",
+    "correctnessRate": 1,
+    "avgErrorRate": 0,
+    "avgToolCalls": 3.6666666666666665,
+    "avgQuality": 2.8
+  },
+  {
+    "fixtureName": "user-actions-walkthrough",
+    "correctnessRate": 1,
+    "avgErrorRate": 0,
+    "avgToolCalls": 3.3333333333333335,
+    "avgQuality": 3
+  },
+  {
+    "fixtureName": "user-action-triggered-network-error",
+    "correctnessRate": 1,
+    "avgErrorRate": 0,
+    "avgToolCalls": 5,
+    "avgQuality": 2.4
   }
 ]
