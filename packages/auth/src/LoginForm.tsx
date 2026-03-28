@@ -39,7 +39,6 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   const [errorMessage, setErrorMessage] = useState('')
   const [showResetFlow, setShowResetFlow] = useState(false)
   const [showPostResetMessage, setShowPostResetMessage] = useState(false)
-  const [supportPasswordReset] = useState(false)
   const [_loading, setLoading] = useState(false)
 
   const navigate = useNavigate()
@@ -122,7 +121,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
               : 'Log in to your Repro account'}
           </Block>
 
-          {supportPasswordReset && showPostResetMessage && (
+          {showPostResetMessage && (
             <Block
               alignSelf="stretch"
               padding={10}
@@ -188,7 +187,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             </FormField>
           )}
 
-          {supportPasswordReset && showResetFlow && (
+          {!showResetFlow && (
             <Block>
               <Button
                 variant="text"
@@ -208,7 +207,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             {showResetFlow ? 'Send Reset Email' : 'Log In'}
           </Button>
 
-          {supportPasswordReset && showResetFlow && (
+          {showResetFlow && (
             <Block alignSelf="center">
               <Button
                 variant="text"

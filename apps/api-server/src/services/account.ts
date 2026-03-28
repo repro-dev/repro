@@ -829,6 +829,110 @@ export function createAccountService(
     )
   }
 
+  // Password reset tokens expire after 1 hour
+  const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000
+
+  function createPasswordResetToken(
+    userId: string
+  ): FutureInstance<Error, string> {
+    const decodedUserId = decodeId(userId)
+
+    if (decodedUserId == null) {
+      return reject(badRequest('Invalid user ID'))
+    }
+
+    const rawToken = createToken()
+
+    return attemptQuery(() => {
+      return database
+        .insertInto('password_reset_tokens')
+        .values({
+          token: rawToken,
+          userId: decodedUserId,
+          expiresAt: new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS),
+        })
+        .executeTakeFirstOrThrow()
+    }).pipe(map(() => rawToken))
+  }
+
+  function validatePasswordResetToken(
+    token: string
+  ): FutureInstance<Error, { id: string; userId: string }> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('password_reset_tokens')
+        .select(['id', 'userId', 'expiresAt', 'usedAt'])
+        .where('token', '=', token)
+        .executeTakeFirstOrThrow(() => notFound())
+    ).pipe(
+      chain(row => {
+        // Token is already used — treat as not found to prevent guessing
+        if (row.usedAt != null) {
+          return reject(notFound())
+        }
+
+        // Token has expired
+        if (row.expiresAt.getTime() < Date.now()) {
+          return reject(notFound())
+        }
+
+        return resolve({
+          id: encodeId(row.id),
+          userId: encodeId(row.userId),
+        })
+      })
+    )
+  }
+
+  function applyPasswordReset(
+    token: string,
+    newPassword: string
+  ): FutureInstance<Error, void> {
+    return validatePasswordResetToken(token).pipe(
+      chain(({ userId }) => {
+        const decodedUserId = decodeId(userId)
+
+        if (decodedUserId == null) {
+          return reject(badRequest('Invalid user ID'))
+        }
+
+        return attemptQuery(async () => {
+          const newHash = await argon2.hash(newPassword)
+
+          await database
+            .updateTable('users')
+            .set({ password: newHash })
+            .where('id', '=', decodedUserId)
+            .execute()
+        })
+          .pipe(
+            chain(() =>
+              // Invalidate all existing sessions for this user
+              attemptQuery(async () => {
+                await database
+                  .deleteFrom('sessions')
+                  .where('subjectId', '=', decodedUserId)
+                  .where('subjectType', '=', 'user')
+                  .execute()
+              })
+            )
+          )
+          .pipe(
+            chain(() =>
+              // Mark token as used so it cannot be reused
+              attemptQuery(async () => {
+                await database
+                  .updateTable('password_reset_tokens')
+                  .set({ usedAt: new Date() })
+                  .where('token', '=', token)
+                  .execute()
+              })
+            )
+          )
+      })
+    )
+  }
+
   return {
     // Access control
     ensureStaffUser,
@@ -886,6 +990,11 @@ export function createAccountService(
     createSession,
     getSessionByToken,
     destroySession,
+
+    // Password reset
+    createPasswordResetToken,
+    validatePasswordResetToken,
+    applyPasswordReset,
   }
 }
 

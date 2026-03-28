@@ -10,6 +10,7 @@ import { InvitationTable } from './InvitationTable'
 import { MembershipTable } from './MembershipTable'
 import { OAuthAuthorizationCodeTable } from './OAuthAuthorizationCodeTable'
 import { OAuthClientTable } from './OAuthClientTable'
+import { PasswordResetTokenTable } from './PasswordResetTokenTable'
 import { ProjectRecordingTable } from './ProjectRecordingTable'
 import { ProjectTable } from './ProjectTable'
 import { RecordingEventIndexTable } from './RecordingEventIndexTable'
@@ -32,6 +33,7 @@ export interface Schema {
   memberships: MembershipTable
   oauth_authorization_codes: OAuthAuthorizationCodeTable
   oauth_clients: OAuthClientTable
+  password_reset_tokens: PasswordResetTokenTable
   recordings: RecordingTable
   recording_event_index: RecordingEventIndexTable
   recording_resources: RecordingResourceTable
