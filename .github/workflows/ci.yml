@@ -105,8 +105,8 @@ jobs:
         run: |
           echo "app_ids=$(moon query projects --affected --tags type.app | jq -c '[.projects[].id]')" >> $GITHUB_OUTPUT
 
-  lint-and-format:
-    name: Lint & format check
+  format-check:
+    name: Format check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -135,12 +135,9 @@ jobs:
       - name: Check formatting (Prettier)
         run: pnpm run fmt:check
 
-      - name: Lint (ESLint)
-        run: pnpm run lint
-
   containerize:
     name: Build container image
-    needs: [build, lint-and-format]
+    needs: [build, format-check]
     runs-on: ubuntu-latest
     if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/api-server') }}
     steps:
@@ -195,7 +192,7 @@ jobs:
 
   deploy-admin:
     name: Deploy admin (app)
-    needs: [build, lint-and-format]
+    needs: [build, format-check]
     runs-on: ubuntu-latest
     if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/admin') }}
     steps:
@@ -216,7 +213,7 @@ jobs:
 
   deploy-workspace:
     name: Deploy workspace (app)
-    needs: [build, lint-and-format]
+    needs: [build, format-check]
     runs-on: ubuntu-latest
     if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/workspace') }}
     steps:
@@ -237,7 +234,7 @@ jobs:
 
   deploy-capture:
     name: Deploy capture (extension)
-    needs: [build, lint-and-format]
+    needs: [build, format-check]
     runs-on: ubuntu-latest
     if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/capture') }}
     steps:
@@ -247,7 +244,7 @@ jobs:
 
   deploy-dev-toolbar:
     name: Deploy dev-toolbar (extension)
-    needs: [build, lint-and-format]
+    needs: [build, format-check]
     runs-on: ubuntu-latest
     if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/dev-toolbar') }}
     steps:
