@@ -4,6 +4,7 @@ node_modules
 
 # BUILD
 dist
+.next/
 
 # ENVIRONMENT
 .env*

@@ -12,10 +12,9 @@ export const AuthContext = createContext(
   createState({ apiClient: defaultClient })
 )
 
-export const AuthProvider: React.FC<PropsWithChildren<{ basePath?: string }>> = ({
-  children,
-  basePath,
-}) => {
+export const AuthProvider: React.FC<
+  PropsWithChildren<{ basePath?: string }>
+> = ({ children, basePath }) => {
   const apiClient = useApiClient()
   const state = useMemo(
     () => createState({ apiClient, basePath }),

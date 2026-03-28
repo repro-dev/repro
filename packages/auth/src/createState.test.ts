@@ -4,7 +4,9 @@ import assert from 'node:assert/strict'
 import { describe, it, mock } from 'node:test'
 import { createState } from './createState'
 
-function createMockApiClient(): ApiClient & { fetch: ReturnType<typeof mock.fn> } {
+function createMockApiClient(): ApiClient & {
+  fetch: ReturnType<typeof mock.fn>
+} {
   const fetchMock = mock.fn((_url: string) => resolve(null as any))
 
   return {
@@ -26,7 +28,10 @@ describe('createState', () => {
       const state = createState({ apiClient })
       state.login('user@example.com', 'password')
       assert.equal(apiClient.fetch.mock.calls.length, 1)
-      assert.equal(apiClient.fetch.mock.calls[0]?.arguments[0], '/account/login')
+      assert.equal(
+        apiClient.fetch.mock.calls[0]?.arguments[0],
+        '/account/login'
+      )
     })
 
     it('logout calls /account/logout', () => {
@@ -34,7 +39,10 @@ describe('createState', () => {
       const state = createState({ apiClient })
       state.logout()
       assert.equal(apiClient.fetch.mock.calls.length, 1)
-      assert.equal(apiClient.fetch.mock.calls[0]?.arguments[0], '/account/logout')
+      assert.equal(
+        apiClient.fetch.mock.calls[0]?.arguments[0],
+        '/account/logout'
+      )
     })
 
     it('loadSession calls /account/me', () => {
@@ -49,14 +57,20 @@ describe('createState', () => {
       const apiClient = createMockApiClient()
       const state = createState({ apiClient })
       state.register('Acme', 'Alice', 'alice@example.com', 'password')
-      assert.equal(apiClient.fetch.mock.calls[0]?.arguments[0], '/account/register')
+      assert.equal(
+        apiClient.fetch.mock.calls[0]?.arguments[0],
+        '/account/register'
+      )
     })
 
     it('verify calls /account/verify', () => {
       const apiClient = createMockApiClient()
       const state = createState({ apiClient })
       state.verify('token', 'alice@example.com')
-      assert.equal(apiClient.fetch.mock.calls[0]?.arguments[0], '/account/verify')
+      assert.equal(
+        apiClient.fetch.mock.calls[0]?.arguments[0],
+        '/account/verify'
+      )
     })
 
     it('resetPassword calls /account/reset-password', () => {
@@ -73,7 +87,10 @@ describe('createState', () => {
       const apiClient = createMockApiClient()
       const state = createState({ apiClient })
       state.invite('alice@example.com')
-      assert.equal(apiClient.fetch.mock.calls[0]?.arguments[0], '/account/invite')
+      assert.equal(
+        apiClient.fetch.mock.calls[0]?.arguments[0],
+        '/account/invite'
+      )
     })
 
     it('acceptInvitation calls /account/accept-invitation', () => {
@@ -113,7 +130,10 @@ describe('createState', () => {
       const apiClient = createMockApiClient()
       const state = createState({ apiClient, basePath: '/staff' })
       state.register('Acme', 'Alice', 'alice@example.com', 'password')
-      assert.equal(apiClient.fetch.mock.calls[0]?.arguments[0], '/staff/register')
+      assert.equal(
+        apiClient.fetch.mock.calls[0]?.arguments[0],
+        '/staff/register'
+      )
     })
 
     it('verify calls /staff/verify', () => {
