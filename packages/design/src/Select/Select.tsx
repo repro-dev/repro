@@ -335,6 +335,9 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       onNavigate: setActiveIndex,
       loop: true,
       disabledIndices,
+      // When searchable, suppress floating-ui's default focus-first-item
+      // behaviour so the filter input can receive focus instead.
+      focusItemOnOpen: searchable ? false : 'auto',
     })
     const typeahead = useTypeahead(context, {
       listRef: listContentRef,
