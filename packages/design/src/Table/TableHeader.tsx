@@ -38,12 +38,19 @@ export const TableHeader = forwardRef<
     const el = theadRef.current
     if (el == null) return
 
-    // Find nearest scrolling ancestor (or fall back to window)
+    // Find nearest scrolling ancestor (or fall back to window).
+    // Check both overflowY and overflowX since some containers set overflow
+    // via shorthand (which computes identically on both axes).
     let scrollRoot: Element | Window = window
     let parent = el.parentElement
-    while (parent != null) {
-      const overflow = getComputedStyle(parent).overflowY
-      if (overflow === 'auto' || overflow === 'scroll') {
+    while (parent != null && parent !== document.documentElement) {
+      const { overflowY, overflowX } = getComputedStyle(parent)
+      if (
+        overflowY === 'auto' ||
+        overflowY === 'scroll' ||
+        overflowX === 'auto' ||
+        overflowX === 'scroll'
+      ) {
         scrollRoot = parent
         break
       }
@@ -57,16 +64,13 @@ export const TableHeader = forwardRef<
       rafId = requestAnimationFrame(() => {
         rafId = null
         if (theadRef.current != null) {
-          // Compare thead top against the scroll container's top edge, not 0.
-          // When the table is inside a height-constrained div, the thead sticks
-          // to that container's top (not the viewport top), so the threshold is
-          // the container's own getBoundingClientRect().top.
+          // Add 1px tolerance for sub-pixel rounding differences.
           const containerTop =
             scrollRoot instanceof Window
               ? 0
               : (scrollRoot as Element).getBoundingClientRect().top
           setIsScrolled(
-            theadRef.current.getBoundingClientRect().top <= containerTop
+            theadRef.current.getBoundingClientRect().top <= containerTop + 1
           )
         }
       })
