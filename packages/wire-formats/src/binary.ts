@@ -13,9 +13,10 @@ export function toBinaryWireFormat(items: Array<DataView>) {
   )
 }
 
-export function toBinaryWireFormatWithIndex(
-  items: Array<DataView>
-): { buffer: DataView; index: Array<EventIndexEntry> } {
+export function toBinaryWireFormatWithIndex(items: Array<DataView>): {
+  buffer: DataView
+  index: Array<EventIndexEntry>
+} {
   const buffer = toBinaryWireFormat(items)
 
   const payloadSectionStart =

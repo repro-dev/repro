@@ -4,7 +4,10 @@ import { createExportedKeyF, encryptF } from '@repro/encryption'
 import { tap } from '@repro/future-utils'
 import { randomString } from '@repro/random-string'
 import { createResourceMap, filterResourceMap } from '@repro/vdom-utils'
-import { EventIndexEntry, toBinaryWireFormatWithIndex } from '@repro/wire-formats'
+import {
+  EventIndexEntry,
+  toBinaryWireFormatWithIndex,
+} from '@repro/wire-formats'
 import { gzipSync } from 'fflate'
 import {
   FutureInstance,
@@ -219,7 +222,9 @@ export function createUploadWorker(
 
         const indexReq = saveEventIndex(projectId, recordingId, events, index)
 
-        return parallel(Infinity)([dataReq, indexReq]).pipe(map(() => undefined))
+        return parallel(Infinity)([dataReq, indexReq]).pipe(
+          map(() => undefined)
+        )
       })
     )
   }
