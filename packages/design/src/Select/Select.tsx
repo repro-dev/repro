@@ -266,15 +266,6 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
       }
     }, [filterValue, searchable])
 
-    // Auto-focus the filter input when the searchable dropdown opens
-    useEffect(() => {
-      if (searchable && isOpen) {
-        requestAnimationFrame(() => {
-          filterInputRef.current?.focus()
-        })
-      }
-    }, [searchable, isOpen])
-
     const listboxId = useId()
 
     if (process.env.NODE_ENV !== 'production') {
@@ -380,6 +371,15 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
 
     const { getReferenceProps, getFloatingProps, getItemProps } =
       useInteractions([click, dismiss, role, listNavigation, typeahead])
+
+    // Auto-focus the filter input when the dropdown mounts. Depends on
+    // isMounted (not isOpen) because the input is only in the DOM once
+    // the transition has mounted the floating panel.
+    useEffect(() => {
+      if (searchable && isMounted) {
+        filterInputRef.current?.focus()
+      }
+    }, [searchable, isMounted])
 
     const handleSelect = useCallback(
       (index: number) => {
