@@ -1,4 +1,6 @@
-import { FutureInstance, chain, map, reject, resolve } from 'fluture'
+import { BillingPlanWithEntitlements } from '@repro/domain'
+import { tapF } from '@repro/future-utils'
+import { FutureInstance, chain, chainRej, map, reject, resolve } from 'fluture'
 import { Env } from '~/config/createEnv'
 import { PaddleClient, createPaddleClient } from '~/modules/billing'
 import { Database, attemptQuery, decodeId, encodeId } from '~/modules/database'
@@ -6,8 +8,6 @@ import {
   BillingEntitlementService,
   createBillingEntitlementService,
 } from '~/services/billingEntitlements'
-import { tapF } from '@repro/future-utils'
-import { BillingPlanWithEntitlements } from '@repro/domain'
 import { badRequest, notFound, serverError } from '~/utils/errors'
 
 export interface BillingCustomer {
@@ -303,6 +303,90 @@ export function createBillingService(
     ).pipe(map(asBillingPlan))
   }
 
+  function getPlanByName(name: string): FutureInstance<Error, BillingPlan> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('billing_plans')
+        .select([
+          'id',
+          'name',
+          'providerPriceId',
+          'providerProductId',
+          'interval',
+          'active',
+          'createdAt',
+        ])
+        .where('name', '=', name)
+        .executeTakeFirstOrThrow(() => notFound())
+    ).pipe(map(asBillingPlan))
+  }
+
+  function provisionFreeSubscription(
+    accountId: string
+  ): FutureInstance<Error, void> {
+    const decodedAccountId = decodeId(accountId)
+
+    if (decodedAccountId == null) {
+      return reject(badRequest('Invalid account ID'))
+    }
+
+    // Check if subscription already exists (idempotency guard)
+    const checkExisting = attemptQuery(() =>
+      database
+        .selectFrom('billing_subscriptions')
+        .select(['id'])
+        .where('accountId', '=', decodedAccountId)
+        .executeTakeFirst()
+    )
+
+    const now = new Date()
+    const periodEnd = new Date(now)
+    // ~100 years in the future — effectively infinite for a free plan
+    periodEnd.setFullYear(periodEnd.getFullYear() + 100)
+
+    return checkExisting
+      .pipe(
+        chain(existing => {
+          if (existing) {
+            // Already has a subscription — idempotent no-op
+            return resolve(undefined)
+          }
+
+          return getPlanByName(env.BILLING_DEFAULT_PLAN).pipe(
+            chain(plan =>
+              attemptQuery(async () => {
+                await database
+                  .insertInto('billing_subscriptions')
+                  .values({
+                    accountId: decodedAccountId,
+                    // Sentinel prefix identifies self-provisioned (non-Paddle) records
+                    providerSubscriptionId: `self_provisioned_${accountId}`,
+                    planId: decodeId(plan.id)!,
+                    status: 'active',
+                    currentPeriodStart: now,
+                    currentPeriodEnd: periodEnd,
+                    cancelAtPeriodEnd: false,
+                    canceledAt: null,
+                  })
+                  .execute()
+              })
+            )
+          )
+        })
+      )
+      .pipe(
+        // Graceful degradation: if the free plan hasn't been seeded yet, log a
+        // warning and continue rather than failing account creation.
+        chainRej(err => {
+          console.warn(
+            '[billing] provisionFreeSubscription: could not provision free subscription',
+            err
+          )
+          return resolve(undefined)
+        })
+      )
+  }
+
   function getPlanByProviderPriceId(
     providerPriceId: string
   ): FutureInstance<Error, BillingPlan> {
@@ -431,15 +515,10 @@ export function createBillingService(
               : ('prorated_next_billing_period' as const)
 
             return getPaddle()
-              .updateSubscription(
-                subscription.providerSubscriptionId,
-                {
-                  items: [
-                    { priceId: newPlan.providerPriceId, quantity: 1 },
-                  ],
-                  prorationBillingMode: prorationMode,
-                }
-              )
+              .updateSubscription(subscription.providerSubscriptionId, {
+                items: [{ priceId: newPlan.providerPriceId, quantity: 1 }],
+                prorationBillingMode: prorationMode,
+              })
               .pipe(
                 chain(() =>
                   attemptQuery(() =>
@@ -462,12 +541,12 @@ export function createBillingService(
                       ])
                       .executeTakeFirstOrThrow()
                   )
-                  .pipe(map(asBillingSubscription))
-                  .pipe(
-                    tapF((result: BillingSubscription) =>
-                      invalidateEntitlementCache(result.accountId)
+                    .pipe(map(asBillingSubscription))
+                    .pipe(
+                      tapF((result: BillingSubscription) =>
+                        invalidateEntitlementCache(result.accountId)
+                      )
                     )
-                  )
                 )
               )
           })
@@ -525,9 +604,7 @@ export function createBillingService(
               .createPortalSession(customer.providerCustomerId, [
                 subscription.providerSubscriptionId,
               ])
-              .pipe(
-                map(session => ({ url: session.urls.general.overview }))
-              )
+              .pipe(map(session => ({ url: session.urls.general.overview })))
           )
         )
       )
@@ -623,13 +700,32 @@ export function createBillingService(
         .select(['id'])
         .where('providerSubscriptionId', '=', params.providerSubscriptionId)
         .executeTakeFirst()
-    ).pipe(
-      chain(existing => {
-        if (existing) {
+    )
+      .pipe(
+        chain(existing => {
+          if (existing) {
+            return attemptQuery(async () => {
+              await database
+                .updateTable('billing_subscriptions')
+                .set({
+                  planId: params.planId,
+                  status: params.status,
+                  currentPeriodStart: params.currentPeriodStart,
+                  currentPeriodEnd: params.currentPeriodEnd,
+                  cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+                  canceledAt: params.canceledAt,
+                })
+                .where('id', '=', existing.id)
+                .execute()
+            })
+          }
+
           return attemptQuery(async () => {
             await database
-              .updateTable('billing_subscriptions')
-              .set({
+              .insertInto('billing_subscriptions')
+              .values({
+                accountId: params.accountId,
+                providerSubscriptionId: params.providerSubscriptionId,
                 planId: params.planId,
                 status: params.status,
                 currentPeriodStart: params.currentPeriodStart,
@@ -637,30 +733,11 @@ export function createBillingService(
                 cancelAtPeriodEnd: params.cancelAtPeriodEnd,
                 canceledAt: params.canceledAt,
               })
-              .where('id', '=', existing.id)
               .execute()
           })
-        }
-
-        return attemptQuery(async () => {
-          await database
-            .insertInto('billing_subscriptions')
-            .values({
-              accountId: params.accountId,
-              providerSubscriptionId: params.providerSubscriptionId,
-              planId: params.planId,
-              status: params.status,
-              currentPeriodStart: params.currentPeriodStart,
-              currentPeriodEnd: params.currentPeriodEnd,
-              cancelAtPeriodEnd: params.cancelAtPeriodEnd,
-              canceledAt: params.canceledAt,
-            })
-            .execute()
         })
-      })
-    ).pipe(
-      tapF(() => invalidateEntitlementCache(encodeId(params.accountId)))
-    )
+      )
+      .pipe(tapF(() => invalidateEntitlementCache(encodeId(params.accountId))))
   }
 
   return {
@@ -670,6 +747,7 @@ export function createBillingService(
     createPlan,
     createEntitlement,
     getPlanById,
+    getPlanByName,
     getPlanByProviderPriceId,
     listPlans,
     listPlansWithEntitlements,
@@ -682,6 +760,7 @@ export function createBillingService(
     recordWebhookEvent,
     markWebhookEventProcessed,
     upsertSubscription,
+    provisionFreeSubscription,
   }
 }
 

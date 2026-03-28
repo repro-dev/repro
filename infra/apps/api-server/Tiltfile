@@ -49,6 +49,7 @@ local_resource(
         'REPRO_APP_URL': 'https://app.repro.localhost:1355',
         'REPRO_API_URL': 'https://api.repro.localhost:1355',
         'OPENROUTER_API_KEY': os.getenv('OPENROUTER_API_KEY', ''),
+        'BILLING_DEFAULT_PLAN': 'Free',
     },
     deps=[
         os.path.join(PROJECT_ROOT, 'apps/api-server/src'),
