@@ -1,0 +1,35 @@
+{
+  "name": "@repro/marketing",
+  "version": "1.0.0",
+  "description": "Repro marketing website",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "fmt": "prettier --write src",
+    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@jsxstyle/react": "^3.0.1",
+    "@repro/analytics": "workspace:*",
+    "@repro/design": "workspace:*",
+    "@repro/domain": "workspace:*",
+    "next": "^15.3.1",
+    "react": "overridden",
+    "react-dom": "overridden",
+    "zod": "overridden"
+  },
+  "devDependencies": {
+    "@types/node": "22.14.0",
+    "@types/react": "overridden",
+    "@types/react-dom": "overridden",
+    "@types/repro-shared-types": "workspace:*",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "tsx": "4.19.3",
+    "typescript": "overridden"
+  }
+}
