@@ -64,14 +64,13 @@ export const TableHeader = forwardRef<
       rafId = requestAnimationFrame(() => {
         rafId = null
         if (theadRef.current != null) {
-          // Add 1px tolerance for sub-pixel rounding differences.
-          const containerTop =
+          // Use scrollTop directly — it's zero-based and unambiguous, avoiding
+          // sub-pixel rounding issues with getBoundingClientRect comparisons.
+          const scrollTop =
             scrollRoot instanceof Window
-              ? 0
-              : (scrollRoot as Element).getBoundingClientRect().top
-          setIsScrolled(
-            theadRef.current.getBoundingClientRect().top <= containerTop + 1
-          )
+              ? window.scrollY
+              : (scrollRoot as Element).scrollTop
+          setIsScrolled(scrollTop > 0)
         }
       })
     }
