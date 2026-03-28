@@ -57,7 +57,17 @@ export const TableHeader = forwardRef<
       rafId = requestAnimationFrame(() => {
         rafId = null
         if (theadRef.current != null) {
-          setIsScrolled(theadRef.current.getBoundingClientRect().top <= 0)
+          // Compare thead top against the scroll container's top edge, not 0.
+          // When the table is inside a height-constrained div, the thead sticks
+          // to that container's top (not the viewport top), so the threshold is
+          // the container's own getBoundingClientRect().top.
+          const containerTop =
+            scrollRoot instanceof Window
+              ? 0
+              : (scrollRoot as Element).getBoundingClientRect().top
+          setIsScrolled(
+            theadRef.current.getBoundingClientRect().top <= containerTop
+          )
         }
       })
     }
