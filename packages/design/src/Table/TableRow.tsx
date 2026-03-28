@@ -86,7 +86,7 @@ export const TableRow = forwardRef<HTMLTableRowElement, TableRowProps>(
               paddingLeft: spacing.xl,
               paddingRight: spacing.sm,
               verticalAlign: 'middle',
-              borderBottom: `1px solid ${color.border.strong}`,
+              boxShadow: `inset 0 -1px 0 ${color.border.strong}`,
             }}
           >
             <Checkbox

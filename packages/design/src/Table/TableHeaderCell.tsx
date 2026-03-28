@@ -80,7 +80,7 @@ export const TableHeaderCell = forwardRef<
         paddingLeft: spacing.xl,
         paddingRight: spacing.xl,
         textAlign: align,
-        borderBottom: `1px solid ${color.border.strong}`,
+        boxShadow: `inset 0 -1px 0 ${color.border.strong}`,
         cursor: sortable ? 'pointer' : 'default',
         width: width,
         whiteSpace: 'nowrap',
