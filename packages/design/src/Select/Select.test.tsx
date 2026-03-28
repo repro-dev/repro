@@ -1248,6 +1248,196 @@ describe('Select — custom option rendering (REP-300)', () => {
   })
 })
 
+describe('Select — searchable typeahead filtering (REP-310)', () => {
+  it('typing in filter input narrows visible options', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={options}
+          aria-label="Fruit"
+          searchable
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const filterInput = document.querySelector(
+      'input[aria-label="Filter options"]'
+    ) as HTMLInputElement
+    expect(filterInput).not.toBeNull()
+
+    act(() => {
+      fireEvent.change(filterInput, { target: { value: 'ban' } })
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+    expect(optionElements.length).toBe(1)
+    expect(optionElements[0]!.textContent).toContain('Banana')
+  })
+
+  it('clearing the filter restores all options', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={options}
+          aria-label="Fruit"
+          searchable
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const filterInput = document.querySelector(
+      'input[aria-label="Filter options"]'
+    ) as HTMLInputElement
+
+    act(() => {
+      fireEvent.change(filterInput, { target: { value: 'ban' } })
+    })
+
+    expect(document.querySelectorAll('[role="option"]').length).toBe(1)
+
+    act(() => {
+      fireEvent.change(filterInput, { target: { value: '' } })
+    })
+
+    expect(document.querySelectorAll('[role="option"]').length).toBe(3)
+  })
+
+  it('shows "No results" message when no options match the filter', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={options}
+          aria-label="Fruit"
+          searchable
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const filterInput = document.querySelector(
+      'input[aria-label="Filter options"]'
+    ) as HTMLInputElement
+
+    act(() => {
+      fireEvent.change(filterInput, { target: { value: 'xyz' } })
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+    expect(optionElements.length).toBe(0)
+
+    const noResults = document.querySelector(
+      '[data-testid="select-no-results"]'
+    )
+    expect(noResults).not.toBeNull()
+    expect(noResults!.textContent).toContain('No results')
+  })
+
+  it('keyboard navigation works on filtered list', () => {
+    const onChange = mock.fn()
+
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={onChange}
+          options={options}
+          aria-label="Fruit"
+          searchable
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const filterInput = document.querySelector(
+      'input[aria-label="Filter options"]'
+    ) as HTMLInputElement
+
+    // Filter to just "Cherry"
+    act(() => {
+      fireEvent.change(filterInput, { target: { value: 'che' } })
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+    expect(optionElements.length).toBe(1)
+    expect(optionElements[0]!.textContent).toContain('Cherry')
+
+    // Press Enter in filter input to select the active (first) item
+    act(() => {
+      fireEvent.keyDown(filterInput, { key: 'Enter' })
+    })
+
+    expect(onChange.mock.callCount()).toBe(1)
+    expect(onChange.mock.calls[0]?.arguments[0]).toBe('cherry')
+  })
+
+  it('selected value is preserved when filter is cleared', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value="banana"
+          onChange={() => {}}
+          options={options}
+          aria-label="Fruit"
+          searchable
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const filterInput = document.querySelector(
+      'input[aria-label="Filter options"]'
+    ) as HTMLInputElement
+
+    act(() => {
+      fireEvent.change(filterInput, { target: { value: 'app' } })
+    })
+
+    // Banana is filtered out, but trigger should still show "Banana"
+    expect(trigger.textContent).toContain('Banana')
+
+    act(() => {
+      fireEvent.change(filterInput, { target: { value: '' } })
+    })
+
+    // After clearing, all options visible
+    const optionElements = document.querySelectorAll('[role="option"]')
+    expect(optionElements.length).toBe(3)
+
+    // Selected checkmark should be on banana
+    const selectedOption = optionElements[1] as HTMLElement
+    expect(selectedOption.textContent).toContain('Banana')
+    expect(selectedOption.querySelector('svg')).not.toBeNull()
+  })
+})
+
 const groupedOptions: SelectOptionsInput = [
   {
     label: 'Fruits',
