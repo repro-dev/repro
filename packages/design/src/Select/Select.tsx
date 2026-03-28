@@ -409,18 +409,22 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           return
         }
 
-        // When a list item has focus and the user types a printable character,
-        // redirect to the filter input so they can search without having to
-        // manually re-focus it. Ignore modifier combos (Ctrl/Meta shortcuts).
+        // When a list item has focus and the user types a printable character
+        // or Backspace, redirect to the filter input so they can search without
+        // having to manually re-focus it. Ignore modifier combos (Ctrl/Meta shortcuts).
         if (
           searchable &&
-          e.key.length === 1 &&
+          (e.key.length === 1 || e.key === 'Backspace') &&
           !e.ctrlKey &&
           !e.metaKey &&
           e.target !== filterInputRef.current
         ) {
           filterInputRef.current?.focus()
-          setFilterValue(prev => prev + e.key)
+          if (e.key === 'Backspace') {
+            setFilterValue(prev => prev.slice(0, -1))
+          } else {
+            setFilterValue(prev => prev + e.key)
+          }
           e.preventDefault()
         }
       },
