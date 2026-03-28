@@ -402,15 +402,31 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
 
     const handleFloatingKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
-        if (e.key !== 'Tab') {
+        if (e.key === 'Tab') {
+          e.preventDefault()
+          handleOpenChange(false)
+          ;(refs.domReference.current as HTMLElement | null)?.focus()
           return
         }
 
-        e.preventDefault()
-        handleOpenChange(false)
-        ;(refs.domReference.current as HTMLElement | null)?.focus()
+        // When a list item has focus and the user types a printable character,
+        // redirect to the filter input so they can search without having to
+        // manually re-focus it. Ignore modifier combos (Ctrl/Meta shortcuts).
+        if (
+          searchable &&
+          e.key.length === 1 &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          e.target !== filterInputRef.current
+        ) {
+          filterInputRef.current?.focus()
+          setFilterValue(prev => prev + e.key)
+          e.preventDefault()
+        }
       },
-      [refs, handleOpenChange]
+      // filterInputRef is a stable ref object — excluded from deps intentionally
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [refs, handleOpenChange, searchable]
     )
 
     const handleFloatingBlur = useCallback(
