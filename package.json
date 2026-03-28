@@ -45,7 +45,7 @@
   "packageManager": "pnpm@10.17.0",
   "scripts": {
     "prepare": "husky",
-    "fmt:check": "pnpm -r --parallel exec prettier --check src",
+    "fmt:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path .gitignore",
     "lint": "pnpm --filter @repro/design run lint"
   }
 }
