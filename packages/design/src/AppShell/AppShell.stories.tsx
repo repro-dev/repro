@@ -1,6 +1,12 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
-import { SettingsIcon, UsersIcon, VideoIcon } from 'lucide-react'
+import {
+  CreditCardIcon,
+  FolderIcon,
+  SettingsIcon,
+  UsersIcon,
+  VideoIcon,
+} from 'lucide-react'
 import React from 'react'
 import { Avatar } from '../Avatar'
 import { Card } from '../Card'
@@ -43,9 +49,17 @@ const SampleFooter: React.FC = () => (
 
 const SampleNav: React.FC = () => (
   <SideNav>
-    <SideNav.Item icon={VideoIcon} label="Sessions" active />
-    <SideNav.Item icon={UsersIcon} label="Team" />
-    <SideNav.Item icon={SettingsIcon} label="Settings" />
+    <SideNav.Section title="Main">
+      <SideNav.Item icon={VideoIcon} label="Sessions" active />
+      <SideNav.Item icon={FolderIcon} label="Projects" disabled />
+    </SideNav.Section>
+    <SideNav.Section title="Team">
+      <SideNav.Item icon={UsersIcon} label="Members" disabled />
+      <SideNav.Item icon={SettingsIcon} label="Settings" disabled />
+    </SideNav.Section>
+    <SideNav.Section title="Account">
+      <SideNav.Item icon={CreditCardIcon} label="Billing" disabled />
+    </SideNav.Section>
   </SideNav>
 )
 

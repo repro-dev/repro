@@ -1,12 +1,12 @@
 import { IfSession, UnlessSession, UserMenu } from '@repro/auth'
 import { AppShell, Link, SideNav } from '@repro/design'
-import { PlayIcon } from 'lucide-react'
+import { CreditCardIcon, FlagIcon, SettingsIcon, UsersIcon } from 'lucide-react'
 import React from 'react'
 import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
 import { AdminHeader } from '~/components/AdminHeader'
 
 export const Layout: React.FC = () => {
-  const sessionsActive = useMatch({ path: '/', end: true })
+  const allUsersActive = useMatch({ path: '/', end: true })
 
   return (
     <AppShell>
@@ -20,13 +20,27 @@ export const Layout: React.FC = () => {
       >
         <IfSession>
           <SideNav aria-label="Main navigation">
-            <SideNav.Item
-              icon={PlayIcon}
-              label="Sessions"
-              active={!!sessionsActive}
-              component={RouterNavLink}
-              props={{ to: '/' }}
-            />
+            <SideNav.Section title="Users">
+              <SideNav.Item
+                icon={UsersIcon}
+                label="All Users"
+                active={!!allUsersActive}
+                component={RouterNavLink}
+                props={{ to: '/' }}
+              />
+              <SideNav.Item icon={UsersIcon} label="Accounts" disabled />
+            </SideNav.Section>
+            <SideNav.Section title="Platform">
+              <SideNav.Item icon={FlagIcon} label="Feature Flags" disabled />
+              <SideNav.Item
+                icon={CreditCardIcon}
+                label="Billing Plans"
+                disabled
+              />
+            </SideNav.Section>
+            <SideNav.Section title="System">
+              <SideNav.Item icon={SettingsIcon} label="Settings" disabled />
+            </SideNav.Section>
           </SideNav>
         </IfSession>
 
