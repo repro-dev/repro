@@ -785,6 +785,34 @@ describe('Table — loading state', () => {
 })
 
 // ---------------------------------------------------------------------------
+// TableCell — font size matches header cell
+// ---------------------------------------------------------------------------
+
+describe('Table — TableCell font size', () => {
+  it('body cell has font-size 13px to match header cell', () => {
+    render(
+      <Table aria-label="Font size table">
+        <Table.Header>
+          <Table.Row>
+            <Table.HeaderCell>Name</Table.HeaderCell>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body>
+          <Table.Row>
+            <Table.Cell>Alice</Table.Cell>
+          </Table.Row>
+        </Table.Body>
+      </Table>
+    )
+
+    const td = document.querySelector('td') as HTMLTableCellElement
+    expect(td).not.toBeNull()
+    // fontSize is set inline; jsdom stores inline style values as strings
+    expect(td.style.fontSize).toBe('13px')
+  })
+})
+
+// ---------------------------------------------------------------------------
 // TableCell — colSpan via props bag
 // ---------------------------------------------------------------------------
 
