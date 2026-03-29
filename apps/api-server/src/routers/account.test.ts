@@ -262,13 +262,13 @@ describe('Routers > Account', () => {
       expect(res.json()).toMatchObject({ ...user })
     })
 
-    it('should return not-found for the current user with no session', async () => {
+    it('should return not-authenticated for the current user with no session', async () => {
       const res = await app.inject({
         method: 'GET',
         url: '/me',
       })
 
-      expect(res.statusCode).toEqual(404)
+      expect(res.statusCode).toEqual(401)
     })
   })
 
@@ -467,7 +467,7 @@ describe('Routers > Account', () => {
       })
     })
 
-    it('should throw not-found when verifying without an active session', async () => {
+    it('should return not-authenticated when verifying without an active session', async () => {
       const [user] = await harness.loadFixtures([fixtures.account.UserA])
 
       const verificationToken = await harness.db
@@ -486,7 +486,7 @@ describe('Routers > Account', () => {
         },
       })
 
-      expect(res.statusCode).toEqual(404)
+      expect(res.statusCode).toEqual(401)
 
       await expect(
         promise(accountService.getUserById(user.id))

@@ -39,7 +39,7 @@ describe('Routers > Agentic', () => {
   })
 
   describe('POST /response', () => {
-    it('should return not-found when no session is active', async () => {
+    it('should return not-authenticated when no session is active', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/response',
@@ -48,7 +48,7 @@ describe('Routers > Agentic', () => {
         },
       })
 
-      expect(res.statusCode).toEqual(404)
+      expect(res.statusCode).toEqual(401)
     })
 
     it('should return 200 for an authenticated request', async () => {
