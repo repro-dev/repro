@@ -2,9 +2,7 @@ import { Col, Row } from '@jsxstyle/react'
 import React from 'react'
 import { Button } from '../Button'
 import { Modal } from '../Modal'
-import { color } from '../tokens/colors'
 import { spacing } from '../tokens/spacing'
-import { textStyles } from '../tokens/typography'
 
 export type ConfirmVariant = 'default' | 'destructive'
 
@@ -39,24 +37,7 @@ export const ConfirmDialog: React.FC<Props> = ({
   return (
     <Modal width={400} height="auto" onClose={onCancel} aria-label={title}>
       <Col padding={spacing.xl} gap={spacing.md}>
-        <Col gap={spacing.md}>
-          <Row
-            {...textStyles.heading3}
-            color={color.text.default}
-            component="h2"
-          >
-            {title}
-          </Row>
-          {description && (
-            <Row
-              {...textStyles.bodySmall}
-              color={color.text.secondary}
-              component="p"
-            >
-              {description}
-            </Row>
-          )}
-        </Col>
+        <Modal.Header title={title} description={description} />
         <Row justifyContent="flex-end" gap={spacing.md}>
           <Button
             variant="outlined"
