@@ -5,6 +5,7 @@ import mergeRefs from 'react-merge-refs'
 import { useFormFieldContext } from '../FormField/FormFieldContext'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
+import { formControlHeight } from '../tokens/formControl'
 import { focusWithinRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
 import { MINIMUM_FONT_SIZE } from '../tokens/typography'
@@ -118,6 +119,8 @@ export const Input = forwardRef<
         borderStyle="solid"
         borderWidth={1}
         boxShadow={`0 0.5px 1.5px ${color.border.strong}DA`}
+        boxSizing="border-box"
+        height={rows > 1 ? undefined : formControlHeight[size]}
         opacity={disabled ? 0.5 : 1}
         cursor={disabled ? 'not-allowed' : undefined}
         transition={transition.fast}
