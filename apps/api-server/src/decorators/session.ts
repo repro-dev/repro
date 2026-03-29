@@ -68,6 +68,16 @@ export function createSessionDecorator(
           return reject(notFound())
         }
 
+        // Synthetic session created by API key auth — bypass DB session lookup
+        // and resolve the user directly.
+        if (req.session?.id === '') {
+          return accountService.getUserById(req.session.subjectId).pipe(
+            tap(user => {
+              req.user = user
+            })
+          )
+        }
+
         const currentUser = accountService.getSessionByToken(sessionToken).pipe(
           chain<Error, Session, User | StaffUser>(session => {
             return session.subjectType === 'user'
@@ -195,6 +205,12 @@ export function createSessionDecorator(
 
       if (req.session.revoked) {
         res.clearCookie(env.SESSION_COOKIE)
+        return callback()
+      }
+
+      // Don't write a Set-Cookie header for API key (synthetic) sessions —
+      // the raw key must never be leaked into a cookie.
+      if (req.session.id === '') {
         return callback()
       }
 

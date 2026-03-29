@@ -1,8 +1,9 @@
-import { Col, Row } from '@jsxstyle/react'
+import { Block, Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import {
   Alert,
   Button,
+  Card,
   EmptyState,
   FormField,
   FormFieldError,
@@ -17,11 +18,18 @@ import {
   Text,
   color,
   spacing,
+  useConfirm,
 } from '@repro/design'
 import { ListResponse } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { fork } from 'fluture'
-import { KeyIcon, PlusIcon, TrashIcon } from 'lucide-react'
+import {
+  CheckIcon,
+  ClipboardIcon,
+  KeyIcon,
+  PlusIcon,
+  TrashIcon,
+} from 'lucide-react'
 import React, { useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
 
@@ -51,11 +59,13 @@ interface CreateApiKeyForm {
 
 export const ApiKeysRoute: React.FC = () => {
   const apiClient = useApiClient()
+  const confirm = useConfirm()
   const [refreshKey, setRefreshKey] = useState(0)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
   const [revokeError, setRevokeError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const { loading, error, data } = useFuture(
     () => apiClient.fetch<ListResponse<ApiKey>>('/account/api-keys'),
@@ -108,7 +118,19 @@ export const ApiKeysRoute: React.FC = () => {
   )
 
   const handleRevoke = useCallback(
-    (keyId: string) => {
+    async (keyId: string) => {
+      const confirmed = await confirm({
+        title: 'Revoke API key?',
+        description:
+          'This key will stop working immediately. This action cannot be undone.',
+        confirmLabel: 'Revoke',
+        variant: 'destructive',
+      })
+
+      if (!confirmed) {
+        return
+      }
+
       setRevokeError(null)
       apiClient
         .fetch<void>(`/account/api-keys/${keyId}`, { method: 'DELETE' })
@@ -120,7 +142,7 @@ export const ApiKeysRoute: React.FC = () => {
           })
         )
     },
-    [apiClient]
+    [apiClient, confirm]
   )
 
   if (loading) {
@@ -167,74 +189,78 @@ export const ApiKeysRoute: React.FC = () => {
           {revokeError && <Alert type="danger">{revokeError}</Alert>}
 
           {keys.length === 0 ? (
-            <EmptyState>
-              <EmptyState.Icon>
-                <KeyIcon size={40} color={color.text.muted} />
-              </EmptyState.Icon>
-              <EmptyState.Title>No API keys yet</EmptyState.Title>
-              <EmptyState.Description>
-                Create an API key to authenticate programmatic API access.
-              </EmptyState.Description>
-            </EmptyState>
+            <Card fullBleed>
+              <EmptyState>
+                <EmptyState.Icon>
+                  <KeyIcon size={40} color={color.text.muted} />
+                </EmptyState.Icon>
+                <EmptyState.Title>No API keys yet</EmptyState.Title>
+                <EmptyState.Description>
+                  Create an API key to authenticate programmatic API access.
+                </EmptyState.Description>
+              </EmptyState>
+            </Card>
           ) : (
-            <Table aria-label="API keys">
-              <Table.Header>
-                <Table.Row>
-                  <Table.HeaderCell>Name</Table.HeaderCell>
-                  <Table.HeaderCell>Prefix</Table.HeaderCell>
-                  <Table.HeaderCell>Created</Table.HeaderCell>
-                  <Table.HeaderCell>Last used</Table.HeaderCell>
-                  <Table.HeaderCell>Status</Table.HeaderCell>
-                  <Table.HeaderCell>
-                    <span aria-hidden="true" />
-                  </Table.HeaderCell>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {keys.map(key => (
-                  <Table.Row key={key.id}>
-                    <Table.Cell>{key.name}</Table.Cell>
-                    <Table.Cell>
-                      <Text variant="code">{key.keyPrefix}…</Text>
-                    </Table.Cell>
-                    <Table.Cell>
-                      {new Date(key.createdAt).toLocaleDateString()}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {key.lastUsedAt
-                        ? new Date(key.lastUsedAt).toLocaleDateString()
-                        : '—'}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {key.revokedAt ? (
-                        <Text variant="body" color={color.text.muted}>
-                          Revoked
-                        </Text>
-                      ) : (
-                        <Text variant="body" color={color.success}>
-                          Active
-                        </Text>
-                      )}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {!key.revokedAt && (
-                        <Button
-                          variant="text"
-                          context="danger"
-                          size="small"
-                          onClick={() => handleRevoke(key.id)}
-                        >
-                          <Row alignItems="center" gap={spacing.xs}>
-                            <TrashIcon size={14} />
-                            Revoke
-                          </Row>
-                        </Button>
-                      )}
-                    </Table.Cell>
+            <Card fullBleed>
+              <Table aria-label="API keys">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell>Name</Table.HeaderCell>
+                    <Table.HeaderCell>Prefix</Table.HeaderCell>
+                    <Table.HeaderCell>Created</Table.HeaderCell>
+                    <Table.HeaderCell>Last used</Table.HeaderCell>
+                    <Table.HeaderCell>Status</Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <span aria-hidden="true" />
+                    </Table.HeaderCell>
                   </Table.Row>
-                ))}
-              </Table.Body>
-            </Table>
+                </Table.Header>
+                <Table.Body>
+                  {keys.map(key => (
+                    <Table.Row key={key.id}>
+                      <Table.Cell>{key.name}</Table.Cell>
+                      <Table.Cell>
+                        <Text variant="code">{key.keyPrefix}…</Text>
+                      </Table.Cell>
+                      <Table.Cell>
+                        {new Date(key.createdAt).toLocaleDateString()}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {key.lastUsedAt
+                          ? new Date(key.lastUsedAt).toLocaleDateString()
+                          : '—'}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {key.revokedAt ? (
+                          <Text variant="body" color={color.text.muted}>
+                            Revoked
+                          </Text>
+                        ) : (
+                          <Text variant="body" color={color.success}>
+                            Active
+                          </Text>
+                        )}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {!key.revokedAt && (
+                          <Button
+                            variant="text"
+                            context="danger"
+                            size="small"
+                            onClick={() => handleRevoke(key.id)}
+                          >
+                            <Row alignItems="center" gap={spacing.xs}>
+                              <TrashIcon size={14} />
+                              Revoke
+                            </Row>
+                          </Button>
+                        )}
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table>
+            </Card>
           )}
         </Stack>
       </PageFrame.Body>
@@ -262,24 +288,32 @@ export const ApiKeysRoute: React.FC = () => {
 
                 <FormField>
                   <Label>Your new API key</Label>
-                  <Input
-                    autoComplete="off"
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    onChange={() => {}}
-                  />
-                  {/* Overlay the read-only key value using a native input below
-                      the design system component for the display-only case */}
+                  <Row alignItems="center" gap={spacing.sm}>
+                    <Block flexGrow={1}>
+                      <Input
+                        value={newKeyValue}
+                        readOnly
+                        onClick={e => (e.target as HTMLInputElement).select()}
+                      />
+                    </Block>
+                    <Button
+                      variant="outlined"
+                      context="neutral"
+                      size="medium"
+                      onClick={() => {
+                        navigator.clipboard.writeText(newKeyValue)
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 2000)
+                      }}
+                    >
+                      {copied ? (
+                        <CheckIcon size={16} />
+                      ) : (
+                        <ClipboardIcon size={16} />
+                      )}
+                    </Button>
+                  </Row>
                 </FormField>
-                <input
-                  readOnly
-                  value={newKeyValue}
-                  onClick={e => (e.target as HTMLInputElement).select()}
-                  style={{
-                    fontFamily: 'monospace',
-                    width: '100%',
-                    padding: `${spacing.sm}px ${spacing.md}px`,
-                  }}
-                />
 
                 <Row justifyContent="flex-end">
                   <Button

@@ -29,12 +29,15 @@ export interface InputProps {
   name?: string
   onBlur?: React.FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>
   onChange?: React.ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>
+  onClick?: React.MouseEventHandler<HTMLInputElement | HTMLTextAreaElement>
   pattern?: string
   placeholder?: string
+  readOnly?: boolean
   required?: boolean
   rows?: number
   size?: Size
   type?: string
+  value?: string
 }
 
 const sizes = {
@@ -65,6 +68,7 @@ export const Input = forwardRef<
       context: contextProp,
       disabled: disabledProp,
       placeholder = '',
+      readOnly,
       rows = 1,
       size = 'medium',
       type = 'text',
@@ -72,6 +76,8 @@ export const Input = forwardRef<
       name,
       onBlur,
       onChange,
+      onClick,
+      value,
       'aria-describedby': ariaDescribedByProp,
       'aria-invalid': ariaInvalidProp,
       'aria-label': ariaLabel,
@@ -152,8 +158,10 @@ export const Input = forwardRef<
             autoFocus,
             disabled,
             placeholder,
+            readOnly,
             rows: rows > 1 ? rows : undefined,
             type,
+            value,
             'aria-describedby': ariaDescribedBy,
             'aria-invalid': ariaInvalid,
             'aria-label': ariaLabel,
@@ -163,6 +171,7 @@ export const Input = forwardRef<
             onKeyPress: preventKeyCapture,
             onBlur,
             onChange,
+            onClick,
             ref: ref as any,
             ...restProps,
           }}
