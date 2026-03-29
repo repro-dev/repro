@@ -27,7 +27,7 @@ export const Avatar: React.FC<Props> = ({
   const showText = mode === 'full' || mode === 'text-only'
 
   return (
-    <Row alignItems="center" gap={spacing.md}>
+    <Row width="100%" alignItems="center" gap={spacing.md}>
       {showImage && hash !== null && (
         <Block
           overflow="hidden"
