@@ -73,6 +73,13 @@ export function createState(config: Config) {
     })
   }
 
+  function confirmPasswordReset(token: string, newPassword: string) {
+    return apiClient.fetch(`${basePath}/reset-password/confirm`, {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+    })
+  }
+
   function invite(email: string) {
     return apiClient.fetch(`${basePath}/invite`, {
       method: 'POST',
@@ -117,6 +124,7 @@ export function createState(config: Config) {
     invite,
     acceptInvitation,
     resetPassword,
+    confirmPasswordReset,
     loadSession,
   }
 }

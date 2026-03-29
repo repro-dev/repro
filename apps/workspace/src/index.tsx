@@ -20,6 +20,7 @@ const LoginRoute = lazy(() => import('./routes/LoginRoute'))
 const PricingRoute = lazy(() => import('./routes/PricingRoute'))
 const RecordingRoute = lazy(() => import('./routes/RecordingRoute'))
 const RegisterRoute = lazy(() => import('./routes/RegisterRoute'))
+const ResetPasswordRoute = lazy(() => import('./routes/ResetPasswordRoute'))
 
 declare global {
   interface Window {
@@ -78,6 +79,10 @@ if (rootElem) {
                         element={<RegisterRoute />}
                       />
                       <Route path="account/verify" element={<div />} />
+                      <Route
+                        path="account/reset-password/:token"
+                        element={<ResetPasswordRoute />}
+                      />
                     </Route>
 
                     <Route element={<Layout />}>
