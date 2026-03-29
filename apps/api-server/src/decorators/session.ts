@@ -15,7 +15,8 @@ import {
 } from 'fluture'
 import { Env } from '~/config/createEnv'
 import { AccountService } from '~/services/account'
-import { isNotFound, notFound } from '~/utils/errors'
+import { ApiKeyService } from '~/services/apiKeys'
+import { isNotFound, notAuthenticated } from '~/utils/errors'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -32,7 +33,8 @@ type Request = FastifyRequest
 
 export function createSessionDecorator(
   accountService: AccountService,
-  env: Env
+  env: Env,
+  apiKeyService?: ApiKeyService
 ) {
   return function registerSessionDecorator(fastify: FastifyInstance) {
     const app = fastify.withTypeProvider<ZodTypeProvider>()
@@ -63,7 +65,17 @@ export function createSessionDecorator(
         const sessionToken = req.session?.sessionToken
 
         if (sessionToken == null) {
-          return reject(notFound())
+          return reject(notAuthenticated())
+        }
+
+        // Synthetic session created by API key auth — bypass DB session lookup
+        // and resolve the user directly.
+        if (req.session?.id === '') {
+          return accountService.getUserById(req.session.subjectId).pipe(
+            tap(user => {
+              req.user = user
+            })
+          )
         }
 
         const currentUser = accountService.getSessionByToken(sessionToken).pipe(
@@ -138,19 +150,51 @@ export function createSessionDecorator(
         return callback()
       }
 
-      done<Error, Session | null>(err => callback(err ?? undefined))(
-        accountService
-          .getSessionByToken(sessionToken)
-          .pipe(
-            chainRej(error =>
-              isNotFound(error) ? resolve(null) : reject(error)
+      // First try to look up as a regular session token.
+      // If not found and an API key service is available, fall back to
+      // validating as a PAT (Bearer repro_<token>).
+      const sessionFuture = accountService
+        .getSessionByToken(sessionToken)
+        .pipe(
+          chainRej(error => {
+            if (!isNotFound(error) || apiKeyService == null) {
+              return reject(error)
+            }
+
+            // Fall back to API key validation
+            return apiKeyService.validateApiKey(sessionToken).pipe(
+              map(result => {
+                if (result == null) {
+                  return null
+                }
+
+                // Synthesise a transient Session-shaped object so that
+                // existing route guards (`if (!req.session)`) and
+                // `getCurrentUser()` work without modification.
+                const syntheticSession: Session = {
+                  id: '',
+                  sessionToken,
+                  subjectId: result.userId,
+                  subjectType: 'user',
+                  createdAt: new Date().toISOString(),
+                }
+
+                return syntheticSession as Session | null
+              })
             )
-          )
-          .pipe(
-            tap(session => {
-              req.session = session
-            })
-          )
+          })
+        )
+        .pipe(
+          chainRej(error => (isNotFound(error) ? resolve(null) : reject(error)))
+        )
+        .pipe(
+          tap(session => {
+            req.session = session
+          })
+        )
+
+      done<Error, Session | null>(err => callback(err ?? undefined))(
+        sessionFuture
       )
     })
 
@@ -161,6 +205,12 @@ export function createSessionDecorator(
 
       if (req.session.revoked) {
         res.clearCookie(env.SESSION_COOKIE)
+        return callback()
+      }
+
+      // Don't write a Set-Cookie header for API key (synthetic) sessions —
+      // the raw key must never be leaked into a cookie.
+      if (req.session.id === '') {
         return callback()
       }
 
