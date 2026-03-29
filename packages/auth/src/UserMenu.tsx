@@ -1,8 +1,7 @@
-import { Block, Row } from '@jsxstyle/react'
-import { Avatar, DropdownMenu, color, spacing, textStyles } from '@repro/design'
+import { Row } from '@jsxstyle/react'
+import { Avatar, DropdownMenu, color, spacing } from '@repro/design'
 import { logger } from '@repro/logger'
 import { done } from 'fluture'
-import { ChevronDown } from 'lucide-react'
 import React from 'react'
 import { useLogout, useSession } from './hooks'
 
@@ -40,16 +39,7 @@ export const UserMenu: React.FC = () => {
           hoverBackgroundColor={color.bg.hover}
           props={{ 'aria-label': `Open user menu for ${user.name}` }}
         >
-          <Avatar name={user.name} size={24} mode="image-only" />
-          <Block
-            flex={1}
-            textAlign="left"
-            {...textStyles.bodySmall}
-            color={color.text.secondary}
-          >
-            {user.name}
-          </Block>
-          <ChevronDown size={14} color={color.text.muted} />
+          <Avatar name={user.name} size={24} />
         </Row>
       </DropdownMenu.Trigger>
       <DropdownMenu.Content side="top" align="start">
