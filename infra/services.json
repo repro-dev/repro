@@ -15,7 +15,7 @@
       "REPRO_API_URL": "https://api.repro.localhost:1355",
       "BILLING_DEFAULT_PLAN": "Free"
     },
-    "env_passthrough": ["OPENROUTER_API_KEY"],
+    "env_passthrough": ["OPENROUTER_API_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
     "resource_deps": ["dependencies", "portless-proxy"],
     "labels": ["api"],
     "portless_name": "api.repro",

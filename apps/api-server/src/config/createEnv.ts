@@ -59,6 +59,10 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM_ADDRESS: z.string().default('Repro <noreply@repro.dev>'),
   APP_BASE_URL: z.string().default('http://localhost:3000'),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  REPRO_APP_URL: z.string().default('http://localhost:3000'),
+  REPRO_API_URL: z.string().default('http://localhost:8080'),
 })
 
 export type Env = z.infer<typeof envSchema>

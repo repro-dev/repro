@@ -13,6 +13,7 @@ import { createFeatureGateService } from '~/services/featureGate'
 import { createOAuthService } from '~/services/oauth'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
+import { createSocialAuthService } from '~/services/socialAuth'
 import { setUpTestDatabase } from './database'
 import { loadFixtures } from './loadFixtures'
 import { setUpTestFileSystemStorage } from './storage'
@@ -56,6 +57,7 @@ export async function createTestHarness(): Promise<Harness> {
   const oauthService = createOAuthService(db)
   const projectService = createProjectService(db)
   const recordingService = createRecordingService(db, storage)
+  const socialAuthService = createSocialAuthService(db)
 
   const services = {
     accountService,
@@ -64,6 +66,7 @@ export async function createTestHarness(): Promise<Harness> {
     oauthService,
     projectService,
     recordingService,
+    socialAuthService,
   }
 
   const sessionDecorator = createSessionDecorator(accountService, env)

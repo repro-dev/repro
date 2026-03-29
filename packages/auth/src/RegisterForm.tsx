@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Block, Col } from '@jsxstyle/react'
-import { Button, FormField, Input, Label, colors } from '@repro/design'
+import { Block, Col, Row } from '@jsxstyle/react'
+import { Button, colors, Divider, FormField, Input, Label } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { done } from 'fluture'
 import React, { useState } from 'react'
@@ -175,6 +175,24 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             type="submit"
           >
             Create Account
+          </Button>
+
+          <Row alignItems="center" gap={8}>
+            <Divider spacing="none" />
+            <Block flexShrink={0} fontSize={12} color={colors.slate['400']}>
+              or
+            </Block>
+            <Divider spacing="none" />
+          </Row>
+
+          <Button
+            variant="outlined"
+            context="neutral"
+            onClick={() => {
+              window.location.href = '/account/oauth/google'
+            }}
+          >
+            Continue with Google
           </Button>
         </Col>
       </form>
