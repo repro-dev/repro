@@ -160,7 +160,18 @@ const staffRouter = createStaffRouter(accountService)
 
 const registerSessionDecorator = createSessionDecorator(accountService, env)
 
-function bootstrap(routers: Array<[string, FastifyPluginAsync]>) {
+// Combine accountRouter and socialAuthRouter under the same /account prefix.
+// Both are registered as sub-plugins so Fastify handles the same-prefix
+// registration correctly — an object literal cannot have duplicate keys.
+const accountPlugins: FastifyPluginAsync = async app => {
+  await app.register(accountRouter)
+  // Social auth routes (/oauth/:provider, /oauth/:provider/callback) are
+  // co-located under /account so the full paths become
+  // /account/oauth/:provider and /account/oauth/:provider/callback
+  await app.register(socialAuthRouter)
+}
+
+function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   const app = fastify({
     bodyLimit: 16777216, // 16MiB
     logger: true,
@@ -191,7 +202,7 @@ function bootstrap(routers: Array<[string, FastifyPluginAsync]>) {
 
   registerSessionDecorator(app)
 
-  for (const [path, callback] of routers) {
+  for (const [path, callback] of Object.entries(routers)) {
     app.register(callback, { prefix: path })
   }
 
@@ -213,21 +224,16 @@ function bootstrap(routers: Array<[string, FastifyPluginAsync]>) {
   )
 }
 
-bootstrap([
-  ['/account', accountRouter],
-  // Social auth routes are mounted under /account so that the full paths are
-  // /account/oauth/:provider and /account/oauth/:provider/callback
-  ['/account', socialAuthRouter],
-  ['/agentic', agenticRouter],
-  ['/billing', billingRouter],
+bootstrap({
+  '/account': accountPlugins,
+  '/agentic': agenticRouter,
+  '/billing': billingRouter,
   ...(billingWebhookRouter
-    ? ([['/billing/webhooks', billingWebhookRouter]] as Array<
-        [string, FastifyPluginAsync]
-      >)
-    : []),
-  ['/feature-gates', featureGateRouter],
-  ['/health', healthRouter],
-  ['/oauth', oauthRouter],
-  ['/projects', projectRouter],
-  ['/staff', staffRouter],
-])
+    ? { '/billing/webhooks': billingWebhookRouter }
+    : {}),
+  '/feature-gates': featureGateRouter,
+  '/health': healthRouter,
+  '/oauth': oauthRouter,
+  '/projects': projectRouter,
+  '/staff': staffRouter,
+})
