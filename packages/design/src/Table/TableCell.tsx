@@ -28,7 +28,7 @@ export const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
           textAlign: align,
           verticalAlign: 'middle',
           color: color.text.default,
-          ...textStyles.body,
+          ...textStyles.bodySmall,
         }}
         colSpan={colSpan}
       >
