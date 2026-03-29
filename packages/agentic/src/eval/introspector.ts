@@ -1,3 +1,4 @@
+import { EVAL_REASONING_MODEL } from "@repro/domain";
 import type { AssistantMessage } from "../types";
 import type { Entry } from "../types";
 import type { EvalScore } from "./scorer";
@@ -83,7 +84,7 @@ Produce a JSON array of critique items, each with: issue (what diverged), likely
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o",
+        model: EVAL_REASONING_MODEL,
         stream: false,
         messages: [
           {

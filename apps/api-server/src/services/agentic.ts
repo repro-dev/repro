@@ -57,6 +57,8 @@ export function createAgenticService(httpClient: HttpClient) {
         tool_choice: toolChoice ?? 'auto',
         tools,
         messages,
+        // `reasoning.effort` is only supported by OpenAI models (o1/o3/GPT-5
+        // series). When the model is configurable this guard must be preserved.
         reasoning: {
           effort: 'medium',
           exclude: true,

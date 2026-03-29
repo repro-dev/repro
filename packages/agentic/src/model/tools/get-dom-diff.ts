@@ -17,7 +17,7 @@ export const TOOL_DEFINITION = {
   function: {
     name: "getDOMDiff",
     description:
-      'Get DOM changes (attribute, text, structural) for a specific element and its subtree over a time range. Start with detail="summary" for counts. Use detail="normal" to see individual changes. Use detail="full" for complete values and node ID lists.',
+      'Get DOM changes (attribute, text, structural) for a specific element and its subtree over a time range. When `getEvents` summary shows `domActivity` in a time window, use `getDOMDiff` over that window as the next step — call this tool instead of calling `getDOMState` multiple times to manually find changes. This is the most direct tool for investigating conditional rendering issues. Requires a nodeId (from getDOMState), fromTimestampMs, and toTimestampMs — all three are mandatory. Start with detail="summary" for counts. Use detail="normal" to see individual changes. Use detail="full" for complete values and node ID lists. CRITICAL: If this tool confirms a node was added and then removed, you have found the root cause of a conditional rendering bug. You MUST stop all tool use and present your conclusion immediately.',
     parameters: {
       type: "object",
       properties: {

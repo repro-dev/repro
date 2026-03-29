@@ -38,6 +38,10 @@ import {
   TOOL_DEFINITION as getRecordingDurationDef,
   handler as getRecordingDuration,
 } from "./get-recording-duration";
+import {
+  TOOL_DEFINITION as getUserActionsDef,
+  handler as getUserActions,
+} from "./get-user-actions";
 import type { ToolHandler } from "./common";
 
 export const tools = [
@@ -50,6 +54,7 @@ export const tools = [
   getEventsDef,
   getEventsAroundTimeDef,
   getDOMDiffDef,
+  getUserActionsDef,
 ];
 
 const toolHandlers: Record<string, ToolHandler> = {
@@ -62,6 +67,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   getEvents,
   getEventsAroundTime,
   getDOMDiff,
+  getUserActions,
 };
 
 export function executeTool(

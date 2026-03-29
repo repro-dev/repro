@@ -28,7 +28,10 @@ function makeBox<T>(value: T): {
   return {
     match: (fn) => (value != null ? fn(value) : false),
     get: (key) =>
-      makeBox((value as DeepBoxable)[key as string] as T[typeof key]),
+      // Guard against null/undefined — mirrors real Box.get() which returns Box(null) safely
+      value != null
+        ? makeBox((value as DeepBoxable)[key as string] as T[typeof key])
+        : makeBox(null as unknown as T[typeof key]),
     orElse: (other) => (value == null ? other : value),
     map: (fn) =>
       makeBox(
@@ -42,17 +45,43 @@ function makeEvent(type: SourceEventType, time: number, data: DeepBoxable) {
   return makeBox({ type, time, data });
 }
 
-function makeClickEvent(time: number, label: string | null = null) {
+function makeClickEvent(
+  time: number,
+  label: string | null = null,
+  metaNode?: {
+    id: string;
+    tagName: string;
+    attributes: Record<string, string | null>;
+  },
+  targets?: string[],
+) {
   return makeEvent(SourceEventType.Interaction, time, {
     type: InteractionType.Click,
-    meta: { humanReadableLabel: label },
+    meta: {
+      humanReadableLabel: label,
+      node: metaNode ?? null,
+    },
+    targets: targets ?? [],
   });
 }
 
-function makeDoubleClickEvent(time: number, label: string | null = null) {
+function makeDoubleClickEvent(
+  time: number,
+  label: string | null = null,
+  metaNode?: {
+    id: string;
+    tagName: string;
+    attributes: Record<string, string | null>;
+  },
+  targets?: string[],
+) {
   return makeEvent(SourceEventType.Interaction, time, {
     type: InteractionType.DoubleClick,
-    meta: { humanReadableLabel: label },
+    meta: {
+      humanReadableLabel: label,
+      node: metaNode ?? null,
+    },
+    targets: targets ?? [],
   });
 }
 
@@ -556,5 +585,116 @@ describe("executeTool — getEventsAroundTime — validation errors", () => {
     )) as { events?: unknown[]; error?: string };
     assert.strictEqual(result.error, undefined);
     assert.ok(Array.isArray(result.events));
+  });
+});
+
+// ─── Change 1: meta.node element extraction in getEventsAroundTime ────────────
+
+describe("executeTool — getEventsAroundTime — click element enrichment", () => {
+  it("click includes element with nodeId, tagName, attributes (nulls filtered)", async () => {
+    const events = [
+      makeClickEvent(
+        5000,
+        null,
+        {
+          id: "node-42",
+          tagName: "button",
+          attributes: { class: "btn", "data-x": null },
+        },
+        [],
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as {
+      events: Array<{
+        type: string;
+        element?: {
+          nodeId: string;
+          tagName: string;
+          attributes: Record<string, string>;
+        };
+      }>;
+    };
+    assert.strictEqual(result.events.length, 1);
+    const ev = result.events[0]!;
+    assert.ok(ev.element, "should have element field");
+    assert.strictEqual(ev.element!.nodeId, "node-42");
+    assert.strictEqual(ev.element!.tagName, "button");
+    assert.deepStrictEqual(ev.element!.attributes, { class: "btn" });
+  });
+
+  it("click includes targets when non-empty", async () => {
+    const events = [
+      makeClickEvent(
+        5000,
+        null,
+        { id: "node-1", tagName: "a", attributes: {} },
+        ["node-1", "node-2"],
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ targets?: string[] }> };
+    assert.ok("targets" in result.events[0]!, "should have targets");
+    assert.deepStrictEqual(result.events[0]!.targets, ["node-1", "node-2"]);
+  });
+
+  it("click omits targets when empty", async () => {
+    const events = [
+      makeClickEvent(
+        5000,
+        null,
+        { id: "node-1", tagName: "a", attributes: {} },
+        [],
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ targets?: string[] }> };
+    assert.ok(
+      !("targets" in result.events[0]!),
+      "should NOT have targets when empty",
+    );
+  });
+
+  it("doubleClick includes element", async () => {
+    const events = [
+      makeDoubleClickEvent(
+        5000,
+        null,
+        { id: "node-77", tagName: "img", attributes: { alt: "Logo" } },
+        [],
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as {
+      events: Array<{
+        type: string;
+        element?: { nodeId: string; tagName: string };
+      }>;
+    };
+    const ev = result.events[0]!;
+    assert.strictEqual(ev.type, "doubleClick");
+    assert.ok(ev.element, "should have element for doubleClick");
+    assert.strictEqual(ev.element!.nodeId, "node-77");
+    assert.strictEqual(ev.element!.tagName, "img");
   });
 });

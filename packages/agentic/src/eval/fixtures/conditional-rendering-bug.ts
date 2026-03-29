@@ -3,6 +3,7 @@ import { Box } from "@repro/tdl";
 import {
   makeAccessor,
   makeAddNodesPatchEvent,
+  makeConsoleInfoEvent,
   makeRemoveNodesPatchEvent,
   makeSnapshotEvent,
 } from "../../model/tools/__tests__/helpers";
@@ -65,6 +66,8 @@ export function createFixture(): EvalFixture {
   }
 
   const events = [
+    // Noise event at t=800: a routine info log, not related to the bug
+    makeConsoleInfoEvent(800, "Page ready"),
     // Snapshot event at t=1000 establishes initial DOM with confirmation-banner
     makeSnapshotEvent(1000),
     // AddNodes at t=1500: banner element added to body

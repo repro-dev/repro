@@ -162,11 +162,26 @@ export const handler: ToolHandler = (recording, args) => {
         const eventType =
           interactionType === InteractionType.Click ? "click" : "doubleClick";
         if (detail === "full") {
+          const meta = interactionData.get("meta");
+          const nodeId = meta.get("node").get("id").orElse(null);
+          const tagName = meta.get("node").get("tagName").orElse("");
+          const rawAttributes = meta
+            .get("node")
+            .get("attributes")
+            .orElse({}) as Record<string, string | null>;
+          const attributes: Record<string, string> = {};
+          for (const [k, v] of Object.entries(rawAttributes)) {
+            if (v != null) attributes[k] = v;
+          }
+          const element = nodeId ? { nodeId, tagName, attributes } : null;
+          const targets = interactionData.get("targets").orElse([]) as string[];
           resultEvents.push({
             time,
             type: eventType,
             ...(label ? { label } : {}),
             at: { x: at[0], y: at[1] },
+            ...(element ? { element } : {}),
+            ...(targets.length > 0 ? { targets } : {}),
           });
         } else {
           resultEvents.push({

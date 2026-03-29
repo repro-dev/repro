@@ -1,6 +1,7 @@
 import { atom, createAtom } from "@repro/atom";
 import { observeFuture } from "@repro/future-utils";
 import { randomString } from "@repro/random-string";
+import { AGENTIC_DEFAULT_MODEL } from "@repro/domain";
 import { chain, FutureInstance, resolve } from "fluture";
 import {
   catchError,
@@ -77,7 +78,9 @@ interface CompletionChunk {
 
 type Chunk = MessageChunk | CompletionChunk;
 
-const AGENTIC_MODEL = "openai/gpt-5-mini";
+// Use the canonical default from @repro/domain so the model choice is
+// maintained in one place alongside all other MODEL_CONFIGS entries.
+const AGENTIC_MODEL = AGENTIC_DEFAULT_MODEL;
 
 function createEntryId() {
   return randomString(5);

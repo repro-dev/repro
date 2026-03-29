@@ -1,0 +1,44 @@
+[
+  {
+    "fixtureName": "websocket-message-missing",
+    "correctnessRate": 1,
+    "avgErrorRate": 0,
+    "avgToolCalls": 4.666666666666667,
+    "avgQuality": 2.9
+  },
+  {
+    "fixtureName": "form-validation-silent-failure",
+    "correctnessRate": 1,
+    "avgErrorRate": 0.13888888888888887,
+    "avgToolCalls": 6,
+    "avgQuality": 3
+  },
+  {
+    "fixtureName": "multi-step-error-chain",
+    "correctnessRate": 1,
+    "avgErrorRate": 0,
+    "avgToolCalls": 3,
+    "avgQuality": 2.9
+  },
+  {
+    "fixtureName": "slow-session-no-errors",
+    "correctnessRate": 1,
+    "avgErrorRate": 0,
+    "avgToolCalls": 5.333333333333333,
+    "avgQuality": 2.9
+  },
+  {
+    "fixtureName": "dropdown-state-not-reset",
+    "correctnessRate": 1,
+    "avgErrorRate": 0.18514818514818518,
+    "avgToolCalls": 10.333333333333334,
+    "avgQuality": 2.8
+  },
+  {
+    "fixtureName": "error-with-dom-side-effect",
+    "correctnessRate": 1,
+    "avgErrorRate": 0.041666666666666664,
+    "avgToolCalls": 6.333333333333333,
+    "avgQuality": 2.7
+  }
+]

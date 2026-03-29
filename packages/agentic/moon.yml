@@ -2,7 +2,7 @@ id: repro/agentic
 language: typescript
 layer: library
 tags:
-- type.package
+  - type.package
 tasks:
   eval:
     command: tsx src/eval/index.ts
@@ -14,5 +14,6 @@ tasks:
       OPENROUTER_API_KEY: $OPENROUTER_API_KEY
     options:
       cache: false
+      runInCI: false
 toolchains:
   default: node

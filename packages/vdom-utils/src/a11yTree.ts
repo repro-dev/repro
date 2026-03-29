@@ -4,6 +4,7 @@ import { isDocumentVNode, isElementVNode, isTextVNode } from './matchers'
 export interface A11yNode {
   role: string
   name: string
+  nodeId?: string
   children: A11yNode[]
   state?: Record<string, string | boolean>
   value?: string
@@ -240,6 +241,7 @@ function processNodeId(nodeId: SyntheticId, vtree: VTree): A11yNode[] {
   const a11yNode: A11yNode = {
     role,
     name,
+    nodeId,
     children: nodeChildren,
   }
 
@@ -285,7 +287,8 @@ export function formatA11yTree(root: A11yNode, maxDepth: number = 10): string {
 
     const indent = '  '.repeat(depth)
     const namePart = node.name ? ` "${node.name}"` : ''
-    lines.push(`${indent}${node.role}${namePart}`)
+    const refPart = node.nodeId ? ` [ref=${node.nodeId}]` : ''
+    lines.push(`${indent}${node.role}${namePart}${refPart}`)
 
     if (node.state && Object.keys(node.state).length > 0) {
       const stateStr = Object.entries(node.state)

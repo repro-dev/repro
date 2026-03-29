@@ -15,7 +15,7 @@ export const TOOL_DEFINITION = {
   function: {
     name: "getConsoleMessages",
     description:
-      "Get recorded console messages, with an optional minimum log level and time range.",
+      "Get recorded console messages, with an optional minimum log level and time range. Use this for reviewing console output broadly across a time window. For the full text of a single known error, prefer getEventsAroundTime; for the full stack trace of a known error, use findErrors with detail='full'.",
     parameters: {
       type: "object",
       properties: {

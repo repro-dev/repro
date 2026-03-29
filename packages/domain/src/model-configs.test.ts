@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
+  AGENTIC_DEFAULT_MODEL,
   DEFAULT_MODEL_CONFIG,
+  EVAL_JUDGE_MODEL,
+  EVAL_REASONING_MODEL,
   getModelConfig,
   MODEL_CONFIGS,
 } from './model-configs'
@@ -18,7 +21,7 @@ describe('MODEL_CONFIGS', () => {
   it('contains google/gemini-2.5-flash with correct values', () => {
     const config = MODEL_CONFIGS['google/gemini-2.5-flash']
     assert.ok(config)
-    assert.equal(config.contextWindow, 1_000_000)
+    assert.equal(config.contextWindow, 1_048_576)
     assert.equal(config.creditMultiplier, 1)
     assert.equal(config.tier, 'base')
   })
@@ -34,7 +37,7 @@ describe('MODEL_CONFIGS', () => {
   it('contains google/gemini-2.5-pro with correct values', () => {
     const config = MODEL_CONFIGS['google/gemini-2.5-pro']
     assert.ok(config)
-    assert.equal(config.contextWindow, 1_000_000)
+    assert.equal(config.contextWindow, 1_048_576)
     assert.equal(config.creditMultiplier, 5)
     assert.equal(config.tier, 'reasoning')
   })
@@ -45,6 +48,51 @@ describe('MODEL_CONFIGS', () => {
     assert.equal(config.contextWindow, 200_000)
     assert.equal(config.creditMultiplier, 5)
     assert.equal(config.tier, 'reasoning')
+  })
+
+  it('contains openai/o4-mini with correct values', () => {
+    const config = MODEL_CONFIGS['openai/o4-mini']
+    assert.ok(config)
+    assert.equal(config.contextWindow, 200_000)
+    assert.equal(config.creditMultiplier, 5)
+    assert.equal(config.tier, 'reasoning')
+  })
+
+  it('contains anthropic/claude-haiku-4-5 with correct values', () => {
+    const config = MODEL_CONFIGS['anthropic/claude-haiku-4-5']
+    assert.ok(config)
+    assert.equal(config.contextWindow, 200_000)
+    assert.equal(config.creditMultiplier, 1)
+    assert.equal(config.tier, 'base')
+  })
+})
+
+describe('exported model constants', () => {
+  it('AGENTIC_DEFAULT_MODEL is gemini-2.5-flash', () => {
+    assert.equal(AGENTIC_DEFAULT_MODEL, 'google/gemini-2.5-flash')
+  })
+
+  it('EVAL_JUDGE_MODEL is gemini-2.5-flash', () => {
+    assert.equal(EVAL_JUDGE_MODEL, 'google/gemini-2.5-flash')
+  })
+
+  it('EVAL_REASONING_MODEL is gemini-2.5-pro', () => {
+    assert.equal(EVAL_REASONING_MODEL, 'google/gemini-2.5-pro')
+  })
+
+  it('AGENTIC_DEFAULT_MODEL has a registered config', () => {
+    const config = MODEL_CONFIGS[AGENTIC_DEFAULT_MODEL]
+    assert.ok(config, 'default model must have a registered config')
+  })
+
+  it('EVAL_JUDGE_MODEL has a registered config', () => {
+    const config = MODEL_CONFIGS[EVAL_JUDGE_MODEL]
+    assert.ok(config, 'judge model must have a registered config')
+  })
+
+  it('EVAL_REASONING_MODEL has a registered config', () => {
+    const config = MODEL_CONFIGS[EVAL_REASONING_MODEL]
+    assert.ok(config, 'reasoning model must have a registered config')
   })
 })
 

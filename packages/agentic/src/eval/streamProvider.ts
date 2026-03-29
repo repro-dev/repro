@@ -6,6 +6,7 @@ import { Context, StreamProvider, ToolDefinition } from "../types";
 // the HTTP proxy so the eval harness can run standalone in Node.js.
 export function createOpenRouterStreamProvider(
   apiKey: string,
+  modelId: string,
 ): (systemPrompt: string) => StreamProvider {
   return (systemPrompt: string): StreamProvider => {
     return (
@@ -28,15 +29,21 @@ export function createOpenRouterStreamProvider(
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "openai/gpt-5-mini",
+              model: modelId,
               stream: true,
               tool_choice: "auto",
               tools,
               messages,
-              reasoning: {
-                effort: "medium",
-                exclude: true,
-              },
+              // The `reasoning.effort` parameter is only supported by OpenAI
+              // models (o1/o3/GPT-5 series). Sending it to other providers
+              // (Qwen, Gemini, Kimi, etc.) causes them to suppress their final
+              // response or behave unexpectedly. See OpenRouter reasoning docs.
+              ...(modelId.startsWith("openai/") && {
+                reasoning: {
+                  effort: "medium",
+                  exclude: true,
+                },
+              }),
             }),
             signal,
           },
