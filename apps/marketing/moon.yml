@@ -1,0 +1,26 @@
+id: repro/marketing
+language: typescript
+layer: application
+tags:
+  - type.app
+  - build.ssr
+tasks:
+  build:
+    command: pnpm run build
+    deps:
+      - ^:build
+    outputs:
+      - .next
+    options:
+      cache: true
+  dev:
+    command: pnpm run dev
+    deps:
+      - ^:build
+    preset: server
+  typecheck:
+    command: pnpm run typecheck
+    deps:
+      - ^:build
+toolchains:
+  default: node

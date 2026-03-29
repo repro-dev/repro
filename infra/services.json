@@ -100,5 +100,21 @@
     "labels": ["design"],
     "port": 6006,
     "deps": []
+  },
+
+  "marketing": {
+    "type": "local",
+    "moon_project": "repro/marketing",
+    "app_dir": "apps/marketing",
+    "serve_cmd": "portless marketing.repro moon run repro/marketing:dev",
+    "serve_env": {
+      "BUILD_ENV": "development",
+      "REPRO_APP_URL": "https://app.repro.localhost:1355",
+      "REPRO_MARKETING_URL": "https://marketing.repro.localhost:1355"
+    },
+    "resource_deps": ["dependencies", "portless-proxy"],
+    "labels": ["app"],
+    "portless_name": "marketing.repro",
+    "deps": []
   }
 }
