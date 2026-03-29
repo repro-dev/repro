@@ -38,7 +38,7 @@ export const ConfirmDialog: React.FC<Props> = ({
 
   return (
     <Modal width={400} height="auto" onClose={onCancel} aria-label={title}>
-      <Col padding={spacing['2xl']} gap={spacing.xl}>
+      <Col padding={spacing.xl} gap={spacing.md}>
         <Col gap={spacing.md}>
           <Row
             {...textStyles.heading3}
