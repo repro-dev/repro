@@ -1,4 +1,5 @@
-import { SourceEvent } from '@repro/domain'
+import { SourceEventView } from '@repro/domain'
+import { List } from '@repro/tdl'
 import { FetchGroup, WebSocketGroup } from '../types'
 import { findIndexedNetworkEvents } from './findIndexedNetworkEvents'
 import { groupNetworkEvents } from './groupNetworkEvents'
@@ -8,7 +9,7 @@ function isFetchGroup(group: FetchGroup | WebSocketGroup): group is FetchGroup {
 }
 
 export function findNetworkErrors(
-  events: Array<SourceEvent>
+  events: List<SourceEventView>
 ): Array<FetchGroup> {
   const indexedNetworkEvents = findIndexedNetworkEvents(events)
   const groupedNetworkEvents = groupNetworkEvents(indexedNetworkEvents)

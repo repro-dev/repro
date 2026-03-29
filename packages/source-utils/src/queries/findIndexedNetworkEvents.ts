@@ -1,17 +1,16 @@
-import { NetworkEvent, SourceEvent } from '@repro/domain'
-import { Box } from '@repro/tdl'
+import { NetworkEvent, SourceEventView } from '@repro/domain'
+import { Box, List } from '@repro/tdl'
 import { isNetworkEvent } from './matchers'
 
 export function findIndexedNetworkEvents(
-  events: Array<SourceEvent>
+  events: List<SourceEventView>
 ): Array<[NetworkEvent, number]> {
   const indexedNetworkEvents: Array<[NetworkEvent, number]> = []
 
-  for (let i = 0; i < events.length; i++) {
-    const event = events[i]
-    if (!event) continue
+  for (let i = 0, len = events.size(); i < len; i++) {
+    const event = events.over(i)
 
-    if (isNetworkEvent(event)) {
+    if (event && isNetworkEvent(event)) {
       ;(event as Box<NetworkEvent>).apply(event => {
         indexedNetworkEvents.push([event, i])
       })
