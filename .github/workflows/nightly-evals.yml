@@ -9,8 +9,13 @@ jobs:
   agentic-evals:
     name: Run agentic eval suite
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Fetch full history so we can push the history.json commit back
+          fetch-depth: 0
       - uses: moonrepo/setup-toolchain@v0
         with:
           auto-install: true
@@ -25,10 +30,39 @@ jobs:
         run: moon run repro/agentic:eval
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      - name: Locate eval results
+        id: locate-results
+        if: success()
+        run: |
+          EVAL_RESULTS_PATH=$(ls -t tmp/agentic-evals/*/results.json 2>/dev/null | head -1)
+          if [ -z "$EVAL_RESULTS_PATH" ]; then
+            echo "No eval results found under tmp/agentic-evals/" >&2
+            exit 1
+          fi
+          echo "EVAL_RESULTS_PATH=$EVAL_RESULTS_PATH" >> "$GITHUB_ENV"
+          echo "Found results at $EVAL_RESULTS_PATH"
+      - name: Append results to history
+        if: success()
+        run: |
+          node packages/agentic/node_modules/.bin/tsx packages/agentic/src/eval/update-baseline.ts \
+            append-results $EVAL_RESULTS_PATH
+      - name: Commit history update
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/agentic/src/eval/history.json
+          # Only commit if history.json actually changed
+          if git diff --cached --quiet; then
+            echo "history.json unchanged — nothing to commit"
+          else
+            git commit -m "chore(agentic): append nightly eval results to history [skip ci]"
+            git push
+          fi
       - name: Write job summary
         if: always()
         run: |
-          if [ ! -f tmp/agentic-eval-results.json ]; then
+          if [ -z "$EVAL_RESULTS_PATH" ] || [ ! -f "$EVAL_RESULTS_PATH" ]; then
             echo "## Agentic evals" >> "$GITHUB_STEP_SUMMARY"
             echo "No results file found — eval harness may have crashed before writing output." >> "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -38,7 +72,7 @@ jobs:
           echo "| Fixture | Result | Avg tool calls | Avg error rate |" >> "$GITHUB_STEP_SUMMARY"
           echo "| --- | --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
           node -e "
-            const results = JSON.parse(require('fs').readFileSync('tmp/agentic-eval-results.json', 'utf8'));
+            const results = JSON.parse(require('fs').readFileSync(process.env.EVAL_RESULTS_PATH, 'utf8'));
             for (const r of results) {
               const result = r.majorityCorrect ? '✅ PASS' : '❌ FAIL';
               const calls = r.averageIterationDepth.toFixed(1);
@@ -51,4 +85,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: eval-results-${{ github.run_number }}
-          path: tmp/agentic-eval-results.json
+          path: ${{ env.EVAL_RESULTS_PATH }}
