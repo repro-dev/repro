@@ -35,6 +35,24 @@ const BASELINE_PATH = path.join(EVAL_DIR, "baseline.json");
 const HISTORY_PATH = path.join(EVAL_DIR, "history.json");
 
 // ---------------------------------------------------------------------------
+// Held-out test fixtures — these are NEVER appended to training history
+// ---------------------------------------------------------------------------
+
+/**
+ * The 6 held-out test fixtures that must not appear in training history.
+ * Belt-and-suspenders guard: appendResults filters these out even if the
+ * nightly workflow is accidentally run with --test-set args.
+ */
+export const TEST_FIXTURE_NAMES = new Set<string>([
+  "websocket-message-missing",
+  "form-validation-silent-failure",
+  "multi-step-error-chain",
+  "slow-session-no-errors",
+  "dropdown-state-not-reset",
+  "error-with-dom-side-effect",
+]);
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -220,9 +238,20 @@ function appendResults(
     process.exit(1);
   }
 
+  // Filter out any held-out test fixtures — they must not contaminate history
+  const trainingResults = results.filter(
+    (r) => !TEST_FIXTURE_NAMES.has(r.fixtureName),
+  );
+  const skipped = results.length - trainingResults.length;
+  if (skipped > 0) {
+    console.warn(
+      `Skipping ${skipped} test-set fixture(s) — test results are not appended to training history`,
+    );
+  }
+
   const existing = readJson<HistoryEntry[]>(historyPath) ?? [];
 
-  const runs = results.map((r) => ({
+  const runs = trainingResults.map((r) => ({
     fixtureName: r.fixtureName,
     correctnessRate: r.correctnessRate,
     avgErrorRate: r.averageToolErrorRate,

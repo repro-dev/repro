@@ -14,6 +14,7 @@ import {
   formatBaselineComparison,
   formatBaselineComparisonMarkdown,
   diffBaselines,
+  TEST_FIXTURE_NAMES,
   type BaselineDiff,
 } from "./update-baseline";
 import type { BaselineEntry } from "./regressions";
@@ -206,5 +207,46 @@ describe("formatBaselineComparisonMarkdown — markdown table", () => {
 
     assert.ok(md.includes("new-fixture"), "should include new fixture name");
     // Should not throw — old = null is a valid state
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TEST_FIXTURE_NAMES — exported constant for held-out test fixtures
+// ---------------------------------------------------------------------------
+
+describe("TEST_FIXTURE_NAMES — held-out test fixture set", () => {
+  it("is exported as a Set", () => {
+    assert.ok(
+      TEST_FIXTURE_NAMES instanceof Set,
+      "TEST_FIXTURE_NAMES should be a Set",
+    );
+  });
+
+  it("contains all 6 test fixtures", () => {
+    const expected = [
+      "websocket-message-missing",
+      "form-validation-silent-failure",
+      "multi-step-error-chain",
+      "slow-session-no-errors",
+      "dropdown-state-not-reset",
+      "error-with-dom-side-effect",
+    ];
+    for (const name of expected) {
+      assert.ok(
+        TEST_FIXTURE_NAMES.has(name),
+        `TEST_FIXTURE_NAMES should contain "${name}"`,
+      );
+    }
+  });
+
+  it("does not contain training fixtures", () => {
+    assert.ok(
+      !TEST_FIXTURE_NAMES.has("console-error-and-network-failure"),
+      "training fixture should not be in TEST_FIXTURE_NAMES",
+    );
+    assert.ok(
+      !TEST_FIXTURE_NAMES.has("conditional-rendering-bug"),
+      "training fixture should not be in TEST_FIXTURE_NAMES",
+    );
   });
 });
