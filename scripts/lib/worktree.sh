@@ -315,7 +315,11 @@ cmd_wt_remove() {
   _cleanup_worktree_services "$wt_path"
 
   _step 1 2 "Removing git worktree..."
-  git worktree remove "$wt_path"
+  if [ "${WT_FORCE:-false}" = true ]; then
+    git worktree remove --force "$wt_path"
+  else
+    git worktree remove "$wt_path"
+  fi
 
   _step 2 2 "Pruning stale entries..."
   git worktree prune
@@ -708,6 +712,7 @@ Options (remove, prune):
 
 Options (prune):
   --yes, -y         Skip confirmation prompt
+  --force, -f       Force-remove worktrees even if they have uncommitted changes
 
 Interactive picker:
   When 'attach' or 'remove' is invoked without a branch name and
@@ -726,6 +731,7 @@ Examples:
   reproctl worktree attach                      # pick interactively
   reproctl worktree prune --dry-run             # preview merged worktrees
   reproctl worktree prune --yes                 # prune without confirmation
+  reproctl worktree prune --force               # prune including worktrees with uncommitted changes
 EOF
 }
 
@@ -737,6 +743,7 @@ cmd_wt() {
 
   WT_DRY_RUN=false
   WT_YES=false
+  WT_FORCE=false
   WT_JSON=false
   WT_FROM_ISSUE=""
   WT_NO_STATUS_UPDATE=false
@@ -777,6 +784,10 @@ cmd_wt() {
         WT_YES=true
         shift
         ;;
+      --force|-f)
+        WT_FORCE=true
+        shift
+        ;;
       --json)
         WT_JSON=true
         shift
@@ -812,6 +823,10 @@ cmd_wt() {
 
   if [ "$WT_YES" = true ] && [ "$subcmd" != "prune" ]; then
     die "--yes flag can only be used with 'prune'"
+  fi
+
+  if [ "$WT_FORCE" = true ] && [ "$subcmd" != "prune" ]; then
+    die "--force flag can only be used with 'prune'"
   fi
 
   if [[ -n "$WT_FROM_ISSUE" && "$subcmd" != "create" ]]; then
