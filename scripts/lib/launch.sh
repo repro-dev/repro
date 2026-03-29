@@ -254,6 +254,24 @@ cmd_launch() {
     die "Unknown service: $service\nAvailable services: $available"
   }
 
+  # Auto-start the service if it is not already registered in the running config.
+  # This makes `launch` idempotent — it starts the service when needed, and is a
+  # no-op when it is already running.
+  local _svc_is_running=false
+  local _check_slug="${slug:-}"
+  if [[ -f "$CONFIG_FILE" ]]; then
+    local _config _svc_names
+    _config="$(cat "$CONFIG_FILE")"
+    _svc_names="$(python3 "$SCRIPTS_DIR/lib/py/worktree_services.py" "$_config" "$_check_slug" 2>/dev/null || true)"
+    case ",$_svc_names," in
+      *,"$service",*) _svc_is_running=true ;;
+    esac
+  fi
+  if [[ "$_svc_is_running" == false ]]; then
+    echo "Service '$service' is not running — starting it now..." >&2
+    cmd_start "$service"
+  fi
+
   echo "Opening $url"
   open "$url"
 } >&2

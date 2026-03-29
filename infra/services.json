@@ -95,7 +95,7 @@
     "moon_project": "repro/storybook-ui",
     "app_dir": "apps/storybook-ui",
     "serve_cmd": "moon run repro/storybook-ui:dev",
-    "serve_env": {},
+    "serve_env": { "BROWSER": "none" },
     "resource_deps": ["dependencies"],
     "labels": ["design"],
     "port": 6006,
