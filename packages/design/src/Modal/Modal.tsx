@@ -2,7 +2,7 @@ import { Block, Row } from '@jsxstyle/react'
 import { useFocusTrap } from '@repro/a11y'
 import React, { PropsWithChildren, useCallback, useEffect } from 'react'
 import { color } from '../tokens/colors'
-import { shadow } from '../tokens/elevation'
+import { radius, shadow } from '../tokens/elevation'
 
 type Props = PropsWithChildren<{
   width: string | number
@@ -69,6 +69,7 @@ export const Modal: React.FC<Props> = ({
         position="relative"
         background={color.bg.surface}
         boxShadow={shadow.lg}
+        borderRadius={radius.md}
         minHeight={minHeight}
         minWidth={minWidth}
         height={height}
