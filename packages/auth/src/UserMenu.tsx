@@ -40,7 +40,7 @@ export const UserMenu: React.FC = () => {
           hoverBackgroundColor={color.bg.hover}
           props={{ 'aria-label': `Open user menu for ${user.name}` }}
         >
-          <Avatar name={user.name} size={24} />
+          <Avatar name={user.name} size={24} mode="image-only" />
           <Block
             flex={1}
             textAlign="left"
