@@ -16,7 +16,7 @@ import {
 import { Env } from '~/config/createEnv'
 import { AccountService } from '~/services/account'
 import { ApiKeyService } from '~/services/apiKeys'
-import { isNotFound, notFound } from '~/utils/errors'
+import { isNotFound, notAuthenticated } from '~/utils/errors'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -65,7 +65,7 @@ export function createSessionDecorator(
         const sessionToken = req.session?.sessionToken
 
         if (sessionToken == null) {
-          return reject(notFound())
+          return reject(notAuthenticated())
         }
 
         // Synthetic session created by API key auth — bypass DB session lookup
