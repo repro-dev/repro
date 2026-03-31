@@ -1,5 +1,11 @@
 import { Row } from '@jsxstyle/react'
-import { color, focusRing, radius, spacing, transition } from '@repro/design'
+import {
+  color,
+  focusRing,
+  radius,
+  spacing,
+  transition,
+} from '@repro/design'
 import { ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react'
 import React, { useState } from 'react'
 
@@ -28,8 +34,8 @@ export const ResponseFeedback: React.FC<ResponseFeedbackProps> = ({
       {/* Thumbs up */}
       <Row
         alignItems="center"
-        background="transparent"
-        border="none"
+        backgroundColor={selected === 'positive' ? color.primarySubtle : 'transparent'}
+        border={`1px solid ${selected === 'positive' ? color.border.focus : 'transparent'}`}
         borderRadius={radius.sm}
         color={selected === 'positive' ? color.primary : color.text.muted}
         component="button"
@@ -37,7 +43,7 @@ export const ResponseFeedback: React.FC<ResponseFeedbackProps> = ({
         padding={spacing.xs}
         transition={transition.fast}
         hoverColor={color.primary}
-        hoverBackgroundColor={color.bg.hover}
+        hoverBackgroundColor={selected === 'positive' ? color.primarySubtleHover : color.bg.hover}
         {...focusRing('neutral')}
         props={{
           type: 'button',
@@ -52,16 +58,16 @@ export const ResponseFeedback: React.FC<ResponseFeedbackProps> = ({
       {/* Thumbs down */}
       <Row
         alignItems="center"
-        background="transparent"
-        border="none"
+        backgroundColor={selected === 'negative' ? color.dangerSubtle : 'transparent'}
+        border={`1px solid ${selected === 'negative' ? color.dangerBorderSubtle : 'transparent'}`}
         borderRadius={radius.sm}
-        color={selected === 'negative' ? color.danger : color.text.muted}
+        color={selected === 'negative' ? color.dangerFg : color.text.muted}
         component="button"
         cursor="pointer"
         padding={spacing.xs}
         transition={transition.fast}
         hoverColor={color.danger}
-        hoverBackgroundColor={color.bg.hover}
+        hoverBackgroundColor={selected === 'negative' ? color.dangerTint : color.bg.hover}
         {...focusRing('neutral')}
         props={{
           type: 'button',
