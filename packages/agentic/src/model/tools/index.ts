@@ -62,6 +62,13 @@ export const tools = [
   captureScreenshotDef,
 ];
 
+// Subset of tools for the browser extension agent. captureScreenshot is
+// excluded until it has been tested and refined in the extension context.
+export const extensionTools = tools.filter(
+  (t) =>
+    (t as { function: { name: string } }).function.name !== "captureScreenshot",
+);
+
 const toolHandlers: Record<string, ToolHandler> = {
   getRecordingDuration,
   getConsoleMessages,

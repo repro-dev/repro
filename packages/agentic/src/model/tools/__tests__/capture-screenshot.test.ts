@@ -24,7 +24,8 @@ mock.module("@repro/vdom-renderer", {
 
 // Use require() so the mock registration above takes effect before the module loads.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { tools } = require("../index") as typeof import("../index");
+const { tools, extensionTools } =
+  require("../index") as typeof import("../index");
 
 describe("tools array — captureScreenshot", () => {
   it("includes captureScreenshot in the registered tools array", () => {
@@ -76,5 +77,34 @@ describe("tools array — captureScreenshot", () => {
     assert.ok(def !== undefined);
     assert.ok(def.function.parameters.required.includes("timestampMs"));
     assert.ok(def.function.parameters.properties["timestampMs"] !== undefined);
+  });
+});
+
+describe("extensionTools array", () => {
+  it("excludes captureScreenshot from extensionTools", () => {
+    const def = extensionTools.find(
+      (t) =>
+        (t as { function: { name: string } }).function.name ===
+        "captureScreenshot",
+    );
+    assert.strictEqual(
+      def,
+      undefined,
+      "captureScreenshot should NOT be in extensionTools[]",
+    );
+  });
+
+  it("extensionTools contains all other tools from tools[]", () => {
+    const toolNames = tools
+      .map((t) => (t as { function: { name: string } }).function.name)
+      .filter((name) => name !== "captureScreenshot");
+    const extensionToolNames = extensionTools.map(
+      (t) => (t as { function: { name: string } }).function.name,
+    );
+    assert.deepStrictEqual(extensionToolNames, toolNames);
+  });
+
+  it("extensionTools is smaller than tools by exactly one entry", () => {
+    assert.strictEqual(extensionTools.length, tools.length - 1);
   });
 });
