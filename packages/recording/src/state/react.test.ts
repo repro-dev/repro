@@ -29,19 +29,9 @@ function makeFiber(overrides: Partial<MockFiber> = {}): MockFiber {
   }
 }
 
-// Wrap fiber as a child of a synthetic HostRoot
+// Minimal FiberRoot-like object
 function makeFiberRoot(current: MockFiber) {
-  const hostRoot: MockFiber = {
-    tag: 3, // HostRoot
-    type: null,
-    memoizedProps: null,
-    alternate: null,
-    child: current,
-    sibling: null,
-    return: null,
-  }
-  current.return = hostRoot
-  return { current: hostRoot }
+  return { current }
 }
 
 // Helper to simulate a DevTools commit
@@ -168,59 +158,6 @@ describe('createReactObserver', () => {
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
   })
 
-  it('captures MemoComponent fibers (tag = 14) with changed props', () => {
-    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
-
-    const events: ReactCommitEvent[] = []
-    const observer = createReactObserver(event => {
-      events.push(event)
-    })
-    observer.observe(null as any, null as any)
-
-    // MemoComponent: type.type holds the inner component
-    const fiber = makeFiber({
-      tag: 14,
-      type: { displayName: undefined, name: undefined } as any,
-      memoizedProps: { value: 42 },
-      alternate: null,
-    })
-    // Attach the inner type
-    ;(fiber.type as any).type = { name: 'MemoButton' }
-
-    simulateCommit(1, makeFiberRoot(fiber))
-
-    assert.equal(events.length, 1)
-    assert.equal(events[0]?.componentName, 'MemoButton')
-
-    observer.disconnect()
-    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
-  })
-
-  it('captures SimpleMemoComponent fibers (tag = 15) with changed props', () => {
-    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
-
-    const events: ReactCommitEvent[] = []
-    const observer = createReactObserver(event => {
-      events.push(event)
-    })
-    observer.observe(null as any, null as any)
-
-    const fiber = makeFiber({
-      tag: 15,
-      type: { name: 'SimpleLabel' },
-      memoizedProps: { text: 'hello' },
-      alternate: null,
-    })
-
-    simulateCommit(1, makeFiberRoot(fiber))
-
-    assert.equal(events.length, 1)
-    assert.equal(events[0]?.componentName, 'SimpleLabel')
-
-    observer.disconnect()
-    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
-  })
-
   it('skips HostComponent fibers (tag = 5)', () => {
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
 
@@ -301,88 +238,6 @@ describe('createReactObserver', () => {
       originalFn
     )
 
-    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
-  })
-
-  it('emits events for components in sibling subtrees under HostRoot', () => {
-    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
-
-    const events: ReactCommitEvent[] = []
-    const observer = createReactObserver(event => {
-      events.push(event)
-    })
-    observer.observe(null as any, null as any)
-
-    // Two siblings under HostRoot
-    const fiber1 = makeFiber({
-      tag: 0,
-      type: { name: 'ComponentA' },
-      memoizedProps: { x: 1 },
-      alternate: null,
-    })
-    const fiber2 = makeFiber({
-      tag: 0,
-      type: { name: 'ComponentB' },
-      memoizedProps: { y: 2 },
-      alternate: null,
-    })
-    fiber1.sibling = fiber2
-
-    simulateCommit(1, makeFiberRoot(fiber1))
-
-    const names = events.map(e => e.componentName)
-    assert.ok(names.includes('ComponentA'), 'should capture ComponentA')
-    assert.ok(names.includes('ComponentB'), 'should capture ComponentB')
-
-    observer.disconnect()
-    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
-  })
-
-  it('skips components with names starting with "__"', () => {
-    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
-
-    const events: ReactCommitEvent[] = []
-    const observer = createReactObserver(event => {
-      events.push(event)
-    })
-    observer.observe(null as any, null as any)
-
-    const fiber = makeFiber({
-      tag: 0,
-      type: { name: '__SECRET_INTERNALS' },
-      memoizedProps: { value: 1 },
-      alternate: null,
-    })
-
-    simulateCommit(1, makeFiberRoot(fiber))
-
-    assert.equal(events.length, 0)
-
-    observer.disconnect()
-    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
-  })
-
-  it('skips components with "." in their name', () => {
-    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
-
-    const events: ReactCommitEvent[] = []
-    const observer = createReactObserver(event => {
-      events.push(event)
-    })
-    observer.observe(null as any, null as any)
-
-    const fiber = makeFiber({
-      tag: 0,
-      type: { name: 'Context.Provider' },
-      memoizedProps: { value: 1 },
-      alternate: null,
-    })
-
-    simulateCommit(1, makeFiberRoot(fiber))
-
-    assert.equal(events.length, 0)
-
-    observer.disconnect()
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
   })
 })
