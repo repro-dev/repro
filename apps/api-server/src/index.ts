@@ -79,7 +79,7 @@ const accountService = createAccountService(
   emailUtils,
   billingService
 )
-const agenticService = createAgenticService(httpClient)
+const agenticService = createAgenticService(database, httpClient)
 const oauthService = createOAuthService(database)
 const apiKeyService = createApiKeyService(database)
 const featureGateService = createFeatureGateService(database)

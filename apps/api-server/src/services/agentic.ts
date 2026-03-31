@@ -1,5 +1,8 @@
+import { FutureInstance, map, reject } from 'fluture'
 import { defaultEnv as env } from '~/config/env'
+import { Database, attemptQuery, decodeId } from '~/modules/database'
 import { HttpClient } from '~/modules/http'
+import { badRequest } from '~/utils/errors'
 
 interface ToolCallContext {
   id: string
@@ -35,7 +38,10 @@ interface Tool {
   }
 }
 
-export function createAgenticService(httpClient: HttpClient) {
+export function createAgenticService(
+  database: Database,
+  httpClient: HttpClient
+) {
   function getStreamingResponse(
     messages: Array<ChatContextMessage>,
     tools: Array<Tool>,
@@ -67,8 +73,34 @@ export function createAgenticService(httpClient: HttpClient) {
     })
   }
 
+  function recordFeedback(
+    userId: string,
+    sentiment: 'positive' | 'negative',
+    promptVersion: string,
+    comment: string | null,
+    recordingId: string | null
+  ): FutureInstance<Error, void> {
+    const numericUserId = decodeId(userId)
+    if (numericUserId === null) {
+      return reject(badRequest('Invalid user ID'))
+    }
+    return attemptQuery(() =>
+      database
+        .insertInto('agentic_feedback')
+        .values({
+          userId: numericUserId,
+          sentiment,
+          promptVersion,
+          comment,
+          recordingId,
+        })
+        .execute()
+    ).pipe(map(() => undefined))
+  }
+
   return {
     getStreamingResponse,
+    recordFeedback,
   }
 }
 
