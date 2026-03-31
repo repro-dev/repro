@@ -17,6 +17,7 @@ import {
   Text,
   color,
   spacing,
+  useConfirm,
 } from '@repro/design'
 import { ListResponse } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
@@ -57,6 +58,7 @@ interface CreateApiKeyForm {
 
 export const ApiKeysRoute: React.FC = () => {
   const apiClient = useApiClient()
+  const confirm = useConfirm()
   const [refreshKey, setRefreshKey] = useState(0)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null)
@@ -115,7 +117,19 @@ export const ApiKeysRoute: React.FC = () => {
   )
 
   const handleRevoke = useCallback(
-    (keyId: string) => {
+    async (keyId: string) => {
+      const confirmed = await confirm({
+        title: 'Revoke API key?',
+        description:
+          'This key will stop working immediately. This action cannot be undone.',
+        confirmLabel: 'Revoke',
+        variant: 'destructive',
+      })
+
+      if (!confirmed) {
+        return
+      }
+
       setRevokeError(null)
       apiClient
         .fetch<void>(`/account/api-keys/${keyId}`, { method: 'DELETE' })
@@ -127,7 +141,7 @@ export const ApiKeysRoute: React.FC = () => {
           })
         )
     },
-    [apiClient]
+    [apiClient, confirm]
   )
 
   if (loading) {
