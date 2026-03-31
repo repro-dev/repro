@@ -10,6 +10,7 @@ import React, {
 import { color } from '../tokens/colors'
 import { shadow } from '../tokens/elevation'
 import { duration, easing } from '../tokens/motion'
+import { ModalHeader } from './ModalHeader'
 
 // ---------------------------------------------------------------------------
 // CSS keyframes — injected once into the document head on first render.
@@ -199,8 +200,11 @@ type Props = PropsWithChildren<{
  *
  * Pass `open` to control visibility with enter/exit animations. The component
  * stays mounted until the exit animation completes, then unmounts itself.
+ *
+ * Compound subcomponents:
+ *   `Modal.Header` — standard title + description header slot
  */
-export const Modal: React.FC<Props> = ({
+const _Modal: React.FC<Props> = ({
   children,
   width,
   height,
@@ -272,6 +276,12 @@ export const Modal: React.FC<Props> = ({
     </Backdrop>
   )
 }
+
+_Modal.displayName = 'Modal'
+
+export const Modal = _Modal as typeof _Modal & { Header: typeof ModalHeader }
+
+Modal.Header = ModalHeader
 
 // ---------------------------------------------------------------------------
 // Backdrop component
