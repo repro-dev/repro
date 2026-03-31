@@ -2,7 +2,7 @@ import { atom, createAtom } from "@repro/atom";
 import { observeFuture } from "@repro/future-utils";
 import { randomString } from "@repro/random-string";
 import { AGENTIC_DEFAULT_MODEL } from "@repro/domain";
-import { chain, FutureInstance, resolve } from "fluture";
+import { FutureInstance, map as mapFuture, parallel, resolve } from "fluture";
 import {
   catchError,
   distinctUntilChanged,
@@ -173,50 +173,51 @@ export function executeToolCalls(
   recording: RecordingDataAccessor,
   toolCalls: Array<ToolCall>,
   createId: () => string = createEntryId,
+  executeFn: (
+    recording: RecordingDataAccessor,
+    name: string,
+    args: Record<string, unknown>,
+  ) => FutureInstance<unknown, unknown> = executeTool,
 ): FutureInstance<unknown, Array<ToolMessage>> {
-  const results: Array<ToolMessage> = [];
   const denseToolCalls = toolCalls.filter(Boolean);
 
-  // Sequence tool calls using Future chain
-  let fut: FutureInstance<unknown, Array<ToolMessage>> = resolve([]);
-
-  for (const toolCall of denseToolCalls) {
-    const captured = toolCall;
-    fut = fut.pipe(
-      chain(() => {
-        let toolFut: FutureInstance<unknown, unknown>;
-        try {
-          const args = captured.function.arguments
-            ? (JSON.parse(captured.function.arguments) as Record<
-                string,
-                unknown
-              >)
-            : {};
-          toolFut = executeTool(recording, captured.function.name, args);
-        } catch (err) {
-          toolFut = resolve({
-            error: err instanceof Error ? err.message : "Tool execution failed",
-          });
-        }
-
-        return toolFut.pipe(
-          chain((output) => {
-            const toolMessage: ToolMessage = {
-              id: createId(),
-              timestamp: new Date(),
-              role: "tool",
-              content: buildToolMessageContent(captured.function.name, output),
-              tool_call_id: captured.id,
-            };
-            results.push(toolMessage);
-            return resolve(results);
-          }),
-        );
-      }),
-    );
+  if (denseToolCalls.length === 0) {
+    return resolve([]);
   }
 
-  return fut;
+  // Build one Future per tool call, all starting concurrently via parallel(Infinity).
+  // Results arrive in the original call order because fluture's parallel preserves
+  // index ordering — the fastest call does not shift its result to index 0.
+  const futures = denseToolCalls.map((toolCall) => {
+    let toolFut: FutureInstance<unknown, unknown>;
+    try {
+      const args = toolCall.function.arguments
+        ? (JSON.parse(toolCall.function.arguments) as Record<string, unknown>)
+        : {};
+      toolFut = executeFn(recording, toolCall.function.name, args);
+    } catch (err) {
+      toolFut = resolve({
+        error: err instanceof Error ? err.message : "Tool execution failed",
+      });
+    }
+
+    return toolFut.pipe(
+      mapFuture((output) => {
+        const toolMessage: ToolMessage = {
+          id: createId(),
+          timestamp: new Date(),
+          role: "tool",
+          content: buildToolMessageContent(toolCall.function.name, output),
+          tool_call_id: toolCall.id,
+        };
+        return toolMessage;
+      }),
+    );
+  });
+
+  // parallel(Infinity) runs all futures at once and resolves with results in
+  // the same order as the input array, regardless of completion order.
+  return parallel(Infinity)(futures);
 }
 
 export const MAX_TOOL_ITERATIONS = 25;
