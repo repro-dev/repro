@@ -1,13 +1,10 @@
-# StateEventType values alias SourceEventType values 60-65 from event.tdls.
-# These must stay in sync — each struct's type tag is dispatched at the
-# SourceEvent level, not via a nested StateEvent wrapper.
 type StateEventType: enum<uint8> {
-  ReactCommit: 60
-  ReduxDispatch: 61
-  VueComponentUpdate: 62
-  VuexMutation: 63
-  VuexAction: 64
-  PiniaAction: 65
+  ReactCommit: 0
+  ReduxDispatch: 1
+  VueComponentUpdate: 2
+  VuexMutation: 3
+  VuexAction: 4
+  PiniaAction: 5
 }
 
 type ReactCommitEvent: struct {
@@ -64,4 +61,13 @@ type PiniaActionEvent: struct {
   4) actionName: string
   5) args: string
   6) stateDiff: string
+}
+
+type StateEvent: union(type) {
+  ReactCommitEvent
+  ReduxDispatchEvent
+  VueComponentUpdateEvent
+  VuexMutationEvent
+  VuexActionEvent
+  PiniaActionEvent
 }
