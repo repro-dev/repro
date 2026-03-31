@@ -7,6 +7,7 @@ CREATE TABLE agentic_feedback (
   "userId" INTEGER NOT NULL,
   "recordingId" TEXT,
   "sentiment" TEXT CHECK("sentiment" IN ('positive', 'negative')) NOT NULL,
+  "promptVersion" TEXT NOT NULL DEFAULT '',
   "comment" TEXT,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY ("userId") REFERENCES users ("id")

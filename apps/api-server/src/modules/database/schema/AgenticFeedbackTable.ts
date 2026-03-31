@@ -5,6 +5,7 @@ export interface AgenticFeedbackTable {
   userId: number
   recordingId: string | null
   sentiment: 'positive' | 'negative'
+  promptVersion: string
   comment: string | null
   createdAt: Generated<Date>
 }

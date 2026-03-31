@@ -66,13 +66,14 @@ export function createAgenticService(database: Database, httpClient: HttpClient)
   function recordFeedback(
     userId: number,
     sentiment: 'positive' | 'negative',
+    promptVersion: string,
     comment: string | null,
     recordingId: string | null
   ): FutureInstance<Error, void> {
     return attemptQuery(() =>
       database
         .insertInto('agentic_feedback')
-        .values({ userId, sentiment, comment, recordingId })
+        .values({ userId, sentiment, promptVersion, comment, recordingId })
         .execute()
     ).pipe(map(() => undefined))
   }

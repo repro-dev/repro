@@ -13,6 +13,17 @@ import { parse } from 'event-stream-parser'
 import { attemptP, chain, fork } from 'fluture'
 import React, { useMemo } from 'react'
 
+async function hashPromptVersion(prompt: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(prompt)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 16) // 16 hex chars (64 bits) is enough for version identification
+}
+
 export const Agentic: React.FC = () => {
   const apiClient = useApiClient()
   const playback = usePlayback()
@@ -76,14 +87,20 @@ export const Agentic: React.FC = () => {
           fork<Error>(() =>
             console.warn('[Agentic] feedback submission failed')
           )(() => undefined)(
-            apiClient.fetch(
-              '/agentic/feedback',
-              {
-                method: 'POST',
-                body: JSON.stringify({ sentiment }),
-              },
-              'json',
-              'json'
+            attemptP<Error, string>(() =>
+              hashPromptVersion(EXTENSION_SYSTEM_CARD_MESSAGE)
+            ).pipe(
+              chain(promptVersion =>
+                apiClient.fetch(
+                  '/agentic/feedback',
+                  {
+                    method: 'POST',
+                    body: JSON.stringify({ sentiment, promptVersion }),
+                  },
+                  'json',
+                  'json'
+                )
+              )
             )
           )
         }}

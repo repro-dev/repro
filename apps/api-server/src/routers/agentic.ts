@@ -109,6 +109,7 @@ export function createAgenticRouter(
     const feedbackSchema = {
       body: z.object({
         sentiment: z.enum(['positive', 'negative']),
+        promptVersion: z.string().max(64).default(''),
         comment: z.string().max(1000).optional(),
         recordingId: z.string().optional(),
       }),
@@ -118,7 +119,7 @@ export function createAgenticRouter(
       '/feedback',
       { schema: feedbackSchema },
       (req, res) => {
-        const { sentiment, comment, recordingId } = req.body
+        const { sentiment, promptVersion, comment, recordingId } = req.body
         respondWith(
           res,
           go(function* () {
@@ -127,6 +128,7 @@ export function createAgenticRouter(
             yield agenticService.recordFeedback(
               user.id,
               sentiment,
+              promptVersion,
               comment ?? null,
               recordingId ?? null
             )
