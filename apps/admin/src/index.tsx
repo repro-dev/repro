@@ -62,11 +62,6 @@ const adminTheme: ThemeDefinition = {
       focus: colors.slate['500'],
     },
 
-    dangerTint: colors.rose['50'],
-    successTint: colors.green['50'],
-    warningTint: colors.amber['50'],
-    infoTint: colors.blue['50'],
-
     danger: colors.rose['700'],
     dangerHover: colors.rose['800'],
     dangerSubtle: colors.rose['100'],

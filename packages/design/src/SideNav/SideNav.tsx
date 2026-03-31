@@ -1,10 +1,19 @@
 import { Col } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
 import { spacing } from '../tokens/spacing'
+import { SideNavItem } from './SideNavItem'
+import { SideNavSection } from './SideNavSection'
 
 export interface SideNavProps {
   'aria-label'?: string
   children?: React.ReactNode
+}
+
+type SideNavComponent = React.ForwardRefExoticComponent<
+  SideNavProps & React.RefAttributes<HTMLElement>
+> & {
+  Section: typeof SideNavSection
+  Item: typeof SideNavItem
 }
 
 /**
@@ -15,7 +24,7 @@ export interface SideNavProps {
  * items. Compose with `SideNav.Section` for grouped navigation and
  * `SideNav.Item` for individual links.
  */
-export const SideNav = forwardRef<HTMLElement, SideNavProps>(
+const SideNavBase = forwardRef<HTMLElement, SideNavProps>(
   ({ 'aria-label': ariaLabel = 'Navigation', children }, ref) => {
     return (
       <Col
@@ -30,4 +39,8 @@ export const SideNav = forwardRef<HTMLElement, SideNavProps>(
   }
 )
 
-SideNav.displayName = 'SideNav'
+SideNavBase.displayName = 'SideNav'
+
+export const SideNav = SideNavBase as SideNavComponent
+SideNav.Section = SideNavSection
+SideNav.Item = SideNavItem

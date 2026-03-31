@@ -1,12 +1,6 @@
-import { SideNav as SideNavRoot } from './SideNav'
-import { SideNavItem } from './SideNavItem'
-import { SideNavSection } from './SideNavSection'
-
+export { SideNav } from './SideNav'
 export type { SideNavProps } from './SideNav'
+export { SideNavItem } from './SideNavItem'
 export type { SideNavItemProps } from './SideNavItem'
+export { SideNavSection } from './SideNavSection'
 export type { SideNavSectionProps } from './SideNavSection'
-
-export const SideNav = Object.assign(SideNavRoot, {
-  Section: SideNavSection,
-  Item: SideNavItem,
-})

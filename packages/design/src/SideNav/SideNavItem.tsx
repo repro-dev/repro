@@ -11,13 +11,21 @@ export interface SideNavItemProps {
   icon?: React.ComponentType<{ size?: number | string; color?: string }>
   label: string
   active?: boolean
+  disabled?: boolean
   component?: React.ElementType
   props?: Record<string, unknown>
 }
 
 export const SideNavItem = forwardRef<HTMLElement, SideNavItemProps>(
   (
-    { icon: Icon, label, active = false, component, props: componentProps },
+    {
+      icon: Icon,
+      label,
+      active = false,
+      disabled = false,
+      component,
+      props: componentProps,
+    },
     ref
   ) => {
     const iconColor = active ? color.primary : color.text.secondary
@@ -37,18 +45,25 @@ export const SideNavItem = forwardRef<HTMLElement, SideNavItemProps>(
         color={active ? color.primary : color.text.default}
         fontSize={fontSize.sm}
         fontWeight={active ? fontWeight.semibold : fontWeight.normal}
-        cursor="pointer"
+        cursor={disabled ? 'default' : 'pointer'}
+        pointerEvents={disabled ? 'none' : undefined}
+        opacity={disabled ? 0.5 : undefined}
         textDecoration="none"
         textAlign="left"
         width="100%"
         transition={transition.fast}
         hoverBackgroundColor={
-          active ? color.primarySubtleHover : color.bg.hover
+          disabled
+            ? undefined
+            : active
+            ? color.primarySubtleHover
+            : color.bg.hover
         }
         {...focusRing()}
         props={{
           ref: ref as React.Ref<HTMLButtonElement>,
           ...(isButton ? { type: 'button' } : {}),
+          ...(disabled ? { 'aria-disabled': 'true' } : {}),
           ...componentProps,
         }}
       >
