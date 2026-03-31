@@ -22,6 +22,8 @@ import {
   SourceEvent,
   SourceEventType,
   SourceEventView,
+  StorageEvent,
+  StorageMessage,
   SyntheticId,
   VNode,
 } from '@repro/domain'
@@ -52,6 +54,7 @@ import { createViewportVisitor } from './interaction/visitor'
 import { createNetworkObserver } from './network'
 import { createPerformanceObserver } from './performance'
 import { observePeriodic } from './periodic'
+import { createStorageObserver } from './storage/observe'
 import { RecordingOptions } from './types'
 
 function isZeroPoint(point: Point) {
@@ -167,6 +170,10 @@ export function createRecordingStream(
 
   if (options.types.has('performance')) {
     registerPerformanceObserver()
+  }
+
+  if (options.types.has('storage')) {
+    registerStorageObserver()
   }
 
   function start() {
@@ -600,6 +607,22 @@ export function createRecordingStream(
     observers.push(
       createPerformanceObserver(entry => {
         addEvent(createPerformanceEvent(entry))
+      })
+    )
+  }
+
+  function createStorageEvent(message: StorageMessage): Box<StorageEvent> {
+    return new Box({
+      type: SourceEventType.Storage,
+      time: performance.now(),
+      data: message,
+    })
+  }
+
+  function registerStorageObserver() {
+    observers.push(
+      createStorageObserver(message => {
+        addEvent(createStorageEvent(message))
       })
     )
   }
