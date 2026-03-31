@@ -31,7 +31,7 @@ describe('Routers > Staff', () => {
         accountService.createStaffUser(
           'John Smith',
           'jsmith@example.com',
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -40,7 +40,7 @@ describe('Routers > Staff', () => {
         url: '/login',
         body: {
           email: 'jsmith@example.com',
-          password: 'hunter2',
+          password: 'hunter2!',
         },
       })
 

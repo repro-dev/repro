@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, FormField, Input, Label, colors } from '@repro/design'
+import { Block, Col, Row } from '@jsxstyle/react'
+import { Button, colors, Divider, FormField, Input, Label } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { done } from 'fluture'
-import { Block, Col } from '@jsxstyle/react'
 import React, { useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import z from 'zod'
@@ -18,8 +18,10 @@ const formSchema = z
     accountName: z.string(),
     userName: z.string(),
     email: z.string().email(),
-    password: z.string().min(1),
-    confirmedPassword: z.string().min(1),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmedPassword: z
+      .string()
+      .min(8, 'Password must be at least 8 characters'),
   })
   .refine(values => values.password === values.confirmedPassword, {
     message: 'Passwords do not match',
@@ -122,7 +124,9 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             <Input
               id="reg-account"
               autoFocus={true}
-              context={formState.errors.accountName != null ? 'error' : 'normal'}
+              context={
+                formState.errors.accountName != null ? 'error' : 'normal'
+              }
               {...register('accountName', { required: true })}
             />
           </FormField>
@@ -171,6 +175,24 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             type="submit"
           >
             Create Account
+          </Button>
+
+          <Row alignItems="center" gap={8}>
+            <Divider spacing="none" />
+            <Block flexShrink={0} fontSize={12} color={colors.slate['400']}>
+              or
+            </Block>
+            <Divider spacing="none" />
+          </Row>
+
+          <Button
+            variant="outlined"
+            context="neutral"
+            onClick={() => {
+              window.location.href = '/account/oauth/google'
+            }}
+          >
+            Continue with Google
           </Button>
         </Col>
       </form>

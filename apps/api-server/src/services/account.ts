@@ -11,7 +11,7 @@ import {
   resolve,
   swap,
 } from 'fluture'
-import crypto from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { SystemConfig, defaultSystemConfig } from '~/config/system'
 import {
   Database,
@@ -23,6 +23,7 @@ import {
   withEncodedId,
 } from '~/modules/database'
 import { EmailUtils } from '~/modules/email-utils'
+import { BillingService } from '~/services/billing'
 import {
   badRequest,
   notFound,
@@ -38,12 +39,19 @@ const DUMMY_HASH =
   '$argon2id$v=19$m=4096,t=3,p=1$YWJjZDEyMzQ$MFRSPmdxZVyBvGi95RcZlo5PqmfJhLXYj8JZm8atFdY'
 
 function createToken(): string {
-  return crypto.randomBytes(32).toString('base64url')
+  return randomBytes(32).toString('base64url')
+}
+
+// SHA-256 hash of a session token for safe database storage.
+// Session lookup is on every request — use a fast hash, not argon2.
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('base64url')
 }
 
 export function createAccountService(
   database: Database,
   emailUtils: EmailUtils,
+  billingService?: BillingService,
   _config: SystemConfig = defaultSystemConfig
 ) {
   function ensureStaffUser(
@@ -329,7 +337,19 @@ export function createAccountService(
         .values({ name, active: true })
         .returning(['id', 'name'])
         .executeTakeFirstOrThrow()
-    }).pipe(map(withEncodedId))
+    })
+      .pipe(map(withEncodedId))
+      .pipe(
+        chain(account => {
+          if (!billingService) {
+            return resolve(account)
+          }
+
+          return billingService
+            .provisionFreeSubscription(account.id)
+            .pipe(map(() => account))
+        })
+      )
   }
 
   function getAccountById(accountId: string): FutureInstance<Error, Account> {
@@ -415,7 +435,9 @@ export function createAccountService(
           email,
           accountId: decodedAccountId,
         })
-        .onConflict(cb => cb.column('email').doUpdateSet({ token, active: true }))
+        .onConflict(cb =>
+          cb.column('email').doUpdateSet({ token, active: true })
+        )
         .returning(['id', 'token', 'email'])
         .executeTakeFirstOrThrow()
     }).pipe(map(withEncodedId))
@@ -607,9 +629,9 @@ export function createAccountService(
 
   function deactivateUser(userId: string): FutureInstance<Error, void> {
     return attemptQuery(async () => {
-          await database
-            .updateTable('users')
-            .set('active', false)
+      await database
+        .updateTable('users')
+        .set('active', false)
         .where('id', '=', decodeId(userId))
         .execute()
     })
@@ -736,17 +758,20 @@ export function createAccountService(
       return reject(badRequest('Cannot decode session.subjectId'))
     }
 
+    const rawToken = createToken()
+    const tokenHash = hashToken(rawToken)
+
     return attemptQuery(() => {
       return database
         .insertInto('sessions')
         .values({
-          sessionToken: createToken(),
+          sessionTokenHash: tokenHash,
           subjectId: decodedSubjectId,
           subjectType,
         })
         .returning([
           'id',
-          'sessionToken',
+          'sessionTokenHash',
           'subjectId',
           'subjectType',
           'createdAt',
@@ -755,6 +780,8 @@ export function createAccountService(
     }).pipe(
       map(values => ({
         ...withEncodedId(values),
+        // Return the raw token to the caller, not the stored hash
+        sessionToken: rawToken,
         subjectId: encodeId(values.subjectId),
         createdAt: values.createdAt.toISOString(),
       }))
@@ -764,15 +791,25 @@ export function createAccountService(
   function getSessionByToken(
     sessionToken: string
   ): FutureInstance<Error, Session> {
+    const tokenHash = hashToken(sessionToken)
+
     return attemptQuery(async () => {
       return database
         .selectFrom('sessions')
-        .select(['id', 'sessionToken', 'subjectId', 'subjectType', 'createdAt'])
-        .where('sessionToken', '=', sessionToken)
+        .select([
+          'id',
+          'sessionTokenHash',
+          'subjectId',
+          'subjectType',
+          'createdAt',
+        ])
+        .where('sessionTokenHash', '=', tokenHash)
         .executeTakeFirstOrThrow(() => notFound())
     }).pipe(
       map(values => ({
         ...withEncodedId(values),
+        // Return the raw token to the caller, not the stored hash
+        sessionToken,
         subjectId: encodeId(values.subjectId),
         createdAt: values.createdAt.toISOString(),
       }))
@@ -785,10 +822,114 @@ export function createAccountService(
         attemptQuery(async () => {
           await database
             .deleteFrom('sessions')
-            .where('sessionToken', '=', sessionToken)
+            .where('sessionTokenHash', '=', hashToken(sessionToken))
             .execute()
         })
       )
+    )
+  }
+
+  // Password reset tokens expire after 1 hour
+  const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000
+
+  function createPasswordResetToken(
+    userId: string
+  ): FutureInstance<Error, string> {
+    const decodedUserId = decodeId(userId)
+
+    if (decodedUserId == null) {
+      return reject(badRequest('Invalid user ID'))
+    }
+
+    const rawToken = createToken()
+
+    return attemptQuery(() => {
+      return database
+        .insertInto('password_reset_tokens')
+        .values({
+          token: rawToken,
+          userId: decodedUserId,
+          expiresAt: new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS),
+        })
+        .executeTakeFirstOrThrow()
+    }).pipe(map(() => rawToken))
+  }
+
+  function validatePasswordResetToken(
+    token: string
+  ): FutureInstance<Error, { id: string; userId: string }> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('password_reset_tokens')
+        .select(['id', 'userId', 'expiresAt', 'usedAt'])
+        .where('token', '=', token)
+        .executeTakeFirstOrThrow(() => notFound())
+    ).pipe(
+      chain(row => {
+        // Token is already used — treat as not found to prevent guessing
+        if (row.usedAt != null) {
+          return reject(notFound())
+        }
+
+        // Token has expired
+        if (row.expiresAt.getTime() < Date.now()) {
+          return reject(notFound())
+        }
+
+        return resolve({
+          id: encodeId(row.id),
+          userId: encodeId(row.userId),
+        })
+      })
+    )
+  }
+
+  function applyPasswordReset(
+    token: string,
+    newPassword: string
+  ): FutureInstance<Error, void> {
+    return validatePasswordResetToken(token).pipe(
+      chain(({ userId }) => {
+        const decodedUserId = decodeId(userId)
+
+        if (decodedUserId == null) {
+          return reject(badRequest('Invalid user ID'))
+        }
+
+        return attemptQuery(async () => {
+          const newHash = await argon2.hash(newPassword)
+
+          await database
+            .updateTable('users')
+            .set({ password: newHash })
+            .where('id', '=', decodedUserId)
+            .execute()
+        })
+          .pipe(
+            chain(() =>
+              // Invalidate all existing sessions for this user
+              attemptQuery(async () => {
+                await database
+                  .deleteFrom('sessions')
+                  .where('subjectId', '=', decodedUserId)
+                  .where('subjectType', '=', 'user')
+                  .execute()
+              })
+            )
+          )
+          .pipe(
+            chain(() =>
+              // Mark token as used so it cannot be reused
+              attemptQuery(async () => {
+                await database
+                  .updateTable('password_reset_tokens')
+                  .set({ usedAt: new Date() })
+                  .where('token', '=', token)
+                  .execute()
+              })
+            )
+          )
+      })
     )
   }
 
@@ -849,6 +990,11 @@ export function createAccountService(
     createSession,
     getSessionByToken,
     destroySession,
+
+    // Password reset
+    createPasswordResetToken,
+    validatePasswordResetToken,
+    applyPasswordReset,
   }
 }
 

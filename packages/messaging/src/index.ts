@@ -1,3 +1,4 @@
+export { DEFERRED_INTENT_TIMEOUT_MS } from './constants'
 export { MessagingProvider } from './context'
 export { createMessagingAgent } from './createMessagingAgent'
 export { getDefaultAgent } from './defaults'

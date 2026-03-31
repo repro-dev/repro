@@ -10,8 +10,8 @@ import { executeTool, tools } from "../index";
 // Forks a FutureInstance into a Promise so tests can use await.
 function runFuture<L, R>(future: FutureInstance<L, R>): Promise<R> {
   return new Promise<R>((resolve, reject) => {
-    fork(reject)(resolve)(future)
-  })
+    fork(reject)(resolve)(future);
+  });
 }
 
 // This test file uses a lightweight Box mock rather than real SourceEventView.from()
@@ -28,7 +28,10 @@ function makeBox<T>(value: T): {
   return {
     match: (fn) => (value != null ? fn(value) : false),
     get: (key) =>
-      makeBox((value as DeepBoxable)[key as string] as T[typeof key]),
+      // Guard against null/undefined — mirrors real Box.get() which returns Box(null) safely
+      value != null
+        ? makeBox((value as DeepBoxable)[key as string] as T[typeof key])
+        : makeBox(null as unknown as T[typeof key]),
     orElse: (other) => (value == null ? other : value),
     map: (fn) =>
       makeBox(
@@ -42,17 +45,43 @@ function makeEvent(type: SourceEventType, time: number, data: DeepBoxable) {
   return makeBox({ type, time, data });
 }
 
-function makeClickEvent(time: number, label: string | null = null) {
+function makeClickEvent(
+  time: number,
+  label: string | null = null,
+  metaNode?: {
+    id: string;
+    tagName: string;
+    attributes: Record<string, string | null>;
+  },
+  targets?: string[],
+) {
   return makeEvent(SourceEventType.Interaction, time, {
     type: InteractionType.Click,
-    meta: { humanReadableLabel: label },
+    meta: {
+      humanReadableLabel: label,
+      node: metaNode ?? null,
+    },
+    targets: targets ?? [],
   });
 }
 
-function makeDoubleClickEvent(time: number, label: string | null = null) {
+function makeDoubleClickEvent(
+  time: number,
+  label: string | null = null,
+  metaNode?: {
+    id: string;
+    tagName: string;
+    attributes: Record<string, string | null>;
+  },
+  targets?: string[],
+) {
   return makeEvent(SourceEventType.Interaction, time, {
     type: InteractionType.DoubleClick,
-    meta: { humanReadableLabel: label },
+    meta: {
+      humanReadableLabel: label,
+      node: metaNode ?? null,
+    },
+    targets: targets ?? [],
   });
 }
 
@@ -170,9 +199,11 @@ describe("executeTool — getEventsAroundTime — windowing", () => {
       makeClickEvent(8000),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+      }),
+    )) as {
       events: Array<{ timeMs: number; type: string }>;
       windowMs: number;
       rangeStartMs: number;
@@ -199,10 +230,12 @@ describe("executeTool — getEventsAroundTime — windowing", () => {
       makeClickEvent(7000),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 2000,
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 2000,
+      }),
+    )) as {
       events: Array<{ timeMs: number }>;
       rangeStartMs: number;
       rangeEndMs: number;
@@ -221,10 +254,12 @@ describe("executeTool — getEventsAroundTime — windowing", () => {
   it("clamps window start to 0 when near start of recording", async () => {
     const events = [makeClickEvent(200)];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 500,
-      windowMs: 5000,
-    })) as { rangeStartMs: number };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 500,
+        windowMs: 5000,
+      }),
+    )) as { rangeStartMs: number };
 
     assert.strictEqual(result.rangeStartMs, 0);
   });
@@ -232,10 +267,12 @@ describe("executeTool — getEventsAroundTime — windowing", () => {
   it("clamps window end to recording duration", async () => {
     const events = [makeClickEvent(9800)];
     const accessor = makeAccessor(events, 10000);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 9500,
-      windowMs: 5000,
-    })) as { rangeEndMs: number };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 9500,
+        windowMs: 5000,
+      }),
+    )) as { rangeEndMs: number };
 
     assert.strictEqual(result.rangeEndMs, 10000);
   });
@@ -250,10 +287,12 @@ describe("executeTool — getEventsAroundTime — excluded events", () => {
       makeClickEvent(5003),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string; timeMs: number }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string; timeMs: number }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "click");
@@ -263,10 +302,12 @@ describe("executeTool — getEventsAroundTime — excluded events", () => {
   it("excludes DOMPatch events", async () => {
     const events = [makeDOMPatchEvent(5000), makeClickEvent(5001)];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "click");
@@ -275,10 +316,12 @@ describe("executeTool — getEventsAroundTime — excluded events", () => {
   it("excludes Snapshot events", async () => {
     const events = [makeSnapshotEvent(5000), makeClickEvent(5001)];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "click");
@@ -287,10 +330,12 @@ describe("executeTool — getEventsAroundTime — excluded events", () => {
   it("excludes keyUp events", async () => {
     const events = [makeKeyDownEvent(5000, "a"), makeKeyUpEvent(5001, "a")];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "keyDown");
@@ -301,10 +346,12 @@ describe("executeTool — getEventsAroundTime — included events", () => {
   it("includes click with humanReadableLabel", async () => {
     const events = [makeClickEvent(5000, "Submit button")];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string; label?: string }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string; label?: string }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "click");
@@ -314,10 +361,12 @@ describe("executeTool — getEventsAroundTime — included events", () => {
   it("includes click without label when humanReadableLabel is null", async () => {
     const events = [makeClickEvent(5000, null)];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string; label?: string }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string; label?: string }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "click");
@@ -329,10 +378,12 @@ describe("executeTool — getEventsAroundTime — included events", () => {
       makeConsoleEvent(5000, LogLevel.Error, "Something went wrong"),
     ];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string; level: string; text: string }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string; level: string; text: string }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "console");
@@ -343,10 +394,12 @@ describe("executeTool — getEventsAroundTime — included events", () => {
   it("includes keyDown events individually", async () => {
     const events = [makeKeyDownEvent(5000, "Enter")];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string; key: string }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string; key: string }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "keyDown");
@@ -356,10 +409,12 @@ describe("executeTool — getEventsAroundTime — included events", () => {
   it("includes pageTransition with from and to", async () => {
     const events = [makePageTransitionEvent(5000, "/home", "/about")];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string; from?: string; to: string }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string; from?: string; to: string }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "pageTransition");
@@ -370,10 +425,12 @@ describe("executeTool — getEventsAroundTime — included events", () => {
   it("includes network events", async () => {
     const events = [makeNetworkEvent(5000)];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "network");
@@ -382,10 +439,12 @@ describe("executeTool — getEventsAroundTime — included events", () => {
   it("includes performance events", async () => {
     const events = [makePerformanceEvent(5000)];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "performance");
@@ -394,10 +453,12 @@ describe("executeTool — getEventsAroundTime — included events", () => {
   it("includes doubleClick events", async () => {
     const events = [makeDoubleClickEvent(5000, "Image")];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string; label?: string }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string; label?: string }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "doubleClick");
@@ -407,10 +468,12 @@ describe("executeTool — getEventsAroundTime — included events", () => {
   it("includes scroll events", async () => {
     const events = [makeScrollEvent(5000, "42")];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as { events: Array<{ type: string; target: string }> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ type: string; target: string }> };
 
     assert.strictEqual(result.events.length, 1);
     assert.strictEqual(result.events[0]!.type, "scroll");
@@ -420,10 +483,12 @@ describe("executeTool — getEventsAroundTime — included events", () => {
   it("includes viewportResize events", async () => {
     const events = [makeViewportResizeEvent(5000, 1280, 720)];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 1000,
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as {
       events: Array<{ type: string; to: { width: number; height: number } }>;
     };
 
@@ -437,20 +502,24 @@ describe("executeTool — getEventsAroundTime — edge cases", () => {
   it("returns empty events array when no events in window", async () => {
     const events = [makeClickEvent(1000), makeClickEvent(9000)];
     const accessor = makeAccessor(events);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 100,
-    })) as { events: Array<unknown> };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 100,
+      }),
+    )) as { events: Array<unknown> };
 
     assert.strictEqual(result.events.length, 0);
   });
 
   it("returns correct response metadata shape", async () => {
     const accessor = makeAccessor([]);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 5000,
-      windowMs: 2000,
-    })) as {
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 2000,
+      }),
+    )) as {
       centerMs: number;
       windowMs: number;
       rangeStartMs: number;
@@ -471,9 +540,11 @@ describe("executeTool — getEventsAroundTime — edge cases", () => {
 describe("executeTool — getEventsAroundTime — validation errors", () => {
   it("returns structured error when timestamp is below 0", async () => {
     const accessor = makeAccessor([], 10000);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: -1,
-    })) as { error: string; reason: string; suggestion: string };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: -1,
+      }),
+    )) as { error: string; reason: string; suggestion: string };
     assert.ok(result.error.includes("-1ms"));
     assert.ok(result.reason);
     assert.ok(result.suggestion);
@@ -482,9 +553,11 @@ describe("executeTool — getEventsAroundTime — validation errors", () => {
 
   it("returns structured error when timestamp exceeds recording duration", async () => {
     const accessor = makeAccessor([], 10000);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 99999,
-    })) as { error: string; reason: string; suggestion: string };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 99999,
+      }),
+    )) as { error: string; reason: string; suggestion: string };
     assert.ok(result.error.includes("99999ms"));
     assert.ok(result.error.includes("10000ms"));
     assert.ok(result.reason);
@@ -494,19 +567,134 @@ describe("executeTool — getEventsAroundTime — validation errors", () => {
 
   it("does not return error when timestamp is exactly 0", async () => {
     const accessor = makeAccessor([], 10000);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 0,
-    })) as { events?: unknown[]; error?: string };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 0,
+      }),
+    )) as { events?: unknown[]; error?: string };
     assert.strictEqual(result.error, undefined);
     assert.ok(Array.isArray(result.events));
   });
 
   it("does not return error when timestamp equals recording duration", async () => {
     const accessor = makeAccessor([], 10000);
-    const result = await runFuture(executeTool(accessor, "getEventsAroundTime", {
-      timestampMs: 10000,
-    })) as { events?: unknown[]; error?: string };
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 10000,
+      }),
+    )) as { events?: unknown[]; error?: string };
     assert.strictEqual(result.error, undefined);
     assert.ok(Array.isArray(result.events));
+  });
+});
+
+// ─── Change 1: meta.node element extraction in getEventsAroundTime ────────────
+
+describe("executeTool — getEventsAroundTime — click element enrichment", () => {
+  it("click includes element with nodeId, tagName, attributes (nulls filtered)", async () => {
+    const events = [
+      makeClickEvent(
+        5000,
+        null,
+        {
+          id: "node-42",
+          tagName: "button",
+          attributes: { class: "btn", "data-x": null },
+        },
+        [],
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as {
+      events: Array<{
+        type: string;
+        element?: {
+          nodeId: string;
+          tagName: string;
+          attributes: Record<string, string>;
+        };
+      }>;
+    };
+    assert.strictEqual(result.events.length, 1);
+    const ev = result.events[0]!;
+    assert.ok(ev.element, "should have element field");
+    assert.strictEqual(ev.element!.nodeId, "node-42");
+    assert.strictEqual(ev.element!.tagName, "button");
+    assert.deepStrictEqual(ev.element!.attributes, { class: "btn" });
+  });
+
+  it("click includes targets when non-empty", async () => {
+    const events = [
+      makeClickEvent(
+        5000,
+        null,
+        { id: "node-1", tagName: "a", attributes: {} },
+        ["node-1", "node-2"],
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ targets?: string[] }> };
+    assert.ok("targets" in result.events[0]!, "should have targets");
+    assert.deepStrictEqual(result.events[0]!.targets, ["node-1", "node-2"]);
+  });
+
+  it("click omits targets when empty", async () => {
+    const events = [
+      makeClickEvent(
+        5000,
+        null,
+        { id: "node-1", tagName: "a", attributes: {} },
+        [],
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as { events: Array<{ targets?: string[] }> };
+    assert.ok(
+      !("targets" in result.events[0]!),
+      "should NOT have targets when empty",
+    );
+  });
+
+  it("doubleClick includes element", async () => {
+    const events = [
+      makeDoubleClickEvent(
+        5000,
+        null,
+        { id: "node-77", tagName: "img", attributes: { alt: "Logo" } },
+        [],
+      ),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getEventsAroundTime", {
+        timestampMs: 5000,
+        windowMs: 1000,
+      }),
+    )) as {
+      events: Array<{
+        type: string;
+        element?: { nodeId: string; tagName: string };
+      }>;
+    };
+    const ev = result.events[0]!;
+    assert.strictEqual(ev.type, "doubleClick");
+    assert.ok(ev.element, "should have element for doubleClick");
+    assert.strictEqual(ev.element!.nodeId, "node-77");
+    assert.strictEqual(ev.element!.tagName, "img");
   });
 });

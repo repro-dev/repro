@@ -1,7 +1,8 @@
-import { FutureInstance, map } from 'fluture'
+import { FutureInstance, map, reject } from 'fluture'
 import { defaultEnv as env } from '~/config/env'
 import { Database, attemptQuery, decodeId } from '~/modules/database'
 import { HttpClient } from '~/modules/http'
+import { badRequest } from '~/utils/errors'
 
 interface ToolCallContext {
   id: string
@@ -22,7 +23,11 @@ type ChatContextMessage =
   | { role: 'user'; content: string }
   | { role: 'assistant'; content: string; tool_calls?: Array<ToolCallContext> }
   // Tool results may carry an image content block (e.g. captureScreenshot)
-  | { role: 'tool'; content: string | Array<ContentBlock>; tool_call_id: string }
+  | {
+      role: 'tool'
+      content: string | Array<ContentBlock>
+      tool_call_id: string
+    }
 
 interface Tool {
   type: 'function'
@@ -33,7 +38,10 @@ interface Tool {
   }
 }
 
-export function createAgenticService(database: Database, httpClient: HttpClient) {
+export function createAgenticService(
+  database: Database,
+  httpClient: HttpClient
+) {
   function getStreamingResponse(
     messages: Array<ChatContextMessage>,
     tools: Array<Tool>,
@@ -55,6 +63,8 @@ export function createAgenticService(database: Database, httpClient: HttpClient)
         tool_choice: toolChoice ?? 'auto',
         tools,
         messages,
+        // `reasoning.effort` is only supported by OpenAI models (o1/o3/GPT-5
+        // series). When the model is configurable this guard must be preserved.
         reasoning: {
           effort: 'medium',
           exclude: true,
@@ -70,10 +80,20 @@ export function createAgenticService(database: Database, httpClient: HttpClient)
     comment: string | null,
     recordingId: string | null
   ): FutureInstance<Error, void> {
+    const numericUserId = decodeId(userId)
+    if (numericUserId === null) {
+      return reject(badRequest('Invalid user ID'))
+    }
     return attemptQuery(() =>
       database
         .insertInto('agentic_feedback')
-        .values({ userId: decodeId(userId), sentiment, promptVersion, comment, recordingId })
+        .values({
+          userId: numericUserId,
+          sentiment,
+          promptVersion,
+          comment,
+          recordingId,
+        })
         .execute()
     ).pipe(map(() => undefined))
   }

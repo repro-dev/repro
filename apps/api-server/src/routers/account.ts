@@ -23,7 +23,7 @@ const registerSchema = {
     accountName: z.string(),
     userName: z.string(),
     email: z.string().email(),
-    password: z.string(),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
   }),
 } as const
 
@@ -38,7 +38,7 @@ const acceptInvitationSchema = {
     invitationToken: z.string(),
     name: z.string(),
     email: z.string().email(),
-    password: z.string(),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
   }),
 } as const
 
@@ -53,6 +53,19 @@ const verifySchema = {
   body: z.object({
     verificationToken: z.string(),
     email: z.string().email(),
+  }),
+} as const
+
+const resetPasswordRequestSchema = {
+  body: z.object({
+    email: z.string().email(),
+  }),
+} as const
+
+const resetPasswordConfirmSchema = {
+  body: z.object({
+    token: z.string(),
+    newPassword: z.string().min(8, 'Password must be at least 8 characters'),
   }),
 } as const
 
@@ -234,9 +247,7 @@ export function createAccountRouter(
             )
             .pipe(tapF(user => req.createSession(user)))
             .pipe(
-              tapF(() =>
-                accountService.resetFailedLoginCount(req.body.email)
-              )
+              tapF(() => accountService.resetFailedLoginCount(req.body.email))
             )
         )
       }
@@ -271,6 +282,72 @@ export function createAccountRouter(
                 req.body.email
               )
             )
+          )
+        )
+      }
+    )
+
+    app.post<{
+      Body: z.infer<typeof resetPasswordRequestSchema.body>
+    }>(
+      '/reset-password',
+      {
+        schema: resetPasswordRequestSchema,
+        config: {
+          rateLimit: {
+            // Limit to prevent email enumeration / abuse
+            max: 5,
+            timeWindow: '15 minutes',
+          },
+        },
+      },
+      (req, res) => {
+        // Always respond 204 regardless of whether the email exists,
+        // to prevent account enumeration attacks.
+        respondWith(
+          res,
+          accountService
+            .getUserByEmail(req.body.email)
+            .pipe(
+              chain(user =>
+                accountService.createPasswordResetToken(user.id).pipe(
+                  chain(token =>
+                    // Stub: log the reset link in development; in production this
+                    // will be replaced by a transactional email once email
+                    // infrastructure is available (blocked by Platform work).
+                    resolve(
+                      req.log.info(
+                        { resetToken: token },
+                        'Password reset token created'
+                      )
+                    )
+                  )
+                )
+              )
+            )
+            // Swallow not-found so we don't leak account existence
+            .pipe(
+              chainRej(error =>
+                isNotFound(error) ? resolve(null) : reject(error)
+              )
+            )
+        )
+      }
+    )
+
+    app.post<{
+      Body: z.infer<typeof resetPasswordConfirmSchema.body>
+    }>(
+      '/reset-password/confirm',
+      {
+        schema: resetPasswordConfirmSchema,
+      },
+      (req, res) => {
+        respondWith(
+          res,
+          accountService.applyPasswordReset(
+            req.body.token,
+            req.body.newPassword
           )
         )
       }

@@ -8,7 +8,9 @@ export function createRecordingDataWireFormat(
   const views = events.map(event => SourceEventView.encode(event))
   const packed = toBinaryWireFormat(views)
   return Buffer.from(
-    gzipSync(new Uint8Array(packed.buffer, packed.byteOffset, packed.byteLength))
+    gzipSync(
+      new Uint8Array(packed.buffer, packed.byteOffset, packed.byteLength)
+    )
   )
 }
 

@@ -2,9 +2,9 @@ import * as argon2 from '@node-rs/argon2'
 import { ProjectRole } from '@repro/domain'
 import { fileURLToPath } from 'node:url'
 import { defaultEnv as env } from '~/config/env'
+import { sandboxPlanConfig, seedPlans } from '~/modules/billing'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
 import { Database } from '~/modules/database/types'
-import { sandboxPlanConfig, seedPlans } from '~/modules/billing'
 import { Storage } from '~/modules/storage'
 import { createS3StorageClient } from '~/modules/storage-s3'
 import { seedRecordings } from './seed-recordings'
@@ -55,18 +55,16 @@ async function seedUsers(
 
   const hashedPassword = await hashPassword(PASSWORD)
 
-  async function upsertUser(
-    values: {
-      name: string
-      email: string
-      password: string
-      accountId: number
-      verificationToken: string
-      verified: boolean
-      active: boolean
-      admin: boolean
-    }
-  ) {
+  async function upsertUser(values: {
+    name: string
+    email: string
+    password: string
+    accountId: number
+    verificationToken: string
+    verified: boolean
+    active: boolean
+    admin: boolean
+  }) {
     const inserted = await db
       .insertInto('users')
       .values(values)

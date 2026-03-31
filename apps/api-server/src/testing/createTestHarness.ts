@@ -3,16 +3,17 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { sql } from 'kysely'
 import { Env, createEnv } from '~/config/createEnv'
 import { createSessionDecorator } from '~/decorators/session'
+import { createStubPaddleClient } from '~/modules/billing'
 import { Database } from '~/modules/database'
 import { SendParams, createStubEmailUtils } from '~/modules/email-utils'
 import { Storage } from '~/modules/storage'
-import { createStubPaddleClient } from '~/modules/billing'
 import { createAccountService } from '~/services/account'
 import { createBillingService } from '~/services/billing'
 import { createFeatureGateService } from '~/services/featureGate'
 import { createOAuthService } from '~/services/oauth'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
+import { createSocialAuthService } from '~/services/socialAuth'
 import { setUpTestDatabase } from './database'
 import { loadFixtures } from './loadFixtures'
 import { setUpTestFileSystemStorage } from './storage'
@@ -49,13 +50,14 @@ export async function createTestHarness(): Promise<Harness> {
     return randomString(10).toLowerCase() + '@repro.test'
   }
 
-  const accountService = createAccountService(db, emailUtils)
   const stubPaddleClient = createStubPaddleClient(db)
   const billingService = createBillingService(db, env, stubPaddleClient)
+  const accountService = createAccountService(db, emailUtils, billingService)
   const featureGateService = createFeatureGateService(db)
   const oauthService = createOAuthService(db)
   const projectService = createProjectService(db)
   const recordingService = createRecordingService(db, storage)
+  const socialAuthService = createSocialAuthService(db)
 
   const services = {
     accountService,
@@ -64,6 +66,7 @@ export async function createTestHarness(): Promise<Harness> {
     oauthService,
     projectService,
     recordingService,
+    socialAuthService,
   }
 
   const sessionDecorator = createSessionDecorator(accountService, env)

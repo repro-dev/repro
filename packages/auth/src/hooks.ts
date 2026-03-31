@@ -32,6 +32,11 @@ export function useResetPassword() {
   return context.resetPassword
 }
 
+export function useConfirmPasswordReset() {
+  const context = useAuthContext()
+  return context.confirmPasswordReset
+}
+
 export function useRegister() {
   const context = useAuthContext()
   return context.register

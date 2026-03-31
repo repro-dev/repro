@@ -7,14 +7,8 @@ import {
   makePageTransitionEvent,
   makeSnapshotEvent,
 } from "../../model/tools/__tests__/helpers";
-import { RecordingDataAccessor } from "../../types";
-
-export interface EvalFixture {
-  name: string;
-  prompt: string;
-  expectedOutcomeDescription: string;
-  accessor: RecordingDataAccessor;
-}
+import { EXTENSION_SYSTEM_CARD_MESSAGE } from "../../model/system";
+import { EvalFixture } from "../runner";
 
 // A recording where clicking a toggle button ("Enable Notifications") causes
 // an unexpected page navigation to /login instead of staying on /settings.
@@ -94,5 +88,7 @@ export function createFixture(): EvalFixture {
     expectedOutcomeDescription:
       "The agent identifies that clicking the 'Enable Notifications' toggle at 3000ms triggered an unexpected page transition to /login at 3050ms, and a 'Session expired' console error appeared 100ms later, suggesting the toggle action triggered a session check that failed",
     accessor,
+    systemPrompt: EXTENSION_SYSTEM_CARD_MESSAGE,
+    promptExportName: "EXTENSION_SYSTEM_CARD_MESSAGE",
   };
 }

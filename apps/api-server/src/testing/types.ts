@@ -5,6 +5,7 @@ import { FeatureGateService } from '~/services/featureGate'
 import { OAuthService } from '~/services/oauth'
 import { ProjectService } from '~/services/project'
 import { RecordingService } from '~/services/recording'
+import { SocialAuthService } from '~/services/socialAuth'
 
 export interface Services {
   accountService: AccountService
@@ -13,6 +14,7 @@ export interface Services {
   oauthService: OAuthService
   projectService: ProjectService
   recordingService: RecordingService
+  socialAuthService: SocialAuthService
 }
 
 export interface Fixture<T> {

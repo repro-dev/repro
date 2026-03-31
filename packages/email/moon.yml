@@ -1,0 +1,8 @@
+id: repro/email
+language: typescript
+layer: library
+tags:
+  - type.package
+tasks: {}
+toolchains:
+  default: node

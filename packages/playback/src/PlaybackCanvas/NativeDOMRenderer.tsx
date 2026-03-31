@@ -22,7 +22,7 @@ import {
   updateScroll,
 } from '@repro/vdom-renderer'
 import React, { useEffect, useMemo } from 'react'
-import { Observable, Subscription, asapScheduler, from } from 'rxjs'
+import { asapScheduler, from, Observable, Subscription } from 'rxjs'
 import {
   distinctUntilChanged,
   filter,

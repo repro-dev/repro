@@ -863,6 +863,69 @@ export const LongOptionLabels: Story = {
   },
 }
 
+export const Searchable: Story = {
+  render: () => {
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <FormField>
+          <Label htmlFor="searchable-fruit">Fruit</Label>
+          <Select
+            id="searchable-fruit"
+            value={value}
+            onChange={setValue}
+            options={fruitOptions}
+            placeholder="Choose a fruit"
+            searchable
+          />
+        </FormField>
+      </Block>
+    )
+  },
+}
+
+export const SearchableWithGroups: Story = {
+  render: () => {
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <FormField>
+          <Label htmlFor="searchable-food">Food</Label>
+          <Select
+            id="searchable-food"
+            value={value}
+            onChange={setValue}
+            options={groupedFoodOptions}
+            placeholder="Choose a food"
+            searchable
+          />
+        </FormField>
+      </Block>
+    )
+  },
+}
+
+export const SearchableLongList: Story = {
+  render: () => {
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <FormField>
+          <Label htmlFor="searchable-country">Country</Label>
+          <Select
+            id="searchable-country"
+            value={value}
+            onChange={setValue}
+            options={countryOptions}
+            placeholder="Select a country"
+            searchable
+          />
+        </FormField>
+      </Block>
+    )
+  },
+}
+
 export const Playground: Story = {
   args: {
     options: fruitOptions,

@@ -11,6 +11,8 @@ import { InvitationTable } from './InvitationTable'
 import { MembershipTable } from './MembershipTable'
 import { OAuthAuthorizationCodeTable } from './OAuthAuthorizationCodeTable'
 import { OAuthClientTable } from './OAuthClientTable'
+import { OAuthConnectionTable } from './OAuthConnectionTable'
+import { PasswordResetTokenTable } from './PasswordResetTokenTable'
 import { ProjectRecordingTable } from './ProjectRecordingTable'
 import { ProjectTable } from './ProjectTable'
 import { RecordingEventIndexTable } from './RecordingEventIndexTable'
@@ -34,6 +36,8 @@ export interface Schema {
   memberships: MembershipTable
   oauth_authorization_codes: OAuthAuthorizationCodeTable
   oauth_clients: OAuthClientTable
+  oauth_connections: OAuthConnectionTable
+  password_reset_tokens: PasswordResetTokenTable
   recordings: RecordingTable
   recording_event_index: RecordingEventIndexTable
   recording_resources: RecordingResourceTable
@@ -48,6 +52,7 @@ export {
   ApiKeyTable,
   OAuthAuthorizationCodeTable,
   OAuthClientTable,
+  OAuthConnectionTable,
   RecordingEventIndexTable,
   RecordingResourceTable,
   RecordingTable,

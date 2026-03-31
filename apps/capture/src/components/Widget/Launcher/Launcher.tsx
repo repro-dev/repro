@@ -11,8 +11,7 @@ import { ReadyState, useReadyState, useRecordingMode } from '~/state'
 // have this component tree-shaken out entirely via the BUILD_ENV guard below.
 const DevBadge: React.FC<{ branch: string }> = ({ branch }) => {
   const issueId = branch.match(/([A-Z]+-\d+)/i)?.[1]?.toUpperCase() ?? null
-  const label =
-    issueId ?? branch.split('/').pop()?.slice(0, 10) ?? 'dev'
+  const label = issueId ?? branch.split('/').pop()?.slice(0, 10) ?? 'dev'
 
   return (
     <Block

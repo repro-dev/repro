@@ -2,6 +2,7 @@ import compress from '@fastify/compress'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
 
+import { Google } from 'arctic'
 import fastify, { FastifyPluginAsync } from 'fastify'
 import {
   serializerCompiler,
@@ -9,18 +10,22 @@ import {
 } from 'fastify-type-provider-zod'
 import { defaultEnv as env } from '~/config/env'
 import { createSessionDecorator } from '~/decorators/session'
+import { createPaddleClient } from '~/modules/billing'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
 import { createSMTPEmailUtils } from '~/modules/email-utils'
 import { createS3StorageClient } from '~/modules/storage-s3'
 import { createAccountRouter } from '~/routers/account'
 import { createAgenticRouter } from '~/routers/agentic'
+import { createApiKeysRouter } from '~/routers/apiKeys'
 import { createBillingRouter } from '~/routers/billing'
 import { createBillingWebhookRouter } from '~/routers/billingWebhook'
 import { createFeatureGateRouter } from '~/routers/featureGate'
 import { createHealthRouter } from '~/routers/health'
 import { createOAuthRouter } from '~/routers/oauth'
 import { createProjectRouter } from '~/routers/project'
+import { createSocialAuthRouter } from '~/routers/socialAuth'
 import { createAccountService } from '~/services/account'
+import { createApiKeyService } from '~/services/apiKeys'
 import { createBillingService } from '~/services/billing'
 import { createBillingWebhookService } from '~/services/billingWebhook'
 import { createFeatureGateService } from '~/services/featureGate'
@@ -28,8 +33,8 @@ import { createHealthService } from '~/services/health'
 import { createOAuthService } from '~/services/oauth'
 import { createProjectService } from '~/services/project'
 import { createRecordingService } from '~/services/recording'
+import { createSocialAuthService } from '~/services/socialAuth'
 import { serverError } from '~/utils/errors'
-import { createPaddleClient } from '~/modules/billing'
 import { createHttpClient } from './modules/http'
 import { createStaffRouter } from './routers/staff'
 import { createAgenticService } from './services/agentic'
@@ -68,19 +73,70 @@ const emailUtils = createSMTPEmailUtils({
   },
 })
 
-const accountService = createAccountService(database, emailUtils)
-const agenticService = createAgenticService(database, httpClient)
 const billingService = createBillingService(database, env)
+const accountService = createAccountService(
+  database,
+  emailUtils,
+  billingService
+)
+const agenticService = createAgenticService(database, httpClient)
 const oauthService = createOAuthService(database)
+const apiKeyService = createApiKeyService(database)
 const featureGateService = createFeatureGateService(database)
 const healthService = createHealthService(database, storage)
 const projectService = createProjectService(database)
 const recordingService = createRecordingService(database, storage)
+const socialAuthService = createSocialAuthService(database)
+
+// Build the Google OAuth provider only when credentials are configured.
+// Falls back to undefined so the router can omit the google provider entry
+// in environments without credentials (e.g. local dev without .env).
+const googleProvider =
+  env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+    ? (() => {
+        const arctic = new Google(
+          env.GOOGLE_CLIENT_ID,
+          env.GOOGLE_CLIENT_SECRET,
+          `${env.REPRO_API_URL}/account/oauth/google/callback`
+        )
+        return {
+          createAuthorizationURL: (state: string, codeVerifier: string) =>
+            arctic.createAuthorizationURL(state, codeVerifier, [
+              'openid',
+              'email',
+              'profile',
+            ]),
+          validateAuthorizationCode: (code: string, codeVerifier: string) =>
+            arctic.validateAuthorizationCode(code, codeVerifier),
+          fetchUserInfo: async (accessToken: string) => {
+            const resp = await fetch(
+              'https://openidconnect.googleapis.com/v1/userinfo',
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            )
+            return resp.json() as Promise<{
+              sub: string
+              email: string
+              name: string
+            }>
+          },
+        }
+      })()
+    : null
+
+const socialAuthRouter = createSocialAuthRouter(
+  accountService,
+  socialAuthService,
+  env,
+  // Only include google when credentials are available
+  googleProvider ? { google: googleProvider } : {}
+)
 
 const accountRouter = createAccountRouter(accountService)
 const agenticRouter = createAgenticRouter(agenticService, accountService)
+const apiKeysRouter = createApiKeysRouter(apiKeyService, accountService)
 const billingRouter = createBillingRouter(billingService, accountService)
-const billingWebhookRouter =  !env.BILLING_STUBBED && env.PADDLE_API_KEY && env.PADDLE_WEBHOOK_SECRET
+const billingWebhookRouter =
+  !env.BILLING_STUBBED && env.PADDLE_API_KEY && env.PADDLE_WEBHOOK_SECRET
     ? createBillingWebhookRouter(
         createBillingWebhookService(
           database,
@@ -106,7 +162,23 @@ const projectRouter = createProjectRouter(
 )
 const staffRouter = createStaffRouter(accountService)
 
-const registerSessionDecorator = createSessionDecorator(accountService, env)
+const registerSessionDecorator = createSessionDecorator(
+  accountService,
+  env,
+  apiKeyService
+)
+
+// Combine accountRouter, socialAuthRouter, and apiKeysRouter under the same
+// /account prefix. All are registered as sub-plugins so Fastify handles the
+// same-prefix registration correctly — an object literal cannot have duplicate keys.
+const accountPlugins: FastifyPluginAsync = async app => {
+  await app.register(accountRouter)
+  // Social auth routes (/oauth/:provider, /oauth/:provider/callback) are
+  // co-located under /account so the full paths become
+  // /account/oauth/:provider and /account/oauth/:provider/callback
+  await app.register(socialAuthRouter)
+  await app.register(apiKeysRouter)
+}
 
 function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   const app = fastify({
@@ -162,7 +234,7 @@ function bootstrap(routers: Record<string, FastifyPluginAsync>) {
 }
 
 bootstrap({
-  '/account': accountRouter,
+  '/account': accountPlugins,
   '/agentic': agenticRouter,
   '/billing': billingRouter,
   ...(billingWebhookRouter

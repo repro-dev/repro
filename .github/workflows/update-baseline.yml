@@ -1,0 +1,80 @@
+name: Update eval baseline
+
+on:
+  schedule:
+    # Every Monday at 4am UTC — runs after the week's nightly runs have accumulated
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update-baseline:
+    name: Compute rolling baseline and open PR if changed
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+      - name: Set PNPM store directory
+        run: pnpm config set store-dir .pnpm-store
+      - uses: actions/cache@v3
+        with:
+          path: .pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm install
+
+      - name: Compute rolling baseline
+        id: compute
+        run: |
+          # Run in --check mode first to detect whether a change is needed.
+          # Exit code 1 = baseline would change; exit code 0 = no change needed.
+          if node packages/agentic/node_modules/.bin/tsx \
+               packages/agentic/src/eval/update-baseline.ts --check 2>/dev/null; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Write updated baseline
+        if: steps.compute.outputs.changed == 'true'
+        run: |
+          node packages/agentic/node_modules/.bin/tsx \
+            packages/agentic/src/eval/update-baseline.ts
+
+      - name: Capture PR body
+        if: steps.compute.outputs.changed == 'true'
+        id: pr_body
+        run: |
+          # Re-run in check mode to capture the markdown output (exits 1, which
+          # is fine here — we only want the stdout markdown table).
+          PR_BODY=$(node packages/agentic/node_modules/.bin/tsx \
+            packages/agentic/src/eval/update-baseline.ts --check 2>/dev/null || true)
+          # Write to a file to avoid shell quoting issues with multi-line strings
+          echo "$PR_BODY" > /tmp/pr-body.md
+
+      - name: Create pull request
+        if: steps.compute.outputs.changed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="chore/update-eval-baseline-$(date +%Y-%m-%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add packages/agentic/src/eval/baseline.json
+          git commit -m "chore(agentic): update eval baseline from rolling 7-day average"
+          git push -u origin "$BRANCH"
+          gh pr create \
+            --title "chore(agentic): update eval baseline (rolling 7-day average)" \
+            --body "$(cat /tmp/pr-body.md)" \
+            --base main \
+            --head "$BRANCH"
+
+      - name: No update needed
+        if: steps.compute.outputs.changed == 'false'
+        run: echo "Baseline is up to date — no PR needed."

@@ -18,8 +18,8 @@ export async function migrate(db: Database, options: MigrateOptions = {}) {
         migration.status === 'Success'
           ? 'applied'
           : migration.status === 'NotExecuted'
-            ? 'skipped'
-            : 'error'
+          ? 'skipped'
+          : 'error'
       console.log(`Migration ${migration.migrationName}: ${tag}`)
     }
 

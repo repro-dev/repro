@@ -26,12 +26,20 @@ export interface ToolCallGroupItem {
   pairs: Array<ToolCallPair>;
 }
 
+export interface TruncationIndicatorItem {
+  type: "truncation-indicator";
+}
+
 export type RenderItem =
   | UserMessageItem
   | AssistantMessageItem
-  | ToolCallGroupItem;
+  | ToolCallGroupItem
+  | TruncationIndicatorItem;
 
-export function groupToolCalls(entries: Array<Entry>): Array<RenderItem> {
+export function groupToolCalls(
+  entries: Array<Entry>,
+  truncatedBeforeId?: string | null,
+): Array<RenderItem> {
   const result: Array<RenderItem> = [];
   const toolMessages = new Map<string, ToolMessage>();
 
@@ -43,15 +51,24 @@ export function groupToolCalls(entries: Array<Entry>): Array<RenderItem> {
 
   for (const entry of entries) {
     if (entry.role === "user") {
+      if (truncatedBeforeId != null && entry.id === truncatedBeforeId) {
+        result.push({ type: "truncation-indicator" });
+      }
       result.push({ type: "user-message", entry });
     } else if (entry.role === "assistant") {
       if (entry.toolCalls.length > 0) {
+        if (truncatedBeforeId != null && entry.id === truncatedBeforeId) {
+          result.push({ type: "truncation-indicator" });
+        }
         const pairs: Array<ToolCallPair> = entry.toolCalls.map((toolCall) => {
           const toolResult = toolMessages.get(toolCall.id) ?? null;
           return { toolCall, result: toolResult };
         });
         result.push({ type: "tool-call-group", pairs });
       } else {
+        if (truncatedBeforeId != null && entry.id === truncatedBeforeId) {
+          result.push({ type: "truncation-indicator" });
+        }
         result.push({ type: "assistant-message", entry });
       }
     }

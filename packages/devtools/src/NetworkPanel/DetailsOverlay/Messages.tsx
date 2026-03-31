@@ -1,7 +1,6 @@
 import { Block, Grid, Inline, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
 import { colors } from '@repro/design'
-import { JSONView } from '../../JSONView'
 import { Stats } from '@repro/diagnostics'
 import {
   NetworkMessageType,
@@ -11,6 +10,7 @@ import {
 } from '@repro/domain'
 import { ElapsedMarker } from '@repro/playback'
 import { WebSocketGroup } from '@repro/source-utils'
+import { JSONView } from '../../JSONView'
 // FIXME: Re-export `JsxstyleProps`
 // @ts-expect-error Cannot find declaration in npm-forks
 import { JsxstyleProps } from 'jsxstyle/lib/types'

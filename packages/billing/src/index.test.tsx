@@ -46,7 +46,9 @@ describe('billing', () => {
     describe('init', () => {
       it('calls Paddle.Initialize with the provided token', () => {
         const { calls } = setupPaddleMock()
-        const client = createBillingClientFromConfig({ token: 'test_token_123' })
+        const client = createBillingClientFromConfig({
+          token: 'test_token_123',
+        })
 
         client.init()
 
@@ -98,7 +100,9 @@ describe('billing', () => {
 
       it('does not set environment when not specified', () => {
         const { paddle } = setupPaddleMock()
-        const client = createBillingClientFromConfig({ token: 'live_token_456' })
+        const client = createBillingClientFromConfig({
+          token: 'live_token_456',
+        })
 
         client.init()
 
@@ -116,14 +120,15 @@ describe('billing', () => {
         client.init()
 
         expect(
-          (calls['Initialize']![0]![0] as Record<string, unknown>)
-            .eventCallback
+          (calls['Initialize']![0]![0] as Record<string, unknown>).eventCallback
         ).toBe(callback)
       })
 
       it('only initializes once', () => {
         const { calls } = setupPaddleMock()
-        const client = createBillingClientFromConfig({ token: 'test_token_123' })
+        const client = createBillingClientFromConfig({
+          token: 'test_token_123',
+        })
 
         client.init()
         client.init()
@@ -133,7 +138,9 @@ describe('billing', () => {
 
       it('does nothing when Paddle is not loaded', () => {
         ;(globalThis as Record<string, unknown>).window = {}
-        const client = createBillingClientFromConfig({ token: 'test_token_123' })
+        const client = createBillingClientFromConfig({
+          token: 'test_token_123',
+        })
 
         expect(() => client.init()).not.toThrow()
       })
@@ -142,7 +149,9 @@ describe('billing', () => {
     describe('openCheckout', () => {
       it('calls Paddle.Checkout.open with options', () => {
         const { calls } = setupPaddleMock()
-        const client = createBillingClientFromConfig({ token: 'test_token_123' })
+        const client = createBillingClientFromConfig({
+          token: 'test_token_123',
+        })
         const options = { items: [{ priceId: 'pri_123' }] }
 
         client.openCheckout(options)
@@ -153,7 +162,9 @@ describe('billing', () => {
 
       it('does nothing when Paddle is not loaded', () => {
         ;(globalThis as Record<string, unknown>).window = {}
-        const client = createBillingClientFromConfig({ token: 'test_token_123' })
+        const client = createBillingClientFromConfig({
+          token: 'test_token_123',
+        })
 
         expect(() => client.openCheckout({})).not.toThrow()
       })
@@ -162,7 +173,9 @@ describe('billing', () => {
     describe('closeCheckout', () => {
       it('calls Paddle.Checkout.close', () => {
         const { calls } = setupPaddleMock()
-        const client = createBillingClientFromConfig({ token: 'test_token_123' })
+        const client = createBillingClientFromConfig({
+          token: 'test_token_123',
+        })
 
         client.closeCheckout()
 
@@ -171,7 +184,9 @@ describe('billing', () => {
 
       it('does nothing when Paddle is not loaded', () => {
         ;(globalThis as Record<string, unknown>).window = {}
-        const client = createBillingClientFromConfig({ token: 'test_token_123' })
+        const client = createBillingClientFromConfig({
+          token: 'test_token_123',
+        })
 
         expect(() => client.closeCheckout()).not.toThrow()
       })

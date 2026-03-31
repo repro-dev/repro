@@ -6,16 +6,19 @@ import { map } from 'fluture'
 
 interface Config {
   apiClient: ApiClient
+  // Base path for auth endpoints, e.g. '/account' (default) or '/staff'
+  basePath?: string
 }
 
 export function createState(config: Config) {
   const { apiClient } = config
+  const basePath = config.basePath ?? '/account'
   const [$session, setSession] = createAtom<User | StaffUser | null>(null)
   const [$sessionLoading, setSessionLoading] = createAtom(true)
 
   function login(email: string, password: string) {
     return apiClient
-      .fetch<User | StaffUser>('/account/login', {
+      .fetch<User | StaffUser>(`${basePath}/login`, {
         method: 'POST',
         body: JSON.stringify({
           email,
@@ -28,7 +31,7 @@ export function createState(config: Config) {
 
   function logout() {
     return apiClient
-      .fetch('/account/logout', { method: 'POST' })
+      .fetch(`${basePath}/logout`, { method: 'POST' })
       .pipe(tap(() => setSession(null)))
   }
 
@@ -39,7 +42,7 @@ export function createState(config: Config) {
     password: string
   ) {
     return apiClient
-      .fetch<{ account: Account; user: User }>('/account/register', {
+      .fetch<{ account: Account; user: User }>(`${basePath}/register`, {
         method: 'POST',
         body: JSON.stringify({
           accountName,
@@ -54,7 +57,7 @@ export function createState(config: Config) {
   }
 
   function verify(verificationToken: string, email: string) {
-    return apiClient.fetch('/account/verify', {
+    return apiClient.fetch(`${basePath}/verify`, {
       method: 'POST',
       body: JSON.stringify({
         verificationToken,
@@ -64,14 +67,21 @@ export function createState(config: Config) {
   }
 
   function resetPassword(email: string) {
-    return apiClient.fetch('/account/reset-password', {
+    return apiClient.fetch(`${basePath}/reset-password`, {
       method: 'POST',
       body: JSON.stringify({ email }),
     })
   }
 
+  function confirmPasswordReset(token: string, newPassword: string) {
+    return apiClient.fetch(`${basePath}/reset-password/confirm`, {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+    })
+  }
+
   function invite(email: string) {
-    return apiClient.fetch('/account/invite', {
+    return apiClient.fetch(`${basePath}/invite`, {
       method: 'POST',
       body: JSON.stringify({
         email,
@@ -85,7 +95,7 @@ export function createState(config: Config) {
     email: string,
     password: string
   ) {
-    return apiClient.fetch('/account/accept-invitation', {
+    return apiClient.fetch(`${basePath}/accept-invitation`, {
       method: 'POST',
       body: JSON.stringify({
         invitationToken,
@@ -98,7 +108,7 @@ export function createState(config: Config) {
 
   function loadSession() {
     return apiClient
-      .fetch<User | StaffUser>('/account/me')
+      .fetch<User | StaffUser>(`${basePath}/me`)
       .pipe(tap(setSession))
       .pipe(tap(() => setSessionLoading(false)))
       .pipe(tapRej(() => setSessionLoading(false)))
@@ -114,6 +124,7 @@ export function createState(config: Config) {
     invite,
     acceptInvitation,
     resetPassword,
+    confirmPasswordReset,
     loadSession,
   }
 }

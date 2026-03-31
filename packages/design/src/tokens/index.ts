@@ -1,6 +1,7 @@
 export * from './breakpoints'
 export * from './colors'
 export * from './elevation'
+export * from './formControl'
 export * from './interaction'
 export * from './motion'
 export * from './spacing'

@@ -1,6 +1,7 @@
 import { atom, createAtom } from "@repro/atom";
 import { observeFuture } from "@repro/future-utils";
 import { randomString } from "@repro/random-string";
+import { AGENTIC_DEFAULT_MODEL } from "@repro/domain";
 import { chain, FutureInstance, resolve } from "fluture";
 import {
   catchError,
@@ -77,7 +78,9 @@ interface CompletionChunk {
 
 type Chunk = MessageChunk | CompletionChunk;
 
-const AGENTIC_MODEL = "openai/gpt-5-mini";
+// Use the canonical default from @repro/domain so the model choice is
+// maintained in one place alongside all other MODEL_CONFIGS entries.
+const AGENTIC_MODEL = AGENTIC_DEFAULT_MODEL;
 
 function createEntryId() {
   return randomString(5);
@@ -270,6 +273,9 @@ export function createAgenticState(
   const [$loading, setLoading] = createAtom<Loading>("none");
   const [$error, setError] = createAtom<AgenticError | null>(null);
   const [$wasCancelled, setWasCancelled] = createAtom<boolean>(false);
+  const [$truncatedBefore, setTruncatedBefore] = createAtom<string | null>(
+    null,
+  );
 
   let currentAbortController: AbortController | null = null;
   let currentToolSubscription: Subscription | null = null;
@@ -304,17 +310,17 @@ export function createAgenticState(
   }
 
   function cancel() {
-    clearPendingRetry()
-    cancelled = true
+    clearPendingRetry();
+    cancelled = true;
     if (currentAbortController) {
-      currentAbortController.abort()
-      currentAbortController = null
+      currentAbortController.abort();
+      currentAbortController = null;
     }
     if (currentToolSubscription) {
-      currentToolSubscription.unsubscribe()
-      currentToolSubscription = null
+      currentToolSubscription.unsubscribe();
+      currentToolSubscription = null;
     }
-    setWasCancelled(true)
+    setWasCancelled(true);
     setLoading("cancelled");
     // Briefly show cancelled state, then reset to idle so the UI unlocks
     setTimeout(() => {
@@ -339,6 +345,7 @@ export function createAgenticState(
     setWasCancelled(false);
     setLoading("none");
     setError(null);
+    setTruncatedBefore(null);
   }
 
   function query(input: string) {
@@ -371,9 +378,20 @@ export function createAgenticState(
     currentAbortController = new AbortController();
     const systemTokens = estimateTokens(SYSTEM_CARD_MESSAGE);
     const budget = computeContextBudget(AGENTIC_MODEL, systemTokens);
-    const truncatedContext = truncateToContextBudget(context, budget, (msg) =>
-      estimateTokens(msg),
-    );
+    const { messages: truncatedContext, droppedCount } =
+      truncateToContextBudget(context, budget, (msg) => estimateTokens(msg));
+
+    // Update the truncation indicator atom. When messages were dropped, find
+    // the entry ID of the first surviving message so the UI can place the
+    // separator precisely. Clear the atom when nothing was dropped.
+    const entryMap = $entryMap.getValue();
+    if (droppedCount > 0) {
+      const firstSurvivingId = entryMap.orderedIds[droppedCount] ?? null;
+      setTruncatedBefore(firstSurvivingId);
+    } else {
+      setTruncatedBefore(null);
+    }
+
     return streamProvider(
       truncatedContext,
       tools,
@@ -599,7 +617,7 @@ export function createAgenticState(
             currentToolSubscription = observeFuture(
               executeToolCalls(recording, lastEntry.toolCalls),
             ).subscribe((toolMessages) => {
-              currentToolSubscription = null
+              currentToolSubscription = null;
               if (!cancelled) {
                 for (const toolMessage of toolMessages) {
                   appendToolMessage(toolMessage);
@@ -626,6 +644,7 @@ export function createAgenticState(
     $loading,
     $error,
     $wasCancelled,
+    $truncatedBefore,
     cancel,
     destroy,
     query,

@@ -2,7 +2,10 @@ import expect from 'expect'
 import { promise, resolve } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { Harness, createTestHarness, fixtures } from '~/testing'
-import { BillingWebhookService, createBillingWebhookService } from './billingWebhook'
+import {
+  BillingWebhookService,
+  createBillingWebhookService,
+} from './billingWebhook'
 
 function createMockPaddleClient(eventType: string, data: any) {
   return {
@@ -19,11 +22,7 @@ function createMockPaddleClient(eventType: string, data: any) {
   } as any
 }
 
-function createWebhookPayload(
-  eventId: string,
-  eventType: string,
-  data: any
-) {
+function createWebhookPayload(eventId: string, eventType: string, data: any) {
   return JSON.stringify({
     event_id: eventId,
     event_type: eventType,

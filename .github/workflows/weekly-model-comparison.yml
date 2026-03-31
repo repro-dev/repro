@@ -1,0 +1,88 @@
+name: Weekly model comparison
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'  # 4am UTC every Monday
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Comma-separated model IDs to compare (leave blank for defaults)'
+        required: false
+        default: ''
+
+jobs:
+  compare:
+    name: Eval — ${{ matrix.model }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        model:
+          - google/gemini-2.5-flash
+          - openai/gpt-5-mini
+          - anthropic/claude-haiku-4-5
+          - minimax/minimax-m2.7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+      - name: Set PNPM store directory
+        run: pnpm config set store-dir .pnpm-store
+      - uses: actions/cache@v3
+        with:
+          path: .pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm install
+      - name: Run evals
+        run: moon run repro/agentic:eval -- --model "${{ matrix.model }}"
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      - name: Write job summary
+        if: always()
+        run: |
+          MODEL="${{ matrix.model }}"
+          if [ ! -f tmp/agentic-eval-results.json ]; then
+            echo "## Model: \`${MODEL}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "No results file found — eval harness may have crashed before writing output." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "## Model: \`${MODEL}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Fixture | Result | Correctness | Avg tool calls | Avg error rate | Avg quality |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- | --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          node -e "
+            const results = JSON.parse(require('fs').readFileSync('tmp/agentic-eval-results.json', 'utf8'));
+            for (const r of results) {
+              const result = r.majorityCorrect ? '✅ PASS' : '❌ FAIL';
+              const correctness = (r.correctnessRate * 100).toFixed(1) + '%';
+              const calls = r.averageIterationDepth.toFixed(1);
+              const errors = (r.averageToolErrorRate * 100).toFixed(1) + '%';
+              const q = r.averageQualityScore;
+              const quality = ((q.brevity + q.directness + q.signalNoise) / 3).toFixed(1);
+              console.log('| ' + r.fixtureName + ' | ' + result + ' | ' + correctness + ' | ' + calls + ' | ' + errors + ' | ' + quality + ' |');
+            }
+          " >> "$GITHUB_STEP_SUMMARY"
+      - name: Slugify model name for artifact
+        if: always()
+        run: echo "MODEL_SLUG=$(echo '${{ matrix.model }}' | tr '/' '-')" >> $GITHUB_ENV
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-${{ github.run_number }}-${{ env.MODEL_SLUG }}
+          path: tmp/agentic-eval-results.json
+
+  summarise:
+    name: Cross-model summary
+    runs-on: ubuntu-latest
+    needs: compare
+    if: always()
+    steps:
+      - name: Write comparison summary
+        run: |
+          echo "## Cross-model comparison" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "See individual job summaries above for per-fixture results per model." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Download the \`eval-results-*\` artifacts to compare results across models locally." >> "$GITHUB_STEP_SUMMARY"

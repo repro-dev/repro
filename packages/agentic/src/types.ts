@@ -130,6 +130,9 @@ export interface AgenticState {
   $loading: Atom<Loading>;
   $error: Atom<AgenticError | null>;
   $wasCancelled: Atom<boolean>;
+  // ID of the first surviving entry after context-window truncation, or null if
+  // no messages were dropped on the last inference call.
+  $truncatedBefore: Atom<string | null>;
   cancel(): void;
   destroy(): void;
   query(input: string): void;

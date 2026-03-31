@@ -1,10 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import {
-  PlanConfig,
-  sandboxPlanConfig,
-  validatePlanConfig,
-} from './planConfig'
+import { PlanConfig, sandboxPlanConfig, validatePlanConfig } from './planConfig'
 
 describe('planConfig', () => {
   describe('validatePlanConfig', () => {
@@ -44,7 +40,10 @@ describe('planConfig', () => {
         },
       ]
 
-      assert.throws(() => validatePlanConfig(config), /duplicate providerPriceId/i)
+      assert.throws(
+        () => validatePlanConfig(config),
+        /duplicate providerPriceId/i
+      )
     })
 
     it('throws when name + interval combination is duplicated', () => {
@@ -105,9 +104,7 @@ describe('planConfig', () => {
     })
 
     it('Repro++ plans include priority_support', () => {
-      const plusplusPlans = sandboxPlanConfig.filter(
-        p => p.name === 'Repro++'
-      )
+      const plusplusPlans = sandboxPlanConfig.filter(p => p.name === 'Repro++')
       assert.ok(plusplusPlans.length > 0, 'No Repro++ plans found')
 
       for (const plan of plusplusPlans) {

@@ -27,6 +27,44 @@ describe('Routers > Account', () => {
     await harness.close()
   })
 
+  describe('Password policy', () => {
+    it('should reject registration with a password shorter than 8 characters', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/register',
+        body: {
+          accountName: 'Repro Test',
+          userName: 'John Smith',
+          email: 'jsmith@example.com',
+          password: 'short',
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+    })
+
+    it('should reject invitation acceptance with a password shorter than 8 characters', async () => {
+      const [account] = await harness.loadFixtures([fixtures.account.AccountA])
+
+      const invitation = await promise(
+        accountService.createInvitation(account.id, 'jsmith@example.com')
+      )
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/accept-invitation',
+        body: {
+          invitationToken: invitation.token,
+          email: invitation.email,
+          name: 'John Smith',
+          password: 'short',
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+    })
+  })
+
   describe('Account registration', () => {
     it('should register a new account and user', async () => {
       const res = await app.inject({
@@ -36,7 +74,7 @@ describe('Routers > Account', () => {
           accountName: 'Repro Test',
           userName: 'John Smith',
           email: 'jsmith@example.com',
-          password: 'hunter2',
+          password: 'hunter2!',
         },
       })
 
@@ -63,7 +101,7 @@ describe('Routers > Account', () => {
           accountName: 'Repro Test',
           userName: 'John Smith',
           email: 'jsmith@example.com',
-          password: 'hunter2',
+          password: 'hunter2!',
         },
       })
 
@@ -93,7 +131,7 @@ describe('Routers > Account', () => {
           account.id,
           'John Smith',
           'jsmith@example.com',
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -104,7 +142,7 @@ describe('Routers > Account', () => {
           accountName: 'Account for duplicate user',
           userName: 'John Smith',
           email: 'jsmith@example.com',
-          password: 'hunter2',
+          password: 'hunter2!',
         },
       })
 
@@ -128,7 +166,7 @@ describe('Routers > Account', () => {
           account.id,
           'John Smith',
           'jsmith@example.com',
-          'hunter2'
+          'hunter2!'
         )
       )
 
@@ -137,7 +175,7 @@ describe('Routers > Account', () => {
         url: '/login',
         body: {
           email: 'jsmith@example.com',
-          password: 'hunter2',
+          password: 'hunter2!',
         },
       })
 
@@ -224,13 +262,13 @@ describe('Routers > Account', () => {
       expect(res.json()).toMatchObject({ ...user })
     })
 
-    it('should return not-found for the current user with no session', async () => {
+    it('should return not-authenticated for the current user with no session', async () => {
       const res = await app.inject({
         method: 'GET',
         url: '/me',
       })
 
-      expect(res.statusCode).toEqual(404)
+      expect(res.statusCode).toEqual(401)
     })
   })
 
@@ -321,12 +359,12 @@ describe('Routers > Account', () => {
           invitationToken: invitation.token,
           email: invitation.email,
           name: 'John Smith',
-          password: 'hunter2',
+          password: 'hunter2!',
         },
       })
 
       const user = await promise(
-        accountService.getUserByEmailAndPassword(invitation.email, 'hunter2')
+        accountService.getUserByEmailAndPassword(invitation.email, 'hunter2!')
       )
 
       expect(res.statusCode).toEqual(201)
@@ -365,7 +403,7 @@ describe('Routers > Account', () => {
           invitationToken: invitation.token,
           email: 'imposter@example.com',
           name: 'John Smith',
-          password: 'hunter2',
+          password: 'hunter2!',
         },
       })
 
@@ -386,7 +424,7 @@ describe('Routers > Account', () => {
           invitationToken: invitation.token,
           email: invitation.email,
           name: 'John Smith',
-          password: 'hunter2',
+          password: 'hunter2!',
         },
       })
 
@@ -395,7 +433,7 @@ describe('Routers > Account', () => {
         url: '/login',
         body: {
           email: invitation.email,
-          password: 'hunter2',
+          password: 'hunter2!',
         },
       })
 
@@ -416,7 +454,7 @@ describe('Routers > Account', () => {
           accountName: 'New Account',
           userName: 'John Smith',
           email: 'jsmith@example.com',
-          password: 'hunter2',
+          password: 'hunter2!',
         },
       })
 
@@ -429,7 +467,7 @@ describe('Routers > Account', () => {
       })
     })
 
-    it('should throw not-found when verifying without an active session', async () => {
+    it('should return not-authenticated when verifying without an active session', async () => {
       const [user] = await harness.loadFixtures([fixtures.account.UserA])
 
       const verificationToken = await harness.db
@@ -448,7 +486,7 @@ describe('Routers > Account', () => {
         },
       })
 
-      expect(res.statusCode).toEqual(404)
+      expect(res.statusCode).toEqual(401)
 
       await expect(
         promise(accountService.getUserById(user.id))
@@ -523,10 +561,7 @@ describe('Routers > Account', () => {
   })
 
   describe('Account lockout', () => {
-    async function createUserWithCredentials(
-      email: string,
-      password: string
-    ) {
+    async function createUserWithCredentials(email: string, password: string) {
       const account = await promise(
         accountService.createAccount('Lockout Test')
       )
@@ -546,20 +581,20 @@ describe('Routers > Account', () => {
 
     it('should allow login attempts below the lockout threshold', async () => {
       const email = harness.generateRandomEmailAddress()
-      await createUserWithCredentials(email, 'hunter2')
+      await createUserWithCredentials(email, 'hunter2!')
 
       for (let i = 0; i < 4; i++) {
         const res = await attemptLogin(email, 'wrong-password')
         expect(res.statusCode).toEqual(401)
       }
 
-      const res = await attemptLogin(email, 'hunter2')
+      const res = await attemptLogin(email, 'hunter2!')
       expect(res.statusCode).toEqual(200)
     })
 
     it('should return 429 after 5 consecutive failed login attempts', async () => {
       const email = harness.generateRandomEmailAddress()
-      await createUserWithCredentials(email, 'hunter2')
+      await createUserWithCredentials(email, 'hunter2!')
 
       for (let i = 0; i < 5; i++) {
         await attemptLogin(email, 'wrong-password')
@@ -571,25 +606,25 @@ describe('Routers > Account', () => {
 
     it('should return 429 even with correct credentials when account is locked', async () => {
       const email = harness.generateRandomEmailAddress()
-      await createUserWithCredentials(email, 'hunter2')
+      await createUserWithCredentials(email, 'hunter2!')
 
       for (let i = 0; i < 5; i++) {
         await attemptLogin(email, 'wrong-password')
       }
 
-      const res = await attemptLogin(email, 'hunter2')
+      const res = await attemptLogin(email, 'hunter2!')
       expect(res.statusCode).toEqual(429)
     })
 
     it('should reset lockout counter after a successful login', async () => {
       const email = harness.generateRandomEmailAddress()
-      await createUserWithCredentials(email, 'hunter2')
+      await createUserWithCredentials(email, 'hunter2!')
 
       for (let i = 0; i < 4; i++) {
         await attemptLogin(email, 'wrong-password')
       }
 
-      const successRes = await attemptLogin(email, 'hunter2')
+      const successRes = await attemptLogin(email, 'hunter2!')
       expect(successRes.statusCode).toEqual(200)
 
       for (let i = 0; i < 4; i++) {
@@ -597,8 +632,174 @@ describe('Routers > Account', () => {
         expect(res.statusCode).toEqual(401)
       }
 
-      const finalRes = await attemptLogin(email, 'hunter2')
+      const finalRes = await attemptLogin(email, 'hunter2!')
       expect(finalRes.statusCode).toEqual(200)
+    })
+  })
+
+  describe('Password reset', () => {
+    it('should accept a valid email and return 204', async () => {
+      const [account] = await harness.loadFixtures([fixtures.account.AccountA])
+
+      await promise(
+        accountService.createUser(
+          account.id,
+          'John Smith',
+          'jsmith@example.com',
+          'hunter2!'
+        )
+      )
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/reset-password',
+        body: { email: 'jsmith@example.com' },
+      })
+
+      expect(res.statusCode).toEqual(204)
+    })
+
+    it('should return 204 even when the email does not exist (prevent enumeration)', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/reset-password',
+        body: { email: 'nobody@example.com' },
+      })
+
+      expect(res.statusCode).toEqual(204)
+    })
+
+    it('should confirm a valid token and update the password', async () => {
+      const [account] = await harness.loadFixtures([fixtures.account.AccountA])
+
+      const user = await promise(
+        accountService.createUser(
+          account.id,
+          'John Smith',
+          'jsmith@example.com',
+          'hunter2!'
+        )
+      )
+
+      const token = await promise(
+        accountService.createPasswordResetToken(user.id)
+      )
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/reset-password/confirm',
+        body: { token, newPassword: 'newHunter99!' },
+      })
+
+      expect(res.statusCode).toEqual(204)
+
+      // Should now be able to log in with new password
+      const loginRes = await app.inject({
+        method: 'POST',
+        url: '/login',
+        body: { email: 'jsmith@example.com', password: 'newHunter99!' },
+      })
+
+      expect(loginRes.statusCode).toEqual(200)
+    })
+
+    it('should return 404 for a confirm request with an invalid token', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/reset-password/confirm',
+        body: { token: 'invalid-token', newPassword: 'newHunter99!' },
+      })
+
+      expect(res.statusCode).toEqual(404)
+    })
+
+    it('should return 404 when reusing a token', async () => {
+      const [account] = await harness.loadFixtures([fixtures.account.AccountA])
+
+      const user = await promise(
+        accountService.createUser(
+          account.id,
+          'John Smith',
+          'jsmith@example.com',
+          'hunter2!'
+        )
+      )
+
+      const token = await promise(
+        accountService.createPasswordResetToken(user.id)
+      )
+
+      // First use — succeeds
+      await app.inject({
+        method: 'POST',
+        url: '/reset-password/confirm',
+        body: { token, newPassword: 'newHunter99!' },
+      })
+
+      // Second use — rejected
+      const res = await app.inject({
+        method: 'POST',
+        url: '/reset-password/confirm',
+        body: { token, newPassword: 'anotherPassword1!' },
+      })
+
+      expect(res.statusCode).toEqual(404)
+    })
+
+    it('should reject a new password shorter than 8 characters', async () => {
+      const [account] = await harness.loadFixtures([fixtures.account.AccountA])
+
+      const user = await promise(
+        accountService.createUser(
+          account.id,
+          'John Smith',
+          'jsmith@example.com',
+          'hunter2!'
+        )
+      )
+
+      const token = await promise(
+        accountService.createPasswordResetToken(user.id)
+      )
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/reset-password/confirm',
+        body: { token, newPassword: 'short' },
+      })
+
+      expect(res.statusCode).toEqual(400)
+    })
+
+    it('should invalidate existing sessions after password reset', async () => {
+      const [account] = await harness.loadFixtures([fixtures.account.AccountA])
+
+      const user = await promise(
+        accountService.createUser(
+          account.id,
+          'John Smith',
+          'jsmith@example.com',
+          'hunter2!'
+        )
+      )
+
+      const session = await promise(
+        accountService.createSession(user.id, 'user')
+      )
+
+      const token = await promise(
+        accountService.createPasswordResetToken(user.id)
+      )
+
+      await app.inject({
+        method: 'POST',
+        url: '/reset-password/confirm',
+        body: { token, newPassword: 'newHunter99!' },
+      })
+
+      await expect(
+        promise(accountService.getSessionByToken(session.sessionToken))
+      ).rejects.toThrow(notFound())
     })
   })
 })

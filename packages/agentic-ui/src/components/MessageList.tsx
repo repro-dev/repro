@@ -8,6 +8,7 @@ import { EmptyState } from "../EmptyState";
 import { ErrorMessage } from "./ErrorMessage";
 import { ResponseFeedback } from "./ResponseFeedback";
 import { ToolCallGroup } from "./ToolCallGroup";
+import { TruncationSeparator } from "./TruncationSeparator";
 
 interface MessageListProps {
   entries: Array<Entry>;
@@ -51,7 +52,11 @@ export const MessageList: React.FC<MessageListProps> = ({
       <Col gap={10} minBlockSize="100%" props={{ ref: contentContainerRef }}>
         {entries.length === 0 && <EmptyState onSelectPrompt={onSelectPrompt} />}
 
-        {renderItems.map((item) => {
+        {renderItems.map((item, index) => {
+          if (item.type === "truncation-indicator") {
+            return <TruncationSeparator key={`truncation-${index}`} />;
+          }
+
           if (item.type === "user-message") {
             return (
               <Col key={item.entry.id} lineHeight={1.5}>
@@ -96,9 +101,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           );
         })}
 
-        {error !== null && (
-          <ErrorMessage error={error} onRetry={onRetry} />
-        )}
+        {error !== null && <ErrorMessage error={error} onRetry={onRetry} />}
       </Col>
     </Block>
   );

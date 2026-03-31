@@ -18,7 +18,9 @@ import { MessageList } from "./components/MessageList";
 import { useAgenticState } from "./context";
 import { useHistoryScroll } from "./hooks/useHistoryScroll";
 
-export const AgenticView: React.FC<{ onFeedback?: (sentiment: 'positive' | 'negative') => void }> = ({ onFeedback }) => {
+export const AgenticView: React.FC<{
+  onFeedback?: (sentiment: "positive" | "negative") => void;
+}> = ({ onFeedback }) => {
   const [inputHasFocus, setInputHasFocus] = useState(false);
 
   const agentic = useAgenticState();
@@ -62,21 +64,21 @@ export const AgenticView: React.FC<{ onFeedback?: (sentiment: 'positive' | 'nega
       position="relative"
     >
       <Col height="100%" overflow="hidden" marginInline={-spacing["2xl"]}>
-          <MessageList
-            entries={entries}
-            loading={loading}
-            error={error}
-            onRetry={handleRetry}
-            scrollContainerRef={scrollContainerRef}
-            contentContainerRef={contentContainerRef}
-            wasCancelled={wasCancelled}
-            onFeedback={onFeedback}
-            onSelectPrompt={(prompt) => {
-              lastPromptRef.current = prompt;
-              agentic.query(prompt);
-            }}
-          />
-        </Col>
+        <MessageList
+          entries={entries}
+          loading={loading}
+          error={error}
+          onRetry={handleRetry}
+          scrollContainerRef={scrollContainerRef}
+          contentContainerRef={contentContainerRef}
+          wasCancelled={wasCancelled}
+          onFeedback={onFeedback}
+          onSelectPrompt={(prompt) => {
+            lastPromptRef.current = prompt;
+            agentic.query(prompt);
+          }}
+        />
+      </Col>
 
       <AgenticInputSection
         disabled={isActive}
@@ -113,7 +115,7 @@ export const AgenticView: React.FC<{ onFeedback?: (sentiment: 'positive' | 'nega
           top={spacing.sm}
           transition={transition.fast}
           hoverBackgroundColor={color.bg.hover}
-          {...focusRing('neutral')}
+          {...focusRing("neutral")}
           props={{
             type: "button",
             "aria-label": "Start new session",

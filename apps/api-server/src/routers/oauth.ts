@@ -69,12 +69,15 @@ export function createOAuthRouter(
     })
 
     app.get('/keys', (req, res) => {
-      const future = req.getCurrentUser().pipe(
-        chain(user => {
-          const userId = decodeId(user.id)!
-          return oauthService.listApiKeys(userId)
-        })
-      ).pipe(map(keys => ({ items: keys.map(withEncodedId) })))
+      const future = req
+        .getCurrentUser()
+        .pipe(
+          chain(user => {
+            const userId = decodeId(user.id)!
+            return oauthService.listApiKeys(userId)
+          })
+        )
+        .pipe(map(keys => ({ items: keys.map(withEncodedId) })))
 
       respondWith(res, future)
     })
@@ -89,12 +92,15 @@ export function createOAuthRouter(
         return
       }
 
-      const future = req.getCurrentUser().pipe(
-        chain(user => {
-          const userId = decodeId(user.id)!
-          return oauthService.revokeApiKey(keyId, userId)
-        })
-      ).pipe(map(() => undefined))
+      const future = req
+        .getCurrentUser()
+        .pipe(
+          chain(user => {
+            const userId = decodeId(user.id)!
+            return oauthService.revokeApiKey(keyId, userId)
+          })
+        )
+        .pipe(map(() => undefined))
 
       respondWith(res, future)
     })

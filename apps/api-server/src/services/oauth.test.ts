@@ -56,7 +56,9 @@ describe('Services > OAuth', () => {
         oauthService.createApiKey(userId, 'Test Key', ['recordings:read'])
       )
 
-      const validated = await promise(oauthService.validateApiKey(created.token))
+      const validated = await promise(
+        oauthService.validateApiKey(created.token)
+      )
 
       expect(validated).toMatchObject({
         id: created.id,
@@ -113,8 +115,12 @@ describe('Services > OAuth', () => {
       const [user] = await harness.loadFixtures([fixtures.account.UserA])
       const userId = decodeId(user.id)!
 
-      await promise(oauthService.createApiKey(userId, 'Key A', ['recordings:read']))
-      await promise(oauthService.createApiKey(userId, 'Key B', ['recordings:write']))
+      await promise(
+        oauthService.createApiKey(userId, 'Key A', ['recordings:read'])
+      )
+      await promise(
+        oauthService.createApiKey(userId, 'Key B', ['recordings:write'])
+      )
 
       const keys = await promise(oauthService.listApiKeys(userId))
 
@@ -137,7 +143,9 @@ describe('Services > OAuth', () => {
       const userId = decodeId(user.id)!
 
       const client = await promise(
-        oauthService.registerClient(userId, 'My Client', ['https://example.com/callback'])
+        oauthService.registerClient(userId, 'My Client', [
+          'https://example.com/callback',
+        ])
       )
 
       expect(client.id).toEqual(expect.any(String))
@@ -155,7 +163,9 @@ describe('Services > OAuth', () => {
       const userId = decodeId(user.id)!
 
       const client = await promise(
-        oauthService.registerClient(userId, 'Client', ['https://example.com/cb'])
+        oauthService.registerClient(userId, 'Client', [
+          'https://example.com/cb',
+        ])
       )
 
       expect(Number.isNaN(Number(client.id))).toBe(true)
@@ -175,7 +185,9 @@ describe('Services > OAuth', () => {
         .digest('base64url')
 
       const client = await promise(
-        oauthService.registerClient(userId, 'Test Client', ['https://example.com/callback'])
+        oauthService.registerClient(userId, 'Test Client', [
+          'https://example.com/callback',
+        ])
       )
 
       const code = await promise(

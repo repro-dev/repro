@@ -9,4 +9,5 @@ export { MessageList } from "./components/MessageList";
 export { ResponseFeedback } from "./components/ResponseFeedback";
 export { ToolCallGroup } from "./components/ToolCallGroup";
 export { ToolCallRow } from "./components/ToolCallRow";
+export { TruncationSeparator } from "./components/TruncationSeparator";
 export { useHistoryScroll } from "./hooks/useHistoryScroll";

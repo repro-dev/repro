@@ -9,8 +9,8 @@ import { executeTool, tools } from "../index";
 // Forks a FutureInstance into a Promise so tests can use await.
 function runFuture<L, R>(future: FutureInstance<L, R>): Promise<R> {
   return new Promise<R>((resolve, reject) => {
-    fork(reject)(resolve)(future)
-  })
+    fork(reject)(resolve)(future);
+  });
 }
 
 // These helpers use a hand-rolled Box mock because getElementDetails uses
@@ -158,20 +158,18 @@ describe("tools array — getElementDetails", () => {
 describe("executeTool — getElementDetails — errors", () => {
   it("missing nodeId returns error", async () => {
     const accessor = makeEmptyAccessor();
-    const result = (await runFuture(executeTool(accessor, "getElementDetails", {}))) as Record<
-      string,
-      unknown
-    >;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {}),
+    )) as Record<string, unknown>;
     assert.ok("error" in result);
     assert.ok((result["error"] as string).toLowerCase().includes("nodeid"));
   });
 
   it("missing nodeId returns reason and suggestion mentioning getDOMState", async () => {
     const accessor = makeEmptyAccessor();
-    const result = (await runFuture(executeTool(accessor, "getElementDetails", {}))) as Record<
-      string,
-      unknown
-    >;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {}),
+    )) as Record<string, unknown>;
     assert.ok(result["reason"]);
     assert.ok(result["suggestion"]);
     assert.ok((result["suggestion"] as string).includes("getDOMState"));
@@ -179,9 +177,11 @@ describe("executeTool — getElementDetails — errors", () => {
 
   it("missing timestampMs returns error", async () => {
     const accessor = makeEmptyAccessor();
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "x",
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "x",
+      }),
+    )) as Record<string, unknown>;
     assert.ok("error" in result);
     assert.ok(
       (result["error"] as string).toLowerCase().includes("timestampms"),
@@ -190,9 +190,11 @@ describe("executeTool — getElementDetails — errors", () => {
 
   it("missing timestampMs returns reason and suggestion mentioning getRecordingDuration", async () => {
     const accessor = makeEmptyAccessor();
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "x",
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "x",
+      }),
+    )) as Record<string, unknown>;
     assert.ok(result["reason"]);
     assert.ok(result["suggestion"]);
     assert.ok(
@@ -202,20 +204,24 @@ describe("executeTool — getElementDetails — errors", () => {
 
   it("no snapshot returns error", async () => {
     const accessor = makeEmptyAccessor();
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "abc",
-      timestampMs: 1000,
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "abc",
+        timestampMs: 1000,
+      }),
+    )) as Record<string, unknown>;
     assert.ok("error" in result);
     assert.ok((result["error"] as string).toLowerCase().includes("snapshot"));
   });
 
   it("no snapshot returns reason and suggestion mentioning getRecordingDuration", async () => {
     const accessor = makeEmptyAccessor();
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "abc",
-      timestampMs: 1000,
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "abc",
+        timestampMs: 1000,
+      }),
+    )) as Record<string, unknown>;
     assert.ok(result["reason"]);
     assert.ok(result["suggestion"]);
     assert.ok(
@@ -226,10 +232,12 @@ describe("executeTool — getElementDetails — errors", () => {
   it("node not found returns error containing the nodeId", async () => {
     const vtree = makeStandardVTree();
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "zzz99",
-      timestampMs: 1000,
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "zzz99",
+        timestampMs: 1000,
+      }),
+    )) as Record<string, unknown>;
     assert.ok("error" in result);
     assert.ok((result["error"] as string).includes("zzz99"));
   });
@@ -237,10 +245,12 @@ describe("executeTool — getElementDetails — errors", () => {
   it("node not found returns reason and suggestion mentioning getDOMState", async () => {
     const vtree = makeStandardVTree();
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "zzz99",
-      timestampMs: 1000,
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "zzz99",
+        timestampMs: 1000,
+      }),
+    )) as Record<string, unknown>;
     assert.ok(result["reason"]);
     assert.ok(result["suggestion"]);
     assert.ok((result["suggestion"] as string).includes("getDOMState"));
@@ -251,10 +261,12 @@ describe("executeTool — getElementDetails — self context", () => {
   it("returns element, parents, siblings, textContent; no children", async () => {
     const vtree = makeStandardVTree();
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "btn1",
-      timestampMs: 1000,
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "btn1",
+        timestampMs: 1000,
+      }),
+    )) as Record<string, unknown>;
 
     const element = result["element"] as Record<string, unknown>;
     assert.strictEqual(element["nodeId"], "btn1");
@@ -287,11 +299,13 @@ describe("executeTool — getElementDetails — subtree context", () => {
   it("includes direct children", async () => {
     const vtree = makeStandardVTree();
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "div1",
-      timestampMs: 1000,
-      context: "subtree",
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "div1",
+        timestampMs: 1000,
+        context: "subtree",
+      }),
+    )) as Record<string, unknown>;
 
     const children = result["children"] as Array<Record<string, unknown>>;
     assert.ok(Array.isArray(children));
@@ -306,11 +320,13 @@ describe("executeTool — getElementDetails — ancestry context", () => {
   it("returns full parent chain", async () => {
     const vtree = makeStandardVTree();
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "btn1",
-      timestampMs: 1000,
-      context: "ancestry",
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "btn1",
+        timestampMs: 1000,
+        context: "ancestry",
+      }),
+    )) as Record<string, unknown>;
 
     const parents = result["parents"] as Array<Record<string, unknown>>;
     const parentIds = parents.map((p) => p["nodeId"]);
@@ -338,10 +354,12 @@ describe("executeTool — getElementDetails — properties", () => {
       "input1",
     );
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "input1",
-      timestampMs: 0,
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "input1",
+        timestampMs: 0,
+      }),
+    )) as Record<string, unknown>;
 
     const element = result["element"] as Record<string, unknown>;
     assert.ok("properties" in element);
@@ -368,10 +386,12 @@ describe("executeTool — getElementDetails — properties", () => {
       "div1",
     );
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "div1",
-      timestampMs: 0,
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "div1",
+        timestampMs: 0,
+      }),
+    )) as Record<string, unknown>;
 
     const element = result["element"] as Record<string, unknown>;
     const attrs = element["attributes"] as Record<string, unknown>;
@@ -405,10 +425,12 @@ describe("executeTool — getElementDetails — textContent", () => {
       "div1",
     );
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "div1",
-      timestampMs: 0,
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "div1",
+        timestampMs: 0,
+      }),
+    )) as Record<string, unknown>;
 
     assert.ok(typeof result["textContent"] === "string");
     assert.ok((result["textContent"] as string).length <= 200);
@@ -431,10 +453,12 @@ describe("executeTool — getElementDetails — textContent", () => {
       "div1",
     );
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "div1",
-      timestampMs: 0,
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "div1",
+        timestampMs: 0,
+      }),
+    )) as Record<string, unknown>;
 
     assert.strictEqual(result["textContent"], undefined);
   });
@@ -505,12 +529,14 @@ describe("executeTool — getElementDetails — subtree depth", () => {
   it("depth:1 → children has elements but none have children property", async () => {
     const vtree = makeDeepVTree();
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "div1",
-      timestampMs: 1000,
-      context: "subtree",
-      depth: 1,
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "div1",
+        timestampMs: 1000,
+        context: "subtree",
+        depth: 1,
+      }),
+    )) as Record<string, unknown>;
 
     const children = result["children"] as Array<Record<string, unknown>>;
     assert.ok(Array.isArray(children));
@@ -527,12 +553,14 @@ describe("executeTool — getElementDetails — subtree depth", () => {
   it("depth:2 → children have their own children but grandchildren do not", async () => {
     const vtree = makeDeepVTree();
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "div1",
-      timestampMs: 1000,
-      context: "subtree",
-      depth: 2,
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "div1",
+        timestampMs: 1000,
+        context: "subtree",
+        depth: 2,
+      }),
+    )) as Record<string, unknown>;
 
     const children = result["children"] as Array<Record<string, unknown>>;
     assert.ok(Array.isArray(children));
@@ -562,12 +590,14 @@ describe("executeTool — getElementDetails — subtree depth", () => {
   it("depth:3 (default when not passed) → 3 levels deep", async () => {
     const vtree = makeDeepVTree();
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "div1",
-      timestampMs: 1000,
-      context: "subtree",
-      // no depth provided — default is 3
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "div1",
+        timestampMs: 1000,
+        context: "subtree",
+        // no depth provided — default is 3
+      }),
+    )) as Record<string, unknown>;
 
     const children = result["children"] as Array<Record<string, unknown>>;
     assert.ok(Array.isArray(children));
@@ -594,9 +624,10 @@ describe("executeTool — getElementDetails — subtree depth", () => {
     assert.ok(Array.isArray(articleChildren));
 
     // Level 4: span should NOT have children (exceeds depth 3)
-    const span = articleChildren.find(
-      (c) => c["nodeId"] === "span1",
-    ) as Record<string, unknown>;
+    const span = articleChildren.find((c) => c["nodeId"] === "span1") as Record<
+      string,
+      unknown
+    >;
     assert.ok(span);
     assert.strictEqual(
       span["children"],
@@ -608,17 +639,21 @@ describe("executeTool — getElementDetails — subtree depth", () => {
   it("explicit depth:3 → same as default", async () => {
     const vtree = makeDeepVTree();
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const resultDefault = (await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "div1",
-      timestampMs: 1000,
-      context: "subtree",
-    }))) as Record<string, unknown>;
-    const resultExplicit = (await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "div1",
-      timestampMs: 1000,
-      context: "subtree",
-      depth: 3,
-    }))) as Record<string, unknown>;
+    const resultDefault = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "div1",
+        timestampMs: 1000,
+        context: "subtree",
+      }),
+    )) as Record<string, unknown>;
+    const resultExplicit = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "div1",
+        timestampMs: 1000,
+        context: "subtree",
+        depth: 3,
+      }),
+    )) as Record<string, unknown>;
 
     // Both should have the same structure (excluding _tokenEstimate)
     const defaultChildren = JSON.stringify(resultDefault["children"]);
@@ -629,12 +664,14 @@ describe("executeTool — getElementDetails — subtree depth", () => {
   it("depth:0 → children is empty array or not present", async () => {
     const vtree = makeDeepVTree();
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "div1",
-      timestampMs: 1000,
-      context: "subtree",
-      depth: 0,
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "div1",
+        timestampMs: 1000,
+        context: "subtree",
+        depth: 0,
+      }),
+    )) as Record<string, unknown>;
 
     const children = result["children"];
     // Either empty array or not present
@@ -650,11 +687,13 @@ describe("executeTool — getElementDetails — _tokenEstimate on subtree contex
   it("response for context:subtree includes _tokenEstimate field (number > 0)", async () => {
     const vtree = makeStandardVTree();
     const accessor = makeAccessorWithSnapshot(() => makeSnapshot(vtree));
-    const result = await runFuture(executeTool(accessor, "getElementDetails", {
-      nodeId: "div1",
-      timestampMs: 1000,
-      context: "subtree",
-    })) as Record<string, unknown>;
+    const result = (await runFuture(
+      executeTool(accessor, "getElementDetails", {
+        nodeId: "div1",
+        timestampMs: 1000,
+        context: "subtree",
+      }),
+    )) as Record<string, unknown>;
 
     assert.ok(
       "_tokenEstimate" in result,

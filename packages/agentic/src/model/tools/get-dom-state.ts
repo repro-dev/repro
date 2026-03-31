@@ -11,7 +11,7 @@ export const TOOL_DEFINITION = {
   function: {
     name: "getDOMState",
     description:
-      "Get the state of the DOM at a specific timestamp, either as an accessibility tree (a11y mode) or a summary of element counts (summary mode).",
+      "Get the state of the DOM at a specific timestamp, either as an accessibility tree (a11y mode) or a summary of element counts (summary mode). Only works when the recording contains DOM snapshots — recordings that capture only console and network events will not have snapshots and this tool will return an error. Check for the presence of domSnapshot events via getEvents(detail='summary') before using this tool. CRITICAL: Do not call this tool multiple times with different timestamps to manually compare changes. This is an incorrect use of the tool. Use getDOMDiff to find what changed over a time range.",
     parameters: {
       type: "object",
       properties: {

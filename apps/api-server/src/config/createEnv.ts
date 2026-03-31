@@ -52,10 +52,17 @@ const envSchema = z.object({
   PADDLE_CLIENT_TOKEN: z.string().optional(),
   PADDLE_WEBHOOK_SECRET: z.string().optional(),
   PADDLE_ENVIRONMENT: z.enum(['sandbox', 'production']).default('sandbox'),
-  BILLING_DEFAULT_PLAN: z.string().default('free'),
+  BILLING_DEFAULT_PLAN: z.string().default('Free'),
   BILLING_STUBBED: booleanStringTransform.default(true),
   DEBUG: z.string().optional(),
   AGENTIC_MAX_ITERATIONS: z.coerce.number().default(25),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM_ADDRESS: z.string().default('Repro <noreply@repro.dev>'),
+  APP_BASE_URL: z.string().default('http://localhost:3000'),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  REPRO_APP_URL: z.string().default('http://localhost:3000'),
+  REPRO_API_URL: z.string().default('http://localhost:8080'),
 })
 
 export type Env = z.infer<typeof envSchema>

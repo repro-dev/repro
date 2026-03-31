@@ -1,4 +1,4 @@
-import { ApiProvider } from '@repro/api-client'
+import { ApiProvider, createApiClient } from '@repro/api-client'
 import { AuthProvider, SessionRouteBoundary } from '@repro/auth'
 import {
   colors,
@@ -12,6 +12,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { Loading } from './components/Loading'
+import { defaultEnv as env } from './config/env'
 import { Layout } from './Layout'
 import { HomeRoute } from './routes/HomeRoute'
 import { LoginRoute } from './routes/LoginRoute'
@@ -24,6 +25,11 @@ declare global {
 }
 
 window.__REPRO_STANDALONE = true
+
+const apiClient = createApiClient({
+  baseUrl: env.REPRO_API_URL,
+  authStorage: 'local-storage',
+})
 
 const adminTheme: ThemeDefinition = {
   color: {
@@ -55,6 +61,11 @@ const adminTheme: ThemeDefinition = {
       emphasis: colors.slate['500'],
       focus: colors.slate['500'],
     },
+
+    dangerTint: colors.rose['50'],
+    successTint: colors.green['50'],
+    warningTint: colors.amber['50'],
+    infoTint: colors.blue['50'],
 
     danger: colors.rose['700'],
     dangerHover: colors.rose['800'],
@@ -113,8 +124,8 @@ if (rootElem) {
 
   root.render(
     <BrowserRouter basename={basename}>
-      <ApiProvider>
-        <AuthProvider>
+      <ApiProvider client={apiClient}>
+        <AuthProvider basePath="/staff">
           <ThemeProvider theme={adminTheme}>
             <PortalRootProvider>
               <Suspense fallback={<Loading />}>

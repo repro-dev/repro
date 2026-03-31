@@ -46,7 +46,10 @@ function makeDocument(id: string, children: string[]) {
 }
 
 function makeVTree(
-  nodes: Record<string, ReturnType<typeof makeElement | typeof makeText | typeof makeDocument>>,
+  nodes: Record<
+    string,
+    ReturnType<typeof makeElement | typeof makeText | typeof makeDocument>
+  >,
   rootId: string = 'root'
 ): VTree {
   return { rootId, nodes } as VTree
@@ -134,7 +137,10 @@ describe('buildA11yTree', () => {
   it('skips aria-hidden elements', () => {
     const vtree = makeVTree({
       root: makeDocument('root', ['hidden', 'btn']),
-      hidden: makeElement('hidden', 'div', [], { 'aria-hidden': 'true', role: 'complementary' }),
+      hidden: makeElement('hidden', 'div', [], {
+        'aria-hidden': 'true',
+        role: 'complementary',
+      }),
       btn: makeElement('btn', 'button', [], { 'aria-label': 'Go' }),
     })
     const result = buildA11yTree(vtree)
@@ -188,7 +194,10 @@ describe('buildA11yTree', () => {
   it('includes state for disabled elements', () => {
     const vtree = makeVTree({
       root: makeDocument('root', ['btn']),
-      btn: makeElement('btn', 'button', [], { disabled: '', 'aria-label': 'Submit' }),
+      btn: makeElement('btn', 'button', [], {
+        disabled: '',
+        'aria-label': 'Submit',
+      }),
     })
     const result = buildA11yTree(vtree)
     assert.ok(result !== null)
@@ -199,7 +208,10 @@ describe('buildA11yTree', () => {
   it('includes state for checked elements', () => {
     const vtree = makeVTree({
       root: makeDocument('root', ['cb']),
-      cb: makeElement('cb', 'input', [], { type: 'checkbox', 'aria-checked': 'true' }),
+      cb: makeElement('cb', 'input', [], {
+        type: 'checkbox',
+        'aria-checked': 'true',
+      }),
     })
     const result = buildA11yTree(vtree)
     assert.ok(result !== null)
@@ -246,9 +258,7 @@ describe('formatA11yTree', () => {
         {
           role: 'navigation',
           name: 'Main',
-          children: [
-            { role: 'link', name: 'Home', children: [] },
-          ],
+          children: [{ role: 'link', name: 'Home', children: [] }],
         },
       ],
     }
@@ -309,5 +319,82 @@ describe('formatA11yTree', () => {
     const result = formatA11yTree(tree, 2)
     assert.ok(result.includes('depth-5'))
     assert.ok(!result.includes('depth-3'))
+  })
+})
+
+// ─── Change 2: nodeId annotations ─────────────────────────────────────────────
+
+describe('buildA11yTree — nodeId population', () => {
+  it('populates nodeId on nodes that have a role', () => {
+    const vtree = makeVTree({
+      root: makeDocument('root', ['btn']),
+      btn: makeElement('btn', 'button', [], { 'aria-label': 'Click me' }),
+    })
+    const result = buildA11yTree(vtree)
+    assert.ok(result !== null)
+    const btn = result.children[0]!
+    assert.strictEqual(btn.role, 'button')
+    assert.strictEqual(btn.nodeId, 'btn')
+  })
+
+  it('does not produce nodeId on transparent (no-role) elements that are flattened', () => {
+    const vtree = makeVTree({
+      root: makeDocument('root', ['wrapper']),
+      wrapper: makeElement('wrapper', 'div', ['btn']),
+      btn: makeElement('btn', 'button', [], { 'aria-label': 'Go' }),
+    })
+    const result = buildA11yTree(vtree)
+    assert.ok(result !== null)
+    // wrapper div has no role so it's flattened; btn is hoisted to root.children
+    assert.strictEqual(result.children.length, 1)
+    assert.strictEqual(result.children[0]!.nodeId, 'btn')
+  })
+})
+
+describe('formatA11yTree — [ref=nodeId] annotations', () => {
+  it('includes [ref=nodeId] in formatted output', () => {
+    const tree: A11yNode = {
+      role: 'button',
+      name: 'Submit',
+      nodeId: 'btn-1',
+      children: [],
+    }
+    const result = formatA11yTree(tree)
+    assert.ok(
+      result.includes('[ref=btn-1]'),
+      `Expected [ref=btn-1] in: ${result}`
+    )
+  })
+
+  it('does not include [ref=...] when nodeId is absent', () => {
+    const tree: A11yNode = {
+      role: 'button',
+      name: 'Submit',
+      children: [],
+    }
+    const result = formatA11yTree(tree)
+    assert.ok(
+      !result.includes('[ref='),
+      `Should not have [ref=...] in: ${result}`
+    )
+  })
+
+  it('includes [ref=nodeId] alongside name in full format', () => {
+    const tree: A11yNode = {
+      role: 'navigation',
+      name: 'Main',
+      nodeId: 'nav-root',
+      children: [
+        {
+          role: 'link',
+          name: 'Home',
+          nodeId: 'link-1',
+          children: [],
+        },
+      ],
+    }
+    const result = formatA11yTree(tree)
+    assert.ok(result.includes('navigation "Main" [ref=nav-root]'))
+    assert.ok(result.includes('link "Home" [ref=link-1]'))
   })
 })

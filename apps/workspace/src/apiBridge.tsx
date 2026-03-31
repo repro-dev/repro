@@ -19,42 +19,42 @@ const agent = createMessagingAgent({
 // originating in the page context to be forwarded across the postMessage boundary.
 const abortControllers = new Map<string, AbortController>()
 
-agent.subscribeToIntent<{ requestId: string; args: Parameters<Fetch> }, unknown>(
-  'api-client:fetch',
-  payload => {
-    const { requestId, args } = payload
-    const [url, options, requestType, responseType] = args
-    const controller = new AbortController()
-    abortControllers.set(requestId, controller)
+agent.subscribeToIntent<
+  { requestId: string; args: Parameters<Fetch> },
+  unknown
+>('api-client:fetch', payload => {
+  const { requestId, args } = payload
+  const [url, options, requestType, responseType] = args
+  const controller = new AbortController()
+  abortControllers.set(requestId, controller)
 
-    // Merge the locally-created signal into the fetch options
-    const argsWithSignal: Parameters<Fetch> = [
-      url,
-      { ...options, signal: controller.signal },
-      requestType,
-      responseType,
-    ]
+  // Merge the locally-created signal into the fetch options
+  const argsWithSignal: Parameters<Fetch> = [
+    url,
+    { ...options, signal: controller.signal },
+    requestType,
+    responseType,
+  ]
 
-    // Clean up the abort controller map regardless of success or failure
-    const cleanup = () => {
-      abortControllers.delete(requestId)
-    }
-
-    const result: FutureInstance<Error, unknown> = apiClient.fetch(
-      ...argsWithSignal
-    )
-
-    return result.pipe(
-      bichain<Error, Error, unknown>(err => {
-        cleanup()
-        return reject(err)
-      })(val => {
-        cleanup()
-        return resolve(val)
-      })
-    )
+  // Clean up the abort controller map regardless of success or failure
+  const cleanup = () => {
+    abortControllers.delete(requestId)
   }
-)
+
+  const result: FutureInstance<Error, unknown> = apiClient.fetch(
+    ...argsWithSignal
+  )
+
+  return result.pipe(
+    bichain<Error, Error, unknown>(err => {
+      cleanup()
+      return reject(err)
+    })(val => {
+      cleanup()
+      return resolve(val)
+    })
+  )
+})
 
 agent.subscribeToIntent<{ requestId: string }, void>(
   'api-client:abort',

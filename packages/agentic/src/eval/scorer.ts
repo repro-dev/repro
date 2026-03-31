@@ -1,5 +1,23 @@
+import { EVAL_JUDGE_MODEL } from "@repro/domain";
 import { AssistantMessage, Entry, ToolMessage } from "../types";
 import { MAX_TOOL_ITERATIONS } from "../createState";
+import type { CritiqueItem } from "./introspector";
+
+export interface QualityScores {
+  // 1=verbose/padded, 2=acceptable, 3=concise
+  brevity: 1 | 2 | 3;
+  // 1=buries findings in caveats, 3=leads with findings
+  directness: 1 | 2 | 3;
+  // 1=mostly filler, 3=mostly informative content
+  signalNoise: 1 | 2 | 3;
+}
+
+// Safe neutral fallback used when the judge omits or garbles qualityScore
+const DEFAULT_QUALITY_SCORES: QualityScores = {
+  brevity: 2,
+  directness: 2,
+  signalNoise: 2,
+};
 
 export interface EvalScore {
   // LLM-as-judge: did the agent correctly identify the bug?
@@ -12,6 +30,10 @@ export interface EvalScore {
   toolErrorRate: number;
   // Whether the iteration limit was hit (MAX_TOOL_ITERATIONS)
   hitIterationLimit: boolean;
+  // Output quality scores from the judge (independent of correctness)
+  qualityScore: QualityScores;
+  // Per-run critique items produced by --introspect mode (optional)
+  critique?: Array<CritiqueItem>;
 }
 
 // Extracts the final assistant response from an entry list.
@@ -80,6 +102,7 @@ function checkIterationLimitHit(entries: Array<Entry>): boolean {
 interface JudgeResponse {
   correct: boolean;
   reasoning: string;
+  qualityScore: QualityScores;
 }
 
 async function callOpenRouterForJudgement(
@@ -96,8 +119,10 @@ async function callOpenRouterForJudgement(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        // Use gpt-4o-mini as a cheap, capable judge model
-        model: "openai/gpt-4o-mini",
+        // gemini-2.5-flash: cheap judge with 1M context window (vs gpt-4o-mini's
+        // 128k), better suited for scoring long agent transcripts. See
+        // EVAL_JUDGE_MODEL in @repro/domain for full rationale.
+        model: EVAL_JUDGE_MODEL,
         stream: false,
         messages: [
           {
@@ -108,8 +133,25 @@ EXPECTED OUTCOME: ${expectedOutcomeDescription}
 
 AGENT'S FINAL RESPONSE: ${finalAssistantResponse}
 
-Did the agent correctly identify the issue described in the expected outcome?
-Reply with JSON only (no markdown code fences): { "correct": true/false, "reasoning": "..." }`,
+Evaluate the response on two independent axes:
+
+1. CORRECTNESS: Did the agent correctly identify the issue described in the expected outcome?
+
+2. OUTPUT QUALITY (score each 1-3, independent of correctness — a concise wrong answer should score high on quality):
+   - brevity: 3=appropriately concise with no padding or repetition, 2=acceptable length, 1=verbose with unnecessary preamble/filler
+   - directness: 3=leads immediately with the finding, 2=finding is present but somewhat buried, 1=finding is buried under heavy caveats or hedging
+   - signalNoise: 3=content is mostly evidence, cause, and recommendation, 2=some filler but mostly informative, 1=mostly filler or restates the obvious
+
+Reply with JSON only (no markdown code fences):
+{
+  "correct": true/false,
+  "reasoning": "...",
+  "qualityScore": {
+    "brevity": 1|2|3,
+    "directness": 1|2|3,
+    "signalNoise": 1|2|3
+  }
+}`,
           },
         ],
       }),
@@ -123,14 +165,49 @@ Reply with JSON only (no markdown code fences): { "correct": true/false, "reason
   const body = (await response.json()) as {
     choices: Array<{ message: { content: string } }>;
   };
-  const content = body.choices[0]?.message?.content ?? "{}";
+  const raw = body.choices[0]?.message?.content ?? "{}";
+  // Strip markdown code fences that some models wrap around JSON responses
+  // despite the prompt instructing otherwise (e.g. gemini-2.5-flash).
+  const content = raw
+    .replace(/^```(?:json)?\n?/, "")
+    .replace(/\n?```$/, "")
+    .trim();
 
   try {
-    return JSON.parse(content) as JudgeResponse;
+    const parsed = JSON.parse(content) as Partial<JudgeResponse>;
+    // Validate and normalise qualityScore — fall back to neutral defaults if
+    // the judge omits or garbles the field.
+    const qualityScore = isValidQualityScores(parsed.qualityScore)
+      ? parsed.qualityScore
+      : DEFAULT_QUALITY_SCORES;
+    return {
+      correct: parsed.correct ?? false,
+      reasoning: parsed.reasoning ?? content,
+      qualityScore,
+    };
   } catch {
-    // If the judge returns malformed JSON, treat as incorrect with the raw text
-    return { correct: false, reasoning: content };
+    // Malformed JSON — treat as incorrect, use neutral quality defaults
+    return {
+      correct: false,
+      reasoning: content,
+      qualityScore: DEFAULT_QUALITY_SCORES,
+    };
   }
+}
+
+// Validates that a value is a well-formed QualityScores object with 1|2|3 values.
+function isValidQualityScores(v: unknown): v is QualityScores {
+  if (v === null || typeof v !== "object") return false;
+  const obj = v as Record<string, unknown>;
+  return (
+    isQualityDimension(obj["brevity"]) &&
+    isQualityDimension(obj["directness"]) &&
+    isQualityDimension(obj["signalNoise"])
+  );
+}
+
+function isQualityDimension(v: unknown): v is 1 | 2 | 3 {
+  return v === 1 || v === 2 || v === 3;
 }
 
 export async function scoreEvalRun(
@@ -154,6 +231,7 @@ export async function scoreEvalRun(
       iterationDepth: totalToolCalls,
       toolErrorRate,
       hitIterationLimit,
+      qualityScore: DEFAULT_QUALITY_SCORES,
     };
   }
 
@@ -169,6 +247,7 @@ export async function scoreEvalRun(
     iterationDepth: totalToolCalls,
     toolErrorRate,
     hitIterationLimit,
+    qualityScore: judgement.qualityScore,
   };
 }
 

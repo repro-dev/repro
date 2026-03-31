@@ -3,17 +3,12 @@ import { Box } from "@repro/tdl";
 import {
   makeAccessor,
   makeAddNodesPatchEvent,
+  makeConsoleInfoEvent,
   makeRemoveNodesPatchEvent,
   makeSnapshotEvent,
 } from "../../model/tools/__tests__/helpers";
-import { RecordingDataAccessor } from "../../types";
-
-export interface EvalFixture {
-  name: string;
-  prompt: string;
-  expectedOutcomeDescription: string;
-  accessor: RecordingDataAccessor;
-}
+import { EXTENSION_SYSTEM_CARD_MESSAGE } from "../../model/system";
+import { EvalFixture } from "../runner";
 
 // Snapshot at t=1000 with a "confirmation-banner" div present.
 // An AddNodes patch at t=1500 adds the banner, and a RemoveNodes patch at
@@ -71,6 +66,8 @@ export function createFixture(): EvalFixture {
   }
 
   const events = [
+    // Noise event at t=800: a routine info log, not related to the bug
+    makeConsoleInfoEvent(800, "Page ready"),
     // Snapshot event at t=1000 establishes initial DOM with confirmation-banner
     makeSnapshotEvent(1000),
     // AddNodes at t=1500: banner element added to body
@@ -88,5 +85,7 @@ export function createFixture(): EvalFixture {
     expectedOutcomeDescription:
       "The agent identifies that an element (confirmation-banner / div) was added to the DOM around 1500ms and then removed around 3000ms, suggesting a conditional rendering issue where the confirmation message briefly appears and then disappears unexpectedly",
     accessor,
+    systemPrompt: EXTENSION_SYSTEM_CARD_MESSAGE,
+    promptExportName: "EXTENSION_SYSTEM_CARD_MESSAGE",
   };
 }

@@ -21,7 +21,7 @@ export const TOOL_DEFINITION = {
   function: {
     name: "getEvents",
     description:
-      "Get a timeline of events from the recording, filtered by type and time range. Returns user interactions, page transitions, and DOM activity.",
+      "Get a broad timeline of events from the recording. Use this for an initial overview of the session or a large time window. Supports filtering by event type, detail level (summary/normal/full), and pagination. Prefer getEventsAroundTime when you need detailed context around a single known timestamp.",
     parameters: {
       type: "object",
       properties: {
@@ -162,11 +162,26 @@ export const handler: ToolHandler = (recording, args) => {
         const eventType =
           interactionType === InteractionType.Click ? "click" : "doubleClick";
         if (detail === "full") {
+          const meta = interactionData.get("meta");
+          const nodeId = meta.get("node").get("id").orElse(null);
+          const tagName = meta.get("node").get("tagName").orElse("");
+          const rawAttributes = meta
+            .get("node")
+            .get("attributes")
+            .orElse({}) as Record<string, string | null>;
+          const attributes: Record<string, string> = {};
+          for (const [k, v] of Object.entries(rawAttributes)) {
+            if (v != null) attributes[k] = v;
+          }
+          const element = nodeId ? { nodeId, tagName, attributes } : null;
+          const targets = interactionData.get("targets").orElse([]) as string[];
           resultEvents.push({
             time,
             type: eventType,
             ...(label ? { label } : {}),
             at: { x: at[0], y: at[1] },
+            ...(element ? { element } : {}),
+            ...(targets.length > 0 ? { targets } : {}),
           });
         } else {
           resultEvents.push({

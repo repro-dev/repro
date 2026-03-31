@@ -18,9 +18,7 @@ export function createStubPaddleClient(database: Database) {
     return resolve({ id, email, name } as Customer)
   }
 
-  function getCustomer(
-    _customerId: string
-  ): FutureInstance<Error, Customer> {
+  function getCustomer(_customerId: string): FutureInstance<Error, Customer> {
     return reject(notImplemented('getCustomer'))
   }
 
@@ -50,21 +48,42 @@ export function createStubPaddleClient(database: Database) {
         .select(['id'])
         .where('providerPriceId', '=', priceId)
         .executeTakeFirstOrThrow()
-    ).pipe(
-      chain(plan =>
-        attemptQuery(() =>
-          database
-            .selectFrom('billing_subscriptions')
-            .select(['id'])
-            .where('providerSubscriptionId', '=', providerSubscriptionId)
-            .executeTakeFirst()
-        ).pipe(
-          chain(existing => {
-            if (existing) {
+    )
+      .pipe(
+        chain(plan =>
+          attemptQuery(() =>
+            database
+              .selectFrom('billing_subscriptions')
+              .select(['id'])
+              .where('providerSubscriptionId', '=', providerSubscriptionId)
+              .executeTakeFirst()
+          ).pipe(
+            chain(existing => {
+              if (existing) {
+                return attemptQuery(async () => {
+                  await database
+                    .updateTable('billing_subscriptions')
+                    .set({
+                      planId: plan.id,
+                      status: 'active',
+                      currentPeriodStart: new Date(),
+                      currentPeriodEnd: new Date(
+                        Date.now() + 30 * 24 * 60 * 60 * 1000
+                      ),
+                      cancelAtPeriodEnd: false,
+                      canceledAt: null,
+                    })
+                    .where('id', '=', existing.id)
+                    .execute()
+                })
+              }
+
               return attemptQuery(async () => {
                 await database
-                  .updateTable('billing_subscriptions')
-                  .set({
+                  .insertInto('billing_subscriptions')
+                  .values({
+                    accountId: decodedAccountId,
+                    providerSubscriptionId,
                     planId: plan.id,
                     status: 'active',
                     currentPeriodStart: new Date(),
@@ -74,32 +93,13 @@ export function createStubPaddleClient(database: Database) {
                     cancelAtPeriodEnd: false,
                     canceledAt: null,
                   })
-                  .where('id', '=', existing.id)
                   .execute()
               })
-            }
-
-            return attemptQuery(async () => {
-              await database
-                .insertInto('billing_subscriptions')
-                .values({
-                  accountId: decodedAccountId,
-                  providerSubscriptionId,
-                  planId: plan.id,
-                  status: 'active',
-                  currentPeriodStart: new Date(),
-                  currentPeriodEnd: new Date(
-                    Date.now() + 30 * 24 * 60 * 60 * 1000
-                  ),
-                  cancelAtPeriodEnd: false,
-                  canceledAt: null,
-                })
-                .execute()
             })
-          })
+          )
         )
       )
-    ).pipe(map(() => ({ id: `dev_txn_${accountId}` } as Transaction)))
+      .pipe(map(() => ({ id: `dev_txn_${accountId}` }) as Transaction))
   }
 
   function getSubscription(
