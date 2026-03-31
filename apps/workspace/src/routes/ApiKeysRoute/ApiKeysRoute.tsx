@@ -3,6 +3,7 @@ import { useApiClient } from '@repro/api-client'
 import {
   Alert,
   Button,
+  Card,
   EmptyState,
   FormField,
   FormFieldError,
@@ -188,74 +189,78 @@ export const ApiKeysRoute: React.FC = () => {
           {revokeError && <Alert type="danger">{revokeError}</Alert>}
 
           {keys.length === 0 ? (
-            <EmptyState>
-              <EmptyState.Icon>
-                <KeyIcon size={40} color={color.text.muted} />
-              </EmptyState.Icon>
-              <EmptyState.Title>No API keys yet</EmptyState.Title>
-              <EmptyState.Description>
-                Create an API key to authenticate programmatic API access.
-              </EmptyState.Description>
-            </EmptyState>
+            <Card fullBleed>
+              <EmptyState>
+                <EmptyState.Icon>
+                  <KeyIcon size={40} color={color.text.muted} />
+                </EmptyState.Icon>
+                <EmptyState.Title>No API keys yet</EmptyState.Title>
+                <EmptyState.Description>
+                  Create an API key to authenticate programmatic API access.
+                </EmptyState.Description>
+              </EmptyState>
+            </Card>
           ) : (
-            <Table aria-label="API keys">
-              <Table.Header>
-                <Table.Row>
-                  <Table.HeaderCell>Name</Table.HeaderCell>
-                  <Table.HeaderCell>Prefix</Table.HeaderCell>
-                  <Table.HeaderCell>Created</Table.HeaderCell>
-                  <Table.HeaderCell>Last used</Table.HeaderCell>
-                  <Table.HeaderCell>Status</Table.HeaderCell>
-                  <Table.HeaderCell>
-                    <span aria-hidden="true" />
-                  </Table.HeaderCell>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {keys.map(key => (
-                  <Table.Row key={key.id}>
-                    <Table.Cell>{key.name}</Table.Cell>
-                    <Table.Cell>
-                      <Text variant="code">{key.keyPrefix}…</Text>
-                    </Table.Cell>
-                    <Table.Cell>
-                      {new Date(key.createdAt).toLocaleDateString()}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {key.lastUsedAt
-                        ? new Date(key.lastUsedAt).toLocaleDateString()
-                        : '—'}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {key.revokedAt ? (
-                        <Text variant="body" color={color.text.muted}>
-                          Revoked
-                        </Text>
-                      ) : (
-                        <Text variant="body" color={color.success}>
-                          Active
-                        </Text>
-                      )}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {!key.revokedAt && (
-                        <Button
-                          variant="text"
-                          context="danger"
-                          size="small"
-                          onClick={() => handleRevoke(key.id)}
-                        >
-                          <Row alignItems="center" gap={spacing.xs}>
-                            <TrashIcon size={14} />
-                            Revoke
-                          </Row>
-                        </Button>
-                      )}
-                    </Table.Cell>
+            <Card fullBleed>
+              <Table aria-label="API keys">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell>Name</Table.HeaderCell>
+                    <Table.HeaderCell>Prefix</Table.HeaderCell>
+                    <Table.HeaderCell>Created</Table.HeaderCell>
+                    <Table.HeaderCell>Last used</Table.HeaderCell>
+                    <Table.HeaderCell>Status</Table.HeaderCell>
+                    <Table.HeaderCell>
+                      <span aria-hidden="true" />
+                    </Table.HeaderCell>
                   </Table.Row>
-                ))}
-              </Table.Body>
-            </Table>
+                </Table.Header>
+                <Table.Body>
+                  {keys.map(key => (
+                    <Table.Row key={key.id}>
+                      <Table.Cell>{key.name}</Table.Cell>
+                      <Table.Cell>
+                        <Text variant="code">{key.keyPrefix}…</Text>
+                      </Table.Cell>
+                      <Table.Cell>
+                        {new Date(key.createdAt).toLocaleDateString()}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {key.lastUsedAt
+                          ? new Date(key.lastUsedAt).toLocaleDateString()
+                          : '—'}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {key.revokedAt ? (
+                          <Text variant="body" color={color.text.muted}>
+                            Revoked
+                          </Text>
+                        ) : (
+                          <Text variant="body" color={color.success}>
+                            Active
+                          </Text>
+                        )}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {!key.revokedAt && (
+                          <Button
+                            variant="text"
+                            context="danger"
+                            size="small"
+                            onClick={() => handleRevoke(key.id)}
+                          >
+                            <Row alignItems="center" gap={spacing.xs}>
+                              <TrashIcon size={14} />
+                              Revoke
+                            </Row>
+                          </Button>
+                        )}
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table>
+            </Card>
           )}
         </Stack>
       </PageFrame.Body>
