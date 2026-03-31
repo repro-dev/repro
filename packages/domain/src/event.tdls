@@ -3,6 +3,7 @@ import interaction.Interaction
 import network.NetworkMessage
 import performance.PerformanceEntry
 import snapshot.Snapshot
+import storage.{StorageType, StorageOperation}
 import vdom.DOMPatch
 
 type SourceEventType: enum<uint8> {
@@ -12,6 +13,7 @@ type SourceEventType: enum<uint8> {
   Network: 30
   Console: 40
   Performance: 50
+  Storage: 70
   CloseRecording: 99
 }
 
@@ -51,6 +53,17 @@ type PerformanceEvent: struct {
   2) data: PerformanceEntry
 }
 
+type StorageEvent: struct {
+  0) type: SourceEventType.Storage
+  1) storageType: StorageType
+  2) operation: StorageOperation
+  3) key: ?string
+  4) oldValue: ?string
+  5) newValue: ?string
+  6) time: uint64
+  7) frameId: uint32
+}
+
 type SourceEvent: union(type) {
   SnapshotEvent
   DOMPatchEvent
@@ -58,4 +71,5 @@ type SourceEvent: union(type) {
   NetworkEvent
   ConsoleEvent
   PerformanceEvent
+  StorageEvent
 }

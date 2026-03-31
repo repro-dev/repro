@@ -1,0 +1,10 @@
+type StorageType: enum<uint8> {
+  localStorage: 0
+  sessionStorage: 1
+}
+
+type StorageOperation: enum<uint8> {
+  setItem: 0
+  removeItem: 1
+  clear: 2
+}
