@@ -309,6 +309,17 @@ const Backdrop: React.FC<PropsWithChildren<BackdropProps>> = ({
     [onClose]
   )
 
+  const handleAnimationEnd = useCallback(
+    (evt: React.AnimationEvent<HTMLDivElement>) => {
+      // Only respond to the backdrop's own animationend, not events bubbling
+      // up from the panel inside it.
+      if (evt.target === evt.currentTarget && onAnimationEnd) {
+        onAnimationEnd()
+      }
+    },
+    [onAnimationEnd]
+  )
+
   return (
     <Row
       alignItems="center"
@@ -324,7 +335,7 @@ const Backdrop: React.FC<PropsWithChildren<BackdropProps>> = ({
           'data-testid': 'modal-backdrop',
         } as React.HTMLAttributes<HTMLDivElement>),
         onClick: handleBackdropClick,
-        onAnimationEnd: onAnimationEnd,
+        onAnimationEnd: handleAnimationEnd,
         style: animationStyle ? { animation: animationStyle } : undefined,
       }}
     >
