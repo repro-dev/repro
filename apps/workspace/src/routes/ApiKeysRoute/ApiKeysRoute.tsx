@@ -3,7 +3,6 @@ import { useApiClient } from '@repro/api-client'
 import {
   Alert,
   Button,
-  Card,
   EmptyState,
   FormField,
   FormFieldError,
@@ -18,7 +17,6 @@ import {
   Text,
   color,
   spacing,
-  useConfirm,
 } from '@repro/design'
 import { ListResponse } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
@@ -59,7 +57,6 @@ interface CreateApiKeyForm {
 
 export const ApiKeysRoute: React.FC = () => {
   const apiClient = useApiClient()
-  const confirm = useConfirm()
   const [refreshKey, setRefreshKey] = useState(0)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null)
@@ -118,19 +115,7 @@ export const ApiKeysRoute: React.FC = () => {
   )
 
   const handleRevoke = useCallback(
-    async (keyId: string) => {
-      const confirmed = await confirm({
-        title: 'Revoke API key?',
-        description:
-          'This key will stop working immediately. This action cannot be undone.',
-        confirmLabel: 'Revoke',
-        variant: 'destructive',
-      })
-
-      if (!confirmed) {
-        return
-      }
-
+    (keyId: string) => {
       setRevokeError(null)
       apiClient
         .fetch<void>(`/account/api-keys/${keyId}`, { method: 'DELETE' })
@@ -142,7 +127,7 @@ export const ApiKeysRoute: React.FC = () => {
           })
         )
     },
-    [apiClient, confirm]
+    [apiClient]
   )
 
   if (loading) {
@@ -189,78 +174,74 @@ export const ApiKeysRoute: React.FC = () => {
           {revokeError && <Alert type="danger">{revokeError}</Alert>}
 
           {keys.length === 0 ? (
-            <Card fullBleed>
-              <EmptyState>
-                <EmptyState.Icon>
-                  <KeyIcon size={40} color={color.text.muted} />
-                </EmptyState.Icon>
-                <EmptyState.Title>No API keys yet</EmptyState.Title>
-                <EmptyState.Description>
-                  Create an API key to authenticate programmatic API access.
-                </EmptyState.Description>
-              </EmptyState>
-            </Card>
+            <EmptyState>
+              <EmptyState.Icon>
+                <KeyIcon size={40} color={color.text.muted} />
+              </EmptyState.Icon>
+              <EmptyState.Title>No API keys yet</EmptyState.Title>
+              <EmptyState.Description>
+                Create an API key to authenticate programmatic API access.
+              </EmptyState.Description>
+            </EmptyState>
           ) : (
-            <Card fullBleed>
-              <Table aria-label="API keys">
-                <Table.Header>
-                  <Table.Row>
-                    <Table.HeaderCell>Name</Table.HeaderCell>
-                    <Table.HeaderCell>Prefix</Table.HeaderCell>
-                    <Table.HeaderCell>Created</Table.HeaderCell>
-                    <Table.HeaderCell>Last used</Table.HeaderCell>
-                    <Table.HeaderCell>Status</Table.HeaderCell>
-                    <Table.HeaderCell>
-                      <span aria-hidden="true" />
-                    </Table.HeaderCell>
+            <Table aria-label="API keys">
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell>Name</Table.HeaderCell>
+                  <Table.HeaderCell>Prefix</Table.HeaderCell>
+                  <Table.HeaderCell>Created</Table.HeaderCell>
+                  <Table.HeaderCell>Last used</Table.HeaderCell>
+                  <Table.HeaderCell>Status</Table.HeaderCell>
+                  <Table.HeaderCell>
+                    <span aria-hidden="true" />
+                  </Table.HeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {keys.map(key => (
+                  <Table.Row key={key.id}>
+                    <Table.Cell>{key.name}</Table.Cell>
+                    <Table.Cell>
+                      <Text variant="code">{key.keyPrefix}…</Text>
+                    </Table.Cell>
+                    <Table.Cell>
+                      {new Date(key.createdAt).toLocaleDateString()}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {key.lastUsedAt
+                        ? new Date(key.lastUsedAt).toLocaleDateString()
+                        : '—'}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {key.revokedAt ? (
+                        <Text variant="body" color={color.text.muted}>
+                          Revoked
+                        </Text>
+                      ) : (
+                        <Text variant="body" color={color.success}>
+                          Active
+                        </Text>
+                      )}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {!key.revokedAt && (
+                        <Button
+                          variant="text"
+                          context="danger"
+                          size="small"
+                          onClick={() => handleRevoke(key.id)}
+                        >
+                          <Row alignItems="center" gap={spacing.xs}>
+                            <TrashIcon size={14} />
+                            Revoke
+                          </Row>
+                        </Button>
+                      )}
+                    </Table.Cell>
                   </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  {keys.map(key => (
-                    <Table.Row key={key.id}>
-                      <Table.Cell>{key.name}</Table.Cell>
-                      <Table.Cell>
-                        <Text variant="code">{key.keyPrefix}…</Text>
-                      </Table.Cell>
-                      <Table.Cell>
-                        {new Date(key.createdAt).toLocaleDateString()}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {key.lastUsedAt
-                          ? new Date(key.lastUsedAt).toLocaleDateString()
-                          : '—'}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {key.revokedAt ? (
-                          <Text variant="body" color={color.text.muted}>
-                            Revoked
-                          </Text>
-                        ) : (
-                          <Text variant="body" color={color.success}>
-                            Active
-                          </Text>
-                        )}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {!key.revokedAt && (
-                          <Button
-                            variant="text"
-                            context="danger"
-                            size="small"
-                            onClick={() => handleRevoke(key.id)}
-                          >
-                            <Row alignItems="center" gap={spacing.xs}>
-                              <TrashIcon size={14} />
-                              Revoke
-                            </Row>
-                          </Button>
-                        )}
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table>
-            </Card>
+                ))}
+              </Table.Body>
+            </Table>
           )}
         </Stack>
       </PageFrame.Body>
