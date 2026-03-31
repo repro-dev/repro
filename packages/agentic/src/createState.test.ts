@@ -12,6 +12,7 @@ import {
 import { RecordingDataAccessor, StreamProvider, ToolCall } from "./types";
 import {
   fork,
+  Future,
   isFuture,
   FutureInstance,
   resolve,
@@ -401,6 +402,86 @@ describe("executeToolCalls", () => {
       durationMs: number;
     };
     assert.strictEqual(typeof parsed.durationMs, "number");
+  });
+
+  it("executes multiple tool calls concurrently (all start before any complete)", async () => {
+    const accessor = makeEmptyAccessor();
+    const startTimes: Array<number> = [];
+    const endTimes: Array<number> = [];
+
+    // Inject a custom executeFn that records start/end times and waits briefly
+    const delayMs = 50;
+    const executeFn = (
+      _recording: RecordingDataAccessor,
+      _name: string,
+      _args: Record<string, unknown>,
+    ): FutureInstance<unknown, unknown> => {
+      const idx = startTimes.length;
+      startTimes.push(Date.now());
+      return Future((_, res) => {
+        const timer = setTimeout(() => {
+          endTimes[idx] = Date.now();
+          res({ result: idx });
+        }, delayMs);
+        return () => clearTimeout(timer);
+      });
+    };
+
+    const toolCalls: Array<ToolCall> = [
+      {
+        id: "tc0",
+        index: 0,
+        function: { name: "getRecordingDuration", arguments: "{}" },
+      },
+      {
+        id: "tc1",
+        index: 1,
+        function: { name: "getRecordingDuration", arguments: "{}" },
+      },
+      {
+        id: "tc2",
+        index: 2,
+        function: { name: "getRecordingDuration", arguments: "{}" },
+      },
+    ];
+
+    const wallStart = Date.now();
+    const results = await runFuture(
+      executeToolCalls(accessor, toolCalls, () => "id", executeFn),
+    );
+    const wallElapsed = Date.now() - wallStart;
+
+    // All 3 results must be present and preserve original call order
+    assert.strictEqual(results.length, 3);
+    assert.strictEqual(results[0]!.tool_call_id, "tc0");
+    assert.strictEqual(results[1]!.tool_call_id, "tc1");
+    assert.strictEqual(results[2]!.tool_call_id, "tc2");
+
+    // Serial execution would take >= 3 * delayMs. Concurrent should be ~delayMs.
+    // We allow 2.5× to avoid flakiness, but serial (3×) must never pass.
+    assert.ok(
+      wallElapsed < delayMs * 2.5,
+      `Expected concurrent execution (~${delayMs}ms) but took ${wallElapsed}ms (serial would be ~${
+        delayMs * 3
+      }ms)`,
+    );
+
+    // All 3 calls must have started before any completed (overlap in time)
+    assert.strictEqual(
+      startTimes.length,
+      3,
+      "Expected all 3 tool calls to have started",
+    );
+
+    // The earliest end time must be after all start times (proving concurrent start)
+    const earliestEnd = Math.min(
+      ...(endTimes.filter((t) => t !== undefined) as Array<number>),
+    );
+    const latestStart = Math.max(...startTimes);
+    assert.ok(
+      latestStart < earliestEnd,
+      `Expected all calls to start before any completed. latestStart=${latestStart}, earliestEnd=${earliestEnd}`,
+    );
   });
 });
 
