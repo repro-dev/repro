@@ -3,6 +3,7 @@ import { AppShell, Link, SideNav } from '@repro/design'
 import {
   CreditCardIcon,
   FolderIcon,
+  KeyIcon,
   PlayIcon,
   SettingsIcon,
   UsersIcon,
@@ -13,6 +14,7 @@ import { WorkspaceHeader } from '~/components/WorkspaceHeader'
 
 export const Layout: React.FC = () => {
   const sessionsActive = useMatch({ path: '/', end: true })
+  const apiKeysActive = useMatch({ path: '/account/api-keys', end: true })
 
   return (
     <AppShell>
@@ -41,6 +43,13 @@ export const Layout: React.FC = () => {
               <SideNav.Item icon={SettingsIcon} label="Settings" disabled />
             </SideNav.Section>
             <SideNav.Section title="Account">
+              <SideNav.Item
+                icon={KeyIcon}
+                label="API Keys"
+                active={!!apiKeysActive}
+                component={RouterNavLink}
+                props={{ to: '/account/api-keys' }}
+              />
               <SideNav.Item icon={CreditCardIcon} label="Billing" disabled />
             </SideNav.Section>
           </SideNav>
