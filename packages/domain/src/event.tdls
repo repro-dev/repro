@@ -3,6 +3,7 @@ import interaction.Interaction
 import network.NetworkMessage
 import performance.PerformanceEntry
 import snapshot.Snapshot
+import state.StateEvent
 import vdom.DOMPatch
 
 type SourceEventType: enum<uint8> {
@@ -12,6 +13,7 @@ type SourceEventType: enum<uint8> {
   Network: 30
   Console: 40
   Performance: 50
+  State: 60
   CloseRecording: 99
 }
 
@@ -51,6 +53,12 @@ type PerformanceEvent: struct {
   2) data: PerformanceEntry
 }
 
+type StateSourceEvent: struct {
+  0) type: SourceEventType.State
+  1) time: uint32
+  2) data: StateEvent
+}
+
 type SourceEvent: union(type) {
   SnapshotEvent
   DOMPatchEvent
@@ -58,4 +66,5 @@ type SourceEvent: union(type) {
   NetworkEvent
   ConsoleEvent
   PerformanceEvent
+  StateSourceEvent
 }

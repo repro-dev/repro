@@ -1,0 +1,73 @@
+type StateEventType: enum<uint8> {
+  ReactCommit: 0
+  ReduxDispatch: 1
+  VueComponentUpdate: 2
+  VuexMutation: 3
+  VuexAction: 4
+  PiniaAction: 5
+}
+
+type ReactCommitEvent: struct {
+  0) type: StateEventType.ReactCommit
+  1) time: uint64
+  2) frameId: uint32
+  3) componentName: string
+  4) propsDelta: string
+  5) hooksDelta: string
+  6) fiberNodeId: uint32
+}
+
+type ReduxDispatchEvent: struct {
+  0) type: StateEventType.ReduxDispatch
+  1) time: uint64
+  2) frameId: uint32
+  3) actionType: string
+  4) actionPayload: string
+  5) stateDiff: string
+}
+
+type VueComponentUpdateEvent: struct {
+  0) type: StateEventType.VueComponentUpdate
+  1) time: uint64
+  2) frameId: uint32
+  3) componentName: string
+  4) uid: uint32
+  5) propsDelta: string
+  6) setupStateDelta: string
+}
+
+type VuexMutationEvent: struct {
+  0) type: StateEventType.VuexMutation
+  1) time: uint64
+  2) frameId: uint32
+  3) mutationType: string
+  4) payload: string
+  5) stateDiff: string
+}
+
+type VuexActionEvent: struct {
+  0) type: StateEventType.VuexAction
+  1) time: uint64
+  2) frameId: uint32
+  3) actionType: string
+  4) payload: string
+}
+
+type PiniaActionEvent: struct {
+  0) type: StateEventType.PiniaAction
+  1) time: uint64
+  2) frameId: uint32
+  3) storeId: string
+  4) actionName: string
+  5) args: string
+  6) stateDiff: string
+}
+
+type StateEvent: union(type) {
+  ReactCommitEvent
+  ReduxDispatchEvent
+  VueComponentUpdateEvent
+  VuexMutationEvent
+  VuexActionEvent
+  PiniaActionEvent
+}
