@@ -16,6 +16,7 @@ export * from './generated/point'
 export * from './generated/recording'
 export * from './generated/snapshot'
 export * from './generated/state'
+export * from './generated/storage'
 export * from './generated/vdom'
 export { migrate } from './migrations'
 export type { CodecVersion }
