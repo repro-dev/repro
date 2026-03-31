@@ -26,7 +26,7 @@ import {
 } from "./model/context-window";
 import { SYSTEM_CARD_MESSAGE } from "./model/system";
 import { estimateTokens } from "./model/token-optimization";
-import { executeTool, tools } from "./model/tools";
+import { executeTool, tools } from "./model/tools/index";
 import {
   AgenticError,
   AgenticState,

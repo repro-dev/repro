@@ -61,7 +61,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { AGENTIC_DEFAULT_MODEL } from "@repro/domain";
-import { tools } from "../model/tools";
+import { tools } from "../model/tools/index";
 import type { Entry } from "../types";
 import { createFixture as createFixture1 } from "./fixtures/console-error-and-network-failure";
 import { createFixture as createFixture2 } from "./fixtures/conditional-rendering-bug";

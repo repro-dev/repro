@@ -1285,7 +1285,7 @@ describe("createAgenticState — options.tools override", () => {
   }
 
   it("passes the full default tools array to streamProvider when no override is given", async () => {
-    const { tools: defaultTools } = await import("./model/tools");
+    const { tools: defaultTools } = await import("./model/tools/index");
     let capturedTools: unknown[] = [];
 
     const streamProvider: StreamProvider = (_ctx, toolDefs) => {

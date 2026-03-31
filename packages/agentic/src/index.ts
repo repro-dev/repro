@@ -5,7 +5,7 @@ export {
 } from "./model/system";
 export { makeAccessorFromEventList } from "./recordingDataAccessor";
 export type { EventList } from "./recordingDataAccessor";
-export { executeTool, extensionTools, tools } from "./model/tools";
+export { executeTool, extensionTools, tools } from "./model/tools/index";
 export { groupToolCalls } from "./utils/groupToolCalls";
 export type {
   ToolCallPair,
