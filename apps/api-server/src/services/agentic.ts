@@ -1,3 +1,4 @@
+import { AGENTIC_DEFAULT_MODEL } from '@repro/domain'
 import { FutureInstance, map, reject } from 'fluture'
 import { defaultEnv as env } from '~/config/env'
 import { Database, attemptQuery, decodeId } from '~/modules/database'
@@ -58,7 +59,7 @@ export function createAgenticService(
       },
 
       body: JSON.stringify({
-        model: 'openai/gpt-5-mini',
+        model: AGENTIC_DEFAULT_MODEL,
         stream: true,
         tool_choice: toolChoice ?? 'auto',
         tools,
