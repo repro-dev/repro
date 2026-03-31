@@ -3,6 +3,7 @@ import { useFocusTrap } from '@repro/a11y'
 import React, { PropsWithChildren, useCallback, useEffect } from 'react'
 import { color } from '../tokens/colors'
 import { radius, shadow } from '../tokens/elevation'
+import { ModalHeader } from './ModalHeader'
 
 type Props = PropsWithChildren<{
   width: string | number
@@ -35,8 +36,11 @@ type Props = PropsWithChildren<{
  * Traps focus while open and closes on Escape or backdrop click when
  * `onClose` is provided. Renders inline (not into a Portal, unlike Drawer).
  * Requires explicit `width` and `height` props.
+ *
+ * Compound subcomponents:
+ *   `Modal.Header` — standard title + description header slot
  */
-export const Modal: React.FC<Props> = ({
+const _Modal: React.FC<Props> = ({
   children,
   width,
   height,
@@ -91,6 +95,12 @@ export const Modal: React.FC<Props> = ({
     </Backdrop>
   )
 }
+
+_Modal.displayName = 'Modal'
+
+export const Modal = _Modal as typeof _Modal & { Header: typeof ModalHeader }
+
+Modal.Header = ModalHeader
 
 interface BackdropProps {
   onClose?: () => void

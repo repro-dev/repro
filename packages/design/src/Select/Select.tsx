@@ -28,6 +28,7 @@ import { useFormFieldContext } from '../FormField/FormFieldContext'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
 import { radius, shadow, zIndex } from '../tokens/elevation'
+import { formControlHeight } from '../tokens/formControl'
 import { focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
@@ -461,6 +462,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           justifyContent="space-between"
           gap={spacing.md}
           width="100%"
+          height={formControlHeight[size]}
+          boxSizing="border-box"
           padding={`${triggerPaddingV}px ${triggerPaddingH}px`}
           backgroundColor={color.bg.surface}
           border={`1px solid ${error ? color.danger : color.border.strong}`}

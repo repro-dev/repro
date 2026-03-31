@@ -2,7 +2,9 @@ import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import type { Meta, StoryObj } from '@storybook/react'
 import React from 'react'
 import { expect, fn, userEvent, within } from 'storybook/test'
+import { Input } from '../Input'
 import { color } from '../tokens/colors'
+import { spacing } from '../tokens/spacing'
 import { fontSize, fontWeight } from '../tokens/typography'
 import { Button } from './Button'
 
@@ -220,6 +222,37 @@ export const HoverAndActive: Story = {
           ))}
         </Row>
       </Col>
+    </Col>
+  ),
+}
+
+/**
+ * Demonstrates Button and Input visually aligned side-by-side across all
+ * three sizes. Validates that formControlHeight unification keeps both
+ * components flush at every size tier.
+ */
+export const InlineWithInput: Story = {
+  render: () => (
+    <Col gap={spacing.xl} padding={spacing.xl}>
+      {sizes.map(s => (
+        <Row key={s} gap={spacing.md} alignItems="center">
+          <Block
+            width={64}
+            fontSize={fontSize.xs}
+            fontWeight={600}
+            color={color.text.muted}
+          >
+            {s}
+          </Block>
+          <Input
+            aria-label="Search"
+            placeholder="Search..."
+            size={s}
+            name="search"
+          />
+          <Button size={s}>Search</Button>
+        </Row>
+      ))}
     </Col>
   ),
 }
