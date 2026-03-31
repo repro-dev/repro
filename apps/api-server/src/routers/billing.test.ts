@@ -101,7 +101,7 @@ describe('Routers > Billing', () => {
       expect(res.statusCode).toEqual(404)
     })
 
-    it('should return not-found when no session is active', async () => {
+    it('should return not-authenticated when no session is active', async () => {
       const [proPlan] = await harness.loadFixtures([fixtures.billing.ProPlan])
 
       const res = await app.inject({
@@ -112,7 +112,7 @@ describe('Routers > Billing', () => {
         },
       })
 
-      expect(res.statusCode).toEqual(404)
+      expect(res.statusCode).toEqual(401)
     })
 
     it('should return 400 when planId is missing', async () => {

@@ -1,6 +1,6 @@
 import { IfSession, UnlessSession, UserMenu } from '@repro/auth'
 import { AppShell, Link, SideNav } from '@repro/design'
-import { PlayIcon, ZapIcon } from 'lucide-react'
+import { KeyIcon, PlayIcon, ZapIcon } from 'lucide-react'
 import React from 'react'
 import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
 import { WorkspaceHeader } from '~/components/WorkspaceHeader'
@@ -8,6 +8,7 @@ import { WorkspaceHeader } from '~/components/WorkspaceHeader'
 export const Layout: React.FC = () => {
   const sessionsActive = useMatch({ path: '/', end: true })
   const pricingActive = useMatch({ path: '/pricing', end: true })
+  const apiKeysActive = useMatch({ path: '/account/api-keys', end: true })
 
   return (
     <AppShell>
@@ -34,6 +35,13 @@ export const Layout: React.FC = () => {
               active={!!pricingActive}
               component={RouterNavLink}
               props={{ to: '/pricing' }}
+            />
+            <SideNav.Item
+              icon={KeyIcon}
+              label="API Keys"
+              active={!!apiKeysActive}
+              component={RouterNavLink}
+              props={{ to: '/account/api-keys' }}
             />
           </SideNav>
         </IfSession>

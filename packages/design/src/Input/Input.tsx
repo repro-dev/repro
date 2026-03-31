@@ -5,6 +5,7 @@ import mergeRefs from 'react-merge-refs'
 import { useFormFieldContext } from '../FormField/FormFieldContext'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
+import { formControlHeight } from '../tokens/formControl'
 import { focusWithinRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
 import { MINIMUM_FONT_SIZE } from '../tokens/typography'
@@ -29,12 +30,15 @@ export interface InputProps {
   name?: string
   onBlur?: React.FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>
   onChange?: React.ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>
+  onClick?: React.MouseEventHandler<HTMLInputElement | HTMLTextAreaElement>
   pattern?: string
   placeholder?: string
+  readOnly?: boolean
   required?: boolean
   rows?: number
   size?: Size
   type?: string
+  value?: string
 }
 
 const sizes = {
@@ -65,6 +69,7 @@ export const Input = forwardRef<
       context: contextProp,
       disabled: disabledProp,
       placeholder = '',
+      readOnly,
       rows = 1,
       size = 'medium',
       type = 'text',
@@ -72,6 +77,8 @@ export const Input = forwardRef<
       name,
       onBlur,
       onChange,
+      onClick,
+      value,
       'aria-describedby': ariaDescribedByProp,
       'aria-invalid': ariaInvalidProp,
       'aria-label': ariaLabel,
@@ -118,6 +125,12 @@ export const Input = forwardRef<
         borderStyle="solid"
         borderWidth={1}
         boxShadow={`0 0.5px 1.5px ${color.border.strong}DA`}
+        boxSizing="border-box"
+        // Fixed height on single-line inputs; flex+center ensures the inner
+        // <input> is vertically centered without relying on symmetric padding.
+        display={rows > 1 ? undefined : 'flex'}
+        alignItems={rows > 1 ? undefined : 'center'}
+        height={rows > 1 ? undefined : formControlHeight[size]}
         opacity={disabled ? 0.5 : 1}
         cursor={disabled ? 'not-allowed' : undefined}
         transition={transition.fast}
@@ -132,7 +145,12 @@ export const Input = forwardRef<
       >
         <Block
           component={rows > 1 ? 'textarea' : 'input'}
-          padding={`${base}px ${base * 1.5}px`}
+          // Textarea keeps symmetric padding since it has no fixed height.
+          // Single-line input uses horizontal-only padding; vertical centering
+          // is handled by the flex wrapper above.
+          padding={rows > 1 ? `${base}px ${base * 1.5}px` : undefined}
+          paddingH={rows > 1 ? undefined : base * 1.5}
+          flex={rows > 1 ? undefined : 1}
           width="100%"
           fontFamily="inherit"
           fontSize={fontSize}
@@ -152,8 +170,10 @@ export const Input = forwardRef<
             autoFocus,
             disabled,
             placeholder,
+            readOnly,
             rows: rows > 1 ? rows : undefined,
             type,
+            value,
             'aria-describedby': ariaDescribedBy,
             'aria-invalid': ariaInvalid,
             'aria-label': ariaLabel,
@@ -163,6 +183,7 @@ export const Input = forwardRef<
             onKeyPress: preventKeyCapture,
             onBlur,
             onChange,
+            onClick,
             ref: ref as any,
             ...restProps,
           }}

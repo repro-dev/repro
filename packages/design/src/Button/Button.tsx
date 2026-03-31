@@ -2,6 +2,7 @@ import { Row } from '@jsxstyle/react'
 import React, { forwardRef, PropsWithChildren } from 'react'
 import { color } from '../tokens/colors'
 import { containedShadow, radius, shadow } from '../tokens/elevation'
+import { formControlHeight } from '../tokens/formControl'
 import { activePress, focusRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
 import { fontSize as fontSizeTokens } from '../tokens/typography'
@@ -80,25 +81,27 @@ const contextColors = {
 /**
  * Sizing system.
  *
- * Button retains its `base` multiplier (5 / 7 / 9 for small / medium / large)
- * because the resulting values do not align with the spacing scale:
+ * Height is driven by the shared `formControlHeight` token so Button, Input,
+ * and Select all align at the same pixel value per size tier:
  *
- *   small  base=5: height=25, paddingH=10, gap=5
- *   medium base=7: height=35, paddingH=14, gap=7
- *   large  base=9: height=45, paddingH=18, gap=9
+ *   small  → 28px
+ *   medium → 36px
+ *   large  → 44px
  *
- * The nearest spacing tokens (sm=4, md=8, lg=12, xl=16…) are too coarse to
- * express these derived values without introducing new magic numbers.
- * Keeping the multiplier makes the scale internally consistent and self-
- * documenting.
+ * Horizontal padding and gap still use the original `base` multiplier
+ * (5 / 7 / 9) so spacing stays internally consistent:
+ *
+ *   small  base=5: paddingH=10, gap=5
+ *   medium base=7: paddingH=14, gap=7
+ *   large  base=9: paddingH=18, gap=9
  *
  * Font sizes use `fontSize.*` tokens explicitly per size rather than deriving
  * from `base * 1.5`:
- *   small  (base*1.5 = 7.5)  → fontSize.xs (11px) — original clamped to MINIMUM_FONT_SIZE
- *   medium (base*1.5 = 10.5) → fontSize.xs (11px) — original clamped to MINIMUM_FONT_SIZE
- *   large  (base*1.5 = 13.5) → fontSize.sm (13px) — nearest token
+ *   small  → fontSize.xs (11px)
+ *   medium → fontSize.xs (11px)
+ *   large  → fontSize.sm (13px)
  *
- * `borderRadius` also derives from `base` (5/7/9px for small/medium/large)
+ * `borderRadius` derives from `base` (5/7/9px for small/medium/large)
  * rather than a fixed radius token, preserving the original scaling behaviour.
  * `radius.full` was considered but is visually incorrect (pill shape).
  * `radius.none` is used when `rounded={false}`.
@@ -131,7 +134,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const { base, fontSize } = sizes[size]
-    const height = base * 5
+    const height = formControlHeight[size]
     const paddingH = base * 2
     const gap = base
     const ctx = contextColors[context]

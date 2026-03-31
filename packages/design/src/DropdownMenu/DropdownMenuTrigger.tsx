@@ -1,9 +1,14 @@
-import { InlineBlock } from '@jsxstyle/react'
+import { Block, InlineBlock } from '@jsxstyle/react'
 import React from 'react'
 import { useDropdownMenuContext } from './DropdownMenuContext'
 
 export interface DropdownMenuTriggerProps {
   children: React.ReactNode
+  /**
+   * When true, renders as a block-level container instead of inline-block,
+   * allowing the trigger to fill its parent's full width (e.g. sidebar menus).
+   */
+  fullWidth?: boolean
 }
 
 /**
@@ -15,11 +20,14 @@ export interface DropdownMenuTriggerProps {
  */
 export const DropdownMenuTrigger: React.FC<DropdownMenuTriggerProps> = ({
   children,
+  fullWidth = false,
 }) => {
   const { refs, getReferenceProps, open } = useDropdownMenuContext()
 
+  const Container = fullWidth ? Block : InlineBlock
+
   return (
-    <InlineBlock
+    <Container
       props={{
         ref: refs.setReference,
         'aria-haspopup': 'menu' as const,
@@ -28,7 +36,7 @@ export const DropdownMenuTrigger: React.FC<DropdownMenuTriggerProps> = ({
       }}
     >
       {children}
-    </InlineBlock>
+    </Container>
   )
 }
 
