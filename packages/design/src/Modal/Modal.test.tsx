@@ -1,4 +1,4 @@
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React, { act } from 'react'
@@ -187,5 +187,132 @@ describe('Modal', () => {
     })
 
     expect(closed).toBe(false)
+  })
+})
+
+describe('Modal open prop and animation', () => {
+  it('renders dialog when open is true (default)', () => {
+    render(
+      <Modal width={400} height={300} aria-label="Test modal" open>
+        <p>Content</p>
+      </Modal>
+    )
+
+    const dialog = document.querySelector('[role="dialog"]')
+    expect(dialog).not.toBeNull()
+  })
+
+  it('does not render dialog when open is false (after animationend)', async () => {
+    const { rerender } = render(
+      <Modal width={400} height={300} aria-label="Test modal" open={true}>
+        <p>Content</p>
+      </Modal>
+    )
+
+    await rerender(
+      <Modal width={400} height={300} aria-label="Test modal" open={false}>
+        <p>Content</p>
+      </Modal>
+    )
+
+    // Trigger the animationend event on the backdrop to complete exit animation
+    const backdrop = document.querySelector('[data-testid="modal-backdrop"]')
+    if (backdrop) {
+      await act(() => {
+        fireEvent.animationEnd(backdrop)
+      })
+    }
+
+    const dialog = document.querySelector('[role="dialog"]')
+    expect(dialog).toBeNull()
+  })
+
+  it('renders dialog when open defaults to true (backward compat)', () => {
+    render(
+      <Modal width={400} height={300} aria-label="Test modal">
+        <p>Content</p>
+      </Modal>
+    )
+
+    const dialog = document.querySelector('[role="dialog"]')
+    expect(dialog).not.toBeNull()
+  })
+
+  it('applies entering animation class on mount when open', () => {
+    render(
+      <Modal width={400} height={300} aria-label="Test modal" open={true}>
+        <p>Content</p>
+      </Modal>
+    )
+
+    const backdrop = document.querySelector('[data-testid="modal-backdrop"]')
+    expect(backdrop).not.toBeNull()
+    // The backdrop should have an animation applied during entering phase
+    const style = (backdrop as HTMLElement | null)?.getAttribute('style') ?? ''
+    expect(style).toContain('modal-backdrop-in')
+  })
+
+  it('applies exiting animation when open transitions to false', async () => {
+    const { rerender } = render(
+      <Modal width={400} height={300} aria-label="Test modal" open={true}>
+        <p>Content</p>
+      </Modal>
+    )
+
+    await act(async () => {
+      await rerender(
+        <Modal width={400} height={300} aria-label="Test modal" open={false}>
+          <p>Content</p>
+        </Modal>
+      )
+    })
+
+    const backdrop = document.querySelector('[data-testid="modal-backdrop"]')
+    expect(backdrop).not.toBeNull()
+    const style = (backdrop as HTMLElement | null)?.getAttribute('style') ?? ''
+    expect(style).toContain('modal-backdrop-out')
+  })
+
+  it('can reopen after being closed', async () => {
+    const ToggleModal = () => {
+      const [open, setOpen] = React.useState(true)
+      return (
+        <>
+          <button onClick={() => setOpen(o => !o)}>Toggle</button>
+          <Modal
+            width={400}
+            height={300}
+            aria-label="Toggle test"
+            open={open}
+            onClose={() => setOpen(false)}
+          >
+            <p>Content</p>
+          </Modal>
+        </>
+      )
+    }
+
+    render(<ToggleModal />)
+
+    // Close the modal
+    await act(async () => {
+      document.querySelector('button')!.click()
+    })
+
+    // Trigger animationend to complete unmount
+    const backdrop = document.querySelector('[data-testid="modal-backdrop"]')
+    if (backdrop) {
+      await act(() => {
+        fireEvent.animationEnd(backdrop)
+      })
+    }
+
+    // Reopen the modal
+    await act(async () => {
+      document.querySelector('button')!.click()
+    })
+
+    const dialog = document.querySelector('[role="dialog"]')
+    expect(dialog).not.toBeNull()
   })
 })

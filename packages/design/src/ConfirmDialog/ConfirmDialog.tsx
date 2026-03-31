@@ -30,12 +30,14 @@ export const ConfirmDialog: React.FC<Props> = ({
   cancelLabel = 'Cancel',
   variant = 'default',
 }) => {
-  if (!open) {
-    return null
-  }
-
   return (
-    <Modal width={400} height="auto" onClose={onCancel} aria-label={title}>
+    <Modal
+      width={400}
+      height="auto"
+      open={open}
+      onClose={onCancel}
+      aria-label={title}
+    >
       <Col padding={spacing.xl} gap={spacing.md}>
         <Modal.Header title={title} description={description} />
         <Row justifyContent="flex-end" gap={spacing.md}>
