@@ -1,6 +1,6 @@
 import { FutureInstance, map } from 'fluture'
 import { defaultEnv as env } from '~/config/env'
-import { Database, attemptQuery } from '~/modules/database'
+import { Database, attemptQuery, decodeId } from '~/modules/database'
 import { HttpClient } from '~/modules/http'
 
 interface ToolCallContext {
@@ -64,7 +64,7 @@ export function createAgenticService(database: Database, httpClient: HttpClient)
   }
 
   function recordFeedback(
-    userId: number,
+    userId: string,
     sentiment: 'positive' | 'negative',
     promptVersion: string,
     comment: string | null,
@@ -73,7 +73,7 @@ export function createAgenticService(database: Database, httpClient: HttpClient)
     return attemptQuery(() =>
       database
         .insertInto('agentic_feedback')
-        .values({ userId, sentiment, promptVersion, comment, recordingId })
+        .values({ userId: decodeId(userId), sentiment, promptVersion, comment, recordingId })
         .execute()
     ).pipe(map(() => undefined))
   }
