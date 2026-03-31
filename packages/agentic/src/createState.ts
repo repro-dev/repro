@@ -221,6 +221,38 @@ export function executeToolCalls(
   return parallel(Infinity)(futures);
 }
 
+// Identifies the tool_call_ids of the first findErrors and getEvents calls in
+// the context. These are the Orient phase tool results that must be preserved
+// during context-window truncation.
+export function getOrientPhaseToolCallIds(context: Context): Set<string> {
+  const ids = new Set<string>();
+  let foundFindErrors = false;
+  let foundGetEvents = false;
+
+  for (const msg of context) {
+    if (msg.role !== "assistant") continue;
+
+    const toolCalls = "tool_calls" in msg ? msg.tool_calls : undefined;
+    if (!toolCalls) continue;
+
+    for (const tc of toolCalls) {
+      if (!foundFindErrors && tc.function.name === "findErrors") {
+        ids.add(tc.id);
+        foundFindErrors = true;
+      }
+      if (!foundGetEvents && tc.function.name === "getEvents") {
+        ids.add(tc.id);
+        foundGetEvents = true;
+      }
+    }
+
+    // Stop scanning once both orient calls have been found
+    if (foundFindErrors && foundGetEvents) break;
+  }
+
+  return ids;
+}
+
 export const MAX_TOOL_ITERATIONS = 25;
 
 export function buildIterationLimitMessage(id: string): AssistantMessage {
@@ -381,8 +413,20 @@ export function createAgenticState(
     currentAbortController = new AbortController();
     const systemTokens = estimateTokens(SYSTEM_CARD_MESSAGE);
     const budget = computeContextBudget(AGENTIC_MODEL, systemTokens);
+
+    // Identify the first findErrors and getEvents tool results (Orient phase)
+    // and protect them from truncation so the model retains its initial grounding.
+    const orientIds = getOrientPhaseToolCallIds(context);
+    const isProtected = (msg: Context[number]) =>
+      msg.role === "tool" && orientIds.has(msg.tool_call_id);
+
     const { messages: truncatedContext, droppedCount } =
-      truncateToContextBudget(context, budget, (msg) => estimateTokens(msg));
+      truncateToContextBudget(
+        context,
+        budget,
+        (msg) => estimateTokens(msg),
+        isProtected,
+      );
 
     // Update the truncation indicator atom. When messages were dropped, find
     // the entry ID of the first surviving message so the UI can place the
