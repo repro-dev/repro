@@ -19,29 +19,73 @@ inputs:
   organization-id:
     type: string
     required: true
+  bucket-name:
+    type: string
+    required: true
+  region:
+    type: string
+    required: false
+    default: fr-par
+
+outputs:
+  deployment-url:
+    description: The URL of the deployed app
+    value: ${{ steps.vars.outputs.deployment-url }}
 
 runs:
   using: composite
   steps:
+    - name: Validate credentials
+      run: |
+        if [ -z "$SCW_ACCESS_KEY" ]; then
+          echo "::error::SCW_ACCESS_KEY is not set. Add it as a GitHub secret and map it via env: in the workflow."
+          exit 1
+        fi
+        if [ -z "$SCW_SECRET_KEY" ]; then
+          echo "::error::SCW_SECRET_KEY is not set. Add it as a GitHub secret and map it via env: in the workflow."
+          exit 1
+        fi
+      shell: bash
+      env:
+        SCW_ACCESS_KEY: ${{ inputs.access-key }}
+        SCW_SECRET_KEY: ${{ inputs.secret-key }}
+
     - name: Set variables
       id: vars
       run: |
         case $GITHUB_EVENT_NAME in
           push)
-            if [ $GITHUB_REF_NAME == "main" ]; then
-              echo "base-origin=https://app.reproqa.dev" >> $GITHUB_OUTPUT
-              echo "base-path=" >> $GITHUB_OUTPUT
+            if [ "$GITHUB_REF_NAME" = "main" ]; then
+              BASE_ORIGIN="https://app.reproqa.dev"
+              BASE_PATH=""
             else
-              echo "base-origin=https://${{ inputs.app-name }}.env.reproqa.dev" >> $GITHUB_OUTPUT
-              echo "base-path=/$GITHUB_REF_TYPE/$(echo $GITHUB_REF_NAME  | sed 's/\//_/g')" >> $GITHUB_OUTPUT
+              BASE_ORIGIN="https://${{ inputs.app-name }}.env.reproqa.dev"
+              BASE_PATH="/branch/$(echo "$GITHUB_REF_NAME" | sed 's/\//_/g')"
             fi
             ;;
 
           pull_request)
-            echo "base-origin=https://${{ inputs.app-name }}.env.reproqa.dev" >> $GITHUB_OUTPUT
-            echo "base-path=/pull/${{ github.event.number }}" >> $GITHUB_OUTPUT
+            BASE_ORIGIN="https://${{ inputs.app-name }}.env.reproqa.dev"
+            BASE_PATH="/pull/${{ github.event.number }}"
+            ;;
+
+          *)
+            BASE_ORIGIN="https://app.reproqa.dev"
+            BASE_PATH=""
             ;;
         esac
+
+        echo "base-origin=${BASE_ORIGIN}" >> "$GITHUB_OUTPUT"
+        echo "base-path=${BASE_PATH}" >> "$GITHUB_OUTPUT"
+        echo "deployment-url=${BASE_ORIGIN}${BASE_PATH}" >> "$GITHUB_OUTPUT"
+
+        # S3 destination key prefix: <app-name> for root, or <app-name><base-path> for branches/PRs
+        if [ -z "$BASE_PATH" ]; then
+          S3_PREFIX="${{ inputs.app-name }}"
+        else
+          S3_PREFIX="${{ inputs.app-name }}${BASE_PATH}"
+        fi
+        echo "s3-prefix=${S3_PREFIX}" >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Initialize Scaleway CLI
@@ -61,11 +105,11 @@ runs:
 
     - name: Prepare environment
       run: |
-        if [ ! -f apps/${{ inputs.app-name }}/scripts/prepare-env ]; then
+        if [ ! -f "apps/${{ inputs.app-name }}/scripts/prepare-env" ]; then
           exit 0
         fi
-        
-        ./apps/${{ inputs.app-name }}/scripts/prepare-env
+
+        "./apps/${{ inputs.app-name }}/scripts/prepare-env"
       shell: bash
       env:
         BUILD_ENV: ${{ inputs.build-env }}
@@ -73,9 +117,51 @@ runs:
         # TODO: Provide branch build of API server
         REPRO_API_URL: https://api.reproqa.dev
 
-    - name: Upload build artifacts
+    - name: Upload hashed assets to S3
+      # Upload everything except index.html with long-lived immutable cache headers.
+      # Hashed filenames (e.g. main.abc123.js) mean these files are safe to cache forever.
       run: |
-        echo "Upload build artifacts with SCW API"
-        ls -R apps/${{ inputs.app-name }}/dist
-        cat apps/${{ inputs.app-name }}/dist/index.html
+        aws s3 sync \
+          "apps/${{ inputs.app-name }}/dist/" \
+          "s3://${{ inputs.bucket-name }}/${{ steps.vars.outputs.s3-prefix }}/" \
+          --endpoint-url "https://s3.${{ inputs.region }}.scw.cloud" \
+          --exclude "index.html" \
+          --cache-control "public, max-age=31536000, immutable" \
+          --delete
+      shell: bash
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-key }}
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+
+    - name: Upload index.html to S3
+      # Upload index.html separately with a short TTL so the entry point always reflects
+      # the latest deployment without requiring a cache bust on the URL itself.
+      run: |
+        aws s3 cp \
+          "apps/${{ inputs.app-name }}/dist/index.html" \
+          "s3://${{ inputs.bucket-name }}/${{ steps.vars.outputs.s3-prefix }}/index.html" \
+          --endpoint-url "https://s3.${{ inputs.region }}.scw.cloud" \
+          --cache-control "public, max-age=60" \
+          --content-type "text/html; charset=utf-8"
+      shell: bash
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.secret-key }}
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+
+    - name: Invalidate CDN cache
+      # Scaleway CDN invalidation purges cached objects so users receive the new index.html
+      # immediately. This is best-effort — a failure here does not block deployment.
+      run: |
+        scw cdn invalidation create \
+          origin-id="${{ inputs.app-name }}" \
+          paths="/${{ steps.vars.outputs.s3-prefix }}/index.html" \
+          region="${{ inputs.region }}" \
+          2>/dev/null || echo "CDN invalidation skipped (not configured or unavailable)"
+      shell: bash
+
+    - name: Report deployment URL
+      run: |
+        echo "::notice title=Deployed::${{ inputs.app-name }} deployed to ${{ steps.vars.outputs.deployment-url }}"
       shell: bash

@@ -210,6 +210,7 @@ jobs:
           secret-key: ${{ secrets.SCW_SECRET_KEY }}
           project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
           organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+          bucket-name: ${{ secrets.SCW_STATIC_BUCKET_NAME }}
 
   deploy-workspace:
     name: Deploy workspace (app)
@@ -231,6 +232,7 @@ jobs:
           secret-key: ${{ secrets.SCW_SECRET_KEY }}
           project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
           organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+          bucket-name: ${{ secrets.SCW_STATIC_BUCKET_NAME }}
 
   deploy-capture:
     name: Deploy capture (extension)
