@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react'
 import { color } from '../tokens/colors'
-import { shadow } from '../tokens/elevation'
+import { radius, shadow } from '../tokens/elevation'
 import { duration, easing } from '../tokens/motion'
 import { ModalHeader } from './ModalHeader'
 
@@ -254,6 +254,7 @@ const _Modal: React.FC<Props> = ({
         position="relative"
         background={color.bg.surface}
         boxShadow={shadow.lg}
+        borderRadius={radius.md}
         minHeight={minHeight}
         minWidth={minWidth}
         height={height}
