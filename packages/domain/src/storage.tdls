@@ -8,3 +8,12 @@ type StorageOperation: enum<uint8> {
   removeItem: 1
   clear: 2
 }
+
+type StorageMessage: struct {
+  0) storageType: StorageType
+  1) operation: StorageOperation
+  2) key: ?string
+  3) oldValue: ?string
+  4) newValue: ?string
+  5) frameId: uint32
+}

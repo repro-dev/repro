@@ -4,7 +4,7 @@ import network.NetworkMessage
 import performance.PerformanceEntry
 import snapshot.Snapshot
 import state.StateEvent
-import storage.{StorageType, StorageOperation}
+import storage.StorageMessage
 import vdom.DOMPatch
 
 type SourceEventType: enum<uint8> {
@@ -63,13 +63,8 @@ type StateSourceEvent: struct {
 
 type StorageEvent: struct {
   0) type: SourceEventType.Storage
-  1) storageType: StorageType
-  2) operation: StorageOperation
-  3) key: ?string
-  4) oldValue: ?string
-  5) newValue: ?string
-  6) time: uint64
-  7) frameId: uint32
+  1) time: uint32
+  2) data: StorageMessage
 }
 
 type SourceEvent: union(type) {
