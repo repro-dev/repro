@@ -193,13 +193,13 @@ describe('Routers > OAuth', () => {
       expect(decodeId(item.id)).toEqual(key.id)
     })
 
-    it('should return 404 when no session is active', async () => {
+    it('should return 401 when no session is active', async () => {
       const res = await app.inject({
         method: 'GET',
         url: '/keys',
       })
 
-      expect(res.statusCode).toEqual(404)
+      expect(res.statusCode).toEqual(401)
     })
   })
 
@@ -247,14 +247,14 @@ describe('Routers > OAuth', () => {
       expect(res.statusCode).toEqual(400)
     })
 
-    it('should return 404 when no session is active', async () => {
+    it('should return 401 when no session is active', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/revoke',
         body: { keyId: encodeId(1) },
       })
 
-      expect(res.statusCode).toEqual(404)
+      expect(res.statusCode).toEqual(401)
     })
   })
 
@@ -312,7 +312,7 @@ describe('Routers > OAuth', () => {
       expect(decodeId(body.userId)).toEqual(userId)
     })
 
-    it('should return 404 when no session is active', async () => {
+    it('should return 401 when no session is active', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/clients',
@@ -322,7 +322,7 @@ describe('Routers > OAuth', () => {
         },
       })
 
-      expect(res.statusCode).toEqual(404)
+      expect(res.statusCode).toEqual(401)
     })
   })
 })

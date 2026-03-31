@@ -105,5 +105,38 @@ export function createAgenticRouter(
         )
       }
     )
+
+    const feedbackSchema = {
+      body: z.object({
+        sentiment: z.enum(['positive', 'negative']),
+        promptVersion: z.string().max(64).default(''),
+        comment: z.string().max(1000).optional(),
+        recordingId: z.string().optional(),
+      }),
+    }
+
+    app.post<{ Body: z.infer<typeof feedbackSchema.body> }>(
+      '/feedback',
+      { schema: feedbackSchema },
+      (req, res) => {
+        const { sentiment, promptVersion, comment, recordingId } = req.body
+        respondWith(
+          res,
+          go(function* () {
+            const user = yield req.getCurrentUser()
+            yield accountService.ensureUser(user)
+            yield agenticService.recordFeedback(
+              user.id,
+              sentiment,
+              promptVersion,
+              comment ?? null,
+              recordingId ?? null
+            )
+            return null
+          }),
+          201
+        )
+      }
+    )
   }
 }
