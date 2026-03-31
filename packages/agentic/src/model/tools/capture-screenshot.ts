@@ -1,9 +1,3 @@
-import { captureDocument, createOffscreenDocument } from "@repro/dom-to-image";
-import {
-  clearDocument,
-  createDOMFromVTree,
-  patchDocumentElement,
-} from "@repro/vdom-renderer";
 import { attemptP, resolve } from "fluture";
 import { estimateTokens } from "../token-optimization";
 import { RecordingDataAccessor } from "../../types";
@@ -56,6 +50,14 @@ export const handler: ToolHandler = (
   const resourceMap = recording.getResourceMap();
 
   return attemptP(async () => {
+    // Dynamic imports keep browser-only packages out of the module graph at
+    // initialization time so this file is safe to import in Node.js test envs.
+    const { captureDocument, createOffscreenDocument } = await import(
+      "@repro/dom-to-image"
+    );
+    const { clearDocument, createDOMFromVTree, patchDocumentElement } =
+      await import("@repro/vdom-renderer");
+
     const { doc, cleanup } = await createOffscreenDocument(
       viewportWidth,
       viewportHeight,

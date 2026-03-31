@@ -1273,6 +1273,63 @@ describe("createAgenticState — cancel and error handling", () => {
   });
 });
 
+describe("createAgenticState — options.tools override", () => {
+  function makeEmptyAccessor(): RecordingDataAccessor {
+    return {
+      getDuration: () => 0,
+      getSnapshotAtTime: () => null,
+      getEventsByType: () => [],
+      getEventsInRange: () => [],
+      getResourceMap: () => ({}),
+    };
+  }
+
+  it("passes the full default tools array to streamProvider when no override is given", async () => {
+    const { tools: defaultTools } = await import("./model/tools/index");
+    let capturedTools: unknown[] = [];
+
+    const streamProvider: StreamProvider = (_ctx, toolDefs) => {
+      capturedTools = toolDefs;
+      return resolve(new ReadableStream()) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessor());
+    state.query("test");
+
+    await new Promise((res) => setTimeout(res, 50));
+    assert.deepStrictEqual(capturedTools, defaultTools);
+    state.destroy();
+  });
+
+  it("passes the override tools array to streamProvider when options.tools is given", async () => {
+    const customTools = [
+      {
+        type: "function" as const,
+        function: {
+          name: "customTool",
+          description: "A custom tool",
+          parameters: { type: "object", properties: {}, required: [] },
+        },
+      },
+    ];
+    let capturedTools: unknown[] = [];
+
+    const streamProvider: StreamProvider = (_ctx, toolDefs) => {
+      capturedTools = toolDefs;
+      return resolve(new ReadableStream()) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessor(), {
+      tools: customTools,
+    });
+    state.query("test");
+
+    await new Promise((res) => setTimeout(res, 50));
+    assert.deepStrictEqual(capturedTools, customTools);
+    state.destroy();
+  });
+});
+
 describe("reset()", () => {
   function makeEmptyAccessorNew(): RecordingDataAccessor {
     return {

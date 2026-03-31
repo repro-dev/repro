@@ -1,6 +1,7 @@
 import {
   EXTENSION_SYSTEM_CARD_MESSAGE,
   createAgenticState,
+  extensionTools,
   makeAccessorFromEventList,
   type Context,
   type StreamProvider,
@@ -56,26 +57,32 @@ export const Agentic: React.FC = () => {
 
   const state = useMemo(
     () =>
-      createAgenticState(streamProvider, {
-        getDuration: () => playback.getDuration(),
-        getSnapshotAtTime: (timestampMs: number) => {
-          const pb = playback.copy()
-          pb.seekToTime(timestampMs)
-          return pb.getSnapshot()
+      createAgenticState(
+        streamProvider,
+        {
+          getDuration: () => playback.getDuration(),
+          getSnapshotAtTime: (timestampMs: number) => {
+            const pb = playback.copy()
+            pb.seekToTime(timestampMs)
+            return pb.getSnapshot()
+          },
+          // Invert from Record<resourceId, absoluteURL> to
+          // Record<absoluteURL, resourceId>. In the capture widget the resource
+          // map is always empty (resources aren't fetched client-side), so this
+          // produces {} in practice — see REP-XXX for the follow-up.
+          getResourceMap: () =>
+            Object.fromEntries(
+              Object.entries(playback.getResourceMap()).map(([id, url]) => [
+                url,
+                id,
+              ])
+            ),
+          ...makeAccessorFromEventList(playback.getSourceEvents()),
         },
-        // Invert from Record<resourceId, absoluteURL> to
-        // Record<absoluteURL, resourceId>. In the capture widget the resource
-        // map is always empty (resources aren't fetched client-side), so this
-        // produces {} in practice — see REP-XXX for the follow-up.
-        getResourceMap: () =>
-          Object.fromEntries(
-            Object.entries(playback.getResourceMap()).map(([id, url]) => [
-              url,
-              id,
-            ])
-          ),
-        ...makeAccessorFromEventList(playback.getSourceEvents()),
-      }),
+        // captureScreenshot is excluded from the extension agent until it has
+        // been tested and refined in this context.
+        { tools: extensionTools }
+      ),
     [streamProvider, playback]
   )
 

@@ -26,7 +26,7 @@ import {
 } from "./model/context-window";
 import { SYSTEM_CARD_MESSAGE } from "./model/system";
 import { estimateTokens } from "./model/token-optimization";
-import { executeTool, tools } from "./model/tools";
+import { executeTool, tools } from "./model/tools/index";
 import {
   AgenticError,
   AgenticState,
@@ -38,6 +38,7 @@ import {
   RecordingDataAccessor,
   StreamProvider,
   ToolCall,
+  ToolDefinition,
   ToolMessage,
 } from "./types";
 
@@ -264,6 +265,7 @@ function friendlyMessage(error: unknown, isFinal = false): string {
 export function createAgenticState(
   streamProvider: StreamProvider,
   recording: RecordingDataAccessor,
+  options?: { tools?: ToolDefinition[] },
 ): AgenticState {
   const [$entryMap, setEntryMap] = createAtom<OrderedEntryMap>({
     orderedIds: [],
@@ -394,7 +396,7 @@ export function createAgenticState(
 
     return streamProvider(
       truncatedContext,
-      tools,
+      options?.tools ?? tools,
       currentAbortController.signal,
     );
   }

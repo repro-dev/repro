@@ -3,6 +3,10 @@ import { RecordingDataAccessor } from "../../types";
 import { createError } from "./common";
 export type { ToolHandler } from "./common";
 import {
+  TOOL_DEFINITION as captureScreenshotDef,
+  handler as captureScreenshot,
+} from "./capture-screenshot";
+import {
   TOOL_DEFINITION as findErrorsDef,
   handler as findErrors,
 } from "./find-errors";
@@ -55,7 +59,15 @@ export const tools = [
   getEventsAroundTimeDef,
   getDOMDiffDef,
   getUserActionsDef,
+  captureScreenshotDef,
 ];
+
+// Subset of tools for the browser extension agent. captureScreenshot is
+// excluded until it has been tested and refined in the extension context.
+export const extensionTools = tools.filter(
+  (t) =>
+    (t as { function: { name: string } }).function.name !== "captureScreenshot",
+);
 
 const toolHandlers: Record<string, ToolHandler> = {
   getRecordingDuration,
@@ -68,6 +80,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   getEventsAroundTime,
   getDOMDiff,
   getUserActions,
+  captureScreenshot,
 };
 
 export function executeTool(
