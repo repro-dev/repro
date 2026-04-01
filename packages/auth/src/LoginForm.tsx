@@ -205,7 +205,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             </Block>
           )}
 
-          <Button disabled={formState.isSubmitting} type="submit">
+          <Button disabled={formState.isSubmitting} size="large" type="submit">
             {showResetFlow ? 'Send Reset Email' : 'Log In'}
           </Button>
 

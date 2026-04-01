@@ -173,6 +173,7 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
 
           <Button
             disabled={!formState.isValid || formState.isSubmitting}
+            size="large"
             type="submit"
           >
             Create Account
