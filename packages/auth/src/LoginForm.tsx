@@ -15,6 +15,7 @@ import React, { useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import z from 'zod'
+import { GoogleSignInButton } from './GoogleSignInButton'
 import { useLogin, useResetPassword } from './hooks'
 
 interface Props {
@@ -234,15 +235,11 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
                 <Divider spacing="none" />
               </Row>
 
-              <Button
-                variant="outlined"
-                context="neutral"
+              <GoogleSignInButton
                 onClick={() => {
                   window.location.href = '/account/oauth/google'
                 }}
-              >
-                Continue with Google
-              </Button>
+              />
             </>
           )}
         </Col>

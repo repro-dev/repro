@@ -6,6 +6,7 @@ import { done } from 'fluture'
 import React, { useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import z from 'zod'
+import { GoogleSignInButton } from './GoogleSignInButton'
 import { useRegister } from './hooks'
 
 interface Props {
@@ -185,15 +186,11 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             <Divider spacing="none" />
           </Row>
 
-          <Button
-            variant="outlined"
-            context="neutral"
+          <GoogleSignInButton
             onClick={() => {
               window.location.href = '/account/oauth/google'
             }}
-          >
-            Continue with Google
-          </Button>
+          />
         </Col>
       </form>
     </FormProvider>
