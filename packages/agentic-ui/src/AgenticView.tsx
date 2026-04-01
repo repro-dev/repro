@@ -36,7 +36,7 @@ export const AgenticView: React.FC<{
     contentContainerRef,
     shouldShowJumpToEndAction,
     handleJumpToEnd,
-  } = useHistoryScroll(loading);
+  } = useHistoryScroll(loading, entries);
 
   const isActive = loading !== "none" && loading !== "cancelled";
   const shouldRaiseInput = inputHasFocus || entries.length > 0;

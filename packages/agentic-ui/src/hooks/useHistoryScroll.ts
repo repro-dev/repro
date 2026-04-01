@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState } from "react";
-import { Loading } from "@repro/agentic";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Entry, Loading } from "@repro/agentic";
 import { SCROLL_OFFSET_THRESHOLD_PX } from "../constants";
 
 interface UseHistoryScrollReturn {
@@ -9,11 +9,21 @@ interface UseHistoryScrollReturn {
   handleJumpToEnd: () => void;
 }
 
-export function useHistoryScroll(loading: Loading): UseHistoryScrollReturn {
+export function useHistoryScroll(
+  loading: Loading,
+  entries: Array<Entry>,
+): UseHistoryScrollReturn {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
   const [shouldShowJumpToEndAction, setShouldShowJumpToEndAction] =
     useState(false);
+  // Starts as true: no content yet, treat as at bottom so first streamed
+  // content triggers auto-scroll.
+  const isNearBottomRef = useRef(true);
+  // Ref-copy of loading so the stable ResizeObserver callback can read the
+  // current value without being recreated on every loading transition.
+  const loadingRef = useRef(loading);
+  loadingRef.current = loading;
 
   function handleJumpToEnd() {
     if (scrollContainerRef.current) {
@@ -23,6 +33,10 @@ export function useHistoryScroll(loading: Loading): UseHistoryScrollReturn {
     }
   }
 
+  // Set up scroll listener and ResizeObserver once on mount. The observer
+  // handles the container-shrink case: when the input transitions back into
+  // view after loading finishes, clientHeight contracts over ~250ms and we
+  // need to keep the scroll position pinned to the bottom.
   useLayoutEffect(() => {
     const scrollContainer = scrollContainerRef.current;
     const contentContainer = contentContainerRef.current;
@@ -37,25 +51,55 @@ export function useHistoryScroll(loading: Loading): UseHistoryScrollReturn {
           scrollContainer.scrollTop -
           scrollContainer.clientHeight <
         SCROLL_OFFSET_THRESHOLD_PX;
+      // Keep ref in sync so other effects can read it without state lag.
+      isNearBottomRef.current = isAtBottom;
       setShouldShowJumpToEndAction(!isAtBottom);
+      // Correct position during the input-container transition back into view.
+      if (loadingRef.current === "none" && isAtBottom) {
+        scrollContainer.scrollTo({ top: scrollContainer.scrollHeight });
+      }
     };
 
     const resizeObserver = new ResizeObserver(checkHistoryScrollPosition);
-    resizeObserver.observe(contentContainer);
+    // Observe the scroll container so we react to clientHeight changes during
+    // the ~250ms input-section slide-in transition after loading finishes.
+    resizeObserver.observe(scrollContainer);
 
     scrollContainer.addEventListener("scroll", checkHistoryScrollPosition, {
       passive: true,
     });
 
-    const animationDelay = setTimeout(() => {
-      checkHistoryScrollPosition();
-    }, 250);
-
     return () => {
       resizeObserver.disconnect();
       scrollContainer.removeEventListener("scroll", checkHistoryScrollPosition);
-      clearTimeout(animationDelay);
     };
+  }, []);
+
+  // Scroll to bottom whenever new content arrives during streaming. This fires
+  // on every re-render driven by a new chunk, which is more reliable than a
+  // ResizeObserver on the content element (which only fires at line-wrap
+  // boundaries, not on every token). Suppressed if the user has scrolled up
+  // past the threshold.
+  useEffect(() => {
+    if (
+      loading !== "none" &&
+      isNearBottomRef.current &&
+      scrollContainerRef.current
+    ) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+      });
+    }
+  }, [entries, loading]);
+
+  // When streaming ends, scroll to bottom once so the final message fragment
+  // is fully visible regardless of where the entries effect last landed.
+  useEffect(() => {
+    if (loading === "none" && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+      });
+    }
   }, [loading]);
 
   return {
