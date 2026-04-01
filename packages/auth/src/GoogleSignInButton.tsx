@@ -17,28 +17,34 @@ export const GoogleSignInButton: React.FC<Props> = ({ onClick }) => (
       alignItems: 'center',
       justifyContent: 'center',
       width: '100%',
-      height: '40px',
+      // 44px matches the design system large formControlHeight, keeping the
+      // Google button visually consistent with the submit button above it.
+      // Google's spec permits heights of 36px, 40px, or 48px; 44px falls
+      // within that range and is closest to the DS large tier.
+      height: '44px',
       padding: 0,
       background: '#FFFFFF',
       border: '1px solid #747775',
       borderRadius: '4px',
       cursor: 'pointer',
       fontFamily: "'Roboto', sans-serif",
-      fontSize: '14px',
+      // 13px matches DS fontSize.sm (large button tier) — the closest token
+      // to Google's preferred 14px while staying on the design system scale.
+      fontSize: '13px',
       fontWeight: 500,
       color: '#1F1F1F',
       lineHeight: '20px',
       gap: 0,
     }}
   >
-    {/* Logo container: 40×40 with 12px left padding per Google web spec */}
+    {/* Logo container: 44×44 with 12px left padding per Google web spec */}
     <span
       style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: '40px',
-        height: '40px',
+        width: '44px',
+        height: '44px',
         flexShrink: 0,
       }}
     >
