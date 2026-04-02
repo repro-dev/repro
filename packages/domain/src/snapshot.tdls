@@ -10,7 +10,24 @@ type InteractionSnapshot: struct {
   4) pageURL: string
 }
 
+type ReactComponentNode: struct {
+  0) fiberNodeId: uint32
+  1) parentFiberId: uint32
+  2) componentName: string
+  3) props: string
+}
+
+type ReactComponentTree: struct {
+  0) nodes: vector<ReactComponentNode>
+}
+
+type FrameworkState: struct {
+  0) reactTree: ?ReactComponentTree
+  1) reduxState: ?string
+}
+
 type Snapshot: struct {
   0) dom: ?VTree
   1) interaction: ?InteractionSnapshot
+  2) frameworkState: ?FrameworkState
 }
