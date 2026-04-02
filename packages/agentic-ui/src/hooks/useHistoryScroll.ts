@@ -20,11 +20,6 @@ export function useHistoryScroll(
   // Starts as true: no content yet, treat as at bottom so first streamed
   // content triggers auto-scroll.
   const isNearBottomRef = useRef(true);
-  // Ref-copy of loading so the stable ResizeObserver callback can read the
-  // current value without being recreated on every loading transition.
-  const loadingRef = useRef(loading);
-  loadingRef.current = loading;
-
   function handleJumpToEnd() {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({
@@ -54,10 +49,11 @@ export function useHistoryScroll(
       // Keep ref in sync so other effects can read it without state lag.
       isNearBottomRef.current = isAtBottom;
       setShouldShowJumpToEndAction(!isAtBottom);
-      // Correct position during the input-container transition back into view.
-      if (loadingRef.current === "none" && isAtBottom) {
-        scrollContainer.scrollTo({ top: scrollContainer.scrollHeight });
-      }
+      // Re-pin during the input-container transition back into view. This
+      // callback is also registered as a ResizeObserver on the scroll
+      // container, so it fires during the ~250ms clientHeight shrink caused
+      // by the input section sliding back in — no need to re-pin inside the
+      // scroll listener (which would fire on user-initiated scrolls too).
     };
 
     const resizeObserver = new ResizeObserver(checkHistoryScrollPosition);
@@ -93,9 +89,14 @@ export function useHistoryScroll(
   }, [entries, loading]);
 
   // When streaming ends, scroll to bottom once so the final message fragment
-  // is fully visible regardless of where the entries effect last landed.
+  // is fully visible — but only if the user is still near the bottom. If they
+  // scrolled up during streaming, respect their scroll intent and do not snap.
   useEffect(() => {
-    if (loading === "none" && scrollContainerRef.current) {
+    if (
+      loading === "none" &&
+      isNearBottomRef.current &&
+      scrollContainerRef.current
+    ) {
       scrollContainerRef.current.scrollTo({
         top: scrollContainerRef.current.scrollHeight,
       });

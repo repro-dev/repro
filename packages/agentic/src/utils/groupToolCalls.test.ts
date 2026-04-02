@@ -117,6 +117,22 @@ describe("groupToolCalls", () => {
     assert.equal(result[2]!.type, "assistant-message");
   });
 
+  it("emits both assistant-message and tool-call-group for an entry with content and tool calls", () => {
+    const entries: Array<Entry> = [
+      makeAssistant("a1", "Let me look that up.", ["tc1"]),
+      makeTool("t1", "tc1", '{"result": true}'),
+    ];
+    const result = groupToolCalls(entries);
+    assert.equal(result.length, 2);
+    assert.equal(result[0]!.type, "assistant-message");
+    assert.equal((result[0] as AssistantMessageItem).entry.id, "a1");
+    assert.equal(result[1]!.type, "tool-call-group");
+    const group = result[1] as ToolCallGroupItem;
+    assert.equal(group.pairs.length, 1);
+    assert.equal(group.pairs[0]!.toolCall.id, "tc1");
+    assert.equal(group.pairs[0]!.result?.id, "t1");
+  });
+
   it("skips standalone tool messages not consumed by any assistant", () => {
     const entries: Array<Entry> = [makeTool("t1", "tc1", "{}")];
     const result = groupToolCalls(entries);
@@ -202,6 +218,21 @@ describe("groupToolCalls with truncatedBeforeId", () => {
     assert.equal(result[0]!.type, "user-message");
     assert.equal(result[1]!.type, "truncation-indicator");
     assert.equal(result[2]!.type, "tool-call-group");
+  });
+
+  it("inserts indicator before the assistant-message (not between the two items) when entry has both content and tool calls", () => {
+    const entries: Array<Entry> = [
+      makeUser("u1", "query"),
+      makeAssistant("a1", "Thinking out loud.", ["tc1"]),
+      makeTool("t1", "tc1", "{}"),
+    ];
+    const result = groupToolCalls(entries, "a1");
+    assert.equal(result.length, 4);
+    assert.equal(result[0]!.type, "user-message");
+    assert.equal(result[1]!.type, "truncation-indicator");
+    assert.equal(result[2]!.type, "assistant-message");
+    assert.equal((result[2] as AssistantMessageItem).entry.id, "a1");
+    assert.equal(result[3]!.type, "tool-call-group");
   });
 
   it("inserts indicator at the very first position when first entry id matches", () => {
