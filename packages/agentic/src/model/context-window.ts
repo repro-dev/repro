@@ -18,6 +18,9 @@ export function computeContextBudget(
 export interface TruncationResult<T> {
   messages: T[];
   droppedCount: number;
+  // True when at least one message was dropped (even if droppedCount is 0 due
+  // to a protected message being the first retained, causing a gap at the start).
+  anyDropped: boolean;
 }
 
 export function truncateToContextBudget<T>(
@@ -41,7 +44,11 @@ export function truncateToContextBudget<T>(
       startIndex = i;
     }
 
-    return { messages: messages.slice(startIndex), droppedCount: startIndex };
+    return {
+      messages: messages.slice(startIndex),
+      droppedCount: startIndex,
+      anyDropped: startIndex > 0,
+    };
   }
 
   if (!isProtected) {
@@ -116,5 +123,9 @@ export function truncateToContextBudget<T>(
   const droppedCount =
     firstRetainedIdx === messages.length ? messages.length : firstRetainedIdx;
 
-  return { messages: survivingMessages, droppedCount };
+  return {
+    messages: survivingMessages,
+    droppedCount,
+    anyDropped: retainedOriginalIndices.size < messages.length,
+  };
 }

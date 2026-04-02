@@ -7,9 +7,15 @@ import {
   buildToolMessageContent,
   createAgenticState,
   executeToolCalls,
+  getOrientPhaseToolCallIds,
   isValidMessageDelta,
 } from "./createState";
-import { RecordingDataAccessor, StreamProvider, ToolCall } from "./types";
+import {
+  Context,
+  RecordingDataAccessor,
+  StreamProvider,
+  ToolCall,
+} from "./types";
 import {
   fork,
   Future,
@@ -1527,5 +1533,210 @@ describe("reset()", () => {
 
     assert.strictEqual(aborted, true);
     state.destroy();
+  });
+});
+
+// ─── Helpers for building minimal Context messages ──────────────────────────
+
+function makeAssistantWithToolCalls(
+  toolCallIds: Array<{ id: string; name: string }>,
+): Context[number] {
+  return {
+    role: "assistant",
+    content: "",
+    tool_calls: toolCallIds.map(({ id, name }) => ({
+      id,
+      type: "function" as const,
+      function: { name, arguments: "{}" },
+    })),
+  };
+}
+
+function makeToolResult(toolCallId: string): Context[number] {
+  return {
+    role: "tool",
+    content: "{}",
+    tool_call_id: toolCallId,
+  };
+}
+
+function makeUserMessage(content = "hello"): Context[number] {
+  return { role: "user", content };
+}
+
+// ─── getOrientPhaseToolCallIds ───────────────────────────────────────────────
+
+describe("getOrientPhaseToolCallIds", () => {
+  it("returns IDs for the first findErrors and getEvents calls", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([
+        { id: "fe1", name: "findErrors" },
+        { id: "ge1", name: "getEvents" },
+      ]),
+      makeToolResult("fe1"),
+      makeToolResult("ge1"),
+    ];
+
+    const ids = getOrientPhaseToolCallIds(context);
+    assert.strictEqual(ids.size, 2);
+    assert.ok(ids.has("fe1"));
+    assert.ok(ids.has("ge1"));
+  });
+
+  it("returns only the findErrors ID when getEvents is absent", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([{ id: "fe1", name: "findErrors" }]),
+      makeToolResult("fe1"),
+    ];
+
+    const ids = getOrientPhaseToolCallIds(context);
+    assert.strictEqual(ids.size, 1);
+    assert.ok(ids.has("fe1"));
+  });
+
+  it("does NOT include a second findErrors call — only the first is orient", () => {
+    const context: Context = [
+      makeUserMessage(),
+      // First turn: findErrors (orient)
+      makeAssistantWithToolCalls([{ id: "fe1", name: "findErrors" }]),
+      makeToolResult("fe1"),
+      // Second turn: findErrors again (investigate — not orient)
+      makeAssistantWithToolCalls([{ id: "fe2", name: "findErrors" }]),
+      makeToolResult("fe2"),
+    ];
+
+    const ids = getOrientPhaseToolCallIds(context);
+    assert.strictEqual(ids.size, 1);
+    assert.ok(ids.has("fe1"));
+    assert.ok(!ids.has("fe2"));
+  });
+
+  it("returns an empty set when no findErrors or getEvents calls exist", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([{ id: "tc1", name: "someOtherTool" }]),
+      makeToolResult("tc1"),
+    ];
+
+    const ids = getOrientPhaseToolCallIds(context);
+    assert.strictEqual(ids.size, 0);
+  });
+
+  it("returns empty set for empty context", () => {
+    const ids = getOrientPhaseToolCallIds([]);
+    assert.strictEqual(ids.size, 0);
+  });
+});
+
+// ─── isProtected wiring in fetchResponse ────────────────────────────────────
+
+describe("isProtected predicate (constructed same as in fetchResponse)", () => {
+  // Build the same isProtected predicate that fetchResponse uses
+  function buildIsProtected(
+    context: Context,
+  ): (msg: Context[number]) => boolean {
+    const orientIds = getOrientPhaseToolCallIds(context);
+    return (msg: Context[number]) => {
+      if (msg.role === "tool" && orientIds.has(msg.tool_call_id)) {
+        return true;
+      }
+      if (msg.role === "assistant" && "tool_calls" in msg && msg.tool_calls) {
+        return msg.tool_calls.some((tc) => orientIds.has(tc.id));
+      }
+      return false;
+    };
+  }
+
+  it("marks orient tool result messages as protected", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([
+        { id: "fe1", name: "findErrors" },
+        { id: "ge1", name: "getEvents" },
+      ]),
+      makeToolResult("fe1"),
+      makeToolResult("ge1"),
+    ];
+
+    const isProtected = buildIsProtected(context);
+    assert.strictEqual(isProtected(makeToolResult("fe1")), true);
+    assert.strictEqual(isProtected(makeToolResult("ge1")), true);
+  });
+
+  it("marks the parent assistant message as protected", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([
+        { id: "fe1", name: "findErrors" },
+        { id: "ge1", name: "getEvents" },
+      ]),
+      makeToolResult("fe1"),
+      makeToolResult("ge1"),
+    ];
+
+    const isProtected = buildIsProtected(context);
+    const assistantMsg = context[1]!;
+    assert.strictEqual(isProtected(assistantMsg), true);
+  });
+
+  it("does NOT mark unrelated tool results as protected", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([
+        { id: "fe1", name: "findErrors" },
+        { id: "ge1", name: "getEvents" },
+      ]),
+      makeToolResult("fe1"),
+      makeToolResult("ge1"),
+      makeAssistantWithToolCalls([{ id: "other1", name: "someOtherTool" }]),
+      makeToolResult("other1"),
+    ];
+
+    const isProtected = buildIsProtected(context);
+    assert.strictEqual(isProtected(makeToolResult("other1")), false);
+  });
+
+  it("does NOT mark unrelated assistant messages as protected", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([
+        { id: "fe1", name: "findErrors" },
+        { id: "ge1", name: "getEvents" },
+      ]),
+      makeToolResult("fe1"),
+      makeToolResult("ge1"),
+      makeAssistantWithToolCalls([{ id: "other1", name: "someOtherTool" }]),
+      makeToolResult("other1"),
+    ];
+
+    const isProtected = buildIsProtected(context);
+    const unrelatedAssistant = context[4]!;
+    assert.strictEqual(isProtected(unrelatedAssistant), false);
+  });
+
+  it("does NOT mark user messages as protected", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([{ id: "fe1", name: "findErrors" }]),
+      makeToolResult("fe1"),
+    ];
+
+    const isProtected = buildIsProtected(context);
+    assert.strictEqual(isProtected(makeUserMessage()), false);
+  });
+
+  it("no messages are protected when no orient calls exist", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([{ id: "tc1", name: "someOtherTool" }]),
+      makeToolResult("tc1"),
+    ];
+
+    const isProtected = buildIsProtected(context);
+    for (const msg of context) {
+      assert.strictEqual(isProtected(msg), false);
+    }
   });
 });

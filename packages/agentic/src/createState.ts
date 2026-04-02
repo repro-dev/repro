@@ -417,22 +417,40 @@ export function createAgenticState(
     // Identify the first findErrors and getEvents tool results (Orient phase)
     // and protect them from truncation so the model retains its initial grounding.
     const orientIds = getOrientPhaseToolCallIds(context);
-    const isProtected = (msg: Context[number]) =>
-      msg.role === "tool" && orientIds.has(msg.tool_call_id);
+    const isProtected = (msg: Context[number]) => {
+      // Protect tool result messages whose tool_call_id is an orient call
+      if (msg.role === "tool" && orientIds.has(msg.tool_call_id)) {
+        return true;
+      }
+      // Also protect the assistant message that introduced the orient tool calls.
+      // Chat Completions APIs require that any role:"tool" message is preceded by
+      // the role:"assistant" message that introduced its tool_call_id. Dropping
+      // the assistant message while retaining the tool result would cause an API error.
+      if (msg.role === "assistant" && "tool_calls" in msg && msg.tool_calls) {
+        return msg.tool_calls.some((tc) => orientIds.has(tc.id));
+      }
+      return false;
+    };
 
-    const { messages: truncatedContext, droppedCount } =
-      truncateToContextBudget(
-        context,
-        budget,
-        (msg) => estimateTokens(msg),
-        isProtected,
-      );
+    const {
+      messages: truncatedContext,
+      droppedCount,
+      anyDropped,
+    } = truncateToContextBudget(
+      context,
+      budget,
+      (msg) => estimateTokens(msg),
+      isProtected,
+    );
 
     // Update the truncation indicator atom. When messages were dropped, find
     // the entry ID of the first surviving message so the UI can place the
     // separator precisely. Clear the atom when nothing was dropped.
+    // Use anyDropped (not droppedCount > 0) so the separator is shown even
+    // when a protected message sits at the start of the context (droppedCount=0
+    // but gaps exist between retained messages).
     const entryMap = $entryMap.getValue();
-    if (droppedCount > 0) {
+    if (anyDropped) {
       const firstSurvivingId = entryMap.orderedIds[droppedCount] ?? null;
       setTruncatedBefore(firstSurvivingId);
     } else {
