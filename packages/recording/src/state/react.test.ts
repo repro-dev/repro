@@ -113,6 +113,7 @@ describe('createReactObserver', () => {
       type: { name: 'Button' },
       memoizedProps: { onClick: () => {}, label: 'Click me' },
       alternate: null, // no alternate → new mount, props changed
+      _debugID: 42,
     })
 
     simulateCommit(1, makeFiberRoot(fiber))
@@ -120,6 +121,205 @@ describe('createReactObserver', () => {
     assert.equal(events.length, 1)
     assert.equal(events[0]?.type, StateEventType.ReactCommit)
     assert.equal(events[0]?.componentName, 'Button')
+    assert.equal(events[0]?.fiberNodeId, 42)
+    assert.equal(events[0]?.parentFiberId, 0) // no parent component
+    assert.ok((events[0]?.commitBatchId ?? 0) > 0)
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('two sibling components updated in same commit share commitBatchId', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    // Two sibling components under a common host root — siblings must be
+    // children of a root fiber, not the root itself, so walkFiber visits both.
+    const sibling2 = makeFiber({
+      tag: 0,
+      type: { name: 'Sibling2' },
+      memoizedProps: { x: 2 },
+      alternate: null,
+      _debugID: 102,
+    })
+
+    const sibling1 = makeFiber({
+      tag: 0,
+      type: { name: 'Sibling1' },
+      memoizedProps: { x: 1 },
+      alternate: null,
+      _debugID: 101,
+      sibling: sibling2,
+    })
+
+    // Wrap in a non-component root so walkFiber doesn't stop at sibling1
+    const root = makeFiber({
+      tag: 3, // HostRoot — not tracked
+      type: null,
+      memoizedProps: null,
+      alternate: null,
+      child: sibling1,
+    })
+
+    simulateCommit(1, makeFiberRoot(root))
+
+    assert.equal(events.length, 2)
+    // Both events from the same commit must have the same commitBatchId
+    assert.equal(events[0]?.commitBatchId, events[1]?.commitBatchId)
+    assert.ok((events[0]?.commitBatchId ?? 0) > 0)
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('different commits have incrementing commitBatchIds', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    const fiber1 = makeFiber({
+      tag: 0,
+      type: { name: 'CompA' },
+      memoizedProps: { a: 1 },
+      alternate: null,
+      _debugID: 201,
+    })
+
+    const fiber2 = makeFiber({
+      tag: 0,
+      type: { name: 'CompB' },
+      memoizedProps: { b: 2 },
+      alternate: null,
+      _debugID: 202,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber1))
+    simulateCommit(1, makeFiberRoot(fiber2))
+
+    assert.equal(events.length, 2)
+    // Second commit must have a higher batchId than first
+    assert.ok((events[1]?.commitBatchId ?? 0) > (events[0]?.commitBatchId ?? 0))
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it("child component's parentFiberId equals parent fiber's fiberNodeId", () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    // Build a parent -> child fiber chain; child.return = parent
+    const parent = makeFiber({
+      tag: 0,
+      type: { name: 'Parent' },
+      memoizedProps: { p: 1 },
+      alternate: null,
+      _debugID: 300,
+      return: null,
+    })
+
+    const child = makeFiber({
+      tag: 0,
+      type: { name: 'Child' },
+      memoizedProps: { c: 1 },
+      alternate: null,
+      _debugID: 301,
+      return: parent, // child.return points to parent
+    })
+
+    // Wire parent.child = child so walkFiber traverses both
+    parent.child = child
+
+    simulateCommit(1, makeFiberRoot(parent))
+
+    assert.equal(events.length, 2)
+
+    const parentEvent = events.find(e => e.componentName === 'Parent')
+    const childEvent = events.find(e => e.componentName === 'Child')
+
+    assert.ok(parentEvent)
+    assert.ok(childEvent)
+
+    assert.equal(parentEvent?.fiberNodeId, 300)
+    assert.equal(parentEvent?.parentFiberId, 0) // no parent component above root
+    assert.equal(childEvent?.fiberNodeId, 301)
+    assert.equal(childEvent?.parentFiberId, 300) // child's parent is the parent component
+    // Same commit → same batchId
+    assert.equal(parentEvent?.commitBatchId, childEvent?.commitBatchId)
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('parentFiberId skips intermediate host fibers to find nearest component ancestor', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    // Chain: grandparent (component, _debugID=400)
+    //         -> hostDiv (tag=5, host element, no _debugID)
+    //             -> child (component, _debugID=401)
+    const grandparent = makeFiber({
+      tag: 0,
+      type: { name: 'GrandParent' },
+      memoizedProps: { gp: 1 },
+      alternate: null,
+      _debugID: 400,
+      return: null,
+    })
+
+    const hostDiv = makeFiber({
+      tag: 5, // HostComponent — not tracked
+      type: null,
+      memoizedProps: { className: 'wrapper' },
+      alternate: null,
+      _debugID: undefined,
+      return: grandparent,
+    })
+
+    const child = makeFiber({
+      tag: 0,
+      type: { name: 'Child' },
+      memoizedProps: { c: 1 },
+      alternate: null,
+      _debugID: 401,
+      return: hostDiv, // child's immediate return is a host fiber
+    })
+
+    // Wire traversal: grandparent.child = hostDiv, hostDiv.child = child
+    grandparent.child = hostDiv
+    hostDiv.child = child
+
+    simulateCommit(1, makeFiberRoot(grandparent))
+
+    assert.equal(events.length, 2) // Only component fibers emit events
+
+    const gpEvent = events.find(e => e.componentName === 'GrandParent')
+    const childEvent = events.find(e => e.componentName === 'Child')
+
+    assert.ok(gpEvent)
+    assert.ok(childEvent)
+
+    assert.equal(gpEvent?.parentFiberId, 0) // grandparent has no component ancestor
+    assert.equal(childEvent?.parentFiberId, 400) // child skips hostDiv and points to grandparent
 
     observer.disconnect()
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
