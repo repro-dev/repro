@@ -1,8 +1,45 @@
 import { ReactCommitEvent, StateEventType, VTree } from '@repro/domain'
 import { ObserverLike } from '@repro/observer-utils'
 
-// Fiber tags we care about: FunctionComponent, ClassComponent, ForwardRef
-const TRACKED_TAGS = new Set([0, 1, 11])
+// All known React fiber tag values (React internals, subject to change across major versions)
+const FiberTag = {
+  FunctionComponent: 0,
+  ClassComponent: 1,
+  IndeterminateComponent: 2,
+  HostRoot: 3,
+  HostPortal: 4,
+  HostComponent: 5,
+  HostText: 6,
+  Fragment: 7,
+  Mode: 8,
+  ContextConsumer: 9,
+  ContextProvider: 10,
+  ForwardRef: 11,
+  Profiler: 12,
+  SuspenseComponent: 13,
+  MemoComponent: 14,
+  SimpleMemoComponent: 15,
+  LazyComponent: 16,
+  IncompleteClassComponent: 17,
+  DehydratedFragment: 18,
+  SuspenseListComponent: 19,
+  ScopeComponent: 21,
+  OffscreenComponent: 22,
+  LegacyHiddenComponent: 23,
+  CacheComponent: 24,
+  TracingMarkerComponent: 25,
+  HostHoistable: 26,
+  HostSingleton: 27,
+} as const
+
+// Fiber tags we capture: function, class, forwardRef, and memo components
+const TRACKED_TAGS: ReadonlySet<number> = new Set([
+  FiberTag.FunctionComponent,
+  FiberTag.ClassComponent,
+  FiberTag.ForwardRef,
+  FiberTag.MemoComponent,
+  FiberTag.SimpleMemoComponent,
+])
 
 // Max serialised propsDelta size in characters
 const MAX_PROPS_DELTA_SIZE = 10_000
@@ -58,10 +95,20 @@ function walkFiber(fiber: Fiber, cb: (f: Fiber) => void) {
 function getDisplayName(fiber: Fiber): string | null {
   const { type, tag } = fiber
   switch (tag) {
-    case 0: // FunctionComponent
-    case 11: // ForwardRef
-    case 1: // ClassComponent
+    case FiberTag.FunctionComponent:
+    case FiberTag.ClassComponent:
+    case FiberTag.ForwardRef:
+    case FiberTag.SimpleMemoComponent:
       return type?.displayName ?? type?.name ?? null
+    case FiberTag.MemoComponent: {
+      // For memo wrappers, the real component is nested at type.type
+      const innerType = (
+        type as unknown as { type?: { displayName?: string; name?: string } }
+      )?.type
+      return (
+        type?.displayName ?? innerType?.displayName ?? innerType?.name ?? null
+      )
+    }
     default:
       return null
   }

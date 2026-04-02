@@ -158,6 +158,59 @@ describe('createReactObserver', () => {
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
   })
 
+  it('captures MemoComponent fibers (tag = 14) with changed props', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    // MemoComponent: type.type holds the inner component
+    const fiber = makeFiber({
+      tag: 14,
+      type: { displayName: undefined, name: undefined } as any,
+      memoizedProps: { value: 42 },
+      alternate: null,
+    })
+    // Attach the inner type
+    ;(fiber.type as any).type = { name: 'MemoButton' }
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    assert.equal(events.length, 1)
+    assert.equal(events[0]?.componentName, 'MemoButton')
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('captures SimpleMemoComponent fibers (tag = 15) with changed props', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    const fiber = makeFiber({
+      tag: 15,
+      type: { name: 'SimpleLabel' },
+      memoizedProps: { text: 'hello' },
+      alternate: null,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    assert.equal(events.length, 1)
+    assert.equal(events[0]?.componentName, 'SimpleLabel')
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
   it('skips HostComponent fibers (tag = 5)', () => {
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
 
