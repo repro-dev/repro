@@ -75,7 +75,8 @@ export const ReactPanel: React.FC = () => {
   if (componentMap.size === 0 && !isProductionBuild) {
     return (
       <Block padding={16} fontSize={12} color={colors.slate['500']}>
-        No React component data recorded.
+        No component data yet. Scrub the timeline to see the React component
+        tree.
       </Block>
     )
   }
