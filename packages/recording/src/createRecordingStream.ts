@@ -16,12 +16,15 @@ import {
   PerformanceEvent,
   Point,
   PointerState,
+  ReactCommitEvent,
   Snapshot,
   SnapshotEvent,
   SnapshotView,
   SourceEvent,
   SourceEventType,
   SourceEventView,
+  StateEvent,
+  StateSourceEvent,
   SyntheticId,
   VNode,
 } from '@repro/domain'
@@ -47,11 +50,14 @@ import {
   createDOMVisitor,
   createIFrameVisitor,
 } from './dom'
+import { detectFrameworks } from './frameworks/detect'
 import { createInteractionObserver, createScrollVisitor } from './interaction'
 import { createViewportVisitor } from './interaction/visitor'
 import { createNetworkObserver } from './network'
 import { createPerformanceObserver } from './performance'
 import { observePeriodic } from './periodic'
+import { createReactObserver } from './state/react'
+import { createReduxObserver } from './state/redux'
 import { RecordingOptions } from './types'
 
 function isZeroPoint(point: Point) {
@@ -167,6 +173,10 @@ export function createRecordingStream(
 
   if (options.types.has('performance')) {
     registerPerformanceObserver()
+  }
+
+  if (options.types.has('state')) {
+    registerStateObservers()
   }
 
   function start() {
@@ -602,6 +612,34 @@ export function createRecordingStream(
         addEvent(createPerformanceEvent(entry))
       })
     )
+  }
+
+  function createStateEvent(data: StateEvent): Box<StateSourceEvent> {
+    return new Box({
+      type: SourceEventType.State,
+      time: performance.now(),
+      data,
+    })
+  }
+
+  function registerStateObservers() {
+    const frameworks = detectFrameworks()
+
+    if (frameworks.react) {
+      observers.push(
+        createReactObserver((event: ReactCommitEvent) => {
+          addEvent(createStateEvent(new Box(event)))
+        })
+      )
+    }
+
+    if (frameworks.redux) {
+      observers.push(
+        createReduxObserver((event: StateSourceEvent) => {
+          addEvent(new Box(event))
+        })
+      )
+    }
   }
 
   function subscribeToBuffer() {

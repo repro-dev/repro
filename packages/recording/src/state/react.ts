@@ -1,45 +1,8 @@
 import { ReactCommitEvent, StateEventType, VTree } from '@repro/domain'
 import { ObserverLike } from '@repro/observer-utils'
 
-// All known React fiber tag values (React internals, subject to change across major versions)
-const FiberTag = {
-  FunctionComponent: 0,
-  ClassComponent: 1,
-  IndeterminateComponent: 2,
-  HostRoot: 3,
-  HostPortal: 4,
-  HostComponent: 5,
-  HostText: 6,
-  Fragment: 7,
-  Mode: 8,
-  ContextConsumer: 9,
-  ContextProvider: 10,
-  ForwardRef: 11,
-  Profiler: 12,
-  SuspenseComponent: 13,
-  MemoComponent: 14,
-  SimpleMemoComponent: 15,
-  LazyComponent: 16,
-  IncompleteClassComponent: 17,
-  DehydratedFragment: 18,
-  SuspenseListComponent: 19,
-  ScopeComponent: 21,
-  OffscreenComponent: 22,
-  LegacyHiddenComponent: 23,
-  CacheComponent: 24,
-  TracingMarkerComponent: 25,
-  HostHoistable: 26,
-  HostSingleton: 27,
-} as const
-
-// Fiber tags we capture: function, class, forwardRef, and memo components
-const TRACKED_TAGS: ReadonlySet<number> = new Set([
-  FiberTag.FunctionComponent,
-  FiberTag.ClassComponent,
-  FiberTag.ForwardRef,
-  FiberTag.MemoComponent,
-  FiberTag.SimpleMemoComponent,
-])
+// Fiber tags we care about: FunctionComponent, ClassComponent, ForwardRef
+const TRACKED_TAGS = new Set([0, 1, 11])
 
 // Max serialised propsDelta size in characters
 const MAX_PROPS_DELTA_SIZE = 10_000
@@ -73,11 +36,8 @@ interface ReactDevToolsHook {
   [key: string]: unknown
 }
 
-// Traverse the fiber tree depth-first using child/sibling pointers.
-// Uses fiber.return (the parent of the starting node) as the boundary sentinel
-// so that siblings of the starting node are also visited.
+// Traverse the fiber tree depth-first using child/sibling pointers
 function walkFiber(fiber: Fiber, cb: (f: Fiber) => void) {
-  const boundary = fiber.return
   let node: Fiber | null = fiber
   while (node) {
     cb(node)
@@ -85,8 +45,9 @@ function walkFiber(fiber: Fiber, cb: (f: Fiber) => void) {
       node = node.child
       continue
     }
+    if (node === fiber) return
     while (!node.sibling) {
-      if (!node.return || node.return === boundary) return
+      if (!node.return || node.return === fiber) return
       node = node.return
     }
     node = node.sibling
@@ -97,20 +58,10 @@ function walkFiber(fiber: Fiber, cb: (f: Fiber) => void) {
 function getDisplayName(fiber: Fiber): string | null {
   const { type, tag } = fiber
   switch (tag) {
-    case FiberTag.FunctionComponent:
-    case FiberTag.ClassComponent:
-    case FiberTag.ForwardRef:
-    case FiberTag.SimpleMemoComponent:
+    case 0: // FunctionComponent
+    case 11: // ForwardRef
+    case 1: // ClassComponent
       return type?.displayName ?? type?.name ?? null
-    case FiberTag.MemoComponent: {
-      // For memo wrappers, the real component is nested at type.type
-      const innerType = (
-        type as unknown as { type?: { displayName?: string; name?: string } }
-      )?.type
-      return (
-        type?.displayName ?? innerType?.displayName ?? innerType?.name ?? null
-      )
-    }
     default:
       return null
   }
@@ -191,19 +142,12 @@ export function createReactObserver(
     root: { current: Fiber },
     _priorityLevel: unknown
   ) {
-    // Start at root.current.child to skip the HostRoot fiber (tag 3);
-    // walking from root.current itself would exit after the first subtree
-    // because HostRoot's children return to HostRoot.
-    if (!root.current.child) return
-    walkFiber(root.current.child, fiber => {
+    walkFiber(root.current, fiber => {
       // Only track component fiber tags
       if (!TRACKED_TAGS.has(fiber.tag)) return
 
       const name = getDisplayName(fiber)
       if (!name) return
-
-      // Skip internal React components (names starting with '__' or containing '.')
-      if (name.startsWith('__') || name.includes('.')) return
 
       const changedProps = getChangedProps(fiber.alternate, fiber)
       if (!changedProps) return
@@ -217,8 +161,6 @@ export function createReactObserver(
         frameId: 0,
         componentName: name,
         propsDelta,
-        // TODO(REP-711): hooks delta capture deferred — requires walking fiber.memoizedState
-        // linked list with dev-mode APIs (_debugHookTypes). Always emits '' until implemented.
         hooksDelta: '',
         fiberNodeId: fiber._debugID ?? 0,
       }
