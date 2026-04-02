@@ -1,0 +1,280 @@
+import { ReactCommitEvent, StateEventType, VTree } from '@repro/domain'
+import { ObserverLike } from '@repro/observer-utils'
+
+// All known React fiber tag values (React internals, subject to change across major versions)
+const FiberTag = {
+  FunctionComponent: 0,
+  ClassComponent: 1,
+  IndeterminateComponent: 2,
+  HostRoot: 3,
+  HostPortal: 4,
+  HostComponent: 5,
+  HostText: 6,
+  Fragment: 7,
+  Mode: 8,
+  ContextConsumer: 9,
+  ContextProvider: 10,
+  ForwardRef: 11,
+  Profiler: 12,
+  SuspenseComponent: 13,
+  MemoComponent: 14,
+  SimpleMemoComponent: 15,
+  LazyComponent: 16,
+  IncompleteClassComponent: 17,
+  DehydratedFragment: 18,
+  SuspenseListComponent: 19,
+  ScopeComponent: 21,
+  OffscreenComponent: 22,
+  LegacyHiddenComponent: 23,
+  CacheComponent: 24,
+  TracingMarkerComponent: 25,
+  HostHoistable: 26,
+  HostSingleton: 27,
+} as const
+
+// Fiber tags we capture: function, class, forwardRef, and memo components
+const TRACKED_TAGS: ReadonlySet<number> = new Set([
+  FiberTag.FunctionComponent,
+  FiberTag.ClassComponent,
+  FiberTag.ForwardRef,
+  FiberTag.MemoComponent,
+  FiberTag.SimpleMemoComponent,
+])
+
+// Max serialised propsDelta size in characters
+const MAX_PROPS_DELTA_SIZE = 10_000
+
+// Max depth for safe serialisation
+const MAX_SERIALISE_DEPTH = 3
+
+interface Fiber {
+  tag: number
+  type?: { displayName?: string; name?: string } | null
+  memoizedProps: Record<string, unknown> | null
+  alternate: Fiber | null
+  child: Fiber | null
+  sibling: Fiber | null
+  return: Fiber | null
+  _debugID?: number
+}
+
+interface ReactDevToolsHook {
+  onCommitFiberRoot: (
+    rendererID: number,
+    root: { current: Fiber },
+    priorityLevel: unknown
+  ) => void
+  isDisabled?: boolean
+  inject?: (...args: unknown[]) => unknown
+  _renderers?: Record<string, unknown>
+  helpers?: Record<string, unknown>
+  onCommitFiberUnmount?: (...args: unknown[]) => void
+  onPostCommitFiberRoot?: (...args: unknown[]) => void
+  [key: string]: unknown
+}
+
+// Traverse the fiber tree depth-first using child/sibling pointers.
+// Uses fiber.return (the parent of the starting node) as the boundary sentinel
+// so that siblings of the starting node are also visited.
+function walkFiber(fiber: Fiber, cb: (f: Fiber) => void) {
+  const boundary = fiber.return
+  let node: Fiber | null = fiber
+  while (node) {
+    cb(node)
+    if (node.child) {
+      node = node.child
+      continue
+    }
+    while (!node.sibling) {
+      if (!node.return || node.return === boundary) return
+      node = node.return
+    }
+    node = node.sibling
+  }
+}
+
+// Extract a human-readable display name from a fiber
+function getDisplayName(fiber: Fiber): string | null {
+  const { type, tag } = fiber
+  switch (tag) {
+    case FiberTag.FunctionComponent:
+    case FiberTag.ClassComponent:
+    case FiberTag.ForwardRef:
+    case FiberTag.SimpleMemoComponent:
+      return type?.displayName ?? type?.name ?? null
+    case FiberTag.MemoComponent: {
+      // For memo wrappers, the real component is nested at type.type
+      const innerType = (
+        type as unknown as { type?: { displayName?: string; name?: string } }
+      )?.type
+      return (
+        type?.displayName ?? innerType?.displayName ?? innerType?.name ?? null
+      )
+    }
+    default:
+      return null
+  }
+}
+
+// Build a record of changed props (excluding children)
+function getChangedProps(
+  prevFiber: Fiber | null,
+  nextFiber: Fiber
+): Record<string, unknown> | null {
+  const next = nextFiber.memoizedProps
+  const prev = prevFiber?.memoizedProps ?? {}
+  if (!next) return null
+
+  const changed: Record<string, unknown> = {}
+  const allKeys = new Set([...Object.keys(prev), ...Object.keys(next)])
+
+  for (const key of allKeys) {
+    if (key === 'children') continue
+    if (!Object.is(prev[key], next[key])) {
+      changed[key] = next[key]
+    }
+  }
+
+  return Object.keys(changed).length > 0 ? changed : null
+}
+
+// Safe JSON serialiser with depth limit, circular ref guard, and type coercion
+function safeSerialise(value: unknown): string {
+  try {
+    const seen = new Set<object>()
+
+    function replacer(val: unknown, depth: number): unknown {
+      if (depth > MAX_SERIALISE_DEPTH) return '[object ...]'
+      if (typeof val === 'function') return '[function]'
+      if (val === null || typeof val !== 'object') return val
+
+      if (seen.has(val)) return '[circular]'
+      seen.add(val)
+
+      // Detect class instances (not plain objects)
+      const proto = Object.getPrototypeOf(val)
+      if (proto !== Object.prototype && proto !== null && !Array.isArray(val)) {
+        seen.delete(val)
+        return `[object ${(val as object).constructor?.name ?? 'Object'}]`
+      }
+
+      if (Array.isArray(val)) {
+        const result = val.map(item => replacer(item, depth + 1))
+        seen.delete(val)
+        return result
+      }
+
+      const result: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+        result[k] = replacer(v, depth + 1)
+      }
+      seen.delete(val)
+      return result
+    }
+
+    return JSON.stringify(replacer(value, 0)) ?? '{}'
+  } catch {
+    return '{}'
+  }
+}
+
+export function createReactObserver(
+  subscriber: (event: ReactCommitEvent) => void
+): ObserverLike {
+  let originalOnCommitFiberRoot:
+    | ReactDevToolsHook['onCommitFiberRoot']
+    | undefined
+  let hookCreatedByUs = false
+
+  function handleCommit(
+    _rendererID: number,
+    root: { current: Fiber },
+    _priorityLevel: unknown
+  ) {
+    // Start at root.current.child to skip the HostRoot fiber (tag 3);
+    // walking from root.current itself would exit after the first subtree
+    // because HostRoot's children return to HostRoot.
+    if (!root.current.child) return
+    walkFiber(root.current.child, fiber => {
+      // Only track component fiber tags
+      if (!TRACKED_TAGS.has(fiber.tag)) return
+
+      const name = getDisplayName(fiber)
+      if (!name) return
+
+      // Skip internal React components (names starting with '__' or containing '.')
+      if (name.startsWith('__') || name.includes('.')) return
+
+      const changedProps = getChangedProps(fiber.alternate, fiber)
+      if (!changedProps) return
+
+      const propsDelta = safeSerialise(changedProps)
+      if (propsDelta.length > MAX_PROPS_DELTA_SIZE) return
+
+      const event: ReactCommitEvent = {
+        type: StateEventType.ReactCommit,
+        time: Date.now(),
+        frameId: 0,
+        componentName: name,
+        propsDelta,
+        // TODO(REP-711): hooks delta capture deferred — requires walking fiber.memoizedState
+        // linked list with dev-mode APIs (_debugHookTypes). Always emits '' until implemented.
+        hooksDelta: '',
+        fiberNodeId: fiber._debugID ?? 0,
+      }
+
+      subscriber(event)
+    })
+  }
+
+  return {
+    observe(_target: unknown, _vtree: VTree) {
+      const existing = (globalThis as Record<string, unknown>)[
+        '__REACT_DEVTOOLS_GLOBAL_HOOK__'
+      ] as ReactDevToolsHook | undefined
+
+      if (existing) {
+        // Preserve the original and wrap it
+        originalOnCommitFiberRoot = existing.onCommitFiberRoot
+        hookCreatedByUs = false
+
+        existing.onCommitFiberRoot = (rendererID, root, priorityLevel) => {
+          originalOnCommitFiberRoot?.(rendererID, root, priorityLevel)
+          handleCommit(rendererID, root, priorityLevel)
+        }
+      } else {
+        // Create a minimal hook stub
+        hookCreatedByUs = true
+        ;(globalThis as Record<string, unknown>)[
+          '__REACT_DEVTOOLS_GLOBAL_HOOK__'
+        ] = {
+          isDisabled: false,
+          inject: () => {},
+          _renderers: {},
+          helpers: {},
+          onCommitFiberUnmount: () => {},
+          onPostCommitFiberRoot: () => {},
+          onCommitFiberRoot: handleCommit,
+        } satisfies ReactDevToolsHook
+      }
+    },
+
+    disconnect() {
+      const hook = (globalThis as Record<string, unknown>)[
+        '__REACT_DEVTOOLS_GLOBAL_HOOK__'
+      ] as ReactDevToolsHook | undefined
+
+      if (!hook) return
+
+      if (hookCreatedByUs) {
+        delete (globalThis as Record<string, unknown>)[
+          '__REACT_DEVTOOLS_GLOBAL_HOOK__'
+        ]
+        hookCreatedByUs = false
+      } else if (originalOnCommitFiberRoot !== undefined) {
+        hook.onCommitFiberRoot = originalOnCommitFiberRoot
+        originalOnCommitFiberRoot = undefined
+      }
+    },
+  }
+}
