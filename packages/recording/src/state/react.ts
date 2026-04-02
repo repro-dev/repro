@@ -1,4 +1,10 @@
-import { ReactCommitEvent, StateEventType, VTree } from '@repro/domain'
+import {
+  ReactCommitEvent,
+  ReactComponentNode,
+  ReactComponentTree,
+  StateEventType,
+  VTree,
+} from '@repro/domain'
 import { ObserverLike } from '@repro/observer-utils'
 
 // Fiber tags we care about: FunctionComponent, ClassComponent, ForwardRef
@@ -12,6 +18,10 @@ const MAX_SERIALISE_DEPTH = 3
 
 // Monotonically incrementing counter — incremented once per onCommitFiberRoot call
 let commitBatchCounter = 0
+
+// Running map of latest known state per fiber, keyed by fiberNodeId
+// Updated on every ReactCommitEvent; read at snapshot time
+const componentTree = new Map<number, ReactComponentNode>()
 
 interface Fiber {
   tag: number
@@ -189,6 +199,16 @@ export function createReactObserver(
       }
 
       subscriber(event)
+
+      // Maintain running component tree (skip unknown fiber IDs)
+      if (event.fiberNodeId !== 0) {
+        componentTree.set(event.fiberNodeId, {
+          fiberNodeId: event.fiberNodeId,
+          parentFiberId: event.parentFiberId,
+          componentName: event.componentName,
+          props: event.propsDelta,
+        })
+      }
     })
   }
 
@@ -242,4 +262,15 @@ export function createReactObserver(
       }
     },
   }
+}
+
+// Returns a snapshot of the current accumulated component tree.
+// Called at snapshot emit time by createRecordingStream.
+export function getComponentTree(): ReactComponentTree {
+  return { nodes: Array.from(componentTree.values()) }
+}
+
+// Reset the component tree — used in tests to isolate state between test runs.
+export function resetComponentTree(): void {
+  componentTree.clear()
 }
