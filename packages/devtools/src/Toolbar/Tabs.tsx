@@ -7,6 +7,7 @@ import {
   AlertTriangle as ConsoleIcon,
   Code as ElementsIcon,
   Globe as NetworkIcon,
+  Layers as ReduxIcon,
 } from 'lucide-react'
 import React, { useMemo } from 'react'
 import { useDevToolsView, useInspecting } from '../hooks'
@@ -53,8 +54,33 @@ function useHasReactEvents(): boolean {
   }, [playback, buffer])
 }
 
+function useHasReduxEvents(): boolean {
+  const playback = usePlayback()
+  // Subscribe to $buffer so this re-evaluates when new events arrive during live recording
+  const buffer = useAtomValue(playback.$buffer)
+  return useMemo(() => {
+    const sourceEvents = playback.getSourceEvents().toSource()
+    for (const view of sourceEvents) {
+      const event = SourceEventView.over(view)
+      let found = false
+      event.apply(e => {
+        if (e.type === SourceEventType.State) {
+          e.data.apply(inner => {
+            if (inner.type === StateEventType.ReduxDispatch) {
+              found = true
+            }
+          })
+        }
+      })
+      if (found) return true
+    }
+    return false
+  }, [playback, buffer])
+}
+
 export const Tabs: React.FC = () => {
   const hasReactEvents = useHasReactEvents()
+  const hasReduxEvents = useHasReduxEvents()
 
   return (
     <Row alignItems="center" gap={4} marginH={4}>
@@ -78,6 +104,10 @@ export const Tabs: React.FC = () => {
 
       {hasReactEvents && (
         <Item view={View.React} icon={<ReactLogo />} label="React" />
+      )}
+
+      {hasReduxEvents && (
+        <Item view={View.Redux} icon={<ReduxIcon size={14} />} label="Redux" />
       )}
     </Row>
   )

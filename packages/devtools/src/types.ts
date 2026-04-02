@@ -9,6 +9,7 @@ export enum View {
   Console,
   Settings,
   React,
+  Redux,
 }
 
 export type MutableNodeMap = Record<SyntheticId, Node>
