@@ -6,11 +6,27 @@ import {
   AlertTriangle as ConsoleIcon,
   Code as ElementsIcon,
   Globe as NetworkIcon,
-  GitBranch as ReactIcon,
 } from 'lucide-react'
 import React, { useMemo } from 'react'
 import { useDevToolsView, useInspecting } from '../hooks'
 import { View } from '../types'
+
+const ReactLogo: React.FC = () => (
+  <svg
+    viewBox="-11.5 -10.23 23 20.46"
+    width="14"
+    height="14"
+    fill="currentColor"
+    aria-hidden="true"
+  >
+    <circle r="2.05" />
+    <g stroke="currentColor" strokeWidth="1" fill="none">
+      <ellipse rx="11" ry="4.2" />
+      <ellipse rx="11" ry="4.2" transform="rotate(60)" />
+      <ellipse rx="11" ry="4.2" transform="rotate(120)" />
+    </g>
+  </svg>
+)
 
 function useHasReactEvents(): boolean {
   const playback = usePlayback()
@@ -58,7 +74,7 @@ export const Tabs: React.FC = () => {
       />
 
       {hasReactEvents && (
-        <Item view={View.React} icon={<ReactIcon size={14} />} label="React" />
+        <Item view={View.React} icon={<ReactLogo />} label="React" />
       )}
     </Row>
   )
