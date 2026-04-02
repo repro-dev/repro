@@ -73,8 +73,11 @@ interface ReactDevToolsHook {
   [key: string]: unknown
 }
 
-// Traverse the fiber tree depth-first using child/sibling pointers
+// Traverse the fiber tree depth-first using child/sibling pointers.
+// Uses fiber.return (the parent of the starting node) as the boundary sentinel
+// so that siblings of the starting node are also visited.
 function walkFiber(fiber: Fiber, cb: (f: Fiber) => void) {
+  const boundary = fiber.return
   let node: Fiber | null = fiber
   while (node) {
     cb(node)
@@ -82,9 +85,8 @@ function walkFiber(fiber: Fiber, cb: (f: Fiber) => void) {
       node = node.child
       continue
     }
-    if (node === fiber) return
     while (!node.sibling) {
-      if (!node.return || node.return === fiber) return
+      if (!node.return || node.return === boundary) return
       node = node.return
     }
     node = node.sibling
@@ -189,12 +191,19 @@ export function createReactObserver(
     root: { current: Fiber },
     _priorityLevel: unknown
   ) {
-    walkFiber(root.current, fiber => {
+    // Start at root.current.child to skip the HostRoot fiber (tag 3);
+    // walking from root.current itself would exit after the first subtree
+    // because HostRoot's children return to HostRoot.
+    if (!root.current.child) return
+    walkFiber(root.current.child, fiber => {
       // Only track component fiber tags
       if (!TRACKED_TAGS.has(fiber.tag)) return
 
       const name = getDisplayName(fiber)
       if (!name) return
+
+      // Skip internal React components (names starting with '__' or containing '.')
+      if (name.startsWith('__') || name.includes('.')) return
 
       const changedProps = getChangedProps(fiber.alternate, fiber)
       if (!changedProps) return
@@ -208,6 +217,8 @@ export function createReactObserver(
         frameId: 0,
         componentName: name,
         propsDelta,
+        // TODO(REP-711): hooks delta capture deferred — requires walking fiber.memoizedState
+        // linked list with dev-mode APIs (_debugHookTypes). Always emits '' until implemented.
         hooksDelta: '',
         fiberNodeId: fiber._debugID ?? 0,
       }
