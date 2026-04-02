@@ -9,6 +9,7 @@ import { DragHandle } from './DragHandle'
 import { ElementsPanel } from './ElementsPanel'
 import { NetworkPanel } from './NetworkPanel'
 import { PickerOverlay } from './PickerOverlay'
+import { ReactPanel } from './ReactPanel'
 import { Toolbar } from './Toolbar'
 import { MAX_INT32 } from './constants'
 import {
@@ -81,6 +82,7 @@ export const DevTools: React.FC<Props> = React.memo(props => {
                 {view === View.Elements && <ElementsPanel />}
                 {view === View.Network && <NetworkPanel />}
                 {view === View.Console && <ConsolePanel />}
+                {view === View.React && <ReactPanel />}
               </ContentRegion>
             </Fragment>
           )}
