@@ -30,10 +30,20 @@ interface ReduxStore {
 }
 
 // Redux DevTools Extension window interface
+export interface DevToolsActionPayload {
+  type: string // DevTools operation type, e.g. 'PERFORM_ACTION'
+  action?: {
+    // Present only for PERFORM_ACTION; the actual Redux action
+    type?: unknown
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
 export interface DevToolsMessage {
-  type: string
-  payload?: { type?: string; [key: string]: unknown }
-  state?: string // JSON-serialised full Redux state at time of message
+  type: string // DevTools message category, e.g. 'DISPATCH'
+  payload?: DevToolsActionPayload
+  state?: string // JSON-serialised Redux state after the action
 }
 
 export interface DevToolsConnection {
@@ -172,8 +182,19 @@ export function createReduxObserver(
         devToolsUnsubscribe = devToolsConnection.subscribe(message => {
           // Only handle DISPATCH messages (not RESET, IMPORT_STATE, etc.)
           if (message.type !== 'DISPATCH') return
+          // Only process actual Redux dispatches, not DevTools operations like JUMP_TO_STATE
+          if (message.payload?.type !== 'PERFORM_ACTION') return
 
-          const actionType = message.payload?.type ?? '[unknown]'
+          const reduxAction = message.payload?.action ?? {}
+          const actionType =
+            typeof reduxAction['type'] === 'string'
+              ? reduxAction['type']
+              : '[unknown]'
+
+          // actionPayload: action without the 'type' field
+          const { type: _type, ...payload } = reduxAction
+          const actionPayload = safeSerialize(payload, ACTION_PAYLOAD_MAX_CHARS)
+
           const stateJson = message.state
           let currentState: unknown = undefined
           if (stateJson) {
@@ -184,13 +205,14 @@ export function createReduxObserver(
             }
           }
 
+          // On first dispatch, compare against {} so all keys appear as new (useful baseline diff)
           const stateDiff = computeStateDiff(
-            previousDevToolsState,
+            previousDevToolsState === undefined ? {} : previousDevToolsState,
             currentState
           )
           previousDevToolsState = currentState
 
-          emitEvent(subscriber, actionType, '{}', stateDiff)
+          emitEvent(subscriber, actionType, actionPayload, stateDiff)
         })
         return
       }

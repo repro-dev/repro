@@ -188,10 +188,10 @@ describe('createReduxObserver', () => {
       const observer = createReduxObserver(e => events.push(e), win)
       observer.observe({} as Document, {} as never)
 
-      // Simulate a DISPATCH message from DevTools extension
+      // Simulate a DISPATCH/PERFORM_ACTION message from DevTools extension
       capturedListener?.({
         type: 'DISPATCH',
-        payload: { type: 'INCREMENT' },
+        payload: { type: 'PERFORM_ACTION', action: { type: 'INCREMENT' } },
         state: JSON.stringify({ count: 1 }),
       })
 
@@ -250,17 +250,17 @@ describe('createReduxObserver', () => {
       const observer = createReduxObserver(e => events.push(e), win)
       observer.observe({} as Document, {} as never)
 
-      // First dispatch: count 0 → 1 (previousDevToolsState is undefined, so diff is '{}')
+      // First dispatch: count 0 → 1
       capturedListener?.({
         type: 'DISPATCH',
-        payload: { type: 'INC' },
+        payload: { type: 'PERFORM_ACTION', action: { type: 'INC' } },
         state: JSON.stringify({ count: 1 }),
       })
 
       // Second dispatch: count 1 → 2
       capturedListener?.({
         type: 'DISPATCH',
-        payload: { type: 'INC' },
+        payload: { type: 'PERFORM_ACTION', action: { type: 'INC' } },
         state: JSON.stringify({ count: 2 }),
       })
 
@@ -269,8 +269,12 @@ describe('createReduxObserver', () => {
       const firstDiff = JSON.parse(
         events[0]!.data.map(e => e as ReduxDispatchEvent).unwrap().stateDiff
       ) as Record<string, { before: unknown; after: unknown }>
-      // First diff: before = undefined (no previous state), so computeStateDiff(undefined, {...}) returns '{}'
-      assert.equal(typeof firstDiff, 'object')
+      // First diff: before = {} (sentinel), after = { count: 1 }, so count should appear
+      assert.ok(
+        'count' in firstDiff,
+        'first dispatch should include count in diff'
+      )
+      assert.equal(firstDiff['count']!.after, 1)
 
       const secondDiff = JSON.parse(
         events[1]!.data.map(e => e as ReduxDispatchEvent).unwrap().stateDiff
@@ -302,6 +306,12 @@ describe('createReduxObserver', () => {
       capturedListener?.({ type: 'START' })
       capturedListener?.({ type: 'RESET' })
       capturedListener?.({ type: 'COMMIT' })
+      // Also ignore DISPATCH messages that aren't PERFORM_ACTION
+      capturedListener?.({
+        type: 'DISPATCH',
+        payload: { type: 'JUMP_TO_STATE' },
+        state: '{}',
+      })
 
       assert.equal(events.length, 0)
 
@@ -331,6 +341,43 @@ describe('createReduxObserver', () => {
 
       assert.ok(unsubscribeCalled)
       assert.ok(subscriberUnsubscribeCalled)
+    })
+
+    it('extracts actionPayload from DevTools PERFORM_ACTION message', () => {
+      let capturedListener: ((msg: DevToolsMessage) => void) | undefined
+      const mockConnection: DevToolsConnection = {
+        subscribe(listener) {
+          capturedListener = listener
+          return () => {}
+        },
+        unsubscribe() {},
+      }
+      const win = {
+        __REDUX_DEVTOOLS_EXTENSION__: { connect: () => mockConnection },
+      } as unknown as Window & typeof globalThis
+
+      const events: StateSourceEvent[] = []
+      const observer = createReduxObserver(e => events.push(e), win)
+      observer.observe({} as Document, {} as never)
+
+      capturedListener?.({
+        type: 'DISPATCH',
+        payload: {
+          type: 'PERFORM_ACTION',
+          action: { type: 'SET_COUNT', count: 42 },
+        },
+        state: JSON.stringify({ count: 42 }),
+      })
+
+      assert.equal(events.length, 1)
+      const inner = events[0]!.data.map(e => e as ReduxDispatchEvent).unwrap()
+      assert.equal(inner.actionType, 'SET_COUNT')
+      const payload = JSON.parse(inner.actionPayload) as Record<string, unknown>
+      assert.equal(payload['count'], 42)
+      // 'type' should be stripped from actionPayload
+      assert.equal('type' in payload, false)
+
+      observer.disconnect()
     })
   })
 })
