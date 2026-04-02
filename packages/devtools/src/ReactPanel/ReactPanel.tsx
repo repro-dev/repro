@@ -1,0 +1,114 @@
+import { Block, Grid } from '@jsxstyle/react'
+import { useAtomValue } from '@repro/atom'
+import { colors } from '@repro/design'
+import {
+  ReactComponentNode,
+  SourceEventType,
+  SourceEventView,
+  StateEventType,
+} from '@repro/domain'
+import { usePlayback, useSnapshot } from '@repro/playback'
+import React, { useMemo, useState } from 'react'
+import { ComponentPropsPanel } from './ComponentPropsPanel'
+import { ComponentTree } from './ComponentTree'
+
+export const ReactPanel: React.FC = () => {
+  const playback = usePlayback()
+  const snapshot = useSnapshot()
+  const activeIndex = useAtomValue(playback.$activeIndex)
+  const [selectedFiberId, setSelectedFiberId] = useState<number | null>(null)
+
+  // Reconstruct the component tree at the current playback position
+  const componentMap = useMemo(() => {
+    const map = new Map<number, ReactComponentNode>()
+
+    // 1. Baseline from snapshot: seed the map with nodes captured at snapshot time
+    const baselineNodes = snapshot.frameworkState?.reactTree?.nodes ?? []
+    for (const node of baselineNodes) {
+      // Skip sentinel nodes with fiberNodeId 0 (production builds emit these)
+      if (node.fiberNodeId !== 0) {
+        map.set(node.fiberNodeId, { ...node })
+      }
+    }
+
+    // 2. Apply incremental ReactCommitEvents up to the current playback index
+    const sourceEvents = playback.getSourceEvents().toSource()
+    let i = 0
+
+    for (const view of sourceEvents) {
+      if (i > activeIndex) break
+      const event = SourceEventView.over(view)
+      event.apply(e => {
+        if (e.type === SourceEventType.State) {
+          e.data.apply(inner => {
+            if (
+              inner.type === StateEventType.ReactCommit &&
+              inner.fiberNodeId !== 0
+            ) {
+              map.set(inner.fiberNodeId, {
+                fiberNodeId: inner.fiberNodeId,
+                parentFiberId: inner.parentFiberId,
+                componentName: inner.componentName,
+                props: inner.propsDelta,
+              })
+            }
+          })
+        }
+      })
+      i++
+    }
+
+    return map
+  }, [playback, snapshot, activeIndex])
+
+  // Detect production build degradation: snapshot had nodes but all had fiberNodeId === 0
+  const isProductionBuild = useMemo(() => {
+    return (
+      componentMap.size === 0 &&
+      (snapshot.frameworkState?.reactTree?.nodes.length ?? 0) > 0
+    )
+  }, [componentMap, snapshot])
+
+  const selectedNode =
+    selectedFiberId !== null ? componentMap.get(selectedFiberId) ?? null : null
+
+  if (componentMap.size === 0 && !isProductionBuild) {
+    return (
+      <Block padding={16} fontSize={12} color={colors.slate['500']}>
+        No React component data recorded.
+      </Block>
+    )
+  }
+
+  return (
+    <Grid gridTemplateColumns="1fr 360px" alignItems="stretch" height="100%">
+      <Block height="100%" overflow="auto">
+        {isProductionBuild && (
+          <Block
+            padding={8}
+            fontSize={11}
+            color={colors.orange['700']}
+            backgroundColor={colors.orange['50']}
+            borderBottom={`1px solid ${colors.orange['200']}`}
+          >
+            Component hierarchy is only available in development builds. Showing
+            flat list.
+          </Block>
+        )}
+        <ComponentTree
+          nodes={componentMap}
+          selectedFiberId={selectedFiberId}
+          onSelect={setSelectedFiberId}
+        />
+      </Block>
+
+      <Block
+        height="100%"
+        overflow="auto"
+        borderLeft={`1px solid ${colors.slate['200']}`}
+      >
+        <ComponentPropsPanel node={selectedNode} />
+      </Block>
+    </Grid>
+  )
+}

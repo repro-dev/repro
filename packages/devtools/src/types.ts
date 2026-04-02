@@ -8,6 +8,7 @@ export enum View {
   Performance,
   Console,
   Settings,
+  React,
 }
 
 export type MutableNodeMap = Record<SyntheticId, Node>
