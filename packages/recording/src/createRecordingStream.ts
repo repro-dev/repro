@@ -56,8 +56,8 @@ import { createViewportVisitor } from './interaction/visitor'
 import { createNetworkObserver } from './network'
 import { createPerformanceObserver } from './performance'
 import { observePeriodic } from './periodic'
-import { createReactObserver, getComponentTree } from './state/react'
-import { createReduxObserver, getStoreState } from './state/redux'
+import { createReactObserver } from './state/react'
+import { createReduxObserver } from './state/redux'
 import { RecordingOptions } from './types'
 
 function isZeroPoint(point: Point) {
@@ -145,6 +145,18 @@ export function createRecordingStream(
 
   // Detect frameworks once at stream creation time
   const frameworks = detectFrameworks()
+
+  // Instance references to state observers — set by registerStateObservers(),
+  // read by createSnapshotEvent() to call instance-level getters.
+  let reactObserverInstance:
+    | (ObserverLike & {
+        getComponentTree(): import('@repro/domain').ReactComponentTree | null
+        resetComponentTree(): void
+      })
+    | null = null
+  let reduxObserverInstance:
+    | (ObserverLike & { getStoreState(): unknown })
+    | null = null
 
   const domTreeWalker = createDOMTreeWalker({
     ignoredNodes: options.ignoredNodes,
@@ -408,9 +420,11 @@ export function createRecordingStream(
   }
 
   function createSnapshotEvent(): Box<SnapshotEvent> {
-    const reactTree = frameworks.react ? getComponentTree() : null
+    const reactTree = frameworks.react
+      ? reactObserverInstance?.getComponentTree() ?? null
+      : null
     const reduxState = frameworks.redux
-      ? safeSerialiseReduxState(getStoreState())
+      ? safeSerialiseReduxState(reduxObserverInstance?.getStoreState() ?? null)
       : null
 
     const snap = copyObjectDeep(trailingSnapshot)
@@ -653,19 +667,17 @@ export function createRecordingStream(
 
   function registerStateObservers() {
     if (frameworks.react) {
-      observers.push(
-        createReactObserver((event: ReactCommitEvent) => {
-          addEvent(createStateEvent(new Box(event)))
-        })
-      )
+      reactObserverInstance = createReactObserver((event: ReactCommitEvent) => {
+        addEvent(createStateEvent(new Box(event)))
+      })
+      observers.push(reactObserverInstance)
     }
 
     if (frameworks.redux) {
-      observers.push(
-        createReduxObserver((event: StateSourceEvent) => {
-          addEvent(new Box(event))
-        })
-      )
+      reduxObserverInstance = createReduxObserver((event: StateSourceEvent) => {
+        addEvent(new Box(event))
+      })
+      observers.push(reduxObserverInstance)
     }
   }
 

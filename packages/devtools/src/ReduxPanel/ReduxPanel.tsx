@@ -41,7 +41,8 @@ export const ReduxPanel: React.FC = () => {
 
   // Reconstruct Redux state at current playback position:
   // 1. Parse snapshot baseline (or start from {})
-  // 2. Apply stateDiffs from dispatch events with eventIndex <= activeIndex
+  // 2. Find the snapshot event index that corresponds to the baseline
+  // 3. Only apply diffs AFTER the snapshot to avoid double-applying pre-snapshot events
   const reconstructedState = useMemo(() => {
     let state: Record<string, unknown> = {}
 
@@ -57,15 +58,37 @@ export const ReduxPanel: React.FC = () => {
       }
     }
 
+    // Find the index of the Snapshot event that corresponds to our baseline.
+    // Only apply diffs AFTER the snapshot to avoid double-applying pre-snapshot events.
+    const sourceEvents = playback.getSourceEvents().toSource()
+    let snapshotEventIndex = -1
+    let i = 0
+    for (const view of sourceEvents) {
+      if (i > activeIndex) break
+      const event = SourceEventView.over(view)
+      event.apply(e => {
+        if (e.type === SourceEventType.Snapshot) {
+          snapshotEventIndex = i
+        }
+      })
+      i++
+    }
+
     for (const [event, eventIndex] of dispatchEvents) {
       if (eventIndex > activeIndex) break
+      if (eventIndex <= snapshotEventIndex) continue // already in baseline
       try {
         const diff = JSON.parse(event.stateDiff) as Record<
           string,
           { before: unknown; after: unknown }
         >
         for (const [key, entry] of Object.entries(diff)) {
-          state[key] = entry.after
+          if (entry.after === undefined) {
+            // Deleted key — remove from reconstructed state rather than setting to undefined
+            delete state[key]
+          } else {
+            state[key] = entry.after
+          }
         }
       } catch {
         // Skip unparseable diffs
@@ -73,7 +96,7 @@ export const ReduxPanel: React.FC = () => {
     }
 
     return state
-  }, [snapshot, activeIndex, dispatchEvents])
+  }, [snapshot, activeIndex, dispatchEvents, playback])
 
   if (dispatchEvents.length === 0) {
     return (
