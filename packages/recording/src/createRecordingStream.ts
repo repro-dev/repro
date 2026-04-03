@@ -691,21 +691,9 @@ export function createRecordingStream(
   }
 
   function enableFrameworkStateRecording() {
-    // Record the count of observers before registration so we know which are new
-    const before = observers.length
+    // Gates are fetched once at load time; this is called before the stream
+    // is started, so registering observers here is sufficient.
     registerStateObservers()
-    // If the stream is already running, start the newly added observers immediately
-    if (isStarted()) {
-      const trailingVTree = trailingSnapshot.dom
-      if (trailingVTree) {
-        for (let i = before; i < observers.length; i++) {
-          const observer = observers[i]!
-          for (const doc of sourceDocuments) {
-            observer.observe(doc, trailingVTree)
-          }
-        }
-      }
-    }
   }
 
   function subscribeToBuffer() {
