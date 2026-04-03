@@ -1,4 +1,5 @@
 import { Block, Inline, Row } from '@jsxstyle/react'
+import { useAtomValue } from '@repro/atom'
 import { colors, Tooltip } from '@repro/design'
 import { SourceEventType, SourceEventView, StateEventType } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
@@ -30,6 +31,8 @@ const ReactLogo: React.FC = () => (
 
 function useHasReactEvents(): boolean {
   const playback = usePlayback()
+  // Subscribe to $buffer so this re-evaluates when new events arrive during live recording
+  const buffer = useAtomValue(playback.$buffer)
   return useMemo(() => {
     const sourceEvents = playback.getSourceEvents().toSource()
     for (const view of sourceEvents) {
@@ -47,7 +50,7 @@ function useHasReactEvents(): boolean {
       if (found) return true
     }
     return false
-  }, [playback])
+  }, [playback, buffer])
 }
 
 export const Tabs: React.FC = () => {
