@@ -14,6 +14,7 @@ import { resolve } from 'fluture'
 import React from 'react'
 import { Root, createRoot } from 'react-dom/client'
 import { Controller } from './components/Controller'
+import { FrameworkStateGate } from './components/FrameworkStateGate'
 import { REPRO_ROOT_ID } from './constants'
 import { StateProvider, createState } from './state'
 
@@ -93,7 +94,6 @@ class ReproCapture extends HTMLElement {
         'network',
         'console',
         'performance',
-        'state',
       ]),
       ignoredNodes,
       ignoredSelectors,
@@ -108,6 +108,7 @@ class ReproCapture extends HTMLElement {
         <GateProvider>
           <AuthProvider>
             <RecordingStreamProvider stream={stream}>
+              <FrameworkStateGate />
               <StateProvider state={this.state}>
                 <MessagingProvider agent={agent}>
                   <PortalRootProvider>
