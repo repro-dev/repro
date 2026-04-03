@@ -204,7 +204,8 @@ export function createReactObserver(
       if (event.fiberNodeId !== 0) {
         componentTree.set(event.fiberNodeId, {
           fiberNodeId: event.fiberNodeId,
-          parentFiberId: event.parentFiberId,
+          // parentFiberId is nullable in the event but required in the node; default to 0 (no parent)
+          parentFiberId: event.parentFiberId ?? 0,
           componentName: event.componentName,
           props: event.propsDelta,
         })
@@ -266,8 +267,13 @@ export function createReactObserver(
 
 // Returns a snapshot of the current accumulated component tree.
 // Called at snapshot emit time by createRecordingStream.
+// Keys are string-serialised fiberNodeIds for map<string, ReactComponentNode> compatibility.
 export function getComponentTree(): ReactComponentTree {
-  return { nodes: Array.from(componentTree.values()) }
+  const tree: ReactComponentTree = {}
+  for (const [id, node] of componentTree.entries()) {
+    tree[String(id)] = node
+  }
+  return tree
 }
 
 // Reset the component tree — used in tests to isolate state between test runs.

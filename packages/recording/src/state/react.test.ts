@@ -447,10 +447,10 @@ describe('createReactObserver', () => {
 })
 
 describe('getComponentTree', () => {
-  it('returns empty nodes array when no commits have occurred', () => {
+  it('returns empty record when no commits have occurred', () => {
     resetComponentTree()
     const tree = getComponentTree()
-    assert.deepEqual(tree, { nodes: [] })
+    assert.deepEqual(tree, {})
   })
 
   it('returns accumulated component nodes after a commit', () => {
@@ -471,8 +471,8 @@ describe('getComponentTree', () => {
     simulateCommit(1, makeFiberRoot(fiber))
 
     const tree = getComponentTree()
-    assert.equal(tree.nodes.length, 1)
-    const node = tree.nodes[0]!
+    assert.equal(Object.keys(tree).length, 1)
+    const node = tree['500']!
     assert.equal(node.fiberNodeId, 500)
     assert.equal(node.componentName, 'MyButton')
     assert.ok(node.props.includes('Click'))
@@ -511,8 +511,8 @@ describe('getComponentTree', () => {
 
     const tree = getComponentTree()
     // Should still have exactly one node (same fiberNodeId)
-    assert.equal(tree.nodes.length, 1)
-    const node = tree.nodes[0]!
+    assert.equal(Object.keys(tree).length, 1)
+    const node = tree['600']!
     assert.equal(node.fiberNodeId, 600)
     assert.ok(node.props.includes('2'))
 
@@ -540,7 +540,7 @@ describe('getComponentTree', () => {
 
     const tree = getComponentTree()
     // fiberNodeId 0 should be skipped
-    assert.equal(tree.nodes.length, 0)
+    assert.equal(Object.keys(tree).length, 0)
 
     observer.disconnect()
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
@@ -562,10 +562,10 @@ describe('getComponentTree', () => {
     })
 
     simulateCommit(1, makeFiberRoot(fiber))
-    assert.equal(getComponentTree().nodes.length, 1)
+    assert.equal(Object.keys(getComponentTree()).length, 1)
 
     resetComponentTree()
-    assert.equal(getComponentTree().nodes.length, 0)
+    assert.equal(Object.keys(getComponentTree()).length, 0)
 
     observer.disconnect()
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
