@@ -16,13 +16,6 @@ const MAX_PROPS_DELTA_SIZE = 10_000
 // Max depth for safe serialisation
 const MAX_SERIALISE_DEPTH = 3
 
-// Monotonically incrementing counter — incremented once per onCommitFiberRoot call
-let commitBatchCounter = 0
-
-// Running map of latest known state per fiber, keyed by fiberNodeId
-// Updated on every ReactCommitEvent; read at snapshot time
-const componentTree = new Map<number, ReactComponentNode>()
-
 interface Fiber {
   tag: number
   type?: { displayName?: string; name?: string } | null
@@ -158,7 +151,14 @@ function safeSerialise(value: unknown): string {
 
 export function createReactObserver(
   subscriber: (event: ReactCommitEvent) => void
-): ObserverLike {
+): ObserverLike & {
+  getComponentTree(): ReactComponentTree
+  resetComponentTree(): void
+} {
+  // Instance-scoped state — no module-level singletons
+  let commitBatchCounter = 0
+  const componentTree = new Map<number, ReactComponentNode>()
+
   let originalOnCommitFiberRoot:
     | ReactDevToolsHook['onCommitFiberRoot']
     | undefined
@@ -261,22 +261,25 @@ export function createReactObserver(
         hook.onCommitFiberRoot = originalOnCommitFiberRoot
         originalOnCommitFiberRoot = undefined
       }
+
+      // Reset tree on disconnect so stale nodes don't accumulate across recordings
+      componentTree.clear()
+      commitBatchCounter = 0
+    },
+
+    // Returns a snapshot of the current accumulated component tree.
+    // Called at snapshot emit time by createRecordingStream.
+    // Keys are string-serialised fiberNodeIds for map<string, ReactComponentNode> compatibility.
+    getComponentTree() {
+      const tree: ReactComponentTree = {}
+      for (const [id, node] of componentTree.entries()) {
+        tree[String(id)] = node
+      }
+      return tree
+    },
+
+    resetComponentTree() {
+      componentTree.clear()
     },
   }
-}
-
-// Returns a snapshot of the current accumulated component tree.
-// Called at snapshot emit time by createRecordingStream.
-// Keys are string-serialised fiberNodeIds for map<string, ReactComponentNode> compatibility.
-export function getComponentTree(): ReactComponentTree {
-  const tree: ReactComponentTree = {}
-  for (const [id, node] of componentTree.entries()) {
-    tree[String(id)] = node
-  }
-  return tree
-}
-
-// Reset the component tree — used in tests to isolate state between test runs.
-export function resetComponentTree(): void {
-  componentTree.clear()
 }
