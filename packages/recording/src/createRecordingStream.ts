@@ -97,6 +97,7 @@ export interface RecordingStream {
   slice(start?: number, end?: number): List<SourceEventView>
   snapshot(): Snapshot
   tail(signal: Subject<void>): Observable<SourceEvent>
+  enableFrameworkStateRecording(): void
 }
 
 interface BufferSubscriptions {
@@ -113,6 +114,7 @@ export const EMPTY_RECORDING_STREAM: RecordingStream = {
   slice: () => new List(SourceEventView, []),
   snapshot: () => SnapshotView.from(createEmptySnapshot()),
   tail: () => NEVER,
+  enableFrameworkStateRecording: () => undefined,
 }
 
 export const InterruptSignal = new Subject<void>()
@@ -142,6 +144,8 @@ export function createRecordingStream(
   let leadingSnapshot = createEmptySnapshot()
   let trailingSnapshot = createEmptySnapshot()
   let sourceDocuments = [rootDocument]
+  // Prevents double-registration when enableFrameworkStateRecording is called more than once
+  let stateObserversRegistered = false
 
   // Detect frameworks once at stream creation time
   const frameworks = detectFrameworks()
@@ -666,6 +670,11 @@ export function createRecordingStream(
   }
 
   function registerStateObservers() {
+    if (stateObserversRegistered) {
+      return
+    }
+    stateObserversRegistered = true
+
     if (frameworks.react) {
       reactObserverInstance = createReactObserver((event: ReactCommitEvent) => {
         addEvent(createStateEvent(new Box(event)))
@@ -678,6 +687,24 @@ export function createRecordingStream(
         addEvent(new Box(event))
       })
       observers.push(reduxObserverInstance)
+    }
+  }
+
+  function enableFrameworkStateRecording() {
+    // Record the count of observers before registration so we know which are new
+    const before = observers.length
+    registerStateObservers()
+    // If the stream is already running, start the newly added observers immediately
+    if (isStarted()) {
+      const trailingVTree = trailingSnapshot.dom
+      if (trailingVTree) {
+        for (let i = before; i < observers.length; i++) {
+          const observer = observers[i]!
+          for (const doc of sourceDocuments) {
+            observer.observe(doc, trailingVTree)
+          }
+        }
+      }
     }
   }
 
@@ -721,5 +748,6 @@ export function createRecordingStream(
     slice,
     snapshot,
     tail,
+    enableFrameworkStateRecording,
   }
 }

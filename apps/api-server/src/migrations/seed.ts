@@ -314,6 +314,17 @@ async function seedFeatureGates(db: Database) {
     })
     .onConflict(oc => oc.column('name').doNothing())
     .execute()
+
+  await db
+    .insertInto('feature_gates')
+    .values({
+      name: 'framework-state',
+      description:
+        'Enable React component tree and Redux state recording in the capture extension',
+      enabled: false,
+    })
+    .onConflict(oc => oc.column('name').doNothing())
+    .execute()
 }
 
 export async function seed(db: Database, storage: Storage) {
