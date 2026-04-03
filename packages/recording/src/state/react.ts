@@ -94,15 +94,16 @@ function getChangedProps(
 
 // Walk up fiber.return to find the nearest ancestor component fiber's _debugID.
 // Skips host elements, context providers, and other non-component fiber types.
-function getParentFiberId(fiber: Fiber): number {
+// Uses !== undefined rather than truthiness so that _debugID = 0 is not skipped.
+function getParentFiberId(fiber: Fiber): number | null {
   let parent = fiber.return
   while (parent) {
-    if (TRACKED_TAGS.has(parent.tag) && parent._debugID) {
+    if (TRACKED_TAGS.has(parent.tag) && parent._debugID !== undefined) {
       return parent._debugID
     }
     parent = parent.return
   }
-  return 0
+  return null
 }
 
 // Safe JSON serialiser with depth limit, circular ref guard, and type coercion
@@ -181,6 +182,7 @@ export function createReactObserver(
         componentName: name,
         propsDelta,
         hooksDelta: '',
+        // _debugID may be undefined on untracked fibers; fall back to 0
         fiberNodeId: fiber._debugID ?? 0,
         parentFiberId: getParentFiberId(fiber),
         commitBatchId: currentBatchId,
