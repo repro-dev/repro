@@ -16,45 +16,70 @@ export const ReactPanel: React.FC = () => {
   const playback = usePlayback()
   const snapshot = useSnapshot()
   const activeIndex = useAtomValue(playback.$activeIndex)
-  const [selectedFiberId, setSelectedFiberId] = useState<number | null>(null)
 
-  // Reconstruct the component tree at the current playback position
+  // Reconstruct the component tree at the current playback position.
+  // Strategy:
+  //   1. Find the Snapshot event at or before activeIndex — this is snapshotEventIndex.
+  //   2. Seed the map from snapshot.frameworkState.reactTree (the baseline at snapshotEventIndex).
+  //   3. Apply only ReactCommit events AFTER snapshotEventIndex up to activeIndex.
+  // This avoids double-applying commits that occurred before the snapshot was taken.
   const componentMap = useMemo(() => {
     const map = new Map<number, ReactComponentNode>()
 
-    // 1. Baseline from snapshot: seed the map with nodes captured at snapshot time
-    const baselineNodes = snapshot.frameworkState?.reactTree?.nodes ?? []
-    for (const node of baselineNodes) {
-      // Skip sentinel nodes with fiberNodeId 0 (production builds emit these)
-      if (node.fiberNodeId !== 0) {
-        map.set(node.fiberNodeId, { ...node })
+    // 1. Seed from snapshot baseline
+    const reactTree = snapshot.frameworkState?.reactTree ?? null
+    if (reactTree) {
+      for (const node of Object.values(reactTree)) {
+        // Skip sentinel nodes with fiberNodeId 0 (production builds emit these)
+        if (node.fiberNodeId !== 0) {
+          map.set(node.fiberNodeId, { ...node })
+        }
       }
     }
 
-    // 2. Apply incremental ReactCommitEvents up to the current playback index
+    // 2. Find the index of the Snapshot event that corresponds to our baseline.
+    //    Walk backwards from activeIndex to find the last Snapshot event.
     const sourceEvents = playback.getSourceEvents().toSource()
+    let snapshotEventIndex = -1
     let i = 0
-
     for (const view of sourceEvents) {
       if (i > activeIndex) break
       const event = SourceEventView.over(view)
       event.apply(e => {
-        if (e.type === SourceEventType.State) {
-          e.data.apply(inner => {
-            if (
-              inner.type === StateEventType.ReactCommit &&
-              inner.fiberNodeId !== 0
-            ) {
-              map.set(inner.fiberNodeId, {
-                fiberNodeId: inner.fiberNodeId,
-                parentFiberId: inner.parentFiberId,
-                componentName: inner.componentName,
-                props: inner.propsDelta,
-              })
-            }
-          })
+        if (e.type === SourceEventType.Snapshot) {
+          snapshotEventIndex = i
         }
       })
+      i++
+    }
+
+    // 3. Apply incremental ReactCommit events after the snapshot baseline
+    i = 0
+    for (const view of sourceEvents) {
+      if (i > activeIndex) break
+      if (i > snapshotEventIndex) {
+        const event = SourceEventView.over(view)
+        event.apply(e => {
+          if (e.type === SourceEventType.State) {
+            e.data.apply(inner => {
+              if (
+                inner.type === StateEventType.ReactCommit &&
+                inner.fiberNodeId !== 0
+              ) {
+                // NOTE: only propsDelta from the most recent commit is stored.
+                // This means node.props reflects the last seen delta, not full current props.
+                // Full props reconstruction is deferred to a future snapshot-based approach.
+                map.set(inner.fiberNodeId, {
+                  fiberNodeId: inner.fiberNodeId,
+                  parentFiberId: inner.parentFiberId ?? 0,
+                  componentName: inner.componentName,
+                  props: inner.propsDelta,
+                })
+              }
+            })
+          }
+        })
+      }
       i++
     }
 
@@ -63,11 +88,13 @@ export const ReactPanel: React.FC = () => {
 
   // Detect production build degradation: snapshot had nodes but all had fiberNodeId === 0
   const isProductionBuild = useMemo(() => {
-    return (
-      componentMap.size === 0 &&
-      (snapshot.frameworkState?.reactTree?.nodes.length ?? 0) > 0
-    )
+    const reactTree = snapshot.frameworkState?.reactTree ?? null
+    if (!reactTree) return false
+    const nodes = Object.values(reactTree)
+    return componentMap.size === 0 && nodes.length > 0
   }, [componentMap, snapshot])
+
+  const [selectedFiberId, setSelectedFiberId] = useState<number | null>(null)
 
   const selectedNode =
     selectedFiberId !== null ? componentMap.get(selectedFiberId) ?? null : null
