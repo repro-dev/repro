@@ -691,8 +691,8 @@ export function createRecordingStream(
   }
 
   function enableFrameworkStateRecording() {
-    // Gates are fetched once at load time; this is called before the stream
-    // is started, so registering observers here is sufficient.
+    // Framework detection gates resolve once at load time, so observers
+    // registered here are always set up before start() is called.
     registerStateObservers()
   }
 
