@@ -1,0 +1,8 @@
+type ReactComponentNode: struct {
+  0) fiberNodeId: uint32
+  1) parentFiberId: uint32
+  2) componentName: string
+  3) props: string
+}
+
+type ReactComponentTree: map<string, ReactComponentNode>

@@ -6,7 +6,6 @@ import {
   ConsoleMessage,
   DOMPatch,
   DOMPatchEvent,
-  FrameworkState,
   Interaction,
   InteractionEvent,
   InteractionSnapshot,
@@ -215,13 +214,14 @@ export function createRecordingStream(
       })
 
       subscribeToBuffer()
-      addEvent(createSnapshotEvent())
 
       for (const observer of observers) {
         for (const doc of sourceDocuments) {
           observer.observe(doc, trailingVTree)
         }
       }
+
+      addEvent(createSnapshotEvent())
     })
   }
 
@@ -400,8 +400,7 @@ export function createRecordingStream(
     try {
       const json = JSON.stringify(state)
       if (json === undefined) return null
-      if (json.length > MAX_REDUX_SNAPSHOT_CHARS)
-        return '[redux state truncated]'
+      if (json.length > MAX_REDUX_SNAPSHOT_CHARS) return null
       return json
     } catch {
       return null
@@ -409,16 +408,16 @@ export function createRecordingStream(
   }
 
   function createSnapshotEvent(): Box<SnapshotEvent> {
-    // Capture current framework state at snapshot time
-    const frameworkState: FrameworkState = {
-      reactTree: frameworks.react ? getComponentTree() : null,
-      reduxState: frameworks.redux
-        ? safeSerialiseReduxState(getStoreState())
-        : null,
-    }
+    const reactTree = frameworks.react ? getComponentTree() : null
+    const reduxState = frameworks.redux
+      ? safeSerialiseReduxState(getStoreState())
+      : null
 
     const snap = copyObjectDeep(trailingSnapshot)
-    snap.frameworkState = frameworkState
+    snap.frameworkState =
+      reactTree !== null || reduxState !== null
+        ? { reactTree, reduxState }
+        : null
 
     return new Box({
       time: performance.now(),
