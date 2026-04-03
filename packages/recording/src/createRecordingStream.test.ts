@@ -90,7 +90,7 @@ describe('createRecordingStream', () => {
       stream.stop()
     })
 
-    it('can be called after the stream is started (without browser APIs)', () => {
+    it('can be called without start() when types set is empty', () => {
       const stream = createRecordingStream(createMockDocument(), {
         // Use an empty types set to avoid initializing observers that need browser APIs
         types: new Set([]),
