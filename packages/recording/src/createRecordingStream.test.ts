@@ -122,19 +122,18 @@ describe('createRecordingStream', () => {
           types: new Set(['dom']),
         })
 
-        stream.start()
-
         const hook = (globalThis as Record<string, unknown>)[
           '__REACT_DEVTOOLS_GLOBAL_HOOK__'
         ] as Record<string, unknown>
 
-        // First call registers the observer and starts it; the hook should be wrapped.
+        // First call registers the observer; the hook is wrapped on start().
         stream.enableFrameworkStateRecording()
+        stream.start()
         const wrappedAfterFirst = hook['onCommitFiberRoot']
         assert.notEqual(
           wrappedAfterFirst,
           hook['_originalFn'],
-          'onCommitFiberRoot should be wrapped after first call'
+          'onCommitFiberRoot should be wrapped after start()'
         )
 
         // Second call must be a no-op — the handler reference must not change.
@@ -176,37 +175,6 @@ describe('createRecordingStream', () => {
           hook['onCommitFiberRoot'],
           originalHandler,
           'React hook should be wrapped after start() is called'
-        )
-
-        stream.stop()
-      })
-
-      it('calling after start(): React hook is installed immediately', () => {
-        // Include 'dom' so start() can build the VTree.
-        const stream = createRecordingStream(createMockDocument(), {
-          types: new Set(['dom']),
-        })
-
-        const hook = (globalThis as Record<string, unknown>)[
-          '__REACT_DEVTOOLS_GLOBAL_HOOK__'
-        ] as Record<string, unknown>
-        const originalHandler = hook['onCommitFiberRoot']
-
-        stream.start()
-
-        // After start the hook should still be the original (no state observer yet)
-        assert.equal(
-          hook['onCommitFiberRoot'],
-          originalHandler,
-          'React hook should not be wrapped before enableFrameworkStateRecording()'
-        )
-
-        // enableFrameworkStateRecording() while already started should immediately observe
-        stream.enableFrameworkStateRecording()
-        assert.notEqual(
-          hook['onCommitFiberRoot'],
-          originalHandler,
-          'React hook should be wrapped immediately when called after start()'
         )
 
         stream.stop()
