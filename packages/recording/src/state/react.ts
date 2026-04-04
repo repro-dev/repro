@@ -10,6 +10,9 @@ const MAX_PROPS_DELTA_SIZE = 10_000
 // Max depth for safe serialisation
 const MAX_SERIALISE_DEPTH = 3
 
+// Monotonically incrementing counter — incremented once per onCommitFiberRoot call
+let commitBatchCounter = 0
+
 interface Fiber {
   tag: number
   type?: { displayName?: string; name?: string } | null
@@ -89,6 +92,20 @@ function getChangedProps(
   return Object.keys(changed).length > 0 ? changed : null
 }
 
+// Walk up fiber.return to find the nearest ancestor component fiber's _debugID.
+// Skips host elements, context providers, and other non-component fiber types.
+// Uses !== undefined rather than truthiness so that _debugID = 0 is not skipped.
+function getParentFiberId(fiber: Fiber): number | null {
+  let parent = fiber.return
+  while (parent) {
+    if (TRACKED_TAGS.has(parent.tag) && parent._debugID !== undefined) {
+      return parent._debugID
+    }
+    parent = parent.return
+  }
+  return null
+}
+
 // Safe JSON serialiser with depth limit, circular ref guard, and type coercion
 function safeSerialise(value: unknown): string {
   try {
@@ -142,6 +159,9 @@ export function createReactObserver(
     root: { current: Fiber },
     _priorityLevel: unknown
   ) {
+    // Increment batch ID once per commit — all events in this walk share the same value
+    const currentBatchId = ++commitBatchCounter
+
     walkFiber(root.current, fiber => {
       // Only track component fiber tags
       if (!TRACKED_TAGS.has(fiber.tag)) return
@@ -162,10 +182,10 @@ export function createReactObserver(
         componentName: name,
         propsDelta,
         hooksDelta: '',
+        // _debugID may be undefined on untracked fibers; fall back to 0
         fiberNodeId: fiber._debugID ?? 0,
-        // parentFiberId and commitBatchId are populated in REP-715
-        parentFiberId: 0,
-        commitBatchId: 0,
+        parentFiberId: getParentFiberId(fiber),
+        commitBatchId: currentBatchId,
       }
 
       subscriber(event)
