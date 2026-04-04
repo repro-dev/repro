@@ -301,20 +301,20 @@ export function deduplicateToolCalls(
   // respecting protected IDs: a protected call is always "most recent" for its
   // signature so that a later unprotected duplicate gets dropped rather than
   // the protected one.
-  const lastAnyById = new Map<string, string>(); // sig → last id (protected or not)
+  const lastIdBySig = new Map<string, string>(); // sig → last id (protected or not)
   for (const [id, sig] of sigById) {
-    lastAnyById.set(sig, id);
+    lastIdBySig.set(sig, id);
   }
 
   // A tool call id should be dropped if:
   //  1. It is not protected, AND
-  //  2. It is not the last occurrence of its signature overall (lastAnyById),
+  //  2. It is not the last occurrence of its signature overall (lastIdBySig),
   //     UNLESS a protected id shares the same sig — in that case the protected
   //     copy wins and all others are dropped.
   const dropIds = new Set<string>();
   for (const [id, sig] of sigById) {
     if (protectedIds.has(id)) continue; // protected calls are never dropped
-    const lastForSig = lastAnyById.get(sig);
+    const lastForSig = lastIdBySig.get(sig);
     if (lastForSig !== id) {
       // There is a newer occurrence — drop this one
       dropIds.add(id);
@@ -333,19 +333,34 @@ export function deduplicateToolCalls(
 
   if (dropIds.size === 0) return context;
 
-  // Filter out assistant messages whose entire tool_calls array consists of
-  // dropped ids, and filter out tool result messages for dropped ids.
-  return context.filter((msg) => {
+  // Use flatMap so that an assistant message can be either kept as-is,
+  // replaced with a pruned version (some tool_calls removed), or dropped
+  // entirely (all tool_calls removed) — all in a single pass.
+  return context.flatMap((msg): Array<Context[number]> => {
     if (msg.role === "tool") {
-      return !dropIds.has(msg.tool_call_id);
+      // Drop tool result messages whose call was deduplicated away.
+      return dropIds.has(msg.tool_call_id) ? [] : [msg];
     }
+
     if (msg.role === "assistant" && "tool_calls" in msg && msg.tool_calls) {
-      // Keep the assistant message only if at least one of its tool calls
-      // survives. (An assistant message may carry multiple tool calls; we
-      // only drop the message if ALL of them are dropped.)
-      return msg.tool_calls.some((tc) => !dropIds.has(tc.id));
+      // Remove individual dropped tool_call entries from this message.
+      const survivingCalls = msg.tool_calls.filter((tc) => !dropIds.has(tc.id));
+
+      if (survivingCalls.length === 0) {
+        // All tool_calls were dropped — remove the entire assistant message.
+        return [];
+      }
+
+      if (survivingCalls.length === msg.tool_calls.length) {
+        // Nothing changed — pass through unchanged.
+        return [msg];
+      }
+
+      // Some calls were dropped — return the message with the pruned list.
+      return [{ ...msg, tool_calls: survivingCalls }];
     }
-    return true;
+
+    return [msg];
   });
 }
 
