@@ -1,10 +1,11 @@
 import { Block } from '@jsxstyle/react'
 import { ReactComponentNode } from '@repro/domain'
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { ComponentTreeRow } from './ComponentTreeRow'
 
 interface Props {
   nodes: Map<number, ReactComponentNode>
+  rootId: number | null
   selectedFiberId: number | null
   onSelect: (fiberId: number) => void
 }
@@ -16,6 +17,8 @@ function buildChildrenMap(
   const children = new Map<number, number[]>()
   for (const node of nodes.values()) {
     const parent = node.parentFiberId
+    // Skip nodes with no parent (roots)
+    if (parent === null) continue
     if (!children.has(parent)) children.set(parent, [])
     children.get(parent)!.push(node.fiberNodeId)
   }
@@ -24,17 +27,24 @@ function buildChildrenMap(
 
 export const ComponentTree: React.FC<Props> = ({
   nodes,
+  rootId,
   selectedFiberId,
   onSelect,
 }) => {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
 
-  const childrenMap = buildChildrenMap(nodes)
+  const childrenMap = useMemo(() => buildChildrenMap(nodes), [nodes])
 
-  // Roots are nodes whose parentFiberId is 0 or whose parent is not in the map
-  const roots = Array.from(nodes.values()).filter(
-    n => n.parentFiberId === 0 || !nodes.has(n.parentFiberId)
-  )
+  // Use rootId when available; fall back to heuristic for incremental-only maps
+  const roots = useMemo(() => {
+    if (rootId !== null && nodes.has(rootId)) {
+      return [nodes.get(rootId)!]
+    }
+    // Fallback: nodes whose parent is not in the map (or has no parent)
+    return Array.from(nodes.values()).filter(
+      n => n.parentFiberId === null || !nodes.has(n.parentFiberId)
+    )
+  }, [nodes, rootId])
 
   function toggleCollapse(fiberId: number) {
     setCollapsed(prev => {
