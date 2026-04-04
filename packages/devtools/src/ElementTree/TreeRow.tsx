@@ -5,14 +5,59 @@ import React, { PropsWithChildren } from 'react'
 import { FONT_SIZE, INDENT } from './constants'
 import { Tag, useNodeState } from './context'
 
-type Props = PropsWithChildren<{
+// Generic tree row container — shared by ElementTree and ReactPanel.
+// Handles indent, selection highlight, hover, font size, and click/hover callbacks.
+export type TreeRowBaseProps = PropsWithChildren<{
+  depth: number
+  isSelected: boolean
+  disableFocus?: boolean
+  onClick: () => void
+  onPointerEnter?: () => void
+}>
+
+export const TreeRowBase: React.FC<TreeRowBaseProps> = ({
+  children,
+  depth,
+  isSelected,
+  disableFocus,
+  onClick,
+  onPointerEnter,
+}) => {
+  return (
+    <Block
+      position="relative"
+      paddingLeft={INDENT * (depth + 1)}
+      backgroundColor={isSelected ? colors.blue['100'] : 'transparent'}
+      hoverBackgroundColor={
+        isSelected
+          ? colors.blue['100']
+          : !disableFocus
+          ? colors.blue['50']
+          : undefined
+      }
+      fontSize={FONT_SIZE}
+      cursor="default"
+      wordBreak="break-word"
+      userSelect="none"
+      props={{
+        onClick,
+        ...(onPointerEnter ? { onPointerEnter } : {}),
+      }}
+    >
+      {children}
+    </Block>
+  )
+}
+
+// Context-bound wrapper used by ElementTree — reads selection state from NodeStateContext.
+type TreeRowProps = PropsWithChildren<{
   nodeId: SyntheticId
   depth: number
   disableFocus?: boolean
   tag?: Tag
 }>
 
-export const TreeRow: React.FC<Props> = ({
+export const TreeRow: React.FC<TreeRowProps> = ({
   children,
   depth,
   nodeId,
@@ -23,27 +68,15 @@ export const TreeRow: React.FC<Props> = ({
 
   return (
     <div data-tree-node={`${nodeId}~${tag}`}>
-      <Block
-        position="relative"
-        paddingLeft={INDENT * (depth + 1)}
-        backgroundColor={isSelected ? colors.blue['100'] : 'transparent'}
-        hoverBackgroundColor={
-          isSelected
-            ? colors.blue['100']
-            : !disableFocus
-            ? colors.blue['50']
-            : undefined
-        }
-        fontSize={FONT_SIZE}
-        cursor="default"
-        wordBreak="break-word"
-        props={{
-          onClick: () => onSelectNode(tag),
-          onPointerEnter: () => onFocusNode(tag),
-        }}
+      <TreeRowBase
+        depth={depth}
+        isSelected={isSelected}
+        disableFocus={disableFocus}
+        onClick={() => onSelectNode(tag)}
+        onPointerEnter={() => onFocusNode(tag)}
       >
         {children}
-      </Block>
+      </TreeRowBase>
     </div>
   )
 }
