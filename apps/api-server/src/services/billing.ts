@@ -55,6 +55,21 @@ export interface PortalSession {
   url: string
 }
 
+// Ordered tier list: index = ordinal (higher = more features)
+const PLAN_TIER_ORDER = ['Free', 'Repro+', 'Repro++'] as const
+
+export function getPlanTierOrdinal(planName: string): number {
+  return PLAN_TIER_ORDER.indexOf(planName as (typeof PLAN_TIER_ORDER)[number])
+}
+
+// Returns true if moving from currentPlanName → newPlanName is an upgrade
+export function isUpgradePlan(
+  currentPlanName: string,
+  newPlanName: string
+): boolean {
+  return getPlanTierOrdinal(newPlanName) > getPlanTierOrdinal(currentPlanName)
+}
+
 function asBillingCustomer(row: {
   id: number
   accountId: number
@@ -507,49 +522,55 @@ export function createBillingService(
   ): FutureInstance<Error, BillingSubscription> {
     return getSubscriptionByAccountId(accountId).pipe(
       chain(subscription =>
-        getPlanById(newPlanId).pipe(
-          chain(newPlan => {
-            const isUpgrade = true
-            const prorationMode = isUpgrade
-              ? 'prorated_immediately'
-              : ('prorated_next_billing_period' as const)
-
-            return getPaddle()
-              .updateSubscription(subscription.providerSubscriptionId, {
-                items: [{ priceId: newPlan.providerPriceId, quantity: 1 }],
-                prorationBillingMode: prorationMode,
-              })
-              .pipe(
-                chain(() =>
-                  attemptQuery(() =>
-                    database
-                      .updateTable('billing_subscriptions')
-                      .set({ planId: decodeId(newPlan.id)! })
-                      .where('id', '=', decodeId(subscription.id))
-                      .returning([
-                        'id',
-                        'accountId',
-                        'providerSubscriptionId',
-                        'planId',
-                        'status',
-                        'currentPeriodStart',
-                        'currentPeriodEnd',
-                        'cancelAtPeriodEnd',
-                        'canceledAt',
-                        'createdAt',
-                        'updatedAt',
-                      ])
-                      .executeTakeFirstOrThrow()
-                  )
-                    .pipe(map(asBillingSubscription))
-                    .pipe(
-                      tapF((result: BillingSubscription) =>
-                        invalidateEntitlementCache(result.accountId)
-                      )
-                    )
+        getPlanById(subscription.planId).pipe(
+          chain(currentPlan =>
+            getPlanById(newPlanId).pipe(
+              chain(newPlan => {
+                const prorationMode = isUpgradePlan(
+                  currentPlan.name,
+                  newPlan.name
                 )
-              )
-          })
+                  ? 'prorated_immediately'
+                  : ('prorated_next_billing_period' as const)
+
+                return getPaddle()
+                  .updateSubscription(subscription.providerSubscriptionId, {
+                    items: [{ priceId: newPlan.providerPriceId, quantity: 1 }],
+                    prorationBillingMode: prorationMode,
+                  })
+                  .pipe(
+                    chain(() =>
+                      attemptQuery(() =>
+                        database
+                          .updateTable('billing_subscriptions')
+                          .set({ planId: decodeId(newPlan.id)! })
+                          .where('id', '=', decodeId(subscription.id))
+                          .returning([
+                            'id',
+                            'accountId',
+                            'providerSubscriptionId',
+                            'planId',
+                            'status',
+                            'currentPeriodStart',
+                            'currentPeriodEnd',
+                            'cancelAtPeriodEnd',
+                            'canceledAt',
+                            'createdAt',
+                            'updatedAt',
+                          ])
+                          .executeTakeFirstOrThrow()
+                      )
+                        .pipe(map(asBillingSubscription))
+                        .pipe(
+                          tapF((result: BillingSubscription) =>
+                            invalidateEntitlementCache(result.accountId)
+                          )
+                        )
+                    )
+                  )
+              })
+            )
+          )
         )
       )
     )

@@ -157,6 +157,20 @@ describe('Services > Billing (dev adapter)', () => {
 
       expect(updated.planId).toBe(proPlan.id)
     })
+
+    it('should allow downgrade from ProPlan to FreePlan', async () => {
+      const [account, , freePlan] = await harness.loadFixtures([
+        fixtures.account.AccountA,
+        fixtures.billing.AccountA_ProPlan_Checkout,
+        fixtures.billing.FreePlan,
+      ])
+
+      const updated = await promise(
+        billingService.changePlan(account.id, freePlan.id)
+      )
+
+      expect(updated.planId).toBe(freePlan.id)
+    })
   })
 
   describe('cancelSubscription', () => {
