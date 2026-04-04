@@ -8,6 +8,7 @@ import {
   FormFieldError,
   Input,
   Label,
+  Link,
 } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { fork } from 'fluture'
@@ -111,17 +112,17 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             {showResetFlow ? 'Reset Your Password' : 'Log In'}
           </Block>
 
-          <Block
-            paddingBottom={10}
-            fontSize={13}
-            lineHeight="1.5em"
-            borderBottom={`1px solid ${colors.slate['200']}`}
-            color={colors.slate['500']}
-          >
-            {showResetFlow
-              ? 'Enter your email for password reset instructions'
-              : 'Log in to your Repro account'}
-          </Block>
+          {showResetFlow && (
+            <Block
+              paddingBottom={10}
+              fontSize={13}
+              lineHeight="1.5em"
+              borderBottom={`1px solid ${colors.slate['200']}`}
+              color={colors.slate['500']}
+            >
+              Enter your email for password reset instructions
+            </Block>
+          )}
 
           {showPostResetMessage && (
             <Block
@@ -191,17 +192,19 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
 
           {!showResetFlow && (
             <Block>
-              <Button
-                variant="text"
-                size="small"
-                onClick={() => {
-                  setShowResetFlow(true)
-                  setShowPostResetMessage(false)
-                  setErrorMessage('')
+              <Link
+                component="button"
+                props={{
+                  type: 'button',
+                  onClick: () => {
+                    setShowResetFlow(true)
+                    setShowPostResetMessage(false)
+                    setErrorMessage('')
+                  },
                 }}
               >
                 Forgot password?
-              </Button>
+              </Link>
             </Block>
           )}
 
