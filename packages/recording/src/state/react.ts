@@ -16,16 +16,6 @@ const MAX_PROPS_DELTA_SIZE = 10_000
 // Max depth for safe serialisation
 const MAX_SERIALISE_DEPTH = 3
 
-// Monotonically incrementing counter — incremented once per onCommitFiberRoot call
-let commitBatchCounter = 0
-
-// Running map of latest known state per fiber, keyed by fiberNodeId
-// Updated on every ReactCommitEvent; read at snapshot time
-const componentTree = new Map<number, ReactComponentNode>()
-
-// Root fiber ID captured on first commit; null until first commit observed
-let rootFiberId: number | null = null
-
 interface Fiber {
   tag: number
   type?: { displayName?: string; name?: string } | null
@@ -161,7 +151,15 @@ function safeSerialise(value: unknown): string {
 
 export function createReactObserver(
   subscriber: (event: ReactCommitEvent) => void
-): ObserverLike {
+): ObserverLike & {
+  getComponentTree(): ReactComponentTree | null
+  resetComponentTree(): void
+} {
+  // Instance-scoped state — no module-level singletons
+  let commitBatchCounter = 0
+  const componentTree = new Map<number, ReactComponentNode>()
+  let rootFiberId: number | null = null
+
   let originalOnCommitFiberRoot:
     | ReactDevToolsHook['onCommitFiberRoot']
     | undefined
@@ -268,24 +266,27 @@ export function createReactObserver(
         hook.onCommitFiberRoot = originalOnCommitFiberRoot
         originalOnCommitFiberRoot = undefined
       }
+
+      // Reset all instance state on disconnect so stale data doesn't accumulate across recordings
+      componentTree.clear()
+      commitBatchCounter = 0
+      rootFiberId = null
+    },
+
+    // Returns a snapshot of the current accumulated component tree, or null if no root seen yet.
+    // Called at snapshot emit time by createRecordingStream.
+    // Keys are string-serialised fiberNodeIds for map<string, ReactComponentNode> compatibility.
+    getComponentTree(): ReactComponentTree | null {
+      if (rootFiberId === null) return null
+      const nodes: Record<string, ReactComponentNode> = {}
+      for (const [id, node] of componentTree.entries()) {
+        nodes[String(id)] = node
+      }
+      return { rootId: rootFiberId, nodes }
+    },
+
+    resetComponentTree() {
+      componentTree.clear()
     },
   }
-}
-
-// Returns a snapshot of the current accumulated component tree.
-// Returns null if no root fiber has been observed yet.
-// Called at snapshot emit time by createRecordingStream.
-export function getComponentTree(): ReactComponentTree | null {
-  if (rootFiberId === null) return null
-  const nodes: Record<string, ReactComponentNode> = {}
-  for (const [id, node] of componentTree.entries()) {
-    nodes[String(id)] = node
-  }
-  return { rootId: rootFiberId, nodes }
-}
-
-// Reset the component tree — used in tests to isolate state between test runs.
-export function resetComponentTree(): void {
-  componentTree.clear()
-  rootFiberId = null
 }

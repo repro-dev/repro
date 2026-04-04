@@ -9,7 +9,7 @@ import {
 } from '@repro/domain'
 import { Box } from '@repro/tdl'
 
-import { createReduxObserver, getStoreState } from './redux'
+import { createReduxObserver } from './redux'
 
 // Minimal Redux store mock
 interface MockStore {
@@ -42,6 +42,11 @@ describe('createReduxObserver', () => {
     const observer = createReduxObserver(() => {})
     assert.equal(typeof observer.observe, 'function')
     assert.equal(typeof observer.disconnect, 'function')
+  })
+
+  it('returns getStoreState method on the observer', () => {
+    const observer = createReduxObserver(() => {})
+    assert.equal(typeof observer.getStoreState, 'function')
   })
 
   it('does nothing when no Redux store found', () => {
@@ -154,9 +159,31 @@ describe('createReduxObserver', () => {
 
     assert.equal(inner.stateDiff, '[state diff truncated]')
   })
+
+  it('uses performance.now() for event timestamps (not epoch milliseconds)', () => {
+    const store = createMockStore({ count: 0 })
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const events: StateSourceEvent[] = []
+    const observer = createReduxObserver(e => events.push(e), win)
+    observer.observe({} as Document, {} as never)
+
+    const before = performance.now()
+    store.dispatch({ type: 'INC' })
+    const after = performance.now()
+
+    assert.equal(events.length, 1)
+    const t = events[0]!.time
+    // performance.now() values are in the range [0, ~process uptime in ms]
+    // Date.now() values are ~1.7 trillion ms (epoch). A simple upper-bound check
+    // of 1e9 (≈ 277 hours of uptime) distinguishes the two.
+    assert.ok(t >= before, 'time should be >= before dispatch')
+    assert.ok(t <= after, 'time should be <= after dispatch')
+    assert.ok(t < 1e9, 'time should be a relative timestamp, not epoch ms')
+  })
 })
 
-describe('getStoreState', () => {
+describe('getStoreState (instance method)', () => {
   it('returns null when no store has been observed', () => {
     // Use an empty window with no store globals
     const win = {} as Window & typeof globalThis
@@ -164,7 +191,7 @@ describe('getStoreState', () => {
     observer.observe({} as Document, {} as never)
     observer.disconnect()
 
-    assert.equal(getStoreState(), null)
+    assert.equal(observer.getStoreState(), null)
   })
 
   it('returns current store state after observe', () => {
@@ -174,7 +201,7 @@ describe('getStoreState', () => {
     const observer = createReduxObserver(() => {}, win)
     observer.observe({} as Document, {} as never)
 
-    const state = getStoreState() as Record<string, unknown>
+    const state = observer.getStoreState() as Record<string, unknown>
     assert.equal(state['count'], 5)
     assert.equal(state['name'], 'Test')
 
@@ -189,11 +216,11 @@ describe('getStoreState', () => {
     observer.observe({} as Document, {} as never)
 
     // Confirm non-null while connected
-    assert.notEqual(getStoreState(), null)
+    assert.notEqual(observer.getStoreState(), null)
 
     observer.disconnect()
 
-    assert.equal(getStoreState(), null)
+    assert.equal(observer.getStoreState(), null)
   })
 
   it('reflects updated state after a dispatch', () => {
@@ -205,9 +232,33 @@ describe('getStoreState', () => {
 
     store.dispatch({ type: 'INCREMENT', count: 42 })
 
-    const state = getStoreState() as Record<string, unknown>
+    const state = observer.getStoreState() as Record<string, unknown>
     assert.equal(state['count'], 42)
 
     observer.disconnect()
+  })
+
+  it('two independent observers do not share state', () => {
+    const store1 = createMockStore({ a: 1 })
+    const store2 = createMockStore({ b: 2 })
+    const win1 = { store: store1 } as unknown as Window & typeof globalThis
+    const win2 = { store: store2 } as unknown as Window & typeof globalThis
+
+    const obs1 = createReduxObserver(() => {}, win1)
+    const obs2 = createReduxObserver(() => {}, win2)
+
+    obs1.observe({} as Document, {} as never)
+    obs2.observe({} as Document, {} as never)
+
+    const s1 = obs1.getStoreState() as Record<string, unknown>
+    const s2 = obs2.getStoreState() as Record<string, unknown>
+
+    assert.equal(s1['a'], 1)
+    assert.equal('b' in s1, false)
+    assert.equal(s2['b'], 2)
+    assert.equal('a' in s2, false)
+
+    obs1.disconnect()
+    obs2.disconnect()
   })
 })
