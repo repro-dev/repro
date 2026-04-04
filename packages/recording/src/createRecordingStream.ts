@@ -691,9 +691,22 @@ export function createRecordingStream(
   }
 
   function enableFrameworkStateRecording() {
-    // Framework detection gates resolve once at load time, so observers
-    // registered here are always set up before start() is called.
+    // This may be called before or after start() — the gate fetch is async
+    // and typically resolves after the stream has started.
+    const before = observers.length
     registerStateObservers()
+    // If the stream is already running, activate the newly added observers immediately.
+    if (isStarted()) {
+      const trailingVTree = trailingSnapshot.dom
+      if (trailingVTree) {
+        for (let i = before; i < observers.length; i++) {
+          const observer = observers[i]!
+          for (const doc of sourceDocuments) {
+            observer.observe(doc, trailingVTree)
+          }
+        }
+      }
+    }
   }
 
   function subscribeToBuffer() {

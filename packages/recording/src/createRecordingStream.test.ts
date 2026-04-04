@@ -77,12 +77,14 @@ describe('createRecordingStream', () => {
       stream.stop()
     })
 
-    it('can be called before the stream is started', () => {
+    it('onCommitFiberRoot should be wrapped after enableFrameworkStateRecording()', () => {
       const stream = createRecordingStream(createMockDocument(), {
         types: new Set(['dom']),
       })
 
-      // Should not throw when called before start()
+      stream.start()
+
+      // Should not throw when called after start()
       assert.doesNotThrow(() => {
         stream.enableFrameworkStateRecording()
       })
@@ -175,6 +177,36 @@ describe('createRecordingStream', () => {
           hook['onCommitFiberRoot'],
           originalHandler,
           'React hook should be wrapped after start() is called'
+        )
+
+        stream.stop()
+      })
+
+      it('calling after start(): React hook is installed immediately', () => {
+        // Include 'dom' so start() can build the VTree.
+        const stream = createRecordingStream(createMockDocument(), {
+          types: new Set(['dom']),
+        })
+
+        const hook = (globalThis as Record<string, unknown>)[
+          '__REACT_DEVTOOLS_GLOBAL_HOOK__'
+        ] as Record<string, unknown>
+        const originalHandler = hook['onCommitFiberRoot']
+
+        // Start the stream first — no framework state observers yet.
+        stream.start()
+        assert.equal(
+          hook['onCommitFiberRoot'],
+          originalHandler,
+          'onCommitFiberRoot should not be wrapped before enableFrameworkStateRecording()'
+        )
+
+        // Now enable framework state recording — the observer should be started immediately.
+        stream.enableFrameworkStateRecording()
+        assert.notEqual(
+          hook['onCommitFiberRoot'],
+          hook['_originalFn'],
+          'onCommitFiberRoot should be wrapped after enableFrameworkStateRecording()'
         )
 
         stream.stop()
