@@ -6,10 +6,13 @@ import {
   spacing,
 } from "@repro/design";
 import React from "react";
+import { Entry } from "@repro/agentic";
 import { PLACEHOLDER_COPY } from "../constants";
+import { useInputHistory } from "../hooks/useInputHistory";
 
 interface AgenticInputSectionProps {
   disabled: boolean;
+  entries: Array<Entry>;
   shouldRaise: boolean;
   onFocusChange: (hasFocus: boolean) => void;
   onSubmit: (state: AgenticInputFormState) => void;
@@ -17,10 +20,19 @@ interface AgenticInputSectionProps {
 
 export const AgenticInputSection: React.FC<AgenticInputSectionProps> = ({
   disabled,
+  entries,
   shouldRaise,
   onFocusChange,
   onSubmit,
 }) => {
+  const { historyValue, navigate, resetHistory } = useInputHistory(entries);
+
+  function handleSubmit(state: AgenticInputFormState) {
+    // Exit history mode when user submits
+    resetHistory();
+    onSubmit(state);
+  }
+
   return (
     <Block
       backgroundColor={shouldRaise ? colors.white : colors.slate["100"]}
@@ -49,8 +61,10 @@ export const AgenticInputSection: React.FC<AgenticInputSectionProps> = ({
       <AgenticInput
         disabled={disabled}
         placeholders={PLACEHOLDER_COPY}
+        historyValue={historyValue}
         onFocusChange={onFocusChange}
-        onSubmit={onSubmit}
+        onNavigateHistory={navigate}
+        onSubmit={handleSubmit}
       />
     </Block>
   );

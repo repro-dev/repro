@@ -23,6 +23,17 @@ export interface AgenticInputProps {
   autoFocus?: boolean
   disabled?: boolean
   placeholders?: Array<string>
+  /**
+   * When non-null, overrides the internal input value (e.g. during history
+   * navigation). Changing this to null resets the input to empty.
+   */
+  historyValue?: string | null
+  /**
+   * Called when the user presses ArrowUp or ArrowDown while the input is empty
+   * or the cursor is at position 0. The parent can use this to implement
+   * shell-style history navigation and update `historyValue` accordingly.
+   */
+  onNavigateHistory?: (direction: 'up' | 'down') => void
   onFocusChange(hasFocus: boolean): void
   onSubmit(formState: AgenticInputFormState): void
 }
@@ -39,7 +50,9 @@ const PLACEHOLDER_ROTATION_INTERVAL = delay.rotate
 export const AgenticInput: React.FC<AgenticInputProps> = ({
   autoFocus,
   disabled,
+  historyValue,
   onFocusChange,
+  onNavigateHistory,
   onSubmit,
   placeholders = [],
 }) => {
@@ -68,6 +81,14 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
       clearInterval(handle)
     }
   }, [placeholders.length])
+
+  // Sync internal value when the parent drives historyValue.
+  // historyValue === null means "exit history mode" → restore empty input.
+  useEffect(() => {
+    if (historyValue !== undefined) {
+      setValue(historyValue ?? '')
+    }
+  }, [historyValue])
 
   useLayoutEffect(() => {
     if (valueRef.current) {
@@ -108,6 +129,22 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
     if (event.code === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       submitAndReset()
+      return
+    }
+
+    // Shell-style history navigation: intercept ArrowUp/ArrowDown when the
+    // input is empty OR the cursor is at the very start of the field.
+    if (
+      onNavigateHistory &&
+      (event.key === 'ArrowUp' || event.key === 'ArrowDown')
+    ) {
+      const textarea = valueRef.current
+      const selectionStart = textarea?.selectionStart ?? null
+      const shouldIntercept = value === '' || selectionStart === 0
+      if (shouldIntercept) {
+        event.preventDefault()
+        onNavigateHistory(event.key === 'ArrowUp' ? 'up' : 'down')
+      }
     }
   }
 

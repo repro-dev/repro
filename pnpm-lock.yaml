@@ -1164,6 +1164,9 @@ importers:
         specifier: 18.3.1
         version: 18.3.1
     devDependencies:
+      '@types/expect':
+        specifier: 24.3.2
+        version: 24.3.2
       '@types/node':
         specifier: 22.14.0
         version: 22.14.0
@@ -1173,6 +1176,9 @@ importers:
       '@types/repro-shared-types':
         specifier: workspace:*
         version: link:../shared-types
+      expect:
+        specifier: 29.7.0
+        version: 29.7.0
       prettier:
         specifier: ^3.0.0
         version: 3.0.0

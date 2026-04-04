@@ -82,6 +82,7 @@ export const AgenticView: React.FC<{
 
       <AgenticInputSection
         disabled={isActive}
+        entries={entries}
         shouldRaise={shouldRaiseInput}
         onFocusChange={setInputHasFocus}
         onSubmit={handleSubmit}
