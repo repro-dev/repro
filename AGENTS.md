@@ -24,6 +24,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 - **API list endpoints** must return `{ items: Array<T> }` — never bare arrays. A shared `ListResponse<T>` type exists in `packages/domain`. Existing endpoints are pending uplift in REP-129; new endpoints must follow the envelope convention.
 - **Agentic tool errors**: Every error response must include (1) what failed, (2) why it likely failed, (3) specific tool calls the agent should make to recover. Hard requirement, not guidance.
 - Always check existing imports/patterns before adding new dependencies.
+- **Code navigation**: Prefer jcodemunch-mcp MCP tools over `read`/`glob`/`grep` for code exploration. Use `search_symbols` to find functions/classes by name, `get_symbol_source` to retrieve exact implementations, `get_blast_radius` to assess change impact, and `get_file_outline` before reading an entire file. Call `resolve_repo` first to confirm the project is indexed; if not, call `index_folder` on the worktree root. **Always pass the worktree's own root path** — never derive it from `git rev-parse --show-toplevel`, which returns the main checkout path and would contaminate or share an index across worktrees. Each worktree must have its own index. Fall back to `read`/`glob` only when jcodemunch is unavailable or the query genuinely requires full-file context.
 
 ### React & UI
 
