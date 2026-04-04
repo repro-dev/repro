@@ -23,6 +23,20 @@ export interface AgenticInputProps {
   autoFocus?: boolean
   disabled?: boolean
   placeholders?: Array<string>
+  /**
+   * When non-null, overrides the internal input value (e.g. during history
+   * navigation). Changing this to null resets the input to empty.
+   */
+  historyValue?: string | null
+  /**
+   * Called when the user presses ArrowUp (when cursor is at position 0) or
+   * ArrowDown (when already in history mode). The parent can use this to
+   * implement shell-style history navigation and update `historyValue` accordingly.
+   *
+   * `currentValue` is the current input value at the time of the keypress —
+   * provided so the parent can save it as a draft to restore later.
+   */
+  onNavigateHistory?: (direction: 'up' | 'down', currentValue: string) => void
   onFocusChange(hasFocus: boolean): void
   onSubmit(formState: AgenticInputFormState): void
 }
@@ -39,7 +53,9 @@ const PLACEHOLDER_ROTATION_INTERVAL = delay.rotate
 export const AgenticInput: React.FC<AgenticInputProps> = ({
   autoFocus,
   disabled,
+  historyValue,
   onFocusChange,
+  onNavigateHistory,
   onSubmit,
   placeholders = [],
 }) => {
@@ -68,6 +84,14 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
       clearInterval(handle)
     }
   }, [placeholders.length])
+
+  // Sync internal value when the parent drives historyValue.
+  // historyValue === null means "exit history mode" → restore empty input.
+  useEffect(() => {
+    if (historyValue !== undefined) {
+      setValue(historyValue ?? '')
+    }
+  }, [historyValue])
 
   useLayoutEffect(() => {
     if (valueRef.current) {
@@ -108,6 +132,28 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
     if (event.code === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       submitAndReset()
+      return
+    }
+
+    // Shell-style history navigation:
+    // - ArrowUp: intercept when cursor is at position 0 (enter/advance history mode)
+    // - ArrowDown: only intercept when already in history mode (historyValue != null),
+    //   so normal cursor movement is never blocked when not navigating history.
+    if (onNavigateHistory) {
+      const textarea = valueRef.current
+      const selectionStart = textarea?.selectionStart ?? null
+
+      if (event.key === 'ArrowUp' && (value === '' || selectionStart === 0)) {
+        event.preventDefault()
+        onNavigateHistory('up', value)
+        return
+      }
+
+      if (event.key === 'ArrowDown' && historyValue !== null) {
+        event.preventDefault()
+        onNavigateHistory('down', value)
+        return
+      }
     }
   }
 
