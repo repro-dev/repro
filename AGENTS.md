@@ -143,3 +143,16 @@ The typical flow for a feature or fix:
 2. **`develop` agent**: Receives the plan and implements it using TDD. Returns when tests pass and code is verified.
 3. **`test` agent**: Audits coverage, writes regression tests, flags gaps.
 4. **Outer conversation**: Reviews the result, commits, creates the PR.
+
+## Context Management
+
+This project uses [DCP](https://github.com/Opencode-DCP/opencode-dynamic-context-pruning) for context compression. **Treat provider auto-compaction as a failure mode, not a fallback** — if the provider's built-in summarization fires, context was mismanaged.
+
+Use the `compress` tool proactively at these checkpoints:
+
+- **After a PR is opened**: compress the entire implementation, review, and fix cycle for that issue immediately after `gh pr create` and Linear is set to In Review. Keep: commit SHAs, PR URL, changed file paths, blocking issues found and resolved. Drop: verbose tool output, intermediate exploration, failed attempts.
+- **After a wave of parallel issues**: when all issues in a batch have PRs open, compress the wave before scanning for the next batch.
+- **After research/exploration concludes**: compress findings before implementation begins. Keep: key decisions, affected files, design choices. Drop: every intermediate search that led to those findings.
+- **After a skip or escalation**: compress the diagnosis immediately. Keep: why the issue was skipped and the blocking condition.
+
+**Phase boundary rule**: after each completed phase (commit, PR, wave), ask: _"Is this fully closed?"_ If yes, compress before starting the next phase. Do not defer compression across phases — deferred compression compounds and eventually forces auto-compaction.

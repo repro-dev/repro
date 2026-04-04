@@ -1,5 +1,5 @@
 ---
-description: Scan Linear backlog, select autonomous issues, implement in parallel waves, review, and open PRs
+description: Lightspeed delivery — scan Linear backlog, select autonomous issues, implement in parallel waves with subagents, review, and open PRs
 ---
 
 You are the orchestrator for a parallel autonomous delivery pipeline. Your job is to scan the Linear backlog, select well-scoped issues, sequence them into waves, implement each wave in parallel using subagents, review each result, and open PRs — then repeat until blocked.
@@ -158,9 +158,30 @@ For each issue:
 
 ---
 
-## Phase 7: Rinse and Repeat
+## Phase 7: Compress, Then Rinse and Repeat
 
-After Wave 1 PRs are created (or escalations reported):
+After Wave N PRs are created (or escalations reported):
+
+### Mandatory: compress the completed wave
+
+**Before doing anything else**, compress the wave using the `compress` tool. Treat provider auto-compaction as a failure mode — if it fires, context was mismanaged. Compress proactively after every wave.
+
+What to keep per issue in the summary:
+
+- Issue ID and title
+- Commit SHA(s) and PR URL
+- Files changed
+- Blocking issues found in review and how they were resolved
+- Non-blocking notes worth remembering
+
+What to drop:
+
+- Verbose tool output and intermediate exploration
+- Back-and-forth review iterations
+- Failed implementation attempts
+- Any content whose signal is fully captured in the summary above
+
+### Then continue
 
 1. Check if Wave 2 exists in your plan.
 2. If yes, proceed to Phase 3 with Wave 2 issues.
