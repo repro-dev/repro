@@ -9,6 +9,7 @@
   },
   "license": "UNLICENSED",
   "dependencies": {
+    "@anthropic-ai/tokenizer": "^0.0.4",
     "@repro/atom": "workspace:*",
     "@repro/dom-to-image": "workspace:*",
     "@repro/domain": "workspace:*",

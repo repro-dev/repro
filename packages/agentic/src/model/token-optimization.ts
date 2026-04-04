@@ -18,8 +18,37 @@ export interface TokenEstimatedResponse {
   _tokenEstimate: number;
 }
 
+// Cached tokenizer module reference. `null` means unavailable after one attempt.
+let tokenizerModule:
+  | { countTokens: (text: string) => number }
+  | null
+  | undefined = undefined;
+
+function loadTokenizer(): { countTokens: (text: string) => number } | null {
+  if (tokenizerModule !== undefined) return tokenizerModule;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    tokenizerModule = require("@anthropic-ai/tokenizer") as {
+      countTokens: (text: string) => number;
+    };
+  } catch {
+    tokenizerModule = null;
+  }
+  return tokenizerModule;
+}
+
 export function estimateTokens(response: unknown): number {
-  return Math.ceil(JSON.stringify(response).length / 4);
+  const text = JSON.stringify(response);
+  try {
+    const mod = loadTokenizer();
+    if (mod) {
+      return mod.countTokens(text);
+    }
+  } catch {
+    // Fall through to heuristic on unexpected tokenizer errors
+  }
+  // Heuristic fallback: ~4 chars per token on average
+  return Math.round(text.length / 4);
 }
 
 export function shortenStackFrame(frame: string): string {
