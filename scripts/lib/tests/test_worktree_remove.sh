@@ -26,7 +26,8 @@ _pass() { printf '  ✔ %s\n' "$1"; PASS=$((PASS + 1)); TESTS_RUN=$((TESTS_RUN +
 _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); TESTS_RUN=$((TESTS_RUN + 1)); }
 
 # Run a snippet of bash code in an isolated subshell.  The snippet must
-# print exactly "PASS" (any output) or anything else (treated as failure).
+# print "PASS" on its first line; additional output is allowed. Anything
+# else is treated as failure.
 run_git_test() {
   local desc="$1" snippet="$2"
   local output rc=0
@@ -192,6 +193,36 @@ _src_wt
 WT_DRY_RUN=true WT_FORCE=true
 output=\"\$(cmd_wt_remove force-test 2>&1)\"
 if echo \"\$output\" | grep -q 'dry-run'; then echo PASS; else echo \"FAIL:\$output\"; fi
+"
+
+run_git_test "cmd_wt_remove: dirty worktree without --force exits non-zero and leaves worktree intact" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree dirty-no-force)\"
+printf 'dirty\n' >\"\$wt_dir/.dirty-uncommitted\"
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false
+rc=0
+output=\"\$(cmd_wt_remove dirty-no-force 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -ne 0 && -d \"\$wt_dir\" ]]; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc output=\$output wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no)\"
+fi
+"
+
+run_git_test "cmd_wt_remove: dirty worktree with --force succeeds and removes worktree" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree dirty-force)\"
+printf 'dirty\n' >\"\$wt_dir/.dirty-uncommitted\"
+_src_wt
+WT_DRY_RUN=false WT_FORCE=true
+rc=0
+output=\"\$(cmd_wt_remove dirty-force 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -eq 0 && ! -d \"\$wt_dir\" ]]; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc output=\$output wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no)\"
+fi
 "
 
 run_git_test "cmd_wt_remove: missing slug exits non-zero" "

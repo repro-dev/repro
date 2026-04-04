@@ -291,7 +291,9 @@ cmd_wt_remove() {
   # both a bare slug (e.g. rep-123) and a full branch name.
   wt_path="$(resolve_worktree "$input")" || wt_path=""
 
-  if [ -z "$wt_path" ] || [ ! -d "$wt_path" ]; then
+  # Guard: directory must exist AND be a registered git worktree. An accidental
+  # directory that isn't tracked by git should be treated as "not found".
+  if [ -z "$wt_path" ] || [ ! -d "$wt_path" ] || ! _worktree_branch_for_path "$wt_path" >/dev/null 2>&1; then
     if [ "$WT_DRY_RUN" = true ]; then
       echo "${CLR_DIM}[dry-run]${CLR_RESET} No worktree found for: $input"
       return 0
@@ -318,9 +320,9 @@ cmd_wt_remove() {
 
   _step 1 2 "Removing git worktree..."
   if [ "${WT_FORCE:-false}" = true ]; then
-    git worktree remove --force "$wt_path"
+    git worktree remove --force "$wt_path" || return $?
   else
-    git worktree remove "$wt_path"
+    git worktree remove "$wt_path" || return $?
   fi
 
   _step 2 2 "Pruning stale entries..."
@@ -713,12 +715,10 @@ Options (remove):
   --force, -f       Force-remove worktree even if it has uncommitted changes
   --dry-run         Preview what would be done without making changes
 
-Options (remove, prune):
-  --dry-run         Preview what would be done without making changes
-
 Options (prune):
   --yes, -y         Skip confirmation prompt
   --force, -f       Force-remove worktrees even if they have uncommitted changes
+  --dry-run         Preview what would be done without making changes
 
 Interactive picker:
   When 'attach' or 'remove' is invoked without a branch name and
@@ -877,7 +877,7 @@ cmd_wt() {
           selected="$(_pick "Select worktree to remove" "${candidates[@]}")" || exit $?
           args=("$selected")
         else
-          die "'worktree remove' requires a branch name or slug"
+          die "'worktree remove' requires a slug or branch name"
         fi
       fi
       # Accept bare slugs (e.g. rep-123) as well as full branch names.
