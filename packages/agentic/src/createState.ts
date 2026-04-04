@@ -301,16 +301,9 @@ export function deduplicateToolCalls(
   // respecting protected IDs: a protected call is always "most recent" for its
   // signature so that a later unprotected duplicate gets dropped rather than
   // the protected one.
-  //
-  // Strategy: one forward pass to collect the *last* non-protected occurrence
-  // per sig, then a second pass to decide which protected ids need to win.
-  const lastUnprotectedById = new Map<string, string>(); // sig → last non-protected id
   const lastAnyById = new Map<string, string>(); // sig → last id (protected or not)
   for (const [id, sig] of sigById) {
     lastAnyById.set(sig, id);
-    if (!protectedIds.has(id)) {
-      lastUnprotectedById.set(sig, id);
-    }
   }
 
   // A tool call id should be dropped if:
