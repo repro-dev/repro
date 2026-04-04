@@ -163,6 +163,9 @@ export function createReactObserver(
         propsDelta,
         hooksDelta: '',
         fiberNodeId: fiber._debugID ?? 0,
+        // parentFiberId and commitBatchId are populated in REP-715
+        parentFiberId: 0,
+        commitBatchId: 0,
       }
 
       subscriber(event)
