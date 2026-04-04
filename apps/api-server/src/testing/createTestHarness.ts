@@ -101,6 +101,7 @@ export async function createTestHarness(): Promise<Harness> {
     `.execute(db)
 
     emailLog.length = 0
+    stubPaddleClient.clearLastUpdateSubscriptionParams()
   }
 
   async function close() {

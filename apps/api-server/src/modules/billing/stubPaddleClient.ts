@@ -27,6 +27,10 @@ export function createStubPaddleClient(database: Database) {
     return lastUpdateSubscriptionParams
   }
 
+  function clearLastUpdateSubscriptionParams(): void {
+    lastUpdateSubscriptionParams = null
+  }
+
   function createCustomer(
     email: string,
     name?: string
@@ -166,6 +170,7 @@ export function createStubPaddleClient(database: Database) {
     createPortalSession,
     verifyWebhook,
     getLastUpdateSubscriptionParams,
+    clearLastUpdateSubscriptionParams,
     EventName,
   }
 }

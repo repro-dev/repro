@@ -16,10 +16,15 @@ describe('billing plan tier comparison', () => {
       expect(getPlanTierOrdinal('Repro++')).toBe(2)
     })
 
-    it('throws for unknown plan names', () => {
+    it('throws a BadRequestError for unknown plan names', () => {
       expect(() => getPlanTierOrdinal('Unknown')).toThrow(
         'Unknown plan name: "Unknown"'
       )
+      try {
+        getPlanTierOrdinal('Unknown')
+      } catch (err) {
+        expect((err as Error).name).toBe('BadRequestError')
+      }
     })
   })
 

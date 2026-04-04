@@ -63,7 +63,7 @@ export function getPlanTierOrdinal(planName: string): number {
     planName as (typeof PLAN_TIER_ORDER)[number]
   )
   if (ordinal === -1) {
-    throw new Error(`Unknown plan name: "${planName}"`)
+    throw badRequest(`Unknown plan name: "${planName}"`)
   }
   return ordinal
 }
