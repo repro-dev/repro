@@ -130,6 +130,7 @@ function makeSnapshotEvent(time: number): SourceEvent {
     data: {
       dom: makeVTree(),
       interaction: makeInteractionSnapshot(),
+      frameworkState: null,
     },
   })
 }

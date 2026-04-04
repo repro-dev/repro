@@ -60,6 +60,7 @@ export function createFixture(): EvalFixture {
         },
       },
       interaction: null,
+      frameworkState: null,
     };
   }
 

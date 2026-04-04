@@ -79,6 +79,7 @@ export function createFixture(): EvalFixture {
           },
         },
         interaction: null,
+        frameworkState: null,
       };
     }
 
@@ -146,6 +147,7 @@ export function createFixture(): EvalFixture {
         },
       },
       interaction: null,
+      frameworkState: null,
     };
   }
 
