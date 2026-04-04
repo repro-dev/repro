@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Opencode-DCP/opencode-dynamic-context-pruning/master/dcp.schema.json",
+  // Compression settings tuned for claude-sonnet-4.6 (200k context window)
+  "compress": {
+    // Use range mode: compress completed spans into summaries.
+    // Message mode is experimental and untested in our workflow.
+    "mode": "range",
+    // Soft upper threshold — above this DCP injects strong compression nudges.
+    // Set to 130k (65% of 200k) to leave headroom for active work.
+    "maxContextLimit": 130000,
+    // Soft lower threshold — below this, reminders are off.
+    // Set to 60k (30% of 200k).
+    "minContextLimit": 60000,
+    // Append bash outputs to compression summaries so file-write operations
+    // are never silently dropped from context.
+    "protectedTools": ["bash"]
+  },
+  // Subagent support is experimental — leave disabled until validated
+  // with our develop/test agent delegation pattern.
+  "experimental": {
+    "allowSubAgents": false
+  }
+}

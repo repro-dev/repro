@@ -9,10 +9,10 @@ Follow these phases in order when implementing a feature or fix.
 
 For detailed sub-topics, read the reference files in this directory:
 
-| File | When to read |
-|------|-------------|
-| `worktrees.md` | Full worktree docs — reproctl commands, services, naming, JSON schema, Neovim picker, troubleshooting |
-| `parallel-delegation.md` | Working on 2+ independent issues simultaneously with Task tool subagents |
+| File                     | When to read                                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `worktrees.md`           | Full worktree docs — reproctl commands, services, naming, JSON schema, Neovim picker, troubleshooting |
+| `parallel-delegation.md` | Working on 2+ independent issues simultaneously with Task tool subagents                              |
 
 ---
 
@@ -64,9 +64,11 @@ For 2+ independent issues, create one worktree per issue and use the Task tool t
 1. **Fetch the Linear issue** via MCP (`Linear_get_issue`) for the work item. Read the full description — check for requirements, resolved decisions, and open considerations. These take precedence over assumptions.
 2. **Load relevant skills** — this skill (`feature-dev`) provides the phased workflow; load domain skills (`build-and-test`, `design-system`, `database`, `git-workflow`) as needed during implementation.
 3. **Create a worktree** (if one doesn't already exist for this issue):
+
    ```sh
    reproctl wt create --from-issue REP-123
    ```
+
    If a worktree already exists and you're working inside it, skip this step.
 
    Branch naming pattern: `<type>/<issue?>-<slug>` (e.g., `feat/REP-123-add-auth`, `fix/REP-456-login-redirect`)
@@ -87,6 +89,7 @@ For 2+ independent issues, create one worktree per issue and use the Task tool t
 **Delegate all implementation work that touches 2+ files to the `develop` agent.** The outer conversation handles diagnosis, design, planning, and user interaction; the `develop` agent grinds through the mechanical implementation on a cost-optimized model.
 
 When launching the `develop` agent, provide:
+
 1. The **worktree path** (e.g. `/Users/gary/Projects/repro-dev/repro-wt-rep-123`)
 2. The **exact file paths and line ranges** to modify
 3. The **specific changes** to make (not vague instructions — concrete edits)
@@ -101,13 +104,13 @@ After the `develop` agent completes, launch the `test` agent to audit coverage a
 
 Follow the project conventions for each domain. Domain-specific rules are loaded on demand from their respective skills — do not guess, load the skill when working in that domain.
 
-| Domain | Where to find the rules |
-|--------|------------------------|
-| **Code style** | Front-loaded in root `AGENTS.md` (always available) |
-| **Git & commits** | Load the `git-workflow` skill |
-| **Design system & UI** | Load the `design-system` skill |
-| **Build, test & reproctl** | Load the `build-and-test` skill |
-| **Database & migrations** | Load the `database` skill |
+| Domain                     | Where to find the rules                             |
+| -------------------------- | --------------------------------------------------- |
+| **Code style**             | Front-loaded in root `AGENTS.md` (always available) |
+| **Git & commits**          | Load the `git-workflow` skill                       |
+| **Design system & UI**     | Load the `design-system` skill                      |
+| **Build, test & reproctl** | Load the `build-and-test` skill                     |
+| **Database & migrations**  | Load the `database` skill                           |
 
 Key rules that apply to every implementation (details in the skills above):
 
@@ -166,21 +169,55 @@ Run these checks before committing. Fix any failures before proceeding. For full
 
 ## Quick Reference: Linear Status Lifecycle
 
-| Status | When |
-|--------|------|
-| Backlog | Not yet prioritised |
-| Todo | Ready for current cycle |
-| **In Progress** | Branch exists, code being written |
-| **In Review** | PR is open |
-| Done | PR merged to main (never set manually before merge) |
-| Canceled | Won't do — leave a comment explaining why |
+| Status          | When                                                |
+| --------------- | --------------------------------------------------- |
+| Backlog         | Not yet prioritised                                 |
+| Todo            | Ready for current cycle                             |
+| **In Progress** | Branch exists, code being written                   |
+| **In Review**   | PR is open                                          |
+| Done            | PR merged to main (never set manually before merge) |
+| Canceled        | Won't do — leave a comment explaining why           |
 
 ## Troubleshooting
 
 If a service isn't behaving as expected during development:
 
-| Command | What it shows |
-|---------|---------------|
-| `reproctl status` | Quick glance — running services, pod status, restart counts, drift warnings |
+| Command                | What it shows                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------- |
+| `reproctl status`      | Quick glance — running services, pod status, restart counts, drift warnings                 |
 | `reproctl checkhealth` | Comprehensive runtime health — Tilt, k8s, registry, ports, service health, worktree orphans |
-| `reproctl doctor` | Static prerequisites — tool versions, brew deps, node_modules, direnv |
+| `reproctl doctor`      | Static prerequisites — tool versions, brew deps, node_modules, direnv                       |
+
+## Context Compaction (DCP)
+
+This project uses [opencode-dynamic-context-pruning (DCP)](https://github.com/Opencode-DCP/opencode-dynamic-context-pruning) to manage token usage in long agent sessions.
+
+### How it works
+
+DCP replaces OpenCode's static capacity-triggered compaction with model-driven compression. Instead of discarding the full session history when the context window fills, the model compresses completed spans into high-fidelity summaries — preserving task-relevant context while removing stale content.
+
+### Configuration
+
+Project config: `.opencode/dcp.jsonc`
+
+Key settings:
+
+- `compress.mode: range` — compresses contiguous completed spans (not individual messages)
+- `maxContextLimit: 130000` — above this, DCP injects strong compression nudges (65% of claude-sonnet-4.6's 200k window)
+- `minContextLimit: 60000` — below this, compression reminders are off
+- `compress.protectedTools: ["bash"]` — bash outputs are appended to compression summaries so file-write operations are never silently dropped
+
+**Default protected tools** (built into DCP, no config needed): `task`, `skill`, `todowrite`, `todoread`, `write`, `edit`
+
+### Subagent behaviour
+
+`experimental.allowSubAgents` is `false` (DCP default). DCP does not process `develop` or `test` subagent sessions. This is intentional — enabling it is experimental and untested with our delegation pattern. Re-evaluate if subagents start hitting context limits.
+
+### Useful commands
+
+| Command          | Purpose                                                |
+| ---------------- | ------------------------------------------------------ |
+| `/dcp context`   | Show token usage breakdown for the current session     |
+| `/dcp stats`     | Show cumulative pruning statistics across all sessions |
+| `/dcp compress`  | Manually trigger compression                           |
+| `/dcp manual on` | Disable autonomous compression (manual control only)   |
