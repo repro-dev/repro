@@ -196,6 +196,15 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
                 component="button"
                 props={{
                   type: 'button',
+                  // Reset native browser button styles so the link renders as
+                  // inline text with no button chrome (background, border, padding).
+                  style: {
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    font: 'inherit',
+                    cursor: 'pointer',
+                  },
                   onClick: () => {
                     setShowResetFlow(true)
                     setShowPostResetMessage(false)
