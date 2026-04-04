@@ -84,6 +84,7 @@ export const AgenticView: React.FC<{
         disabled={isActive}
         entries={entries}
         shouldRaise={shouldRaiseInput}
+        hasConversationStarted={entries.length > 0}
         onFocusChange={setInputHasFocus}
         onSubmit={handleSubmit}
       />
