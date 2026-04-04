@@ -9,7 +9,24 @@ import { FutureInstance, chain, map, reject, resolve } from 'fluture'
 import { Database, attemptQuery, decodeId } from '~/modules/database'
 import { badRequest, notImplemented } from '~/utils/errors'
 
+export type UpdateSubscriptionParams = {
+  items: Array<{ priceId: string; quantity: number }>
+  prorationBillingMode:
+    | 'prorated_immediately'
+    | 'prorated_next_billing_period'
+    | 'full_immediately'
+    | 'full_next_billing_period'
+    | 'do_not_bill'
+}
+
 export function createStubPaddleClient(database: Database) {
+  // Tracks the most recent params passed to updateSubscription for test assertions
+  let lastUpdateSubscriptionParams: UpdateSubscriptionParams | null = null
+
+  function getLastUpdateSubscriptionParams(): UpdateSubscriptionParams | null {
+    return lastUpdateSubscriptionParams
+  }
+
   function createCustomer(
     email: string,
     name?: string
@@ -110,16 +127,9 @@ export function createStubPaddleClient(database: Database) {
 
   function updateSubscription(
     subscriptionId: string,
-    _params: {
-      items: Array<{ priceId: string; quantity: number }>
-      prorationBillingMode:
-        | 'prorated_immediately'
-        | 'prorated_next_billing_period'
-        | 'full_immediately'
-        | 'full_next_billing_period'
-        | 'do_not_bill'
-    }
+    params: UpdateSubscriptionParams
   ): FutureInstance<Error, Subscription> {
+    lastUpdateSubscriptionParams = params
     return resolve({ id: subscriptionId } as Subscription)
   }
 
@@ -155,6 +165,7 @@ export function createStubPaddleClient(database: Database) {
     cancelSubscription,
     createPortalSession,
     verifyWebhook,
+    getLastUpdateSubscriptionParams,
     EventName,
   }
 }

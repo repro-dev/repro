@@ -59,7 +59,13 @@ export interface PortalSession {
 const PLAN_TIER_ORDER = ['Free', 'Repro+', 'Repro++'] as const
 
 export function getPlanTierOrdinal(planName: string): number {
-  return PLAN_TIER_ORDER.indexOf(planName as (typeof PLAN_TIER_ORDER)[number])
+  const ordinal = PLAN_TIER_ORDER.indexOf(
+    planName as (typeof PLAN_TIER_ORDER)[number]
+  )
+  if (ordinal === -1) {
+    throw new Error(`Unknown plan name: "${planName}"`)
+  }
+  return ordinal
 }
 
 // Returns true if moving from currentPlanName → newPlanName is an upgrade

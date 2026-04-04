@@ -4,6 +4,7 @@ import { sql } from 'kysely'
 import { Env, createEnv } from '~/config/createEnv'
 import { createSessionDecorator } from '~/decorators/session'
 import { createStubPaddleClient } from '~/modules/billing'
+import type { UpdateSubscriptionParams } from '~/modules/billing/stubPaddleClient'
 import { Database } from '~/modules/database'
 import { SendParams, createStubEmailUtils } from '~/modules/email-utils'
 import { Storage } from '~/modules/storage'
@@ -25,6 +26,7 @@ export interface Harness {
   storage: Storage
   env: Env
   services: Services
+  getLastUpdateSubscriptionParams(): UpdateSubscriptionParams | null
 
   bootstrap(router: FastifyPluginAsync): FastifyInstance
   generateRandomEmailAddress(): string
@@ -82,7 +84,7 @@ export async function createTestHarness(): Promise<Harness> {
     fixtures: [...T]
   ) => Promise<FixtureArrayToValues<T>>
 
-  // function expectEmailToHaveBeenSent(expected: Partial<SendParams>) {
+  // function expectEmailToHaveBeenSent(params: SendParams) {
   //   return
   // }
 
@@ -115,6 +117,8 @@ export async function createTestHarness(): Promise<Harness> {
     bootstrap,
     // expectEmailToHaveBeenSent,
     generateRandomEmailAddress,
+    getLastUpdateSubscriptionParams:
+      stubPaddleClient.getLastUpdateSubscriptionParams,
     loadFixtures: curriedLoadFixtures,
 
     reset,

@@ -1,53 +1,55 @@
-import assert from 'node:assert/strict'
+import expect from 'expect'
 import { describe, it } from 'node:test'
 import { getPlanTierOrdinal, isUpgradePlan } from './billing'
 
 describe('billing plan tier comparison', () => {
   describe('getPlanTierOrdinal', () => {
     it('returns 0 for Free plan', () => {
-      assert.equal(getPlanTierOrdinal('Free'), 0)
+      expect(getPlanTierOrdinal('Free')).toBe(0)
     })
 
     it('returns 1 for Repro+ plan', () => {
-      assert.equal(getPlanTierOrdinal('Repro+'), 1)
+      expect(getPlanTierOrdinal('Repro+')).toBe(1)
     })
 
     it('returns 2 for Repro++ plan', () => {
-      assert.equal(getPlanTierOrdinal('Repro++'), 2)
+      expect(getPlanTierOrdinal('Repro++')).toBe(2)
     })
 
-    it('returns -1 for unknown plan names', () => {
-      assert.equal(getPlanTierOrdinal('Unknown'), -1)
+    it('throws for unknown plan names', () => {
+      expect(() => getPlanTierOrdinal('Unknown')).toThrow(
+        'Unknown plan name: "Unknown"'
+      )
     })
   })
 
   describe('isUpgradePlan', () => {
     it('returns true when moving from Free to Repro+', () => {
-      assert.equal(isUpgradePlan('Free', 'Repro+'), true)
+      expect(isUpgradePlan('Free', 'Repro+')).toBe(true)
     })
 
     it('returns true when moving from Free to Repro++', () => {
-      assert.equal(isUpgradePlan('Free', 'Repro++'), true)
+      expect(isUpgradePlan('Free', 'Repro++')).toBe(true)
     })
 
     it('returns true when moving from Repro+ to Repro++', () => {
-      assert.equal(isUpgradePlan('Repro+', 'Repro++'), true)
+      expect(isUpgradePlan('Repro+', 'Repro++')).toBe(true)
     })
 
     it('returns false when moving from Repro+ to Free (downgrade)', () => {
-      assert.equal(isUpgradePlan('Repro+', 'Free'), false)
+      expect(isUpgradePlan('Repro+', 'Free')).toBe(false)
     })
 
     it('returns false when moving from Repro++ to Repro+ (downgrade)', () => {
-      assert.equal(isUpgradePlan('Repro++', 'Repro+'), false)
+      expect(isUpgradePlan('Repro++', 'Repro+')).toBe(false)
     })
 
     it('returns false when moving from Repro++ to Free (downgrade)', () => {
-      assert.equal(isUpgradePlan('Repro++', 'Free'), false)
+      expect(isUpgradePlan('Repro++', 'Free')).toBe(false)
     })
 
     it('returns false when plan names are the same (lateral)', () => {
-      assert.equal(isUpgradePlan('Repro+', 'Repro+'), false)
+      expect(isUpgradePlan('Repro+', 'Repro+')).toBe(false)
     })
   })
 })
