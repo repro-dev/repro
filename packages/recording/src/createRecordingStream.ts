@@ -56,8 +56,8 @@ import { createViewportVisitor } from './interaction/visitor'
 import { createNetworkObserver } from './network'
 import { createPerformanceObserver } from './performance'
 import { observePeriodic } from './periodic'
-import { createReactObserver } from './state/react'
-import { createReduxObserver } from './state/redux'
+import { createReactObserver, getComponentTree } from './state/react'
+import { createReduxObserver, getStoreState } from './state/redux'
 import { RecordingOptions } from './types'
 
 function isZeroPoint(point: Point) {
@@ -143,6 +143,9 @@ export function createRecordingStream(
   let trailingSnapshot = createEmptySnapshot()
   let sourceDocuments = [rootDocument]
 
+  // Detect frameworks once at stream creation time
+  const frameworks = detectFrameworks()
+
   const domTreeWalker = createDOMTreeWalker({
     ignoredNodes: options.ignoredNodes,
     ignoredSelectors: options.ignoredSelectors,
@@ -211,13 +214,14 @@ export function createRecordingStream(
       })
 
       subscribeToBuffer()
-      addEvent(createSnapshotEvent())
 
       for (const observer of observers) {
         for (const doc of sourceDocuments) {
           observer.observe(doc, trailingVTree)
         }
       }
+
+      addEvent(createSnapshotEvent())
     })
   }
 
@@ -389,11 +393,36 @@ export function createRecordingStream(
     eventBuffer.push(data)
   }
 
+  const MAX_REDUX_SNAPSHOT_CHARS = 500_000
+
+  function safeSerialiseReduxState(state: unknown): string | null {
+    if (state === null) return null
+    try {
+      const json = JSON.stringify(state)
+      if (json === undefined) return null
+      if (json.length > MAX_REDUX_SNAPSHOT_CHARS) return null
+      return json
+    } catch {
+      return null
+    }
+  }
+
   function createSnapshotEvent(): Box<SnapshotEvent> {
+    const reactTree = frameworks.react ? getComponentTree() : null
+    const reduxState = frameworks.redux
+      ? safeSerialiseReduxState(getStoreState())
+      : null
+
+    const snap = copyObjectDeep(trailingSnapshot)
+    snap.frameworkState =
+      reactTree !== null || reduxState !== null
+        ? { reactTree, reduxState }
+        : null
+
     return new Box({
       time: performance.now(),
       type: SourceEventType.Snapshot,
-      data: copyObjectDeep(trailingSnapshot),
+      data: snap,
     })
   }
 
@@ -623,8 +652,6 @@ export function createRecordingStream(
   }
 
   function registerStateObservers() {
-    const frameworks = detectFrameworks()
-
     if (frameworks.react) {
       observers.push(
         createReactObserver((event: ReactCommitEvent) => {

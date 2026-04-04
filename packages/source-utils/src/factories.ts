@@ -9,5 +9,6 @@ export function createEmptySnapshot(): Snapshot {
   return {
     dom: null,
     interaction: null,
+    frameworkState: null,
   }
 }

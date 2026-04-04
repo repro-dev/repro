@@ -1,4 +1,10 @@
-import { ReactCommitEvent, StateEventType, VTree } from '@repro/domain'
+import {
+  ReactCommitEvent,
+  ReactComponentNode,
+  ReactComponentTree,
+  StateEventType,
+  VTree,
+} from '@repro/domain'
 import { ObserverLike } from '@repro/observer-utils'
 
 // Fiber tags we care about: FunctionComponent, ClassComponent, ForwardRef
@@ -12,6 +18,13 @@ const MAX_SERIALISE_DEPTH = 3
 
 // Monotonically incrementing counter — incremented once per onCommitFiberRoot call
 let commitBatchCounter = 0
+
+// Running map of latest known state per fiber, keyed by fiberNodeId
+// Updated on every ReactCommitEvent; read at snapshot time
+const componentTree = new Map<number, ReactComponentNode>()
+
+// Root fiber ID captured on first commit; null until first commit observed
+let rootFiberId: number | null = null
 
 interface Fiber {
   tag: number
@@ -162,6 +175,11 @@ export function createReactObserver(
     // Increment batch ID once per commit — all events in this walk share the same value
     const currentBatchId = ++commitBatchCounter
 
+    // Capture root fiber ID from the root current fiber
+    if (rootFiberId === null && root.current._debugID !== undefined) {
+      rootFiberId = root.current._debugID
+    }
+
     walkFiber(root.current, fiber => {
       // Only track component fiber tags
       if (!TRACKED_TAGS.has(fiber.tag)) return
@@ -189,6 +207,16 @@ export function createReactObserver(
       }
 
       subscriber(event)
+
+      // Maintain running component tree (skip unknown fiber IDs)
+      if (event.fiberNodeId !== 0) {
+        componentTree.set(event.fiberNodeId, {
+          fiberNodeId: event.fiberNodeId,
+          parentFiberId: event.parentFiberId,
+          componentName: event.componentName,
+          props: event.propsDelta,
+        })
+      }
     })
   }
 
@@ -242,4 +270,22 @@ export function createReactObserver(
       }
     },
   }
+}
+
+// Returns a snapshot of the current accumulated component tree.
+// Returns null if no root fiber has been observed yet.
+// Called at snapshot emit time by createRecordingStream.
+export function getComponentTree(): ReactComponentTree | null {
+  if (rootFiberId === null) return null
+  const nodes: Record<string, ReactComponentNode> = {}
+  for (const [id, node] of componentTree.entries()) {
+    nodes[String(id)] = node
+  }
+  return { rootId: rootFiberId, nodes }
+}
+
+// Reset the component tree — used in tests to isolate state between test runs.
+export function resetComponentTree(): void {
+  componentTree.clear()
+  rootFiberId = null
 }

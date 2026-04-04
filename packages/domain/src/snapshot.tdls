@@ -1,5 +1,6 @@
 import interaction.{PointerState, ScrollMap}
 import point.Point
+import react.{ReactComponentTree}
 import vdom.VTree
 
 type InteractionSnapshot: struct {
@@ -10,7 +11,13 @@ type InteractionSnapshot: struct {
   4) pageURL: string
 }
 
+type FrameworkState: struct {
+  0) reactTree: ?ReactComponentTree
+  1) reduxState: ?string
+}
+
 type Snapshot: struct {
   0) dom: ?VTree
   1) interaction: ?InteractionSnapshot
+  2) frameworkState: ?FrameworkState
 }

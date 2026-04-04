@@ -9,7 +9,7 @@ import {
 } from '@repro/domain'
 import { Box } from '@repro/tdl'
 
-import { createReduxObserver } from './redux'
+import { createReduxObserver, getStoreState } from './redux'
 
 // Minimal Redux store mock
 interface MockStore {
@@ -153,5 +153,61 @@ describe('createReduxObserver', () => {
       .unwrap()
 
     assert.equal(inner.stateDiff, '[state diff truncated]')
+  })
+})
+
+describe('getStoreState', () => {
+  it('returns null when no store has been observed', () => {
+    // Use an empty window with no store globals
+    const win = {} as Window & typeof globalThis
+    const observer = createReduxObserver(() => {}, win)
+    observer.observe({} as Document, {} as never)
+    observer.disconnect()
+
+    assert.equal(getStoreState(), null)
+  })
+
+  it('returns current store state after observe', () => {
+    const store = createMockStore({ count: 5, name: 'Test' })
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const observer = createReduxObserver(() => {}, win)
+    observer.observe({} as Document, {} as never)
+
+    const state = getStoreState() as Record<string, unknown>
+    assert.equal(state['count'], 5)
+    assert.equal(state['name'], 'Test')
+
+    observer.disconnect()
+  })
+
+  it('returns null after disconnect', () => {
+    const store = createMockStore({ x: 1 })
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const observer = createReduxObserver(() => {}, win)
+    observer.observe({} as Document, {} as never)
+
+    // Confirm non-null while connected
+    assert.notEqual(getStoreState(), null)
+
+    observer.disconnect()
+
+    assert.equal(getStoreState(), null)
+  })
+
+  it('reflects updated state after a dispatch', () => {
+    const store = createMockStore({ count: 0 })
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const observer = createReduxObserver(() => {}, win)
+    observer.observe({} as Document, {} as never)
+
+    store.dispatch({ type: 'INCREMENT', count: 42 })
+
+    const state = getStoreState() as Record<string, unknown>
+    assert.equal(state['count'], 42)
+
+    observer.disconnect()
   })
 })

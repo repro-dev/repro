@@ -96,20 +96,21 @@ function computeStateDiff(before: unknown, after: unknown): string {
   return serialised
 }
 
+// Module-level store reference, populated by createReduxObserver().observe()
+let currentStore: ReduxStore | undefined
+let originalDispatch: ((action: ReduxAction) => unknown) | undefined
+
 export function createReduxObserver(
   subscriber: (event: StateSourceEvent) => void,
   // Accept an optional window reference so tests can inject a mock
   win: Window & typeof globalThis = globalThis as Window & typeof globalThis
 ): ObserverLike {
-  let store: ReduxStore | undefined
-  let originalDispatch: ((action: ReduxAction) => unknown) | undefined
-
   return {
     observe() {
-      store = findReduxStore(win)
-      if (!store) return
+      currentStore = findReduxStore(win)
+      if (!currentStore) return
 
-      const foundStore = store
+      const foundStore = currentStore
       originalDispatch = foundStore.dispatch
 
       foundStore.dispatch = function (action: ReduxAction) {
@@ -149,11 +150,17 @@ export function createReduxObserver(
     },
 
     disconnect() {
-      if (store && originalDispatch) {
-        store.dispatch = originalDispatch
-        store = undefined
+      if (currentStore && originalDispatch) {
+        currentStore.dispatch = originalDispatch
+        currentStore = undefined
         originalDispatch = undefined
       }
     },
   }
+}
+
+// Returns the current Redux store state, or null if no store was found.
+// Called at snapshot emit time by createRecordingStream.
+export function getStoreState(): unknown {
+  return currentStore ? currentStore.getState() : null
 }

@@ -1,7 +1,11 @@
 import { ReactCommitEvent, StateEventType } from '@repro/domain'
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { createReactObserver } from './react'
+import {
+  createReactObserver,
+  getComponentTree,
+  resetComponentTree,
+} from './react'
 
 // Minimal Fiber-like object for testing
 interface MockFiber {
@@ -438,6 +442,139 @@ describe('createReactObserver', () => {
       originalFn
     )
 
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+})
+
+describe('getComponentTree', () => {
+  it('returns null when no commits have occurred', () => {
+    resetComponentTree()
+    const tree = getComponentTree()
+    assert.equal(tree, null)
+  })
+
+  it('returns accumulated component nodes after a commit', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+    resetComponentTree()
+
+    const observer = createReactObserver(() => {})
+    observer.observe(null as any, null as any)
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'MyButton' },
+      memoizedProps: { label: 'Click' },
+      alternate: null,
+      _debugID: 500,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    const tree = getComponentTree()
+    assert.ok(tree !== null)
+    assert.equal(tree.rootId, 500)
+    assert.equal(Object.keys(tree.nodes).length, 1)
+    const node = tree.nodes['500']!
+    assert.equal(node.fiberNodeId, 500)
+    assert.equal(node.componentName, 'MyButton')
+    assert.ok(node.props.includes('Click'))
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('updates existing node when same fiberNodeId commits again with new props', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+    resetComponentTree()
+
+    const observer = createReactObserver(() => {})
+    observer.observe(null as any, null as any)
+
+    const fiber1 = makeFiber({
+      tag: 0,
+      type: { name: 'Counter' },
+      memoizedProps: { count: 1 },
+      alternate: null,
+      _debugID: 600,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber1))
+
+    // Same fiberNodeId, different props
+    const fiber2 = makeFiber({
+      tag: 0,
+      type: { name: 'Counter' },
+      memoizedProps: { count: 2 },
+      alternate: fiber1,
+      _debugID: 600,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber2))
+
+    const tree = getComponentTree()
+    assert.ok(tree !== null)
+    assert.equal(tree.rootId, 600)
+    // Should still have exactly one node (same fiberNodeId)
+    assert.equal(Object.keys(tree.nodes).length, 1)
+    const node = tree.nodes['600']!
+    assert.equal(node.fiberNodeId, 600)
+    assert.ok(node.props.includes('2'))
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('skips fiberNodeId 0 (unknown sentinel) from the component tree', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+    resetComponentTree()
+
+    const observer = createReactObserver(() => {})
+    observer.observe(null as any, null as any)
+
+    // Fiber with no _debugID (will have fiberNodeId = 0); root fiber also has no _debugID
+    // so rootFiberId stays null and getComponentTree returns null
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'Anonymous' },
+      memoizedProps: { x: 1 },
+      alternate: null,
+      _debugID: undefined,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    const tree = getComponentTree()
+    // No root fiber ID captured → returns null
+    assert.equal(tree, null)
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('resetComponentTree clears accumulated state', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+    resetComponentTree()
+
+    const observer = createReactObserver(() => {})
+    observer.observe(null as any, null as any)
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'Foo' },
+      memoizedProps: { a: 1 },
+      alternate: null,
+      _debugID: 700,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+    const treeAfterCommit = getComponentTree()
+    assert.ok(treeAfterCommit !== null)
+    assert.equal(Object.keys(treeAfterCommit.nodes).length, 1)
+
+    resetComponentTree()
+    assert.equal(getComponentTree(), null)
+
+    observer.disconnect()
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
   })
 })
