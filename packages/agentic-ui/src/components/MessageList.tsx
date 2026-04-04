@@ -3,7 +3,10 @@ import { Md } from "@m2d/react-markdown";
 import { AgenticError, Entry, Loading, groupToolCalls } from "@repro/agentic";
 import { colors, spacing } from "@repro/design";
 import React, { useMemo } from "react";
-import { INPUT_CONTAINER_OFFSET_PX } from "../constants";
+import {
+  INPUT_CONTAINER_OFFSET_PX,
+  LOADING_CONTAINER_OFFSET_PX,
+} from "../constants";
 import { EmptyState } from "../EmptyState";
 import { ErrorMessage } from "./ErrorMessage";
 import { ResponseFeedback } from "./ResponseFeedback";
@@ -35,6 +38,11 @@ export const MessageList: React.FC<MessageListProps> = ({
 }) => {
   const renderItems = useMemo(() => groupToolCalls(entries), [entries]);
 
+  // When loading is active the input is hidden and the loading indicator sits
+  // absolutely positioned at the bottom of the container. Add extra bottom
+  // padding so the last message is never obscured by the indicator.
+  const isLoading = loading !== "none" && loading !== "cancelled";
+
   return (
     <Block
       blockSize={
@@ -44,7 +52,8 @@ export const MessageList: React.FC<MessageListProps> = ({
       }
       fontSize={13}
       overflowY="scroll"
-      paddingBlock={spacing.lg}
+      paddingBlockStart={spacing.lg}
+      paddingBlockEnd={isLoading ? LOADING_CONTAINER_OFFSET_PX : spacing.lg}
       paddingInline={spacing["2xl"]}
       transition="block-size 250ms ease-in-out"
       props={{ ref: scrollContainerRef }}
