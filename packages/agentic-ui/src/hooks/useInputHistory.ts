@@ -21,13 +21,20 @@ export function extractUserMessages(entries: Array<Entry>): Array<string> {
  *
  * navigateUp  → move toward older messages; returns the message text or null if
  *               history is empty.
- * navigateDown → move toward newer messages; returns null when stepping past the
- *                most recent (i.e. "exit" history mode).
+ * navigateDown → move toward newer messages; returns the saved draft value (or null
+ *                if no draft) when stepping past the most recent (i.e. "exit" history mode).
+ * saveDraft    → capture a draft value to restore when exiting history mode.
  * reset        → return cursor to neutral without affecting history.
  */
-export function createHistoryCursor(history: Array<string>) {
+export function createHistoryCursor(
+  history: Array<string>,
+  initialDraft?: string,
+) {
   // -1 means "not browsing history" (neutral)
   let position = -1;
+  // Draft is the value the user had typed before entering history mode.
+  // Restored when navigating back past the most recent entry.
+  let draft: string | null = initialDraft ?? null;
 
   return {
     navigateUp(): string | null {
@@ -47,13 +54,20 @@ export function createHistoryCursor(history: Array<string>) {
         position += 1;
         return history[position] ?? null;
       }
-      // Past the most recent → exit history mode
+      // Past the most recent → exit history mode, restore draft
       position = -1;
-      return null;
+      const restored = draft;
+      draft = null;
+      return restored;
+    },
+
+    saveDraft(value: string): void {
+      draft = value;
     },
 
     reset() {
       position = -1;
+      draft = null;
     },
   };
 }
@@ -63,14 +77,14 @@ export interface UseInputHistoryReturn {
   historyValue: string | null;
   /**
    * Navigate through history in the given direction.
-   * - 'up' moves toward older messages and returns the message text (or null if
-   *   history is empty or already at the oldest).
-   * - 'down' moves toward newer messages and returns null when stepping past
+   * - 'up' moves toward older messages and enters history mode. Pass `currentValue`
+   *   to save the pre-navigation draft so it can be restored on exit.
+   * - 'down' moves toward newer messages and returns the draft when stepping past
    *   the most recent (signalling "exit history mode").
    *
    * The input value is updated automatically via `historyValue`.
    */
-  navigate(direction: "up" | "down"): void;
+  navigate(direction: "up" | "down", currentValue?: string): void;
   /** Reset history navigation state (call on agentic.reset()). */
   resetHistory(): void;
 }
@@ -105,15 +119,21 @@ export function useInputHistory(entries: Array<Entry>): UseInputHistoryReturn {
     }
   }, [userMessages]);
 
-  function navigate(direction: "up" | "down"): void {
+  function navigate(direction: "up" | "down", currentValue?: string): void {
     if (direction === "up") {
+      // Save the draft only when first entering history mode (historyValue is null
+      // means we're currently at neutral). Subsequent up presses while already in
+      // history should not overwrite the original draft with a history entry value.
+      if (historyValue === null && currentValue !== undefined) {
+        cursorRef.current.saveDraft(currentValue);
+      }
       const value = cursorRef.current.navigateUp();
       if (value !== null) {
         setHistoryValue(value);
       }
     } else {
       const value = cursorRef.current.navigateDown();
-      // null means "exit history mode" — restore to empty input
+      // null means "exit history mode" — restore draft (may be empty string) or null
       setHistoryValue(value);
     }
   }

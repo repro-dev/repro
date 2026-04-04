@@ -22,13 +22,29 @@ describe('AgenticInput — history navigation props', () => {
     expect(onNavigateHistory.mock.calls[0]?.arguments[0]).toBe('up')
   })
 
-  it('calls onNavigateHistory("down") when ArrowDown is pressed in an empty input', () => {
+  it('does NOT call onNavigateHistory("down") when ArrowDown is pressed and not in history mode (historyValue is null)', () => {
     const onNavigateHistory = mock.fn()
     const { container } = render(
       <AgenticInput
         onFocusChange={() => {}}
         onSubmit={() => {}}
         onNavigateHistory={onNavigateHistory}
+        historyValue={null}
+      />
+    )
+    const textarea = container.querySelector('textarea')!
+    fireEvent.keyDown(textarea, { key: 'ArrowDown', code: 'ArrowDown' })
+    expect(onNavigateHistory.mock.calls.length).toBe(0)
+  })
+
+  it('calls onNavigateHistory("down") when ArrowDown is pressed while in history mode (historyValue is non-null)', () => {
+    const onNavigateHistory = mock.fn()
+    const { container } = render(
+      <AgenticInput
+        onFocusChange={() => {}}
+        onSubmit={() => {}}
+        onNavigateHistory={onNavigateHistory}
+        historyValue="some history entry"
       />
     )
     const textarea = container.querySelector('textarea')!

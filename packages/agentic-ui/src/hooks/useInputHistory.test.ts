@@ -86,6 +86,19 @@ describe("createHistoryCursor", () => {
     expect(cursor.navigateDown()).toBeNull();
   });
 
+  it("can be constructed with an initial draft; navigateDown past newest returns the draft", () => {
+    const cursor = createHistoryCursor(history, "my draft");
+    cursor.navigateUp(); // enters history: 'third'
+    expect(cursor.navigateDown()).toBe("my draft");
+  });
+
+  it("saveDraft stores a draft value that is returned when exiting history mode", () => {
+    const cursor = createHistoryCursor(history);
+    cursor.saveDraft("typed text");
+    cursor.navigateUp(); // enters history: 'third'
+    expect(cursor.navigateDown()).toBe("typed text");
+  });
+
   it("navigateDown in neutral returns null", () => {
     const cursor = createHistoryCursor(history);
     expect(cursor.navigateDown()).toBeNull();
