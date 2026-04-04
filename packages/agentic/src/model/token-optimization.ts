@@ -47,8 +47,8 @@ export function estimateTokens(response: unknown): number {
   } catch {
     // Fall through to heuristic on unexpected tokenizer errors
   }
-  // Heuristic fallback: ~4 chars per token on average
-  return Math.round(text.length / 4);
+  // Heuristic fallback: ~4 chars per token on average; ceil to avoid undercounting
+  return Math.ceil(text.length / 4);
 }
 
 export function shortenStackFrame(frame: string): string {
