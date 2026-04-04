@@ -223,3 +223,18 @@ Key settings:
 | `/dcp stats`     | Show cumulative pruning statistics across all sessions |
 | `/dcp compress`  | Manually trigger compression                           |
 | `/dcp manual on` | Disable autonomous compression (manual control only)   |
+
+### Compression checkpoints (mandatory)
+
+**Treat provider auto-compaction as a failure mode, not a fallback.** If the provider's built-in summarization fires, context was mismanaged. Use the `compress` tool proactively at every natural checkpoint below.
+
+| Checkpoint                                 | When                                                         | What to keep                                                                                    | What to drop                                                                                     |
+| ------------------------------------------ | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| **After Phase 6 (PR open)**                | Immediately after `gh pr create` and Linear set to In Review | Commit SHAs, PR URL, changed file paths, blocking issues found and resolved, non-blocking notes | Verbose tool output, intermediate exploration, failed attempts, back-and-forth review iterations |
+| **After a wave of parallel issues**        | When all issues in a batch have PRs open                     | Same as above, per-issue                                                                        | Everything else from the wave                                                                    |
+| **After an issue is skipped or escalated** | When a candidate is rejected or blocked                      | Why it was skipped, the blocking condition                                                      | Full exploration noise                                                                           |
+| **After research/exploration concludes**   | When planning is done and implementation is about to start   | Key findings, affected files, design decisions                                                  | Every intermediate search and read that led to those findings                                    |
+
+A good compression summary is 200–400 lines and preserves enough to resume without re-reading the originals. Dense signal, zero noise.
+
+**Phase boundary rule**: After each completed phase (especially Phases 4–6), ask: _"Is everything from this phase fully closed?"_ If yes, compress it before starting the next phase.
