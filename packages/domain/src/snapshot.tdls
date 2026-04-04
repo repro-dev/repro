@@ -1,6 +1,6 @@
 import interaction.{PointerState, ScrollMap}
 import point.Point
-import reactcomponent.{ReactComponentTree}
+import react.{ReactComponentTree}
 import vdom.VTree
 
 type InteractionSnapshot: struct {

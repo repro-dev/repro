@@ -447,10 +447,10 @@ describe('createReactObserver', () => {
 })
 
 describe('getComponentTree', () => {
-  it('returns empty record when no commits have occurred', () => {
+  it('returns null when no commits have occurred', () => {
     resetComponentTree()
     const tree = getComponentTree()
-    assert.deepEqual(tree, {})
+    assert.equal(tree, null)
   })
 
   it('returns accumulated component nodes after a commit', () => {
@@ -471,8 +471,10 @@ describe('getComponentTree', () => {
     simulateCommit(1, makeFiberRoot(fiber))
 
     const tree = getComponentTree()
-    assert.equal(Object.keys(tree).length, 1)
-    const node = tree['500']!
+    assert.ok(tree !== null)
+    assert.equal(tree.rootId, 500)
+    assert.equal(Object.keys(tree.nodes).length, 1)
+    const node = tree.nodes['500']!
     assert.equal(node.fiberNodeId, 500)
     assert.equal(node.componentName, 'MyButton')
     assert.ok(node.props.includes('Click'))
@@ -510,9 +512,11 @@ describe('getComponentTree', () => {
     simulateCommit(1, makeFiberRoot(fiber2))
 
     const tree = getComponentTree()
+    assert.ok(tree !== null)
+    assert.equal(tree.rootId, 600)
     // Should still have exactly one node (same fiberNodeId)
-    assert.equal(Object.keys(tree).length, 1)
-    const node = tree['600']!
+    assert.equal(Object.keys(tree.nodes).length, 1)
+    const node = tree.nodes['600']!
     assert.equal(node.fiberNodeId, 600)
     assert.ok(node.props.includes('2'))
 
@@ -527,7 +531,8 @@ describe('getComponentTree', () => {
     const observer = createReactObserver(() => {})
     observer.observe(null as any, null as any)
 
-    // Fiber with no _debugID (will have fiberNodeId = 0)
+    // Fiber with no _debugID (will have fiberNodeId = 0); root fiber also has no _debugID
+    // so rootFiberId stays null and getComponentTree returns null
     const fiber = makeFiber({
       tag: 0,
       type: { name: 'Anonymous' },
@@ -539,8 +544,8 @@ describe('getComponentTree', () => {
     simulateCommit(1, makeFiberRoot(fiber))
 
     const tree = getComponentTree()
-    // fiberNodeId 0 should be skipped
-    assert.equal(Object.keys(tree).length, 0)
+    // No root fiber ID captured → returns null
+    assert.equal(tree, null)
 
     observer.disconnect()
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
@@ -562,10 +567,12 @@ describe('getComponentTree', () => {
     })
 
     simulateCommit(1, makeFiberRoot(fiber))
-    assert.equal(Object.keys(getComponentTree()).length, 1)
+    const treeAfterCommit = getComponentTree()
+    assert.ok(treeAfterCommit !== null)
+    assert.equal(Object.keys(treeAfterCommit.nodes).length, 1)
 
     resetComponentTree()
-    assert.equal(Object.keys(getComponentTree()).length, 0)
+    assert.equal(getComponentTree(), null)
 
     observer.disconnect()
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
