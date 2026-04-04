@@ -47,3 +47,7 @@ infra/certs/
 .DS_Store
 /tmp/*
 !/tmp/.gitkeep
+
+# JCODEMUNCH
+# Local symbol index — generated per-worktree, never committed
+.jcodemunch-index/

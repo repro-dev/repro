@@ -80,7 +80,8 @@ For 2+ independent issues, create one worktree per issue and use the Task tool t
 1. Break the issue down into concrete tasks using the todo list.
 2. Identify which packages are affected (`apps/*`, `packages/*`).
 3. For each affected package, check for an `AGENTS.md` file in the package root. If one exists, read it — it contains package-specific conventions, checklists, and pitfalls that must be followed.
-4. For complex features (3+ packages or significant codebase exploration needed), delegate planning to the `planner` agent to produce a structured plan document that the `develop` agent will consume. For simpler changes, plan inline in the outer conversation.
+4. **Explore the codebase with jcodemunch** before reading files directly. Call `resolve_repo` to confirm the project is indexed (index with `index_folder` if not), then use `search_symbols` to find relevant functions/classes, `get_file_outline` to survey a file before reading it in full, and `get_blast_radius` to understand the impact of planned changes. **Always pass the worktree's own root path to `index_folder`** — never derive the path from `git rev-parse --show-toplevel`, which returns the main checkout and would share or contaminate the index across worktrees. Fall back to `read`/`glob` only when jcodemunch is unavailable or the query requires full-file context.
+5. For complex features (3+ packages or significant codebase exploration needed), delegate planning to the `planner` agent to produce a structured plan document that the `develop` agent will consume. For simpler changes, plan inline in the outer conversation.
 
 ## Phase 3: Implementation
 
@@ -104,13 +105,14 @@ After the `develop` agent completes, launch the `test` agent to audit coverage a
 
 Follow the project conventions for each domain. Domain-specific rules are loaded on demand from their respective skills — do not guess, load the skill when working in that domain.
 
-| Domain                     | Where to find the rules                             |
-| -------------------------- | --------------------------------------------------- |
-| **Code style**             | Front-loaded in root `AGENTS.md` (always available) |
-| **Git & commits**          | Load the `git-workflow` skill                       |
-| **Design system & UI**     | Load the `design-system` skill                      |
-| **Build, test & reproctl** | Load the `build-and-test` skill                     |
-| **Database & migrations**  | Load the `database` skill                           |
+| Domain                     | Where to find the rules                                                                                                            |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Code style**             | Front-loaded in root `AGENTS.md` (always available)                                                                                |
+| **Code navigation**        | jcodemunch-mcp — `resolve_repo` → `search_symbols` → `get_file_outline` → `get_blast_radius`; see `AGENTS.md` Code Navigation rule |
+| **Git & commits**          | Load the `git-workflow` skill                                                                                                      |
+| **Design system & UI**     | Load the `design-system` skill                                                                                                     |
+| **Build, test & reproctl** | Load the `build-and-test` skill                                                                                                    |
+| **Database & migrations**  | Load the `database` skill                                                                                                          |
 
 Key rules that apply to every implementation (details in the skills above):
 

@@ -10,10 +10,12 @@
     "Playwright": {
       "enabled": false,
       "type": "local",
-      "command": [
-        "npx",
-        "@playwright/mcp@latest"
-      ]
+      "command": ["npx", "@playwright/mcp@latest"]
+    },
+    "jcodemunch": {
+      "enabled": true,
+      "type": "local",
+      "command": ["uvx", "jcodemunch-mcp"]
     }
   }
 }

@@ -1,0 +1,35 @@
+{
+  // Project-level jCodeMunch config.
+  // Global config lives at ~/.code-index/config.jsonc.
+  // This file overrides global settings for this repo only.
+
+  // Restrict indexing to TypeScript/JavaScript source — skip generated
+  // artefacts, test fixtures, and build outputs that would bloat the index.
+  "languages": ["typescript", "javascript", "tsx", "jsx"],
+
+  // Ignore patterns on top of the global defaults.
+  // Build outputs, proto-generated files, and large fixtures are excluded.
+  "extra_ignore_patterns": [
+    "**/dist/**",
+    "**/build/**",
+    "**/.moon/**",
+    "**/node_modules/**",
+    "**/*.d.ts",
+    "**/tmp/**"
+  ],
+
+  // Index is stored per-worktree under CODE_INDEX_PATH (set by the MCP
+  // server launch environment). Falls back to ~/.code-index/ if unset.
+  // Do not hardcode a path here — worktree isolation is handled via the
+  // env var so parallel develop-agent sessions don't share indexes.
+
+  // Architecture layer declarations for get_layer_violations.
+  "architecture": {
+    "layers": [
+      { "name": "apps", "paths": ["apps"] },
+      { "name": "packages", "paths": ["packages"] },
+      { "name": "infra", "paths": ["infra"] }
+    ],
+    "rules": [{ "layer": "infra", "may_not_import": ["apps", "packages"] }]
+  }
+}
