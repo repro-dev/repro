@@ -54,28 +54,28 @@ One team: **Repro** (key `REP`). All issues use the `REP-<number>` identifier.
 
 **Projects** group related issues into a deliverable scope. Current projects:
 
-| Project | Purpose |
-|---------|---------|
-| Platform | Infrastructure, developer experience, CI/CD, reproctl |
-| Engineering | Code style, conventions, tooling, technical hygiene |
-| Design System | UI components, tokens, patterns for `@repro/design` |
-| Accessibility | Reusable a11y helpers (`@repro/a11y`) |
-| Recording & Playback | Session capture, playback engine, DevTools |
-| Authentication | Auth flows, social login, passkeys |
-| Agentic | Agentic debugging experience |
-| Billing | Paid plans, subscriptions, entitlements (Paddle) |
-| Marketing Website | Public-facing site |
+| Project              | Purpose                                               |
+| -------------------- | ----------------------------------------------------- |
+| Platform             | Infrastructure, developer experience, CI/CD, reproctl |
+| Engineering          | Code style, conventions, tooling, technical hygiene   |
+| Design System        | UI components, tokens, patterns for `@repro/design`   |
+| Accessibility        | Reusable a11y helpers (`@repro/a11y`)                 |
+| Recording & Playback | Session capture, playback engine, DevTools            |
+| Authentication       | Auth flows, social login, passkeys                    |
+| Agentic              | Agentic debugging experience                          |
+| Billing              | Paid plans, subscriptions, entitlements (Paddle)      |
+| Marketing Website    | Public-facing site                                    |
 
 **Milestones** are optional sub-goals within a project. Use them when a project has distinct phases or deliverables that benefit from sequencing.
 
 **Labels** categorize issues by type:
 
-| Label | When to use |
-|-------|-------------|
-| Bug | Broken behavior that needs fixing |
-| Feature | New user-facing functionality |
-| Improvement | Enhancement to existing functionality |
-| Tech Debt | Internal quality, refactoring, cleanup |
+| Label       | When to use                            |
+| ----------- | -------------------------------------- |
+| Bug         | Broken behavior that needs fixing      |
+| Feature     | New user-facing functionality          |
+| Improvement | Enhancement to existing functionality  |
+| Tech Debt   | Internal quality, refactoring, cleanup |
 
 **Cycles** are not currently used.
 
@@ -87,9 +87,21 @@ One team: **Repro** (key `REP`). All issues use the `REP-<number>` identifier.
 - **Priority**: Set priority on every issue. 1 = Urgent, 2 = High, 3 = Normal, 4 = Low.
 - **Issue status lifecycle**: See the `git-workflow` skill for the full status lifecycle and transition rules.
 
-## Learning from Corrections
+## Keeping Skills Up to Date
 
-When the user corrects a code choice, style issue, or any fundamental rule about how the project should be developed, built, run, tested, or deployed, offer to update the relevant skill file in `.opencode/skills/` (or a package-level `AGENTS.md` closer to the relevant code) with the new information so the lesson is retained for future sessions.
+Skill files in `.opencode/skills/` are the authoritative reference for domain-specific patterns. They go stale as the codebase evolves. **Actively maintain them** — do not wait for explicit instructions.
+
+### When to update a skill file
+
+- **User corrections**: When the user corrects a code choice, style issue, or any rule about how the project should be developed, built, run, tested, or deployed, update the relevant skill file immediately so the lesson is retained for future sessions.
+- **Stale information discovered during work**: When you open a skill file and find that a file path, function name, API shape, or pattern it describes no longer matches the codebase (e.g. a function was renamed, a module was moved, a convention changed), update the skill file as part of the same PR or as a follow-up. Do not silently work around stale guidance.
+- **New patterns worth capturing**: When you discover a non-obvious pattern, gotcha, or convention during implementation that would have saved time if it had been documented, add it to the relevant skill file.
+
+### Where to update
+
+- Use the skill file in `.opencode/skills/<domain>/SKILL.md` for cross-cutting domain knowledge.
+- Use a package-level `AGENTS.md` (closer to the relevant code) for package-specific conventions that don't belong in a shared skill.
+- If no skill file exists for the domain and the knowledge is reusable, create one following the structure of existing skill files.
 
 ## Agent Delegation Policy
 
@@ -103,6 +115,7 @@ The outer conversation (frontier model) handles diagnosis, design, planning, and
 ### When to skip delegation
 
 Delegation adds overhead. Skip it for:
+
 - Single-file edits under ~20 lines (e.g. updating a config, fixing a linting error)
 - Documentation-only changes (AGENTS.md, skill files, READMEs)
 - Exploratory changes during diagnosis where you need immediate feedback
