@@ -91,12 +91,12 @@ import { createOpenRouterStreamProvider } from "./streamProvider";
 // Resolve the workspace root so we can write into tmp/ (gitignored, shared
 // scratch space). __dirname under tsx points to packages/agentic/src/eval —
 // walk up 4 levels to reach the workspace root.
-const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..', '..')
+const WORKSPACE_ROOT = path.resolve(__dirname, "..", "..", "..", "..");
 const SUGGESTIONS_JSON_PATH = path.join(
   WORKSPACE_ROOT,
-  'tmp',
-  'agentic-prompt-suggestions.json',
-)
+  "tmp",
+  "agentic-prompt-suggestions.json",
+);
 
 // Exported for testing: groups critiquesByFixture entries by promptExportName.
 // Returns a Map from promptExportName → { systemPrompt, entries }.
@@ -547,22 +547,25 @@ async function main(): Promise<void> {
       allSuggestions.push(...groupSuggestions);
     }
 
-    const markdown = formatSuggestionsMarkdown(allSuggestions, results.length)
-    fs.writeFileSync(ANALYSIS_PATH, markdown)
-    fs.writeFileSync(SUGGESTIONS_JSON_PATH, JSON.stringify(allSuggestions, null, 2))
-    printSuggestions(allSuggestions)
+    const markdown = formatSuggestionsMarkdown(allSuggestions, results.length);
+    fs.writeFileSync(ANALYSIS_PATH, markdown);
+    fs.writeFileSync(
+      SUGGESTIONS_JSON_PATH,
+      JSON.stringify(allSuggestions, null, 2),
+    );
+    printSuggestions(allSuggestions);
     console.log(
       `\nPrompt suggestions written to ${path.relative(
         process.cwd(),
         ANALYSIS_PATH,
       )}`,
-    )
+    );
     console.log(
       `Prompt suggestions JSON written to ${path.relative(
         process.cwd(),
         SUGGESTIONS_JSON_PATH,
       )}`,
-    )
+    );
   }
 
   // Regression check against committed baseline
