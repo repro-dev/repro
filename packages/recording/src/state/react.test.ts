@@ -122,7 +122,7 @@ describe('createReactObserver', () => {
     assert.equal(events[0]?.type, StateEventType.ReactCommit)
     assert.equal(events[0]?.componentName, 'Button')
     assert.equal(events[0]?.fiberNodeId, 42)
-    assert.equal(events[0]?.parentFiberId, 0) // no parent component
+    assert.equal(events[0]?.parentFiberId, null) // no parent component
     assert.ok((events[0]?.commitBatchId ?? 0) > 0)
 
     observer.disconnect()
@@ -255,7 +255,7 @@ describe('createReactObserver', () => {
     assert.ok(childEvent)
 
     assert.equal(parentEvent?.fiberNodeId, 300)
-    assert.equal(parentEvent?.parentFiberId, 0) // no parent component above root
+    assert.equal(parentEvent?.parentFiberId, null) // no parent component above root
     assert.equal(childEvent?.fiberNodeId, 301)
     assert.equal(childEvent?.parentFiberId, 300) // child's parent is the parent component
     // Same commit → same batchId
@@ -318,7 +318,7 @@ describe('createReactObserver', () => {
     assert.ok(gpEvent)
     assert.ok(childEvent)
 
-    assert.equal(gpEvent?.parentFiberId, 0) // grandparent has no component ancestor
+    assert.equal(gpEvent?.parentFiberId, null) // grandparent has no component ancestor
     assert.equal(childEvent?.parentFiberId, 400) // child skips hostDiv and points to grandparent
 
     observer.disconnect()
