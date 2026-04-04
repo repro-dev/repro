@@ -8,22 +8,32 @@ import {
 } from "./token-optimization";
 
 describe("estimateTokens", () => {
-  it("returns ceil of JSON length divided by 4 for empty object", () => {
-    const input = {};
-    const expected = Math.ceil(JSON.stringify(input).length / 4);
-    assert.strictEqual(estimateTokens(input), expected);
+  it("returns real tokenizer count for empty object", () => {
+    // Real tokenizer: {} -> 1 token
+    assert.strictEqual(estimateTokens({}), 1);
   });
 
-  it("returns ceil of JSON length divided by 4 for small object", () => {
-    const input = { foo: "bar", count: 42 };
-    const expected = Math.ceil(JSON.stringify(input).length / 4);
-    assert.strictEqual(estimateTokens(input), expected);
+  it("returns real tokenizer count for small object", () => {
+    // Real tokenizer: {"foo":"bar","count":42} -> 9 tokens
+    assert.strictEqual(estimateTokens({ foo: "bar", count: 42 }), 9);
   });
 
-  it("returns ceil of JSON length divided by 4 for string", () => {
-    const input = "hello world";
-    const expected = Math.ceil(JSON.stringify(input).length / 4);
-    assert.strictEqual(estimateTokens(input), expected);
+  it("returns real tokenizer count for string", () => {
+    // Real tokenizer: "hello world" -> 4 tokens
+    assert.strictEqual(estimateTokens("hello world"), 4);
+  });
+
+  it("smoke test: estimate for known string is within ±10% of correct token count", () => {
+    // "The quick brown fox jumps over the lazy dog." is 10 tokens by Anthropic BPE
+    // (verified via countTokens on the JSON-stringified form: 11 tokens)
+    const knownInput = "The quick brown fox jumps over the lazy dog.";
+    const knownTokenCount = 11; // countTokens(JSON.stringify(knownInput))
+    const result = estimateTokens(knownInput);
+    const tolerance = Math.ceil(knownTokenCount * 0.1);
+    assert.ok(
+      Math.abs(result - knownTokenCount) <= tolerance,
+      `estimateTokens returned ${result}, expected within ±${tolerance} of ${knownTokenCount}`,
+    );
   });
 });
 
