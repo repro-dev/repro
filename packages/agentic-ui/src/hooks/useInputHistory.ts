@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Entry } from "@repro/agentic";
 
 /**
@@ -83,25 +83,27 @@ export interface UseInputHistoryReturn {
  * (which happens on agentic.reset()).
  */
 export function useInputHistory(entries: Array<Entry>): UseInputHistoryReturn {
-  const userMessages = extractUserMessages(entries);
+  // Memoize the extracted messages so the array reference is stable across
+  // renders that don't change entries — this prevents the cursor from being
+  // rebuilt on unrelated re-renders.
+  const userMessages = useMemo(() => extractUserMessages(entries), [entries]);
 
   // Use a ref for the cursor so mutations do not cause re-renders.
+  // Initialise once; the effect below syncs it when userMessages changes.
   const cursorRef = useRef(createHistoryCursor(userMessages));
   // historyValue drives a controlled value in the input; null = not in history mode.
   const [historyValue, setHistoryValue] = useState<string | null>(null);
 
-  // When entries empties (agentic.reset()), rebuild cursor and exit history mode.
+  // Rebuild the cursor only when the message list actually changes. Using a ref
+  // for the cursor (rather than re-creating inline on every render) is what keeps
+  // the navigation position stable across unrelated parent re-renders.
   useEffect(() => {
-    if (entries.length === 0) {
-      cursorRef.current = createHistoryCursor([]);
+    cursorRef.current = createHistoryCursor(userMessages);
+    // When entries is reset to empty (agentic.reset()), also exit history mode.
+    if (userMessages.length === 0) {
       setHistoryValue(null);
     }
-  }, [entries]);
-
-  // Keep cursor in sync with the latest user messages without resetting position
-  // mid-navigation. We rebuild on every render but only mutate state when entries
-  // is reset to empty (above).
-  cursorRef.current = createHistoryCursor(userMessages);
+  }, [userMessages]);
 
   function navigate(direction: "up" | "down"): void {
     if (direction === "up") {

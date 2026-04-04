@@ -17,7 +17,6 @@
     "react": "^18.2.0"
   },
   "devDependencies": {
-    "@types/expect": "^24.3.2",
     "@types/node": "22.14.0",
     "@types/react": "^18.0.14",
     "@types/repro-shared-types": "workspace:*",
