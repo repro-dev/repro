@@ -41,7 +41,8 @@ After all requirements are implemented and tests pass:
 
 1. Run typechecking: `moon run <package>:typecheck`
 2. Run formatting: `pnpm fmt`
-3. Stage and commit with a Conventional Commit message referencing the issue:
+3. **Skill freshness check**: For each domain skill loaded during this task, ask: did you encounter any file paths, function names, API shapes, or patterns that the skill described incorrectly or that were missing? If yes, update the relevant `.opencode/skills/<domain>/SKILL.md` now. Include those changes in this commit.
+4. Stage and commit with a Conventional Commit message referencing the issue:
    ```
    feat(scope): description of change (REP-123)
    ```

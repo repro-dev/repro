@@ -1,58 +1,78 @@
 # Agent Guidelines for Repro Codebase
 
-## Code Style
+This file is loaded automatically at session start. It covers cross-cutting rules and entry points for the most common workflows. Deeper domain knowledge lives in `.opencode/skills/` — load those skills when the task warrants it.
+
+**Task entry points:**
+
+| Task type                 | Start here                  |
+| ------------------------- | --------------------------- |
+| Feature / fix             | Load `feature-dev` skill    |
+| Commit / PR / code review | Load `git-workflow` skill   |
+| Build / test / typecheck  | Load `build-and-test` skill |
+| UI / components           | Load `design-system` skill  |
+| Database / migrations     | Load `database` skill       |
+| File a Linear issue       | Load `create-issue` skill   |
+
+## Code Style & Conventions
 
 - **Prettier**: `semi: false`, `singleQuote: true`, `arrowParens: avoid`, `trailingComma: es5`
-- **Imports**: Use `prettier-plugin-organize-imports` (auto-sorts imports)
-- **Types**: Strict TypeScript with `noUncheckedIndexedAccess`, `noUnusedLocals`, `noImplicitReturns`
-- **Paths**: Use `~/*` alias for local imports within packages
-- **React**: Functional components with hooks. Inside `@repro/design`, use `@jsxstyle/react` for component styling. In app code, use `@repro/design` components for UI elements and jsxstyle layout primitives (`Row`, `Col`, `Grid`, `Block`, `Inline`) for structural arrangement. Do not use jsxstyle appearance props (backgroundColor, fontSize, color, etc.) to replicate what a design system component should provide.
-- **jsxstyle prop precedence**: jsxstyle forwards a fixed set of HTML attributes (`disabled`, `checked`, `value`, `type`, `placeholder`, `href`, `id`, `name`, `src`, `alt`, `title`) directly to the DOM when passed as top-level props. Top-level props **overwrite** values in the `props` bag. Never split the same attribute across both — always use the `props` bag for HTML attributes that need computed or conditional values (e.g. `props={{ disabled: disabled || !hasValue }}`), and omit the top-level prop.
-- **jsxstyle pseudo-prefix types**: Any package that uses prefixed pseudo-class props (e.g. `hoverBackgroundColor`, `focusOutline`, `emptyDisplay`) must include `"@types/repro-shared-types": "workspace:*"` in `devDependencies`. This package augments `@jsxstyle/core`'s `PseudoPrefixedProps` interface with the custom prefix props used in this codebase. Without it, TypeScript will reject those props.
+- **Imports**: `prettier-plugin-organize-imports` auto-sorts; no manual ordering needed
+- **Types**: Strict TypeScript — `noUncheckedIndexedAccess`, `noUnusedLocals`, `noImplicitReturns`
+- **Paths**: `~/*` alias for local imports within packages
 - **Naming**: PascalCase for components/types, camelCase for functions/variables
-- **Async**: Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer Future-based signatures in interfaces that may involve I/O.
-  - `.pipe()` accepts exactly **one** argument; chain multiple operators with successive `.pipe()` calls
-  - Use `tapF` from `@repro/future-utils` to sequence a Future as a side-effect while passing the original value through (e.g. cache invalidation after a mutation). Never call a Future-returning function inside `map` — the Future will never be forked.
-- **Error handling**: Use `serialize-error` for serialization
-- **Shell scripts (Bash)**: Target **Bash 3.2** (the version shipped with macOS). Do not use Bash 4+ features such as `mapfile`/`readarray`, associative arrays (`declare -A`), or `${var,,}` case-conversion. Use `while IFS= read -r` loops to capture multi-line output into arrays.
-- **Comments**: Add brief code comments when they clarify non-obvious intent, invariants, sentinel values, or protocol quirks. Avoid comments that simply restate the code.
-
-## Conventions
-
 - **Package naming**: `@repro/<name>` with workspace protocol (`workspace:*`)
-- Always check existing imports/patterns before adding new dependencies
-- **API list endpoints** must return `{ items: Array<T> }` envelope — never bare arrays. Use a generic `items` key (not resource-specific keys). A shared `ListResponse<T>` type exists in `packages/domain`. Existing endpoints currently return bare arrays and are pending uplift in REP-129; new endpoints must follow the envelope convention.
-- **Agentic tool errors must use the self-healing pattern**: Every tool error response must include (1) what failed, (2) why it likely failed, and (3) specific tool calls the agent should make to recover. This is a hard requirement for all tool implementations, not optional guidance.
+- **API list endpoints** must return `{ items: Array<T> }` — never bare arrays. A shared `ListResponse<T>` type exists in `packages/domain`. Existing endpoints are pending uplift in REP-129; new endpoints must follow the envelope convention.
+- **Agentic tool errors**: Every error response must include (1) what failed, (2) why it likely failed, (3) specific tool calls the agent should make to recover. Hard requirement, not guidance.
+- Always check existing imports/patterns before adding new dependencies.
+
+### React & UI
+
+- Functional components with hooks throughout.
+- Inside `@repro/design`: use `@jsxstyle/react` for component styling.
+- In app code: use `@repro/design` components for UI elements; use jsxstyle layout primitives (`Row`, `Col`, `Grid`, `Block`, `Inline`) for structural arrangement. Do not use jsxstyle appearance props (backgroundColor, fontSize, color, etc.) to replicate what a design system component should provide.
+- **jsxstyle prop precedence**: jsxstyle forwards a fixed set of HTML attributes (`disabled`, `checked`, `value`, `type`, `placeholder`, `href`, `id`, `name`, `src`, `alt`, `title`) directly to the DOM as top-level props, which **overwrite** values in the `props` bag. Never split the same attribute across both — use the `props` bag for HTML attributes that need computed or conditional values (e.g. `props={{ disabled: disabled || !hasValue }}`).
+- **jsxstyle pseudo-prefix types**: Packages using prefixed pseudo-class props (e.g. `hoverBackgroundColor`, `focusOutline`) must include `"@types/repro-shared-types": "workspace:*"` in `devDependencies`. Without it, TypeScript will reject those props.
+
+### Async
+
+Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer Future-based signatures in interfaces that may involve I/O.
+
+- `.pipe()` accepts exactly **one** argument; chain multiple operators with successive `.pipe()` calls.
+- Use `tapF` from `@repro/future-utils` to sequence a Future as a side-effect while passing the original value through (e.g. cache invalidation after a mutation). Never call a Future-returning function inside `map` — the Future will never be forked.
+
+### Other
+
+- **Error handling**: Use `serialize-error` for serialization.
+- **Shell scripts**: Target Bash 3.2 (macOS default). No `mapfile`/`readarray`, associative arrays (`declare -A`), or `${var,,}` case-conversion. Use `while IFS= read -r` loops to capture multi-line output into arrays.
+- **Comments**: Add brief comments when they clarify non-obvious intent, invariants, sentinel values, or protocol quirks. Avoid comments that restate the code.
 
 ## Environment Variables
 
-**Tilt + portless is the single source of truth** for environment variable configuration in development. App services run as `local_resource` entries on the host (via portless), receiving their env vars through `serve_env` in `infra/services.json`.
+**Tilt + portless is the single source of truth** for env var configuration. App services run as `local_resource` entries on the host (via portless), receiving env vars through `serve_env` in `infra/services.json`.
 
-- **Canonical source**: `infra/services.json` defines `serve_env` for each service. The `env_passthrough` array lists host env vars forwarded into the serve environment. Only `api-server`, `data`, and `gateway` retain per-app Tiltfiles — all other services are configured solely via `services.json`.
-- **Runtime validation**: Each app uses a `createEnv()` function with a Zod schema (`apps/<service>/src/config/createEnv.ts`) that validates `process.env` and provides fallback defaults. This is a safety net, not a configuration source.
-- **No `.env` file loading**: No code path loads `.env` files at runtime. The `.env*` files in `apps/` are gitignored local artifacts copied by `reproctl wt create` for convenience — they are not authoritative.
-- **Frontend apps**: Webpack `EnvironmentPlugin` / `templateParameters` read `process.env` at build time, set by the `serve_env` environment in the Tiltfile.
+- **Canonical source**: `infra/services.json` `serve_env` per service; `env_passthrough` lists host env vars forwarded into the serve environment. Only `api-server`, `data`, and `gateway` have per-app Tiltfiles — all other services are configured solely via `services.json`.
+- **Runtime validation**: Each app validates `process.env` via a Zod schema in `apps/<service>/src/config/createEnv.ts`. Safety net, not configuration source.
+- **No `.env` file loading**: `.env*` files in `apps/` are gitignored local artifacts — not authoritative.
+- **Frontend apps**: Webpack `EnvironmentPlugin` / `templateParameters` read `process.env` at build time from `serve_env`.
 
 ### Adding a new environment variable
 
-1. Add the variable to `infra/services.json` under the service's `serve_env` object (for static values) or `env_passthrough` array (for host env vars like API keys).
-2. If the service has a per-app Tiltfile (`infra/apps/<service>/Tiltfile`), add it to `serve_env` there as well. (Only `api-server`, `data`, and `gateway` have per-app Tiltfiles.)
-3. Add the variable to the service's `createEnv()` Zod schema with an appropriate default.
-4. Access the variable through the validated env object — never read `process.env` directly in application code.
+1. Add to `infra/services.json` under `serve_env` (static) or `env_passthrough` (host env vars).
+2. If the service has a per-app Tiltfile, add it there too.
+3. Add to the service's `createEnv()` Zod schema with an appropriate default.
+4. Access only through the validated env object — never `process.env` directly in application code.
 
 ## Linear as Source of Truth
 
-- All project specifications, implementation plans, and tracked work live in **Linear** as the source of truth. Use Linear projects, milestones, and issues to organize deliverables.
-- When the user wants to expand or change the scope of a project, ensure that the Linear issue is updated to reflect this.
-- **Code reviews**: When reviewing a PR that references Linear issues (e.g. `REP-123` in the branch name, title, or body), always fetch those issues before completing the review. Check for requirements, resolved decisions, and open considerations documented in the issue — these take precedence over assumptions based on codebase patterns alone. Load the `git-workflow` skill for the full review checklist.
+All specifications, plans, and tracked work live in Linear. Use projects, milestones, and issues to organize deliverables. Update the Linear issue when scope changes.
+
+**Code reviews**: When a PR references Linear issues (e.g. `REP-123` in branch name, title, or body), fetch those issues before reviewing. Requirements and resolved decisions in the issue take precedence over assumptions from codebase patterns. Load the `git-workflow` skill for the full review checklist.
 
 ### Workspace structure
 
-One team: **Repro** (key `REP`). All issues use the `REP-<number>` identifier.
+One team: **Repro** (key `REP`). All issues: `REP-<number>`.
 
-**Initiatives** represent product-level goals that span multiple projects (e.g. Starter Edition, Pro Edition). Projects can be linked to one or more initiatives.
-
-**Projects** group related issues into a deliverable scope. Current projects:
+**Initiatives** = product-level goals spanning multiple projects. **Projects** = deliverable scope grouping related issues.
 
 | Project              | Purpose                                               |
 | -------------------- | ----------------------------------------------------- |
@@ -66,9 +86,9 @@ One team: **Repro** (key `REP`). All issues use the `REP-<number>` identifier.
 | Billing              | Paid plans, subscriptions, entitlements (Paddle)      |
 | Marketing Website    | Public-facing site                                    |
 
-**Milestones** are optional sub-goals within a project. Use them when a project has distinct phases or deliverables that benefit from sequencing.
+**Milestones**: optional sub-goals within a project. Only create when a project has 3+ issues that form a natural phase.
 
-**Labels** categorize issues by type:
+**Labels** — apply exactly one per issue:
 
 | Label       | When to use                            |
 | ----------- | -------------------------------------- |
@@ -79,28 +99,22 @@ One team: **Repro** (key `REP`). All issues use the `REP-<number>` identifier.
 
 **Cycles** are not currently used.
 
-### Agent guidance
-
-- **Filing issues**: Choose the project that best fits the work. Use `Platform` for reproctl, infra, and DX. Use `Engineering` for cross-cutting code quality and conventions. Use the product-area project for product features.
-- **Labels**: Apply exactly one type label (Bug, Feature, Improvement, or Tech Debt) per issue.
-- **Milestones**: Only create milestones when a project has 3+ issues that form a natural phase. Don't create milestones for one-off issues.
-- **Priority**: Set priority on every issue. 1 = Urgent, 2 = High, 3 = Normal, 4 = Low.
-- **Issue status lifecycle**: See the `git-workflow` skill for the full status lifecycle and transition rules.
+**Filing issues**: Use `Platform` for reproctl, infra, DX. Use `Engineering` for cross-cutting code quality. Use the product-area project for product features. Set priority on every issue (1=Urgent, 2=High, 3=Normal, 4=Low). See `git-workflow` skill for issue status lifecycle.
 
 ## Keeping Skills Up to Date
 
-Skill files in `.opencode/skills/` are the authoritative reference for domain-specific patterns. They go stale as the codebase evolves. **Actively maintain them** — do not wait for explicit instructions.
+Skill files in `.opencode/skills/` are the authoritative reference for domain-specific patterns. They go stale as the codebase evolves. **Actively maintain them — do not wait for explicit instructions.**
 
-### When to update a skill file
+### When to update
 
-- **User corrections**: When the user corrects a code choice, style issue, or any rule about how the project should be developed, built, run, tested, or deployed, update the relevant skill file immediately so the lesson is retained for future sessions.
-- **Stale information discovered during work**: When you open a skill file and find that a file path, function name, API shape, or pattern it describes no longer matches the codebase (e.g. a function was renamed, a module was moved, a convention changed), update the skill file as part of the same PR or as a follow-up. Do not silently work around stale guidance.
-- **New patterns worth capturing**: When you discover a non-obvious pattern, gotcha, or convention during implementation that would have saved time if it had been documented, add it to the relevant skill file.
+- **User corrections**: When the user corrects a code choice, style issue, or any rule about how the project should be developed, built, run, tested, or deployed, update the relevant skill file immediately.
+- **Stale information found during work**: When a skill file describes a file path, function name, API shape, or pattern that no longer matches the codebase, update it in the same PR. Do not silently work around stale guidance. If the staleness is unrelated to the current task, file a Linear issue so it doesn't get dropped.
+- **New patterns worth capturing**: When you discover a non-obvious pattern, gotcha, or convention during implementation that would have saved time if documented, add it to the relevant skill file.
 
 ### Where to update
 
-- Use the skill file in `.opencode/skills/<domain>/SKILL.md` for cross-cutting domain knowledge.
-- Use a package-level `AGENTS.md` (closer to the relevant code) for package-specific conventions that don't belong in a shared skill.
+- `.opencode/skills/<domain>/SKILL.md` for cross-cutting domain knowledge.
+- A package-level `AGENTS.md` for conventions too specific for a shared skill.
 - If no skill file exists for the domain and the knowledge is reusable, create one following the structure of existing skill files.
 
 ## Agent Delegation Policy

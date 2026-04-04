@@ -47,20 +47,26 @@ This guidance applies only to non-interactive agent contexts. Human developers u
 
 ## Pull Requests
 
+Before opening a PR:
+
+- **Skill freshness check**: For each domain skill loaded during this task, ask: did you encounter any file paths, function names, API shapes, or patterns that the skill described incorrectly or that were missing? If yes, update the relevant `.opencode/skills/<domain>/SKILL.md` and include those changes in the PR.
+
+When creating the PR:
+
 - Always reference the Linear issue ID (e.g., `REP-123`) in the PR title or body so the Linear integration links them.
 - Always include a detailed summary of changes in the PR description body.
 - Always use the `gh` CLI to interact with GitHub (e.g., creating PRs, checking CI status, managing releases).
 
 ## Linear Issue Status Lifecycle
 
-| Status | When to set it |
-|--------|---------------|
-| **Backlog** | Issue exists but has not been prioritised for immediate work |
-| **Todo** | Prioritised and ready to pick up in the current cycle |
-| **In Progress** | A branch exists and code is being written — set this when you start work |
-| **In Review** | A PR is open and awaiting review or CI — set this immediately after `gh pr create` |
-| **Done** | The PR has been **merged to `main`** — never set this before merge |
-| **Canceled** | Issue will not be done; leave a comment explaining why |
+| Status          | When to set it                                                                     |
+| --------------- | ---------------------------------------------------------------------------------- |
+| **Backlog**     | Issue exists but has not been prioritised for immediate work                       |
+| **Todo**        | Prioritised and ready to pick up in the current cycle                              |
+| **In Progress** | A branch exists and code is being written — set this when you start work           |
+| **In Review**   | A PR is open and awaiting review or CI — set this immediately after `gh pr create` |
+| **Done**        | The PR has been **merged to `main`** — never set this before merge                 |
+| **Canceled**    | Issue will not be done; leave a comment explaining why                             |
 
 **Rules:**
 
