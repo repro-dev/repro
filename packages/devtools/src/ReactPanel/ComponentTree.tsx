@@ -1,6 +1,8 @@
-import { Block } from '@jsxstyle/react'
+import { Block, Row } from '@jsxstyle/react'
 import { ReactComponentNode } from '@repro/domain'
 import React, { useMemo, useState } from 'react'
+import { TreeRowBase } from '../ElementTree'
+import { ComponentR } from './ComponentR'
 import { ComponentTreeRow } from './ComponentTreeRow'
 
 interface Props {
@@ -66,6 +68,7 @@ export const ComponentTree: React.FC<Props> = ({
     const hasChildren = children.length > 0
     const isCollapsed = collapsed.has(fiberId)
     const isSelected = selectedFiberId === fiberId
+    const isExpanded = hasChildren && !isCollapsed
 
     return (
       <React.Fragment key={fiberId}>
@@ -78,8 +81,21 @@ export const ComponentTree: React.FC<Props> = ({
           onSelect={() => onSelect(fiberId)}
           onToggleCollapse={() => toggleCollapse(fiberId)}
         />
-        {!isCollapsed &&
-          children.map(childId => renderNode(childId, depth + 1))}
+
+        {isExpanded && children.map(childId => renderNode(childId, depth + 1))}
+
+        {isExpanded && (
+          <TreeRowBase
+            depth={depth}
+            isSelected={isSelected}
+            onClick={() => onSelect(fiberId)}
+          >
+            <Row alignItems="center" paddingV={2}>
+              <Block width={14} flexShrink={0} />
+              <ComponentR.Close node={node} />
+            </Row>
+          </TreeRowBase>
+        )}
       </React.Fragment>
     )
   }

@@ -1,9 +1,10 @@
-import { Block, Inline, Row } from '@jsxstyle/react'
+import { Block, Row } from '@jsxstyle/react'
 import { colors } from '@repro/design'
 import { ReactComponentNode } from '@repro/domain'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import React from 'react'
 import { TreeRowBase } from '../ElementTree'
+import { ComponentR } from './ComponentR'
 
 interface Props {
   node: ReactComponentNode
@@ -48,9 +49,7 @@ export const ComponentTreeRow: React.FC<Props> = ({
             ))}
         </Block>
 
-        <Inline color={colors.violet['700']} fontWeight={500}>
-          &lt;{node.componentName}&gt;
-        </Inline>
+        <ComponentR.Open node={node} />
       </Row>
     </TreeRowBase>
   )
