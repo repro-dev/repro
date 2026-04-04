@@ -1,15 +1,61 @@
 import { Block, Inline, Row } from '@jsxstyle/react'
+import { useAtomValue } from '@repro/atom'
 import { colors, Tooltip } from '@repro/design'
+import { SourceEventType, SourceEventView, StateEventType } from '@repro/domain'
+import { usePlayback } from '@repro/playback'
 import {
   AlertTriangle as ConsoleIcon,
   Code as ElementsIcon,
   Globe as NetworkIcon,
 } from 'lucide-react'
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useDevToolsView, useInspecting } from '../hooks'
 import { View } from '../types'
 
+const ReactLogo: React.FC = () => (
+  <svg
+    viewBox="-11.5 -10.23 23 20.46"
+    width="14"
+    height="14"
+    fill="currentColor"
+    aria-hidden="true"
+  >
+    <circle r="2.05" />
+    <g stroke="currentColor" strokeWidth="1" fill="none">
+      <ellipse rx="11" ry="4.2" />
+      <ellipse rx="11" ry="4.2" transform="rotate(60)" />
+      <ellipse rx="11" ry="4.2" transform="rotate(120)" />
+    </g>
+  </svg>
+)
+
+function useHasReactEvents(): boolean {
+  const playback = usePlayback()
+  // Subscribe to $buffer so this re-evaluates when new events arrive during live recording
+  const buffer = useAtomValue(playback.$buffer)
+  return useMemo(() => {
+    const sourceEvents = playback.getSourceEvents().toSource()
+    for (const view of sourceEvents) {
+      const event = SourceEventView.over(view)
+      let found = false
+      event.apply(e => {
+        if (e.type === SourceEventType.State) {
+          e.data.apply(inner => {
+            if (inner.type === StateEventType.ReactCommit) {
+              found = true
+            }
+          })
+        }
+      })
+      if (found) return true
+    }
+    return false
+  }, [playback, buffer])
+}
+
 export const Tabs: React.FC = () => {
+  const hasReactEvents = useHasReactEvents()
+
   return (
     <Row alignItems="center" gap={4} marginH={4}>
       <Item
@@ -29,6 +75,10 @@ export const Tabs: React.FC = () => {
         icon={<NetworkIcon size={14} />}
         label="Network"
       />
+
+      {hasReactEvents && (
+        <Item view={View.React} icon={<ReactLogo />} label="React" />
+      )}
     </Row>
   )
 }
