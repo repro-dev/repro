@@ -33,10 +33,8 @@ export function useDetectExtension(): DetectExtensionResult {
       setHasExtension(result)
       setLoading(false)
     }
-    // Cast needed because Agent.raiseIntent<R> returns FutureInstance<Error, R>
-    // but TypeScript's `this`-based pipe inference loses the R parameter.
     const cancel = fork(onReject)(onResolve)(
-      agent.raiseIntent({ type: 'detect-capture-extension' }) as any
+      agent.raiseIntent({ type: 'detect-capture-extension' })
     )
     return cancel
   }, [agent])
