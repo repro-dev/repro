@@ -202,7 +202,8 @@ export function createAccountRouter(
               chain(account =>
                 accountService.createUser(account.id, name, email, password)
               )
-            ),
+            )
+            .pipe(tapF(user => req.createSession(user))),
           201
         )
       }
