@@ -253,6 +253,113 @@ export function getOrientPhaseToolCallIds(context: Context): Set<string> {
   return ids;
 }
 
+// Sorts the keys of a plain object recursively so that two semantically
+// identical argument objects with different key insertion order produce the
+// same JSON string.
+function sortedArgs(args: unknown): unknown {
+  if (args === null || typeof args !== "object") return args;
+  if (Array.isArray(args)) return args.map(sortedArgs);
+  const sorted: Record<string, unknown> = {};
+  for (const key of Object.keys(args as Record<string, unknown>).sort()) {
+    sorted[key] = sortedArgs((args as Record<string, unknown>)[key]);
+  }
+  return sorted;
+}
+
+// Removes older duplicate tool call pairs (assistant tool-use block + matching
+// tool result) from the context, keeping only the most recent result for each
+// unique (toolName, normalisedArgs) signature.
+//
+// Protected IDs (Orient phase calls) are never removed, even if an identical
+// call appears later in the context — the protected copy is kept unconditionally
+// and the later duplicate is the one that gets dropped.
+export function deduplicateToolCalls(
+  context: Context,
+  protectedIds: Set<string>,
+): Context {
+  // Build a signature for each tool call id that appears in the context so we
+  // can identify duplicates.
+  const sigById = new Map<string, string>();
+  for (const msg of context) {
+    if (msg.role !== "assistant") continue;
+    const toolCalls = "tool_calls" in msg ? msg.tool_calls : undefined;
+    if (!toolCalls) continue;
+    for (const tc of toolCalls) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(tc.function.arguments);
+      } catch {
+        // Unparseable arguments — use the raw string verbatim
+        parsed = tc.function.arguments;
+      }
+      const sig = `${tc.function.name}::${JSON.stringify(sortedArgs(parsed))}`;
+      sigById.set(tc.id, sig);
+    }
+  }
+
+  // Walk forward to find the most recent occurrence of each signature,
+  // respecting protected IDs: a protected call is always "most recent" for its
+  // signature so that a later unprotected duplicate gets dropped rather than
+  // the protected one.
+  const lastIdBySig = new Map<string, string>(); // sig → last id (protected or not)
+  for (const [id, sig] of sigById) {
+    lastIdBySig.set(sig, id);
+  }
+
+  // Precompute the set of signatures that have at least one protected id so
+  // the drop loop below is O(n) instead of O(n²).
+  const protectedSigs = new Set<string>();
+  for (const [id, sig] of sigById) {
+    if (protectedIds.has(id)) protectedSigs.add(sig);
+  }
+
+  const dropIds = new Set<string>();
+  for (const [id, sig] of sigById) {
+    if (protectedIds.has(id)) continue; // protected calls are never dropped
+    const lastForSig = lastIdBySig.get(sig);
+    if (lastForSig !== id) {
+      // There is a newer occurrence — drop this one
+      dropIds.add(id);
+    } else if (protectedSigs.has(sig)) {
+      // This is the last unprotected occurrence but a protected call shares
+      // the same signature — the protected copy wins, so drop this one too.
+      dropIds.add(id);
+    }
+  }
+
+  if (dropIds.size === 0) return context;
+
+  // Use flatMap so that an assistant message can be either kept as-is,
+  // replaced with a pruned version (some tool_calls removed), or dropped
+  // entirely (all tool_calls removed) — all in a single pass.
+  return context.flatMap((msg): Array<Context[number]> => {
+    if (msg.role === "tool") {
+      // Drop tool result messages whose call was deduplicated away.
+      return dropIds.has(msg.tool_call_id) ? [] : [msg];
+    }
+
+    if (msg.role === "assistant" && "tool_calls" in msg && msg.tool_calls) {
+      // Remove individual dropped tool_call entries from this message.
+      const survivingCalls = msg.tool_calls.filter((tc) => !dropIds.has(tc.id));
+
+      if (survivingCalls.length === 0) {
+        // All tool_calls were dropped — remove the entire assistant message.
+        return [];
+      }
+
+      if (survivingCalls.length === msg.tool_calls.length) {
+        // Nothing changed — pass through unchanged.
+        return [msg];
+      }
+
+      // Some calls were dropped — return the message with the pruned list.
+      return [{ ...msg, tool_calls: survivingCalls }];
+    }
+
+    return [msg];
+  });
+}
+
 export const MAX_TOOL_ITERATIONS = 25;
 
 export function buildIterationLimitMessage(id: string): AssistantMessage {
@@ -417,6 +524,12 @@ export function createAgenticState(
     // Identify the first findErrors and getEvents tool results (Orient phase)
     // and protect them from truncation so the model retains its initial grounding.
     const orientIds = getOrientPhaseToolCallIds(context);
+
+    // Remove older duplicate (toolName + args) pairs before computing the
+    // budget. Protected orient-phase IDs always survive; later duplicates of
+    // those calls are dropped instead.
+    const deduplicatedContext = deduplicateToolCalls(context, orientIds);
+
     const isProtected = (msg: Context[number]) => {
       // Protect tool result messages whose tool_call_id is an orient call
       if (msg.role === "tool" && orientIds.has(msg.tool_call_id)) {
@@ -437,7 +550,7 @@ export function createAgenticState(
       droppedCount,
       anyDropped,
     } = truncateToContextBudget(
-      context,
+      deduplicatedContext,
       budget,
       (msg) => estimateTokens(msg),
       isProtected,
