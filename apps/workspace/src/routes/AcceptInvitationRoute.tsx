@@ -12,7 +12,7 @@ import {
 } from '@repro/design'
 import { logger } from '@repro/logger'
 import { fork } from 'fluture'
-import React, { useCallback } from 'react'
+import React, { useCallback, useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import { useSearchParams } from 'react-router-dom'
@@ -54,18 +54,21 @@ const AcceptInvitationRoute: React.FC = () => {
   })
 
   const { register, formState, handleSubmit, setError } = methods
+  const [submitting, setSubmitting] = useState(false)
 
   const onSubmit = useCallback(
     (data: FormState) => {
-      fork<Error>(err => {
+      setSubmitting(true)
+      fork((err: Error) => {
         logger.debug('accept invitation failed', err)
+        setSubmitting(false)
 
         if (err.name === 'NotFoundError' || (err as any).statusCode === 404) {
           setError('root', {
             message:
               'This invitation link is invalid or has expired. Please request a new invitation.',
           })
-        } else if (err.name === 'ResourceConflictError') {
+        } else if (err.name === 'ResourceConflict') {
           setError('root', {
             message:
               'An account already exists for this email address. Please log in instead.',
@@ -84,6 +87,7 @@ const AcceptInvitationRoute: React.FC = () => {
         }
       })(() => {
         logger.debug('accept invitation successful')
+        setSubmitting(false)
         navigate('/')
       })(acceptInvitation(invitationToken, data.name, email, data.password))
     },
@@ -259,10 +263,7 @@ const AcceptInvitationRoute: React.FC = () => {
                 )}
               </FormField>
 
-              <Button
-                disabled={!formState.isValid || formState.isSubmitting}
-                type="submit"
-              >
+              <Button disabled={!formState.isValid || submitting} type="submit">
                 Create Account
               </Button>
             </Col>
