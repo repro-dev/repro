@@ -11,13 +11,13 @@ Reference for the agentic AI debugger. Load this skill before implementing anyth
 
 ## Package Overview
 
-| Package / Path | Responsibility |
-|---|---|
-| `packages/agentic` | State machine, tool definitions, system prompts, context-window management, eval harness |
-| `packages/agentic-ui` | React components and hooks for rendering the agentic session (message list, tool call rows, input area) |
-| `apps/api-server/src/routers/agentic.ts` | Fastify routes: `POST /agentic/response` (SSE proxy) and `POST /agentic/feedback` |
-| `apps/api-server/src/services/agentic.ts` | `AgenticService`: forwards requests to OpenRouter, stores feedback in `agentic_feedback` table |
-| `apps/capture/src/components/Widget/ReportForm/Agentic/Agentic.hoc.tsx` | Extension call site: wires `streamProvider`, `RecordingDataAccessor`, and `extensionTools` |
+| Package / Path                                                          | Responsibility                                                                                          |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `packages/agentic`                                                      | State machine, tool definitions, system prompts, context-window management, eval harness                |
+| `packages/agentic-ui`                                                   | React components and hooks for rendering the agentic session (message list, tool call rows, input area) |
+| `apps/api-server/src/routers/agentic.ts`                                | Fastify routes: `POST /agentic/response` (SSE proxy) and `POST /agentic/feedback`                       |
+| `apps/api-server/src/services/agentic.ts`                               | `AgenticService`: forwards requests to OpenRouter, stores feedback in `agentic_feedback` table          |
+| `apps/capture/src/components/Widget/ReportForm/Agentic/Agentic.hoc.tsx` | Extension call site: wires `streamProvider`, `RecordingDataAccessor`, and `extensionTools`              |
 
 ---
 
@@ -39,11 +39,11 @@ The single factory for all agentic state. It owns the RxJS/Fluture event loop an
 
 ```ts
 interface AgenticState {
-  $entries:        Atom<Array<Entry>>;       // full conversation history
-  $loading:        Atom<Loading>;            // 'reasoning' | 'responding' | 'tool-executing' | 'cancelled' | 'none'
-  $error:          Atom<AgenticError | null>;
-  $wasCancelled:   Atom<boolean>;
-  $truncatedBefore: Atom<string | null>;     // ID of first surviving entry after context truncation
+  $entries: Atom<Array<Entry>>; // full conversation history
+  $loading: Atom<Loading>; // 'reasoning' | 'responding' | 'tool-executing' | 'cancelled' | 'none'
+  $error: Atom<AgenticError | null>;
+  $wasCancelled: Atom<boolean>;
+  $truncatedBefore: Atom<string | null>; // ID of first surviving entry after context truncation
   cancel(): void;
   destroy(): void;
   query(input: string): void;
@@ -52,6 +52,7 @@ interface AgenticState {
 ```
 
 **Key invariants:**
+
 - `query()` synchronously sets `$loading` to `"reasoning"` and appends a `UserMessage` to `$entries`. The RxJS pipeline reacts to this change.
 - `cancel()` aborts the in-flight request, sets `$loading` to `"cancelled"` for 1500 ms, then resets to `"none"`.
 - `reset()` clears all entries and resets all atoms to their initial state. Iteration count resets to 0.
@@ -64,7 +65,7 @@ type StreamProvider = (
   context: Context,
   tools: ToolDefinition[],
   signal?: AbortSignal,
-) => FutureInstance<unknown, ReadableStream<{ data: string }>>
+) => FutureInstance<unknown, ReadableStream<{ data: string }>>;
 ```
 
 This is the **only** network boundary in `createAgenticState`. The system prompt is **prepended by the caller's `StreamProvider` closure** — `createAgenticState` never appends it to the context itself. It only uses `SYSTEM_CARD_MESSAGE` to estimate token cost for context-window budget calculations.
@@ -81,16 +82,21 @@ In the eval harness (`packages/agentic/src/eval/streamProvider.ts`), it calls Op
 
 ```ts
 // Conversation entries stored in state
-type Entry = UserMessage | AssistantMessage | SystemMessage | ToolMessage
+type Entry = UserMessage | AssistantMessage | SystemMessage | ToolMessage;
 
 // The model-facing context array (stripped of UI metadata like `id`, `timestamp`)
-type Context = Array<UserMessageContext | AssistantMessageContext | ToolMessageContext | SystemMessageContext>
+type Context = Array<
+  | UserMessageContext
+  | AssistantMessageContext
+  | ToolMessageContext
+  | SystemMessageContext
+>;
 
 // Tool result content — plain string for most tools, ContentBlock[] for captureScreenshot
-type ContentBlock = TextContentBlock | ImageUrlContentBlock
+type ContentBlock = TextContentBlock | ImageUrlContentBlock;
 
 interface ToolMessage {
-  content: string | Array<ContentBlock>;  // string | [{type:'text',...}, {type:'image_url',...}]
+  content: string | Array<ContentBlock>; // string | [{type:'text',...}, {type:'image_url',...}]
   tool_call_id: string;
 }
 ```
@@ -103,11 +109,11 @@ interface ToolMessage {
 
 Two system cards are exported:
 
-| Export | Audience | Appended context |
-|---|---|---|
-| `EXTENSION_SYSTEM_CARD_MESSAGE` | Non-engineer (capture extension user) | Focus on validating the bug, plain language, offer to file an issue |
-| `WORKSPACE_SYSTEM_CARD_MESSAGE` | Engineer (workspace) | Reference API endpoints, stack traces, code locations; offer context bundle for coding agent |
-| `SYSTEM_CARD_MESSAGE` | Backwards-compat re-export | Same as `WORKSPACE_SYSTEM_CARD_MESSAGE` |
+| Export                          | Audience                              | Appended context                                                                             |
+| ------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `EXTENSION_SYSTEM_CARD_MESSAGE` | Non-engineer (capture extension user) | Focus on validating the bug, plain language, offer to file an issue                          |
+| `WORKSPACE_SYSTEM_CARD_MESSAGE` | Engineer (workspace)                  | Reference API endpoints, stack traces, code locations; offer context bundle for coding agent |
+| `SYSTEM_CARD_MESSAGE`           | Backwards-compat re-export            | Same as `WORKSPACE_SYSTEM_CARD_MESSAGE`                                                      |
 
 Both extend a shared `SHARED_SYSTEM_CARD` string that defines the full investigation methodology (Orient → Step 2 → Conclude), tool rules, and response format.
 
@@ -122,8 +128,8 @@ Both extend a shared `SHARED_SYSTEM_CARD` string that defines the full investiga
 **Location**: `packages/agentic/src/model/tools/index.ts`
 
 ```ts
-export const tools: ToolDefinition[]          // all 11 tools
-export const extensionTools: ToolDefinition[] // all except captureScreenshot
+export const tools: ToolDefinition[]; // all 12 tools
+export const extensionTools: ToolDefinition[]; // all except captureScreenshot
 ```
 
 `extensionTools` excludes `captureScreenshot` because it has not been tested in the browser extension context.
@@ -136,37 +142,41 @@ export const extensionTools: ToolDefinition[] // all except captureScreenshot
 type ToolHandler = (
   recording: RecordingDataAccessor,
   args: Record<string, unknown>,
-) => FutureInstance<unknown, unknown>
+) => FutureInstance<unknown, unknown>;
 ```
 
 **Critical rules:**
+
 - Tool handlers **must** return `resolve(result)` — never a rejected Future.
 - Errors must use `createError(error, reason?, suggestion?)` and be wrapped in `resolve(...)`:
   ```ts
-  return resolve(createError(
-    'No snapshot available at this time',
-    'DOM snapshots are only present when the recording includes page load events',
-    'Use getEvents(detail="summary") to check which event types are present',
-  ))
+  return resolve(
+    createError(
+      "No snapshot available at this time",
+      "DOM snapshots are only present when the recording includes page load events",
+      'Use getEvents(detail="summary") to check which event types are present',
+    ),
+  );
   ```
 - Every successful result should include `_tokenEstimate: number` (informational; not read by the state machine).
 - `captureScreenshot` is the only tool that returns `ContentBlock[]` (vision blocks). All other tools return plain JSON-serialisable objects. `buildToolMessageContent(toolName, output)` handles the branching — call it whenever constructing a `ToolMessage`.
 
 ### Available Tools
 
-| Tool | What it returns |
-|---|---|
-| `getRecordingDuration` | Total recording duration in ms |
-| `getConsoleMessages` | Console log/warn/error/debug messages with levels and timestamps |
-| `getNetworkRequests` | XHR/fetch requests and responses (URL, status, headers, body) |
-| `getDOMState` | Accessibility tree snapshot at a given timestamp |
-| `findErrors` | Summary or full details of console errors and failed network requests |
-| `getElementDetails` | Full attributes, ancestors, and children for a specific `nodeId` |
-| `getEvents` | Broad timeline overview or detailed event list |
-| `getEventsAroundTime` | Targeted event window around a specific timestamp |
-| `getDOMDiff` | DOM mutations between two timestamps for a node subtree |
-| `getUserActions` | Narrated list of user interactions (clicks, text input, scroll, navigation) |
-| `captureScreenshot` | Renders a VTree snapshot to a canvas and returns a `dataUrl` + `ContentBlock[]` |
+| Tool                   | What it returns                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `getRecordingDuration` | Total recording duration in ms                                                                                            |
+| `getConsoleMessages`   | Console log/warn/error/debug messages with levels and timestamps                                                          |
+| `getNetworkRequests`   | XHR/fetch requests and responses (URL, status, headers, body)                                                             |
+| `getDOMState`          | Accessibility tree snapshot at a given timestamp                                                                          |
+| `findErrors`           | Summary or full details of console errors and failed network requests                                                     |
+| `getElementDetails`    | Full attributes, ancestors, and children for a specific `nodeId`                                                          |
+| `getEvents`            | Broad timeline overview or detailed event list                                                                            |
+| `getEventsAroundTime`  | Targeted event window around a specific timestamp                                                                         |
+| `getDOMDiff`           | DOM mutations between two timestamps for a node subtree                                                                   |
+| `getUserActions`       | Narrated list of user interactions (clicks, text input, scroll, navigation)                                               |
+| `getStorageChanges`    | localStorage/sessionStorage mutation events (operation, key, old/new value) with storageType, key, and time-range filters |
+| `captureScreenshot`    | Renders a VTree snapshot to a canvas and returns a `dataUrl` + `ContentBlock[]`                                           |
 
 ### Tool Execution
 
@@ -183,10 +193,11 @@ Uses `parallel(Infinity)` from fluture to run all tool calls **concurrently**. R
 **Location**: `packages/agentic/src/createState.ts`
 
 ```ts
-export const MAX_TOOL_ITERATIONS = 25
+export const MAX_TOOL_ITERATIONS = 25;
 ```
 
 Enforced in the `"completion"` chunk handler. When `iterationCount >= MAX_TOOL_ITERATIONS`:
+
 1. A sentinel `AssistantMessage` is appended with text containing `"iteration limit"`.
 2. `toolCallTrigger$.next()` is **not** called — the loop terminates.
 3. `$loading` is set to `"none"`.
@@ -211,10 +222,17 @@ The stream error handler (`catchError` in `createResponseStream`) retries up to 
 
 ```ts
 // Budget = floor(contextWindow × 0.9) - systemTokens - 4000
-function computeContextBudget(modelId: string, systemPromptTokens: number): number
+function computeContextBudget(
+  modelId: string,
+  systemPromptTokens: number,
+): number;
 
 // Walk backwards from newest message, keep as many recent messages as fit
-function truncateToContextBudget<T>(messages: T[], budget: number, estimateMessage: (msg: T) => number): TruncationResult<T>
+function truncateToContextBudget<T>(
+  messages: T[],
+  budget: number,
+  estimateMessage: (msg: T) => number,
+): TruncationResult<T>;
 ```
 
 When messages are dropped, `createAgenticState` sets `$truncatedBefore` to the ID of the **first surviving entry**. The UI uses this to insert a `truncation-indicator` render item at that position via `groupToolCalls(entries, truncatedBeforeId)`.
@@ -231,7 +249,7 @@ The token estimator (`packages/agentic/src/model/token-optimization.ts`) uses a 
 interface RecordingDataAccessor {
   getDuration(): number;
   getSnapshotAtTime(timestampMs: number): Snapshot | null;
-  getResourceMap(): Record<string, string>;   // absoluteURL → resolved URL
+  getResourceMap(): Record<string, string>; // absoluteURL → resolved URL
   getEventsByType(types: SourceEventType[], opts?): SourceEvent[];
   getEventsInRange(startMs: number, endMs: number, opts?): SourceEvent[];
 }
@@ -247,11 +265,11 @@ In the extension (`Agentic.hoc.tsx`), the accessor is built by spreading `makeAc
 
 **Location**: `packages/domain/src/model-configs.ts`
 
-| Constant | Value | Purpose |
-|---|---|---|
-| `AGENTIC_DEFAULT_MODEL` | `'minimax/minimax-m2.7'` | Production model (204,800 token context; perfect correctness on all eval fixtures) |
-| `EVAL_JUDGE_MODEL` | `'google/gemini-2.5-flash'` | LLM-as-judge for eval scoring |
-| `EVAL_REASONING_MODEL` | `'google/gemini-2.5-pro'` | Eval critic and introspector |
+| Constant                | Value                       | Purpose                                                                            |
+| ----------------------- | --------------------------- | ---------------------------------------------------------------------------------- |
+| `AGENTIC_DEFAULT_MODEL` | `'minimax/minimax-m2.7'`    | Production model (204,800 token context; perfect correctness on all eval fixtures) |
+| `EVAL_JUDGE_MODEL`      | `'google/gemini-2.5-flash'` | LLM-as-judge for eval scoring                                                      |
+| `EVAL_REASONING_MODEL`  | `'google/gemini-2.5-pro'`   | Eval critic and introspector                                                       |
 
 **`reasoning.effort` guard**: The `reasoning.effort` parameter is only supported by OpenAI models (`openai/*`). The eval `streamProvider.ts` correctly guards this with `modelId.startsWith("openai/")`. The production `services/agentic.ts` currently sends it unconditionally — this is a known gap to fix when the model becomes configurable.
 
@@ -264,8 +282,9 @@ In the extension (`Agentic.hoc.tsx`), the accessor is built by spreading `makeAc
 **Location**: `packages/agentic-ui/src/context.tsx`
 
 ```ts
-export const AgenticStateContext = React.createContext<AgenticState>(/* no-op default */)
-export function useAgenticState(): AgenticState
+export const AgenticStateContext =
+  React.createContext<AgenticState>(/* no-op default */);
+export function useAgenticState(): AgenticState;
 ```
 
 Callers wrap their tree with `<AgenticStateContext.Provider value={state}>` where `state` comes from `createAgenticState(...)`.
@@ -282,10 +301,10 @@ Converts the flat `Entry[]` array into typed render items for the UI:
 
 ```ts
 type RenderItem =
-  | { type: 'user-message';        entry: UserMessage }
-  | { type: 'assistant-message';   entry: AssistantMessage }
-  | { type: 'tool-call-group';     pairs: ToolCallPair[] }  // ToolCall + matching ToolMessage | null
-  | { type: 'truncation-indicator' }
+  | { type: "user-message"; entry: UserMessage }
+  | { type: "assistant-message"; entry: AssistantMessage }
+  | { type: "tool-call-group"; pairs: ToolCallPair[] } // ToolCall + matching ToolMessage | null
+  | { type: "truncation-indicator" };
 ```
 
 The `truncation-indicator` item is inserted **before** the first surviving entry identified by `truncatedBeforeId`. A `tool-call-group` is always emitted after the `assistant-message` if the assistant message has both text content and tool calls.
@@ -295,8 +314,9 @@ The `truncation-indicator` item is inserted **before** the first surviving entry
 `ToolCallRow` detects tool errors by checking whether the parsed JSON tool content contains an `error` string property:
 
 ```ts
-const parsed = safeParse(content)  // content is ToolMessage.content
-const isError = parsed !== null && typeof parsed === 'object' && 'error' in parsed
+const parsed = safeParse(content); // content is ToolMessage.content
+const isError =
+  parsed !== null && typeof parsed === "object" && "error" in parsed;
 ```
 
 ---
@@ -343,8 +363,8 @@ interface EvalFixture {
   prompt: string;
   expectedOutcomeDescription: string;
   accessor: RecordingDataAccessor;
-  systemPrompt: string;         // the system card to evaluate
-  promptExportName: string;     // e.g. 'EXTENSION_SYSTEM_CARD_MESSAGE' — for grouping critiques
+  systemPrompt: string; // the system card to evaluate
+  promptExportName: string; // e.g. 'EXTENSION_SYSTEM_CARD_MESSAGE' — for grouping critiques
 }
 ```
 
@@ -356,12 +376,12 @@ interface EvalFixture {
 
 ### Regression thresholds (`regressions.ts`)
 
-| Metric | Threshold |
-|---|---|
+| Metric            | Threshold                                 |
+| ----------------- | ----------------------------------------- |
 | `correctnessRate` | Any drop is a regression (zero tolerance) |
-| `avgErrorRate` | > baseline + 10 pp |
-| `avgToolCalls` | > baseline + 3 |
-| `avgQuality` | Composite drop > 0.5 points |
+| `avgErrorRate`    | > baseline + 10 pp                        |
+| `avgToolCalls`    | > baseline + 3                            |
+| `avgQuality`      | Composite drop > 0.5 points               |
 
 New fixtures (no baseline entry) are never treated as regressions.
 
@@ -374,6 +394,7 @@ New fixtures (no baseline entry) are never treated as regressions.
 ### `--analyse` flag
 
 Runs the full critique pipeline after evals:
+
 1. `critiqueRun` (per run) → `CritiqueItem[]` linking observed behaviour to prompt causes.
 2. `suggestPromptImprovements` (per prompt group) → `PromptSuggestion[]` (verbatim find-replace pairs ready to apply).
 
@@ -389,24 +410,24 @@ Runs the full critique pipeline after evals:
 
 ## Key Files Quick Reference
 
-| File | Key exports |
-|---|---|
-| `packages/agentic/src/createState.ts` | `createAgenticState`, `executeToolCalls`, `buildToolMessageContent`, `MAX_TOOL_ITERATIONS`, `accumulateToolCalls` |
-| `packages/agentic/src/types.ts` | All shared types: `Entry`, `Context`, `AgenticState`, `StreamProvider`, `RecordingDataAccessor`, `ContentBlock`, `Loading` |
-| `packages/agentic/src/index.ts` | Public barrel — everything exported from the package |
-| `packages/agentic/src/model/system.ts` | `EXTENSION_SYSTEM_CARD_MESSAGE`, `WORKSPACE_SYSTEM_CARD_MESSAGE`, `SYSTEM_CARD_MESSAGE` |
-| `packages/agentic/src/model/context-window.ts` | `computeContextBudget`, `truncateToContextBudget` |
-| `packages/agentic/src/model/tools/index.ts` | `tools`, `extensionTools`, `executeTool` |
-| `packages/agentic/src/model/tools/common.ts` | `ToolHandler` type, `createError()`, event type guards |
-| `packages/agentic/src/recordingDataAccessor.ts` | `makeAccessorFromEventList`, `EventList` |
-| `packages/agentic/src/utils/groupToolCalls.ts` | `groupToolCalls`, `RenderItem` types |
-| `packages/agentic/src/eval/index.ts` | CLI entry point, fixture lists, `buildPromptGroups` |
-| `packages/agentic/src/eval/runner.ts` | `runEval`, `runSingle`, `EvalFixture`, `EvalResult` |
-| `packages/agentic/src/eval/regressions.ts` | `findRegressions`, regression thresholds |
-| `packages/agentic/src/eval/streamProvider.ts` | `createOpenRouterStreamProvider` (direct OpenRouter, bypasses API server) |
-| `packages/agentic-ui/src/context.tsx` | `AgenticStateContext`, `useAgenticState` |
-| `packages/agentic-ui/src/utils/groupToolCalls.ts` | (re-exported from `@repro/agentic`) |
-| `packages/domain/src/model-configs.ts` | `AGENTIC_DEFAULT_MODEL`, `EVAL_JUDGE_MODEL`, `EVAL_REASONING_MODEL`, `MODEL_CONFIGS`, `getModelConfig` |
-| `apps/api-server/src/routers/agentic.ts` | `POST /agentic/response`, `POST /agentic/feedback` |
-| `apps/api-server/src/services/agentic.ts` | `createAgenticService`, `getStreamingResponse`, `recordFeedback` |
-| `apps/capture/.../Agentic.hoc.tsx` | Extension wiring: `StreamProvider`, `RecordingDataAccessor`, `extensionTools` |
+| File                                              | Key exports                                                                                                                |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `packages/agentic/src/createState.ts`             | `createAgenticState`, `executeToolCalls`, `buildToolMessageContent`, `MAX_TOOL_ITERATIONS`, `accumulateToolCalls`          |
+| `packages/agentic/src/types.ts`                   | All shared types: `Entry`, `Context`, `AgenticState`, `StreamProvider`, `RecordingDataAccessor`, `ContentBlock`, `Loading` |
+| `packages/agentic/src/index.ts`                   | Public barrel — everything exported from the package                                                                       |
+| `packages/agentic/src/model/system.ts`            | `EXTENSION_SYSTEM_CARD_MESSAGE`, `WORKSPACE_SYSTEM_CARD_MESSAGE`, `SYSTEM_CARD_MESSAGE`                                    |
+| `packages/agentic/src/model/context-window.ts`    | `computeContextBudget`, `truncateToContextBudget`                                                                          |
+| `packages/agentic/src/model/tools/index.ts`       | `tools`, `extensionTools`, `executeTool`                                                                                   |
+| `packages/agentic/src/model/tools/common.ts`      | `ToolHandler` type, `createError()`, event type guards                                                                     |
+| `packages/agentic/src/recordingDataAccessor.ts`   | `makeAccessorFromEventList`, `EventList`                                                                                   |
+| `packages/agentic/src/utils/groupToolCalls.ts`    | `groupToolCalls`, `RenderItem` types                                                                                       |
+| `packages/agentic/src/eval/index.ts`              | CLI entry point, fixture lists, `buildPromptGroups`                                                                        |
+| `packages/agentic/src/eval/runner.ts`             | `runEval`, `runSingle`, `EvalFixture`, `EvalResult`                                                                        |
+| `packages/agentic/src/eval/regressions.ts`        | `findRegressions`, regression thresholds                                                                                   |
+| `packages/agentic/src/eval/streamProvider.ts`     | `createOpenRouterStreamProvider` (direct OpenRouter, bypasses API server)                                                  |
+| `packages/agentic-ui/src/context.tsx`             | `AgenticStateContext`, `useAgenticState`                                                                                   |
+| `packages/agentic-ui/src/utils/groupToolCalls.ts` | (re-exported from `@repro/agentic`)                                                                                        |
+| `packages/domain/src/model-configs.ts`            | `AGENTIC_DEFAULT_MODEL`, `EVAL_JUDGE_MODEL`, `EVAL_REASONING_MODEL`, `MODEL_CONFIGS`, `getModelConfig`                     |
+| `apps/api-server/src/routers/agentic.ts`          | `POST /agentic/response`, `POST /agentic/feedback`                                                                         |
+| `apps/api-server/src/services/agentic.ts`         | `createAgenticService`, `getStreamingResponse`, `recordFeedback`                                                           |
+| `apps/capture/.../Agentic.hoc.tsx`                | Extension wiring: `StreamProvider`, `RecordingDataAccessor`, `extensionTools`                                              |

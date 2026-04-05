@@ -46,6 +46,10 @@ import {
   TOOL_DEFINITION as getUserActionsDef,
   handler as getUserActions,
 } from "./get-user-actions";
+import {
+  TOOL_DEFINITION as getStorageChangesDef,
+  handler as getStorageChanges,
+} from "./get-storage-changes";
 import type { ToolHandler } from "./common";
 
 export const tools = [
@@ -60,6 +64,7 @@ export const tools = [
   getDOMDiffDef,
   getUserActionsDef,
   captureScreenshotDef,
+  getStorageChangesDef,
 ];
 
 // Subset of tools for the browser extension agent. captureScreenshot is
@@ -81,6 +86,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   getDOMDiff,
   getUserActions,
   captureScreenshot,
+  getStorageChanges,
 };
 
 export function executeTool(
