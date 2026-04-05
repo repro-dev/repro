@@ -185,6 +185,25 @@ export function createReactObserver(
       const name = getDisplayName(fiber)
       if (!name) return
 
+      const fiberNodeId = fiber._debugID ?? 0
+      const parentFiberId = getParentFiberId(fiber)
+
+      // Always record every tracked fiber in the tree so the snapshot is
+      // complete even for components whose props haven't changed this commit.
+      // Skip sentinel ID 0 (fiber without _debugID).
+      if (fiberNodeId !== 0) {
+        // Preserve existing props if this fiber had no changes in this commit;
+        // only overwrite when changedProps are available below.
+        const existing = componentTree.get(fiberNodeId)
+        componentTree.set(fiberNodeId, {
+          fiberNodeId,
+          parentFiberId,
+          componentName: name,
+          props: existing?.props ?? '',
+        })
+      }
+
+      // Event emission is still gated on prop changes to limit event volume
       const changedProps = getChangedProps(fiber.alternate, fiber)
       if (!changedProps) return
 
@@ -199,20 +218,20 @@ export function createReactObserver(
         propsDelta,
         hooksDelta: '',
         // _debugID may be undefined on untracked fibers; fall back to 0
-        fiberNodeId: fiber._debugID ?? 0,
-        parentFiberId: getParentFiberId(fiber),
+        fiberNodeId,
+        parentFiberId,
         commitBatchId: currentBatchId,
       }
 
       subscriber(event)
 
-      // Maintain running component tree (skip unknown fiber IDs)
-      if (event.fiberNodeId !== 0) {
-        componentTree.set(event.fiberNodeId, {
-          fiberNodeId: event.fiberNodeId,
-          parentFiberId: event.parentFiberId,
-          componentName: event.componentName,
-          props: event.propsDelta,
+      // Update tree node with latest propsDelta from this commit
+      if (fiberNodeId !== 0) {
+        componentTree.set(fiberNodeId, {
+          fiberNodeId,
+          parentFiberId,
+          componentName: name,
+          props: propsDelta,
         })
       }
     })

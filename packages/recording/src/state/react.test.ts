@@ -634,4 +634,139 @@ describe('getComponentTree (instance method)', () => {
     obs2.disconnect()
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
   })
+
+  // REP-728: componentTree must be updated for ALL tracked fibers, not just
+  // those with changed props. The bug: the tree.set() call was inside the
+  // changedProps guard, so components with stable props were never recorded.
+  it('records fibers with unchanged props in componentTree even if no event emitted', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    const sharedProps = { label: 'Same' }
+
+    // Fiber with identical alternate props → no changedProps → no event emitted
+    const alternate = makeFiber({
+      tag: 0,
+      type: { name: 'StableLabel' },
+      memoizedProps: sharedProps,
+      _debugID: 1001,
+    })
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'StableLabel' },
+      memoizedProps: sharedProps, // same reference → Object.is = true
+      alternate,
+      _debugID: 1001,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    // No event emitted — props didn't change
+    assert.equal(events.length, 0)
+
+    // But the component MUST appear in the tree
+    const tree = observer.getComponentTree()
+    assert.ok(tree !== null, 'tree should not be null after commit')
+    assert.ok('1001' in tree.nodes, 'StableLabel should be in componentTree')
+    assert.equal(tree.nodes['1001']?.componentName, 'StableLabel')
+    assert.equal(tree.nodes['1001']?.fiberNodeId, 1001)
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('records a parent component in componentTree even when only the child props changed', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    // Parent: stable props (no event)
+    const parentAlt = makeFiber({
+      tag: 0,
+      type: { name: 'ParentStable' },
+      memoizedProps: { p: 1 },
+      _debugID: 2000,
+    })
+
+    const parent = makeFiber({
+      tag: 0,
+      type: { name: 'ParentStable' },
+      memoizedProps: { p: 1 }, // unchanged
+      alternate: parentAlt,
+      _debugID: 2000,
+      return: null,
+    })
+
+    // Child: changed props (event emitted)
+    const child = makeFiber({
+      tag: 0,
+      type: { name: 'ChildChanged' },
+      memoizedProps: { c: 2 },
+      alternate: null, // first render → changed
+      _debugID: 2001,
+      return: parent,
+    })
+
+    parent.child = child
+
+    simulateCommit(1, makeFiberRoot(parent))
+
+    // Only the child emits an event
+    assert.equal(events.length, 1)
+    assert.equal(events[0]?.componentName, 'ChildChanged')
+
+    // Both parent and child must appear in the tree
+    const tree = observer.getComponentTree()
+    assert.ok(tree !== null)
+    assert.ok('2000' in tree.nodes, 'ParentStable must be in componentTree')
+    assert.ok('2001' in tree.nodes, 'ChildChanged must be in componentTree')
+    assert.equal(tree.nodes['2000']?.componentName, 'ParentStable')
+    assert.equal(tree.nodes['2001']?.parentFiberId, 2000)
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('records component with no props (null memoizedProps) in componentTree', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    // getChangedProps returns null when nextFiber.memoizedProps is null
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'NoProps' },
+      memoizedProps: null,
+      alternate: null,
+      _debugID: 3000,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    // No event (null props → changedProps is null)
+    assert.equal(events.length, 0)
+
+    // But the component must still appear in the tree
+    const tree = observer.getComponentTree()
+    assert.ok(tree !== null)
+    assert.ok('3000' in tree.nodes, 'NoProps should be in componentTree')
+    assert.equal(tree.nodes['3000']?.componentName, 'NoProps')
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
 })
