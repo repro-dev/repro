@@ -8,6 +8,7 @@ import {
   FormFieldError,
   Input,
   Label,
+  Link,
 } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { fork } from 'fluture'
@@ -47,7 +48,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   const login = useLogin()
   const resetPassword = useResetPassword()
 
-  const methods = useForm<FormState>({
+  const methods = useForm({
     resolver: zodResolver(showResetFlow ? resetFormSchema : loginFormSchema),
     defaultValues: {
       email: '',
@@ -58,7 +59,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   const { register, formState, handleSubmit } = methods
 
   function onResetRequest(data: ResetFormState) {
-    return fork<Error>(() => {
+    return fork(() => {
       setErrorMessage(
         'Unable to complete password reset request. Please try again'
       )
@@ -107,21 +108,23 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Col gap={16}>
-          <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
-            {showResetFlow ? 'Reset Your Password' : 'Log In'}
-          </Block>
+          <Col gap={12}>
+            <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
+              {showResetFlow ? 'Reset Your Password' : 'Log In'}
+            </Block>
 
-          <Block
-            paddingBottom={10}
-            fontSize={13}
-            lineHeight="1.5em"
-            borderBottom={`1px solid ${colors.slate['200']}`}
-            color={colors.slate['500']}
-          >
-            {showResetFlow
-              ? 'Enter your email for password reset instructions'
-              : 'Log in to your Repro account'}
-          </Block>
+            <Block
+              paddingBottom={10}
+              fontSize={13}
+              lineHeight="1.5em"
+              borderBottom={`1px solid ${colors.slate['200']}`}
+              color={colors.slate['500']}
+            >
+              {showResetFlow
+                ? 'Enter your email for password reset instructions'
+                : null}
+            </Block>
+          </Col>
 
           {showPostResetMessage && (
             <Block
@@ -191,17 +194,28 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
 
           {!showResetFlow && (
             <Block>
-              <Button
-                variant="text"
-                size="small"
-                onClick={() => {
-                  setShowResetFlow(true)
-                  setShowPostResetMessage(false)
-                  setErrorMessage('')
+              <Link
+                component="button"
+                props={{
+                  type: 'button',
+                  // Reset native browser button styles so the link renders as
+                  // inline text with no button chrome (background, border, padding).
+                  style: {
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    font: 'inherit',
+                    cursor: 'pointer',
+                  },
+                  onClick: () => {
+                    setShowResetFlow(true)
+                    setShowPostResetMessage(false)
+                    setErrorMessage('')
+                  },
                 }}
               >
                 Forgot password?
-              </Button>
+              </Link>
             </Block>
           )}
 

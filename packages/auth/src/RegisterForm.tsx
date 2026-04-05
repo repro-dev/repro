@@ -37,7 +37,7 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   // const navigate = useNavigate()
   const registerAccount = useRegister()
 
-  const methods = useForm<FormState>({
+  const methods = useForm({
     mode: 'onChange',
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -89,19 +89,21 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Col gap={16}>
-          <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
-            Create New Account
-          </Block>
+          <Col gap={12}>
+            <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
+              Create New Account
+            </Block>
 
-          <Block
-            paddingBottom={10}
-            fontSize={13}
-            lineHeight="1.5em"
-            borderBottom={`1px solid ${colors.slate['200']}`}
-            color={colors.slate['500']}
-          >
-            Register a new Repro account
-          </Block>
+            <Block
+              paddingBottom={10}
+              fontSize={13}
+              lineHeight="1.5em"
+              borderBottom={`1px solid ${colors.slate['200']}`}
+              color={colors.slate['500']}
+            >
+              Register a new Repro account
+            </Block>
+          </Col>
 
           {errorMessage && (
             <Block
