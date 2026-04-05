@@ -102,8 +102,8 @@ if (rootElem) {
                         </Route>
                       </Route>
 
-                      <Route element={<SettingsLayout />}>
-                        <Route element={<SessionRouteBoundary />}>
+                      <Route element={<SessionRouteBoundary />}>
+                        <Route element={<SettingsLayout />}>
                           <Route
                             path="settings/*"
                             element={<SettingsRoute />}
