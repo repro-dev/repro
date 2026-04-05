@@ -3,6 +3,7 @@ import { AppShell, SideNav } from '@repro/design'
 import {
   ArrowLeftIcon,
   CreditCardIcon,
+  KeyIcon,
   SettingsIcon,
   UserIcon,
   UsersIcon,
@@ -14,6 +15,7 @@ import { WorkspaceHeader } from '~/components/WorkspaceHeader'
 export const SettingsLayout: React.FC = () => {
   const profileActive = useMatch({ path: '/settings/profile', end: true })
   const accountActive = useMatch({ path: '/settings/account', end: true })
+  const apiKeysActive = useMatch({ path: '/settings/api-keys', end: true })
   const teamActive = useMatch({ path: '/settings/team', end: true })
   const billingActive = useMatch({ path: '/settings/billing', end: true })
 
@@ -52,6 +54,13 @@ export const SettingsLayout: React.FC = () => {
               active={!!accountActive}
               component={RouterNavLink}
               props={{ to: '/settings/account' }}
+            />
+            <SideNav.Item
+              icon={KeyIcon}
+              label="API Keys"
+              active={!!apiKeysActive}
+              component={RouterNavLink}
+              props={{ to: '/settings/api-keys' }}
             />
             <SideNav.Item
               icon={UsersIcon}
