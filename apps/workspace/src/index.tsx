@@ -31,11 +31,8 @@ const ResetPasswordRoute = lazy(() => import('./routes/ResetPasswordRoute'))
 declare global {
   interface Window {
     __REPRO_ENV: Env
-    __REPRO_USING_SDK: boolean
   }
 }
-
-window.__REPRO_USING_SDK = true
 
 if (env.BUILD_ENV === 'development') {
   Stats.enable()
