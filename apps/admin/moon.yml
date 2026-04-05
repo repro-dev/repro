@@ -16,5 +16,9 @@ tasks:
     command: pnpm run lint
     deps:
       - ^:build
+  typecheck:
+    command: pnpm run typecheck
+    deps:
+      - ^:build
 toolchains:
   default: node
