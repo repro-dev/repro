@@ -107,6 +107,9 @@ export function createReduxObserver(
 
   return {
     observe() {
+      // Idempotency guard: if already patched, skip to avoid stacking wrappers
+      if (currentStore) return
+
       currentStore = findReduxStore(win)
       if (!currentStore) return
 
