@@ -34,11 +34,11 @@ const resetFormSchema = z.object({
   email: z.string().email(),
 })
 
-type LoginFormState = z.infer<typeof loginFormSchema>
-type ResetFormState = z.infer<typeof resetFormSchema>
+type LoginFormState = z.infer
+type ResetFormState = z.infer
 type FormState = LoginFormState | ResetFormState
 
-export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
+export const LoginForm: React.FC = ({ onSuccess, onFailure }) => {
   const [errorMessage, setErrorMessage] = useState('')
   const [showResetFlow, setShowResetFlow] = useState(false)
   const [showPostResetMessage, setShowPostResetMessage] = useState(false)
@@ -48,7 +48,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   const login = useLogin()
   const resetPassword = useResetPassword()
 
-  const methods = useForm<FormState>({
+  const methods = useForm({
     resolver: zodResolver(showResetFlow ? resetFormSchema : loginFormSchema),
     defaultValues: {
       email: '',
@@ -59,7 +59,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   const { register, formState, handleSubmit } = methods
 
   function onResetRequest(data: ResetFormState) {
-    return fork<Error>(() => {
+    return fork(() => {
       setErrorMessage(
         'Unable to complete password reset request. Please try again'
       )
@@ -76,7 +76,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
 
     setLoading(true)
 
-    return fork<Error>(err => {
+    return fork(err => {
       if (err.name === 'TooManyRequests' || (err as any).statusCode === 429) {
         setErrorMessage('Too many login attempts. Please try again later.')
       } else if (
@@ -112,17 +112,17 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             {showResetFlow ? 'Reset Your Password' : 'Log In'}
           </Block>
 
-          {showResetFlow && (
-            <Block
-              paddingBottom={10}
-              fontSize={13}
-              lineHeight="1.5em"
-              borderBottom={`1px solid ${colors.slate['200']}`}
-              color={colors.slate['500']}
-            >
-              Enter your email for password reset instructions
-            </Block>
-          )}
+          <Block
+            paddingBottom={10}
+            fontSize={13}
+            lineHeight="1.5em"
+            borderBottom={`1px solid ${colors.slate['200']}`}
+            color={colors.slate['500']}
+          >
+            {showResetFlow
+              ? 'Enter your email for password reset instructions'
+              : null}
+          </Block>
 
           {showPostResetMessage && (
             <Block
