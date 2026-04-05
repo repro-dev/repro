@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  jCodeMunch watch-claude LaunchAgent — TEMPLATE
+  ================================================
+  DO NOT use this file directly with launchctl. Run the setup script, which
+  substitutes the placeholders below and writes a resolved copy to
+  ~/Library/LaunchAgents/.
+
+  Install:   scripts/setup-jcodemunch-watch.sh install
+  Uninstall: scripts/setup-jcodemunch-watch.sh uninstall
+  Status:    launchctl list | grep jcodemunch
+  Logs:      tail -f /tmp/jcodemunch-watch.log
+
+  Placeholders (substituted by setup script):
+    @@JCODEMUNCH_BIN@@   — absolute path to the jcodemunch-mcp executable
+    @@REPO_ROOT@@        — absolute path to the repro checkout root
+-->
+<plist version="1.0">
+<dict>
+  <!-- Label must be unique across all LaunchAgents -->
+  <key>Label</key>
+  <string>dev.repro.jcodemunch-watch</string>
+
+  <!-- The command to run — placeholders are filled in by the setup script -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>@@JCODEMUNCH_BIN@@</string>
+    <string>watch-claude</string>
+    <string>--repos</string>
+    <string>@@REPO_ROOT@@</string>
+    <string>--log-level</string>
+    <string>INFO</string>
+    <string>--log-file</string>
+    <string>/tmp/jcodemunch-watch.log</string>
+  </array>
+
+  <!-- Start on load and keep alive if it crashes -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- Capture stdout/stderr as a fallback (main logs go to --log-file above) -->
+  <key>StandardOutPath</key>
+  <string>/tmp/jcodemunch-watch.stdout</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/jcodemunch-watch.stderr</string>
+
+  <!-- Throttle restart on repeated crashes (10 second minimum) -->
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+</dict>
+</plist>
