@@ -112,7 +112,7 @@ function getParentFiberId(fiber: Fiber): number | null {
 // Safe JSON serialiser with depth limit, circular ref guard, and type coercion
 function safeSerialise(value: unknown): string {
   try {
-    const seen = new Set<object>()
+    const seen = new Set()
 
     function replacer(val: unknown, depth: number): unknown {
       if (depth > MAX_SERIALISE_DEPTH) return '[object ...]'
@@ -157,13 +157,23 @@ export function createReactObserver(
 } {
   // Instance-scoped state — no module-level singletons
   let commitBatchCounter = 0
-  const componentTree = new Map<number, ReactComponentNode>()
+  const componentTree = new Map()
   let rootFiberId: number | null = null
+
+  // Idempotency guard — prevents double-wrapping the DevTools hook when
+  // observe() is called more than once (e.g. for iframes in the same session)
+  let isObserving = false
 
   let originalOnCommitFiberRoot:
     | ReactDevToolsHook['onCommitFiberRoot']
     | undefined
   let hookCreatedByUs = false
+
+  function resetReactRecordingState() {
+    commitBatchCounter = 0
+    componentTree.clear()
+    rootFiberId = null
+  }
 
   function handleCommit(
     _rendererID: number,
@@ -239,6 +249,12 @@ export function createReactObserver(
 
   return {
     observe(_target: unknown, _vtree: VTree) {
+      // Idempotency: a second call (e.g. for an iframe) must not wrap again
+      if (isObserving) return
+
+      // Reset accumulated state so each new session starts clean
+      resetReactRecordingState()
+
       const existing = (globalThis as Record<string, unknown>)[
         '__REACT_DEVTOOLS_GLOBAL_HOOK__'
       ] as ReactDevToolsHook | undefined
@@ -267,6 +283,8 @@ export function createReactObserver(
           onCommitFiberRoot: handleCommit,
         } satisfies ReactDevToolsHook
       }
+
+      isObserving = true
     },
 
     disconnect() {
@@ -274,22 +292,22 @@ export function createReactObserver(
         '__REACT_DEVTOOLS_GLOBAL_HOOK__'
       ] as ReactDevToolsHook | undefined
 
-      if (!hook) return
-
-      if (hookCreatedByUs) {
-        delete (globalThis as Record<string, unknown>)[
-          '__REACT_DEVTOOLS_GLOBAL_HOOK__'
-        ]
-        hookCreatedByUs = false
-      } else if (originalOnCommitFiberRoot !== undefined) {
-        hook.onCommitFiberRoot = originalOnCommitFiberRoot
-        originalOnCommitFiberRoot = undefined
+      if (hook) {
+        if (hookCreatedByUs) {
+          delete (globalThis as Record<string, unknown>)[
+            '__REACT_DEVTOOLS_GLOBAL_HOOK__'
+          ]
+          hookCreatedByUs = false
+        } else if (originalOnCommitFiberRoot !== undefined) {
+          hook.onCommitFiberRoot = originalOnCommitFiberRoot
+          originalOnCommitFiberRoot = undefined
+        }
       }
 
-      // Reset all instance state on disconnect so stale data doesn't accumulate across recordings
-      componentTree.clear()
-      commitBatchCounter = 0
-      rootFiberId = null
+      // Always reset observing flag and accumulated state, even if the hook was
+      // externally removed — ensures re-attach works regardless of cleanup order
+      isObserving = false
+      resetReactRecordingState()
     },
 
     // Returns a snapshot of the current accumulated component tree, or null if no root seen yet.
