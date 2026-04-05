@@ -1,13 +1,20 @@
-$schema: 'https://moonrepo.dev/schemas/project.json'
+$schema: "https://moonrepo.dev/schemas/project.json"
 id: agentic-ui
 language: typescript
 toolchains:
   node:
-    version: '22.19.0'
+    version: "22.19.0"
 tasks:
+  test:
+    command: tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/**/*.test.ts src/**/*.test.tsx
+    inputs:
+      - "src/**/*.test.ts"
+      - "src/**/*.test.tsx"
+    env:
+      NODE_OPTIONS: --test-reporter spec
   typecheck:
     command: tsc --noEmit
     inputs:
-      - 'src/**/*.ts'
-      - 'src/**/*.tsx'
-      - 'tsconfig.json'
+      - "src/**/*.ts"
+      - "src/**/*.tsx"
+      - "tsconfig.json"

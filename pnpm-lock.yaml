@@ -1167,6 +1167,9 @@ importers:
         specifier: 18.3.1
         version: 18.3.1
     devDependencies:
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.0)(@types/react@18.3.10)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@types/expect':
         specifier: 24.3.2
         version: 24.3.2
@@ -1182,6 +1185,9 @@ importers:
       expect:
         specifier: 29.7.0
         version: 29.7.0
+      global-jsdom:
+        specifier: 27.0.0
+        version: 27.0.0(jsdom@27.0.0(postcss@8.5.8))
       prettier:
         specifier: ^3.0.0
         version: 3.0.0

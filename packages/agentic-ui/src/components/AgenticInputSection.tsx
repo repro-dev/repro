@@ -7,13 +7,14 @@ import {
 } from "@repro/design";
 import React from "react";
 import { Entry } from "@repro/agentic";
-import { PLACEHOLDER_COPY } from "../constants";
+import { PLACEHOLDER_COPY, REPLY_PLACEHOLDER } from "../constants";
 import { useInputHistory } from "../hooks/useInputHistory";
 
 interface AgenticInputSectionProps {
   disabled: boolean;
   entries: Array<Entry>;
   shouldRaise: boolean;
+  hasConversationStarted: boolean;
   onFocusChange: (hasFocus: boolean) => void;
   onSubmit: (state: AgenticInputFormState) => void;
 }
@@ -22,10 +23,15 @@ export const AgenticInputSection: React.FC<AgenticInputSectionProps> = ({
   disabled,
   entries,
   shouldRaise,
+  hasConversationStarted,
   onFocusChange,
   onSubmit,
 }) => {
   const { historyValue, navigate, resetHistory } = useInputHistory(entries);
+
+  const placeholders = hasConversationStarted
+    ? [REPLY_PLACEHOLDER]
+    : PLACEHOLDER_COPY;
 
   function handleSubmit(state: AgenticInputFormState) {
     // Exit history mode when user submits
@@ -60,7 +66,7 @@ export const AgenticInputSection: React.FC<AgenticInputSectionProps> = ({
     >
       <AgenticInput
         disabled={disabled}
-        placeholders={PLACEHOLDER_COPY}
+        placeholders={placeholders}
         historyValue={historyValue}
         onFocusChange={onFocusChange}
         onNavigateHistory={navigate}
