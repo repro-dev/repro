@@ -11,6 +11,7 @@ import {
   getOrientPhaseToolCallIds,
   isValidMessageDelta,
 } from "./createState";
+import { PURGE_ERROR_TURNS } from "./model/context-window";
 import {
   AssistantMessageContext,
   Context,
@@ -2053,5 +2054,263 @@ describe("deduplicateToolCalls", () => {
       ),
       "resultA2 should survive",
     );
+  });
+});
+
+// ─── purgeErroredToolCallInputs integration in createAgenticState ─────────────
+
+describe("createAgenticState — errored tool call purge", () => {
+  // Build a one-shot SSE stream from a tool_calls event + [DONE]
+  function makeToolCallStream(
+    toolCallId: string,
+    toolName: string,
+  ): ReadableStream<{ data: string }> {
+    const toolCallEvent = JSON.stringify({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: toolCallId,
+                function: { name: toolName, arguments: "{}" },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    return new ReadableStream<{ data: string }>({
+      start(controller) {
+        controller.enqueue({ data: toolCallEvent });
+        controller.enqueue({ data: "[DONE]" });
+        controller.close();
+      },
+    });
+  }
+
+  // Build a one-shot SSE stream with plain text content (no tool calls)
+  function makeTextStream(content: string): ReadableStream<{ data: string }> {
+    const event = JSON.stringify({
+      choices: [{ delta: { content } }],
+    });
+    return new ReadableStream<{ data: string }>({
+      start(controller) {
+        controller.enqueue({ data: event });
+        controller.enqueue({ data: "[DONE]" });
+        controller.close();
+      },
+    });
+  }
+
+  function waitForCondition(
+    predicate: () => boolean,
+    timeout = 5000,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      function check() {
+        if (predicate()) return resolve();
+        if (Date.now() - start > timeout)
+          return reject(new Error("Condition timed out"));
+        setTimeout(check, 10);
+      }
+      check();
+    });
+  }
+
+  it("errored tool call is NOT stripped from context within PURGE_ERROR_TURNS iterations", async () => {
+    // We track the context passed to the stream provider on the 2nd request
+    // (after tool results are appended) to verify tc1's assistant block is still present.
+    // The real getDOMState tool on an empty accessor returns an error response.
+    let secondRequestContext: Context | null = null;
+    let callCount = 0;
+
+    const streamProvider: StreamProvider = (ctx) => {
+      callCount++;
+      if (callCount === 1) {
+        // First request: LLM returns a tool call
+        return resolve(makeToolCallStream("tc1", "getDOMState")) as never;
+      }
+      // Second request: capture the context, then return plain text to end the loop
+      secondRequestContext = [...ctx];
+      return resolve(makeTextStream("done")) as never;
+    };
+
+    const accessor = makeEmptyAccessorNew();
+    // Inject custom executeFn via the executeToolCalls call signature requires
+    // us to test through createAgenticState. Since executeToolCalls is internal,
+    // we use the real one but override the tool handler via options.
+    // Instead, let's use the real state machine + a real tool that errors:
+    // getDOMState with no snapshot returns an error.
+    const state = createAgenticState(streamProvider, accessor);
+    state.query("test");
+
+    await waitForCondition(() => secondRequestContext !== null, 5000);
+
+    // Within the first iteration (delta = 0, below PURGE_ERROR_TURNS = 4),
+    // the assistant block for tc1 should still be present in the context.
+    const assistantMsgsWithTc1 = secondRequestContext!.filter(
+      (m) =>
+        m.role === "assistant" &&
+        "tool_calls" in m &&
+        (m as { tool_calls?: Array<{ id: string }> }).tool_calls?.some(
+          (tc) => tc.id === "tc1",
+        ),
+    );
+    assert.ok(
+      assistantMsgsWithTc1.length > 0,
+      "tc1 assistant block should still be present within PURGE_ERROR_TURNS",
+    );
+
+    // The tool result for tc1 should be present too
+    const toolResultForTc1 = secondRequestContext!.filter(
+      (m) =>
+        m.role === "tool" &&
+        (m as { tool_call_id?: string }).tool_call_id === "tc1",
+    );
+    assert.ok(
+      toolResultForTc1.length > 0,
+      "tc1 tool result should always be present",
+    );
+
+    state.destroy();
+  });
+
+  it("successful tool call input is never stripped from context", async () => {
+    // Use getRecordingDuration which always succeeds
+    let secondRequestContext: Context | null = null;
+    let callCount = 0;
+
+    const streamProvider: StreamProvider = (ctx) => {
+      callCount++;
+      if (callCount === 1) {
+        return resolve(
+          makeToolCallStream("tc1", "getRecordingDuration"),
+        ) as never;
+      }
+      secondRequestContext = [...ctx];
+      return resolve(makeTextStream("done")) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("test");
+
+    await waitForCondition(() => secondRequestContext !== null, 5000);
+
+    // The assistant block for tc1 (successful) should always be present
+    const assistantMsgsWithTc1 = secondRequestContext!.filter(
+      (m) =>
+        m.role === "assistant" &&
+        "tool_calls" in m &&
+        (m as { tool_calls?: Array<{ id: string }> }).tool_calls?.some(
+          (tc) => tc.id === "tc1",
+        ),
+    );
+    assert.ok(
+      assistantMsgsWithTc1.length > 0,
+      "successful tc1 assistant block should always be present",
+    );
+
+    state.destroy();
+  });
+
+  it("errored tool call assistant block IS stubbed in context beyond PURGE_ERROR_TURNS iterations", async () => {
+    // Drive the state machine through PURGE_ERROR_TURNS + 1 iterations where
+    // tc-err-0 is the first errored call, recorded at iteration 1. Each call
+    // uses unique args (timestampMs: N) to prevent deduplicateToolCalls from
+    // removing earlier tool results before purgeErroredToolCallInputs runs.
+    //
+    // After totalToolCallIterations = PURGE_ERROR_TURNS + 2 iterations:
+    //   tc-err-0 was recorded as errored at iteration 1.
+    //   currentIteration at the final request = PURGE_ERROR_TURNS + 2.
+    //   delta = (PURGE_ERROR_TURNS + 2) - 1 = PURGE_ERROR_TURNS + 1 >= PURGE_ERROR_TURNS → STUBBED.
+    const totalToolCallIterations = PURGE_ERROR_TURNS + 2;
+    let capturedContext: Context | null = null;
+    let callCount = 0;
+
+    const streamProvider: StreamProvider = (ctx) => {
+      callCount++;
+      if (callCount <= totalToolCallIterations) {
+        const toolCallId = `tc-err-${callCount - 1}`;
+        // Pass unique timestampMs so each call has a distinct signature and
+        // deduplicateToolCalls does not remove earlier tool results.
+        const args = JSON.stringify({ timestampMs: callCount * 1000 });
+        const toolCallEvent = JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: toolCallId,
+                    function: { name: "getDOMState", arguments: args },
+                  },
+                ],
+              },
+            },
+          ],
+        });
+        return resolve(
+          new ReadableStream<{ data: string }>({
+            start(controller) {
+              controller.enqueue({ data: toolCallEvent });
+              controller.enqueue({ data: "[DONE]" });
+              controller.close();
+            },
+          }),
+        ) as never;
+      }
+      // Final call: capture context and return plain text to end the loop.
+      capturedContext = [...ctx];
+      return resolve(makeTextStream("done")) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("test");
+
+    await waitForCondition(() => capturedContext !== null, 15000);
+
+    // "tc-err-0" was the first errored call, recorded at iteration 1.
+    // By the final request, currentIteration = PURGE_ERROR_TURNS + 2 and
+    // delta = PURGE_ERROR_TURNS + 1 >= PURGE_ERROR_TURNS → assistant block STUBBED.
+    // The message itself must be retained (preserves role:"tool" linkage).
+    const assistantMsgsWithTcErr0 = capturedContext!.filter(
+      (m) =>
+        m.role === "assistant" &&
+        "tool_calls" in m &&
+        (m as { tool_calls?: Array<{ id: string }> }).tool_calls?.some(
+          (tc) => tc.id === "tc-err-0",
+        ),
+    ) as Array<Extract<Context[number], { role: "assistant" }>>;
+    assert.strictEqual(
+      assistantMsgsWithTcErr0.length,
+      1,
+      "tc-err-0 assistant stub must remain (preserves tool-message linkage)",
+    );
+
+    // The stub must have its arguments cleared to "{}"
+    const stubCall = assistantMsgsWithTcErr0[0]!.tool_calls?.find(
+      (tc) => tc.id === "tc-err-0",
+    );
+    assert.ok(stubCall, "tc-err-0 tool_call entry must exist in the stub");
+    assert.strictEqual(
+      stubCall!.function.arguments,
+      "{}",
+      "tc-err-0 stub must have arguments stripped to '{}'",
+    );
+
+    // The tool result for tc-err-0 must still be present (purge only removes inputs).
+    const toolResultForTcErr0 = capturedContext!.filter(
+      (m) =>
+        m.role === "tool" &&
+        (m as { tool_call_id?: string }).tool_call_id === "tc-err-0",
+    );
+    assert.ok(
+      toolResultForTcErr0.length > 0,
+      "tc-err-0 tool result should always be kept",
+    );
+
+    state.destroy();
   });
 });
