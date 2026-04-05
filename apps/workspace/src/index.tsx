@@ -23,6 +23,9 @@ import { SettingsLayout } from './SettingsLayout'
 
 const HomeRoute = lazy(() => import('./routes/HomeRoute'))
 const LoginRoute = lazy(() => import('./routes/LoginRoute'))
+const AcceptInvitationRoute = lazy(
+  () => import('./routes/AcceptInvitationRoute')
+)
 const PricingRoute = lazy(() => import('./routes/PricingRoute'))
 const RecordingRoute = lazy(() => import('./routes/RecordingRoute'))
 const RegisterRoute = lazy(() => import('./routes/RegisterRoute'))
@@ -87,6 +90,10 @@ if (rootElem) {
                         <Route
                           path="account/reset-password/:token"
                           element={<ResetPasswordRoute />}
+                        />
+                        <Route
+                          path="account/accept-invitation"
+                          element={<AcceptInvitationRoute />}
                         />
                       </Route>
 

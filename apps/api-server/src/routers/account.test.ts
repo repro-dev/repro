@@ -374,6 +374,42 @@ describe('Routers > Account', () => {
       })
     })
 
+    it('should create a session on accepting an invitation', async () => {
+      const [account] = await harness.loadFixtures([fixtures.account.AccountA])
+
+      const invitation = await promise(
+        accountService.createInvitation(account.id, 'jsmith@example.com')
+      )
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/accept-invitation',
+        body: {
+          invitationToken: invitation.token,
+          email: invitation.email,
+          name: 'John Smith',
+          password: 'hunter2!',
+        },
+      })
+
+      expect(res.statusCode).toEqual(201)
+
+      const cookie = res.cookies.find(
+        c => c.name === harness.env.SESSION_COOKIE
+      )
+
+      const sessionToken = cookie?.value
+      expect(sessionToken).not.toBeUndefined()
+
+      await expect(
+        promise(accountService.getSessionByToken(sessionToken as string))
+      ).resolves.toMatchObject({
+        id: expect.any(String),
+        sessionToken,
+        subjectType: 'user',
+      })
+    })
+
     it('should throw not-found when accepting an invitation that does not exist', async () => {
       const res = await app.inject({
         method: 'POST',

@@ -42,6 +42,11 @@ export function useRegister() {
   return context.register
 }
 
+export function useAcceptInvitation() {
+  const context = useAuthContext()
+  return context.acceptInvitation
+}
+
 export function useHasGate(gate: string) {
   const gates = useContext(GateContext)
   return gates.has(gate)
