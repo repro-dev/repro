@@ -32,9 +32,9 @@ const formSchema = z
     path: ['confirmedPassword'],
   })
 
-type FormState = z.infer
+type FormState = z.infer<typeof formSchema>
 
-export const ResetPasswordForm: React.FC = ({
+export const ResetPasswordForm: React.FC<Props> = ({
   token,
   onSuccess,
   onFailure,
@@ -54,7 +54,7 @@ export const ResetPasswordForm: React.FC = ({
   const { register, formState, handleSubmit } = methods
 
   function onSubmit(data: FormState) {
-    return fork(err => {
+    return fork<Error>(err => {
       if (err.name === 'NotFoundError') {
         setErrorMessage(
           'This password reset link is invalid or has already been used.'

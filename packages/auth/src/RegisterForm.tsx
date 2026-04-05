@@ -29,9 +29,9 @@ const formSchema = z
     path: ['confirmedPassword'],
   })
 
-type FormState = z.infer
+type FormState = z.infer<typeof formSchema>
 
-export const RegisterForm: React.FC = ({ onSuccess, onFailure }) => {
+export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   const [errorMessage, setErrorMessage] = useState('')
 
   // const navigate = useNavigate()

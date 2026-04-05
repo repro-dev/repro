@@ -34,11 +34,11 @@ const resetFormSchema = z.object({
   email: z.string().email(),
 })
 
-type LoginFormState = z.infer
-type ResetFormState = z.infer
+type LoginFormState = z.infer<typeof loginFormSchema>
+type ResetFormState = z.infer<typeof resetFormSchema>
 type FormState = LoginFormState | ResetFormState
 
-export const LoginForm: React.FC = ({ onSuccess, onFailure }) => {
+export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   const [errorMessage, setErrorMessage] = useState('')
   const [showResetFlow, setShowResetFlow] = useState(false)
   const [showPostResetMessage, setShowPostResetMessage] = useState(false)
@@ -76,7 +76,7 @@ export const LoginForm: React.FC = ({ onSuccess, onFailure }) => {
 
     setLoading(true)
 
-    return fork(err => {
+    return fork<Error>(err => {
       if (err.name === 'TooManyRequests' || (err as any).statusCode === 429) {
         setErrorMessage('Too many login attempts. Please try again later.')
       } else if (
