@@ -26,6 +26,14 @@ resolve_path() {
   echo "$target"
 }
 
+# Capture the caller's working directory before any cd or symlink resolution
+# changes the process CWD.  common.sh uses CALLER_PWD to run
+# `git rev-parse --show-toplevel` against the user's actual location rather
+# than the binary's install location, so `launch <service>` picks the correct
+# worktree when reproctl is invoked via a PATH symlink in another checkout.
+CALLER_PWD="${PWD}"
+export CALLER_PWD
+
 REAL_SCRIPT="$(resolve_path "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$REAL_SCRIPT")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"

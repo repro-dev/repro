@@ -76,9 +76,20 @@ slugify() {
 # MAIN_CHECKOUT so every script works identically regardless of which
 # checkout invokes it.
 
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
-  die "Not inside a git repository. Run reproctl from within the repro checkout."
-}
+# Prefer CALLER_PWD (set by bin/reproctl before any cd) so that
+# git rev-parse resolves the user's actual working directory rather than
+# the binary's install location.  This fixes the case where reproctl is
+# invoked via a symlink in a different checkout while the user's shell CWD
+# is inside a worktree.
+if [ -n "${CALLER_PWD:-}" ]; then
+  REPO_ROOT="$(git -C "$CALLER_PWD" rev-parse --show-toplevel 2>/dev/null)" || {
+    die "Not inside a git repository. Run reproctl from within the repro checkout."
+  }
+else
+  REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    die "Not inside a git repository. Run reproctl from within the repro checkout."
+  }
+fi
 
 is_worktree() {
   [ -f "$1/.git" ]
