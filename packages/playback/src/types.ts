@@ -30,6 +30,11 @@ export interface VNodeBreakpoint {
 
 export type Breakpoint = VNodeBreakpoint
 
+// Valid playback speed multipliers
+export type PlaybackSpeed = 0.5 | 1 | 2 | 4
+
+export const VALID_SPEEDS: Array<PlaybackSpeed> = [0.5, 1, 2, 4]
+
 export interface Playback {
   // Atoms
   readonly $activeIndex: Atom<number>
@@ -42,6 +47,7 @@ export interface Playback {
   readonly $activeBreakpoint: Atom<Breakpoint | null>
   readonly $breakpoints: Atom<Array<Breakpoint>>
   readonly $breakpointsEnabled: Atom<boolean>
+  readonly $speed: Atom<PlaybackSpeed>
 
   // Accessors
   getActiveIndex(): number
@@ -60,6 +66,7 @@ export interface Playback {
   getActiveBreakpoint(): Breakpoint | null
   getBreakpoints(): Array<Breakpoint>
   getBreakpointsEnabled(): boolean
+  getSpeed(): PlaybackSpeed
 
   // Breakpoints
   addBreakpoint(breakpoint: Breakpoint): void
@@ -76,6 +83,7 @@ export interface Playback {
   pause(): void
   seekToEvent(index: number): void
   seekToTime(time: number): void
+  setSpeed(speed: PlaybackSpeed): void
 
   // Lifecycle
   open(): void

@@ -16,7 +16,14 @@ import {
 import { copyObject } from '@repro/std'
 import { Box, List } from '@repro/tdl'
 import { Observable, Subscription, first, skipUntil } from 'rxjs'
-import { Breakpoint, ControlFrame, Playback, PlaybackState } from './types'
+import {
+  Breakpoint,
+  ControlFrame,
+  Playback,
+  PlaybackSpeed,
+  PlaybackState,
+  VALID_SPEEDS,
+} from './types'
 
 const MAX_EVENT_BUFFER_SIZE_BYTES = 32_000_000
 
@@ -46,6 +53,8 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
   >([])
   const [$breakpointsEnabled, _setBreakpointsEnabled, getBreakpointsEnabled] =
     createAtom(false)
+
+  const [$speed, setSpeedAtom, getSpeed] = createAtom<PlaybackSpeed>(1)
 
   const sourceEventBuffer = createBuffer<SourceEvent>(
     MAX_EVENT_BUFFER_SIZE_BYTES
@@ -123,6 +132,12 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
 
   function play() {}
   function pause() {}
+
+  function setSpeed(speed: PlaybackSpeed) {
+    if (VALID_SPEEDS.includes(speed)) {
+      setSpeedAtom(speed)
+    }
+  }
 
   function seekToEvent() {
     setLatestControlFrame(ControlFrame.SeekToEvent)
@@ -211,6 +226,7 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
     $activeBreakpoint,
     $breakpoints,
     $breakpointsEnabled,
+    $speed,
 
     // Accessors
     getActiveIndex,
@@ -229,6 +245,7 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
     getActiveBreakpoint,
     getBreakpoints,
     getBreakpointsEnabled,
+    getSpeed,
 
     // Breakpoints
     addBreakpoint,
@@ -245,6 +262,7 @@ export function createLivePlayback(event$: Observable<SourceEvent>): Playback {
     pause,
     seekToEvent,
     seekToTime,
+    setSpeed,
 
     // Lifecycle
     open,

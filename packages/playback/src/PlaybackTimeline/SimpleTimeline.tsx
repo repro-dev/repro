@@ -20,6 +20,7 @@ import {
 import { usePlayback } from '../hooks'
 import { PlaybackState } from '../types'
 import { PlayAction } from './PlayAction'
+import { SpeedControl } from './SpeedControl'
 
 export interface Props {
   min?: number
@@ -239,6 +240,7 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
   return (
     <Row alignItems="center" height="100%" gap={8}>
       <PlayAction />
+      <SpeedControl />
 
       <Row alignItems="center" height="100%" width="100%" position="relative">
         <Block
