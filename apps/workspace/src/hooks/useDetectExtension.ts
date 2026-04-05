@@ -8,18 +8,38 @@ declare global {
   }
 }
 
-export function useDetectExtension() {
+export interface DetectExtensionResult {
+  /** False until the messaging intent has resolved (success or failure). */
+  loading: boolean
+  /** True if the Repro capture extension responded to the detection intent. */
+  hasExtension: boolean
+}
+
+export function useDetectExtension(): DetectExtensionResult {
   const agent = useMemo(
     () => createMessagingAgent({ name: 'extension-detector' }),
     []
   )
   const [hasExtension, setHasExtension] = useState(false)
+  // Start in loading state to suppress the install prompt until detection settles.
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    return agent
-      .raiseIntent<boolean>({ type: 'detect-capture-extension' })
-      .pipe(fork(console.error)(setHasExtension))
+    const onReject = (err: Error) => {
+      console.error(err)
+      setLoading(false)
+    }
+    const onResolve = (result: boolean) => {
+      setHasExtension(result)
+      setLoading(false)
+    }
+    // Cast needed because Agent.raiseIntent<R> returns FutureInstance<Error, R>
+    // but TypeScript's `this`-based pipe inference loses the R parameter.
+    const cancel = fork(onReject)(onResolve)(
+      agent.raiseIntent({ type: 'detect-capture-extension' }) as any
+    )
+    return cancel
   }, [agent])
 
-  return hasExtension
+  return { hasExtension, loading }
 }
