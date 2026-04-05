@@ -12,10 +12,12 @@ import {
   isValidMessageDelta,
 } from "./createState";
 import {
+  AssistantMessageContext,
   Context,
   RecordingDataAccessor,
   StreamProvider,
   ToolCall,
+  ToolMessageContext,
 } from "./types";
 import {
   fork,
@@ -1949,5 +1951,107 @@ describe("deduplicateToolCalls", () => {
       )
       .map((m) => m.tool_call_id);
     assert.deepStrictEqual(toolResultIds, ["tc-b", "tc-a2"]);
+  });
+
+  it("keeps unrelated tool calls in an assistant message when only some are duplicates", () => {
+    // msg1: assistant with two tool calls — toolA (will be a duplicate) and toolB (unique)
+    const msg1: AssistantMessageContext = {
+      role: "assistant",
+      content: null as unknown as string,
+      tool_calls: [
+        {
+          id: "tc-a1",
+          type: "function",
+          function: { name: "toolA", arguments: "{}" },
+        },
+        {
+          id: "tc-b1",
+          type: "function",
+          function: { name: "toolB", arguments: "{}" },
+        },
+      ],
+    };
+    const resultA1: ToolMessageContext = {
+      role: "tool",
+      tool_call_id: "tc-a1",
+      content: "resultA1",
+    };
+    const resultB1: ToolMessageContext = {
+      role: "tool",
+      tool_call_id: "tc-b1",
+      content: "resultB1",
+    };
+    // msg2: assistant with a duplicate toolA call
+    const msg2: AssistantMessageContext = {
+      role: "assistant",
+      content: null as unknown as string,
+      tool_calls: [
+        {
+          id: "tc-a2",
+          type: "function",
+          function: { name: "toolA", arguments: "{}" },
+        },
+      ],
+    };
+    const resultA2: ToolMessageContext = {
+      role: "tool",
+      tool_call_id: "tc-a2",
+      content: "resultA2",
+    };
+
+    const context: Context = [msg1, resultA1, resultB1, msg2, resultA2];
+    const result = deduplicateToolCalls(context, new Set());
+
+    // msg1 should survive but with tc-a1 removed (only tc-b1 remains)
+    const survivingMsg1 = result.find(
+      (m) =>
+        m.role === "assistant" &&
+        "tool_calls" in m &&
+        (m as AssistantMessageContext).tool_calls?.some(
+          (tc) => tc.id === "tc-b1",
+        ),
+    ) as AssistantMessageContext | undefined;
+    assert.ok(survivingMsg1, "msg1 (with toolB) should survive");
+    assert.equal(survivingMsg1.tool_calls?.length, 1);
+    assert.equal(survivingMsg1.tool_calls?.[0]?.id, "tc-b1");
+
+    // tc-a1 result should be dropped, tc-b1 result should survive
+    assert.ok(
+      !result.some(
+        (m) =>
+          m.role === "tool" &&
+          (m as ToolMessageContext).tool_call_id === "tc-a1",
+      ),
+      "resultA1 should be dropped",
+    );
+    assert.ok(
+      result.some(
+        (m) =>
+          m.role === "tool" &&
+          (m as ToolMessageContext).tool_call_id === "tc-b1",
+      ),
+      "resultB1 should survive",
+    );
+
+    // msg2 and its result should survive (most recent toolA)
+    assert.ok(
+      result.some(
+        (m) =>
+          m.role === "assistant" &&
+          "tool_calls" in m &&
+          (m as AssistantMessageContext).tool_calls?.some(
+            (tc) => tc.id === "tc-a2",
+          ),
+      ),
+      "msg2 should survive",
+    );
+    assert.ok(
+      result.some(
+        (m) =>
+          m.role === "tool" &&
+          (m as ToolMessageContext).tool_call_id === "tc-a2",
+      ),
+      "resultA2 should survive",
+    );
   });
 });

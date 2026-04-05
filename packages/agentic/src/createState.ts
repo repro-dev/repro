@@ -306,11 +306,13 @@ export function deduplicateToolCalls(
     lastIdBySig.set(sig, id);
   }
 
-  // A tool call id should be dropped if:
-  //  1. It is not protected, AND
-  //  2. It is not the last occurrence of its signature overall (lastIdBySig),
-  //     UNLESS a protected id shares the same sig — in that case the protected
-  //     copy wins and all others are dropped.
+  // Precompute the set of signatures that have at least one protected id so
+  // the drop loop below is O(n) instead of O(n²).
+  const protectedSigs = new Set<string>();
+  for (const [id, sig] of sigById) {
+    if (protectedIds.has(id)) protectedSigs.add(sig);
+  }
+
   const dropIds = new Set<string>();
   for (const [id, sig] of sigById) {
     if (protectedIds.has(id)) continue; // protected calls are never dropped
@@ -318,16 +320,10 @@ export function deduplicateToolCalls(
     if (lastForSig !== id) {
       // There is a newer occurrence — drop this one
       dropIds.add(id);
-    } else {
-      // This IS the last for the sig — but check whether a protected id
-      // shares the same signature. If so, the protected one wins and this
-      // unprotected last occurrence is also dropped.
-      for (const [otherId, otherSig] of sigById) {
-        if (otherSig === sig && protectedIds.has(otherId)) {
-          dropIds.add(id);
-          break;
-        }
-      }
+    } else if (protectedSigs.has(sig)) {
+      // This is the last unprotected occurrence but a protected call shares
+      // the same signature — the protected copy wins, so drop this one too.
+      dropIds.add(id);
     }
   }
 
