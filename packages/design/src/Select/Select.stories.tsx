@@ -400,6 +400,49 @@ export const CustomRenderingWithIcons: Story = {
   },
 }
 
+const fruitIconFieldOptions: SelectOption[] = [
+  {
+    value: 'apple',
+    label: 'Apple',
+    icon: <Apple size={16} />,
+  },
+  {
+    value: 'cherry',
+    label: 'Cherry',
+    icon: <Cherry size={16} />,
+  },
+  {
+    value: 'citrus',
+    label: 'Citrus',
+    icon: <Citrus size={16} />,
+  },
+  {
+    value: 'grape',
+    label: 'Grape',
+    icon: <Grape size={16} />,
+  },
+]
+
+export const WithIconField: Story = {
+  render: () => {
+    const [value, setValue] = useState('')
+    return (
+      <Block padding={16} maxWidth={300}>
+        <FormField>
+          <Label htmlFor="fruit-icon-field">Fruit (icon via option.icon)</Label>
+          <Select
+            id="fruit-icon-field"
+            value={value}
+            onChange={setValue}
+            options={fruitIconFieldOptions}
+            placeholder="Choose a fruit"
+          />
+        </FormField>
+      </Block>
+    )
+  },
+}
+
 const roleOptions: SelectOption[] = [
   { value: 'admin', label: 'Admin' },
   { value: 'editor', label: 'Editor' },

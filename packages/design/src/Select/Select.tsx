@@ -38,6 +38,8 @@ export interface SelectOption {
   value: string
   label: string
   disabled?: boolean
+  /** Optional icon rendered before the label text. Accepts any React node (e.g. a lucide icon element). */
+  icon?: React.ReactNode
 }
 
 export interface SelectOptionGroup {
@@ -503,16 +505,32 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
             whiteSpace="nowrap"
             flex={1}
           >
-            {selectedOption
-              ? renderValue
-                ? renderValue(selectedOption)
-                : renderOption
-                ? renderOption(selectedOption, {
-                    isSelected: true,
-                    isActive: false,
-                  })
-                : selectedOption.label
-              : placeholder}
+            {selectedOption ? (
+              renderValue ? (
+                renderValue(selectedOption)
+              ) : renderOption ? (
+                renderOption(selectedOption, {
+                  isSelected: true,
+                  isActive: false,
+                })
+              ) : selectedOption.icon ? (
+                <Row alignItems="center" gap={spacing.sm} component="span">
+                  <Block
+                    component="span"
+                    display="inline-flex"
+                    alignItems="center"
+                    flexShrink={0}
+                  >
+                    {selectedOption.icon}
+                  </Block>
+                  <Block component="span">{selectedOption.label}</Block>
+                </Row>
+              ) : (
+                selectedOption.label
+              )
+            ) : (
+              placeholder
+            )}
           </Block>
 
           <Block
@@ -736,9 +754,27 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                           }}
                         >
                           <Block flex={1}>
-                            {renderOption
-                              ? renderOption(option, { isSelected, isActive })
-                              : option.label}
+                            {renderOption ? (
+                              renderOption(option, { isSelected, isActive })
+                            ) : option.icon ? (
+                              <Row
+                                alignItems="center"
+                                gap={spacing.sm}
+                                component="span"
+                              >
+                                <Block
+                                  component="span"
+                                  display="inline-flex"
+                                  alignItems="center"
+                                  flexShrink={0}
+                                >
+                                  {option.icon}
+                                </Block>
+                                <Block component="span">{option.label}</Block>
+                              </Row>
+                            ) : (
+                              option.label
+                            )}
                           </Block>
                           {isSelected && (
                             <Block
