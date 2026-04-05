@@ -262,3 +262,64 @@ describe('getStoreState (instance method)', () => {
     obs2.disconnect()
   })
 })
+
+describe('idempotency', () => {
+  it('calling observe() twice does not stack dispatch wrappers', () => {
+    const store = createMockStore({ count: 0 })
+    const originalDispatch = store.dispatch
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const events: StateSourceEvent[] = []
+    const observer = createReduxObserver(e => events.push(e), win)
+
+    // Call observe twice
+    observer.observe({} as Document, {} as never)
+    observer.observe({} as Document, {} as never)
+
+    // Dispatch should only be wrapped once — not double-wrapped
+    store.dispatch({ type: 'INC' })
+
+    // Only one event should be emitted per dispatch
+    assert.equal(events.length, 1)
+
+    observer.disconnect()
+
+    // Original dispatch should be fully restored
+    assert.equal(store.dispatch, originalDispatch)
+  })
+
+  it('calling observe() multiple times does not cause double events on dispatch', () => {
+    const store = createMockStore({ count: 0 })
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const events: StateSourceEvent[] = []
+    const observer = createReduxObserver(e => events.push(e), win)
+
+    observer.observe({} as Document, {} as never)
+    observer.observe({} as Document, {} as never)
+    observer.observe({} as Document, {} as never)
+
+    store.dispatch({ type: 'INC' })
+
+    // Regardless of how many times observe was called, exactly one event per dispatch
+    assert.equal(events.length, 1)
+
+    observer.disconnect()
+  })
+
+  it('disconnect fully restores original dispatch after multiple observe calls', () => {
+    const store = createMockStore({ count: 0 })
+    const originalDispatch = store.dispatch
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const observer = createReduxObserver(() => {}, win)
+
+    observer.observe({} as Document, {} as never)
+    observer.observe({} as Document, {} as never)
+
+    observer.disconnect()
+
+    // Must restore exactly the original, not an intermediate wrapper
+    assert.equal(store.dispatch, originalDispatch)
+  })
+})

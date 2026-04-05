@@ -1656,3 +1656,220 @@ describe('Select — option groups (REP-299)', () => {
     expect(trigger.disabled).toBe(true)
   })
 })
+
+describe('Select — icon field on SelectOption (REP-311)', () => {
+  const iconOptions: SelectOption[] = [
+    {
+      value: 'apple',
+      label: 'Apple',
+      icon: <span data-testid="icon-apple">🍎</span>,
+    },
+    {
+      value: 'banana',
+      label: 'Banana',
+      icon: <span data-testid="icon-banana">🍌</span>,
+    },
+    { value: 'cherry', label: 'Cherry' },
+  ]
+
+  it('icon renders inside the option row when icon is provided', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={iconOptions}
+          aria-label="Fruit"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const appleIcon = document.querySelector('[data-testid="icon-apple"]')
+    expect(appleIcon).not.toBeNull()
+    expect(appleIcon!.textContent).toBe('🍎')
+
+    const bananaIcon = document.querySelector('[data-testid="icon-banana"]')
+    expect(bananaIcon).not.toBeNull()
+  })
+
+  it('no icon element rendered for options without an icon', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={iconOptions}
+          aria-label="Fruit"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    // Cherry has no icon — verify only 2 icons exist in the dropdown
+    const allIcons = document.querySelectorAll('[data-testid^="icon-"]')
+    expect(allIcons.length).toBe(2)
+  })
+
+  it('icon renders in the trigger when the selected option has an icon', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value="apple"
+          onChange={() => {}}
+          options={iconOptions}
+          aria-label="Fruit"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    const iconInTrigger = trigger.querySelector('[data-testid="icon-apple"]')
+    expect(iconInTrigger).not.toBeNull()
+    expect(iconInTrigger!.textContent).toBe('🍎')
+  })
+
+  it('no icon in trigger when selected option has no icon', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value="cherry"
+          onChange={() => {}}
+          options={iconOptions}
+          aria-label="Fruit"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    // Cherry has no icon — no icon-* elements in trigger
+    const iconInTrigger = trigger.querySelector('[data-testid^="icon-"]')
+    expect(iconInTrigger).toBeNull()
+    expect(trigger.textContent).toContain('Cherry')
+  })
+
+  it('icon and label are both visible in the option row', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={iconOptions}
+          aria-label="Fruit"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+    // Apple option should contain both the icon and the label text
+    const appleOption = optionElements[0]!
+    expect(appleOption.textContent).toContain('🍎')
+    expect(appleOption.textContent).toContain('Apple')
+  })
+
+  it('keyboard navigation still works when options have icons', () => {
+    const onChange = mock.fn()
+
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={onChange}
+          options={iconOptions}
+          aria-label="Fruit"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+    expect(optionElements.length).toBe(3)
+
+    act(() => {
+      fireEvent.keyDown(optionElements[0] as HTMLElement, { key: 'Enter' })
+    })
+
+    expect(onChange.mock.callCount()).toBe(1)
+    expect(onChange.mock.calls[0]?.arguments[0]).toBe('apple')
+  })
+
+  it('ARIA attributes are correct when options have icons', () => {
+    render(
+      <PortalRootProvider>
+        <Select
+          value="banana"
+          onChange={() => {}}
+          options={iconOptions}
+          aria-label="Fruit"
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    const optionElements = document.querySelectorAll('[role="option"]')
+    expect(optionElements.length).toBe(3)
+
+    // banana is selected
+    const bananaOption = optionElements[1] as HTMLElement
+    expect(bananaOption.getAttribute('role')).toBe('option')
+    expect(bananaOption.getAttribute('aria-selected')).toBe('true')
+
+    // apple is not selected
+    const appleOption = optionElements[0] as HTMLElement
+    expect(appleOption.getAttribute('role')).toBe('option')
+    expect(appleOption.getAttribute('aria-selected')).toBe('false')
+  })
+
+  it('renderOption prop takes precedence over icon field', () => {
+    const customRender = mock.fn((option: SelectOption) => (
+      <span data-testid={`custom-render-${option.value}`}>
+        CUSTOM: {option.label}
+      </span>
+    ))
+
+    render(
+      <PortalRootProvider>
+        <Select
+          value=""
+          onChange={() => {}}
+          options={iconOptions}
+          aria-label="Fruit"
+          renderOption={customRender}
+        />
+      </PortalRootProvider>
+    )
+
+    const trigger = document.querySelector('button')!
+    act(() => {
+      trigger.click()
+    })
+
+    // Custom render is used — icon from SelectOption is not rendered directly
+    const customApple = document.querySelector(
+      '[data-testid="custom-render-apple"]'
+    )
+    expect(customApple).not.toBeNull()
+    expect(customApple!.textContent).toBe('CUSTOM: Apple')
+  })
+})

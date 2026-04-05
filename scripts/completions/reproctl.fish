@@ -1,4 +1,4 @@
-set -l commands setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion help
+set -l commands setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help
 
 function __reproctl_no_subcommand
     set -l cmd (commandline -opc)
@@ -56,6 +56,7 @@ complete -c reproctl -n __reproctl_no_subcommand -f -a doctor -d 'Check developm
 complete -c reproctl -n __reproctl_no_subcommand -f -a checkhealth -d 'Runtime health checks'
 complete -c reproctl -n __reproctl_no_subcommand -f -a cluster -d 'Manage local k8s cluster and registry'
 complete -c reproctl -n __reproctl_no_subcommand -f -a db -d 'Database operations'
+complete -c reproctl -n __reproctl_no_subcommand -f -a code-index -d 'Code intelligence index management'
 complete -c reproctl -n __reproctl_no_subcommand -f -a start -d 'Start services'
 complete -c reproctl -n __reproctl_no_subcommand -f -a stop -d 'Stop services or tear down Tilt'
 complete -c reproctl -n __reproctl_no_subcommand -f -a restart -d 'Rebuild and redeploy services'
@@ -67,6 +68,7 @@ complete -c reproctl -n __reproctl_no_subcommand -f -a context -d 'Show current 
 complete -c reproctl -n __reproctl_no_subcommand -f -a worktree -d 'Manage git worktrees'
 complete -c reproctl -n __reproctl_no_subcommand -f -a wt -d 'Manage git worktrees (alias)'
 complete -c reproctl -n __reproctl_no_subcommand -f -a completion -d 'Generate shell completions'
+complete -c reproctl -n __reproctl_no_subcommand -f -a version -d 'Print reproctl version'
 complete -c reproctl -n __reproctl_no_subcommand -f -a help -d 'Show help for a command'
 
 complete -c reproctl -l json -d 'Output machine-readable JSON'
@@ -89,6 +91,8 @@ complete -c reproctl -n '__reproctl_using_command db' -f -a migrate -d 'Run pend
 complete -c reproctl -n '__reproctl_using_command db' -f -a shell -d 'Open a psql session'
 complete -c reproctl -n '__reproctl_using_command db' -f -a status -d 'Show connection info and migration status'
 complete -c reproctl -n '__reproctl_using_subcommand db reset' -f -s y -l yes -d 'Skip confirmation'
+
+complete -c reproctl -n '__reproctl_using_command code-index' -f -a help -d 'Show usage summary'
 
 complete -c reproctl -n '__reproctl_using_command start' -f -a '(__reproctl_services)' -d 'Service'
 complete -c reproctl -n '__reproctl_using_command start' -f -s p -l pick -d 'Interactively select a service'
@@ -149,4 +153,4 @@ complete -c reproctl -n '__reproctl_using_subcommand wt prune' -f -s y -l yes -d
 
 complete -c reproctl -n '__reproctl_using_command completion' -f -a 'bash zsh fish' -d 'Shell'
 
-complete -c reproctl -n '__reproctl_using_command help' -f -a 'setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion environment exit-codes json'
+complete -c reproctl -n '__reproctl_using_command help' -f -a 'setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion environment exit-codes json'

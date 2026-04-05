@@ -770,3 +770,149 @@ describe('getComponentTree (instance method)', () => {
     delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
   })
 })
+
+describe('idempotency and re-attach (REP-729)', () => {
+  it('calling observe() twice does not double-wrap the hook', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+    observer.observe(null as any, null as any) // second call must be a no-op
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'Widget' },
+      memoizedProps: { x: 1 },
+      alternate: null,
+      _debugID: 4001,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    // If the hook was double-wrapped, there would be 2 events
+    assert.equal(
+      events.length,
+      1,
+      'double observe() must not produce duplicate events'
+    )
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('after disconnect(), observe() can re-attach and receives commits', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+
+    // First session
+    observer.observe(null as any, null as any)
+    const fiber1 = makeFiber({
+      tag: 0,
+      type: { name: 'Session1' },
+      memoizedProps: { s: 1 },
+      alternate: null,
+      _debugID: 5001,
+    })
+    simulateCommit(1, makeFiberRoot(fiber1))
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const eventsAfterFirstSession = events.length
+    assert.equal(eventsAfterFirstSession, 1)
+
+    // Second session — re-attach after disconnect
+    observer.observe(null as any, null as any)
+    const fiber2 = makeFiber({
+      tag: 0,
+      type: { name: 'Session2' },
+      memoizedProps: { s: 2 },
+      alternate: null,
+      _debugID: 5002,
+    })
+    simulateCommit(1, makeFiberRoot(fiber2))
+
+    // Should have received the second session's commit
+    assert.equal(
+      events.length,
+      2,
+      'observer must receive commits after re-attach'
+    )
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('componentTree and commitBatchCounter are reset when re-attaching after disconnect', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+
+    // First session: accumulate some state
+    observer.observe(null as any, null as any)
+    const fiber1 = makeFiber({
+      tag: 0,
+      type: { name: 'OldComp' },
+      memoizedProps: { v: 1 },
+      alternate: null,
+      _debugID: 6001,
+    })
+    simulateCommit(1, makeFiberRoot(fiber1))
+    simulateCommit(1, makeFiberRoot(fiber1)) // second commit → commitBatchId = 2
+
+    // Verify state was accumulated
+    const treeBeforeDisconnect = observer.getComponentTree()
+    assert.ok(
+      treeBeforeDisconnect !== null,
+      'tree should be populated before disconnect'
+    )
+    const batchIdBeforeDisconnect =
+      events[events.length - 1]?.commitBatchId ?? 0
+    assert.ok(
+      batchIdBeforeDisconnect >= 2,
+      'batchId should be at least 2 after two commits'
+    )
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    // Second session: re-attach and check that state was reset
+    observer.observe(null as any, null as any)
+
+    // componentTree must be empty at start of new session
+    assert.equal(
+      observer.getComponentTree(),
+      null,
+      'componentTree must be null at start of new session'
+    )
+
+    // First commit in new session must start with batchId = 1 (reset from prior state)
+    const fiber2 = makeFiber({
+      tag: 0,
+      type: { name: 'NewComp' },
+      memoizedProps: { v: 2 },
+      alternate: null,
+      _debugID: 6002,
+    })
+    simulateCommit(1, makeFiberRoot(fiber2))
+
+    const newSessionEvent = events[events.length - 1]
+    assert.equal(
+      newSessionEvent?.commitBatchId,
+      1,
+      'commitBatchId must restart from 1 in a new session'
+    )
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+})
