@@ -150,6 +150,8 @@ The typical flow for a feature or fix:
 
 This project uses [DCP](https://github.com/Opencode-DCP/opencode-dynamic-context-pruning) for context compression. **Treat provider auto-compaction as a failure mode, not a fallback** — if the provider's built-in summarization fires, context was mismanaged.
 
+**GitHub Copilot context ceiling**: When running via GitHub Copilot, `claude-sonnet-4.6` has `limit.input = 128k` (not Anthropic's native 200k). OpenCode reserves 20k for output, so the effective usable ceiling is **108k tokens** — auto-compaction fires at ~108k, which is only ~54% of the model's theoretical window. DCP thresholds in `.opencode/dcp.jsonc` are set accordingly (`maxContextLimit: 85000`, `minContextLimit: 45000`) so DCP nudges fire before OpenCode's hard gate triggers provider-side compaction. If you switch to native Anthropic API access (where `limit.input ≈ 190k`, usable ≈ 170k), recalibrate these thresholds upward.
+
 Use the `compress` tool proactively at these checkpoints:
 
 - **After a PR is opened**: compress the entire implementation, review, and fix cycle for that issue immediately after `gh pr create` and Linear is set to In Review. Keep: commit SHAs, PR URL, changed file paths, blocking issues found and resolved. Drop: verbose tool output, intermediate exploration, failed attempts.
