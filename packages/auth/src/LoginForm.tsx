@@ -108,21 +108,23 @@ export const LoginForm: React.FC = ({ onSuccess, onFailure }) => {
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Col gap={16}>
-          <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
-            {showResetFlow ? 'Reset Your Password' : 'Log In'}
-          </Block>
+          <Col gap={12}>
+            <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
+              {showResetFlow ? 'Reset Your Password' : 'Log In'}
+            </Block>
 
-          <Block
-            paddingBottom={10}
-            fontSize={13}
-            lineHeight="1.5em"
-            borderBottom={`1px solid ${colors.slate['200']}`}
-            color={colors.slate['500']}
-          >
-            {showResetFlow
-              ? 'Enter your email for password reset instructions'
-              : null}
-          </Block>
+            <Block
+              paddingBottom={10}
+              fontSize={13}
+              lineHeight="1.5em"
+              borderBottom={`1px solid ${colors.slate['200']}`}
+              color={colors.slate['500']}
+            >
+              {showResetFlow
+                ? 'Enter your email for password reset instructions'
+                : null}
+            </Block>
+          </Col>
 
           {showPostResetMessage && (
             <Block

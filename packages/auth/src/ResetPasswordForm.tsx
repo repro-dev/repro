@@ -32,9 +32,9 @@ const formSchema = z
     path: ['confirmedPassword'],
   })
 
-type FormState = z.infer<typeof formSchema>
+type FormState = z.infer
 
-export const ResetPasswordForm: React.FC<Props> = ({
+export const ResetPasswordForm: React.FC = ({
   token,
   onSuccess,
   onFailure,
@@ -42,7 +42,7 @@ export const ResetPasswordForm: React.FC<Props> = ({
   const [errorMessage, setErrorMessage] = useState('')
   const confirmPasswordReset = useConfirmPasswordReset()
 
-  const methods = useForm<FormState>({
+  const methods = useForm({
     mode: 'onChange',
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -54,7 +54,7 @@ export const ResetPasswordForm: React.FC<Props> = ({
   const { register, formState, handleSubmit } = methods
 
   function onSubmit(data: FormState) {
-    return fork<Error>(err => {
+    return fork(err => {
       if (err.name === 'NotFoundError') {
         setErrorMessage(
           'This password reset link is invalid or has already been used.'
@@ -74,19 +74,21 @@ export const ResetPasswordForm: React.FC<Props> = ({
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Col gap={16}>
-          <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
-            Set New Password
-          </Block>
+          <Col gap={12}>
+            <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
+              Set New Password
+            </Block>
 
-          <Block
-            paddingBottom={10}
-            fontSize={13}
-            lineHeight="1.5em"
-            borderBottom={`1px solid ${colors.slate['200']}`}
-            color={colors.slate['500']}
-          >
-            Enter a new password for your account
-          </Block>
+            <Block
+              paddingBottom={10}
+              fontSize={13}
+              lineHeight="1.5em"
+              borderBottom={`1px solid ${colors.slate['200']}`}
+              color={colors.slate['500']}
+            >
+              Enter a new password for your account
+            </Block>
+          </Col>
 
           {errorMessage && (
             <Block
