@@ -11,14 +11,18 @@ import {
 import { Box } from "@repro/tdl";
 import { resolve } from "fluture";
 import { estimateTokens } from "../token-optimization";
+import { createError } from "./common";
 import type { ToolHandler } from "./common";
 
-const MAX_VALUE_BYTES = 5 * 1024; // 5 KB
+const MAX_VALUE_CHARS = 5 * 1024; // 5 KB (counted in characters)
 
 function truncateLargeValue(value: string): string {
-  if (value.length <= MAX_VALUE_BYTES) return value;
-  return value.slice(0, MAX_VALUE_BYTES) + " [truncated — value exceeded 5 KB]";
+  if (value.length <= MAX_VALUE_CHARS) return value;
+  return value.slice(0, MAX_VALUE_CHARS) + " [truncated — value exceeded 5 KB]";
 }
+
+const VALID_FRAMEWORKS = ["react", "redux"] as const;
+type Framework = (typeof VALID_FRAMEWORKS)[number];
 
 export const TOOL_DEFINITION = {
   type: "function",
@@ -45,11 +49,11 @@ export const TOOL_DEFINITION = {
           description:
             "Filter Redux dispatches and Vuex mutations by action/mutation type (substring match). Has no effect on React events.",
         },
-        startTime: {
+        timeRangeStartMs: {
           type: "number",
           description: "Start of time range in ms from recording start.",
         },
-        endTime: {
+        timeRangeEndMs: {
           type: "number",
           description: "End of time range in ms from recording start.",
         },
@@ -63,23 +67,42 @@ export const TOOL_DEFINITION = {
 };
 
 export const handler: ToolHandler = (recording, args) => {
-  const framework = args.framework as "react" | "redux" | undefined;
+  const frameworkArg = args.framework as string | undefined;
   const componentNameFilter = args.componentName as string | undefined;
   const actionTypeFilter = args.actionType as string | undefined;
-  const startTime = args.startTime as number | undefined;
-  const endTime = args.endTime as number | undefined;
-  const limit = (args.limit as number | undefined) ?? 50;
+  const timeRangeStartMs = args.timeRangeStartMs as number | undefined;
+  const timeRangeEndMs = args.timeRangeEndMs as number | undefined;
+  const limit = Math.max(1, (args.limit as number | undefined) ?? 50);
 
-  const sourceEvents = recording.getEventsByType([SourceEventType.State]);
+  // Validate framework against known values — reject early with a self-healing error.
+  if (
+    frameworkArg !== undefined &&
+    !(VALID_FRAMEWORKS as readonly string[]).includes(frameworkArg)
+  ) {
+    return resolve(
+      createError(
+        `Unknown framework: "${frameworkArg}"`,
+        `The framework parameter must be one of: ${VALID_FRAMEWORKS.map(
+          (f) => `'${f}'`,
+        ).join(", ")}`,
+        `Call getStateChanges() with framework='react' or framework='redux', or omit the framework parameter to return all state events.`,
+      ),
+    );
+  }
+
+  const framework = frameworkArg as Framework | undefined;
+
+  // Delegate time-range filtering to getEventsByType — avoids a second scan.
+  const sourceEvents = recording.getEventsByType([SourceEventType.State], {
+    startMs: timeRangeStartMs,
+    endMs: timeRangeEndMs,
+  });
 
   const events: Array<Record<string, unknown>> = [];
   let total = 0;
 
   for (const sourceEvent of sourceEvents) {
     const time = (sourceEvent as Box<{ time: number }>).get("time").orElse(0);
-
-    if (startTime !== undefined && time < startTime) continue;
-    if (endTime !== undefined && time > endTime) continue;
 
     // The SourceEvent data field is itself a Box (StateEvent = Box<...>).
     // .get("data") returns Box<Box<StateEventData>>; .flat() unwraps one level
@@ -249,8 +272,8 @@ export const handler: ToolHandler = (recording, args) => {
     framework !== undefined ||
     componentNameFilter !== undefined ||
     actionTypeFilter !== undefined ||
-    startTime !== undefined ||
-    endTime !== undefined;
+    timeRangeStartMs !== undefined ||
+    timeRangeEndMs !== undefined;
 
   if (events.length === 0) {
     const hint =
