@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  PURGE_ERROR_TURNS,
   computeContextBudget,
+  purgeErroredToolCallInputs,
   truncateToContextBudget,
 } from "./context-window";
+import type { Context } from "../types";
 
 // Typed message helper for isProtected tests
 interface LabeledMessage {
@@ -348,5 +351,391 @@ describe("truncateToContextBudget with isProtected", () => {
 
     assert.deepEqual(result, [msgs[1], msgs[2]]);
     assert.equal(droppedCount, 1);
+  });
+});
+
+// ─── PURGE_ERROR_TURNS ───────────────────────────────────────────────────────
+
+describe("PURGE_ERROR_TURNS", () => {
+  it("is a positive integer", () => {
+    assert.ok(typeof PURGE_ERROR_TURNS === "number");
+    assert.ok(Number.isInteger(PURGE_ERROR_TURNS));
+    assert.ok(PURGE_ERROR_TURNS > 0);
+  });
+
+  it("defaults to 4", () => {
+    assert.equal(PURGE_ERROR_TURNS, 4);
+  });
+});
+
+// ─── purgeErroredToolCallInputs ──────────────────────────────────────────────
+
+// Helpers for building minimal context messages
+function makeAssistantWithToolCall(id: string, name: string): Context[number] {
+  return {
+    role: "assistant",
+    content: "",
+    tool_calls: [
+      {
+        id,
+        type: "function" as const,
+        function: { name, arguments: "{}" },
+      },
+    ],
+  };
+}
+
+function makeToolResult(toolCallId: string, content: string): Context[number] {
+  return {
+    role: "tool",
+    tool_call_id: toolCallId,
+    content,
+  };
+}
+
+function makeErrorResult(toolCallId: string): Context[number] {
+  return makeToolResult(toolCallId, JSON.stringify({ error: "Tool failed" }));
+}
+
+function makeSuccessResult(toolCallId: string): Context[number] {
+  return makeToolResult(toolCallId, JSON.stringify({ durationMs: 100 }));
+}
+
+function makeUser(content = "hello"): Context[number] {
+  return { role: "user", content };
+}
+
+describe("purgeErroredToolCallInputs", () => {
+  it("does not strip errored tool call input within PURGE_ERROR_TURNS iterations", () => {
+    // Error occurred at iteration 3; current iteration is 5 (delta = 2, within threshold of 4)
+    const context: Context = [
+      makeUser(),
+      makeAssistantWithToolCall("tc1", "getDOMState"),
+      makeErrorResult("tc1"),
+    ];
+    const erroredCalls = new Map([["tc1", 3]]);
+    const currentIteration = 5;
+
+    const result = purgeErroredToolCallInputs(
+      context,
+      erroredCalls,
+      currentIteration,
+    );
+
+    // Assistant tool-call block should still be present
+    const assistantMsgs = result.filter((m) => m.role === "assistant");
+    assert.equal(assistantMsgs.length, 1);
+    // Tool result should be kept
+    const toolMsgs = result.filter((m) => m.role === "tool");
+    assert.equal(toolMsgs.length, 1);
+  });
+
+  it("rewrites errored tool-call arguments to '{}' stub for calls beyond PURGE_ERROR_TURNS", () => {
+    // Error occurred at iteration 1; current iteration is 5 (delta = 4 = PURGE_ERROR_TURNS, at threshold)
+    // With >= boundary, this should now purge
+    const context: Context = [
+      makeUser(),
+      makeAssistantWithToolCall("tc1", "getDOMState"),
+      makeErrorResult("tc1"),
+    ];
+    const erroredCalls = new Map([["tc1", 1]]);
+    const currentIteration = 1 + PURGE_ERROR_TURNS; // exactly at threshold → purge
+
+    const result = purgeErroredToolCallInputs(
+      context,
+      erroredCalls,
+      currentIteration,
+    );
+
+    // Assistant message must be retained as a stub (keeps role:"tool" linkage valid)
+    const assistantMsgs = result.filter(
+      (m): m is Extract<Context[number], { role: "assistant" }> =>
+        m.role === "assistant",
+    );
+    assert.equal(assistantMsgs.length, 1);
+    // The stub must have arguments stripped to "{}"
+    const toolCalls = assistantMsgs[0]!.tool_calls ?? [];
+    assert.equal(toolCalls.length, 1);
+    assert.equal(toolCalls[0]!.id, "tc1");
+    assert.equal(toolCalls[0]!.function.arguments, "{}");
+    // The tool result must also be kept
+    const toolMsgs = result.filter(
+      (m): m is Extract<Context[number], { role: "tool" }> => m.role === "tool",
+    );
+    assert.equal(toolMsgs.length, 1);
+    assert.equal(toolMsgs[0]!.tool_call_id, "tc1");
+  });
+
+  it("keeps successful tool call inputs unaffected (regardless of iterations)", () => {
+    const context: Context = [
+      makeUser(),
+      makeAssistantWithToolCall("tc1", "getRecordingDuration"),
+      makeSuccessResult("tc1"),
+    ];
+    // No errored calls
+    const erroredCalls = new Map<string, number>();
+    const currentIteration = 100;
+
+    const result = purgeErroredToolCallInputs(
+      context,
+      erroredCalls,
+      currentIteration,
+    );
+
+    // Assistant block must be present
+    const assistantMsgs = result.filter((m) => m.role === "assistant");
+    assert.equal(assistantMsgs.length, 1);
+    // Tool result must be present
+    const toolMsgs = result.filter((m) => m.role === "tool");
+    assert.equal(toolMsgs.length, 1);
+  });
+
+  it("handles mixed: stubs old errored call but keeps recent errored call and successful calls", () => {
+    // tc1: errored at iteration 1, current=7, delta=6 → stub (>= 4)
+    // tc2: errored at iteration 5, current=7, delta=2 → keep original
+    // tc3: success → keep original
+    const context: Context = [
+      makeUser(),
+      makeAssistantWithToolCall("tc1", "getDOMState"),
+      makeErrorResult("tc1"),
+      makeAssistantWithToolCall("tc2", "getDOMState"),
+      makeErrorResult("tc2"),
+      makeAssistantWithToolCall("tc3", "getRecordingDuration"),
+      makeSuccessResult("tc3"),
+    ];
+    const erroredCalls = new Map([
+      ["tc1", 1],
+      ["tc2", 5],
+    ]);
+    const currentIteration = 7;
+
+    const result = purgeErroredToolCallInputs(
+      context,
+      erroredCalls,
+      currentIteration,
+    );
+
+    // All 3 assistant messages remain (tc1 as stub, tc2 and tc3 unchanged)
+    const assistantMsgs = result.filter(
+      (m): m is Extract<Context[number], { role: "assistant" }> =>
+        m.role === "assistant",
+    );
+    assert.equal(
+      assistantMsgs.length,
+      3,
+      "all 3 assistant messages must remain (tc1 stubbed, tc2 and tc3 unchanged)",
+    );
+
+    // tc1's stub must have arguments="{}"
+    const tc1Msg = assistantMsgs.find(
+      (m) => m.tool_calls?.some((tc) => tc.id === "tc1"),
+    );
+    assert.ok(tc1Msg, "tc1 assistant message must exist");
+    const tc1Call = tc1Msg!.tool_calls?.find((tc) => tc.id === "tc1");
+    assert.equal(tc1Call!.function.arguments, "{}");
+
+    // tc2 and tc3 must be unchanged (arguments still "{}" from original makeAssistantWithToolCall,
+    // but the key point is they weren't changed by the purge)
+    const tc2Msg = assistantMsgs.find(
+      (m) => m.tool_calls?.some((tc) => tc.id === "tc2"),
+    );
+    assert.ok(tc2Msg, "tc2 assistant message must exist");
+
+    // All tool results kept
+    const toolMsgs = result.filter(
+      (m): m is Extract<Context[number], { role: "tool" }> => m.role === "tool",
+    );
+    assert.equal(toolMsgs.length, 3, "all 3 tool results must be retained");
+  });
+
+  it("returns context unchanged when erroredCalls map is empty", () => {
+    const context: Context = [
+      makeUser(),
+      makeAssistantWithToolCall("tc1", "getRecordingDuration"),
+      makeSuccessResult("tc1"),
+    ];
+
+    const result = purgeErroredToolCallInputs(context, new Map(), 10);
+    assert.deepEqual(result, context);
+  });
+
+  it("stubs only the errored tool_call entry in an assistant message with multiple tool calls", () => {
+    // One assistant message calls both toolA (errored, old) and toolB (success).
+    // toolA's arguments should be stubbed to "{}"; toolB stays unchanged.
+    // The message itself and both tool_call entries must survive.
+    const context: Context = [
+      makeUser(),
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "tc-a",
+            type: "function" as const,
+            function: { name: "getDOMState", arguments: '{"timestamp":1000}' },
+          },
+          {
+            id: "tc-b",
+            type: "function" as const,
+            function: {
+              name: "getRecordingDuration",
+              arguments: '{"detail":"full"}',
+            },
+          },
+        ],
+      },
+      makeErrorResult("tc-a"),
+      makeSuccessResult("tc-b"),
+    ];
+    const erroredCalls = new Map([["tc-a", 1]]);
+    const currentIteration = 10;
+
+    const result = purgeErroredToolCallInputs(
+      context,
+      erroredCalls,
+      currentIteration,
+    );
+
+    // The assistant message must survive with both tool_calls intact (as stub + unchanged)
+    const assistantMsgs = result.filter(
+      (m): m is Extract<Context[number], { role: "assistant" }> =>
+        m.role === "assistant",
+    );
+    assert.equal(assistantMsgs.length, 1);
+
+    const toolCalls = assistantMsgs[0]!.tool_calls ?? [];
+    assert.equal(toolCalls.length, 2, "both tool_calls must be present");
+
+    const tcA = toolCalls.find((tc) => tc.id === "tc-a");
+    assert.ok(tcA, "tc-a must still be present");
+    assert.equal(
+      tcA!.function.arguments,
+      "{}",
+      "tc-a arguments must be stubbed",
+    );
+
+    const tcB = toolCalls.find((tc) => tc.id === "tc-b");
+    assert.ok(tcB, "tc-b must still be present");
+    assert.equal(
+      tcB!.function.arguments,
+      '{"detail":"full"}',
+      "tc-b arguments must be unchanged",
+    );
+
+    // Both tool results are preserved
+    const toolMsgs = result.filter(
+      (m): m is Extract<Context[number], { role: "tool" }> => m.role === "tool",
+    );
+    assert.equal(toolMsgs.length, 2);
+  });
+
+  it("retains assistant message as stub when all its tool_calls are old errored calls", () => {
+    // Even when all tool_calls are purged, the assistant message is kept with stubbed
+    // arguments to maintain the message-sequence invariant for role:"tool" messages.
+    const context: Context = [
+      makeUser(),
+      makeAssistantWithToolCall("tc1", "getDOMState"),
+      makeErrorResult("tc1"),
+    ];
+    const erroredCalls = new Map([["tc1", 1]]);
+    const currentIteration = 10;
+
+    const result = purgeErroredToolCallInputs(
+      context,
+      erroredCalls,
+      currentIteration,
+    );
+
+    // Assistant message is retained as a stub
+    const assistantMsgs = result.filter(
+      (m): m is Extract<Context[number], { role: "assistant" }> =>
+        m.role === "assistant",
+    );
+    assert.equal(assistantMsgs.length, 1, "assistant stub message must remain");
+    const toolCalls = assistantMsgs[0]!.tool_calls ?? [];
+    assert.equal(toolCalls.length, 1);
+    assert.equal(toolCalls[0]!.function.arguments, "{}");
+    // Tool result still present
+    assert.equal(result.filter((m) => m.role === "tool").length, 1);
+    // User message is untouched
+    assert.equal(result.filter((m) => m.role === "user").length, 1);
+  });
+
+  it("keeps errored tool call when delta is exactly PURGE_ERROR_TURNS - 1 (one below threshold)", () => {
+    // delta = PURGE_ERROR_TURNS - 1 → below threshold, should NOT purge
+    const context: Context = [
+      makeUser(),
+      makeAssistantWithToolCall("tc1", "getDOMState"),
+      makeErrorResult("tc1"),
+    ];
+    const erroredCalls = new Map([["tc1", 2]]);
+    const currentIteration = 2 + PURGE_ERROR_TURNS - 1; // one below threshold
+
+    const result = purgeErroredToolCallInputs(
+      context,
+      erroredCalls,
+      currentIteration,
+    );
+
+    // Below threshold → not purged, assistant message unchanged
+    const assistantMsgs = result.filter(
+      (m): m is Extract<Context[number], { role: "assistant" }> =>
+        m.role === "assistant",
+    );
+    assert.equal(assistantMsgs.length, 1);
+    // arguments should be the original value, not stubbed
+    const toolCalls = assistantMsgs[0]!.tool_calls ?? [];
+    assert.equal(toolCalls[0]!.function.arguments, "{}");
+  });
+
+  it("purges (stubs arguments) when delta equals PURGE_ERROR_TURNS (at threshold)", () => {
+    // delta = PURGE_ERROR_TURNS exactly → at threshold, should purge with >= operator
+    const context: Context = [
+      makeUser(),
+      makeAssistantWithToolCall("tc1", "getDOMState"),
+      makeErrorResult("tc1"),
+    ];
+    const erroredCalls = new Map([["tc1", 2]]);
+    const currentIteration = 2 + PURGE_ERROR_TURNS; // exactly at threshold
+
+    const result = purgeErroredToolCallInputs(
+      context,
+      erroredCalls,
+      currentIteration,
+    );
+
+    // At exactly PURGE_ERROR_TURNS, the call should be purged (>= operator)
+    const assistantMsgs = result.filter(
+      (m): m is Extract<Context[number], { role: "assistant" }> =>
+        m.role === "assistant",
+    );
+    assert.equal(assistantMsgs.length, 1, "assistant stub must remain");
+    const toolCalls = assistantMsgs[0]!.tool_calls ?? [];
+    assert.equal(toolCalls[0]!.function.arguments, "{}");
+  });
+
+  it("purges when delta is greater than PURGE_ERROR_TURNS (beyond threshold)", () => {
+    const context: Context = [
+      makeUser(),
+      makeAssistantWithToolCall("tc1", "getDOMState"),
+      makeErrorResult("tc1"),
+    ];
+    const erroredCalls = new Map([["tc1", 2]]);
+    const currentIteration = 2 + PURGE_ERROR_TURNS + 1; // one beyond threshold
+
+    const result = purgeErroredToolCallInputs(
+      context,
+      erroredCalls,
+      currentIteration,
+    );
+
+    // Beyond threshold → purge (stub arguments)
+    const assistantMsgs = result.filter(
+      (m): m is Extract<Context[number], { role: "assistant" }> =>
+        m.role === "assistant",
+    );
+    assert.equal(assistantMsgs.length, 1, "assistant stub must remain");
+    const toolCalls = assistantMsgs[0]!.tool_calls ?? [];
+    assert.equal(toolCalls[0]!.function.arguments, "{}");
   });
 });

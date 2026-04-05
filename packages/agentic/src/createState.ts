@@ -22,6 +22,7 @@ import {
 } from "rxjs";
 import {
   computeContextBudget,
+  purgeErroredToolCallInputs,
   truncateToContextBudget,
 } from "./model/context-window";
 import { SYSTEM_CARD_MESSAGE } from "./model/system";
@@ -428,6 +429,9 @@ export function createAgenticState(
   const subscription = new Subscription();
   const toolCallTrigger$ = new Subject<void>();
   let iterationCount = 0;
+  // Maps tool_call_id → iteration count at which the error was recorded.
+  // Used by purgeErroredToolCallInputs to strip stale errored inputs from context.
+  const erroredToolCalls = new Map<string, number>();
 
   function clearPendingRetry() {
     if (pendingRetryTimer !== null) {
@@ -483,6 +487,7 @@ export function createAgenticState(
     }
     iterationCount = 0;
     retryAttempt = 0;
+    erroredToolCalls.clear();
     setEntryMap({ orderedIds: [], entries: {} });
     setWasCancelled(false);
     setLoading("none");
@@ -496,6 +501,7 @@ export function createAgenticState(
     setWasCancelled(false);
     setError(null);
     retryAttempt = 0;
+    erroredToolCalls.clear();
     setLoading("reasoning");
 
     const id = createEntryId();
@@ -530,6 +536,34 @@ export function createAgenticState(
     // those calls are dropped instead.
     const deduplicatedContext = deduplicateToolCalls(context, orientIds);
 
+    // Strip assistant tool-call blocks for errored calls that are older than
+    // PURGE_ERROR_TURNS iterations. The ToolMessage result is always kept.
+    const purgedContext = purgeErroredToolCallInputs(
+      deduplicatedContext,
+      erroredToolCalls,
+      iterationCount,
+    );
+
+    // Prune stale entries from erroredToolCalls: once a tool_call_id no longer
+    // appears anywhere in the current context (neither as an assistant tool_call
+    // nor as a tool result), its entry serves no purpose and would grow the Map
+    // unbounded in long sessions.
+    const activeToolCallIds = new Set<string>();
+    for (const msg of purgedContext) {
+      if (msg.role === "assistant" && "tool_calls" in msg && msg.tool_calls) {
+        for (const tc of msg.tool_calls) {
+          activeToolCallIds.add(tc.id);
+        }
+      } else if (msg.role === "tool") {
+        activeToolCallIds.add(msg.tool_call_id);
+      }
+    }
+    for (const id of erroredToolCalls.keys()) {
+      if (!activeToolCallIds.has(id)) {
+        erroredToolCalls.delete(id);
+      }
+    }
+
     const isProtected = (msg: Context[number]) => {
       // Protect tool result messages whose tool_call_id is an orient call
       if (msg.role === "tool" && orientIds.has(msg.tool_call_id)) {
@@ -550,7 +584,7 @@ export function createAgenticState(
       droppedCount,
       anyDropped,
     } = truncateToContextBudget(
-      deduplicatedContext,
+      purgedContext,
       budget,
       (msg) => estimateTokens(msg),
       isProtected,
@@ -578,6 +612,19 @@ export function createAgenticState(
   }
 
   function appendToolMessage(toolMessage: ToolMessage) {
+    // Detect whether the tool result is an error so we can track when it
+    // occurred. The same `{ error: string }` shape is used by ToolCallRow
+    // for UI error detection.
+    const parsed = safeParse(toolMessage.content);
+    if (
+      parsed !== null &&
+      typeof parsed === "object" &&
+      "error" in parsed &&
+      typeof (parsed as Record<string, unknown>)["error"] === "string"
+    ) {
+      erroredToolCalls.set(toolMessage.tool_call_id, iterationCount);
+    }
+
     setEntryMap((entryMap) => ({
       orderedIds: [...entryMap.orderedIds, toolMessage.id],
       entries: {
