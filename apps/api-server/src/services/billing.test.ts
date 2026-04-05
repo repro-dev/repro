@@ -157,6 +157,46 @@ describe('Services > Billing (dev adapter)', () => {
 
       expect(updated.planId).toBe(proPlan.id)
     })
+
+    it('should use prorated_immediately for upgrades', async () => {
+      const [account, , proPlan] = await harness.loadFixtures([
+        fixtures.account.AccountA,
+        fixtures.billing.AccountA_FreePlan_Checkout,
+        fixtures.billing.ProPlan,
+      ])
+
+      await promise(billingService.changePlan(account.id, proPlan.id))
+
+      const params = harness.getLastUpdateSubscriptionParams()
+      expect(params?.prorationBillingMode).toBe('prorated_immediately')
+    })
+
+    it('should allow downgrade from ProPlan to FreePlan', async () => {
+      const [account, , freePlan] = await harness.loadFixtures([
+        fixtures.account.AccountA,
+        fixtures.billing.AccountA_ProPlan_Checkout,
+        fixtures.billing.FreePlan,
+      ])
+
+      const updated = await promise(
+        billingService.changePlan(account.id, freePlan.id)
+      )
+
+      expect(updated.planId).toBe(freePlan.id)
+    })
+
+    it('should use prorated_next_billing_period for downgrades', async () => {
+      const [account, , freePlan] = await harness.loadFixtures([
+        fixtures.account.AccountA,
+        fixtures.billing.AccountA_ProPlan_Checkout,
+        fixtures.billing.FreePlan,
+      ])
+
+      await promise(billingService.changePlan(account.id, freePlan.id))
+
+      const params = harness.getLastUpdateSubscriptionParams()
+      expect(params?.prorationBillingMode).toBe('prorated_next_billing_period')
+    })
   })
 
   describe('cancelSubscription', () => {
