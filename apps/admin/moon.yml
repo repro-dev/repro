@@ -2,15 +2,19 @@ id: repro/admin
 language: typescript
 layer: application
 tags:
-- type.app
-- build.static
+  - type.app
+  - build.static
 tasks:
   build:
     command: pnpm run build
   dev:
     command: pnpm run dev-serve
     deps:
-    - ^:build
+      - ^:build
     preset: server
+  lint:
+    command: pnpm run lint
+    deps:
+      - ^:build
 toolchains:
   default: node
