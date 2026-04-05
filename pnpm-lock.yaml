@@ -2470,6 +2470,24 @@ importers:
         specifier: 5.7.3
         version: 5.7.3
 
+  packages/sdk:
+    devDependencies:
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
   packages/shared-types: {}
 
   packages/source-utils:
@@ -12610,7 +12628,7 @@ snapshots:
 
   '@types/prettier@3.0.0':
     dependencies:
-      prettier: 3.0.0
+      prettier: 3.8.1
 
   '@types/prop-types@15.7.5': {}
 
@@ -16042,6 +16060,11 @@ snapshots:
   prettier-plugin-organize-imports@3.2.3(prettier@3.0.0)(typescript@5.7.3):
     dependencies:
       prettier: 3.0.0
+      typescript: 5.7.3
+
+  prettier-plugin-organize-imports@3.2.3(prettier@3.8.1)(typescript@5.7.3):
+    dependencies:
+      prettier: 3.8.1
       typescript: 5.7.3
 
   prettier@3.0.0: {}
