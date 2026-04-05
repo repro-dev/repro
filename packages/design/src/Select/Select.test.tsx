@@ -37,7 +37,7 @@ describe('Select — external Label (REP-307)', () => {
       onChange: () => {},
       options,
       'aria-label': 'Fruit',
-    } as Record
+    } as Record<string, unknown>
 
     expect('label' in props).toBe(false)
   })

@@ -523,7 +523,14 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                   >
                     {selectedOption.icon}
                   </Block>
-                  <Block component="span">{selectedOption.label}</Block>
+                  <Block
+                    component="span"
+                    overflow="hidden"
+                    textOverflow="ellipsis"
+                    whiteSpace="nowrap"
+                  >
+                    {selectedOption.label}
+                  </Block>
                 </Row>
               ) : (
                 selectedOption.label
