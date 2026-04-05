@@ -120,6 +120,7 @@ Key rules that apply to every implementation (details in the skills above):
 - **Conventional Commits**: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:` with optional scope.
 - **All visual values** must come from `@repro/design` tokens. No hardcoded pixels, hex colors, or transition strings.
 - **Package naming**: `@repro/<name>` with `workspace:*` protocol.
+- **Temporary files**: Always write ephemeral output (screenshots, artifacts, scratch) to `tmp/` at the repo root. **Never use `/tmp`** — OpenCode requires elevated permission for paths outside the project root, which blocks automated pipelines.
 
 ### TDD discipline
 
@@ -138,8 +139,6 @@ The `develop` agent enforces this cycle in its system prompt. When working manua
 ## Phase 4: Verification
 
 Run these checks before committing. Fix any failures before proceeding. For full command reference, load the `build-and-test` skill.
-
-> **Temporary output**: Write any ephemeral files (screenshots, artifacts, scratch) to `tmp/` at the repo root. **Never use `/tmp`** — it triggers an elevated-permission prompt in OpenCode. See the `build-and-test` skill for details.
 
 1. **Typecheck** affected packages:
    ```

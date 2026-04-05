@@ -93,6 +93,10 @@ Issue: REP-xxx
 Fetch the issue via Linear_get_issue to read the full description and acceptance criteria.
 Do NOT push or create a PR — stop after the commit.
 
+Temporary files: write any ephemeral output (screenshots, artifacts, scratch) to
+<absolute-worktree-path>/tmp/ — never to /tmp (requires elevated OpenCode permission,
+blocks the pipeline).
+
 Return a summary with: files changed, test results, typecheck result, and commit hash.
 ```
 
@@ -193,7 +197,7 @@ What to drop:
 ## Throughout
 
 - Never commit to `main`. All work happens in worktrees on feature branches.
-- **Temporary files**: If any step produces ephemeral output (screenshots, artifacts, scratch), write it to `tmp/` at the repo root. **Never use `/tmp`** — it triggers an elevated-permission prompt in OpenCode, blocking the pipeline. `tmp/` is git-ignored and always available.
+- **Never write to `/tmp`.** Any ephemeral output (screenshots, artifacts, scratch files) must go to `tmp/` at the repo root. `/tmp` is outside the project working directory — OpenCode requires an elevated-permission prompt to access it, which blocks an unattended pipeline immediately. `tmp/` is git-ignored and always available without any permission prompt.
 - If a `reproctl wt create` fails (e.g. branch already exists), re-run `reproctl wt list` at that moment to check for an existing worktree for that issue and reuse it. Do not rely on the initial snapshot taken at command startup — it will be stale for Wave 2 and beyond.
 - If a `develop` subagent reports a build or typecheck failure it couldn't resolve, escalate that issue immediately rather than creating a broken PR.
 - Keep a running status table updated as you go:

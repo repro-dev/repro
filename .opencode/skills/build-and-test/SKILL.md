@@ -78,16 +78,19 @@ When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup sc
 
 When upgrading a tool version, update **all** pinning locations together.
 
-## Screenshots & Temporary Files
+## Temporary Files (Invariant)
 
-The project has a `tmp/` directory at the repo root for **all** ephemeral output — screenshots, build artifacts, scratch files, or any other throwaway content. Everything inside is git-ignored except the `.gitkeep` sentinel.
+**Always write ephemeral output to `tmp/` at the repo root.** This covers screenshots, build artifacts, Playwright output, scratch files, test results — anything throwaway.
 
-**Never use `/tmp` or `~/Downloads`:**
+| Path               | Status        | Reason                                                                                               |
+| ------------------ | ------------- | ---------------------------------------------------------------------------------------------------- |
+| `<repo-root>/tmp/` | **Required**  | Git-ignored, inside project root, no permission prompt                                               |
+| `/tmp`             | **Forbidden** | Outside project root — OpenCode requires an elevated-permission prompt, blocking automated pipelines |
+| `~/Downloads`      | **Forbidden** | Pollutes the user's filesystem with untracked agent output                                           |
 
-- `/tmp` triggers an elevated-permission prompt in OpenCode (it is outside the project working directory), blocking automated workflows.
-- `~/Downloads` pollutes the user's filesystem with untracked files.
+`tmp/` is git-ignored; the `.gitkeep` sentinel keeps the directory tracked.
 
-Always write ephemeral output to `<repo-root>/tmp/`. When capturing Storybook screenshots (e.g. for PR visual reviews), pass `outputPath` or the equivalent option pointing at `<repo-root>/tmp`.
+When passing output paths to tools (e.g. Playwright `outputDir`, Storybook screenshot `outputPath`), always resolve to an absolute path under `<repo-root>/tmp/`.
 
 ## Worktrees & OpenCode External Directory Permission
 
