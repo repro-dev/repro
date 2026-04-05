@@ -15,6 +15,7 @@ import { WorkspaceHeader } from '~/components/WorkspaceHeader'
 export const Layout: React.FC = () => {
   const sessionsActive = useMatch({ path: '/', end: true })
   const apiKeysActive = useMatch({ path: '/account/api-keys', end: true })
+  const settingsActive = useMatch({ path: '/settings', end: false })
 
   return (
     <AppShell>
@@ -40,7 +41,13 @@ export const Layout: React.FC = () => {
             </SideNav.Section>
             <SideNav.Section title="Team">
               <SideNav.Item icon={UsersIcon} label="Members" disabled />
-              <SideNav.Item icon={SettingsIcon} label="Settings" disabled />
+              <SideNav.Item
+                icon={SettingsIcon}
+                label="Settings"
+                active={!!settingsActive}
+                component={RouterNavLink}
+                props={{ to: '/settings' }}
+              />
             </SideNav.Section>
             <SideNav.Section title="Account">
               <SideNav.Item

@@ -19,6 +19,7 @@ import { Loading } from './components/Loading'
 import { Env } from './config/createEnv'
 import { defaultEnv as env } from './config/env'
 import { Layout } from './Layout'
+import { SettingsLayout } from './SettingsLayout'
 
 const HomeRoute = lazy(() => import('./routes/HomeRoute'))
 const LoginRoute = lazy(() => import('./routes/LoginRoute'))
@@ -27,6 +28,7 @@ const PricingRoute = lazy(() => import('./routes/PricingRoute'))
 const RecordingRoute = lazy(() => import('./routes/RecordingRoute'))
 const RegisterRoute = lazy(() => import('./routes/RegisterRoute'))
 const ResetPasswordRoute = lazy(() => import('./routes/ResetPasswordRoute'))
+const SettingsRoute = lazy(() => import('./routes/SettingsRoute'))
 
 declare global {
   interface Window {
@@ -96,6 +98,15 @@ if (rootElem) {
                           <Route
                             path="account/api-keys"
                             element={<ApiKeysRoute />}
+                          />
+                        </Route>
+                      </Route>
+
+                      <Route element={<SettingsLayout />}>
+                        <Route element={<SessionRouteBoundary />}>
+                          <Route
+                            path="settings/*"
+                            element={<SettingsRoute />}
                           />
                         </Route>
                       </Route>
