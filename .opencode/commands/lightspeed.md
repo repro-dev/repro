@@ -20,14 +20,12 @@ Open PRs (branch name + title — used to detect in-flight issues):
 ## Phase 1: Scan and Select
 
 1. Fetch all Linear issues in **Todo** and **Backlog** state across all projects (or filtered by `$ARGUMENTS` if provided):
-
    - Use `Linear_list_issues` with `state: "Todo"` and then `state: "Backlog"`, iterating through all projects.
    - For each issue, call `Linear_get_issue` with `includeRelations: true` to get blockers.
 
 2. Score each issue for autonomous suitability. Apply this rubric strictly — exclude any issue that fails a hard gate:
 
    **Hard gates (any failure = exclude):**
-
    - Has at least one `blockedBy` relation that is not yet Done → SKIP
    - Description is missing or under ~100 words → SKIP (insufficient spec)
    - Lacks clear acceptance criteria (no "should", "must", checklist, or "AC:" section) → SKIP
@@ -37,7 +35,6 @@ Open PRs (branch name + title — used to detect in-flight issues):
    - Issue ID appears in any open PR's branch name (check open PRs output above) → SKIP
 
    **Positive signals (more = better fit):**
-
    - Well-scoped title (verb + noun, no vague words like "improve" or "look into")
    - Explicit acceptance criteria checklist
    - Touches a single package or a small set of files
@@ -95,6 +92,10 @@ Issue: REP-xxx
 
 Fetch the issue via Linear_get_issue to read the full description and acceptance criteria.
 Do NOT push or create a PR — stop after the commit.
+
+Temporary files: write any ephemeral output (screenshots, artifacts, scratch) to
+<absolute-worktree-path>/tmp/ — never to /tmp (requires elevated OpenCode permission,
+blocks the pipeline).
 
 Return a summary with: files changed, test results, typecheck result, and commit hash.
 ```
@@ -196,6 +197,7 @@ What to drop:
 ## Throughout
 
 - Never commit to `main`. All work happens in worktrees on feature branches.
+- **Never write to `/tmp`.** Any ephemeral output (screenshots, artifacts, scratch files) must go to `tmp/` at the repo root. `/tmp` is outside the project working directory — OpenCode requires an elevated-permission prompt to access it, which blocks an unattended pipeline immediately. `tmp/` is git-ignored and always available without any permission prompt.
 - If a `reproctl wt create` fails (e.g. branch already exists), re-run `reproctl wt list` at that moment to check for an existing worktree for that issue and reuse it. Do not rely on the initial snapshot taken at command startup — it will be stale for Wave 2 and beyond.
 - If a `develop` subagent reports a build or typecheck failure it couldn't resolve, escalate that issue immediately rather than creating a broken PR.
 - Keep a running status table updated as you go:

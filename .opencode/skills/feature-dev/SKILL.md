@@ -120,6 +120,7 @@ Key rules that apply to every implementation (details in the skills above):
 - **Conventional Commits**: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:` with optional scope.
 - **All visual values** must come from `@repro/design` tokens. No hardcoded pixels, hex colors, or transition strings.
 - **Package naming**: `@repro/<name>` with `workspace:*` protocol.
+- **Temporary files**: Always write ephemeral output (screenshots, artifacts, scratch) to `tmp/` at the repo root. **Never use `/tmp`** — OpenCode requires elevated permission for paths outside the project root, which blocks automated pipelines.
 
 ### TDD discipline
 

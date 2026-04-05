@@ -13,21 +13,21 @@ Moon v2 project IDs use the source-path format: `repro/<name>` (e.g. `repro/doma
 
 **Moon v2 glob restriction**: Brace expansion (`{,x}`) is not supported in glob patterns. Use separate entries instead (e.g. two globs `*.ts` and `*.tsx` rather than `*.ts{,x}`).
 
-| Task | Command |
-|------|---------|
-| Build | `moon run repro/<name>:build` (builds dependencies first via `^:build`) |
-| Test | `moon run repro/<name>:test` or `pnpm test` (uses tsx with `--test` flag) |
-| Single test | `tsx --experimental-test-module-mocks --test path/to/file.test.ts` |
-| Typecheck | `moon run repro/<name>:typecheck` or `pnpm typecheck` |
+| Task        | Command                                                                   |
+| ----------- | ------------------------------------------------------------------------- |
+| Build       | `moon run repro/<name>:build` (builds dependencies first via `^:build`)   |
+| Test        | `moon run repro/<name>:test` or `pnpm test` (uses tsx with `--test` flag) |
+| Single test | `tsx --experimental-test-module-mocks --test path/to/file.test.ts`        |
+| Typecheck   | `moon run repro/<name>:typecheck` or `pnpm typecheck`                     |
 
 General form: `moon run repro/<name>:build|test|typecheck` or `cd <package> && pnpm <script>`.
 
 ### Moon v2 config files
 
-| File | Purpose |
-|------|---------|
-| `.moon/toolchains.yml` | Toolchain config (javascript, node, pnpm sections) |
-| `.moon/workspace.yml` | Workspace config (project sources, vcs) |
+| File                   | Purpose                                                          |
+| ---------------------- | ---------------------------------------------------------------- |
+| `.moon/toolchains.yml` | Toolchain config (javascript, node, pnpm sections)               |
+| `.moon/workspace.yml`  | Workspace config (project sources, vcs)                          |
 | `.moon/tasks/node.yml` | Inherited task definitions (uses `inheritedBy: toolchain: node`) |
 
 Individual project configs are in `moon.yml` files within each app/package directory and use `toolchains:` (plural) for toolchain overrides.
@@ -68,21 +68,29 @@ When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup sc
 
 **Current pinning locations:**
 
-| Tool | `.prototools` | Also installed in |
-|------|---------------|-------------------|
-| `moon` | `moon = "2.0.4"` | `infra/Dockerfile` (`@moonrepo/cli@2.0.4`) |
+| Tool   | `.prototools`      | Also installed in                              |
+| ------ | ------------------ | ---------------------------------------------- |
+| `moon` | `moon = "2.0.4"`   | `infra/Dockerfile` (`@moonrepo/cli@2.0.4`)     |
 | `node` | `node = "22.19.0"` | `infra/Dockerfile` (base image `node:22-slim`) |
-| `pnpm` | `pnpm = "10.17.0"` | — |
+| `pnpm` | `pnpm = "10.17.0"` | —                                              |
 
 `.prototools` also pins a **moon_tool plugin override** (`[plugins.tools] moon = "...moon_tool-v0.4.1/moon_tool.wasm"`) required for Moon v2's archive distribution format. The built-in proto plugin doesn't support v2 yet.
 
 When upgrading a tool version, update **all** pinning locations together.
 
-## Screenshots & Temporary Files
+## Temporary Files (Invariant)
 
-The project has a `tmp/` directory at the repo root for ephemeral files such as Playwright screenshots, build artifacts, or other throwaway output. Everything inside is git-ignored except the `.gitkeep` sentinel.
+**Always write ephemeral output to `tmp/` at the repo root.** This covers screenshots, build artifacts, Playwright output, scratch files, test results — anything throwaway.
 
-When capturing Storybook screenshots (e.g. for PR visual reviews), save them to `tmp/` by passing `outputPath` or equivalent options pointing at `<repo-root>/tmp`. This avoids polluting `~/Downloads` or other user directories.
+| Path               | Status        | Reason                                                                                               |
+| ------------------ | ------------- | ---------------------------------------------------------------------------------------------------- |
+| `<repo-root>/tmp/` | **Required**  | Git-ignored, inside project root, no permission prompt                                               |
+| `/tmp`             | **Forbidden** | Outside project root — OpenCode requires an elevated-permission prompt, blocking automated pipelines |
+| `~/Downloads`      | **Forbidden** | Pollutes the user's filesystem with untracked agent output                                           |
+
+`tmp/` is git-ignored; the `.gitkeep` sentinel keeps the directory tracked.
+
+When passing output paths to tools (e.g. Playwright `outputDir`, Storybook screenshot `outputPath`), always resolve to an absolute path under `<repo-root>/tmp/`.
 
 ## Worktrees & OpenCode External Directory Permission
 
