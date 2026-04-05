@@ -64,6 +64,7 @@ _reproctl() {
     'checkhealth:Runtime health checks'
     'cluster:Manage local k8s cluster and registry'
     'db:Database operations'
+    'code-index:Code intelligence index management'
     'start:Start services'
     'stop:Stop services or tear down Tilt'
     'restart:Rebuild and redeploy services'
@@ -102,6 +103,7 @@ _reproctl() {
         checkhealth) _reproctl_checkhealth ;;
         cluster)    _reproctl_cluster ;;
         db)         _reproctl_db ;;
+        code-index) _reproctl_code_index ;;
         start)      _reproctl_start ;;
         stop)       _reproctl_stop ;;
         restart)    _reproctl_restart ;;
@@ -179,6 +181,21 @@ _reproctl_db() {
         reset) _arguments '(-y --yes)'{-y,--yes}'[Skip confirmation]' ;;
       esac
       ;;
+  esac
+}
+
+_reproctl_code_index() {
+  local -a code_index_commands
+  code_index_commands=(
+    'help:Show usage summary'
+  )
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '1:subcommand:->subcommand' && return
+
+  case "$state" in
+    subcommand) _describe -t commands 'code-index subcommand' code_index_commands ;;
   esac
 }
 
@@ -317,7 +334,7 @@ _reproctl_version() {
 _reproctl_help() {
   local -a help_topics
   help_topics=(
-    'setup' 'doctor' 'checkhealth' 'cluster' 'db'
+    'setup' 'doctor' 'checkhealth' 'cluster' 'db' 'code-index'
     'start' 'stop' 'restart' 'status' 'logs'
     'ui' 'launch' 'context' 'worktree' 'wt'
     'completion' 'version'
