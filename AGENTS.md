@@ -47,6 +47,7 @@ Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer 
 - **Error handling**: Use `serialize-error` for serialization.
 - **Shell scripts**: Target Bash 3.2 (macOS default). No `mapfile`/`readarray`, associative arrays (`declare -A`), or `${var,,}` case-conversion. Use `while IFS= read -r` loops to capture multi-line output into arrays.
 - **Comments**: Add brief comments when they clarify non-obvious intent, invariants, sentinel values, or protocol quirks. Avoid comments that restate the code.
+- **Temporary files**: Use `tmp/` at the repo root for all ephemeral output (screenshots, build artifacts, scratch files). **Never use `/tmp` or `~/Downloads`** — `/tmp` requires an elevated-permission prompt in OpenCode and pollutes the user's filesystem. Everything in `tmp/` is git-ignored except the `.gitkeep` sentinel.
 
 ## Environment Variables
 

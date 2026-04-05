@@ -139,6 +139,8 @@ The `develop` agent enforces this cycle in its system prompt. When working manua
 
 Run these checks before committing. Fix any failures before proceeding. For full command reference, load the `build-and-test` skill.
 
+> **Temporary output**: Write any ephemeral files (screenshots, artifacts, scratch) to `tmp/` at the repo root. **Never use `/tmp`** — it triggers an elevated-permission prompt in OpenCode. See the `build-and-test` skill for details.
+
 1. **Typecheck** affected packages:
    ```
    moon run <package>:typecheck
