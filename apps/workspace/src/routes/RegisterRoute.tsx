@@ -14,7 +14,7 @@ const RegisterRoute: React.FC = () => {
     const params = new URLSearchParams(location.search)
     const redirect = params.get('redirect')
     // Guard against open-redirect: only follow local paths
-    const isLocalPath = redirect?.startsWith('/') && !redirect.startsWith('//')
+    const isLocalPath = redirect?.startsWith('/') && !redirect?.startsWith('//')
     navigate(isLocalPath && redirect ? redirect : '/')
   }, [location.search, navigate])
 
