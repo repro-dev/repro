@@ -64,12 +64,13 @@ _reproctl() {
   local cur prev words cword
   _init_completion || return
 
-  local top_commands="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version help"
+  local top_commands="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help"
   local cluster_sub="up down status reset"
   local db_sub="reset migrate shell status"
-    local wt_sub="create remove list attach prune"
+  local code_index_sub="help"
+  local wt_sub="create remove list attach prune"
   local completion_shells="bash zsh fish"
-  local help_topics="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt completion version environment exit-codes json"
+  local help_topics="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version environment exit-codes json"
 
   # Find the subcommand position (skip global flags)
   local cmd="" subcmd=""
@@ -123,6 +124,12 @@ _reproctl() {
         case "$subcmd" in
           reset) COMPREPLY=($(compgen -W "-y --yes" -- "$cur")) ;;
         esac
+      fi
+      ;;
+
+    code-index)
+      if [[ -z "$subcmd" ]]; then
+        COMPREPLY=($(compgen -W "$code_index_sub -h --help" -- "$cur"))
       fi
       ;;
 
