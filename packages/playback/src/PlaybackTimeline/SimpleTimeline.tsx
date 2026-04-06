@@ -181,15 +181,22 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
       )
 
       subscription.add(
-        combineLatest([playback.$playbackState, playback.$latestControlFrame])
+        combineLatest([
+          playback.$playbackState,
+          playback.$latestControlFrame,
+          playback.$speed,
+        ])
           .pipe(
             switchMap(([playbackState]) => {
               const initialOffset = mapValueToOffset(
                 Math.max(getMinValue(), playback.getElapsed())
               )
 
+              // Divide by current speed so the CSS animation finishes in the
+              // same wall-clock time as the actual playback at this speed.
               const duration = Math.round(
-                (1 - initialOffset) * (getMaxValue() - getMinValue())
+                ((1 - initialOffset) * (getMaxValue() - getMinValue())) /
+                  playback.getSpeed()
               )
 
               return playbackState === PlaybackState.Playing
