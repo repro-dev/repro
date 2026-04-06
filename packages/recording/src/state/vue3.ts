@@ -1,7 +1,7 @@
 import { StateEventType, VTree, VueComponentUpdateEvent } from '@repro/domain'
 import { ObserverLike } from '@repro/observer-utils'
 
-// Max serialised delta size in characters (10 KB)
+// Max combined serialised delta size in characters (10 KB)
 const MAX_DELTA_SIZE = 10_000
 
 // Max depth for safe serialisation
@@ -32,6 +32,13 @@ interface ComponentInternalInstance {
   [key: string]: unknown
 }
 
+// Minimal interface for Vue 3 app passed to app:init
+interface Vue3App {
+  _context: {
+    components: Record<string, unknown>
+  }
+}
+
 // Minimal interface for the Vue 3 devtools global hook
 interface Vue3DevToolsHook {
   on(event: string, handler: (...args: unknown[]) => void): void
@@ -39,9 +46,16 @@ interface Vue3DevToolsHook {
   [key: string]: unknown
 }
 
-// Resolve the component display name from a Vue 3 type descriptor.
-// Priority: name -> __name -> basename of __file (without extension) -> null
-function getComponentName(instance: ComponentInternalInstance): string | null {
+// Resolve the component display name. Checks the name map built from app:init
+// first, then falls back to type.name -> __name -> basename of __file -> null.
+function getComponentName(
+  instance: ComponentInternalInstance,
+  nameMap: WeakMap<object, string>
+): string | null {
+  // Check the app:init name map first (uses component definition as key)
+  const mappedName = nameMap.get(instance.type as object)
+  if (mappedName) return mappedName
+
   const { type } = instance
   if (type.name) return type.name
   if (type.__name) return type.__name
@@ -62,7 +76,7 @@ function isVueBuiltin(name: string): boolean {
 // Returns '{}' on any error, matching the react.ts pattern.
 function safeSerialise(value: unknown): string {
   try {
-    const seen = new Set()
+    const seen = new Set<unknown>()
 
     function replacer(val: unknown, depth: number): unknown {
       if (depth > MAX_SERIALISE_DEPTH) return '[object ...]'
@@ -103,26 +117,34 @@ export function createVue3Observer(
 ): ObserverLike {
   let isObserving = false
 
+  // Map from component definition object -> registered name (built by app:init)
+  const componentNameMap = new WeakMap<object, string>()
+
   // Handler functions keyed by event name so we can remove them in teardown
   let updatedHandler: ((...args: unknown[]) => void) | null = null
   let emitHandler: ((...args: unknown[]) => void) | null = null
+  let appInitHandler: ((...args: unknown[]) => void) | null = null
   let currentHook: Vue3DevToolsHook | null = null
 
+  // Reference to the callback pushed into __VUE_DEVTOOLS_HOOK_REPLAY__ so we
+  // can remove it from that array on disconnect() before the hook ever appears.
+  let replayCallback: ((hook: unknown) => void) | null = null
+
   function handleComponentUpdated(instance: unknown) {
+    // Belt-and-suspenders guard: don't emit if we have been disconnected
+    if (!isObserving) return
+
     const comp = instance as ComponentInternalInstance
 
-    const name = getComponentName(comp)
+    const name = getComponentName(comp, componentNameMap)
     if (!name) return
     if (isVueBuiltin(name)) return
 
     const propsDelta = safeSerialise(comp.props ?? {})
     const setupStateDelta = safeSerialise(comp.setupState ?? {})
 
-    // Apply 10 KB size guard -- if either delta exceeds the limit, drop the event
-    if (
-      propsDelta.length > MAX_DELTA_SIZE ||
-      setupStateDelta.length > MAX_DELTA_SIZE
-    ) {
+    // Drop the event if the combined delta exceeds 10 KB
+    if (propsDelta.length + setupStateDelta.length > MAX_DELTA_SIZE) {
       return
     }
 
@@ -144,12 +166,15 @@ export function createVue3Observer(
     _eventName: unknown,
     _payload: unknown
   ) {
+    // Belt-and-suspenders guard: don't emit if we have been disconnected
+    if (!isObserving) return
+
     // Emit events are reported as a VueComponentUpdateEvent with empty deltas.
     // The event name and payload are not yet included in the event schema
     // (the codec only has componentName, uid, propsDelta, setupStateDelta).
     const comp = instance as ComponentInternalInstance
 
-    const name = getComponentName(comp)
+    const name = getComponentName(comp, componentNameMap)
     if (!name) return
     if (isVueBuiltin(name)) return
 
@@ -166,10 +191,24 @@ export function createVue3Observer(
     subscriber(event)
   }
 
+  function handleAppInit(app: unknown) {
+    const vueApp = app as Vue3App
+    const components = vueApp?._context?.components
+    if (!components || typeof components !== 'object') return
+
+    // Walk app._context.components to build the name map
+    for (const [name, def] of Object.entries(components)) {
+      if (def !== null && typeof def === 'object') {
+        componentNameMap.set(def as object, name)
+      }
+    }
+  }
+
   function attachToHook(hook: Vue3DevToolsHook) {
     currentHook = hook
     hook.on('component:updated', updatedHandler!)
     hook.on('component:emit', emitHandler!)
+    hook.on('app:init', appInitHandler!)
   }
 
   return {
@@ -181,6 +220,7 @@ export function createVue3Observer(
       updatedHandler = (...args: unknown[]) => handleComponentUpdated(args[0])
       emitHandler = (...args: unknown[]) =>
         handleComponentEmit(args[0], args[1], args[2])
+      appInitHandler = (...args: unknown[]) => handleAppInit(args[0])
 
       const existingHook = (globalThis as Record<string, unknown>)[
         '__VUE_DEVTOOLS_GLOBAL_HOOK__'
@@ -197,7 +237,7 @@ export function createVue3Observer(
             '__VUE_DEVTOOLS_HOOK_REPLAY__'
           ] as Array<(hook: unknown) => void> | undefined) ?? []
 
-        const replayCallback = (hook: unknown) => {
+        replayCallback = (hook: unknown) => {
           if (hook && !currentHook) {
             attachToHook(hook as Vue3DevToolsHook)
           }
@@ -213,14 +253,32 @@ export function createVue3Observer(
     },
 
     disconnect() {
-      if (currentHook && updatedHandler && emitHandler) {
+      // Remove listeners from the hook if we attached to one
+      if (currentHook && updatedHandler && emitHandler && appInitHandler) {
         currentHook.off('component:updated', updatedHandler)
         currentHook.off('component:emit', emitHandler)
+        currentHook.off('app:init', appInitHandler)
+      }
+
+      // Remove our callback from the replay buffer if the hook never arrived.
+      // This prevents the callback from calling attachToHook() after teardown.
+      if (replayCallback) {
+        const g = globalThis as Record<string, unknown>
+        const existing = g['__VUE_DEVTOOLS_HOOK_REPLAY__'] as
+          | Array<(hook: unknown) => void>
+          | undefined
+        if (Array.isArray(existing)) {
+          g['__VUE_DEVTOOLS_HOOK_REPLAY__'] = existing.filter(
+            fn => fn !== replayCallback
+          )
+        }
+        replayCallback = null
       }
 
       currentHook = null
       updatedHandler = null
       emitHandler = null
+      appInitHandler = null
       isObserving = false
     },
   }

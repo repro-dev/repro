@@ -82,7 +82,7 @@ describe('createVue3Observer', () => {
     const observer = createVue3Observer(() => {})
     observer.observe(null as any, null as any)
 
-    // Should have registered component:updated and component:emit listeners
+    // Should have registered component:updated, component:emit, and app:init listeners
     assert.ok(
       (hook._handlers.get('component:updated')?.size ?? 0) > 0,
       'should register component:updated handler'
@@ -90,6 +90,10 @@ describe('createVue3Observer', () => {
     assert.ok(
       (hook._handlers.get('component:emit')?.size ?? 0) > 0,
       'should register component:emit handler'
+    )
+    assert.ok(
+      (hook._handlers.get('app:init')?.size ?? 0) > 0,
+      'should register app:init handler'
     )
 
     observer.disconnect()
@@ -215,7 +219,7 @@ describe('createVue3Observer', () => {
     cleanup()
   })
 
-  it('skips component:updated when serialised delta exceeds 10 KB', () => {
+  it('skips component:updated when combined serialised delta exceeds 10 KB', () => {
     const hook = createMockHook()
     const cleanup = withMockHook(hook)
 
@@ -223,23 +227,25 @@ describe('createVue3Observer', () => {
     const observer = createVue3Observer(event => events.push(event))
     observer.observe(null as any, null as any)
 
-    // Build a setupState that serialises to > 10 KB
-    const bigValue = 'x'.repeat(11_000)
+    // Build a setupState where props + setupState combined exceed 10 KB
+    // Each part is ~5.5 KB so individually under limit but combined over limit
+    const halfBigValue = 'x'.repeat(5_500)
     const component = makeComponent({
       uid: 200,
       type: { name: 'BigComponent' },
-      setupState: { data: bigValue },
+      setupState: { data: halfBigValue },
+      props: { extra: halfBigValue },
     })
 
     hook.emit('component:updated', component)
 
-    assert.equal(events.length, 0, 'oversized delta should be dropped')
+    assert.equal(events.length, 0, 'oversized combined delta should be dropped')
 
     observer.disconnect()
     cleanup()
   })
 
-  it('teardown removes component:updated and component:emit listeners', () => {
+  it('teardown removes component:updated, component:emit and app:init listeners', () => {
     const hook = createMockHook()
     const cleanup = withMockHook(hook)
 
@@ -403,5 +409,169 @@ describe('createVue3Observer', () => {
 
     observer.disconnect()
     cleanup()
+  })
+
+  // ── Issue 1: app:init ─────────────────────────────────────────────────────
+
+  it('app:init builds a name map from app._context.components', () => {
+    const hook = createMockHook()
+    const cleanup = withMockHook(hook)
+
+    // Define component definitions (plain objects, as Vue uses them)
+    const ButtonDef = {}
+    const CardDef = {}
+
+    // Mock app object as Vue 3 passes it to app:init
+    const mockApp = {
+      _context: {
+        components: {
+          MyButton: ButtonDef,
+          MyCard: CardDef,
+        } as Record<string, unknown>,
+      },
+    }
+
+    const events: VueComponentUpdateEvent[] = []
+    const observer = createVue3Observer(event => events.push(event))
+    observer.observe(null as any, null as any)
+
+    // Fire app:init with the mock app
+    hook.emit('app:init', mockApp)
+
+    // Now fire component:updated with a component whose type IS one of those defs,
+    // but has no name/.__name/.__file on its type object
+    const component = {
+      uid: 400,
+      type: ButtonDef as { name?: string; __name?: string; __file?: string },
+      setupState: { clicked: false },
+      props: {},
+      attrs: {},
+      parent: null,
+    }
+
+    hook.emit('component:updated', component)
+
+    assert.equal(
+      events.length,
+      1,
+      'should emit event for app:init-registered component'
+    )
+    assert.equal(
+      events[0]?.componentName,
+      'MyButton',
+      'name should come from app._context.components map'
+    )
+    assert.equal(events[0]?.uid, 400)
+
+    observer.disconnect()
+    cleanup()
+  })
+
+  it('app:init name map takes priority over type.name for registered components', () => {
+    const hook = createMockHook()
+    const cleanup = withMockHook(hook)
+
+    const CompDef = { name: 'InternalName' }
+
+    const mockApp = {
+      _context: {
+        components: {
+          PublicName: CompDef,
+        } as Record<string, unknown>,
+      },
+    }
+
+    const events: VueComponentUpdateEvent[] = []
+    const observer = createVue3Observer(event => events.push(event))
+    observer.observe(null as any, null as any)
+
+    hook.emit('app:init', mockApp)
+
+    const component = {
+      uid: 401,
+      type: CompDef as { name?: string; __name?: string; __file?: string },
+      setupState: {},
+      props: {},
+      attrs: {},
+      parent: null,
+    }
+
+    hook.emit('component:updated', component)
+
+    assert.equal(events.length, 1)
+    assert.equal(
+      events[0]?.componentName,
+      'PublicName',
+      'app:init registered name should take priority over type.name'
+    )
+
+    observer.disconnect()
+    cleanup()
+  })
+
+  it('disconnect() removes the app:init listener', () => {
+    const hook = createMockHook()
+    const cleanup = withMockHook(hook)
+
+    const observer = createVue3Observer(() => {})
+    observer.observe(null as any, null as any)
+
+    const sizeAfterObserve = hook._handlers.get('app:init')?.size ?? 0
+    assert.ok(sizeAfterObserve > 0, 'app:init handler should be registered')
+
+    observer.disconnect()
+
+    const sizeAfterDisconnect = hook._handlers.get('app:init')?.size ?? 0
+    assert.equal(
+      sizeAfterDisconnect,
+      0,
+      'app:init handler should be removed on disconnect'
+    )
+
+    cleanup()
+  })
+
+  // ── Issue 2: replay path event leak after disconnect() ────────────────────
+
+  it('no events emitted when hook arrives after disconnect() via replay buffer', () => {
+    // Ensure no hook present initially
+    delete (globalThis as Record<string, unknown>).__VUE_DEVTOOLS_GLOBAL_HOOK__
+    delete (globalThis as Record<string, unknown>).__VUE_DEVTOOLS_HOOK_REPLAY__
+
+    const events: VueComponentUpdateEvent[] = []
+    const observer = createVue3Observer(event => events.push(event))
+    observer.observe(null as any, null as any)
+
+    // Disconnect before the hook ever appears
+    observer.disconnect()
+
+    // Simulate hook arriving late via the replay mechanism
+    const hook = createMockHook()
+    ;(globalThis as Record<string, unknown>).__VUE_DEVTOOLS_GLOBAL_HOOK__ = hook
+
+    const replayQueue: Array<(hook: unknown) => void> =
+      ((globalThis as Record<string, unknown>)[
+        '__VUE_DEVTOOLS_HOOK_REPLAY__'
+      ] as Array<(hook: unknown) => void> | undefined) ?? []
+    for (const fn of replayQueue) {
+      fn(hook)
+    }
+
+    // Even if attachToHook somehow ran, emitting events must be a no-op
+    const component = makeComponent({
+      uid: 500,
+      type: { name: 'LateLeakyComponent' },
+      setupState: { val: 99 },
+    })
+    hook.emit('component:updated', component)
+
+    assert.equal(
+      events.length,
+      0,
+      'no events should be emitted after disconnect(), even via late replay'
+    )
+
+    delete (globalThis as Record<string, unknown>).__VUE_DEVTOOLS_GLOBAL_HOOK__
+    delete (globalThis as Record<string, unknown>).__VUE_DEVTOOLS_HOOK_REPLAY__
   })
 })
