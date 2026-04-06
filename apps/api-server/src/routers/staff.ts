@@ -1,12 +1,10 @@
 import { tapF } from '@repro/future-utils'
 import { FastifyPluginAsync } from 'fastify'
-import { ZodTypeProvider } from 'fastify-type-provider-zod'
-import { go, map, mapRej } from 'fluture'
+import { go, mapRej } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
 import { isNotFound, notAuthenticated } from '~/utils/errors'
-import { toListResponse } from '~/utils/listResponse'
 import { createResponseUtils } from '~/utils/response'
 
 const loginSchema = {
@@ -23,7 +21,7 @@ export function createStaffRouter(
   const { respondWith } = createResponseUtils(config)
 
   return async function (fastify) {
-    const app = fastify.withTypeProvider<ZodTypeProvider>()
+    const app = fastify.withTypeProvider()
 
     app.post<{
       Body: z.infer<typeof loginSchema.body>
@@ -53,15 +51,25 @@ export function createStaffRouter(
       respondWith(res, req.getCurrentUser())
     })
 
+    const paginationSchema = {
+      querystring: z.object({
+        cursor: z.string().optional(),
+        limit: z.coerce.number().int().min(1).max(250).default(50),
+      }),
+    } as const
+
     // List all accounts
-    app.get('/accounts', (req, res) => {
+    app.get<{
+      Querystring: z.infer<typeof paginationSchema.querystring>
+    }>('/accounts', { schema: paginationSchema }, (req, res) => {
+      const { cursor, limit } = req.query
       respondWith(
         res,
         go(function* () {
           const user = yield req.getCurrentUser()
           yield accountService.ensureStaffUser(user)
-          return yield accountService.listAccounts()
-        }).pipe(map(toListResponse))
+          return yield accountService.listAccounts({ cursor, limit })
+        })
       )
     })
 
@@ -72,7 +80,9 @@ export function createStaffRouter(
     } as const
 
     // Get account by ID
-    app.get(
+    app.get<{
+      Params: z.infer<typeof accountIdSchema.params>
+    }>(
       '/accounts/:accountId',
       {
         schema: accountIdSchema,
@@ -90,21 +100,36 @@ export function createStaffRouter(
       }
     )
 
+    const accountUsersPaginationSchema = {
+      params: z.object({
+        accountId: z.string(),
+      }),
+      querystring: z.object({
+        cursor: z.string().optional(),
+        limit: z.coerce.number().int().min(1).max(250).default(50),
+      }),
+    } as const
+
     // List users in account
-    app.get(
+    app.get<{
+      Params: z.infer<typeof accountUsersPaginationSchema.params>
+      Querystring: z.infer<typeof accountUsersPaginationSchema.querystring>
+    }>(
       '/accounts/:accountId/users',
-      {
-        schema: accountIdSchema,
-      },
+      { schema: accountUsersPaginationSchema },
       (req, res) => {
         const { accountId } = req.params
+        const { cursor, limit } = req.query
         respondWith(
           res,
           go(function* () {
             const user = yield req.getCurrentUser()
             yield accountService.ensureStaffUser(user)
-            return yield accountService.listUsersForAccount(accountId)
-          }).pipe(map(toListResponse))
+            return yield accountService.listUsersForAccount(accountId, {
+              cursor,
+              limit,
+            })
+          })
         )
       }
     )
@@ -116,7 +141,9 @@ export function createStaffRouter(
     } as const
 
     // Get user by ID
-    app.get(
+    app.get<{
+      Params: z.infer<typeof userIdSchema.params>
+    }>(
       '/users/:userId',
       {
         schema: userIdSchema,
@@ -140,12 +167,16 @@ export function createStaffRouter(
       }),
       body: z.object({
         isAdmin: z.boolean().optional(),
-        isActive: z.boolean().optional(),
+        // Only deactivation is supported; reactivation is not exposed via this API
+        isActive: z.literal(false).optional(),
       }),
     } as const
 
     // Update user (toggle admin, deactivate)
-    app.patch(
+    app.patch<{
+      Params: z.infer<typeof updateUserSchema.params>
+      Body: z.infer<typeof updateUserSchema.body>
+    }>(
       '/users/:userId',
       {
         schema: updateUserSchema,
@@ -159,18 +190,19 @@ export function createStaffRouter(
             const user = yield req.getCurrentUser()
             yield accountService.ensureStaffUser(user)
 
+            // Fetch the snapshot first so we can return it consistently,
+            // even after deactivation renders the user unfetchable
+            const targetUser = yield accountService.getUserByIdForStaff(userId)
+
             if (isAdmin !== undefined) {
               yield accountService.setUserIsAdmin(userId, isAdmin)
             }
 
             if (isActive === false) {
               yield accountService.deactivateUser(userId)
-              // User is now inactive; return a success indicator instead of
-              // fetching the user (which would fail since active = false)
-              return { deactivated: true }
             }
 
-            return yield accountService.getUserByIdForStaff(userId)
+            return targetUser
           })
         )
       }

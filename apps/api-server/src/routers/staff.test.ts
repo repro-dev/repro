@@ -105,6 +105,49 @@ describe('Routers > Staff', () => {
       expect(body.items.length).toBeGreaterThanOrEqual(2)
     })
 
+    it('should respect limit and return nextCursor when more results exist', async () => {
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      await promise(accountService.createAccount('Page Account A'))
+      await promise(accountService.createAccount('Page Account B'))
+      await promise(accountService.createAccount('Page Account C'))
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/accounts?limit=2',
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      const body = res.json()
+      expect(body.items).toHaveLength(2)
+      expect(body.nextCursor).toBeDefined()
+    })
+
+    it('should return all results and no nextCursor when results fit within limit', async () => {
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      await promise(accountService.createAccount('Only Account'))
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/accounts?limit=50',
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      const body = res.json()
+      expect(body.nextCursor).toBeUndefined()
+    })
+
     it('should return 403 when not authenticated as staff', async () => {
       const [userSession] = await harness.loadFixtures([
         fixtures.account.UserA_Session,
@@ -220,6 +263,51 @@ describe('Routers > Staff', () => {
       })
     })
 
+    it('should respect limit and return nextCursor when more users exist', async () => {
+      const [staffSession, account] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+        fixtures.account.AccountA,
+      ])
+
+      await promise(
+        accountService.createUser(
+          (account as Account).id,
+          'User One',
+          'userpag1@example.com',
+          'password1'
+        )
+      )
+      await promise(
+        accountService.createUser(
+          (account as Account).id,
+          'User Two',
+          'userpag2@example.com',
+          'password2'
+        )
+      )
+      await promise(
+        accountService.createUser(
+          (account as Account).id,
+          'User Three',
+          'userpag3@example.com',
+          'password3'
+        )
+      )
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/accounts/${(account as Account).id}/users?limit=2`,
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      const body = res.json()
+      expect(body.items).toHaveLength(2)
+      expect(body.nextCursor).toBeDefined()
+    })
+
     it('should return 403 when not authenticated as staff', async () => {
       const [userSession, account] = await harness.loadFixtures([
         fixtures.account.UserA_Session,
@@ -325,6 +413,13 @@ describe('Routers > Staff', () => {
       })
 
       expect(res.statusCode).toEqual(200)
+
+      // Response should be the user snapshot taken before deactivation
+      const body = res.json()
+      expect(body).toMatchObject({
+        id: (user as User).id,
+        name: 'User A',
+      })
 
       // Verify user was deactivated (getUserById will fail since user is inactive)
       await expect(

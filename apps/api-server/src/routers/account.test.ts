@@ -149,7 +149,7 @@ describe('Routers > Account', () => {
       const allAccountNames = await promise(
         accountService
           .listAccounts()
-          .pipe(map(accounts => accounts.map(account => account.name)))
+          .pipe(map(result => result.items.map(account => account.name)))
       )
 
       expect(res.statusCode).toEqual(409)

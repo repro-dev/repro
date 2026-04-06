@@ -299,8 +299,8 @@ describe('Services > Account', () => {
           accountService
             .listAccounts()
             .pipe(
-              map(accounts =>
-                accounts.sort((a, b) => a.name.localeCompare(b.name))
+              map(result =>
+                result.items.sort((a, b) => a.name.localeCompare(b.name))
               )
             )
         )

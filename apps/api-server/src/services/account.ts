@@ -394,31 +394,79 @@ export function createAccountService(
     }).pipe(map(withEncodedId))
   }
 
-  function listAccounts(
-    order: 'asc' | 'desc' = 'asc'
-  ): FutureInstance<Error, Array<Account>> {
+  function listAccounts({
+    cursor,
+    limit = 50,
+    order = 'asc',
+  }: {
+    cursor?: string
+    limit?: number
+    order?: 'asc' | 'desc'
+  } = {}): FutureInstance<
+    Error,
+    { items: Array<Account>; nextCursor?: string }
+  > {
     return attemptQuery(() => {
-      return database
+      let query = database
         .selectFrom('accounts')
         .select(['id', 'name'])
-        .orderBy(`createdAt ${order}`)
-        .execute()
-    }).pipe(map(rows => rows.map(withEncodedId)))
+        .orderBy(`id ${order}`)
+        .limit(limit + 1)
+
+      if (cursor != null) {
+        query = query.where('id', order === 'asc' ? '>' : '<', decodeId(cursor))
+      }
+
+      return query.execute()
+    }).pipe(
+      map(rows => {
+        const hasMore = rows.length > limit
+        const pageRows = hasMore ? rows.slice(0, limit) : rows
+        const items = pageRows.map(withEncodedId)
+        const nextCursor = hasMore ? items[items.length - 1]?.id : undefined
+        return { items, nextCursor }
+      })
+    )
   }
 
   function listUsersForAccount(
-    accountId: string
-  ): FutureInstance<Error, Array<StaffUserDetail>> {
+    accountId: string,
+    {
+      cursor,
+      limit = 50,
+    }: {
+      cursor?: string
+      limit?: number
+    } = {}
+  ): FutureInstance<
+    Error,
+    { items: Array<StaffUserDetail>; nextCursor?: string }
+  > {
     return attemptQuery(() => {
-      return database
+      let query = database
         .selectFrom('users')
         .select(['id', 'name', 'email', 'verified'])
         .where('accountId', '=', decodeId(accountId))
         .where('active', '=', true)
-        .orderBy('createdAt asc')
-        .execute()
-    }).pipe(map(rows => rows.map(asStaffUserDetail)))
+        .orderBy('id asc')
+        .limit(limit + 1)
+
+      if (cursor != null) {
+        query = query.where('id', '>', decodeId(cursor))
+      }
+
+      return query.execute()
+    }).pipe(
+      map(rows => {
+        const hasMore = rows.length > limit
+        const pageRows = hasMore ? rows.slice(0, limit) : rows
+        const items = pageRows.map(asStaffUserDetail)
+        const nextCursor = hasMore ? items[items.length - 1]?.id : undefined
+        return { items, nextCursor }
+      })
+    )
   }
+
   function updateAccountName(
     accountId: string,
     name: string
@@ -612,6 +660,7 @@ export function createAccountService(
         .executeTakeFirstOrThrow(() => notFound())
     ).pipe(map(asStaffUserDetail))
   }
+
   function getUserEmailById(id: string): FutureInstance<Error, string> {
     return attemptQuery(() =>
       database
