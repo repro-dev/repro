@@ -148,6 +148,47 @@ describe('createVuexObserver', () => {
     removeHook()
   })
 
+  it('computes correct diff when state is mutated in-place (real Vuex behavior)', () => {
+    // Regression test: Vuex state is a live reactive object mutated in-place.
+    // The observer must deep-clone the state snapshot on each mutation so that
+    // the next diff compares against a frozen copy, not the same live reference.
+    const hook = createMockHook()
+    installHook(hook)
+
+    const events: StateSourceEvent[] = []
+    const observer = createVuexObserver(e => events.push(e))
+    observer.observe({} as Document, {} as never)
+
+    // Single live state object -- same reference passed every time, just like real Vuex
+    const liveState = { count: 0, name: 'test' }
+
+    // First mutation: count 0 -> 1
+    liveState.count = 1
+    hook.emit('vuex:mutation', { type: 'INCREMENT', payload: null }, liveState)
+
+    // Second mutation on the SAME object: count 1 -> 2
+    liveState.count = 2
+    hook.emit('vuex:mutation', { type: 'INCREMENT', payload: null }, liveState)
+
+    assert.equal(events.length, 2)
+
+    // The second event's stateDiff must reflect count changing from 1 to 2.
+    // If lastState were stored as a reference instead of a clone, both before
+    // and after would be 2, producing an empty diff.
+    const secondInner = (events[1]!.data as Box<VuexMutationEvent>).unwrap()
+    const diff = JSON.parse(secondInner.stateDiff) as Record<string, unknown>
+    assert.deepEqual(
+      diff['count'],
+      { before: 1, after: 2 },
+      `Expected diff.count = {before:1, after:2}, got: ${JSON.stringify(
+        diff['count']
+      )}`
+    )
+
+    observer.disconnect()
+    removeHook()
+  })
+
   it('drops stateDiff when state diff exceeds 20 KB', () => {
     const hook = createMockHook()
     installHook(hook)

@@ -83,7 +83,10 @@ export function createVuexObserver(
 ): ObserverLike {
   // Instance-scoped state -- no module-level singletons
   let isObserving = false
-  // Track the last known Vuex state so we can diff on each mutation
+  // Deep-cloned snapshot of the last known Vuex state.
+  // Vuex state is a live reactive object mutated in-place, so we must clone
+  // it here -- storing the reference directly would cause every subsequent
+  // diff to compare the object against itself, always returning '{}'.
   let lastState: unknown = null
 
   function handleMutation(mutation: unknown, state: unknown) {
@@ -93,8 +96,14 @@ export function createVuexObserver(
     const payload = safeSerialize(m.payload, PAYLOAD_MAX_CHARS)
     const stateDiff = computeStateDiff(lastState, state)
 
-    // Update tracked state for next diff
-    lastState = state
+    // Deep-clone the current state so the next diff compares against a frozen
+    // snapshot rather than the same live reference.
+    try {
+      lastState = JSON.parse(JSON.stringify(state))
+    } catch {
+      // Fallback for non-serialisable state (circular refs, etc.)
+      lastState = state
+    }
 
     const inner: VuexMutationEvent = {
       type: StateEventType.VuexMutation,
