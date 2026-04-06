@@ -3,6 +3,7 @@ import {
   FutureInstance,
   bichain,
   chain,
+  fork,
   go,
   map,
   reject,
@@ -281,6 +282,67 @@ export function createRecordingService(database: Database, storage: Storage) {
     })
   }
 
+  function deleteRecording(recordingId: string): FutureInstance<Error, void> {
+    const decodedRecordingId = decodeId(recordingId)
+
+    if (decodedRecordingId == null) {
+      return reject(badRequest(`Invalid recording ID "${recordingId}"`))
+    }
+
+    return go(function* () {
+      // Verify the recording exists (throws 404 if not)
+      yield readInfo(recordingId)
+
+      // Collect resource blob paths before deleting DB rows
+      const resourceRows: Array<{ value: string }> = yield attemptQuery(() =>
+        database
+          .selectFrom('recording_resources')
+          .select('value')
+          .where('recordingId', '=', decodedRecordingId)
+          .execute()
+      )
+
+      // Delete DB rows in FK dependency order
+      yield attemptQuery(() =>
+        database
+          .deleteFrom('recording_resources')
+          .where('recordingId', '=', decodedRecordingId)
+          .execute()
+      )
+
+      yield attemptQuery(() =>
+        database
+          .deleteFrom('project_recordings')
+          .where('recordingId', '=', decodedRecordingId)
+          .execute()
+      )
+
+      yield attemptQuery(() =>
+        database
+          .deleteFrom('recordings')
+          .where('id', '=', decodedRecordingId)
+          .execute()
+      )
+
+      // Best-effort storage cleanup — log errors but do not fail the request
+      const noopOnError = (error: Error) =>
+        console.error(
+          `[deleteRecording] Failed to delete storage blob for recording ${recordingId}:`,
+          error
+        )
+
+      fork(noopOnError)(() => {})(storage.delete(`${recordingId}/data`))
+
+      for (const row of resourceRows) {
+        fork(noopOnError)(() => {})(
+          storage.delete(`${recordingId}/resources/${row.value}`)
+        )
+      }
+
+      return yield resolve(undefined)
+    })
+  }
+
   return {
     // Access control
     ensureIsPublicRecording,
@@ -299,6 +361,7 @@ export function createRecordingService(database: Database, storage: Storage) {
     writeResourceMap,
     writeEventIndex,
     writeInfo,
+    deleteRecording,
   }
 }
 

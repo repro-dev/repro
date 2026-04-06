@@ -5,6 +5,7 @@ import {
   createReadStream,
   createWriteStream,
   mkdir,
+  unlink,
 } from 'node:fs'
 import path from 'node:path'
 import { Readable } from 'node:stream'
@@ -115,9 +116,20 @@ export function createFileSystemStorageClient(config: Config): Storage {
     )
   }
 
+  function deleteFile(filePath: string): FutureInstance<Error, void> {
+    if (!isSafePath(filePath)) {
+      return reject(notFound(`File does not exist: ${filePath}`))
+    }
+
+    const fullPath = path.join(config.path, filePath)
+
+    return node(done => unlink(fullPath, done))
+  }
+
   return {
     exists,
     read,
     write,
+    delete: deleteFile,
   }
 }

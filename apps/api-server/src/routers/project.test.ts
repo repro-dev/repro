@@ -1674,6 +1674,115 @@ describe('Routers > Project', () => {
     })
   })
 
+  describe('Recording deletion', () => {
+    it('should delete a recording from a project as a project admin', async () => {
+      const [project, recording, _, session] = await harness.loadFixtures([
+        fixtures.project.ProjectA_Multiple_Recordings,
+        fixtures.recording.RecordingA,
+        fixtures.project.UserC_ProjectA_Admin,
+        fixtures.account.UserC_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/${project.id}/recordings/${recording.id}`,
+        cookies: {
+          [harness.env.SESSION_COOKIE]: session.sessionToken,
+        },
+      })
+
+      expect(res.statusCode).toEqual(204)
+
+      await expect(
+        promise(harness.services.recordingService.readInfo(recording.id))
+      ).rejects.toThrow(notFound())
+    })
+
+    it('should delete a recording from a project as an account admin', async () => {
+      const [project, recording, session] = await harness.loadFixtures([
+        fixtures.project.ProjectA_Multiple_Recordings,
+        fixtures.recording.RecordingA,
+        fixtures.account.AdminUserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/${project.id}/recordings/${recording.id}`,
+        cookies: {
+          [harness.env.SESSION_COOKIE]: session.sessionToken,
+        },
+      })
+
+      expect(res.statusCode).toEqual(204)
+
+      await expect(
+        promise(harness.services.recordingService.readInfo(recording.id))
+      ).rejects.toThrow(notFound())
+    })
+
+    it('should return 403 when deleting a recording without project modification permission', async () => {
+      const [project, recording, _, session] = await harness.loadFixtures([
+        fixtures.project.ProjectA_Multiple_Recordings,
+        fixtures.recording.RecordingA,
+        fixtures.project.UserA_ProjectA_Contributor,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/${project.id}/recordings/${recording.id}`,
+        cookies: {
+          [harness.env.SESSION_COOKIE]: session.sessionToken,
+        },
+      })
+
+      expect(res.statusCode).toEqual(403)
+
+      await expect(
+        promise(harness.services.recordingService.readInfo(recording.id))
+      ).resolves.toMatchObject({ id: recording.id })
+    })
+
+    it('should return 404 when deleting a recording that does not exist', async () => {
+      const [project, session] = await harness.loadFixtures([
+        fixtures.project.ProjectA,
+        fixtures.account.AdminUserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/${project.id}/recordings/${encodeId(999)}`,
+        cookies: {
+          [harness.env.SESSION_COOKIE]: session.sessionToken,
+        },
+      })
+
+      expect(res.statusCode).toEqual(404)
+    })
+
+    it('should return 404 when deleting a recording from a project in another account', async () => {
+      const [project, recording, session] = await harness.loadFixtures([
+        fixtures.project.ProjectC_AccountB_Multiple_Recordings,
+        fixtures.recording.RecordingA,
+        fixtures.account.AdminUserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/${project.id}/recordings/${recording.id}`,
+        cookies: {
+          [harness.env.SESSION_COOKIE]: session.sessionToken,
+        },
+      })
+
+      expect(res.statusCode).toEqual(404)
+
+      await expect(
+        promise(harness.services.recordingService.readInfo(recording.id))
+      ).resolves.toMatchObject({ id: recording.id })
+    })
+  })
+
   describe('Resource maps', () => {
     it('should get a resource-map for a recording', async () => {
       const [project, [recording, resourceMap], _, session] =

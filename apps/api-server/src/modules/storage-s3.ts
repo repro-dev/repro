@@ -1,5 +1,6 @@
 import {
   CompleteMultipartUploadCommandOutput,
+  DeleteObjectCommand,
   GetObjectCommand,
   GetObjectCommandOutput,
   HeadObjectCommand,
@@ -92,9 +93,23 @@ export function createS3StorageClient(config: Config): Storage {
     return res.pipe(map(() => void 0))
   }
 
+  function deleteObject(path: string): FutureInstance<Error, void> {
+    return attemptP<Error, void>(() =>
+      s3
+        .send(
+          new DeleteObjectCommand({
+            Bucket: config.bucket,
+            Key: path,
+          })
+        )
+        .then(() => void 0)
+    )
+  }
+
   return {
     exists,
     read,
     write,
+    delete: deleteObject,
   }
 }
