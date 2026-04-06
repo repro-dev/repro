@@ -1,5 +1,12 @@
 import * as argon2 from '@node-rs/argon2'
-import { Account, Invitation, Session, StaffUser, User } from '@repro/domain'
+import {
+  Account,
+  Invitation,
+  Session,
+  StaffUser,
+  StaffUserDetail,
+  User,
+} from '@repro/domain'
 import {
   FutureInstance,
   alt,
@@ -16,6 +23,7 @@ import { SystemConfig, defaultSystemConfig } from '~/config/system'
 import {
   Database,
   asStaffUser,
+  asStaffUserDetail,
   asUser,
   attemptQuery,
   decodeId,
@@ -398,6 +406,19 @@ export function createAccountService(
     }).pipe(map(rows => rows.map(withEncodedId)))
   }
 
+  function listUsersForAccount(
+    accountId: string
+  ): FutureInstance<Error, Array<StaffUserDetail>> {
+    return attemptQuery(() => {
+      return database
+        .selectFrom('users')
+        .select(['id', 'name', 'email', 'verified'])
+        .where('accountId', '=', decodeId(accountId))
+        .where('active', '=', true)
+        .orderBy('createdAt asc')
+        .execute()
+    }).pipe(map(rows => rows.map(asStaffUserDetail)))
+  }
   function updateAccountName(
     accountId: string,
     name: string
@@ -578,6 +599,19 @@ export function createAccountService(
     ).pipe(map(asUser))
   }
 
+  // Staff-facing variant that includes email in the response
+  function getUserByIdForStaff(
+    id: string
+  ): FutureInstance<Error, StaffUserDetail> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('users')
+        .select(['id', 'name', 'email', 'verified'])
+        .where('id', '=', decodeId(id))
+        .where('active', '=', true)
+        .executeTakeFirstOrThrow(() => notFound())
+    ).pipe(map(asStaffUserDetail))
+  }
   function getUserEmailById(id: string): FutureInstance<Error, string> {
     return attemptQuery(() =>
       database
@@ -961,6 +995,7 @@ export function createAccountService(
     getAccountForUser,
     getAccountForInvitation,
     listAccounts,
+    listUsersForAccount,
 
     // Invitations
     createInvitation,
@@ -976,6 +1011,7 @@ export function createAccountService(
     getUserByEmail,
     getUserByEmailAndPassword,
     getUserById,
+    getUserByIdForStaff,
     getUserEmailById,
     getUserIsAdmin,
     sendVerificationEmail,
