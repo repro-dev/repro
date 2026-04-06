@@ -1,5 +1,5 @@
-import { Row } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { Block, Row } from '@jsxstyle/react'
+import { colors, Tooltip } from '@repro/design'
 import {
   isInputElement,
   isSelectElement,
@@ -92,10 +92,10 @@ export const SpeedControl: React.FC = () => {
     <Row
       alignItems="center"
       justifyContent="center"
-      height={24}
+      height={32}
       paddingH={6}
       color={colors.blue['700']}
-      backgroundColor={colors.blue['50']}
+      hoverBackgroundColor={colors.slate['100']}
       borderRadius={4}
       fontSize={11}
       fontWeight={600}
@@ -103,12 +103,15 @@ export const SpeedControl: React.FC = () => {
       userSelect="none"
       cursor="pointer"
       whiteSpace="nowrap"
-      props={{
-        onClick: cycleSpeed,
-        title: `Playback speed: ${speed}x (click to change)`,
-      }}
+      transition="background-color linear 250ms"
+      props={{ onClick: cycleSpeed }}
     >
-      {speed}x
+      <Block>
+        <Tooltip position="top">
+          Playback speed: {speed}x (click to change)
+        </Tooltip>
+        {speed}x
+      </Block>
     </Row>
   )
 }
