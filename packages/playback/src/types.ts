@@ -31,9 +31,9 @@ export interface VNodeBreakpoint {
 export type Breakpoint = VNodeBreakpoint
 
 // Valid playback speed multipliers
-export type PlaybackSpeed = 0.5 | 1 | 2 | 4
+export type PlaybackSpeed = 0.5 | 1 | 1.5 | 2 | 4
 
-export const VALID_SPEEDS: Array<PlaybackSpeed> = [0.5, 1, 2, 4]
+export const VALID_SPEEDS: Array<PlaybackSpeed> = [0.5, 1, 1.5, 2, 4]
 
 export interface Playback {
   // Atoms

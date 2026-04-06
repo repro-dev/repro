@@ -109,9 +109,9 @@ export const SpeedControl: React.FC = () => {
     >
       <Block>
         <Tooltip position="top">
-          Playback speed: {speed}x (click to change)
+          Playback speed: {speed.toFixed(1)}x (click to change)
         </Tooltip>
-        {speed}x
+        {speed.toFixed(1)}x
       </Block>
     </Row>
   )
