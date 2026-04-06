@@ -63,6 +63,10 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   REPRO_APP_URL: z.string().default('http://localhost:3000'),
   REPRO_API_URL: z.string().default('http://localhost:8080'),
+  RATE_LIMIT_UNAUTHENTICATED_RPM: numericStringTransform.default(60),
+  RATE_LIMIT_AUTHENTICATED_RPM: numericStringTransform.default(600),
+  RATE_LIMIT_UPLOAD_RPM: numericStringTransform.default(20),
+  RATE_LIMIT_REDIS_URL: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

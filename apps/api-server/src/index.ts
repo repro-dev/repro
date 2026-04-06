@@ -1,6 +1,7 @@
 import compress from '@fastify/compress'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
+import { buildRateLimitOptions } from '~/rateLimit'
 
 import { Google } from 'arctic'
 import fastify, { FastifyPluginAsync } from 'fastify'
@@ -158,7 +159,9 @@ const oauthRouter = createOAuthRouter(oauthService, accountService)
 const projectRouter = createProjectRouter(
   projectService,
   recordingService,
-  accountService
+  accountService,
+  undefined,
+  env.RATE_LIMIT_UPLOAD_RPM
 )
 const staffRouter = createStaffRouter(accountService)
 
@@ -180,7 +183,7 @@ const accountPlugins: FastifyPluginAsync = async app => {
   await app.register(apiKeysRouter)
 }
 
-function bootstrap(routers: Record<string, FastifyPluginAsync>) {
+async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   const app = fastify({
     bodyLimit: 16777216, // 16MiB
     logger: true,
@@ -201,10 +204,25 @@ function bootstrap(routers: Record<string, FastifyPluginAsync>) {
 
   app.register(compress)
 
-  app.register(rateLimit, {
-    max: 100,
-    timeWindow: '1 minute',
-  })
+  // Build an optional Redis client for distributed rate limiting.
+  // Falls back to in-memory store when RATE_LIMIT_REDIS_URL is not set.
+  let redisClient: unknown
+  if (env.RATE_LIMIT_REDIS_URL) {
+    const { default: Redis } = await import('ioredis')
+    redisClient = new Redis(env.RATE_LIMIT_REDIS_URL)
+  }
+
+  // Must await so the plugin's onRoute hook is installed before routes are added.
+  // Without await, global:true doesn't apply to routes registered on this instance.
+  await app.register(
+    rateLimit,
+    buildRateLimitOptions({
+      unauthenticatedRpm: env.RATE_LIMIT_UNAUTHENTICATED_RPM,
+      authenticatedRpm: env.RATE_LIMIT_AUTHENTICATED_RPM,
+      uploadRpm: env.RATE_LIMIT_UPLOAD_RPM,
+      ...(redisClient ? { redis: redisClient } : {}),
+    })
+  )
 
   app.setValidatorCompiler(validatorCompiler)
   app.setSerializerCompiler(serializerCompiler)

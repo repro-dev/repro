@@ -13,23 +13,39 @@
       "STORAGE_ENDPOINT": "http://localhost:18333",
       "REPRO_APP_URL": "https://app.repro.localhost:1355",
       "REPRO_API_URL": "https://api.repro.localhost:1355",
-      "BILLING_DEFAULT_PLAN": "Free"
+      "BILLING_DEFAULT_PLAN": "Free",
+      "RATE_LIMIT_UNAUTHENTICATED_RPM": "60",
+      "RATE_LIMIT_AUTHENTICATED_RPM": "600",
+      "RATE_LIMIT_UPLOAD_RPM": "20"
     },
-    "env_passthrough": ["OPENROUTER_API_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
-    "resource_deps": ["dependencies", "portless-proxy"],
-    "labels": ["api"],
+    "env_passthrough": [
+      "OPENROUTER_API_KEY",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET"
+    ],
+    "resource_deps": [
+      "dependencies",
+      "portless-proxy"
+    ],
+    "labels": [
+      "api"
+    ],
     "portless_name": "api.repro",
     "migrations": {
       "moon_task": "repro/api-server:migrate",
-      "resource_deps": ["database-ready", "storage-ready"]
+      "resource_deps": [
+        "database-ready",
+        "storage-ready"
+      ]
     },
     "seed": {
       "pnpm_package": "@repro/api-server",
-      "resource_deps": ["storage-s3-forward"]
+      "resource_deps": [
+        "storage-s3-forward"
+      ]
     },
     "deps": []
   },
-
   "workspace": {
     "type": "local",
     "moon_project": "repro/workspace",
@@ -40,12 +56,18 @@
       "REPRO_APP_URL": "https://app.repro.localhost:1355",
       "REPRO_API_URL": "https://api.repro.localhost:1355"
     },
-    "resource_deps": ["dependencies", "portless-proxy"],
-    "labels": ["app"],
+    "resource_deps": [
+      "dependencies",
+      "portless-proxy"
+    ],
+    "labels": [
+      "app"
+    ],
     "portless_name": "app.repro",
-    "deps": ["api-server"]
+    "deps": [
+      "api-server"
+    ]
   },
-
   "admin": {
     "type": "local",
     "moon_project": "repro/admin",
@@ -57,12 +79,18 @@
       "REPRO_ADMIN_URL": "https://admin.repro.localhost:1355",
       "REPRO_API_URL": "https://api.repro.localhost:1355"
     },
-    "resource_deps": ["dependencies", "portless-proxy"],
-    "labels": ["app"],
+    "resource_deps": [
+      "dependencies",
+      "portless-proxy"
+    ],
+    "labels": [
+      "app"
+    ],
     "portless_name": "admin.repro",
-    "deps": ["api-server"]
+    "deps": [
+      "api-server"
+    ]
   },
-
   "capture": {
     "type": "local",
     "moon_project": "repro/capture",
@@ -74,34 +102,49 @@
       "REPRO_API_URL": "https://api.repro.localhost:1355",
       "AGENTIC_MAX_ITERATIONS": "25"
     },
-    "resource_deps": ["dependencies"],
-    "labels": ["extension"],
-    "deps": ["workspace"]
+    "resource_deps": [
+      "dependencies"
+    ],
+    "labels": [
+      "extension"
+    ],
+    "deps": [
+      "workspace"
+    ]
   },
-
   "dev-toolbar": {
     "type": "local",
     "moon_project": "repro/dev-toolbar",
     "app_dir": "apps/dev-toolbar",
     "serve_cmd": "moon run repro/dev-toolbar:watch",
     "serve_env": {},
-    "resource_deps": ["dependencies"],
-    "labels": ["extension"],
-    "deps": ["workspace"]
+    "resource_deps": [
+      "dependencies"
+    ],
+    "labels": [
+      "extension"
+    ],
+    "deps": [
+      "workspace"
+    ]
   },
-
   "storybook-ui": {
     "type": "local",
     "moon_project": "repro/storybook-ui",
     "app_dir": "apps/storybook-ui",
     "serve_cmd": "moon run repro/storybook-ui:dev",
-    "serve_env": { "BROWSER": "none" },
-    "resource_deps": ["dependencies"],
-    "labels": ["design"],
+    "serve_env": {
+      "BROWSER": "none"
+    },
+    "resource_deps": [
+      "dependencies"
+    ],
+    "labels": [
+      "design"
+    ],
     "port": 6006,
     "deps": []
   },
-
   "marketing": {
     "type": "local",
     "moon_project": "repro/marketing",
@@ -112,8 +155,13 @@
       "REPRO_APP_URL": "https://app.repro.localhost:1355",
       "REPRO_MARKETING_URL": "https://marketing.repro.localhost:1355"
     },
-    "resource_deps": ["dependencies", "portless-proxy"],
-    "labels": ["app"],
+    "resource_deps": [
+      "dependencies",
+      "portless-proxy"
+    ],
+    "labels": [
+      "app"
+    ],
     "portless_name": "marketing.repro",
     "deps": []
   }
