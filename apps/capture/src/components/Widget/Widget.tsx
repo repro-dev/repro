@@ -1,7 +1,7 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { useApiClient } from '@repro/api-client'
-import { colors } from '@repro/design'
+import { color, colors } from '@repro/design'
 import { ListResponse, Project, RecordingMode } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
@@ -106,6 +106,19 @@ export const Widget: React.FC = () => {
         borderWidth={isPendingLiveRecording ? 5 : 0}
         transition="all linear 250ms"
       />
+
+      {isReady && (
+        <Block
+          position="fixed"
+          top={0}
+          right={0}
+          bottom={0}
+          left={0}
+          backgroundColor={color.bg.overlay}
+          backdropFilter="blur(5px)"
+          props={{ onClick: onReset }}
+        />
+      )}
 
       <InlineBlock position="relative" pointerEvents="auto">
         <Launcher />
