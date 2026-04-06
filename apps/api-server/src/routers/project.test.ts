@@ -1781,6 +1781,68 @@ describe('Routers > Project', () => {
         promise(harness.services.recordingService.readInfo(recording.id))
       ).resolves.toMatchObject({ id: recording.id })
     })
+
+    it('should delete a recording with event index data successfully', async () => {
+      const [project, recording, session] = await harness.loadFixtures([
+        fixtures.project.ProjectA_Multiple_Recordings,
+        fixtures.recording.RecordingA,
+        fixtures.account.AdminUserA_Session,
+      ])
+
+      // Write event index data so the recording_event_index table has rows
+      await promise(
+        harness.services.recordingService.writeEventIndex(recording.id, [
+          {
+            eventIndex: 0,
+            eventType: 40,
+            timeMs: 100,
+            byteOffset: 0,
+            byteLength: 50,
+          },
+        ])
+      )
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/${project.id}/recordings/${recording.id}`,
+        cookies: {
+          [harness.env.SESSION_COOKIE]: session.sessionToken,
+        },
+      })
+
+      expect(res.statusCode).toEqual(204)
+
+      await expect(
+        promise(harness.services.recordingService.readInfo(recording.id))
+      ).rejects.toThrow(notFound())
+    })
+
+    it('should return 404 when deleting a recording that belongs to a different project', async () => {
+      // ProjectA has RecordingA; ProjectB does not.
+      // Attempting to delete RecordingA via ProjectB's URL should 404.
+      const [_projectA, recordingA, projectB, session] =
+        await harness.loadFixtures([
+          fixtures.project.ProjectA_Multiple_Recordings,
+          fixtures.recording.RecordingA,
+          fixtures.project.ProjectB,
+          fixtures.account.AdminUserA_Session,
+        ])
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/${projectB.id}/recordings/${recordingA.id}`,
+        cookies: {
+          [harness.env.SESSION_COOKIE]: session.sessionToken,
+        },
+      })
+
+      expect(res.statusCode).toEqual(404)
+
+      // The recording must NOT have been deleted
+      await expect(
+        promise(harness.services.recordingService.readInfo(recordingA.id))
+      ).resolves.toMatchObject({ id: recordingA.id })
+    })
   })
 
   describe('Resource maps', () => {

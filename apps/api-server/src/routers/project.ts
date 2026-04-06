@@ -831,7 +831,10 @@ export function createProjectRouter(
           go<Error, void>(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
             yield ensureCanModifyProject(user, projectId)
-            return yield recordingService.deleteRecording(recordingId)
+            return yield recordingService.deleteRecording(
+              projectId,
+              recordingId
+            )
           }),
           204
         )
