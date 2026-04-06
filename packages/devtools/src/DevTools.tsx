@@ -12,7 +12,7 @@ import { PickerOverlay } from './PickerOverlay'
 import { ReactPanel } from './ReactPanel'
 import { ReduxPanel } from './ReduxPanel'
 import { Toolbar } from './Toolbar'
-import { INSPECTOR_Z_INDEX } from './constants'
+import { MAX_INT32 } from './constants'
 import {
   useCurrentDocument,
   useDevToolsView,
@@ -126,7 +126,7 @@ const InspectorRegion: React.FC = ({ children }) => (
     backgroundColor={colors.white}
     gridTemplateRows="40px auto"
     boxShadow={`0 -4px 16px rgba(0, 0, 0, 0.1)`}
-    zIndex={INSPECTOR_Z_INDEX}
+    zIndex={MAX_INT32}
   >
     {children}
   </Grid>

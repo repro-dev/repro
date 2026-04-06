@@ -4,7 +4,7 @@ import { isIFrameElement } from '@repro/dom-utils'
 import React, { MutableRefObject, useEffect, useRef, useState } from 'react'
 import { Subscription, fromEvent } from 'rxjs'
 import { distinctUntilChanged, map, share } from 'rxjs/operators'
-import { PICKER_Z_INDEX } from '../constants'
+import { MAX_INT32 } from '../constants'
 import {
   useCurrentDocument,
   useDevToolsView,
@@ -152,7 +152,7 @@ export const PickerOverlay: React.FC = React.memo(() => {
       bottom={0}
       left={0}
       right={0}
-      zIndex={PICKER_Z_INDEX}
+      zIndex={MAX_INT32}
       pointerEvents={picker ? 'all' : 'none'}
       props={{ ref }}
     >
