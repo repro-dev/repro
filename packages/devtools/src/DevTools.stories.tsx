@@ -75,6 +75,7 @@ const events = new List(SourceEventView, [
           scroll: {},
           viewport: [400, 400],
         },
+        frameworkState: null,
       },
     })
   ),

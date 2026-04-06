@@ -1,6 +1,6 @@
 import { Block, InlineBlock, Row } from '@jsxstyle/react'
 import { animated, config, useTransition } from '@react-spring/web'
-import { color, colors, Logo, Portal } from '@repro/design'
+import { colors, Logo } from '@repro/design'
 import { XIcon } from 'lucide-react'
 import React from 'react'
 
@@ -16,16 +16,6 @@ const defaultStyles = {
   bottom: 0,
   left: 0,
   transformOrigin: 'bottom left',
-} as const
-
-const backdropStyles = {
-  position: 'fixed',
-  top: 0,
-  right: 0,
-  bottom: 0,
-  left: 0,
-  backdropFilter: 'blur(5px)',
-  zIndex: 0,
 } as const
 
 export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
@@ -46,16 +36,6 @@ export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
     (styles, isOpen) =>
       isOpen && (
         <>
-          <Portal>
-            <animated.div
-              style={{
-                ...backdropStyles,
-                backgroundColor: color.bg.overlay,
-                opacity: styles.opacity,
-              }}
-              onClick={onClose}
-            />
-          </Portal>
           <animated.div style={{ ...styles, ...defaultStyles, zIndex: 1 }}>
             <Block
               blockSize={

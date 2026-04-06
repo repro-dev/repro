@@ -30,6 +30,11 @@ describe('tdl/inspect', () => {
       const buf = new ArrayBuffer(12)
       expect(getDataByteLength(descriptor, buf)).toBe(12)
     })
+
+    it('returns 0 for undefined nullable field (treats undefined same as null)', () => {
+      const descriptor: StringDescriptor = { type: 'string', nullable: true }
+      expect(getDataByteLength(descriptor, undefined)).toBe(0)
+    })
   })
 
   describe('getByteLength', () => {
@@ -48,6 +53,11 @@ describe('tdl/inspect', () => {
     it('returns 1 for null nullable field', () => {
       const descriptor: StringDescriptor = { type: 'string', nullable: true }
       expect(getByteLength(descriptor, null)).toBe(1)
+    })
+
+    it('returns 1 for undefined nullable field (treats undefined same as null)', () => {
+      const descriptor: StringDescriptor = { type: 'string', nullable: true }
+      expect(getByteLength(descriptor, undefined)).toBe(1)
     })
   })
 
