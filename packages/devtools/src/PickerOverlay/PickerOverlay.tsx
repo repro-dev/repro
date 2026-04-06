@@ -4,7 +4,7 @@ import { isIFrameElement } from '@repro/dom-utils'
 import React, { MutableRefObject, useEffect, useRef, useState } from 'react'
 import { Subscription, fromEvent } from 'rxjs'
 import { distinctUntilChanged, map, share } from 'rxjs/operators'
-import { MAX_INT32 } from '../constants'
+import { PICKER_Z_INDEX } from '../constants'
 import {
   useCurrentDocument,
   useDevToolsView,
@@ -55,9 +55,9 @@ export const PickerOverlay: React.FC = React.memo(() => {
   const [, setSelectedNode] = useSelectedNode()
   const [, setView] = useDevToolsView()
   const [, setInspecting] = useInspecting()
-  const [targetElement, setTargetElement] = useState<Element | null>(null)
-  const [boundingBox, setBoundingBox] = useState<DOMRect | null>(null)
-  const ref = useRef() as MutableRefObject<HTMLDivElement>
+  const [targetElement, setTargetElement] = useState(null)
+  const [boundingBox, setBoundingBox] = useState(null)
+  const ref = useRef() as MutableRefObject
 
   useEffect(() => {
     setTargetElement(
@@ -75,7 +75,7 @@ export const PickerOverlay: React.FC = React.memo(() => {
     const subscription = new Subscription()
 
     if (picker) {
-      const elem$ = fromEvent<PointerEvent>(ref.current, 'pointermove', {
+      const elem$ = fromEvent(ref.current, 'pointermove', {
         capture: true,
         passive: true,
       }).pipe(
@@ -105,7 +105,7 @@ export const PickerOverlay: React.FC = React.memo(() => {
       subscription.add(elem$.subscribe(target => setTargetElement(target)))
 
       subscription.add(
-        fromEvent<PointerEvent>(ref.current, 'pointerdown')
+        fromEvent(ref.current, 'pointerdown')
           .pipe(
             map(evt => {
               const target = getTargetElementAtPoint(
@@ -152,7 +152,7 @@ export const PickerOverlay: React.FC = React.memo(() => {
       bottom={0}
       left={0}
       right={0}
-      zIndex={MAX_INT32}
+      zIndex={PICKER_Z_INDEX}
       pointerEvents={picker ? 'all' : 'none'}
       props={{ ref }}
     >

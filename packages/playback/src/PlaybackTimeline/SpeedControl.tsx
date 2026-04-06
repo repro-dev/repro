@@ -93,6 +93,7 @@ export const SpeedControl: React.FC = () => {
       alignItems="center"
       justifyContent="center"
       height={32}
+      minWidth={32}
       paddingH={6}
       color={colors.blue['700']}
       hoverBackgroundColor={colors.slate['100']}
@@ -110,7 +111,7 @@ export const SpeedControl: React.FC = () => {
         <Tooltip position="top">
           Playback speed: {speed}x (click to change)
         </Tooltip>
-        {speed}x
+        {speed === 0.5 ? '½x' : `${speed}x`}
       </Block>
     </Row>
   )
