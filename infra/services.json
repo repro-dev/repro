@@ -21,28 +21,19 @@
     "env_passthrough": [
       "OPENROUTER_API_KEY",
       "GOOGLE_CLIENT_ID",
-      "GOOGLE_CLIENT_SECRET"
+      "GOOGLE_CLIENT_SECRET",
+      "RATE_LIMIT_REDIS_URL"
     ],
-    "resource_deps": [
-      "dependencies",
-      "portless-proxy"
-    ],
-    "labels": [
-      "api"
-    ],
+    "resource_deps": ["dependencies", "portless-proxy"],
+    "labels": ["api"],
     "portless_name": "api.repro",
     "migrations": {
       "moon_task": "repro/api-server:migrate",
-      "resource_deps": [
-        "database-ready",
-        "storage-ready"
-      ]
+      "resource_deps": ["database-ready", "storage-ready"]
     },
     "seed": {
       "pnpm_package": "@repro/api-server",
-      "resource_deps": [
-        "storage-s3-forward"
-      ]
+      "resource_deps": ["storage-s3-forward"]
     },
     "deps": []
   },
@@ -56,17 +47,10 @@
       "REPRO_APP_URL": "https://app.repro.localhost:1355",
       "REPRO_API_URL": "https://api.repro.localhost:1355"
     },
-    "resource_deps": [
-      "dependencies",
-      "portless-proxy"
-    ],
-    "labels": [
-      "app"
-    ],
+    "resource_deps": ["dependencies", "portless-proxy"],
+    "labels": ["app"],
     "portless_name": "app.repro",
-    "deps": [
-      "api-server"
-    ]
+    "deps": ["api-server"]
   },
   "admin": {
     "type": "local",
@@ -79,17 +63,10 @@
       "REPRO_ADMIN_URL": "https://admin.repro.localhost:1355",
       "REPRO_API_URL": "https://api.repro.localhost:1355"
     },
-    "resource_deps": [
-      "dependencies",
-      "portless-proxy"
-    ],
-    "labels": [
-      "app"
-    ],
+    "resource_deps": ["dependencies", "portless-proxy"],
+    "labels": ["app"],
     "portless_name": "admin.repro",
-    "deps": [
-      "api-server"
-    ]
+    "deps": ["api-server"]
   },
   "capture": {
     "type": "local",
@@ -102,15 +79,9 @@
       "REPRO_API_URL": "https://api.repro.localhost:1355",
       "AGENTIC_MAX_ITERATIONS": "25"
     },
-    "resource_deps": [
-      "dependencies"
-    ],
-    "labels": [
-      "extension"
-    ],
-    "deps": [
-      "workspace"
-    ]
+    "resource_deps": ["dependencies"],
+    "labels": ["extension"],
+    "deps": ["workspace"]
   },
   "dev-toolbar": {
     "type": "local",
@@ -118,15 +89,9 @@
     "app_dir": "apps/dev-toolbar",
     "serve_cmd": "moon run repro/dev-toolbar:watch",
     "serve_env": {},
-    "resource_deps": [
-      "dependencies"
-    ],
-    "labels": [
-      "extension"
-    ],
-    "deps": [
-      "workspace"
-    ]
+    "resource_deps": ["dependencies"],
+    "labels": ["extension"],
+    "deps": ["workspace"]
   },
   "storybook-ui": {
     "type": "local",
@@ -136,12 +101,8 @@
     "serve_env": {
       "BROWSER": "none"
     },
-    "resource_deps": [
-      "dependencies"
-    ],
-    "labels": [
-      "design"
-    ],
+    "resource_deps": ["dependencies"],
+    "labels": ["design"],
     "port": 6006,
     "deps": []
   },
@@ -155,13 +116,8 @@
       "REPRO_APP_URL": "https://app.repro.localhost:1355",
       "REPRO_MARKETING_URL": "https://marketing.repro.localhost:1355"
     },
-    "resource_deps": [
-      "dependencies",
-      "portless-proxy"
-    ],
-    "labels": [
-      "app"
-    ],
+    "resource_deps": ["dependencies", "portless-proxy"],
+    "labels": ["app"],
     "portless_name": "marketing.repro",
     "deps": []
   }

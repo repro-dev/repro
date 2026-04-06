@@ -209,7 +209,11 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   let redisClient: unknown
   if (env.RATE_LIMIT_REDIS_URL) {
     const { default: Redis } = await import('ioredis')
-    redisClient = new Redis(env.RATE_LIMIT_REDIS_URL)
+    const redis = new Redis(env.RATE_LIMIT_REDIS_URL)
+    redis.on('error', err => {
+      app.log.warn({ err }, 'Redis rate limit client error')
+    })
+    redisClient = redis
   }
 
   // Must await so the plugin's onRoute hook is installed before routes are added.

@@ -100,7 +100,7 @@ export function buildRateLimitOptions(config: RateLimitConfig) {
     errorResponseBuilder: (_req: FastifyRequest, context: { ttl: number }) => ({
       statusCode: 429,
       error: 'rate_limit_exceeded',
-      retryAfter: context.ttl,
+      retryAfter: Math.ceil(context.ttl / 1000),
     }),
     addHeaders: {
       'retry-after': true as const,
@@ -145,7 +145,7 @@ export function uploadRateLimitOptions(uploadRpm: number) {
     errorResponseBuilder: (_req: FastifyRequest, context: { ttl: number }) => ({
       statusCode: 429,
       error: 'rate_limit_exceeded',
-      retryAfter: context.ttl,
+      retryAfter: Math.ceil(context.ttl / 1000),
     }),
     addHeaders: {
       'retry-after': true as const,

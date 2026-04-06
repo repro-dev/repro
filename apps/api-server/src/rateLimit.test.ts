@@ -204,6 +204,9 @@ describe('Rate limiting', () => {
       const body = JSON.parse(res.body)
       expect(body.error).toEqual('rate_limit_exceeded')
       expect(typeof body.retryAfter).toEqual('number')
+      // retryAfter must be in seconds (not milliseconds): a 1-minute window
+      // yields at most 60 seconds remaining, never thousands.
+      expect(body.retryAfter).toBeLessThanOrEqual(60)
     })
 
     it('should NOT rate limit /health endpoint', async () => {
