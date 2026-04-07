@@ -2880,6 +2880,37 @@ importers:
         specifier: 5.7.3
         version: 5.7.3
 
+  packages/workspace-api:
+    dependencies:
+      '@repro/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+      '@repro/domain':
+        specifier: workspace:*
+        version: link:../domain
+      fluture:
+        specifier: ^14.0.0
+        version: 14.0.0
+    devDependencies:
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      '@types/repro-shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
 packages:
 
   '@adobe/css-tools@4.4.4':
@@ -16042,6 +16073,11 @@ snapshots:
   prettier-plugin-organize-imports@3.2.3(prettier@3.0.0)(typescript@5.7.3):
     dependencies:
       prettier: 3.0.0
+      typescript: 5.7.3
+
+  prettier-plugin-organize-imports@3.2.3(prettier@3.8.1)(typescript@5.7.3):
+    dependencies:
+      prettier: 3.8.1
       typescript: 5.7.3
 
   prettier@3.0.0: {}

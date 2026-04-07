@@ -1,0 +1,222 @@
+import { ApiClient } from '@repro/api-client'
+import { FetchOptions } from '@repro/api-client/src/types'
+import { Project, ProjectRole, RecordingInfo, User } from '@repro/domain'
+import {
+  FutureInstance,
+  fork,
+  reject as futureReject,
+  promise,
+  resolve,
+} from 'fluture'
+import assert from 'node:assert/strict'
+import { describe, it } from 'node:test'
+import {
+  createProject,
+  deactivateProject,
+  getProject,
+  getProjectMembers,
+  getProjectRecordings,
+  getProjects,
+  renameProject,
+} from './queries'
+
+type CallRecord = { url: string; options: FetchOptions }
+
+// Minimal stub ApiClient that records calls and returns a configurable response
+function createStubApiClient(
+  responseFactory: (url: string, options?: { body?: string }) => unknown
+): ApiClient & { calls: Array<CallRecord> } {
+  const calls: Array<CallRecord> = []
+
+  return {
+    calls,
+    authStore: {} as never,
+    fetch<R = unknown>(
+      url: string,
+      options: FetchOptions = {}
+    ): FutureInstance<Error, R> {
+      calls.push({ url, options })
+      const body = options.body != null ? String(options.body) : undefined
+      return resolve(responseFactory(url, { body }) as R)
+    },
+    debug: () => () => undefined,
+    wrapP<R>(_method: FutureInstance<unknown, R>): Promise<R> {
+      return Promise.resolve(undefined as unknown as R)
+    },
+  }
+}
+
+const fakeProject: Project = { id: 'proj-1', name: 'My Project' }
+
+const fakeUser: User = {
+  type: 'user',
+  id: 'user-1',
+  name: 'Alice',
+  verified: true,
+}
+
+const fakeRecording: RecordingInfo = {
+  id: 'rec-1',
+  title: 'Session 1',
+  url: 'https://example.com',
+  description: '',
+  mode: 1,
+  duration: 60000,
+  createdAt: '2026-01-01T00:00:00Z',
+  browserName: 'Chrome',
+  browserVersion: '120',
+  operatingSystem: 'macOS',
+  codecVersion: '1.0.0',
+}
+
+describe('workspace-api: queries', () => {
+  describe('getProjects', () => {
+    it('fetches GET /projects and unwraps items envelope', async () => {
+      const stub = createStubApiClient(() => ({ items: [fakeProject] }))
+      const result = await promise(getProjects(stub))
+      assert.deepEqual(result, [fakeProject])
+    })
+
+    it('calls the correct URL', async () => {
+      const stub = createStubApiClient(() => ({ items: [] }))
+      await promise(getProjects(stub))
+      assert.equal(stub.calls[0]?.url, '/projects')
+    })
+  })
+
+  describe('getProject', () => {
+    it('fetches GET /projects/:projectId and returns the project', async () => {
+      const stub = createStubApiClient(() => fakeProject)
+      const result = await promise(getProject(stub, 'proj-1'))
+      assert.deepEqual(result, fakeProject)
+    })
+
+    it('calls the correct URL', async () => {
+      const stub = createStubApiClient(() => fakeProject)
+      await promise(getProject(stub, 'proj-1'))
+      assert.equal(stub.calls[0]?.url, '/projects/proj-1')
+    })
+  })
+
+  describe('createProject', () => {
+    it('POSTs to /projects with name in body and returns created project', async () => {
+      const stub = createStubApiClient(() => fakeProject)
+      const result = await promise(createProject(stub, 'My Project'))
+      assert.deepEqual(result, fakeProject)
+    })
+
+    it('calls the correct URL with POST method', async () => {
+      const stub = createStubApiClient(() => fakeProject)
+      await promise(createProject(stub, 'My Project'))
+      const call = stub.calls[0]
+      assert.equal(call?.url, '/projects')
+      assert.equal(call?.options.method, 'post')
+    })
+
+    it('serialises name in JSON body', async () => {
+      const stub = createStubApiClient(() => fakeProject)
+      await promise(createProject(stub, 'My Project'))
+      const body = stub.calls[0]?.options.body as string
+      assert.deepEqual(JSON.parse(body), { name: 'My Project' })
+    })
+  })
+
+  describe('renameProject', () => {
+    it('PUTs to /projects/:projectId/name and returns updated project', async () => {
+      const updated = { ...fakeProject, name: 'Renamed' }
+      const stub = createStubApiClient(() => updated)
+      const result = await promise(renameProject(stub, 'proj-1', 'Renamed'))
+      assert.deepEqual(result, updated)
+    })
+
+    it('calls the correct URL with PUT method', async () => {
+      const stub = createStubApiClient(() => fakeProject)
+      await promise(renameProject(stub, 'proj-1', 'Renamed'))
+      const call = stub.calls[0]
+      assert.equal(call?.url, '/projects/proj-1/name')
+      assert.equal(call?.options.method, 'put')
+    })
+
+    it('serialises name in JSON body', async () => {
+      const stub = createStubApiClient(() => fakeProject)
+      await promise(renameProject(stub, 'proj-1', 'Renamed'))
+      const body = stub.calls[0]?.options.body as string
+      assert.deepEqual(JSON.parse(body), { name: 'Renamed' })
+    })
+  })
+
+  describe('deactivateProject', () => {
+    it('PUTs to /projects/:projectId/active with active:false', async () => {
+      const stub = createStubApiClient(() => undefined)
+      await promise(deactivateProject(stub, 'proj-1'))
+      const call = stub.calls[0]
+      assert.equal(call?.url, '/projects/proj-1/active')
+      assert.equal(call?.options.method, 'put')
+    })
+
+    it('serialises active:false in JSON body', async () => {
+      const stub = createStubApiClient(() => undefined)
+      await promise(deactivateProject(stub, 'proj-1'))
+      const body = stub.calls[0]?.options.body as string
+      assert.deepEqual(JSON.parse(body), { active: false })
+    })
+  })
+
+  describe('getProjectRecordings', () => {
+    it('fetches GET /projects/:projectId/recordings and unwraps items envelope', async () => {
+      const stub = createStubApiClient(() => ({ items: [fakeRecording] }))
+      const result = await promise(getProjectRecordings(stub, 'proj-1'))
+      assert.deepEqual(result, [fakeRecording])
+    })
+
+    it('calls the correct URL', async () => {
+      const stub = createStubApiClient(() => ({ items: [] }))
+      await promise(getProjectRecordings(stub, 'proj-1'))
+      assert.equal(stub.calls[0]?.url, '/projects/proj-1/recordings')
+    })
+  })
+
+  describe('getProjectMembers', () => {
+    it('fetches GET /projects/:projectId/members and unwraps items envelope', async () => {
+      const memberPayload = { user: fakeUser, role: ProjectRole.Admin }
+      const stub = createStubApiClient(() => ({
+        items: [memberPayload],
+      }))
+      const result = await promise(getProjectMembers(stub, 'proj-1'))
+      assert.deepEqual(result, [memberPayload])
+    })
+
+    it('calls the correct URL', async () => {
+      const stub = createStubApiClient(() => ({ items: [] }))
+      await promise(getProjectMembers(stub, 'proj-1'))
+      assert.equal(stub.calls[0]?.url, '/projects/proj-1/members')
+    })
+  })
+
+  describe('error propagation', () => {
+    it('propagates rejection from fetch', async () => {
+      const apiError = { status: 401 }
+      const client: ApiClient = {
+        authStore: {} as never,
+        fetch(): FutureInstance<Error, never> {
+          return futureReject(apiError as unknown as Error)
+        },
+        debug: () => () => undefined,
+        wrapP<R>(_method: FutureInstance<unknown, R>): Promise<R> {
+          return Promise.resolve(undefined as unknown as R)
+        },
+      }
+
+      await new Promise<void>((resolveP, rejectP) => {
+        getProjects(client).pipe(
+          fork<unknown>(err => {
+            assert.deepEqual(err, apiError)
+            resolveP()
+          })<Project[]>(() => {
+            rejectP(new Error('Expected rejection, got resolution'))
+          })
+        )
+      })
+    })
+  })
+})
