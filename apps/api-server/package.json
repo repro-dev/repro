@@ -76,7 +76,6 @@
     "concurrently": "^7.3.0",
     "expect": "^29.7.0",
     "get-port": "^7.1.0",
-    "migration-files": "^0.4.1",
     "nodemon": "^2.0.19",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
