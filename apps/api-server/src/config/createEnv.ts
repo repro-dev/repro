@@ -62,6 +62,7 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   REPRO_APP_URL: z.string().default('http://localhost:3000'),
+  REPRO_ADMIN_URL: z.string().default('http://localhost:3001'),
   REPRO_API_URL: z.string().default('http://localhost:8080'),
   RATE_LIMIT_UNAUTHENTICATED_RPM: numericStringTransform.default(60),
   RATE_LIMIT_AUTHENTICATED_RPM: numericStringTransform.default(600),
@@ -69,15 +70,13 @@ const envSchema = z.object({
   RATE_LIMIT_REDIS_URL: z.string().optional(),
 })
 
-export type Env = z.infer<typeof envSchema>
+export type Env = z.infer
 
 type Replacer = {
   replace<K extends keyof Env>(key: K, value: Env[K]): () => void
 }
 
-export function createEnv(
-  values: Record<string, unknown> = process.env
-): Env & Replacer {
+export function createEnv(values: Record = process.env): Env & Replacer {
   const env = envSchema.parse(values) as Env & Replacer
 
   env.replace = function replace<K extends keyof Env>(key: K, value: Env[K]) {
