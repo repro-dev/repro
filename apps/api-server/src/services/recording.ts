@@ -3,9 +3,9 @@ import {
   FutureInstance,
   bichain,
   chain,
-  fork,
   go,
   map,
+  parallel,
   reject,
   resolve,
 } from 'fluture'
@@ -352,22 +352,29 @@ export function createRecordingService(database: Database, storage: Storage) {
         })
       )
 
-      // Best-effort storage cleanup — log errors but do not fail the request
-      const noopOnError = (error: Error) =>
-        console.error(
-          `[deleteRecording] Failed to delete storage blob for recording ${recordingId}:`,
-          error
+      // Best-effort storage cleanup — absorb errors per-blob so a single
+      // failure does not cancel sibling deletes or reject the outer Future.
+      const bestEffort = (
+        fut: FutureInstance<Error, void>
+      ): FutureInstance<never, void> =>
+        fut.pipe(
+          bichain<Error, never, void>(error => {
+            console.error(
+              `[deleteRecording] Failed to delete storage blob for recording ${recordingId}:`,
+              error
+            )
+            return resolve(undefined)
+          })(resolve)
         )
 
-      fork(noopOnError)(() => {})(storage.delete(`${recordingId}/data`))
+      const storageFutures: Array<FutureInstance<never, void>> = [
+        bestEffort(storage.delete(`${recordingId}/data`)),
+        ...resourceRows.map(row =>
+          bestEffort(storage.delete(`${recordingId}/resources/${row.value}`))
+        ),
+      ]
 
-      for (const row of resourceRows) {
-        fork(noopOnError)(() => {})(
-          storage.delete(`${recordingId}/resources/${row.value}`)
-        )
-      }
-
-      return yield resolve(undefined)
+      return yield parallel(Infinity)(storageFutures)
     })
   }
 
