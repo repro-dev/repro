@@ -73,3 +73,21 @@ local_resource(
     resource_deps=['storage'],
     labels=['infra']
 )
+
+# Optional local Redis for development.
+#
+# api-server falls back to in-memory rate limiting when Redis is unavailable,
+# so this resource is not a hard dependency. Start it with:
+#
+#   tilt trigger redis
+#
+# or by clicking "Trigger" in the Tilt UI. Requires `redis-server` to be
+# installed (brew bundle installs it via the Brewfile redis entry).
+local_resource(
+    'redis',
+    serve_cmd='redis-server --port 6379',
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    auto_init=False,
+    labels=['infra'],
+    links=['redis://localhost:6379'],
+)

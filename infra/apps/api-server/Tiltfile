@@ -52,6 +52,7 @@ local_resource(
         'BILLING_DEFAULT_PLAN': 'Free',
         'GOOGLE_CLIENT_ID': os.getenv('GOOGLE_CLIENT_ID', ''),
         'GOOGLE_CLIENT_SECRET': os.getenv('GOOGLE_CLIENT_SECRET', ''),
+        'RATE_LIMIT_REDIS_URL': 'redis://localhost:6379',
     },
     deps=[
         os.path.join(PROJECT_ROOT, 'apps/api-server/src'),
