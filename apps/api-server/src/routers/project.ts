@@ -808,5 +808,37 @@ export function createProjectRouter(
         )
       }
     )
+
+    const deleteProjectRecordingSchema = {
+      params: z.object({
+        projectId: z.string(),
+        recordingId: z.string(),
+      }),
+    } as const
+
+    app.delete(
+      '/:projectId/recordings/:recordingId',
+
+      {
+        schema: deleteProjectRecordingSchema,
+      },
+
+      (req, res) => {
+        const { projectId, recordingId } = req.params
+
+        respondWith(
+          res,
+          go<Error, void>(function* () {
+            const user: User | StaffUser = yield req.getCurrentUser()
+            yield ensureCanModifyProject(user, projectId)
+            return yield recordingService.deleteRecording(
+              projectId,
+              recordingId
+            )
+          }),
+          204
+        )
+      }
+    )
   }
 }
