@@ -70,13 +70,15 @@ const envSchema = z.object({
   RATE_LIMIT_REDIS_URL: z.string().optional(),
 })
 
-export type Env = z.infer
+export type Env = z.infer<typeof envSchema>
 
 type Replacer = {
   replace<K extends keyof Env>(key: K, value: Env[K]): () => void
 }
 
-export function createEnv(values: Record = process.env): Env & Replacer {
+export function createEnv(
+  values: Record<string, unknown> = process.env
+): Env & Replacer {
   const env = envSchema.parse(values) as Env & Replacer
 
   env.replace = function replace<K extends keyof Env>(key: K, value: Env[K]) {

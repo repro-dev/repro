@@ -1,6 +1,6 @@
-import { Col } from '@jsxstyle/react'
+import { Block, Col } from '@jsxstyle/react'
 import { GoogleSignInButton } from '@repro/auth'
-import { Card } from '@repro/design'
+import { Card, colors } from '@repro/design'
 import React from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { defaultEnv as env } from '../config/env'
@@ -14,21 +14,21 @@ export const StaffLoginRoute: React.FC = () => {
       <Card>
         <Col gap={16} alignItems="stretch">
           {error === 'domain_not_allowed' && (
-            <p
-              style={{
-                margin: 0,
-                padding: '10px',
-                fontSize: '13px',
-                lineHeight: 1.5,
-                backgroundColor: '#ffe4e6',
-                color: '#9f1239',
-                borderRadius: '4px',
-                border: '1px solid #fca5a5',
-              }}
+            <Block
+              alignSelf="stretch"
+              padding={10}
+              fontSize={13}
+              lineHeight={1.5}
+              backgroundColor={colors.rose['100']}
+              color={colors.rose['700']}
+              borderRadius={4}
+              borderColor={colors.rose['300']}
+              borderStyle="solid"
+              borderWidth={1}
             >
               Access restricted to @repro.dev accounts. Please sign in with your
               Repro Google account.
-            </p>
+            </Block>
           )}
 
           <GoogleSignInButton

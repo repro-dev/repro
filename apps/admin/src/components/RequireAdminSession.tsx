@@ -1,14 +1,13 @@
 import { IfSession, useSession, useSessionLoading } from '@repro/auth'
 import React, { useEffect } from 'react'
-import { useNavigate } from 'react-router'
+import { Outlet, useNavigate } from 'react-router'
 
 /**
  * Admin-specific session guard. Redirects to /login (not /account/login)
  * because admin authentication uses Google OAuth, not the user-facing form.
+ * Used as a layout route element — renders <Outlet /> for nested child routes.
  */
-export const RequireAdminSession: React.FC<React.PropsWithChildren> = ({
-  children,
-}) => {
+export const RequireAdminSession: React.FC = () => {
   const navigate = useNavigate()
   const session = useSession()
   const loading = useSessionLoading()
@@ -19,5 +18,9 @@ export const RequireAdminSession: React.FC<React.PropsWithChildren> = ({
     }
   }, [navigate, session, loading])
 
-  return <IfSession>{children}</IfSession>
+  return (
+    <IfSession>
+      <Outlet />
+    </IfSession>
+  )
 }

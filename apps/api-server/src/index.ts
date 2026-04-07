@@ -115,7 +115,11 @@ const googleProvider =
               'https://openidconnect.googleapis.com/v1/userinfo',
               { headers: { Authorization: `Bearer ${accessToken}` } }
             )
-            return resp.json() as Promise
+            return resp.json() as Promise<{
+              sub: string
+              email: string
+              name: string
+            }>
           },
         }
       })()
@@ -183,7 +187,11 @@ const staffGoogleProvider =
               'https://openidconnect.googleapis.com/v1/userinfo',
               { headers: { Authorization: `Bearer ${accessToken}` } }
             )
-            return resp.json() as Promise
+            return resp.json() as Promise<{
+              sub: string
+              email: string
+              name: string
+            }>
           },
         }
       })()
@@ -220,7 +228,7 @@ const staffPlugins: FastifyPluginAsync = async app => {
   await app.register(staffOAuthRouter)
 }
 
-async function bootstrap(routers: Record) {
+async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   const app = fastify({
     bodyLimit: 16777216, // 16MiB
     logger: true,
