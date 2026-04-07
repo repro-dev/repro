@@ -13,9 +13,17 @@
       "STORAGE_ENDPOINT": "http://localhost:18333",
       "REPRO_APP_URL": "https://app.repro.localhost:1355",
       "REPRO_API_URL": "https://api.repro.localhost:1355",
-      "BILLING_DEFAULT_PLAN": "Free"
+      "BILLING_DEFAULT_PLAN": "Free",
+      "RATE_LIMIT_UNAUTHENTICATED_RPM": "60",
+      "RATE_LIMIT_AUTHENTICATED_RPM": "600",
+      "RATE_LIMIT_UPLOAD_RPM": "20"
     },
-    "env_passthrough": ["OPENROUTER_API_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+    "env_passthrough": [
+      "OPENROUTER_API_KEY",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "RATE_LIMIT_REDIS_URL"
+    ],
     "resource_deps": ["dependencies", "portless-proxy"],
     "labels": ["api"],
     "portless_name": "api.repro",
@@ -29,7 +37,6 @@
     },
     "deps": []
   },
-
   "workspace": {
     "type": "local",
     "moon_project": "repro/workspace",
@@ -45,7 +52,6 @@
     "portless_name": "app.repro",
     "deps": ["api-server"]
   },
-
   "admin": {
     "type": "local",
     "moon_project": "repro/admin",
@@ -62,7 +68,6 @@
     "portless_name": "admin.repro",
     "deps": ["api-server"]
   },
-
   "capture": {
     "type": "local",
     "moon_project": "repro/capture",
@@ -78,7 +83,6 @@
     "labels": ["extension"],
     "deps": ["workspace"]
   },
-
   "dev-toolbar": {
     "type": "local",
     "moon_project": "repro/dev-toolbar",
@@ -89,19 +93,19 @@
     "labels": ["extension"],
     "deps": ["workspace"]
   },
-
   "storybook-ui": {
     "type": "local",
     "moon_project": "repro/storybook-ui",
     "app_dir": "apps/storybook-ui",
     "serve_cmd": "moon run repro/storybook-ui:dev",
-    "serve_env": { "BROWSER": "none" },
+    "serve_env": {
+      "BROWSER": "none"
+    },
     "resource_deps": ["dependencies"],
     "labels": ["design"],
     "port": 6006,
     "deps": []
   },
-
   "marketing": {
     "type": "local",
     "moon_project": "repro/marketing",

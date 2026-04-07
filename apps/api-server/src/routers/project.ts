@@ -19,7 +19,9 @@ import {
   reject,
 } from 'fluture'
 import z from 'zod'
+import { createEnv } from '~/config/createEnv'
 import { defaultSystemConfig } from '~/config/system'
+import { uploadRateLimitOptions } from '~/rateLimit'
 import { AccountService } from '~/services/account'
 import { ProjectService } from '~/services/project'
 import { RecordingService } from '~/services/recording'
@@ -38,6 +40,7 @@ export function createProjectRouter(
   accountService: AccountService,
   config = defaultSystemConfig
 ): FastifyPluginAsync {
+  const env = createEnv()
   const { respondWith } = createResponseUtils(config)
 
   return async function (fastify) {
@@ -609,6 +612,9 @@ export function createProjectRouter(
 
       {
         schema: updateProjectRecordingDataSchema,
+        config: {
+          rateLimit: uploadRateLimitOptions(env.RATE_LIMIT_UPLOAD_RPM),
+        },
       },
 
       (req, res) => {
