@@ -159,9 +159,7 @@ const oauthRouter = createOAuthRouter(oauthService, accountService)
 const projectRouter = createProjectRouter(
   projectService,
   recordingService,
-  accountService,
-  undefined,
-  env.RATE_LIMIT_UPLOAD_RPM
+  accountService
 )
 const staffRouter = createStaffRouter(accountService)
 
