@@ -1,7 +1,8 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color, DropdownMenu, spacing } from '@repro/design'
+import { color, DropdownMenu, Link, spacing } from '@repro/design'
 import { ChevronDownIcon, FolderIcon } from 'lucide-react'
 import React from 'react'
+import { NavLink as RouterNavLink } from 'react-router-dom'
 import { useProjectContext } from '~/ProjectContext'
 
 export const ProjectSwitcher: React.FC = () => {
@@ -22,7 +23,9 @@ export const ProjectSwitcher: React.FC = () => {
         fontSize={13}
       >
         <FolderIcon size={14} />
-        <Block>No projects</Block>
+        <Link component={RouterNavLink} props={{ to: '/projects/new' }}>
+          Create project
+        </Link>
       </Row>
     )
   }
