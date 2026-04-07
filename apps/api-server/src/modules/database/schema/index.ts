@@ -20,7 +20,7 @@ import { RecordingResourceTable } from './RecordingResourceTable'
 import { RecordingTable } from './RecordingTable'
 import { SessionTable } from './SessionTable'
 import { StaffUserTable, asStaffUser } from './StaffUserTable'
-import { UserTable, asUser } from './UserTable'
+import { UserTable, asStaffUserDetail, asUser } from './UserTable'
 
 export interface Schema {
   accounts: AccountTable
@@ -57,5 +57,6 @@ export {
   RecordingResourceTable,
   RecordingTable,
   asStaffUser,
+  asStaffUserDetail,
   asUser,
 }

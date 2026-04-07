@@ -1,4 +1,4 @@
-import { User } from '@repro/domain'
+import { StaffUserDetail, User } from '@repro/domain'
 import { Generated, GeneratedAlways, Selectable } from 'kysely'
 import { encodeId } from '../helpers'
 
@@ -18,12 +18,28 @@ export interface UserTable {
 }
 
 type DomainObject = Pick<Selectable<UserTable>, 'id' | 'name' | 'verified'>
+type StaffDomainObject = Pick<
+  Selectable<UserTable>,
+  'id' | 'name' | 'email' | 'verified'
+>
 
 export function asUser<T extends DomainObject>(values: T): User {
   return {
     type: 'user',
     id: encodeId(values.id),
     name: values.name,
+    verified: values.verified,
+  }
+}
+
+export function asStaffUserDetail<T extends StaffDomainObject>(
+  values: T
+): StaffUserDetail {
+  return {
+    type: 'user',
+    id: encodeId(values.id),
+    name: values.name,
+    email: values.email,
     verified: values.verified,
   }
 }
