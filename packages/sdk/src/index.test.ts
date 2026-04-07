@@ -11,12 +11,6 @@ describe('repro SDK', () => {
       delete (globalThis as Record<string, unknown>)['__REPRO__']
     })
 
-    it('identify is a no-op and returns undefined', async () => {
-      const { repro } = await import('./index.js')
-      const result = repro.identify('user-123')
-      assert.equal(result, undefined)
-    })
-
     it('mark is a no-op and returns undefined', async () => {
       const { repro } = await import('./index.js')
       const result = repro.mark('page_view')
@@ -36,9 +30,6 @@ describe('repro SDK', () => {
     beforeEach(() => {
       calls.length = 0
       ;(globalThis as Record<string, unknown>)['__REPRO__'] = {
-        identify: (userId: string, traits?: Record<string, unknown>) => {
-          calls.push({ method: 'identify', args: [userId, traits] })
-        },
         mark: (name: string, data?: Record<string, unknown>) => {
           calls.push({ method: 'mark', args: [name, data] })
         },
@@ -50,16 +41,6 @@ describe('repro SDK', () => {
 
     afterEach(() => {
       delete (globalThis as Record<string, unknown>)['__REPRO__']
-    })
-
-    it('identify delegates to window.__REPRO__.identify', async () => {
-      const { repro } = await import('./index.js')
-      repro.identify('user-456', { plan: 'pro' })
-      assert.equal(calls.length, 1)
-      assert.deepEqual(calls[0], {
-        method: 'identify',
-        args: ['user-456', { plan: 'pro' }],
-      })
     })
 
     it('mark delegates to window.__REPRO__.mark', async () => {
