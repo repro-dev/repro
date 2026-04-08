@@ -74,13 +74,6 @@ local_resource(
     labels=['infra']
 )
 
-# Optional Redis for local development (rate limiting).
-#
-# Runs as a standalone in-cluster pod via Helm, consistent with the PostgreSQL
-# infra pattern. api-server falls back to in-memory rate limiting when Redis is
-# unavailable, so this is not in the critical path of tilt up.
-#
-# Start manually with: tilt trigger redis
 helm_resource(
     name='redis',
     chart='bitnami/redis',
@@ -92,8 +85,6 @@ helm_resource(
         '--set=master.persistence.enabled=false',
     ],
     port_forwards='6379:6379',
-    trigger_mode=TRIGGER_MODE_MANUAL,
-    auto_init=False,
     labels=['infra']
 )
 
@@ -101,7 +92,5 @@ local_resource(
     'redis-ready',
     cmd='kubectl wait --namespace default --for=condition=ready pod -l app.kubernetes.io/instance=redis,app.kubernetes.io/name=redis --timeout=60s',
     resource_deps=['redis'],
-    trigger_mode=TRIGGER_MODE_MANUAL,
-    auto_init=False,
     labels=['infra']
 )
