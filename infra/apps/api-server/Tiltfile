@@ -58,7 +58,7 @@ local_resource(
         os.path.join(PROJECT_ROOT, 'apps/api-server/src'),
         os.path.join(PROJECT_ROOT, 'apps/api-server/package.json'),
     ],
-    resource_deps=['api-server-migrations', 'portless-proxy'],
+    resource_deps=['api-server-migrations', 'portless-proxy', 'redis-ready'],
     allow_parallel=True,
     links=['https://api.repro.localhost:1355'],
     labels=['api'],
