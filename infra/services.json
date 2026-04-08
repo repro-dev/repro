@@ -24,8 +24,7 @@
       "GOOGLE_CLIENT_ID",
       "GOOGLE_CLIENT_SECRET"
     ],
-    "resource_deps": ["dependencies", "portless-proxy"],
-    "labels": ["api"],
+    "resource_deps": ["dependencies", "portless-proxy", "redis-ready"],
     "portless_name": "api.repro",
     "migrations": {
       "moon_task": "repro/api-server:migrate",
