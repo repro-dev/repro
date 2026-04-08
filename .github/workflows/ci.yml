@@ -50,6 +50,29 @@ jobs:
           which initdb
           initdb --version # Example command using the newly available tool
 
+      - name: Check for duplicate migration timestamp prefixes
+        run: |
+          # Fail if two migration files share the same 14-digit timestamp prefix.
+          # Timestamps are the first field when splitting on '-', so we extract them
+          # with parameter expansion compatible with Bash 3.2+.
+          MIGRATION_DIR="apps/api-server/src/migrations/data"
+          seen=""
+          duplicates=""
+          for f in "$MIGRATION_DIR"/*.sql; do
+            base=$(basename "$f")
+            prefix="${base%%-*}"
+            if echo "$seen" | grep -qF "$prefix"; then
+              duplicates="$duplicates $base"
+            else
+              seen="$seen $prefix"
+            fi
+          done
+          if [ -n "$duplicates" ]; then
+            echo "ERROR: Duplicate migration timestamp prefix(es) detected:$duplicates" >&2
+            exit 1
+          fi
+          echo "Migration timestamp collision check passed."
+
       - name: Set PNPM store directory
         run: |
           pnpm config set store-dir .pnpm-store
@@ -92,7 +115,7 @@ jobs:
           echo '::endgroup::'
         env:
           MOON_LOG: warn
-          NODE_OPTIONS: '--test-reporter spec'
+          NODE_OPTIONS: "--test-reporter spec"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
