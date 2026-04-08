@@ -16,16 +16,15 @@
       "BILLING_DEFAULT_PLAN": "Free",
       "RATE_LIMIT_UNAUTHENTICATED_RPM": "60",
       "RATE_LIMIT_AUTHENTICATED_RPM": "600",
-      "RATE_LIMIT_UPLOAD_RPM": "20"
+      "RATE_LIMIT_UPLOAD_RPM": "20",
+      "RATE_LIMIT_REDIS_URL": "redis://localhost:6379"
     },
     "env_passthrough": [
       "OPENROUTER_API_KEY",
       "GOOGLE_CLIENT_ID",
-      "GOOGLE_CLIENT_SECRET",
-      "RATE_LIMIT_REDIS_URL"
+      "GOOGLE_CLIENT_SECRET"
     ],
-    "resource_deps": ["dependencies", "portless-proxy"],
-    "labels": ["api"],
+    "resource_deps": ["dependencies", "portless-proxy", "redis-ready"],
     "portless_name": "api.repro",
     "migrations": {
       "moon_task": "repro/api-server:migrate",
