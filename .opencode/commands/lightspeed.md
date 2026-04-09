@@ -231,7 +231,9 @@ For each issue:
      - Example: "REP-xxx escalated: architectural issue found — [issue description] (rationale: [1-sentence rationale])"
    - If **all** blocking issues have `kind: mechanical`:
      - If this is the first attempt: re-spawn the `develop` agent with the original prompt + the blocking issues list.
-     - If the second `develop` attempt still has blocking issues (mechanical or otherwise): escalate to the user with a "retry budget exhausted" message listing all remaining blocking issues. Do NOT open a PR for this issue.
+     - If the second `develop` attempt still has blocking issues:
+       - Re-check classifications: if **any** blocking issue has `kind: architectural`, escalate immediately with the architectural rationale.
+       - If all remaining blocking issues are still `kind: mechanical`: escalate to the user with a "retry budget exhausted" message listing all remaining blocking issues. Do NOT open a PR for this issue.
 
 ---
 
