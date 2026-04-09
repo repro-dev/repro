@@ -6,6 +6,14 @@ Audit all skill files in `.opencode/skills/` against the current codebase index 
 
 ---
 
+## Arguments (optional)
+
+- `AUTONOMOUS=true` — run in non-interactive mode. Auto-fixes unambiguous stale references and files Platform issues for ambiguous ones. Never prompts. This is the default when called from `/lightspeed` Phase 0.
+
+When called directly via `/audit-skills` (without arguments), `AUTONOMOUS` defaults to `false` (interactive mode).
+
+---
+
 ## Step 1: Resolve the Repo Index
 
 Call `jcodemunch_resolve_repo` with the main checkout path (not a worktree — skill files live in the main checkout):
@@ -107,6 +115,11 @@ For each stale reference where the audit does not provide a replacement, search 
 
 Include all suggestions in the per-file breakdown above.
 
+**Classify each stale reference as unambiguous or ambiguous:**
+
+- **Unambiguous**: `jcodemunch_search_symbols` returns exactly one result with an exact name match (the symbol was clearly renamed), OR for file paths, `glob` finds exactly one file matching the filename at a new path. Tag as `confidence: unambiguous`.
+- **Ambiguous**: multiple candidates found with no clear best match, zero candidates found, or the top result has a substantially different signature or context suggesting deletion rather than rename. Tag as `confidence: ambiguous`.
+
 ### 4b: Determine which agents load each affected skill
 
 For each affected skill file identified in the audit, scan these sources to find which agents and commands reference it:
@@ -125,9 +138,52 @@ If no agent or command loads the skill, write `(none found)` in the Loaded By co
 
 ---
 
-## Step 5: Offer to Fix
+## Step 5: Fix or Escalate
 
-After displaying the report, ask:
+### 5a: Autonomous mode (`AUTONOMOUS=true`)
+
+When called with `AUTONOMOUS=true` (the default when invoked from `/lightspeed` Phase 0):
+
+#### Auto-fix unambiguous references
+
+For each stale reference tagged `confidence: unambiguous`:
+
+1. Read the current skill file content.
+2. Replace the stale symbol name or file path with the suggested replacement.
+3. Write the updated file.
+4. Call `jcodemunch_index_file` on the updated file to keep the index fresh.
+5. Log: `Auto-fixed: <file>:<line> — replaced '<stale>' with '<replacement>'`
+
+#### File Platform issues for ambiguous references
+
+For each stale reference tagged `confidence: ambiguous`:
+
+1. File a new Linear issue via `Linear_save_issue`:
+   - `title`: `Stale skill reference: <skill-file> line <line> — could not auto-resolve '<stale-name>'`
+   - `team`: `Repro`
+   - `project`: `Platform`
+   - `labels`: `["Tech Debt"]`
+   - `priority`: 4 (Low)
+   - `description`: structured markdown including:
+     - **Context**: `The Phase 0 skill audit found a stale reference that could not be auto-resolved.`
+     - **Details**: the stale reference (file path or symbol name), the skill file and line number, what candidates were found (if any), and why confidence was insufficient.
+     - **Action**: `Manually verify whether this reference should be updated, removed, or is intentionally referencing something outside the index.`
+2. Log: `Filed Platform issue <issue-ID>: ambiguous stale reference '<stale>' in <file>:<line>`
+
+#### Re-audit and report
+
+After all auto-fixes are applied, re-run `jcodemunch_audit_agent_config` to confirm no unambiguous references remain.
+
+Print one of:
+
+- `✅ Skill audit (autonomous): auto-fixed N references across M files, filed K ambiguous issues — now clean`
+- `✅ Skill audit (autonomous): auto-fixed N references, K ambiguous references filed as Platform issues — proceeding`
+
+**Never prompt the user. Always continue.**
+
+### 5b: Interactive mode (`AUTONOMOUS=false`)
+
+When called interactively (e.g. directly via `/audit-skills` without the autonomous flag):
 
 > Would you like to fix the stale references now?
 > Type **yes** to update the affected skill files in this session, or **no** to exit.
