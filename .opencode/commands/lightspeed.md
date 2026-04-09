@@ -76,6 +76,37 @@ Wait for each `wt create` to complete before running the next. Note the worktree
 
 `reproctl wt create --from-issue` automatically sets the Linear issue to **In Progress** — do not call `Linear_save_issue` additionally.
 
+### Retry-with-backoff for `wt create` failures
+
+If `reproctl wt create --from-issue` fails, apply this protocol before escalating:
+
+**Classify the failure first:**
+
+- **Permanent failures → escalate immediately, do not retry:**
+  - `branch already exists on remote` — a branch collision; the issue may be in flight elsewhere
+  - `permission denied` — auth or ACL issue
+  - `repository not found` — misconfigured remote
+  - Directory exists on disk but is NOT listed in `reproctl wt list` — partial worktree state; cannot safely reuse
+
+- **Transient failures → retry with exponential backoff:**
+  - `lock file exists` / `fatal: Unable to create '<path>/.git/index.lock': File exists` — git lock contention
+  - `unable to connect` / `timed out` / exit code 128 with network errors — transient network or remote hiccup
+  - Any other non-classified non-zero exit — treat as transient on attempt 1; escalate if it repeats
+
+**Retry loop (up to 3 attempts after the initial failure = 4 total tries):**
+
+Before each retry:
+
+1. Log: `[wt create retry N/3] Error: <error summary>. Waiting <Xs> before next attempt.`
+2. Wait the backoff duration: attempt 1 → 5 s, attempt 2 → 15 s, attempt 3 → 45 s
+3. Run `reproctl wt list` and check whether a worktree for this issue now exists:
+   - If found → reuse it (note the path, proceed to Phase 4). Stop retrying.
+   - If not found → proceed with the retry
+
+4. Retry `reproctl wt create --from-issue REP-xxx`
+
+If all 3 retries are exhausted without success, escalate to the user with the full error output from the final attempt. Do not attempt to create the worktree again.
+
 ---
 
 ## Phase 4: Implement in Parallel
@@ -130,10 +161,34 @@ For each issue:
 
 **If review says "approve" (no blocking issues):**
 
-1. Push the branch and create a PR:
+1. Push the branch with retry-with-backoff:
 
    ```sh
    git -C <worktree-path> push -u origin HEAD
+   ```
+
+   **Classify the outcome first:**
+   - **Permanent push failures → escalate immediately, do not retry:**
+     - `branch already exists on remote` (someone pushed independently)
+     - `permission denied` — auth or ACL issue
+     - `repository not found` — misconfigured remote
+
+   - **Transient push failures → retry with fixed 10-second delay:**
+     - `unable to connect` / `timed out` / exit code 128 with network errors
+     - Any other non-classified non-zero exit
+
+   **Retry loop (up to 3 retries after initial failure):**
+
+   For each retry:
+   1. Log: `[git push retry N/3] Error: <error summary>. Waiting 10s before next attempt.`
+   2. Wait 10 seconds
+   3. Re-run `git -C <worktree-path> push -u origin HEAD`
+
+   If all 3 retries fail, escalate to the user with the full error output from the final attempt. Do not open a PR for this issue.
+
+2. Create a PR:
+
+   ```sh
    gh pr create --repo <owner>/<repo> --head <branch-name> --title "<issue title>" --body "$(cat <<'EOF'
    Closes REP-xxx
 
@@ -149,8 +204,8 @@ For each issue:
    )"
    ```
 
-2. Set the Linear issue to **In Review**: `Linear_save_issue` with `state: "In Review"`
-3. Post the AI review as a PR comment: `Linear_save_comment` on the issue with the review text.
+3. Set the Linear issue to **In Review**: `Linear_save_issue` with `state: "In Review"`
+4. Post the AI review as a PR comment: `Linear_save_comment` on the issue with the review text.
 
 **If review says "request changes" (blocking issues found):**
 
@@ -198,7 +253,7 @@ What to drop:
 
 - Never commit to `main`. All work happens in worktrees on feature branches.
 - **Never write to `/tmp`.** Any ephemeral output (screenshots, artifacts, scratch files) must go to `tmp/` at the repo root. `/tmp` is outside the project working directory — OpenCode requires an elevated-permission prompt to access it, which blocks an unattended pipeline immediately. `tmp/` is git-ignored and always available without any permission prompt.
-- If a `reproctl wt create` fails (e.g. branch already exists), re-run `reproctl wt list` at that moment to check for an existing worktree for that issue and reuse it. Do not rely on the initial snapshot taken at command startup — it will be stale for Wave 2 and beyond.
+- `reproctl wt create` and `git push` failures are retried automatically per the protocols in Phase 3 and Phase 6 respectively. Only escalate after the full retry budget is exhausted. Do not rely on the initial `wt list` snapshot taken at command startup — it will be stale for Wave 2 and beyond; re-run `reproctl wt list` inside the retry loop as described in Phase 3.
 - If a `develop` subagent reports a build or typecheck failure it couldn't resolve, escalate that issue immediately rather than creating a broken PR.
 - Keep a running status table updated as you go:
 
