@@ -6,6 +6,10 @@ You are the orchestrator for a parallel autonomous delivery pipeline. Your job i
 
 Arguments (optional): `$ARGUMENTS` — a project name or filter to restrict which issues are considered (e.g. "Engineering" or "Platform"). If empty, scan all projects.
 
+Flags (optional):
+
+- `--no-watch` — open PRs and exit immediately; skip the merge-watch loop (Phase 9). Preserves the previous behaviour for callers that manage merging externally.
+
 > **Visual regression prerequisite**: The visual check in Phase 7 requires baseline screenshots in `tmp/visual-baselines/` on the main checkout. Run `/update-visual-baselines` once after any intentional visual change is merged. If the baseline directory is missing or empty, all stories are treated as "new" (no failure, but no diff coverage either).
 
 Current branch context:
@@ -360,7 +364,81 @@ For each issue:
 
 ---
 
-## Phase 9: Compress, Then Rinse and Repeat
+## Phase 9: Merge-Watch Loop
+
+> Skip this phase entirely if `--no-watch` was passed. Proceed directly to Phase 10.
+
+After Phase 8 opens PRs for the current wave, enter a merge-watch loop covering **all open PRs from the current run** (not just the current wave). This loop closes the delivery loop without requiring further human input beyond an initial PR approval.
+
+### Setup
+
+Build a watch list: collect every PR number opened during this run (all waves so far). For each PR, record:
+
+- `pr_number`
+- `issue_id`
+- `branch`
+- `ci_status`: `pending` | `passing` | `failing`
+- `merged`: `false`
+
+### Poll loop
+
+Repeat until all PRs are merged, or the timeout is reached (default: **4 hours** from loop start):
+
+1. **For each unmerged PR:**
+
+   ```sh
+   gh pr checks <pr_number> --json name,state,conclusion
+   gh pr reviews <pr_number> --json state
+   gh pr view <pr_number> --json state,mergedAt
+   ```
+
+2. **If `mergedAt` is non-null** (PR was merged externally or by a previous auto-merge call):
+   - Mark `merged: true`
+   - Run: `reproctl wt prune --worktree <worktree-path>` to clean up the worktree
+   - Update the session status table: set issue to `Merged ✓`
+   - Check whether any Wave N+1 issues are now unblocked:
+     - Re-fetch each queued Wave N+1 issue via `Linear_get_issue` with `includeRelations: true`
+     - If all `blockedBy` relations are in Done state → begin Wave N+1 automatically (proceed to Phase 3 for those issues without waiting for user input)
+
+3. **If `mergedAt` is null — update `ci_status`:**
+   - All checks with `conclusion: "SUCCESS"` and no check with `state: "PENDING"` or `conclusion: "FAILURE"` → `ci_status = passing`
+   - Any check with `conclusion: "FAILURE"` → `ci_status = failing`
+   - Otherwise → `ci_status = pending`
+
+4. **React to `ci_status` transitions** (only on first transition to that state):
+   - **`pending → passing`:**
+     - Check reviews: any review with `state: "APPROVED"` by a non-bot user?
+       - **Yes → auto-merge:**
+         ```sh
+         gh pr merge <pr_number> --squash --auto
+         ```
+         Log: `PR #<pr_number> (REP-xxx): CI passed + human approved → auto-merge queued`
+       - **No → notify:**
+         ```sh
+         gh pr comment <pr_number> --body "CI passed — ready for review and merge."
+         ```
+         Surface to the user: `PR #<pr_number> (REP-xxx): CI passed — awaiting human approval to merge`
+
+   - **`pending → failing`:**
+     - Collect failing check names from the `gh pr checks` output
+     - Escalate to the user:
+       > `PR #<pr_number> (REP-xxx) CI failing — checks: [check1, check2]. PR: <url>`
+     - Remove this PR from the watch list (no further polling)
+
+5. **Sleep 60 seconds**, then repeat.
+
+### Timeout handling
+
+If the loop runs for **4 hours** without all PRs merging:
+
+- Exit the loop
+- Report stalled PRs to the user:
+  > Merge-watch timeout (4h). Stalled PRs: `#<n> (REP-xxx, ci: <status>)`, ...
+- Do NOT fail or abort — the PRs remain open and CI continues independently.
+
+---
+
+## Phase 10: Compress, Then Rinse and Repeat
 
 After Wave N PRs are created (or escalations reported):
 
@@ -386,8 +464,8 @@ What to drop:
 ### Then continue
 
 1. Check if Wave 2 exists in your plan.
-2. If yes, proceed to Phase 3 with Wave 2 issues.
-3. If no more waves, **do not re-scan for newly unblocked issues yet** — Wave 1 PRs are open but not merged, so any issues blocked by them are still blocked. Report the open PRs to the user and wait for merge confirmation before continuing.
+2. If yes, proceed to Phase 3 with Wave 2 issues. (Phase 9 will automatically detect when Wave 1 PRs merge and trigger Wave 2 if it hasn't started yet.)
+3. If no more waves, enter Phase 9 (merge-watch loop) for the remaining open PRs. The loop will auto-merge or notify as each PR becomes ready. When all PRs are merged or the timeout is reached, the run is complete.
 4. Stop and report to the user when:
    - All candidates are exhausted (no more well-scoped, unblocked issues)
    - You've hit escalations on 2+ issues in a single wave (sign that something systemic is blocking autonomous progress)
@@ -409,4 +487,5 @@ What to drop:
 | REP-xxx | ...              | Planned      | ✓        | -   |
 | REP-yyy | ...              | Implementing | ✓        | -   |
 | REP-zzz | ...              | PR open      | ✓        | #42 |
+| REP-www | ...              | Merged ✓     | pruned   | #41 |
 ```
