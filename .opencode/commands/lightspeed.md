@@ -6,6 +6,8 @@ You are the orchestrator for a parallel autonomous delivery pipeline. Your job i
 
 Arguments (optional): `$ARGUMENTS` — a project name or filter to restrict which issues are considered (e.g. "Engineering" or "Platform"). If empty, scan all projects.
 
+> **Visual regression prerequisite**: The visual check in Phase 6.5 requires baseline screenshots in `tmp/visual-baselines/` on the main checkout. Run `/update-visual-baselines` once after any intentional visual change is merged. If the baseline directory is missing or empty, all stories are treated as "new" (no failure, but no diff coverage either).
+
 Current branch context:
 !`git branch --show-current`
 
@@ -205,7 +207,85 @@ Collect all review results.
 
 ---
 
-## Phase 7: Handle Review Results
+## Phase 6.5: Visual Regression Check
+
+For each issue where the review approved (no blocking issues), run a visual regression check **before** opening a PR.
+
+### Step 1: Detect UI-touching files
+
+Run `git diff main...HEAD --name-only` in the worktree:
+
+```sh
+git -C <worktree-path> diff main...HEAD --name-only
+```
+
+Match the output against these UI file patterns:
+
+- `*.tsx` in `packages/*/src/` or `apps/*/src/components/`
+- `packages/design/**`
+- `packages/theme/**`
+- `*.css`, `*.scss`, `*.styles.ts`
+- `*.stories.tsx`
+
+If **no files match** any of the above patterns → set `visual_check = "skipped"`. Proceed to Phase 8 for this issue.
+
+### Step 2: Story discovery (if UI files were found)
+
+1. From changed files, extract component directories (e.g., `packages/design/src/Button/`)
+2. Find co-located `*.stories.tsx` files in those directories
+3. If a `.stories.tsx` file itself changed, include it directly
+4. If any file in `packages/theme/src/**` changed, include ALL stories (full regression)
+5. If a package has no `.storybook/` directory or no `*.stories.tsx` files, skip that package with a warning (do not fail)
+
+Build a JSON array of story IDs (use the component name lowercased + `--` + variant convention, e.g. `["button--primary", "button--secondary"]`). After Storybook starts, verify IDs against `/index.json`.
+
+### Step 3: Run the visual check
+
+```sh
+bash scripts/visual-regression.sh \
+  --worktree <absolute-worktree-path> \
+  --main-checkout <main-checkout-path> \
+  --stories '<json-array>' \
+  --threshold 0.001
+```
+
+Where `<main-checkout-path>` is the path to the main checkout (not the worktree).
+
+Wait for the script to complete and capture its JSON output.
+
+### Step 4: Parse the result
+
+Parse the JSON output from the script:
+
+```json
+{
+  "stories_checked": [...],
+  "passed": [...],
+  "failed": [{ "story": "...", "diff_path": "...", "changed_pixels": N, "total_pixels": N }],
+  "new_stories": [...]
+}
+```
+
+**If `failed` is empty** (all passed or new/no baselines):
+
+- Set `visual_check = "passed"`
+- Note how many stories were checked and any new stories
+- Proceed to Phase 8
+
+**If `failed` is non-empty**:
+
+- Set `visual_check = "failed"`
+- Diff images are already written to `<worktree>/tmp/visual-diffs/` by the script
+- **Do NOT open a PR for this issue**
+- Escalate to the user with:
+  - Issue ID and title
+  - Which stories failed (list `story` field from each failed entry)
+  - The diff file paths (`diff_path` from each failed entry)
+  - Example: "REP-xxx escalated: visual regression failed — [story-id] changed N pixels out of M total (diff: /path/to/diff.png)"
+
+---
+
+## Phase 8: Handle Review Results
 
 For each issue:
 
@@ -248,6 +328,12 @@ For each issue:
    ## Changes
    <file list from develop agent output>
 
+   ## Visual Review
+   <one of:
+   - "No UI changes detected — visual check skipped."
+   - "Visual regression check passed. N stories checked: [list]. New stories (no baseline): [list or none]."
+   >
+
    ## AI Review
    <paste the review summary and requirements checklist>
    EOF
@@ -272,7 +358,7 @@ For each issue:
 
 ---
 
-## Phase 8: Compress, Then Rinse and Repeat
+## Phase 9: Compress, Then Rinse and Repeat
 
 After Wave N PRs are created (or escalations reported):
 
