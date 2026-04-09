@@ -17,6 +17,21 @@ Open PRs (branch name + title — used to detect in-flight issues):
 
 ---
 
+## Phase 0: Skill Audit (Pre-scan)
+
+Before scanning the backlog, verify that skill files and agent files are not stale. Follow the full procedure in `.opencode/commands/audit-skills.md` (`/audit-skills`).
+
+After the audit completes:
+
+- **If clean:** log `Skill audit: clean` to the session status table and proceed immediately to Phase 1.
+- **If stale references found:** print the audit report, then ask the user:
+  > Skill files have stale references (listed above). Continue anyway, or fix first?
+  > Type **continue** to proceed with a warning, or **fix** to update the skill files now.
+  - **"fix":** apply the fixes as described in `/audit-skills` Step 5, re-audit to confirm clean, log `Skill audit: fixed N references — now clean`, then proceed to Phase 1.
+  - **"continue":** log `Skill audit: WARNING — N stale references found, proceeding without fix` and proceed to Phase 1.
+
+---
+
 ## Phase 1: Scan and Select
 
 1. Fetch all Linear issues in **Todo** and **Backlog** state across all projects (or filtered by `$ARGUMENTS` if provided):
