@@ -9,6 +9,7 @@ Arguments (optional): `$ARGUMENTS` — a project name or filter to restrict whic
 Flags (optional):
 
 - `--no-watch` — open PRs and exit immediately; skip the merge-watch loop (Phase 9). Preserves the previous behaviour for callers that manage merging externally.
+- `AUTONOMOUS=true` (default) — run Phase 0 skill audit in fully non-interactive mode. Auto-fixes unambiguous stale references and files Platform issues for ambiguous ones. Never blocks on a user prompt. This is always `true` when `/lightspeed` is invoked (it's an autonomous pipeline by design).
 
 > **Visual regression prerequisite**: The visual check in Phase 7 requires baseline screenshots in `tmp/visual-baselines/` on the main checkout. Run `/update-visual-baselines` once after any intentional visual change is merged. If the baseline directory is missing or empty, all stories are treated as "new" (no failure, but no diff coverage either).
 
@@ -54,16 +55,14 @@ Before running `/lightspeed` on any wave that includes UI changes, ensure visual
 
 ## Phase 0: Skill Audit (Pre-scan)
 
-Before scanning the backlog, verify that skill files and agent files are not stale. Follow the full procedure in `.opencode/commands/audit-skills.md` (`/audit-skills`).
+Before scanning the backlog, verify that skill files and agent files are not stale. Run the full procedure in `.opencode/commands/audit-skills.md` (`/audit-skills`) **in autonomous mode** (`AUTONOMOUS=true` — the default when invoked from `/lightspeed`).
 
 After the audit completes:
 
 - **If clean:** log `Skill audit: clean` to the session status table and proceed immediately to Phase 1.
-- **If stale references found:** print the audit report, then ask the user:
-  > Skill files have stale references (listed above). Continue anyway, or fix first?
-  > Type **continue** to proceed with a warning, or **fix** to update the skill files now.
-  - **"fix":** apply the fixes as described in `/audit-skills` Step 5, re-audit to confirm clean, log `Skill audit: fixed N references — now clean`, then proceed to Phase 1.
-  - **"continue":** log `Skill audit: WARNING — N stale references found, proceeding without fix` and proceed to Phase 1.
+- **If stale references were auto-fixed:** log `Skill audit: auto-fixed N references across M files — now clean` and proceed to Phase 1.
+- **If ambiguous references were filed as Platform issues:** log `Skill audit: auto-fixed N references, filed K ambiguous references as Platform issues — proceeding` and list each filed issue ID in the session status table. Proceed to Phase 1.
+- **Never block on a user prompt.** In autonomous mode, every stale reference is either auto-fixed or filed as a Platform issue — the audit always completes and Phase 1 always begins.
 
 > **Tip:** Run `/enrich-issues` (or `/enrich-issues <project>`) before `/lightspeed` to bring thin issues up to spec. Issues that fail the hard gates below are silently skipped — enriching them first increases the candidate pool.
 
