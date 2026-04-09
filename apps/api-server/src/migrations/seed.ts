@@ -11,7 +11,7 @@ import { seedRecordings } from './seed-recordings'
 
 const PASSWORD = 'password'
 
-async function hashPassword(password: string): Promise {
+async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password)
 }
 
