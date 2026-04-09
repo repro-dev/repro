@@ -22,6 +22,8 @@
 export const shadow = {
   /** No shadow */
   none: 'none',
+  /** Subtle input/control shadow — nearly flush with the surface */
+  xs: '0 0.5px 1.5px rgba(203, 213, 225, 0.85)',
   /** Subtle shadow — small elevated elements */
   sm: '0 2px 4px rgba(0, 0, 0, 0.25)',
   /** Default card elevation */
