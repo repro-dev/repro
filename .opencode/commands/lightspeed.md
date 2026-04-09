@@ -17,6 +17,32 @@ Open PRs (branch name + title — used to detect in-flight issues):
 
 ---
 
+## Prerequisites
+
+### Permission configuration
+
+The `/lightspeed` pipeline runs `develop`, `planner`, and `review` subagents unattended across multiple waves. If any subagent blocks on a permission prompt, the entire wave stalls.
+
+The following configuration is required and is already applied in this repository:
+
+**Project-level defaults** (`.opencode/opencode.json`):
+
+- `external_directory: { "*": "allow" }` — the pipeline creates worktrees as sibling directories (e.g. `/Users/gary/Projects/repro-dev/repro-wt-rep-xxx`), which are outside the project root. Without this, every file operation in a worktree triggers a permission prompt.
+- `doom_loop: "allow"` — retry loops for `reproctl wt create` (Phase 3) and `git push` (Phase 7) may issue identical commands 3+ times. The default `"ask"` blocks on the third attempt.
+
+**Agent-level permissions** (`.opencode/agents/*.md` frontmatter):
+
+- `develop.md` and `test.md`: full `allow` for bash, edit, and external_directory
+- `planner.md` and `review.md`: bash restricted to read-only git commands (`git log*`, `git diff*`, `git show*`), write/edit denied, but `external_directory` allowed for worktree file reads
+
+> **Important:** If you modify agent frontmatter, verify these permissions remain intact. Removing `external_directory: allow` or `doom_loop: allow` will cause the pipeline to hang on permission prompts during unattended runs.
+
+### Visual regression baselines
+
+Before running `/lightspeed` on any wave that includes UI changes, ensure visual regression baselines are current. See the `build-and-test` skill for baseline management instructions (`/update-visual-baselines`).
+
+---
+
 ## Phase 0: Skill Audit (Pre-scan)
 
 Before scanning the backlog, verify that skill files and agent files are not stale. Follow the full procedure in `.opencode/commands/audit-skills.md` (`/audit-skills`).

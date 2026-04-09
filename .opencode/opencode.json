@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "*": "allow",
+    "external_directory": {
+      "*": "allow"
+    },
+    "doom_loop": "allow"
+  }
+}
