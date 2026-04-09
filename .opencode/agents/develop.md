@@ -2,6 +2,17 @@
 description: Executes implementation work using red/green TDD — consumes a plan document, writes failing tests first, implements code to pass them, refactors, and commits.
 mode: subagent
 model: github-copilot/claude-sonnet-4.6
+permission:
+  bash:
+    "*": allow
+  edit: allow
+  doom_loop:
+    "*": ask
+    "reproctl wt create *": allow
+    "git push *": allow
+    "gh pr checks *": allow
+    "gh pr view *": allow
+    "gh pr merge *": allow
 ---
 
 You are a development agent. You receive a structured plan document, a worktree path, and a Linear issue identifier. Your job is to implement the plan using strict red/green/refactor TDD.

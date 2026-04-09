@@ -29,7 +29,7 @@ cd "$REPO_ROOT"
 # ── Helpers ─────────────────────────────────────────────────────────
 
 step=0
-total=7
+total=8
 
 next_step() {
   step=$((step + 1))
@@ -154,7 +154,41 @@ next_step "Trusting .envrc (enables reproctl as a bare command)..."
 direnv allow "$REPO_ROOT"
 ok ".envrc allowed"
 
-# ── Step 7: Cluster + registry ──────────────────────────────────────
+# ── Step 7: OpenCode local config ───────────────────────────────────
+
+next_step "Writing .envrc.local (machine-local OpenCode permissions)..."
+
+PARENT_DIR="$(dirname "$REPO_ROOT")"
+ENVRC_LOCAL="$REPO_ROOT/.envrc.local"
+
+# Export OPENCODE_CONFIG_CONTENT so OpenCode (loaded via direnv) receives a
+# machine-local permission grant scoped to the parent directory.  This allows
+# agents to access sibling worktrees without hardcoding any path in tracked
+# files.  The key is the config merge order: OPENCODE_CONFIG_CONTENT (level 6)
+# overrides project config (level 4), so external_directory set here wins.
+#
+# The file is gitignored and regenerated on every `reproctl setup` run.
+cat > "$ENVRC_LOCAL" << ENVRC_EOF
+# Written by \`reproctl setup\` — gitignored, do not commit.
+export OPENCODE_CONFIG_CONTENT='{
+  "provider": {
+    "github-copilot": {
+      "options": {
+        "model": "claude-sonnet-4.6"
+      }
+    }
+  },
+  "permission": {
+    "external_directory": {
+      "${PARENT_DIR}/**": "allow"
+    }
+  }
+}'
+ENVRC_EOF
+
+ok ".envrc.local written (external_directory: $PARENT_DIR/**)"
+
+# ── Step 8: Cluster + registry ──────────────────────────────────────
 
 if [ "$skip_cluster" = true ]; then
   next_step "Skipping cluster creation (--no-cluster)"

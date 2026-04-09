@@ -55,3 +55,5 @@ infra/certs/
 # OPENCODE
 # npm lockfile generated as side-effect when npm is used instead of Bun in .opencode/
 .opencode/package-lock.json
+# Machine-local direnv overrides written by `reproctl setup` (e.g. OPENCODE_CONFIG_CONTENT)
+.envrc.local
