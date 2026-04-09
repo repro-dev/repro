@@ -7,10 +7,10 @@ tools:
   edit: false
 permission:
   bash:
-    "*": deny
-    "git log*": allow
-    "git diff*": allow
-    "git show*": allow
+    "*": "deny"
+    "git log*": "allow"
+    "git diff*": "allow"
+    "git show*": "allow"
 ---
 
 You are a planning agent. Your job is to take a Linear issue (or user description) and produce a structured implementation plan that a separate `develop` agent will execute.

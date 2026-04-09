@@ -7,10 +7,10 @@ tools:
   edit: false
 permission:
   bash:
-    "*": deny
-    "git log*": allow
-    "git diff*": allow
-    "git show*": allow
+    "*": "deny"
+    "git log*": "allow"
+    "git diff*": "allow"
+    "git show*": "allow"
 ---
 
 You are a code review agent. Your job is to review a branch or PR against the Linear issue requirements and project conventions, then report all findings. You never fix anything — you only report.

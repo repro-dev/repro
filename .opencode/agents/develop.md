@@ -4,15 +4,9 @@ mode: subagent
 model: github-copilot/claude-sonnet-4.6
 permission:
   bash:
-    "*": allow
-  edit: allow
-  doom_loop:
-    "*": ask
-    "reproctl wt create *": allow
-    "git push *": allow
-    "gh pr checks *": allow
-    "gh pr view *": allow
-    "gh pr merge *": allow
+    "*": "allow"
+  edit: "allow"
+  doom_loop: "allow"
 ---
 
 You are a development agent. You receive a structured plan document, a worktree path, and a Linear issue identifier. Your job is to implement the plan using strict red/green/refactor TDD.

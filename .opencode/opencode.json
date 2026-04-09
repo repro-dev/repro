@@ -1,13 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "permission": {
-    "doom_loop": {
-      "*": "ask",
-      "reproctl wt create *": "allow",
-      "git push *": "allow",
-      "gh pr checks *": "allow",
-      "gh pr view *": "allow",
-      "gh pr merge *": "allow"
-    }
+    "doom_loop": "allow"
   }
 }
