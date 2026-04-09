@@ -305,6 +305,19 @@ export function createAccountService(
     ).pipe(map(asStaffUser))
   }
 
+  function getStaffUserByEmail(
+    email: string
+  ): FutureInstance<Error, StaffUser> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('staff_users')
+        .select(['id', 'name', 'email'])
+        .where('email', '=', email.toLowerCase())
+        .where('active', '=', true)
+        .executeTakeFirstOrThrow(() => notFound())
+    ).pipe(map(asStaffUser))
+  }
+
   function updateStaffUserName(
     staffUserId: string,
     name: string
@@ -1035,6 +1048,7 @@ export function createAccountService(
     updateStaffUserName,
     getStaffUserByEmailAndPassword,
     getStaffUserById,
+    getStaffUserByEmail,
     getStaffUserIsAdmin,
 
     // Accounts

@@ -38,6 +38,7 @@ import { createSocialAuthService } from '~/services/socialAuth'
 import { serverError } from '~/utils/errors'
 import { createHttpClient } from './modules/http'
 import { createStaffRouter } from './routers/staff'
+import { createStaffOAuthRouter } from './routers/staffOAuth'
 import { createAgenticService } from './services/agentic'
 
 const httpClient = createHttpClient()
@@ -163,6 +164,45 @@ const projectRouter = createProjectRouter(
 )
 const staffRouter = createStaffRouter(accountService)
 
+// Build the Google OAuth provider for staff login (same credentials, different callback URL).
+const staffGoogleProvider =
+  env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+    ? (() => {
+        const arctic = new Google(
+          env.GOOGLE_CLIENT_ID,
+          env.GOOGLE_CLIENT_SECRET,
+          `${env.REPRO_API_URL}/staff/oauth/google/callback`
+        )
+        return {
+          createAuthorizationURL: (state: string, codeVerifier: string) =>
+            arctic.createAuthorizationURL(state, codeVerifier, [
+              'openid',
+              'email',
+              'profile',
+            ]),
+          validateAuthorizationCode: (code: string, codeVerifier: string) =>
+            arctic.validateAuthorizationCode(code, codeVerifier),
+          fetchUserInfo: async (accessToken: string) => {
+            const resp = await fetch(
+              'https://openidconnect.googleapis.com/v1/userinfo',
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            )
+            return resp.json() as Promise<{
+              sub: string
+              email: string
+              name: string
+            }>
+          },
+        }
+      })()
+    : null
+
+const staffOAuthRouter = createStaffOAuthRouter(
+  accountService,
+  env,
+  staffGoogleProvider ? { google: staffGoogleProvider } : {}
+)
+
 const registerSessionDecorator = createSessionDecorator(
   accountService,
   env,
@@ -179,6 +219,13 @@ const accountPlugins: FastifyPluginAsync = async app => {
   // /account/oauth/:provider and /account/oauth/:provider/callback
   await app.register(socialAuthRouter)
   await app.register(apiKeysRouter)
+}
+
+// Combine staffRouter and staffOAuthRouter under /staff so routes are
+// /staff/login, /staff/me, /staff/oauth/:provider, etc.
+const staffPlugins: FastifyPluginAsync = async app => {
+  await app.register(staffRouter)
+  await app.register(staffOAuthRouter)
 }
 
 async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
@@ -264,5 +311,5 @@ bootstrap({
   '/health': healthRouter,
   '/oauth': oauthRouter,
   '/projects': projectRouter,
-  '/staff': staffRouter,
+  '/staff': staffPlugins,
 })

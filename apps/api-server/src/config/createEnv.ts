@@ -62,6 +62,7 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   REPRO_APP_URL: z.string().default('http://localhost:3000'),
+  REPRO_ADMIN_URL: z.string().default('http://localhost:3001'),
   REPRO_API_URL: z.string().default('http://localhost:8080'),
   RATE_LIMIT_UNAUTHENTICATED_RPM: numericStringTransform.default(60),
   RATE_LIMIT_AUTHENTICATED_RPM: numericStringTransform.default(600),
