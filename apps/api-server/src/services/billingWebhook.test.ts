@@ -313,6 +313,101 @@ describe('Services > BillingWebhook', () => {
     })
   })
 
+  describe('subscription.paused', () => {
+    it('should mark subscription as paused', async () => {
+      const [customer] = await harness.loadFixtures([
+        fixtures.billing.CustomerA,
+        fixtures.billing.AccountA_FreePlan_Subscription,
+      ])
+
+      const subscriptionData = {
+        id: 'dev_sub_' + customer.accountId,
+        status: 'paused',
+        customer_id: customer.providerCustomerId,
+        items: [],
+      }
+
+      webhookService = createBillingWebhookService(
+        harness.db,
+        harness.services.billingService,
+        createMockPaddleClient('subscription.paused', subscriptionData)
+      )
+
+      const rawBody = createWebhookPayload(
+        'evt_sub_paused_001',
+        'subscription.paused',
+        subscriptionData
+      )
+
+      const record = await promise(
+        webhookService.verifyAndRecord(rawBody, 'test-sig')
+      )
+
+      await promise(
+        webhookService.handleSubscriptionPaused(record.eventId, record.data)
+      )
+
+      const subscription = await promise(
+        harness.services.billingService.getSubscriptionByAccountId(
+          customer.accountId
+        )
+      )
+
+      expect(subscription.status).toBe('paused')
+    })
+  })
+
+  describe('subscription.resumed', () => {
+    it('should mark subscription as active after being paused', async () => {
+      const [customer] = await harness.loadFixtures([
+        fixtures.billing.CustomerA,
+        fixtures.billing.AccountA_FreePlan_Subscription,
+      ])
+
+      // Precondition: set status to paused
+      await harness.db
+        .updateTable('billing_subscriptions')
+        .set({ status: 'paused' })
+        .where('providerSubscriptionId', '=', 'dev_sub_' + customer.accountId)
+        .execute()
+
+      const subscriptionData = {
+        id: 'dev_sub_' + customer.accountId,
+        status: 'active',
+        customer_id: customer.providerCustomerId,
+        items: [],
+      }
+
+      webhookService = createBillingWebhookService(
+        harness.db,
+        harness.services.billingService,
+        createMockPaddleClient('subscription.resumed', subscriptionData)
+      )
+
+      const rawBody = createWebhookPayload(
+        'evt_sub_resumed_001',
+        'subscription.resumed',
+        subscriptionData
+      )
+
+      const record = await promise(
+        webhookService.verifyAndRecord(rawBody, 'test-sig')
+      )
+
+      await promise(
+        webhookService.handleSubscriptionResumed(record.eventId, record.data)
+      )
+
+      const subscription = await promise(
+        harness.services.billingService.getSubscriptionByAccountId(
+          customer.accountId
+        )
+      )
+
+      expect(subscription.status).toBe('active')
+    })
+  })
+
   describe('idempotency', () => {
     it('should skip already processed events', async () => {
       webhookService = createBillingWebhookService(

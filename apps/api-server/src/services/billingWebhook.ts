@@ -1,3 +1,4 @@
+import { tapF } from '@repro/future-utils'
 import { FutureInstance, chain, map, reject, resolve } from 'fluture'
 import { PaddleClient } from '~/modules/billing'
 import { Database, attemptQuery, encodeId } from '~/modules/database'
@@ -178,6 +179,52 @@ export function createBillingWebhookService(
     )
   }
 
+  function handleSubscriptionPaused(
+    eventId: string,
+    data: SubscriptionData
+  ): FutureInstance<Error, WebhookResult> {
+    return resolveCustomerAccountId(data.customer_id).pipe(
+      chain(accountId =>
+        attemptQuery(async () => {
+          await database
+            .updateTable('billing_subscriptions')
+            .set({ status: 'paused' })
+            .where('providerSubscriptionId', '=', data.id)
+            .execute()
+        })
+          .pipe(
+            tapF(() =>
+              billingService.invalidateEntitlementCache(encodeId(accountId))
+            )
+          )
+          .pipe(chain(() => markSuccess(eventId)))
+      )
+    )
+  }
+
+  function handleSubscriptionResumed(
+    eventId: string,
+    data: SubscriptionData
+  ): FutureInstance<Error, WebhookResult> {
+    return resolveCustomerAccountId(data.customer_id).pipe(
+      chain(accountId =>
+        attemptQuery(async () => {
+          await database
+            .updateTable('billing_subscriptions')
+            .set({ status: 'active' })
+            .where('providerSubscriptionId', '=', data.id)
+            .execute()
+        })
+          .pipe(
+            tapF(() =>
+              billingService.invalidateEntitlementCache(encodeId(accountId))
+            )
+          )
+          .pipe(chain(() => markSuccess(eventId)))
+      )
+    )
+  }
+
   function handleTransactionCompleted(
     eventId: string,
     _data: TransactionData
@@ -211,14 +258,15 @@ export function createBillingWebhookService(
             .set({ status: 'past_due' })
             .where('providerSubscriptionId', '=', data.subscription_id)
             .execute()
-        }).pipe(
-          chain(() => {
-            billingService.invalidateEntitlementCache(
-              encodeId(subscription.accountId)
+        })
+          .pipe(
+            tapF(() =>
+              billingService.invalidateEntitlementCache(
+                encodeId(subscription.accountId)
+              )
             )
-            return markSuccess(eventId)
-          })
-        )
+          )
+          .pipe(chain(() => markSuccess(eventId)))
       })
     )
   }
@@ -293,6 +341,8 @@ export function createBillingWebhookService(
     handleSubscriptionCreated,
     handleSubscriptionUpdated,
     handleSubscriptionCanceled,
+    handleSubscriptionPaused,
+    handleSubscriptionResumed,
     handleTransactionCompleted,
     handleTransactionPaymentFailed,
     markFailed,
