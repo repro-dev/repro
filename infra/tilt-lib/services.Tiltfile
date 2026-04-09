@@ -132,8 +132,8 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
   api_host = _service_host('api.repro', api_slug)
 
   serve_env = dict(svc.get('serve_env', {}))
-  serve_env['REPRO_APP_URL'] = 'http://' + app_host
-  serve_env['REPRO_API_URL'] = 'http://' + api_host
+  serve_env['REPRO_APP_URL'] = 'https://' + app_host
+  serve_env['REPRO_API_URL'] = 'https://' + api_host
 
   for env_key in svc.get('env_passthrough', []):
     serve_env[env_key] = os.getenv(env_key, '')
@@ -206,7 +206,7 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
     ],
     resource_deps=resource_deps_list,
     allow_parallel=True,
-    links=['http://' + _service_host(portless_base, wt_slug)],
+    links=['https://' + _service_host(portless_base, wt_slug)],
     labels=[label],
   )
 
@@ -229,8 +229,8 @@ def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_pa
   if wt_slug:
     app_slug = service_slugs.get('workspace', '')
     api_slug = service_slugs.get('api-server', '')
-    serve_env['REPRO_APP_URL'] = 'http://' + _service_host('app.repro', app_slug)
-    serve_env['REPRO_API_URL'] = 'http://' + _service_host('api.repro', api_slug)
+    serve_env['REPRO_APP_URL'] = 'https://' + _service_host('app.repro', app_slug)
+    serve_env['REPRO_API_URL'] = 'https://' + _service_host('api.repro', api_slug)
 
   resource_deps = list(svc.get('resource_deps', []))
   if wt_slug and 'dependencies' in resource_deps:
