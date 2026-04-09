@@ -9,7 +9,7 @@
     "prepare-env": "./scripts/prepare-env",
     "serve": "serve -s dist",
     "fmt": "prettier --write src",
-    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
+    "test": "tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/**/*.test.ts{,x}",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",
@@ -21,7 +21,6 @@
     "@repro/api-client": "workspace:*",
     "@repro/atom": "workspace:*",
     "@repro/auth": "workspace:*",
-
     "@repro/css-utils": "workspace:*",
     "@repro/date-utils": "workspace:*",
     "@repro/design": "workspace:*",
@@ -42,6 +41,7 @@
     "@repro/theme": "workspace:*",
     "@repro/vdom-utils": "workspace:*",
     "@repro/wire-formats": "workspace:*",
+    "@repro/workspace-api": "workspace:*",
     "detect-browser": "^5.3.0",
     "fluture": "^14.0.0",
     "http-status-codes": "^2.2.0",
@@ -62,6 +62,8 @@
   },
   "devDependencies": {
     "@repro/testing-utils": "workspace:*",
+    "@testing-library/react": "^16.3.2",
+    "global-jsdom": "overridden",
     "@types/chrome": "^0.0.176",
     "@types/node": "22.14.0",
     "@types/react": "^18.0.14",
