@@ -118,6 +118,14 @@ Wave 2: REP-zzz (title)  [depends on Wave 1]
 
 ## Phase 3: Create Worktrees
 
+Before creating worktrees for this wave, sweep orphans from prior incomplete runs:
+
+```sh
+reproctl wt prune --yes 2>&1 || echo "[wt prune] Warning: prune failed — continuing"
+```
+
+If `wt prune` fails, log the error and continue — do not abort the pipeline.
+
 For each issue in Wave 1, run these steps sequentially (not in parallel — worktree creation must stagger to avoid git lock contention):
 
 ```sh
@@ -187,7 +195,11 @@ Wait for all planners to complete.
 
 For each issue:
 
-1. **Check for ambiguities**: If the planner's output contains an "## Ambiguities" section with unresolved items, **escalate that issue to the user immediately**. Do NOT proceed to Phase 5 for that issue. Report the issue ID and the ambiguities listed. Remove it from the wave's implement batch.
+1. **Check for ambiguities**: If the planner's output contains an "## Ambiguities" section with unresolved items, **escalate that issue to the user immediately**. Do NOT proceed to Phase 5 for that issue. Report the issue ID and the ambiguities listed. Remove it from the wave's implement batch. After reporting, clean up the worktree:
+
+   ```sh
+   reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
+   ```
 
 2. **Write the plan file**: For issues with no ambiguities, write the planner's output to `<worktree>/tmp/plan-REP-xxx.md` (replace `REP-xxx` with the actual issue ID). Use the Write tool to create this file in the worktree's `tmp/` directory.
 
@@ -317,6 +329,11 @@ Parse the JSON output from the script:
   - Which stories failed (list `story` field from each failed entry)
   - The diff file paths (`diff_path` from each failed entry)
   - Example: "REP-xxx escalated: visual regression failed — [story-id] changed N pixels out of M total (diff: /path/to/diff.png)"
+- After escalating, clean up the worktree:
+
+  ```sh
+  reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
+  ```
 
 ---
 
@@ -385,11 +402,19 @@ For each issue:
      - Escalate to the user immediately. Do NOT re-spawn `develop`.
      - Escalation message must list each architectural blocking issue with its rationale.
      - Example: "REP-xxx escalated: architectural issue found — [issue description] (rationale: [1-sentence rationale])"
+     - After escalating, clean up the worktree:
+       ```sh
+       reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
+       ```
    - If **all** blocking issues have `kind: mechanical`:
      - If this is the first attempt: re-spawn the `develop` agent with the original prompt + the blocking issues list.
      - If the second `develop` attempt still has blocking issues:
        - Re-check classifications: if **any** blocking issue has `kind: architectural`, escalate immediately with the architectural rationale.
        - If all remaining blocking issues are still `kind: mechanical`: escalate to the user with a "retry budget exhausted" message listing all remaining blocking issues. Do NOT open a PR for this issue.
+       - After escalating, clean up the worktree:
+         ```sh
+         reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
+         ```
 
 ---
 
@@ -637,7 +662,7 @@ When all PRs are either merged or escalated:
 - Never commit to `main`. All work happens in worktrees on feature branches.
 - **Never write to `/tmp`.** Any ephemeral output (screenshots, artifacts, scratch files) must go to `tmp/` at the repo root. `/tmp` is outside the project working directory — OpenCode requires an elevated-permission prompt to access it, which blocks an unattended pipeline immediately. `tmp/` is git-ignored and always available without any permission prompt.
 - `reproctl wt create` and `git push` failures are retried automatically per the protocols in Phase 3 and Phase 8 respectively. Only escalate after the full retry budget is exhausted. Do not rely on the initial `wt list` snapshot taken at command startup — it will be stale for Wave 2 and beyond; re-run `reproctl wt list` inside the retry loop as described in Phase 3.
-- If a `develop` subagent reports a build or typecheck failure it couldn't resolve, escalate that issue immediately rather than creating a broken PR.
+- If a `develop` subagent reports a build or typecheck failure it couldn't resolve, escalate that issue immediately rather than creating a broken PR. After escalating, clean up the worktree: `reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"`.
 - `gh pr view` or `gh pr checks` errors in Phase 9 should be treated as transient — log the error and retry on the next poll cycle. Only escalate a PR if the same poll fails 3 consecutive cycles for that PR.
 - Keep a running status table updated as you go:
 
