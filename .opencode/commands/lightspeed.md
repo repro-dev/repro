@@ -33,9 +33,9 @@ The following configuration is required and is already applied in this repositor
 **Agent-level permissions** (`.opencode/agents/*.md` frontmatter):
 
 - `develop.md` and `test.md`: full `allow` for bash and edit; granular `doom_loop` matching the project-level set above
-- `planner.md` and `review.md`: bash restricted to read-only git commands (`git log*`, `git diff*`, `git show*`), write/edit denied, `external_directory: allow` for worktree file reads (path-scoping handled by `opencode.json`)
+- `planner.md` and `review.md`: bash restricted to read-only git commands (`git log*`, `git diff*`, `git show*`), write/edit denied. Cross-worktree reads are covered by the project-level `external_directory` scope in `opencode.json` — no agent-level override needed.
 
-> **Important:** If you modify agent frontmatter, verify these permissions remain intact. Removing the `doom_loop` entries or `external_directory` from `planner.md`/`review.md` will cause the pipeline to hang on permission prompts during unattended runs. If `opencode.json` is missing, run `reproctl setup` to regenerate it.
+> **Important:** If you modify agent frontmatter, verify these permissions remain intact. Removing the `doom_loop` entries from `develop.md`/`test.md`, or removing `opencode.json` (which provides the `external_directory` scope), will cause the pipeline to hang on permission prompts during unattended runs. If `opencode.json` is missing, run `reproctl setup` to regenerate it.
 
 ### Visual regression baselines
 
