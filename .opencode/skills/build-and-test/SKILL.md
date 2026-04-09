@@ -49,6 +49,17 @@ reproctl help logs         # service log streaming
 reproctl help doctor       # environment diagnostics
 ```
 
+## Database Shell
+
+To run ad-hoc queries against a worktree's database, use `reproctl db shell` from the worktree directory:
+
+```sh
+# Run from the worktree root
+reproctl db shell -c "SELECT * FROM projects;"
+```
+
+This connects automatically via the Tilt port-forward for the worktree's cluster. No need to locate the PostgreSQL socket or supply credentials manually. Do **not** use `psql` directly — the DB is only reachable via Tilt's port-forward and requires credentials.
+
 ## Python Script Tests
 
 The `scripts/lib/py/` directory contains standalone Python scripts used by reproctl bash scripts. These have a pytest suite in `scripts/lib/py/tests/` that is **not** integrated into moon or CI — tests must be run locally when scripts are changed.

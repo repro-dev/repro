@@ -205,6 +205,11 @@ async function seedProjects(
     'Default Project',
     accounts.acme.id
   )
+  const acmeProject2 = await findOrCreateProject(
+    'Marketing Site',
+    accounts.acme.id
+  )
+  const acmeProject3 = await findOrCreateProject('Mobile App', accounts.acme.id)
 
   await db
     .insertInto('memberships')
@@ -223,6 +228,21 @@ async function seedProjects(
         userId: users.acmeViewer.id,
         projectId: acmeProject.id,
         role: ProjectRole.Viewer,
+      },
+      {
+        userId: users.acmeAdmin.id,
+        projectId: acmeProject2.id,
+        role: ProjectRole.Admin,
+      },
+      {
+        userId: users.acmeMember.id,
+        projectId: acmeProject2.id,
+        role: ProjectRole.Contributor,
+      },
+      {
+        userId: users.acmeAdmin.id,
+        projectId: acmeProject3.id,
+        role: ProjectRole.Admin,
       },
     ])
     .onConflict(oc => oc.columns(['userId', 'projectId']).doNothing())

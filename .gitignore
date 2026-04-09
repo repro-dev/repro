@@ -51,3 +51,7 @@ infra/certs/
 # JCODEMUNCH
 # Local symbol index — generated per-worktree, never committed
 .jcodemunch-index/
+
+# OPENCODE
+# npm lockfile generated as side-effect when npm is used instead of Bun in .opencode/
+.opencode/package-lock.json
