@@ -15,6 +15,9 @@ Flags (optional):
 Current branch context:
 !`git branch --show-current`
 
+Session baseline — SHA of origin/main at startup (used in Phase 9 to classify conflict origins):
+!`git rev-parse origin/main`
+
 Worktrees already in flight:
 !`reproctl wt list 2>/dev/null || echo "(none)"`
 
@@ -464,12 +467,142 @@ What to drop:
 ### Then continue
 
 1. Check if Wave 2 exists in your plan.
-2. If yes, proceed to Phase 3 with Wave 2 issues. (Phase 9 will automatically detect when Wave 1 PRs merge and trigger Wave 2 if it hasn't started yet.)
-3. If no more waves, enter Phase 9 (merge-watch loop) for the remaining open PRs. The loop will auto-merge or notify as each PR becomes ready. When all PRs are merged or the timeout is reached, the run is complete.
+2. If yes, proceed to Phase 3 with Wave 2 issues.
+3. If no more waves, proceed to **Phase 9** (Merge Watch) to monitor open PRs for CI completion, conflict resolution, and successful merge. Do not re-scan for newly unblocked issues until Phase 9 completes — dependent issues are still blocked until their predecessors merge.
 4. Stop and report to the user when:
    - All candidates are exhausted (no more well-scoped, unblocked issues)
    - You've hit escalations on 2+ issues in a single wave (sign that something systemic is blocking autonomous progress)
    - You've opened 6+ PRs (checkpoint for human review before continuing)
+
+---
+
+## Phase 9: Merge Watch
+
+This phase actively monitors all PRs opened in the current run. It polls until every PR is either merged or escalated to the user. Do not re-scan for new issues until this phase completes.
+
+### 9a: Enable auto-merge
+
+For each open PR in the current run, enable GitHub auto-merge:
+
+```sh
+gh pr merge <pr_number> --auto --squash
+```
+
+This tells GitHub to merge automatically once all required checks pass and the PR is in a `MERGEABLE` state. Log: `PR #N (REP-xxx): auto-merge enabled`.
+
+### 9b: Poll loop
+
+Run the poll loop until all PRs are merged or escalated (or the 4-hour timeout fires):
+
+- **Poll interval:** 60 seconds between cycles
+- **Timeout:** 4 hours total wall-clock time. If exceeded, escalate all remaining unmerged PRs to the user with their current status and stop.
+- **Stop condition:** 2+ escalations in a single cycle (sign of a systemic problem) — stop and report to user.
+
+On each cycle, for each unmerged PR, run **both** of these checks:
+
+1. **CI status check:**
+
+   ```sh
+   gh pr checks <pr_number> --json bucket,name,state
+   ```
+
+2. **Mergeability check:**
+   ```sh
+   gh pr view <pr_number> --json mergeable --jq '.mergeable'
+   ```
+   Returns `MERGEABLE`, `CONFLICTING`, or `UNKNOWN`.
+
+Also check if the PR has been merged since the last cycle:
+
+```sh
+gh pr view <pr_number> --json state --jq '.state'
+```
+
+If `MERGED`: log `PR #N (REP-xxx): merged successfully`, set the Linear issue to **Done** (`Linear_save_issue` with `state: "Done"`), run `reproctl wt remove <worktree-name>` to clean up the worktree, and remove the PR from the watch list.
+
+### 9c: Handle each mergeability value
+
+**`MERGEABLE`** — No conflict. Branch on CI status:
+
+- All checks passed: auto-merge is enabled, GitHub will merge. Log `PR #N (REP-xxx): all checks passed, auto-merge enabled — waiting for GitHub to merge`.
+- Any check failed: escalate to user with the failed check names and their output. Remove PR from watch list.
+- Checks still pending: no action, continue to next cycle.
+
+**`CONFLICTING`** — Classify the conflict origin, then auto-resolve or escalate:
+
+1. Log: `PR #N (REP-xxx): merge conflict detected — classifying origin`
+2. Determine the worktree path from the running status table.
+3. Fetch and attempt rebase:
+   ```sh
+   git -C <worktree-path> fetch origin main
+   git -C <worktree-path> rebase origin/main
+   ```
+4. **If rebase succeeds (exit code 0):**
+   - Force-push with lease:
+     ```sh
+     git -C <worktree-path> push --force-with-lease origin HEAD
+     ```
+   - Log: `PR #N (REP-xxx): conflict resolved via rebase — re-entering CI watch`
+   - Continue polling (CI will re-run after the force-push)
+
+5. **If rebase fails (non-zero exit):**
+   - Capture the conflicting file list from the rebase output.
+   - Abort the rebase:
+     ```sh
+     git -C <worktree-path> rebase --abort
+     ```
+   - **Classify the conflict origin** using the session baseline SHA recorded at startup:
+
+     ```sh
+     git -C <worktree-path> log <SESSION_MAIN_SHA>..origin/main --format="%H %s"
+     ```
+
+     This lists every commit that landed on `origin/main` after this session began. A commit is **intra-session** if its subject contains a `REP-xxx` identifier that matches one of the PRs opened in the current run. A commit is **external** if it contains no matching REP identifier, or was authored before the session started.
+
+   - For each conflicting file, check whether it was touched by an external commit (use `git log --follow -- <file>` scoped to the new commits). If **any** conflicting file was touched by an external commit, this is an **external conflict** — go to step 6.
+
+   - If **all** conflicting files were touched only by intra-session commits (our own merged PRs), this is an **intra-session conflict** — go to step 7.
+
+6. **External conflict → escalate:**
+   - Report: `PR #N (REP-xxx): merge conflict caused by external changes — manual resolution required`
+   - List conflicting files, the external commit(s) that caused them (SHA + subject), and the PR branch name.
+   - Remove PR from watch list.
+
+7. **Intra-session conflict → attempt auto-resolution:**
+   - The agent wrote the code on both sides of this conflict. Start the rebase again and resolve each conflict:
+     ```sh
+     git -C <worktree-path> rebase origin/main
+     ```
+   - For each conflicting file produced by the rebase:
+     - Read the file with conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
+     - Reason through the correct merge based on your knowledge of both changes (you implemented them in this session). Apply the resolution by editing the file to remove all conflict markers and produce the correct unified content.
+     - Stage the resolution: `git -C <worktree-path> add <file>`
+   - After all files are resolved, continue the rebase:
+     ```sh
+     git -C <worktree-path> rebase --continue
+     ```
+     (Set `GIT_EDITOR=true` to suppress the commit message editor.)
+   - **If resolution succeeds:**
+     - Force-push with lease:
+       ```sh
+       git -C <worktree-path> push --force-with-lease origin HEAD
+       ```
+     - Log: `PR #N (REP-xxx): intra-session conflict auto-resolved — re-entering CI watch`
+     - Continue polling.
+   - **If resolution fails** (rebase still fails after attempted edits, or the correct merge cannot be determined):
+     - Abort: `git -C <worktree-path> rebase --abort`
+     - Escalate: `PR #N (REP-xxx): intra-session conflict could not be auto-resolved — manual resolution required. Conflicting files: <file list>`
+     - Remove PR from watch list.
+
+**`UNKNOWN`** — GitHub hasn't computed mergeability yet (transient state). No action — continue polling on the next cycle without logging.
+
+### 9d: Completion
+
+When all PRs are either merged or escalated:
+
+1. Compress the merge-watch phase. Keep: which PRs merged (with SHA and PR number), which were escalated and why, worktrees cleaned up. Drop: poll cycle details, intermediate status checks.
+2. Check if merged PRs unblock any dependent issues in the backlog. If yes, report newly unblocked issues to the user and offer to start a new wave.
+3. If all issues are exhausted, report the final pipeline summary and stop.
 
 ---
 
@@ -479,6 +612,7 @@ What to drop:
 - **Never write to `/tmp`.** Any ephemeral output (screenshots, artifacts, scratch files) must go to `tmp/` at the repo root. `/tmp` is outside the project working directory — OpenCode requires an elevated-permission prompt to access it, which blocks an unattended pipeline immediately. `tmp/` is git-ignored and always available without any permission prompt.
 - `reproctl wt create` and `git push` failures are retried automatically per the protocols in Phase 3 and Phase 8 respectively. Only escalate after the full retry budget is exhausted. Do not rely on the initial `wt list` snapshot taken at command startup — it will be stale for Wave 2 and beyond; re-run `reproctl wt list` inside the retry loop as described in Phase 3.
 - If a `develop` subagent reports a build or typecheck failure it couldn't resolve, escalate that issue immediately rather than creating a broken PR.
+- `gh pr view` or `gh pr checks` errors in Phase 9 should be treated as transient — log the error and retry on the next poll cycle. Only escalate a PR if the same poll fails 3 consecutive cycles for that PR.
 - Keep a running status table updated as you go:
 
 ```
