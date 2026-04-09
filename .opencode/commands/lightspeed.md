@@ -30,6 +30,8 @@ After the audit completes:
   - **"fix":** apply the fixes as described in `/audit-skills` Step 5, re-audit to confirm clean, log `Skill audit: fixed N references — now clean`, then proceed to Phase 1.
   - **"continue":** log `Skill audit: WARNING — N stale references found, proceeding without fix` and proceed to Phase 1.
 
+> **Tip:** Run `/enrich-issues` (or `/enrich-issues <project>`) before `/lightspeed` to bring thin issues up to spec. Issues that fail the hard gates below are silently skipped — enriching them first increases the candidate pool.
+
 ---
 
 ## Phase 1: Scan and Select
