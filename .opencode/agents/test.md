@@ -4,15 +4,9 @@ mode: subagent
 model: github-copilot/claude-sonnet-4.6
 permission:
   bash:
-    "*": allow
-  edit: allow
-  doom_loop:
-    "*": ask
-    "reproctl wt create *": allow
-    "git push *": allow
-    "gh pr checks *": allow
-    "gh pr view *": allow
-    "gh pr merge *": allow
+    "*": "allow"
+  edit: "allow"
+  doom_loop: "allow"
 ---
 
 You are a test agent. You are a standalone utility invoked directly by the user to improve test coverage, write regression tests, or audit existing tests. You are not part of any automated pipeline.
