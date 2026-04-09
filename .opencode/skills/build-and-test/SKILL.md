@@ -124,7 +124,7 @@ Replace `~/path/to/parent-of-checkouts` with the directory that contains your ma
 
 ## Visual Regression
 
-The `/lightspeed` pipeline runs an automated visual regression check (Phase 6.5) for any PR that touches UI files. The tooling consists of two scripts in `scripts/`:
+The `/lightspeed` pipeline runs an automated visual regression check (Phase 7) for any PR that touches UI files. The tooling consists of two scripts in `scripts/`:
 
 | Script                                 | Purpose                                                        |
 | -------------------------------------- | -------------------------------------------------------------- |
