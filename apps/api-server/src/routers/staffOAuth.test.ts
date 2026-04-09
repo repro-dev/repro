@@ -1,3 +1,4 @@
+import { unsign } from '@fastify/cookie'
 import { Session, StaffUser } from '@repro/domain'
 import expect from 'expect'
 import { FastifyInstance } from 'fastify'
@@ -252,8 +253,11 @@ describe('Routers > StaffOAuth', () => {
       expect(sessionCookie).toBeDefined()
 
       // Verify the session is for a staff user
+      // Cookie value is signed (rawToken.signature); unsign to get the raw token for DB lookup
+      const rawToken1 = unsign(sessionCookie!.value, harness.env.SESSION_SECRET)
+        .value as string
       const session = (await promise(
-        harness.services.accountService.getSessionByToken(sessionCookie!.value)
+        harness.services.accountService.getSessionByToken(rawToken1)
       )) as Session
       expect(session.subjectType).toEqual('staff')
     })
@@ -297,7 +301,11 @@ describe('Routers > StaffOAuth', () => {
       expect(sessionCookie).toBeDefined()
 
       const session = (await promise(
-        harness.services.accountService.getSessionByToken(sessionCookie!.value)
+        harness.services.accountService.getSessionByToken(
+          // Cookie value is signed (rawToken.signature); unsign to get the raw token for DB lookup
+          unsign(sessionCookie!.value, harness.env.SESSION_SECRET)
+            .value as string
+        )
       )) as Session
       // Must be the same staff user
       expect(session.subjectId).toEqual(staffUser.id)

@@ -40,10 +40,21 @@ export function createSessionDecorator(
     const app = fastify.withTypeProvider<ZodTypeProvider>()
 
     function getSessionToken<T extends Request>(req: T) {
-      return (
-        req.cookies[env.SESSION_COOKIE] ??
-        req.headers.authorization?.replace(/^Bearer /i, '')
-      )
+      const rawCookie = req.cookies[env.SESSION_COOKIE]
+
+      if (rawCookie != null) {
+        // Cookie is signed (value is "token.hmac_sig"). Unsign before lookup.
+        const result = req.unsignCookie(rawCookie)
+
+        if (!result.valid || result.value == null) {
+          // Tampered or unsigned cookie — treat as absent.
+          return undefined
+        }
+
+        return result.value
+      }
+
+      return req.headers.authorization?.replace(/^Bearer /i, '')
     }
 
     app.register(fastifyCookie, {
@@ -227,6 +238,7 @@ export function createSessionDecorator(
         path: '/',
         sameSite: 'none',
         secure: 'auto',
+        signed: true,
         expires,
       })
 

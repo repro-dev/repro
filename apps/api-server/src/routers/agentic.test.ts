@@ -29,6 +29,7 @@ describe('Routers > Agentic', () => {
     app = harness.bootstrap(
       createAgenticRouter(stubAgenticService, harness.services.accountService)
     )
+    await app.ready()
   })
 
   beforeEach(async () => {
@@ -64,7 +65,7 @@ describe('Routers > Agentic', () => {
           messages: [{ role: 'user', content: 'hello' }],
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -90,7 +91,7 @@ describe('Routers > Agentic', () => {
           ],
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -121,7 +122,7 @@ describe('Routers > Agentic', () => {
           ],
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -140,7 +141,7 @@ describe('Routers > Agentic', () => {
           messages: [{ role: 'assistant', content: 'I can help with that.' }],
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -162,7 +163,7 @@ describe('Routers > Agentic', () => {
           ],
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -194,7 +195,7 @@ describe('Routers > Agentic', () => {
           ],
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -211,7 +212,7 @@ describe('Routers > Agentic', () => {
         url: '/response',
         body: {},
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -230,7 +231,7 @@ describe('Routers > Agentic', () => {
           messages: [{ role: 'unknown', content: 'hello' }],
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -249,7 +250,7 @@ describe('Routers > Agentic', () => {
           messages: [{ role: 'tool', content: '{"result": 1}' }],
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
