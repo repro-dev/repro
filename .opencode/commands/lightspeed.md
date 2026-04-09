@@ -10,6 +10,7 @@ Flags (optional):
 
 - `--no-watch` — open PRs and exit immediately; skip the merge-watch loop (Phase 9). Preserves the previous behaviour for callers that manage merging externally.
 - `AUTONOMOUS=true` (default) — run Phase 0 skill audit in fully non-interactive mode. Auto-fixes unambiguous stale references and files Platform issues for ambiguous ones. Never blocks on a user prompt. This is always `true` when `/lightspeed` is invoked (it's an autonomous pipeline by design).
+- `--max-waves N` — limit the pipeline to N total waves. When omitted, the pipeline continues until all candidates are exhausted or a stop condition fires. Useful for bounded runs during testing or when human review is desired after a fixed number of waves.
 
 > **Visual regression prerequisite**: The visual check in Phase 7 requires baseline screenshots in `tmp/visual-baselines/` on the main checkout. Run `/update-visual-baselines` once after any intentional visual change is merged. If the baseline directory is missing or empty, all stories are treated as "new" (no failure, but no diff coverage either).
 
@@ -517,12 +518,13 @@ What to drop:
 ### Then continue
 
 1. Check if Wave 2 exists in your plan.
-2. If yes, proceed to Phase 3 with Wave 2 issues.
-3. If no more waves, proceed to **Phase 9** (Merge Watch) to monitor open PRs for CI completion, conflict resolution, and successful merge. Do not re-scan for newly unblocked issues until Phase 9 completes — dependent issues are still blocked until their predecessors merge.
-4. Stop and report to the user when:
+2. If `--max-waves N` was provided and the current wave number equals N, stop and report: "Reached --max-waves limit (N waves completed). [summary of PRs opened and escalations]."
+3. If yes (Wave 2 exists and max-waves not reached), proceed to Phase 3 with Wave 2 issues.
+4. If no more waves, proceed to **Phase 9** (Merge Watch) to monitor open PRs for CI completion, conflict resolution, and successful merge. Do not re-scan for newly unblocked issues until Phase 9 completes — dependent issues are still blocked until their predecessors merge.
+5. Stop and report to the user when:
    - All candidates are exhausted (no more well-scoped, unblocked issues)
-   - You've hit escalations on 2+ issues in a single wave (sign that something systemic is blocking autonomous progress)
-   - You've opened 6+ PRs (checkpoint for human review before continuing)
+   - 2+ issues in the current wave were escalated (architectural block, visual regression, or unresolvable build failure) — this is the health-signal gate; systemic problems warrant human review before continuing
+   - `--max-waves N` was provided and N waves have completed
 
 ---
 
