@@ -843,6 +843,8 @@ After evaluating CI status and mergeability for each unmerged PR in the cycle:
 - **Backoff reset:** If `prev_ci_status` is not null and the current `ci_status ≠ prev_ci_status`, reset `poll_interval` to 30 and log: `PR #N (REP-xxx): CI status changed (<prev_ci_status> → <ci_status>) — backoff reset to 30s`. Set `prev_ci_status = ci_status`.
 - **Backoff advancement:** Set `poll_interval = min(poll_interval × 2, 1800)` and increment `poll_count`.
 
+**Sleep:** Follow the adaptive backoff sleep procedure (see [Adaptive backoff](#adaptive-backoff) above): identify the PR with the shortest `poll_interval`, compute its actual sleep duration (apply ±20% jitter if `poll_interval ≥ 300`), sleep for that duration, then poll all PRs whose interval has elapsed since their last poll. (With a small number of PRs, polling all PRs each cycle at the shortest interval is acceptable.)
+
 ### 9c: Handle each mergeability value
 
 **`MERGEABLE`** — No conflict. Branch on CI status:
