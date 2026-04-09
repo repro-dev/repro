@@ -27,7 +27,7 @@ The following configuration is required and is already applied in this repositor
 
 **Project-level defaults** (`.opencode/opencode.json`):
 
-- `external_directory: { "*": "allow" }` — the pipeline creates worktrees as sibling directories (e.g. `/Users/gary/Projects/repro-dev/repro-wt-rep-xxx`), which are outside the project root. Without this, every file operation in a worktree triggers a permission prompt.
+- `external_directory: { "*": "allow" }` — the pipeline creates worktrees as sibling directories (e.g. `../repro-wt-rep-xxx` relative to the project root), which are outside the project root. Without this, every file operation in a worktree triggers a permission prompt.
 - `doom_loop: "allow"` — retry loops for `reproctl wt create` (Phase 3) and `git push` (Phase 7) may issue identical commands 3+ times. The default `"ask"` blocks on the third attempt.
 
 **Agent-level permissions** (`.opencode/agents/*.md` frontmatter):
