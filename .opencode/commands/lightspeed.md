@@ -115,7 +115,7 @@ Before each retry:
 1. Log: `[wt create retry N/3] Error: <error summary>. Waiting <Xs> before next attempt.`
 2. Wait the backoff duration: attempt 1 → 5 s, attempt 2 → 15 s, attempt 3 → 45 s
 3. Run `reproctl wt list` and check whether a worktree for this issue now exists:
-   - If found → reuse it (note the path, proceed to Phase 4a). Stop retrying.
+   - If found → reuse it (note the path, proceed to Phase 4). Stop retrying.
    - If not found → proceed with the retry
 
 4. Retry `reproctl wt create --from-issue REP-xxx`
