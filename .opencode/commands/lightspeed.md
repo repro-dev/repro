@@ -408,6 +408,8 @@ Build a watch list: collect every PR number opened during this run (all waves so
 - `branch`
 - `ci_status`: `pending` | `passing` | `failing`
 - `merged`: `false`
+- `rerun_budget`: `{}` — map of `check_name → rerun_count`. A count of 0 (or missing key) means one re-run is still available; 1 means the budget is exhausted.
+- `rerun_deadline`: `null` | ISO-8601 timestamp — set when a re-run is in flight; null otherwise. If the current time exceeds this deadline and CI is still failing, treat as real failure.
 
 ### Poll loop
 
@@ -449,10 +451,31 @@ Repeat until all PRs are merged, or the timeout is reached (default: **4 hours**
          Surface to the user: `PR #<pr_number> (REP-xxx): CI passed — awaiting human approval to merge`
 
    - **`pending → failing`:**
-     - Collect failing check names from the `gh pr checks` output
-     - Escalate to the user:
-       > `PR #<pr_number> (REP-xxx) CI failing — checks: [check1, check2]. PR: <url>`
-     - Remove this PR from the watch list (no further polling)
+     1. Collect failing check names from `gh pr checks <pr_number> --json name,conclusion,link`
+     2. For each failing check name:
+        - Look up `rerun_budget[check_name]` for this PR.
+        - If the budget is 0 (or key is missing) → re-run budget available:
+          - Identify the run ID: `gh run list --branch <branch> --status failure --json databaseId,name --jq '.[] | select(.name == "<check_name>") | .databaseId' | head -1`
+          - If a run ID is found: run `gh run rerun <run_id> --failed`
+            - Log: `PR #N (REP-xxx): flaky-check re-run triggered for '<check_name>' (run <run_id>)`
+            - Set `rerun_budget[check_name] = 1` for this PR
+            - Set `rerun_deadline = <now + 20 minutes>` (if not already set to a later deadline)
+            - Set `ci_status` back to `pending` (re-run is in flight)
+          - If no run ID is found: treat this check as a real failure (fall through to escalation)
+        - If the budget is 1 (already re-run once) → real failure: collect this check in the escalation list
+     3. If **any** check in the escalation list (budget exhausted) → escalate to user:
+        > `PR #<pr_number> (REP-xxx) CI failing — checks: [check1, check2]. PR: <url>`
+        - Remove this PR from the watch list.
+     4. **Deadline enforcement** (checked each poll cycle when `rerun_deadline` is set):
+        - If `rerun_deadline` is non-null and current time > `rerun_deadline` and `ci_status` is still `pending` or `failing`:
+          - Log: `PR #N (REP-xxx): re-run timed out (20 min) — escalating`
+          - Escalate: `PR #N (REP-xxx) CI failing — re-run timed out. Checks: [...]. PR: <url>`
+          - Remove PR from watch list.
+        - If `rerun_deadline` is non-null and current time <= `rerun_deadline` and CI is still pending → no action, continue polling.
+        - If CI transitions to passing within the deadline:
+          - Log: `PR #N (REP-xxx): flaky CI detected — check '<name>' passed on re-run. Continuing.`
+          - Clear `rerun_deadline = null` (re-run succeeded, no more deadline to enforce)
+          - Proceed with the normal `pending → passing` handler
 
 5. **Sleep 60 seconds**, then repeat.
 
@@ -551,7 +574,10 @@ If `MERGED`: log `PR #N (REP-xxx): merged successfully`, set the Linear issue to
 **`MERGEABLE`** — No conflict. Branch on CI status:
 
 - All checks passed: auto-merge is enabled, GitHub will merge. Log `PR #N (REP-xxx): all checks passed, auto-merge enabled — waiting for GitHub to merge`.
-- Any check failed: escalate to user with the failed check names and their output. Remove PR from watch list.
+- Any check failed: apply the same flaky-check re-run sub-procedure as in Phase 9b:
+  - For each failing check: check `rerun_budget[check_name]`. If budget available (0 or missing), trigger `gh run rerun <run_id> --failed`, set `rerun_deadline = <now + 20 minutes>` (if not already set to a later deadline), set `rerun_budget[check_name] = 1`, and mark `ci_status = pending` to continue polling.
+  - If budget exhausted for any check (already re-run once): escalate with `PR #N (REP-xxx) CI failing — checks: [...]. PR: <url>` and remove from watch list.
+  - Deadline enforcement applies identically to Phase 9b: if `rerun_deadline` is exceeded and CI is still failing, escalate and remove from watch list.
 - Checks still pending: no action, continue to next cycle.
 
 **`CONFLICTING`** — Classify the conflict origin, then auto-resolve or escalate:
