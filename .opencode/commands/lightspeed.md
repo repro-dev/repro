@@ -26,6 +26,10 @@ Worktrees already in flight:
 Open PRs (branch name + title — used to detect in-flight issues):
 !`gh pr list --state open --json number,headRefName,title --jq '.[] | "\(.number) \(.headRefName) \(.title)"' 2>/dev/null || echo "(none)"`
 
+Escalated issues (accumulated during this run — excluded from wave selection):
+
+- Maintained as a session-level set. Starts empty. Append each escalated issue ID when escalation occurs.
+
 ---
 
 ## Prerequisites
@@ -85,6 +89,7 @@ After the audit completes:
    - Is already In Progress or In Review (state check) → SKIP
    - Already has an active worktree (check `reproctl wt list` output) → SKIP
    - Issue ID appears in any open PR's branch name (check open PRs output above) → SKIP
+   - Issue ID is in the session's `escalated_issues` set → SKIP (escalated earlier in this run)
 
    **Positive signals (more = better fit):**
    - Well-scoped title (verb + noun, no vague words like "improve" or "look into")
@@ -169,6 +174,57 @@ If all 3 retries are exhausted without success, escalate to the user with the fu
 
 ---
 
+## Escalation Cleanup Protocol
+
+When any issue must be abandoned mid-pipeline (ambiguity, visual regression failure, architectural block, retry budget exhausted, unresolvable build failure), apply these steps **in order**. The ordering matters — post the comment before changing state so the reason is visible even if the state change fails.
+
+1. **Post a structured Linear comment** on the issue explaining the escalation reason and listing each detail as a bullet:
+
+   ```
+   Linear_save_comment on REP-xxx with body:
+
+   ## Escalated: <Reason>
+
+   This issue was escalated by the lightspeed pipeline because <brief explanation>:
+
+   - <detail 1>
+   - <detail 2>
+   - ...
+
+   The issue has been reset to Todo. Resolve the items above and move back to Todo when ready for re-processing.
+   ```
+
+   Use the appropriate `<Reason>` and details for each escalation type:
+   - **Ambiguity**: reason = "Ambiguity", details = each unresolved question from the planner's `## Ambiguities` section
+   - **Visual regression**: reason = "Visual Regression Failure", details = each failed story with pixel counts
+   - **Architectural block**: reason = "Architectural Issue", details = each blocking issue with its rationale
+   - **Retry budget exhausted**: reason = "Retry Budget Exhausted", details = each remaining blocking mechanical issue
+   - **Unresolvable build failure**: reason = "Unresolvable Build Failure", details = the error output summary
+
+2. **Set the issue state to Todo:**
+
+   ```
+   Linear_save_issue with id: "REP-xxx", state: "Todo"
+   ```
+
+3. **Delete the worktree:**
+
+   ```sh
+   reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
+   ```
+
+4. **Add to escalated set:** Append `REP-xxx` to the session's `escalated_issues` set so it is excluded from future wave selection in this run.
+
+5. **Log the summary line:**
+
+   ```
+   ESCALATED REP-xxx: <reason> — worktree removed, issue reset to Todo
+   ```
+
+6. **Update the status table:** Set the issue's state to `Escalated`.
+
+---
+
 ## Phase 4: Plan in Parallel
 
 Launch all Wave 1 `planner` subagents in a **single message** (one Task tool call per issue) so they run concurrently. Use the `planner` agent for each.
@@ -195,11 +251,16 @@ Wait for all planners to complete.
 
 For each issue:
 
-1. **Check for ambiguities**: If the planner's output contains an "## Ambiguities" section with unresolved items, **escalate that issue to the user immediately**. Do NOT proceed to Phase 5 for that issue. Report the issue ID and the ambiguities listed. Remove it from the wave's implement batch. After reporting, clean up the worktree:
-
-   ```sh
-   reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
-   ```
+1. **Check for ambiguities**: If the planner's output contains an "## Ambiguities" section with unresolved items, **escalate that issue to the user immediately**. Do NOT proceed to Phase 5 for that issue. Report the issue ID and the ambiguities listed. Remove it from the wave's implement batch. Then run the **Escalation Cleanup Protocol** using the planner's ambiguities as the detail list (reason = "Ambiguity"):
+   1. Post a Linear comment on the issue listing each unresolved question as a bullet (comment before state change).
+   2. Set the issue state to Todo: `Linear_save_issue` with `state: "Todo"`.
+   3. Remove the worktree:
+      ```sh
+      reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
+      ```
+   4. Add the issue ID to the session's `escalated_issues` set.
+   5. Log: `ESCALATED REP-xxx: ambiguity — worktree removed, issue reset to Todo`
+   6. Update the status table: set the issue's state to `Escalated`.
 
 2. **Write the plan file**: For issues with no ambiguities, write the planner's output to `<worktree>/tmp/plan-REP-xxx.md` (replace `REP-xxx` with the actual issue ID). Use the Write tool to create this file in the worktree's `tmp/` directory.
 
@@ -329,11 +390,16 @@ Parse the JSON output from the script:
   - Which stories failed (list `story` field from each failed entry)
   - The diff file paths (`diff_path` from each failed entry)
   - Example: "REP-xxx escalated: visual regression failed — [story-id] changed N pixels out of M total (diff: /path/to/diff.png)"
-- After escalating, clean up the worktree:
-
-  ```sh
-  reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
-  ```
+- Then run the **Escalation Cleanup Protocol** (reason = "Visual Regression Failure", details = each failed story with pixel counts):
+  1. Post a Linear comment listing each failed story as a bullet.
+  2. Set the issue state to Todo: `Linear_save_issue` with `state: "Todo"`.
+  3. Remove the worktree:
+     ```sh
+     reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
+     ```
+  4. Add the issue ID to the session's `escalated_issues` set.
+  5. Log: `ESCALATED REP-xxx: visual regression failure — worktree removed, issue reset to Todo`
+  6. Update the status table: set the issue's state to `Escalated`.
 
 ---
 
@@ -402,19 +468,32 @@ For each issue:
      - Escalate to the user immediately. Do NOT re-spawn `develop`.
      - Escalation message must list each architectural blocking issue with its rationale.
      - Example: "REP-xxx escalated: architectural issue found — [issue description] (rationale: [1-sentence rationale])"
-     - After escalating, clean up the worktree:
-       ```sh
-       reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
-       ```
+     - Then run the **Escalation Cleanup Protocol** (reason = "Architectural Issue", details = each architectural blocking issue with its rationale):
+       1. Post a Linear comment listing each architectural blocking issue as a bullet.
+       2. Set the issue state to Todo: `Linear_save_issue` with `state: "Todo"`.
+       3. Remove the worktree:
+          ```sh
+          reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
+          ```
+       4. Add the issue ID to the session's `escalated_issues` set.
+       5. Log: `ESCALATED REP-xxx: architectural issue — worktree removed, issue reset to Todo`
+       6. Update the status table: set the issue's state to `Escalated`.
+
    - If **all** blocking issues have `kind: mechanical`:
      - If this is the first attempt: re-spawn the `develop` agent with the original prompt + the blocking issues list.
      - If the second `develop` attempt still has blocking issues:
        - Re-check classifications: if **any** blocking issue has `kind: architectural`, escalate immediately with the architectural rationale.
        - If all remaining blocking issues are still `kind: mechanical`: escalate to the user with a "retry budget exhausted" message listing all remaining blocking issues. Do NOT open a PR for this issue.
-       - After escalating, clean up the worktree:
-         ```sh
-         reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
-         ```
+       - Then run the **Escalation Cleanup Protocol** (reason = "Retry Budget Exhausted", details = each remaining blocking mechanical issue):
+         1. Post a Linear comment listing each remaining blocking issue as a bullet.
+         2. Set the issue state to Todo: `Linear_save_issue` with `state: "Todo"`.
+         3. Remove the worktree:
+            ```sh
+            reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
+            ```
+         4. Add the issue ID to the session's `escalated_issues` set.
+         5. Log: `ESCALATED REP-xxx: retry budget exhausted — worktree removed, issue reset to Todo`
+         6. Update the status table: set the issue's state to `Escalated`.
 
 ---
 
@@ -689,7 +768,7 @@ When all PRs are either merged or escalated:
 - Never commit to `main`. All work happens in worktrees on feature branches.
 - **Never write to `/tmp`.** Any ephemeral output (screenshots, artifacts, scratch files) must go to `tmp/` at the repo root. `/tmp` is outside the project working directory — OpenCode requires an elevated-permission prompt to access it, which blocks an unattended pipeline immediately. `tmp/` is git-ignored and always available without any permission prompt.
 - `reproctl wt create` and `git push` failures are retried automatically per the protocols in Phase 3 and Phase 8 respectively. Only escalate after the full retry budget is exhausted. Do not rely on the initial `wt list` snapshot taken at command startup — it will be stale for Wave 2 and beyond; re-run `reproctl wt list` inside the retry loop as described in Phase 3.
-- If a `develop` subagent reports a build or typecheck failure it couldn't resolve, escalate that issue immediately rather than creating a broken PR. After escalating, clean up the worktree: `reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"`.
+- If a `develop` subagent reports a build or typecheck failure it couldn't resolve, escalate that issue immediately rather than creating a broken PR. Then run the **Escalation Cleanup Protocol** (reason = "Unresolvable Build Failure", details = the error output summary): post a Linear comment, set the issue state to Todo, remove the worktree (`reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"`), add the issue ID to `escalated_issues`, log `ESCALATED REP-xxx: unresolvable build failure — worktree removed, issue reset to Todo`, and update the status table to `Escalated`.
 - `gh pr view` or `gh pr checks` errors in Phase 9 should be treated as transient — log the error and retry on the next poll cycle. Only escalate a PR if the same poll fails 3 consecutive cycles for that PR.
 - Keep a running status table updated as you go:
 
@@ -700,4 +779,5 @@ When all PRs are either merged or escalated:
 | REP-yyy | ...              | Implementing | ✓        | -   |
 | REP-zzz | ...              | PR open      | ✓        | #42 |
 | REP-www | ...              | Merged ✓     | pruned   | #41 |
+| REP-aaa | ...              | Escalated    | removed  | -   |
 ```
