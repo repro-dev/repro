@@ -3,7 +3,6 @@ description: Executes implementation work using red/green TDD — consumes a pla
 mode: subagent
 model: github-copilot/claude-sonnet-4.6
 permission:
-  "*": allow
   bash:
     "*": allow
   edit: allow

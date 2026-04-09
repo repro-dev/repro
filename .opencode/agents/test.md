@@ -3,7 +3,6 @@ description: Standalone test utility — adds coverage to existing modules, writ
 mode: subagent
 model: github-copilot/claude-sonnet-4.6
 permission:
-  "*": allow
   bash:
     "*": allow
   edit: allow
