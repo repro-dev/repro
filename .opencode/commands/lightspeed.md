@@ -6,7 +6,7 @@ You are the orchestrator for a parallel autonomous delivery pipeline. Your job i
 
 Arguments (optional): `$ARGUMENTS` — a project name or filter to restrict which issues are considered (e.g. "Engineering" or "Platform"). If empty, scan all projects.
 
-> **Visual regression prerequisite**: The visual check in Phase 6.5 requires baseline screenshots in `tmp/visual-baselines/` on the main checkout. Run `/update-visual-baselines` once after any intentional visual change is merged. If the baseline directory is missing or empty, all stories are treated as "new" (no failure, but no diff coverage either).
+> **Visual regression prerequisite**: The visual check in Phase 7 requires baseline screenshots in `tmp/visual-baselines/` on the main checkout. Run `/update-visual-baselines` once after any intentional visual change is merged. If the baseline directory is missing or empty, all stories are treated as "new" (no failure, but no diff coverage either).
 
 Current branch context:
 !`git branch --show-current`
@@ -207,7 +207,7 @@ Collect all review results.
 
 ---
 
-## Phase 6.5: Visual Regression Check
+## Phase 7: Visual Regression Check
 
 For each issue where the review approved (no blocking issues), run a visual regression check **before** opening a PR.
 
@@ -397,7 +397,7 @@ What to drop:
 
 - Never commit to `main`. All work happens in worktrees on feature branches.
 - **Never write to `/tmp`.** Any ephemeral output (screenshots, artifacts, scratch files) must go to `tmp/` at the repo root. `/tmp` is outside the project working directory — OpenCode requires an elevated-permission prompt to access it, which blocks an unattended pipeline immediately. `tmp/` is git-ignored and always available without any permission prompt.
-- `reproctl wt create` and `git push` failures are retried automatically per the protocols in Phase 3 and Phase 7 respectively. Only escalate after the full retry budget is exhausted. Do not rely on the initial `wt list` snapshot taken at command startup — it will be stale for Wave 2 and beyond; re-run `reproctl wt list` inside the retry loop as described in Phase 3.
+- `reproctl wt create` and `git push` failures are retried automatically per the protocols in Phase 3 and Phase 8 respectively. Only escalate after the full retry budget is exhausted. Do not rely on the initial `wt list` snapshot taken at command startup — it will be stale for Wave 2 and beyond; re-run `reproctl wt list` inside the retry loop as described in Phase 3.
 - If a `develop` subagent reports a build or typecheck failure it couldn't resolve, escalate that issue immediately rather than creating a broken PR.
 - Keep a running status table updated as you go:
 
