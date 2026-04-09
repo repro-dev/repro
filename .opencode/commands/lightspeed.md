@@ -79,7 +79,7 @@ Wave 2: REP-zzz (title)  [depends on Wave 1]
 
 ---
 
-## Phase 3: Execute Wave 1
+## Phase 3: Create Worktrees
 
 For each issue in Wave 1, run these steps sequentially (not in parallel — worktree creation must stagger to avoid git lock contention):
 
@@ -124,19 +124,54 @@ If all 3 retries are exhausted without success, escalate to the user with the fu
 
 ---
 
-## Phase 4: Implement in Parallel
+## Phase 4: Plan in Parallel
 
-Launch all Wave 1 `develop` subagents in a **single message** (one Task tool call per issue) so they run concurrently. Use the `develop` agent for each.
+Launch all Wave 1 `planner` subagents in a **single message** (one Task tool call per issue) so they run concurrently. Use the `planner` agent for each.
 
 Prompt template per issue:
 
 ```
-Implement Linear issue REP-xxx in worktree <absolute-worktree-path>.
+Produce an implementation plan for Linear issue REP-xxx in worktree <absolute-worktree-path>.
+
+Issue: REP-xxx
+Worktree: <absolute-worktree-path>
+
+Fetch the issue via Linear_get_issue to read the full description and acceptance criteria.
+Explore the codebase as needed to understand affected files and patterns.
+
+Return the full plan document (do NOT write any files — the orchestrator will write the plan file).
+Flag any unresolved ambiguities or missing requirements explicitly at the top of your output under "## Ambiguities".
+If there are no ambiguities, omit the "## Ambiguities" section entirely.
+```
+
+Wait for all planners to complete.
+
+### After collecting planner output
+
+For each issue:
+
+1. **Check for ambiguities**: If the planner's output contains an "## Ambiguities" section with unresolved items, **escalate that issue to the user immediately**. Do NOT proceed to Phase 5 for that issue. Report the issue ID and the ambiguities listed. Remove it from the wave's implement batch.
+
+2. **Write the plan file**: For issues with no ambiguities, write the planner's output to `<worktree>/tmp/plan-REP-xxx.md` (replace `REP-xxx` with the actual issue ID). Use the Write tool to create this file in the worktree's `tmp/` directory.
+
+Update the status table: set each successfully planned issue to `Planned`.
+
+---
+
+## Phase 5: Implement in Parallel
+
+Launch all Wave 1 `develop` subagents (for issues that passed planning) in a **single message** (one Task tool call per issue) so they run concurrently. Use the `develop` agent for each.
+
+Prompt template per issue:
+
+```
+Implement the plan at <worktree>/tmp/plan-REP-xxx.md for Linear issue REP-xxx in worktree <absolute-worktree-path>.
 
 Worktree: <absolute-worktree-path>
 Issue: REP-xxx
+Plan: <worktree>/tmp/plan-REP-xxx.md
 
-Fetch the issue via Linear_get_issue to read the full description and acceptance criteria.
+Read the plan first. Follow it. Do NOT re-explore the codebase from scratch — the planner has already done that.
 Do NOT push or create a PR — stop after the commit.
 
 Temporary files: write any ephemeral output (screenshots, artifacts, scratch) to
@@ -150,7 +185,7 @@ Wait for all Wave 1 subagents to complete.
 
 ---
 
-## Phase 5: Review in Parallel
+## Phase 6: Review in Parallel
 
 For each completed Wave 1 implementation, launch a `review` subagent in a **single message** (one per issue, all at once).
 
@@ -170,7 +205,7 @@ Collect all review results.
 
 ---
 
-## Phase 6: Handle Review Results
+## Phase 7: Handle Review Results
 
 For each issue:
 
@@ -229,7 +264,7 @@ For each issue:
 
 ---
 
-## Phase 7: Compress, Then Rinse and Repeat
+## Phase 8: Compress, Then Rinse and Repeat
 
 After Wave N PRs are created (or escalations reported):
 
@@ -268,13 +303,14 @@ What to drop:
 
 - Never commit to `main`. All work happens in worktrees on feature branches.
 - **Never write to `/tmp`.** Any ephemeral output (screenshots, artifacts, scratch files) must go to `tmp/` at the repo root. `/tmp` is outside the project working directory — OpenCode requires an elevated-permission prompt to access it, which blocks an unattended pipeline immediately. `tmp/` is git-ignored and always available without any permission prompt.
-- `reproctl wt create` and `git push` failures are retried automatically per the protocols in Phase 3 and Phase 6 respectively. Only escalate after the full retry budget is exhausted. Do not rely on the initial `wt list` snapshot taken at command startup — it will be stale for Wave 2 and beyond; re-run `reproctl wt list` inside the retry loop as described in Phase 3.
+- `reproctl wt create` and `git push` failures are retried automatically per the protocols in Phase 3 and Phase 7 respectively. Only escalate after the full retry budget is exhausted. Do not rely on the initial `wt list` snapshot taken at command startup — it will be stale for Wave 2 and beyond; re-run `reproctl wt list` inside the retry loop as described in Phase 3.
 - If a `develop` subagent reports a build or typecheck failure it couldn't resolve, escalate that issue immediately rather than creating a broken PR.
 - Keep a running status table updated as you go:
 
 ```
 | Issue   | Title            | State        | Worktree | PR  |
 |---------|------------------|--------------|----------|-----|
-| REP-xxx | ...              | Implementing | ✓        | -   |
-| REP-yyy | ...              | PR open      | ✓        | #42 |
+| REP-xxx | ...              | Planned      | ✓        | -   |
+| REP-yyy | ...              | Implementing | ✓        | -   |
+| REP-zzz | ...              | PR open      | ✓        | #42 |
 ```

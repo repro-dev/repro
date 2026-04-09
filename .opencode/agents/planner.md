@@ -49,6 +49,9 @@ Return a single plan document in this structure:
 
 ## Acceptance criteria mapping
 <map each acceptance criterion from the issue to specific implementation steps>
+
+## Ambiguities
+<ONLY include this section if there are unresolved ambiguities or missing requirements that prevent safe implementation. List each ambiguity as a bullet. Omit this section entirely if there are none.>
 ```
 
 ## Rules
