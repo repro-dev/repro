@@ -844,6 +844,68 @@ export function createAccountService(
     })
   }
 
+  // Staff lockout
+
+  function ensureStaffNotLocked(email: string): FutureInstance<Error, void> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('staff_users')
+        .select(['lockedUntil'])
+        .where('email', '=', email.toLowerCase())
+        .where('active', '=', true)
+        .executeTakeFirst()
+    ).pipe(
+      chain(row => {
+        if (row?.lockedUntil && row.lockedUntil.getTime() > Date.now()) {
+          return reject(
+            tooManyRequests('Account temporarily locked. Try again later.')
+          )
+        }
+        return resolve(undefined)
+      })
+    )
+  }
+
+  function recordStaffFailedLogin(email: string): FutureInstance<Error, void> {
+    return attemptQuery(async () => {
+      const row = await database
+        .selectFrom('staff_users')
+        .select(['id', 'failedLoginCount'])
+        .where('email', '=', email.toLowerCase())
+        .where('active', '=', true)
+        .executeTakeFirst()
+
+      if (!row) {
+        return
+      }
+
+      const count = row.failedLoginCount + 1
+      const lockedUntil =
+        count >= MAX_FAILED_ATTEMPTS
+          ? new Date(Date.now() + LOCKOUT_DURATION_MS)
+          : null
+
+      await database
+        .updateTable('staff_users')
+        .set({ failedLoginCount: count, lockedUntil })
+        .where('id', '=', row.id)
+        .execute()
+    })
+  }
+
+  function resetStaffFailedLoginCount(
+    email: string
+  ): FutureInstance<Error, void> {
+    return attemptQuery(async () => {
+      await database
+        .updateTable('staff_users')
+        .set({ failedLoginCount: 0, lockedUntil: null })
+        .where('email', '=', email.toLowerCase())
+        .where('active', '=', true)
+        .execute()
+    })
+  }
+
   function createSession(
     subjectId: string,
     subjectType: 'user' | 'staff'
@@ -1084,6 +1146,11 @@ export function createAccountService(
     ensureNotLocked,
     recordFailedLogin,
     resetFailedLoginCount,
+
+    // Staff lockout
+    ensureStaffNotLocked,
+    recordStaffFailedLogin,
+    resetStaffFailedLoginCount,
 
     // Sessions
     createSession,
