@@ -7,9 +7,13 @@ permission:
   bash:
     "*": allow
   edit: allow
-  external_directory:
-    "~/Projects/repro-dev/repro/**": allow
-    "~/Projects/repro-dev/repro-wt-*/**": allow
+  doom_loop:
+    "*": ask
+    "reproctl wt create *": allow
+    "git push *": allow
+    "gh pr checks *": allow
+    "gh pr view *": allow
+    "gh pr merge *": allow
 ---
 
 You are a development agent. You receive a structured plan document, a worktree path, and a Linear issue identifier. Your job is to implement the plan using strict red/green/refactor TDD.

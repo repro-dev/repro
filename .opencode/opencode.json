@@ -2,10 +2,13 @@
   "$schema": "https://opencode.ai/config.json",
   "permission": {
     "*": "allow",
-    "external_directory": {
-      "~/Projects/repro-dev/repro/**": "allow",
-      "~/Projects/repro-dev/repro-wt-*/**": "allow"
-    },
-    "doom_loop": "allow"
+    "doom_loop": {
+      "*": "ask",
+      "reproctl wt create *": "allow",
+      "git push *": "allow",
+      "gh pr checks *": "allow",
+      "gh pr view *": "allow",
+      "gh pr merge *": "allow"
+    }
   }
 }
