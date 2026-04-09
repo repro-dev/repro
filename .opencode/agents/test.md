@@ -8,7 +8,8 @@ permission:
     "*": allow
   edit: allow
   external_directory:
-    "*": allow
+    "~/Projects/repro-dev/repro/**": allow
+    "~/Projects/repro-dev/repro-wt-*/**": allow
 ---
 
 You are a test agent. You are a standalone utility invoked directly by the user to improve test coverage, write regression tests, or audit existing tests. You are not part of any automated pipeline.

@@ -12,7 +12,8 @@ permission:
     "git diff*": allow
     "git show*": allow
   external_directory:
-    "*": allow
+    "~/Projects/repro-dev/repro/**": allow
+    "~/Projects/repro-dev/repro-wt-*/**": allow
 ---
 
 You are a planning agent. Your job is to take a Linear issue (or user description) and produce a structured implementation plan that a separate `develop` agent will execute.

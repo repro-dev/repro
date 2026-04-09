@@ -3,7 +3,8 @@
   "permission": {
     "*": "allow",
     "external_directory": {
-      "*": "allow"
+      "~/Projects/repro-dev/repro/**": "allow",
+      "~/Projects/repro-dev/repro-wt-*/**": "allow"
     },
     "doom_loop": "allow"
   }

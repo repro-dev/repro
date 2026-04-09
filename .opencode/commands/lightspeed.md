@@ -27,15 +27,15 @@ The following configuration is required and is already applied in this repositor
 
 **Project-level defaults** (`.opencode/opencode.json`):
 
-- `external_directory: { "*": "allow" }` — the pipeline creates worktrees as sibling directories (e.g. `../repro-wt-rep-xxx` relative to the project root), which are outside the project root. Without this, every file operation in a worktree triggers a permission prompt.
+- `external_directory` scoped to `~/Projects/repro-dev/repro/**` and `~/Projects/repro-dev/repro-wt-*/**` — the pipeline creates worktrees as sibling directories outside the project root. Without this, every file operation in a worktree triggers a permission prompt. The paths are intentionally narrow; `"*": "allow"` is not used.
 - `doom_loop: "allow"` — retry loops for `reproctl wt create` (Phase 3) and `git push` (Phase 7) may issue identical commands 3+ times. The default `"ask"` blocks on the third attempt.
 
 **Agent-level permissions** (`.opencode/agents/*.md` frontmatter):
 
-- `develop.md` and `test.md`: full `allow` for bash, edit, and external_directory
-- `planner.md` and `review.md`: bash restricted to read-only git commands (`git log*`, `git diff*`, `git show*`), write/edit denied, but `external_directory` allowed for worktree file reads
+- `develop.md` and `test.md`: full `allow` for bash, edit, and external_directory (scoped to repro checkout and sibling worktrees)
+- `planner.md` and `review.md`: bash restricted to read-only git commands (`git log*`, `git diff*`, `git show*`), write/edit denied, but `external_directory` allowed (scoped) for worktree file reads
 
-> **Important:** If you modify agent frontmatter, verify these permissions remain intact. Removing `external_directory: allow` or `doom_loop: allow` will cause the pipeline to hang on permission prompts during unattended runs.
+> **Important:** If you modify agent frontmatter, verify these permissions remain intact. Removing the `external_directory` path entries or `doom_loop: allow` will cause the pipeline to hang on permission prompts during unattended runs.
 
 ### Visual regression baselines
 
