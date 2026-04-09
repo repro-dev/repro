@@ -314,6 +314,8 @@ When any issue must be abandoned mid-pipeline (ambiguity, visual regression fail
 
 6. **Update the status table:** Set the issue's state to `Escalated`.
 
+7. **Update the run log:** Set the issue's `phase` → `escalated` and `escalation_reason` to a brief summary of the escalation reason in `tmp/lightspeed-run.json`. Use the Write tool to overwrite the entire file.
+
 ---
 
 ## Phase 4: Plan in Parallel
@@ -533,6 +535,7 @@ For each issue:
    - Add `REP-xxx` to the session's `escalated_issues` set.
    - Log: `REP-xxx: pre-push rebase conflict — escalated`
    - Update the status table: set the issue's state to `Escalated`.
+   - **Update the run log:** Set `phase` → `escalated` and `escalation_reason` to `"pre-push rebase conflict — conflicting files: <file list>"` in `tmp/lightspeed-run.json`. Use the Write tool to overwrite the entire file.
    - **Do NOT push or open a PR for this issue.** Remove it from the current wave's push batch and proceed to the next issue.
 
 2. Push the branch with retry-with-backoff:
