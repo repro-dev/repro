@@ -121,3 +121,62 @@ This cannot be configured in the project-level `opencode.json` because the check
 ```
 
 Replace `~/path/to/parent-of-checkouts` with the directory that contains your main checkout and its worktree siblings (e.g. `~/Projects/repro-dev`).
+
+## Visual Regression
+
+The `/lightspeed` pipeline runs an automated visual regression check (Phase 6.5) for any PR that touches UI files. The tooling consists of two scripts in `scripts/`:
+
+| Script                                 | Purpose                                                        |
+| -------------------------------------- | -------------------------------------------------------------- |
+| `scripts/visual-regression.sh`         | Bash 3.2 wrapper: starts Storybook, runs capture, copies diffs |
+| `scripts/visual-regression-capture.ts` | tsx script: Playwright headless capture + pixelmatch diff      |
+
+### Baseline storage
+
+- **`tmp/visual-baselines/`** (main checkout) — machine-local PNG reference images, git-ignored. Run `/update-visual-baselines` to populate or refresh after an intentional visual change is merged.
+- **`<worktree>/tmp/visual-baselines-ref/`** — baselines copied from main into the worktree for the diff run. Transient; recreated on each run.
+- **`<worktree>/tmp/visual-screenshots/`** — current-branch screenshots captured during the check.
+- **`<worktree>/tmp/visual-diffs/`** — diff PNGs written when a story exceeds the pixel threshold. Included in escalation messages.
+
+### Running the check manually
+
+```sh
+bash scripts/visual-regression.sh \
+  --worktree /path/to/worktree \
+  --main-checkout /path/to/main-checkout \
+  --stories '["button--primary","badge--default"]' \
+  --threshold 0.001
+```
+
+Pass `--stories '[]'` to check all stories. The script outputs JSON (same shape as `visual-regression-capture.ts`) to stdout and exits non-zero if any stories fail.
+
+### Updating baselines
+
+Run the `/update-visual-baselines` command (or directly):
+
+```sh
+bash scripts/visual-regression.sh \
+  --update-baselines \
+  --worktree /path/to/main-checkout \
+  --main-checkout /path/to/main-checkout \
+  --stories '[]'
+```
+
+Run this after any intentional visual change is merged to main. Baselines are local-only; each developer must run this after initial clone and after merging visual changes.
+
+### Story ID convention (Storybook v10)
+
+Story IDs follow the pattern `<component-name>--<story-name>` in kebab-case. For example:
+
+- Component file `Button.stories.tsx` with story `Primary` → `button--primary`
+- Component file `Badge.stories.tsx` with story `Default` → `badge--default`
+
+After starting Storybook, query `http://localhost:6099/index.json` to get canonical story IDs — this is more reliable than inferring IDs from source files.
+
+### Threshold configuration
+
+Default threshold: `0.001` (0.1% of pixels changed). To override for a specific package, create a `.visual-threshold` file in the package root containing just the threshold value (e.g. `0.005`).
+
+### Storybook port
+
+The script uses port **6099** by default (avoids conflict with the dev server on 6006). Override with `--port <n>` if needed. The script automatically finds the next free port if 6099 is occupied.
