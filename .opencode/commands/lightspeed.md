@@ -409,7 +409,36 @@ For each issue:
 
 **If review says "approve" (no blocking issues):**
 
-1. Push the branch with retry-with-backoff:
+1. Rebase onto origin/main before pushing:
+
+   ```sh
+   git -C <worktree-path> fetch origin main
+   git -C <worktree-path> rebase origin/main
+   ```
+
+   **If rebase succeeds (exit 0) and output indicates "Current branch ... is up to date":** proceed to step 2 without extra logging.
+
+   **If rebase succeeds (exit 0) and the branch was actually rebased:** log `REP-xxx: rebased onto origin/main before push` and proceed to step 2.
+
+   **If rebase fails (non-zero exit — conflicts):**
+   - Capture the conflicting file list BEFORE aborting:
+     ```sh
+     git -C <worktree-path> diff --name-only --diff-filter=U
+     ```
+   - Abort the rebase:
+     ```sh
+     git -C <worktree-path> rebase --abort
+     ```
+   - Post a comment on the Linear issue: `Linear_save_comment` with body:
+     > Pre-push rebase failed — conflicting files: `<file1>`, `<file2>`, ... Manual resolution required.
+   - Set the issue state back to **In Progress**: `Linear_save_issue` with `state: "In Progress"`
+   - Remove the worktree: `reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed — continuing"`
+   - Add `REP-xxx` to the session's `escalated_issues` set.
+   - Log: `REP-xxx: pre-push rebase conflict — escalated`
+   - Update the status table: set the issue's state to `Escalated`.
+   - **Do NOT push or open a PR for this issue.** Remove it from the current wave's push batch and proceed to the next issue.
+
+2. Push the branch with retry-with-backoff:
 
    ```sh
    git -C <worktree-path> push -u origin HEAD
@@ -434,7 +463,7 @@ For each issue:
 
    If all 3 retries fail, escalate to the user with the full error output from the final attempt. Do not open a PR for this issue.
 
-2. Create a PR:
+3. Create a PR:
 
    ```sh
    gh pr create --repo <owner>/<repo> --head <branch-name> --title "<issue title>" --body "$(cat <<'EOF'
@@ -458,8 +487,8 @@ For each issue:
    )"
    ```
 
-3. Set the Linear issue to **In Review**: `Linear_save_issue` with `state: "In Review"`
-4. Post the AI review as a PR comment: `Linear_save_comment` on the issue with the review text.
+4. Set the Linear issue to **In Review**: `Linear_save_issue` with `state: "In Review"`
+5. Post the AI review as a PR comment: `Linear_save_comment` on the issue with the review text.
 
 **If review says "request changes" (blocking issues found):**
 
@@ -687,6 +716,8 @@ If `MERGED`: log `PR #N (REP-xxx): merged successfully`, set the Linear issue to
 
 **`CONFLICTING`** — Classify the conflict origin, then auto-resolve or escalate:
 
+> **Note:** Phase 8 performs a proactive rebase before the initial push, which eliminates most conflicts. This Phase 9 path is a safety net for conflicts that arise from concurrent-wave merges or external changes landing between push and merge.
+
 1. Log: `PR #N (REP-xxx): merge conflict detected — classifying origin`
 2. Determine the worktree path from the running status table.
 3. Fetch and attempt rebase:
@@ -767,7 +798,7 @@ When all PRs are either merged or escalated:
 
 - Never commit to `main`. All work happens in worktrees on feature branches.
 - **Never write to `/tmp`.** Any ephemeral output (screenshots, artifacts, scratch files) must go to `tmp/` at the repo root. `/tmp` is outside the project working directory — OpenCode requires an elevated-permission prompt to access it, which blocks an unattended pipeline immediately. `tmp/` is git-ignored and always available without any permission prompt.
-- `reproctl wt create` and `git push` failures are retried automatically per the protocols in Phase 3 and Phase 8 respectively. Only escalate after the full retry budget is exhausted. Do not rely on the initial `wt list` snapshot taken at command startup — it will be stale for Wave 2 and beyond; re-run `reproctl wt list` inside the retry loop as described in Phase 3.
+- `reproctl wt create` and `git push` failures are retried automatically per the protocols in Phase 3 and Phase 8 respectively. The pre-push rebase in Phase 8 escalates immediately on conflict (no retry). Only escalate `wt create` and `git push` after the full retry budget is exhausted. Do not rely on the initial `wt list` snapshot taken at command startup — it will be stale for Wave 2 and beyond; re-run `reproctl wt list` inside the retry loop as described in Phase 3.
 - If a `develop` subagent reports a build or typecheck failure it couldn't resolve, escalate that issue immediately rather than creating a broken PR. Then run the **Escalation Cleanup Protocol** (reason = "Unresolvable Build Failure", details = the error output summary): post a Linear comment, set the issue state to Todo, remove the worktree (`reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"`), add the issue ID to `escalated_issues`, log `ESCALATED REP-xxx: unresolvable build failure — worktree removed, issue reset to Todo`, and update the status table to `Escalated`.
 - `gh pr view` or `gh pr checks` errors in Phase 9 should be treated as transient — log the error and retry on the next poll cycle. Only escalate a PR if the same poll fails 3 consecutive cycles for that PR.
 - Keep a running status table updated as you go:
