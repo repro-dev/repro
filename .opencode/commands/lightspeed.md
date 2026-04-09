@@ -647,6 +647,31 @@ Build a watch list: collect every PR number opened during this run (all waves so
 - `merged`: `false`
 - `rerun_budget`: `{}` — map of `check_name → rerun_count`. A count of 0 (or missing key) means one re-run is still available; 1 means the budget is exhausted.
 - `rerun_deadline`: `null` | ISO-8601 timestamp — set when a re-run is in flight; null otherwise. If the current time exceeds this deadline and CI is still failing, treat as real failure.
+- `poll_interval`: `30` — current sleep duration in seconds for this PR. Starts at 30s.
+- `prev_ci_status`: `null` — CI status from the previous poll cycle. Used to detect state transitions that trigger a backoff reset.
+- `poll_count`: `0` — number of poll cycles completed for this PR. Logged each cycle for observability.
+
+### Adaptive backoff
+
+Each PR maintains its own `poll_interval` (starting at 30 seconds). After each poll cycle for a PR:
+
+1. **Log the current interval:** `PR #N (REP-xxx): poll cycle <poll_count>, next check in <poll_interval>s`
+2. **Apply jitter** (intervals ≥ 300s only): multiply `poll_interval` by a random factor in `[0.8, 1.2]` to produce the actual sleep duration for this cycle. This prevents thundering-herd when multiple PRs reach the same backoff tier.
+3. **Double the interval:** set `poll_interval = min(poll_interval × 2, 1800)` (cap at 30 minutes).
+4. **Increment `poll_count`.**
+
+**Reset on CI state change:** If `ci_status` differs from `prev_ci_status` (and `prev_ci_status` is not null), reset `poll_interval` to 30 and log: `PR #N (REP-xxx): CI status changed (<prev> → <new>) — backoff reset to 30s`. Then update `prev_ci_status = ci_status`.
+
+**Indicative schedule** (exact values vary with jitter):
+
+| Elapsed time | Approx interval          |
+| ------------ | ------------------------ |
+| 0–2 min      | 30s                      |
+| 2–5 min      | 60s                      |
+| 5–10 min     | 2 min                    |
+| 10–25 min    | 5 min (± jitter)         |
+| 25–55 min    | 10 min (± jitter)        |
+| 55 min+      | 30 min capped (± jitter) |
 
 ### Poll loop
 
@@ -672,6 +697,8 @@ Repeat until all PRs are merged, or the timeout is reached (default: **4 hours**
    - All checks with `conclusion: "SUCCESS"` and no check with `state: "PENDING"` or `conclusion: "FAILURE"` → `ci_status = passing`
    - Any check with `conclusion: "FAILURE"` → `ci_status = failing`
    - Otherwise → `ci_status = pending`
+
+   **Backoff reset check:** For this PR, if `prev_ci_status` is not null and `ci_status ≠ prev_ci_status`, reset `poll_interval` to 30 and log: `PR #N (REP-xxx): CI status changed (<prev_ci_status> → <ci_status>) — backoff reset to 30s`. Set `prev_ci_status = ci_status`.
 
 4. **React to `ci_status` transitions** (only on first transition to that state):
    - **`pending → passing`:**
@@ -714,7 +741,11 @@ Repeat until all PRs are merged, or the timeout is reached (default: **4 hours**
           - Clear `rerun_deadline = null` (re-run succeeded, no more deadline to enforce)
           - Proceed with the normal `pending → passing` handler
 
-5. **Sleep 60 seconds**, then repeat.
+5. **Sleep per the adaptive backoff schedule for each PR** (see [Adaptive backoff](#adaptive-backoff) above):
+   - For the PR with the **shortest** `poll_interval`, compute the actual sleep duration (apply ±20% jitter if interval ≥ 300s).
+   - Sleep for that duration. When the sleep completes, poll **only** the PRs whose `poll_interval` has elapsed since their last poll. (In practice, with a small number of PRs, polling all PRs each cycle at the shortest interval is acceptable.)
+   - After polling each PR, advance its backoff: `poll_interval = min(poll_interval × 2, 1800)`.
+   - Check for CI state changes and reset backoff if needed (see reset rule above).
 
 ### Timeout handling
 
@@ -781,7 +812,7 @@ This tells GitHub to merge automatically once all required checks pass and the P
 
 Run the poll loop until all PRs are merged or escalated (or the 4-hour timeout fires):
 
-- **Poll interval:** 60 seconds between cycles
+- **Poll interval:** adaptive per-PR backoff — starts at 30 seconds, doubles each cycle, capped at 30 minutes. Jitter (±20%) is applied at intervals ≥ 5 minutes. See [Adaptive backoff](#adaptive-backoff) for the full algorithm. The loop sleeps for the duration of the shortest per-PR interval; PRs at longer intervals are polled only when their individual interval has elapsed.
 - **Timeout:** 4 hours total wall-clock time. If exceeded, escalate all remaining unmerged PRs to the user with their current status and stop.
 - **Stop condition:** 2+ escalations in a single cycle (sign of a systemic problem) — stop and report to user.
 
@@ -806,6 +837,11 @@ gh pr view <pr_number> --json state --jq '.state'
 ```
 
 If `MERGED`: log `PR #N (REP-xxx): merged successfully`, set the Linear issue to **Done** (`Linear_save_issue` with `state: "Done"`), run `reproctl wt remove <worktree-name>` to clean up the worktree, remove the PR from the watch list, and update `phase` → `merged` for the issue in `tmp/lightspeed-run.json`.
+
+After evaluating CI status and mergeability for each unmerged PR in the cycle:
+
+- **Backoff reset:** If `prev_ci_status` is not null and the current `ci_status ≠ prev_ci_status`, reset `poll_interval` to 30 and log: `PR #N (REP-xxx): CI status changed (<prev_ci_status> → <ci_status>) — backoff reset to 30s`. Set `prev_ci_status = ci_status`.
+- **Backoff advancement:** Set `poll_interval = min(poll_interval × 2, 1800)` and increment `poll_count`.
 
 ### 9c: Handle each mergeability value
 
