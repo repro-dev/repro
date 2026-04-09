@@ -224,8 +224,14 @@ For each issue:
 
 **If review says "request changes" (blocking issues found):**
 
-- If this is the first attempt: re-spawn the `develop` agent with the original prompt + the blocking issues from the review. This is the only re-spawn allowed (2 total attempts per issue).
-- If the second attempt still has blocking issues: escalate to the user. Report the issue ID and blocking issues. Do NOT open a PR for this issue.
+1. Check the classification of every blocking issue:
+   - If **any** blocking issue has `kind: architectural`:
+     - Escalate to the user immediately. Do NOT re-spawn `develop`.
+     - Escalation message must list each architectural blocking issue with its rationale.
+     - Example: "REP-xxx escalated: architectural issue found — [issue description] (rationale: [1-sentence rationale])"
+   - If **all** blocking issues have `kind: mechanical`:
+     - If this is the first attempt: re-spawn the `develop` agent with the original prompt + the blocking issues list.
+     - If the second `develop` attempt still has blocking issues (mechanical or otherwise): escalate to the user with a "retry budget exhausted" message listing all remaining blocking issues. Do NOT open a PR for this issue.
 
 ---
 
