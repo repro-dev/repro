@@ -156,42 +156,37 @@ ok ".envrc allowed"
 
 # ── Step 7: OpenCode local config ───────────────────────────────────
 
-next_step "Writing .opencode/opencode.json (local agent permissions)..."
+next_step "Writing .envrc.local (machine-local OpenCode permissions)..."
 
-OPENCODE_DIR="$REPO_ROOT/.opencode"
 PARENT_DIR="$(dirname "$REPO_ROOT")"
-OPENCODE_CONFIG="$OPENCODE_DIR/opencode.json"
+ENVRC_LOCAL="$REPO_ROOT/.envrc.local"
 
-mkdir -p "$OPENCODE_DIR"
-
-# Write a scoped opencode.json that allows agents to read sibling worktrees
-# (same parent directory as the main checkout) and permits known-repeating
-# commands for the lightspeed automation loop. This file is gitignored and
-# regenerated on every `reproctl setup` run — never commit it.
-cat > "$OPENCODE_CONFIG" << OPENCODE_EOF
-{
+# Export OPENCODE_CONFIG_CONTENT so OpenCode (loaded via direnv) receives a
+# machine-local permission grant scoped to the parent directory.  This allows
+# agents to access sibling worktrees without hardcoding any path in tracked
+# files.  The key is the config merge order: OPENCODE_CONFIG_CONTENT (level 6)
+# overrides project config (level 4), so external_directory set here wins.
+#
+# The file is gitignored and regenerated on every `reproctl setup` run.
+cat > "$ENVRC_LOCAL" << ENVRC_EOF
+# Written by \`reproctl setup\` — gitignored, do not commit.
+export OPENCODE_CONFIG_CONTENT='{
   "provider": {
     "github-copilot": {
-      "model": "claude-sonnet-4.6"
+      "options": {
+        "model": "claude-sonnet-4.6"
+      }
     }
   },
-  "permissions": {
+  "permission": {
     "external_directory": {
-      "$PARENT_DIR/**": "allow"
-    },
-    "doom_loop": {
-      "reproctl wt create *": "allow",
-      "git push *": "allow",
-      "gh pr checks *": "allow",
-      "gh pr view *": "allow",
-      "gh pr merge *": "allow",
-      "*": "ask"
+      "${PARENT_DIR}/**": "allow"
     }
   }
-}
-OPENCODE_EOF
+}'
+ENVRC_EOF
 
-ok ".opencode/opencode.json written (external_directory: $PARENT_DIR/**)"
+ok ".envrc.local written (external_directory: $PARENT_DIR/**)"
 
 # ── Step 8: Cluster + registry ──────────────────────────────────────
 
