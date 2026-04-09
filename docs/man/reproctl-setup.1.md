@@ -12,13 +12,16 @@ reproctl-setup - bootstrap the local development environment
 
 # DESCRIPTION
 
-Runs a 5-step bootstrap sequence to prepare the local development environment:
+Runs an 8-step bootstrap sequence to prepare the local development environment:
 
 1. **brew bundle** — install Homebrew dependencies from the Brewfile.
-2. **proto use** — activate the correct toolchain versions.
-3. **pnpm install** — install Node.js dependencies.
-4. **Docker check** — verify Docker is running.
-5. **cluster up** — create the local kind cluster and container registry.
+2. **direnv check** — verify the direnv shell hook is active.
+3. **proto use** — activate the correct toolchain versions.
+4. **pnpm install** — install Node.js dependencies.
+5. **Docker check** — verify Docker is running.
+6. **direnv allow** — trust the `.envrc` file.
+7. **opencode.json** — write `.opencode/opencode.json` with agent permissions scoped to the local checkout parent directory (covers all sibling worktrees). This file is gitignored and regenerated on every run.
+8. **cluster up** — create the local kind cluster and container registry.
 
 Each step is idempotent and safe to re-run.
 

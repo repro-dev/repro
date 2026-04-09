@@ -29,7 +29,7 @@ cd "$REPO_ROOT"
 # ── Helpers ─────────────────────────────────────────────────────────
 
 step=0
-total=7
+total=8
 
 next_step() {
   step=$((step + 1))
@@ -154,7 +154,46 @@ next_step "Trusting .envrc (enables reproctl as a bare command)..."
 direnv allow "$REPO_ROOT"
 ok ".envrc allowed"
 
-# ── Step 7: Cluster + registry ──────────────────────────────────────
+# ── Step 7: OpenCode local config ───────────────────────────────────
+
+next_step "Writing .opencode/opencode.json (local agent permissions)..."
+
+OPENCODE_DIR="$REPO_ROOT/.opencode"
+PARENT_DIR="$(dirname "$REPO_ROOT")"
+OPENCODE_CONFIG="$OPENCODE_DIR/opencode.json"
+
+mkdir -p "$OPENCODE_DIR"
+
+# Write a scoped opencode.json that allows agents to read sibling worktrees
+# (same parent directory as the main checkout) and permits known-repeating
+# commands for the lightspeed automation loop. This file is gitignored and
+# regenerated on every `reproctl setup` run — never commit it.
+cat > "$OPENCODE_CONFIG" << OPENCODE_EOF
+{
+  "provider": {
+    "github-copilot": {
+      "model": "claude-sonnet-4.6"
+    }
+  },
+  "permissions": {
+    "external_directory": {
+      "$PARENT_DIR/**": "allow"
+    },
+    "doom_loop": {
+      "reproctl wt create *": "allow",
+      "git push *": "allow",
+      "gh pr checks *": "allow",
+      "gh pr view *": "allow",
+      "gh pr merge *": "allow",
+      "*": "ask"
+    }
+  }
+}
+OPENCODE_EOF
+
+ok ".opencode/opencode.json written (external_directory: $PARENT_DIR/**)"
+
+# ── Step 8: Cluster + registry ──────────────────────────────────────
 
 if [ "$skip_cluster" = true ]; then
   next_step "Skipping cluster creation (--no-cluster)"

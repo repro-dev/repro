@@ -6,18 +6,27 @@ reproctl\-setup \- bootstrap the local development environment
 .SH SYNOPSIS
 \f[B]reproctl setup\f[R] [\f[B]\-\-skip\-cluster\f[R]]
 .SH DESCRIPTION
-Runs a 5\-step bootstrap sequence to prepare the local development
+Runs an 8\-step bootstrap sequence to prepare the local development
 environment:
 .IP "1." 3
 \f[B]brew bundle\f[R] \(em install Homebrew dependencies from the
 Brewfile.
 .IP "2." 3
-\f[B]proto use\f[R] \(em activate the correct toolchain versions.
+\f[B]direnv check\f[R] \(em verify the direnv shell hook is active.
 .IP "3." 3
-\f[B]pnpm install\f[R] \(em install Node.js dependencies.
+\f[B]proto use\f[R] \(em activate the correct toolchain versions.
 .IP "4." 3
-\f[B]Docker check\f[R] \(em verify Docker is running.
+\f[B]pnpm install\f[R] \(em install Node.js dependencies.
 .IP "5." 3
+\f[B]Docker check\f[R] \(em verify Docker is running.
+.IP "6." 3
+\f[B]direnv allow\f[R] \(em trust the \f[CR].envrc\f[R] file.
+.IP "7." 3
+\f[B]opencode.json\f[R] \(em write \f[CR].opencode/opencode.json\f[R]
+with agent permissions scoped to the local checkout parent directory
+(covers all sibling worktrees).
+This file is gitignored and regenerated on every run.
+.IP "8." 3
 \f[B]cluster up\f[R] \(em create the local kind cluster and container
 registry.
 .PP
