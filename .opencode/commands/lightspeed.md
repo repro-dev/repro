@@ -15,6 +15,9 @@ Flags (optional):
 Current branch context:
 !`git branch --show-current`
 
+Session baseline — SHA of origin/main at startup (used in Phase 9 to classify conflict origins):
+!`git rev-parse origin/main`
+
 Worktrees already in flight:
 !`reproctl wt list 2>/dev/null || echo "(none)"`
 
@@ -525,11 +528,11 @@ If `MERGED`: log `PR #N (REP-xxx): merged successfully`, set the Linear issue to
 - Any check failed: escalate to user with the failed check names and their output. Remove PR from watch list.
 - Checks still pending: no action, continue to next cycle.
 
-**`CONFLICTING`** — Attempt automated rebase resolution:
+**`CONFLICTING`** — Classify the conflict origin, then auto-resolve or escalate:
 
-1. Log: `PR #N (REP-xxx): merge conflict detected — attempting rebase`
+1. Log: `PR #N (REP-xxx): merge conflict detected — classifying origin`
 2. Determine the worktree path from the running status table.
-3. Fetch and rebase:
+3. Fetch and attempt rebase:
    ```sh
    git -C <worktree-path> fetch origin main
    git -C <worktree-path> rebase origin/main
@@ -541,14 +544,55 @@ If `MERGED`: log `PR #N (REP-xxx): merged successfully`, set the Linear issue to
      ```
    - Log: `PR #N (REP-xxx): conflict resolved via rebase — re-entering CI watch`
    - Continue polling (CI will re-run after the force-push)
+
 5. **If rebase fails (non-zero exit):**
-   - Capture the conflicting file list from the rebase error output (stderr contains the filenames).
+   - Capture the conflicting file list from the rebase output.
    - Abort the rebase:
      ```sh
      git -C <worktree-path> rebase --abort
      ```
-   - Escalate to user: `PR #N (REP-xxx): rebase failed — manual conflict resolution required. Conflicting files: <file list>`
+   - **Classify the conflict origin** using the session baseline SHA recorded at startup:
+
+     ```sh
+     git -C <worktree-path> log <SESSION_MAIN_SHA>..origin/main --format="%H %s"
+     ```
+
+     This lists every commit that landed on `origin/main` after this session began. A commit is **intra-session** if its subject contains a `REP-xxx` identifier that matches one of the PRs opened in the current run. A commit is **external** if it contains no matching REP identifier, or was authored before the session started.
+
+   - For each conflicting file, check whether it was touched by an external commit (use `git log --follow -- <file>` scoped to the new commits). If **any** conflicting file was touched by an external commit, this is an **external conflict** — go to step 6.
+
+   - If **all** conflicting files were touched only by intra-session commits (our own merged PRs), this is an **intra-session conflict** — go to step 7.
+
+6. **External conflict → escalate:**
+   - Report: `PR #N (REP-xxx): merge conflict caused by external changes — manual resolution required`
+   - List conflicting files, the external commit(s) that caused them (SHA + subject), and the PR branch name.
    - Remove PR from watch list.
+
+7. **Intra-session conflict → attempt auto-resolution:**
+   - The agent wrote the code on both sides of this conflict. Start the rebase again and resolve each conflict:
+     ```sh
+     git -C <worktree-path> rebase origin/main
+     ```
+   - For each conflicting file produced by the rebase:
+     - Read the file with conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
+     - Reason through the correct merge based on your knowledge of both changes (you implemented them in this session). Apply the resolution by editing the file to remove all conflict markers and produce the correct unified content.
+     - Stage the resolution: `git -C <worktree-path> add <file>`
+   - After all files are resolved, continue the rebase:
+     ```sh
+     git -C <worktree-path> rebase --continue
+     ```
+     (Set `GIT_EDITOR=true` to suppress the commit message editor.)
+   - **If resolution succeeds:**
+     - Force-push with lease:
+       ```sh
+       git -C <worktree-path> push --force-with-lease origin HEAD
+       ```
+     - Log: `PR #N (REP-xxx): intra-session conflict auto-resolved — re-entering CI watch`
+     - Continue polling.
+   - **If resolution fails** (rebase still fails after attempted edits, or the correct merge cannot be determined):
+     - Abort: `git -C <worktree-path> rebase --abort`
+     - Escalate: `PR #N (REP-xxx): intra-session conflict could not be auto-resolved — manual resolution required. Conflicting files: <file list>`
+     - Remove PR from watch list.
 
 **`UNKNOWN`** — GitHub hasn't computed mergeability yet (transient state). No action — continue polling on the next cycle without logging.
 
