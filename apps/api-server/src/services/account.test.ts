@@ -3,6 +3,7 @@ import expect from 'expect'
 import { chain, map, parallel, promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { decodeId, encodeId } from '~/modules/database'
+import { createStubEmailUtils } from '~/modules/email-utils'
 import { Harness, createTestHarness, fixtures } from '~/testing'
 import {
   notFound,
@@ -10,7 +11,7 @@ import {
   resourceConflict,
   tooManyRequests,
 } from '~/utils/errors'
-import { AccountService } from './account'
+import { AccountService, createAccountService } from './account'
 import { BillingService } from './billing'
 
 // TODO: lift into functional utilities
@@ -1473,6 +1474,65 @@ describe('Services > Account', () => {
         promise(
           accountService.applyPasswordReset('does-not-exist', 'newPassword1!')
         )
+      ).rejects.toThrow(notFound())
+    })
+  })
+
+  describe('session expiry', () => {
+    it('rejects sessions older than hard expiry', async () => {
+      const account = await promise(accountService.createAccount('Expiry Test'))
+      const email = harness.generateRandomEmailAddress()
+
+      const user = await promise(
+        accountService.createUser(account.id, 'Jane Doe', email, 'hunter2!')
+      )
+
+      const session = await promise(
+        accountService.createSession(user.id, 'user')
+      )
+
+      // Negative sessionHardExpiry puts the cutoff in the future, making all existing sessions expired
+      const stubEmail = createStubEmailUtils([])
+      const expiredService = createAccountService(
+        harness.db,
+        stubEmail,
+        undefined,
+        -60
+      )
+
+      await expect(
+        promise(expiredService.getSessionByToken(session.sessionToken))
+      ).rejects.toThrow(notFound())
+    })
+
+    it('deleteExpiredSessions removes stale sessions', async () => {
+      const account = await promise(
+        accountService.createAccount('Cleanup Test')
+      )
+      const email = harness.generateRandomEmailAddress()
+
+      const user = await promise(
+        accountService.createUser(account.id, 'Jane Doe', email, 'hunter2!')
+      )
+
+      const session = await promise(
+        accountService.createSession(user.id, 'user')
+      )
+
+      // Negative sessionHardExpiry puts the cutoff in the future, making all existing sessions expired
+      const stubEmail = createStubEmailUtils([])
+      const expiredService = createAccountService(
+        harness.db,
+        stubEmail,
+        undefined,
+        -60
+      )
+
+      await promise(expiredService.deleteExpiredSessions())
+
+      // The session row should now be gone even when looked up via the normal service
+      await expect(
+        promise(accountService.getSessionByToken(session.sessionToken))
       ).rejects.toThrow(notFound())
     })
   })

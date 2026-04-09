@@ -43,6 +43,7 @@ const envSchema = z.object({
   SESSION_COOKIE: z.string().default('sessid'),
   SESSION_SOFT_EXPIRY: numericStringTransform.default(3600),
   SESSION_HARD_EXPIRY: numericStringTransform.default(28 * 24 * 3600),
+  SESSION_CLEANUP_INTERVAL: numericStringTransform.default(3600),
   EMAIL_SMTP_HOST: z.string().default('localhost'),
   EMAIL_SMTP_PORT: numericStringTransform.default(587),
   EMAIL_SMTP_SECURE: booleanStringTransform.default(true),

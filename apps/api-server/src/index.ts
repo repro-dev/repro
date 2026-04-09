@@ -9,6 +9,7 @@ import {
   serializerCompiler,
   validatorCompiler,
 } from 'fastify-type-provider-zod'
+import { fork } from 'fluture'
 import { defaultEnv as env } from '~/config/env'
 import { createSessionDecorator } from '~/decorators/session'
 import { createPaddleClient } from '~/modules/billing'
@@ -79,7 +80,8 @@ const billingService = createBillingService(database, env)
 const accountService = createAccountService(
   database,
   emailUtils,
-  billingService
+  billingService,
+  env.SESSION_HARD_EXPIRY
 )
 const agenticService = createAgenticService(database, httpClient)
 const oauthService = createOAuthService(database)
@@ -298,6 +300,16 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
       }
     }
   )
+
+  // Periodically delete sessions past hard expiry — runs out of band so it
+  // never blocks request handling.
+  const cleanupInterval = setInterval(() => {
+    accountService.deleteExpiredSessions().pipe(fork(console.error)(() => {}))
+  }, env.SESSION_CLEANUP_INTERVAL * 1000)
+
+  app.addHook('onClose', () => {
+    clearInterval(cleanupInterval)
+  })
 }
 
 bootstrap({
