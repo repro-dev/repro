@@ -59,3 +59,32 @@ describe('Button height — formControlHeight tokens (REP-659)', () => {
     expect(btn).not.toBeNull()
   })
 })
+
+describe('Button display and width — REP-314', () => {
+  it('default Button has display: inline-flex', () => {
+    render(<Button>Text</Button>)
+    const css = getCSSText()
+    expect(css).toContain('display: inline-flex')
+  })
+
+  it('fullWidth Button has display: flex', () => {
+    render(<Button fullWidth>Text</Button>)
+    const css = getCSSText()
+    // fullWidth restores block-level flex layout
+    expect(css).toContain('display: flex')
+  })
+
+  it('fullWidth Button has width: 100%', () => {
+    render(<Button fullWidth>Text</Button>)
+    const css = getCSSText()
+    expect(css).toContain('width: 100%')
+  })
+
+  it('active press uses scaleY transform, not uniform scale', () => {
+    render(<Button>Text</Button>)
+    const css = getCSSText()
+    // Must use height-based scaleY — NOT scale(0.96)
+    expect(css).toContain('scaleY')
+    expect(css).not.toContain('scale(0.96)')
+  })
+})

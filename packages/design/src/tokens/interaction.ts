@@ -129,7 +129,8 @@ export function focusWithinRing(context: FocusRingContext = 'default') {
 export function activePress() {
   return {
     '&:active:not(:disabled)': {
-      transform: 'scale(0.96)',
+      // scaleY-only so the press depth is consistent regardless of button width
+      transform: 'scaleY(0.92)',
     },
   } as const
 }

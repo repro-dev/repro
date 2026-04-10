@@ -37,7 +37,16 @@ export const Default: Story = {
     size: 'medium',
     rounded: true,
     disabled: false,
+    fullWidth: false,
   },
+}
+
+export const FullWidth: Story = {
+  render: () => (
+    <Block maxWidth={400} padding={16}>
+      <Button fullWidth>Full Width Button</Button>
+    </Block>
+  ),
 }
 
 export const ClickTest: Story = {
