@@ -401,6 +401,7 @@ describe('Agentic rate limiting', () => {
         expect(res.statusCode).toEqual(200)
         expect(res.headers['x-ratelimit-limit']).toBeDefined()
         expect(res.headers['x-ratelimit-remaining']).toBeDefined()
+        expect(res.headers['x-ratelimit-reset']).toBeDefined()
       } finally {
         await freshApp.close()
       }

@@ -1,4 +1,5 @@
 import { FastifyPluginAsync, FastifyRequest } from 'fastify'
+import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { go, map } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
@@ -23,10 +24,13 @@ export function createAgenticRouter(
 
   // In-memory per-recording message counter. Resets on server restart.
   // Intentional: acceptable for MVP with a single API server instance.
-  const recordingMessageCounts = new Map()
+  const recordingMessageCounts = new Map<string, number>()
 
   return async function (fastify) {
-    const app = fastify.withTypeProvider()
+    const app = fastify.withTypeProvider<ZodTypeProvider>()
+
+    // SSE concurrent connection limit (max 10 per user) is deferred pending
+    // the SSE endpoint being built. See REP-752 for the requirement.
 
     const toolCallSchema = z.object({
       id: z.string(),
@@ -89,7 +93,7 @@ export function createAgenticRouter(
       }),
     }
 
-    app.post<{ Body: z.infer<typeof createResponseSchema.body> }>(
+    app.post(
       '/response',
       {
         schema: createResponseSchema,
@@ -112,7 +116,7 @@ export function createAgenticRouter(
           if (count >= agenticMaxMessagesPerRecording) {
             req.log.warn(
               {
-                user_id: session?.subjectId,
+                user_id: session?.subjectId ?? null,
                 recording_id: recordingId,
                 limit_type: 'agentic_recording_cap',
               },
@@ -149,28 +153,24 @@ export function createAgenticRouter(
       }),
     }
 
-    app.post<{ Body: z.infer<typeof feedbackSchema.body> }>(
-      '/feedback',
-      { schema: feedbackSchema },
-      (req, res) => {
-        const { sentiment, promptVersion, comment, recordingId } = req.body
-        respondWith(
-          res,
-          go(function* () {
-            const user = yield req.getCurrentUser()
-            yield accountService.ensureUser(user)
-            yield agenticService.recordFeedback(
-              user.id,
-              sentiment,
-              promptVersion,
-              comment ?? null,
-              recordingId ?? null
-            )
-            return null
-          }),
-          201
-        )
-      }
-    )
+    app.post('/feedback', { schema: feedbackSchema }, (req, res) => {
+      const { sentiment, promptVersion, comment, recordingId } = req.body
+      respondWith(
+        res,
+        go(function* () {
+          const user = yield req.getCurrentUser()
+          yield accountService.ensureUser(user)
+          yield agenticService.recordFeedback(
+            user.id,
+            sentiment,
+            promptVersion,
+            comment ?? null,
+            recordingId ?? null
+          )
+          return null
+        }),
+        201
+      )
+    })
   }
 }
