@@ -1,7 +1,10 @@
 import { Block, Row } from '@jsxstyle/react'
-import React, { PropsWithChildren } from 'react'
+import { X as XIcon } from 'lucide-react'
+import React, { PropsWithChildren, useRef, useState } from 'react'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
+import { focusRing } from '../tokens/interaction'
+import { transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { fontSize, lineHeight } from '../tokens/typography'
 
@@ -28,6 +31,13 @@ const colorMap: Record<AlertType, string> = {
   danger: color.danger,
 }
 
+const subtleColorMap: Record<AlertType, string> = {
+  info: color.infoSubtle,
+  success: color.successSubtle,
+  warning: color.warningSubtle,
+  danger: color.dangerSubtle,
+}
+
 /**
  * Maps alert type to the appropriate ARIA live region role.
  *
@@ -46,6 +56,8 @@ const ariaRoleMap: Record<AlertType, 'alert' | 'status'> = {
 type Props = PropsWithChildren<{
   type: AlertType
   icon?: React.ReactNode
+  /** When provided, renders a dismiss button. Consumer is responsible for unmounting the Alert. */
+  onDismiss?: () => void
 }>
 
 /**
@@ -54,24 +66,72 @@ type Props = PropsWithChildren<{
  * Use for contextual messages: `danger`/`warning` render as `role="alert"`,
  * `info`/`success` as `role="status"`. Pass an optional `icon` to reinforce
  * the message type visually.
+ *
+ * When `onDismiss` is provided, a dismiss button is rendered. After clicking,
+ * a 200ms fade-out plays, then `onDismiss` is called. Focus is restored to the
+ * previously-focused element on dismiss.
  */
-export const Alert: React.FC<Props> = ({ children, icon, type }) => (
-  <Row
-    alignItems="start"
-    padding={spacing.xl}
-    background={backgroundColorMap[type]}
-    border={`1px solid ${borderColorMap[type]}`}
-    color={colorMap[type]}
-    fontSize={fontSize.xs}
-    lineHeight={lineHeight.relaxed}
-    borderRadius={radius.sm}
-    props={{ role: ariaRoleMap[type] }}
-  >
-    {icon && (
-      <Block marginRight={spacing.md} aria-hidden="true">
-        {icon}
-      </Block>
-    )}
-    <Block>{children}</Block>
-  </Row>
-)
+export const Alert: React.FC<Props> = ({ children, icon, type, onDismiss }) => {
+  const [dismissing, setDismissing] = useState(false)
+  // Captures the focused element at click time so we can restore focus after dismiss.
+  const previousFocusRef = useRef<Element | null>(null)
+
+  const handleDismiss = () => {
+    previousFocusRef.current = document.activeElement
+    setDismissing(true)
+    setTimeout(() => {
+      if (previousFocusRef.current instanceof HTMLElement) {
+        previousFocusRef.current.focus()
+      }
+      onDismiss?.()
+    }, 200)
+  }
+
+  return (
+    <Row
+      alignItems="start"
+      padding={spacing.xl}
+      background={backgroundColorMap[type]}
+      border={`1px solid ${borderColorMap[type]}`}
+      color={colorMap[type]}
+      fontSize={fontSize.xs}
+      lineHeight={lineHeight.relaxed}
+      borderRadius={radius.sm}
+      opacity={dismissing ? 0 : 1}
+      transition={transition.opacity}
+      props={{ role: ariaRoleMap[type] }}
+    >
+      {icon && (
+        <Block marginRight={spacing.md} aria-hidden="true">
+          {icon}
+        </Block>
+      )}
+      <Block flex={onDismiss ? '1' : undefined}>{children}</Block>
+      {onDismiss && (
+        <Row
+          component="button"
+          marginLeft="auto"
+          width={spacing['2xl']}
+          height={spacing['2xl']}
+          alignItems="center"
+          justifyContent="center"
+          background="none"
+          border="none"
+          borderRadius={radius.sm}
+          cursor="pointer"
+          color={colorMap[type]}
+          hoverBackgroundColor={subtleColorMap[type]}
+          flexShrink={0}
+          props={{
+            type: 'button',
+            'aria-label': 'Dismiss',
+            onClick: handleDismiss,
+          }}
+          {...focusRing(type)}
+        >
+          <XIcon size={14} />
+        </Row>
+      )}
+    </Row>
+  )
+}

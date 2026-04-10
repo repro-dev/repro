@@ -6,7 +6,7 @@ import {
   InfoIcon,
   XCircleIcon,
 } from 'lucide-react'
-import React from 'react'
+import React, { useState } from 'react'
 import { spacing } from '../tokens/spacing'
 import { Alert } from './Alert'
 
@@ -129,4 +129,51 @@ export const Stacked: Story = {
       </Alert>
     </Col>
   ),
+}
+
+export const Dismissable: Story = {
+  render: () => {
+    const [alerts, setAlerts] = useState([
+      {
+        id: 'info',
+        type: 'info' as const,
+        message:
+          'Scheduled maintenance is planned for Saturday 22 March, 2:00–4:00 UTC.',
+      },
+      {
+        id: 'success',
+        type: 'success' as const,
+        message: 'Your changes have been saved successfully.',
+      },
+      {
+        id: 'warning',
+        type: 'warning' as const,
+        message:
+          'Recording limit is approaching. Upgrade your plan to continue.',
+      },
+      {
+        id: 'danger',
+        type: 'danger' as const,
+        message: 'Authentication failed. Your session has expired.',
+      },
+    ])
+
+    const dismiss = (id: string) =>
+      setAlerts(prev => prev.filter(a => a.id !== id))
+
+    return (
+      <Col gap={spacing.md}>
+        {alerts.map(alert => (
+          <Alert
+            key={alert.id}
+            type={alert.type}
+            onDismiss={() => dismiss(alert.id)}
+          >
+            {alert.message}
+          </Alert>
+        ))}
+        {alerts.length === 0 && <Block>All alerts dismissed.</Block>}
+      </Col>
+    )
+  },
 }
