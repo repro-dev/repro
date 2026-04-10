@@ -4,6 +4,7 @@ layer: application
 tags:
   - type.app
   - build.ssr
+  - role.ui
 tasks:
   build:
     command: pnpm run build
