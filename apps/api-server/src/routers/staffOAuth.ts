@@ -157,10 +157,5 @@ export function createStaffOAuthRouter(
 
       respondWith(res, handleCallback)
     })
-
-    // POST /logout — revoke the staff session
-    fastify.post('/logout', (req, res) => {
-      respondWith(res, req.revokeSession())
-    })
   }
 }
