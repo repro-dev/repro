@@ -1,12 +1,12 @@
-import { ApiProvider, createApiClient } from '@repro/api-client'
-import { RecordingMode } from '@repro/domain'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { ApiClient, ApiProvider, createApiClient } from '@repro/api-client'
+import { RecordingInfo, RecordingMode } from '@repro/domain'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { FutureInstance, never, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { ProjectProvider } from '~/ProjectContext'
+import { ProjectProvider, useProjectContext } from '~/ProjectContext'
 import { HomeRoute } from './HomeRoute'
 
 // Minimal API client for ApiProvider
@@ -38,7 +38,7 @@ Object.defineProperty(global, 'localStorage', {
   configurable: true,
 })
 
-const mockRecordings = [
+const mockRecordings: Array<RecordingInfo> = [
   {
     id: 'rec-1',
     title: 'First Recording',
@@ -85,6 +85,36 @@ function makeWrapper(initialProjectId = 'proj-1') {
   }
 }
 
+// Wrapper that provides two projects and exposes a button to switch between them.
+function makeTwoProjectWrapper() {
+  const twoProjects = [
+    { id: 'proj-a', name: 'Project A' },
+    { id: 'proj-b', name: 'Project B' },
+  ]
+  const getProjects = () => resolve(twoProjects)
+
+  // A small inner component that renders a switch button using the context.
+  function ProjectSwitcher() {
+    const { selectProject } = useProjectContext()
+    return (
+      <button onClick={() => selectProject('proj-b')}>Switch to proj-b</button>
+    )
+  }
+
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <MemoryRouter>
+        <ApiProvider client={mockApiClient}>
+          <ProjectProvider getProjects={getProjects}>
+            <ProjectSwitcher />
+            {children}
+          </ProjectProvider>
+        </ApiProvider>
+      </MemoryRouter>
+    )
+  }
+}
+
 describe('HomeRoute', () => {
   afterEach(() => {
     cleanup()
@@ -94,10 +124,14 @@ describe('HomeRoute', () => {
   describe('loading state', () => {
     it('should show session title while loading', () => {
       // never is a valid Fluture Future that never resolves or rejects
-      const getProjectRecordings = () => never as FutureInstance<Error, never>
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        _projectId: string
+      ): FutureInstance<Error, Array<RecordingInfo>> =>
+        never as FutureInstance<Error, Array<RecordingInfo>>
 
       const wrapper = makeWrapper()
-      render(<HomeRoute getProjectRecordings={getProjectRecordings as any} />, {
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
         wrapper,
       })
 
@@ -108,10 +142,13 @@ describe('HomeRoute', () => {
 
   describe('empty state', () => {
     it('should show empty state when no recordings', async () => {
-      const getProjectRecordings = () => resolve([])
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        _projectId: string
+      ): FutureInstance<Error, Array<RecordingInfo>> => resolve([])
       const wrapper = makeWrapper()
 
-      render(<HomeRoute getProjectRecordings={getProjectRecordings as any} />, {
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
         wrapper,
       })
 
@@ -123,10 +160,13 @@ describe('HomeRoute', () => {
 
   describe('populated state', () => {
     it('should show recording tiles when loaded', async () => {
-      const getProjectRecordings = () => resolve(mockRecordings)
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        _projectId: string
+      ): FutureInstance<Error, Array<RecordingInfo>> => resolve(mockRecordings)
       const wrapper = makeWrapper()
 
-      render(<HomeRoute getProjectRecordings={getProjectRecordings as any} />, {
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
         wrapper,
       })
 
@@ -137,10 +177,13 @@ describe('HomeRoute', () => {
     })
 
     it('should show Sessions(N) count in title when recordings exist', async () => {
-      const getProjectRecordings = () => resolve(mockRecordings)
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        _projectId: string
+      ): FutureInstance<Error, Array<RecordingInfo>> => resolve(mockRecordings)
       const wrapper = makeWrapper()
 
-      render(<HomeRoute getProjectRecordings={getProjectRecordings as any} />, {
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
         wrapper,
       })
 
@@ -151,18 +194,52 @@ describe('HomeRoute', () => {
 
     it('should call getProjectRecordings with the project id', async () => {
       let capturedProjectId: string | null = null
-      const getProjectRecordings = (_client: unknown, projectId: string) => {
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        projectId: string
+      ): FutureInstance<Error, Array<RecordingInfo>> => {
         capturedProjectId = projectId
         return resolve(mockRecordings)
       }
       const wrapper = makeWrapper('proj-42')
 
-      render(<HomeRoute getProjectRecordings={getProjectRecordings as any} />, {
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
         wrapper,
       })
 
       await waitFor(() => {
         assert.equal(capturedProjectId, 'proj-42')
+      })
+    })
+
+    it('should re-fetch when the active project changes', async () => {
+      const calledWithProjectIds: Array<string> = []
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        projectId: string
+      ): FutureInstance<Error, Array<RecordingInfo>> => {
+        calledWithProjectIds.push(projectId)
+        return resolve(mockRecordings)
+      }
+
+      const wrapper = makeTwoProjectWrapper()
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
+        wrapper,
+      })
+
+      // Wait for the initial fetch with proj-a to complete
+      await waitFor(() => {
+        assert.ok(calledWithProjectIds.includes('proj-a'))
+      })
+
+      // Switch to the second project
+      act(() => {
+        screen.getByRole('button', { name: 'Switch to proj-b' }).click()
+      })
+
+      // Wait for the re-fetch with proj-b
+      await waitFor(() => {
+        assert.ok(calledWithProjectIds.includes('proj-b'))
       })
     })
   })
