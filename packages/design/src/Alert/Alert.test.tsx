@@ -114,6 +114,9 @@ describe('Alert', () => {
     })
 
     it('restores focus to previously-focused element after dismiss', async () => {
+      // Create a trigger button that holds focus before the Alert mounts.
+      // previousFocusRef is captured at mount time, so we must focus the
+      // trigger *before* rendering the Alert.
       const trigger = document.createElement('button')
       trigger.id = 'focus-trigger'
       document.body.appendChild(trigger)
@@ -136,11 +139,53 @@ describe('Alert', () => {
       })
 
       expect(dismissed).toBe(true)
-      // focus should return to the trigger element
+      // focus should return to the element that was focused when the Alert mounted
       expect(document.activeElement).toBe(trigger)
 
       unmount()
       document.body.removeChild(trigger)
+    })
+
+    it('dismisses when close button is activated with Enter key', async () => {
+      let dismissed = false
+
+      render(
+        <Alert type="info" onDismiss={() => (dismissed = true)}>
+          Something happened
+        </Alert>
+      )
+
+      const button = document.querySelector('button[aria-label="Dismiss"]')
+      expect(button).not.toBeNull()
+
+      await act(async () => {
+        fireEvent.keyDown(button!, { key: 'Enter' })
+        fireEvent.click(button!)
+        await new Promise(resolve => setTimeout(resolve, 250))
+      })
+
+      expect(dismissed).toBe(true)
+    })
+
+    it('dismisses when close button is activated with Space key', async () => {
+      let dismissed = false
+
+      render(
+        <Alert type="info" onDismiss={() => (dismissed = true)}>
+          Something happened
+        </Alert>
+      )
+
+      const button = document.querySelector('button[aria-label="Dismiss"]')
+      expect(button).not.toBeNull()
+
+      await act(async () => {
+        fireEvent.keyDown(button!, { key: ' ' })
+        fireEvent.click(button!)
+        await new Promise(resolve => setTimeout(resolve, 250))
+      })
+
+      expect(dismissed).toBe(true)
     })
   })
 })

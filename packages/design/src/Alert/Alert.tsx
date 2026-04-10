@@ -1,6 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
 import { X as XIcon } from 'lucide-react'
-import React, { PropsWithChildren, useRef, useState } from 'react'
+import React, { PropsWithChildren, useEffect, useRef, useState } from 'react'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
@@ -73,11 +73,15 @@ type Props = PropsWithChildren<{
  */
 export const Alert: React.FC<Props> = ({ children, icon, type, onDismiss }) => {
   const [dismissing, setDismissing] = useState(false)
-  // Captures the focused element at click time so we can restore focus after dismiss.
+  // Captures the focused element at mount time so focus can be restored after dismiss.
   const previousFocusRef = useRef<Element | null>(null)
 
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement as HTMLElement
+  }, [])
+
   const handleDismiss = () => {
-    previousFocusRef.current = document.activeElement
+    if (dismissing) return
     setDismissing(true)
     setTimeout(() => {
       if (previousFocusRef.current instanceof HTMLElement) {
