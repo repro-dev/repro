@@ -93,7 +93,8 @@ export const PlaybackCanvas = withPlaybackErrorBoundary<
 
     const viewportContents = (
       <React.Fragment>
-        <FrameRealm ref={frameRef}>
+        {/* inert prevents Tab/Shift+Tab from focusing replayed DOM elements */}
+        <FrameRealm ref={frameRef} inert="">
           <Delay duration={500}>
             <NativeDOMRenderer
               trackScroll={trackScroll}
