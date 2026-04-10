@@ -32,7 +32,7 @@ const ProjectContext = createContext<ProjectContextValue>({
 
 interface ProjectProviderProps extends React.PropsWithChildren {
   // Injectable for testing; defaults to the real workspace-api function.
-  getProjects?: (apiClient: ApiClient) => FutureInstance<Error, Array<Project>>
+  getProjects?: (apiClient: ApiClient) => FutureInstance<Error, Project[]>
 }
 
 export const ProjectProvider: React.FC<ProjectProviderProps> = ({
@@ -50,13 +50,13 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
   )
 
   // Projects added locally (e.g. just created) before the next fetch.
-  const [localProjects, setLocalProjects] = useState<Array<Project>>([])
+  const [localProjects, setLocalProjects] = useState<Project[]>([])
 
   const fetchedProjects: Array<Project> = result.success ? result.data : []
 
   // Merge fetched + local; deduplicate by id (fetched takes precedence).
   const projects = useMemo(() => {
-    const seen = new Set<string>(fetchedProjects.map(p => p.id))
+    const seen = new Set(fetchedProjects.map(p => p.id))
     return [...fetchedProjects, ...localProjects.filter(p => !seen.has(p.id))]
   }, [fetchedProjects, localProjects])
 
@@ -91,7 +91,13 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
   }, [])
 
   const addProject = useCallback((project: Project) => {
-    setLocalProjects(prev => [...prev, project])
+    setLocalProjects(prev => {
+      // Deduplicate: skip if this id is already present.
+      if (prev.some(p => p.id === project.id)) {
+        return prev
+      }
+      return [...prev, project]
+    })
     setSelectedProjectId(project.id)
     localStorage.setItem(STORAGE_KEY, project.id)
   }, [])

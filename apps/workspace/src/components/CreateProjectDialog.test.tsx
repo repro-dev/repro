@@ -60,6 +60,87 @@ describe('CreateProjectDialog', () => {
   })
 
   describe('validation', () => {
+    it('shows a validation error when form is submitted with empty name', async () => {
+      const createProjectMock = mock.fn(() => resolve(mockProject))
+
+      render(
+        <MemoryRouter>
+          <ApiProvider client={apiClient}>
+            <ProjectProvider getProjects={() => resolve([])}>
+              <CreateProjectDialog
+                open={true}
+                onClose={() => void 0}
+                createProjectFn={createProjectMock}
+              />
+            </ProjectProvider>
+          </ApiProvider>
+        </MemoryRouter>
+      )
+
+      await waitFor(() => screen.getByText('Create project'))
+
+      // Submit without entering a name
+      const form = screen
+        .getByRole('textbox')
+        .closest('form') as HTMLFormElement
+      await act(async () => {
+        fireEvent.submit(form)
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByRole('alert'))
+      })
+
+      // API should NOT have been called
+      assert.equal(createProjectMock.mock.calls.length, 0)
+    })
+
+    it('does not call createProject when submitting while already in flight', async () => {
+      const createProjectMock = mock.fn(
+        (): FutureInstance<Error, Project> => never
+      )
+
+      render(
+        <MemoryRouter>
+          <ApiProvider client={apiClient}>
+            <ProjectProvider getProjects={() => resolve([])}>
+              <CreateProjectDialog
+                open={true}
+                onClose={() => void 0}
+                createProjectFn={createProjectMock}
+              />
+            </ProjectProvider>
+          </ApiProvider>
+        </MemoryRouter>
+      )
+
+      await waitFor(() => screen.getByText('Create project'))
+
+      const input = screen.getByRole('textbox')
+      fireEvent.change(input, { target: { value: 'My Project' } })
+
+      const createButton = screen.getByRole('button', { name: /create/i })
+      const form = input.closest('form') as HTMLFormElement
+
+      // First submit — sets submitting=true, future never resolves
+      act(() => {
+        fireEvent.submit(form)
+      })
+
+      // Wait for React to process and set submitting=true (button becomes disabled)
+      await waitFor(() => {
+        assert.equal((createButton as HTMLButtonElement).disabled, true)
+      })
+
+      // Second submit while first is still in flight
+      act(() => {
+        fireEvent.submit(form)
+      })
+
+      // Should only have been called once
+      assert.equal(createProjectMock.mock.calls.length, 1)
+    })
+
     it('Create button is disabled when name is empty', async () => {
       render(
         <MemoryRouter>
@@ -209,7 +290,7 @@ describe('CreateProjectDialog', () => {
     it('disables buttons while submitting', async () => {
       // Use fluture's `never` to simulate an in-flight request that never settles
       const createProjectMock = mock.fn(
-        (): FutureInstance<never, never> => never
+        (): FutureInstance<Error, Project> => never
       )
 
       render(

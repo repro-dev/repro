@@ -64,8 +64,18 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
     (evt: React.FormEvent) => {
       evt.preventDefault()
 
+      // Prevent double-submit if a request is already in flight.
+      if (submitting) {
+        return
+      }
+
       const trimmed = name.trim()
-      if (!trimmed || trimmed.length > MAX_NAME_LENGTH) {
+      if (!trimmed) {
+        setError('Project name is required.')
+        return
+      }
+      if (trimmed.length > MAX_NAME_LENGTH) {
+        setError(`Project name must be ${MAX_NAME_LENGTH} characters or fewer.`)
         return
       }
 
@@ -89,6 +99,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
       cancelRef.current = cancel as unknown as () => void
     },
     [
+      submitting,
       name,
       apiClient,
       createProjectFn,

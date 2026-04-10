@@ -41,7 +41,7 @@ const apiClient = createApiClient({
 
 type GetProjectsFn = (
   client: typeof apiClient
-) => FutureInstance<Error, Array<Project>>
+) => FutureInstance<Error, Project[]>
 
 function makeWrapper(getProjects: GetProjectsFn) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
@@ -238,6 +238,27 @@ describe('ProjectContext', () => {
       })
 
       assert.equal(localStorageMock.getItem(STORAGE_KEY), 'project-new')
+    })
+
+    it('should not add duplicate project when addProject is called twice with the same id', async () => {
+      const wrapper = makeWrapper(() => resolve(mockProjects))
+      const { result } = renderHook(() => useProjectContext(), { wrapper })
+
+      await waitFor(() => {
+        assert.equal(result.current.loading, false)
+      })
+
+      const newProject: Project = { id: 'project-new', name: 'New Project' }
+
+      act(() => {
+        result.current.addProject(newProject)
+        result.current.addProject(newProject)
+      })
+
+      const count = result.current.projects.filter(
+        (p: Project) => p.id === 'project-new'
+      ).length
+      assert.equal(count, 1, 'project should appear exactly once')
     })
   })
 })
