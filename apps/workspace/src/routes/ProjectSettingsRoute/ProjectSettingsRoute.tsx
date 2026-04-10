@@ -18,7 +18,7 @@ import {
   spacing,
   useConfirm,
 } from '@repro/design'
-import { ProjectRole } from '@repro/domain'
+import { Project, ProjectRole } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import {
   ProjectMember,
@@ -51,7 +51,7 @@ interface ProjectSettingsRouteProps {
     apiClient: ApiClient,
     projectId: string,
     name: string
-  ) => FutureInstance<Error, unknown>
+  ) => FutureInstance<Error, Project>
   deactivateProject?: (
     apiClient: ApiClient,
     projectId: string
@@ -73,7 +73,11 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
   const [renameError, setRenameError] = useState<string | null>(null)
   const [archiveError, setArchiveError] = useState<string | null>(null)
 
-  const { loading, data: members } = useFuture(
+  const {
+    loading,
+    data: members,
+    error: membersError,
+  } = useFuture(
     () => getMembers(apiClient, projectId),
     [apiClient, projectId, getMembers]
   )
@@ -81,6 +85,7 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting, isDirty },
   } = useForm({
     resolver: zodResolver(renameSchema),
@@ -99,12 +104,14 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
             )
             resolve()
           })(() => {
+            // Reset form to the saved value so isDirty becomes false
+            reset({ name: values.name })
             resolve()
           })
         )
       })
     },
-    [apiClient, projectId, renameProject]
+    [apiClient, projectId, renameProject, reset]
   )
 
   const handleArchive = useCallback(async () => {
@@ -132,6 +139,24 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
 
   if (loading) {
     return <FullPageLoading />
+  }
+
+  // Distinguish a fetch/network error from a permission failure so we don't
+  // mislead the user with an authorization message when the real cause is a
+  // server or network problem.
+  if (membersError) {
+    return (
+      <PageFrame>
+        <PageFrame.Header>
+          <PageFrame.Title>Project Settings</PageFrame.Title>
+        </PageFrame.Header>
+        <PageFrame.Body maxWidth={720}>
+          <Alert type="danger">
+            Failed to load project membership. Please try refreshing the page.
+          </Alert>
+        </PageFrame.Body>
+      </PageFrame>
+    )
   }
 
   const currentMember = (members ?? []).find(

@@ -1,6 +1,6 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { ConfirmDialogProvider } from '@repro/design'
-import { ProjectRole } from '@repro/domain'
+import { Project, ProjectRole } from '@repro/domain'
 import { ProjectMember } from '@repro/workspace-api'
 import {
   act,
@@ -59,7 +59,7 @@ type RenameFn = (
   client: typeof apiClient,
   projectId: string,
   name: string
-) => FutureInstance<Error, unknown>
+) => FutureInstance<Error, Project>
 
 type DeactivateFn = (
   client: typeof apiClient,
@@ -75,9 +75,11 @@ interface TestProps {
   currentUserId?: string
 }
 
+const fakeProject: Project = { id: 'proj-1', name: 'My Project' }
+
 function renderRoute({
   getMembers = () => resolve([adminMember]),
-  renameProject = () => resolve({}),
+  renameProject = () => resolve(fakeProject),
   deactivateProject = () => resolve(undefined),
   projectName = 'My Project',
   projectId = 'proj-1',
@@ -148,6 +150,27 @@ describe('ProjectSettingsRoute', () => {
         )
       })
     })
+
+    it('shows a fetch error alert (not a permission warning) when getMembers rejects', async () => {
+      const fetchError = new Error('Network failure')
+      const mockGetMembers: GetMembersFn = () =>
+        reject(fetchError) as unknown as FutureInstance<Error, ProjectMember[]>
+
+      renderRoute({ getMembers: mockGetMembers })
+
+      await waitFor(() => {
+        // Should show a generic fetch-error message, not the permission-denied copy
+        assert.ok(
+          screen.getByText(/failed to load project membership/i),
+          'fetch error alert should be shown'
+        )
+        assert.equal(
+          screen.queryByText(/don.t have permission/i),
+          null,
+          'permission message must NOT be shown for a fetch failure'
+        )
+      })
+    })
   })
 
   describe('when user is admin', () => {
@@ -190,7 +213,7 @@ describe('ProjectSettingsRoute', () => {
       const renameCalls: Array<[string, string]> = []
       const mockRename: RenameFn = (_client, projectId, name) => {
         renameCalls.push([projectId, name])
-        return resolve({})
+        return resolve(fakeProject)
       }
 
       renderRoute({
@@ -214,6 +237,39 @@ describe('ProjectSettingsRoute', () => {
         assert.equal(renameCalls.length, 1)
         assert.equal(renameCalls[0]![0], 'proj-abc')
         assert.equal(renameCalls[0]![1], 'New Name')
+      })
+    })
+
+    it('disables Save after a successful rename (form is no longer dirty)', async () => {
+      renderRoute({
+        projectName: 'Old Name',
+        getMembers: () => resolve([adminMember]),
+        renameProject: () => resolve(fakeProject),
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByRole('textbox', { name: /project name/i }))
+      })
+
+      const input = screen.getByRole('textbox', { name: /project name/i })
+      fireEvent.change(input, { target: { value: 'New Name' } })
+
+      const saveButton = screen.getByRole('button', { name: /save/i })
+      // Save should be enabled while dirty
+      assert.equal((saveButton as HTMLButtonElement).disabled, false)
+
+      await act(async () => {
+        fireEvent.click(saveButton)
+      })
+
+      // After a successful save, form is reset -> Save should be disabled
+      await waitFor(() => {
+        assert.equal(
+          (screen.getByRole('button', { name: /save/i }) as HTMLButtonElement)
+            .disabled,
+          true,
+          'Save button must be disabled after a successful rename'
+        )
       })
     })
 
@@ -360,7 +416,7 @@ describe('ProjectSettingsRoute', () => {
     it('shows error alert when rename API call fails', async () => {
       const apiError = new Error('Network error')
       const mockRename: RenameFn = () =>
-        reject(apiError) as unknown as FutureInstance<Error, unknown>
+        reject(apiError) as unknown as FutureInstance<Error, Project>
 
       renderRoute({
         projectName: 'Old Name',
