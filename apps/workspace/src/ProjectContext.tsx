@@ -19,6 +19,7 @@ interface ProjectContextValue {
   selectedProject: Project | null
   loading: boolean
   selectProject: (projectId: string) => void
+  addProject: (project: Project) => void
 }
 
 const ProjectContext = createContext<ProjectContextValue>({
@@ -26,6 +27,7 @@ const ProjectContext = createContext<ProjectContextValue>({
   selectedProject: null,
   loading: true,
   selectProject: () => void 0,
+  addProject: () => void 0,
 })
 
 interface ProjectProviderProps extends React.PropsWithChildren {
@@ -47,7 +49,16 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
     localStorage.getItem(STORAGE_KEY)
   )
 
-  const projects = result.success ? result.data : []
+  // Projects added locally (e.g. just created) before the next fetch.
+  const [localProjects, setLocalProjects] = useState<Array<Project>>([])
+
+  const fetchedProjects: Array<Project> = result.success ? result.data : []
+
+  // Merge fetched + local; deduplicate by id (fetched takes precedence).
+  const projects = useMemo(() => {
+    const seen = new Set<string>(fetchedProjects.map(p => p.id))
+    return [...fetchedProjects, ...localProjects.filter(p => !seen.has(p.id))]
+  }, [fetchedProjects, localProjects])
 
   // Resolve the selected project: prefer the persisted ID if it's still valid,
   // otherwise fall back to the first project in the list.
@@ -79,14 +90,21 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
     localStorage.setItem(STORAGE_KEY, projectId)
   }, [])
 
+  const addProject = useCallback((project: Project) => {
+    setLocalProjects(prev => [...prev, project])
+    setSelectedProjectId(project.id)
+    localStorage.setItem(STORAGE_KEY, project.id)
+  }, [])
+
   const value = useMemo(
     () => ({
       projects,
       selectedProject,
       loading: result.loading,
       selectProject,
+      addProject,
     }),
-    [projects, selectedProject, result.loading, selectProject]
+    [projects, selectedProject, result.loading, selectProject, addProject]
   )
 
   return (

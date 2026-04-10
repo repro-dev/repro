@@ -200,4 +200,44 @@ describe('ProjectContext', () => {
       assert.deepEqual(result.current.projects, mockProjects)
     })
   })
+
+  describe('addProject', () => {
+    it('should append new project to list and select it', async () => {
+      const wrapper = makeWrapper(() => resolve(mockProjects))
+      const { result } = renderHook(() => useProjectContext(), { wrapper })
+
+      await waitFor(() => {
+        assert.equal(result.current.loading, false)
+      })
+
+      const newProject: Project = { id: 'project-new', name: 'New Project' }
+
+      act(() => {
+        result.current.addProject(newProject)
+      })
+
+      assert.ok(
+        result.current.projects.some((p: Project) => p.id === 'project-new'),
+        'new project should be in the list'
+      )
+      assert.equal(result.current.selectedProject?.id, 'project-new')
+    })
+
+    it('should persist new project selection to localStorage', async () => {
+      const wrapper = makeWrapper(() => resolve(mockProjects))
+      const { result } = renderHook(() => useProjectContext(), { wrapper })
+
+      await waitFor(() => {
+        assert.equal(result.current.loading, false)
+      })
+
+      const newProject: Project = { id: 'project-new', name: 'New Project' }
+
+      act(() => {
+        result.current.addProject(newProject)
+      })
+
+      assert.equal(localStorageMock.getItem(STORAGE_KEY), 'project-new')
+    })
+  })
 })
