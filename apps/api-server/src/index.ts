@@ -1,5 +1,6 @@
 import compress from '@fastify/compress'
 import cors from '@fastify/cors'
+import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
 import { buildRateLimitOptions } from '~/rateLimit'
 
@@ -39,6 +40,7 @@ import { serverError } from '~/utils/errors'
 import { createHttpClient } from './modules/http'
 import { createStaffRouter } from './routers/staff'
 import { createStaffOAuthRouter } from './routers/staffOAuth'
+import { buildHelmetOptions } from './securityHeaders'
 import { createAgenticService } from './services/agentic'
 import { startExpiredSessionCleanup } from './sessionCleanup'
 
@@ -250,6 +252,11 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   })
 
   app.register(compress)
+
+  app.register(
+    helmet,
+    buildHelmetOptions({ isProduction: process.env.NODE_ENV === 'production' })
+  )
 
   // Build an optional Redis client for distributed rate limiting.
   // Falls back to in-memory store when RATE_LIMIT_REDIS_URL is not set.

@@ -17,6 +17,7 @@ describe('Routers > Billing', () => {
     app = harness.bootstrap(
       createBillingRouter(billingService, harness.services.accountService)
     )
+    await app.ready()
   })
 
   beforeEach(async () => {
@@ -41,7 +42,7 @@ describe('Routers > Billing', () => {
           planId: proPlan.id,
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -65,7 +66,7 @@ describe('Routers > Billing', () => {
           planId: proPlan.id,
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -94,7 +95,7 @@ describe('Routers > Billing', () => {
           planId: 'nonexistent-plan-id',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -125,7 +126,7 @@ describe('Routers > Billing', () => {
         url: '/checkout',
         body: {},
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 

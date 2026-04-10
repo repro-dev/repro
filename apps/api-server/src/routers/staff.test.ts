@@ -1,3 +1,4 @@
+import { unsign } from '@fastify/cookie'
 import { Account, Session, User } from '@repro/domain'
 import expect from 'expect'
 import { FastifyInstance } from 'fastify'
@@ -49,12 +50,16 @@ describe('Routers > Staff', () => {
         c => c.name === harness.env.SESSION_COOKIE
       )
 
-      const sessionToken = cookie?.value
-
-      expect(sessionToken).not.toBeUndefined()
+      // Cookie value is signed (rawToken.signature); unsign to get the raw token for DB lookup
+      const rawToken = unsign(
+        cookie?.value ?? '',
+        harness.env.SESSION_SECRET
+      ).value
+      expect(rawToken).not.toBeNull()
+      const sessionToken = rawToken as string
 
       await expect(
-        promise(accountService.getSessionByToken(sessionToken as string))
+        promise(accountService.getSessionByToken(sessionToken))
       ).resolves.toMatchObject({
         id: expect.any(String),
         sessionToken,
