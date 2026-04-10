@@ -27,6 +27,7 @@ const AcceptInvitationRoute = lazy(
   () => import('./routes/AcceptInvitationRoute')
 )
 const PricingRoute = lazy(() => import('./routes/PricingRoute'))
+const ProjectSettingsRoute = lazy(() => import('./routes/ProjectSettingsRoute'))
 const RecordingRoute = lazy(() => import('./routes/RecordingRoute'))
 const RegisterRoute = lazy(() => import('./routes/RegisterRoute'))
 const ResetPasswordRoute = lazy(() => import('./routes/ResetPasswordRoute'))
@@ -123,6 +124,10 @@ if (rootElem) {
                         <Route
                           path="projects/:projectId/recordings/:recordingId"
                           element={<RecordingRoute />}
+                        />
+                        <Route
+                          path="projects/:projectId/settings"
+                          element={<ProjectSettingsRoute />}
                         />
                       </Route>
                     </Routes>
