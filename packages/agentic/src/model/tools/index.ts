@@ -50,6 +50,10 @@ import {
   TOOL_DEFINITION as getStateChangesDef,
   handler as getStateChanges,
 } from "./get-state-changes";
+import {
+  TOOL_DEFINITION as findUserFrustrationDef,
+  handler as findUserFrustration,
+} from "./find-user-frustration";
 import type { ToolHandler } from "./common";
 
 export const tools = [
@@ -65,6 +69,7 @@ export const tools = [
   getUserActionsDef,
   captureScreenshotDef,
   getStateChangesDef,
+  findUserFrustrationDef,
 ];
 
 // Subset of tools for the browser extension agent. captureScreenshot is
@@ -87,6 +92,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   getUserActions,
   captureScreenshot,
   getStateChanges,
+  findUserFrustration,
 };
 
 export function executeTool(
