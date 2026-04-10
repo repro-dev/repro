@@ -28,6 +28,31 @@ function getCSSText(): string {
   return rules.join('\n')
 }
 
+/**
+ * Returns the CSS rules that apply to the element's own class names, by
+ * intersecting the element's classList with the injected stylesheet rules.
+ */
+function getElementCSSText(el: Element): string {
+  const classNames = new Set(Array.from(el.classList))
+  const matchingRules: string[] = []
+  for (let i = 0; i < document.styleSheets.length; i++) {
+    const sheet = document.styleSheets[i]
+    if (!sheet) continue
+    try {
+      for (const rule of Array.from(sheet.cssRules || [])) {
+        const cssText = rule.cssText
+        const selectorMatch = cssText.match(/^\.([\w-]+)/)
+        if (selectorMatch && classNames.has(selectorMatch[1]!)) {
+          matchingRules.push(cssText)
+        }
+      }
+    } catch {
+      // cross-origin sheets; ignore
+    }
+  }
+  return matchingRules.join('\n')
+}
+
 describe('Button height — formControlHeight tokens (REP-659)', () => {
   it('small Button renders a CSS rule with height=28px', () => {
     render(<Button size="small">Click</Button>)
@@ -62,27 +87,27 @@ describe('Button height — formControlHeight tokens (REP-659)', () => {
 
 describe('Button display and width — REP-314', () => {
   it('default Button has display: inline-flex', () => {
-    render(<Button>Text</Button>)
-    const css = getCSSText()
+    const { getByRole } = render(<Button>Text</Button>)
+    const css = getElementCSSText(getByRole('button'))
     expect(css).toContain('display: inline-flex')
   })
 
   it('fullWidth Button has display: flex', () => {
-    render(<Button fullWidth>Text</Button>)
-    const css = getCSSText()
+    const { getByRole } = render(<Button fullWidth>Text</Button>)
+    const css = getElementCSSText(getByRole('button'))
     // fullWidth restores block-level flex layout
     expect(css).toContain('display: flex')
   })
 
   it('fullWidth Button has width: 100%', () => {
-    render(<Button fullWidth>Text</Button>)
-    const css = getCSSText()
+    const { getByRole } = render(<Button fullWidth>Text</Button>)
+    const css = getElementCSSText(getByRole('button'))
     expect(css).toContain('width: 100%')
   })
 
   it('active press uses scaleY transform, not uniform scale', () => {
-    render(<Button>Text</Button>)
-    const css = getCSSText()
+    const { getByRole } = render(<Button>Text</Button>)
+    const css = getElementCSSText(getByRole('button'))
     // Must use height-based scaleY — NOT scale(0.96)
     expect(css).toContain('scaleY')
     expect(css).not.toContain('scale(0.96)')
