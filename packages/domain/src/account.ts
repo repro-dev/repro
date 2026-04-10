@@ -16,6 +16,15 @@ export interface User {
   verified: boolean
 }
 
+// Staff-facing view of a user — includes email for administrative purposes
+export interface StaffUserDetail {
+  type: 'user'
+  id: string
+  name: string
+  email: string
+  verified: boolean
+}
+
 export interface StaffUser {
   type: 'staff'
   id: string

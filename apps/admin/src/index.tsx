@@ -1,5 +1,5 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
-import { AuthProvider, SessionRouteBoundary } from '@repro/auth'
+import { AuthProvider } from '@repro/auth'
 import {
   colors,
   PortalRootProvider,
@@ -12,11 +12,12 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { Loading } from './components/Loading'
+import { RequireAdminSession } from './components/RequireAdminSession'
 import { defaultEnv as env } from './config/env'
 import { Layout } from './Layout'
 import { HomeRoute } from './routes/HomeRoute'
-import { LoginRoute } from './routes/LoginRoute'
 import { RecordingRoute } from './routes/RecordingRoute/RecordingRoute'
+import { StaffLoginRoute } from './routes/StaffLoginRoute'
 
 declare global {
   interface Window {
@@ -126,16 +127,16 @@ if (rootElem) {
               <Suspense fallback={<Loading />}>
                 <Routes>
                   <Route element={<AuthLayout />}>
-                    <Route path="account/login" element={<LoginRoute />} />
+                    <Route path="login" element={<StaffLoginRoute />} />
                   </Route>
 
                   <Route element={<Layout />}>
-                    <Route element={<SessionRouteBoundary />}>
+                    <Route element={<RequireAdminSession />}>
                       <Route index element={<HomeRoute />} />
                     </Route>
                   </Route>
 
-                  <Route element={<SessionRouteBoundary />}>
+                  <Route element={<RequireAdminSession />}>
                     <Route
                       path="recordings/:recordingId"
                       element={<RecordingRoute />}

@@ -35,6 +35,9 @@ export const PortalRootProvider: React.FC<PropsWithChildren> = ({
 
   return (
     <>
+      <PortalRootContext.Provider value={root}>
+        {children}
+      </PortalRootContext.Provider>
       <Block
         position="fixed"
         top={0}
@@ -42,9 +45,6 @@ export const PortalRootProvider: React.FC<PropsWithChildren> = ({
         zIndex={zIndex.portal}
         props={{ ref: callbackRef }}
       />
-      <PortalRootContext.Provider value={root}>
-        {children}
-      </PortalRootContext.Provider>
     </>
   )
 }

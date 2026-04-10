@@ -56,6 +56,11 @@ export const Tooltip: React.FC<Props> = ({
   const { refs, floatingStyles, context } = useFloating({
     open: active,
     placement: position,
+    // Use fixed positioning so the tooltip is always placed relative to the
+    // viewport rather than any ancestor containing block. This is critical in
+    // embedded contexts (e.g. the capture extension) where a transformed
+    // ancestor would otherwise shift the coordinate origin off-screen.
+    strategy: 'fixed',
     whileElementsMounted: autoUpdate,
     middleware: [
       offset(OFFSET),

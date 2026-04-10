@@ -1,0 +1,29 @@
+id: repro/sdk
+language: typescript
+layer: library
+tags:
+  - type.package
+tasks:
+  build:
+    command: pnpm run build
+    deps:
+      - ^:build
+    inputs:
+      - glob: src/**/*.ts
+        cache: true
+    outputs:
+      - dist/**/*
+    options:
+      cache: true
+  typecheck:
+    command: pnpm run typecheck
+    deps:
+      - ^:build
+    options:
+      cache: true
+  lint:
+    command: pnpm run fmt
+    options:
+      cache: false
+toolchains:
+  default: node

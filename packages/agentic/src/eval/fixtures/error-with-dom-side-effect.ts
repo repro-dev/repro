@@ -110,6 +110,7 @@ export function createFixture(): EvalFixture {
         nodes: nodes as Record<NodeId, VNode>,
       },
       interaction: null,
+      frameworkState: null,
     };
   }
 

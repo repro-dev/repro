@@ -15,6 +15,8 @@ type ReactCommitEvent: struct {
   4) propsDelta: string
   5) hooksDelta: string
   6) fiberNodeId: uint32
+  7) parentFiberId: ?uint32
+  8) commitBatchId: ?uint32
 }
 
 type ReduxDispatchEvent: struct {

@@ -14,6 +14,35 @@ import { describe, it } from 'node:test'
 import { createSourcePlayback } from './createSourcePlayback'
 import { BreakpointType } from './types'
 
+describe('createSourcePlayback speed control', () => {
+  it('should default to speed 1', () => {
+    const events = new List(SourceEventView, [])
+    const playback = createSourcePlayback(events, 1000, {})
+    expect(playback.getSpeed()).toBe(1)
+  })
+
+  it('should set speed to a valid value', () => {
+    const events = new List(SourceEventView, [])
+    const playback = createSourcePlayback(events, 1000, {})
+    playback.setSpeed(2)
+    expect(playback.getSpeed()).toBe(2)
+  })
+
+  it('should not set speed to an invalid value', () => {
+    const events = new List(SourceEventView, [])
+    const playback = createSourcePlayback(events, 1000, {})
+    playback.setSpeed(3 as any)
+    // Speed should remain unchanged when invalid value is given
+    expect(playback.getSpeed()).toBe(1)
+  })
+
+  it('should expose $speed atom', () => {
+    const events = new List(SourceEventView, [])
+    const playback = createSourcePlayback(events, 1000, {})
+    expect(playback.$speed).toBeDefined()
+  })
+})
+
 describe('createSourcePlayback', () => {
   it('should seek to the next breaking event', () => {
     Stats.enable()
@@ -49,6 +78,7 @@ describe('createSourcePlayback', () => {
           data: {
             dom: vtree,
             interaction: null,
+            frameworkState: null,
           },
         })
       ),

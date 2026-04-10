@@ -93,6 +93,7 @@ class ReproCapture extends HTMLElement {
         'network',
         'console',
         'performance',
+        'state',
       ]),
       ignoredNodes,
       ignoredSelectors,

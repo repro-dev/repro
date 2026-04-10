@@ -57,7 +57,7 @@ export const PickerOverlay: React.FC = React.memo(() => {
   const [, setInspecting] = useInspecting()
   const [targetElement, setTargetElement] = useState<Element | null>(null)
   const [boundingBox, setBoundingBox] = useState<DOMRect | null>(null)
-  const ref = useRef() as MutableRefObject<HTMLDivElement>
+  const ref = useRef<HTMLDivElement>(null) as MutableRefObject<HTMLDivElement>
 
   useEffect(() => {
     setTargetElement(
@@ -75,16 +75,17 @@ export const PickerOverlay: React.FC = React.memo(() => {
     const subscription = new Subscription()
 
     if (picker) {
-      const elem$ = fromEvent<PointerEvent>(ref.current, 'pointermove', {
+      const elem$ = fromEvent(ref.current, 'pointermove', {
         capture: true,
         passive: true,
       }).pipe(
         map(evt => {
+          const pe = evt as PointerEvent
           return getTargetElementAtPoint(
             ref.current.getBoundingClientRect(),
             currentDocument,
-            evt.clientX,
-            evt.clientY
+            pe.clientX,
+            pe.clientY
           )
         }),
         distinctUntilChanged(),
@@ -105,14 +106,15 @@ export const PickerOverlay: React.FC = React.memo(() => {
       subscription.add(elem$.subscribe(target => setTargetElement(target)))
 
       subscription.add(
-        fromEvent<PointerEvent>(ref.current, 'pointerdown')
+        fromEvent(ref.current, 'pointerdown')
           .pipe(
             map(evt => {
+              const pe = evt as PointerEvent
               const target = getTargetElementAtPoint(
                 ref.current.getBoundingClientRect(),
                 currentDocument,
-                evt.clientX,
-                evt.clientY
+                pe.clientX,
+                pe.clientY
               )
 
               return target ? target.getAttribute('data-repro-node') : null

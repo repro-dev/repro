@@ -140,4 +140,32 @@ describe('Modules > Billing > StubPaddleClient', () => {
       ).rejects.toMatchObject({ name: 'NotImplemented' })
     })
   })
+
+  describe('clearLastUpdateSubscriptionParams', () => {
+    it('should reset lastUpdateSubscriptionParams to null after updateSubscription was called', async () => {
+      const client = createStubPaddleClient(harness.db)
+
+      await promise(
+        client.updateSubscription('sub_123', {
+          items: [{ priceId: 'pri_001', quantity: 1 }],
+          prorationBillingMode: 'prorated_immediately',
+        })
+      )
+
+      expect(client.getLastUpdateSubscriptionParams()).not.toBeNull()
+
+      client.clearLastUpdateSubscriptionParams()
+
+      expect(client.getLastUpdateSubscriptionParams()).toBeNull()
+    })
+
+    it('should be safe to call when no updateSubscription call was made', () => {
+      const client = createStubPaddleClient(harness.db)
+
+      expect(client.getLastUpdateSubscriptionParams()).toBeNull()
+      // Should not throw
+      client.clearLastUpdateSubscriptionParams()
+      expect(client.getLastUpdateSubscriptionParams()).toBeNull()
+    })
+  })
 })

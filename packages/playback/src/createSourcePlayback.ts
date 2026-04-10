@@ -24,7 +24,14 @@ import {
   interval,
 } from 'rxjs'
 import { map, observeOn, pairwise, switchMap } from 'rxjs/operators'
-import { Breakpoint, ControlFrame, Playback, PlaybackState } from './types'
+import {
+  Breakpoint,
+  ControlFrame,
+  Playback,
+  PlaybackSpeed,
+  PlaybackState,
+  VALID_SPEEDS,
+} from './types'
 import { findMatchingBreakpoint } from './utils/breakpoint'
 
 const EMPTY_SNAPSHOT = createEmptySnapshot()
@@ -68,6 +75,8 @@ export function createSourcePlayback(
     createAtom<SourceEvent | null>(null)
   const [$breakpointsEnabled, setBreakpointsEnabled, getBreakpointsEnabled] =
     createAtom(true)
+
+  const [$speed, setSpeedAtom, getSpeed] = createAtom<PlaybackSpeed>(1)
 
   const snapshotIndex: Array<number> = []
 
@@ -265,8 +274,10 @@ export function createSourcePlayback(
 
   subscription.add(
     eventLoop.subscribe(delta => {
+      // Multiply elapsed time delta by the current speed factor
+      const scaledDelta = delta * getSpeed()
       setElapsed(elapsed =>
-        Math.min(getLatestEventTime(), duration, elapsed + delta)
+        Math.min(getLatestEventTime(), duration, elapsed + scaledDelta)
       )
     })
   )
@@ -546,6 +557,12 @@ export function createSourcePlayback(
     setPlaybackState(PlaybackState.Paused)
   }
 
+  function setSpeed(speed: PlaybackSpeed) {
+    if (VALID_SPEEDS.includes(speed)) {
+      setSpeedAtom(speed)
+    }
+  }
+
   function seekToEvent(nextIndex: number) {
     Stats.time('RecordingPlayback#seekToEvent: total', () => {
       setBuffer(EMPTY_BUFFER)
@@ -743,6 +760,7 @@ export function createSourcePlayback(
     $activeBreakpoint,
     $breakpoints,
     $breakpointsEnabled,
+    $speed,
 
     // Accessors
     getActiveIndex,
@@ -761,6 +779,7 @@ export function createSourcePlayback(
     getActiveBreakpoint,
     getBreakpoints,
     getBreakpointsEnabled,
+    getSpeed,
 
     // Breakpoints
     addBreakpoint,
@@ -777,6 +796,7 @@ export function createSourcePlayback(
     pause,
     seekToEvent,
     seekToTime,
+    setSpeed,
 
     // Lifecycle
     open,

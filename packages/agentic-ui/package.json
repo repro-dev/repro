@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "scripts": {
     "fmt": "prettier --write src",
+    "test": "tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/**/*.test.ts src/**/*.test.tsx",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",
@@ -17,9 +18,13 @@
     "react": "^18.2.0"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/expect": "24.3.2",
     "@types/node": "22.14.0",
-    "@types/react": "^18.0.14",
+    "@types/react": "18.3.10",
     "@types/repro-shared-types": "workspace:*",
+    "expect": "29.7.0",
+    "global-jsdom": "27.0.0",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
     "tsx": "4.19.3",

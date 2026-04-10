@@ -1,6 +1,6 @@
 import { ApiClient } from '@repro/api-client'
 import { createAtom } from '@repro/atom'
-import { Account, StaffUser, User } from '@repro/domain'
+import { StaffUser, User } from '@repro/domain'
 import { tap, tapRej } from '@repro/future-utils'
 import { map } from 'fluture'
 
@@ -42,7 +42,7 @@ export function createState(config: Config) {
     password: string
   ) {
     return apiClient
-      .fetch<{ account: Account; user: User }>(`${basePath}/register`, {
+      .fetch<{ account: { id: string }; user: User }>(`${basePath}/register`, {
         method: 'POST',
         body: JSON.stringify({
           accountName,
@@ -95,15 +95,18 @@ export function createState(config: Config) {
     email: string,
     password: string
   ) {
-    return apiClient.fetch(`${basePath}/accept-invitation`, {
-      method: 'POST',
-      body: JSON.stringify({
-        invitationToken,
-        name,
-        email,
-        password,
-      }),
-    })
+    return apiClient
+      .fetch<User>(`${basePath}/accept-invitation`, {
+        method: 'POST',
+        body: JSON.stringify({
+          invitationToken,
+          name,
+          email,
+          password,
+        }),
+      })
+      .pipe(tap(setSession))
+      .pipe(tap(() => setSessionLoading(false)))
   }
 
   function loadSession() {

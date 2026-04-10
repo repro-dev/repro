@@ -58,7 +58,9 @@ export function getDataByteLength(
 ): number {
   const { type, nullable } = descriptor
 
-  if (nullable && data === null) {
+  // Treat undefined the same as null for nullable fields — callers may omit
+  // optional struct fields entirely, which JS represents as undefined.
+  if (nullable && (data === null || data === undefined)) {
     return 0
   }
 
@@ -118,7 +120,9 @@ export function getDataByteLength(
 export function getByteLength(descriptor: AnyDescriptor, data: any): number {
   const { type, nullable } = descriptor
 
-  if (nullable && data === null) {
+  // Treat undefined the same as null for nullable fields — callers may omit
+  // optional struct fields entirely, which JS represents as undefined.
+  if (nullable && (data === null || data === undefined)) {
     return ByteLengths.Int8
   }
 

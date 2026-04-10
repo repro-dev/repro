@@ -13,29 +13,30 @@ import { getDefaultAgent } from '@repro/messaging'
 import { applyResetStyles } from '@repro/theme'
 import React, { lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { Loading } from './components/Loading'
 import { Env } from './config/createEnv'
 import { defaultEnv as env } from './config/env'
 import { Layout } from './Layout'
+import { SettingsLayout } from './SettingsLayout'
 
 const HomeRoute = lazy(() => import('./routes/HomeRoute'))
 const LoginRoute = lazy(() => import('./routes/LoginRoute'))
-const ApiKeysRoute = lazy(() => import('./routes/ApiKeysRoute'))
+const AcceptInvitationRoute = lazy(
+  () => import('./routes/AcceptInvitationRoute')
+)
 const PricingRoute = lazy(() => import('./routes/PricingRoute'))
 const RecordingRoute = lazy(() => import('./routes/RecordingRoute'))
 const RegisterRoute = lazy(() => import('./routes/RegisterRoute'))
 const ResetPasswordRoute = lazy(() => import('./routes/ResetPasswordRoute'))
+const SettingsRoute = lazy(() => import('./routes/SettingsRoute'))
 
 declare global {
   interface Window {
     __REPRO_ENV: Env
-    __REPRO_USING_SDK: boolean
   }
 }
-
-window.__REPRO_USING_SDK = true
 
 if (env.BUILD_ENV === 'development') {
   Stats.enable()
@@ -90,6 +91,10 @@ if (rootElem) {
                           path="account/reset-password/:token"
                           element={<ResetPasswordRoute />}
                         />
+                        <Route
+                          path="account/accept-invitation"
+                          element={<AcceptInvitationRoute />}
+                        />
                       </Route>
 
                       <Route element={<Layout />}>
@@ -98,7 +103,18 @@ if (rootElem) {
                           <Route path="pricing" element={<PricingRoute />} />
                           <Route
                             path="account/api-keys"
-                            element={<ApiKeysRoute />}
+                            element={
+                              <Navigate to="/settings/api-keys" replace />
+                            }
+                          />
+                        </Route>
+                      </Route>
+
+                      <Route element={<SessionRouteBoundary />}>
+                        <Route element={<SettingsLayout />}>
+                          <Route
+                            path="settings/*"
+                            element={<SettingsRoute />}
                           />
                         </Route>
                       </Route>

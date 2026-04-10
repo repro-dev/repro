@@ -7,6 +7,7 @@
     "build": "./scripts/build",
     "dev-serve": "vite",
     "fmt": "prettier --write src",
+    "lint": "prettier --check src",
     "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
     "typecheck": "tsc --noEmit"
   },

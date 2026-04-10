@@ -73,3 +73,24 @@ local_resource(
     resource_deps=['storage'],
     labels=['infra']
 )
+
+helm_resource(
+    name='redis',
+    chart='bitnami/redis',
+    namespace='default',
+    resource_deps=['bitnami'],
+    flags=[
+        '--set=architecture=standalone',
+        '--set=auth.enabled=false',
+        '--set=master.persistence.enabled=false',
+    ],
+    port_forwards='6379:6379',
+    labels=['infra']
+)
+
+local_resource(
+    'redis-ready',
+    cmd='kubectl wait --namespace default --for=condition=ready pod -l app.kubernetes.io/instance=redis,app.kubernetes.io/name=redis --timeout=60s',
+    resource_deps=['redis'],
+    labels=['infra']
+)

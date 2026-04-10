@@ -22,6 +22,7 @@ import {
 } from "rxjs";
 import {
   computeContextBudget,
+  purgeErroredToolCallInputs,
   truncateToContextBudget,
 } from "./model/context-window";
 import { SYSTEM_CARD_MESSAGE } from "./model/system";
@@ -221,6 +222,145 @@ export function executeToolCalls(
   return parallel(Infinity)(futures);
 }
 
+// Identifies the tool_call_ids of the first findErrors and getEvents calls in
+// the context. These are the Orient phase tool results that must be preserved
+// during context-window truncation.
+export function getOrientPhaseToolCallIds(context: Context): Set<string> {
+  const ids = new Set<string>();
+  let foundFindErrors = false;
+  let foundGetEvents = false;
+
+  for (const msg of context) {
+    if (msg.role !== "assistant") continue;
+
+    const toolCalls = "tool_calls" in msg ? msg.tool_calls : undefined;
+    if (!toolCalls) continue;
+
+    for (const tc of toolCalls) {
+      if (!foundFindErrors && tc.function.name === "findErrors") {
+        ids.add(tc.id);
+        foundFindErrors = true;
+      }
+      if (!foundGetEvents && tc.function.name === "getEvents") {
+        ids.add(tc.id);
+        foundGetEvents = true;
+      }
+    }
+
+    // Stop scanning once both orient calls have been found
+    if (foundFindErrors && foundGetEvents) break;
+  }
+
+  return ids;
+}
+
+// Sorts the keys of a plain object recursively so that two semantically
+// identical argument objects with different key insertion order produce the
+// same JSON string.
+function sortedArgs(args: unknown): unknown {
+  if (args === null || typeof args !== "object") return args;
+  if (Array.isArray(args)) return args.map(sortedArgs);
+  const sorted: Record<string, unknown> = {};
+  for (const key of Object.keys(args as Record<string, unknown>).sort()) {
+    sorted[key] = sortedArgs((args as Record<string, unknown>)[key]);
+  }
+  return sorted;
+}
+
+// Removes older duplicate tool call pairs (assistant tool-use block + matching
+// tool result) from the context, keeping only the most recent result for each
+// unique (toolName, normalisedArgs) signature.
+//
+// Protected IDs (Orient phase calls) are never removed, even if an identical
+// call appears later in the context — the protected copy is kept unconditionally
+// and the later duplicate is the one that gets dropped.
+export function deduplicateToolCalls(
+  context: Context,
+  protectedIds: Set<string>,
+): Context {
+  // Build a signature for each tool call id that appears in the context so we
+  // can identify duplicates.
+  const sigById = new Map<string, string>();
+  for (const msg of context) {
+    if (msg.role !== "assistant") continue;
+    const toolCalls = "tool_calls" in msg ? msg.tool_calls : undefined;
+    if (!toolCalls) continue;
+    for (const tc of toolCalls) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(tc.function.arguments);
+      } catch {
+        // Unparseable arguments — use the raw string verbatim
+        parsed = tc.function.arguments;
+      }
+      const sig = `${tc.function.name}::${JSON.stringify(sortedArgs(parsed))}`;
+      sigById.set(tc.id, sig);
+    }
+  }
+
+  // Walk forward to find the most recent occurrence of each signature,
+  // respecting protected IDs: a protected call is always "most recent" for its
+  // signature so that a later unprotected duplicate gets dropped rather than
+  // the protected one.
+  const lastIdBySig = new Map<string, string>(); // sig → last id (protected or not)
+  for (const [id, sig] of sigById) {
+    lastIdBySig.set(sig, id);
+  }
+
+  // Precompute the set of signatures that have at least one protected id so
+  // the drop loop below is O(n) instead of O(n²).
+  const protectedSigs = new Set<string>();
+  for (const [id, sig] of sigById) {
+    if (protectedIds.has(id)) protectedSigs.add(sig);
+  }
+
+  const dropIds = new Set<string>();
+  for (const [id, sig] of sigById) {
+    if (protectedIds.has(id)) continue; // protected calls are never dropped
+    const lastForSig = lastIdBySig.get(sig);
+    if (lastForSig !== id) {
+      // There is a newer occurrence — drop this one
+      dropIds.add(id);
+    } else if (protectedSigs.has(sig)) {
+      // This is the last unprotected occurrence but a protected call shares
+      // the same signature — the protected copy wins, so drop this one too.
+      dropIds.add(id);
+    }
+  }
+
+  if (dropIds.size === 0) return context;
+
+  // Use flatMap so that an assistant message can be either kept as-is,
+  // replaced with a pruned version (some tool_calls removed), or dropped
+  // entirely (all tool_calls removed) — all in a single pass.
+  return context.flatMap((msg): Array<Context[number]> => {
+    if (msg.role === "tool") {
+      // Drop tool result messages whose call was deduplicated away.
+      return dropIds.has(msg.tool_call_id) ? [] : [msg];
+    }
+
+    if (msg.role === "assistant" && "tool_calls" in msg && msg.tool_calls) {
+      // Remove individual dropped tool_call entries from this message.
+      const survivingCalls = msg.tool_calls.filter((tc) => !dropIds.has(tc.id));
+
+      if (survivingCalls.length === 0) {
+        // All tool_calls were dropped — remove the entire assistant message.
+        return [];
+      }
+
+      if (survivingCalls.length === msg.tool_calls.length) {
+        // Nothing changed — pass through unchanged.
+        return [msg];
+      }
+
+      // Some calls were dropped — return the message with the pruned list.
+      return [{ ...msg, tool_calls: survivingCalls }];
+    }
+
+    return [msg];
+  });
+}
+
 export const MAX_TOOL_ITERATIONS = 25;
 
 export function buildIterationLimitMessage(id: string): AssistantMessage {
@@ -289,6 +429,12 @@ export function createAgenticState(
   const subscription = new Subscription();
   const toolCallTrigger$ = new Subject<void>();
   let iterationCount = 0;
+  // Maps tool_call_id → iteration count at which the error was recorded.
+  // Used by purgeErroredToolCallInputs to strip stale errored inputs from context.
+  const erroredToolCalls = new Map<string, number>();
+  // Maps entry id → pre-computed token estimate. Populated when an entry is
+  // first appended so fetchResponse does not re-tokenise the same text on every call.
+  const tokenCache = new Map<string, number>();
 
   function clearPendingRetry() {
     if (pendingRetryTimer !== null) {
@@ -344,6 +490,8 @@ export function createAgenticState(
     }
     iterationCount = 0;
     retryAttempt = 0;
+    erroredToolCalls.clear();
+    tokenCache.clear();
     setEntryMap({ orderedIds: [], entries: {} });
     setWasCancelled(false);
     setLoading("none");
@@ -357,9 +505,17 @@ export function createAgenticState(
     setWasCancelled(false);
     setError(null);
     retryAttempt = 0;
+    erroredToolCalls.clear();
     setLoading("reasoning");
 
     const id = createEntryId();
+
+    // Pre-compute token estimate BEFORE updating the atom. setEntryMap fires
+    // RxJS subscribers synchronously, which triggers fetchResponse via the
+    // latestUserEntry$ → userTriggered$ → response$ chain. The cache entry
+    // must exist before that chain runs so the first fetchResponse call gets a
+    // hit rather than re-tokenising the user message.
+    tokenCache.set(id, estimateTokens({ role: "user", content: input }));
 
     setEntryMap((entryMap) => ({
       orderedIds: [...entryMap.orderedIds, id],
@@ -381,15 +537,113 @@ export function createAgenticState(
     currentAbortController = new AbortController();
     const systemTokens = estimateTokens(SYSTEM_CARD_MESSAGE);
     const budget = computeContextBudget(AGENTIC_MODEL, systemTokens);
-    const { messages: truncatedContext, droppedCount } =
-      truncateToContextBudget(context, budget, (msg) => estimateTokens(msg));
+
+    // Identify the first findErrors and getEvents tool results (Orient phase)
+    // and protect them from truncation so the model retains its initial grounding.
+    const orientIds = getOrientPhaseToolCallIds(context);
+
+    // Remove older duplicate (toolName + args) pairs before computing the
+    // budget. Protected orient-phase IDs always survive; later duplicates of
+    // those calls are dropped instead.
+    const deduplicatedContext = deduplicateToolCalls(context, orientIds);
+
+    // Strip assistant tool-call blocks for errored calls that are older than
+    // PURGE_ERROR_TURNS iterations. The ToolMessage result is always kept.
+    const purgedContext = purgeErroredToolCallInputs(
+      deduplicatedContext,
+      erroredToolCalls,
+      iterationCount,
+    );
+
+    // Prune stale entries from erroredToolCalls: once a tool_call_id no longer
+    // appears anywhere in the current context (neither as an assistant tool_call
+    // nor as a tool result), its entry serves no purpose and would grow the Map
+    // unbounded in long sessions.
+    const activeToolCallIds = new Set<string>();
+    for (const msg of purgedContext) {
+      if (msg.role === "assistant" && "tool_calls" in msg && msg.tool_calls) {
+        for (const tc of msg.tool_calls) {
+          activeToolCallIds.add(tc.id);
+        }
+      } else if (msg.role === "tool") {
+        activeToolCallIds.add(msg.tool_call_id);
+      }
+    }
+    for (const id of erroredToolCalls.keys()) {
+      if (!activeToolCallIds.has(id)) {
+        erroredToolCalls.delete(id);
+      }
+    }
+
+    const isProtected = (msg: Context[number]) => {
+      // Protect tool result messages whose tool_call_id is an orient call
+      if (msg.role === "tool" && orientIds.has(msg.tool_call_id)) {
+        return true;
+      }
+      // Also protect the assistant message that introduced the orient tool calls.
+      // Chat Completions APIs require that any role:"tool" message is preceded by
+      // the role:"assistant" message that introduced its tool_call_id. Dropping
+      // the assistant message while retaining the tool result would cause an API error.
+      if (msg.role === "assistant" && "tool_calls" in msg && msg.tool_calls) {
+        return msg.tool_calls.some((tc) => orientIds.has(tc.id));
+      }
+      return false;
+    };
+
+    // Build two reference maps keyed by message object identity:
+    //
+    //   cachedByRef: msg → cached token count
+    //     Used by truncateToContextBudget to skip re-tokenising messages whose
+    //     count was already computed. Messages that survive dedup/purge with
+    //     their original reference get a cache hit; modified/new objects fall
+    //     back to estimateTokens.
+    //
+    //   contextToId: msg → entry ID
+    //     Used below to find the ID of the first surviving message after
+    //     truncation. Using object references is correct here because
+    //     deduplicateToolCalls can shorten the context array, making a positional
+    //     index (droppedCount) into purgedContext diverge from the orderedIds
+    //     index. User messages and unmodified tool/assistant messages always pass
+    //     through as original references, so the lookup succeeds for all common
+    //     cases. The rare partially-deduped assistant messages are new objects
+    //     and miss the map (fallback: null).
+    const contextEntryMap = $entryMap.getValue();
+    const cachedByRef = new Map<Context[number], number>();
+    const contextToId = new Map<Context[number], string>();
+    context.forEach((msg, i) => {
+      const id = contextEntryMap.orderedIds[i];
+      if (id !== undefined) {
+        contextToId.set(msg, id);
+        const cached = tokenCache.get(id);
+        if (cached !== undefined) {
+          cachedByRef.set(msg, cached);
+        }
+      }
+    });
+
+    const { messages: truncatedContext, anyDropped } = truncateToContextBudget(
+      purgedContext,
+      budget,
+      (msg) => cachedByRef.get(msg) ?? estimateTokens(msg),
+      isProtected,
+    );
 
     // Update the truncation indicator atom. When messages were dropped, find
     // the entry ID of the first surviving message so the UI can place the
     // separator precisely. Clear the atom when nothing was dropped.
-    const entryMap = $entryMap.getValue();
-    if (droppedCount > 0) {
-      const firstSurvivingId = entryMap.orderedIds[droppedCount] ?? null;
+    // Use anyDropped (not droppedCount > 0) so the separator is shown even
+    // when a protected message sits at the start of the context (droppedCount=0
+    // but gaps exist between retained messages).
+    //
+    // Look up the first surviving message by object reference rather than by
+    // positional index: deduplicateToolCalls can remove entire messages, making
+    // purgedContext shorter than context, so droppedCount (an index into
+    // purgedContext) no longer maps 1:1 to orderedIds.
+    if (anyDropped) {
+      const firstMsg = truncatedContext[0];
+      const firstSurvivingId =
+        (firstMsg !== undefined ? contextToId.get(firstMsg) : undefined) ??
+        null;
       setTruncatedBefore(firstSurvivingId);
     } else {
       setTruncatedBefore(null);
@@ -403,6 +657,19 @@ export function createAgenticState(
   }
 
   function appendToolMessage(toolMessage: ToolMessage) {
+    // Detect whether the tool result is an error so we can track when it
+    // occurred. The same `{ error: string }` shape is used by ToolCallRow
+    // for UI error detection.
+    const parsed = safeParse(toolMessage.content);
+    if (
+      parsed !== null &&
+      typeof parsed === "object" &&
+      "error" in parsed &&
+      typeof (parsed as Record<string, unknown>)["error"] === "string"
+    ) {
+      erroredToolCalls.set(toolMessage.tool_call_id, iterationCount);
+    }
+
     setEntryMap((entryMap) => ({
       orderedIds: [...entryMap.orderedIds, toolMessage.id],
       entries: {
@@ -410,6 +677,16 @@ export function createAgenticState(
         [toolMessage.id]: toolMessage,
       },
     }));
+
+    // Pre-compute token estimate for this tool entry.
+    tokenCache.set(
+      toolMessage.id,
+      estimateTokens({
+        role: "tool",
+        tool_call_id: toolMessage.tool_call_id,
+        content: toolMessage.content,
+      }),
+    );
   }
 
   const entries$ = $entryMap
@@ -588,6 +865,26 @@ export function createAgenticState(
           const entryMap = $entryMap.getValue();
           const lastId = entryMap.orderedIds.at(-1);
           const lastEntry = lastId ? entryMap.entries[lastId] ?? null : null;
+
+          // Cache the finalized assistant entry's token estimate. Only done at
+          // "completion" (not during "message" chunks) so we tokenise the full
+          // content rather than partial in-progress text.
+          if (lastId && lastEntry !== null && lastEntry.role === "assistant") {
+            const assistantCtx: Context[number] = {
+              role: "assistant",
+              content: lastEntry.content,
+              ...(lastEntry.toolCalls.length > 0
+                ? {
+                    tool_calls: lastEntry.toolCalls.map((tc) => ({
+                      id: tc.id,
+                      type: "function" as const,
+                      function: tc.function,
+                    })),
+                  }
+                : {}),
+            };
+            tokenCache.set(lastId, estimateTokens(assistantCtx));
+          }
 
           if (
             lastEntry !== null &&

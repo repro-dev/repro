@@ -1,5 +1,6 @@
 export { AuthProvider } from './AuthProvider'
 export { GateProvider } from './GateProvider'
+export { GoogleSignInButton } from './GoogleSignInButton'
 export * from './hooks'
 export { IfGate } from './IfGate'
 export { IfSession } from './IfSession'

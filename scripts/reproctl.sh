@@ -27,6 +27,8 @@ source "$SCRIPT_DIR/lib/launch.sh"
 source "$SCRIPT_DIR/lib/completion.sh"
 # shellcheck source=scripts/lib/version.sh
 source "$SCRIPT_DIR/lib/version.sh"
+# shellcheck source=scripts/lib/code-index.sh
+source "$SCRIPT_DIR/lib/code-index.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -57,6 +59,7 @@ ${CLR_BOLD}SERVICES${CLR_RESET}
 ${CLR_BOLD}INFRASTRUCTURE${CLR_RESET}
   cluster <subcommand>            Manage the local k8s cluster and registry
   db <subcommand>                 Database operations
+  code-index <subcommand>         Code intelligence index management
 
 ${CLR_BOLD}WORKTREES${CLR_RESET}
   wt create <branch>              Create a new worktree for a branch
@@ -153,6 +156,7 @@ USAGE
     ;;
   cluster) cmd_cluster "$@" ;;
   db)      cmd_db "$@" ;;
+  code-index) cmd_code_index "$@" ;;
   start)   cmd_start "$@" ;;
   stop)    cmd_stop "$@" ;;
   restart) cmd_restart "$@" ;;
@@ -192,7 +196,7 @@ USAGE
   -h|--help)      usage ;;
   --version|-V)    cmd_version "$@" ;;
   *)
-    KNOWN_COMMANDS="setup doctor checkhealth cluster db start stop restart status logs ui launch context worktree wt help"
+    KNOWN_COMMANDS="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help"
     suggestions=$(python3 "$SCRIPT_DIR/lib/py/suggest_command.py" "$COMMAND" $KNOWN_COMMANDS 2>/dev/null) || true
     if [ -n "$suggestions" ]; then
       printf 'Error: Unknown command: %s\n' "$COMMAND" >&2

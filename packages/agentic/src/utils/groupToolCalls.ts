@@ -56,7 +56,24 @@ export function groupToolCalls(
       }
       result.push({ type: "user-message", entry });
     } else if (entry.role === "assistant") {
-      if (entry.toolCalls.length > 0) {
+      // Emit text and tool calls independently — they are not mutually exclusive.
+      // The truncation indicator always appears before the first item for this entry.
+      const hasContent = entry.content.length > 0;
+      const hasToolCalls = entry.toolCalls.length > 0;
+
+      if (hasContent) {
+        if (truncatedBeforeId != null && entry.id === truncatedBeforeId) {
+          result.push({ type: "truncation-indicator" });
+        }
+        result.push({ type: "assistant-message", entry });
+        if (hasToolCalls) {
+          const pairs: Array<ToolCallPair> = entry.toolCalls.map((toolCall) => {
+            const toolResult = toolMessages.get(toolCall.id) ?? null;
+            return { toolCall, result: toolResult };
+          });
+          result.push({ type: "tool-call-group", pairs });
+        }
+      } else if (hasToolCalls) {
         if (truncatedBeforeId != null && entry.id === truncatedBeforeId) {
           result.push({ type: "truncation-indicator" });
         }
@@ -66,6 +83,7 @@ export function groupToolCalls(
         });
         result.push({ type: "tool-call-group", pairs });
       } else {
+        // Fallback: empty content and no tool calls (loading/in-progress state).
         if (truncatedBeforeId != null && entry.id === truncatedBeforeId) {
           result.push({ type: "truncation-indicator" });
         }

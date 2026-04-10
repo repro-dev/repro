@@ -1,5 +1,6 @@
 import { Grid } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
+import { useSession, useSessionLoading } from '@repro/auth'
 import {
   Badge,
   Button,
@@ -14,7 +15,8 @@ import {
 } from '@repro/design'
 import { BillingPlanWithEntitlements, ListResponse } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
-import React from 'react'
+import React, { useCallback, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router'
 
 function collectFeatures(
   plans: Array<BillingPlanWithEntitlements>
@@ -28,10 +30,45 @@ function collectFeatures(
   return Array.from(featureSet)
 }
 
-function handleSelectPlan(_planId: string) {}
-
 export const PricingRoute: React.FC = () => {
   const apiClient = useApiClient()
+  const session = useSession()
+  const sessionLoading = useSessionLoading()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const handleSelectPlan = useCallback(
+    (planId: string) => {
+      // Guard: if session is not yet resolved, do nothing
+      if (sessionLoading) {
+        return
+      }
+
+      if (!session) {
+        // Encode the full destination (including planId) into a single redirect
+        // param so planId is preserved after login/register
+        const destination = `/pricing?planId=${encodeURIComponent(planId)}`
+        navigate(
+          `/account/register?redirect=${encodeURIComponent(destination)}`
+        )
+        return
+      }
+
+      // Authenticated: proceed to checkout (wired by REP-127)
+      void apiClient
+    },
+    [apiClient, session, sessionLoading, navigate]
+  )
+
+  // When the user returns from login/register with a planId in the URL and is
+  // authenticated, auto-trigger checkout for the originally selected plan
+  const planIdFromUrl = new URLSearchParams(location.search).get('planId')
+  useEffect(() => {
+    if (!sessionLoading && session && planIdFromUrl) {
+      handleSelectPlan(planIdFromUrl)
+    }
+  }, [sessionLoading, session, planIdFromUrl, handleSelectPlan])
+
   const { loading, error, data } = useFuture(
     () =>
       apiClient.fetch<ListResponse<BillingPlanWithEntitlements>>(

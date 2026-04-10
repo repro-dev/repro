@@ -6,10 +6,20 @@ import {
   buildIterationLimitMessage,
   buildToolMessageContent,
   createAgenticState,
+  deduplicateToolCalls,
   executeToolCalls,
+  getOrientPhaseToolCallIds,
   isValidMessageDelta,
 } from "./createState";
-import { RecordingDataAccessor, StreamProvider, ToolCall } from "./types";
+import { PURGE_ERROR_TURNS } from "./model/context-window";
+import {
+  AssistantMessageContext,
+  Context,
+  RecordingDataAccessor,
+  StreamProvider,
+  ToolCall,
+  ToolMessageContext,
+} from "./types";
 import {
   fork,
   Future,
@@ -1354,6 +1364,206 @@ describe("createAgenticState — cancel and error handling", () => {
   });
 });
 
+// ─── token estimate caching ──────────────────────────────────────────────────
+
+describe("token estimate caching", () => {
+  // Local helpers for this describe block
+  function makeEmptyAccessorLocal(): RecordingDataAccessor {
+    return {
+      getDuration: () => 0,
+      getSnapshotAtTime: () => null,
+      getEventsByType: () => [],
+      getEventsInRange: () => [],
+      getResourceMap: () => ({}),
+    };
+  }
+
+  function waitForConditionLocal(
+    predicate: () => boolean,
+    timeout = 10000,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      function check() {
+        if (predicate()) return resolve();
+        if (Date.now() - start > timeout) return reject(new Error("timeout"));
+        setTimeout(check, 10);
+      }
+      check();
+    });
+  }
+
+  function makeTextStream(content: string): ReadableStream<{ data: string }> {
+    const event = JSON.stringify({
+      choices: [{ delta: { content } }],
+    });
+    return new ReadableStream<{ data: string }>({
+      start(controller) {
+        controller.enqueue({ data: event });
+        controller.enqueue({ data: "[DONE]" });
+        controller.close();
+      },
+    });
+  }
+
+  function makeToolCallStream(
+    toolCallId: string,
+    toolName: string,
+    args = "{}",
+  ): ReadableStream<{ data: string }> {
+    const toolCallEvent = JSON.stringify({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: toolCallId,
+                function: { name: toolName, arguments: args },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    return new ReadableStream<{ data: string }>({
+      start(controller) {
+        controller.enqueue({ data: toolCallEvent });
+        controller.enqueue({ data: "[DONE]" });
+        controller.close();
+      },
+    });
+  }
+
+  it("entries accumulate correctly across multiple fetchResponse calls (cache correctness)", async () => {
+    // Drive the state machine through 2 LLM turns:
+    //   turn 1: user → assistant (tool call)
+    //   turn 2: tool result → assistant (text response)
+    // After both turns complete, entries must reflect the full conversation history.
+    // This verifies that caching does not corrupt context passed to subsequent calls.
+    let callCount = 0;
+    let secondRequestDone = false;
+
+    const streamProvider: StreamProvider = () => {
+      callCount++;
+      if (callCount === 1) {
+        // First request: return a tool call
+        return resolve(
+          makeToolCallStream("tc1", "getRecordingDuration"),
+        ) as never;
+      }
+      // Second request: return plain text to end the loop
+      secondRequestDone = true;
+      return resolve(makeTextStream("done")) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorLocal());
+    state.query("hello world");
+
+    await waitForConditionLocal(() => secondRequestDone, 10000);
+    // Give the final stream time to complete
+    await new Promise((res) => setTimeout(res, 200));
+
+    const entries = state.$entries.getValue();
+
+    // Expect: user message + assistant (tool call) + tool result + assistant (text)
+    const userEntries = entries.filter((e) => e.role === "user");
+    const assistantEntries = entries.filter((e) => e.role === "assistant");
+    const toolEntries = entries.filter((e) => e.role === "tool");
+
+    assert.strictEqual(userEntries.length, 1, "Expected exactly 1 user entry");
+    assert.ok(
+      assistantEntries.length >= 2,
+      `Expected at least 2 assistant entries (tool call + text response), got ${assistantEntries.length}`,
+    );
+    assert.strictEqual(
+      toolEntries.length,
+      1,
+      "Expected exactly 1 tool result entry",
+    );
+
+    // Verify both fetchResponse calls completed (streamProvider was called twice)
+    assert.strictEqual(callCount, 2, "Expected exactly 2 fetchResponse calls");
+
+    state.destroy();
+  });
+
+  it("reset() clears entries and allows a fresh query", async () => {
+    // After reset(), all entries are cleared. A subsequent query must start
+    // a fresh conversation (no stale entries from before reset).
+    let callCount = 0;
+    let firstQueryDone = false;
+    let secondQueryDone = false;
+
+    const streamProvider: StreamProvider = () => {
+      callCount++;
+      if (callCount === 1) {
+        firstQueryDone = true;
+        return resolve(makeTextStream("first response")) as never;
+      }
+      // Second query's stream
+      secondQueryDone = true;
+      return resolve(makeTextStream("second response")) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorLocal());
+
+    // First query
+    state.query("first question");
+    await waitForConditionLocal(() => firstQueryDone, 5000);
+    await new Promise((res) => setTimeout(res, 100));
+
+    const entriesBeforeReset = state.$entries.getValue();
+    assert.ok(
+      entriesBeforeReset.length >= 2,
+      `Expected at least 2 entries after first query, got ${entriesBeforeReset.length}`,
+    );
+
+    // Reset — must clear all entries and any internal cache
+    state.reset();
+
+    const entriesAfterReset = state.$entries.getValue();
+    assert.strictEqual(
+      entriesAfterReset.length,
+      0,
+      "Expected 0 entries immediately after reset()",
+    );
+
+    // Second query — must work correctly from a clean slate
+    state.query("second question");
+    await waitForConditionLocal(() => secondQueryDone, 5000);
+    await new Promise((res) => setTimeout(res, 100));
+
+    const entriesAfterSecondQuery = state.$entries.getValue();
+    // Should only have entries from the second query (user + assistant)
+    const userEntries = entriesAfterSecondQuery.filter(
+      (e) => e.role === "user",
+    );
+    const assistantEntries = entriesAfterSecondQuery.filter(
+      (e) => e.role === "assistant",
+    );
+
+    assert.strictEqual(
+      userEntries.length,
+      1,
+      "Expected exactly 1 user entry after reset + second query",
+    );
+    assert.strictEqual(
+      assistantEntries.length,
+      1,
+      "Expected exactly 1 assistant entry after reset + second query",
+    );
+
+    state.destroy();
+  });
+
+  // Note: the cache-hit verification test (estimateTokens called at most once
+  // per unique entry) lives in createState.cache.test.ts. It requires a
+  // separate file with no static import of createState so that mock.module()
+  // intercepts the very first load and the spy binding is active when
+  // createState.ts is evaluated.
+});
+
 describe("createAgenticState — options.tools override", () => {
   function makeEmptyAccessor(): RecordingDataAccessor {
     return {
@@ -1526,6 +1736,781 @@ describe("reset()", () => {
     await new Promise((res) => setTimeout(res, 50));
 
     assert.strictEqual(aborted, true);
+    state.destroy();
+  });
+});
+
+// ─── Helpers for building minimal Context messages ──────────────────────────
+
+function makeAssistantWithToolCalls(
+  toolCallIds: Array<{ id: string; name: string }>,
+): Context[number] {
+  return {
+    role: "assistant",
+    content: "",
+    tool_calls: toolCallIds.map(({ id, name }) => ({
+      id,
+      type: "function" as const,
+      function: { name, arguments: "{}" },
+    })),
+  };
+}
+
+function makeToolResult(toolCallId: string): Context[number] {
+  return {
+    role: "tool",
+    content: "{}",
+    tool_call_id: toolCallId,
+  };
+}
+
+function makeUserMessage(content = "hello"): Context[number] {
+  return { role: "user", content };
+}
+
+// ─── getOrientPhaseToolCallIds ───────────────────────────────────────────────
+
+describe("getOrientPhaseToolCallIds", () => {
+  it("returns IDs for the first findErrors and getEvents calls", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([
+        { id: "fe1", name: "findErrors" },
+        { id: "ge1", name: "getEvents" },
+      ]),
+      makeToolResult("fe1"),
+      makeToolResult("ge1"),
+    ];
+
+    const ids = getOrientPhaseToolCallIds(context);
+    assert.strictEqual(ids.size, 2);
+    assert.ok(ids.has("fe1"));
+    assert.ok(ids.has("ge1"));
+  });
+
+  it("returns only the findErrors ID when getEvents is absent", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([{ id: "fe1", name: "findErrors" }]),
+      makeToolResult("fe1"),
+    ];
+
+    const ids = getOrientPhaseToolCallIds(context);
+    assert.strictEqual(ids.size, 1);
+    assert.ok(ids.has("fe1"));
+  });
+
+  it("does NOT include a second findErrors call — only the first is orient", () => {
+    const context: Context = [
+      makeUserMessage(),
+      // First turn: findErrors (orient)
+      makeAssistantWithToolCalls([{ id: "fe1", name: "findErrors" }]),
+      makeToolResult("fe1"),
+      // Second turn: findErrors again (investigate — not orient)
+      makeAssistantWithToolCalls([{ id: "fe2", name: "findErrors" }]),
+      makeToolResult("fe2"),
+    ];
+
+    const ids = getOrientPhaseToolCallIds(context);
+    assert.strictEqual(ids.size, 1);
+    assert.ok(ids.has("fe1"));
+    assert.ok(!ids.has("fe2"));
+  });
+
+  it("returns an empty set when no findErrors or getEvents calls exist", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([{ id: "tc1", name: "someOtherTool" }]),
+      makeToolResult("tc1"),
+    ];
+
+    const ids = getOrientPhaseToolCallIds(context);
+    assert.strictEqual(ids.size, 0);
+  });
+
+  it("returns empty set for empty context", () => {
+    const ids = getOrientPhaseToolCallIds([]);
+    assert.strictEqual(ids.size, 0);
+  });
+});
+
+// ─── isProtected wiring in fetchResponse ────────────────────────────────────
+
+describe("isProtected predicate (constructed same as in fetchResponse)", () => {
+  // Build the same isProtected predicate that fetchResponse uses
+  function buildIsProtected(
+    context: Context,
+  ): (msg: Context[number]) => boolean {
+    const orientIds = getOrientPhaseToolCallIds(context);
+    return (msg: Context[number]) => {
+      if (msg.role === "tool" && orientIds.has(msg.tool_call_id)) {
+        return true;
+      }
+      if (msg.role === "assistant" && "tool_calls" in msg && msg.tool_calls) {
+        return msg.tool_calls.some((tc) => orientIds.has(tc.id));
+      }
+      return false;
+    };
+  }
+
+  it("marks orient tool result messages as protected", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([
+        { id: "fe1", name: "findErrors" },
+        { id: "ge1", name: "getEvents" },
+      ]),
+      makeToolResult("fe1"),
+      makeToolResult("ge1"),
+    ];
+
+    const isProtected = buildIsProtected(context);
+    assert.strictEqual(isProtected(makeToolResult("fe1")), true);
+    assert.strictEqual(isProtected(makeToolResult("ge1")), true);
+  });
+
+  it("marks the parent assistant message as protected", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([
+        { id: "fe1", name: "findErrors" },
+        { id: "ge1", name: "getEvents" },
+      ]),
+      makeToolResult("fe1"),
+      makeToolResult("ge1"),
+    ];
+
+    const isProtected = buildIsProtected(context);
+    const assistantMsg = context[1]!;
+    assert.strictEqual(isProtected(assistantMsg), true);
+  });
+
+  it("does NOT mark unrelated tool results as protected", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([
+        { id: "fe1", name: "findErrors" },
+        { id: "ge1", name: "getEvents" },
+      ]),
+      makeToolResult("fe1"),
+      makeToolResult("ge1"),
+      makeAssistantWithToolCalls([{ id: "other1", name: "someOtherTool" }]),
+      makeToolResult("other1"),
+    ];
+
+    const isProtected = buildIsProtected(context);
+    assert.strictEqual(isProtected(makeToolResult("other1")), false);
+  });
+
+  it("does NOT mark unrelated assistant messages as protected", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([
+        { id: "fe1", name: "findErrors" },
+        { id: "ge1", name: "getEvents" },
+      ]),
+      makeToolResult("fe1"),
+      makeToolResult("ge1"),
+      makeAssistantWithToolCalls([{ id: "other1", name: "someOtherTool" }]),
+      makeToolResult("other1"),
+    ];
+
+    const isProtected = buildIsProtected(context);
+    const unrelatedAssistant = context[4]!;
+    assert.strictEqual(isProtected(unrelatedAssistant), false);
+  });
+
+  it("does NOT mark user messages as protected", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([{ id: "fe1", name: "findErrors" }]),
+      makeToolResult("fe1"),
+    ];
+
+    const isProtected = buildIsProtected(context);
+    assert.strictEqual(isProtected(makeUserMessage()), false);
+  });
+
+  it("no messages are protected when no orient calls exist", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithToolCalls([{ id: "tc1", name: "someOtherTool" }]),
+      makeToolResult("tc1"),
+    ];
+
+    const isProtected = buildIsProtected(context);
+    for (const msg of context) {
+      assert.strictEqual(isProtected(msg), false);
+    }
+  });
+});
+
+// ─── deduplicateToolCalls ────────────────────────────────────────────────────
+
+describe("deduplicateToolCalls", () => {
+  function makeAssistantWithArgs(
+    id: string,
+    name: string,
+    args: Record<string, unknown>,
+  ): Context[number] {
+    return {
+      role: "assistant",
+      content: "",
+      tool_calls: [
+        {
+          id,
+          type: "function" as const,
+          function: { name, arguments: JSON.stringify(args) },
+        },
+      ],
+    };
+  }
+
+  it("drops older duplicate and keeps the newer call", () => {
+    // Two identical getDOMState calls — the second is newer
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithArgs("tc1", "getDOMState", { timestampMs: 100 }),
+      makeToolResult("tc1"),
+      makeAssistantWithArgs("tc2", "getDOMState", { timestampMs: 100 }),
+      makeToolResult("tc2"),
+    ];
+
+    const result = deduplicateToolCalls(context, new Set());
+
+    // tc1 pair should be removed; tc2 pair should remain
+    const ids = result
+      .filter(
+        (m): m is { role: "tool"; content: string; tool_call_id: string } =>
+          m.role === "tool",
+      )
+      .map((m) => m.tool_call_id);
+
+    assert.deepStrictEqual(ids, ["tc2"]);
+    // Only the newer assistant message remains (plus user message)
+    const assistantMsgs = result.filter((m) => m.role === "assistant");
+    assert.strictEqual(assistantMsgs.length, 1);
+    const assistantMsg = assistantMsgs[0] as {
+      role: "assistant";
+      tool_calls?: Array<{ id: string }>;
+    };
+    assert.strictEqual(assistantMsg.tool_calls?.[0]?.id, "tc2");
+  });
+
+  it("keeps both calls when arguments differ", () => {
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithArgs("tc1", "getDOMState", { timestampMs: 100 }),
+      makeToolResult("tc1"),
+      makeAssistantWithArgs("tc2", "getDOMState", { timestampMs: 200 }),
+      makeToolResult("tc2"),
+    ];
+
+    const result = deduplicateToolCalls(context, new Set());
+
+    const ids = result
+      .filter(
+        (m): m is { role: "tool"; content: string; tool_call_id: string } =>
+          m.role === "tool",
+      )
+      .map((m) => m.tool_call_id);
+
+    assert.deepStrictEqual(ids, ["tc1", "tc2"]);
+  });
+
+  it("keeps the protected copy even when a later duplicate exists", () => {
+    // tc1 is the protected (Orient phase) call; tc2 is a later duplicate.
+    // The protected copy (tc1) must survive; tc2 must be dropped.
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithArgs("tc1", "findErrors", {}),
+      makeToolResult("tc1"),
+      makeAssistantWithArgs("tc2", "findErrors", {}),
+      makeToolResult("tc2"),
+    ];
+
+    const result = deduplicateToolCalls(context, new Set(["tc1"]));
+
+    const ids = result
+      .filter(
+        (m): m is { role: "tool"; content: string; tool_call_id: string } =>
+          m.role === "tool",
+      )
+      .map((m) => m.tool_call_id);
+
+    assert.deepStrictEqual(ids, ["tc1"]);
+  });
+
+  it("normalises argument key order for deduplication", () => {
+    // Same call but different key ordering — should deduplicate
+    const context: Context = [
+      makeUserMessage(),
+      makeAssistantWithArgs("tc1", "findErrors", { b: 2, a: 1 }),
+      makeToolResult("tc1"),
+      makeAssistantWithArgs("tc2", "findErrors", { a: 1, b: 2 }),
+      makeToolResult("tc2"),
+    ];
+
+    const result = deduplicateToolCalls(context, new Set());
+
+    const ids = result
+      .filter(
+        (m): m is { role: "tool"; content: string; tool_call_id: string } =>
+          m.role === "tool",
+      )
+      .map((m) => m.tool_call_id);
+
+    // tc1 is older, should be dropped; tc2 is newer, should be kept
+    assert.deepStrictEqual(ids, ["tc2"]);
+  });
+
+  it("passes through non-tool messages unchanged", () => {
+    const context: Context = [
+      makeUserMessage("first"),
+      makeUserMessage("second"),
+    ];
+
+    const result = deduplicateToolCalls(context, new Set());
+    assert.strictEqual(result.length, 2);
+  });
+
+  it("removes only duplicate tool_calls from a mixed assistant message, preserving the message", () => {
+    // One assistant message has two tool_calls: toolA (duplicate) and toolB (unique).
+    // A later assistant message also calls toolA with the same args — making the
+    // first toolA call a duplicate. toolB appears only once.
+    //
+    // Expected result:
+    //   - The first assistant message survives (toolB still needs it)
+    //   - toolA's tool_call entry is removed from the first assistant message's tool_calls
+    //   - toolB's tool_call entry remains in the first assistant message
+    //   - The tool result for tc-a1 (first toolA) is dropped
+    //   - The tool result for tc-b (toolB) is kept
+    //   - The second assistant message (tc-a2) and its tool result are kept
+    const context: Context = [
+      makeUserMessage(),
+      // First assistant message: calls toolA AND toolB
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "tc-a1",
+            type: "function" as const,
+            function: { name: "toolA", arguments: JSON.stringify({ x: 1 }) },
+          },
+          {
+            id: "tc-b",
+            type: "function" as const,
+            function: { name: "toolB", arguments: JSON.stringify({ y: 2 }) },
+          },
+        ],
+      },
+      makeToolResult("tc-a1"),
+      makeToolResult("tc-b"),
+      // Second assistant message: calls toolA again with identical args → duplicate
+      makeAssistantWithArgs("tc-a2", "toolA", { x: 1 }),
+      makeToolResult("tc-a2"),
+    ];
+
+    const result = deduplicateToolCalls(context, new Set());
+
+    // The first assistant message must still exist (toolB keeps it alive)
+    const assistantMsgs = result.filter((m) => m.role === "assistant") as Array<
+      Extract<Context[number], { role: "assistant" }>
+    >;
+    assert.strictEqual(
+      assistantMsgs.length,
+      2,
+      "both assistant messages should survive",
+    );
+
+    // The first assistant message must have only toolB's tool_call remaining
+    const firstAssistant = assistantMsgs[0]!;
+    assert.ok(
+      "tool_calls" in firstAssistant,
+      "first assistant message should have tool_calls",
+    );
+    const firstToolCalls =
+      (firstAssistant as { tool_calls?: Array<{ id: string }> }).tool_calls ??
+      [];
+    assert.strictEqual(
+      firstToolCalls.length,
+      1,
+      "only one tool_call should remain in the first assistant message",
+    );
+    assert.strictEqual(
+      firstToolCalls[0]!.id,
+      "tc-b",
+      "toolB's call should remain",
+    );
+
+    // tc-a1 tool result must be dropped; tc-b and tc-a2 must be kept
+    const toolResultIds = result
+      .filter(
+        (m): m is { role: "tool"; content: string; tool_call_id: string } =>
+          m.role === "tool",
+      )
+      .map((m) => m.tool_call_id);
+    assert.deepStrictEqual(toolResultIds, ["tc-b", "tc-a2"]);
+  });
+
+  it("keeps unrelated tool calls in an assistant message when only some are duplicates", () => {
+    // msg1: assistant with two tool calls — toolA (will be a duplicate) and toolB (unique)
+    const msg1: AssistantMessageContext = {
+      role: "assistant",
+      content: null as unknown as string,
+      tool_calls: [
+        {
+          id: "tc-a1",
+          type: "function",
+          function: { name: "toolA", arguments: "{}" },
+        },
+        {
+          id: "tc-b1",
+          type: "function",
+          function: { name: "toolB", arguments: "{}" },
+        },
+      ],
+    };
+    const resultA1: ToolMessageContext = {
+      role: "tool",
+      tool_call_id: "tc-a1",
+      content: "resultA1",
+    };
+    const resultB1: ToolMessageContext = {
+      role: "tool",
+      tool_call_id: "tc-b1",
+      content: "resultB1",
+    };
+    // msg2: assistant with a duplicate toolA call
+    const msg2: AssistantMessageContext = {
+      role: "assistant",
+      content: null as unknown as string,
+      tool_calls: [
+        {
+          id: "tc-a2",
+          type: "function",
+          function: { name: "toolA", arguments: "{}" },
+        },
+      ],
+    };
+    const resultA2: ToolMessageContext = {
+      role: "tool",
+      tool_call_id: "tc-a2",
+      content: "resultA2",
+    };
+
+    const context: Context = [msg1, resultA1, resultB1, msg2, resultA2];
+    const result = deduplicateToolCalls(context, new Set());
+
+    // msg1 should survive but with tc-a1 removed (only tc-b1 remains)
+    const survivingMsg1 = result.find(
+      (m) =>
+        m.role === "assistant" &&
+        "tool_calls" in m &&
+        (m as AssistantMessageContext).tool_calls?.some(
+          (tc) => tc.id === "tc-b1",
+        ),
+    ) as AssistantMessageContext | undefined;
+    assert.ok(survivingMsg1, "msg1 (with toolB) should survive");
+    assert.equal(survivingMsg1.tool_calls?.length, 1);
+    assert.equal(survivingMsg1.tool_calls?.[0]?.id, "tc-b1");
+
+    // tc-a1 result should be dropped, tc-b1 result should survive
+    assert.ok(
+      !result.some(
+        (m) =>
+          m.role === "tool" &&
+          (m as ToolMessageContext).tool_call_id === "tc-a1",
+      ),
+      "resultA1 should be dropped",
+    );
+    assert.ok(
+      result.some(
+        (m) =>
+          m.role === "tool" &&
+          (m as ToolMessageContext).tool_call_id === "tc-b1",
+      ),
+      "resultB1 should survive",
+    );
+
+    // msg2 and its result should survive (most recent toolA)
+    assert.ok(
+      result.some(
+        (m) =>
+          m.role === "assistant" &&
+          "tool_calls" in m &&
+          (m as AssistantMessageContext).tool_calls?.some(
+            (tc) => tc.id === "tc-a2",
+          ),
+      ),
+      "msg2 should survive",
+    );
+    assert.ok(
+      result.some(
+        (m) =>
+          m.role === "tool" &&
+          (m as ToolMessageContext).tool_call_id === "tc-a2",
+      ),
+      "resultA2 should survive",
+    );
+  });
+});
+
+// ─── purgeErroredToolCallInputs integration in createAgenticState ─────────────
+
+describe("createAgenticState — errored tool call purge", () => {
+  // Build a one-shot SSE stream from a tool_calls event + [DONE]
+  function makeToolCallStream(
+    toolCallId: string,
+    toolName: string,
+  ): ReadableStream<{ data: string }> {
+    const toolCallEvent = JSON.stringify({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: toolCallId,
+                function: { name: toolName, arguments: "{}" },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    return new ReadableStream<{ data: string }>({
+      start(controller) {
+        controller.enqueue({ data: toolCallEvent });
+        controller.enqueue({ data: "[DONE]" });
+        controller.close();
+      },
+    });
+  }
+
+  // Build a one-shot SSE stream with plain text content (no tool calls)
+  function makeTextStream(content: string): ReadableStream<{ data: string }> {
+    const event = JSON.stringify({
+      choices: [{ delta: { content } }],
+    });
+    return new ReadableStream<{ data: string }>({
+      start(controller) {
+        controller.enqueue({ data: event });
+        controller.enqueue({ data: "[DONE]" });
+        controller.close();
+      },
+    });
+  }
+
+  function waitForCondition(
+    predicate: () => boolean,
+    timeout = 5000,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      function check() {
+        if (predicate()) return resolve();
+        if (Date.now() - start > timeout)
+          return reject(new Error("Condition timed out"));
+        setTimeout(check, 10);
+      }
+      check();
+    });
+  }
+
+  it("errored tool call is NOT stripped from context within PURGE_ERROR_TURNS iterations", async () => {
+    // We track the context passed to the stream provider on the 2nd request
+    // (after tool results are appended) to verify tc1's assistant block is still present.
+    // The real getDOMState tool on an empty accessor returns an error response.
+    let secondRequestContext: Context | null = null;
+    let callCount = 0;
+
+    const streamProvider: StreamProvider = (ctx) => {
+      callCount++;
+      if (callCount === 1) {
+        // First request: LLM returns a tool call
+        return resolve(makeToolCallStream("tc1", "getDOMState")) as never;
+      }
+      // Second request: capture the context, then return plain text to end the loop
+      secondRequestContext = [...ctx];
+      return resolve(makeTextStream("done")) as never;
+    };
+
+    const accessor = makeEmptyAccessorNew();
+    // Inject custom executeFn via the executeToolCalls call signature requires
+    // us to test through createAgenticState. Since executeToolCalls is internal,
+    // we use the real one but override the tool handler via options.
+    // Instead, let's use the real state machine + a real tool that errors:
+    // getDOMState with no snapshot returns an error.
+    const state = createAgenticState(streamProvider, accessor);
+    state.query("test");
+
+    await waitForCondition(() => secondRequestContext !== null, 5000);
+
+    // Within the first iteration (delta = 0, below PURGE_ERROR_TURNS = 4),
+    // the assistant block for tc1 should still be present in the context.
+    const assistantMsgsWithTc1 = secondRequestContext!.filter(
+      (m) =>
+        m.role === "assistant" &&
+        "tool_calls" in m &&
+        (m as { tool_calls?: Array<{ id: string }> }).tool_calls?.some(
+          (tc) => tc.id === "tc1",
+        ),
+    );
+    assert.ok(
+      assistantMsgsWithTc1.length > 0,
+      "tc1 assistant block should still be present within PURGE_ERROR_TURNS",
+    );
+
+    // The tool result for tc1 should be present too
+    const toolResultForTc1 = secondRequestContext!.filter(
+      (m) =>
+        m.role === "tool" &&
+        (m as { tool_call_id?: string }).tool_call_id === "tc1",
+    );
+    assert.ok(
+      toolResultForTc1.length > 0,
+      "tc1 tool result should always be present",
+    );
+
+    state.destroy();
+  });
+
+  it("successful tool call input is never stripped from context", async () => {
+    // Use getRecordingDuration which always succeeds
+    let secondRequestContext: Context | null = null;
+    let callCount = 0;
+
+    const streamProvider: StreamProvider = (ctx) => {
+      callCount++;
+      if (callCount === 1) {
+        return resolve(
+          makeToolCallStream("tc1", "getRecordingDuration"),
+        ) as never;
+      }
+      secondRequestContext = [...ctx];
+      return resolve(makeTextStream("done")) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("test");
+
+    await waitForCondition(() => secondRequestContext !== null, 5000);
+
+    // The assistant block for tc1 (successful) should always be present
+    const assistantMsgsWithTc1 = secondRequestContext!.filter(
+      (m) =>
+        m.role === "assistant" &&
+        "tool_calls" in m &&
+        (m as { tool_calls?: Array<{ id: string }> }).tool_calls?.some(
+          (tc) => tc.id === "tc1",
+        ),
+    );
+    assert.ok(
+      assistantMsgsWithTc1.length > 0,
+      "successful tc1 assistant block should always be present",
+    );
+
+    state.destroy();
+  });
+
+  it("errored tool call assistant block IS stubbed in context beyond PURGE_ERROR_TURNS iterations", async () => {
+    // Drive the state machine through PURGE_ERROR_TURNS + 1 iterations where
+    // tc-err-0 is the first errored call, recorded at iteration 1. Each call
+    // uses unique args (timestampMs: N) to prevent deduplicateToolCalls from
+    // removing earlier tool results before purgeErroredToolCallInputs runs.
+    //
+    // After totalToolCallIterations = PURGE_ERROR_TURNS + 2 iterations:
+    //   tc-err-0 was recorded as errored at iteration 1.
+    //   currentIteration at the final request = PURGE_ERROR_TURNS + 2.
+    //   delta = (PURGE_ERROR_TURNS + 2) - 1 = PURGE_ERROR_TURNS + 1 >= PURGE_ERROR_TURNS → STUBBED.
+    const totalToolCallIterations = PURGE_ERROR_TURNS + 2;
+    let capturedContext: Context | null = null;
+    let callCount = 0;
+
+    const streamProvider: StreamProvider = (ctx) => {
+      callCount++;
+      if (callCount <= totalToolCallIterations) {
+        const toolCallId = `tc-err-${callCount - 1}`;
+        // Pass unique timestampMs so each call has a distinct signature and
+        // deduplicateToolCalls does not remove earlier tool results.
+        const args = JSON.stringify({ timestampMs: callCount * 1000 });
+        const toolCallEvent = JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: toolCallId,
+                    function: { name: "getDOMState", arguments: args },
+                  },
+                ],
+              },
+            },
+          ],
+        });
+        return resolve(
+          new ReadableStream<{ data: string }>({
+            start(controller) {
+              controller.enqueue({ data: toolCallEvent });
+              controller.enqueue({ data: "[DONE]" });
+              controller.close();
+            },
+          }),
+        ) as never;
+      }
+      // Final call: capture context and return plain text to end the loop.
+      capturedContext = [...ctx];
+      return resolve(makeTextStream("done")) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("test");
+
+    await waitForCondition(() => capturedContext !== null, 15000);
+
+    // "tc-err-0" was the first errored call, recorded at iteration 1.
+    // By the final request, currentIteration = PURGE_ERROR_TURNS + 2 and
+    // delta = PURGE_ERROR_TURNS + 1 >= PURGE_ERROR_TURNS → assistant block STUBBED.
+    // The message itself must be retained (preserves role:"tool" linkage).
+    const assistantMsgsWithTcErr0 = capturedContext!.filter(
+      (m) =>
+        m.role === "assistant" &&
+        "tool_calls" in m &&
+        (m as { tool_calls?: Array<{ id: string }> }).tool_calls?.some(
+          (tc) => tc.id === "tc-err-0",
+        ),
+    ) as Array<Extract<Context[number], { role: "assistant" }>>;
+    assert.strictEqual(
+      assistantMsgsWithTcErr0.length,
+      1,
+      "tc-err-0 assistant stub must remain (preserves tool-message linkage)",
+    );
+
+    // The stub must have its arguments cleared to "{}"
+    const stubCall = assistantMsgsWithTcErr0[0]!.tool_calls?.find(
+      (tc) => tc.id === "tc-err-0",
+    );
+    assert.ok(stubCall, "tc-err-0 tool_call entry must exist in the stub");
+    assert.strictEqual(
+      stubCall!.function.arguments,
+      "{}",
+      "tc-err-0 stub must have arguments stripped to '{}'",
+    );
+
+    // The tool result for tc-err-0 must still be present (purge only removes inputs).
+    const toolResultForTcErr0 = capturedContext!.filter(
+      (m) =>
+        m.role === "tool" &&
+        (m as { tool_call_id?: string }).tool_call_id === "tc-err-0",
+    );
+    assert.ok(
+      toolResultForTcErr0.length > 0,
+      "tc-err-0 tool result should always be kept",
+    );
+
     state.destroy();
   });
 });

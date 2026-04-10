@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Opencode-DCP/opencode-dynamic-context-pruning/master/dcp.schema.json",
+  // Compression settings tuned for claude-sonnet-4.6 via GitHub Copilot.
+  //
+  // GitHub Copilot caps limit.input at 128k (not Anthropic's native 200k).
+  // OpenCode's overflow check reserves 20k for output, so:
+  //   usable = 128k - 20k = 108k tokens before auto-compaction fires.
+  //
+  // DCP thresholds must stay well below 108k to nudge compression before
+  // OpenCode's hard gate triggers provider-side auto-compaction.
+  "compress": {
+    // Use range mode: compress completed spans into summaries.
+    // Message mode is experimental and untested in our workflow.
+    "mode": "range",
+    // Soft upper threshold — above this DCP injects strong compression nudges.
+    // Set to 85k (~79% of 108k usable) to fire before auto-compaction at 108k.
+    "maxContextLimit": 85000,
+    // Soft lower threshold — below this, reminders are off.
+    // Set to 45k (~42% of 108k usable).
+    "minContextLimit": 45000,
+    // Append bash outputs to compression summaries so file-write operations
+    // are never silently dropped from context.
+    "protectedTools": ["bash"],
+  },
+  // Subagent support is experimental — leave disabled until validated
+  // with our develop/test agent delegation pattern.
+  "experimental": {
+    "allowSubAgents": false,
+  },
+}

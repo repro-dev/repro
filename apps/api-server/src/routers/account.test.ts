@@ -149,7 +149,7 @@ describe('Routers > Account', () => {
       const allAccountNames = await promise(
         accountService
           .listAccounts()
-          .pipe(map(accounts => accounts.map(account => account.name)))
+          .pipe(map(result => result.items.map(account => account.name)))
       )
 
       expect(res.statusCode).toEqual(409)
@@ -371,6 +371,42 @@ describe('Routers > Account', () => {
       expect(user).toMatchObject({
         id: expect.any(String),
         name: 'John Smith',
+      })
+    })
+
+    it('should create a session on accepting an invitation', async () => {
+      const [account] = await harness.loadFixtures([fixtures.account.AccountA])
+
+      const invitation = await promise(
+        accountService.createInvitation(account.id, 'jsmith@example.com')
+      )
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/accept-invitation',
+        body: {
+          invitationToken: invitation.token,
+          email: invitation.email,
+          name: 'John Smith',
+          password: 'hunter2!',
+        },
+      })
+
+      expect(res.statusCode).toEqual(201)
+
+      const cookie = res.cookies.find(
+        c => c.name === harness.env.SESSION_COOKIE
+      )
+
+      const sessionToken = cookie?.value
+      expect(sessionToken).not.toBeUndefined()
+
+      await expect(
+        promise(accountService.getSessionByToken(sessionToken as string))
+      ).resolves.toMatchObject({
+        id: expect.any(String),
+        sessionToken,
+        subjectType: 'user',
       })
     })
 

@@ -285,22 +285,26 @@ _drop_worktree_db() {
 } >&2
 
 cmd_wt_remove() {
-  local branch="$1"
+  local input="$1"
   local wt_path
-  wt_path="$(_worktree_path_for_branch "$branch")" || wt_path=""
+  # resolve_worktree tries slug-path first, then branch-name lookup — accepts
+  # both a bare slug (e.g. rep-123) and a full branch name.
+  wt_path="$(resolve_worktree "$input")" || wt_path=""
 
-  if [ -z "$wt_path" ] || [ ! -d "$wt_path" ]; then
+  # Guard: directory must exist AND be a registered git worktree. An accidental
+  # directory that isn't tracked by git should be treated as "not found".
+  if [ -z "$wt_path" ] || [ ! -d "$wt_path" ] || ! _worktree_branch_for_path "$wt_path" >/dev/null 2>&1; then
     if [ "$WT_DRY_RUN" = true ]; then
-      echo "${CLR_DIM}[dry-run]${CLR_RESET} No worktree found for branch: $branch"
+      echo "${CLR_DIM}[dry-run]${CLR_RESET} No worktree found for: $input"
       return 0
     fi
-    _err "No worktree found for branch: $branch"
+    _err "No worktree found for: $input"
     echo "  Run 'reproctl worktree list' to see active worktrees." >&2
     git worktree prune
     return 1
   fi
 
-  echo "${CLR_BOLD}Removing worktree for branch:${CLR_RESET} $branch"
+  echo "${CLR_BOLD}Removing worktree for:${CLR_RESET} $input"
   echo "  Path: $wt_path"
 
   if [ "$WT_DRY_RUN" = true ]; then
@@ -316,9 +320,9 @@ cmd_wt_remove() {
 
   _step 1 2 "Removing git worktree..."
   if [ "${WT_FORCE:-false}" = true ]; then
-    git worktree remove --force "$wt_path"
+    git worktree remove --force "$wt_path" || return $?
   else
-    git worktree remove "$wt_path"
+    git worktree remove "$wt_path" || return $?
   fi
 
   _step 2 2 "Pruning stale entries..."
@@ -694,9 +698,9 @@ Usage: reproctl worktree <command> [options] [args]
 Commands:
   create [options] <branch>        Create a new worktree for the given branch
   create --from-issue <id>         Create a worktree from a Linear issue
-  remove [options] <branch>        Remove the worktree for the given branch
+  remove [options] <slug|branch>   Remove the worktree for the given slug or branch
   list                        List all active worktrees
-  attach <branch>             Drop into a subshell in the given worktree
+  attach <slug|branch>        Drop into a subshell in the given worktree
   prune  [options]            Remove worktrees whose branches are merged
 
 Options (create):
@@ -707,12 +711,14 @@ Options (create):
 Options (list):
   --json              Output worktree data as a JSON array
 
-Options (remove, prune):
+Options (remove):
+  --force, -f       Force-remove worktree even if it has uncommitted changes
   --dry-run         Preview what would be done without making changes
 
 Options (prune):
   --yes, -y         Skip confirmation prompt
   --force, -f       Force-remove worktrees even if they have uncommitted changes
+  --dry-run         Preview what would be done without making changes
 
 Interactive picker:
   When 'attach' or 'remove' is invoked without a branch name and
@@ -723,11 +729,14 @@ Examples:
   reproctl worktree create feat/my-feature      # checkout existing branch
   reproctl worktree create feat/new-feature     # auto-creates branch if needed
   reproctl worktree create -i REP-123           # create from Linear issue
-  reproctl worktree remove feat/my-feature      # remove worktree
+  reproctl worktree remove rep-123              # remove worktree by slug
+  reproctl worktree remove feat/my-feature      # remove worktree by branch name
+  reproctl worktree remove --force rep-123      # force-remove (uncommitted changes ok)
   reproctl worktree remove                      # pick interactively
   reproctl worktree list                        # list all worktrees
   reproctl worktree list --json                 # list as JSON (for tooling)
-  reproctl worktree attach feat/my-feature      # drop into worktree subshell
+  reproctl worktree attach rep-123              # drop into worktree subshell by slug
+  reproctl worktree attach feat/my-feature      # drop into worktree subshell by branch
   reproctl worktree attach                      # pick interactively
   reproctl worktree prune --dry-run             # preview merged worktrees
   reproctl worktree prune --yes                 # prune without confirmation
@@ -825,8 +834,8 @@ cmd_wt() {
     die "--yes flag can only be used with 'prune'"
   fi
 
-  if [ "$WT_FORCE" = true ] && [ "$subcmd" != "prune" ]; then
-    die "--force flag can only be used with 'prune'"
+  if [ "$WT_FORCE" = true ] && [ "$subcmd" != "prune" ] && [ "$subcmd" != "remove" ]; then
+    die "--force flag can only be used with 'prune' or 'remove'"
   fi
 
   if [[ -n "$WT_FROM_ISSUE" && "$subcmd" != "create" ]]; then
@@ -868,11 +877,16 @@ cmd_wt() {
           selected="$(_pick "Select worktree to remove" "${candidates[@]}")" || exit $?
           args=("$selected")
         else
-          die "'worktree remove' requires a branch name"
+          die "'worktree remove' requires a slug or branch name"
         fi
       fi
-      if ! git check-ref-format "refs/heads/${args[0]}" >/dev/null 2>&1; then
-        die "'${args[0]}' is not a valid branch name."
+      # Accept bare slugs (e.g. rep-123) as well as full branch names.
+      # Only apply strict git ref validation when the input contains a slash,
+      # which unambiguously signals a branch name.
+      if [[ "${args[0]}" == */* ]]; then
+        if ! git check-ref-format "refs/heads/${args[0]}" >/dev/null 2>&1; then
+          die "'${args[0]}' is not a valid branch name."
+        fi
       fi
       cmd_wt_remove "${args[0]}"
       ;;

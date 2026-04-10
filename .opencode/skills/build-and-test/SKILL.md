@@ -13,21 +13,21 @@ Moon v2 project IDs use the source-path format: `repro/<name>` (e.g. `repro/doma
 
 **Moon v2 glob restriction**: Brace expansion (`{,x}`) is not supported in glob patterns. Use separate entries instead (e.g. two globs `*.ts` and `*.tsx` rather than `*.ts{,x}`).
 
-| Task | Command |
-|------|---------|
-| Build | `moon run repro/<name>:build` (builds dependencies first via `^:build`) |
-| Test | `moon run repro/<name>:test` or `pnpm test` (uses tsx with `--test` flag) |
-| Single test | `tsx --experimental-test-module-mocks --test path/to/file.test.ts` |
-| Typecheck | `moon run repro/<name>:typecheck` or `pnpm typecheck` |
+| Task        | Command                                                                   |
+| ----------- | ------------------------------------------------------------------------- |
+| Build       | `moon run repro/<name>:build` (builds dependencies first via `^:build`)   |
+| Test        | `moon run repro/<name>:test` or `pnpm test` (uses tsx with `--test` flag) |
+| Single test | `tsx --experimental-test-module-mocks --test path/to/file.test.ts`        |
+| Typecheck   | `moon run repro/<name>:typecheck` or `pnpm typecheck`                     |
 
 General form: `moon run repro/<name>:build|test|typecheck` or `cd <package> && pnpm <script>`.
 
 ### Moon v2 config files
 
-| File | Purpose |
-|------|---------|
-| `.moon/toolchains.yml` | Toolchain config (javascript, node, pnpm sections) |
-| `.moon/workspace.yml` | Workspace config (project sources, vcs) |
+| File                   | Purpose                                                          |
+| ---------------------- | ---------------------------------------------------------------- |
+| `.moon/toolchains.yml` | Toolchain config (javascript, node, pnpm sections)               |
+| `.moon/workspace.yml`  | Workspace config (project sources, vcs)                          |
 | `.moon/tasks/node.yml` | Inherited task definitions (uses `inheritedBy: toolchain: node`) |
 
 Individual project configs are in `moon.yml` files within each app/package directory and use `toolchains:` (plural) for toolchain overrides.
@@ -49,6 +49,17 @@ reproctl help logs         # service log streaming
 reproctl help doctor       # environment diagnostics
 ```
 
+## Database Shell
+
+To run ad-hoc queries against a worktree's database, use `reproctl db shell` from the worktree directory:
+
+```sh
+# Run from the worktree root
+reproctl db shell -c "SELECT * FROM projects;"
+```
+
+This connects automatically via the Tilt port-forward for the worktree's cluster. No need to locate the PostgreSQL socket or supply credentials manually. Do **not** use `psql` directly — the DB is only reachable via Tilt's port-forward and requires credentials.
+
 ## Python Script Tests
 
 The `scripts/lib/py/` directory contains standalone Python scripts used by reproctl bash scripts. These have a pytest suite in `scripts/lib/py/tests/` that is **not** integrated into moon or CI — tests must be run locally when scripts are changed.
@@ -68,21 +79,29 @@ When a tool is installed elsewhere (e.g. in a Dockerfile, CI config, or setup sc
 
 **Current pinning locations:**
 
-| Tool | `.prototools` | Also installed in |
-|------|---------------|-------------------|
-| `moon` | `moon = "2.0.4"` | `infra/Dockerfile` (`@moonrepo/cli@2.0.4`) |
+| Tool   | `.prototools`      | Also installed in                              |
+| ------ | ------------------ | ---------------------------------------------- |
+| `moon` | `moon = "2.0.4"`   | `infra/Dockerfile` (`@moonrepo/cli@2.0.4`)     |
 | `node` | `node = "22.19.0"` | `infra/Dockerfile` (base image `node:22-slim`) |
-| `pnpm` | `pnpm = "10.17.0"` | — |
+| `pnpm` | `pnpm = "10.17.0"` | —                                              |
 
 `.prototools` also pins a **moon_tool plugin override** (`[plugins.tools] moon = "...moon_tool-v0.4.1/moon_tool.wasm"`) required for Moon v2's archive distribution format. The built-in proto plugin doesn't support v2 yet.
 
 When upgrading a tool version, update **all** pinning locations together.
 
-## Screenshots & Temporary Files
+## Temporary Files (Invariant)
 
-The project has a `tmp/` directory at the repo root for ephemeral files such as Playwright screenshots, build artifacts, or other throwaway output. Everything inside is git-ignored except the `.gitkeep` sentinel.
+**Always write ephemeral output to `tmp/` at the repo root.** This covers screenshots, build artifacts, Playwright output, scratch files, test results — anything throwaway.
 
-When capturing Storybook screenshots (e.g. for PR visual reviews), save them to `tmp/` by passing `outputPath` or equivalent options pointing at `<repo-root>/tmp`. This avoids polluting `~/Downloads` or other user directories.
+| Path               | Status        | Reason                                                                                               |
+| ------------------ | ------------- | ---------------------------------------------------------------------------------------------------- |
+| `<repo-root>/tmp/` | **Required**  | Git-ignored, inside project root, no permission prompt                                               |
+| `/tmp`             | **Forbidden** | Outside project root — OpenCode requires an elevated-permission prompt, blocking automated pipelines |
+| `~/Downloads`      | **Forbidden** | Pollutes the user's filesystem with untracked agent output                                           |
+
+`tmp/` is git-ignored; the `.gitkeep` sentinel keeps the directory tracked.
+
+When passing output paths to tools (e.g. Playwright `outputDir`, Storybook screenshot `outputPath`), always resolve to an absolute path under `<repo-root>/tmp/`.
 
 ## Worktrees & OpenCode External Directory Permission
 
@@ -102,3 +121,62 @@ This cannot be configured in the project-level `opencode.json` because the check
 ```
 
 Replace `~/path/to/parent-of-checkouts` with the directory that contains your main checkout and its worktree siblings (e.g. `~/Projects/repro-dev`).
+
+## Visual Regression
+
+The `/lightspeed` pipeline runs an automated visual regression check (Phase 7) for any PR that touches UI files. The tooling consists of two scripts in `scripts/`:
+
+| Script                                 | Purpose                                                        |
+| -------------------------------------- | -------------------------------------------------------------- |
+| `scripts/visual-regression.sh`         | Bash 3.2 wrapper: starts Storybook, runs capture, copies diffs |
+| `scripts/visual-regression-capture.ts` | tsx script: Playwright headless capture + pixelmatch diff      |
+
+### Baseline storage
+
+- **`tmp/visual-baselines/`** (main checkout) — machine-local PNG reference images, git-ignored. Run `/update-visual-baselines` to populate or refresh after an intentional visual change is merged.
+- **`<worktree>/tmp/visual-baselines-ref/`** — baselines copied from main into the worktree for the diff run. Transient; recreated on each run.
+- **`<worktree>/tmp/visual-screenshots/`** — current-branch screenshots captured during the check.
+- **`<worktree>/tmp/visual-diffs/`** — diff PNGs written when a story exceeds the pixel threshold. Included in escalation messages.
+
+### Running the check manually
+
+```sh
+bash scripts/visual-regression.sh \
+  --worktree /path/to/worktree \
+  --main-checkout /path/to/main-checkout \
+  --stories '["button--primary","badge--default"]' \
+  --threshold 0.001
+```
+
+Pass `--stories '[]'` to check all stories. The script outputs JSON (same shape as `visual-regression-capture.ts`) to stdout and exits non-zero if any stories fail.
+
+### Updating baselines
+
+Run the `/update-visual-baselines` command (or directly):
+
+```sh
+bash scripts/visual-regression.sh \
+  --update-baselines \
+  --worktree /path/to/main-checkout \
+  --main-checkout /path/to/main-checkout \
+  --stories '[]'
+```
+
+Run this after any intentional visual change is merged to main. Baselines are local-only; each developer must run this after initial clone and after merging visual changes.
+
+### Story ID convention (Storybook v10)
+
+Story IDs follow the pattern `<component-name>--<story-name>` in kebab-case. For example:
+
+- Component file `Button.stories.tsx` with story `Primary` → `button--primary`
+- Component file `Badge.stories.tsx` with story `Default` → `badge--default`
+
+After starting Storybook, query `http://localhost:6099/index.json` to get canonical story IDs — this is more reliable than inferring IDs from source files.
+
+### Threshold configuration
+
+Default threshold: `0.001` (0.1% of pixels changed). To override for a specific package, create a `.visual-threshold` file in the package root containing just the threshold value (e.g. `0.005`).
+
+### Storybook port
+
+The script uses port **6099** by default (avoids conflict with the dev server on 6006). Override with `--port <n>` if needed. The script automatically finds the next free port if 6099 is occupied.

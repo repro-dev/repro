@@ -3,12 +3,14 @@ import { Analytics } from '@repro/analytics'
 import { ReferenceStyleProvider } from '@repro/css-utils'
 import { colors } from '@repro/design'
 import { PlaybackCanvas } from '@repro/playback'
-import React, { Fragment, PropsWithChildren, useEffect } from 'react'
+import React, { Fragment, useEffect } from 'react'
 import { ConsolePanel } from './ConsolePanel'
 import { DragHandle } from './DragHandle'
 import { ElementsPanel } from './ElementsPanel'
 import { NetworkPanel } from './NetworkPanel'
 import { PickerOverlay } from './PickerOverlay'
+import { ReactPanel } from './ReactPanel'
+import { ReduxPanel } from './ReduxPanel'
 import { Toolbar } from './Toolbar'
 import { MAX_INT32 } from './constants'
 import {
@@ -81,6 +83,8 @@ export const DevTools: React.FC<Props> = React.memo(props => {
                 {view === View.Elements && <ElementsPanel />}
                 {view === View.Network && <NetworkPanel />}
                 {view === View.Console && <ConsolePanel />}
+                {view === View.React && <ReactPanel />}
+                {view === View.Redux && <ReduxPanel />}
               </ContentRegion>
             </Fragment>
           )}
@@ -90,7 +94,7 @@ export const DevTools: React.FC<Props> = React.memo(props => {
   )
 })
 
-const Container: React.FC<PropsWithChildren> = ({ children }) => (
+const Container: React.FC<React.PropsWithChildren> = ({ children }) => (
   <Grid
     height="100%"
     gridTemplateRows="1fr auto"
@@ -102,7 +106,7 @@ const Container: React.FC<PropsWithChildren> = ({ children }) => (
   </Grid>
 )
 
-const PlaybackRegion: React.FC<PropsWithChildren<{ mask: boolean }>> = ({
+const PlaybackRegion: React.FC<React.PropsWithChildren<{ mask: boolean }>> = ({
   children,
   mask,
 }) => (
@@ -118,11 +122,10 @@ const PlaybackRegion: React.FC<PropsWithChildren<{ mask: boolean }>> = ({
   </Block>
 )
 
-const InspectorRegion: React.FC<PropsWithChildren> = ({ children }) => (
+const InspectorRegion: React.FC<React.PropsWithChildren> = ({ children }) => (
   <Grid
     gridArea="inspector"
     position="relative"
-    isolation="isolate"
     backgroundColor={colors.white}
     gridTemplateRows="40px auto"
     boxShadow={`0 -4px 16px rgba(0, 0, 0, 0.1)`}
@@ -132,7 +135,7 @@ const InspectorRegion: React.FC<PropsWithChildren> = ({ children }) => (
   </Grid>
 )
 
-const ContentRegion: React.FC<PropsWithChildren> = ({ children }) => {
+const ContentRegion: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [size] = useSize()
   return (
     <Block
