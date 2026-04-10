@@ -15,12 +15,23 @@ import { Box } from "@repro/tdl";
 import { resolve } from "fluture";
 import { estimateTokens } from "../token-optimization";
 import {
+  createError,
   isConsoleEvent,
   isDOMPatchEvent,
   isInteractionEvent,
   serializeMessagePart,
 } from "./common";
 import type { ToolHandler } from "./common";
+
+// Headers that may carry auth tokens, session cookies, or other credentials.
+// Values for these keys are excluded from the searchable text.
+const SENSITIVE_REQUEST_HEADERS = new Set([
+  "authorization",
+  "cookie",
+  "proxy-authorization",
+]);
+
+const SENSITIVE_RESPONSE_HEADERS = new Set(["set-cookie"]);
 
 export const TOOL_DEFINITION = {
   type: "function",
@@ -68,7 +79,20 @@ function extractMatchContext(
 }
 
 export const handler: ToolHandler = (recording, args) => {
-  const query = ((args.query as string) ?? "").toLowerCase();
+  const rawQuery = ((args.query as string) ?? "").trim();
+
+  // Reject blank/whitespace-only queries — `includes('')` matches everything.
+  if (rawQuery.length === 0) {
+    return resolve(
+      createError(
+        "query must not be blank",
+        "An empty or whitespace-only query would match every event, which is not useful",
+        'Provide a non-empty search string, e.g. searchEvents({ query: "TypeError" })',
+      ),
+    );
+  }
+
+  const query = rawQuery.toLowerCase();
   const eventTypes = args.eventTypes as string[] | undefined;
   const timeRangeStartMs = (args.timeRangeStartMs as number) ?? 0;
   const timeRangeEndMs =
@@ -172,14 +196,16 @@ export const handler: ToolHandler = (recording, args) => {
       const method = group.request.method;
       const status = group.response ? String(group.response.status) : "";
 
-      // Build searchable text from request headers
+      // Build searchable text from request headers (sensitive keys excluded)
       const reqHeaders = Object.entries(group.request.headers ?? {})
+        .filter(([k]) => !SENSITIVE_REQUEST_HEADERS.has(k.toLowerCase()))
         .map(([k, v]) => `${k}: ${v}`)
         .join(" ");
 
-      // Build searchable text from response headers
+      // Build searchable text from response headers (sensitive keys excluded)
       const resHeaders = group.response
         ? Object.entries(group.response.headers ?? {})
+            .filter(([k]) => !SENSITIVE_RESPONSE_HEADERS.has(k.toLowerCase()))
             .map(([k, v]) => `${k}: ${v}`)
             .join(" ")
         : "";
@@ -282,7 +308,7 @@ export const handler: ToolHandler = (recording, args) => {
 
   // ─── DOM Patch events ─────────────────────────────────────────────────────────
 
-  if (shouldIncludeType("dom-patch")) {
+  if (shouldIncludeType("domPatch")) {
     const patchEvents = recording.getEventsByType([SourceEventType.DOMPatch], {
       startMs: timeRangeStartMs === 0 ? undefined : timeRangeStartMs,
       endMs:
@@ -311,7 +337,7 @@ export const handler: ToolHandler = (recording, args) => {
       const patchType = dataBox.get("type").orElse(-1 as PatchType);
 
       let searchText = "";
-      let summary = "dom-patch";
+      let summary = "domPatch";
 
       if (patchType === PatchType.Attribute) {
         const name = dataBox.get("name").orElse("");
@@ -336,7 +362,7 @@ export const handler: ToolHandler = (recording, args) => {
       }
 
       if (!searchText) continue;
-      tryMatch(searchText, timeMs, "dom-patch", summary);
+      tryMatch(searchText, timeMs, "domPatch", summary);
     }
   }
 

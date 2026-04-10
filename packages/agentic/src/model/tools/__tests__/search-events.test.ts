@@ -263,7 +263,7 @@ describe("executeTool — searchEvents — DOM patch events", () => {
       executeTool(accessor, "searchEvents", { query: "buy-button" }),
     )) as { matches: Array<{ type: string }> };
     assert.strictEqual(result.matches.length, 1);
-    assert.strictEqual(result.matches[0]!.type, "dom-patch");
+    assert.strictEqual(result.matches[0]!.type, "domPatch");
   });
 
   it("finds DOM patch by text content", async () => {
@@ -273,7 +273,7 @@ describe("executeTool — searchEvents — DOM patch events", () => {
       executeTool(accessor, "searchEvents", { query: "Hello World" }),
     )) as { matches: Array<{ type: string }> };
     assert.strictEqual(result.matches.length, 1);
-    assert.strictEqual(result.matches[0]!.type, "dom-patch");
+    assert.strictEqual(result.matches[0]!.type, "domPatch");
   });
 });
 
@@ -295,6 +295,135 @@ describe("executeTool — searchEvents — performance events", () => {
     )) as { matches: Array<{ type: string }> };
     assert.strictEqual(result.matches.length, 1);
     assert.strictEqual(result.matches[0]!.type, "performance");
+  });
+});
+
+// ─── Test: blank / whitespace query guard ────────────────────────────────────
+
+describe("executeTool — searchEvents — blank query guard", () => {
+  it("returns an error for an empty string query", async () => {
+    const accessor = makeEmptyAccessor();
+    const result = (await runFuture(
+      executeTool(accessor, "searchEvents", { query: "" }),
+    )) as { error: string };
+    assert.ok("error" in result, "should return an error object");
+    assert.ok(typeof result.error === "string" && result.error.length > 0);
+  });
+
+  it("returns an error for a whitespace-only query", async () => {
+    const accessor = makeEmptyAccessor();
+    const result = (await runFuture(
+      executeTool(accessor, "searchEvents", { query: "   " }),
+    )) as { error: string };
+    assert.ok("error" in result, "should return an error object");
+  });
+});
+
+// ─── Test: sensitive header redaction ────────────────────────────────────────
+
+describe("executeTool — searchEvents — sensitive header redaction", () => {
+  it("does not expose Authorization header values in match results", async () => {
+    const events = [
+      makeFetchRequestEvent(
+        100,
+        "req-auth",
+        "https://api.example.com/secure",
+        "GET",
+        {
+          Authorization: "Bearer supersecrettoken123",
+          "content-type": "application/json",
+        },
+      ),
+      makeFetchResponseEvent(200, "req-auth", 200, {
+        "Set-Cookie": "session=abc123; Secure; HttpOnly",
+      }),
+    ];
+    const accessor = makeAccessor(events);
+
+    // Searching for a known sensitive value should not match
+    const result = (await runFuture(
+      executeTool(accessor, "searchEvents", { query: "supersecrettoken123" }),
+    )) as { matches: Array<{ type: string }> };
+    assert.strictEqual(
+      result.matches.length,
+      0,
+      "Authorization token should not appear in search results",
+    );
+  });
+
+  it("does not expose Cookie header values in match results", async () => {
+    const events = [
+      makeFetchRequestEvent(
+        100,
+        "req-cookie",
+        "https://api.example.com/data",
+        "GET",
+        { Cookie: "session=topsecret999" },
+      ),
+      makeFetchResponseEvent(200, "req-cookie", 200),
+    ];
+    const accessor = makeAccessor(events);
+
+    const result = (await runFuture(
+      executeTool(accessor, "searchEvents", { query: "topsecret999" }),
+    )) as { matches: Array<{ type: string }> };
+    assert.strictEqual(
+      result.matches.length,
+      0,
+      "Cookie value should not appear in search results",
+    );
+  });
+
+  it("still matches on allowed header fields like content-type", async () => {
+    const events = [
+      makeFetchRequestEvent(
+        100,
+        "req-ct",
+        "https://api.example.com/data",
+        "POST",
+        { "content-type": "application/json", Authorization: "Bearer secret" },
+      ),
+      makeFetchResponseEvent(200, "req-ct", 200),
+    ];
+    const accessor = makeAccessor(events);
+
+    const result = (await runFuture(
+      executeTool(accessor, "searchEvents", { query: "application/json" }),
+    )) as { matches: Array<{ type: string }> };
+    assert.strictEqual(result.matches.length, 1);
+    assert.strictEqual(result.matches[0]!.type, "network");
+  });
+});
+
+// ─── Test: domPatch event type name ──────────────────────────────────────────
+
+describe("executeTool — searchEvents — domPatch type name", () => {
+  it("result type field is 'domPatch' (not 'dom-patch')", async () => {
+    const events = [
+      makeAttributePatchEvent(400, "node01", "data-testid", "buy-button", null),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "searchEvents", { query: "buy-button" }),
+    )) as { matches: Array<{ type: string }> };
+    assert.strictEqual(result.matches.length, 1);
+    assert.strictEqual(result.matches[0]!.type, "domPatch");
+  });
+
+  it("eventTypes filter accepts 'domPatch' string", async () => {
+    const events = [
+      makeAttributePatchEvent(400, "node01", "class", "active", null),
+      makeConsoleInfoEvent(500, "unrelated console message"),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "searchEvents", {
+        query: "active",
+        eventTypes: ["domPatch"],
+      }),
+    )) as { matches: Array<{ type: string }> };
+    assert.strictEqual(result.matches.length, 1);
+    assert.strictEqual(result.matches[0]!.type, "domPatch");
   });
 });
 
