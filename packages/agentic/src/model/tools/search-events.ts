@@ -13,6 +13,7 @@ import {
 import { groupNetworkEvents } from "@repro/source-utils";
 import { Box } from "@repro/tdl";
 import { resolve } from "fluture";
+import { estimateTokens } from "../token-optimization";
 import {
   isConsoleEvent,
   isDOMPatchEvent,
@@ -384,5 +385,6 @@ export const handler: ToolHandler = (recording, args) => {
     m.index = i;
   });
 
-  return resolve({ matches: matches.slice(0, maxResults) });
+  const result = { matches: matches.slice(0, maxResults) };
+  return resolve({ ...result, _tokenEstimate: estimateTokens(result) });
 };

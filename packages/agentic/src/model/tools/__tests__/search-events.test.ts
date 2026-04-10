@@ -89,11 +89,16 @@ describe("executeTool — searchEvents — console events", () => {
         summary: string;
         matchContext: string;
       }>;
+      _tokenEstimate: number;
     };
     assert.strictEqual(result.matches.length, 1);
     assert.strictEqual(result.matches[0]!.type, "console");
     assert.strictEqual(result.matches[0]!.timeMs, 500);
     assert.ok(result.matches[0]!.summary.length > 0);
+    assert.ok(
+      typeof result._tokenEstimate === "number" && result._tokenEstimate >= 0,
+      "_tokenEstimate should be a non-negative number",
+    );
   });
 
   it("includes stack trace file names in search", async () => {
