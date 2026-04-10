@@ -1,5 +1,5 @@
 $schema: "https://moonrepo.dev/schemas/project.json"
-id: agentic-ui
+id: repro/agentic-ui
 language: typescript
 layer: library
 tags:
