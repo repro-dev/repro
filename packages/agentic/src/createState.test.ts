@@ -1364,6 +1364,206 @@ describe("createAgenticState — cancel and error handling", () => {
   });
 });
 
+// ─── token estimate caching ──────────────────────────────────────────────────
+
+describe("token estimate caching", () => {
+  // Local helpers for this describe block
+  function makeEmptyAccessorLocal(): RecordingDataAccessor {
+    return {
+      getDuration: () => 0,
+      getSnapshotAtTime: () => null,
+      getEventsByType: () => [],
+      getEventsInRange: () => [],
+      getResourceMap: () => ({}),
+    };
+  }
+
+  function waitForConditionLocal(
+    predicate: () => boolean,
+    timeout = 10000,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      function check() {
+        if (predicate()) return resolve();
+        if (Date.now() - start > timeout) return reject(new Error("timeout"));
+        setTimeout(check, 10);
+      }
+      check();
+    });
+  }
+
+  function makeTextStream(content: string): ReadableStream<{ data: string }> {
+    const event = JSON.stringify({
+      choices: [{ delta: { content } }],
+    });
+    return new ReadableStream<{ data: string }>({
+      start(controller) {
+        controller.enqueue({ data: event });
+        controller.enqueue({ data: "[DONE]" });
+        controller.close();
+      },
+    });
+  }
+
+  function makeToolCallStream(
+    toolCallId: string,
+    toolName: string,
+    args = "{}",
+  ): ReadableStream<{ data: string }> {
+    const toolCallEvent = JSON.stringify({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: toolCallId,
+                function: { name: toolName, arguments: args },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    return new ReadableStream<{ data: string }>({
+      start(controller) {
+        controller.enqueue({ data: toolCallEvent });
+        controller.enqueue({ data: "[DONE]" });
+        controller.close();
+      },
+    });
+  }
+
+  it("entries accumulate correctly across multiple fetchResponse calls (cache correctness)", async () => {
+    // Drive the state machine through 2 LLM turns:
+    //   turn 1: user → assistant (tool call)
+    //   turn 2: tool result → assistant (text response)
+    // After both turns complete, entries must reflect the full conversation history.
+    // This verifies that caching does not corrupt context passed to subsequent calls.
+    let callCount = 0;
+    let secondRequestDone = false;
+
+    const streamProvider: StreamProvider = () => {
+      callCount++;
+      if (callCount === 1) {
+        // First request: return a tool call
+        return resolve(
+          makeToolCallStream("tc1", "getRecordingDuration"),
+        ) as never;
+      }
+      // Second request: return plain text to end the loop
+      secondRequestDone = true;
+      return resolve(makeTextStream("done")) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorLocal());
+    state.query("hello world");
+
+    await waitForConditionLocal(() => secondRequestDone, 10000);
+    // Give the final stream time to complete
+    await new Promise((res) => setTimeout(res, 200));
+
+    const entries = state.$entries.getValue();
+
+    // Expect: user message + assistant (tool call) + tool result + assistant (text)
+    const userEntries = entries.filter((e) => e.role === "user");
+    const assistantEntries = entries.filter((e) => e.role === "assistant");
+    const toolEntries = entries.filter((e) => e.role === "tool");
+
+    assert.strictEqual(userEntries.length, 1, "Expected exactly 1 user entry");
+    assert.ok(
+      assistantEntries.length >= 2,
+      `Expected at least 2 assistant entries (tool call + text response), got ${assistantEntries.length}`,
+    );
+    assert.strictEqual(
+      toolEntries.length,
+      1,
+      "Expected exactly 1 tool result entry",
+    );
+
+    // Verify both fetchResponse calls completed (streamProvider was called twice)
+    assert.strictEqual(callCount, 2, "Expected exactly 2 fetchResponse calls");
+
+    state.destroy();
+  });
+
+  it("reset() clears entries and allows a fresh query", async () => {
+    // After reset(), all entries are cleared. A subsequent query must start
+    // a fresh conversation (no stale entries from before reset).
+    let callCount = 0;
+    let firstQueryDone = false;
+    let secondQueryDone = false;
+
+    const streamProvider: StreamProvider = () => {
+      callCount++;
+      if (callCount === 1) {
+        firstQueryDone = true;
+        return resolve(makeTextStream("first response")) as never;
+      }
+      // Second query's stream
+      secondQueryDone = true;
+      return resolve(makeTextStream("second response")) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorLocal());
+
+    // First query
+    state.query("first question");
+    await waitForConditionLocal(() => firstQueryDone, 5000);
+    await new Promise((res) => setTimeout(res, 100));
+
+    const entriesBeforeReset = state.$entries.getValue();
+    assert.ok(
+      entriesBeforeReset.length >= 2,
+      `Expected at least 2 entries after first query, got ${entriesBeforeReset.length}`,
+    );
+
+    // Reset — must clear all entries and any internal cache
+    state.reset();
+
+    const entriesAfterReset = state.$entries.getValue();
+    assert.strictEqual(
+      entriesAfterReset.length,
+      0,
+      "Expected 0 entries immediately after reset()",
+    );
+
+    // Second query — must work correctly from a clean slate
+    state.query("second question");
+    await waitForConditionLocal(() => secondQueryDone, 5000);
+    await new Promise((res) => setTimeout(res, 100));
+
+    const entriesAfterSecondQuery = state.$entries.getValue();
+    // Should only have entries from the second query (user + assistant)
+    const userEntries = entriesAfterSecondQuery.filter(
+      (e) => e.role === "user",
+    );
+    const assistantEntries = entriesAfterSecondQuery.filter(
+      (e) => e.role === "assistant",
+    );
+
+    assert.strictEqual(
+      userEntries.length,
+      1,
+      "Expected exactly 1 user entry after reset + second query",
+    );
+    assert.strictEqual(
+      assistantEntries.length,
+      1,
+      "Expected exactly 1 assistant entry after reset + second query",
+    );
+
+    state.destroy();
+  });
+
+  // Note: the cache-hit verification test (estimateTokens called at most once
+  // per unique entry) lives in createState.cache.test.ts. It requires a
+  // separate file with no static import of createState so that mock.module()
+  // intercepts the very first load and the spy binding is active when
+  // createState.ts is evaluated.
+});
+
 describe("createAgenticState — options.tools override", () => {
   function makeEmptyAccessor(): RecordingDataAccessor {
     return {

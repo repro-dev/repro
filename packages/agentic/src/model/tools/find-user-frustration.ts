@@ -131,46 +131,45 @@ export const handler: ToolHandler = (recording, _args) => {
   }
 
   // ─── Dead click detection ──────────────────────────────────────────────────
-  // Use a forward pointer into allEvents (which is sorted by time) to check
-  // the [clickTime, clickTime + 500ms] window without re-scanning from the
-  // start for each click, keeping overall complexity O(n + clicks).
+  // Build a sorted list of events that count as a click producing visible
+  // progress, then walk it once alongside clickEvents. This avoids re-scanning
+  // overlapping windows for every click candidate.
 
-  let deadClickScanPtr = 0;
+  const dominantEventTimes: number[] = [];
+  for (const event of allEvents) {
+    if (isDOMPatchEvent(event)) {
+      dominantEventTimes.push(event.get("time").orElse(0) as number);
+      continue;
+    }
+
+    if (!isInteractionEvent(event)) continue;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = (event as Box<InteractionEvent>)
+      .get("data")
+      .orElse(null) as Box<any> | null;
+    if (!data) continue;
+    const type = data.get("type").orElse(-1 as InteractionType);
+    if (type === InteractionType.PageTransition) {
+      dominantEventTimes.push(event.get("time").orElse(0) as number);
+    }
+  }
+
+  let dominantEventIndex = 0;
   for (let ci = 0; ci < clickEvents.length; ci++) {
     if (rageClickIndices.has(ci)) continue;
     const { time, at } = clickEvents[ci]!;
     const windowEnd = time + DEAD_CLICK_WINDOW_MS;
 
-    // Advance the pointer past events that end before this click's window.
     while (
-      deadClickScanPtr < allEvents.length &&
-      (allEvents[deadClickScanPtr]!.get("time").orElse(0) as number) < time
+      dominantEventIndex < dominantEventTimes.length &&
+      dominantEventTimes[dominantEventIndex]! < time
     ) {
-      deadClickScanPtr++;
+      dominantEventIndex++;
     }
 
-    let dominated = false;
-    for (let ei = deadClickScanPtr; ei < allEvents.length; ei++) {
-      const ev = allEvents[ei]!;
-      const evTime = ev.get("time").orElse(0) as number;
-      if (evTime > windowEnd) break;
-      if (isDOMPatchEvent(ev)) {
-        dominated = true;
-        break;
-      }
-      if (isInteractionEvent(ev)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data = (ev as Box<InteractionEvent>)
-          .get("data")
-          .orElse(null) as Box<any> | null;
-        if (!data) continue;
-        const type = data.get("type").orElse(-1 as InteractionType);
-        if (type === InteractionType.PageTransition) {
-          dominated = true;
-          break;
-        }
-      }
-    }
+    const dominated =
+      dominantEventIndex < dominantEventTimes.length &&
+      dominantEventTimes[dominantEventIndex]! <= windowEnd;
 
     if (!dominated) {
       const x = Math.round(at[0]);

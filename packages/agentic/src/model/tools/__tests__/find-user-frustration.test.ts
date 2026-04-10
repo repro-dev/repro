@@ -1,5 +1,7 @@
+import { InteractionType, SourceEventType } from "@repro/domain";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { RecordingDataAccessor } from "../../../types";
 import { executeTool, tools } from "../index";
 import {
   makeAccessor,
@@ -12,6 +14,79 @@ import {
   makePageTransitionEvent,
   runFuture,
 } from "./helpers";
+
+function makeTrackedInteractionData(
+  type: InteractionType,
+  extraFields: Record<string, unknown>,
+) {
+  return {
+    get(key: string) {
+      return {
+        orElse(fallback: unknown) {
+          if (key === "type") return type;
+          return key in extraFields ? extraFields[key] : fallback;
+        },
+      };
+    },
+  };
+}
+
+function makeTrackedEvent(
+  eventType: SourceEventType,
+  time: number,
+  data: ReturnType<typeof makeTrackedInteractionData> | null,
+  onTimeRead: () => void,
+) {
+  return {
+    match(predicate: (value: { type: SourceEventType }) => boolean) {
+      return predicate({ type: eventType });
+    },
+    get(key: string) {
+      return {
+        orElse(fallback: unknown) {
+          if (key === "time") {
+            onTimeRead();
+            return time;
+          }
+          if (key === "data") return data ?? fallback;
+          if (key === "type") return eventType;
+          return fallback;
+        },
+      };
+    },
+  };
+}
+
+function makeCountingDeadClickAccessor(
+  clickCount: number,
+): RecordingDataAccessor & {
+  getTimeReadCount(): number;
+} {
+  let timeReadCount = 0;
+
+  const events = Array.from({ length: clickCount }, (_, index) =>
+    makeTrackedEvent(
+      SourceEventType.Interaction,
+      index * 10,
+      makeTrackedInteractionData(InteractionType.Click, {
+        at: [index * 100, 0] as [number, number],
+      }),
+      () => {
+        timeReadCount += 1;
+      },
+    ),
+  );
+
+  return {
+    getDuration: () => clickCount * 10,
+    getSnapshotAtTime: () => null,
+    getResourceMap: () => ({}),
+    getEventsByType: () => [],
+    getEventsInRange: () =>
+      events as ReturnType<RecordingDataAccessor["getEventsInRange"]>,
+    getTimeReadCount: () => timeReadCount,
+  };
+}
 
 // ─── Registration ─────────────────────────────────────────────────────────────
 
@@ -201,6 +276,23 @@ describe("executeTool — findUserFrustration — dead click", () => {
     const deadClicks = result.signals.filter((s) => s.type === "dead_click");
     assert.strictEqual(deadClicks.length, 1);
     assert.strictEqual(deadClicks[0]!.timeMs, 5000);
+  });
+
+  it("avoids rescanning the full event list for each dead click candidate", async () => {
+    const accessor = makeCountingDeadClickAccessor(100);
+    const result = (await runFuture(
+      executeTool(accessor, "findUserFrustration", {}),
+    )) as { signals: Array<{ type: string }> };
+
+    const deadClicks = result.signals.filter(
+      (signal) => signal.type === "dead_click",
+    );
+
+    assert.strictEqual(deadClicks.length, 100);
+    assert.ok(
+      accessor.getTimeReadCount() < 1000,
+      `expected linear-ish dead click scanning, saw ${accessor.getTimeReadCount()} time reads`,
+    );
   });
 });
 

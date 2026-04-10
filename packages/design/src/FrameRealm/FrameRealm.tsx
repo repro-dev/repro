@@ -3,7 +3,14 @@ import React, { MutableRefObject, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import mergeRefs from 'react-merge-refs'
 
-type Props = React.HTMLProps<HTMLIFrameElement>
+// React 18's HTMLProps<HTMLIFrameElement> does not yet include `inert`
+// (only in @types/react experimental.d.ts). Omit and redefine the prop so
+// callers can pass it without TypeScript errors, while remaining compatible
+// if a future React type release adds `inert` to HTMLProps. The browser
+// treats presence of the attribute as true regardless of the string value.
+type Props = Omit<React.HTMLProps<HTMLIFrameElement>, 'inert'> & {
+  inert?: string | boolean
+}
 
 // Bypass trusted-types CSP when writing doctype
 let passthroughHTMLPolicy: Pick<TrustedTypePolicy, 'name' | 'createHTML'> | null
