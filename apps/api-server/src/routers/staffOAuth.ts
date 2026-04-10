@@ -27,42 +27,48 @@ export function createStaffOAuthRouter(
 
   return async function (fastify) {
     // GET /oauth/:provider — initiate the OAuth flow
-    fastify.get('/oauth/:provider', async (req, res) => {
-      const { provider } = req.params
-      const oauthProvider = providers[provider]
+    fastify.get<{ Params: { provider: string } }>(
+      '/oauth/:provider',
+      async (req, res) => {
+        const { provider } = req.params
+        const oauthProvider = providers[provider]
 
-      if (oauthProvider == null) {
-        await res
-          .status(400)
-          .send({ message: `Unsupported provider: ${provider}` })
-        return
+        if (oauthProvider == null) {
+          await res
+            .status(400)
+            .send({ message: `Unsupported provider: ${provider}` })
+          return
+        }
+
+        const state = generateState()
+        const codeVerifier = generateCodeVerifier()
+        const url = oauthProvider.createAuthorizationURL(state, codeVerifier)
+
+        res.setCookie('oauth_state', state, {
+          httpOnly: true,
+          path: '/',
+          sameSite: 'lax',
+          secure: 'auto',
+          maxAge: OAUTH_COOKIE_MAX_AGE,
+        })
+
+        res.setCookie('oauth_code_verifier', codeVerifier, {
+          httpOnly: true,
+          path: '/',
+          sameSite: 'lax',
+          secure: 'auto',
+          maxAge: OAUTH_COOKIE_MAX_AGE,
+        })
+
+        await res.redirect(url.toString())
       }
-
-      const state = generateState()
-      const codeVerifier = generateCodeVerifier()
-      const url = oauthProvider.createAuthorizationURL(state, codeVerifier)
-
-      res.setCookie('oauth_state', state, {
-        httpOnly: true,
-        path: '/',
-        sameSite: 'lax',
-        secure: 'auto',
-        maxAge: OAUTH_COOKIE_MAX_AGE,
-      })
-
-      res.setCookie('oauth_code_verifier', codeVerifier, {
-        httpOnly: true,
-        path: '/',
-        sameSite: 'lax',
-        secure: 'auto',
-        maxAge: OAUTH_COOKIE_MAX_AGE,
-      })
-
-      await res.redirect(url.toString())
-    })
+    )
 
     // GET /oauth/:provider/callback — handle the OAuth callback
-    fastify.get('/oauth/:provider/callback', (req, res): void => {
+    fastify.get<{
+      Params: { provider: string }
+      Querystring: { code?: string; state?: string }
+    }>('/oauth/:provider/callback', (req, res): void => {
       const { provider } = req.params
       const { code, state } = req.query
       const oauthProvider = providers[provider]
@@ -92,7 +98,7 @@ export function createStaffOAuthRouter(
 
       const codeToExchange = code
 
-      const handleCallback: FutureInstance = go(function* () {
+      const handleCallback: FutureInstance<Error, void> = go(function* () {
         // Exchange the code for tokens
         const tokens: {
           accessToken(): string
@@ -123,9 +129,11 @@ export function createStaffOAuthRouter(
 
         // Cast needed: account service uses bare FutureInstance (pre-existing tech debt)
         const lookupOrCreate = (
-          accountService.getStaffUserByEmail(email) as unknown as FutureInstance
+          accountService.getStaffUserByEmail(
+            email
+          ) as unknown as FutureInstance<Error, StaffUser>
         ).pipe(
-          bichain(error =>
+          bichain<Error, Error, StaffUser>(error =>
             isNotFound(error)
               ? // First login — provision a new staff user
                 // OAuth users get no password; they can only log in via OAuth
@@ -133,7 +141,7 @@ export function createStaffOAuthRouter(
                   name || email,
                   email,
                   ''
-                ) as unknown as FutureInstance)
+                ) as unknown as FutureInstance<Error, StaffUser>)
               : reject(error)
           )(s => resolve(s))
         )
@@ -145,7 +153,7 @@ export function createStaffOAuthRouter(
         // Redirect to the admin app dashboard
         res.redirect(env.REPRO_ADMIN_URL)
         return yield resolve(undefined as void)
-      }) as FutureInstance
+      }) as FutureInstance<Error, void>
 
       respondWith(res, handleCallback)
     })
