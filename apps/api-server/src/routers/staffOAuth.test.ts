@@ -43,6 +43,15 @@ function createStubGoogleProvider(
   }
 }
 
+function unsignOrFail(signedValue: string, secret: string) {
+  const unsigned = unsign(signedValue, secret)
+
+  expect(unsigned.valid).toEqual(true)
+  expect(unsigned.value).toBeDefined()
+
+  return unsigned.value as string
+}
+
 describe('Routers > StaffOAuth', () => {
   let harness: Harness
   let app: FastifyInstance
@@ -254,8 +263,10 @@ describe('Routers > StaffOAuth', () => {
 
       // Verify the session is for a staff user
       // Cookie value is signed (rawToken.signature); unsign to get the raw token for DB lookup
-      const rawToken1 = unsign(sessionCookie!.value, harness.env.SESSION_SECRET)
-        .value as string
+      const rawToken1 = unsignOrFail(
+        sessionCookie!.value,
+        harness.env.SESSION_SECRET
+      )
       const session = (await promise(
         harness.services.accountService.getSessionByToken(rawToken1)
       )) as Session
@@ -303,8 +314,7 @@ describe('Routers > StaffOAuth', () => {
       const session = (await promise(
         harness.services.accountService.getSessionByToken(
           // Cookie value is signed (rawToken.signature); unsign to get the raw token for DB lookup
-          unsign(sessionCookie!.value, harness.env.SESSION_SECRET)
-            .value as string
+          unsignOrFail(sessionCookie!.value, harness.env.SESSION_SECRET)
         )
       )) as Session
       // Must be the same staff user
