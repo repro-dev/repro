@@ -4,17 +4,13 @@ export interface BillingEntitlement {
   limit: number | null
 }
 
-export interface EntitlementResponse {
-  feature: string
-  enabled: boolean
-  limit: number | null
-}
+export type EntitlementResponse = BillingEntitlement
 
 export interface BillingPlanWithEntitlements {
   id: string
   name: string
   interval: 'month' | 'year'
-  entitlements: Array<BillingEntitlement>
+  entitlements: BillingEntitlement[]
 }
 
 export interface CheckoutResponse {

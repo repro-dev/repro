@@ -3,8 +3,7 @@ import {
   EntitlementResponse,
   PortalSessionResponse,
 } from '@repro/domain'
-import { FastifyPluginAsync } from 'fastify'
-import { ZodTypeProvider } from 'fastify-type-provider-zod'
+import { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { go, map } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
@@ -29,6 +28,10 @@ const changePlanSchema = {
     planId: z.string(),
   }),
 } as const
+
+type PlanIdBody = {
+  planId: string
+}
 
 function toSubscriptionResponse(
   sub: BillingSubscription
@@ -68,8 +71,18 @@ export function createBillingRouter(
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
 
+  function getCurrentUserAccount(req: FastifyRequest) {
+    return go(function* () {
+      const currentUser = yield req.getCurrentUser()
+      const user = yield accountService.ensureUser(currentUser)
+      const account = yield accountService.getAccountForUser(user.id)
+
+      return { user, account }
+    })
+  }
+
   return async function (fastify) {
-    const app = fastify.withTypeProvider<ZodTypeProvider>()
+    const app = fastify
 
     app.get('/plans', {}, (_, res) => {
       respondWith(
@@ -87,14 +100,13 @@ export function createBillingRouter(
         respondWith(
           res,
           go(function* () {
-            const user = yield req.getCurrentUser()
-            yield accountService.ensureUser(user)
-            const account = yield accountService.getAccountForUser(user.id)
+            const body = req.body as PlanIdBody
+            const { user, account } = yield getCurrentUserAccount(req)
             const email: string = yield accountService.getUserEmailById(user.id)
             return yield billingService.createCheckoutSession(
               account.id,
               email,
-              req.body.planId,
+              body.planId,
               user.name
             )
           }),
@@ -107,9 +119,7 @@ export function createBillingRouter(
       respondWith(
         res,
         go(function* () {
-          const user = yield req.getCurrentUser()
-          yield accountService.ensureUser(user)
-          const account = yield accountService.getAccountForUser(user.id)
+          const { account } = yield getCurrentUserAccount(req)
           const sub = yield billingService.getSubscriptionByAccountId(
             account.id
           )
@@ -122,9 +132,7 @@ export function createBillingRouter(
       respondWith(
         res,
         go(function* () {
-          const user = yield req.getCurrentUser()
-          yield accountService.ensureUser(user)
-          const account = yield accountService.getAccountForUser(user.id)
+          const { account } = yield getCurrentUserAccount(req)
           const entitlements = yield billingService.getEntitlements(account.id)
           return toListResponse(entitlements.map(toEntitlementResponse))
         })
@@ -140,13 +148,9 @@ export function createBillingRouter(
         respondWith(
           res,
           go(function* () {
-            const user = yield req.getCurrentUser()
-            yield accountService.ensureUser(user)
-            const account = yield accountService.getAccountForUser(user.id)
-            const sub = yield billingService.changePlan(
-              account.id,
-              req.body.planId
-            )
+            const body = req.body as PlanIdBody
+            const { account } = yield getCurrentUserAccount(req)
+            const sub = yield billingService.changePlan(account.id, body.planId)
             return toSubscriptionResponse(sub)
           })
         )
@@ -157,9 +161,7 @@ export function createBillingRouter(
       respondWith(
         res,
         go(function* () {
-          const user = yield req.getCurrentUser()
-          yield accountService.ensureUser(user)
-          const account = yield accountService.getAccountForUser(user.id)
+          const { account } = yield getCurrentUserAccount(req)
           const sub = yield billingService.cancelSubscription(account.id)
           return toSubscriptionResponse(sub)
         })
@@ -170,9 +172,7 @@ export function createBillingRouter(
       respondWith(
         res,
         go(function* () {
-          const user = yield req.getCurrentUser()
-          yield accountService.ensureUser(user)
-          const account = yield accountService.getAccountForUser(user.id)
+          const { account } = yield getCurrentUserAccount(req)
           const portal = yield billingService.getPortalLink(account.id)
           return toPortalSessionResponse(portal)
         })
