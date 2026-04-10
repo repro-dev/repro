@@ -1,10 +1,8 @@
+import type { ReproGlobal } from './reproGlobal'
+
 declare global {
   interface Window {
-    __REPRO__?: {
-      identify?: (userId: string, traits?: Record<string, unknown>) => void
-      mark?: (name: string, data?: Record<string, unknown>) => void
-      captureState?: (component: string, state: Record<string, unknown>) => void
-    }
+    __REPRO__?: ReproGlobal
   }
 }
 
