@@ -37,10 +37,26 @@ export const TOOL_DEFINITION = {
   },
 };
 
+// Maximum stack frames per message — matches detail='full' in sibling tools.
+const MAX_STACK_FRAMES = 10;
+
+// Clamp a window count: negative, NaN, or non-finite values become 0.
+function clampWindowCount(
+  value: number | undefined,
+  defaultValue: number,
+): number {
+  const n = value ?? defaultValue;
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.floor(n);
+}
+
 export const handler: ToolHandler = (recording, args) => {
   const timestampMs = args.timestampMs as number;
-  const linesBefore = (args.linesBefore as number) ?? 10;
-  const linesAfter = (args.linesAfter as number) ?? 5;
+  const linesBefore = clampWindowCount(
+    args.linesBefore as number | undefined,
+    10,
+  );
+  const linesAfter = clampWindowCount(args.linesAfter as number | undefined, 5);
 
   const events = recording.getEventsByType([SourceEventType.Console]);
 
@@ -75,18 +91,20 @@ export const handler: ToolHandler = (recording, args) => {
     const text = truncate(rawText, 500);
 
     const stackEntries = consoleEvent.get("data").get("stack").orElse([]);
-    const stack: StackFrame[] = stackEntries.map((entry) => {
-      const frame: StackFrame = {
-        fileName: entry.fileName,
-        line: entry.lineNumber,
-        column: entry.columnNumber,
-      };
-      // Only include functionName if it is a non-null, non-undefined string
-      if (entry.functionName != null) {
-        frame.functionName = entry.functionName;
-      }
-      return frame;
-    });
+    const stack: StackFrame[] = stackEntries
+      .slice(0, MAX_STACK_FRAMES)
+      .map((entry) => {
+        const frame: StackFrame = {
+          fileName: entry.fileName,
+          line: entry.lineNumber,
+          column: entry.columnNumber,
+        };
+        // Only include functionName if it is a non-null, non-undefined string
+        if (entry.functionName != null) {
+          frame.functionName = entry.functionName;
+        }
+        return frame;
+      });
 
     const msg: ConsoleMessage = { timeMs: time, level: levelName, text };
     if (stack.length > 0) msg.stack = stack;

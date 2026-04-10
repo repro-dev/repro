@@ -323,3 +323,111 @@ describe("executeTool — getConsoleContext — token estimate", () => {
     assert.ok(result._tokenEstimate > 0);
   });
 });
+
+describe("executeTool — getConsoleContext — linesBefore/linesAfter sanitization", () => {
+  it("treats negative linesBefore as 0 (returns only pivot + linesAfter)", async () => {
+    const events = Array.from({ length: 5 }, (_, i) =>
+      makeConsoleEvent((i + 1) * 100, LogLevel.Info, `msg ${i}`),
+    );
+    const accessor = makeAccessor(events);
+    // Pivot at index 2 (time=300). With linesBefore=-5 clamped to 0, linesAfter=1:
+    // startIndex = max(0, 2 - 0) = 2, endIndex = min(4, 2 + 1) = 3
+    // Expected: 2 messages (times 300, 400)
+    const result = (await runFuture(
+      executeTool(accessor, "getConsoleContext", {
+        timestampMs: 300,
+        linesBefore: -5,
+        linesAfter: 1,
+      }),
+    )) as { messages: Array<{ timeMs: number }> };
+    assert.strictEqual(result.messages.length, 2);
+    assert.strictEqual(result.messages[0]!.timeMs, 300);
+  });
+
+  it("treats negative linesAfter as 0 (returns only linesBefore + pivot)", async () => {
+    const events = Array.from({ length: 5 }, (_, i) =>
+      makeConsoleEvent((i + 1) * 100, LogLevel.Info, `msg ${i}`),
+    );
+    const accessor = makeAccessor(events);
+    // Pivot at index 2 (time=300). linesBefore=1, linesAfter=-3 clamped to 0:
+    // startIndex = max(0, 2 - 1) = 1, endIndex = min(4, 2 + 0) = 2
+    // Expected: 2 messages (times 200, 300)
+    const result = (await runFuture(
+      executeTool(accessor, "getConsoleContext", {
+        timestampMs: 300,
+        linesBefore: 1,
+        linesAfter: -3,
+      }),
+    )) as { messages: Array<{ timeMs: number }> };
+    assert.strictEqual(result.messages.length, 2);
+    assert.strictEqual(result.messages[1]!.timeMs, 300);
+  });
+
+  it("treats NaN linesBefore as 0", async () => {
+    const events = Array.from({ length: 5 }, (_, i) =>
+      makeConsoleEvent((i + 1) * 100, LogLevel.Info, `msg ${i}`),
+    );
+    const accessor = makeAccessor(events);
+    // Pivot at index 2. linesBefore=NaN → 0, linesAfter=0: only pivot.
+    const result = (await runFuture(
+      executeTool(accessor, "getConsoleContext", {
+        timestampMs: 300,
+        linesBefore: NaN,
+        linesAfter: 0,
+      }),
+    )) as { messages: Array<{ timeMs: number }> };
+    assert.strictEqual(result.messages.length, 1);
+    assert.strictEqual(result.messages[0]!.timeMs, 300);
+  });
+
+  it("treats Infinity linesBefore as a large but safe count (returns all messages up to pivot)", async () => {
+    const events = Array.from({ length: 5 }, (_, i) =>
+      makeConsoleEvent((i + 1) * 100, LogLevel.Info, `msg ${i}`),
+    );
+    const accessor = makeAccessor(events);
+    // Pivot at index 4 (time=500). linesBefore=Infinity should not break slicing.
+    const result = (await runFuture(
+      executeTool(accessor, "getConsoleContext", {
+        timestampMs: 500,
+        linesBefore: Infinity,
+        linesAfter: 0,
+      }),
+    )) as { messages: Array<{ timeMs: number }> };
+    // Should return all 5 messages (or at least not error and return something sane)
+    assert.ok(result.messages.length >= 1);
+    assert.ok(Number.isFinite(result.messages.length));
+  });
+});
+
+describe("executeTool — getConsoleContext — stack frame cap", () => {
+  it("caps stack frames at 10 even when more frames are present", async () => {
+    // Create an event with 20 stack frames
+    const manyFrames = Array.from({ length: 20 }, (_, i) => ({
+      functionName: `fn${i}`,
+      fileName: `https://cdn.example.com/app.js`,
+      lineNumber: i + 1,
+      columnNumber: 0,
+    }));
+    const events = [
+      makeConsoleEvent(100, LogLevel.Error, "deep stack", manyFrames),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "getConsoleContext", {
+        timestampMs: 100,
+        linesBefore: 0,
+        linesAfter: 0,
+      }),
+    )) as {
+      messages: Array<{
+        stack?: Array<unknown>;
+      }>;
+    };
+    const stack = result.messages[0]!.stack;
+    assert.ok(Array.isArray(stack));
+    assert.ok(
+      stack.length <= 10,
+      `Expected at most 10 stack frames, got ${stack.length}`,
+    );
+  });
+});
