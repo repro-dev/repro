@@ -779,15 +779,13 @@ export function createAccountService(
   const MAX_FAILED_ATTEMPTS = 5
   const LOCKOUT_DURATION_MS = 15 * 60 * 1000
 
-  function ensureNotLocked(email: string): FutureInstance<Error, void> {
-    return attemptQuery(() =>
-      database
-        .selectFrom('users')
-        .select(['lockedUntil'])
-        .where('email', '=', email.toLowerCase())
-        .where('active', '=', true)
-        .executeTakeFirst()
-    ).pipe(
+  function ensureEmailNotLocked(
+    getLockoutState: (
+      normalizedEmail: string
+    ) => Promise<{ lockedUntil: Date | null } | undefined>,
+    email: string
+  ): FutureInstance<Error, void> {
+    return attemptQuery(() => getLockoutState(email.toLowerCase())).pipe(
       chain(row => {
         if (row?.lockedUntil && row.lockedUntil.getTime() > Date.now()) {
           return reject(
@@ -797,6 +795,28 @@ export function createAccountService(
 
         return resolve(undefined)
       })
+    )
+  }
+
+  function resetFailedLoginState(
+    resetByEmail: (normalizedEmail: string) => Promise<unknown>,
+    email: string
+  ): FutureInstance<Error, void> {
+    return attemptQuery(async () => {
+      await resetByEmail(email.toLowerCase())
+    })
+  }
+
+  function ensureNotLocked(email: string): FutureInstance<Error, void> {
+    return ensureEmailNotLocked(
+      normalizedEmail =>
+        database
+          .selectFrom('users')
+          .select(['lockedUntil'])
+          .where('email', '=', normalizedEmail)
+          .where('active', '=', true)
+          .executeTakeFirst(),
+      email
     )
   }
 
@@ -835,35 +855,30 @@ export function createAccountService(
   }
 
   function resetFailedLoginCount(email: string): FutureInstance<Error, void> {
-    return attemptQuery(async () => {
-      await database
-        .updateTable('users')
-        .set({ failedLoginCount: 0, lockedUntil: null })
-        .where('email', '=', email.toLowerCase())
-        .where('active', '=', true)
-        .execute()
-    })
+    return resetFailedLoginState(
+      normalizedEmail =>
+        database
+          .updateTable('users')
+          .set({ failedLoginCount: 0, lockedUntil: null })
+          .where('email', '=', normalizedEmail)
+          .where('active', '=', true)
+          .execute(),
+      email
+    )
   }
 
   // Staff lockout
 
   function ensureStaffNotLocked(email: string): FutureInstance<Error, void> {
-    return attemptQuery(() =>
-      database
-        .selectFrom('staff_users')
-        .select(['lockedUntil'])
-        .where('email', '=', email.toLowerCase())
-        .where('active', '=', true)
-        .executeTakeFirst()
-    ).pipe(
-      chain(row => {
-        if (row?.lockedUntil && row.lockedUntil.getTime() > Date.now()) {
-          return reject(
-            tooManyRequests('Account temporarily locked. Try again later.')
-          )
-        }
-        return resolve(undefined)
-      })
+    return ensureEmailNotLocked(
+      normalizedEmail =>
+        database
+          .selectFrom('staff_users')
+          .select(['lockedUntil'])
+          .where('email', '=', normalizedEmail)
+          .where('active', '=', true)
+          .executeTakeFirst(),
+      email
     )
   }
 
@@ -893,14 +908,16 @@ export function createAccountService(
   function resetStaffFailedLoginCount(
     email: string
   ): FutureInstance<Error, void> {
-    return attemptQuery(async () => {
-      await database
-        .updateTable('staff_users')
-        .set({ failedLoginCount: 0, lockedUntil: null })
-        .where('email', '=', email.toLowerCase())
-        .where('active', '=', true)
-        .execute()
-    })
+    return resetFailedLoginState(
+      normalizedEmail =>
+        database
+          .updateTable('staff_users')
+          .set({ failedLoginCount: 0, lockedUntil: null })
+          .where('email', '=', normalizedEmail)
+          .where('active', '=', true)
+          .execute(),
+      email
+    )
   }
 
   function createSession(

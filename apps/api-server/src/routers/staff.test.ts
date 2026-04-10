@@ -158,7 +158,7 @@ describe('Routers > Staff', () => {
       expect((row.lockedUntil as Date).getTime()).toBeGreaterThan(Date.now())
     })
 
-    it('should return a generic auth failure even with correct credentials when account is locked', async () => {
+    it('should return the same generic auth failure for locked and unknown staff accounts', async () => {
       const email = harness.generateRandomEmailAddress()
       await createStaffUserWithCredentials(email, 'hunter2!')
 
@@ -166,8 +166,18 @@ describe('Routers > Staff', () => {
         await attemptStaffLogin(email, 'wrong-password')
       }
 
-      const res = await attemptStaffLogin(email, 'hunter2!')
-      expect(res.statusCode).toEqual(401)
+      const lockedRes = await attemptStaffLogin(email, 'hunter2!')
+      const unknownRes = await attemptStaffLogin(
+        harness.generateRandomEmailAddress(),
+        'wrong-password'
+      )
+
+      expect(lockedRes.statusCode).toEqual(401)
+      expect(lockedRes.json()).toEqual({
+        name: 'NotAuthenticatedError',
+        message: 'Invalid email or password.',
+      })
+      expect(lockedRes.json()).toEqual(unknownRes.json())
     })
 
     it('should reset failedLoginCount to 0 after a successful login', async () => {

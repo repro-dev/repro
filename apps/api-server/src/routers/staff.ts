@@ -52,13 +52,17 @@ export function createStaffRouter(
             .pipe(
               chainRej(error => {
                 if (isTooManyRequests(error)) {
-                  return reject(notAuthenticated())
+                  return reject(notAuthenticated('Invalid email or password.'))
                 }
 
                 if (isNotFound(error)) {
                   return accountService
                     .recordStaffFailedLogin(req.body.email)
-                    .pipe(chain(() => reject(notAuthenticated())))
+                    .pipe(
+                      chain(() =>
+                        reject(notAuthenticated('Invalid email or password.'))
+                      )
+                    )
                 }
                 return reject(error)
               })
