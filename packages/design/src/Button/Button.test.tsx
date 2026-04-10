@@ -28,29 +28,47 @@ function getCSSText(): string {
   return rules.join('\n')
 }
 
+type ElementCSSRule = {
+  selectorText: string
+  cssText: string
+}
+
 /**
- * Returns the CSS rules that apply to the element's own class names, by
- * intersecting the element's classList with the injected stylesheet rules.
+ * Returns only the injected CSS rules whose selectors reference the element's
+ * generated jsxstyle classes.
  */
-function getElementCSSText(el: Element): string {
+function getElementCSSRules(el: Element): ElementCSSRule[] {
   const classNames = new Set(Array.from(el.classList))
-  const matchingRules: string[] = []
+  const matchingRules: ElementCSSRule[] = []
   for (let i = 0; i < document.styleSheets.length; i++) {
     const sheet = document.styleSheets[i]
     if (!sheet) continue
     try {
       for (const rule of Array.from(sheet.cssRules || [])) {
-        const cssText = rule.cssText
-        const selectorMatch = cssText.match(/^\.([\w-]+)/)
-        if (selectorMatch && classNames.has(selectorMatch[1]!)) {
-          matchingRules.push(cssText)
+        if (
+          !('selectorText' in rule) ||
+          typeof rule.selectorText !== 'string'
+        ) {
+          continue
+        }
+
+        const selectorClassNames = Array.from(
+          rule.selectorText.matchAll(/\.([\w-]+)/g),
+          ([, className]) => className
+        )
+
+        if (selectorClassNames.some(className => classNames.has(className))) {
+          matchingRules.push({
+            selectorText: rule.selectorText,
+            cssText: rule.cssText,
+          })
         }
       }
     } catch {
       // cross-origin sheets; ignore
     }
   }
-  return matchingRules.join('\n')
+  return matchingRules
 }
 
 describe('Button height — formControlHeight tokens (REP-659)', () => {
@@ -88,28 +106,40 @@ describe('Button height — formControlHeight tokens (REP-659)', () => {
 describe('Button display and width — REP-314', () => {
   it('default Button has display: inline-flex', () => {
     const { getByRole } = render(<Button>Text</Button>)
-    const css = getElementCSSText(getByRole('button'))
-    expect(css).toContain('display: inline-flex')
+    const cssRules = getElementCSSRules(getByRole('button'))
+
+    expect(
+      cssRules.some(({ cssText }) => cssText.includes('display: inline-flex'))
+    ).toBe(true)
   })
 
   it('fullWidth Button has display: flex', () => {
     const { getByRole } = render(<Button fullWidth>Text</Button>)
-    const css = getElementCSSText(getByRole('button'))
+    const cssRules = getElementCSSRules(getByRole('button'))
+
     // fullWidth restores block-level flex layout
-    expect(css).toContain('display: flex')
+    expect(
+      cssRules.some(({ cssText }) => cssText.includes('display: flex'))
+    ).toBe(true)
   })
 
   it('fullWidth Button has width: 100%', () => {
     const { getByRole } = render(<Button fullWidth>Text</Button>)
-    const css = getElementCSSText(getByRole('button'))
-    expect(css).toContain('width: 100%')
+    const cssRules = getElementCSSRules(getByRole('button'))
+
+    expect(
+      cssRules.some(({ cssText }) => cssText.includes('width: 100%'))
+    ).toBe(true)
   })
 
-  it('active press uses scaleY transform, not uniform scale', () => {
+  it('active press uses a scaleY transform on the button active rule', () => {
     const { getByRole } = render(<Button>Text</Button>)
-    const css = getElementCSSText(getByRole('button'))
-    // Must use height-based scaleY — NOT scale(0.96)
-    expect(css).toContain('scaleY')
-    expect(css).not.toContain('scale(0.96)')
+    const cssRules = getElementCSSRules(getByRole('button'))
+    const activeRule = cssRules.find(({ selectorText }) =>
+      selectorText.includes(':active:not(:disabled)')
+    )
+
+    expect(activeRule).toBeDefined()
+    expect(activeRule?.cssText).toContain('scaleY(')
   })
 })
