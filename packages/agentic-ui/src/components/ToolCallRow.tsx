@@ -19,6 +19,7 @@ import React, { useState } from "react";
 const TOOL_LABELS: Record<string, string> = {
   getRecordingDuration: "Get recording duration",
   getConsoleMessages: "Get console messages",
+  getConsoleContext: "Get console context",
   getNetworkRequests: "Get network requests",
   getDOMState: "Get DOM state",
   findErrors: "Find errors",
