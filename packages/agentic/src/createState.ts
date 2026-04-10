@@ -432,6 +432,9 @@ export function createAgenticState(
   // Maps tool_call_id → iteration count at which the error was recorded.
   // Used by purgeErroredToolCallInputs to strip stale errored inputs from context.
   const erroredToolCalls = new Map<string, number>();
+  // Maps entry id → pre-computed token estimate. Populated when an entry is
+  // first appended so fetchResponse does not re-tokenise the same text on every call.
+  const tokenCache = new Map<string, number>();
 
   function clearPendingRetry() {
     if (pendingRetryTimer !== null) {
@@ -488,6 +491,7 @@ export function createAgenticState(
     iterationCount = 0;
     retryAttempt = 0;
     erroredToolCalls.clear();
+    tokenCache.clear();
     setEntryMap({ orderedIds: [], entries: {} });
     setWasCancelled(false);
     setLoading("none");
@@ -518,6 +522,10 @@ export function createAgenticState(
         },
       },
     }));
+
+    // Pre-compute token estimate for this user entry so fetchResponse can skip
+    // re-tokenising it on subsequent calls.
+    tokenCache.set(id, estimateTokens({ role: "user", content: input }));
   }
 
   function fetchResponse(
@@ -579,6 +587,24 @@ export function createAgenticState(
       return false;
     };
 
+    // Build a reference map from context object → cached token count so that
+    // truncateToContextBudget can skip re-tokenising entries that were already
+    // estimated when they were first appended. Context is positionally aligned
+    // with entryMap.orderedIds; items that survived dedup/purge unchanged keep
+    // their original object reference and get a cache hit. Modified or newly
+    // created objects (rare: dedup/purge rewrites) fall back to estimateTokens.
+    const contextEntryMap = $entryMap.getValue();
+    const cachedByRef = new Map<Context[number], number>();
+    context.forEach((msg, i) => {
+      const id = contextEntryMap.orderedIds[i];
+      if (id !== undefined) {
+        const cached = tokenCache.get(id);
+        if (cached !== undefined) {
+          cachedByRef.set(msg, cached);
+        }
+      }
+    });
+
     const {
       messages: truncatedContext,
       droppedCount,
@@ -586,7 +612,7 @@ export function createAgenticState(
     } = truncateToContextBudget(
       purgedContext,
       budget,
-      (msg) => estimateTokens(msg),
+      (msg) => cachedByRef.get(msg) ?? estimateTokens(msg),
       isProtected,
     );
 
@@ -596,7 +622,7 @@ export function createAgenticState(
     // Use anyDropped (not droppedCount > 0) so the separator is shown even
     // when a protected message sits at the start of the context (droppedCount=0
     // but gaps exist between retained messages).
-    const entryMap = $entryMap.getValue();
+    const entryMap = contextEntryMap;
     if (anyDropped) {
       const firstSurvivingId = entryMap.orderedIds[droppedCount] ?? null;
       setTruncatedBefore(firstSurvivingId);
@@ -632,6 +658,16 @@ export function createAgenticState(
         [toolMessage.id]: toolMessage,
       },
     }));
+
+    // Pre-compute token estimate for this tool entry.
+    tokenCache.set(
+      toolMessage.id,
+      estimateTokens({
+        role: "tool",
+        tool_call_id: toolMessage.tool_call_id,
+        content: toolMessage.content,
+      }),
+    );
   }
 
   const entries$ = $entryMap
@@ -810,6 +846,26 @@ export function createAgenticState(
           const entryMap = $entryMap.getValue();
           const lastId = entryMap.orderedIds.at(-1);
           const lastEntry = lastId ? entryMap.entries[lastId] ?? null : null;
+
+          // Cache the finalized assistant entry's token estimate. Only done at
+          // "completion" (not during "message" chunks) so we tokenise the full
+          // content rather than partial in-progress text.
+          if (lastId && lastEntry !== null && lastEntry.role === "assistant") {
+            const assistantCtx: Context[number] = {
+              role: "assistant",
+              content: lastEntry.content,
+              ...(lastEntry.toolCalls.length > 0
+                ? {
+                    tool_calls: lastEntry.toolCalls.map((tc) => ({
+                      id: tc.id,
+                      type: "function" as const,
+                      function: tc.function,
+                    })),
+                  }
+                : {}),
+            };
+            tokenCache.set(lastId, estimateTokens(assistantCtx));
+          }
 
           if (
             lastEntry !== null &&
