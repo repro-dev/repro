@@ -195,7 +195,7 @@ export const AgenticInput: React.FC<AgenticInputProps> = ({
         <Row justifyContent="flex-end" marginBlockStart={spacing.md}>
           <Block
             alignItems="center"
-            backgroundColor={hasValue ? color.danger : color.border.default}
+            backgroundColor={hasValue ? color.danger : color.bg.muted}
             blockSize={spacing['3xl']}
             border="none"
             borderRadius={radius.sm}
