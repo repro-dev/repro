@@ -9,7 +9,7 @@ import {
 } from 'fastify-type-provider-zod'
 import { reject, resolve } from 'fluture'
 import { Readable } from 'node:stream'
-import { after, afterEach, before, beforeEach, describe, it } from 'node:test'
+import { after, before, beforeEach, describe, it } from 'node:test'
 import { buildRateLimitOptions } from '~/rateLimit'
 import { AgenticService } from '~/services/agentic'
 import { Harness, createTestHarness, fixtures } from '~/testing'
@@ -339,55 +339,84 @@ async function buildAgenticRateLimitApp(options: {
 
 describe('Agentic rate limiting', () => {
   describe('per-user hourly rate limit', () => {
-    let app: FastifyInstance
-
-    beforeEach(async () => {
-      app = await buildAgenticRateLimitApp({ agenticRateLimitPerHour: 2 })
+    async function buildReadyHourlyLimitApp(sessionSubjectId: string) {
+      const app = await buildAgenticRateLimitApp({
+        agenticRateLimitPerHour: 2,
+        sessionSubjectId,
+      })
       await app.ready()
-    })
 
-    afterEach(async () => {
-      await app.close()
-    })
+      return app
+    }
 
     it('returns 429 when hourly limit is exceeded', async () => {
-      const body = { messages: [{ role: 'user', content: 'hello' }] }
+      const app = await buildReadyHourlyLimitApp('hourly-limit-exceeded-user')
 
-      for (let i = 0; i < 2; i++) {
+      try {
+        const body = { messages: [{ role: 'user', content: 'hello' }] }
+
+        for (let i = 0; i < 2; i++) {
+          const res = await app.inject({
+            method: 'POST',
+            url: '/response',
+            body,
+          })
+          expect(res.statusCode).toEqual(200)
+        }
+
         const res = await app.inject({ method: 'POST', url: '/response', body })
-        expect(res.statusCode).toEqual(200)
+        expect(res.statusCode).toEqual(429)
+      } finally {
+        await app.close()
       }
-
-      const res = await app.inject({ method: 'POST', url: '/response', body })
-      expect(res.statusCode).toEqual(429)
     })
 
     it('returns error body with rate_limit_exceeded and retryAfter', async () => {
-      const body = { messages: [{ role: 'user', content: 'hello' }] }
+      const app = await buildReadyHourlyLimitApp('rate-limit-error-body-user')
 
-      for (let i = 0; i < 2; i++) {
+      try {
+        const body = { messages: [{ role: 'user', content: 'hello' }] }
+
+        for (let i = 0; i < 2; i++) {
+          const res = await app.inject({
+            method: 'POST',
+            url: '/response',
+            body,
+          })
+          expect(res.statusCode).toEqual(200)
+        }
+
         const res = await app.inject({ method: 'POST', url: '/response', body })
-        expect(res.statusCode).toEqual(200)
+        expect(res.statusCode).toEqual(429)
+        const parsed = JSON.parse(res.body)
+        expect(parsed.error).toEqual('rate_limit_exceeded')
+        expect(typeof parsed.retryAfter).toEqual('number')
+      } finally {
+        await app.close()
       }
-
-      const res = await app.inject({ method: 'POST', url: '/response', body })
-      expect(res.statusCode).toEqual(429)
-      const parsed = JSON.parse(res.body)
-      expect(parsed.error).toEqual('rate_limit_exceeded')
-      expect(typeof parsed.retryAfter).toEqual('number')
     })
 
     it('includes x-ratelimit-limit and x-ratelimit-remaining headers', async () => {
-      const res = await app.inject({
-        method: 'POST',
-        url: '/response',
-        body: { messages: [{ role: 'user', content: 'hello' }] },
+      const app = await buildAgenticRateLimitApp({
+        agenticRateLimitPerHour: 10,
+        sessionSubjectId: 'rate-limit-headers-user',
       })
+      await app.ready()
 
-      expect(res.statusCode).toEqual(200)
-      expect(res.headers['x-ratelimit-limit']).toBeDefined()
-      expect(res.headers['x-ratelimit-remaining']).toBeDefined()
-      expect(res.headers['x-ratelimit-reset']).toBeDefined()
+      try {
+        const res = await app.inject({
+          method: 'POST',
+          url: '/response',
+          body: { messages: [{ role: 'user', content: 'hello' }] },
+        })
+
+        expect(res.statusCode).toEqual(200)
+        expect(res.headers['x-ratelimit-limit']).toBeDefined()
+        expect(res.headers['x-ratelimit-remaining']).toBeDefined()
+        expect(res.headers['x-ratelimit-reset']).toBeDefined()
+      } finally {
+        await app.close()
+      }
     })
   })
 
