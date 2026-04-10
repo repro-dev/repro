@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { describe, it, mock } from "node:test";
+import { describe, it } from "node:test";
 import {
   MAX_TOOL_ITERATIONS,
   accumulateToolCalls,
@@ -1557,85 +1557,11 @@ describe("token estimate caching", () => {
     state.destroy();
   });
 
-  it("estimateTokens is called at most once per unique entry across multiple fetchResponse calls (cache hit verification)", async () => {
-    // Set up a spy on estimateTokens before loading createState so that the
-    // dynamically-imported copy of createState uses our wrapped function.
-    let estimateCallCount = 0;
-    const realTokenOptimization = await import("./model/token-optimization");
-    const realEstimateTokens = realTokenOptimization.estimateTokens;
-
-    mock.module("./model/token-optimization", {
-      namedExports: {
-        ...realTokenOptimization,
-        estimateTokens: (response: unknown) => {
-          estimateCallCount++;
-          return realEstimateTokens(response);
-        },
-      },
-    });
-
-    // Dynamically import createAgenticState so it picks up the mocked
-    // token-optimization module (static imports are resolved at file load time
-    // and would miss the mock).
-    const { createAgenticState: createAgenticStateSpy } = (await import(
-      "./createState"
-    )) as typeof import("./createState");
-
-    const accessor: import("./types").RecordingDataAccessor = {
-      getDuration: () => 0,
-      getSnapshotAtTime: () => null,
-      getEventsByType: () => [],
-      getEventsInRange: () => [],
-      getResourceMap: () => ({}),
-    };
-
-    let callCount = 0;
-    let secondRequestDone = false;
-
-    const streamProvider: import("./types").StreamProvider = () => {
-      callCount++;
-      if (callCount === 1) {
-        // First request: return a tool call to force a second fetchResponse
-        return resolve(
-          makeToolCallStream("tc-spy", "getRecordingDuration"),
-        ) as never;
-      }
-      // Second request: return plain text to end the loop
-      secondRequestDone = true;
-      return resolve(makeTextStream("done")) as never;
-    };
-
-    const state = createAgenticStateSpy(streamProvider, accessor);
-    state.query("spy test query");
-
-    await waitForConditionLocal(() => secondRequestDone, 10000);
-    await new Promise((res) => setTimeout(res, 200));
-
-    const entries = state.$entries.getValue();
-    const uniqueEntryCount = entries.length;
-
-    // The key invariant: estimateTokens should be called at most once per unique
-    // entry across both fetchResponse calls combined. The tokenCache in createState
-    // stores the result keyed by entry ID so the second fetchResponse call gets a
-    // cache hit for entries that already existed.
-    //
-    // We allow a small margin for the system message (estimated on every
-    // fetchResponse call) and any implementation-specific pre-computation calls.
-    // The critical constraint: total calls must NOT be proportional to
-    // (entries × fetchResponse calls) — it must be bounded by unique entries.
-    //
-    // With 2 fetchResponse calls and N unique entries:
-    //   - Without caching: up to 2*N calls
-    //   - With caching:    at most N calls for user/tool entries + 2 (system, once per call)
-    const maxExpectedCalls = uniqueEntryCount + 4; // headroom for system message per-call
-    assert.ok(
-      estimateCallCount <= maxExpectedCalls,
-      `Expected estimateTokens to be called at most ${maxExpectedCalls} times (${uniqueEntryCount} unique entries + headroom), but was called ${estimateCallCount} times — suggests caching is not working`,
-    );
-
-    state.destroy();
-    mock.restoreAll();
-  });
+  // Note: the cache-hit verification test (estimateTokens called at most once
+  // per unique entry) lives in createState.cache.test.ts. It requires a
+  // separate file with no static import of createState so that mock.module()
+  // intercepts the very first load and the spy binding is active when
+  // createState.ts is evaluated.
 });
 
 describe("createAgenticState — options.tools override", () => {

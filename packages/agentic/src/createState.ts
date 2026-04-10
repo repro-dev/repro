@@ -510,6 +510,13 @@ export function createAgenticState(
 
     const id = createEntryId();
 
+    // Pre-compute token estimate BEFORE updating the atom. setEntryMap fires
+    // RxJS subscribers synchronously, which triggers fetchResponse via the
+    // latestUserEntry$ → userTriggered$ → response$ chain. The cache entry
+    // must exist before that chain runs so the first fetchResponse call gets a
+    // hit rather than re-tokenising the user message.
+    tokenCache.set(id, estimateTokens({ role: "user", content: input }));
+
     setEntryMap((entryMap) => ({
       orderedIds: [...entryMap.orderedIds, id],
       entries: {
@@ -522,10 +529,6 @@ export function createAgenticState(
         },
       },
     }));
-
-    // Pre-compute token estimate for this user entry so fetchResponse can skip
-    // re-tokenising it on subsequent calls.
-    tokenCache.set(id, estimateTokens({ role: "user", content: input }));
   }
 
   function fetchResponse(
@@ -587,17 +590,30 @@ export function createAgenticState(
       return false;
     };
 
-    // Build a reference map from context object → cached token count so that
-    // truncateToContextBudget can skip re-tokenising entries that were already
-    // estimated when they were first appended. Context is positionally aligned
-    // with entryMap.orderedIds; items that survived dedup/purge unchanged keep
-    // their original object reference and get a cache hit. Modified or newly
-    // created objects (rare: dedup/purge rewrites) fall back to estimateTokens.
+    // Build two reference maps keyed by message object identity:
+    //
+    //   cachedByRef: msg → cached token count
+    //     Used by truncateToContextBudget to skip re-tokenising messages whose
+    //     count was already computed. Messages that survive dedup/purge with
+    //     their original reference get a cache hit; modified/new objects fall
+    //     back to estimateTokens.
+    //
+    //   contextToId: msg → entry ID
+    //     Used below to find the ID of the first surviving message after
+    //     truncation. Using object references is correct here because
+    //     deduplicateToolCalls can shorten the context array, making a positional
+    //     index (droppedCount) into purgedContext diverge from the orderedIds
+    //     index. User messages and unmodified tool/assistant messages always pass
+    //     through as original references, so the lookup succeeds for all common
+    //     cases. The rare partially-deduped assistant messages are new objects
+    //     and miss the map (fallback: null).
     const contextEntryMap = $entryMap.getValue();
     const cachedByRef = new Map<Context[number], number>();
+    const contextToId = new Map<Context[number], string>();
     context.forEach((msg, i) => {
       const id = contextEntryMap.orderedIds[i];
       if (id !== undefined) {
+        contextToId.set(msg, id);
         const cached = tokenCache.get(id);
         if (cached !== undefined) {
           cachedByRef.set(msg, cached);
@@ -605,11 +621,7 @@ export function createAgenticState(
       }
     });
 
-    const {
-      messages: truncatedContext,
-      droppedCount,
-      anyDropped,
-    } = truncateToContextBudget(
+    const { messages: truncatedContext, anyDropped } = truncateToContextBudget(
       purgedContext,
       budget,
       (msg) => cachedByRef.get(msg) ?? estimateTokens(msg),
@@ -622,9 +634,16 @@ export function createAgenticState(
     // Use anyDropped (not droppedCount > 0) so the separator is shown even
     // when a protected message sits at the start of the context (droppedCount=0
     // but gaps exist between retained messages).
-    const entryMap = contextEntryMap;
+    //
+    // Look up the first surviving message by object reference rather than by
+    // positional index: deduplicateToolCalls can remove entire messages, making
+    // purgedContext shorter than context, so droppedCount (an index into
+    // purgedContext) no longer maps 1:1 to orderedIds.
     if (anyDropped) {
-      const firstSurvivingId = entryMap.orderedIds[droppedCount] ?? null;
+      const firstMsg = truncatedContext[0];
+      const firstSurvivingId =
+        (firstMsg !== undefined ? contextToId.get(firstMsg) : undefined) ??
+        null;
       setTruncatedBefore(firstSurvivingId);
     } else {
       setTruncatedBefore(null);
