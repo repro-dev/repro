@@ -174,7 +174,8 @@ export OPENCODE_CONFIG_CONTENT='{
   "provider": {
     "github-copilot": {
       "options": {
-        "model": "claude-sonnet-4.6"
+        "model": "gpt-5.4",
+        "reasoningEffort": "high"
       }
     }
   },
