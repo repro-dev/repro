@@ -1,10 +1,12 @@
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import expect from 'expect'
-import { afterEach, describe, it } from 'node:test'
+import { afterEach, beforeEach, describe, it, mock } from 'node:test'
 import React, { act } from 'react'
 import { Alert } from './Alert'
 
 afterEach(cleanup)
+
+const ALERT_DISMISS_DURATION_MS = 200
 
 describe('Alert', () => {
   describe('without onDismiss', () => {
@@ -28,6 +30,14 @@ describe('Alert', () => {
   })
 
   describe('with onDismiss', () => {
+    beforeEach(() => {
+      mock.timers.enable({ apis: ['setTimeout'] })
+    })
+
+    afterEach(() => {
+      mock.timers.reset()
+    })
+
     it('renders a close button with aria-label="Dismiss"', () => {
       render(
         <Alert type="info" onDismiss={() => {}}>
@@ -50,10 +60,9 @@ describe('Alert', () => {
       const button = document.querySelector('button[aria-label="Dismiss"]')
       expect(button).not.toBeNull()
 
-      await act(async () => {
+      act(() => {
         fireEvent.click(button!)
-        // advance past the 200ms dismiss delay
-        await new Promise(resolve => setTimeout(resolve, 250))
+        mock.timers.tick(ALERT_DISMISS_DURATION_MS)
       })
 
       expect(dismissed).toBe(true)
@@ -133,9 +142,9 @@ describe('Alert', () => {
       const button = document.querySelector('button[aria-label="Dismiss"]')
       expect(button).not.toBeNull()
 
-      await act(async () => {
+      act(() => {
         fireEvent.click(button!)
-        await new Promise(resolve => setTimeout(resolve, 250))
+        mock.timers.tick(ALERT_DISMISS_DURATION_MS)
       })
 
       expect(dismissed).toBe(true)
@@ -146,7 +155,60 @@ describe('Alert', () => {
       document.body.removeChild(trigger)
     })
 
-    it('dismisses when close button is activated with Enter key', async () => {
+    it('calls onDismiss only once for repeated interactions before dismissal completes', () => {
+      let dismissCount = 0
+
+      render(
+        <Alert type="info" onDismiss={() => dismissCount++}>
+          Something happened
+        </Alert>
+      )
+
+      const button = document.querySelector('button[aria-label="Dismiss"]')
+      expect(button).not.toBeNull()
+
+      act(() => {
+        fireEvent.click(button!)
+        fireEvent.click(button!)
+        mock.timers.tick(ALERT_DISMISS_DURATION_MS)
+      })
+
+      expect(dismissCount).toBe(1)
+    })
+
+    it('clears the pending dismiss timeout on unmount', () => {
+      const trigger = document.createElement('button')
+      document.body.appendChild(trigger)
+      trigger.focus()
+
+      const nextFocusTarget = document.createElement('button')
+      document.body.appendChild(nextFocusTarget)
+
+      let dismissCount = 0
+      const { unmount } = render(
+        <Alert type="info" onDismiss={() => dismissCount++}>
+          Something happened
+        </Alert>
+      )
+
+      const button = document.querySelector('button[aria-label="Dismiss"]')
+      expect(button).not.toBeNull()
+
+      act(() => {
+        fireEvent.click(button!)
+        nextFocusTarget.focus()
+        unmount()
+        mock.timers.tick(ALERT_DISMISS_DURATION_MS)
+      })
+
+      expect(dismissCount).toBe(0)
+      expect(document.activeElement).toBe(nextFocusTarget)
+
+      trigger.remove()
+      nextFocusTarget.remove()
+    })
+
+    it('dismisses when close button is activated with Enter key', () => {
       let dismissed = false
 
       render(
@@ -157,17 +219,17 @@ describe('Alert', () => {
 
       const button = document.querySelector('button[aria-label="Dismiss"]')
       expect(button).not.toBeNull()
+      button!.focus()
 
-      await act(async () => {
+      act(() => {
         fireEvent.keyDown(button!, { key: 'Enter' })
-        fireEvent.click(button!)
-        await new Promise(resolve => setTimeout(resolve, 250))
+        mock.timers.tick(ALERT_DISMISS_DURATION_MS)
       })
 
       expect(dismissed).toBe(true)
     })
 
-    it('dismisses when close button is activated with Space key', async () => {
+    it('dismisses when close button is activated with Space key', () => {
       let dismissed = false
 
       render(
@@ -178,11 +240,12 @@ describe('Alert', () => {
 
       const button = document.querySelector('button[aria-label="Dismiss"]')
       expect(button).not.toBeNull()
+      button!.focus()
 
-      await act(async () => {
+      act(() => {
         fireEvent.keyDown(button!, { key: ' ' })
-        fireEvent.click(button!)
-        await new Promise(resolve => setTimeout(resolve, 250))
+        fireEvent.keyUp(button!, { key: ' ' })
+        mock.timers.tick(ALERT_DISMISS_DURATION_MS)
       })
 
       expect(dismissed).toBe(true)

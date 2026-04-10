@@ -131,7 +131,7 @@ export const Stacked: Story = {
   ),
 }
 
-export const Dismissable: Story = {
+export const Dismissible: Story = {
   render: () => {
     const [alerts, setAlerts] = useState([
       {

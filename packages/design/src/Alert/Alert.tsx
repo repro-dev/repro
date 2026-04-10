@@ -4,11 +4,14 @@ import React, { PropsWithChildren, useEffect, useRef, useState } from 'react'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
-import { transition } from '../tokens/motion'
+import { duration, easing } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { fontSize, lineHeight } from '../tokens/typography'
 
 type AlertType = 'info' | 'success' | 'warning' | 'danger'
+
+const ALERT_DISMISS_DURATION_MS = 200 as const
+const ALERT_DISMISS_TRANSITION = `opacity ${duration[ALERT_DISMISS_DURATION_MS]} ${easing.default}`
 
 const backgroundColorMap: Record<AlertType, string> = {
   info: color.infoTint,
@@ -68,27 +71,44 @@ type Props = PropsWithChildren<{
  * the message type visually.
  *
  * When `onDismiss` is provided, a dismiss button is rendered. After clicking,
- * a 200ms fade-out plays, then `onDismiss` is called. Focus is restored to the
+ * a short fade-out plays, then `onDismiss` is called. Focus is restored to the
  * previously-focused element on dismiss.
  */
 export const Alert: React.FC<Props> = ({ children, icon, type, onDismiss }) => {
   const [dismissing, setDismissing] = useState(false)
   // Captures the focused element at mount time so focus can be restored after dismiss.
-  const previousFocusRef = useRef<Element | null>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+  const dismissTimeoutRef = useRef<number | null>(null)
+  const dismissStartedRef = useRef(false)
 
   useEffect(() => {
     previousFocusRef.current = document.activeElement as HTMLElement
+
+    return () => {
+      if (dismissTimeoutRef.current !== null) {
+        window.clearTimeout(dismissTimeoutRef.current)
+        dismissTimeoutRef.current = null
+      }
+    }
   }, [])
 
   const handleDismiss = () => {
-    if (dismissing) return
+    if (dismissStartedRef.current) return
+
+    dismissStartedRef.current = true
     setDismissing(true)
-    setTimeout(() => {
-      if (previousFocusRef.current instanceof HTMLElement) {
+    dismissTimeoutRef.current = window.setTimeout(() => {
+      dismissTimeoutRef.current = null
+
+      if (
+        previousFocusRef.current instanceof HTMLElement &&
+        previousFocusRef.current.isConnected
+      ) {
         previousFocusRef.current.focus()
       }
+
       onDismiss?.()
-    }, 200)
+    }, ALERT_DISMISS_DURATION_MS)
   }
 
   return (
@@ -102,7 +122,7 @@ export const Alert: React.FC<Props> = ({ children, icon, type, onDismiss }) => {
       lineHeight={lineHeight.relaxed}
       borderRadius={radius.sm}
       opacity={dismissing ? 0 : 1}
-      transition={transition.opacity}
+      transition={ALERT_DISMISS_TRANSITION}
       props={{ role: ariaRoleMap[type] }}
     >
       {icon && (
@@ -110,7 +130,7 @@ export const Alert: React.FC<Props> = ({ children, icon, type, onDismiss }) => {
           {icon}
         </Block>
       )}
-      <Block flex={onDismiss ? '1' : undefined}>{children}</Block>
+      <Block flex={onDismiss ? 1 : undefined}>{children}</Block>
       {onDismiss && (
         <Row
           component="button"
@@ -130,6 +150,21 @@ export const Alert: React.FC<Props> = ({ children, icon, type, onDismiss }) => {
             type: 'button',
             'aria-label': 'Dismiss',
             onClick: handleDismiss,
+            onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+              }
+
+              if (event.key === 'Enter') {
+                handleDismiss()
+              }
+            },
+            onKeyUp: (event: React.KeyboardEvent<HTMLButtonElement>) => {
+              if (event.key === ' ') {
+                event.preventDefault()
+                handleDismiss()
+              }
+            },
           }}
           {...focusRing(type)}
         >
