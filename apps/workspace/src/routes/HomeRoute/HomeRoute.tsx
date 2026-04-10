@@ -1,7 +1,10 @@
 import { Col, Grid } from '@jsxstyle/react'
 import { ApiClient, useApiClient } from '@repro/api-client'
 import { Button, EmptyState, PageFrame, spacing } from '@repro/design'
+<<<<<<< HEAD
 import type { RecordingInfo } from '@repro/domain'
+=======
+>>>>>>> b080b85d (fix(workspace): guard home route project links (REP-488))
 import { useFuture } from '@repro/future-utils'
 import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/workspace-api'
 import { FutureInstance, resolve } from 'fluture'
@@ -15,19 +18,30 @@ const CHROME_WEB_STORE_URL =
   'https://chrome.google.com/webstore/detail/repro/ecmbphfjfhnifmhbjhpejbpdnpanpice'
 
 // An immediately-resolved empty list, typed to match getProjectRecordings.
+<<<<<<< HEAD
 type ProjectRecordingsFuture = FutureInstance
 
 const emptyRecordings: ProjectRecordingsFuture = resolve([])
+=======
+const emptyRecordings: FutureInstance = resolve([])
+>>>>>>> b080b85d (fix(workspace): guard home route project links (REP-488))
 
 interface Props {
   // Injectable for testing; defaults to the real workspace-api function.
   getProjectRecordings?: (
     apiClient: ApiClient,
     projectId: string
+<<<<<<< HEAD
   ) => ProjectRecordingsFuture
 }
 
 export const HomeRoute = ({
+=======
+  ) => FutureInstance
+}
+
+export const HomeRoute: React.FC = ({
+>>>>>>> b080b85d (fix(workspace): guard home route project links (REP-488))
   getProjectRecordings = defaultGetProjectRecordings,
 }: Props) => {
   const apiClient = useApiClient()
@@ -60,7 +74,7 @@ export const HomeRoute = ({
   const effectiveLoading = loading || !isDataCurrent
 
   const currentProjectId = isDataCurrent ? confirmedProjectId : null
-  const items: RecordingInfo[] = isDataCurrent ? (recordings ?? []) : []
+  const items: RecordingInfo[] = isDataCurrent ? recordings ?? [] : []
 
   if (effectiveLoading) {
     return (
