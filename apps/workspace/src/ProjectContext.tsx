@@ -15,14 +15,14 @@ import React, {
 const STORAGE_KEY = 'repro:selectedProjectId'
 
 interface ProjectContextValue {
-  projects: Array<Project>
+  projects: Array
   selectedProject: Project | null
   loading: boolean
   selectProject: (projectId: string) => void
   addProject: (project: Project) => void
 }
 
-const ProjectContext = createContext<ProjectContextValue>({
+const ProjectContext = createContext({
   projects: [],
   selectedProject: null,
   loading: true,
@@ -32,10 +32,29 @@ const ProjectContext = createContext<ProjectContextValue>({
 
 interface ProjectProviderProps extends React.PropsWithChildren {
   // Injectable for testing; defaults to the real workspace-api function.
-  getProjects?: (apiClient: ApiClient) => FutureInstance<Error, Project[]>
+  getProjects?: (apiClient: ApiClient) => FutureInstance
 }
 
-export const ProjectProvider: React.FC<ProjectProviderProps> = ({
+export function mergeProjects(
+  fetchedProjects: Array,
+  localProjects: Array
+): Array {
+  const merged = [...fetchedProjects]
+  const seen = new Set(fetchedProjects.map(project => project.id))
+
+  for (const project of localProjects) {
+    if (seen.has(project.id)) {
+      continue
+    }
+
+    seen.add(project.id)
+    merged.push(project)
+  }
+
+  return merged
+}
+
+export const ProjectProvider: React.FC = ({
   children,
   getProjects = defaultGetProjects,
 }) => {
@@ -50,15 +69,14 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
   )
 
   // Projects added locally (e.g. just created) before the next fetch.
-  const [localProjects, setLocalProjects] = useState<Project[]>([])
+  const [localProjects, setLocalProjects] = useState([])
 
-  const fetchedProjects: Array<Project> = result.success ? result.data : []
+  const fetchedProjects: Array = result.success ? result.data : []
 
-  // Merge fetched + local; deduplicate by id (fetched takes precedence).
-  const projects = useMemo(() => {
-    const seen = new Set(fetchedProjects.map(p => p.id))
-    return [...fetchedProjects, ...localProjects.filter(p => !seen.has(p.id))]
-  }, [fetchedProjects, localProjects])
+  const projects = useMemo(
+    () => mergeProjects(fetchedProjects, localProjects),
+    [fetchedProjects, localProjects]
+  )
 
   // Resolve the selected project: prefer the persisted ID if it's still valid,
   // otherwise fall back to the first project in the list.

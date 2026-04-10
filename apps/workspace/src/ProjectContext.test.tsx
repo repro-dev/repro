@@ -5,11 +5,15 @@ import { FutureInstance, reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import React from 'react'
-import { ProjectProvider, useProjectContext } from './ProjectContext'
+import {
+  mergeProjects,
+  ProjectProvider,
+  useProjectContext,
+} from './ProjectContext'
 
 // In-memory localStorage substitute
 const localStorageMock = (() => {
-  let store: Record<string, string> = {}
+  let store: Record = {}
   return {
     getItem: (key: string) => store[key] ?? null,
     setItem: (key: string, value: string) => {
@@ -26,7 +30,7 @@ const localStorageMock = (() => {
 
 const STORAGE_KEY = 'repro:selectedProjectId'
 
-const mockProjects: Array<Project> = [
+const mockProjects: Array = [
   { id: 'project-1', name: 'Alpha' },
   { id: 'project-2', name: 'Beta' },
   { id: 'project-3', name: 'Gamma' },
@@ -39,9 +43,7 @@ const apiClient = createApiClient({
   authStorage: 'memory',
 })
 
-type GetProjectsFn = (
-  client: typeof apiClient
-) => FutureInstance<Error, Project[]>
+type GetProjectsFn = (client: typeof apiClient) => FutureInstance
 
 function makeWrapper(getProjects: GetProjectsFn) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
@@ -65,6 +67,17 @@ describe('ProjectContext', () => {
 
   afterEach(() => {
     // nothing to restore — no mock.method used
+  })
+
+  describe('mergeProjects', () => {
+    it('should deduplicate duplicate local projects while keeping fetched projects first', () => {
+      const localProject: Project = { id: 'project-new', name: 'New Project' }
+
+      assert.deepEqual(
+        mergeProjects(mockProjects, [localProject, localProject]),
+        [...mockProjects, localProject]
+      )
+    })
   })
 
   describe('when projects load successfully', () => {

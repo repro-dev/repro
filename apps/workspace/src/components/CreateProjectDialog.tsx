@@ -21,7 +21,7 @@ export interface CreateProjectDialogProps {
 
 const MAX_NAME_LENGTH = 100
 
-export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
+export const CreateProjectDialog: React.FC = ({
   open,
   onClose,
   createProjectFn = defaultCreateProject,
@@ -34,10 +34,11 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
 
   const [name, setName] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState(null)
 
   // Cancel ref holds the fluture Cancel function so we can cancel on unmount.
-  const cancelRef = useRef<(() => void) | null>(null)
+  const cancelRef = useRef(null)
+  const submittingRef = useRef(false)
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -45,6 +46,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
       setName('')
       setError(null)
       setSubmitting(false)
+      submittingRef.current = false
     }
   }, [open])
 
@@ -64,8 +66,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
     (evt: React.FormEvent) => {
       evt.preventDefault()
 
-      // Prevent double-submit if a request is already in flight.
-      if (submitting) {
+      if (submittingRef.current) {
         return
       }
 
@@ -79,16 +80,20 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
         return
       }
 
+      submittingRef.current = true
       setSubmitting(true)
       setError(null)
 
       const future = createProjectFn(apiClient, trimmed)
 
       const cancel = fork((_err: Error) => {
+        submittingRef.current = false
         setError('Failed to create project. Please try again.')
         setSubmitting(false)
         cancelRef.current = null
       })((project: Project) => {
+        submittingRef.current = false
+        setSubmitting(false)
         effectiveAddProject(project)
         onClose()
         effectiveNavigate('/')
@@ -99,7 +104,6 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
       cancelRef.current = cancel as unknown as () => void
     },
     [
-      submitting,
       name,
       apiClient,
       createProjectFn,
@@ -108,9 +112,6 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
       onClose,
     ]
   )
-
-  const isNameValid =
-    name.trim().length > 0 && name.trim().length <= MAX_NAME_LENGTH
 
   return (
     <Modal
@@ -133,7 +134,12 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
           autoFocus
           placeholder="Project name"
           value={name}
-          onChange={evt => setName(evt.target.value)}
+          onChange={evt => {
+            setName(evt.target.value)
+            if (error) {
+              setError(null)
+            }
+          }}
           disabled={submitting}
         />
 
@@ -156,7 +162,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
             context="info"
             size="medium"
             rounded
-            disabled={submitting || !isNameValid}
+            disabled={submitting}
             type="submit"
           >
             Create
