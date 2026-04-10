@@ -235,11 +235,27 @@ describe('Services > BillingWebhook', () => {
   })
 
   describe('transaction.payment_failed', () => {
-    it('should mark subscription as past_due', async () => {
+    it('should mark subscription as past_due and invalidate entitlement cache', async () => {
       const [customer, subscription] = await harness.loadFixtures([
         fixtures.billing.CustomerA,
         fixtures.billing.AccountA_FreePlan_Subscription,
       ])
+
+      await harness.db
+        .updateTable('billing_subscriptions')
+        .set({ status: 'paused' })
+        .where(
+          'providerSubscriptionId',
+          '=',
+          subscription.providerSubscriptionId
+        )
+        .execute()
+
+      const before = await promise(
+        harness.services.billingService.getEntitlements(customer.accountId)
+      )
+
+      expect(before).toEqual([])
 
       const transactionData = {
         id: 'txn_fail_001',
@@ -277,6 +293,17 @@ describe('Services > BillingWebhook', () => {
       )
 
       expect(updated.status).toBe('past_due')
+
+      const after = await promise(
+        harness.services.billingService.getEntitlements(customer.accountId)
+      )
+
+      expect(after).toEqual(
+        expect.arrayContaining([
+          { feature: 'recordings', enabled: true, limit: 10 },
+          { feature: 'seats', enabled: true, limit: 1 },
+        ])
+      )
     })
 
     it('should succeed gracefully when subscription_id is missing', async () => {
@@ -310,6 +337,135 @@ describe('Services > BillingWebhook', () => {
         eventId: record.eventId,
         skipped: false,
       })
+    })
+  })
+
+  describe('subscription.paused', () => {
+    it('should mark subscription as paused and invalidate entitlement cache', async () => {
+      const [customer] = await harness.loadFixtures([
+        fixtures.billing.CustomerA,
+        fixtures.billing.AccountA_FreePlan_Subscription,
+      ])
+
+      const before = await promise(
+        harness.services.billingService.getEntitlements(customer.accountId)
+      )
+
+      expect(before).toEqual(
+        expect.arrayContaining([
+          { feature: 'recordings', enabled: true, limit: 10 },
+          { feature: 'seats', enabled: true, limit: 1 },
+        ])
+      )
+
+      const subscriptionData = {
+        id: 'dev_sub_' + customer.accountId,
+        status: 'paused',
+        customer_id: customer.providerCustomerId,
+        items: [],
+      }
+
+      webhookService = createBillingWebhookService(
+        harness.db,
+        harness.services.billingService,
+        createMockPaddleClient('subscription.paused', subscriptionData)
+      )
+
+      const rawBody = createWebhookPayload(
+        'evt_sub_paused_001',
+        'subscription.paused',
+        subscriptionData
+      )
+
+      const record = await promise(
+        webhookService.verifyAndRecord(rawBody, 'test-sig')
+      )
+
+      await promise(
+        webhookService.handleSubscriptionPaused(record.eventId, record.data)
+      )
+
+      const subscription = await promise(
+        harness.services.billingService.getSubscriptionByAccountId(
+          customer.accountId
+        )
+      )
+
+      expect(subscription.status).toBe('paused')
+
+      const after = await promise(
+        harness.services.billingService.getEntitlements(customer.accountId)
+      )
+
+      expect(after).toEqual([])
+    })
+  })
+
+  describe('subscription.resumed', () => {
+    it('should restore subscription status from the payload and invalidate entitlement cache', async () => {
+      const [customer] = await harness.loadFixtures([
+        fixtures.billing.CustomerA,
+        fixtures.billing.AccountA_FreePlan_Subscription,
+      ])
+
+      // Precondition: set status to paused
+      await harness.db
+        .updateTable('billing_subscriptions')
+        .set({ status: 'paused' })
+        .where('providerSubscriptionId', '=', 'dev_sub_' + customer.accountId)
+        .execute()
+
+      const before = await promise(
+        harness.services.billingService.getEntitlements(customer.accountId)
+      )
+
+      expect(before).toEqual([])
+
+      const subscriptionData = {
+        id: 'dev_sub_' + customer.accountId,
+        status: 'trialing',
+        customer_id: customer.providerCustomerId,
+        items: [],
+      }
+
+      webhookService = createBillingWebhookService(
+        harness.db,
+        harness.services.billingService,
+        createMockPaddleClient('subscription.resumed', subscriptionData)
+      )
+
+      const rawBody = createWebhookPayload(
+        'evt_sub_resumed_001',
+        'subscription.resumed',
+        subscriptionData
+      )
+
+      const record = await promise(
+        webhookService.verifyAndRecord(rawBody, 'test-sig')
+      )
+
+      await promise(
+        webhookService.handleSubscriptionResumed(record.eventId, record.data)
+      )
+
+      const subscription = await promise(
+        harness.services.billingService.getSubscriptionByAccountId(
+          customer.accountId
+        )
+      )
+
+      expect(subscription.status).toBe('trialing')
+
+      const after = await promise(
+        harness.services.billingService.getEntitlements(customer.accountId)
+      )
+
+      expect(after).toEqual(
+        expect.arrayContaining([
+          { feature: 'recordings', enabled: true, limit: 10 },
+          { feature: 'seats', enabled: true, limit: 1 },
+        ])
+      )
     })
   })
 
