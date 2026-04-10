@@ -18,6 +18,7 @@ import {
   resolve,
   swap,
 } from 'fluture'
+import { sql } from 'kysely'
 import { createHash, randomBytes } from 'node:crypto'
 import { SystemConfig, defaultSystemConfig } from '~/config/system'
 import {
@@ -868,27 +869,23 @@ export function createAccountService(
 
   function recordStaffFailedLogin(email: string): FutureInstance<Error, void> {
     return attemptQuery(async () => {
-      const row = await database
-        .selectFrom('staff_users')
-        .select(['id', 'failedLoginCount'])
-        .where('email', '=', email.toLowerCase())
-        .where('active', '=', true)
-        .executeTakeFirst()
-
-      if (!row) {
-        return
-      }
-
-      const count = row.failedLoginCount + 1
-      const lockedUntil =
-        count >= MAX_FAILED_ATTEMPTS
-          ? new Date(Date.now() + LOCKOUT_DURATION_MS)
-          : null
+      const lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS)
 
       await database
         .updateTable('staff_users')
-        .set({ failedLoginCount: count, lockedUntil })
-        .where('id', '=', row.id)
+        .set({
+          failedLoginCount: sql<number>`"failedLoginCount" + 1`,
+          lockedUntil: sql<Date | null>`
+            case
+              when "failedLoginCount" >= ${
+                MAX_FAILED_ATTEMPTS - 1
+              } then ${lockedUntil}
+              else "lockedUntil"
+            end
+          `,
+        })
+        .where('email', '=', email.toLowerCase())
+        .where('active', '=', true)
         .execute()
     })
   }

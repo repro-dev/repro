@@ -4,7 +4,7 @@ import { chain, chainRej, go, reject } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
-import { isNotFound, notAuthenticated } from '~/utils/errors'
+import { isNotFound, isTooManyRequests, notAuthenticated } from '~/utils/errors'
 import { createResponseUtils } from '~/utils/response'
 
 const loginSchema = {
@@ -51,6 +51,10 @@ export function createStaffRouter(
             )
             .pipe(
               chainRej(error => {
+                if (isTooManyRequests(error)) {
+                  return reject(notAuthenticated())
+                }
+
                 if (isNotFound(error)) {
                   return accountService
                     .recordStaffFailedLogin(req.body.email)

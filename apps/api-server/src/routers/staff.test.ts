@@ -133,7 +133,32 @@ describe('Routers > Staff', () => {
       expect((row.lockedUntil as Date).getTime()).toBeGreaterThan(Date.now())
     })
 
-    it('should return 429 even with correct credentials when account is locked', async () => {
+    it('should count concurrent failed login attempts without losing increments', async () => {
+      const email = harness.generateRandomEmailAddress()
+      await createStaffUserWithCredentials(email, 'hunter2!')
+
+      const responses = await Promise.all(
+        Array.from({ length: 5 }, () =>
+          attemptStaffLogin(email, 'wrong-password')
+        )
+      )
+
+      for (const res of responses) {
+        expect(res.statusCode).toEqual(401)
+      }
+
+      const row = await harness.db
+        .selectFrom('staff_users')
+        .select(['failedLoginCount', 'lockedUntil'])
+        .where('email', '=', email)
+        .executeTakeFirstOrThrow()
+
+      expect(row.failedLoginCount).toEqual(5)
+      expect(row.lockedUntil).not.toBeNull()
+      expect((row.lockedUntil as Date).getTime()).toBeGreaterThan(Date.now())
+    })
+
+    it('should return a generic auth failure even with correct credentials when account is locked', async () => {
       const email = harness.generateRandomEmailAddress()
       await createStaffUserWithCredentials(email, 'hunter2!')
 
@@ -142,7 +167,7 @@ describe('Routers > Staff', () => {
       }
 
       const res = await attemptStaffLogin(email, 'hunter2!')
-      expect(res.statusCode).toEqual(429)
+      expect(res.statusCode).toEqual(401)
     })
 
     it('should reset failedLoginCount to 0 after a successful login', async () => {
