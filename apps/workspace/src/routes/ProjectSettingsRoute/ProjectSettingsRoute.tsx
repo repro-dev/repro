@@ -82,7 +82,7 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
     register,
     handleSubmit,
     formState: { errors, isSubmitting, isDirty },
-  } = useForm<RenameFormValues>({
+  } = useForm({
     resolver: zodResolver(renameSchema),
     defaultValues: { name: projectName },
   })
@@ -92,9 +92,10 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
       setRenameError(null)
       return new Promise<void>(resolve => {
         renameProject(apiClient, projectId, values.name).pipe(
-          fork<Error>(err => {
+          fork((err: unknown) => {
             setRenameError(
-              err.message ?? 'Failed to rename project. Please try again.'
+              (err as Error).message ??
+                'Failed to rename project. Please try again.'
             )
             resolve()
           })(() => {
@@ -121,7 +122,7 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
 
     setArchiveError(null)
     deactivateProject(apiClient, projectId).pipe(
-      fork<Error>(() => {
+      fork(() => {
         setArchiveError('Failed to archive project. Please try again.')
       })(() => {
         navigate('/')
@@ -133,7 +134,9 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
     return <FullPageLoading />
   }
 
-  const currentMember = (members ?? []).find(m => m.user.id === currentUserId)
+  const currentMember = (members ?? []).find(
+    (m: ProjectMember) => m.user.id === currentUserId
+  )
   const isAdmin = currentMember?.role === ProjectRole.Admin
 
   if (!isAdmin) {
