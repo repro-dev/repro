@@ -118,9 +118,21 @@ describe('Routers > Billing', () => {
 
       expect(res.statusCode).toEqual(200)
       const body = res.json()
-      expect(body).toHaveProperty('items')
-      expect(Array.isArray(body.items)).toBe(true)
-      expect(body.items.length).toBeGreaterThan(0)
+      expect(body).toEqual({
+        items: expect.arrayContaining([
+          { feature: 'recordings', enabled: true, limit: null },
+          { feature: 'seats', enabled: true, limit: 5 },
+          { feature: 'ai_credits', enabled: true, limit: 100 },
+        ]),
+      })
+      expect(body.items).toHaveLength(3)
+      for (const item of body.items) {
+        expect(Object.keys(item).sort()).toEqual([
+          'enabled',
+          'feature',
+          'limit',
+        ])
+      }
     })
 
     it('should return 401 when not authenticated', async () => {
