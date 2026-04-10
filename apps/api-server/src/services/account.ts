@@ -935,7 +935,7 @@ export function createAccountService(
     return attemptQuery(() =>
       database
         .deleteFrom('sessions')
-        .where('createdAt', '<', cutoff)
+        .where('createdAt', '<=', cutoff)
         .executeTakeFirst()
     ).pipe(map(result => Number(result?.numDeletedRows ?? 0)))
   }

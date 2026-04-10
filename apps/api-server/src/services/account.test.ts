@@ -1,7 +1,8 @@
 import { randomString } from '@repro/random-string'
 import expect from 'expect'
 import { chain, map, parallel, promise } from 'fluture'
-import { after, before, beforeEach, describe, it } from 'node:test'
+import { sql } from 'kysely'
+import { after, before, beforeEach, describe, it, mock } from 'node:test'
 import { decodeId, encodeId } from '~/modules/database'
 import { createStubEmailUtils } from '~/modules/email-utils'
 import { Harness, createTestHarness, fixtures } from '~/testing'
@@ -1531,6 +1532,54 @@ describe('Services > Account', () => {
       await promise(expiredService.deleteExpiredSessions())
 
       // The session row should now be gone even when looked up via the normal service
+      await expect(
+        promise(accountService.getSessionByToken(session.sessionToken))
+      ).rejects.toThrow(notFound())
+    })
+
+    it('deleteExpiredSessions removes sessions at the exact expiry cutoff', async () => {
+      const account = await promise(
+        accountService.createAccount('Exact Cutoff Cleanup Test')
+      )
+      const email = harness.generateRandomEmailAddress()
+
+      const user = await promise(
+        accountService.createUser(account.id, 'Jane Doe', email, 'hunter2!')
+      )
+
+      const session = await promise(
+        accountService.createSession(user.id, 'user')
+      )
+
+      const fixedNow = new Date('2030-01-01T00:00:00.000Z')
+      mock.timers.enable({ apis: ['Date'], now: fixedNow })
+
+      try {
+        const cutoff = new Date(fixedNow.getTime() - 60 * 1000)
+
+        await sql`
+          UPDATE sessions
+          SET "createdAt" = ${cutoff}
+          WHERE id = ${decodeId(session.id) as number}
+        `.execute(harness.db)
+
+        const stubEmail = createStubEmailUtils([])
+        const expiredService = createAccountService(
+          harness.db,
+          stubEmail,
+          undefined,
+          60
+        )
+
+        await expect(
+          promise(expiredService.getSessionByToken(session.sessionToken))
+        ).rejects.toThrow(notFound())
+
+        await promise(expiredService.deleteExpiredSessions())
+      } finally {
+        mock.timers.reset()
+      }
+
       await expect(
         promise(accountService.getSessionByToken(session.sessionToken))
       ).rejects.toThrow(notFound())

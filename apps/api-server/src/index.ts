@@ -9,7 +9,6 @@ import {
   serializerCompiler,
   validatorCompiler,
 } from 'fastify-type-provider-zod'
-import { fork } from 'fluture'
 import { defaultEnv as env } from '~/config/env'
 import { createSessionDecorator } from '~/decorators/session'
 import { createPaddleClient } from '~/modules/billing'
@@ -41,6 +40,7 @@ import { createHttpClient } from './modules/http'
 import { createStaffRouter } from './routers/staff'
 import { createStaffOAuthRouter } from './routers/staffOAuth'
 import { createAgenticService } from './services/agentic'
+import { startExpiredSessionCleanup } from './sessionCleanup'
 
 const httpClient = createHttpClient()
 
@@ -303,9 +303,11 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
 
   // Periodically delete sessions past hard expiry — runs out of band so it
   // never blocks request handling.
-  const cleanupInterval = setInterval(() => {
-    accountService.deleteExpiredSessions().pipe(fork(console.error)(() => {}))
-  }, env.SESSION_CLEANUP_INTERVAL * 1000)
+  const cleanupInterval = startExpiredSessionCleanup(
+    accountService,
+    app.log,
+    env.SESSION_CLEANUP_INTERVAL
+  )
 
   app.addHook('onClose', () => {
     clearInterval(cleanupInterval)
