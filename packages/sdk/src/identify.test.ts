@@ -10,6 +10,10 @@ describe('identify', () => {
       delete (globalThis as Record<string, unknown>)['__REPRO__']
     })
 
+    afterEach(() => {
+      delete (globalThis as Record<string, unknown>)['__REPRO__']
+    })
+
     it('is a no-op and does not throw', async () => {
       const { identify } = await import('./identify.js')
       assert.doesNotThrow(() => identify('user-1'))
