@@ -10,7 +10,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { FutureInstance, never, resolve } from 'fluture'
+import { FutureInstance, never, reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
@@ -355,6 +355,71 @@ describe('ProjectSettingsRoute', () => {
       })
 
       assert.equal(deactivateCalls.length, 0)
+    })
+
+    it('shows error alert when rename API call fails', async () => {
+      const apiError = new Error('Network error')
+      const mockRename: RenameFn = () =>
+        reject(apiError) as unknown as FutureInstance<Error, unknown>
+
+      renderRoute({
+        projectName: 'Old Name',
+        getMembers: () => resolve([adminMember]),
+        renameProject: mockRename,
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByRole('textbox', { name: /project name/i }))
+      })
+
+      const input = screen.getByRole('textbox', { name: /project name/i })
+      fireEvent.change(input, { target: { value: 'New Name' } })
+
+      const saveButton = screen.getByRole('button', { name: /save/i })
+
+      await act(async () => {
+        fireEvent.click(saveButton)
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText(/network error/i))
+      })
+    })
+
+    it('shows error alert when archive API call fails', async () => {
+      const apiError = new Error('Server error')
+      const mockDeactivate: DeactivateFn = () =>
+        reject(apiError) as unknown as FutureInstance<Error, void>
+
+      renderRoute({ deactivateProject: mockDeactivate })
+
+      await waitFor(() => {
+        assert.ok(screen.getByRole('button', { name: /archive project/i }))
+      })
+
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /archive project/i })
+        )
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByRole('dialog'))
+      })
+
+      const confirmButton = screen
+        .getAllByRole('button', { name: /archive/i })
+        .find(btn => btn.closest('[role="dialog"]'))
+
+      assert.ok(confirmButton, 'Confirm button should be in the dialog')
+
+      await act(async () => {
+        fireEvent.click(confirmButton!)
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText(/failed to archive project/i))
+      })
     })
   })
 })

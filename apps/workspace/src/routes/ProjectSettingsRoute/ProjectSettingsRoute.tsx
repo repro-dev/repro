@@ -27,7 +27,7 @@ import {
   renameProject as defaultRenameProject,
 } from '@repro/workspace-api'
 import { FutureInstance, fork } from 'fluture'
-import React, { useCallback } from 'react'
+import React, { useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router-dom'
 import { z } from 'zod'
@@ -70,6 +70,9 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
   const navigate = useNavigate()
   const confirm = useConfirm()
 
+  const [renameError, setRenameError] = useState<string | null>(null)
+  const [archiveError, setArchiveError] = useState<string | null>(null)
+
   const { loading, data: members } = useFuture(
     () => getMembers(apiClient, projectId),
     [apiClient, projectId, getMembers]
@@ -86,9 +89,13 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
 
   const onRename = useCallback(
     (values: RenameFormValues) => {
+      setRenameError(null)
       return new Promise<void>(resolve => {
         renameProject(apiClient, projectId, values.name).pipe(
-          fork(() => {
+          fork<Error>(err => {
+            setRenameError(
+              err.message ?? 'Failed to rename project. Please try again.'
+            )
             resolve()
           })(() => {
             resolve()
@@ -112,9 +119,10 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
       return
     }
 
+    setArchiveError(null)
     deactivateProject(apiClient, projectId).pipe(
-      fork(() => {
-        // silently ignore error for now
+      fork<Error>(() => {
+        setArchiveError('Failed to archive project. Please try again.')
       })(() => {
         navigate('/')
       })
@@ -159,6 +167,8 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
 
               <form onSubmit={handleSubmit(onRename)}>
                 <Stack gap="md">
+                  {renameError && <Alert type="danger">{renameError}</Alert>}
+
                   <FormField>
                     <Label htmlFor="project-name">Project name</Label>
                     <Input
@@ -212,6 +222,8 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
                   Archive Project
                 </Button>
               </Row>
+
+              {archiveError && <Alert type="danger">{archiveError}</Alert>}
             </Col>
           </Card>
         </Stack>

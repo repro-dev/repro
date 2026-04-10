@@ -58,7 +58,7 @@ Analytics.registerConsumer(
 
 const rootSelector = '#root'
 const rootElem = document.querySelector(rootSelector)
-const rootStyleSheet = document.querySelector<HTMLStyleElement>('#root-styles')
+const rootStyleSheet = document.querySelector('#root-styles')
 
 if (rootStyleSheet) {
   applyResetStyles(rootSelector, rootStyleSheet)
@@ -120,15 +120,17 @@ if (rootElem) {
                         </Route>
                       </Route>
 
-                      <Route element={<SessionRouteBoundary />}>
-                        <Route
-                          path="projects/:projectId/recordings/:recordingId"
-                          element={<RecordingRoute />}
-                        />
-                        <Route
-                          path="projects/:projectId/settings"
-                          element={<ProjectSettingsRoute />}
-                        />
+                      <Route element={<Layout />}>
+                        <Route element={<SessionRouteBoundary />}>
+                          <Route
+                            path="projects/:projectId/recordings/:recordingId"
+                            element={<RecordingRoute />}
+                          />
+                          <Route
+                            path="projects/:projectId/settings"
+                            element={<ProjectSettingsRoute />}
+                          />
+                        </Route>
                       </Route>
                     </Routes>
                   </Suspense>
