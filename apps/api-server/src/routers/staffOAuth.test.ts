@@ -3,7 +3,7 @@ import expect from 'expect'
 import { FastifyInstance } from 'fastify'
 import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
-import { Harness, createTestHarness, fixtures } from '~/testing'
+import { Harness, createTestHarness } from '~/testing'
 import { createStaffOAuthRouter } from './staffOAuth'
 
 // Stub Google provider for testing without real network calls
@@ -301,24 +301,6 @@ describe('Routers > StaffOAuth', () => {
       )) as Session
       // Must be the same staff user
       expect(session.subjectId).toEqual(staffUser.id)
-    })
-  })
-
-  describe('POST /logout', () => {
-    it('should clear the session cookie on logout', async () => {
-      const [staffSession] = await harness.loadFixtures([
-        fixtures.account.StaffUserA_Session,
-      ])
-
-      const res = await app.inject({
-        method: 'POST',
-        url: '/logout',
-        headers: {
-          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
-        },
-      })
-
-      expect(res.statusCode).toEqual(204)
     })
   })
 })

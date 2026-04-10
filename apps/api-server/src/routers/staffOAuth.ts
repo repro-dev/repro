@@ -17,6 +17,9 @@ const OAUTH_COOKIE_MAX_AGE = 300
 // Staff OAuth only allows @repro.dev email addresses
 const ALLOWED_DOMAIN = 'repro.dev'
 
+type ProviderParams = { provider: string }
+type CallbackQuery = { code?: string; state?: string }
+
 export function createStaffOAuthRouter(
   accountService: AccountService,
   env: Env,
@@ -28,7 +31,7 @@ export function createStaffOAuthRouter(
   return async function (fastify) {
     // GET /oauth/:provider — initiate the OAuth flow
     fastify.get('/oauth/:provider', async (req, res) => {
-      const { provider } = req.params
+      const { provider } = req.params as ProviderParams
       const oauthProvider = providers[provider]
 
       if (oauthProvider == null) {
@@ -63,8 +66,8 @@ export function createStaffOAuthRouter(
 
     // GET /oauth/:provider/callback — handle the OAuth callback
     fastify.get('/oauth/:provider/callback', (req, res): void => {
-      const { provider } = req.params
-      const { code, state } = req.query
+      const { provider } = req.params as ProviderParams
+      const { code, state } = req.query as CallbackQuery
       const oauthProvider = providers[provider]
 
       if (oauthProvider == null) {
@@ -92,7 +95,7 @@ export function createStaffOAuthRouter(
 
       const codeToExchange = code
 
-      const handleCallback: FutureInstance = go(function* () {
+      const handleCallback = go(function* () {
         // Exchange the code for tokens
         const tokens: {
           accessToken(): string
@@ -121,21 +124,14 @@ export function createStaffOAuthRouter(
           return yield resolve(undefined as void)
         }
 
-        // Cast needed: account service uses bare FutureInstance (pre-existing tech debt)
-        const lookupOrCreate = (
-          accountService.getStaffUserByEmail(email) as unknown as FutureInstance
-        ).pipe(
-          bichain(error =>
+        const lookupOrCreate = accountService.getStaffUserByEmail(email).pipe(
+          bichain((error: Error) =>
             isNotFound(error)
               ? // First login — provision a new staff user
                 // OAuth users get no password; they can only log in via OAuth
-                (accountService.createStaffUser(
-                  name || email,
-                  email,
-                  ''
-                ) as unknown as FutureInstance)
+                accountService.createStaffUser(name || email, email, '')
               : reject(error)
-          )(s => resolve(s))
+          )((staffUser: StaffUser) => resolve(staffUser))
         )
         const staffUser = (yield lookupOrCreate) as StaffUser
 
@@ -145,7 +141,7 @@ export function createStaffOAuthRouter(
         // Redirect to the admin app dashboard
         res.redirect(env.REPRO_ADMIN_URL)
         return yield resolve(undefined as void)
-      }) as FutureInstance
+      }) as FutureInstance<Error, void>
 
       respondWith(res, handleCallback)
     })
