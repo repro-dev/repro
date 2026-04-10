@@ -128,7 +128,7 @@ Both extend a shared `SHARED_SYSTEM_CARD` string that defines the full investiga
 **Location**: `packages/agentic/src/model/tools/index.ts`
 
 ```ts
-export const tools: ToolDefinition[]; // all 11 tools
+export const tools: ToolDefinition[]; // full tool registry
 export const extensionTools: ToolDefinition[]; // all except captureScreenshot
 ```
 
@@ -178,6 +178,7 @@ type ToolHandler = (
 | `captureScreenshot`    | Renders a VTree snapshot to a canvas and returns a `dataUrl` + `ContentBlock[]`              |
 | `getStateChanges`      | State machine / framework state changes detected in the recording                            |
 | `findUserFrustration`  | Detects rage clicks, dead clicks, rapid navigation, and error loops; returns signals by time |
+| `searchEvents`         | Case-insensitive text search across all serialized event payloads                            |
 
 ### Tool Execution
 

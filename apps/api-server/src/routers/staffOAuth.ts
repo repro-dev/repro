@@ -17,6 +17,9 @@ const OAUTH_COOKIE_MAX_AGE = 300
 // Staff OAuth only allows @repro.dev email addresses
 const ALLOWED_DOMAIN = 'repro.dev'
 
+type ProviderParams = { provider: string }
+type CallbackQuery = { code?: string; state?: string }
+
 export function createStaffOAuthRouter(
   accountService: AccountService,
   env: Env,
@@ -27,50 +30,44 @@ export function createStaffOAuthRouter(
 
   return async function (fastify) {
     // GET /oauth/:provider — initiate the OAuth flow
-    fastify.get<{ Params: { provider: string } }>(
-      '/oauth/:provider',
-      async (req, res) => {
-        const { provider } = req.params
-        const oauthProvider = providers[provider]
+    fastify.get('/oauth/:provider', async (req, res) => {
+      const { provider } = req.params as ProviderParams
+      const oauthProvider = providers[provider]
 
-        if (oauthProvider == null) {
-          await res
-            .status(400)
-            .send({ message: `Unsupported provider: ${provider}` })
-          return
-        }
-
-        const state = generateState()
-        const codeVerifier = generateCodeVerifier()
-        const url = oauthProvider.createAuthorizationURL(state, codeVerifier)
-
-        res.setCookie('oauth_state', state, {
-          httpOnly: true,
-          path: '/',
-          sameSite: 'lax',
-          secure: 'auto',
-          maxAge: OAUTH_COOKIE_MAX_AGE,
-        })
-
-        res.setCookie('oauth_code_verifier', codeVerifier, {
-          httpOnly: true,
-          path: '/',
-          sameSite: 'lax',
-          secure: 'auto',
-          maxAge: OAUTH_COOKIE_MAX_AGE,
-        })
-
-        await res.redirect(url.toString())
+      if (oauthProvider == null) {
+        await res
+          .status(400)
+          .send({ message: `Unsupported provider: ${provider}` })
+        return
       }
-    )
+
+      const state = generateState()
+      const codeVerifier = generateCodeVerifier()
+      const url = oauthProvider.createAuthorizationURL(state, codeVerifier)
+
+      res.setCookie('oauth_state', state, {
+        httpOnly: true,
+        path: '/',
+        sameSite: 'lax',
+        secure: 'auto',
+        maxAge: OAUTH_COOKIE_MAX_AGE,
+      })
+
+      res.setCookie('oauth_code_verifier', codeVerifier, {
+        httpOnly: true,
+        path: '/',
+        sameSite: 'lax',
+        secure: 'auto',
+        maxAge: OAUTH_COOKIE_MAX_AGE,
+      })
+
+      await res.redirect(url.toString())
+    })
 
     // GET /oauth/:provider/callback — handle the OAuth callback
-    fastify.get<{
-      Params: { provider: string }
-      Querystring: { code?: string; state?: string }
-    }>('/oauth/:provider/callback', (req, res): void => {
-      const { provider } = req.params
-      const { code, state } = req.query
+    fastify.get('/oauth/:provider/callback', (req, res): void => {
+      const { provider } = req.params as ProviderParams
+      const { code, state } = req.query as CallbackQuery
       const oauthProvider = providers[provider]
 
       if (oauthProvider == null) {
@@ -98,7 +95,7 @@ export function createStaffOAuthRouter(
 
       const codeToExchange = code
 
-      const handleCallback: FutureInstance<Error, void> = go(function* () {
+      const handleCallback = go(function* () {
         // Exchange the code for tokens
         const tokens: {
           accessToken(): string
@@ -127,23 +124,14 @@ export function createStaffOAuthRouter(
           return yield resolve(undefined as void)
         }
 
-        // Cast needed: account service uses bare FutureInstance (pre-existing tech debt)
-        const lookupOrCreate = (
-          accountService.getStaffUserByEmail(
-            email
-          ) as unknown as FutureInstance<Error, StaffUser>
-        ).pipe(
-          bichain<Error, Error, StaffUser>(error =>
+        const lookupOrCreate = accountService.getStaffUserByEmail(email).pipe(
+          bichain((error: Error) =>
             isNotFound(error)
               ? // First login — provision a new staff user
                 // OAuth users get no password; they can only log in via OAuth
-                (accountService.createStaffUser(
-                  name || email,
-                  email,
-                  ''
-                ) as unknown as FutureInstance<Error, StaffUser>)
+                accountService.createStaffUser(name || email, email, '')
               : reject(error)
-          )(s => resolve(s))
+          )((staffUser: StaffUser) => resolve(staffUser))
         )
         const staffUser = (yield lookupOrCreate) as StaffUser
 
@@ -156,11 +144,6 @@ export function createStaffOAuthRouter(
       }) as FutureInstance<Error, void>
 
       respondWith(res, handleCallback)
-    })
-
-    // POST /logout — revoke the staff session
-    fastify.post('/logout', (req, res) => {
-      respondWith(res, req.revokeSession())
     })
   }
 }
