@@ -215,4 +215,21 @@ describe('createFocusTrap', () => {
     // Focus should be restored after destroy
     expect(document.activeElement).toBe(trigger)
   })
+
+  it('activate() focuses the initialFocus element when provided', () => {
+    container = document.createElement('div')
+    const btn1 = document.createElement('button')
+    btn1.textContent = 'First'
+    const btn2 = document.createElement('button')
+    btn2.textContent = 'Second'
+    container.appendChild(btn1)
+    container.appendChild(btn2)
+    document.body.appendChild(container)
+
+    const trap = createFocusTrap(container, { initialFocus: btn2 })
+    trap.activate()
+
+    expect(document.activeElement).toBe(btn2)
+    trap.destroy()
+  })
 })

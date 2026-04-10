@@ -6,14 +6,18 @@ export interface FocusTrap {
   destroy(): void
 }
 
-export function createFocusTrap(container: HTMLElement): FocusTrap {
+export function createFocusTrap(
+  container: HTMLElement,
+  options?: { initialFocus?: HTMLElement }
+): FocusTrap {
   let previousFocus: Element | null = null
   let active = false
 
   function getFocusableElements(): HTMLElement[] {
-    return Array.from(
-      container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTORS)
-    ).filter(el => !el.closest('[aria-hidden="true"]'))
+    const all = container.querySelectorAll(FOCUSABLE_SELECTORS)
+    return Array.from(all as NodeListOf<HTMLElement>).filter(
+      el => !el.closest('[aria-hidden="true"]')
+    )
   }
 
   function handleKeyDown(evt: KeyboardEvent): void {
@@ -46,8 +50,7 @@ export function createFocusTrap(container: HTMLElement): FocusTrap {
     active = true
     previousFocus = document.activeElement
 
-    const firstFocusable =
-      container.querySelector<HTMLElement>(FOCUSABLE_SELECTORS)
+    const firstFocusable = options?.initialFocus ?? getFocusableElements()[0]
     if (firstFocusable) {
       firstFocusable.focus()
     } else {
