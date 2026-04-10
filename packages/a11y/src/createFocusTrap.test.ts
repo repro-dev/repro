@@ -232,4 +232,102 @@ describe('createFocusTrap', () => {
     expect(document.activeElement).toBe(btn2)
     trap.destroy()
   })
+
+  it('activate() falls back to first focusable when initialFocus is outside the container', () => {
+    container = document.createElement('div')
+    const btn1 = document.createElement('button')
+    btn1.textContent = 'First'
+    container.appendChild(btn1)
+    document.body.appendChild(container)
+
+    const outsideBtn = document.createElement('button')
+    outsideBtn.textContent = 'Outside'
+    document.body.appendChild(outsideBtn)
+
+    const trap = createFocusTrap(container, { initialFocus: outsideBtn })
+    trap.activate()
+
+    // initialFocus is outside container — should fall back to first focusable
+    expect(document.activeElement).toBe(btn1)
+    trap.destroy()
+    outsideBtn.parentNode?.removeChild(outsideBtn)
+  })
+
+  it('activate() falls back to first focusable when initialFocus is inside aria-hidden subtree', () => {
+    container = document.createElement('div')
+    const btn1 = document.createElement('button')
+    btn1.textContent = 'First'
+    const hiddenDiv = document.createElement('div')
+    hiddenDiv.setAttribute('aria-hidden', 'true')
+    const hiddenBtn = document.createElement('button')
+    hiddenBtn.textContent = 'Hidden'
+    hiddenDiv.appendChild(hiddenBtn)
+    container.appendChild(btn1)
+    container.appendChild(hiddenDiv)
+    document.body.appendChild(container)
+
+    const trap = createFocusTrap(container, { initialFocus: hiddenBtn })
+    trap.activate()
+
+    // initialFocus is in aria-hidden subtree — should fall back to first focusable
+    expect(document.activeElement).toBe(btn1)
+    trap.destroy()
+  })
+
+  it('deactivate() restores container tabIndex to its original value', () => {
+    container = document.createElement('div')
+    const span = document.createElement('span')
+    span.textContent = 'Not focusable'
+    container.appendChild(span)
+    document.body.appendChild(container)
+
+    // Verify no tabIndex set before activation
+    expect(container.getAttribute('tabindex')).toBe(null)
+
+    const trap = createFocusTrap(container)
+    trap.activate()
+
+    // Trap should have set tabIndex=-1 to allow focus
+    expect(container.tabIndex).toBe(-1)
+
+    trap.deactivate()
+
+    // Should be restored: attribute removed (tabIndex reads as -1 but attribute not present)
+    expect(container.getAttribute('tabindex')).toBe(null)
+    trap.destroy()
+  })
+
+  it('Tab wraps when a child stops propagation (capture phase handles it)', () => {
+    container = document.createElement('div')
+    const btn1 = document.createElement('button')
+    btn1.textContent = 'First'
+    const btn2 = document.createElement('button')
+    btn2.textContent = 'Second'
+    container.appendChild(btn1)
+    container.appendChild(btn2)
+    document.body.appendChild(container)
+
+    // A child listener that stops propagation on the bubbling phase
+    btn2.addEventListener('keydown', evt => {
+      evt.stopPropagation()
+    })
+
+    const trap = createFocusTrap(container)
+    trap.activate()
+
+    btn2.focus()
+    expect(document.activeElement).toBe(btn2)
+
+    // Dispatch on btn2 directly (not document) — stopPropagation will prevent bubbling
+    const event = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      bubbles: true,
+      cancelable: true,
+    })
+    btn2.dispatchEvent(event)
+
+    expect(event.defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(btn1)
+    trap.destroy()
+  })
 })
