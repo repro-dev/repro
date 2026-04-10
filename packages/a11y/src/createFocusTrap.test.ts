@@ -106,6 +106,35 @@ describe('createFocusTrap', () => {
     trap.destroy()
   })
 
+  it('excludes elements inside aria-hidden from the focus cycle', () => {
+    container = document.createElement('div')
+    const btn1 = document.createElement('button')
+    btn1.textContent = 'First'
+    const hiddenDiv = document.createElement('div')
+    hiddenDiv.setAttribute('aria-hidden', 'true')
+    const hiddenBtn = document.createElement('button')
+    hiddenBtn.textContent = 'Hidden'
+    const btn2 = document.createElement('button')
+    btn2.textContent = 'Second'
+    hiddenDiv.appendChild(hiddenBtn)
+    container.appendChild(btn1)
+    container.appendChild(hiddenDiv)
+    container.appendChild(btn2)
+    document.body.appendChild(container)
+
+    const trap = createFocusTrap(container)
+    trap.activate()
+
+    btn2.focus()
+    expect(document.activeElement).toBe(btn2)
+
+    const event = pressTab()
+
+    expect(event.defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(btn1)
+    trap.destroy()
+  })
+
   it('Tab does nothing when there are no focusable elements (and is prevented)', () => {
     container = document.createElement('div')
     const span = document.createElement('span')

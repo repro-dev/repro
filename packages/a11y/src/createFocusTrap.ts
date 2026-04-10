@@ -15,10 +15,17 @@ export function createFocusTrap(
   // Track whether we temporarily added tabIndex=-1 so we can restore it on deactivate.
   let addedTabIndex = false
 
+  function isAvailableFocusTarget(el: Element | null): el is HTMLElement {
+    return (
+      el instanceof HTMLElement &&
+      container.contains(el) &&
+      !el.closest('[aria-hidden="true"]')
+    )
+  }
+
   function getFocusableElements(): HTMLElement[] {
     return Array.from(container.querySelectorAll(FOCUSABLE_SELECTORS)).filter(
-      (el): el is HTMLElement =>
-        el instanceof HTMLElement && !el.closest('[aria-hidden="true"]')
+      isAvailableFocusTarget
     )
   }
 
@@ -28,11 +35,8 @@ export function createFocusTrap(
    * an aria-hidden subtree.
    */
   function resolveInitialFocus(): HTMLElement | null {
-    const target = options?.initialFocus
-    if (!target) return null
-    if (!container.contains(target)) return null
-    if (target.closest('[aria-hidden="true"]')) return null
-    return target
+    const target = options?.initialFocus ?? null
+    return isAvailableFocusTarget(target) ? target : null
   }
 
   function handleKeyDown(evt: KeyboardEvent): void {
