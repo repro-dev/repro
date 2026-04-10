@@ -11,17 +11,20 @@ import { Box } from '@repro/tdl'
 
 import { createReduxObserver } from './redux'
 
+type UnknownRecord = { [key: string]: unknown }
+type StateDiffRecord = { [key: string]: { before: unknown; after: unknown } }
+
 // Minimal Redux store mock
 interface MockStore {
-  dispatch: (action: Record<string, unknown>) => Record<string, unknown>
-  getState: () => Record<string, unknown>
+  dispatch: (action: UnknownRecord) => UnknownRecord
+  getState: () => UnknownRecord
   subscribe: () => () => void
 }
 
-function createMockStore(initialState: Record<string, unknown>): MockStore {
+function createMockStore(initialState: UnknownRecord): MockStore {
   let state = { ...initialState }
   const store: MockStore = {
-    dispatch(action: Record<string, unknown>) {
+    dispatch(action: UnknownRecord) {
       // Simulate a reducer: merge action payload into state (excluding type)
       const { type: _type, ...payload } = action
       state = { ...state, ...payload }
@@ -108,14 +111,11 @@ describe('createReduxObserver', () => {
     assert.equal(inner.type, StateEventType.ReduxDispatch)
     assert.equal(inner.actionType, 'SET_COUNT')
     // actionPayload should exclude 'type', contain 'count'
-    const payload = JSON.parse(inner.actionPayload) as Record<string, unknown>
+    const payload = JSON.parse(inner.actionPayload) as UnknownRecord
     assert.equal(payload['count'], 42)
     assert.equal('type' in payload, false)
     // stateDiff should include 'count' key changed
-    const diff = JSON.parse(inner.stateDiff) as Record<
-      string,
-      { before: unknown; after: unknown }
-    >
+    const diff = JSON.parse(inner.stateDiff) as StateDiffRecord
     assert.ok('count' in diff)
     assert.equal(diff['count']!.before, 0)
     assert.equal(diff['count']!.after, 42)
@@ -201,7 +201,7 @@ describe('getStoreState (instance method)', () => {
     const observer = createReduxObserver(() => {}, win)
     observer.observe({} as Document, {} as never)
 
-    const state = observer.getStoreState() as Record<string, unknown>
+    const state = observer.getStoreState() as UnknownRecord
     assert.equal(state['count'], 5)
     assert.equal(state['name'], 'Test')
 
@@ -232,7 +232,7 @@ describe('getStoreState (instance method)', () => {
 
     store.dispatch({ type: 'INCREMENT', count: 42 })
 
-    const state = observer.getStoreState() as Record<string, unknown>
+    const state = observer.getStoreState() as UnknownRecord
     assert.equal(state['count'], 42)
 
     observer.disconnect()
@@ -250,8 +250,8 @@ describe('getStoreState (instance method)', () => {
     obs1.observe({} as Document, {} as never)
     obs2.observe({} as Document, {} as never)
 
-    const s1 = obs1.getStoreState() as Record<string, unknown>
-    const s2 = obs2.getStoreState() as Record<string, unknown>
+    const s1 = obs1.getStoreState() as UnknownRecord
+    const s2 = obs2.getStoreState() as UnknownRecord
 
     assert.equal(s1['a'], 1)
     assert.equal('b' in s1, false)
@@ -320,6 +320,91 @@ describe('idempotency', () => {
     observer.disconnect()
 
     // Must restore exactly the original, not an intermediate wrapper
+    assert.equal(store.dispatch, originalDispatch)
+  })
+})
+
+describe('session reset', () => {
+  it('getStoreState returns null between disconnect and re-observe', () => {
+    const store = createMockStore({ count: 1 })
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const observer = createReduxObserver(() => {}, win)
+    observer.observe({} as Document, {} as never)
+
+    // While connected, getStoreState returns state
+    assert.notEqual(observer.getStoreState(), null)
+
+    observer.disconnect()
+
+    // After disconnect, getStoreState should return null
+    assert.equal(observer.getStoreState(), null)
+
+    // Re-observe picks up the store again
+    observer.observe({} as Document, {} as never)
+    const state = observer.getStoreState() as UnknownRecord
+    assert.equal(state['count'], 1)
+
+    observer.disconnect()
+  })
+
+  it('after disconnect(), re-observe() picks up fresh store state', () => {
+    const store = createMockStore({ session: 'first' })
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const observer = createReduxObserver(() => {}, win)
+    observer.observe({} as Document, {} as never)
+
+    store.dispatch({ type: 'UPDATE', session: 'updated' })
+    observer.disconnect()
+
+    // Simulate a new session: re-observe against the same store
+    // The observer should reflect the current (updated) state, not stale prior state
+    observer.observe({} as Document, {} as never)
+
+    const state = observer.getStoreState() as UnknownRecord
+    assert.equal(state['session'], 'updated')
+
+    observer.disconnect()
+  })
+
+  it('resetStoreState restores original dispatch and clears cached store reference', () => {
+    const store = createMockStore({ count: 99 })
+    const originalDispatch = store.dispatch
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const observer = createReduxObserver(() => {}, win)
+    observer.observe({} as Document, {} as never)
+
+    // Confirm store is accessible
+    assert.notEqual(observer.getStoreState(), null)
+    assert.notEqual(store.dispatch, originalDispatch)
+
+    // resetStoreState should fully tear down observer state
+    observer.resetStoreState()
+
+    assert.equal(store.dispatch, originalDispatch)
+    assert.equal(observer.getStoreState(), null)
+  })
+
+  it('resetStoreState allows re-observe without stacking dispatch wrappers', () => {
+    const store = createMockStore({ count: 0 })
+    const originalDispatch = store.dispatch
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const events: StateSourceEvent[] = []
+    const observer = createReduxObserver(e => events.push(e), win)
+    observer.observe({} as Document, {} as never)
+
+    observer.resetStoreState()
+    assert.equal(store.dispatch, originalDispatch)
+
+    observer.observe({} as Document, {} as never)
+    store.dispatch({ type: 'INC', count: 1 })
+
+    assert.equal(events.length, 1)
+
+    observer.disconnect()
     assert.equal(store.dispatch, originalDispatch)
   })
 })
