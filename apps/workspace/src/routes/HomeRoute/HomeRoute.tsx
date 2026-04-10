@@ -1,12 +1,12 @@
 import { Col, Grid } from '@jsxstyle/react'
 import { ApiClient, useApiClient } from '@repro/api-client'
 import { Button, EmptyState, PageFrame, spacing } from '@repro/design'
-import { RecordingInfo } from '@repro/domain'
+import type { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/workspace-api'
 import { FutureInstance, resolve } from 'fluture'
 import { PuzzleIcon } from 'lucide-react'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useProjectContext } from '~/ProjectContext'
 import { RecordingTile } from './RecordingTile'
 
@@ -15,29 +15,28 @@ const CHROME_WEB_STORE_URL =
   'https://chrome.google.com/webstore/detail/repro/ecmbphfjfhnifmhbjhpejbpdnpanpice'
 
 // An immediately-resolved empty list, typed to match getProjectRecordings.
-const emptyRecordings: FutureInstance<unknown, RecordingInfo[]> = resolve([])
+type ProjectRecordingsFuture = FutureInstance
+
+const emptyRecordings: ProjectRecordingsFuture = resolve([])
 
 interface Props {
   // Injectable for testing; defaults to the real workspace-api function.
   getProjectRecordings?: (
     apiClient: ApiClient,
     projectId: string
-  ) => FutureInstance<Error, Array<RecordingInfo>>
+  ) => ProjectRecordingsFuture
 }
 
-export const HomeRoute: React.FC<Props> = ({
+export const HomeRoute = ({
   getProjectRecordings = defaultGetProjectRecordings,
-}) => {
+}: Props) => {
   const apiClient = useApiClient()
   const { selectedProject } = useProjectContext()
 
   const projectId = selectedProject?.id ?? null
 
   // Re-fetch whenever the selected project changes.
-  const { loading, data: recordings } = useFuture<
-    unknown,
-    RecordingInfo[]
-  >(() => {
+  const { loading, data: recordings } = useFuture(() => {
     if (!projectId) {
       // No project selected — resolve immediately with an empty list so the
       // empty state renders rather than hanging in a loading state.
@@ -46,9 +45,24 @@ export const HomeRoute: React.FC<Props> = ({
     return getProjectRecordings(apiClient, projectId)
   }, [apiClient, projectId, getProjectRecordings])
 
-  const items: RecordingInfo[] = recordings ?? []
+  // Track which projectId the current `recordings` data was actually fetched
+  // for.  useFuture briefly returns loading=false with stale data during the
+  // render cycle between a dep change and the effect that resets its state, so
+  // we gate display on whether the completed fetch matches the current project.
+  const [confirmedProjectId, setConfirmedProjectId] = useState(projectId)
+  useEffect(() => {
+    if (!loading) {
+      setConfirmedProjectId(projectId)
+    }
+  }, [loading, projectId])
 
-  if (loading) {
+  const isDataCurrent = confirmedProjectId === projectId
+  const effectiveLoading = loading || !isDataCurrent
+
+  const currentProjectId = isDataCurrent ? confirmedProjectId : null
+  const items: RecordingInfo[] = isDataCurrent ? (recordings ?? []) : []
+
+  if (effectiveLoading) {
     return (
       <PageFrame>
         <PageFrame.Header>
@@ -58,7 +72,7 @@ export const HomeRoute: React.FC<Props> = ({
     )
   }
 
-  if (items.length === 0) {
+  if (!currentProjectId || items.length === 0) {
     return (
       <PageFrame>
         <PageFrame.Header>
@@ -118,7 +132,7 @@ export const HomeRoute: React.FC<Props> = ({
             <RecordingTile
               key={recording.id}
               recording={recording}
-              projectId={projectId!}
+              projectId={currentProjectId}
             />
           ))}
         </Grid>

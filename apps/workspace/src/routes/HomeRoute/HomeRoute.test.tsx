@@ -127,8 +127,8 @@ describe('HomeRoute', () => {
       const getProjectRecordings = (
         _apiClient: ApiClient,
         _projectId: string
-      ): FutureInstance<Error, Array<RecordingInfo>> =>
-        never as FutureInstance<Error, Array<RecordingInfo>>
+      ): FutureInstance<unknown, RecordingInfo[]> =>
+        never as FutureInstance<unknown, RecordingInfo[]>
 
       const wrapper = makeWrapper()
       render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
@@ -145,7 +145,7 @@ describe('HomeRoute', () => {
       const getProjectRecordings = (
         _apiClient: ApiClient,
         _projectId: string
-      ): FutureInstance<Error, Array<RecordingInfo>> => resolve([])
+      ): FutureInstance<unknown, RecordingInfo[]> => resolve([])
       const wrapper = makeWrapper()
 
       render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
@@ -163,7 +163,7 @@ describe('HomeRoute', () => {
       const getProjectRecordings = (
         _apiClient: ApiClient,
         _projectId: string
-      ): FutureInstance<Error, Array<RecordingInfo>> => resolve(mockRecordings)
+      ): FutureInstance<unknown, RecordingInfo[]> => resolve(mockRecordings)
       const wrapper = makeWrapper()
 
       render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
@@ -180,7 +180,7 @@ describe('HomeRoute', () => {
       const getProjectRecordings = (
         _apiClient: ApiClient,
         _projectId: string
-      ): FutureInstance<Error, Array<RecordingInfo>> => resolve(mockRecordings)
+      ): FutureInstance<unknown, RecordingInfo[]> => resolve(mockRecordings)
       const wrapper = makeWrapper()
 
       render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
@@ -197,7 +197,7 @@ describe('HomeRoute', () => {
       const getProjectRecordings = (
         _apiClient: ApiClient,
         projectId: string
-      ): FutureInstance<Error, Array<RecordingInfo>> => {
+      ): FutureInstance<unknown, RecordingInfo[]> => {
         capturedProjectId = projectId
         return resolve(mockRecordings)
       }
@@ -217,7 +217,7 @@ describe('HomeRoute', () => {
       const getProjectRecordings = (
         _apiClient: ApiClient,
         projectId: string
-      ): FutureInstance<Error, Array<RecordingInfo>> => {
+      ): FutureInstance<unknown, RecordingInfo[]> => {
         calledWithProjectIds.push(projectId)
         return resolve(mockRecordings)
       }
@@ -241,6 +241,62 @@ describe('HomeRoute', () => {
       await waitFor(() => {
         assert.ok(calledWithProjectIds.includes('proj-b'))
       })
+    })
+
+    it('should not show stale recordings from a previous project while the new project is loading', async () => {
+      // proj-a resolves with one recording; proj-b hangs forever (never resolves).
+      const projARecordings: Array<RecordingInfo> = [
+        {
+          id: 'rec-a',
+          title: 'Project A Recording',
+          url: 'https://example.com',
+          description: '',
+          mode: RecordingMode.Live,
+          duration: 60,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          browserName: 'Chrome',
+          browserVersion: '120',
+          operatingSystem: null,
+          codecVersion: '1.0.0',
+        },
+      ]
+
+      const getProjectRecordings = (
+        _apiClient: ApiClient,
+        projectId: string
+      ): FutureInstance<unknown, RecordingInfo[]> => {
+        if (projectId === 'proj-a') return resolve(projARecordings)
+        // proj-b never resolves — simulates a slow fetch so we can inspect the
+        // in-flight state without a race.
+        return never as FutureInstance<unknown, RecordingInfo[]>
+      }
+
+      const wrapper = makeTwoProjectWrapper()
+      render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
+        wrapper,
+      })
+
+      // Wait for proj-a data to appear
+      await waitFor(() => {
+        assert.ok(screen.getByText('Project A Recording'))
+      })
+
+      // Switch to proj-b (its fetch will never complete)
+      act(() => {
+        screen.getByRole('button', { name: 'Switch to proj-b' }).click()
+      })
+
+      // The stale proj-a tile must NOT be visible while proj-b is loading.
+      await waitFor(() => {
+        assert.equal(
+          screen.queryByText('Project A Recording'),
+          null,
+          'stale recordings from proj-a should not be visible while proj-b is loading'
+        )
+      })
+
+      // The loading state (Sessions header without a count) should be shown.
+      assert.ok(screen.getByText('Sessions'))
     })
   })
 })
