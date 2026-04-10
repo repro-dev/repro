@@ -31,6 +31,16 @@ describe('FrameRealm', () => {
     expect(iframe!.hasAttribute('inert')).toBe(false)
   })
 
+  it('iframe does not have inert when inert=undefined is passed explicitly', () => {
+    // Mirrors PlaybackCanvas interactive mode: inert={interactive ? undefined : ''}
+    // When interactive=true the expression evaluates to undefined, which should
+    // result in the attribute being absent (not inert).
+    render(<FrameRealm inert={undefined} />)
+    const iframe = document.querySelector('iframe')
+    expect(iframe).not.toBeNull()
+    expect(iframe!.hasAttribute('inert')).toBe(false)
+  })
+
   it('forwards additional HTML props (e.g. data-testid) to the iframe', () => {
     render(<FrameRealm data-testid="test-frame" />)
     const iframe = document.querySelector('iframe')
