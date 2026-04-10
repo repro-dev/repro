@@ -93,7 +93,8 @@ export const PlaybackCanvas = withPlaybackErrorBoundary<
 
     const viewportContents = (
       <React.Fragment>
-        <FrameRealm ref={frameRef}>
+        {/* Keep replayed DOM unfocusable only when playback is non-interactive */}
+        <FrameRealm ref={frameRef} inert={interactive ? undefined : ''}>
           <Delay duration={500}>
             <NativeDOMRenderer
               trackScroll={trackScroll}

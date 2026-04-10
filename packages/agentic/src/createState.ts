@@ -432,6 +432,9 @@ export function createAgenticState(
   // Maps tool_call_id → iteration count at which the error was recorded.
   // Used by purgeErroredToolCallInputs to strip stale errored inputs from context.
   const erroredToolCalls = new Map<string, number>();
+  // Maps entry id → pre-computed token estimate. Populated when an entry is
+  // first appended so fetchResponse does not re-tokenise the same text on every call.
+  const tokenCache = new Map<string, number>();
 
   function clearPendingRetry() {
     if (pendingRetryTimer !== null) {
@@ -488,6 +491,7 @@ export function createAgenticState(
     iterationCount = 0;
     retryAttempt = 0;
     erroredToolCalls.clear();
+    tokenCache.clear();
     setEntryMap({ orderedIds: [], entries: {} });
     setWasCancelled(false);
     setLoading("none");
@@ -505,6 +509,13 @@ export function createAgenticState(
     setLoading("reasoning");
 
     const id = createEntryId();
+
+    // Pre-compute token estimate BEFORE updating the atom. setEntryMap fires
+    // RxJS subscribers synchronously, which triggers fetchResponse via the
+    // latestUserEntry$ → userTriggered$ → response$ chain. The cache entry
+    // must exist before that chain runs so the first fetchResponse call gets a
+    // hit rather than re-tokenising the user message.
+    tokenCache.set(id, estimateTokens({ role: "user", content: input }));
 
     setEntryMap((entryMap) => ({
       orderedIds: [...entryMap.orderedIds, id],
@@ -579,14 +590,41 @@ export function createAgenticState(
       return false;
     };
 
-    const {
-      messages: truncatedContext,
-      droppedCount,
-      anyDropped,
-    } = truncateToContextBudget(
+    // Build two reference maps keyed by message object identity:
+    //
+    //   cachedByRef: msg → cached token count
+    //     Used by truncateToContextBudget to skip re-tokenising messages whose
+    //     count was already computed. Messages that survive dedup/purge with
+    //     their original reference get a cache hit; modified/new objects fall
+    //     back to estimateTokens.
+    //
+    //   contextToId: msg → entry ID
+    //     Used below to find the ID of the first surviving message after
+    //     truncation. Using object references is correct here because
+    //     deduplicateToolCalls can shorten the context array, making a positional
+    //     index (droppedCount) into purgedContext diverge from the orderedIds
+    //     index. User messages and unmodified tool/assistant messages always pass
+    //     through as original references, so the lookup succeeds for all common
+    //     cases. The rare partially-deduped assistant messages are new objects
+    //     and miss the map (fallback: null).
+    const contextEntryMap = $entryMap.getValue();
+    const cachedByRef = new Map<Context[number], number>();
+    const contextToId = new Map<Context[number], string>();
+    context.forEach((msg, i) => {
+      const id = contextEntryMap.orderedIds[i];
+      if (id !== undefined) {
+        contextToId.set(msg, id);
+        const cached = tokenCache.get(id);
+        if (cached !== undefined) {
+          cachedByRef.set(msg, cached);
+        }
+      }
+    });
+
+    const { messages: truncatedContext, anyDropped } = truncateToContextBudget(
       purgedContext,
       budget,
-      (msg) => estimateTokens(msg),
+      (msg) => cachedByRef.get(msg) ?? estimateTokens(msg),
       isProtected,
     );
 
@@ -596,9 +634,16 @@ export function createAgenticState(
     // Use anyDropped (not droppedCount > 0) so the separator is shown even
     // when a protected message sits at the start of the context (droppedCount=0
     // but gaps exist between retained messages).
-    const entryMap = $entryMap.getValue();
+    //
+    // Look up the first surviving message by object reference rather than by
+    // positional index: deduplicateToolCalls can remove entire messages, making
+    // purgedContext shorter than context, so droppedCount (an index into
+    // purgedContext) no longer maps 1:1 to orderedIds.
     if (anyDropped) {
-      const firstSurvivingId = entryMap.orderedIds[droppedCount] ?? null;
+      const firstMsg = truncatedContext[0];
+      const firstSurvivingId =
+        (firstMsg !== undefined ? contextToId.get(firstMsg) : undefined) ??
+        null;
       setTruncatedBefore(firstSurvivingId);
     } else {
       setTruncatedBefore(null);
@@ -632,6 +677,16 @@ export function createAgenticState(
         [toolMessage.id]: toolMessage,
       },
     }));
+
+    // Pre-compute token estimate for this tool entry.
+    tokenCache.set(
+      toolMessage.id,
+      estimateTokens({
+        role: "tool",
+        tool_call_id: toolMessage.tool_call_id,
+        content: toolMessage.content,
+      }),
+    );
   }
 
   const entries$ = $entryMap
@@ -810,6 +865,26 @@ export function createAgenticState(
           const entryMap = $entryMap.getValue();
           const lastId = entryMap.orderedIds.at(-1);
           const lastEntry = lastId ? entryMap.entries[lastId] ?? null : null;
+
+          // Cache the finalized assistant entry's token estimate. Only done at
+          // "completion" (not during "message" chunks) so we tokenise the full
+          // content rather than partial in-progress text.
+          if (lastId && lastEntry !== null && lastEntry.role === "assistant") {
+            const assistantCtx: Context[number] = {
+              role: "assistant",
+              content: lastEntry.content,
+              ...(lastEntry.toolCalls.length > 0
+                ? {
+                    tool_calls: lastEntry.toolCalls.map((tc) => ({
+                      id: tc.id,
+                      type: "function" as const,
+                      function: tc.function,
+                    })),
+                  }
+                : {}),
+            };
+            tokenCache.set(lastId, estimateTokens(assistantCtx));
+          }
 
           if (
             lastEntry !== null &&

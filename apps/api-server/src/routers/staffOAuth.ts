@@ -97,44 +97,57 @@ export function createStaffOAuthRouter(
         return
       }
 
+      const codeToExchange = code
+
       const handleCallback = go(function* () {
-        const tokens = yield encaseP((verifier: string) =>
-          oauthProvider.validateAuthorizationCode(code, verifier)
+        // Exchange the code for tokens
+        const tokens: {
+          accessToken(): string
+          hasRefreshToken(): boolean
+          refreshToken(): string
+          accessTokenExpiresAt(): Date
+        } = yield encaseP((verifier: string) =>
+          oauthProvider.validateAuthorizationCode(codeToExchange, verifier)
         )(storedVerifier).pipe(mapRej(asError))
 
         const accessToken = tokens.accessToken()
 
-        const userInfo = yield encaseP((token: string) =>
-          oauthProvider.fetchUserInfo(token)
-        )(accessToken).pipe(mapRej(asError))
+        // Fetch the Google user profile
+        const userInfo: { sub: string; email: string; name: string } =
+          yield encaseP((token: string) => oauthProvider.fetchUserInfo(token))(
+            accessToken
+          ).pipe(mapRej(asError))
 
         const { email, name } = userInfo
-        const emailDomain = email.split('@')[1]
 
+        // Enforce @repro.dev domain restriction
+        const emailDomain = email.split('@')[1]
         if (emailDomain !== ALLOWED_DOMAIN) {
+          // Redirect to login with an error — do not create a session
           res.redirect(`${env.REPRO_ADMIN_URL}/login?error=domain_not_allowed`)
-          return undefined
+          return yield resolve(undefined as void)
         }
 
         const lookupOrCreate = accountService
           .getStaffUserByEmail(email)
           .pipe(
-            bichain(error => {
-              const normalizedError = asError(error)
-
-              return isNotFound(normalizedError)
-                ? accountService.createStaffUser(name || email, email, '')
-                : reject(normalizedError)
-            })(staffUser => resolve(staffUser))
+            bichain((error: Error) =>
+              isNotFound(error)
+                ? // First login — provision a new staff user
+                  // OAuth users get no password; they can only log in via OAuth
+                  accountService.createStaffUser(name || email, email, '')
+                : reject(error)
+            )((staffUser: StaffUser) => resolve(staffUser))
           )
           .pipe(mapRej(asError))
+        const staffUser = (yield lookupOrCreate) as StaffUser
 
-        const staffUser: StaffUser = yield lookupOrCreate
-
+        // Create a staff session and set the session cookie
         yield req.createSession(staffUser).pipe(mapRej(asError))
-        res.redirect(env.REPRO_ADMIN_URL)
 
-        return undefined
+        // Redirect to the admin app dashboard
+        res.redirect(env.REPRO_ADMIN_URL)
+        return yield resolve(undefined as void)
       }).pipe(mapRej(asError))
 
       respondWith(res, handleCallback)
