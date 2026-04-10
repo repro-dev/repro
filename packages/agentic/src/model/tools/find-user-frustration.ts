@@ -50,7 +50,7 @@ const ERROR_LOOP_WINDOW_MS = 10000;
 
 interface FrustrationSignal {
   timeMs: number;
-  type: string;
+  type: "rage_click" | "dead_click" | "rapid_navigation" | "error_loop";
   summary: string;
   details?: string;
 }
@@ -278,8 +278,7 @@ export const handler: ToolHandler = (recording, _args) => {
 
   // Network error loops — group by method + pathname + status
   const networkEvents = recording.getEventsByType([SourceEventType.Network]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const indexed: Array<[any, number]> = [];
+  const indexed: Array<[NetworkEvent, number]> = [];
   for (const e of networkEvents) {
     (e as Box<NetworkEvent>).apply((n) => indexed.push([n, 0]));
   }
