@@ -235,11 +235,27 @@ describe('Services > BillingWebhook', () => {
   })
 
   describe('transaction.payment_failed', () => {
-    it('should mark subscription as past_due', async () => {
+    it('should mark subscription as past_due and invalidate entitlement cache', async () => {
       const [customer, subscription] = await harness.loadFixtures([
         fixtures.billing.CustomerA,
         fixtures.billing.AccountA_FreePlan_Subscription,
       ])
+
+      await harness.db
+        .updateTable('billing_subscriptions')
+        .set({ status: 'paused' })
+        .where(
+          'providerSubscriptionId',
+          '=',
+          subscription.providerSubscriptionId
+        )
+        .execute()
+
+      const before = await promise(
+        harness.services.billingService.getEntitlements(customer.accountId)
+      )
+
+      expect(before).toEqual([])
 
       const transactionData = {
         id: 'txn_fail_001',
@@ -277,6 +293,17 @@ describe('Services > BillingWebhook', () => {
       )
 
       expect(updated.status).toBe('past_due')
+
+      const after = await promise(
+        harness.services.billingService.getEntitlements(customer.accountId)
+      )
+
+      expect(after).toEqual(
+        expect.arrayContaining([
+          { feature: 'recordings', enabled: true, limit: 10 },
+          { feature: 'seats', enabled: true, limit: 1 },
+        ])
+      )
     })
 
     it('should succeed gracefully when subscription_id is missing', async () => {
@@ -314,11 +341,22 @@ describe('Services > BillingWebhook', () => {
   })
 
   describe('subscription.paused', () => {
-    it('should mark subscription as paused', async () => {
+    it('should mark subscription as paused and invalidate entitlement cache', async () => {
       const [customer] = await harness.loadFixtures([
         fixtures.billing.CustomerA,
         fixtures.billing.AccountA_FreePlan_Subscription,
       ])
+
+      const before = await promise(
+        harness.services.billingService.getEntitlements(customer.accountId)
+      )
+
+      expect(before).toEqual(
+        expect.arrayContaining([
+          { feature: 'recordings', enabled: true, limit: 10 },
+          { feature: 'seats', enabled: true, limit: 1 },
+        ])
+      )
 
       const subscriptionData = {
         id: 'dev_sub_' + customer.accountId,
@@ -354,11 +392,17 @@ describe('Services > BillingWebhook', () => {
       )
 
       expect(subscription.status).toBe('paused')
+
+      const after = await promise(
+        harness.services.billingService.getEntitlements(customer.accountId)
+      )
+
+      expect(after).toEqual([])
     })
   })
 
   describe('subscription.resumed', () => {
-    it('should mark subscription as active after being paused', async () => {
+    it('should restore subscription status from the payload and invalidate entitlement cache', async () => {
       const [customer] = await harness.loadFixtures([
         fixtures.billing.CustomerA,
         fixtures.billing.AccountA_FreePlan_Subscription,
@@ -371,9 +415,15 @@ describe('Services > BillingWebhook', () => {
         .where('providerSubscriptionId', '=', 'dev_sub_' + customer.accountId)
         .execute()
 
+      const before = await promise(
+        harness.services.billingService.getEntitlements(customer.accountId)
+      )
+
+      expect(before).toEqual([])
+
       const subscriptionData = {
         id: 'dev_sub_' + customer.accountId,
-        status: 'active',
+        status: 'trialing',
         customer_id: customer.providerCustomerId,
         items: [],
       }
@@ -404,7 +454,18 @@ describe('Services > BillingWebhook', () => {
         )
       )
 
-      expect(subscription.status).toBe('active')
+      expect(subscription.status).toBe('trialing')
+
+      const after = await promise(
+        harness.services.billingService.getEntitlements(customer.accountId)
+      )
+
+      expect(after).toEqual(
+        expect.arrayContaining([
+          { feature: 'recordings', enabled: true, limit: 10 },
+          { feature: 'seats', enabled: true, limit: 1 },
+        ])
+      )
     })
   })
 

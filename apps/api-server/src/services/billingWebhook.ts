@@ -211,7 +211,7 @@ export function createBillingWebhookService(
         attemptQuery(async () => {
           await database
             .updateTable('billing_subscriptions')
-            .set({ status: 'active' })
+            .set({ status: mapSubscriptionStatus(data.status) })
             .where('providerSubscriptionId', '=', data.id)
             .execute()
         })
