@@ -1,9 +1,9 @@
-import { Col } from '@jsxstyle/react'
-import { useApiClient } from '@repro/api-client'
+import { Col, Grid } from '@jsxstyle/react'
+import { ApiClient, useApiClient } from '@repro/api-client'
 import { Button, EmptyState, PageFrame, spacing } from '@repro/design'
 import { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
-import { getProjectRecordings } from '@repro/workspace-api'
+import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/workspace-api'
 import { FutureInstance, resolve } from 'fluture'
 import { PuzzleIcon } from 'lucide-react'
 import React from 'react'
@@ -17,7 +17,17 @@ const CHROME_WEB_STORE_URL =
 // An immediately-resolved empty list, typed to match getProjectRecordings.
 const emptyRecordings: FutureInstance<unknown, RecordingInfo[]> = resolve([])
 
-export const HomeRoute: React.FC = () => {
+interface Props {
+  // Injectable for testing; defaults to the real workspace-api function.
+  getProjectRecordings?: (
+    apiClient: ApiClient,
+    projectId: string
+  ) => FutureInstance<Error, Array<RecordingInfo>>
+}
+
+export const HomeRoute: React.FC<Props> = ({
+  getProjectRecordings = defaultGetProjectRecordings,
+}) => {
   const apiClient = useApiClient()
   const { selectedProject } = useProjectContext()
 
@@ -34,7 +44,7 @@ export const HomeRoute: React.FC = () => {
       return emptyRecordings
     }
     return getProjectRecordings(apiClient, projectId)
-  }, [apiClient, projectId])
+  }, [apiClient, projectId, getProjectRecordings])
 
   const items: RecordingInfo[] = recordings ?? []
 
@@ -96,15 +106,22 @@ export const HomeRoute: React.FC = () => {
   return (
     <PageFrame>
       <PageFrame.Header>
-        <PageFrame.Title>Sessions</PageFrame.Title>
+        <PageFrame.Title>Sessions ({items.length})</PageFrame.Title>
       </PageFrame.Header>
 
       <PageFrame.Body>
-        <Col gap={spacing.md}>
+        <Grid
+          gridTemplateColumns="repeat(auto-fill, minmax(320px, 1fr))"
+          gap={spacing.md}
+        >
           {items.map(recording => (
-            <RecordingTile key={recording.id} recording={recording} />
+            <RecordingTile
+              key={recording.id}
+              recording={recording}
+              projectId={projectId!}
+            />
           ))}
-        </Col>
+        </Grid>
       </PageFrame.Body>
     </PageFrame>
   )

@@ -8,13 +8,14 @@ import { Link, useNavigate } from 'react-router-dom'
 
 interface Props {
   recording: RecordingInfo
+  projectId: string
 }
 
-export const RecordingTile: React.FC<Props> = ({ recording }) => {
+export const RecordingTile: React.FC<Props> = ({ recording, projectId }) => {
   const navigate = useNavigate()
 
   function onClick() {
-    navigate(`/recordings/${recording.id}`)
+    navigate(`/projects/${projectId}/recordings/${recording.id}`)
   }
 
   return (
@@ -61,7 +62,7 @@ export const RecordingTile: React.FC<Props> = ({ recording }) => {
           fontSize={16}
           textDecoration="none"
           lineHeight={1.5}
-          props={{ to: `/recordings/${recording.id}` }}
+          props={{ to: `/projects/${projectId}/recordings/${recording.id}` }}
         >
           {recording.title}
         </Block>
