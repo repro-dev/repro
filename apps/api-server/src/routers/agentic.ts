@@ -1,8 +1,8 @@
 import { FastifyPluginAsync, FastifyRequest } from 'fastify'
-import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { go, map } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
+import { agenticMessageRateLimitOptions } from '~/rateLimit'
 import { AccountService } from '~/services/account'
 import { AgenticService } from '~/services/agentic'
 import { createResponseUtils } from '~/utils/response'
@@ -10,12 +10,23 @@ import { createResponseUtils } from '~/utils/response'
 export function createAgenticRouter(
   agenticService: AgenticService,
   accountService: AccountService,
-  config = defaultSystemConfig
+  config = defaultSystemConfig,
+  {
+    agenticRateLimitPerHour = 60,
+    agenticMaxMessagesPerRecording = 200,
+  }: {
+    agenticRateLimitPerHour?: number
+    agenticMaxMessagesPerRecording?: number
+  } = {}
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
 
+  // In-memory per-recording message counter. Resets on server restart.
+  // Intentional: acceptable for MVP with a single API server instance.
+  const recordingMessageCounts = new Map()
+
   return async function (fastify) {
-    const app = fastify.withTypeProvider<ZodTypeProvider>()
+    const app = fastify.withTypeProvider()
 
     const toolCallSchema = z.object({
       id: z.string(),
@@ -74,6 +85,7 @@ export function createAgenticRouter(
         messages: z.array(messageSchema),
         tools: z.array(toolSchema).optional(),
         tool_choice: z.string().optional(),
+        recordingId: z.string().optional(),
       }),
     }
 
@@ -82,16 +94,38 @@ export function createAgenticRouter(
       {
         schema: createResponseSchema,
         config: {
-          rateLimit: {
-            max: 30,
-            timeWindow: '1 minute',
-            keyGenerator: (req: FastifyRequest) =>
-              req.session?.subjectId ?? req.ip,
-          },
+          rateLimit: agenticMessageRateLimitOptions(agenticRateLimitPerHour),
         },
       },
       (req, res) => {
-        const { messages, tools, tool_choice } = req.body
+        const { messages, tools, tool_choice, recordingId } = req.body
+
+        // Per-recording message cap check — must happen synchronously before
+        // the Future pipeline to ensure the counter is updated atomically.
+        if (recordingId) {
+          const session = (
+            req as FastifyRequest & {
+              session: { subjectId: string; id: string } | null
+            }
+          ).session
+          const count = recordingMessageCounts.get(recordingId) ?? 0
+          if (count >= agenticMaxMessagesPerRecording) {
+            req.log.warn(
+              {
+                user_id: session?.subjectId,
+                recording_id: recordingId,
+                limit_type: 'agentic_recording_cap',
+              },
+              'rate_limit_exceeded'
+            )
+            res
+              .status(429)
+              .send({ error: 'rate_limit_exceeded', retryAfter: 0 })
+            return
+          }
+          recordingMessageCounts.set(recordingId, count + 1)
+        }
+
         res.header('content-type', 'text/event-stream')
         respondWith(
           res,

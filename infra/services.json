@@ -18,7 +18,9 @@
       "RATE_LIMIT_UNAUTHENTICATED_RPM": "60",
       "RATE_LIMIT_AUTHENTICATED_RPM": "600",
       "RATE_LIMIT_UPLOAD_RPM": "20",
-      "RATE_LIMIT_REDIS_URL": "redis://localhost:6379"
+      "RATE_LIMIT_REDIS_URL": "redis://localhost:6379",
+      "AGENTIC_RATE_LIMIT_PER_HOUR": "60",
+      "AGENTIC_MAX_MESSAGES_PER_RECORDING": "200"
     },
     "env_passthrough": [
       "OPENROUTER_API_KEY",

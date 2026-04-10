@@ -134,7 +134,15 @@ const socialAuthRouter = createSocialAuthRouter(
 )
 
 const accountRouter = createAccountRouter(accountService)
-const agenticRouter = createAgenticRouter(agenticService, accountService)
+const agenticRouter = createAgenticRouter(
+  agenticService,
+  accountService,
+  undefined,
+  {
+    agenticRateLimitPerHour: env.AGENTIC_RATE_LIMIT_PER_HOUR,
+    agenticMaxMessagesPerRecording: env.AGENTIC_MAX_MESSAGES_PER_RECORDING,
+  }
+)
 const apiKeysRouter = createApiKeysRouter(apiKeyService, accountService)
 const billingRouter = createBillingRouter(billingService, accountService)
 const billingWebhookRouter =

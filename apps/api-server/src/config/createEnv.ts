@@ -68,6 +68,8 @@ const envSchema = z.object({
   RATE_LIMIT_AUTHENTICATED_RPM: numericStringTransform.default(600),
   RATE_LIMIT_UPLOAD_RPM: numericStringTransform.default(20),
   RATE_LIMIT_REDIS_URL: z.string().optional(),
+  AGENTIC_RATE_LIMIT_PER_HOUR: z.coerce.number().default(60),
+  AGENTIC_MAX_MESSAGES_PER_RECORDING: z.coerce.number().default(200),
 })
 
 export type Env = z.infer<typeof envSchema>

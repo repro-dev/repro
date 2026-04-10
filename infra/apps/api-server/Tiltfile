@@ -53,6 +53,8 @@ local_resource(
         'GOOGLE_CLIENT_ID': os.getenv('GOOGLE_CLIENT_ID', ''),
         'GOOGLE_CLIENT_SECRET': os.getenv('GOOGLE_CLIENT_SECRET', ''),
         'RATE_LIMIT_REDIS_URL': 'redis://localhost:6379',
+        'AGENTIC_RATE_LIMIT_PER_HOUR': '60',
+        'AGENTIC_MAX_MESSAGES_PER_RECORDING': '200',
     },
     deps=[
         os.path.join(PROJECT_ROOT, 'apps/api-server/src'),

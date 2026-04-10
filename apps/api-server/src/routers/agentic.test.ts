@@ -1,8 +1,16 @@
+import compress from '@fastify/compress'
+import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
 import expect from 'expect'
-import { FastifyInstance } from 'fastify'
+import fastify, { FastifyInstance } from 'fastify'
+import {
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod'
 import { resolve } from 'fluture'
 import { Readable } from 'node:stream'
 import { after, before, beforeEach, describe, it } from 'node:test'
+import { buildRateLimitOptions } from '~/rateLimit'
 import { AgenticService } from '~/services/agentic'
 import { Harness, createTestHarness, fixtures } from '~/testing'
 import { createAgenticRouter } from './agentic'
@@ -254,6 +262,218 @@ describe('Routers > Agentic', () => {
       })
 
       expect(res.statusCode).toEqual(400)
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Rate-limit tests for the agentic router.
+//
+// These tests build a standalone Fastify app (like rateLimit.test.ts) because
+// the shared test harness's fromRouter() does not register @fastify/rate-limit.
+// ---------------------------------------------------------------------------
+
+async function buildAgenticRateLimitApp(options: {
+  agenticRateLimitPerHour?: number
+  agenticMaxMessagesPerRecording?: number
+  sessionSubjectId?: string | null
+}): Promise<FastifyInstance> {
+  const {
+    agenticRateLimitPerHour = 60,
+    agenticMaxMessagesPerRecording = 200,
+    sessionSubjectId = 'test-user-id',
+  } = options
+
+  const app = fastify()
+  app.addContentTypeParser('*', async () => {})
+  app.register(cors)
+  app.register(compress)
+
+  // Must await so the plugin's onRoute hook is installed before routes are added.
+  await app.register(
+    rateLimit,
+    buildRateLimitOptions({
+      unauthenticatedRpm: 1000,
+      authenticatedRpm: 1000,
+      uploadRpm: 1000,
+    })
+  )
+
+  app.setValidatorCompiler(validatorCompiler)
+  app.setSerializerCompiler(serializerCompiler)
+
+  // Mock session decorator so rate-limit keyGenerator can read session.subjectId.
+  app.decorateRequest('session', null)
+  app.addHook('onRequest', async function (req) {
+    if (sessionSubjectId != null) {
+      // @ts-expect-error — mock session
+      req.session = { subjectId: sessionSubjectId, id: 'test-session-id' }
+    }
+  })
+
+  // Mock getCurrentUser so the route handler doesn't fail.
+  app.decorateRequest('getCurrentUser', function () {
+    return resolve({ id: 'user-1' }) as never
+  })
+
+  await app.register(
+    createAgenticRouter(
+      stubAgenticService,
+      { ensureUser: () => resolve(undefined) } as never,
+      undefined,
+      {
+        agenticRateLimitPerHour,
+        agenticMaxMessagesPerRecording,
+      }
+    )
+  )
+
+  return app
+}
+
+describe('Agentic rate limiting', () => {
+  describe('per-user hourly rate limit', () => {
+    let app: FastifyInstance
+
+    before(async () => {
+      // Use a low limit (2) so we can trigger it with 3 requests.
+      app = await buildAgenticRateLimitApp({ agenticRateLimitPerHour: 2 })
+      await app.ready()
+    })
+
+    after(async () => {
+      await app.close()
+    })
+
+    it('returns 429 when hourly limit is exceeded', async () => {
+      const body = { messages: [{ role: 'user', content: 'hello' }] }
+
+      // Exhaust the limit (2 requests).
+      for (let i = 0; i < 2; i++) {
+        await app.inject({ method: 'POST', url: '/response', body })
+      }
+
+      // 3rd request should be rate limited.
+      const res = await app.inject({ method: 'POST', url: '/response', body })
+      expect(res.statusCode).toEqual(429)
+    })
+
+    it('returns error body with rate_limit_exceeded and retryAfter', async () => {
+      const body = { messages: [{ role: 'user', content: 'hello' }] }
+
+      // Exhaust limit with a different IP to get a fresh bucket.
+      for (let i = 0; i < 2; i++) {
+        await app.inject({
+          method: 'POST',
+          url: '/response',
+          body,
+          remoteAddress: '10.0.0.1',
+        })
+      }
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/response',
+        body,
+        remoteAddress: '10.0.0.1',
+      })
+      expect(res.statusCode).toEqual(429)
+      const parsed = JSON.parse(res.body)
+      expect(parsed.error).toEqual('rate_limit_exceeded')
+      expect(typeof parsed.retryAfter).toEqual('number')
+    })
+
+    it('includes x-ratelimit-limit and x-ratelimit-remaining headers', async () => {
+      // Use a fresh app with a unique sessionSubjectId to get a clean bucket.
+      const freshApp = await buildAgenticRateLimitApp({
+        agenticRateLimitPerHour: 10,
+        sessionSubjectId: 'header-test-user',
+      })
+      await freshApp.ready()
+
+      try {
+        const res = await freshApp.inject({
+          method: 'POST',
+          url: '/response',
+          body: { messages: [{ role: 'user', content: 'hello' }] },
+        })
+        // The first request should succeed (200) and expose the headers.
+        expect(res.statusCode).toEqual(200)
+        expect(res.headers['x-ratelimit-limit']).toBeDefined()
+        expect(res.headers['x-ratelimit-remaining']).toBeDefined()
+      } finally {
+        await freshApp.close()
+      }
+    })
+  })
+
+  describe('per-recording message cap', () => {
+    let app: FastifyInstance
+
+    before(async () => {
+      // Use a low cap (2) so we can trigger it with 3 requests.
+      app = await buildAgenticRateLimitApp({
+        agenticMaxMessagesPerRecording: 2,
+        agenticRateLimitPerHour: 1000,
+      })
+      await app.ready()
+    })
+
+    after(async () => {
+      await app.close()
+    })
+
+    it('returns 429 when per-recording message cap is exceeded', async () => {
+      const recordingId = 'test-recording-cap'
+      const body = {
+        messages: [{ role: 'user', content: 'hello' }],
+        recordingId,
+      }
+
+      // Use up the cap (2 messages).
+      for (let i = 0; i < 2; i++) {
+        const res = await app.inject({ method: 'POST', url: '/response', body })
+        expect(res.statusCode).toEqual(200)
+      }
+
+      // 3rd message should be blocked.
+      const res = await app.inject({ method: 'POST', url: '/response', body })
+      expect(res.statusCode).toEqual(429)
+    })
+
+    it('returns error body with rate_limit_exceeded and retryAfter 0', async () => {
+      const recordingId = 'test-recording-cap-body'
+      const body = {
+        messages: [{ role: 'user', content: 'hello' }],
+        recordingId,
+      }
+
+      // Exhaust the cap.
+      for (let i = 0; i < 2; i++) {
+        await app.inject({ method: 'POST', url: '/response', body })
+      }
+
+      const res = await app.inject({ method: 'POST', url: '/response', body })
+      expect(res.statusCode).toEqual(429)
+      const parsed = JSON.parse(res.body)
+      expect(parsed.error).toEqual('rate_limit_exceeded')
+      expect(parsed.retryAfter).toEqual(0)
+    })
+
+    it('does not enforce cap when no recordingId is provided', async () => {
+      const body = { messages: [{ role: 'user', content: 'hello' }] }
+
+      // Make 5 requests with no recordingId — none should be blocked by the cap.
+      for (let i = 0; i < 5; i++) {
+        const res = await app.inject({
+          method: 'POST',
+          url: '/response',
+          body,
+          // Use a unique IP to avoid hitting the global hourly rate limit.
+          remoteAddress: `10.1.1.${i + 1}`,
+        })
+        expect(res.statusCode).toEqual(200)
+      }
     })
   })
 })
