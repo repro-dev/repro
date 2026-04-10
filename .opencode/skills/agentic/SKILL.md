@@ -179,6 +179,7 @@ type ToolHandler = (
 | `captureScreenshot`    | Renders a VTree snapshot to a canvas and returns a `dataUrl` + `ContentBlock[]`              |
 | `getStateChanges`      | State machine / framework state changes detected in the recording                            |
 | `findUserFrustration`  | Detects rage clicks, dead clicks, rapid navigation, and error loops; returns signals by time |
+| `searchEvents`         | Case-insensitive text search across all serialized event payloads                            |
 
 ### Tool Execution
 
