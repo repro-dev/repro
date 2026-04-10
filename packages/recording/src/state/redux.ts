@@ -14,7 +14,7 @@ const STATE_DIFF_MAX_CHARS = 20_000
 const ACTION_PAYLOAD_MAX_CHARS = 10_000
 
 // Names of window globals to probe for a Redux store, in priority order
-const REDUX_STORE_GLOBALS: ReadonlyArray<string> = [
+const REDUX_STORE_GLOBALS: readonly string[] = [
   'store',
   '__redux_store__',
   '__store',
@@ -22,6 +22,8 @@ const REDUX_STORE_GLOBALS: ReadonlyArray<string> = [
 ]
 
 type ReduxAction = { type?: unknown; [key: string]: unknown }
+type UnknownRecord = { [key: string]: unknown }
+type StateDiffRecord = { [key: string]: { before: unknown; after: unknown } }
 
 interface ReduxStore {
   dispatch: (action: ReduxAction) => unknown
@@ -32,7 +34,7 @@ interface ReduxStore {
 // Check whether a candidate object looks like a Redux store
 function isReduxStore(candidate: unknown): candidate is ReduxStore {
   if (typeof candidate !== 'object' || candidate === null) return false
-  const c = candidate as Record<string, unknown>
+  const c = candidate as UnknownRecord
   return (
     typeof c['dispatch'] === 'function' &&
     typeof c['getState'] === 'function' &&
@@ -45,7 +47,7 @@ function findReduxStore(
   win: Window & typeof globalThis
 ): ReduxStore | undefined {
   for (const key of REDUX_STORE_GLOBALS) {
-    const candidate = (win as unknown as Record<string, unknown>)[key]
+    const candidate = (win as unknown as UnknownRecord)[key]
     if (isReduxStore(candidate)) {
       return candidate
     }
@@ -80,10 +82,10 @@ function computeStateDiff(before: unknown, after: unknown): string {
   if (typeof before !== 'object' || before == null) return '{}'
   if (typeof after !== 'object' || after == null) return '{}'
 
-  const b = before as Record<string, unknown>
-  const a = after as Record<string, unknown>
+  const b = before as UnknownRecord
+  const a = after as UnknownRecord
   const keys = new Set([...Object.keys(b), ...Object.keys(a)])
-  const diff: Record<string, { before: unknown; after: unknown }> = {}
+  const diff: StateDiffRecord = {}
 
   for (const key of keys) {
     if (!Object.is(b[key], a[key])) {
@@ -104,6 +106,15 @@ export function createReduxObserver(
   // Instance-scoped state — no module-level singletons
   let currentStore: ReduxStore | undefined
   let originalDispatch: ((action: ReduxAction) => unknown) | undefined
+
+  function teardown() {
+    if (currentStore && originalDispatch) {
+      currentStore.dispatch = originalDispatch
+    }
+
+    currentStore = undefined
+    originalDispatch = undefined
+  }
 
   return {
     observe() {
@@ -156,11 +167,7 @@ export function createReduxObserver(
     },
 
     disconnect() {
-      if (currentStore && originalDispatch) {
-        currentStore.dispatch = originalDispatch
-        currentStore = undefined
-        originalDispatch = undefined
-      }
+      teardown()
     },
 
     // Returns the current Redux store state, or null if no store was found.
@@ -169,9 +176,10 @@ export function createReduxObserver(
       return currentStore ? currentStore.getState() : null
     },
 
-    // Clears the cached store reference without touching dispatch wiring. Use disconnect() for full teardown.
+    // Clears cached state and restores any wrapped dispatch so a future
+    // recording session starts from a clean store observer.
     resetStoreState() {
-      currentStore = undefined
+      teardown()
     },
   }
 }
