@@ -47,9 +47,13 @@ function unsignOrFail(signedValue: string, secret: string) {
   const unsigned = unsign(signedValue, secret)
 
   expect(unsigned.valid).toEqual(true)
-  expect(unsigned.value).toBeDefined()
+  expect(unsigned.value).not.toBeNull()
 
-  return unsigned.value as string
+  if (!unsigned.valid || unsigned.value === null) {
+    throw new Error('Expected signed cookie to have a valid signature')
+  }
+
+  return unsigned.value
 }
 
 describe('Routers > StaffOAuth', () => {
