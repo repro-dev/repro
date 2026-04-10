@@ -7,7 +7,11 @@ Load this skill when working on billing features: subscriptions, plans, entitlem
 Billing is implemented with **Paddle** as the payment provider. Key packages:
 
 - `apps/api-server/src/services/billing.ts` — server-side `BillingService` (factory function)
-- `apps/api-server/src/modules/billing/` — Fastify routers, webhook handler, Paddle client adapter, and stub
+- `apps/api-server/src/services/billingWebhook.ts` — webhook handler service
+- `apps/api-server/src/services/billingEntitlements.ts` — entitlement cache service
+- `apps/api-server/src/routers/billing.ts` — Fastify billing routes
+- `apps/api-server/src/routers/billingWebhook.ts` — Fastify webhook route (conditionally registered)
+- `apps/api-server/src/modules/billing/` — Paddle client adapter (`paddle.ts`), stub (`stubPaddleClient.ts`), plan config helpers (`planConfig.ts`, `seedPlans.ts`)
 - `packages/billing/src/index.tsx` — frontend `BillingProvider`, `BillingClient`, `useBillingClient`
 
 ## Server-side: BillingService

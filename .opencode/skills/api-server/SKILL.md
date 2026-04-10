@@ -149,11 +149,12 @@ interface FastifyRequest {
 
 ## Adding a new route module
 
-1. Create `src/modules/<domain>/router.ts` exporting `createXxxRouter(service, accountService)`.
-2. Instantiate the service in `src/index.ts` and pass it to the router factory.
-3. Add `const xxxRouter = createXxxRouter(...)` and register it in `bootstrap`.
-4. Use `respondWith` / `respondWithValue` / `respondWithError` exclusively for HTTP responses.
-5. Use `withEncodedId` on all outbound rows.
+1. Create `src/routers/<domain>.ts` exporting `createXxxRouter(service, accountService)`.
+2. Create `src/services/<domain>.ts` exporting `createXxxService(db, ...)`.
+3. Instantiate the service in `src/index.ts` and pass it to the router factory.
+4. Add `const xxxRouter = createXxxRouter(...)` and register it in `bootstrap`.
+5. Use `respondWith` / `respondWithValue` / `respondWithError` exclusively for HTTP responses.
+6. Use `withEncodedId` on all outbound rows.
 
 ## Testing
 
