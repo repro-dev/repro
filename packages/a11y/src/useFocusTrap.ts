@@ -1,14 +1,5 @@
 import { useEffect, useRef } from 'react'
-
-const FOCUSABLE_SELECTORS = [
-  'a[href]',
-  'button:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-  'details > summary',
-].join(', ')
+import { FOCUSABLE_SELECTORS } from '~/focusableSelectors'
 
 export function useFocusTrap<T extends HTMLElement>(active: boolean) {
   const containerRef = useRef<T>(null)
