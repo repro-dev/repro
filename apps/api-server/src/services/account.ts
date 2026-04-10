@@ -18,6 +18,7 @@ import {
   resolve,
   swap,
 } from 'fluture'
+import { sql } from 'kysely'
 import { createHash, randomBytes } from 'node:crypto'
 import { SystemConfig, defaultSystemConfig } from '~/config/system'
 import {
@@ -778,15 +779,13 @@ export function createAccountService(
   const MAX_FAILED_ATTEMPTS = 5
   const LOCKOUT_DURATION_MS = 15 * 60 * 1000
 
-  function ensureNotLocked(email: string): FutureInstance<Error, void> {
-    return attemptQuery(() =>
-      database
-        .selectFrom('users')
-        .select(['lockedUntil'])
-        .where('email', '=', email.toLowerCase())
-        .where('active', '=', true)
-        .executeTakeFirst()
-    ).pipe(
+  function ensureEmailNotLocked(
+    getLockoutState: (
+      normalizedEmail: string
+    ) => Promise<{ lockedUntil: Date | null } | undefined>,
+    email: string
+  ): FutureInstance<Error, void> {
+    return attemptQuery(() => getLockoutState(email.toLowerCase())).pipe(
       chain(row => {
         if (row?.lockedUntil && row.lockedUntil.getTime() > Date.now()) {
           return reject(
@@ -796,6 +795,28 @@ export function createAccountService(
 
         return resolve(undefined)
       })
+    )
+  }
+
+  function resetFailedLoginState(
+    resetByEmail: (normalizedEmail: string) => Promise<unknown>,
+    email: string
+  ): FutureInstance<Error, void> {
+    return attemptQuery(async () => {
+      await resetByEmail(email.toLowerCase())
+    })
+  }
+
+  function ensureNotLocked(email: string): FutureInstance<Error, void> {
+    return ensureEmailNotLocked(
+      normalizedEmail =>
+        database
+          .selectFrom('users')
+          .select(['lockedUntil'])
+          .where('email', '=', normalizedEmail)
+          .where('active', '=', true)
+          .executeTakeFirst(),
+      email
     )
   }
 
@@ -834,14 +855,69 @@ export function createAccountService(
   }
 
   function resetFailedLoginCount(email: string): FutureInstance<Error, void> {
+    return resetFailedLoginState(
+      normalizedEmail =>
+        database
+          .updateTable('users')
+          .set({ failedLoginCount: 0, lockedUntil: null })
+          .where('email', '=', normalizedEmail)
+          .where('active', '=', true)
+          .execute(),
+      email
+    )
+  }
+
+  // Staff lockout
+
+  function ensureStaffNotLocked(email: string): FutureInstance<Error, void> {
+    return ensureEmailNotLocked(
+      normalizedEmail =>
+        database
+          .selectFrom('staff_users')
+          .select(['lockedUntil'])
+          .where('email', '=', normalizedEmail)
+          .where('active', '=', true)
+          .executeTakeFirst(),
+      email
+    )
+  }
+
+  function recordStaffFailedLogin(email: string): FutureInstance<Error, void> {
     return attemptQuery(async () => {
+      const lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS)
+
       await database
-        .updateTable('users')
-        .set({ failedLoginCount: 0, lockedUntil: null })
+        .updateTable('staff_users')
+        .set({
+          failedLoginCount: sql<number>`"failedLoginCount" + 1`,
+          lockedUntil: sql<Date | null>`
+            case
+              when "failedLoginCount" >= ${
+                MAX_FAILED_ATTEMPTS - 1
+              } then ${lockedUntil}
+              else "lockedUntil"
+            end
+          `,
+        })
         .where('email', '=', email.toLowerCase())
         .where('active', '=', true)
         .execute()
     })
+  }
+
+  function resetStaffFailedLoginCount(
+    email: string
+  ): FutureInstance<Error, void> {
+    return resetFailedLoginState(
+      normalizedEmail =>
+        database
+          .updateTable('staff_users')
+          .set({ failedLoginCount: 0, lockedUntil: null })
+          .where('email', '=', normalizedEmail)
+          .where('active', '=', true)
+          .execute(),
+      email
+    )
   }
 
   function createSession(
@@ -1084,6 +1160,11 @@ export function createAccountService(
     ensureNotLocked,
     recordFailedLogin,
     resetFailedLoginCount,
+
+    // Staff lockout
+    ensureStaffNotLocked,
+    recordStaffFailedLogin,
+    resetStaffFailedLoginCount,
 
     // Sessions
     createSession,
