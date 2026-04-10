@@ -155,7 +155,7 @@ export function createRecordingStream(
       })
     | null = null
   let reduxObserverInstance:
-    | (ObserverLike & { getStoreState(): unknown })
+    | (ObserverLike & { getStoreState(): unknown; resetStoreState(): void })
     | null = null
 
   const domTreeWalker = createDOMTreeWalker({
@@ -245,6 +245,10 @@ export function createRecordingStream(
     for (const observer of observers) {
       observer.disconnect()
     }
+
+    // Defensively clear framework state so getComponentTree()/getStoreState() return null between stop() and next start().
+    reactObserverInstance?.resetComponentTree()
+    reduxObserverInstance?.resetStoreState()
 
     unsubscribeFromBuffer()
     eventBuffer.clear()

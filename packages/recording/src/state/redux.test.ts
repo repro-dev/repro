@@ -323,3 +323,63 @@ describe('idempotency', () => {
     assert.equal(store.dispatch, originalDispatch)
   })
 })
+
+describe('session reset', () => {
+  it('getStoreState returns null between disconnect and re-observe', () => {
+    const store = createMockStore({ count: 1 })
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const observer = createReduxObserver(() => {}, win)
+    observer.observe({} as Document, {} as never)
+
+    // While connected, getStoreState returns state
+    assert.notEqual(observer.getStoreState(), null)
+
+    observer.disconnect()
+
+    // After disconnect, getStoreState should return null
+    assert.equal(observer.getStoreState(), null)
+
+    // Re-observe picks up the store again
+    observer.observe({} as Document, {} as never)
+    const state = observer.getStoreState() as Record<string, unknown>
+    assert.equal(state['count'], 1)
+
+    observer.disconnect()
+  })
+
+  it('after disconnect(), re-observe() picks up fresh store state', () => {
+    const store = createMockStore({ session: 'first' })
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const observer = createReduxObserver(() => {}, win)
+    observer.observe({} as Document, {} as never)
+
+    store.dispatch({ type: 'UPDATE', session: 'updated' })
+    observer.disconnect()
+
+    // Simulate a new session: re-observe against the same store
+    // The observer should reflect the current (updated) state, not stale prior state
+    observer.observe({} as Document, {} as never)
+
+    const state = observer.getStoreState() as Record<string, unknown>
+    assert.equal(state['session'], 'updated')
+
+    observer.disconnect()
+  })
+
+  it('resetStoreState clears cached store reference', () => {
+    const store = createMockStore({ count: 99 })
+    const win = { store } as unknown as Window & typeof globalThis
+
+    const observer = createReduxObserver(() => {}, win)
+    observer.observe({} as Document, {} as never)
+
+    // Confirm store is accessible
+    assert.notEqual(observer.getStoreState(), null)
+
+    // resetStoreState should clear the cached reference
+    observer.resetStoreState()
+    assert.equal(observer.getStoreState(), null)
+  })
+})

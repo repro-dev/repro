@@ -100,7 +100,7 @@ export function createReduxObserver(
   subscriber: (event: StateSourceEvent) => void,
   // Accept an optional window reference so tests can inject a mock
   win: Window & typeof globalThis = globalThis as Window & typeof globalThis
-): ObserverLike & { getStoreState(): unknown } {
+): ObserverLike & { getStoreState(): unknown; resetStoreState(): void } {
   // Instance-scoped state — no module-level singletons
   let currentStore: ReduxStore | undefined
   let originalDispatch: ((action: ReduxAction) => unknown) | undefined
@@ -167,6 +167,11 @@ export function createReduxObserver(
     // Called at snapshot emit time by createRecordingStream.
     getStoreState() {
       return currentStore ? currentStore.getState() : null
+    },
+
+    // Clears the cached store reference without touching dispatch wiring. Use disconnect() for full teardown.
+    resetStoreState() {
+      currentStore = undefined
     },
   }
 }
