@@ -1,4 +1,4 @@
-import { FOCUSABLE_SELECTORS } from '~/focusableSelectors'
+import { FOCUSABLE_SELECTORS } from './focusableSelectors'
 
 export interface FocusTrap {
   activate(): void
@@ -16,9 +16,9 @@ export function createFocusTrap(
   let addedTabIndex = false
 
   function getFocusableElements(): HTMLElement[] {
-    const all = container.querySelectorAll(FOCUSABLE_SELECTORS)
-    return Array.from(all as NodeListOf<HTMLElement>).filter(
-      el => !el.closest('[aria-hidden="true"]')
+    return Array.from(container.querySelectorAll(FOCUSABLE_SELECTORS)).filter(
+      (el): el is HTMLElement =>
+        el instanceof HTMLElement && !el.closest('[aria-hidden="true"]')
     )
   }
 
