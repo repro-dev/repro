@@ -1,7 +1,8 @@
 ---
 description: Standalone test utility — adds coverage to existing modules, writes regression tests, and audits test sufficiency. Not part of any automated pipeline.
 mode: subagent
-model: github-copilot/claude-sonnet-4.6
+model: github-copilot/gpt-5.4
+reasoningEffort: high
 permission:
   bash:
     "*": "allow"

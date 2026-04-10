@@ -15,7 +15,7 @@ The capture extension runs in **four distinct contexts**. Understanding the boun
 
 | Context                         | Entry point                                | What runs here                                                                                  |
 | ------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| **Page world**                  | `apps/capture/index.tsx`                   | `<repro-capture>` custom element, React widget, `RecordingStream`, `Playback`                   |
+| **Page world**                  | `apps/capture/src/index.tsx`               | `<repro-capture>` custom element, React widget, `RecordingStream`, `Playback`                   |
 | **Content script**              | `apps/capture/src/extension/content.ts`    | Injects `capture.js` and `bridgeHost.html` iframe; bridges messages between page and background |
 | **Background (service worker)** | `apps/capture/src/extension/background.ts` | Extension toggle, upload queue, `RuntimeAgent` for Chrome runtime messaging                     |
 | **Bridge host (hidden iframe)** | `apps/capture/src/extension/bridgeHost.ts` | `MessagingAgent` + `apiBridge.html` for API proxying (bypasses page-world CORS)                 |
@@ -42,7 +42,7 @@ The bridge host exists specifically to route API calls from the page world throu
 
 ### `RecordingStream` (`packages/recording/src/createRecordingStream.ts`)
 
-The core recording engine. Created once per page load in `apps/capture/index.tsx`:
+The core recording engine. Created once per page load in `apps/capture/src/index.tsx`:
 
 ```ts
 createRecordingStream(document, {
@@ -146,7 +146,6 @@ Implements the same `Playback` interface for a live Observable stream. Skips unt
 `NativeDOMRenderer.tsx` subscribes to three streams from the `Playback` object:
 
 1. **`$latestControlFrame` (not Idle)** → full DOM rebuild:
-
    - `createDOMFromVTree(...)` reconstructs live DOM nodes from the VTree
    - `clearDocument(ownerDocument)` wipes the iframe document
    - `patchDocumentElement(...)` applies document-level patches
@@ -154,7 +153,6 @@ Implements the same `Playback` interface for a live Observable stream. Skips unt
    - `updateHoverTargets(doc, pointer)` adds `HOVER_CLASS` to elements under the recorded pointer
 
 2. **`$buffer`** → incremental event application:
-
    - `SourceEventType.DOMPatch` → `applyDOMPatchEvent(event, ownerDocument, nodeMap, ...)` from `packages/vdom-renderer`
    - `SourceEventType.Interaction` → `applyInteractionEvent(event, nodeMap, elapsed, trackScroll)` for scroll updates
 
@@ -239,7 +237,7 @@ The `Snapshot` type (from `packages/domain`) is the shared state currency: mutat
 
 | File                                                         | Key exports                                                               |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| `apps/capture/index.tsx`                                     | `ReproCapture` custom element, `createRecordingStream` wiring             |
+| `apps/capture/src/index.tsx`                                 | `ReproCapture` custom element, `createRecordingStream` wiring             |
 | `apps/capture/src/extension/background.ts`                   | `toggleEnabledState`, `upload:enqueue` handler                            |
 | `apps/capture/src/extension/content.ts`                      | `initializePageHost`, `initializeBridgeHost`                              |
 | `apps/capture/src/state/createState.ts`                      | `$readyState`, `$recordingMode` atoms                                     |
@@ -253,6 +251,6 @@ The `Snapshot` type (from `packages/domain`) is the shared state currency: mutat
 | `packages/playback/src/createLivePlayback.ts`                | `createLivePlayback`                                                      |
 | `packages/playback/src/types.ts`                             | `Playback` interface, `PlaybackState`, `ControlFrame`                     |
 | `packages/playback/src/PlaybackCanvas/NativeDOMRenderer.tsx` | Full rebuild + incremental patch rendering                                |
-| `packages/source-utils/src/applyEventToSnapshot.ts`          | `applyEventToSnapshot`                                                    |
+| `packages/source-utils/src/mutations/index.ts`               | `applyEventToSnapshot`                                                    |
 | `packages/recording-api/src/createUploadWorker.ts`           | `createUploadWorker`, `saveEvents`, `saveResources`                       |
 | `packages/domain/src/generated/event.ts`                     | `SourceEventView`, `SourceEventType`, all event types                     |

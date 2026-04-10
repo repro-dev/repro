@@ -4,7 +4,7 @@ Load this skill when working on auth flows, session management, social login, in
 
 ## Package overview
 
-`packages/auth` is a React component/hook library that wraps all frontend authentication concerns. The backend counterpart is `apps/api-server/src/modules/account/` and `apps/api-server/src/modules/oauth/`.
+`packages/auth` is a React component/hook library that wraps all frontend authentication concerns. The backend counterpart lives in `apps/api-server/src/services/` (e.g. `services/account.ts`, `services/oauth.ts`, `services/socialAuth.ts`) with routers in `apps/api-server/src/routers/` (e.g. `routers/account.ts`, `routers/oauth.ts`, `routers/socialAuth.ts`).
 
 ## Provider tree (frontend)
 
