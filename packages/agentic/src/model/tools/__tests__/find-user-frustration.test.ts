@@ -146,6 +146,62 @@ describe("executeTool — findUserFrustration — dead click", () => {
     const deadClicks = result.signals.filter((s) => s.type === "dead_click");
     assert.strictEqual(deadClicks.length, 0);
   });
+
+  it("does not flag click when DOMPatch occurs at exactly the boundary (t + 500ms)", async () => {
+    const events = [
+      makeClickEvent(1000, null, [100, 200]),
+      makeDOMPatchEvent(1500), // exactly at boundary
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "findUserFrustration", {}),
+    )) as { signals: Array<{ type: string }> };
+    const deadClicks = result.signals.filter((s) => s.type === "dead_click");
+    assert.strictEqual(deadClicks.length, 0);
+  });
+
+  it("flags click when DOMPatch precedes it (outside window)", async () => {
+    const events = [
+      makeDOMPatchEvent(500), // before the click — should not dominate
+      makeClickEvent(1000, null, [100, 200]),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "findUserFrustration", {}),
+    )) as { signals: Array<{ type: string }> };
+    const deadClicks = result.signals.filter((s) => s.type === "dead_click");
+    assert.strictEqual(deadClicks.length, 1);
+  });
+
+  it("handles multiple sequential dead clicks without false negatives", async () => {
+    // Two isolated dead clicks — no DOM changes follow either within 500ms
+    const events = [
+      makeClickEvent(0, null, [10, 10]),
+      makeClickEvent(5000, null, [20, 20]),
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "findUserFrustration", {}),
+    )) as { signals: Array<{ type: string }> };
+    const deadClicks = result.signals.filter((s) => s.type === "dead_click");
+    assert.strictEqual(deadClicks.length, 2);
+  });
+
+  it("correctly separates dead clicks when one is dominated but another is not", async () => {
+    const events = [
+      makeClickEvent(0, null, [10, 10]),
+      makeDOMPatchEvent(200), // dominates first click
+      makeClickEvent(5000, null, [20, 20]),
+      // no DOMPatch in [5000, 5500]
+    ];
+    const accessor = makeAccessor(events);
+    const result = (await runFuture(
+      executeTool(accessor, "findUserFrustration", {}),
+    )) as { signals: Array<{ timeMs: number; type: string }> };
+    const deadClicks = result.signals.filter((s) => s.type === "dead_click");
+    assert.strictEqual(deadClicks.length, 1);
+    assert.strictEqual(deadClicks[0]!.timeMs, 5000);
+  });
 });
 
 // ─── Rapid navigation ─────────────────────────────────────────────────────────

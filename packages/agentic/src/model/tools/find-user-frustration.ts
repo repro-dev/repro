@@ -4,7 +4,6 @@ import {
   InteractionType,
   LogLevel,
   NetworkEvent,
-  SourceEventType,
 } from "@repro/domain";
 import { groupNetworkEvents } from "@repro/source-utils";
 import { Box } from "@repro/tdl";
@@ -14,6 +13,7 @@ import {
   isConsoleEvent,
   isDOMPatchEvent,
   isInteractionEvent,
+  isNetworkEvent,
   serializeMessagePart,
 } from "./common";
 import type { ToolHandler } from "./common";
@@ -131,18 +131,29 @@ export const handler: ToolHandler = (recording, _args) => {
   }
 
   // ─── Dead click detection ──────────────────────────────────────────────────
+  // Use a forward pointer into allEvents (which is sorted by time) to check
+  // the [clickTime, clickTime + 500ms] window without re-scanning from the
+  // start for each click, keeping overall complexity O(n + clicks).
 
+  let deadClickScanPtr = 0;
   for (let ci = 0; ci < clickEvents.length; ci++) {
     if (rageClickIndices.has(ci)) continue;
     const { time, at } = clickEvents[ci]!;
+    const windowEnd = time + DEAD_CLICK_WINDOW_MS;
 
-    // Check for any DOMPatch or PageTransition in [time, time + 500ms]
-    const windowEvents = recording.getEventsInRange(
-      time,
-      time + DEAD_CLICK_WINDOW_MS,
-    );
+    // Advance the pointer past events that end before this click's window.
+    while (
+      deadClickScanPtr < allEvents.length &&
+      (allEvents[deadClickScanPtr]!.get("time").orElse(0) as number) < time
+    ) {
+      deadClickScanPtr++;
+    }
+
     let dominated = false;
-    for (const ev of windowEvents) {
+    for (let ei = deadClickScanPtr; ei < allEvents.length; ei++) {
+      const ev = allEvents[ei]!;
+      const evTime = ev.get("time").orElse(0) as number;
+      if (evTime > windowEnd) break;
       if (isDOMPatchEvent(ev)) {
         dominated = true;
         break;
@@ -277,9 +288,10 @@ export const handler: ToolHandler = (recording, _args) => {
   }
 
   // Network error loops — group by method + pathname + status
-  const networkEvents = recording.getEventsByType([SourceEventType.Network]);
+  // Filter network events from allEvents to avoid a second full scan.
   const indexed: Array<[NetworkEvent, number]> = [];
-  for (const e of networkEvents) {
+  for (const e of allEvents) {
+    if (!isNetworkEvent(e)) continue;
     (e as Box<NetworkEvent>).apply((n) => indexed.push([n, 0]));
   }
   const groups = groupNetworkEvents(indexed);
