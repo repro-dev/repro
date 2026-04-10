@@ -132,7 +132,7 @@ describe('Button display and width — REP-314', () => {
     ).toBe(true)
   })
 
-  it('active press uses a scaleY transform on the button active rule', () => {
+  it('active press uses the standard pressed scale on the button active rule', () => {
     const { getByRole } = render(<Button>Text</Button>)
     const cssRules = getElementCSSRules(getByRole('button'))
     const activeRule = cssRules.find(({ selectorText }) =>
@@ -140,6 +140,6 @@ describe('Button display and width — REP-314', () => {
     )
 
     expect(activeRule).toBeDefined()
-    expect(activeRule?.cssText).toContain('scaleY(')
+    expect(activeRule?.cssText).toContain('scale(0.96)')
   })
 })

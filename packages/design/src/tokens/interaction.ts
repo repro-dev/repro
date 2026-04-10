@@ -115,9 +115,9 @@ export function focusWithinRing(context: FocusRingContext = 'default') {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns jsxstyle-compatible props that apply a scale-down on active/press,
- * simulating a physical button press. Disabled elements are excluded via
- * `:not(:disabled)`.
+ * Returns jsxstyle-compatible props that apply a subtle scale-down on
+ * active/press, simulating a physical button press. Disabled elements are
+ * excluded via `:not(:disabled)`.
  *
  * Does not set `transition` — the consuming component should set that
  * explicitly so that multiple interaction utilities can be composed without
@@ -129,8 +129,7 @@ export function focusWithinRing(context: FocusRingContext = 'default') {
 export function activePress() {
   return {
     '&:active:not(:disabled)': {
-      // scaleY-only so the press depth is consistent regardless of button width
-      transform: 'scaleY(0.92)',
+      transform: 'scale(0.96)',
     },
   } as const
 }
