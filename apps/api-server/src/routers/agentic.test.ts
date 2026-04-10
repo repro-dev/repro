@@ -7,12 +7,13 @@ import {
   serializerCompiler,
   validatorCompiler,
 } from 'fastify-type-provider-zod'
-import { resolve } from 'fluture'
+import { reject, resolve } from 'fluture'
 import { Readable } from 'node:stream'
-import { after, before, beforeEach, describe, it } from 'node:test'
+import { after, afterEach, before, beforeEach, describe, it } from 'node:test'
 import { buildRateLimitOptions } from '~/rateLimit'
 import { AgenticService } from '~/services/agentic'
 import { Harness, createTestHarness, fixtures } from '~/testing'
+import { permissionDenied } from '~/utils/errors'
 import { createAgenticRouter } from './agentic'
 
 const stubAgenticService: AgenticService = {
@@ -277,11 +278,13 @@ async function buildAgenticRateLimitApp(options: {
   agenticRateLimitPerHour?: number
   agenticMaxMessagesPerRecording?: number
   sessionSubjectId?: string | null
-}): Promise<FastifyInstance> {
+  allowUser?: boolean
+}) {
   const {
     agenticRateLimitPerHour = 60,
     agenticMaxMessagesPerRecording = 200,
     sessionSubjectId = 'test-user-id',
+    allowUser = true,
   } = options
 
   const app = fastify()
@@ -311,7 +314,7 @@ async function buildAgenticRateLimitApp(options: {
     }
   })
 
-  // Mock getCurrentUser so the route handler doesn't fail.
+  // Mock getCurrentUser so the route handler can reach ensureUser.
   app.decorateRequest('getCurrentUser', function () {
     return resolve({ id: 'user-1' }) as never
   })
@@ -319,7 +322,10 @@ async function buildAgenticRateLimitApp(options: {
   await app.register(
     createAgenticRouter(
       stubAgenticService,
-      { ensureUser: () => resolve(undefined) } as never,
+      {
+        ensureUser: () =>
+          allowUser ? resolve(undefined) : reject(permissionDenied()),
+      } as never,
       undefined,
       {
         agenticRateLimitPerHour,
@@ -335,25 +341,23 @@ describe('Agentic rate limiting', () => {
   describe('per-user hourly rate limit', () => {
     let app: FastifyInstance
 
-    before(async () => {
-      // Use a low limit (2) so we can trigger it with 3 requests.
+    beforeEach(async () => {
       app = await buildAgenticRateLimitApp({ agenticRateLimitPerHour: 2 })
       await app.ready()
     })
 
-    after(async () => {
+    afterEach(async () => {
       await app.close()
     })
 
     it('returns 429 when hourly limit is exceeded', async () => {
       const body = { messages: [{ role: 'user', content: 'hello' }] }
 
-      // Exhaust the limit (2 requests).
       for (let i = 0; i < 2; i++) {
-        await app.inject({ method: 'POST', url: '/response', body })
+        const res = await app.inject({ method: 'POST', url: '/response', body })
+        expect(res.statusCode).toEqual(200)
       }
 
-      // 3rd request should be rate limited.
       const res = await app.inject({ method: 'POST', url: '/response', body })
       expect(res.statusCode).toEqual(429)
     })
@@ -361,22 +365,12 @@ describe('Agentic rate limiting', () => {
     it('returns error body with rate_limit_exceeded and retryAfter', async () => {
       const body = { messages: [{ role: 'user', content: 'hello' }] }
 
-      // Exhaust limit with a different IP to get a fresh bucket.
       for (let i = 0; i < 2; i++) {
-        await app.inject({
-          method: 'POST',
-          url: '/response',
-          body,
-          remoteAddress: '10.0.0.1',
-        })
+        const res = await app.inject({ method: 'POST', url: '/response', body })
+        expect(res.statusCode).toEqual(200)
       }
 
-      const res = await app.inject({
-        method: 'POST',
-        url: '/response',
-        body,
-        remoteAddress: '10.0.0.1',
-      })
+      const res = await app.inject({ method: 'POST', url: '/response', body })
       expect(res.statusCode).toEqual(429)
       const parsed = JSON.parse(res.body)
       expect(parsed.error).toEqual('rate_limit_exceeded')
@@ -384,27 +378,16 @@ describe('Agentic rate limiting', () => {
     })
 
     it('includes x-ratelimit-limit and x-ratelimit-remaining headers', async () => {
-      // Use a fresh app with a unique sessionSubjectId to get a clean bucket.
-      const freshApp = await buildAgenticRateLimitApp({
-        agenticRateLimitPerHour: 10,
-        sessionSubjectId: 'header-test-user',
+      const res = await app.inject({
+        method: 'POST',
+        url: '/response',
+        body: { messages: [{ role: 'user', content: 'hello' }] },
       })
-      await freshApp.ready()
 
-      try {
-        const res = await freshApp.inject({
-          method: 'POST',
-          url: '/response',
-          body: { messages: [{ role: 'user', content: 'hello' }] },
-        })
-        // The first request should succeed (200) and expose the headers.
-        expect(res.statusCode).toEqual(200)
-        expect(res.headers['x-ratelimit-limit']).toBeDefined()
-        expect(res.headers['x-ratelimit-remaining']).toBeDefined()
-        expect(res.headers['x-ratelimit-reset']).toBeDefined()
-      } finally {
-        await freshApp.close()
-      }
+      expect(res.statusCode).toEqual(200)
+      expect(res.headers['x-ratelimit-limit']).toBeDefined()
+      expect(res.headers['x-ratelimit-remaining']).toBeDefined()
+      expect(res.headers['x-ratelimit-reset']).toBeDefined()
     })
   })
 
@@ -461,18 +444,39 @@ describe('Agentic rate limiting', () => {
       expect(parsed.retryAfter).toEqual(0)
     })
 
+    it('does not count requests that fail auth toward the recording cap', async () => {
+      const deniedApp = await buildAgenticRateLimitApp({
+        agenticMaxMessagesPerRecording: 2,
+        agenticRateLimitPerHour: 1000,
+        allowUser: false,
+      })
+      await deniedApp.ready()
+
+      try {
+        const body = {
+          messages: [{ role: 'user', content: 'hello' }],
+          recordingId: 'test-recording-auth-failure',
+        }
+
+        for (let i = 0; i < 3; i++) {
+          const res = await deniedApp.inject({
+            method: 'POST',
+            url: '/response',
+            body,
+          })
+
+          expect(res.statusCode).toEqual(403)
+        }
+      } finally {
+        await deniedApp.close()
+      }
+    })
+
     it('does not enforce cap when no recordingId is provided', async () => {
       const body = { messages: [{ role: 'user', content: 'hello' }] }
 
-      // Make 5 requests with no recordingId — none should be blocked by the cap.
       for (let i = 0; i < 5; i++) {
-        const res = await app.inject({
-          method: 'POST',
-          url: '/response',
-          body,
-          // Use a unique IP to avoid hitting the global hourly rate limit.
-          remoteAddress: `10.1.1.${i + 1}`,
-        })
+        const res = await app.inject({ method: 'POST', url: '/response', body })
         expect(res.statusCode).toEqual(200)
       }
     })
