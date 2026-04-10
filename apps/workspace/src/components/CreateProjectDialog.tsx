@@ -1,6 +1,6 @@
 import { Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
-import { Button, Input, Modal, color, spacing } from '@repro/design'
+import { Button, FormFieldError, Input, Modal, spacing } from '@repro/design'
 import { Project } from '@repro/domain'
 import { createProject as defaultCreateProject } from '@repro/workspace-api'
 import { fork } from 'fluture'
@@ -19,7 +19,6 @@ export interface CreateProjectDialogProps {
   navigateFn?: (path: string) => void
 }
 
-const MODAL_TITLE_ID = 'create-project-dialog-title'
 const MAX_NAME_LENGTH = 100
 
 export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
@@ -106,9 +105,9 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
     <Modal
       open={open}
       onClose={submitting ? undefined : onClose}
+      aria-label="Create project"
       width={480}
       height="auto"
-      labelId={MODAL_TITLE_ID}
     >
       <Col
         component="form"
@@ -127,11 +126,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
           disabled={submitting}
         />
 
-        {error && (
-          <Row color={color.danger} fontSize={13}>
-            {error}
-          </Row>
-        )}
+        <FormFieldError error={{ message: error ?? undefined }} />
 
         <Row justifyContent="flex-end" gap={spacing.md}>
           <Button
