@@ -14,7 +14,7 @@ describe('Expired session cleanup', () => {
 
   it('does not overlap cleanup runs while a previous run is still in flight', () => {
     let runCount = 0
-    let resolveCleanup: ((value: number) => void) | undefined
+    let resolveCleanup: ((value: bigint) => void) | undefined
 
     const runCleanup = createExpiredSessionCleanupRunner(
       {
@@ -35,7 +35,7 @@ describe('Expired session cleanup', () => {
 
     expect(runCount).toEqual(1)
 
-    resolveCleanup?.(1)
+    resolveCleanup?.(1n)
     runCleanup()
 
     expect(runCount).toEqual(2)
@@ -70,7 +70,7 @@ describe('Expired session cleanup', () => {
       {
         deleteExpiredSessions: () => {
           runCount += 1
-          return resolve(0)
+          return resolve(0n)
         },
       },
       { error: mock.fn() },

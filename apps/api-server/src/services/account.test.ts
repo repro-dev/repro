@@ -1529,7 +1529,9 @@ describe('Services > Account', () => {
         -60
       )
 
-      await promise(expiredService.deleteExpiredSessions())
+      await expect(
+        promise(expiredService.deleteExpiredSessions())
+      ).resolves.toEqual(1n)
 
       // The session row should now be gone even when looked up via the normal service
       await expect(
@@ -1575,7 +1577,9 @@ describe('Services > Account', () => {
           promise(expiredService.getSessionByToken(session.sessionToken))
         ).rejects.toThrow(notFound())
 
-        await promise(expiredService.deleteExpiredSessions())
+        await expect(
+          promise(expiredService.deleteExpiredSessions())
+        ).resolves.toEqual(1n)
       } finally {
         mock.timers.reset()
       }
