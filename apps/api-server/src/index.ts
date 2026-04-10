@@ -40,6 +40,7 @@ import { createHttpClient } from './modules/http'
 import { createStaffRouter } from './routers/staff'
 import { createStaffOAuthRouter } from './routers/staffOAuth'
 import { createAgenticService } from './services/agentic'
+import { startExpiredSessionCleanup } from './sessionCleanup'
 
 const httpClient = createHttpClient()
 
@@ -79,7 +80,8 @@ const billingService = createBillingService(database, env)
 const accountService = createAccountService(
   database,
   emailUtils,
-  billingService
+  billingService,
+  env.SESSION_HARD_EXPIRY
 )
 const agenticService = createAgenticService(database, httpClient)
 const oauthService = createOAuthService(database)
@@ -298,6 +300,18 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
       }
     }
   )
+
+  // Periodically delete sessions past hard expiry — runs out of band so it
+  // never blocks request handling.
+  const cleanupInterval = startExpiredSessionCleanup(
+    accountService,
+    app.log,
+    env.SESSION_CLEANUP_INTERVAL
+  )
+
+  app.addHook('onClose', () => {
+    clearInterval(cleanupInterval)
+  })
 }
 
 bootstrap({

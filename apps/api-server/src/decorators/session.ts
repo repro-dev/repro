@@ -217,9 +217,10 @@ export function createSessionDecorator(
       const currentDate = new Date()
       const createdAt = parseISO(req.session.createdAt)
 
+      // SESSION_SOFT_EXPIRY and SESSION_HARD_EXPIRY are in seconds; convert to minutes
       const expires = min([
-        addMinutes(currentDate, env.SESSION_SOFT_EXPIRY),
-        addMinutes(createdAt, env.SESSION_HARD_EXPIRY),
+        addMinutes(currentDate, env.SESSION_SOFT_EXPIRY / 60),
+        addMinutes(createdAt, env.SESSION_HARD_EXPIRY / 60),
       ])
 
       res.setCookie(env.SESSION_COOKIE, req.session.sessionToken, {

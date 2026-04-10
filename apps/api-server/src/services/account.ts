@@ -7,6 +7,7 @@ import {
   StaffUserDetail,
   User,
 } from '@repro/domain'
+import { addMinutes } from 'date-fns'
 import {
   FutureInstance,
   alt,
@@ -61,6 +62,7 @@ export function createAccountService(
   database: Database,
   emailUtils: EmailUtils,
   billingService?: BillingService,
+  sessionHardExpirySeconds: number = 28 * 24 * 3600,
   _config: SystemConfig = defaultSystemConfig
 ) {
   function ensureStaffUser(
@@ -964,6 +966,8 @@ export function createAccountService(
     sessionToken: string
   ): FutureInstance<Error, Session> {
     const tokenHash = hashToken(sessionToken)
+    // Reject sessions older than the hard expiry window
+    const cutoff = addMinutes(new Date(), -sessionHardExpirySeconds / 60)
 
     return attemptQuery(async () => {
       return database
@@ -976,6 +980,7 @@ export function createAccountService(
           'createdAt',
         ])
         .where('sessionTokenHash', '=', tokenHash)
+        .where('createdAt', '>', cutoff)
         .executeTakeFirstOrThrow(() => notFound())
     }).pipe(
       map(values => ({
@@ -999,6 +1004,16 @@ export function createAccountService(
         })
       )
     )
+  }
+
+  function deleteExpiredSessions(): FutureInstance<Error, bigint> {
+    const cutoff = addMinutes(new Date(), -sessionHardExpirySeconds / 60)
+    return attemptQuery(() =>
+      database
+        .deleteFrom('sessions')
+        .where('createdAt', '<=', cutoff)
+        .executeTakeFirst()
+    ).pipe(map(result => result?.numDeletedRows ?? 0n))
   }
 
   // Password reset tokens expire after 1 hour
@@ -1170,6 +1185,7 @@ export function createAccountService(
     createSession,
     getSessionByToken,
     destroySession,
+    deleteExpiredSessions,
 
     // Password reset
     createPasswordResetToken,
