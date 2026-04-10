@@ -14,6 +14,8 @@ export type ButtonProps = PropsWithChildren<{
   context?: 'info' | 'success' | 'warning' | 'danger' | 'neutral'
   rounded?: boolean
   disabled?: boolean
+  /** Stretch button to fill its container width. Defaults to false (content width). */
+  fullWidth?: boolean
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
 }>
 
@@ -81,30 +83,30 @@ const contextColors = {
 /**
  * Sizing system.
  *
- * Height is driven by the shared `formControlHeight` token so Button, Input,
+ * Height is driven by the shared formControlHeight token so Button, Input,
  * and Select all align at the same pixel value per size tier:
  *
- *   small  → 28px
- *   medium → 36px
- *   large  → 44px
+ *   small  -> 28px
+ *   medium -> 36px
+ *   large  -> 44px
  *
- * Horizontal padding and gap still use the original `base` multiplier
+ * Horizontal padding and gap still use the original base multiplier
  * (5 / 7 / 9) so spacing stays internally consistent:
  *
  *   small  base=5: paddingH=10, gap=5
  *   medium base=7: paddingH=14, gap=7
  *   large  base=9: paddingH=18, gap=9
  *
- * Font sizes use `fontSize.*` tokens explicitly per size rather than deriving
- * from `base * 1.5`:
- *   small  → fontSize.xs (11px)
- *   medium → fontSize.xs (11px)
- *   large  → fontSize.sm (13px)
+ * Font sizes use fontSize.* tokens explicitly per size rather than deriving
+ * from base * 1.5:
+ *   small  -> fontSize.xs (11px)
+ *   medium -> fontSize.xs (11px)
+ *   large  -> fontSize.sm (13px)
  *
- * `borderRadius` derives from `base` (5/7/9px for small/medium/large)
+ * borderRadius derives from base (5/7/9px for small/medium/large)
  * rather than a fixed radius token, preserving the original scaling behaviour.
- * `radius.full` was considered but is visually incorrect (pill shape).
- * `radius.none` is used when `rounded={false}`.
+ * radius.full was considered but is visually incorrect (pill shape).
+ * radius.none is used when rounded={false}.
  */
 const sizes = {
   small: { base: 5, fontSize: fontSizeTokens.xs }, // 11px
@@ -113,11 +115,12 @@ const sizes = {
 }
 
 /**
- * General-purpose action button with `variant` (contained/outlined/text),
- * `context` (info/success/warning/danger/neutral), and `size` props.
+ * General-purpose action button with variant (contained/outlined/text),
+ * context (info/success/warning/danger/neutral), and size props.
  *
- * Use for any clickable action. Renders a native `<button>` element.
- * The `rounded` prop controls border-radius; defaults to `true`.
+ * Use for any clickable action. Renders a native <button> element.
+ * The rounded prop controls border-radius; defaults to true.
+ * The fullWidth prop stretches the button to fill its container; defaults to false.
  */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
@@ -129,6 +132,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       context = 'info',
       rounded = true,
       disabled = false,
+      fullWidth = false,
       onClick,
     },
     ref
@@ -144,6 +148,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         position="relative"
         component="button"
         props={{ disabled, type, onClick, ref }}
+        display={fullWidth ? 'flex' : 'inline-flex'}
+        width={fullWidth ? '100%' : undefined}
         gap={gap}
         height={height}
         paddingH={paddingH}
