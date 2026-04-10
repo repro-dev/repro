@@ -1,3 +1,5 @@
+export { identify } from './identify'
+
 /**
  * The shape of the Repro extension injected into window by the browser extension.
  * All methods are optional so stubs can safely check for individual capabilities.
