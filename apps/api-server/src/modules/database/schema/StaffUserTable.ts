@@ -9,6 +9,8 @@ export interface StaffUserTable {
   password: string
   active: Generated<boolean>
   admin: Generated<boolean>
+  failedLoginCount: Generated<number>
+  lockedUntil: Date | null
   createdAt: GeneratedAlways<Date>
 }
 

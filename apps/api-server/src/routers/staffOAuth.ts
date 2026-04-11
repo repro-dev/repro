@@ -1,7 +1,7 @@
 import { StaffUser } from '@repro/domain'
 import { generateCodeVerifier, generateState } from 'arctic'
 import { FastifyPluginAsync } from 'fastify'
-import { FutureInstance, bichain, encaseP, go, reject, resolve } from 'fluture'
+import { bichain, encaseP, go, mapRej, reject, resolve } from 'fluture'
 import { Env } from '~/config/createEnv'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
@@ -17,6 +17,13 @@ const OAUTH_COOKIE_MAX_AGE = 300
 // Staff OAuth only allows @repro.dev email addresses
 const ALLOWED_DOMAIN = 'repro.dev'
 
+type ProviderParams = { provider: string }
+type CallbackQuery = { code?: string; state?: string }
+
+function asError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error))
+}
+
 export function createStaffOAuthRouter(
   accountService: AccountService,
   env: Env,
@@ -27,50 +34,44 @@ export function createStaffOAuthRouter(
 
   return async function (fastify) {
     // GET /oauth/:provider — initiate the OAuth flow
-    fastify.get<{ Params: { provider: string } }>(
-      '/oauth/:provider',
-      async (req, res) => {
-        const { provider } = req.params
-        const oauthProvider = providers[provider]
+    fastify.get('/oauth/:provider', async (req, res) => {
+      const { provider } = req.params as ProviderParams
+      const oauthProvider = providers[provider]
 
-        if (oauthProvider == null) {
-          await res
-            .status(400)
-            .send({ message: `Unsupported provider: ${provider}` })
-          return
-        }
-
-        const state = generateState()
-        const codeVerifier = generateCodeVerifier()
-        const url = oauthProvider.createAuthorizationURL(state, codeVerifier)
-
-        res.setCookie('oauth_state', state, {
-          httpOnly: true,
-          path: '/',
-          sameSite: 'lax',
-          secure: 'auto',
-          maxAge: OAUTH_COOKIE_MAX_AGE,
-        })
-
-        res.setCookie('oauth_code_verifier', codeVerifier, {
-          httpOnly: true,
-          path: '/',
-          sameSite: 'lax',
-          secure: 'auto',
-          maxAge: OAUTH_COOKIE_MAX_AGE,
-        })
-
-        await res.redirect(url.toString())
+      if (oauthProvider == null) {
+        await res
+          .status(400)
+          .send({ message: `Unsupported provider: ${provider}` })
+        return
       }
-    )
+
+      const state = generateState()
+      const codeVerifier = generateCodeVerifier()
+      const url = oauthProvider.createAuthorizationURL(state, codeVerifier)
+
+      res.setCookie('oauth_state', state, {
+        httpOnly: true,
+        path: '/',
+        sameSite: 'lax',
+        secure: 'auto',
+        maxAge: OAUTH_COOKIE_MAX_AGE,
+      })
+
+      res.setCookie('oauth_code_verifier', codeVerifier, {
+        httpOnly: true,
+        path: '/',
+        sameSite: 'lax',
+        secure: 'auto',
+        maxAge: OAUTH_COOKIE_MAX_AGE,
+      })
+
+      await res.redirect(url.toString())
+    })
 
     // GET /oauth/:provider/callback — handle the OAuth callback
-    fastify.get<{
-      Params: { provider: string }
-      Querystring: { code?: string; state?: string }
-    }>('/oauth/:provider/callback', (req, res): void => {
-      const { provider } = req.params
-      const { code, state } = req.query
+    fastify.get('/oauth/:provider/callback', (req, res): void => {
+      const { provider } = req.params as ProviderParams
+      const { code, state } = req.query as CallbackQuery
       const oauthProvider = providers[provider]
 
       if (oauthProvider == null) {
@@ -98,7 +99,7 @@ export function createStaffOAuthRouter(
 
       const codeToExchange = code
 
-      const handleCallback: FutureInstance<Error, void> = go(function* () {
+      const handleCallback = go(function* () {
         // Exchange the code for tokens
         const tokens: {
           accessToken(): string
@@ -107,7 +108,7 @@ export function createStaffOAuthRouter(
           accessTokenExpiresAt(): Date
         } = yield encaseP((verifier: string) =>
           oauthProvider.validateAuthorizationCode(codeToExchange, verifier)
-        )(storedVerifier)
+        )(storedVerifier).pipe(mapRej(asError))
 
         const accessToken = tokens.accessToken()
 
@@ -115,7 +116,7 @@ export function createStaffOAuthRouter(
         const userInfo: { sub: string; email: string; name: string } =
           yield encaseP((token: string) => oauthProvider.fetchUserInfo(token))(
             accessToken
-          )
+          ).pipe(mapRej(asError))
 
         const { email, name } = userInfo
 
@@ -127,33 +128,27 @@ export function createStaffOAuthRouter(
           return yield resolve(undefined as void)
         }
 
-        // Cast needed: account service uses bare FutureInstance (pre-existing tech debt)
-        const lookupOrCreate = (
-          accountService.getStaffUserByEmail(
-            email
-          ) as unknown as FutureInstance<Error, StaffUser>
-        ).pipe(
-          bichain<Error, Error, StaffUser>(error =>
-            isNotFound(error)
-              ? // First login — provision a new staff user
-                // OAuth users get no password; they can only log in via OAuth
-                (accountService.createStaffUser(
-                  name || email,
-                  email,
-                  ''
-                ) as unknown as FutureInstance<Error, StaffUser>)
-              : reject(error)
-          )(s => resolve(s))
-        )
+        const lookupOrCreate = accountService
+          .getStaffUserByEmail(email)
+          .pipe(
+            bichain((error: Error) =>
+              isNotFound(error)
+                ? // First login — provision a new staff user
+                  // OAuth users get no password; they can only log in via OAuth
+                  accountService.createStaffUser(name || email, email, '')
+                : reject(error)
+            )((staffUser: StaffUser) => resolve(staffUser))
+          )
+          .pipe(mapRej(asError))
         const staffUser = (yield lookupOrCreate) as StaffUser
 
         // Create a staff session and set the session cookie
-        yield req.createSession(staffUser)
+        yield req.createSession(staffUser).pipe(mapRej(asError))
 
         // Redirect to the admin app dashboard
         res.redirect(env.REPRO_ADMIN_URL)
         return yield resolve(undefined as void)
-      }) as FutureInstance<Error, void>
+      }).pipe(mapRej(asError))
 
       respondWith(res, handleCallback)
     })

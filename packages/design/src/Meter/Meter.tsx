@@ -74,7 +74,7 @@ export const Meter: React.FC<Props> = ({ min, max, value }) => {
       position="relative"
       width="100%"
       height={8}
-      backgroundColor={color.border.default}
+      backgroundColor={color.bg.muted}
       borderRadius={radius.sm}
       overflow="hidden"
       props={{ ref }}

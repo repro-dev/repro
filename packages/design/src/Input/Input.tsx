@@ -4,7 +4,7 @@ import React, { forwardRef, useRef } from 'react'
 import mergeRefs from 'react-merge-refs'
 import { useFormFieldContext } from '../FormField/FormFieldContext'
 import { color } from '../tokens/colors'
-import { radius } from '../tokens/elevation'
+import { radius, shadow } from '../tokens/elevation'
 import { formControlHeight } from '../tokens/formControl'
 import { focusWithinRing } from '../tokens/interaction'
 import { transition } from '../tokens/motion'
@@ -124,7 +124,7 @@ export const Input = forwardRef<
         borderRadius={radius.sm}
         borderStyle="solid"
         borderWidth={1}
-        boxShadow={`0 0.5px 1.5px ${color.border.strong}DA`}
+        boxShadow={shadow.xs}
         boxSizing="border-box"
         // Fixed height on single-line inputs; flex+center ensures the inner
         // <input> is vertically centered without relying on symmetric padding.

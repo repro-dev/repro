@@ -2,16 +2,17 @@ id: repro/tdl
 language: typescript
 layer: library
 tags:
-- type.package
+  - type.package
+  - role.util
 tasks:
   build:
     command: pnpm run build
     deps:
-    - ^:build
+      - ^:build
     inputs:
-    - file: src/cli/grammar.ohm
+      - file: src/cli/grammar.ohm
     outputs:
-    - src/cli/grammar.ohm-bundle.*
+      - src/cli/grammar.ohm-bundle.*
     options:
       cache: true
 toolchains:

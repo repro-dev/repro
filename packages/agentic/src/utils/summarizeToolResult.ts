@@ -31,6 +31,14 @@ export function summarizeToolResult(toolName: string, content: string): string {
     return "Completed";
   }
 
+  if (toolName === "getConsoleContext") {
+    const data = parsed as Record<string, unknown>;
+    if ("messages" in data && Array.isArray(data.messages)) {
+      return `Found ${data.messages.length} message(s)`;
+    }
+    return "Completed";
+  }
+
   if (toolName === "getNetworkRequests") {
     const data = parsed as Record<string, unknown>;
     if ("requests" in data && Array.isArray(data.requests)) {

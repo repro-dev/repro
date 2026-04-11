@@ -2,17 +2,18 @@ id: repro/domain
 language: typescript
 layer: library
 tags:
-- type.package
+  - type.package
+  - role.util
 tasks:
   build:
     command: pnpm run build
     deps:
-    - ^:build
+      - ^:build
     inputs:
-    - glob: src/**/*.tdls
-      cache: true
+      - glob: src/**/*.tdls
+        cache: true
     outputs:
-    - src/generated/**/*
+      - src/generated/**/*
     options:
       cache: true
 toolchains:

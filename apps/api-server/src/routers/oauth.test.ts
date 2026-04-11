@@ -18,6 +18,7 @@ describe('Routers > OAuth', () => {
     app = harness.bootstrap(
       createOAuthRouter(oauthService, harness.services.accountService)
     )
+    await app.ready()
   })
 
   beforeEach(async () => {
@@ -154,7 +155,7 @@ describe('Routers > OAuth', () => {
         method: 'GET',
         url: '/keys',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -179,7 +180,7 @@ describe('Routers > OAuth', () => {
         method: 'GET',
         url: '/keys',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -222,7 +223,7 @@ describe('Routers > OAuth', () => {
         url: '/revoke',
         body: { keyId: encodedKeyId },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -240,7 +241,7 @@ describe('Routers > OAuth', () => {
         url: '/revoke',
         body: { keyId: 'not-a-valid-sqids-id!!!' },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -272,7 +273,7 @@ describe('Routers > OAuth', () => {
           redirectUris: ['https://example.com/callback'],
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -298,7 +299,7 @@ describe('Routers > OAuth', () => {
           redirectUris: ['https://example.com/callback'],
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 

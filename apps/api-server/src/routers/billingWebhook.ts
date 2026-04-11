@@ -54,6 +54,18 @@ export function createBillingWebhookRouter(
                   record.data
                 )
 
+              case 'subscription.paused':
+                return billingWebhookService.handleSubscriptionPaused(
+                  record.eventId,
+                  record.data
+                )
+
+              case 'subscription.resumed':
+                return billingWebhookService.handleSubscriptionResumed(
+                  record.eventId,
+                  record.data
+                )
+
               case 'transaction.completed':
                 return billingWebhookService.handleTransactionCompleted(
                   record.eventId,

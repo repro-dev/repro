@@ -24,6 +24,18 @@ const booleanStringTransform = z.preprocess(val => {
   return undefined
 }, z.boolean())
 
+const positiveIntegerStringTransform = z.preprocess(val => {
+  if (typeof val === 'string') {
+    return parseInt(val, 10)
+  }
+
+  if (typeof val === 'number') {
+    return val
+  }
+
+  return undefined
+}, z.number().int().min(1))
+
 const envSchema = z.object({
   HOST: z.string().default('localhost'),
   PORT: numericStringTransform.default(8080),
@@ -43,6 +55,7 @@ const envSchema = z.object({
   SESSION_COOKIE: z.string().default('sessid'),
   SESSION_SOFT_EXPIRY: numericStringTransform.default(3600),
   SESSION_HARD_EXPIRY: numericStringTransform.default(28 * 24 * 3600),
+  SESSION_CLEANUP_INTERVAL: positiveIntegerStringTransform.default(3600),
   EMAIL_SMTP_HOST: z.string().default('localhost'),
   EMAIL_SMTP_PORT: numericStringTransform.default(587),
   EMAIL_SMTP_SECURE: booleanStringTransform.default(true),
@@ -68,6 +81,8 @@ const envSchema = z.object({
   RATE_LIMIT_AUTHENTICATED_RPM: numericStringTransform.default(600),
   RATE_LIMIT_UPLOAD_RPM: numericStringTransform.default(20),
   RATE_LIMIT_REDIS_URL: z.string().optional(),
+  AGENTIC_RATE_LIMIT_PER_HOUR: z.coerce.number().default(60),
+  AGENTIC_MAX_MESSAGES_PER_RECORDING: z.coerce.number().default(200),
 })
 
 export type Env = z.infer<typeof envSchema>
