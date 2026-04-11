@@ -52,6 +52,7 @@ const adminTheme: ThemeDefinition = {
       subtle: colors.slate['50'],
       hover: colors.slate['100'],
       muted: colors.slate['200'],
+      strong: colors.slate['300'],
       emphasis: colors.slate['800'],
       overlay: 'rgba(0,0,0,0.5)',
     },
