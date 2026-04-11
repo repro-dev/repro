@@ -1,12 +1,15 @@
 ---
-description: Lightspeed delivery — select a ready wave, plan it, implement it in parallel, review it, and publish PRs
+description: Lightspeed delivery — select a ready wave, plan it, implement it in parallel, publish PRs, and emit a minimal next-wave gate handoff when needed
 ---
 
 You are the orchestrator for a precision-first autonomous delivery flow. Scan Linear, select a small set of issues that are ready for autonomous work, sequence them provisionally, plan them, resequence once using planner output, implement the current ready wave in parallel, review each result, fix review findings when the agent can do so safely, and publish PRs.
 
-Stop after PRs for the current ready wave are published. Do not wait on CI, merges, or post-publish monitoring here — that follow-on behavior is handled separately.
+Stop after PRs for the current ready wave are published. If the immediate next queued wave is blocked by PRs from this run, write one minimal post-publish gate handoff under `tmp/` for the observe-only `/lightspeed-post-publish-gate` command; otherwise stop without any post-publish artifact.
 
-Arguments (optional): `$ARGUMENTS` — a project name or filter to restrict which issues are considered (for example `Engineering` or `Platform`). If empty, scan all projects.
+Arguments (optional): `$ARGUMENTS`
+
+- Default mode: a project name or filter to restrict which issues are considered (for example `Engineering` or `Platform`). If empty, scan all projects.
+- Continuation mode: `--continue-from <absolute-handoff-path>` — continue only the immediate next queued wave recorded in a `/lightspeed` post-publish handoff artifact.
 
 Current branch context:
 !`git branch --show-current`
@@ -26,26 +29,51 @@ Session-local exclusions:
 ## Operating principles
 
 - Keep orchestration light. Do not recreate a long-lived control plane.
-- Plan files are the only required durable handoff artifact in this flow: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
+- Plan files are the required implementation handoff artifact in this flow: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
+- Post-publish handoff is narrowly scoped: write at most one `tmp/lightspeed-post-publish-gate-<UTC timestamp>.json` artifact, and only for the immediate next queued wave if that wave is actually blocked by PRs opened in the current run.
 - Use issue selection notes plus explicit risk notes as the handoff from selection into sequencing.
 - Sequencing is provisional until planning finishes. Resequence once after planner output is available, then lock the ready wave.
+- `--continue-from` is the only supported continuation seam. It must revalidate the listed blocking PRs and must refuse to start the next wave until all of them are merged.
 - Tactical implementation deviations are allowed if they preserve the plan's intent. Large strategic deviations mean planning failed — stop and escalate the issue instead of freelancing.
 - Use `fixable_by_agent: true | false` for blocking review findings.
 - Do not run a skill-audit preflight, do not maintain a run log, and do not run a visual regression phase here.
 
 > Tip: Run `/enrich-issues` before `/lightspeed` if the backlog contains issues that look promising but under-specified.
 
+## Mode selection
+
+Parse `$ARGUMENTS` before Phase 1.
+
+### Default mode
+
+- No `--continue-from` flag is present.
+- Run Phases 1–8 below.
+
+### Continuation mode (`--continue-from <absolute-handoff-path>`)
+
+When `--continue-from` is present:
+
+1. Read the JSON handoff artifact from the provided absolute path.
+2. Confirm the path is under the current checkout's `tmp/` directory.
+3. Confirm the artifact contains exactly one immediate `nextQueuedWave` and a `blockingPrs` list.
+4. Revalidate every listed blocking PR using `gh pr view` and `gh pr checks`.
+5. If any listed blocking PR is still open, draft, unmergeable, or otherwise not merged, stop and report the remaining blockers. Do **not** start the next wave.
+6. If all listed blocking PRs are merged, treat `nextQueuedWave.issueIds` as the locked current ready wave, skip Phases 1–2, and continue from Phase 3 for that wave only.
+7. In this mode, do not rescan Linear for unrelated issues and do not discover or start any wave other than the one named in the artifact.
+
 ---
 
 ## Phase 1: Scan and select
 
 1. Fetch Linear issues in **Todo** and **Backlog** across all projects (or filtered by `$ARGUMENTS` if provided):
+
    - Use `Linear_list_issues` with `state: "Todo"` and then `state: "Backlog"`.
    - For each issue, call `Linear_get_issue` with `includeRelations: true`.
 
 2. Apply a precision-first selection bar.
 
    **Hard excludes:**
+
    - Has any `blockedBy` relation that is not yet Done
    - State is already **In Progress** or **In Review**
    - Already has an active worktree (`reproctl wt list`)
@@ -54,6 +82,7 @@ Session-local exclusions:
    - The issue does not give the planner enough concrete information to produce a bounded implementation plan without asking for human clarification
 
    **Supporting signals (use as evidence, not fake-precise hard gates):**
+
    - Clear user or developer outcome
    - Concrete acceptance criteria or other verifiable success conditions
    - Named packages, files, components, APIs, or workflows
@@ -61,6 +90,7 @@ Session-local exclusions:
    - Useful risk notes or dependency notes already present in the issue
 
 3. Produce a candidate table before proceeding. For each issue, show:
+
    - Issue ID
    - Title
    - Priority
@@ -275,7 +305,7 @@ Do **not** paste full AI review output back into Linear comments. Use Linear com
 
 ---
 
-## Phase 8: Publish the current ready wave and stop
+## Phase 8: Publish the current ready wave, emit the immediate next-wave gate handoff if needed, and stop
 
 For each publishable issue:
 
@@ -294,6 +324,7 @@ For each publishable issue:
    Use this same guard for the initial publish path and any future re-push path.
 
    If the rebase conflicts:
+
    - Capture the conflicting files
    - Run `git -C <worktree-path> rebase --abort`
    - Post a structured, concise Linear comment summarizing the conflict
@@ -306,6 +337,7 @@ For each publishable issue:
 2. Push with the same lightweight retry posture used for worktree creation: retry transient failures up to 3 times; escalate permanent failures immediately.
 
 3. Create the PR. The body should help a human reviewer quickly understand the change. Include:
+
    - `Closes REP-xxx`
    - A short summary of the change
    - Verification performed
@@ -317,12 +349,70 @@ For each publishable issue:
 
 After all publishable issues in the current ready wave have been handled:
 
+5. Look at the **immediate next queued wave only**.
+
+   - If there is no later queued wave, stop — no handoff artifact is needed.
+   - If there is a later queued wave, inspect only that next wave's `blockedBy` relations.
+   - Build the blocking PR set by intersecting those `blockedBy` issue IDs with the issues that successfully opened PRs in this run.
+   - Ignore later-than-immediate waves entirely.
+
+6. If the immediate next queued wave is blocked by one or more PRs from this run, write a single JSON artifact at:
+
+   ```
+   <checkout>/tmp/lightspeed-post-publish-gate-<UTC timestamp>.json
+   ```
+
+   The artifact must stay minimal and include only:
+
+   ```json
+   {
+     "schemaVersion": 1,
+     "createdAt": "<ISO-8601>",
+     "sourceBranch": "<current branch>",
+     "nextQueuedWave": {
+       "waveIndex": <number>,
+       "issueIds": ["REP-123", "REP-124"]
+     },
+     "blockingPrs": [
+       {
+         "issueId": "REP-122",
+         "prNumber": 456,
+         "prUrl": "https://github.com/.../pull/456",
+         "headRefName": "gary/rep-122-example",
+         "blocks": ["REP-123"],
+         "latestObserved": {
+           "observedAt": "<ISO-8601>",
+           "prState": "OPEN",
+           "merged": false,
+           "mergeStateStatus": "UNKNOWN",
+           "checksSummary": "pending"
+         }
+       }
+     ],
+     "gate": {
+       "status": "waiting",
+       "lastObservedAt": "<ISO-8601>",
+       "continueCommand": "/lightspeed --continue-from <absolute-artifact-path>"
+     }
+   }
+   ```
+
+   Notes:
+
+   - `blockingPrs` must include only PRs that block the immediate next queued wave.
+   - `latestObserved` is status metadata for the follow-on gate command, not a durable control plane.
+   - Do not include later queued waves, phase logs, per-PR history, retry counters, or resume state.
+
+7. If the immediate next queued wave is **not** blocked by PRs from this run, do not write any handoff artifact.
+
 - Report opened PR URLs
+- Report the handoff artifact path when one was written
+- Report the exact `/lightspeed-post-publish-gate <absolute-artifact-path>` command when one was written
 - Report escalated issues and why
 - Report any later queued waves that were identified but intentionally not started
 - Stop
 
-Post-publish waiting, CI monitoring, merge handling, and automatic continuation belong to follow-on work, not this command.
+Post-publish waiting and PR observation belong to `/lightspeed-post-publish-gate`, not this command. The only continuation path from here is the narrow `/lightspeed --continue-from <handoff>` seam described above.
 
 ---
 
