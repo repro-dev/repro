@@ -25,8 +25,8 @@ type CallRecord = { url: string; options: FetchOptions }
 // Minimal stub ApiClient that records calls and returns a configurable response
 function createStubApiClient(
   responseFactory: (url: string, options?: { body?: string }) => unknown
-): ApiClient & { calls: Array } {
-  const calls: Array = []
+): ApiClient & { calls: Array<CallRecord> } {
+  const calls: Array<CallRecord> = []
 
   return {
     calls,
@@ -34,13 +34,13 @@ function createStubApiClient(
     fetch<R = unknown>(
       url: string,
       options: FetchOptions = {}
-    ): FutureInstance {
+    ): FutureInstance<Error, R> {
       calls.push({ url, options })
       const body = options.body != null ? String(options.body) : undefined
       return resolve(responseFactory(url, { body }) as R)
     },
     debug: () => () => undefined,
-    wrapP<R>(_method: FutureInstance): Promise {
+    wrapP<R>(_method: FutureInstance<unknown, R>): Promise<R> {
       return Promise.resolve(undefined as unknown as R)
     },
   }
@@ -204,16 +204,16 @@ describe('workspace-api: queries', () => {
       const apiError = { status: 401 }
       const client: ApiClient = {
         authStore: {} as never,
-        fetch(): FutureInstance {
+        fetch<R = unknown>(): FutureInstance<Error, R> {
           return futureReject(apiError as unknown as Error)
         },
         debug: () => () => undefined,
-        wrapP<R>(_method: FutureInstance): Promise {
+        wrapP<R>(_method: FutureInstance<unknown, R>): Promise<R> {
           return Promise.resolve(undefined as unknown as R)
         },
       }
 
-      await new Promise((resolveP, rejectP) => {
+      await new Promise<void>((resolveP, rejectP) => {
         getProjects(client).pipe(
           fork(err => {
             assert.deepEqual(err, apiError)

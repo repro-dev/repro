@@ -1,7 +1,8 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { Project } from '@repro/domain'
+import { getProjects as defaultGetProjects } from '@repro/workspace-api'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { FutureInstance, reject, resolve } from 'fluture'
+import { reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import React from 'react'
@@ -13,7 +14,7 @@ import {
 
 // In-memory localStorage substitute
 const localStorageMock = (() => {
-  let store: Record = {}
+  let store: Record<string, string> = {}
   return {
     getItem: (key: string) => store[key] ?? null,
     setItem: (key: string, value: string) => {
@@ -30,7 +31,7 @@ const localStorageMock = (() => {
 
 const STORAGE_KEY = 'repro:selectedProjectId'
 
-const mockProjects: Array = [
+const mockProjects: Project[] = [
   { id: 'project-1', name: 'Alpha' },
   { id: 'project-2', name: 'Beta' },
   { id: 'project-3', name: 'Gamma' },
@@ -43,7 +44,7 @@ const apiClient = createApiClient({
   authStorage: 'memory',
 })
 
-type GetProjectsFn = (client: typeof apiClient) => FutureInstance
+type GetProjectsFn = typeof defaultGetProjects
 
 function makeWrapper(getProjects: GetProjectsFn) {
   return function Wrapper({ children }: { children: React.ReactNode }) {

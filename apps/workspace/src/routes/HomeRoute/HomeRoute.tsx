@@ -15,7 +15,7 @@ const CHROME_WEB_STORE_URL =
   'https://chrome.google.com/webstore/detail/repro/ecmbphfjfhnifmhbjhpejbpdnpanpice'
 
 // An immediately-resolved empty list, typed to match getProjectRecordings.
-const emptyRecordings: FutureInstance<Error, Array<RecordingInfo>> = resolve([])
+const emptyRecordings: FutureInstance<unknown, RecordingInfo[]> = resolve([])
 
 export const HomeRoute: React.FC = () => {
   const apiClient = useApiClient()
@@ -24,7 +24,10 @@ export const HomeRoute: React.FC = () => {
   const projectId = selectedProject?.id ?? null
 
   // Re-fetch whenever the selected project changes.
-  const { loading, data: recordings } = useFuture(() => {
+  const { loading, data: recordings } = useFuture<
+    unknown,
+    RecordingInfo[]
+  >(() => {
     if (!projectId) {
       // No project selected — resolve immediately with an empty list so the
       // empty state renders rather than hanging in a loading state.
@@ -33,7 +36,7 @@ export const HomeRoute: React.FC = () => {
     return getProjectRecordings(apiClient, projectId)
   }, [apiClient, projectId])
 
-  const items = recordings ?? []
+  const items: RecordingInfo[] = recordings ?? []
 
   if (loading) {
     return (

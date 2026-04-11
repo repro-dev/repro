@@ -18,7 +18,7 @@ import { ProjectSwitcher } from './ProjectSwitcher'
 afterEach(cleanup)
 
 const localStorageMock = (() => {
-  let store: Record = {}
+  let store: Record<string, string> = {}
 
   return {
     getItem: (key: string) => store[key] ?? null,
@@ -45,7 +45,7 @@ const apiClient = createApiClient({
   authStorage: 'memory',
 })
 
-const projects: Array = [
+const projects = [
   { id: 'project-1', name: 'Alpha' },
   { id: 'project-2', name: 'Beta' },
 ]

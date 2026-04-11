@@ -15,30 +15,30 @@ import React, {
 const STORAGE_KEY = 'repro:selectedProjectId'
 
 interface ProjectContextValue {
-  projects: Array
+  projects: Project[]
   selectedProject: Project | null
   loading: boolean
   selectProject: (projectId: string) => void
   addProject: (project: Project) => void
 }
 
-const ProjectContext = createContext({
+const ProjectContext = createContext<ProjectContextValue>({
   projects: [],
   selectedProject: null,
   loading: true,
-  selectProject: () => void 0,
-  addProject: () => void 0,
+  selectProject: (_projectId: string) => void 0,
+  addProject: (_project: Project) => void 0,
 })
 
 interface ProjectProviderProps extends React.PropsWithChildren {
   // Injectable for testing; defaults to the real workspace-api function.
-  getProjects?: (apiClient: ApiClient) => FutureInstance
+  getProjects?: (apiClient: ApiClient) => FutureInstance<unknown, Project[]>
 }
 
 export function mergeProjects(
-  fetchedProjects: Array,
-  localProjects: Array
-): Array {
+  fetchedProjects: Project[],
+  localProjects: Project[]
+): Project[] {
   const merged = [...fetchedProjects]
   const seen = new Set(fetchedProjects.map(project => project.id))
 
@@ -54,24 +54,24 @@ export function mergeProjects(
   return merged
 }
 
-export const ProjectProvider: React.FC = ({
+export const ProjectProvider = ({
   children,
   getProjects = defaultGetProjects,
-}) => {
+}: ProjectProviderProps) => {
   const apiClient = useApiClient()
-  const result = useFuture(
+  const result = useFuture<unknown, Project[]>(
     () => getProjects(apiClient),
     [apiClient, getProjects]
   )
 
-  const [selectedProjectId, setSelectedProjectId] = useState(() =>
-    localStorage.getItem(STORAGE_KEY)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    () => localStorage.getItem(STORAGE_KEY)
   )
 
   // Projects added locally (e.g. just created) before the next fetch.
-  const [localProjects, setLocalProjects] = useState([])
+  const [localProjects, setLocalProjects] = useState<Project[]>([])
 
-  const fetchedProjects: Array = result.success ? result.data : []
+  const fetchedProjects: Project[] = result.success ? result.data : []
 
   const projects = useMemo(
     () => mergeProjects(fetchedProjects, localProjects),
@@ -86,7 +86,7 @@ export const ProjectProvider: React.FC = ({
     }
 
     if (selectedProjectId) {
-      const match = projects.find(p => p.id === selectedProjectId)
+      const match = projects.find(project => project.id === selectedProjectId)
       if (match) {
         return match
       }
@@ -111,7 +111,7 @@ export const ProjectProvider: React.FC = ({
   const addProject = useCallback((project: Project) => {
     setLocalProjects(prev => {
       // Deduplicate: skip if this id is already present.
-      if (prev.some(p => p.id === project.id)) {
+      if (prev.some(existingProject => existingProject.id === project.id)) {
         return prev
       }
       return [...prev, project]
@@ -120,7 +120,7 @@ export const ProjectProvider: React.FC = ({
     localStorage.setItem(STORAGE_KEY, project.id)
   }, [])
 
-  const value = useMemo(
+  const value = useMemo<ProjectContextValue>(
     () => ({
       projects,
       selectedProject,

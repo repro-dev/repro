@@ -21,23 +21,23 @@ export interface CreateProjectDialogProps {
 
 const MAX_NAME_LENGTH = 100
 
-export const CreateProjectDialog: React.FC = ({
+export const CreateProjectDialog = ({
   open,
   onClose,
   createProjectFn = defaultCreateProject,
   addProjectFn,
   navigateFn,
-}) => {
+}: CreateProjectDialogProps) => {
   const apiClient = useApiClient()
   const { addProject } = useProjectContext()
   const navigate = useNavigate()
 
   const [name, setName] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
 
   // Cancel ref holds the fluture Cancel function so we can cancel on unmount.
-  const cancelRef = useRef(null)
+  const cancelRef = useRef<(() => void) | null>(null)
   const submittingRef = useRef(false)
 
   // Reset form when dialog opens

@@ -8,7 +8,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { FutureInstance, never, reject, resolve } from 'fluture'
+import { never, reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
@@ -19,7 +19,7 @@ import { CreateProjectDialog } from './CreateProjectDialog'
 afterEach(cleanup)
 
 const localStorageMock = (() => {
-  let store: Record = {}
+  let store: Record<string, string> = {}
 
   return {
     getItem: (key: string) => store[key] ?? null,
@@ -157,7 +157,7 @@ describe('CreateProjectDialog', () => {
     })
 
     it('does not call createProject when submit is triggered twice before rerender', async () => {
-      const createProjectMock = mock.fn((): FutureInstance => never)
+      const createProjectMock = mock.fn(() => never)
 
       render(
         <MemoryRouter>
@@ -299,7 +299,7 @@ describe('CreateProjectDialog', () => {
 
     it('disables buttons while submitting', async () => {
       // Use fluture's `never` to simulate an in-flight request that never settles
-      const createProjectMock = mock.fn((): FutureInstance => never)
+      const createProjectMock = mock.fn(() => never)
 
       render(
         <MemoryRouter>
