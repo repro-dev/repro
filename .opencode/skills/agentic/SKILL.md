@@ -413,64 +413,24 @@ Runs the full critique pipeline after evals:
 
 ## Key Files Quick Reference
 
-| File                                              | Key exports                                                                                                                |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `packages/agentic/src/createState.ts`             | `createAgenticState`, `executeToolCalls`, `buildToolMessageContent`, `MAX_TOOL_ITERATIONS`, `accumulateToolCalls`          |
-| `packages/agentic/src/types.ts`                   | All shared types: `Entry`, `Context`, `AgenticState`, `StreamProvider`, `RecordingDataAccessor`, `ContentBlock`, `Loading` |
-| `packages/agentic/src/index.ts`                   | Public barrel — everything exported from the package                                                                       |
-| `packages/agentic/src/model/system.ts`            | `EXTENSION_SYSTEM_CARD_MESSAGE`, `WORKSPACE_SYSTEM_CARD_MESSAGE`, `SYSTEM_CARD_MESSAGE`                                    |
-| `packages/agentic/src/model/context-window.ts`    | `computeContextBudget`, `truncateToContextBudget`                                                                          |
-| `packages/agentic/src/model/tools/index.ts`       | `tools`, `extensionTools`, `executeTool`                                                                                   |
-| `packages/agentic/src/model/tools/common.ts`      | `ToolHandler` type, `createError()`, event type guards                                                                     |
-| `packages/agentic/src/recordingDataAccessor.ts`   | `makeAccessorFromEventList`, `EventList`                                                                                   |
-| `packages/agentic/src/utils/groupToolCalls.ts`    | `groupToolCalls`, `RenderItem` types                                                                                       |
-| `packages/agentic/src/eval/index.ts`              | CLI entry point, fixture lists, `buildPromptGroups`                                                                        |
-| `packages/agentic/src/eval/runner.ts`             | `runEval`, `runSingle`, `EvalFixture`, `EvalResult`                                                                        |
-| `packages/agentic/src/eval/regressions.ts`        | `findRegressions`, regression thresholds                                                                                   |
-| `packages/agentic/src/eval/streamProvider.ts`     | `createOpenRouterStreamProvider` (direct OpenRouter, bypasses API server)                                                  |
-| `packages/agentic-ui/src/context.tsx`             | `AgenticStateContext`, `useAgenticState`                                                                                   |
-| `packages/agentic-ui/src/utils/groupToolCalls.ts` | (re-exported from `@repro/agentic`)                                                                                        |
-| `packages/domain/src/model-configs.ts`            | `AGENTIC_DEFAULT_MODEL`, `EVAL_JUDGE_MODEL`, `EVAL_REASONING_MODEL`, `MODEL_CONFIGS`, `getModelConfig`                     |
-| `apps/api-server/src/routers/agentic.ts`          | `POST /agentic/response`, `POST /agentic/feedback`                                                                         |
-| `apps/api-server/src/services/agentic.ts`         | `createAgenticService`, `getStreamingResponse`, `recordFeedback`                                                           |
-| `apps/capture/.../Agentic.hoc.tsx`                | Extension wiring: `StreamProvider`, `RecordingDataAccessor`, `extensionTools`                                              |
-| `packages/agentic/src/model/context-window.ts`    | `computeContextBudget`, `truncateToContextBudget`                                                                          |
-| `packages/agentic/src/model/tools/index.ts`       | `tools`, `extensionTools`, `executeTool`                                                                                   |
-| `packages/agentic/src/model/tools/common.ts`      | `ToolHandler` type, `createError()`, event type guards                                                                     |
-| `packages/agentic/src/recordingDataAccessor.ts`   | `makeAccessorFromEventList`, `EventList`                                                                                   |
-| `packages/agentic/src/utils/groupToolCalls.ts`    | `groupToolCalls`, `RenderItem` types                                                                                       |
-| `packages/agentic/src/eval/index.ts`              | CLI entry point, fixture lists, `buildPromptGroups`                                                                        |
-| `packages/agentic/src/eval/runner.ts`             | `runEval`, `runSingle`, `EvalFixture`, `EvalResult`                                                                        |
-| `packages/agentic/src/eval/regressions.ts`        | `findRegressions`, regression thresholds                                                                                   |
-| `packages/agentic/src/eval/streamProvider.ts`     | `createOpenRouterStreamProvider` (direct OpenRouter, bypasses API server)                                                  |
-| `packages/agentic-ui/src/context.tsx`             | `AgenticStateContext`, `useAgenticState`                                                                                   |
-| `packages/agentic-ui/src/utils/groupToolCalls.ts` | (re-exported from `@repro/agentic`)                                                                                        |
-| `packages/domain/src/model-configs.ts`            | `AGENTIC_DEFAULT_MODEL`, `EVAL_JUDGE_MODEL`, `EVAL_REASONING_MODEL`, `MODEL_CONFIGS`, `getModelConfig`                     |
-| `apps/api-server/src/routers/agentic.ts`          | `POST /agentic/response`, `POST /agentic/feedback`                                                                         |
-| `apps/api-server/src/services/agentic.ts`         | `createAgenticService`, `getStreamingResponse`, `recordFeedback`                                                           |
-| `apps/capture/.../Agentic.hoc.tsx`                | Extension wiring: `StreamProvider`, `RecordingDataAccessor`, `extensionTools`                                              |
-
-=======
-| File | Key exports |
+| File                                                 | Key exports                                                                                                                |
 | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `packages/agentic/src/createState.ts` | `createAgenticState`, `executeToolCalls`, `buildToolMessageContent`, `MAX_TOOL_ITERATIONS`, `accumulateToolCalls` |
-| `packages/agentic/src/types.ts` | All shared types: `Entry`, `Context`, `AgenticState`, `StreamProvider`, `RecordingDataAccessor`, `ContentBlock`, `Loading` |
-| `packages/agentic/src/index.ts` | Public barrel — everything exported from the package |
-| `packages/agentic/src/model/system.ts` | `EXTENSION_SYSTEM_CARD_MESSAGE`, `WORKSPACE_SYSTEM_CARD_MESSAGE`, `SYSTEM_CARD_MESSAGE` |
-| `packages/agentic/src/model/context-window.ts` | `computeContextBudget`, `truncateToContextBudget` |
-| `packages/agentic/src/model/tools/index.ts` | `tools`, `extensionTools`, `executeTool` |
-| `packages/agentic/src/model/tools/common.ts` | `ToolHandler` type, `createError()`, event type guards |
-| `packages/agentic/src/recordingDataAccessor.ts` | `makeAccessorFromEventList`, `EventList` |
-| `packages/agentic/src/utils/groupToolCalls.ts` | `groupToolCalls`, `RenderItem` types |
-| `packages/agentic/src/eval/index.ts` | CLI entry point, fixture lists, `buildPromptGroups` |
-| `packages/agentic/src/eval/runner.ts` | `runEval`, `runSingle`, `EvalFixture`, `EvalResult` |
-| `packages/agentic/src/eval/regressions.ts` | `findRegressions`, regression thresholds |
-| `packages/agentic/src/eval/streamProvider.ts` | `createOpenRouterStreamProvider` (direct OpenRouter, bypasses API server) |
-| `packages/agentic-ui/src/context.tsx` | `AgenticStateContext`, `useAgenticState` |
-| `packages/agentic-ui/src/components/MessageList.tsx` | Imports and uses `groupToolCalls` directly from `@repro/agentic` |
-| `packages/domain/src/model-configs.ts` | `AGENTIC_DEFAULT_MODEL`, `EVAL_JUDGE_MODEL`, `EVAL_REASONING_MODEL`, `MODEL_CONFIGS`, `getModelConfig` |
-| `apps/api-server/src/routers/agentic.ts` | `POST /agentic/response`, `POST /agentic/feedback` |
-| `apps/api-server/src/services/agentic.ts` | `createAgenticService`, `getStreamingResponse`, `recordFeedback` |
-| `apps/capture/.../Agentic.hoc.tsx` | Extension wiring: `StreamProvider`, `RecordingDataAccessor`, `extensionTools` |
-
-> > > > > > > origin/main
+| `packages/agentic/src/createState.ts`                | `createAgenticState`, `executeToolCalls`, `buildToolMessageContent`, `MAX_TOOL_ITERATIONS`, `accumulateToolCalls`          |
+| `packages/agentic/src/types.ts`                      | All shared types: `Entry`, `Context`, `AgenticState`, `StreamProvider`, `RecordingDataAccessor`, `ContentBlock`, `Loading` |
+| `packages/agentic/src/index.ts`                      | Public barrel — everything exported from the package                                                                       |
+| `packages/agentic/src/model/system.ts`               | `EXTENSION_SYSTEM_CARD_MESSAGE`, `WORKSPACE_SYSTEM_CARD_MESSAGE`, `SYSTEM_CARD_MESSAGE`                                    |
+| `packages/agentic/src/model/context-window.ts`       | `computeContextBudget`, `truncateToContextBudget`                                                                          |
+| `packages/agentic/src/model/tools/index.ts`          | `tools`, `extensionTools`, `executeTool`                                                                                   |
+| `packages/agentic/src/model/tools/common.ts`         | `ToolHandler` type, `createError()`, event type guards                                                                     |
+| `packages/agentic/src/recordingDataAccessor.ts`      | `makeAccessorFromEventList`, `EventList`                                                                                   |
+| `packages/agentic/src/utils/groupToolCalls.ts`       | `groupToolCalls`, `RenderItem` types                                                                                       |
+| `packages/agentic/src/eval/index.ts`                 | CLI entry point, fixture lists, `buildPromptGroups`                                                                        |
+| `packages/agentic/src/eval/runner.ts`                | `runEval`, `runSingle`, `EvalFixture`, `EvalResult`                                                                        |
+| `packages/agentic/src/eval/regressions.ts`           | `findRegressions`, regression thresholds                                                                                   |
+| `packages/agentic/src/eval/streamProvider.ts`        | `createOpenRouterStreamProvider` (direct OpenRouter, bypasses API server)                                                  |
+| `packages/agentic-ui/src/context.tsx`                | `AgenticStateContext`, `useAgenticState`                                                                                   |
+| `packages/agentic-ui/src/components/MessageList.tsx` | Imports and uses `groupToolCalls` directly from `@repro/agentic`                                                           |
+| `packages/domain/src/model-configs.ts`               | `AGENTIC_DEFAULT_MODEL`, `EVAL_JUDGE_MODEL`, `EVAL_REASONING_MODEL`, `MODEL_CONFIGS`, `getModelConfig`                     |
+| `apps/api-server/src/routers/agentic.ts`             | `POST /agentic/response`, `POST /agentic/feedback`                                                                         |
+| `apps/api-server/src/services/agentic.ts`            | `createAgenticService`, `getStreamingResponse`, `recordFeedback`                                                           |
+| `apps/capture/.../Agentic.hoc.tsx`                   | Extension wiring: `StreamProvider`, `RecordingDataAccessor`, `extensionTools`                                              |

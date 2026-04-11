@@ -1,23 +1,18 @@
-import { ApiClient } from '@repro/api-client'
-import { ListResponse, Project, RecordingInfo } from '@repro/domain'
+import type { ApiClient } from '@repro/api-client'
 import { map } from 'fluture'
-import { ProjectMember } from './types'
 
 export function getProjects(apiClient: ApiClient) {
-  return apiClient
-    .fetch<ListResponse<Project>>('/projects')
-    .pipe(map(res => res.items))
+  return apiClient.fetch('/projects').pipe(map(res => res.items))
 }
 
 export function getProject(apiClient: ApiClient, projectId: string) {
-  return apiClient.fetch<Project>(`/projects/${projectId}`)
+  return apiClient.fetch(`/projects/${projectId}`)
 }
 
 export function createProject(apiClient: ApiClient, name: string) {
-  return apiClient.fetch<Project>('/projects', {
+  return apiClient.fetch('/projects', {
     method: 'post',
     body: JSON.stringify({ name }),
-    headers: { 'content-type': 'application/json' },
   })
 }
 
@@ -26,7 +21,7 @@ export function renameProject(
   projectId: string,
   name: string
 ) {
-  return apiClient.fetch<Project>(`/projects/${projectId}/name`, {
+  return apiClient.fetch(`/projects/${projectId}/name`, {
     method: 'put',
     body: JSON.stringify({ name }),
     headers: { 'content-type': 'application/json' },
@@ -34,7 +29,7 @@ export function renameProject(
 }
 
 export function deactivateProject(apiClient: ApiClient, projectId: string) {
-  return apiClient.fetch<void>(`/projects/${projectId}/active`, {
+  return apiClient.fetch(`/projects/${projectId}/active`, {
     method: 'put',
     body: JSON.stringify({ active: false }),
     headers: { 'content-type': 'application/json' },
@@ -43,12 +38,12 @@ export function deactivateProject(apiClient: ApiClient, projectId: string) {
 
 export function getProjectRecordings(apiClient: ApiClient, projectId: string) {
   return apiClient
-    .fetch<ListResponse<RecordingInfo>>(`/projects/${projectId}/recordings`)
+    .fetch(`/projects/${projectId}/recordings`)
     .pipe(map(res => res.items))
 }
 
 export function getProjectMembers(apiClient: ApiClient, projectId: string) {
   return apiClient
-    .fetch<ListResponse<ProjectMember>>(`/projects/${projectId}/members`)
+    .fetch(`/projects/${projectId}/members`)
     .pipe(map(res => res.items))
 }

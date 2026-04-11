@@ -119,6 +119,12 @@ describe('workspace-api: queries', () => {
       const body = stub.calls[0]?.options.body as string
       assert.deepEqual(JSON.parse(body), { name: 'My Project' })
     })
+
+    it('relies on api-client for JSON content-type header', async () => {
+      const stub = createStubApiClient(() => fakeProject)
+      await promise(createProject(stub, 'My Project'))
+      assert.equal(stub.calls[0]?.options.headers, undefined)
+    })
   })
 
   describe('renameProject', () => {
@@ -198,7 +204,7 @@ describe('workspace-api: queries', () => {
       const apiError = { status: 401 }
       const client: ApiClient = {
         authStore: {} as never,
-        fetch(): FutureInstance<Error, never> {
+        fetch<R = unknown>(): FutureInstance<Error, R> {
           return futureReject(apiError as unknown as Error)
         },
         debug: () => () => undefined,
@@ -209,10 +215,10 @@ describe('workspace-api: queries', () => {
 
       await new Promise<void>((resolveP, rejectP) => {
         getProjects(client).pipe(
-          fork<unknown>(err => {
+          fork(err => {
             assert.deepEqual(err, apiError)
             resolveP()
-          })<Project[]>(() => {
+          })(() => {
             rejectP(new Error('Expected rejection, got resolution'))
           })
         )

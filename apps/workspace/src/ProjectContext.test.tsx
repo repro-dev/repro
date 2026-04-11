@@ -1,11 +1,16 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { Project } from '@repro/domain'
+import { getProjects as defaultGetProjects } from '@repro/workspace-api'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { FutureInstance, reject, resolve } from 'fluture'
+import { reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import React from 'react'
-import { ProjectProvider, useProjectContext } from './ProjectContext'
+import {
+  mergeProjects,
+  ProjectProvider,
+  useProjectContext,
+} from './ProjectContext'
 
 // In-memory localStorage substitute
 const localStorageMock = (() => {
@@ -26,7 +31,7 @@ const localStorageMock = (() => {
 
 const STORAGE_KEY = 'repro:selectedProjectId'
 
-const mockProjects: Array<Project> = [
+const mockProjects: Project[] = [
   { id: 'project-1', name: 'Alpha' },
   { id: 'project-2', name: 'Beta' },
   { id: 'project-3', name: 'Gamma' },
@@ -39,9 +44,7 @@ const apiClient = createApiClient({
   authStorage: 'memory',
 })
 
-type GetProjectsFn = (
-  client: typeof apiClient
-) => FutureInstance<Error, Array<Project>>
+type GetProjectsFn = typeof defaultGetProjects
 
 function makeWrapper(getProjects: GetProjectsFn) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
@@ -65,6 +68,17 @@ describe('ProjectContext', () => {
 
   afterEach(() => {
     // nothing to restore — no mock.method used
+  })
+
+  describe('mergeProjects', () => {
+    it('should deduplicate duplicate local projects while keeping fetched projects first', () => {
+      const localProject: Project = { id: 'project-new', name: 'New Project' }
+
+      assert.deepEqual(
+        mergeProjects(mockProjects, [localProject, localProject]),
+        [...mockProjects, localProject]
+      )
+    })
   })
 
   describe('when projects load successfully', () => {
@@ -198,6 +212,67 @@ describe('ProjectContext', () => {
       })
 
       assert.deepEqual(result.current.projects, mockProjects)
+    })
+  })
+
+  describe('addProject', () => {
+    it('should append new project to list and select it', async () => {
+      const wrapper = makeWrapper(() => resolve(mockProjects))
+      const { result } = renderHook(() => useProjectContext(), { wrapper })
+
+      await waitFor(() => {
+        assert.equal(result.current.loading, false)
+      })
+
+      const newProject: Project = { id: 'project-new', name: 'New Project' }
+
+      act(() => {
+        result.current.addProject(newProject)
+      })
+
+      assert.ok(
+        result.current.projects.some((p: Project) => p.id === 'project-new'),
+        'new project should be in the list'
+      )
+      assert.equal(result.current.selectedProject?.id, 'project-new')
+    })
+
+    it('should persist new project selection to localStorage', async () => {
+      const wrapper = makeWrapper(() => resolve(mockProjects))
+      const { result } = renderHook(() => useProjectContext(), { wrapper })
+
+      await waitFor(() => {
+        assert.equal(result.current.loading, false)
+      })
+
+      const newProject: Project = { id: 'project-new', name: 'New Project' }
+
+      act(() => {
+        result.current.addProject(newProject)
+      })
+
+      assert.equal(localStorageMock.getItem(STORAGE_KEY), 'project-new')
+    })
+
+    it('should not add duplicate project when addProject is called twice with the same id', async () => {
+      const wrapper = makeWrapper(() => resolve(mockProjects))
+      const { result } = renderHook(() => useProjectContext(), { wrapper })
+
+      await waitFor(() => {
+        assert.equal(result.current.loading, false)
+      })
+
+      const newProject: Project = { id: 'project-new', name: 'New Project' }
+
+      act(() => {
+        result.current.addProject(newProject)
+        result.current.addProject(newProject)
+      })
+
+      const count = result.current.projects.filter(
+        (p: Project) => p.id === 'project-new'
+      ).length
+      assert.equal(count, 1, 'project should appear exactly once')
     })
   })
 })
