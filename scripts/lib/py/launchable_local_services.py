@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""List local services that have a port field (i.e. are launchable).
+"""List local services that are explicitly launchable.
 
 Prints one service name per line to stdout.
 Exits 0 always (empty output if no launchable local services).
@@ -8,8 +8,9 @@ Usage:
   launchable_local_services.py <services-json-path>
 """
 
-import json
 import sys
+
+from service_manifest import list_launchable_service_names
 
 
 def main():
@@ -17,12 +18,8 @@ def main():
         print("Usage: launchable_local_services.py <services.json>", file=sys.stderr)
         sys.exit(1)
 
-    with open(sys.argv[1]) as f:
-        services = json.load(f)
-
-    for name, entry in sorted(services.items()):
-        if entry.get("type") == "local" and "port" in entry:
-            print(name)
+    for name in list_launchable_service_names(sys.argv[1]):
+        print(name)
 
 
 if __name__ == "__main__":

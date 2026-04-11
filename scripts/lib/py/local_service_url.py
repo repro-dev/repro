@@ -1,26 +1,17 @@
 #!/usr/bin/env python3
-"""Compute the localhost URL for a local service.
+"""Compute the browser URL for a launchable local service.
 
-Reads services.json, checks if the service is type=local with a port
-field, and prints the URL. For worktree contexts, applies the same
-polynomial hash port offset as services.Tiltfile._slug_port_offset().
-
-Exits 0 and prints the URL if the service is launchable.
-Exits 1 if the service is not found, not local, or has no port.
+Exits 0 and prints the URL if the service has launch.kind=url and a URL
+surface in services.json.
+Exits 1 if the service is not found, not local, or has no browser URL.
 
 Usage:
   local_service_url.py <service-name> <services-json-path> [<worktree-slug>]
 """
 
-import json
 import sys
 
-
-def _slug_port_offset(slug):
-    h = 0
-    for c in slug:
-        h = (h * 31 + ord(c)) & 0xFFFFFFFF
-    return (h % 999) + 1
+from service_manifest import resolve_local_service_url
 
 
 def main():
@@ -35,21 +26,11 @@ def main():
     services_path = sys.argv[2]
     slug = sys.argv[3] if len(sys.argv) > 3 else ""
 
-    with open(services_path) as f:
-        services = json.load(f)
-
-    entry = services.get(service)
-    if not entry:
+    url = resolve_local_service_url(service, services_path, slug)
+    if not url:
         sys.exit(1)
 
-    if entry.get("type") != "local" or "port" not in entry:
-        sys.exit(1)
-
-    port = entry["port"]
-    if slug:
-        port += _slug_port_offset(slug)
-
-    print("http://localhost:%d" % port)
+    print(url)
 
 
 if __name__ == "__main__":

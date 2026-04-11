@@ -30,16 +30,13 @@ function __reproctl_services
     set -l repo (__reproctl_repo_root)
     set -l json "$repo/infra/services.json"
     if test -f "$json"
-        python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1])).keys()))" "$json" 2>/dev/null
+        python3 "$repo/scripts/lib/py/service_names.py" "$json" 2>/dev/null
     end
 end
 
 function __reproctl_launchable_services
     set -l repo (__reproctl_repo_root)
     set -l json "$repo/infra/services.json"
-    echo workspace
-    echo api-server
-    echo admin
     if test -f "$json"
         python3 "$repo/scripts/lib/py/launchable_local_services.py" "$json" 2>/dev/null
     end

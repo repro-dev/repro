@@ -1,6 +1,7 @@
 {
   "api-server": {
     "type": "local",
+    "description": "API backend",
     "moon_project": "repro/api-server",
     "app_dir": "apps/api-server",
     "serve_cmd": "portless api.repro moon run repro/api-server:dev",
@@ -29,6 +30,10 @@
     ],
     "resource_deps": ["dependencies", "portless-proxy", "redis-ready"],
     "portless_name": "api.repro",
+    "launch": {
+      "kind": "url",
+      "description": "API backend"
+    },
     "migrations": {
       "moon_task": "repro/api-server:migrate",
       "resource_deps": ["database-ready", "storage-ready"]
@@ -41,6 +46,7 @@
   },
   "workspace": {
     "type": "local",
+    "description": "App frontend",
     "moon_project": "repro/workspace",
     "app_dir": "apps/workspace",
     "serve_cmd": "portless app.repro moon run repro/workspace:dev",
@@ -52,10 +58,15 @@
     "resource_deps": ["dependencies", "portless-proxy"],
     "labels": ["app"],
     "portless_name": "app.repro",
+    "launch": {
+      "kind": "url",
+      "description": "App frontend"
+    },
     "deps": ["api-server"]
   },
   "admin": {
     "type": "local",
+    "description": "Admin panel",
     "moon_project": "repro/admin",
     "app_dir": "apps/admin",
     "serve_cmd": "portless admin.repro moon run repro/admin:dev",
@@ -68,10 +79,15 @@
     "resource_deps": ["dependencies", "portless-proxy"],
     "labels": ["app"],
     "portless_name": "admin.repro",
+    "launch": {
+      "kind": "url",
+      "description": "Admin panel"
+    },
     "deps": ["api-server"]
   },
   "capture": {
     "type": "local",
+    "description": "Chrome extension",
     "moon_project": "repro/capture",
     "app_dir": "apps/capture",
     "serve_cmd": "moon run repro/capture:watch",
@@ -83,10 +99,15 @@
     },
     "resource_deps": ["dependencies"],
     "labels": ["extension"],
+    "launch": {
+      "kind": "capture",
+      "description": "Chrome extension"
+    },
     "deps": ["workspace"]
   },
   "dev-toolbar": {
     "type": "local",
+    "description": "Dev toolbar extension",
     "moon_project": "repro/dev-toolbar",
     "app_dir": "apps/dev-toolbar",
     "serve_cmd": "moon run repro/dev-toolbar:watch",
@@ -97,6 +118,7 @@
   },
   "storybook-ui": {
     "type": "local",
+    "description": "Storybook UI",
     "moon_project": "repro/storybook-ui",
     "app_dir": "apps/storybook-ui",
     "serve_cmd": "moon run repro/storybook-ui:dev",
@@ -106,10 +128,15 @@
     "resource_deps": ["dependencies"],
     "labels": ["design"],
     "port": 6006,
+    "launch": {
+      "kind": "url",
+      "description": "Storybook UI"
+    },
     "deps": []
   },
   "marketing": {
     "type": "local",
+    "description": "Marketing site",
     "moon_project": "repro/marketing",
     "app_dir": "apps/marketing",
     "serve_cmd": "portless marketing.repro moon run repro/marketing:dev",
@@ -121,6 +148,10 @@
     "resource_deps": ["dependencies", "portless-proxy"],
     "labels": ["app"],
     "portless_name": "marketing.repro",
+    "launch": {
+      "kind": "url",
+      "description": "Marketing site"
+    },
     "deps": []
   }
 }

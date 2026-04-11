@@ -5,40 +5,6 @@
 # Sourced by reproctl.sh. Expects scripts/lib/common.sh to be loaded
 # first (provides REPO_ROOT, is_worktree, detect_worktree_slug, die).
 
-_portless_service_url() {
-  local service="$1" slug="$2"
-  local host
-
-  case "$service" in
-    workspace)
-      if [[ -n "$slug" ]]; then
-        host="app.wt-${slug}.repro.localhost"
-      else
-        host="app.repro.localhost"
-      fi
-      ;;
-    api-server)
-      if [[ -n "$slug" ]]; then
-        host="api.wt-${slug}.repro.localhost"
-      else
-        host="api.repro.localhost"
-      fi
-      ;;
-    admin)
-      if [[ -n "$slug" ]]; then
-        host="admin.wt-${slug}.repro.localhost"
-      else
-        host="admin.repro.localhost"
-      fi
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-
-  echo "http://${host}:1355"
-}
-
 _local_service_url() {
   local service="$1" slug="$2"
   local url
@@ -52,7 +18,6 @@ _local_service_url() {
 }
 
 _service_url() {
-  _portless_service_url "$@" 2>/dev/null && return 0
   _local_service_url "$@" 2>/dev/null && return 0
   return 1
 }
@@ -89,17 +54,21 @@ _ensure_playwright_chromium() {
 }
 
 _launchable_services() {
-  local services=()
-  services=(workspace api-server admin capture)
+  _list_launchable_services
+}
 
-  if [[ -f "$SERVICES_JSON" ]]; then
-    local line
-    while IFS= read -r line; do
-      [[ -n "$line" ]] && services+=("$line")
-    done < <(python3 "$SCRIPTS_DIR/lib/py/launchable_local_services.py" "$SERVICES_JSON" 2>/dev/null)
-  fi
+_launch_kind() {
+  local service="$1"
+  local name description launch_kind launch_detail
 
-  printf '%s\n' "${services[@]}"
+  while IFS=$'\t' read -r name description launch_kind launch_detail; do
+    [[ "$name" == "$service" ]] || continue
+    [[ -n "$launch_kind" ]] || return 1
+    printf '%s\n' "$launch_kind"
+    return 0
+  done < <(python3 "$SCRIPTS_DIR/lib/py/service_help_rows.py" "$SERVICES_JSON" --launchable-only 2>/dev/null)
+
+  return 1
 }
 
 cmd_launch() {
@@ -119,18 +88,9 @@ cmd_launch() {
           "" \
           "Open the browser at the URL for a service in the current (or specified)" \
           "worktree context." \
-          "" \
-          "Services:" \
-          "  workspace      App frontend   (app.repro.localhost)" \
-          "  api-server     API backend    (api.repro.localhost)" \
-          "  admin          Admin panel    (admin.repro.localhost)" \
-          "  capture        Chrome extension  (Playwright Chromium + --load-extension)"
-        if [[ -f "$SERVICES_JSON" ]]; then
-          local line
-          while IFS= read -r line; do
-            [[ -n "$line" ]] && printf '  %-14s Local service  (localhost)\n' "$line"
-          done < <(python3 "$SCRIPTS_DIR/lib/py/launchable_local_services.py" "$SERVICES_JSON" 2>/dev/null)
-        fi
+          ""
+        printf '%s\n' "Services:"
+        _print_service_rows launchable
         printf '%s\n' \
           "" \
           "Options:" \
@@ -179,8 +139,11 @@ cmd_launch() {
     slug="$(detect_worktree_slug)"
   fi
 
-  # Special case: launch capture extension in Playwright Chromium
-  if [[ "$service" == "capture" ]]; then
+  local launch_kind=""
+  launch_kind="$(_launch_kind "$service" 2>/dev/null)" || launch_kind=""
+
+  # Capture-style launches are declared in services.json via launch.kind.
+  if [[ "$launch_kind" == "capture" ]]; then
     local chromium_bin
     chromium_bin="$(_ensure_playwright_chromium)"
 
@@ -250,7 +213,7 @@ cmd_launch() {
   local url
   url="$(_service_url "$service" "$slug")" || {
     local available
-    available="$(printf '%s' "$(_launchable_services)" | tr '\n' ',' | sed 's/,/, /g; s/, $//')"
+    available="$(printf '%s' "$(_launchable_services)" | python3 -c 'import sys; print(", ".join([line.strip() for line in sys.stdin if line.strip()]))')"
     die "Unknown service: $service\nAvailable services: $available"
   }
 

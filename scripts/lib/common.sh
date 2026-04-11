@@ -338,7 +338,32 @@ _status_clr() {
 
 _list_service_names() {
   [[ -f "$SERVICES_JSON" ]] || return
-  python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1])).keys()))" "$SERVICES_JSON" 2>/dev/null
+  python3 "$SCRIPTS_DIR/lib/py/service_names.py" "$SERVICES_JSON" 2>/dev/null
+}
+
+_list_launchable_services() {
+  [[ -f "$SERVICES_JSON" ]] || return
+  python3 "$SCRIPTS_DIR/lib/py/launchable_local_services.py" "$SERVICES_JSON" 2>/dev/null
+}
+
+_print_service_rows() {
+  local mode="${1:-all}"
+  [[ -f "$SERVICES_JSON" ]] || return
+
+  local helper_args=("$SERVICES_JSON")
+  if [[ "$mode" == "launchable" ]]; then
+    helper_args+=("--launchable-only")
+  fi
+
+  local line
+  while IFS=$'\t' read -r name description launch_kind launch_detail; do
+    [[ -n "$name" ]] || continue
+    if [[ "$mode" == "launchable" ]]; then
+      printf '  %-14s %-14s %s\n' "$name" "$description" "$launch_detail"
+    else
+      printf '  %-14s %s\n' "$name" "$description"
+    fi
+  done < <(python3 "$SCRIPTS_DIR/lib/py/service_help_rows.py" "${helper_args[@]}" 2>/dev/null)
 }
 
 _list_worktree_branches() {

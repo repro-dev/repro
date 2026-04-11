@@ -11,9 +11,11 @@ context
 Open a service URL in the browser, or launch the capture Chrome
 extension in a dedicated Playwright Chromium instance.
 .PP
-For web services (\f[B]workspace\f[R], \f[B]api\-server\f[R],
-\f[B]admin\f[R]), the URL is resolved for the current worktree context
-and opened with \f[B]open\f[R](1).
+For web services, the URL is resolved from \f[B]infra/services.json\f[R]
+for the current worktree context and opened with \f[B]open\f[R](1).
+Services with \f[B]launch.kind=url\f[R] and either
+\f[B]portless_name\f[R] or \f[B]port\f[R] are launchable; services
+without a browser URL remain start\-only.
 .PP
 For \f[B]capture\f[R], a pinned Playwright Chromium browser is launched
 with \f[B]\-\-load\-extension\f[R] pointing at the worktree\(aqs
@@ -31,20 +33,11 @@ Target a specific worktree instead of the current directory context.
 \f[B]\-h\f[R], \f[B]\-\-help\f[R]
 Show usage.
 .SH SERVICES
-.TP
-\f[B]workspace\f[R]
-App frontend (app.repro.localhost or wt equivalent).
-.TP
-\f[B]api\-server\f[R]
-API backend (api.repro.localhost or wt equivalent).
-.TP
-\f[B]admin\f[R]
-Admin panel (admin.repro.localhost or wt equivalent).
-.TP
-\f[B]capture\f[R]
-Launch the capture Chrome extension in a Playwright Chromium instance.
-Requires the extension to be built first (\f[B]moon run
-capture:build\f[R]).
+The exact service list shown by \f[B]reproctl launch \-\-help\f[R] is
+generated from \f[B]infra/services.json\f[R].
+Today that includes \f[B]workspace\f[R], \f[B]api\-server\f[R],
+\f[B]admin\f[R], \f[B]capture\f[R], \f[B]marketing\f[R], and
+\f[B]storybook\-ui\f[R].
 .SH EXAMPLES
 .TP
 reproctl launch workspace

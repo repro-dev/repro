@@ -419,6 +419,10 @@ cmd_start() {
 Usage: reproctl start [options] <service> [<service>...]
 
 Start one or more services from the current context.
+USAGE
+        printf '\n%s\n' "Services:"
+        _print_service_rows all
+        cat <<'USAGE'
 
 Options:
   --pick, -p               Interactively select services
