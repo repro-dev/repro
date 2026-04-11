@@ -18,6 +18,7 @@ describe('Routers > ApiKeys', () => {
     app = harness.bootstrap(
       createApiKeysRouter(apiKeyService, harness.services.accountService)
     )
+    await app.ready()
   })
 
   beforeEach(async () => {
@@ -39,7 +40,7 @@ describe('Routers > ApiKeys', () => {
         method: 'POST',
         url: '/api-keys',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
         body: {
           name: 'My Token',
@@ -84,7 +85,7 @@ describe('Routers > ApiKeys', () => {
         method: 'POST',
         url: '/api-keys',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
         body: {
           name: 'Expiring Token',
@@ -122,7 +123,7 @@ describe('Routers > ApiKeys', () => {
         method: 'GET',
         url: '/api-keys',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -178,7 +179,7 @@ describe('Routers > ApiKeys', () => {
         method: 'DELETE',
         url: `/api-keys/${created.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -189,7 +190,7 @@ describe('Routers > ApiKeys', () => {
         method: 'GET',
         url: '/api-keys',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
       const keys = listRes.json().items

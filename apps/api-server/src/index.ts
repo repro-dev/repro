@@ -1,5 +1,6 @@
 import compress from '@fastify/compress'
 import cors from '@fastify/cors'
+import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
 import { buildRateLimitOptions } from '~/rateLimit'
 
@@ -39,7 +40,9 @@ import { serverError } from '~/utils/errors'
 import { createHttpClient } from './modules/http'
 import { createStaffRouter } from './routers/staff'
 import { createStaffOAuthRouter } from './routers/staffOAuth'
+import { buildHelmetOptions } from './securityHeaders'
 import { createAgenticService } from './services/agentic'
+import { startExpiredSessionCleanup } from './sessionCleanup'
 
 const httpClient = createHttpClient()
 
@@ -79,7 +82,8 @@ const billingService = createBillingService(database, env)
 const accountService = createAccountService(
   database,
   emailUtils,
-  billingService
+  billingService,
+  env.SESSION_HARD_EXPIRY
 )
 const agenticService = createAgenticService(database, httpClient)
 const oauthService = createOAuthService(database)
@@ -134,7 +138,15 @@ const socialAuthRouter = createSocialAuthRouter(
 )
 
 const accountRouter = createAccountRouter(accountService)
-const agenticRouter = createAgenticRouter(agenticService, accountService)
+const agenticRouter = createAgenticRouter(
+  agenticService,
+  accountService,
+  undefined,
+  {
+    agenticRateLimitPerHour: env.AGENTIC_RATE_LIMIT_PER_HOUR,
+    agenticMaxMessagesPerRecording: env.AGENTIC_MAX_MESSAGES_PER_RECORDING,
+  }
+)
 const apiKeysRouter = createApiKeysRouter(apiKeyService, accountService)
 const billingRouter = createBillingRouter(billingService, accountService)
 const billingWebhookRouter =
@@ -249,6 +261,11 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
 
   app.register(compress)
 
+  app.register(
+    helmet,
+    buildHelmetOptions({ isProduction: process.env.NODE_ENV === 'production' })
+  )
+
   // Build an optional Redis client for distributed rate limiting.
   // Falls back to in-memory store when RATE_LIMIT_REDIS_URL is not set.
   let redisClient: unknown
@@ -298,6 +315,18 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
       }
     }
   )
+
+  // Periodically delete sessions past hard expiry — runs out of band so it
+  // never blocks request handling.
+  const cleanupInterval = startExpiredSessionCleanup(
+    accountService,
+    app.log,
+    env.SESSION_CLEANUP_INTERVAL
+  )
+
+  app.addHook('onClose', () => {
+    clearInterval(cleanupInterval)
+  })
 }
 
 bootstrap({

@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@storybook/react": "^10.2.13",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "22.14.0",
     "@types/react": "18.2.63",
     "@types/react-virtualized-auto-sizer": "^1.0.1",

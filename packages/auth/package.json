@@ -26,6 +26,7 @@
     "zod": "^3.22.2"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
     "@types/node": "22.14.0",
     "@types/react": "18.2.63",
     "@types/repro-shared-types": "workspace:*",

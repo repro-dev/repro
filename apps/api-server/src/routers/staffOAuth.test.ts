@@ -1,3 +1,4 @@
+import { unsign } from '@fastify/cookie'
 import { Session, StaffUser } from '@repro/domain'
 import expect from 'expect'
 import { FastifyInstance } from 'fastify'
@@ -40,6 +41,19 @@ function createStubGoogleProvider(
       name,
     }),
   }
+}
+
+function unsignOrFail(signedValue: string, secret: string) {
+  const unsigned = unsign(signedValue, secret)
+
+  expect(unsigned.valid).toEqual(true)
+  expect(unsigned.value).not.toBeNull()
+
+  if (!unsigned.valid || unsigned.value === null) {
+    throw new Error('Expected signed cookie to have a valid signature')
+  }
+
+  return unsigned.value
 }
 
 describe('Routers > StaffOAuth', () => {
@@ -252,8 +266,13 @@ describe('Routers > StaffOAuth', () => {
       expect(sessionCookie).toBeDefined()
 
       // Verify the session is for a staff user
+      // Cookie value is signed (rawToken.signature); unsign to get the raw token for DB lookup
+      const rawToken1 = unsignOrFail(
+        sessionCookie!.value,
+        harness.env.SESSION_SECRET
+      )
       const session = (await promise(
-        harness.services.accountService.getSessionByToken(sessionCookie!.value)
+        harness.services.accountService.getSessionByToken(rawToken1)
       )) as Session
       expect(session.subjectType).toEqual('staff')
     })
@@ -297,7 +316,10 @@ describe('Routers > StaffOAuth', () => {
       expect(sessionCookie).toBeDefined()
 
       const session = (await promise(
-        harness.services.accountService.getSessionByToken(sessionCookie!.value)
+        harness.services.accountService.getSessionByToken(
+          // Cookie value is signed (rawToken.signature); unsign to get the raw token for DB lookup
+          unsignOrFail(sessionCookie!.value, harness.env.SESSION_SECRET)
+        )
       )) as Session
       // Must be the same staff user
       expect(session.subjectId).toEqual(staffUser.id)

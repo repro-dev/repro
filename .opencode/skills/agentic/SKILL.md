@@ -163,21 +163,23 @@ type ToolHandler = (
 
 ### Available Tools
 
-| Tool                   | What it returns                                                                 |
-| ---------------------- | ------------------------------------------------------------------------------- |
-| `getRecordingDuration` | Total recording duration in ms                                                  |
-| `getConsoleMessages`   | Console log/warn/error/debug messages with levels and timestamps                |
-| `getNetworkRequests`   | XHR/fetch requests and responses (URL, status, headers, body)                   |
-| `getDOMState`          | Accessibility tree snapshot at a given timestamp                                |
-| `findErrors`           | Summary or full details of console errors and failed network requests           |
-| `getElementDetails`    | Full attributes, ancestors, and children for a specific `nodeId`                |
-| `getEvents`            | Broad timeline overview or detailed event list                                  |
-| `getEventsAroundTime`  | Targeted event window around a specific timestamp                               |
-| `getDOMDiff`           | DOM mutations between two timestamps for a node subtree                         |
-| `getUserActions`       | Narrated list of user interactions (clicks, text input, scroll, navigation)     |
-| `captureScreenshot`    | Renders a VTree snapshot to a canvas and returns a `dataUrl` + `ContentBlock[]` |
-| `getStateChanges`      | State machine / framework state changes detected in the recording               |
-| `searchEvents`         | Case-insensitive text search across all serialized event payloads               |
+| Tool                   | What it returns                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `getRecordingDuration` | Total recording duration in ms                                                               |
+| `getConsoleMessages`   | Console log/warn/error/debug messages with levels and timestamps                             |
+| `getConsoleContext`    | Console messages windowed around a timestamp (N before, M after nearest message)             |
+| `getNetworkRequests`   | XHR/fetch requests and responses (URL, status, headers, body)                                |
+| `getDOMState`          | Accessibility tree snapshot at a given timestamp                                             |
+| `findErrors`           | Summary or full details of console errors and failed network requests                        |
+| `getElementDetails`    | Full attributes, ancestors, and children for a specific `nodeId`                             |
+| `getEvents`            | Broad timeline overview or detailed event list                                               |
+| `getEventsAroundTime`  | Targeted event window around a specific timestamp                                            |
+| `getDOMDiff`           | DOM mutations between two timestamps for a node subtree                                      |
+| `getUserActions`       | Narrated list of user interactions (clicks, text input, scroll, navigation)                  |
+| `captureScreenshot`    | Renders a VTree snapshot to a canvas and returns a `dataUrl` + `ContentBlock[]`              |
+| `getStateChanges`      | State machine / framework state changes detected in the recording                            |
+| `findUserFrustration`  | Detects rage clicks, dead clicks, rapid navigation, and error loops; returns signals by time |
+| `searchEvents`         | Case-insensitive text search across all serialized event payloads                            |
 
 ### Tool Execution
 

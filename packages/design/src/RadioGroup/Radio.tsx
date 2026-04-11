@@ -1,4 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
+import { visuallyHidden } from '@repro/a11y'
 import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
 import { radius } from '../tokens/elevation'
@@ -59,17 +60,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
           aria-checked={checked}
           tabIndex={checked ? 0 : -1}
           onChange={() => ctx.onChange(value)}
-          style={{
-            position: 'absolute',
-            width: 1,
-            height: 1,
-            margin: -1,
-            padding: 0,
-            overflow: 'hidden',
-            clip: 'rect(0, 0, 0, 0)',
-            whiteSpace: 'nowrap',
-            border: 0,
-          }}
+          style={visuallyHidden}
         />
 
         <Block
