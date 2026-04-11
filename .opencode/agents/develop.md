@@ -41,6 +41,26 @@ tsx --experimental-test-module-mocks --test path/to/file.test.ts
 
 All file operations MUST use absolute paths under the worktree provided in the prompt.
 
+## Defensive patch verification
+
+Do not treat `apply_patch` success as proof that the file now matches the intended edit.
+
+Use a defensive edit loop selectively:
+
+- after the first suspicious patch outcome in the session
+- for fragile syntax such as TypeScript generics, TSX/JSX, dense type-level code, regexes, escaped strings, or structured config
+- before stacking multiple follow-on edits on top of one important patch
+
+Defensive loop for a risky file:
+
+1. Read the exact lines you plan to change.
+2. Apply the patch.
+3. Re-read the same lines immediately.
+4. Inspect `git diff` for the file.
+5. Only then continue with more edits or verification.
+
+If the re-read, diff, and compiler/typechecker disagree, stop stacking edits on top of that file. Restore it to a known-good state, re-read it, and reapply the minimal intended change.
+
 ## Commit
 
 After all requirements are implemented and tests pass:
