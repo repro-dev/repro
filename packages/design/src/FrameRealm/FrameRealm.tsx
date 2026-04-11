@@ -3,11 +3,9 @@ import React, { MutableRefObject, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import mergeRefs from 'react-merge-refs'
 
-// React 18's HTMLProps<HTMLIFrameElement> does not yet include `inert`
-// (only in @types/react experimental.d.ts). Omit and redefine the prop so
-// callers can pass it without TypeScript errors, while remaining compatible
-// if a future React type release adds `inert` to HTMLProps. The browser
-// treats presence of the attribute as true regardless of the string value.
+// React callers in this repo sometimes pass inert="" so the inert attribute
+// is present only in the non-interactive case. Keep accepting that shape, but
+// strip it from the iframe JSX props and apply the DOM attribute manually.
 type Props = Omit<React.HTMLProps<HTMLIFrameElement>, 'inert'> & {
   inert?: string | boolean
 }
@@ -48,7 +46,7 @@ function attemptWriteToDocument(doc: Document, html: string) {
  * `document.write`. Forwards a ref to the underlying `<iframe>` element.
  */
 export const FrameRealm = React.forwardRef<HTMLIFrameElement, Props>(
-  ({ children, ...props }, outerRef) => {
+  ({ children, inert, ...props }, outerRef) => {
     const innerRef = useRef() as MutableRefObject<HTMLIFrameElement>
     const ref = mergeRefs([innerRef, outerRef])
     const [root, setRoot] = useState<Document | null>(null)
@@ -71,6 +69,21 @@ export const FrameRealm = React.forwardRef<HTMLIFrameElement, Props>(
         }
       }
     }, [innerRef, setRoot])
+
+    useEffect(() => {
+      const frame = innerRef.current
+
+      if (!frame) {
+        return
+      }
+
+      if (inert === undefined || inert === false) {
+        frame.removeAttribute('inert')
+        return
+      }
+
+      frame.setAttribute('inert', '')
+    }, [inert])
 
     // TODO merge <html> attributes into root
 
