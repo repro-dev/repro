@@ -17,6 +17,7 @@ function makeSnapshotEvent(dom: VTree): SourceEvent {
     time: 0,
     data: {
       dom,
+      frameworkState: null,
       interaction: null,
     },
   })
@@ -44,7 +45,7 @@ function makeAttributePatchEvent(
 function makeElementNode(
   id: string,
   tagName: string,
-  attributes: Record<string, string | null> = {},
+  attributes: { [key: string]: string | null } = {},
   children: string[] = [],
   parentId: string | null = null
 ) {
@@ -76,7 +77,7 @@ function makeTextNode(
 describe('vdom-utils: resources', () => {
   describe('filterResourceMap', () => {
     it('should only include provided resource IDs in resource map', () => {
-      const resourceMap: Record<string, string> = {
+      const resourceMap: { [key: string]: string } = {
         foo: 'http://example.com/foo',
         bar: 'http://example.com/bar',
         baz: 'http://example.com/baz',
@@ -106,7 +107,7 @@ describe('vdom-utils: resources', () => {
           },
         }
 
-        const events: Array<SourceEvent> = [makeSnapshotEvent(vtree)]
+        const events: SourceEvent[] = [makeSnapshotEvent(vtree)]
         const resourceMap = createResourceMap(events)
 
         const values = Object.values(resourceMap)
@@ -128,7 +129,7 @@ describe('vdom-utils: resources', () => {
           },
         }
 
-        const events: Array<SourceEvent> = [makeSnapshotEvent(vtree)]
+        const events: SourceEvent[] = [makeSnapshotEvent(vtree)]
         const resourceMap = createResourceMap(events)
 
         const values = Object.values(resourceMap)
@@ -150,7 +151,7 @@ describe('vdom-utils: resources', () => {
           },
         }
 
-        const events: Array<SourceEvent> = [makeSnapshotEvent(vtree)]
+        const events: SourceEvent[] = [makeSnapshotEvent(vtree)]
         const resourceMap = createResourceMap(events)
 
         const values = Object.values(resourceMap)
@@ -174,7 +175,7 @@ describe('vdom-utils: resources', () => {
           },
         }
 
-        const events: Array<SourceEvent> = [makeSnapshotEvent(vtree)]
+        const events: SourceEvent[] = [makeSnapshotEvent(vtree)]
         const resourceMap = createResourceMap(events)
 
         const values = Object.values(resourceMap)
@@ -194,7 +195,7 @@ describe('vdom-utils: resources', () => {
           },
         }
 
-        const events: Array<SourceEvent> = [
+        const events: SourceEvent[] = [
           makeSnapshotEvent(vtree),
           makeAttributePatchEvent(
             'el1',
@@ -218,7 +219,7 @@ describe('vdom-utils: resources', () => {
           },
         }
 
-        const events: Array<SourceEvent> = [
+        const events: SourceEvent[] = [
           makeSnapshotEvent(vtree),
           makeAttributePatchEvent(
             'img1',
@@ -242,7 +243,7 @@ describe('vdom-utils: resources', () => {
           },
         }
 
-        const events: Array<SourceEvent> = [
+        const events: SourceEvent[] = [
           makeSnapshotEvent(vtree),
           makeAttributePatchEvent(
             'el1',
@@ -273,7 +274,7 @@ describe('vdom-utils: resources', () => {
           },
         }
 
-        const events: Array<SourceEvent> = [makeSnapshotEvent(vtree)]
+        const events: SourceEvent[] = [makeSnapshotEvent(vtree)]
         const resourceMap = createResourceMap(events)
 
         const values = Object.values(resourceMap)
@@ -294,7 +295,7 @@ describe('vdom-utils: resources', () => {
           },
         }
 
-        const events: Array<SourceEvent> = [makeSnapshotEvent(vtree)]
+        const events: SourceEvent[] = [makeSnapshotEvent(vtree)]
         const resourceMap = createResourceMap(events)
 
         const values = Object.values(resourceMap)
@@ -317,7 +318,7 @@ describe('vdom-utils: resources', () => {
           },
         }
 
-        const events: Array<SourceEvent> = [makeSnapshotEvent(vtree)]
+        const events: SourceEvent[] = [makeSnapshotEvent(vtree)]
         const resourceMap = createResourceMap(events)
 
         const values = Object.values(resourceMap)

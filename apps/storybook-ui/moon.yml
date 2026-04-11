@@ -2,20 +2,21 @@ id: repro/storybook-ui
 language: typescript
 layer: application
 tags:
-- type.app
-- build.static
+  - type.app
+  - build.static
+  - role.ui
 tasks:
   build:
     command: pnpm run build
     deps:
-    - ^:build
+      - ^:build
     outputs:
-    - storybook-static
+      - storybook-static
     options:
       cache: true
   dev:
     command: pnpm run storybook
     deps:
-    - ^:build
+      - ^:build
 toolchains:
   default: node

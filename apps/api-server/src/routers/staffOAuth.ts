@@ -1,7 +1,7 @@
 import { StaffUser } from '@repro/domain'
 import { generateCodeVerifier, generateState } from 'arctic'
 import { FastifyPluginAsync } from 'fastify'
-import { FutureInstance, bichain, encaseP, go, reject, resolve } from 'fluture'
+import { bichain, encaseP, go, mapRej, reject, resolve } from 'fluture'
 import { Env } from '~/config/createEnv'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
@@ -19,6 +19,10 @@ const ALLOWED_DOMAIN = 'repro.dev'
 
 type ProviderParams = { provider: string }
 type CallbackQuery = { code?: string; state?: string }
+
+function asError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error))
+}
 
 export function createStaffOAuthRouter(
   accountService: AccountService,
@@ -104,7 +108,7 @@ export function createStaffOAuthRouter(
           accessTokenExpiresAt(): Date
         } = yield encaseP((verifier: string) =>
           oauthProvider.validateAuthorizationCode(codeToExchange, verifier)
-        )(storedVerifier)
+        )(storedVerifier).pipe(mapRej(asError))
 
         const accessToken = tokens.accessToken()
 
@@ -112,7 +116,7 @@ export function createStaffOAuthRouter(
         const userInfo: { sub: string; email: string; name: string } =
           yield encaseP((token: string) => oauthProvider.fetchUserInfo(token))(
             accessToken
-          )
+          ).pipe(mapRej(asError))
 
         const { email, name } = userInfo
 
@@ -124,24 +128,27 @@ export function createStaffOAuthRouter(
           return yield resolve(undefined as void)
         }
 
-        const lookupOrCreate = accountService.getStaffUserByEmail(email).pipe(
-          bichain((error: Error) =>
-            isNotFound(error)
-              ? // First login — provision a new staff user
-                // OAuth users get no password; they can only log in via OAuth
-                accountService.createStaffUser(name || email, email, '')
-              : reject(error)
-          )((staffUser: StaffUser) => resolve(staffUser))
-        )
+        const lookupOrCreate = accountService
+          .getStaffUserByEmail(email)
+          .pipe(
+            bichain((error: Error) =>
+              isNotFound(error)
+                ? // First login — provision a new staff user
+                  // OAuth users get no password; they can only log in via OAuth
+                  accountService.createStaffUser(name || email, email, '')
+                : reject(error)
+            )((staffUser: StaffUser) => resolve(staffUser))
+          )
+          .pipe(mapRej(asError))
         const staffUser = (yield lookupOrCreate) as StaffUser
 
         // Create a staff session and set the session cookie
-        yield req.createSession(staffUser)
+        yield req.createSession(staffUser).pipe(mapRej(asError))
 
         // Redirect to the admin app dashboard
         res.redirect(env.REPRO_ADMIN_URL)
         return yield resolve(undefined as void)
-      }) as FutureInstance<Error, void>
+      }).pipe(mapRej(asError))
 
       respondWith(res, handleCallback)
     })

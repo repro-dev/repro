@@ -34,6 +34,7 @@ describe('Routers > Project', () => {
         harness.services.accountService
       )
     )
+    await app.ready()
   })
 
   beforeEach(async () => {
@@ -57,7 +58,7 @@ describe('Routers > Project', () => {
           name: 'Test Project',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -80,7 +81,7 @@ describe('Routers > Project', () => {
           name: 'Test Project',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -104,7 +105,7 @@ describe('Routers > Project', () => {
           name: 'Test Project',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -132,7 +133,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: '/',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -154,7 +155,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/active`,
         body: { active: false },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -176,7 +177,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/active`,
         body: { active: false },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -197,7 +198,7 @@ describe('Routers > Project', () => {
         url: `/${encodeId(999)}/active`,
         body: { active: false },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -215,7 +216,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/active`,
         body: { active: false },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -234,7 +235,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/active`,
         body: { active: false },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -259,7 +260,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/name`,
         body: { name: 'Renamed Project' },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -284,7 +285,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/name`,
         body: { name: 'Renamed Project' },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -308,7 +309,7 @@ describe('Routers > Project', () => {
         url: `/${encodeId(999)}/name`,
         body: { name: 'Renamed Project' },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -326,7 +327,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/name`,
         body: { name: 'Renamed Project' },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -349,7 +350,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/name`,
         body: { name: 'Renamed Project' },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -376,7 +377,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/members`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -399,7 +400,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/members`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -419,7 +420,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/members`,
         body: { userId: userA.id, role: ProjectRole.Contributor },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -441,7 +442,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/members`,
         body: { userId: user.id, role: ProjectRole.Contributor },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -464,7 +465,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/members`,
         body: { userId: userA.id, role: ProjectRole.Contributor },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -483,7 +484,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/members`,
         body: { userId: user.id, role: ProjectRole.Contributor },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -502,7 +503,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/members`,
         body: { userId: user.id, role: ProjectRole.Contributor },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -530,7 +531,7 @@ describe('Routers > Project', () => {
         method: 'DELETE',
         url: `/${project.id}/members/${userA.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -557,7 +558,7 @@ describe('Routers > Project', () => {
         method: 'DELETE',
         url: `/${project.id}/members/${user.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -585,7 +586,7 @@ describe('Routers > Project', () => {
         method: 'DELETE',
         url: `/${project.id}/members/${userA.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -612,7 +613,7 @@ describe('Routers > Project', () => {
         method: 'DELETE',
         url: `/${project.id}/members/${user.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -640,7 +641,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/members/${user.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -661,7 +662,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/members/${user.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -678,7 +679,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${encodeId(999)}/members/${user.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -695,7 +696,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/members/${encodeId(999)}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -713,7 +714,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/members/${user.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -733,7 +734,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/members/${subject.id}/role`,
         body: { role: ProjectRole.Viewer },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -761,7 +762,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/members/${subject.id}/role`,
         body: { role: ProjectRole.Viewer },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -790,7 +791,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/members/${subject.id}/role`,
         body: { role: ProjectRole.Admin },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -809,7 +810,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/members/${subject.id}/role`,
         body: { role: ProjectRole.Admin },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -832,7 +833,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -852,7 +853,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -869,7 +870,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -886,7 +887,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -905,7 +906,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/info`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -922,7 +923,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${encodeId(999)}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -939,7 +940,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${encodeId(999)}/recordings/${recording.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -958,7 +959,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/info`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -977,7 +978,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/info`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1006,7 +1007,7 @@ describe('Routers > Project', () => {
           operatingSystem: 'Linux x86_64',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1044,7 +1045,7 @@ describe('Routers > Project', () => {
           operatingSystem: 'Linux x86_64',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1075,7 +1076,7 @@ describe('Routers > Project', () => {
           operatingSystem: 'Linux x86_64',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1103,7 +1104,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/data`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1121,7 +1122,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${encodeId(999)}/data`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1139,7 +1140,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${encodeId(999)}/recordings/${recording.id}/data`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1157,7 +1158,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/data`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1176,7 +1177,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/data`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1195,7 +1196,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/data`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1231,7 +1232,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${recording.id}/data`,
         body: input,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1272,7 +1273,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${encodeId(999)}/data`,
         body: input,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1316,7 +1317,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${recording.id}/data`,
         body: input,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1358,7 +1359,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${recording.id}/data`,
         body: input,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1393,7 +1394,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/resources/${resourceId}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1415,7 +1416,7 @@ describe('Routers > Project', () => {
           999
         )}/resources/${resourceId}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1437,7 +1438,7 @@ describe('Routers > Project', () => {
           recording.id
         }/resources/${resourceId}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1458,7 +1459,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/resources/${resourceId}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1479,7 +1480,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/resources/${resourceId}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1503,7 +1504,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${recording.id}/resources/${resourceId}`,
         body: resource,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1533,7 +1534,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${recordingId}/resources/${resourceId}`,
         body: resource,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1563,7 +1564,7 @@ describe('Routers > Project', () => {
         url: `/${projectId}/recordings/${recording.id}/resources/${resourceId}`,
         body: resource,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1594,7 +1595,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${recording.id}/resources/${resourceId}`,
         body: newResource,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1624,7 +1625,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${recording.id}/resources/${resourceId}`,
         body: resource,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1658,7 +1659,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${recording.id}/resources/${resourceId}`,
         body: resource,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1687,7 +1688,7 @@ describe('Routers > Project', () => {
         method: 'DELETE',
         url: `/${project.id}/recordings/${recording.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1709,7 +1710,7 @@ describe('Routers > Project', () => {
         method: 'DELETE',
         url: `/${project.id}/recordings/${recording.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1732,7 +1733,7 @@ describe('Routers > Project', () => {
         method: 'DELETE',
         url: `/${project.id}/recordings/${recording.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1753,7 +1754,7 @@ describe('Routers > Project', () => {
         method: 'DELETE',
         url: `/${project.id}/recordings/${encodeId(999)}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1771,7 +1772,7 @@ describe('Routers > Project', () => {
         method: 'DELETE',
         url: `/${project.id}/recordings/${recording.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1806,7 +1807,7 @@ describe('Routers > Project', () => {
         method: 'DELETE',
         url: `/${project.id}/recordings/${recording.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1832,7 +1833,7 @@ describe('Routers > Project', () => {
         method: 'DELETE',
         url: `/${projectB.id}/recordings/${recordingA.id}`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1859,7 +1860,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/resource-map`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1878,7 +1879,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${encodeId(999)}/resource-map`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1895,7 +1896,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${encodeId(999)}/recordings/${recording.id}/resource-map`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1915,7 +1916,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/resource-map`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1935,7 +1936,7 @@ describe('Routers > Project', () => {
         method: 'GET',
         url: `/${project.id}/recordings/${recording.id}/resource-map`,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1961,7 +1962,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${recording.id}/resource-map`,
         body: resourceMap,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -1990,7 +1991,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${recordingId}/resource-map`,
         body: resourceMap,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -2018,7 +2019,7 @@ describe('Routers > Project', () => {
         url: `/${projectId}/recordings/${recording.id}/resource-map`,
         body: resourceMap,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -2054,7 +2055,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${recording.id}/resource-map`,
         body: resourceMap,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -2082,7 +2083,7 @@ describe('Routers > Project', () => {
         url: `/${project.id}/recordings/${recording.id}/resource-map`,
         body: resourceMap,
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 

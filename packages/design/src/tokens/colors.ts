@@ -66,6 +66,8 @@ export const color = {
     hover: twColors.slate['100'],
     /** slate-200 — muted fill for secondary/de-emphasised sections */
     muted: twColors.slate['200'],
+    /** slate-300 — stronger muted fill for de-emphasised interactive elements */
+    strong: twColors.slate['300'],
     /** slate-800 — nav bars, dark surfaces */
     emphasis: twColors.slate['800'],
     /** rgba(0,0,0,0.5) — modal overlays */

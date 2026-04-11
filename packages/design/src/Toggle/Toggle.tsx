@@ -75,7 +75,7 @@ export const Toggle = forwardRef<HTMLButtonElement, ToggleProps>(
         <Block
           height={height}
           width={width}
-          backgroundColor={color.border.strong}
+          backgroundColor={color.bg.strong}
           border={`1px solid ${color.border.emphasis}`}
           borderRadius={rounded ? radius.full : radius.none}
         >

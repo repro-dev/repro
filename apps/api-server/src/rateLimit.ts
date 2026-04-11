@@ -109,9 +109,52 @@ export function buildRateLimitOptions(config: RateLimitConfig) {
 }
 
 /**
- * Build per-route rate limit options for the recording upload endpoints.
- * This applies a stricter bucket (`uploadRpm`) scoped to the workspace.
+ * Build per-route rate limit options for agentic LLM endpoints.
+ * Keys by authenticated user (subjectId) or falls back to IP.
+ * Enforces a per-user hourly bucket to cap inference costs.
  */
+export function agenticMessageRateLimitOptions(maxPerHour: number) {
+  return {
+    max: maxPerHour,
+    timeWindow: '1 hour' as const,
+    keyGenerator: (req: FastifyRequest) => {
+      const session = (
+        req as FastifyRequest & {
+          session: { subjectId: string; id: string } | null
+        }
+      ).session
+      return session?.subjectId
+        ? `agentic:user:${session.subjectId}`
+        : `agentic:ip:${req.ip}`
+    },
+    onExceeded: (req: FastifyRequest, _key: string) => {
+      const session = (
+        req as FastifyRequest & {
+          session: { subjectId: string; id: string } | null
+        }
+      ).session
+      req.log.warn(
+        {
+          user_id: session?.subjectId ?? null,
+          endpoint: req.routeOptions?.url ?? req.url,
+          limit_type: 'agentic_hourly',
+        },
+        'rate_limit_exceeded'
+      )
+    },
+    errorResponseBuilder: (_req: FastifyRequest, context: { ttl: number }) => ({
+      statusCode: 429,
+      error: 'rate_limit_exceeded',
+      retryAfter: Math.ceil(context.ttl / 1000),
+    }),
+    addHeaders: {
+      'x-ratelimit-limit': true as const,
+      'x-ratelimit-remaining': true as const,
+      'x-ratelimit-reset': true as const,
+      'retry-after': true as const,
+    },
+  }
+}
 export function uploadRateLimitOptions(uploadRpm: number) {
   return {
     max: uploadRpm,

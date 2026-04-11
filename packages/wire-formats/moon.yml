@@ -2,14 +2,15 @@ id: repro/wire-formats
 language: typescript
 layer: library
 tags:
-- type.package
+  - type.package
+  - role.util
 tasks:
   build:
     command: pnpm run build
     inputs:
-    - glob: src/**/*.tdls
-      cache: true
+      - glob: src/**/*.tdls
+        cache: true
     outputs:
-    - src/generated/**/*
+      - src/generated/**/*
 toolchains:
   default: node

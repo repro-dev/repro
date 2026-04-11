@@ -22,6 +22,8 @@ Moon v2 project IDs use the source-path format: `repro/<name>` (e.g. `repro/doma
 
 General form: `moon run repro/<name>:build|test|typecheck` or `cd <package> && pnpm <script>`.
 
+When `tsx` is not on your shell `PATH`, invoke it through pnpm in the target package (for example `pnpm --dir "packages/recording" exec tsx ...`). Match the package's own test script flags when needed — some browser-like tests require `-r global-jsdom/register` in addition to `--test`.
+
 ### Moon v2 config files
 
 | File                   | Purpose                                                          |
