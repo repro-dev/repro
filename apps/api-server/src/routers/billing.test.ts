@@ -39,7 +39,7 @@ describe('Routers > Billing', () => {
         method: 'GET',
         url: '/subscription',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -68,7 +68,7 @@ describe('Routers > Billing', () => {
         method: 'GET',
         url: '/subscription',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -85,7 +85,7 @@ describe('Routers > Billing', () => {
         method: 'GET',
         url: '/subscription',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -113,7 +113,7 @@ describe('Routers > Billing', () => {
         method: 'GET',
         url: '/entitlements',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -161,7 +161,7 @@ describe('Routers > Billing', () => {
           planId: freePlan.id,
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -182,7 +182,7 @@ describe('Routers > Billing', () => {
         url: '/change-plan',
         body: {},
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -215,7 +215,7 @@ describe('Routers > Billing', () => {
         method: 'POST',
         url: '/cancel',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -246,7 +246,7 @@ describe('Routers > Billing', () => {
         method: 'POST',
         url: '/portal',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
