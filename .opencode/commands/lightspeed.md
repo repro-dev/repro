@@ -1,10 +1,10 @@
 ---
-description: Lightspeed delivery — select a ready wave, plan it, implement it in parallel, publish PRs, and emit a minimal next-wave gate handoff when needed
+description: Lightspeed delivery — select a ready wave, plan it, implement it in parallel, publish PRs, and launch an internal PTY-backed next-wave monitor when needed
 ---
 
 You are the orchestrator for a precision-first autonomous delivery flow. Scan Linear, select a small set of issues that are ready for autonomous work, sequence them provisionally, plan them, resequence once using planner output, implement the current ready wave in parallel, review each result, fix review findings when the agent can do so safely, and publish PRs.
 
-Stop after PRs for the current ready wave are published. If the immediate next queued wave is blocked by PRs from this run, write one minimal post-publish gate handoff under `tmp/` for the observe-only `/lightspeed-post-publish-gate` command; otherwise stop without any post-publish artifact.
+Stop after PRs for the current ready wave are published. If the immediate next queued wave is blocked by PRs from this run, write one minimal post-publish handoff under `tmp/` and immediately launch a named PTY-hosted internal `lightspeed-post-publish-monitor` session for that one next wave; otherwise stop without any post-publish artifact.
 
 Arguments (optional): `$ARGUMENTS`
 
@@ -30,7 +30,9 @@ Session-local exclusions:
 
 - Keep orchestration light. Do not recreate a long-lived control plane.
 - Plan files are the required implementation handoff artifact in this flow: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
-- Post-publish handoff is narrowly scoped: write at most one `tmp/lightspeed-post-publish-gate-<UTC timestamp>.json` artifact, and only for the immediate next queued wave if that wave is actually blocked by PRs opened in the current run.
+- Post-publish handoff is narrowly scoped: write at most one `tmp/lightspeed-post-publish-handoff-<UTC timestamp>.json` artifact, and only for the immediate next queued wave if that wave is actually blocked by PRs opened in the current run.
+- `opencode-pty` is a required part of this repo's checked-in OpenCode config. If the PTY plugin is unavailable or the background session cannot be launched, stop with setup guidance instead of falling back to a manual post-publish slash command.
+- The PTY monitor is internal only. `/lightspeed` remains the user-facing entrypoint, and `--continue-from <absolute-handoff-path>` remains the only narrow recovery or continuation seam.
 - Use issue selection notes plus explicit risk notes as the handoff from selection into sequencing.
 - Sequencing is provisional until planning finishes. Resequence once after planner output is available, then lock the ready wave.
 - `--continue-from` is the only supported continuation seam. It must revalidate the listed blocking PRs and must refuse to start the next wave until all of them are merged.
@@ -66,14 +68,12 @@ When `--continue-from` is present:
 ## Phase 1: Scan and select
 
 1. Fetch Linear issues in **Todo** and **Backlog** across all projects (or filtered by `$ARGUMENTS` if provided):
-
    - Use `Linear_list_issues` with `state: "Todo"` and then `state: "Backlog"`.
    - For each issue, call `Linear_get_issue` with `includeRelations: true`.
 
 2. Apply a precision-first selection bar.
 
    **Hard excludes:**
-
    - Has any `blockedBy` relation that is not yet Done
    - State is already **In Progress** or **In Review**
    - Already has an active worktree (`reproctl wt list`)
@@ -82,7 +82,6 @@ When `--continue-from` is present:
    - The issue does not give the planner enough concrete information to produce a bounded implementation plan without asking for human clarification
 
    **Supporting signals (use as evidence, not fake-precise hard gates):**
-
    - Clear user or developer outcome
    - Concrete acceptance criteria or other verifiable success conditions
    - Named packages, files, components, APIs, or workflows
@@ -90,7 +89,6 @@ When `--continue-from` is present:
    - Useful risk notes or dependency notes already present in the issue
 
 3. Produce a candidate table before proceeding. For each issue, show:
-
    - Issue ID
    - Title
    - Priority
@@ -305,7 +303,7 @@ Do **not** paste full AI review output back into Linear comments. Use Linear com
 
 ---
 
-## Phase 8: Publish the current ready wave, emit the immediate next-wave gate handoff if needed, and stop
+## Phase 8: Publish the current ready wave, launch the immediate next-wave PTY monitor if needed, and stop
 
 For each publishable issue:
 
@@ -324,7 +322,6 @@ For each publishable issue:
    Use this same guard for the initial publish path and any future re-push path.
 
    If the rebase conflicts:
-
    - Capture the conflicting files
    - Run `git -C <worktree-path> rebase --abort`
    - Post a structured, concise Linear comment summarizing the conflict
@@ -337,7 +334,6 @@ For each publishable issue:
 2. Push with the same lightweight retry posture used for worktree creation: retry transient failures up to 3 times; escalate permanent failures immediately.
 
 3. Create the PR. The body should help a human reviewer quickly understand the change. Include:
-
    - `Closes REP-xxx`
    - A short summary of the change
    - Verification performed
@@ -350,7 +346,6 @@ For each publishable issue:
 After all publishable issues in the current ready wave have been handled:
 
 5. Look at the **immediate next queued wave only**.
-
    - If there is no later queued wave, stop — no handoff artifact is needed.
    - If there is a later queued wave, inspect only that next wave's `blockedBy` relations.
    - Build the blocking PR set by intersecting those `blockedBy` issue IDs with the issues that successfully opened PRs in this run.
@@ -359,7 +354,7 @@ After all publishable issues in the current ready wave have been handled:
 6. If the immediate next queued wave is blocked by one or more PRs from this run, write a single JSON artifact at:
 
    ```
-   <checkout>/tmp/lightspeed-post-publish-gate-<UTC timestamp>.json
+    <checkout>/tmp/lightspeed-post-publish-handoff-<UTC timestamp>.json
    ```
 
    The artifact must stay minimal and include only:
@@ -398,21 +393,50 @@ After all publishable issues in the current ready wave have been handled:
    ```
 
    Notes:
-
    - `blockingPrs` must include only PRs that block the immediate next queued wave.
    - `latestObserved` is status metadata for the follow-on gate command, not a durable control plane.
    - Do not include later queued waves, phase logs, per-PR history, retry counters, or resume state.
 
-7. If the immediate next queued wave is **not** blocked by PRs from this run, do not write any handoff artifact.
+7. After writing the artifact, immediately launch exactly one named PTY background session using the repo-required `opencode-pty` plugin and the internal `lightspeed-post-publish-monitor` agent surface.
+
+   Requirements:
+   - Use `pty_spawn` rather than a foreground `bash` command.
+   - Set `notifyOnExit: true` on the PTY session.
+   - Name the PTY session so it is obviously tied to this run, for example `lightspeed-post-publish-monitor-wave-<waveIndex>-<UTC timestamp>`.
+   - Reuse that exact name as the spawned OpenCode session title so the monitor can identify its own session conservatively when checking whether the user has re-engaged the project.
+   - Start an OpenCode session that targets the internal monitor agent, for example:
+
+     ```
+      command: opencode
+      args:
+        - run
+        - --agent
+        - lightspeed-post-publish-monitor
+        - --dir
+        - <checkout>
+        - --title
+        - lightspeed-post-publish-monitor-wave-<waveIndex>-<UTC timestamp>
+        - Monitor this /lightspeed post-publish handoff artifact: <absolute-artifact-path>
+      workdir: <checkout>
+      title: lightspeed-post-publish-monitor-wave-<waveIndex>-<UTC timestamp>
+      notifyOnExit: true
+     ```
+
+   - Pass the absolute handoff artifact path inside the monitor prompt exactly once.
+   - Scope the monitor to `blockingPrs` for `nextQueuedWave` only. Do not watch later waves.
+   - If PTY launch fails, stop and report a setup error. Tell the operator that the checked-in root `opencode.json` must load `opencode-pty`, that machine-local `.envrc.local` / `OPENCODE_CONFIG_CONTENT` overlays remain only for local permissions such as `permission.external_directory`, and that `/lightspeed --continue-from <absolute-artifact-path>` is the only supported recovery seam once PTY is fixed.
+
+8. If the immediate next queued wave is **not** blocked by PRs from this run, do not write any handoff artifact and do not launch any monitor.
 
 - Report opened PR URLs
 - Report the handoff artifact path when one was written
-- Report the exact `/lightspeed-post-publish-gate <absolute-artifact-path>` command when one was written
+- Report the launched PTY monitor session name when one was started
+- If PTY launch failed, report the exact `/lightspeed --continue-from <absolute-artifact-path>` recovery seam together with the setup guidance
 - Report escalated issues and why
 - Report any later queued waves that were identified but intentionally not started
 - Stop
 
-Post-publish waiting and PR observation belong to `/lightspeed-post-publish-gate`, not this command. The only continuation path from here is the narrow `/lightspeed --continue-from <handoff>` seam described above.
+Post-publish waiting and PR observation belong to the internal PTY-hosted `lightspeed-post-publish-monitor` surface, not a public slash command. The only user-facing continuation path from here is the narrow `/lightspeed --continue-from <handoff>` seam described above. If the internal monitor auto-continues, it must invoke that same seam via the CLI equivalent `opencode run --command lightspeed --dir <checkout> -- --continue-from <absolute-handoff-path>` rather than inventing a second command surface.
 
 ---
 

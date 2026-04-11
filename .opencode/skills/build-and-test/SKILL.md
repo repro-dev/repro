@@ -113,9 +113,9 @@ When passing output paths to tools (e.g. Playwright `outputDir`, Storybook scree
 
 ## Worktrees & OpenCode External Directory Permission
 
-Git worktrees created by `reproctl wt create` live as sibling directories of the main checkout (e.g. `../repro-wt-<name>`). When running OpenCode from the main checkout and accessing files in a worktree (or vice-versa), OpenCode will prompt for permission because the path is outside the working directory.
+Git worktrees created by `reproctl wt create` live as sibling directories of the main checkout (e.g. `../repro-wt-<name>`). The checked-in root `opencode.json` is the canonical shared project config. Machine-specific OpenCode overrides belong in `.envrc.local` via `OPENCODE_CONFIG_CONTENT`, which `reproctl setup` regenerates automatically.
 
-This cannot be configured in the project-level `opencode.json` because the checkout path varies per developer. Instead, add the following to your **user-level** config at `~/.config/opencode/config.json`:
+`permission.external_directory` still cannot live in tracked project config because the checkout parent path varies per developer. Use the machine-local overlay written by `reproctl setup` (or an equivalent local override) for that permission:
 
 ```json
 {
@@ -128,7 +128,7 @@ This cannot be configured in the project-level `opencode.json` because the check
 }
 ```
 
-Replace `~/path/to/parent-of-checkouts` with the directory that contains your main checkout and its worktree siblings (e.g. `~/Projects/repro-dev`).
+Replace `~/path/to/parent-of-checkouts` with the directory that contains your main checkout and its worktree siblings (e.g. `~/Projects/repro-dev`). If you use `reproctl setup`, it writes the same machine-local overlay into `.envrc.local` for you; do not move that path-specific permission into tracked `opencode.json`.
 
 ## Visual Regression Tooling
 

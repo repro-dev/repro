@@ -156,16 +156,17 @@ ok ".envrc allowed"
 
 # ── Step 7: OpenCode local config ───────────────────────────────────
 
-next_step "Writing .envrc.local (machine-local OpenCode permissions)..."
+next_step "Writing .envrc.local (machine-local OpenCode overlay)..."
 
 PARENT_DIR="$(dirname "$REPO_ROOT")"
 ENVRC_LOCAL="$REPO_ROOT/.envrc.local"
 
-# Export OPENCODE_CONFIG_CONTENT so OpenCode (loaded via direnv) receives a
-# machine-local permission grant scoped to the parent directory.  This allows
-# agents to access sibling worktrees without hardcoding any path in tracked
-# files.  The key is the config merge order: OPENCODE_CONFIG_CONTENT (level 6)
-# overrides project config (level 4), so external_directory set here wins.
+# Export OPENCODE_CONFIG_CONTENT as a machine-local overlay on top of the
+# tracked root opencode.json. Shared repo requirements belong in checked-in
+# config; this overlay exists only for machine-specific values such as the
+# parent-directory external_directory permission used for sibling worktrees.
+# The key is the config merge order: OPENCODE_CONFIG_CONTENT (level 6)
+# overrides project config (level 4), so only machine-local keys set here win.
 #
 # The file is gitignored and regenerated on every `reproctl setup` run.
 cat > "$ENVRC_LOCAL" << ENVRC_EOF
@@ -187,7 +188,7 @@ export OPENCODE_CONFIG_CONTENT='{
 }'
 ENVRC_EOF
 
-ok ".envrc.local written (external_directory: $PARENT_DIR/**)"
+ok ".envrc.local written as machine-local overlay (external_directory: $PARENT_DIR/**)"
 
 # ── Step 8: Cluster + registry ──────────────────────────────────────
 
