@@ -130,9 +130,9 @@ This cannot be configured in the project-level `opencode.json` because the check
 
 Replace `~/path/to/parent-of-checkouts` with the directory that contains your main checkout and its worktree siblings (e.g. `~/Projects/repro-dev`).
 
-## Visual Regression
+## Visual Regression Tooling
 
-The `/lightspeed` pipeline runs an automated visual regression check (Phase 7) for any PR that touches UI files. The tooling consists of two scripts in `scripts/`:
+The repo includes standalone visual regression tooling in `scripts/`. It is useful for manual UI checks and for refreshing local baselines, but it is not an active `/lightspeed` pipeline phase. The tooling consists of two scripts:
 
 | Script                                 | Purpose                                                        |
 | -------------------------------------- | -------------------------------------------------------------- |

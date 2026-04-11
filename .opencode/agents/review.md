@@ -67,16 +67,16 @@ Return a structured review in this format:
 ## Blocking issues
 <issues that must be fixed before merge — each with file path, line reference, explanation, and classification>
 
-Each blocking item must include a `kind:` field and a 1-sentence rationale:
+Each blocking item must include a `fixable_by_agent:` field and a 1-sentence rationale:
 
 - **[file path, line N]** Description of the issue.
-  `kind: mechanical` — One sentence rationale for the classification.
+  `fixable_by_agent: true` — One sentence rationale for why the existing issue spec and plan are sufficient for the develop agent to fix it safely.
 
 - **[file path, line N]** Description of the issue.
-  `kind: architectural` — One sentence rationale for the classification.
+  `fixable_by_agent: false` — One sentence rationale for why this requires human judgment, re-planning, or missing product direction.
 
 ## Non-blocking suggestions
-<improvements that would be nice but aren't required — no `kind:` field required>
+<improvements that would be nice but aren't required — no `fixable_by_agent:` field required>
 
 ## Requirements checklist
 <for each acceptance criterion: met / not met / partially met, with evidence>
@@ -86,18 +86,18 @@ Each blocking item must include a `kind:` field and a 1-sentence rationale:
 
 Every blocking issue must be classified as one of:
 
-- **`mechanical`**: fixable by the `develop` agent using only the issue spec, without human judgment.
-  Examples: wrong test assertion, missing null check, style violation, missing acceptance criterion implementation that is clearly specified in the issue.
+- **`fixable_by_agent: true`**: the `develop` agent can fix it using the issue spec, plan, and current code context without new human decisions.
+  Examples: wrong test assertion, missing null check, style violation, a clearly specified acceptance criterion not yet implemented.
 
-- **`architectural`**: requires human judgment beyond what the issue spec provides.
-  Examples: design ambiguity, conflicting requirements, fundamental approach problem, unresolvable risk that the spec does not address.
+- **`fixable_by_agent: false`**: fixing it safely requires human judgment beyond the current issue spec and plan.
+  Examples: design ambiguity, conflicting requirements, a fundamental approach problem, or an unaddressed product/architecture decision.
 
-Non-blocking suggestions are **not** classified — `kind:` is required only for blocking issues.
+Non-blocking suggestions are **not** classified — `fixable_by_agent:` is required only for blocking issues.
 
 ## Rules
 
 - You are strictly read-only. Do not create, modify, or suggest edits to any files.
 - Be specific — reference file paths, line numbers, and code snippets.
 - Distinguish clearly between blocking issues and non-blocking suggestions.
-- Every blocking issue must have a `kind: mechanical | architectural` field with a 1-sentence rationale.
+- Every blocking issue must have a `fixable_by_agent: true | false` field with a 1-sentence rationale.
 - If something looks intentional but unusual, ask about it rather than flagging it as wrong.
