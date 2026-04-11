@@ -1,12 +1,12 @@
-import { Col } from '@jsxstyle/react'
-import { useApiClient } from '@repro/api-client'
+import { Col, Grid } from '@jsxstyle/react'
+import { ApiClient, useApiClient } from '@repro/api-client'
 import { Button, EmptyState, PageFrame, spacing } from '@repro/design'
-import { RecordingInfo } from '@repro/domain'
+import type { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
-import { getProjectRecordings } from '@repro/workspace-api'
+import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/workspace-api'
 import { FutureInstance, resolve } from 'fluture'
 import { PuzzleIcon } from 'lucide-react'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useProjectContext } from '~/ProjectContext'
 import { RecordingTile } from './RecordingTile'
 
@@ -14,10 +14,26 @@ import { RecordingTile } from './RecordingTile'
 const CHROME_WEB_STORE_URL =
   'https://chrome.google.com/webstore/detail/repro/ecmbphfjfhnifmhbjhpejbpdnpanpice'
 
-// An immediately-resolved empty list, typed to match getProjectRecordings.
-const emptyRecordings: FutureInstance<unknown, RecordingInfo[]> = resolve([])
+type ProjectRecordingsFuture = FutureInstance<unknown, RecordingInfo[]>
 
-export const HomeRoute: React.FC = () => {
+// An immediately-resolved empty list, typed to match getProjectRecordings.
+const emptyRecordings: ProjectRecordingsFuture = resolve([])
+
+interface Props {
+  // Injectable for testing; defaults to the real workspace-api function.
+  getProjectRecordings?: (
+    apiClient: ApiClient,
+    projectId: string
+  ) => ProjectRecordingsFuture
+}
+
+export const HomeRoute = ({
+  ) => ProjectRecordingsFuture
+}
+
+export const HomeRoute = ({
+  getProjectRecordings = defaultGetProjectRecordings,
+}: Props) => {
   const apiClient = useApiClient()
   const { selectedProject } = useProjectContext()
 
@@ -34,11 +50,26 @@ export const HomeRoute: React.FC = () => {
       return emptyRecordings
     }
     return getProjectRecordings(apiClient, projectId)
-  }, [apiClient, projectId])
+  }, [apiClient, projectId, getProjectRecordings])
 
-  const items: RecordingInfo[] = recordings ?? []
+  // Track which projectId the current `recordings` data was actually fetched
+  // for.  useFuture briefly returns loading=false with stale data during the
+  // render cycle between a dep change and the effect that resets its state, so
+  // we gate display on whether the completed fetch matches the current project.
+  const [confirmedProjectId, setConfirmedProjectId] = useState(projectId)
+  useEffect(() => {
+    if (!loading) {
+      setConfirmedProjectId(projectId)
+    }
+  }, [loading, projectId])
 
-  if (loading) {
+  const isDataCurrent = confirmedProjectId === projectId
+  const effectiveLoading = loading || !isDataCurrent
+
+  const currentProjectId = isDataCurrent ? confirmedProjectId : null
+  const items: RecordingInfo[] = isDataCurrent ? recordings ?? [] : []
+
+  if (effectiveLoading) {
     return (
       <PageFrame>
         <PageFrame.Header>
@@ -48,7 +79,7 @@ export const HomeRoute: React.FC = () => {
     )
   }
 
-  if (items.length === 0) {
+  if (!currentProjectId || items.length === 0) {
     return (
       <PageFrame>
         <PageFrame.Header>
@@ -96,15 +127,22 @@ export const HomeRoute: React.FC = () => {
   return (
     <PageFrame>
       <PageFrame.Header>
-        <PageFrame.Title>Sessions</PageFrame.Title>
+        <PageFrame.Title>Sessions ({items.length})</PageFrame.Title>
       </PageFrame.Header>
 
       <PageFrame.Body>
-        <Col gap={spacing.md}>
+        <Grid
+          gridTemplateColumns="repeat(auto-fill, minmax(320px, 1fr))"
+          gap={spacing.md}
+        >
           {items.map(recording => (
-            <RecordingTile key={recording.id} recording={recording} />
+            <RecordingTile
+              key={recording.id}
+              recording={recording}
+              projectId={currentProjectId}
+            />
           ))}
-        </Col>
+        </Grid>
       </PageFrame.Body>
     </PageFrame>
   )
