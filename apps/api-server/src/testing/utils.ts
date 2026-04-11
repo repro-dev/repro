@@ -1,5 +1,6 @@
 import compress from '@fastify/compress'
 import cors from '@fastify/cors'
+import helmet from '@fastify/helmet'
 import fastify, { FastifyInstance, FastifyPluginCallback } from 'fastify'
 import {
   serializerCompiler,
@@ -7,6 +8,7 @@ import {
 } from 'fastify-type-provider-zod'
 import Future, { FutureInstance, resolve } from 'fluture'
 import { Readable } from 'node:stream'
+import { buildHelmetOptions } from '~/securityHeaders'
 
 export function fromRouter(
   router: FastifyPluginCallback,
@@ -18,6 +20,7 @@ export function fromRouter(
 
   app.register(cors)
   app.register(compress)
+  app.register(helmet, buildHelmetOptions())
 
   app.setValidatorCompiler(validatorCompiler)
   app.setSerializerCompiler(serializerCompiler)

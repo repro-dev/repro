@@ -1,10 +1,10 @@
 import { tapF } from '@repro/future-utils'
 import { FastifyPluginAsync } from 'fastify'
-import { go, mapRej } from 'fluture'
+import { chain, chainRej, go, reject } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
-import { isNotFound, notAuthenticated } from '~/utils/errors'
+import { isNotFound, isTooManyRequests, notAuthenticated } from '~/utils/errors'
 import { createResponseUtils } from '~/utils/response'
 
 const loginSchema = {
@@ -29,16 +29,50 @@ export function createStaffRouter(
       '/login',
       {
         schema: loginSchema,
+        config: {
+          rateLimit: {
+            max: 10,
+            timeWindow: '15 minutes',
+          },
+        },
       },
       (req, res) => {
         respondWith(
           res,
           accountService
-            .getStaffUserByEmailAndPassword(req.body.email, req.body.password)
+            .ensureStaffNotLocked(req.body.email)
             .pipe(
-              mapRej(error => (isNotFound(error) ? notAuthenticated() : error))
+              chain(() =>
+                accountService.getStaffUserByEmailAndPassword(
+                  req.body.email,
+                  req.body.password
+                )
+              )
+            )
+            .pipe(
+              chainRej(error => {
+                if (isTooManyRequests(error)) {
+                  return reject(notAuthenticated('Invalid email or password.'))
+                }
+
+                if (isNotFound(error)) {
+                  return accountService
+                    .recordStaffFailedLogin(req.body.email)
+                    .pipe(
+                      chain(() =>
+                        reject(notAuthenticated('Invalid email or password.'))
+                      )
+                    )
+                }
+                return reject(error)
+              })
             )
             .pipe(tapF(user => req.createSession(user)))
+            .pipe(
+              tapF(() =>
+                accountService.resetStaffFailedLoginCount(req.body.email)
+              )
+            )
         )
       }
     )

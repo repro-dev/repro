@@ -2,20 +2,21 @@ id: repro/devtools-demo
 language: typescript
 layer: application
 tags:
-- type.app
-- build.static
+  - type.app
+  - build.static
+  - role.ui
 tasks:
   build:
     command: pnpm run build
     deps:
-    - ^:build
+      - ^:build
     outputs:
-    - dist
+      - dist
     options:
       cache: true
   serve:
     command: pnpm run serve
     deps:
-    - ^:build
+      - ^:build
 toolchains:
   default: node

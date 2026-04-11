@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@repro/testing-utils": "workspace:*",
+    "@testing-library/react": "^16.3.2",
     "@types/chrome": "^0.0.176",
     "@types/node": "22.14.0",
     "@types/react": "^18.0.14",

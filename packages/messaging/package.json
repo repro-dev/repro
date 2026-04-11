@@ -18,6 +18,7 @@
     "transferables": "^1.0.3"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
     "@types/node": "22.14.0",
     "@types/react": "^18.0.14",
     "@types/repro-shared-types": "workspace:*",

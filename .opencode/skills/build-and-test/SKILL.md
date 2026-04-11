@@ -28,6 +28,8 @@ Default to Moon for package tests. In agent sessions, `moon run repro/<name>:tes
 
 Use direct `tsx --test` commands only as a fallback when a package does not expose a usable Moon `test` target and you have confirmed the exact invocation from the package's existing scripts or docs.
 
+When `tsx` is not on your shell `PATH`, invoke it through pnpm in the target package (for example `pnpm --dir "packages/recording" exec tsx ...`). Match the package's own test script flags when needed — some browser-like tests require `-r global-jsdom/register` in addition to `--test`.
+
 ### Moon v2 config files
 
 | File                   | Purpose                                                          |

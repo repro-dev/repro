@@ -17,6 +17,7 @@ describe('Routers > Billing', () => {
     app = harness.bootstrap(
       createBillingRouter(billingService, harness.services.accountService)
     )
+    await app.ready()
   })
 
   beforeEach(async () => {
@@ -25,6 +26,244 @@ describe('Routers > Billing', () => {
 
   after(async () => {
     await harness.close()
+  })
+
+  describe('GET /subscription', () => {
+    it('should return the subscription for an authenticated user', async () => {
+      const [subscription, session] = await harness.loadFixtures([
+        fixtures.billing.AccountA_ProPlan_Subscription,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/subscription',
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      expect(res.json()).toMatchObject({
+        id: subscription.id,
+        accountId: subscription.accountId,
+        planId: subscription.planId,
+        status: 'active',
+        currentPeriodStart: expect.any(String),
+        currentPeriodEnd: expect.any(String),
+        cancelAtPeriodEnd: false,
+        canceledAt: null,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+      })
+    })
+
+    it('should not expose providerSubscriptionId in the response', async () => {
+      const [, session] = await harness.loadFixtures([
+        fixtures.billing.AccountA_ProPlan_Subscription,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/subscription',
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      expect(res.json()).not.toHaveProperty('providerSubscriptionId')
+    })
+
+    it('should return 404 when no subscription exists', async () => {
+      const [session] = await harness.loadFixtures([
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/subscription',
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(404)
+    })
+
+    it('should return 401 when not authenticated', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/subscription',
+      })
+
+      expect(res.statusCode).toEqual(401)
+    })
+  })
+
+  describe('GET /entitlements', () => {
+    it('should return entitlements as ListResponse for an authenticated user', async () => {
+      const [, session] = await harness.loadFixtures([
+        fixtures.billing.AccountA_ProPlan_Subscription,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/entitlements',
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      const body = res.json()
+      expect(body).toEqual({
+        items: expect.arrayContaining([
+          { feature: 'recordings', enabled: true, limit: null },
+          { feature: 'seats', enabled: true, limit: 5 },
+          { feature: 'ai_credits', enabled: true, limit: 100 },
+        ]),
+      })
+      expect(body.items).toHaveLength(3)
+      for (const item of body.items) {
+        expect(Object.keys(item).sort()).toEqual([
+          'enabled',
+          'feature',
+          'limit',
+        ])
+      }
+    })
+
+    it('should return 401 when not authenticated', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/entitlements',
+      })
+
+      expect(res.statusCode).toEqual(401)
+    })
+  })
+
+  describe('POST /change-plan', () => {
+    it('should change the plan for an authenticated user', async () => {
+      const [, session, freePlan] = await harness.loadFixtures([
+        fixtures.billing.AccountA_ProPlan_Subscription,
+        fixtures.account.UserA_Session,
+        fixtures.billing.FreePlan,
+      ])
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/change-plan',
+        body: {
+          planId: freePlan.id,
+        },
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      expect(res.json()).toMatchObject({
+        planId: freePlan.id,
+        status: expect.any(String),
+      })
+    })
+
+    it('should return 400 when planId is missing', async () => {
+      const [session] = await harness.loadFixtures([
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/change-plan',
+        body: {},
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+    })
+
+    it('should return 401 when not authenticated', async () => {
+      const [proPlan] = await harness.loadFixtures([fixtures.billing.ProPlan])
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/change-plan',
+        body: {
+          planId: proPlan.id,
+        },
+      })
+
+      expect(res.statusCode).toEqual(401)
+    })
+  })
+
+  describe('POST /cancel', () => {
+    it('should cancel the subscription for an authenticated user', async () => {
+      const [, session] = await harness.loadFixtures([
+        fixtures.billing.AccountA_ProPlan_Subscription,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/cancel',
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      expect(res.json()).toMatchObject({
+        status: expect.any(String),
+      })
+    })
+
+    it('should return 401 when not authenticated', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/cancel',
+      })
+
+      expect(res.statusCode).toEqual(401)
+    })
+  })
+
+  describe('POST /portal', () => {
+    it('should return a portal URL for an authenticated user', async () => {
+      const [, session] = await harness.loadFixtures([
+        fixtures.billing.AccountA_ProPlan_Subscription,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/portal',
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      expect(res.json()).toMatchObject({
+        url: expect.any(String),
+      })
+    })
+
+    it('should return 401 when not authenticated', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/portal',
+      })
+
+      expect(res.statusCode).toEqual(401)
+    })
   })
 
   describe('POST /checkout', () => {
@@ -41,7 +280,7 @@ describe('Routers > Billing', () => {
           planId: proPlan.id,
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -65,7 +304,7 @@ describe('Routers > Billing', () => {
           planId: proPlan.id,
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -94,7 +333,7 @@ describe('Routers > Billing', () => {
           planId: 'nonexistent-plan-id',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -125,7 +364,7 @@ describe('Routers > Billing', () => {
         url: '/checkout',
         body: {},
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 

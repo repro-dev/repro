@@ -1,3 +1,4 @@
+import { unsign } from '@fastify/cookie'
 import expect from 'expect'
 import { FastifyInstance } from 'fastify'
 import { map, promise } from 'fluture'
@@ -17,6 +18,7 @@ describe('Routers > Account', () => {
     harness = await createTestHarness()
     accountService = harness.services.accountService
     app = harness.bootstrap(createAccountRouter(accountService))
+    await app.ready()
   })
 
   beforeEach(async () => {
@@ -111,11 +113,16 @@ describe('Routers > Account', () => {
         c => c.name === harness.env.SESSION_COOKIE
       )
 
-      const sessionToken = cookie?.value
-      expect(sessionToken).not.toBeUndefined()
+      // Cookie value is signed (rawToken.signature); unsign to get the raw token for DB lookup
+      const rawToken = unsign(
+        cookie?.value ?? '',
+        harness.env.SESSION_SECRET
+      ).value
+      expect(rawToken).not.toBeNull()
+      const sessionToken = rawToken as string
 
       await expect(
-        promise(accountService.getSessionByToken(sessionToken as string))
+        promise(accountService.getSessionByToken(sessionToken))
       ).resolves.toMatchObject({
         id: expect.any(String),
         sessionToken,
@@ -183,12 +190,16 @@ describe('Routers > Account', () => {
         c => c.name === harness.env.SESSION_COOKIE
       )
 
-      const sessionToken = cookie?.value
-
-      expect(sessionToken).not.toBeUndefined()
+      // Cookie value is signed (rawToken.signature); unsign to get the raw token for DB lookup
+      const rawToken = unsign(
+        cookie?.value ?? '',
+        harness.env.SESSION_SECRET
+      ).value
+      expect(rawToken).not.toBeNull()
+      const sessionToken = rawToken as string
 
       await expect(
-        promise(accountService.getSessionByToken(sessionToken as string))
+        promise(accountService.getSessionByToken(sessionToken))
       ).resolves.toMatchObject({
         id: expect.any(String),
         sessionToken,
@@ -224,7 +235,7 @@ describe('Routers > Account', () => {
         method: 'POST',
         url: '/logout',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -254,7 +265,7 @@ describe('Routers > Account', () => {
         method: 'GET',
         url: '/me',
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -285,7 +296,7 @@ describe('Routers > Account', () => {
           email: 'hello@example.com',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -309,7 +320,7 @@ describe('Routers > Account', () => {
           email: 'user-a@example.com',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -333,7 +344,7 @@ describe('Routers > Account', () => {
           email: 'hello@example.com',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -398,11 +409,16 @@ describe('Routers > Account', () => {
         c => c.name === harness.env.SESSION_COOKIE
       )
 
-      const sessionToken = cookie?.value
-      expect(sessionToken).not.toBeUndefined()
+      // Cookie value is signed (rawToken.signature); unsign to get the raw token for DB lookup
+      const rawToken = unsign(
+        cookie?.value ?? '',
+        harness.env.SESSION_SECRET
+      ).value
+      expect(rawToken).not.toBeNull()
+      const sessionToken = rawToken as string
 
       await expect(
-        promise(accountService.getSessionByToken(sessionToken as string))
+        promise(accountService.getSessionByToken(sessionToken))
       ).resolves.toMatchObject({
         id: expect.any(String),
         sessionToken,
@@ -550,7 +566,7 @@ describe('Routers > Account', () => {
           email: 'user-a@example.com',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 
@@ -584,7 +600,7 @@ describe('Routers > Account', () => {
           email: 'user-b@example.com',
         },
         cookies: {
-          [harness.env.SESSION_COOKIE]: session.sessionToken,
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
         },
       })
 

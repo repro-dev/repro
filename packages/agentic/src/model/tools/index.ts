@@ -51,6 +51,10 @@ import {
   handler as getStateChanges,
 } from "./get-state-changes";
 import {
+  TOOL_DEFINITION as getConsoleContextDef,
+  handler as getConsoleContext,
+} from "./get-console-context";
+import {
   TOOL_DEFINITION as searchEventsDef,
   handler as searchEvents,
 } from "./search-events";
@@ -59,6 +63,7 @@ import type { ToolHandler } from "./common";
 export const tools = [
   getRecordingDurationDef,
   getConsoleMessagesDef,
+  getConsoleContextDef,
   getNetworkRequestsDef,
   getDOMStateDef,
   findErrorsDef,
@@ -82,6 +87,7 @@ export const extensionTools = tools.filter(
 const toolHandlers: Record<string, ToolHandler> = {
   getRecordingDuration,
   getConsoleMessages,
+  getConsoleContext,
   getNetworkRequests,
   getDOMState,
   findErrors,

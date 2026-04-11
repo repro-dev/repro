@@ -125,6 +125,11 @@ describe('Rate limiting', () => {
       const env = createEnv({ RATE_LIMIT_UNAUTHENTICATED_RPM: '120' })
       expect(env.RATE_LIMIT_UNAUTHENTICATED_RPM).toEqual(120)
     })
+
+    it('should reject SESSION_CLEANUP_INTERVAL values below 1', () => {
+      expect(() => createEnv({ SESSION_CLEANUP_INTERVAL: '0' })).toThrow()
+      expect(() => createEnv({ SESSION_CLEANUP_INTERVAL: '-1' })).toThrow()
+    })
   })
 
   describe('unauthenticated rate limiting (per-IP)', () => {

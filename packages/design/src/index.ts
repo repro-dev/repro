@@ -1,3 +1,4 @@
+export { visuallyHidden } from '@repro/a11y'
 export * from './AgenticInput'
 export * from './Alert'
 export * from './AppShell'

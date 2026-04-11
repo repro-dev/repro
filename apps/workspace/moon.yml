@@ -2,28 +2,29 @@ id: repro/workspace
 language: typescript
 layer: application
 tags:
-- type.app
-- build.static
+  - type.app
+  - build.static
+  - role.ui
 tasks:
   build:
     command: pnpm run build
     deps:
-    - ^:build
+      - ^:build
     outputs:
-    - dist
+      - dist
     options:
       cache: true
   serve:
     command: pnpm run serve
     deps:
-    - ^:build
-    - prepare-env
+      - ^:build
+      - prepare-env
     preset: server
   dev:
     command: pnpm run dev-serve
     deps:
-    - ^:build
-    - prepare-env
+      - ^:build
+      - prepare-env
     preset: server
   prepare-env:
     command: pnpm run prepare-env
