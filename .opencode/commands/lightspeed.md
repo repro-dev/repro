@@ -1,24 +1,15 @@
 ---
-description: Lightspeed delivery — scan Linear backlog, select autonomous issues, implement in parallel waves with subagents, review, and open PRs
+description: Lightspeed delivery — select a ready wave, plan it, implement it in parallel, review it, and publish PRs
 ---
 
-You are the orchestrator for a parallel autonomous delivery pipeline. Your job is to scan the Linear backlog, select well-scoped issues, sequence them into waves, implement each wave in parallel using subagents, review each result, and open PRs — then repeat until blocked.
+You are the orchestrator for a precision-first autonomous delivery flow. Scan Linear, select a small set of issues that are ready for autonomous work, sequence them provisionally, plan them, resequence once using planner output, implement the current ready wave in parallel, review each result, fix review findings when the agent can do so safely, and publish PRs.
 
-Arguments (optional): `$ARGUMENTS` — a project name or filter to restrict which issues are considered (e.g. "Engineering" or "Platform"). If empty, scan all projects.
+Stop after PRs for the current ready wave are published. Do not wait on CI, merges, or post-publish monitoring here — that follow-on behavior is handled separately.
 
-Flags (optional):
-
-- `--no-watch` — open PRs and exit immediately; skip the merge-watch loop (Phase 9). Preserves the previous behaviour for callers that manage merging externally.
-- `AUTONOMOUS=true` (default) — run Phase 0 skill audit in fully non-interactive mode. Auto-fixes unambiguous stale references and files Platform issues for ambiguous ones. Never blocks on a user prompt. This is always `true` when `/lightspeed` is invoked (it's an autonomous pipeline by design).
-- `--max-waves N` — limit the pipeline to N total waves. When omitted, the pipeline continues until all candidates are exhausted or a stop condition fires. Useful for bounded runs during testing or when human review is desired after a fixed number of waves.
-
-> **Visual regression prerequisite**: The visual check in Phase 7 requires baseline screenshots in `tmp/visual-baselines/` on the main checkout. Run `/update-visual-baselines` once after any intentional visual change is merged. If the baseline directory is missing or empty, all stories are treated as "new" (no failure, but no diff coverage either).
+Arguments (optional): `$ARGUMENTS` — a project name or filter to restrict which issues are considered (for example `Engineering` or `Platform`). If empty, scan all projects.
 
 Current branch context:
 !`git branch --show-current`
-
-Session baseline — SHA of origin/main at startup (used in Phase 9 to classify conflict origins):
-!`git rev-parse origin/main`
 
 Worktrees already in flight:
 !`reproctl wt list 2>/dev/null || echo "(none)"`
@@ -26,301 +17,121 @@ Worktrees already in flight:
 Open PRs (branch name + title — used to detect in-flight issues):
 !`gh pr list --state open --json number,headRefName,title --jq '.[] | "\(.number) \(.headRefName) \(.title)"' 2>/dev/null || echo "(none)"`
 
-Existing run log (if any):
-!`cat tmp/lightspeed-run.json 2>/dev/null || echo "null"`
+Session-local exclusions:
 
-Escalated issues (accumulated during this run — excluded from wave selection):
-
-- Maintained as a session-level set. Starts empty. Append each escalated issue ID when escalation occurs.
+- Maintain an in-memory `escalated_issues` set for this run only. Start empty and append issue IDs that are escalated.
 
 ---
 
-## Run Log
+## Operating principles
 
-The run log persists pipeline state across sessions, enabling resumption after interruption.
+- Keep orchestration light. Do not recreate a long-lived control plane.
+- Plan files are the only required durable handoff artifact in this flow: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
+- Use issue selection notes plus explicit risk notes as the handoff from selection into sequencing.
+- Sequencing is provisional until planning finishes. Resequence once after planner output is available, then lock the ready wave.
+- Tactical implementation deviations are allowed if they preserve the plan's intent. Large strategic deviations mean planning failed — stop and escalate the issue instead of freelancing.
+- Use `fixable_by_agent: true | false` for blocking review findings.
+- Do not run a skill-audit preflight, do not maintain a run log, and do not run a visual regression phase here.
 
-**File path:** `tmp/lightspeed-run.json` (git-ignored — never commit it)
-
-**Schema:**
-
-```json
-{
-  "started_at": "<ISO-8601 timestamp>",
-  "wave": 1,
-  "session_main_sha": "<git SHA of origin/main at startup>",
-  "issues": [
-    {
-      "id": "REP-xxx",
-      "title": "<issue title>",
-      "phase": "selected|planned|implementing|implemented|reviewing|pr_open|merged|escalated",
-      "wave": 1,
-      "worktree": "<absolute path or null>",
-      "pr": { "number": 42, "url": "https://github.com/..." },
-      "escalation_reason": "<string or null>"
-    }
-  ]
-}
-```
-
-**Update contract:** Use the Write tool to overwrite the entire file after each phase transition. Never append — always write the full current state.
-
-> **Concurrent sessions:** Only one Lightspeed session should run at a time. Concurrent sessions will overwrite each other's run log and produce inconsistent state.
+> Tip: Run `/enrich-issues` before `/lightspeed` if the backlog contains issues that look promising but under-specified.
 
 ---
 
-## Prerequisites
+## Phase 1: Scan and select
 
-### Permission configuration
+1. Fetch Linear issues in **Todo** and **Backlog** across all projects (or filtered by `$ARGUMENTS` if provided):
+   - Use `Linear_list_issues` with `state: "Todo"` and then `state: "Backlog"`.
+   - For each issue, call `Linear_get_issue` with `includeRelations: true`.
 
-The `/lightspeed` pipeline runs `develop`, `planner`, and `review` subagents unattended across multiple waves. If any subagent blocks on a permission prompt, the entire wave stalls.
+2. Apply a precision-first selection bar.
 
-The following configuration is required and is already applied in this repository:
+   **Hard excludes:**
+   - Has any `blockedBy` relation that is not yet Done
+   - State is already **In Progress** or **In Review**
+   - Already has an active worktree (`reproctl wt list`)
+   - Issue ID appears in an open PR branch name
+   - Issue ID is already in this session's `escalated_issues` set
+   - The issue does not give the planner enough concrete information to produce a bounded implementation plan without asking for human clarification
 
-**Project-level defaults** (`.opencode/opencode.json`, generated by `reproctl setup` — not committed):
+   **Supporting signals (use as evidence, not fake-precise hard gates):**
+   - Clear user or developer outcome
+   - Concrete acceptance criteria or other verifiable success conditions
+   - Named packages, files, components, APIs, or workflows
+   - Obvious bounded scope
+   - Useful risk notes or dependency notes already present in the issue
 
-- `external_directory` — scoped to the parent directory of the main checkout by `reproctl setup`, covering the checkout itself and all sibling worktrees. Without this, every file operation in a worktree triggers a permission prompt.
-- `doom_loop` — set to `"allow"` globally. The `doom_loop` permission does not support granular pattern matching, so per-command exemptions are not possible. Setting it to `"allow"` is required to prevent the Phase 9 poll loop (`gh pr checks`, `gh pr view`, `gh pr merge`) and Phase 3/8 retry loops from stalling on permission prompts. The doom_loop guard is effectively disabled for this project as a trade-off for unblocked pipeline operation.
+3. Produce a candidate table before proceeding. For each issue, show:
+   - Issue ID
+   - Title
+   - Priority
+   - Project
+   - Include / exclude decision
+   - Brief rationale
+   - Risk notes that may affect sequencing
 
-**Agent-level permissions** (`.opencode/agents/*.md` frontmatter):
-
-- `develop.md` and `test.md`: full `allow` for bash and edit; `doom_loop: "allow"` (inherits global, stated explicitly for clarity)
-- `planner.md` and `review.md`: bash restricted to read-only git commands (`git log*`, `git diff*`, `git show*`), write/edit denied. Cross-worktree reads are covered by the project-level `external_directory` scope in `opencode.json` — no agent-level override needed.
-
-> **Important:** If you modify agent frontmatter, verify these permissions remain intact. Removing the `doom_loop` entries from `develop.md`/`test.md`, or removing `opencode.json` (which provides the `external_directory` scope), will cause the pipeline to hang on permission prompts during unattended runs. If `opencode.json` is missing, run `reproctl setup` to regenerate it.
-
-### Visual regression baselines
-
-Before running `/lightspeed` on any wave that includes UI changes, ensure visual regression baselines are current. See the `build-and-test` skill for baseline management instructions (`/update-visual-baselines`).
-
----
-
-## Phase 0: Skill Audit (Pre-scan)
-
-Before scanning the backlog, verify that skill files and agent files are not stale. Run the full procedure in `.opencode/commands/audit-skills.md` (`/audit-skills`) **in autonomous mode** (`AUTONOMOUS=true` — the default when invoked from `/lightspeed`).
-
-After the audit completes:
-
-- **If clean:** log `Skill audit: clean` to the session status table and proceed immediately to Phase 1.
-- **If stale references were auto-fixed:** log `Skill audit: auto-fixed N references across M files — now clean` and proceed to Phase 1.
-- **If ambiguous references were filed as Platform issues:** log `Skill audit: auto-fixed N references, filed K ambiguous references as Platform issues — proceeding` and list each filed issue ID in the session status table. Proceed to Phase 1.
-- **Never block on a user prompt.** In autonomous mode, every stale reference is either auto-fixed or filed as a Platform issue — the audit always completes and Phase 1 always begins.
-
-> **Tip:** Run `/enrich-issues` (or `/enrich-issues <project>`) before `/lightspeed` to bring thin issues up to spec. Issues that fail the hard gates below are silently skipped — enriching them first increases the candidate pool.
+4. Select a small batch for provisional sequencing. Aim for **3–6 issues total**, but prefer fewer if overlap risk is unclear.
 
 ---
 
-## Phase 0.5: Run Log Resume Check
+## Phase 2: Provisional sequencing
 
-Inspect the startup context injection value `Existing run log (if any)` captured above.
+1. Group the selected issues into **provisional** waves using likely file independence and dependency order.
+2. When in doubt, separate issues into different waves.
+3. Display the provisional wave plan and why each issue is in that wave.
 
-**Case 1 — value is `null`:** No prior run log exists. Proceed to Phase 1 (clean start).
-
-**Case 2 — value is malformed JSON:** Log `Run log found but malformed — starting fresh`. Proceed to Phase 1.
-
-**Case 3 — valid JSON with `started_at` older than 24 hours:** Log `Run log found but stale (>24h, started <started_at>) — starting fresh`. Proceed to Phase 1.
-
-**Case 4 — valid JSON with `started_at` within the last 24 hours:** Display a resume offer:
+Example:
 
 ```
-Found an active run log from <started_at> (<relative time ago>).
-Issues in flight:
-| Issue   | Title  | Phase        | Wave | Worktree | PR  |
-|---------|--------|--------------|------|----------|-----|
-| REP-xxx | ...    | implementing | 1    | ✓        | -   |
-| REP-yyy | ...    | pr_open      | 1    | ✓        | #42 |
+Wave 1: REP-101, REP-102
+  - Independent file areas
 
-Resume this run? (yes/no)
+Wave 2: REP-103
+  - Depends on REP-101 landing first
 ```
 
-**If user says yes:**
-
-1. Restore the status table from the run log.
-2. **Validate worktrees:** Run `reproctl wt list` and check each issue that has a non-null `worktree` path. If a worktree is missing from the list → reset that issue's `phase` to `selected` (it will re-enter at Phase 2).
-3. **Validate PRs:** For each issue with `phase: "pr_open"`, run `gh pr view <pr.number> --json state --jq '.state'`. If `MERGED` → update `phase` to `merged`. If `CLOSED` → reset `phase` to `implemented`.
-4. **Re-entry map** — skip completed work and resume at the correct phase:
-   - `selected` → Phase 2 (Sequence)
-   - `planned` → Phase 5 (Implement)
-   - `implementing` → Phase 5 (re-run — may have been interrupted mid-implement)
-   - `implemented` → Phase 6 (Review)
-   - `reviewing` → Phase 6 (re-run — may have been interrupted mid-review)
-   - `pr_open` → Phase 9 (Merge Watch)
-   - `merged` → skip (complete)
-   - `escalated` → skip (add to `escalated_issues` set)
-
-**If user says no:** Log `User declined resume — starting fresh`. Overwrite the log in Phase 1 as normal.
+Only the earliest ready wave will be implemented in this run. Later waves remain queued and should be reported at the end, not auto-started.
 
 ---
 
-## Phase 1: Scan and Select
+## Phase 3: Create worktrees for the provisional ready wave
 
-1. Fetch all Linear issues in **Todo** and **Backlog** state across all projects (or filtered by `$ARGUMENTS` if provided):
-   - Use `Linear_list_issues` with `state: "Todo"` and then `state: "Backlog"`, iterating through all projects.
-   - For each issue, call `Linear_get_issue` with `includeRelations: true` to get blockers.
-
-2. Score each issue for autonomous suitability. Apply this rubric strictly — exclude any issue that fails a hard gate:
-
-   **Hard gates (any failure = exclude):**
-   - Has at least one `blockedBy` relation that is not yet Done → SKIP
-   - Description is missing or under ~100 words → SKIP (insufficient spec)
-   - Lacks clear acceptance criteria (no "should", "must", checklist, or "AC:" section) → SKIP
-   - Requires human decision ("TBD", "discuss", "pending design") → SKIP
-   - Is already In Progress or In Review (state check) → SKIP
-   - Already has an active worktree (check `reproctl wt list` output) → SKIP
-   - Issue ID appears in any open PR's branch name (check open PRs output above) → SKIP
-   - Issue ID is in the session's `escalated_issues` set → SKIP (escalated earlier in this run)
-
-   **Positive signals (more = better fit):**
-   - Well-scoped title (verb + noun, no vague words like "improve" or "look into")
-   - Explicit acceptance criteria checklist
-   - Touches a single package or a small set of files
-   - Has a label of Bug, Feature, or Improvement (not Tech Debt unless well-defined)
-   - Priority ≤ 3 (Urgent, High, or Normal)
-
-3. Output a scored candidate table before proceeding. Show: issue ID, title, priority, project, rationale (why included or excluded). Ask yourself: would a developer know exactly what to build from this issue alone, without asking questions? If no, exclude it.
-
-4. Select the top candidates — aim for **3–6 issues per wave**, limited by:
-   - File independence: no two selected issues should touch the same primary files. Infer likely file paths from the issue descriptions. **When in doubt, assign to separate waves — never assume independence.** A merge conflict discovered after parallel implementation cannot be automatically resolved and wastes the entire subagent run.
-   - Complexity: no single wave should contain more than one large issue (>5 files estimated)
-
-> **Write the run log:** After finalising the candidate selection, write `tmp/lightspeed-run.json` with:
->
-> - `started_at`: current ISO-8601 timestamp
-> - `wave`: 1
-> - `session_main_sha`: the SHA captured in the startup context injection above
-> - `issues`: one entry per selected issue with `phase: "selected"`, `wave: null` (assigned in Phase 2), `worktree: null`, `pr: null`, `escalation_reason: null`
->
-> Use the Write tool to create or overwrite the file. If the user declined a resume in Phase 0.5, this overwrites the stale log.
-
----
-
-## Phase 2: Sequence
-
-Group the selected issues into waves where each wave is a set of issues that can run concurrently without touching overlapping files.
-
-If issue B depends on issue A being merged first, put B in wave 2.
-
-Display the wave plan before proceeding:
-
-```
-Wave 1: REP-xxx (title), REP-yyy (title)
-Wave 2: REP-zzz (title)  [depends on Wave 1]
-```
-
-> **Update the run log:** After assigning waves, update each issue's `wave` field in `tmp/lightspeed-run.json` with its assigned wave number. Use the Write tool to overwrite the entire file.
-
----
-
-## Phase 3: Create Worktrees
-
-Before creating worktrees for this wave, sweep orphans from prior incomplete runs:
+Before creating worktrees, sweep obvious orphans:
 
 ```sh
 reproctl wt prune --yes 2>&1 || echo "[wt prune] Warning: prune failed — continuing"
 ```
 
-If `wt prune` fails, log the error and continue — do not abort the pipeline.
-
-For each issue in Wave 1, run these steps sequentially (not in parallel — worktree creation must stagger to avoid git lock contention):
+For each issue in the provisional ready wave, create its worktree **sequentially**:
 
 ```sh
 reproctl wt create --from-issue REP-xxx
 ```
 
-Wait for each `wt create` to complete before running the next. Note the worktree path output by each command — it will be something like `/Users/gary/Projects/repro-dev/repro-wt-rep-xxx-<slug>`.
+Wait for each command to finish before starting the next one.
 
-`reproctl wt create --from-issue` automatically sets the Linear issue to **In Progress** — do not call `Linear_save_issue` additionally.
+### Worktree creation retry policy
 
-> **Update the run log:** After each successful `wt create`, update the corresponding issue's `worktree` field in `tmp/lightspeed-run.json` to the worktree path. Use the Write tool to overwrite the entire file.
+- **Retryable**: git lock contention, transient network failures, other one-off non-zero exits
+- **Do not retry**: branch already exists remotely, permission/auth failures, repository not found, or obviously inconsistent partial worktree state
 
-### Retry-with-backoff for `wt create` failures
+Retry up to **3 times** after the initial failure with delays of **5s**, **15s**, and **45s**.
 
-If `reproctl wt create --from-issue` fails, apply this protocol before escalating:
+### Phase-local failure handling
 
-**Classify the failure first:**
+If worktree creation still fails for an issue:
 
-- **Permanent failures → escalate immediately, do not retry:**
-  - `branch already exists on remote` — a branch collision; the issue may be in flight elsewhere
-  - `permission denied` — auth or ACL issue
-  - `repository not found` — misconfigured remote
-  - Directory exists on disk but is NOT listed in `reproctl wt list` — partial worktree state; cannot safely reuse
+- Report the issue ID and the error clearly
+- If a partial worktree exists, remove it
+- Exclude that issue from the current run
+- Add the issue ID to `escalated_issues`
 
-- **Transient failures → retry with exponential backoff:**
-  - `lock file exists` / `fatal: Unable to create '<path>/.git/index.lock': File exists` — git lock contention
-  - `unable to connect` / `timed out` / exit code 128 with network errors — transient network or remote hiccup
-  - Any other non-classified non-zero exit — treat as transient on attempt 1; escalate if it repeats
-
-**Retry loop (up to 3 attempts after the initial failure = 4 total tries):**
-
-Before each retry:
-
-1. Log: `[wt create retry N/3] Error: <error summary>. Waiting <Xs> before next attempt.`
-2. Wait the backoff duration: attempt 1 → 5 s, attempt 2 → 15 s, attempt 3 → 45 s
-3. Run `reproctl wt list` and check whether a worktree for this issue now exists:
-   - If found → reuse it (note the path, proceed to Phase 4). Stop retrying.
-   - If not found → proceed with the retry
-
-4. Retry `reproctl wt create --from-issue REP-xxx`
-
-If all 3 retries are exhausted without success, escalate to the user with the full error output from the final attempt. Do not attempt to create the worktree again.
+Do not stop the whole run unless every issue in the provisional ready wave fails here.
 
 ---
 
-## Escalation Cleanup Protocol
+## Phase 4: Plan in parallel
 
-When any issue must be abandoned mid-pipeline (ambiguity, visual regression failure, architectural block, retry budget exhausted, unresolvable build failure), apply these steps **in order**. The ordering matters — post the comment before changing state so the reason is visible even if the state change fails.
-
-1. **Post a structured Linear comment** on the issue explaining the escalation reason and listing each detail as a bullet:
-
-   ```
-   Linear_save_comment on REP-xxx with body:
-
-   ## Escalated: <Reason>
-
-   This issue was escalated by the lightspeed pipeline because <brief explanation>:
-
-   - <detail 1>
-   - <detail 2>
-   - ...
-
-   The issue has been reset to Todo. Resolve the items above and move back to Todo when ready for re-processing.
-   ```
-
-   Use the appropriate `<Reason>` and details for each escalation type:
-   - **Ambiguity**: reason = "Ambiguity", details = each unresolved question from the planner's `## Ambiguities` section
-   - **Visual regression**: reason = "Visual Regression Failure", details = each failed story with pixel counts
-   - **Architectural block**: reason = "Architectural Issue", details = each blocking issue with its rationale
-   - **Retry budget exhausted**: reason = "Retry Budget Exhausted", details = each remaining blocking mechanical issue
-   - **Unresolvable build failure**: reason = "Unresolvable Build Failure", details = the error output summary
-
-2. **Set the issue state to Todo:**
-
-   ```
-   Linear_save_issue with id: "REP-xxx", state: "Todo"
-   ```
-
-3. **Delete the worktree:**
-
-   ```sh
-   reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
-   ```
-
-4. **Add to escalated set:** Append `REP-xxx` to the session's `escalated_issues` set so it is excluded from future wave selection in this run.
-
-5. **Log the summary line:**
-
-   ```
-   ESCALATED REP-xxx: <reason> — worktree removed, issue reset to Todo
-   ```
-
-6. **Update the status table:** Set the issue's state to `Escalated`.
-
-7. **Update the run log:** Set the issue's `phase` → `escalated` and `escalation_reason` to a brief summary of the escalation reason in `tmp/lightspeed-run.json`. Use the Write tool to overwrite the entire file.
-
----
-
-## Phase 4: Plan in Parallel
-
-Launch all Wave 1 `planner` subagents in a **single message** (one Task tool call per issue) so they run concurrently. Use the `planner` agent for each.
+Launch `planner` subagents for every issue that has a worktree, in parallel.
 
 Prompt template per issue:
 
@@ -333,39 +144,63 @@ Worktree: <absolute-worktree-path>
 Fetch the issue via Linear_get_issue to read the full description and acceptance criteria.
 Explore the codebase as needed to understand affected files and patterns.
 
-Return the full plan document (do NOT write any files — the orchestrator will write the plan file).
-Flag any unresolved ambiguities or missing requirements explicitly at the top of your output under "## Ambiguities".
-If there are no ambiguities, omit the "## Ambiguities" section entirely.
+Return a plan document using this structure:
+
+## Readiness
+ready | not ready
+
+## Sequence Notes
+- likely touched packages/files
+- dependency or ordering notes
+
+## Risk Notes
+- anything that could force resequencing or issue pruning
+
+## Plan
+<step-by-step implementation plan>
+
+## Open Questions
+<only include this section if readiness is not ready>
+
+Do NOT write any files.
 ```
 
-Wait for all planners to complete.
+After each planner finishes:
 
-### After collecting planner output
+- Write the full planner output to `<worktree>/tmp/plan-REP-xxx.md`
+- Treat that file as the authoritative develop input
 
-For each issue:
+### Phase-local planning failure handling
 
-1. **Check for ambiguities**: If the planner's output contains an "## Ambiguities" section with unresolved items, **escalate that issue to the user immediately**. Do NOT proceed to Phase 5 for that issue. Report the issue ID and the ambiguities listed. Remove it from the wave's implement batch. Then run the **Escalation Cleanup Protocol** using the planner's ambiguities as the detail list (reason = "Ambiguity"):
-   1. Post a Linear comment on the issue listing each unresolved question as a bullet (comment before state change).
-   2. Set the issue state to Todo: `Linear_save_issue` with `state: "Todo"`.
-   3. Remove the worktree:
-      ```sh
-      reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
-      ```
-   4. Add the issue ID to the session's `escalated_issues` set.
-   5. Log: `ESCALATED REP-xxx: ambiguity — worktree removed, issue reset to Todo`
-   6. Update the status table: set the issue's state to `Escalated`.
+If the planner returns `not ready` or includes unresolved questions that prevent confident implementation:
 
-2. **Write the plan file**: For issues with no ambiguities, write the planner's output to `<worktree>/tmp/plan-REP-xxx.md` (replace `REP-xxx` with the actual issue ID). Use the Write tool to create this file in the worktree's `tmp/` directory.
-
-Update the status table: set each successfully planned issue to `Planned`.
-
-> **Update the run log:** For each issue that passed planning, update `phase` → `planned` in `tmp/lightspeed-run.json`. For each issue escalated due to ambiguity, update `phase` → `escalated` and set `escalation_reason` to a summary of the unresolved ambiguities. Use the Write tool to overwrite the entire file.
+- Post a concise Linear comment describing the blocking questions
+- Set the issue state back to **Todo**
+- Remove the worktree
+- Add the issue ID to `escalated_issues`
+- Exclude the issue from the current ready wave
 
 ---
 
-## Phase 5: Implement in Parallel
+## Phase 5: Resequence once using planner output
 
-Launch all Wave 1 `develop` subagents (for issues that passed planning) in a **single message** (one Task tool call per issue) so they run concurrently. Use the `develop` agent for each.
+Do exactly one resequencing pass after planning.
+
+Use the planner's **Sequence Notes** and **Risk Notes** to:
+
+- Prune issues that are not ready
+- Move issues to a later queued wave if planning revealed overlap or a missing dependency
+- Keep only the issues that are independently executable now in the **current ready wave**
+
+After this pass, lock the wave plan for the rest of the run.
+
+If the current ready wave becomes empty, stop and report why.
+
+---
+
+## Phase 6: Implement in parallel
+
+Launch `develop` subagents for every issue still in the current ready wave, in parallel.
 
 Prompt template per issue:
 
@@ -376,25 +211,33 @@ Worktree: <absolute-worktree-path>
 Issue: REP-xxx
 Plan: <worktree>/tmp/plan-REP-xxx.md
 
-Read the plan first. Follow it. Do NOT re-explore the codebase from scratch — the planner has already done that.
-Do NOT push or create a PR — stop after the commit.
+Read the plan first and follow it. The plan file is authoritative.
+Do not re-explore the codebase from scratch unless the plan clearly points you there.
+Do not push or create a PR.
 
-Temporary files: write any ephemeral output (screenshots, artifacts, scratch) to
-<absolute-worktree-path>/tmp/ — never to /tmp (requires elevated OpenCode permission,
-blocks the pipeline).
+Tactical implementation-level deviations are allowed if they still satisfy the plan and issue.
+If you discover a strategic mismatch that invalidates the plan, stop and report it instead of improvising a larger redesign.
 
-Return a summary with: files changed, test results, typecheck result, and commit hash.
+Write temporary output only under <absolute-worktree-path>/tmp/.
+
+Return: files changed, verification run, and whether the plan was followed without strategic deviation.
 ```
 
-Wait for all Wave 1 subagents to complete.
+### Phase-local implementation failure handling
 
-> **Update the run log:** When launching develop agents, update each issue's `phase` → `implementing` in `tmp/lightspeed-run.json`. When each develop agent completes successfully, update `phase` → `implemented`. Use the Write tool to overwrite the entire file after each transition.
+If a `develop` run reports an unresolved build failure, typecheck failure, or strategic planning mismatch:
+
+- Post a concise Linear comment with the blocking reason
+- Set the issue state back to **Todo**
+- Remove the worktree
+- Add the issue ID to `escalated_issues`
+- Exclude the issue from the publishable set
 
 ---
 
-## Phase 6: Review in Parallel
+## Phase 7: Review with a bounded fix loop
 
-For each completed Wave 1 implementation, launch a `review` subagent in a **single message** (one per issue, all at once).
+Launch `review` subagents for every completed implementation in parallel.
 
 Prompt template per issue:
 
@@ -402,556 +245,82 @@ Prompt template per issue:
 Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 1. Load the `git-workflow` skill for the full review checklist.
-2. Fetch Linear issue REP-xxx via Linear_get_issue to get acceptance criteria.
-3. Run: git diff main...HEAD  (from the worktree directory)
-4. Review against: requirements coverage, code correctness, test coverage, style/conventions, architecture.
-5. Return a structured review: Summary (approve / request changes), Blocking issues, Non-blocking suggestions, Requirements checklist.
+2. Fetch Linear issue REP-xxx via Linear_get_issue.
+3. Run: git diff main...HEAD
+4. Review against requirements coverage, correctness, test coverage, conventions, and architecture.
+5. Return the structured output required by .opencode/agents/review.md.
 ```
 
-Collect all review results.
+For each issue, apply this bounded loop:
 
-> **Update the run log:** When launching review agents, update each issue's `phase` → `reviewing` in `tmp/lightspeed-run.json`. Use the Write tool to overwrite the entire file.
+1. **If review approves**: mark the issue publishable.
+2. **If any blocking issue has `fixable_by_agent: false`**:
+   - Escalate immediately
+   - Post a concise Linear comment summarizing the blocking findings
+   - Set the issue state back to **Todo**
+   - Remove the worktree
+   - Add the issue ID to `escalated_issues`
+3. **If all blocking issues have `fixable_by_agent: true` and no fix attempt has happened yet**:
+   - Re-run `develop` once with the original plan plus the blocking findings
+   - Re-run `review` once
+4. **If the second review still has blocking issues**:
+   - Escalate with the remaining findings
+   - Set the issue state back to **Todo**
+   - Remove the worktree
+   - Add the issue ID to `escalated_issues`
+
+This is the entire loop: **review → fix once if agent-fixable → review again → publish or escalate**.
+
+Do **not** paste full AI review output back into Linear comments. Use Linear comments only for short phase-local blocker summaries when an issue is being kicked back.
 
 ---
 
-## Phase 7: Visual Regression Check
+## Phase 8: Publish the current ready wave and stop
 
-For each issue where the review approved (no blocking issues), run a visual regression check **before** opening a PR.
+For each publishable issue:
 
-### Step 1: Detect UI-touching files
-
-Run `git diff main...HEAD --name-only` in the worktree:
-
-```sh
-git -C <worktree-path> diff main...HEAD --name-only
-```
-
-Match the output against these UI file patterns:
-
-- `*.tsx` in `packages/*/src/` or `apps/*/src/components/`
-- `packages/design/**`
-- `packages/theme/**`
-- `*.css`, `*.scss`, `*.styles.ts`
-- `*.stories.tsx`
-
-If **no files match** any of the above patterns → set `visual_check = "skipped"`. Proceed to Phase 8 for this issue.
-
-### Step 2: Story discovery (if UI files were found)
-
-1. From changed files, extract component directories (e.g., `packages/design/src/Button/`)
-2. Find co-located `*.stories.tsx` files in those directories
-3. If a `.stories.tsx` file itself changed, include it directly
-4. If any file in `packages/theme/src/**` changed, include ALL stories (full regression)
-5. If a package has no `.storybook/` directory or no `*.stories.tsx` files, skip that package with a warning (do not fail)
-
-Build a JSON array of story IDs (use the component name lowercased + `--` + variant convention, e.g. `["button--primary", "button--secondary"]`). After Storybook starts, verify IDs against `/index.json`.
-
-### Step 3: Run the visual check
-
-```sh
-bash scripts/visual-regression.sh \
-  --worktree <absolute-worktree-path> \
-  --main-checkout <main-checkout-path> \
-  --stories '<json-array>' \
-  --threshold 0.001
-```
-
-Where `<main-checkout-path>` is the path to the main checkout (not the worktree).
-
-Wait for the script to complete and capture its JSON output.
-
-### Step 4: Parse the result
-
-Parse the JSON output from the script:
-
-```json
-{
-  "stories_checked": [...],
-  "passed": [...],
-  "failed": [{ "story": "...", "diff_path": "...", "changed_pixels": N, "total_pixels": N }],
-  "new_stories": [...]
-}
-```
-
-**If `failed` is empty** (all passed or new/no baselines):
-
-- Set `visual_check = "passed"`
-- Note how many stories were checked and any new stories
-- Proceed to Phase 8
-
-**If `failed` is non-empty**:
-
-- Set `visual_check = "failed"`
-- Diff images are already written to `<worktree>/tmp/visual-diffs/` by the script
-- **Do NOT open a PR for this issue**
-- Escalate to the user with:
-  - Issue ID and title
-  - Which stories failed (list `story` field from each failed entry)
-  - The diff file paths (`diff_path` from each failed entry)
-  - Example: "REP-xxx escalated: visual regression failed — [story-id] changed N pixels out of M total (diff: /path/to/diff.png)"
-- Then run the **Escalation Cleanup Protocol** (reason = "Visual Regression Failure", details = each failed story with pixel counts):
-  1. Post a Linear comment listing each failed story as a bullet.
-  2. Set the issue state to Todo: `Linear_save_issue` with `state: "Todo"`.
-  3. Remove the worktree:
-     ```sh
-     reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
-     ```
-  4. Add the issue ID to the session's `escalated_issues` set.
-  5. Log: `ESCALATED REP-xxx: visual regression failure — worktree removed, issue reset to Todo`
-  6. Update the status table: set the issue's state to `Escalated`.
-
----
-
-## Phase 8: Handle Review Results
-
-For each issue:
-
-**If review says "approve" (no blocking issues):**
-
-1. Rebase onto origin/main before pushing:
+1. Rebase onto `origin/main` before pushing:
 
    ```sh
    git -C <worktree-path> fetch origin main
    git -C <worktree-path> rebase origin/main
    ```
 
-   **If rebase succeeds (exit 0) and output indicates "Current branch ... is up to date":** proceed to step 2 without extra logging.
-
-   **If rebase succeeds (exit 0) and the branch was actually rebased:** log `REP-xxx: rebased onto origin/main before push` and proceed to step 2.
-
-   **If rebase fails (non-zero exit — conflicts):**
-   - Capture the conflicting file list BEFORE aborting:
-     ```sh
-     git -C <worktree-path> diff --name-only --diff-filter=U
-     ```
-   - Abort the rebase:
-     ```sh
-     git -C <worktree-path> rebase --abort
-     ```
-   - Post a comment on the Linear issue: `Linear_save_comment` with body:
-     > Pre-push rebase failed — conflicting files: `<file1>`, `<file2>`, ... Manual resolution required.
-   - Set the issue state back to **In Progress**: `Linear_save_issue` with `state: "In Progress"`
-   - Remove the worktree: `reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed — continuing"`
-   - Add `REP-xxx` to the session's `escalated_issues` set.
-   - Log: `REP-xxx: pre-push rebase conflict — escalated`
-   - Update the status table: set the issue's state to `Escalated`.
-   - **Update the run log:** Set `phase` → `escalated` and `escalation_reason` to `"pre-push rebase conflict — conflicting files: <file list>"` in `tmp/lightspeed-run.json`. Use the Write tool to overwrite the entire file.
-   - **Do NOT push or open a PR for this issue.** Remove it from the current wave's push batch and proceed to the next issue.
-
-2. Push the branch with retry-with-backoff:
-
-   ```sh
-   git -C <worktree-path> push -u origin HEAD
-   ```
-
-   **Classify the outcome first:**
-   - **Permanent push failures → escalate immediately, do not retry:**
-     - `branch already exists on remote` (someone pushed independently)
-     - `permission denied` — auth or ACL issue
-     - `repository not found` — misconfigured remote
-
-   - **Transient push failures → retry with fixed 10-second delay:**
-     - `unable to connect` / `timed out` / exit code 128 with network errors
-     - Any other non-classified non-zero exit
-
-   **Retry loop (up to 3 retries after initial failure):**
-
-   For each retry:
-   1. Log: `[git push retry N/3] Error: <error summary>. Waiting 10s before next attempt.`
-   2. Wait 10 seconds
-   3. Re-run `git -C <worktree-path> push -u origin HEAD`
-
-   If all 3 retries fail, escalate to the user with the full error output from the final attempt. Do not open a PR for this issue.
-
-3. Create a PR:
-
-   ```sh
-   gh pr create --repo <owner>/<repo> --head <branch-name> --title "<issue title>" --body "$(cat <<'EOF'
-   Closes REP-xxx
-
-   ## Summary
-   <1-3 bullet points from the implementation summary>
-
-   ## Changes
-   <file list from develop agent output>
-
-   ## Visual Review
-   <one of:
-   - "No UI changes detected — visual check skipped."
-   - "Visual regression check passed. N stories checked: [list]. New stories (no baseline): [list or none]."
-   >
-
-   ## AI Review
-   <paste the review summary and requirements checklist>
-   EOF
-   )"
-   ```
-
-4. Set the Linear issue to **In Review**: `Linear_save_issue` with `state: "In Review"`
-5. Post the AI review as a PR comment: `Linear_save_comment` on the issue with the review text.
-
-> **Update the run log:** After the PR is created, update the issue's `phase` → `pr_open` and set `pr` to `{ "number": N, "url": "<pr_url>" }` in `tmp/lightspeed-run.json`. Use the Write tool to overwrite the entire file.
-
-**If review says "request changes" (blocking issues found):**
-
-1. Check the classification of every blocking issue:
-   - If **any** blocking issue has `kind: architectural`:
-     - Escalate to the user immediately. Do NOT re-spawn `develop`.
-     - Escalation message must list each architectural blocking issue with its rationale.
-     - Example: "REP-xxx escalated: architectural issue found — [issue description] (rationale: [1-sentence rationale])"
-     - Then run the **Escalation Cleanup Protocol** (reason = "Architectural Issue", details = each architectural blocking issue with its rationale):
-       1. Post a Linear comment listing each architectural blocking issue as a bullet.
-       2. Set the issue state to Todo: `Linear_save_issue` with `state: "Todo"`.
-       3. Remove the worktree:
-          ```sh
-          reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
-          ```
-       4. Add the issue ID to the session's `escalated_issues` set.
-       5. Log: `ESCALATED REP-xxx: architectural issue — worktree removed, issue reset to Todo`
-       6. Update the status table: set the issue's state to `Escalated`.
-       7. Update the run log: set `phase` → `escalated` and `escalation_reason` to the architectural issue summary in `tmp/lightspeed-run.json`.
-
-   - If **all** blocking issues have `kind: mechanical`:
-     - If this is the first attempt: re-spawn the `develop` agent with the original prompt + the blocking issues list.
-     - If the second `develop` attempt still has blocking issues:
-       - Re-check classifications: if **any** blocking issue has `kind: architectural`, escalate immediately with the architectural rationale.
-       - If all remaining blocking issues are still `kind: mechanical`: escalate to the user with a "retry budget exhausted" message listing all remaining blocking issues. Do NOT open a PR for this issue.
-       - Then run the **Escalation Cleanup Protocol** (reason = "Retry Budget Exhausted", details = each remaining blocking mechanical issue):
-         1. Post a Linear comment listing each remaining blocking issue as a bullet.
-         2. Set the issue state to Todo: `Linear_save_issue` with `state: "Todo"`.
-         3. Remove the worktree:
-            ```sh
-            reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"
-            ```
-         4. Add the issue ID to the session's `escalated_issues` set.
-         5. Log: `ESCALATED REP-xxx: retry budget exhausted — worktree removed, issue reset to Todo`
-         6. Update the status table: set the issue's state to `Escalated`.
-         7. Update the run log: set `phase` → `escalated` and `escalation_reason` to the list of remaining blocking issues in `tmp/lightspeed-run.json`.
-
----
-
-## Phase 9: Merge-Watch Loop
-
-> Skip this phase entirely if `--no-watch` was passed. Proceed directly to Phase 10.
-
-After Phase 8 opens PRs for the current wave, enter a merge-watch loop covering **all open PRs from the current run** (not just the current wave). This loop closes the delivery loop without requiring further human input beyond an initial PR approval.
-
-### Setup
-
-Build a watch list: collect every PR number opened during this run (all waves so far). For each PR, record:
-
-- `pr_number`
-- `issue_id`
-- `branch`
-- `ci_status`: `pending` | `passing` | `failing`
-- `merged`: `false`
-- `rerun_budget`: `{}` — map of `check_name → rerun_count`. A count of 0 (or missing key) means one re-run is still available; 1 means the budget is exhausted.
-- `rerun_deadline`: `null` | ISO-8601 timestamp — set when a re-run is in flight; null otherwise. If the current time exceeds this deadline and CI is still failing, treat as real failure.
-- `poll_interval`: `30` — current sleep duration in seconds for this PR. Starts at 30s.
-- `prev_ci_status`: `null` — CI status from the previous poll cycle. Used to detect state transitions that trigger a backoff reset.
-- `poll_count`: `0` — number of poll cycles completed for this PR. Logged each cycle for observability.
-
-### Adaptive backoff
-
-Each PR maintains its own `poll_interval` (starting at 30 seconds). After each poll cycle for a PR:
-
-1. **Log the current interval:** `PR #N (REP-xxx): poll cycle <poll_count>, next check in <poll_interval>s`
-2. **Apply jitter** (intervals ≥ 300s only): multiply `poll_interval` by a random factor in `[0.8, 1.2]` to produce the actual sleep duration for this cycle. This prevents thundering-herd when multiple PRs reach the same backoff tier.
-3. **Double the interval:** set `poll_interval = min(poll_interval × 2, 1800)` (cap at 30 minutes).
-4. **Increment `poll_count`.**
-
-**Reset on CI state change:** If `ci_status` differs from `prev_ci_status` (and `prev_ci_status` is not null), reset `poll_interval` to 30 and log: `PR #N (REP-xxx): CI status changed (<prev> → <new>) — backoff reset to 30s`. Then update `prev_ci_status = ci_status`.
-
-**Indicative schedule** (exact values vary with jitter):
-
-| Elapsed time | Approx interval          |
-| ------------ | ------------------------ |
-| 0–2 min      | 30s                      |
-| 2–5 min      | 60s                      |
-| 5–10 min     | 2 min                    |
-| 10–25 min    | 5 min (± jitter)         |
-| 25–55 min    | 10 min (± jitter)        |
-| 55 min+      | 30 min capped (± jitter) |
-
-### Poll loop
-
-Repeat until all PRs are merged, or the timeout is reached (default: **4 hours** from loop start):
-
-1. **For each unmerged PR:**
-
-   ```sh
-   gh pr checks <pr_number> --json name,state,conclusion
-   gh pr reviews <pr_number> --json state
-   gh pr view <pr_number> --json state,mergedAt
-   ```
-
-2. **If `mergedAt` is non-null** (PR was merged externally or by a previous auto-merge call):
-   - Mark `merged: true`
-   - Run: `reproctl wt prune --worktree <worktree-path>` to clean up the worktree
-   - Update the session status table: set issue to `Merged ✓`
-   - Check whether any Wave N+1 issues are now unblocked:
-     - Re-fetch each queued Wave N+1 issue via `Linear_get_issue` with `includeRelations: true`
-     - If all `blockedBy` relations are in Done state → begin Wave N+1 automatically (proceed to Phase 3 for those issues without waiting for user input)
-
-3. **If `mergedAt` is null — update `ci_status`:**
-   - All checks with `conclusion: "SUCCESS"` and no check with `state: "PENDING"` or `conclusion: "FAILURE"` → `ci_status = passing`
-   - Any check with `conclusion: "FAILURE"` → `ci_status = failing`
-   - Otherwise → `ci_status = pending`
-
-   **Backoff reset check:** For this PR, if `prev_ci_status` is not null and `ci_status ≠ prev_ci_status`, reset `poll_interval` to 30 and log: `PR #N (REP-xxx): CI status changed (<prev_ci_status> → <ci_status>) — backoff reset to 30s`. Set `prev_ci_status = ci_status`.
-
-4. **React to `ci_status` transitions** (only on first transition to that state):
-   - **`pending → passing`:**
-     - Check reviews: any review with `state: "APPROVED"` by a non-bot user?
-       - **Yes → auto-merge:**
-         ```sh
-         gh pr merge <pr_number> --squash --auto
-         ```
-         Log: `PR #<pr_number> (REP-xxx): CI passed + human approved → auto-merge queued`
-       - **No → notify:**
-         ```sh
-         gh pr comment <pr_number> --body "CI passed — ready for review and merge."
-         ```
-         Surface to the user: `PR #<pr_number> (REP-xxx): CI passed — awaiting human approval to merge`
-
-   - **`pending → failing`:**
-     1. Collect failing check names from `gh pr checks <pr_number> --json name,conclusion,link`
-     2. For each failing check name:
-        - Look up `rerun_budget[check_name]` for this PR.
-        - If the budget is 0 (or key is missing) → re-run budget available:
-          - Identify the run ID: `gh run list --branch <branch> --status failure --json databaseId,name --jq '.[] | select(.name == "<check_name>") | .databaseId' | head -1`
-          - If a run ID is found: run `gh run rerun <run_id> --failed`
-            - Log: `PR #N (REP-xxx): flaky-check re-run triggered for '<check_name>' (run <run_id>)`
-            - Set `rerun_budget[check_name] = 1` for this PR
-            - Set `rerun_deadline = <now + 20 minutes>` (if not already set to a later deadline)
-            - Set `ci_status` back to `pending` (re-run is in flight)
-          - If no run ID is found: treat this check as a real failure (fall through to escalation)
-        - If the budget is 1 (already re-run once) → real failure: collect this check in the escalation list
-     3. If **any** check in the escalation list (budget exhausted) → escalate to user:
-        > `PR #<pr_number> (REP-xxx) CI failing — checks: [check1, check2]. PR: <url>`
-        - Remove this PR from the watch list.
-     4. **Deadline enforcement** (checked each poll cycle when `rerun_deadline` is set):
-        - If `rerun_deadline` is non-null and current time > `rerun_deadline` and `ci_status` is still `pending` or `failing`:
-          - Log: `PR #N (REP-xxx): re-run timed out (20 min) — escalating`
-          - Escalate: `PR #N (REP-xxx) CI failing — re-run timed out. Checks: [...]. PR: <url>`
-          - Remove PR from watch list.
-        - If `rerun_deadline` is non-null and current time <= `rerun_deadline` and CI is still pending → no action, continue polling.
-        - If CI transitions to passing within the deadline:
-          - Log: `PR #N (REP-xxx): flaky CI detected — check '<name>' passed on re-run. Continuing.`
-          - Clear `rerun_deadline = null` (re-run succeeded, no more deadline to enforce)
-          - Proceed with the normal `pending → passing` handler
-
-5. **Sleep per the adaptive backoff schedule for each PR** (see [Adaptive backoff](#adaptive-backoff) above):
-   - For the PR with the **shortest** `poll_interval`, compute the actual sleep duration (apply ±20% jitter if interval ≥ 300s).
-   - Sleep for that duration. When the sleep completes, poll **only** the PRs whose `poll_interval` has elapsed since their last poll. (In practice, with a small number of PRs, polling all PRs each cycle at the shortest interval is acceptable.)
-   - After polling each PR, advance its backoff: `poll_interval = min(poll_interval × 2, 1800)`.
-   - Check for CI state changes and reset backoff if needed (see reset rule above).
-
-### Timeout handling
-
-If the loop runs for **4 hours** without all PRs merging:
-
-- Exit the loop
-- Report stalled PRs to the user:
-  > Merge-watch timeout (4h). Stalled PRs: `#<n> (REP-xxx, ci: <status>)`, ...
-- Do NOT fail or abort — the PRs remain open and CI continues independently.
-
----
-
-## Phase 10: Compress, Then Rinse and Repeat
-
-After Wave N PRs are created (or escalations reported):
-
-### Mandatory: compress the completed wave
-
-**Before doing anything else**, compress the wave using the `compress` tool. Treat provider auto-compaction as a failure mode — if it fires, context was mismanaged. Compress proactively after every wave.
-
-What to keep per issue in the summary:
-
-- Issue ID and title
-- Commit SHA(s) and PR URL
-- Files changed
-- Blocking issues found in review and how they were resolved
-- Non-blocking notes worth remembering
-
-What to drop:
-
-- Verbose tool output and intermediate exploration
-- Back-and-forth review iterations
-- Failed implementation attempts
-- Any content whose signal is fully captured in the summary above
-
-### Then continue
-
-1. Check if Wave 2 exists in your plan.
-2. If `--max-waves N` was provided and the current wave number equals N, stop and report: "Reached --max-waves limit (N waves completed). [summary of PRs opened and escalations]."
-3. If yes (Wave 2 exists and max-waves not reached), update the top-level `wave` field in `tmp/lightspeed-run.json` to the next wave number (use the Write tool to overwrite the file), then proceed to Phase 3 with Wave 2 issues.
-4. If no more waves, proceed to **Phase 9** (Merge Watch) to monitor open PRs for CI completion, conflict resolution, and successful merge. Do not re-scan for newly unblocked issues until Phase 9 completes — dependent issues are still blocked until their predecessors merge.
-5. Stop and report to the user when:
-   - All candidates are exhausted (no more well-scoped, unblocked issues)
-   - 2+ issues in the current wave were escalated (architectural block, visual regression, or unresolvable build failure) — this is the health-signal gate; systemic problems warrant human review before continuing
-   - `--max-waves N` was provided and N waves have completed
-
----
-
-## Phase 9: Merge Watch
-
-This phase actively monitors all PRs opened in the current run. It polls until every PR is either merged or escalated to the user. Do not re-scan for new issues until this phase completes.
-
-### 9a: Enable auto-merge
-
-For each open PR in the current run, enable GitHub auto-merge:
-
-```sh
-gh pr merge <pr_number> --auto --squash
-```
-
-This tells GitHub to merge automatically once all required checks pass and the PR is in a `MERGEABLE` state. Log: `PR #N (REP-xxx): auto-merge enabled`.
-
-### 9b: Poll loop
-
-Run the poll loop until all PRs are merged or escalated (or the 4-hour timeout fires):
-
-- **Poll interval:** adaptive per-PR backoff — starts at 30 seconds, doubles each cycle, capped at 30 minutes. Jitter (±20%) is applied at intervals ≥ 5 minutes. See [Adaptive backoff](#adaptive-backoff) for the full algorithm. The loop sleeps for the duration of the shortest per-PR interval; PRs at longer intervals are polled only when their individual interval has elapsed.
-- **Timeout:** 4 hours total wall-clock time. If exceeded, escalate all remaining unmerged PRs to the user with their current status and stop.
-- **Stop condition:** 2+ escalations in a single cycle (sign of a systemic problem) — stop and report to user.
-
-On each cycle, for each unmerged PR, run **both** of these checks:
-
-1. **CI status check:**
-
-   ```sh
-   gh pr checks <pr_number> --json bucket,name,state
-   ```
-
-2. **Mergeability check:**
-   ```sh
-   gh pr view <pr_number> --json mergeable --jq '.mergeable'
-   ```
-   Returns `MERGEABLE`, `CONFLICTING`, or `UNKNOWN`.
-
-Also check if the PR has been merged since the last cycle:
-
-```sh
-gh pr view <pr_number> --json state --jq '.state'
-```
-
-If `MERGED`: log `PR #N (REP-xxx): merged successfully`, set the Linear issue to **Done** (`Linear_save_issue` with `state: "Done"`), run `reproctl wt remove <worktree-name>` to clean up the worktree, remove the PR from the watch list, and update `phase` → `merged` for the issue in `tmp/lightspeed-run.json`.
-
-After evaluating CI status and mergeability for each unmerged PR in the cycle:
-
-- **Backoff reset:** If `prev_ci_status` is not null and the current `ci_status ≠ prev_ci_status`, reset `poll_interval` to 30 and log: `PR #N (REP-xxx): CI status changed (<prev_ci_status> → <ci_status>) — backoff reset to 30s`. Set `prev_ci_status = ci_status`.
-- **Backoff advancement:** Set `poll_interval = min(poll_interval × 2, 1800)` and increment `poll_count`.
-
-**Sleep:** Follow the adaptive backoff sleep procedure (see [Adaptive backoff](#adaptive-backoff) above): identify the PR with the shortest `poll_interval`, compute its actual sleep duration (apply ±20% jitter if `poll_interval ≥ 300`), sleep for that duration, then poll all PRs whose interval has elapsed since their last poll. (With a small number of PRs, polling all PRs each cycle at the shortest interval is acceptable.)
-
-### 9c: Handle each mergeability value
-
-**`MERGEABLE`** — No conflict. Branch on CI status:
-
-- All checks passed: auto-merge is enabled, GitHub will merge. Log `PR #N (REP-xxx): all checks passed, auto-merge enabled — waiting for GitHub to merge`.
-- Any check failed: apply the same flaky-check re-run sub-procedure as in Phase 9b:
-  - For each failing check: check `rerun_budget[check_name]`. If budget available (0 or missing), trigger `gh run rerun <run_id> --failed`, set `rerun_deadline = <now + 20 minutes>` (if not already set to a later deadline), set `rerun_budget[check_name] = 1`, and mark `ci_status = pending` to continue polling.
-  - If budget exhausted for any check (already re-run once): escalate with `PR #N (REP-xxx) CI failing — checks: [...]. PR: <url>` and remove from watch list.
-  - Deadline enforcement applies identically to Phase 9b: if `rerun_deadline` is exceeded and CI is still failing, escalate and remove from watch list.
-- Checks still pending: no action, continue to next cycle.
-
-**`CONFLICTING`** — Classify the conflict origin, then auto-resolve or escalate:
-
-> **Note:** Phase 8 performs a proactive rebase before the initial push, which eliminates most conflicts. This Phase 9 path is a safety net for conflicts that arise from concurrent-wave merges or external changes landing between push and merge.
-
-1. Log: `PR #N (REP-xxx): merge conflict detected — classifying origin`
-2. Determine the worktree path from the running status table.
-3. Fetch and attempt rebase:
-   ```sh
-   git -C <worktree-path> fetch origin main
-   git -C <worktree-path> rebase origin/main
-   ```
-4. **If rebase succeeds (exit code 0):**
-   - Force-push with lease:
-     ```sh
-     git -C <worktree-path> push --force-with-lease origin HEAD
-     ```
-   - Log: `PR #N (REP-xxx): conflict resolved via rebase — re-entering CI watch`
-   - Continue polling (CI will re-run after the force-push)
-
-5. **If rebase fails (non-zero exit):**
-   - Capture the conflicting file list from the rebase output.
-   - Abort the rebase:
-     ```sh
-     git -C <worktree-path> rebase --abort
-     ```
-   - **Classify the conflict origin** using the session baseline SHA recorded at startup:
-
-     ```sh
-     git -C <worktree-path> log <SESSION_MAIN_SHA>..origin/main --format="%H %s"
-     ```
-
-     This lists every commit that landed on `origin/main` after this session began. A commit is **intra-session** if its subject contains a `REP-xxx` identifier that matches one of the PRs opened in the current run. A commit is **external** if it contains no matching REP identifier, or was authored before the session started.
-
-   - For each conflicting file, check whether it was touched by an external commit (use `git log --follow -- <file>` scoped to the new commits). If **any** conflicting file was touched by an external commit, this is an **external conflict** — go to step 6.
-
-   - If **all** conflicting files were touched only by intra-session commits (our own merged PRs), this is an **intra-session conflict** — go to step 7.
-
-6. **External conflict → escalate:**
-   - Report: `PR #N (REP-xxx): merge conflict caused by external changes — manual resolution required`
-   - List conflicting files, the external commit(s) that caused them (SHA + subject), and the PR branch name.
-   - Remove PR from watch list.
-
-7. **Intra-session conflict → attempt auto-resolution:**
-   - The agent wrote the code on both sides of this conflict. Start the rebase again and resolve each conflict:
-     ```sh
-     git -C <worktree-path> rebase origin/main
-     ```
-   - For each conflicting file produced by the rebase:
-     - Read the file with conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
-     - Reason through the correct merge based on your knowledge of both changes (you implemented them in this session). Apply the resolution by editing the file to remove all conflict markers and produce the correct unified content.
-     - Stage the resolution: `git -C <worktree-path> add <file>`
-   - After all files are resolved, continue the rebase:
-     ```sh
-     git -C <worktree-path> rebase --continue
-     ```
-     (Set `GIT_EDITOR=true` to suppress the commit message editor.)
-   - **If resolution succeeds:**
-     - Force-push with lease:
-       ```sh
-       git -C <worktree-path> push --force-with-lease origin HEAD
-       ```
-     - Log: `PR #N (REP-xxx): intra-session conflict auto-resolved — re-entering CI watch`
-     - Continue polling.
-   - **If resolution fails** (rebase still fails after attempted edits, or the correct merge cannot be determined):
-     - Abort: `git -C <worktree-path> rebase --abort`
-     - Escalate: `PR #N (REP-xxx): intra-session conflict could not be auto-resolved — manual resolution required. Conflicting files: <file list>`
-     - Remove PR from watch list.
-
-**`UNKNOWN`** — GitHub hasn't computed mergeability yet (transient state). No action — continue polling on the next cycle without logging.
-
-### 9d: Completion
-
-When all PRs are either merged or escalated:
-
-1. Compress the merge-watch phase. Keep: which PRs merged (with SHA and PR number), which were escalated and why, worktrees cleaned up. Drop: poll cycle details, intermediate status checks.
-2. Check if merged PRs unblock any dependent issues in the backlog. If yes, report newly unblocked issues to the user and offer to start a new wave.
-3. If all issues are exhausted, report the final pipeline summary and stop.
+   If the rebase conflicts:
+   - Report the conflicting files
+   - Abort the rebase
+   - Post a concise Linear comment
+   - Set the issue state back to **Todo**
+   - Remove the worktree
+   - Add the issue ID to `escalated_issues`
+   - Do not push or open a PR for that issue
+
+2. Push with the same lightweight retry posture used for worktree creation: retry transient failures up to 3 times; escalate permanent failures immediately.
+
+3. Create the PR. The body should help a human reviewer quickly understand the change. Include:
+   - `Closes REP-xxx`
+   - A short summary of the change
+   - Verification performed
+   - Any notable risk or follow-up note worth human attention
+
+   Do **not** paste the full AI review output into the PR body, and do **not** duplicate that review output into Linear comments.
+
+4. Set the Linear issue to **In Review**.
+
+After all publishable issues in the current ready wave have been handled:
+
+- Report opened PR URLs
+- Report escalated issues and why
+- Report any later queued waves that were identified but intentionally not started
+- Stop
+
+Post-publish waiting, CI monitoring, merge handling, and automatic continuation belong to follow-on work, not this command.
 
 ---
 
 ## Throughout
 
-- Never commit to `main`. All work happens in worktrees on feature branches.
-- **Never write to `/tmp`.** Any ephemeral output (screenshots, artifacts, scratch files) must go to `tmp/` at the repo root. `/tmp` is outside the project working directory — OpenCode requires an elevated-permission prompt to access it, which blocks an unattended pipeline immediately. `tmp/` is git-ignored and always available without any permission prompt.
-- **Run log**: Update `tmp/lightspeed-run.json` after every phase transition per issue. Use the Write tool to overwrite the entire file with current state. The run log is git-ignored — never commit it.
-- `reproctl wt create` and `git push` failures are retried automatically per the protocols in Phase 3 and Phase 8 respectively. The pre-push rebase in Phase 8 escalates immediately on conflict (no retry). Only escalate `wt create` and `git push` after the full retry budget is exhausted. Do not rely on the initial `wt list` snapshot taken at command startup — it will be stale for Wave 2 and beyond; re-run `reproctl wt list` inside the retry loop as described in Phase 3.
-- If a `develop` subagent reports a build or typecheck failure it couldn't resolve, escalate that issue immediately rather than creating a broken PR. Then run the **Escalation Cleanup Protocol** (reason = "Unresolvable Build Failure", details = the error output summary): post a Linear comment, set the issue state to Todo, remove the worktree (`reproctl wt remove <worktree-name> 2>&1 || echo "[wt remove] Warning: cleanup failed for <worktree-name> — continuing"`), add the issue ID to `escalated_issues`, log `ESCALATED REP-xxx: unresolvable build failure — worktree removed, issue reset to Todo`, and update the status table to `Escalated`.
-- `gh pr view` or `gh pr checks` errors in Phase 9 should be treated as transient — log the error and retry on the next poll cycle. Only escalate a PR if the same poll fails 3 consecutive cycles for that PR.
-- Keep a running status table updated as you go:
-
-```
-| Issue   | Title            | State        | Worktree | PR  |
-|---------|------------------|--------------|----------|-----|
-| REP-xxx | ...              | Planned      | ✓        | -   |
-| REP-yyy | ...              | Implementing | ✓        | -   |
-| REP-zzz | ...              | PR open      | ✓        | #42 |
-| REP-www | ...              | Merged ✓     | pruned   | #41 |
-| REP-aaa | ...              | Escalated    | removed  | -   |
-```
+- Never commit on `main`.
+- Never write to `/tmp`; use `tmp/` under the relevant checkout or worktree.
+- Keep a simple status table in the response as you go.
+- Do not introduce a run log, resume flow, merge-watch loop, or other persistent control-plane machinery into this command.

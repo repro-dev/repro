@@ -1,8 +1,8 @@
 ---
-description: Enrich thin Linear issues that fail /lightspeed hard gates — generate acceptance criteria from codebase context, update issues in Linear, or flag them for human review
+description: Enrich thin or ambiguous Linear issues that are not yet /lightspeed-ready — generate grounded acceptance criteria and scope context, update issues in Linear, or flag them for human review
 ---
 
-Scan Linear backlog issues that fail the `/lightspeed` hard gates. For each failing issue, gather codebase context and generate concrete acceptance criteria and description expansions. Update issues in Linear (with user approval, or autonomously with `--apply`). Flag un-enrichable issues as `needs-spec`.
+Scan Linear backlog issues that are not yet ready for `/lightspeed`. For each failing issue, gather codebase context and generate concrete acceptance criteria, scope notes, and description expansions. Update issues in Linear (with user approval, or autonomously with `--apply`). Flag un-enrichable issues as `needs-spec`.
 
 Arguments (optional):
 
@@ -11,7 +11,7 @@ Arguments (optional):
 
 Parse `$ARGUMENTS` carefully: separate the positional project filter from the `--apply` flag. Both may appear together (e.g. `/enrich-issues Platform --apply`).
 
-<!-- Hard gate rubric — keep in sync with lightspeed.md Phase 1 -->
+<!-- Selection-readiness rubric — keep in sync with lightspeed.md Phase 1 -->
 
 ---
 
@@ -39,22 +39,29 @@ This step is idempotent — if the label already exists, skip creation.
 
 ---
 
-## Step 3: Apply Hard Gate Rubric
+## Step 3: Apply the readiness rubric
 
-<!-- This rubric must stay in sync with lightspeed.md Phase 1 hard gates -->
+<!-- This rubric must stay in sync with lightspeed.md Phase 1 -->
 
-Evaluate each issue against these hard gates in order:
+Evaluate each issue in this order:
 
 1. **Has `blockedBy` relation not yet Done** → classify as **blocked/in-flight** (skip — not a spec problem)
 2. **Status is In Progress or In Review** → classify as **blocked/in-flight** (skip)
-3. **Description missing or < ~100 words** → **FAIL**: "insufficient description"
-4. **Lacks clear acceptance criteria** (no "should", "must", checklist, or "AC:" section) → **FAIL**: "missing acceptance criteria"
-5. **Contains "TBD", "discuss", "pending design"** → **FAIL**: "contains unresolved decisions"
+3. **Contains unresolved decisions that clearly require human input** (`TBD`, `pending design`, explicit requests for discussion, or equivalent) → **FAIL**: "contains unresolved decisions"
+4. **Does not provide enough concrete information for a planner to produce a bounded implementation plan without asking clarifying questions** → **FAIL**: "not enough concrete implementation detail"
+
+Use these as supporting signals when deciding whether step 4 applies, but **do not** treat them as automatic failures on their own:
+
+- Short descriptions
+- Missing checklists
+- Weak acceptance-criteria formatting
+- Vague titles
+- Missing file/package references
 
 Classify each issue into one of three buckets:
 
-- **Already passing**: passes all hard gates → note in final summary, no action needed
-- **Failing (enrichable)**: fails one or more hard gates that may be resolvable → proceed to Step 4
+- **Already passing**: passes the readiness bar → note in final summary, no action needed
+- **Failing (enrichable)**: fails the readiness bar in a way that may be resolvable → proceed to Step 4
 - **Blocked/in-flight**: blocked by another issue or already in progress → skip, note in summary
 
 ---
@@ -65,7 +72,7 @@ For each failing issue:
 
 ### 4a: Identify specific failure reasons
 
-List which hard gates failed (e.g. "insufficient description", "missing acceptance criteria").
+List which readiness checks failed (for example "contains unresolved decisions", "not enough concrete implementation detail").
 
 ### 4b: Gather codebase context
 
@@ -81,13 +88,14 @@ Use jcodemunch tools to ground the enrichment in the actual codebase:
 
 Based on the failure reasons and gathered context:
 
-- **Acceptance criteria** (if missing or weak): Write a concrete checkbox list using "should" or "must" statements. Each criterion must be verifiable by a developer without asking for clarification. Ground each item in specific code paths, component names, or behaviours observed in the codebase.
-- **Description expansion** (if < 100 words): Add context about affected packages, architectural impact, and relevant code locations. **Always append — never replace existing content.** Preserve the original description verbatim; add new sections below it.
-- **Decision resolution** (if "TBD"/"discuss" language): If a related issue or existing code pattern resolves the ambiguity, document the resolution. If unresolvable from available context, flag the specific decision point.
+- **Acceptance criteria** (if missing or weak): Write a concrete checkbox list using verifiable outcomes. Ground each item in specific code paths, component names, packages, APIs, or observable behaviours found in the codebase.
+- **Description expansion** (if scope is too fuzzy): Add context about affected packages, likely code locations, architectural impact, and relevant existing patterns. **Always append — never replace existing content.** Preserve the original description verbatim; add new sections below it.
+- **Decision resolution** (if unresolved language appears): If a related issue or existing code pattern resolves the ambiguity, document that resolution. If it cannot be resolved from available context, flag the specific decision point instead of guessing.
+- **Scope notes** (if helpful): Add a short section describing the likely implementation area or constraints so the planner has bounded starting context.
 
 ### 4d: Fabrication guard (critical)
 
-If the issue title and all available context (codebase, related issues, done issues) are too ambiguous to write _concrete, grounded_ acceptance criteria — i.e., a developer couldn't verify a criterion without asking "what did you mean by that?" — then **do not enrich**. Flag this issue as `needs-spec` in Step 7 instead. Concrete means: references specific components, packages, API endpoints, or observable user behaviours. Vague means: "the feature should work well" or "performance should be improved".
+If the issue title and all available context (codebase, related issues, done issues) are too ambiguous to produce a bounded, grounded implementation target — i.e. a planner would still have to ask "what exactly should change?" — then **do not enrich**. Flag this issue as `needs-spec` in Step 7 instead. Concrete means: references specific components, packages, API endpoints, workflows, or observable user behaviours. Vague means: "the feature should work well" or "performance should be improved".
 
 ### 4e: Format as diff
 
@@ -153,7 +161,7 @@ Added:
 - <summary of what was added, e.g. "5 acceptance criteria items", "expanded description with package context">
 
 Failure reasons addressed:
-- <list each hard gate that was previously failing>
+- <list each readiness check that was previously failing>
 ```
 
 ---
@@ -176,7 +184,7 @@ Print the following table at the end:
 
 | Category | Count |
 |----------|-------|
-| Already passing hard gates | N |
+| Already passing readiness bar | N |
 | Enriched (updated in Linear) | N |
 | Flagged as needs-spec | N |
 | Skipped (blocked/in-flight) | N |
@@ -197,5 +205,5 @@ Print the following table at the end:
 If no issues were enriched and none flagged, print:
 
 ```
-✅ All scanned issues already pass the hard gates — no enrichment needed.
+✅ All scanned issues already pass the readiness bar — no enrichment needed.
 ```

@@ -8,7 +8,7 @@ Audit all skill files in `.opencode/skills/` against the current codebase index 
 
 ## Arguments (optional)
 
-- `AUTONOMOUS=true` — run in non-interactive mode. Auto-fixes unambiguous stale references and files Platform issues for ambiguous ones. Never prompts. This is the default when called from `/lightspeed` Phase 0.
+- `AUTONOMOUS=true` — run in non-interactive mode. Auto-fixes unambiguous stale references and files Platform issues for ambiguous ones. Never prompts. Use this when another autonomous command wants audit output without an approval pause.
 
 When called directly via `/audit-skills` (without arguments), `AUTONOMOUS` defaults to `false` (interactive mode).
 
@@ -142,7 +142,7 @@ If no agent or command loads the skill, write `(none found)` in the Loaded By co
 
 ### 5a: Autonomous mode (`AUTONOMOUS=true`)
 
-When called with `AUTONOMOUS=true` (the default when invoked from `/lightspeed` Phase 0):
+When called with `AUTONOMOUS=true`:
 
 #### Auto-fix unambiguous references
 
@@ -165,7 +165,7 @@ For each stale reference tagged `confidence: ambiguous`:
    - `labels`: `["Tech Debt"]`
    - `priority`: 4 (Low)
    - `description`: structured markdown including:
-     - **Context**: `The Phase 0 skill audit found a stale reference that could not be auto-resolved.`
+     - **Context**: `An autonomous skill audit found a stale reference that could not be auto-resolved.`
      - **Details**: the stale reference (file path or symbol name), the skill file and line number, what candidates were found (if any), and why confidence was insufficient.
      - **Action**: `Manually verify whether this reference should be updated, removed, or is intentionally referencing something outside the index.`
 2. Log: `Filed Platform issue <issue-ID>: ambiguous stale reference '<stale>' in <file>:<line>`

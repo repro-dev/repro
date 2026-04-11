@@ -1,8 +1,8 @@
 ---
-description: Regenerate visual regression baseline screenshots from the current main branch
+description: Regenerate local visual regression baseline screenshots from the current main branch
 ---
 
-You are regenerating the visual regression baseline screenshots. These baselines are the reference images used by the `/lightspeed` pipeline to detect layout regressions in UI-touching PRs.
+You are regenerating local visual regression baseline screenshots. These baselines are useful for manual visual comparisons and any standalone visual-regression runs that rely on machine-local reference images.
 
 ## Prerequisites
 
@@ -60,7 +60,8 @@ Report to the user: "Captured N baseline screenshots in `tmp/visual-baselines/`.
 
 ### 5. Notes
 
-- Run `/update-visual-baselines` after any **intentional** visual change is merged to main (e.g. a design token update, a component refactor, a layout change that was reviewed and approved).
+- Run `/update-visual-baselines` after any **intentional** visual change is merged to main (for example a design token update, a component refactor, or a reviewed layout change).
 - Do **not** run this to suppress a failing visual check on a feature branch — that defeats the purpose of the guard.
 - If a package has no Storybook setup, the script exits cleanly with a warning and zero baselines written for that package.
 - Baselines are local only. If you're setting up a new machine, run this command once after cloning.
+- This command is standalone; it is not describing an active `/lightspeed` phase.
