@@ -48,6 +48,13 @@ infra/certs/
 /tmp/*
 !/tmp/.gitkeep
 
+# GENERATED SOURCES
+# Root fmt:check uses this file as Prettier's ignore-path, so mirror generated
+# TS artifacts that are only ignored in package-local .gitignore files.
+packages/domain/src/generated
+packages/wire-formats/src/generated
+packages/tdl/src/cli/*.ohm-bundle.*
+
 # JCODEMUNCH
 # Local symbol index — generated per-worktree, never committed
 .jcodemunch-index/
