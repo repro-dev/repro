@@ -45,6 +45,7 @@ Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer 
 ### Other
 
 - **Error handling**: Use `serialize-error` for serialization.
+- **Defensive patch verification**: Do not assume `apply_patch` success means the file now matches the intended edit. For fragile edits or after any suspicious patch result, switch to a defensive loop for that file: read the target lines, apply the patch, re-read the same lines, inspect `git diff`, then continue. Use this selectively for high-risk syntax (TypeScript generics, TSX/JSX, dense type-level code, regexes, escaped strings, and structured config) or after the first inconsistent patch outcome in a session.
 - **Shell scripts**: Target Bash 3.2 (macOS default). No `mapfile`/`readarray`, associative arrays (`declare -A`), or `${var,,}` case-conversion. Use `while IFS= read -r` loops to capture multi-line output into arrays.
 - **Comments**: Add brief comments when they clarify non-obvious intent, invariants, sentinel values, or protocol quirks. Avoid comments that restate the code.
 - **Temporary files**: **Always use `tmp/` at the repo root** for any ephemeral output — screenshots, build artifacts, scratch files, test results, anything throwaway. **Never write to `/tmp`** (OpenCode requires elevated permission to access paths outside the project root, which blocks automated pipelines) **or `~/Downloads`** (pollutes the user's filesystem). `tmp/` is git-ignored; the `.gitkeep` sentinel keeps it tracked.
