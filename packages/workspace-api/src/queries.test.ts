@@ -25,8 +25,8 @@ type CallRecord = { url: string; options: FetchOptions }
 // Minimal stub ApiClient that records calls and returns a configurable response
 function createStubApiClient(
   responseFactory: (url: string, options?: { body?: string }) => unknown
-): ApiClient & { calls: Array<CallRecord> } {
-  const calls: Array<CallRecord> = []
+): ApiClient & { calls: Array } {
+  const calls: Array = []
 
   return {
     calls,
@@ -34,13 +34,13 @@ function createStubApiClient(
     fetch<R = unknown>(
       url: string,
       options: FetchOptions = {}
-    ): FutureInstance<Error, R> {
+    ): FutureInstance {
       calls.push({ url, options })
       const body = options.body != null ? String(options.body) : undefined
       return resolve(responseFactory(url, { body }) as R)
     },
     debug: () => () => undefined,
-    wrapP<R>(_method: FutureInstance<unknown, R>): Promise<R> {
+    wrapP<R>(_method: FutureInstance): Promise {
       return Promise.resolve(undefined as unknown as R)
     },
   }
@@ -118,6 +118,12 @@ describe('workspace-api: queries', () => {
       await promise(createProject(stub, 'My Project'))
       const body = stub.calls[0]?.options.body as string
       assert.deepEqual(JSON.parse(body), { name: 'My Project' })
+    })
+
+    it('relies on api-client for JSON content-type header', async () => {
+      const stub = createStubApiClient(() => fakeProject)
+      await promise(createProject(stub, 'My Project'))
+      assert.equal(stub.calls[0]?.options.headers, undefined)
     })
   })
 
@@ -198,21 +204,21 @@ describe('workspace-api: queries', () => {
       const apiError = { status: 401 }
       const client: ApiClient = {
         authStore: {} as never,
-        fetch(): FutureInstance<Error, never> {
+        fetch(): FutureInstance {
           return futureReject(apiError as unknown as Error)
         },
         debug: () => () => undefined,
-        wrapP<R>(_method: FutureInstance<unknown, R>): Promise<R> {
+        wrapP<R>(_method: FutureInstance): Promise {
           return Promise.resolve(undefined as unknown as R)
         },
       }
 
-      await new Promise<void>((resolveP, rejectP) => {
+      await new Promise((resolveP, rejectP) => {
         getProjects(client).pipe(
-          fork<unknown>(err => {
+          fork(err => {
             assert.deepEqual(err, apiError)
             resolveP()
-          })<Project[]>(() => {
+          })(() => {
             rejectP(new Error('Expected rejection, got resolution'))
           })
         )

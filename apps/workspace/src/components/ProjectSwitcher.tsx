@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color, DropdownMenu, spacing } from '@repro/design'
+import { Button, color, DropdownMenu, spacing } from '@repro/design'
 import { ChevronDownIcon, FolderIcon, PlusIcon } from 'lucide-react'
 import React, { useState } from 'react'
 import { useProjectContext } from '~/ProjectContext'
@@ -9,6 +9,7 @@ export const ProjectSwitcher: React.FC = () => {
   const { projects, selectedProject, loading, selectProject } =
     useProjectContext()
 
+  const [menuOpen, setMenuOpen] = useState(false)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
 
   if (loading) {
@@ -95,7 +96,7 @@ export const ProjectSwitcher: React.FC = () => {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenu.Trigger fullWidth>
           <Row
             component="button"
@@ -132,9 +133,22 @@ export const ProjectSwitcher: React.FC = () => {
               {project.name}
             </DropdownMenu.Item>
           ))}
-          <DropdownMenu.Item onSelect={() => setShowCreateDialog(true)}>
-            Create project
-          </DropdownMenu.Item>
+          <DropdownMenu.Separator />
+          <Row padding={spacing.xs} justifyContent="flex-start">
+            <Button
+              variant="outlined"
+              context="neutral"
+              size="medium"
+              rounded
+              onClick={() => {
+                setMenuOpen(false)
+                setShowCreateDialog(true)
+              }}
+            >
+              <PlusIcon size={14} />
+              Create project
+            </Button>
+          </Row>
         </DropdownMenu.Content>
       </DropdownMenu>
 
