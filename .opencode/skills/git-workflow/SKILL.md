@@ -90,13 +90,23 @@ Before reading the diff:
 - **Check considerations** in the issue. These are open questions or trade-offs the author flagged. Note whether the PR resolves them or whether they need follow-up.
 - **Fetch the parent project and milestone** if the issue belongs to one, to understand broader goals and constraints.
 
-### 2. Review the Diff
+### 2. Gather existing GitHub review feedback for already-open PRs
+
+When reviewing an already-open PR, gather the current GitHub review state before deciding on your verdict:
+
+- Fetch the current review rollup and review history with `gh pr view <number> --json reviewDecision,latestReviews,reviews,url`.
+- Fetch inline PR review comments with `gh api --paginate repos/<owner>/<repo>/pulls/<number>/comments`.
+- Treat existing GitHub review feedback as part of the review context, not as something to ignore because it was left earlier.
+- Distinguish between feedback you are repeating, feedback you are resolving, and net-new blocking findings you are adding.
+- If humans have already requested changes, consider whether those comments already explain the blocking verdict before adding another one.
+
+### 3. Review the Diff
 
 - Verify correctness, style, and consistency with the codebase conventions.
 - Cross-reference the diff against the issue requirements and decisions gathered in step 1.
 - Flag deviations from the issue spec — but distinguish intentional improvements (which are fine) from accidental omissions (which need action).
 
-### 3. Structure the Review
+### 4. Structure the Review
 
 - **Lead with context**: briefly note which Linear issues were reviewed and any resolved decisions that informed the review.
 - **Separate blocking issues from non-blocking notes**: use clear severity labels (e.g. "must fix", "suggestion", "informational").
