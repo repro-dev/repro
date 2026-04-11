@@ -1,10 +1,7 @@
 import { Col, Grid } from '@jsxstyle/react'
 import { ApiClient, useApiClient } from '@repro/api-client'
 import { Button, EmptyState, PageFrame, spacing } from '@repro/design'
-<<<<<<< HEAD
 import type { RecordingInfo } from '@repro/domain'
-=======
->>>>>>> b080b85d (fix(workspace): guard home route project links (REP-488))
 import { useFuture } from '@repro/future-utils'
 import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/workspace-api'
 import { FutureInstance, resolve } from 'fluture'
@@ -17,31 +14,24 @@ import { RecordingTile } from './RecordingTile'
 const CHROME_WEB_STORE_URL =
   'https://chrome.google.com/webstore/detail/repro/ecmbphfjfhnifmhbjhpejbpdnpanpice'
 
-// An immediately-resolved empty list, typed to match getProjectRecordings.
-<<<<<<< HEAD
-type ProjectRecordingsFuture = FutureInstance
+type ProjectRecordingsFuture = FutureInstance<unknown, RecordingInfo[]>
 
+// An immediately-resolved empty list, typed to match getProjectRecordings.
 const emptyRecordings: ProjectRecordingsFuture = resolve([])
-=======
-const emptyRecordings: FutureInstance = resolve([])
->>>>>>> b080b85d (fix(workspace): guard home route project links (REP-488))
 
 interface Props {
   // Injectable for testing; defaults to the real workspace-api function.
   getProjectRecordings?: (
     apiClient: ApiClient,
     projectId: string
-<<<<<<< HEAD
   ) => ProjectRecordingsFuture
 }
 
 export const HomeRoute = ({
-=======
-  ) => FutureInstance
+  ) => ProjectRecordingsFuture
 }
 
-export const HomeRoute: React.FC = ({
->>>>>>> b080b85d (fix(workspace): guard home route project links (REP-488))
+export const HomeRoute = ({
   getProjectRecordings = defaultGetProjectRecordings,
 }: Props) => {
   const apiClient = useApiClient()
@@ -50,7 +40,10 @@ export const HomeRoute: React.FC = ({
   const projectId = selectedProject?.id ?? null
 
   // Re-fetch whenever the selected project changes.
-  const { loading, data: recordings } = useFuture(() => {
+  const { loading, data: recordings } = useFuture<
+    unknown,
+    RecordingInfo[]
+  >(() => {
     if (!projectId) {
       // No project selected — resolve immediately with an empty list so the
       // empty state renders rather than hanging in a loading state.
