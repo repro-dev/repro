@@ -6,7 +6,10 @@ You are the orchestrator for a precision-first autonomous delivery flow. Scan Li
 
 Stop after PRs for the current ready wave are published. Do not wait on CI, merges, or post-publish monitoring here — that follow-on behavior is handled separately.
 
-Arguments (optional): `$ARGUMENTS` — a project name or filter to restrict which issues are considered (for example `Engineering` or `Platform`). If empty, scan all projects.
+Arguments (optional): `$ARGUMENTS`
+
+- Project filter: a project name or filter to restrict which issues are considered (for example `Engineering` or `Platform`). If empty, scan all projects.
+- Execution control: `--wave-concurrency <1-6>` — limit planner, develop, and review subagent launches to batches of up to this many issues within a phase. Default `6`. The wave remains the sequencing unit.
 
 Current branch context:
 !`git branch --show-current`
@@ -34,6 +37,39 @@ Session-local exclusions:
 - Do not run a skill-audit preflight, do not maintain a run log, and do not run a visual regression phase here.
 
 > Tip: Run `/enrich-issues` before `/lightspeed` if the backlog contains issues that look promising but under-specified.
+
+## Execution control
+
+Parse `$ARGUMENTS` before Phase 1.
+
+- If `--wave-concurrency <1-6>` is present, remove that flag and value from the argument string before applying the remaining project filter.
+- The remaining argument text, if any, is the project filter.
+
+### `--wave-concurrency <1-6>`
+
+- Default: `6`
+- Minimum: `1`
+- Maximum: `6`
+- If the provided value is outside `1..6`, stop immediately with a clear validation error instead of clamping or guessing.
+- This flag limits how many `planner`, `develop`, or `review` subagents are launched concurrently within a phase.
+- It does **not** change wave selection, resequencing, or publish boundaries. Waves remain the sequencing unit.
+
+### Shared subagent launch retry policy
+
+Apply this policy only to `planner`, `develop`, and `review` launch failures.
+
+- Treat `429`, `rate limit`, `too many requests`, and equivalent provider throttling signals as retryable rate-limit failures.
+- Retry the same launch after **10s**, **30s**, and **90s**.
+- If all retries fail, escalate using the phase-local failure handling for that issue.
+- If the launch failure is clearly not a provider throttling event, escalate immediately using the phase-local failure handling for that issue.
+
+### Status visibility for batching and throttling
+
+When keeping the status table updated, make batching and backoff explicit so the operator can tell the command is intentionally waiting rather than hung.
+
+- Show the current phase batch, for example `planner batch 2/3 (3 active, 2 queued by --wave-concurrency)`.
+- Show active retry waits, for example `develop launch rate-limited; retry 2/4 in 30s`.
+- Keep stop and continue decisions at the usual phase or wave boundaries. Do **not** stop mid-batch or mid-wave.
 
 ---
 
@@ -129,9 +165,25 @@ Do not stop the whole run unless every issue in the provisional ready wave fails
 
 ---
 
-## Phase 4: Plan in parallel
+## Phase 4: Plan in bounded batches
 
-Launch `planner` subagents for every issue that has a worktree, in parallel.
+Launch `planner` subagents for every issue that has a worktree in batches of up to `--wave-concurrency` within the current phase.
+
+For this phase:
+
+1. Partition the worktree-backed issues into sequential batches of at most `--wave-concurrency` issues.
+2. Launch each batch in parallel.
+3. Wait for the full batch to finish before launching the next batch.
+4. Do not stop mid-batch. If a planner launch is throttled, use the shared subagent launch retry policy and keep the batch visible in status output.
+5. Make any keep/prune/continue decisions only after normal phase or wave boundaries, not in the middle of a batch.
+
+If a planner launch still fails after exhausting the shared retry policy:
+
+- Report the issue ID and launch failure clearly
+- Set the issue state back to **Todo**
+- Remove the worktree
+- Add the issue ID to `escalated_issues`
+- Exclude the issue from the current ready wave
 
 Prompt template per issue:
 
@@ -198,9 +250,25 @@ If the current ready wave becomes empty, stop and report why.
 
 ---
 
-## Phase 6: Implement in parallel
+## Phase 6: Implement in bounded batches
 
-Launch `develop` subagents for every issue still in the current ready wave, in parallel.
+Launch `develop` subagents for every issue still in the current ready wave in batches of up to `--wave-concurrency` within the current phase.
+
+For this phase:
+
+1. Partition the ready-wave issues into sequential batches of at most `--wave-concurrency` issues.
+2. Launch each batch in parallel.
+3. Wait for the full batch to finish before launching the next batch.
+4. Do not stop mid-batch. If a develop launch is throttled, use the shared subagent launch retry policy and keep the batch visible in status output.
+5. Make publishability and stop/continue decisions only at the normal phase or wave boundaries.
+
+If a develop launch still fails after exhausting the shared retry policy:
+
+- Report the issue ID and launch failure clearly
+- Set the issue state back to **Todo**
+- Remove the worktree
+- Add the issue ID to `escalated_issues`
+- Exclude the issue from the publishable set
 
 Prompt template per issue:
 
@@ -237,7 +305,25 @@ If a `develop` run reports an unresolved build failure, typecheck failure, or st
 
 ## Phase 7: Review with a bounded fix loop
 
-Launch `review` subagents for every completed implementation in parallel.
+Launch `review` subagents for every completed implementation in batches of up to `--wave-concurrency` within the current phase.
+
+For this phase:
+
+1. Partition completed implementations into sequential batches of at most `--wave-concurrency` issues.
+2. Launch each batch in parallel.
+3. Wait for the full batch to finish before launching the next batch.
+4. Do not stop mid-batch. If a review launch is throttled, use the shared subagent launch retry policy and keep the batch visible in status output.
+5. Make publish/escalate decisions only at the normal review-loop or wave boundaries.
+
+If a review launch still fails after exhausting the shared retry policy:
+
+- Report the issue ID and launch failure clearly
+- Set the issue state back to **Todo**
+- Remove the worktree
+- Add the issue ID to `escalated_issues`
+- Exclude the issue from the publishable set
+
+Any follow-up `develop` or `review` reruns triggered by this phase's bounded fix loop must also respect `--wave-concurrency` and the shared subagent launch retry policy.
 
 Prompt template per issue:
 
