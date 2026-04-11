@@ -28,10 +28,6 @@ interface Props {
 }
 
 export const HomeRoute = ({
-  ) => ProjectRecordingsFuture
-}
-
-export const HomeRoute = ({
   getProjectRecordings = defaultGetProjectRecordings,
 }: Props) => {
   const apiClient = useApiClient()
