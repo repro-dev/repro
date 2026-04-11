@@ -1,4 +1,6 @@
 export { addAriaAttribute, removeAriaAttribute } from './ariaAttributes'
+export { createFocusTrap } from './createFocusTrap'
+export type { FocusTrap } from './createFocusTrap'
 export { useFocusTrap } from './useFocusTrap'
 export { useStableId } from './useStableId'
 export { visuallyHidden } from './visuallyHidden'

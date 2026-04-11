@@ -1,38 +1,32 @@
 import { useEffect, useRef } from 'react'
+import { FOCUSABLE_SELECTORS } from './focusableSelectors'
 
-const FOCUSABLE_SELECTORS = [
-  'a[href]',
-  'button:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-  'details > summary',
-].join(', ')
-
-export function useFocusTrap<T extends HTMLElement>(active: boolean) {
-  const containerRef = useRef<T>(null)
-  const previousFocusRef = useRef<Element | null>(null)
+export function useFocusTrap<T extends HTMLElement = HTMLElement>(
+  active: boolean
+): { current: T | null } {
+  const containerRef = useRef(null as HTMLElement | null)
+  const previousFocusRef = useRef(null as HTMLElement | null)
 
   useEffect(() => {
     if (!active) {
-      if (
-        previousFocusRef.current &&
-        previousFocusRef.current instanceof HTMLElement
-      ) {
+      if (previousFocusRef.current) {
         previousFocusRef.current.focus()
         previousFocusRef.current = null
       }
       return
     }
 
-    previousFocusRef.current = document.activeElement
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
 
     const container = containerRef.current
     if (container) {
-      const firstFocusable =
-        container.querySelector<HTMLElement>(FOCUSABLE_SELECTORS)
-      if (firstFocusable) {
+      const firstFocusable = container.querySelector(
+        FOCUSABLE_SELECTORS
+      ) as HTMLElement | null
+      if (firstFocusable instanceof HTMLElement) {
         firstFocusable.focus()
       } else {
         container.tabIndex = -1
@@ -44,8 +38,11 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean) {
       if (evt.key !== 'Tab' || !container) return
 
       const focusables = Array.from(
-        container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTORS)
-      ).filter(el => !el.closest('[aria-hidden="true"]'))
+        container.querySelectorAll(FOCUSABLE_SELECTORS)
+      ).filter(
+        (el): el is HTMLElement =>
+          el instanceof HTMLElement && !el.closest('[aria-hidden="true"]')
+      )
 
       if (focusables.length === 0) {
         evt.preventDefault()
@@ -71,15 +68,12 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean) {
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      if (
-        previousFocusRef.current &&
-        previousFocusRef.current instanceof HTMLElement
-      ) {
+      if (previousFocusRef.current) {
         previousFocusRef.current.focus()
         previousFocusRef.current = null
       }
     }
   }, [active])
 
-  return containerRef
+  return containerRef as { current: T | null }
 }
