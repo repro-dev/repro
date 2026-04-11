@@ -279,21 +279,29 @@ Do **not** paste full AI review output back into Linear comments. Use Linear com
 
 For each publishable issue:
 
-1. Rebase onto `origin/main` before pushing:
+1. Before any push attempt (`git push` or `git push --force-with-lease`), run the shared pre-push `origin/main` guard:
 
    ```sh
    git -C <worktree-path> fetch origin main
-   git -C <worktree-path> rebase origin/main
+   if git -C <worktree-path> merge-base --is-ancestor origin/main HEAD; then
+     # log: REP-xxx: branch already contains origin/main
+   else
+     git -C <worktree-path> rebase origin/main
+     # log: REP-xxx: rebased onto origin/main before push
+   fi
    ```
 
+   Use this same guard for the initial publish path and any future re-push path.
+
    If the rebase conflicts:
-   - Report the conflicting files
-   - Abort the rebase
-   - Post a concise Linear comment
-   - Set the issue state back to **Todo**
-   - Remove the worktree
+   - Capture the conflicting files
+   - Run `git -C <worktree-path> rebase --abort`
+   - Post a structured, concise Linear comment summarizing the conflict
+   - Set the issue state back to **In Progress**
    - Add the issue ID to `escalated_issues`
-   - Do not push or open a PR for that issue
+   - Stop publish or re-push for that issue
+
+   Do not add automatic conflict-resolution logic here.
 
 2. Push with the same lightweight retry posture used for worktree creation: retry transient failures up to 3 times; escalate permanent failures immediately.
 
