@@ -76,8 +76,10 @@ When keeping the status table updated, make batching and backoff explicit so the
 ## Phase 1: Scan and select
 
 1. Fetch Linear issues in **Todo** and **Backlog** across all projects (or filtered by `$ARGUMENTS` if provided):
-   - Use `Linear_list_issues` with `state: "Todo"` and then `state: "Backlog"`.
-   - For each issue, call `Linear_get_issue` with `includeRelations: true`.
+   - Use `Linear_list_issues` with `state: "Todo"`, paginating through all results.
+   - Use `Linear_list_issues` with `state: "Backlog"`, paginating through all results.
+   - Deduplicate the combined results by issue ID.
+   - For each issue in the full deduplicated set, call `Linear_get_issue` with `includeRelations: true`.
 
 2. Apply a precision-first selection bar.
 
@@ -96,7 +98,7 @@ When keeping the status table updated, make batching and backoff explicit so the
    - Obvious bounded scope
    - Useful risk notes or dependency notes already present in the issue
 
-3. Produce a candidate table before proceeding. For each issue, show:
+3. Produce a candidate table from the full deduplicated issue set before proceeding. For each issue, show:
    - Issue ID
    - Title
    - Priority
