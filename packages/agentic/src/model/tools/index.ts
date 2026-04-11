@@ -51,6 +51,10 @@ import {
   handler as getStateChanges,
 } from "./get-state-changes";
 import {
+  TOOL_DEFINITION as findUserFrustrationDef,
+  handler as findUserFrustration,
+} from "./find-user-frustration";
+import {
   TOOL_DEFINITION as getConsoleContextDef,
   handler as getConsoleContext,
 } from "./get-console-context";
@@ -74,6 +78,7 @@ export const tools = [
   getUserActionsDef,
   captureScreenshotDef,
   getStateChangesDef,
+  findUserFrustrationDef,
   searchEventsDef,
 ];
 
@@ -98,6 +103,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   getUserActions,
   captureScreenshot,
   getStateChanges,
+  findUserFrustration,
   searchEvents,
 };
 
