@@ -185,10 +185,10 @@ Run these checks before committing. Fix any failures before proceeding. For full
 
 Use these commands to preserve session context across session boundaries or context pressure events:
 
-| Command    | When to use                                                                     | Output                              |
-| ---------- | ------------------------------------------------------------------------------- | ----------------------------------- |
-| `/ledger`  | Before ending a session when work is mid-flight                                 | `tmp/ledger-{date}-{topic}.md`      |
-| `/handoff` | When approaching context limits and need to pass work to a fresh session window | Inline prompt (paste into new chat) |
+| Command    | When to use                                                                     | Output                                    |
+| ---------- | ------------------------------------------------------------------------------- | ----------------------------------------- |
+| `/ledger`  | Before ending a session when work is mid-flight                                 | `tmp/ledger-{YYYY-MM-DD}-{topic}.md`      |
+| `/handoff` | When approaching context limits and need to pass work to a fresh session window | Inline prompt (paste into new chat)       |
 
 **Run `/ledger`** at these checkpoints:
 

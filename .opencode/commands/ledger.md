@@ -16,7 +16,7 @@ Write the file with these sections in order:
 # Session Ledger — {topic} — {date}
 
 ## Worktree
-<absolute path to current worktree>
+<absolute path to current checkout/worktree>
 <current git branch>
 
 ## Linear Issue
