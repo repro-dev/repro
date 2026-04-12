@@ -1,0 +1,6 @@
+type CustomMark: struct {
+  0) name: string
+  1) data: ?string
+  2) time: uint64
+  3) frameId: uint32
+}
