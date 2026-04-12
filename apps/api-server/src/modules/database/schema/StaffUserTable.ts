@@ -14,7 +14,10 @@ export interface StaffUserTable {
   createdAt: GeneratedAlways<Date>
 }
 
-type DomainObject = Pick<Selectable<StaffUserTable>, 'id' | 'name' | 'email'>
+type DomainObject = Pick<
+  Selectable<StaffUserTable>,
+  'id' | 'name' | 'email' | 'admin'
+>
 
 export function asStaffUser<T extends DomainObject>(values: T): StaffUser {
   return {
@@ -22,5 +25,6 @@ export function asStaffUser<T extends DomainObject>(values: T): StaffUser {
     id: encodeId(values.id),
     name: values.name,
     email: values.email,
+    isAdmin: values.admin,
   }
 }
