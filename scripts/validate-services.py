@@ -36,6 +36,11 @@ MIGRATION_KEYS = {
     "resource_deps": list,
 }
 
+LAUNCH_KEYS = {
+    "kind": str,
+    "description": str,
+}
+
 
 def validate(services_path, infra_dir, requested_services):
     errors = []
@@ -80,6 +85,11 @@ def validate(services_path, infra_dir, requested_services):
                     "%s serve_env must be dict, got %s"
                     % (prefix, type(svc["serve_env"]).__name__)
                 )
+            if "description" in svc and not isinstance(svc["description"], str):
+                errors.append(
+                    "%s description must be str, got %s"
+                    % (prefix, type(svc["description"]).__name__)
+                )
             if "resource_deps" in svc and not isinstance(svc["resource_deps"], list):
                 errors.append(
                     "%s resource_deps must be list, got %s"
@@ -90,6 +100,53 @@ def validate(services_path, infra_dir, requested_services):
                     "%s labels must be list, got %s"
                     % (prefix, type(svc["labels"]).__name__)
                 )
+            if "portless_name" in svc and not isinstance(svc["portless_name"], str):
+                errors.append(
+                    "%s portless_name must be str, got %s"
+                    % (prefix, type(svc["portless_name"]).__name__)
+                )
+            if "port" in svc and not isinstance(svc["port"], int):
+                errors.append(
+                    "%s port must be int, got %s" % (prefix, type(svc["port"]).__name__)
+                )
+
+            launch = svc.get("launch")
+            if launch is not None:
+                if not isinstance(launch, dict):
+                    errors.append(
+                        "%s launch must be an object, got %s"
+                        % (prefix, type(launch).__name__)
+                    )
+                else:
+                    for key, expected_type in LAUNCH_KEYS.items():
+                        if key not in launch:
+                            errors.append(
+                                "%s launch missing required key: %s" % (prefix, key)
+                            )
+                        elif not isinstance(launch[key], expected_type):
+                            errors.append(
+                                "%s launch.%s must be %s, got %s"
+                                % (
+                                    prefix,
+                                    key,
+                                    expected_type.__name__,
+                                    type(launch[key]).__name__,
+                                )
+                            )
+
+                    launch_kind = launch.get("kind")
+                    if launch_kind not in ("url", "capture"):
+                        errors.append(
+                            "%s launch.kind must be one of: url, capture" % prefix
+                        )
+                    elif (
+                        launch_kind == "url"
+                        and "portless_name" not in svc
+                        and "port" not in svc
+                    ):
+                        errors.append(
+                            "%s launch.kind=url requires portless_name or port" % prefix
+                        )
 
         elif svc_type == "k8s":
             for key, expected_type in REQUIRED_KEYS.items():

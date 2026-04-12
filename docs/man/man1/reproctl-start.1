@@ -24,6 +24,10 @@ the main checkout or other worktrees.
 If no service names are provided and stdin is a terminal, an interactive
 picker is shown (using \f[B]fzf\f[R] if available, or a numbered
 prompt).
+.PP
+The available service list in \f[B]reproctl start \-\-help\f[R] is
+generated directly from \f[B]infra/services.json\f[R], so new services
+appear automatically without shell\-script changes.
 .SH OPTIONS
 .TP
 \f[B]\-\-pick\f[R], \f[B]\-p\f[R]

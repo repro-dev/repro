@@ -8,7 +8,7 @@ reproctl-start - start services via Tilt
 
 # SYNOPSIS
 
-**reproctl start** [**--wait**] [**--timeout** *duration*] *service* [*service*...]
+**reproctl start** [**--wait**] [**--timeout** *duration*] _service_ [*service*...]
 
 # DESCRIPTION
 
@@ -22,6 +22,8 @@ When invoked from a worktree, services are isolated with a worktree-slug suffix 
 
 If no service names are provided and stdin is a terminal, an interactive picker is shown (using **fzf** if available, or a numbered prompt).
 
+The available service list in **reproctl start --help** is generated directly from **infra/services.json**, so new services appear automatically without shell-script changes.
+
 # OPTIONS
 
 **--pick**, **-p**
@@ -30,7 +32,7 @@ If no service names are provided and stdin is a terminal, an interactive picker 
 **--wait**, **-w**
 : Block until all started services report healthy status. While waiting, the full transitive dependency tree is resolved from **services.json** and the status of all dependencies (infrastructure, migrations, dependent services) is shown alongside the target services. In a TTY, a multi-line updating display is shown on stderr. When not a TTY, periodic single-line status updates are printed to stderr every 10 seconds. Exits 0 on success, 1 on timeout. In **--json** mode, outputs the final service status JSON on success, or an error object on timeout.
 
-**--timeout**, **-t** *duration*
+**--timeout**, **-t** _duration_
 : How long to wait before giving up when **--wait** is set. Accepts a number of seconds, optionally with an **s** suffix (e.g. **120s**, **60**). By default, **--wait** blocks indefinitely with no timeout. Only meaningful with **--wait**.
 
 # EXIT CODES

@@ -37,16 +37,13 @@ __reproctl_services() {
   repo="$(__reproctl_repo_root)"
   local json="$repo/infra/services.json"
   [[ -f "$json" ]] || return
-  python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1])).keys()))" "$json" 2>/dev/null
+  python3 "$repo/scripts/lib/py/service_names.py" "$json" 2>/dev/null
 }
 
 __reproctl_launchable_services() {
   local repo
   repo="$(__reproctl_repo_root)"
   local json="$repo/infra/services.json"
-  echo "workspace"
-  echo "api-server"
-  echo "admin"
   [[ -f "$json" ]] || return
   python3 "$repo/scripts/lib/py/launchable_local_services.py" "$json" 2>/dev/null
 }
