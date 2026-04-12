@@ -2,7 +2,7 @@
 description: Executes implementation work using red/green TDD — consumes a plan document, writes failing tests first, implements code to pass them, refactors, and commits.
 mode: subagent
 model: github-copilot/gpt-5.4
-reasoningEffort: high
+reasoningEffort: medium
 permission:
   bash:
     "*": "allow"

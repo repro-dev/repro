@@ -307,6 +307,20 @@ If a `develop` run reports an unresolved build failure, typecheck failure, or st
 
 ## Phase 7: Review with a bounded fix loop
 
+Before launching `review`, create a local checkpoint commit for each completed implementation so review runs against a real branch diff instead of dirty worktree changes.
+
+For each completed implementation before review:
+
+1. Run the commit inspection steps in the issue worktree:
+   - `git status`
+   - `git diff`
+   - `git log -5 --oneline`
+2. Stage the implementation changes.
+3. Create a local commit using the repository's normal Conventional Commit style and include the Linear issue ID.
+4. Do **not** push yet.
+
+If the implementation is later fixed during the bounded review loop, create a new local commit for the review-fix pass before re-running `review`. Do not rely on dirty worktree diffs.
+
 Launch `review` subagents for every completed implementation in batches of up to `--wave-concurrency` within the current phase.
 
 For this phase:
@@ -334,7 +348,7 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 1. Load the `git-workflow` skill for the full review checklist.
 2. Fetch Linear issue REP-xxx via Linear_get_issue.
-3. Run: git diff main...HEAD
+3. Review the committed branch diff with: `git diff main...HEAD`
 4. Review against requirements coverage, correctness, test coverage, conventions, and architecture.
 5. Return the structured output required by .opencode/agents/review.md.
 ```
@@ -346,18 +360,18 @@ For each issue, apply this bounded loop:
    - Escalate immediately
    - Post a concise Linear comment summarizing the blocking findings
    - Set the issue state back to **Todo**
-   - Remove the worktree
    - Add the issue ID to `escalated_issues`
 3. **If all blocking issues have `fixable_by_agent: true` and no fix attempt has happened yet**:
    - Re-run `develop` once with the original plan plus the blocking findings
    - Re-run `review` once
 4. **If the second review still has blocking issues**:
    - Escalate with the remaining findings
-   - Set the issue state back to **Todo**
-   - Remove the worktree
+   - Create the PR instead of discarding the branch
+   - Include a concise summary of the remaining blocking findings in the PR body as reviewer follow-up context
+   - Set the issue state to **In Review**
    - Add the issue ID to `escalated_issues`
 
-This is the entire loop: **review → fix once if agent-fixable → review again → publish or escalate**.
+This is the entire loop: **review → fix once if agent-fixable → review again → publish or escalate into human review**.
 
 Do **not** paste full AI review output back into Linear comments. Use Linear comments only for short phase-local blocker summaries when an issue is being kicked back.
 

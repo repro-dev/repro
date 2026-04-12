@@ -2,7 +2,7 @@
 description: Code review against Linear requirements and AGENTS.md conventions — read-only, reports findings without making changes.
 mode: subagent
 model: github-copilot/gpt-5.4
-reasoningEffort: xhigh
+reasoningEffort: high
 tools:
   write: false
   edit: false
