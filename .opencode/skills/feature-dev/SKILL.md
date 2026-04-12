@@ -155,6 +155,10 @@ Run these checks before committing. Fix any failures before proceeding. For full
 
 ## Phase 5: Commit
 
+> **Recommended:** Delegate Phases 5 and 6 together to the `release` agent. It handles staging, committing with a Conventional Commit message, pushing, PR creation, and Linear status update in one call. Provide it with: (1) the worktree path (the agent must be launched with this as its working directory — pass it via the Task tool's `workdir` parameter), (2) the files to stage, (3) the Linear issue ID, and (4) a brief description for the commit message.
+
+If doing it manually:
+
 1. Stage changes: `git add <files>`
 2. Write a Conventional Commit message referencing the issue:
    ```
@@ -164,6 +168,10 @@ Run these checks before committing. Fix any failures before proceeding. For full
 4. Do NOT push unless the user asks.
 
 ## Phase 6: Pull Request
+
+> **Recommended:** Use the `release` agent (see Phase 5 above). It performs the push, PR creation, and Linear status update as a single atomic operation with hard refusals for force push and hook-skipping baked in.
+
+If doing it manually:
 
 1. Push the branch: `git push -u origin <branch-name>`
 2. Create the PR via `gh` CLI with a summary, Linear issue reference, change list, and verification checklist. For full PR conventions and the code review checklist, load the `git-workflow` skill.
