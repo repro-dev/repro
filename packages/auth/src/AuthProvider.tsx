@@ -13,12 +13,12 @@ export const AuthContext = createContext(
 )
 
 export const AuthProvider: React.FC<
-  PropsWithChildren<{ basePath?: string }>
-> = ({ children, basePath }) => {
+  PropsWithChildren<{ basePath?: string; loginPath?: string }>
+> = ({ children, basePath, loginPath }) => {
   const apiClient = useApiClient()
   const state = useMemo(
-    () => createState({ apiClient, basePath }),
-    [apiClient, basePath]
+    () => createState({ apiClient, basePath, loginPath }),
+    [apiClient, basePath, loginPath]
   )
 
   useEffect(() => {
