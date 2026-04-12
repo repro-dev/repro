@@ -185,10 +185,10 @@ Run these checks before committing. Fix any failures before proceeding. For full
 
 Use these commands to preserve session context across session boundaries or context pressure events:
 
-| Command    | When to use                                                                     | Output                                    |
-| ---------- | ------------------------------------------------------------------------------- | ----------------------------------------- |
-| `/ledger`  | Before ending a session when work is mid-flight                                 | `tmp/ledger-{YYYY-MM-DD}-{topic}.md`      |
-| `/handoff` | When approaching context limits and need to pass work to a fresh session window | Inline prompt (paste into new chat)       |
+| Command    | When to use                                                                     | Output                               |
+| ---------- | ------------------------------------------------------------------------------- | ------------------------------------ |
+| `/ledger`  | Before ending a session when work is mid-flight                                 | `tmp/ledger-{YYYY-MM-DD}-{topic}.md` |
+| `/handoff` | When approaching context limits and need to pass work to a fresh session window | Inline prompt (paste into new chat)  |
 
 **Run `/ledger`** at these checkpoints:
 
@@ -256,3 +256,66 @@ Key settings:
 A good compression summary is 200–400 lines and preserves enough to resume without re-reading the originals. Dense signal, zero noise.
 
 **Phase boundary rule**: After each completed phase (especially Phases 4–6), ask: _"Is everything from this phase fully closed?"_ If yes, compress it before starting the next phase.
+
+## Command Authoring
+
+OpenCode slash commands (`.opencode/commands/*.md`) support frontmatter patterns for composing multi-step workflows. These patterns work with native OpenCode command frontmatter and the `task` tool — no additional plugins required.
+
+### `return:` — Chaining prompts and commands
+
+The `return:` frontmatter key specifies what prompt or command to invoke after the current command completes. It enables multi-step workflows as command sequences rather than monolithic single-shot commands.
+
+```yaml
+---
+description: My command
+return: "After this command finishes, run /ledger to capture the session state."
+---
+```
+
+Use `return:` to encode the expected next step directly in the command, so the model knows what to do after completion rather than waiting for the operator to decide.
+
+### `loop: / until:` — Iterative subtasks
+
+The `loop:` key specifies the command or prompt to repeat. The `until:` key specifies the exit condition — typically a phrase the model should output when the loop is complete.
+
+```yaml
+---
+description: Iterative fix loop
+loop: Fix the next failing typecheck error
+until: "All typecheck errors resolved"
+---
+```
+
+Useful for retry loops, "keep running until clean" patterns, and staged approval gates.
+
+### `$TURN[n]` — Injecting conversation context
+
+`$TURN[n]` injects the output from conversation turn `n` into the current prompt. Use `$TURN[-1]` to reference the immediately preceding turn's output.
+
+```
+Review the changes described in $TURN[-1] against the acceptance criteria.
+```
+
+This avoids re-fetching results that are already present in conversation history, and keeps chained commands from duplicating expensive tool calls.
+
+### `{as:name}` + `$RESULT[name]` — Named result passing
+
+`{as:name}` labels a command's output so it can be referenced downstream. `$RESULT[name]` injects the named result into a subsequent command or prompt.
+
+```
+Run the planner {as:plan}
+
+Then: Implement $RESULT[plan] in the worktree.
+```
+
+This enables explicit, named handoffs between chained commands without fragile text parsing or session-state mutation.
+
+### Challenge-verify-validate post-subtask pattern
+
+When a subtask (develop, test, planner, etc.) completes, the recommended follow-up behavior is **challenge → verify → validate**, not a passive summarization:
+
+1. **Challenge**: probe the output — is the result complete? Are there edge cases unaddressed? Does the plan account for the full requirements?
+2. **Verify**: check that the acceptance criteria from the Linear issue are met. Load the issue via `Linear_get_issue` if needed.
+3. **Validate**: confirm no regressions or side-effects. Run typecheck and tests if they apply.
+
+This pattern replaces the instinct to simply summarize what a subagent returned. A summary does not catch gaps; challenge-verify-validate does.

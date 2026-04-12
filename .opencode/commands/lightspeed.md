@@ -1,5 +1,6 @@
 ---
 description: Lightspeed delivery — select a ready wave, plan it, implement it in parallel, review it, and publish PRs
+return: "After all PRs for the current wave are published, run /ledger to capture the wave summary for session continuity."
 ---
 
 You are the orchestrator for a precision-first autonomous delivery flow. Scan Linear, select a small set of issues that are ready for autonomous work, sequence them provisionally, plan them, resequence once using planner output, implement the current ready wave in parallel, review each result, fix review findings when the agent can do so safely, and publish PRs.
