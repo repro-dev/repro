@@ -137,15 +137,15 @@ The outer conversation (frontier model) handles diagnosis, design, planning, and
 
 This table is normative — agents must treat it as a constraint, not a suggestion.
 
-| Agent role         | May commit | May push | May create PRs | May create Linear issues | May modify AGENTS.md / skill files | May install dependencies |
-| ------------------ | ---------- | -------- | -------------- | ------------------------ | ---------------------------------- | ------------------------ |
-| `develop`          | Yes        | No       | No             | No                       | No                                 | No                       |
-| `test`             | No         | No       | No             | No                       | No                                 | No                       |
-| `planner`          | No         | No       | No             | No                       | No                                 | No                       |
-| `review`           | No         | No       | No             | No                       | No                                 | No                       |
-| `explore`          | No         | No       | No             | No                       | No                                 | No                       |
-| `general`          | No         | No       | No             | No                       | No                                 | No                       |
-| Outer conversation | Yes        | Yes      | Yes            | Yes                      | Yes                                | Yes                      |
+| Agent role              | May commit | May push | May create PRs | May create Linear issues | May modify AGENTS.md / skill files | May install dependencies |
+| ----------------------- | ---------- | -------- | -------------- | ------------------------ | ---------------------------------- | ------------------------ |
+| `develop`               | Yes        | No       | No             | No                       | No                                 | No                       |
+| `test`                  | No         | No       | No             | No                       | No                                 | No                       |
+| `planner`               | No         | No       | No             | No                       | No                                 | No                       |
+| `review`                | No         | No       | No             | No                       | No                                 | No                       |
+| `explore`               | No         | No       | No             | No                       | No                                 | No                       |
+| `general`               | No         | No       | No             | No                       | No                                 | No                       |
+| `outer conversation`    | Yes        | Yes      | Yes            | Yes                      | Yes                                | Yes                      |
 
 ### Mandatory delegation
 
