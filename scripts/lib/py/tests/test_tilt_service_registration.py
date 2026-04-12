@@ -55,7 +55,7 @@ def _watch_ignores(manifest):
 
 
 class TestTiltServiceRegistration:
-    def test_storybook_worktree_watches_app_root_and_workspace_dependencies(self):
+    def test_storybook_worktree_watches_only_manifest_files(self):
         tilt_result = _render_tilt(
             [
                 {
@@ -69,12 +69,16 @@ class TestTiltServiceRegistration:
         manifest = _manifest(tilt_result, "storybook-ui-wt-rep-397")
         deps = manifest["DeployTarget"].get("Deps") or []
 
-        assert str(REPO_ROOT / "apps" / "storybook-ui") in deps
-        assert str(REPO_ROOT / "packages" / "design") in deps
-        assert ".storybook" not in "\n".join(deps)
-        assert "**/node_modules/**" in _watch_ignores(manifest)
+        # Only manifest files watched — dev server handles source file watching.
+        assert str(REPO_ROOT / "pnpm-lock.yaml") in deps
+        assert str(REPO_ROOT / "apps" / "storybook-ui" / "package.json") in deps
 
-    def test_workspace_main_checkout_uses_dependency_aware_watch_paths(self):
+        # Source dirs and transitive dep packages must not be in watchedPaths;
+        # they caused infinite restart loops when codegen ran during startup.
+        assert str(REPO_ROOT / "packages" / "design") not in deps
+        assert str(REPO_ROOT / "apps" / "storybook-ui") not in deps
+
+    def test_workspace_watches_only_manifest_files(self):
         tilt_result = _render_tilt(
             [
                 {
@@ -88,7 +92,11 @@ class TestTiltServiceRegistration:
         manifest = _manifest(tilt_result, "workspace")
         deps = manifest["DeployTarget"].get("Deps") or []
 
-        assert str(REPO_ROOT / "apps" / "workspace") in deps
-        assert str(REPO_ROOT / "packages" / "design") in deps
+        # Only manifest files watched — Vite handles source file watching.
+        assert str(REPO_ROOT / "pnpm-lock.yaml") in deps
+        assert str(REPO_ROOT / "apps" / "workspace" / "package.json") in deps
+
+        # Source dirs and transitive dep packages must not be in watchedPaths.
+        assert str(REPO_ROOT / "packages" / "design") not in deps
+        assert str(REPO_ROOT / "apps" / "workspace") not in deps
         assert str(REPO_ROOT / "apps" / "workspace" / "src") not in deps
-        assert "**/dist/**" in _watch_ignores(manifest)
