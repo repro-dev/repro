@@ -430,6 +430,10 @@ After all publishable issues in the current ready wave have been handled:
 
 Post-publish waiting, CI monitoring, merge handling, and automatic continuation belong to follow-on work, not this command.
 
+After stopping, if this session will not immediately continue:
+
+- Run `/ledger` to capture a session handoff for the current wave. This allows a future session to resume triage or publish remaining waves without re-exploring.
+
 ---
 
 ## Throughout
