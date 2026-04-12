@@ -4,7 +4,7 @@ description: Write a structured session handoff ledger to tmp/ for resuming work
 
 You are writing a session ledger — a structured handoff file that captures enough context for a fresh session to resume work without re-exploring from scratch.
 
-Write the ledger to `tmp/ledger-{YYYY-MM-DD}-{topic}.md` where `{topic}` is a 2-3 word slug describing the current work (e.g. `ledger-2026-04-12-auth-refactor.md`).
+Write the ledger to `tmp/ledger-{YYYY-MM-DD}-{topic}.md` where `{topic}` is a 2-3 word slug describing the current work (e.g. `tmp/ledger-2026-04-12-auth-refactor.md`).
 
 If a ledger file for the current session already exists in `tmp/` (same date and topic), overwrite it — the command is idempotent.
 
