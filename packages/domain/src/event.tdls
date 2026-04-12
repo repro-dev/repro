@@ -1,4 +1,5 @@
 import console.ConsoleMessage
+import customMark.CustomMark
 import interaction.Interaction
 import network.NetworkMessage
 import performance.PerformanceEntry
@@ -16,6 +17,7 @@ type SourceEventType: enum<uint8> {
   Performance: 50
   State: 60
   Storage: 70
+  CustomMark: 80
   CloseRecording: 99
 }
 
@@ -67,6 +69,12 @@ type StorageEvent: struct {
   2) data: StorageMessage
 }
 
+type CustomMarkEvent: struct {
+  0) type: SourceEventType.CustomMark
+  1) time: uint32
+  2) data: CustomMark
+}
+
 type SourceEvent: union(type) {
   SnapshotEvent
   DOMPatchEvent
@@ -76,4 +84,5 @@ type SourceEvent: union(type) {
   PerformanceEvent
   StateSourceEvent
   StorageEvent
+  CustomMarkEvent
 }

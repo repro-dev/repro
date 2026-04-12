@@ -8,6 +8,7 @@ import pkg from '../package.json'
 export const CODEC_VERSION = pkg.version as CodecVersion
 export * from './generated/common'
 export * from './generated/console'
+export * from './generated/customMark'
 export * from './generated/event'
 export * from './generated/interaction'
 export * from './generated/network'
