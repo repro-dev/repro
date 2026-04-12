@@ -3,6 +3,7 @@ import { AppShell, Link, SideNav } from '@repro/design'
 import { PlayIcon, SettingsIcon } from 'lucide-react'
 import React from 'react'
 import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
+import { ProjectSettingsNavItem } from '~/components/ProjectSettingsNavItem'
 import { ProjectSwitcher } from '~/components/ProjectSwitcher'
 import { WorkspaceHeader } from '~/components/WorkspaceHeader'
 import { ProjectProvider } from './ProjectContext'
@@ -26,6 +27,7 @@ export const Layout: React.FC = () => {
             <SideNav aria-label="Main navigation">
               <SideNav.Section title="Project">
                 <ProjectSwitcher />
+                <ProjectSettingsNavItem />
               </SideNav.Section>
 
               <SideNav.Section title="Main">

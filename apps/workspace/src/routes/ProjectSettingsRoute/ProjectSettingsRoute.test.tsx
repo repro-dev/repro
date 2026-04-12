@@ -1,7 +1,13 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
+import { createAtom } from '@repro/atom'
 import { ConfirmDialogProvider } from '@repro/design'
 import { Project, ProjectRole } from '@repro/domain'
-import { ProjectMember } from '@repro/workspace-api'
+import {
+  ProjectMember,
+  deactivateProject as defaultDeactivateProject,
+  getProjectMembers as defaultGetProjectMembers,
+  renameProject as defaultRenameProject,
+} from '@repro/workspace-api'
 import {
   act,
   cleanup,
@@ -10,12 +16,18 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { FutureInstance, never, reject, resolve } from 'fluture'
+import { never, reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { ProjectSettingsRoute } from './ProjectSettingsRoute'
+import { ProjectProvider } from '~/ProjectContext'
+import { AuthContext } from '../../../../../packages/auth/src/AuthProvider'
+import { createState } from '../../../../../packages/auth/src/createState'
+import {
+  ProjectSettingsRoute,
+  ProjectSettingsRouteConnected,
+} from './ProjectSettingsRoute'
 
 afterEach(cleanup)
 
@@ -27,6 +39,7 @@ const apiClient = createApiClient({
 
 // --- Current user ID ---
 const CURRENT_USER_ID = 'user-1'
+const STORAGE_KEY = 'repro:selectedProjectId'
 
 // --- Member fixtures ---
 const adminMember: ProjectMember = {
@@ -50,21 +63,11 @@ const viewerMember: ProjectMember = {
 }
 
 // --- Injectable dependency types ---
-type GetMembersFn = (
-  client: typeof apiClient,
-  projectId: string
-) => FutureInstance<Error, ProjectMember[]>
+type GetMembersFn = typeof defaultGetProjectMembers
 
-type RenameFn = (
-  client: typeof apiClient,
-  projectId: string,
-  name: string
-) => FutureInstance<Error, Project>
+type RenameFn = typeof defaultRenameProject
 
-type DeactivateFn = (
-  client: typeof apiClient,
-  projectId: string
-) => FutureInstance<Error, void>
+type DeactivateFn = typeof defaultDeactivateProject
 
 interface TestProps {
   getMembers?: GetMembersFn
@@ -76,6 +79,29 @@ interface TestProps {
 }
 
 const fakeProject: Project = { id: 'proj-1', name: 'My Project' }
+
+const localStorageMock = (() => {
+  let store: { [key: string]: string } = {}
+
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => {
+      store[key] = value
+    },
+    removeItem: (key: string) => {
+      delete store[key]
+    },
+    clear: () => {
+      store = {}
+    },
+  }
+})()
+
+Object.defineProperty(global, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+  configurable: true,
+})
 
 function renderRoute({
   getMembers = () => resolve([adminMember]),
@@ -106,6 +132,61 @@ function renderRoute({
           </Routes>
         </MemoryRouter>
       </ConfirmDialogProvider>
+    </ApiProvider>
+  )
+}
+
+function renderConnectedRoute({
+  projectId = 'proj-2',
+  projects = [
+    { id: 'proj-1', name: 'Selected Project' },
+    { id: 'proj-2', name: 'Route Project' },
+  ],
+}: {
+  projectId?: string
+  projects?: Project[]
+} = {}) {
+  const state = createState({ apiClient })
+  const [$session] = createAtom(adminMember.user) as unknown as [
+    typeof state.$session,
+    unknown,
+    unknown,
+  ]
+  const [$sessionLoading] = createAtom(false)
+
+  const authState = {
+    ...state,
+    $session: $session as typeof state.$session,
+    $sessionLoading,
+  }
+
+  const connectedApiClient = {
+    ...apiClient,
+    fetch: (path: string) => {
+      if (path === `/projects/${projectId}/members`) {
+        return resolve({ items: [adminMember] })
+      }
+
+      return reject(new Error(`Unexpected fetch path: ${path}`))
+    },
+  } as typeof apiClient
+
+  return render(
+    <ApiProvider client={connectedApiClient}>
+      <AuthContext.Provider value={authState}>
+        <ConfirmDialogProvider>
+          <ProjectProvider getProjects={() => resolve(projects)}>
+            <MemoryRouter initialEntries={[`/projects/${projectId}/settings`]}>
+              <Routes>
+                <Route
+                  path="/projects/:projectId/settings"
+                  element={<ProjectSettingsRouteConnected />}
+                />
+              </Routes>
+            </MemoryRouter>
+          </ProjectProvider>
+        </ConfirmDialogProvider>
+      </AuthContext.Provider>
     </ApiProvider>
   )
 }
@@ -153,8 +234,7 @@ describe('ProjectSettingsRoute', () => {
 
     it('shows a fetch error alert (not a permission warning) when getMembers rejects', async () => {
       const fetchError = new Error('Network failure')
-      const mockGetMembers: GetMembersFn = () =>
-        reject(fetchError) as unknown as FutureInstance<Error, ProjectMember[]>
+      const mockGetMembers: GetMembersFn = () => reject(fetchError) as any
 
       renderRoute({ getMembers: mockGetMembers })
 
@@ -210,7 +290,7 @@ describe('ProjectSettingsRoute', () => {
     })
 
     it('calls renameProject with correct args on form submit', async () => {
-      const renameCalls: Array<[string, string]> = []
+      const renameCalls: [string, string][] = []
       const mockRename: RenameFn = (_client, projectId, name) => {
         renameCalls.push([projectId, name])
         return resolve(fakeProject)
@@ -300,7 +380,7 @@ describe('ProjectSettingsRoute', () => {
     })
 
     it('calls deactivateProject with correct projectId when confirmed', async () => {
-      const deactivateCalls: Array<string> = []
+      const deactivateCalls: string[] = []
       const mockDeactivate: DeactivateFn = (_client, projectId) => {
         deactivateCalls.push(projectId)
         return resolve(undefined)
@@ -377,7 +457,7 @@ describe('ProjectSettingsRoute', () => {
     })
 
     it('does NOT call deactivateProject when confirmation is canceled', async () => {
-      const deactivateCalls: Array<string> = []
+      const deactivateCalls: string[] = []
       const mockDeactivate: DeactivateFn = (_client, projectId) => {
         deactivateCalls.push(projectId)
         return resolve(undefined)
@@ -415,8 +495,7 @@ describe('ProjectSettingsRoute', () => {
 
     it('shows error alert when rename API call fails', async () => {
       const apiError = new Error('Network error')
-      const mockRename: RenameFn = () =>
-        reject(apiError) as unknown as FutureInstance<Error, Project>
+      const mockRename: RenameFn = () => reject(apiError) as any
 
       renderRoute({
         projectName: 'Old Name',
@@ -444,8 +523,7 @@ describe('ProjectSettingsRoute', () => {
 
     it('shows error alert when archive API call fails', async () => {
       const apiError = new Error('Server error')
-      const mockDeactivate: DeactivateFn = () =>
-        reject(apiError) as unknown as FutureInstance<Error, void>
+      const mockDeactivate: DeactivateFn = () => reject(apiError) as any
 
       renderRoute({ deactivateProject: mockDeactivate })
 
@@ -475,6 +553,18 @@ describe('ProjectSettingsRoute', () => {
 
       await waitFor(() => {
         assert.ok(screen.getByText(/failed to archive project/i))
+      })
+    })
+
+    it('uses the route project name instead of the persisted selected project', async () => {
+      localStorageMock.setItem(STORAGE_KEY, 'proj-1')
+
+      renderConnectedRoute()
+
+      await waitFor(() => {
+        const input = screen.getByRole('textbox', { name: /project name/i })
+
+        assert.equal((input as HTMLInputElement).value, 'Route Project')
       })
     })
   })
