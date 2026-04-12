@@ -155,7 +155,7 @@ Run these checks before committing. Fix any failures before proceeding. For full
 
 ## Phase 5: Commit
 
-> **Recommended:** Delegate Phases 5 and 6 together to the `release` agent. It handles staging, committing with a Conventional Commit message, pushing, PR creation, and Linear status update in one call. Provide it with: (1) the worktree path, (2) the files to stage, (3) the Linear issue ID, and (4) a brief description for the commit message.
+> **Recommended:** Delegate Phases 5 and 6 together to the `release` agent. It handles staging, committing with a Conventional Commit message, pushing, PR creation, and Linear status update in one call. Provide it with: (1) the worktree path (the agent must be launched with this as its working directory — pass it via the Task tool's `workdir` parameter), (2) the files to stage, (3) the Linear issue ID, and (4) a brief description for the commit message.
 
 If doing it manually:
 

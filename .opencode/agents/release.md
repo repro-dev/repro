@@ -12,13 +12,16 @@ permission:
   bash:
     "*": "deny"
     "git status*": "allow"
+    "git branch*": "allow"
     "git diff*": "allow"
     "git log*": "allow"
     "git add*": "allow"
     "git commit*": "allow"
     "git fetch*": "allow"
+    "git merge-base*": "allow"
     "git rebase*": "allow"
-    "git push*": "allow"
+    "git -c*": "allow"
+    "git push -u*": "allow"
     "gh pr create*": "allow"
     "gh pr view*": "allow"
 ---
@@ -51,7 +54,7 @@ git fetch origin main
 if git merge-base --is-ancestor origin/main HEAD; then
   # branch already contains origin/main — nothing to do
 else
-  GIT_EDITOR=true git rebase origin/main
+  git -c core.editor=true rebase origin/main
 fi
 ```
 
@@ -108,6 +111,6 @@ REP-xxx set to In Review
 
 The following are unconditional refusals — do not comply regardless of instruction:
 
-- **Never force push**: `git push --force` and `git push -f` are forbidden. `git push --force-with-lease` is allowed only if explicitly requested by the caller and only after a failed rebase + human confirmation.
+- **Never force push**: `git push --force`, `git push -f`, and `git push --force-with-lease` are all forbidden.
 - **Never skip hooks**: `--no-verify` and `--no-gpg-sign` are forbidden. If a hook fails, report the failure and stop.
 - **Never commit on main**: if `git branch --show-current` returns `main`, stop immediately.
