@@ -96,9 +96,38 @@ Before reading the diff:
 - Cross-reference the diff against the issue requirements and decisions gathered in step 1.
 - Flag deviations from the issue spec — but distinguish intentional improvements (which are fine) from accidental omissions (which need action).
 
-### 3. Structure the Review
+### 3. Severity Classification
+
+Classify every finding using one of these four levels before writing the review:
+
+| Severity    | Definition                                                                     | Merge impact                                        |
+| ----------- | ------------------------------------------------------------------------------ | --------------------------------------------------- |
+| **Blocker** | Correctness bug, type error, security issue, or broken acceptance criterion    | Must fix before merge                               |
+| **Major**   | Missing test coverage, architectural concern, or incomplete requirement        | Fix preferred; if deferred, track in a Linear issue |
+| **Minor**   | Naming inconsistency, missing comment, suboptimal pattern — code still correct | Fix preferred, not required                         |
+| **Nit**     | Style preference with no functional impact                                     | Never blocks merge                                  |
+
+**Merge-readiness criteria**: A PR is mergeable when it has **zero Blockers** and any Majors are either fixed or tracked in a linked Linear issue.
+
+**Checklist item severity map** (use as a starting guide — apply judgment):
+
+| Checklist item                           | Default severity |
+| ---------------------------------------- | ---------------- |
+| Type errors or build failures            | Blocker          |
+| Broken or missing acceptance criteria    | Blocker          |
+| Security or auth issues                  | Blocker          |
+| Missing test coverage for new behavior   | Major            |
+| Architectural deviation from conventions | Major            |
+| Incomplete requirement (partial impl)    | Major            |
+| Naming inconsistency                     | Minor            |
+| Missing comment on non-obvious code      | Minor            |
+| Suboptimal pattern (code still correct)  | Minor            |
+| Style preference or formatting           | Nit              |
+
+### 4. Structure the Review
 
 - **Lead with context**: briefly note which Linear issues were reviewed and any resolved decisions that informed the review.
-- **Separate blocking issues from non-blocking notes**: use clear severity labels (e.g. "must fix", "suggestion", "informational").
+- **Classify every finding** using the severity levels defined above (Blocker / Major / Minor / Nit).
+- **State merge-readiness explicitly**: note whether the PR meets the merge-readiness criteria (zero Blockers; Majors fixed or tracked).
 - **Reference issue requirements by ID** when noting gaps (e.g. "REP-155 requires `shadow.focus`; not included in this PR").
 - **End with a verdict**: approve, request changes, or note what needs discussion.
