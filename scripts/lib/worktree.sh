@@ -45,6 +45,59 @@ _linear_api() {
   printf '%s' "$body"
 }
 
+issue_worktree_suffix() {
+  if [[ -n "${REPRO_ISSUE_WORKTREE_SUFFIX:-}" ]]; then
+    printf '%s\n' "$REPRO_ISSUE_WORKTREE_SUFFIX"
+    return 0
+  fi
+
+  printf '%s-%04x\n' "$(date +%Y%m%d%H%M%S)" "$((RANDOM & 0xffff))"
+}
+
+_resolve_issue_worktree_names() {
+  local issue_identifier="$1"
+  local base_branch_name="$2"
+  local issue_slug
+  issue_slug="$(printf '%s' "$issue_identifier" | tr '[:upper:]' '[:lower:]')"
+
+  local attempt=0
+  while [ "$attempt" -lt 10 ]; do
+    local suffix branch_name slug wt_path
+    suffix="$(issue_worktree_suffix)"
+    branch_name="${base_branch_name}-${suffix}"
+    slug="${issue_slug}-${suffix}"
+    wt_path="$(worktree_path "$slug")"
+
+    if ! git rev-parse --verify --quiet "refs/heads/$branch_name" >/dev/null 2>&1 && \
+      ! git rev-parse --verify --quiet "refs/remotes/origin/$branch_name" >/dev/null 2>&1 && \
+      [ ! -d "$wt_path" ]; then
+      printf '%s\n%s\n' "$branch_name" "$slug"
+      return 0
+    fi
+
+    attempt=$((attempt + 1))
+  done
+
+  die "Could not generate a unique worktree name for ${issue_identifier}."
+}
+
+_latest_main_ref() {
+  if git remote get-url origin >/dev/null 2>&1; then
+    git fetch origin main >/dev/null 2>&1 || die "Failed to fetch latest main from origin."
+    if git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null 2>&1; then
+      echo "refs/remotes/origin/main"
+      return 0
+    fi
+  fi
+
+  if git rev-parse --verify --quiet refs/heads/main >/dev/null 2>&1; then
+    echo "refs/heads/main"
+    return 0
+  fi
+
+  die "Could not resolve main branch for issue-based worktree creation."
+}
+
 cmd_wt_create_from_issue() {
   local issue_id="$1"
 
@@ -90,15 +143,18 @@ cmd_wt_create_from_issue() {
     die "No branch name returned by Linear for ${issue_identifier}."
   fi
 
-  local slug
-  slug="$(printf '%s' "$issue_identifier" | tr '[:upper:]' '[:lower:]')"
+  local issue_names fresh_branch fresh_slug start_ref
+  issue_names="$(_resolve_issue_worktree_names "$issue_identifier" "$branch_name")"
+  fresh_branch="$(sed -n '1p' <<< "$issue_names")"
+  fresh_slug="$(sed -n '2p' <<< "$issue_names")"
+  start_ref="$(_latest_main_ref)"
 
   _ok "Found: ${issue_identifier} — ${issue_title}"
-  echo "  Branch: ${branch_name}"
-  echo "  Slug:   ${slug}"
+  echo "  Branch: ${fresh_branch}"
+  echo "  Slug:   ${fresh_slug}"
   echo ""
 
-  cmd_wt_create "$branch_name" "$slug"
+  cmd_wt_create "$fresh_branch" "$fresh_slug" "$start_ref"
 
   if [[ "$WT_NO_STATUS_UPDATE" != true ]]; then
     if [[ -n "$in_progress_state_id" ]]; then
@@ -116,6 +172,7 @@ cmd_wt_create_from_issue() {
 cmd_wt_create() {
   local branch="$1"
   local slug="${2:-$(slugify "$branch")}"
+  local start_ref="${3:-}"
   local wt_path
   wt_path="$(worktree_path "$slug")"
 
@@ -158,6 +215,9 @@ cmd_wt_create() {
     git worktree add "$wt_path" "$branch"
   elif git rev-parse --verify --quiet "refs/remotes/origin/$branch" >/dev/null 2>&1; then
     git worktree add "$wt_path" "$branch"
+  elif [ -n "$start_ref" ]; then
+    echo "  Branch '$branch' does not exist locally or on remote, creating from $start_ref..."
+    git worktree add -b "$branch" "$wt_path" "$start_ref"
   else
     echo "  Branch '$branch' does not exist locally or on remote, creating from HEAD..."
     git worktree add -b "$branch" "$wt_path"
