@@ -62,4 +62,39 @@ describe('Routers > Health', () => {
 
     expect(res.statusCode).toEqual(503)
   })
+
+  it('should return 200 with degraded status when Redis is down', async () => {
+    const redisClient = {
+      ping: async (): Promise<string> => {
+        throw new Error('Connection refused')
+      },
+    }
+    const healthService = createHealthService(db, storage, redisClient)
+    const healthRouter = createHealthRouter(healthService)
+    const app = fromRouter(healthRouter)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/',
+    })
+
+    expect(res.statusCode).toEqual(200)
+    expect(res.headers['content-type']).toMatch(/json/)
+    expect(JSON.parse(res.body).status).toEqual('degraded')
+  })
+
+  it('should return 200 with ok status when all services are healthy', async () => {
+    const redisClient = { ping: async () => 'PONG' }
+    const healthService = createHealthService(db, storage, redisClient)
+    const healthRouter = createHealthRouter(healthService)
+    const app = fromRouter(healthRouter)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/',
+    })
+
+    expect(res.statusCode).toEqual(200)
+    expect(JSON.parse(res.body).status).toEqual('ok')
+  })
 })

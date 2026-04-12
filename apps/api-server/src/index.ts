@@ -15,6 +15,7 @@ import { createSessionDecorator } from '~/decorators/session'
 import { createPaddleClient } from '~/modules/billing'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
 import { createSMTPEmailUtils } from '~/modules/email-utils'
+import { createRedisClient, RedisClient } from '~/modules/redis'
 import { createS3StorageClient } from '~/modules/storage-s3'
 import { createAccountRouter } from '~/routers/account'
 import { createAgenticRouter } from '~/routers/agentic'
@@ -78,6 +79,12 @@ const emailUtils = createSMTPEmailUtils({
   },
 })
 
+// Initialize Redis client at module level when a URL is configured.
+// Falls back to null when RATE_LIMIT_REDIS_URL is not set.
+const redisClient: RedisClient | null = env.RATE_LIMIT_REDIS_URL
+  ? createRedisClient({ url: env.RATE_LIMIT_REDIS_URL })
+  : null
+
 const billingService = createBillingService(database, env)
 const accountService = createAccountService(
   database,
@@ -89,7 +96,11 @@ const agenticService = createAgenticService(database, httpClient)
 const oauthService = createOAuthService(database)
 const apiKeyService = createApiKeyService(database)
 const featureGateService = createFeatureGateService(database)
-const healthService = createHealthService(database, storage)
+const healthService = createHealthService(
+  database,
+  storage,
+  redisClient ?? undefined
+)
 const projectService = createProjectService(database)
 const recordingService = createRecordingService(database, storage)
 const socialAuthService = createSocialAuthService(database)
@@ -266,16 +277,13 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
     buildHelmetOptions({ isProduction: process.env.NODE_ENV === 'production' })
   )
 
-  // Build an optional Redis client for distributed rate limiting.
-  // Falls back to in-memory store when RATE_LIMIT_REDIS_URL is not set.
-  let redisClient: unknown
-  if (env.RATE_LIMIT_REDIS_URL) {
-    const { default: Redis } = await import('ioredis')
-    const redis = new Redis(env.RATE_LIMIT_REDIS_URL)
-    redis.on('error', err => {
-      app.log.warn({ err }, 'Redis rate limit client error')
+  // Wire up the module-level Redis client for distributed rate limiting.
+  // Attach the error handler here so it can reference the app logger.
+  // Falls back to in-memory store when redisClient is null.
+  if (redisClient) {
+    redisClient.on('error', err => {
+      app.log.warn({ err }, 'Redis client error')
     })
-    redisClient = redis
   }
 
   // Must await so the plugin's onRoute hook is installed before routes are added.
@@ -324,8 +332,11 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
     env.SESSION_CLEANUP_INTERVAL
   )
 
-  app.addHook('onClose', () => {
+  app.addHook('onClose', async () => {
     clearInterval(cleanupInterval)
+    if (redisClient) {
+      await redisClient.quit()
+    }
   })
 }
 
