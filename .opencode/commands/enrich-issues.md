@@ -36,6 +36,7 @@ This step is idempotent — if the label already exists, skip creation.
 3. If the positional argument from `$ARGUMENTS` is a project name (not a flag), pass it as the `project` filter in both calls.
 4. Deduplicate by issue ID.
 5. For each issue, call `Linear_get_issue` with `includeRelations: true` to fetch blockers and full description.
+6. For each issue that has any `relations.blockedBy` entries, call `Linear_get_issue` for each blocker issue ID as well. `relations.blockedBy` entries only include identifiers and titles, so blocker status must be fetched separately before applying the readiness rubric.
 
 ---
 
@@ -45,10 +46,11 @@ This step is idempotent — if the label already exists, skip creation.
 
 Evaluate each issue in this order:
 
-1. **Has `blockedBy` relation not yet Done** → classify as **blocked/in-flight** (skip — not a spec problem)
-2. **Status is In Progress or In Review** → classify as **blocked/in-flight** (skip)
-3. **Contains unresolved decisions that clearly require human input** (`TBD`, `pending design`, explicit requests for discussion, or equivalent) → **FAIL**: "contains unresolved decisions"
-4. **Does not provide enough concrete information for a planner to produce a bounded implementation plan without asking clarifying questions** → **FAIL**: "not enough concrete implementation detail"
+1. **Has `blockedBy` relation whose fetched blocker issue is not `Done` or `Canceled`** → classify as **blocked/in-flight** (skip — not a spec problem)
+2. **Has stale `blockedBy` relation but every fetched blocker is `Done` or `Canceled`** → continue evaluation and note the stale relation in the summary rather than skipping
+3. **Status is In Progress or In Review** → classify as **blocked/in-flight** (skip)
+4. **Contains unresolved decisions that clearly require human input** (`TBD`, `pending design`, explicit requests for discussion, or equivalent) → **FAIL**: "contains unresolved decisions"
+5. **Does not provide enough concrete information for a planner to produce a bounded implementation plan without asking clarifying questions** → **FAIL**: "not enough concrete implementation detail"
 
 Use these as supporting signals when deciding whether step 4 applies, but **do not** treat them as automatic failures on their own:
 

@@ -80,11 +80,13 @@ When keeping the status table updated, make batching and backoff explicit so the
    - Use `Linear_list_issues` with `state: "Backlog"`, paginating through all results.
    - Deduplicate the combined results by issue ID.
    - For each issue in the full deduplicated set, call `Linear_get_issue` with `includeRelations: true`.
+   - For each issue that has any `relations.blockedBy` entries, call `Linear_get_issue` for each blocker issue ID as well. `relations.blockedBy` entries only include identifiers and titles, so blocker status must be fetched separately before applying the readiness filter.
 
 2. Apply a precision-first selection bar.
 
    **Hard excludes:**
-   - Has any `blockedBy` relation that is not yet Done
+   - Has any `blockedBy` relation whose fetched blocker issue is not `Done` or `Canceled`
+   - If a `blockedBy` relation still exists but every fetched blocker is `Done` or `Canceled`, treat the issue as not blocked and note the stale relation in the rationale instead of excluding it
    - State is already **In Progress** or **In Review**
    - Already has an active worktree (`reproctl wt list`)
    - Issue ID appears in an open PR branch name
