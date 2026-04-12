@@ -27,7 +27,7 @@ import {
   renameProject as defaultRenameProject,
 } from '@repro/workspace-api'
 import { fork } from 'fluture'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router-dom'
 import { z } from 'zod'
@@ -81,6 +81,10 @@ export function ProjectSettingsRoute({
     resolver: zodResolver(renameSchema),
     defaultValues: { name: projectName },
   })
+
+  useEffect(() => {
+    reset({ name: projectName })
+  }, [projectName, reset])
 
   const onRename = useCallback(
     (values: RenameFormValues) => {
@@ -260,14 +264,14 @@ export function ProjectSettingsRouteConnected() {
   const { loading, projects } = useProjectContext()
   const project = projects.find(candidate => candidate.id === projectId)
 
-  if (!session || loading || !project) {
+  if (!session || loading) {
     return <FullPageLoading />
   }
 
   return (
     <ProjectSettingsRoute
       currentUserId={session.id}
-      projectName={project.name}
+      projectName={project?.name ?? ''}
     />
   )
 }

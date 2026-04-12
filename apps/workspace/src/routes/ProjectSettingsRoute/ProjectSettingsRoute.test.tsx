@@ -16,11 +16,11 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { never, reject, resolve } from 'fluture'
+import { map, never, reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { ProjectProvider } from '~/ProjectContext'
 import { AuthContext } from '../../../../../packages/auth/src/AuthProvider'
 import { createState } from '../../../../../packages/auth/src/createState'
@@ -77,6 +77,8 @@ interface TestProps {
   projectId?: string
   currentUserId?: string
 }
+
+type ConnectedGetMembers = (projectId: string) => any
 
 const fakeProject: Project = { id: 'proj-1', name: 'My Project' }
 
@@ -142,8 +144,87 @@ function renderConnectedRoute({
     { id: 'proj-1', name: 'Selected Project' },
     { id: 'proj-2', name: 'Route Project' },
   ],
+  getMembers = requestedProjectId => {
+    if (requestedProjectId === projectId) {
+      return resolve([adminMember])
+    }
+
+    return reject(
+      new Error(`Unexpected members request: ${requestedProjectId}`)
+    )
+  },
 }: {
   projectId?: string
+  projects?: Project[]
+  getMembers?: ConnectedGetMembers
+} = {}) {
+  const state = createState({ apiClient })
+  const [$session] = createAtom(adminMember.user) as unknown as [
+    typeof state.$session,
+    unknown,
+    unknown,
+  ]
+  const [$sessionLoading] = createAtom(false)
+
+  const authState = {
+    ...state,
+    $session: $session as typeof state.$session,
+    $sessionLoading,
+  }
+
+  const connectedApiClient = {
+    ...apiClient,
+    fetch: (path: string) => {
+      const projectIdMatch = path.match(/^\/projects\/([^/]+)\/members$/)
+      if (projectIdMatch?.[1]) {
+        return getMembers(projectIdMatch[1]).pipe(map(items => ({ items })))
+      }
+
+      return reject(new Error(`Unexpected fetch path: ${path}`))
+    },
+  } as typeof apiClient
+
+  return render(
+    <ApiProvider client={connectedApiClient}>
+      <AuthContext.Provider value={authState}>
+        <ConfirmDialogProvider>
+          <ProjectProvider getProjects={() => resolve(projects)}>
+            <MemoryRouter initialEntries={[`/projects/${projectId}/settings`]}>
+              <Routes>
+                <Route
+                  path="/projects/:projectId/settings"
+                  element={<ProjectSettingsRouteConnected />}
+                />
+              </Routes>
+            </MemoryRouter>
+          </ProjectProvider>
+        </ConfirmDialogProvider>
+      </AuthContext.Provider>
+    </ApiProvider>
+  )
+}
+
+function NavigateToProjectSettingsButton({ projectId }: { projectId: string }) {
+  const navigate = useNavigate()
+
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(`/projects/${projectId}/settings`)}
+    >
+      Go to {projectId}
+    </button>
+  )
+}
+
+function renderConnectedRouteNavigationTest({
+  initialProjectId = 'proj-1',
+  projects = [
+    { id: 'proj-1', name: 'Project One' },
+    { id: 'proj-2', name: 'Project Two' },
+  ],
+}: {
+  initialProjectId?: string
   projects?: Project[]
 } = {}) {
   const state = createState({ apiClient })
@@ -163,7 +244,8 @@ function renderConnectedRoute({
   const connectedApiClient = {
     ...apiClient,
     fetch: (path: string) => {
-      if (path === `/projects/${projectId}/members`) {
+      const projectIdMatch = path.match(/^\/projects\/([^/]+)\/members$/)
+      if (projectIdMatch?.[1]) {
         return resolve({ items: [adminMember] })
       }
 
@@ -176,7 +258,10 @@ function renderConnectedRoute({
       <AuthContext.Provider value={authState}>
         <ConfirmDialogProvider>
           <ProjectProvider getProjects={() => resolve(projects)}>
-            <MemoryRouter initialEntries={[`/projects/${projectId}/settings`]}>
+            <MemoryRouter
+              initialEntries={[`/projects/${initialProjectId}/settings`]}
+            >
+              <NavigateToProjectSettingsButton projectId="proj-2" />
               <Routes>
                 <Route
                   path="/projects/:projectId/settings"
@@ -565,6 +650,49 @@ describe('ProjectSettingsRoute', () => {
         const input = screen.getByRole('textbox', { name: /project name/i })
 
         assert.equal((input as HTMLInputElement).value, 'Route Project')
+      })
+    })
+
+    it('keeps the form state in sync when navigating between project settings routes', async () => {
+      localStorageMock.setItem(STORAGE_KEY, 'proj-1')
+
+      renderConnectedRouteNavigationTest()
+
+      await waitFor(() => {
+        const input = screen.getByRole('textbox', { name: /project name/i })
+
+        assert.equal((input as HTMLInputElement).value, 'Project One')
+      })
+
+      fireEvent.change(screen.getByRole('textbox', { name: /project name/i }), {
+        target: { value: 'Unsaved Name' },
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: /go to proj-2/i }))
+
+      await waitFor(() => {
+        const input = screen.getByRole('textbox', { name: /project name/i })
+
+        assert.equal((input as HTMLInputElement).value, 'Project Two')
+      })
+    })
+
+    it('does not hang on loading when the route project is missing from project context', async () => {
+      renderConnectedRoute({
+        projectId: 'proj-missing',
+        getMembers: requestedProjectId => {
+          if (requestedProjectId === 'proj-missing') {
+            return reject(new Error('Missing project')) as any
+          }
+
+          return reject(
+            new Error(`Unexpected members request: ${requestedProjectId}`)
+          ) as any
+        },
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText(/failed to load project membership/i))
       })
     })
   })
