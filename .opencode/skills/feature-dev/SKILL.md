@@ -181,6 +181,23 @@ Run these checks before committing. Fix any failures before proceeding. For full
 | Done            | PR merged to main (never set manually before merge) |
 | Canceled        | Won't do — leave a comment explaining why           |
 
+## Session Continuity
+
+Use these commands to preserve session context across session boundaries or context pressure events:
+
+| Command    | When to use                                                                     | Output                                    |
+| ---------- | ------------------------------------------------------------------------------- | ----------------------------------------- |
+| `/ledger`  | Before ending a session when work is mid-flight                                 | `tmp/ledger-{YYYY-MM-DD}-{topic}.md`      |
+| `/handoff` | When approaching context limits and need to pass work to a fresh session window | Inline prompt (paste into new chat)       |
+
+**Run `/ledger`** at these checkpoints:
+
+- Before closing a long session with open todos
+- When context pressure (DCP) is near the threshold and you expect to continue later
+- Any time a session is interrupted and resumption in a new window is likely
+
+The ledger file is written to `tmp/` (git-ignored) and is self-contained: reading it at the start of a new session is sufficient to resume without re-exploring the codebase.
+
 ## Troubleshooting
 
 If a service isn't behaving as expected during development:
