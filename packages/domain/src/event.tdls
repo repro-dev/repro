@@ -71,7 +71,8 @@ type StorageEvent: struct {
 
 type CustomMarkEvent: struct {
   0) type: SourceEventType.CustomMark
-  1) data: CustomMark
+  1) time: uint64
+  2) data: CustomMark
 }
 
 type SourceEvent: union(type) {
