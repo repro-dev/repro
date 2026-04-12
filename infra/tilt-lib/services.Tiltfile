@@ -1,5 +1,3 @@
-load('./dependency_graph.Tiltfile', 'dependency_sync_paths', 'dependency_watch_paths', 'non_dependency_ignore_patterns')
-
 
 def _hash_suffix(s):
   """Return the first 6 hex chars of a deterministic hash of s.

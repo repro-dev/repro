@@ -43,17 +43,6 @@ def _manifest(tilt_result, name):
     raise AssertionError(f"Missing manifest: {name}")
 
 
-def _watch_ignores(manifest):
-    file_watch_ignores = manifest["DeployTarget"].get("FileWatchIgnores") or []
-    return sorted(
-        {
-            pattern
-            for entry in file_watch_ignores
-            for pattern in entry.get("patterns", [])
-        }
-    )
-
-
 class TestTiltServiceRegistration:
     def test_storybook_worktree_watches_only_manifest_files(self):
         tilt_result = _render_tilt(
