@@ -133,19 +133,41 @@ Skill files in `.opencode/skills/` are the authoritative reference for domain-sp
 
 The outer conversation (frontier model) handles diagnosis, design, planning, and user interaction. Implementation and testing run on cost-optimized models via the `develop` and `test` agents. This is an economic architecture — the frontier model does high-judgment work, then delegates mechanical implementation to cheaper models with well-specified instructions.
 
-### Agent Permission Boundaries
+A useful mental shorthand is the **Explorer / Oracle / Fixer** model: Explorers run fast, cheap, read-only recon; Oracles apply strategic judgment with high reasoning effort; Fixers execute bounded, well-specified implementation work. The agents below map cleanly onto that model.
+
+### Agent roster
+
+| Agent     | Archetype | Primary role                                                                                            | Tool access                                         |
+| --------- | --------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `develop` | Fixer     | Executes implementation plans using red/green/refactor TDD, commits the result                          | Full read/write/bash                                |
+| `test`    | Fixer     | Adds test coverage, writes regression tests, and audits test sufficiency as a standalone utility        | Full read/write/bash                                |
+| `planner` | Oracle    | Explores the codebase and produces a structured implementation plan for `develop` to consume            | Read-only; restricted bash (git log/diff/show only) |
+| `review`  | Oracle    | Reviews a branch diff against Linear requirements and project conventions; never fixes, only reports    | Read-only; restricted bash (git log/diff/show only) |
+| `explore` | Explorer  | Answers fast read-only questions about architecture, patterns, and existing code without making changes | Read-only                                           |
+| `general` | —         | Handles tasks that don't fit another agent's scope (writing docs, analysing logs, answering questions)  | Varies by task                                      |
+
+**When to use each agent:**
+
+- **`develop`**: any implementation touching 2+ files. Preferred over writing code in the outer conversation.
+- **`test`**: after implementation to audit coverage or write targeted regression tests. Not part of the automated pipeline — invoke directly when needed.
+- **`planner`**: when a task involves 3+ packages or requires significant codebase exploration before implementation. For simpler single-package changes, plan inline in the outer conversation.
+- **`review`**: any time you want structured findings against Linear requirements and conventions before publishing a PR. Can also be invoked via `/review` for ad-hoc branch review.
+- **`explore`**: when you need fast orientation or impact assessment without a full plan. Cheaper than `planner` for pure recon — use it first, then escalate to `planner` if planning is warranted.
+- **`general`**: when no more-specific agent applies — e.g. writing a design doc, summarising a log dump, or answering a question with no code change required.
+
+### Agent permission boundaries
 
 This table is normative — agents must treat it as a constraint, not a suggestion.
 
-| Agent role              | May commit | May push | May create PRs | May create Linear issues | May modify AGENTS.md / skill files | May install dependencies |
-| ----------------------- | ---------- | -------- | -------------- | ------------------------ | ---------------------------------- | ------------------------ |
-| `develop`               | Yes        | No       | No             | No                       | No                                 | No                       |
-| `test`                  | No         | No       | No             | No                       | No                                 | No                       |
-| `planner`               | No         | No       | No             | No                       | No                                 | No                       |
-| `review`                | No         | No       | No             | No                       | No                                 | No                       |
-| `explore`               | No         | No       | No             | No                       | No                                 | No                       |
-| `general`               | No         | No       | No             | No                       | No                                 | No                       |
-| `outer conversation`    | Yes        | Yes      | Yes            | Yes                      | Yes                                | Yes                      |
+| Agent role           | May commit | May push | May create PRs | May create Linear issues | May modify AGENTS.md / skill files | May install dependencies |
+| -------------------- | ---------- | -------- | -------------- | ------------------------ | ---------------------------------- | ------------------------ |
+| `develop`            | Yes        | No       | No             | No                       | No                                 | No                       |
+| `test`               | No         | No       | No             | No                       | No                                 | No                       |
+| `planner`            | No         | No       | No             | No                       | No                                 | No                       |
+| `review`             | No         | No       | No             | No                       | No                                 | No                       |
+| `explore`            | No         | No       | No             | No                       | No                                 | No                       |
+| `general`            | No         | No       | No             | No                       | No                                 | No                       |
+| `outer conversation` | Yes        | Yes      | Yes            | Yes                      | Yes                                | Yes                      |
 
 ### Mandatory delegation
 
@@ -168,6 +190,16 @@ The typical flow for a feature or fix:
 2. **`develop` agent**: Receives the plan and implements it using TDD. Returns when tests pass and code is verified.
 3. **`test` agent**: Audits coverage, writes regression tests, flags gaps.
 4. **Outer conversation**: Reviews the result, commits, creates the PR.
+
+### Challenge-verify-validate (post-subtask behaviour)
+
+When a subagent returns, the instinct is to summarise its output and move on. Resist this. Instead, run this loop before treating any subtask as done:
+
+1. **Challenge** — read the diff or output critically. Does it match what was actually asked? Flag any scope creep, missing steps, or surprising changes.
+2. **Verify** — run the relevant test or typecheck command in the worktree. Do not trust "tests pass" in agent output alone — confirm it yourself.
+3. **Validate** — re-read the acceptance criteria in the Linear issue. Are they met by the actual code, not just the plan steps?
+
+Only after this loop should an issue be marked publishable or moved to In Review. Skipping challenge-verify-validate is the primary cause of PRs that technically pass review but miss acceptance criteria.
 
 ## Context Management
 
