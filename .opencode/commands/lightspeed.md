@@ -208,6 +208,7 @@ ready | not ready
 ## Sequence Notes
 - likely touched packages/files
 - dependency or ordering notes
+- list every file this plan will write or modify; flag any that are likely shared with sibling issues in the current wave (the orchestrator uses this to detect conflicts before implementation starts)
 
 ## Risk Notes
 - anything that could force resequencing or issue pruning
@@ -246,6 +247,7 @@ Use the planner's **Sequence Notes** and **Risk Notes** to:
 
 - Prune issues that are not ready
 - Move issues to a later queued wave if planning revealed overlap or a missing dependency
+- Detect shared-file conflicts: if two or more issues in the current wave list the same file in their Sequence Notes, keep only the highest-priority issue in the current wave and move the others to a later queued wave
 - Keep only the issues that are independently executable now in the **current ready wave**
 
 After this pass, lock the wave plan for the rest of the run.
