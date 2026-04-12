@@ -11,6 +11,7 @@ import React, { Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
+import { GlobalErrorBoundary } from './components/GlobalErrorBoundary'
 import { Loading } from './components/Loading'
 import { RequireAdminSession } from './components/RequireAdminSession'
 import { RequireAdminStaffSession } from './components/RequireAdminStaffSession'
@@ -19,11 +20,16 @@ import { Layout } from './Layout'
 import { AccountsRoute } from './routes/AccountsRoute'
 import { FeatureGatesRoute } from './routes/FeatureGatesRoute'
 import { HealthRoute } from './routes/HealthRoute'
-import { HomeRoute } from './routes/HomeRoute'
-import { RecordingRoute } from './routes/RecordingRoute/RecordingRoute'
 import { RecordingsRoute } from './routes/RecordingsRoute'
-import { StaffLoginRoute } from './routes/StaffLoginRoute'
 import { StaffUsersRoute } from './routes/StaffUsersRoute'
+
+const HomeRoute = React.lazy(() =>
+  import('./routes/HomeRoute').then(m => ({ default: m.HomeRoute }))
+)
+const RecordingRoute = React.lazy(() => import('./routes/RecordingRoute'))
+const StaffLoginRoute = React.lazy(() =>
+  import('./routes/StaffLoginRoute').then(m => ({ default: m.StaffLoginRoute }))
+)
 
 declare global {
   interface Window {
@@ -112,7 +118,7 @@ const adminTheme: ThemeDefinition = {
 
 const rootSelector = '#root'
 const rootElem = document.querySelector(rootSelector)
-const rootStyleSheet = document.querySelector<HTMLStyleElement>('#root-styles')
+const rootStyleSheet = document.querySelector('#root-styles')
 
 if (rootStyleSheet) {
   applyResetStyles(rootSelector, rootStyleSheet)
@@ -126,48 +132,53 @@ if (rootElem) {
     : undefined
 
   root.render(
-    <BrowserRouter basename={basename}>
-      <ApiProvider client={apiClient}>
-        <AuthProvider basePath="/staff">
-          <ThemeProvider theme={adminTheme}>
-            <PortalRootProvider>
-              <Suspense fallback={<Loading />}>
-                <Routes>
-                  <Route element={<AuthLayout />}>
-                    <Route path="login" element={<StaffLoginRoute />} />
-                  </Route>
-
-                  <Route element={<Layout />}>
-                    <Route element={<RequireAdminSession />}>
-                      <Route index element={<HomeRoute />} />
-                      <Route path="recordings" element={<RecordingsRoute />} />
-                      <Route
-                        path="feature-gates"
-                        element={<FeatureGatesRoute />}
-                      />
-                      <Route path="accounts" element={<AccountsRoute />} />
-                      <Route element={<RequireAdminStaffSession />}>
-                        <Route
-                          path="staff-users"
-                          element={<StaffUsersRoute />}
-                        />
-                      </Route>
-                      <Route path="health" element={<HealthRoute />} />
+    <GlobalErrorBoundary>
+      <BrowserRouter basename={basename}>
+        <ApiProvider client={apiClient}>
+          <AuthProvider basePath="/staff">
+            <ThemeProvider theme={adminTheme}>
+              <PortalRootProvider>
+                <Suspense fallback={<Loading />}>
+                  <Routes>
+                    <Route element={<AuthLayout />}>
+                      <Route path="login" element={<StaffLoginRoute />} />
                     </Route>
-                  </Route>
 
-                  <Route element={<RequireAdminSession />}>
-                    <Route
-                      path="recordings/:recordingId"
-                      element={<RecordingRoute />}
-                    />
-                  </Route>
-                </Routes>
-              </Suspense>
-            </PortalRootProvider>
-          </ThemeProvider>
-        </AuthProvider>
-      </ApiProvider>
-    </BrowserRouter>
+                    <Route element={<Layout />}>
+                      <Route element={<RequireAdminSession />}>
+                        <Route index element={<HomeRoute />} />
+                        <Route
+                          path="recordings"
+                          element={<RecordingsRoute />}
+                        />
+                        <Route
+                          path="feature-gates"
+                          element={<FeatureGatesRoute />}
+                        />
+                        <Route path="accounts" element={<AccountsRoute />} />
+                        <Route element={<RequireAdminStaffSession />}>
+                          <Route
+                            path="staff-users"
+                            element={<StaffUsersRoute />}
+                          />
+                        </Route>
+                        <Route path="health" element={<HealthRoute />} />
+                      </Route>
+                    </Route>
+
+                    <Route element={<RequireAdminSession />}>
+                      <Route
+                        path="recordings/:recordingId"
+                        element={<RecordingRoute />}
+                      />
+                    </Route>
+                  </Routes>
+                </Suspense>
+              </PortalRootProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </ApiProvider>
+      </BrowserRouter>
+    </GlobalErrorBoundary>
   )
 }
