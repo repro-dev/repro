@@ -18,7 +18,7 @@ const ProjectsRoute: React.FC = () => {
           <EmptyState.Title>No projects yet</EmptyState.Title>
 
           <EmptyState.Description>
-            Projects help you organise your sessions. Create a project to get
+            Projects help you organize your sessions. Create a project to get
             started.
           </EmptyState.Description>
         </EmptyState>

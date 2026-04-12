@@ -15,8 +15,8 @@ import { ProjectProvider } from './ProjectContext'
 export const Layout: React.FC = () => {
   const sessionsActive = useMatch({ path: '/', end: true })
   const projectsActive = useMatch({ path: '/projects', end: false })
-  // Billing lives under /settings/billing; detect it first so the Settings
-  // item can exclude it from its active range.
+  // Billing lives under /settings/billing; match it separately so the
+  // Settings item can exclude billing routes from its active range.
   const billingActive = useMatch({ path: '/settings/billing', end: false })
   const settingsActive = useMatch({ path: '/settings', end: false })
 
