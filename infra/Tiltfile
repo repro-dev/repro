@@ -10,6 +10,8 @@ load(
   'register_service',
   'register_local_service',
   'resolve_dependencies',
+  'service_watch_ignores',
+  'service_watch_paths',
   'wt_label',
 )
 
@@ -153,10 +155,8 @@ if service_config:
           serve_cmd=svc['serve_cmd'],
           serve_dir=PROJECT_ROOT,
           serve_env=serve_env,
-          deps=[
-            os.path.join(PROJECT_ROOT, svc['app_dir'], 'src'),
-            os.path.join(PROJECT_ROOT, svc['app_dir'], 'package.json'),
-          ],
+          deps=service_watch_paths(svc, PROJECT_ROOT),
+          ignore=service_watch_ignores(svc, PROJECT_ROOT),
           resource_deps=resource_deps,
           allow_parallel=True,
           links=['http://' + portless_name + '.localhost:1355'],
