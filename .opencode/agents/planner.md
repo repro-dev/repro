@@ -1,7 +1,7 @@
 ---
 description: Produces structured implementation plans from Linear issues — explores the codebase, maps affected files, identifies risks, and outputs a plan document for the develop agent.
 mode: subagent
-model: github-copilot/gpt-5.4
+model: github-copilot/claude-sonnet-4.6
 reasoningEffort: high
 tools:
   write: false
