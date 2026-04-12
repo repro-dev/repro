@@ -139,12 +139,12 @@ A useful mental shorthand is the **Explorer / Oracle / Fixer** model: Explorers 
 
 | Agent     | Archetype | Primary role                                                                                            | Tool access                                         |
 | --------- | --------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `develop` | Fixer     | Executes implementation plans using red/green/refactor TDD, commits the result                          | Full read/write/bash                                |
+| `develop` | Fixer     | Executes implementation plans using red/green/refactor TDD                                              | Full read/write/bash                                |
 | `test`    | Fixer     | Adds test coverage, writes regression tests, and audits test sufficiency as a standalone utility        | Full read/write/bash                                |
 | `planner` | Oracle    | Explores the codebase and produces a structured implementation plan for `develop` to consume            | Read-only; restricted bash (git log/diff/show only) |
 | `review`  | Oracle    | Reviews a branch diff against Linear requirements and project conventions; never fixes, only reports    | Read-only; restricted bash (git log/diff/show only) |
 | `explore` | Explorer  | Answers fast read-only questions about architecture, patterns, and existing code without making changes | Read-only                                           |
-| `general` | —         | Handles tasks that don't fit another agent's scope (writing docs, analysing logs, answering questions)  | Varies by task                                      |
+| `general` | —         | Handles tasks that don't fit another agent's scope (writing docs, analyzing logs, answering questions)  | Varies by task                                      |
 
 **When to use each agent:**
 
@@ -153,7 +153,7 @@ A useful mental shorthand is the **Explorer / Oracle / Fixer** model: Explorers 
 - **`planner`**: when a task involves 3+ packages or requires significant codebase exploration before implementation. For simpler single-package changes, plan inline in the outer conversation.
 - **`review`**: any time you want structured findings against Linear requirements and conventions before publishing a PR. Can also be invoked via `/review` for ad-hoc branch review.
 - **`explore`**: when you need fast orientation or impact assessment without a full plan. Cheaper than `planner` for pure recon — use it first, then escalate to `planner` if planning is warranted.
-- **`general`**: when no more-specific agent applies — e.g. writing a design doc, summarising a log dump, or answering a question with no code change required.
+- **`general`**: when no more-specific agent applies — e.g. writing a design doc, summarizing a log dump, or answering a question with no code change required.
 
 ### Agent permission boundaries
 
@@ -191,9 +191,9 @@ The typical flow for a feature or fix:
 3. **`test` agent**: Audits coverage, writes regression tests, flags gaps.
 4. **Outer conversation**: Reviews the result, commits, creates the PR.
 
-### Challenge-verify-validate (post-subtask behaviour)
+### Challenge-verify-validate (post-subtask behavior)
 
-When a subagent returns, the instinct is to summarise its output and move on. Resist this. Instead, run this loop before treating any subtask as done:
+When a subagent returns, the instinct is to summarize its output and move on. Resist this. Instead, run this loop before treating any subtask as done:
 
 1. **Challenge** — read the diff or output critically. Does it match what was actually asked? Flag any scope creep, missing steps, or surprising changes.
 2. **Verify** — run the relevant test or typecheck command in the worktree. Do not trust "tests pass" in agent output alone — confirm it yourself.
