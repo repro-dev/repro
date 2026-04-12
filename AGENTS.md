@@ -133,6 +133,20 @@ Skill files in `.opencode/skills/` are the authoritative reference for domain-sp
 
 The outer conversation (frontier model) handles diagnosis, design, planning, and user interaction. Implementation and testing run on cost-optimized models via the `develop` and `test` agents. This is an economic architecture — the frontier model does high-judgment work, then delegates mechanical implementation to cheaper models with well-specified instructions.
 
+### Agent Permission Boundaries
+
+This table is normative — agents must treat it as a constraint, not a suggestion.
+
+| Agent role         | May commit | May push | May create PRs | May create Linear issues | May modify AGENTS.md / skill files | May install dependencies |
+| ------------------ | ---------- | -------- | -------------- | ------------------------ | ---------------------------------- | ------------------------ |
+| `develop`          | Yes        | No       | No             | No                       | No                                 | No                       |
+| `test`             | No         | No       | No             | No                       | No                                 | No                       |
+| `planner`          | No         | No       | No             | No                       | No                                 | No                       |
+| `review`           | No         | No       | No             | No                       | No                                 | No                       |
+| `explore`          | No         | No       | No             | No                       | No                                 | No                       |
+| `general`          | No         | No       | No             | No                       | No                                 | No                       |
+| Outer conversation | Yes        | Yes      | Yes            | Yes                      | Yes                                | Yes                      |
+
 ### Mandatory delegation
 
 - **`develop` agent**: Use for ALL implementation work that touches 2+ files. Do NOT write code directly in the outer conversation except for trivial single-file edits (e.g. fixing a typo, updating a config value). Provide the develop agent with: (1) the worktree path, (2) the exact file paths and line ranges to modify, (3) the specific changes to make, (4) how to verify (test commands), and (5) the Linear issue ID for commit messages.
