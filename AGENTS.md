@@ -47,6 +47,14 @@ Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer 
 - **Error handling**: Use `serialize-error` for serialization.
 - **Defensive patch verification**: Do not assume `apply_patch` success means the file now matches the intended edit. For fragile edits or after any suspicious patch result, switch to a defensive loop for that file: read the target lines, apply the patch, re-read the same lines, inspect `git diff`, then continue. Use this selectively for high-risk syntax (TypeScript generics, TSX/JSX, dense type-level code, regexes, escaped strings, and structured config) or after the first inconsistent patch outcome in a session.
 - **Shell scripts**: Target Bash 3.2 (macOS default). No `mapfile`/`readarray`, associative arrays (`declare -A`), or `${var,,}` case-conversion. Use `while IFS= read -r` loops to capture multi-line output into arrays.
+- **Non-interactive flags**: Always prefer flags that suppress interactive prompts. Agents run without a TTY — any command that opens an editor or waits for stdin will stall. Common patterns:
+  - `git commit -m "message"` — never bare `git commit` (opens editor)
+  - `git merge --no-edit <branch>` — accept default merge message without editor
+  - `GIT_EDITOR=true git rebase --continue` — accept default rebase message without editor
+  - `pnpm add <pkg> --yes` / `npm install --yes` — suppress confirmation prompts
+  - `npx --yes <pkg>` — auto-accept package installation prompt
+  - `gh pr create --title "..." --body "..."` — always pass title and body; never rely on interactive prompts
+  - **Prohibited regardless**: `--no-verify` (skips hooks) and `--no-gpg-sign` are banned per the Git Safety Protocol — do not use them even to avoid interactive prompts
 - **Comments**: Add brief comments when they clarify non-obvious intent, invariants, sentinel values, or protocol quirks. Avoid comments that restate the code.
 - **Temporary files**: **Always use `tmp/` at the repo root** for any ephemeral output — screenshots, build artifacts, scratch files, test results, anything throwaway. **Never write to `/tmp`** (OpenCode requires elevated permission to access paths outside the project root, which blocks automated pipelines) **or `~/Downloads`** (pollutes the user's filesystem). `tmp/` is git-ignored; the `.gitkeep` sentinel keeps it tracked.
 
