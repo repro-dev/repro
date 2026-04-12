@@ -308,14 +308,14 @@ Run the planner {as:plan}
 Then: Implement $RESULT[plan] in the worktree.
 ```
 
-This enables type-safe handoffs between chained commands without fragile text parsing or session-state mutation.
+This enables explicit, named handoffs between chained commands without fragile text parsing or session-state mutation.
 
 ### Challenge-verify-validate post-subtask pattern
 
-When a subtask (develop, test, planner, etc.) completes, the recommended follow-up behaviour is **challenge → verify → validate**, not a passive summarisation:
+When a subtask (develop, test, planner, etc.) completes, the recommended follow-up behavior is **challenge → verify → validate**, not a passive summarization:
 
 1. **Challenge**: probe the output — is the result complete? Are there edge cases unaddressed? Does the plan account for the full requirements?
 2. **Verify**: check that the acceptance criteria from the Linear issue are met. Load the issue via `Linear_get_issue` if needed.
 3. **Validate**: confirm no regressions or side-effects. Run typecheck and tests if they apply.
 
-This pattern replaces the instinct to simply summarise what a subagent returned. A summary does not catch gaps; challenge-verify-validate does.
+This pattern replaces the instinct to simply summarize what a subagent returned. A summary does not catch gaps; challenge-verify-validate does.
