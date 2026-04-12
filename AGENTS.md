@@ -54,7 +54,7 @@ Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer 
   - `pnpm add <pkg> --yes` / `npm install --yes` — suppress confirmation prompts
   - `npx --yes <pkg>` — auto-accept package installation prompt
   - `gh pr create --title "..." --body "..."` — always pass title and body; never rely on interactive prompts
-  - **Prohibited regardless**: `--no-verify` (skips hooks) and `--no-gpg-sign` are banned per the Git Safety Protocol — do not use them even to avoid interactive prompts
+  - **Prohibited regardless**: Never use `--no-verify` (skips hooks) or `--no-gpg-sign` (bypasses commit signing), even to avoid interactive prompts
 - **Comments**: Add brief comments when they clarify non-obvious intent, invariants, sentinel values, or protocol quirks. Avoid comments that restate the code.
 - **Temporary files**: **Always use `tmp/` at the repo root** for any ephemeral output — screenshots, build artifacts, scratch files, test results, anything throwaway. **Never write to `/tmp`** (OpenCode requires elevated permission to access paths outside the project root, which blocks automated pipelines) **or `~/Downloads`** (pollutes the user's filesystem). `tmp/` is git-ignored; the `.gitkeep` sentinel keeps it tracked.
 
