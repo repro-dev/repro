@@ -1,6 +1,6 @@
 import { ApiClient } from '@repro/api-client'
 import { createAtom } from '@repro/atom'
-import { StaffUser, User } from '@repro/domain'
+import type { StaffUser, User } from '@repro/domain'
 import { tap, tapRej } from '@repro/future-utils'
 import { map } from 'fluture'
 
@@ -8,11 +8,14 @@ interface Config {
   apiClient: ApiClient
   // Base path for auth endpoints, e.g. '/account' (default) or '/staff'
   basePath?: string
+  // Path to redirect to when a session is required but absent; defaults to `${basePath}/login`
+  loginPath?: string
 }
 
 export function createState(config: Config) {
   const { apiClient } = config
   const basePath = config.basePath ?? '/account'
+  const loginPath = config.loginPath ?? `${basePath}/login`
   const [$session, setSession] = createAtom<User | StaffUser | null>(null)
   const [$sessionLoading, setSessionLoading] = createAtom(true)
 
@@ -120,6 +123,7 @@ export function createState(config: Config) {
   return {
     $session,
     $sessionLoading,
+    loginPath,
     login,
     logout,
     register,

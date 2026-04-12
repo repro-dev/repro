@@ -7,6 +7,11 @@ export function useAuthContext() {
   return useContext(AuthContext)
 }
 
+export function useLoginPath() {
+  const context = useAuthContext()
+  return context.loginPath
+}
+
 export function useSession() {
   const context = useAuthContext()
   return useAtomValue(context.$session)

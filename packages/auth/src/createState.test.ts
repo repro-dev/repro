@@ -170,4 +170,34 @@ describe('createState', () => {
       )
     })
   })
+
+  describe('loginPath', () => {
+    it('defaults to basePath + /login when no loginPath specified', () => {
+      const apiClient = createMockApiClient()
+      const state = createState({ apiClient })
+      assert.equal(state.loginPath, '/account/login')
+    })
+
+    it('defaults to custom basePath + /login when basePath is set', () => {
+      const apiClient = createMockApiClient()
+      const state = createState({ apiClient, basePath: '/staff' })
+      assert.equal(state.loginPath, '/staff/login')
+    })
+
+    it('stores and returns a custom loginPath', () => {
+      const apiClient = createMockApiClient()
+      const state = createState({ apiClient, loginPath: '/auth/sign-in' })
+      assert.equal(state.loginPath, '/auth/sign-in')
+    })
+
+    it('custom loginPath overrides basePath-derived default', () => {
+      const apiClient = createMockApiClient()
+      const state = createState({
+        apiClient,
+        basePath: '/staff',
+        loginPath: '/staff/auth/login',
+      })
+      assert.equal(state.loginPath, '/staff/auth/login')
+    })
+  })
 })
