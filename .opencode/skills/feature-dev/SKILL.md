@@ -206,8 +206,8 @@ Project config: `.opencode/dcp.jsonc`
 Key settings:
 
 - `compress.mode: range` — compresses contiguous completed spans (not individual messages)
-- `maxContextLimit: 130000` — above this, DCP injects strong compression nudges (65% of claude-sonnet-4.6's 200k window)
-- `minContextLimit: 60000` — below this, compression reminders are off
+- `maxContextLimit: 85000` — above this, DCP injects strong compression nudges before GitHub Copilot's effective ~108k usable context ceiling
+- `minContextLimit: 45000` — below this, compression reminders are off
 - `compress.protectedTools: ["bash"]` — bash outputs are appended to compression summaries so file-write operations are never silently dropped
 
 **Default protected tools** (built into DCP, no config needed): `task`, `skill`, `todowrite`, `todoread`, `write`, `edit`
