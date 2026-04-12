@@ -88,6 +88,58 @@ COMMON_IGNORE_GLOBS = [
 ]
 
 
+LOCAL_SERVICE_WATCH_IGNORE_GLOBS = [
+  '**/.git/**',
+  '**/node_modules/**',
+  '**/dist/**',
+  '**/build/**',
+  '**/storybook-static/**',
+  '**/coverage/**',
+  '**/tmp/**',
+  '.DS_Store',
+  '*.swp',
+  '*.swo',
+  '*~',
+  '*.log',
+]
+
+
+def _dedupe_paths(paths):
+  deduped = []
+  seen = {}
+
+  for path in paths:
+    if path and path not in seen:
+      deduped.append(path)
+      seen[path] = True
+
+  return deduped
+
+
+def service_watch_paths(svc, root_path):
+  paths = []
+
+  app_dir = svc.get('app_dir', '')
+  if app_dir:
+    paths.append(os.path.join(root_path, app_dir))
+
+  moon_project = svc.get('moon_project', '')
+  if moon_project:
+    paths.extend(dependency_sync_paths(moon_project, root_path, root_path))
+
+  return _dedupe_paths(paths)
+
+
+def service_watch_ignores(svc, root_path):
+  ignores = list(LOCAL_SERVICE_WATCH_IGNORE_GLOBS)
+
+  moon_project = svc.get('moon_project', '')
+  if moon_project:
+    ignores.extend(non_dependency_ignore_patterns(moon_project, root_path, root_path))
+
+  return _dedupe_paths(ignores)
+
+
 def wt_db_name(slug):
   """Derive a Postgres-safe database name for a worktree slug.
 
@@ -200,10 +252,8 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
     serve_cmd='portless %s moon run %s:dev' % (portless_wt_name, moon_project),
     serve_dir=source_path,
     serve_env=serve_env_final,
-    deps=[
-      os.path.join(source_path, svc['app_dir'], 'src'),
-      os.path.join(source_path, svc['app_dir'], 'package.json'),
-    ],
+    deps=service_watch_paths(svc, source_path),
+    ignore=service_watch_ignores(svc, source_path),
     resource_deps=resource_deps_list,
     allow_parallel=True,
     links=['https://' + _service_host(portless_base, wt_slug)],
@@ -257,6 +307,8 @@ def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_pa
     serve_dir=work_dir,
     serve_env=serve_env,
     dir=work_dir,
+    deps=service_watch_paths(svc, work_dir),
+    ignore=service_watch_ignores(svc, work_dir),
     resource_deps=resource_deps,
     allow_parallel=True,
     links=links,
@@ -313,6 +365,5 @@ def resolve_dependencies(service_config, services):
         queue.append(dep_entry)
 
   return result
-
 
 
