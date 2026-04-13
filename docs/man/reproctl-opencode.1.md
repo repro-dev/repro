@@ -16,7 +16,7 @@ Launch OpenCode, optionally activating a model profile that overrides the
 **model** field for each agent without editing the agent definition files in
 **.opencode/agents/**.
 
-When **--profile** is given, the matching **.opencode/profiles/<name>.json**
+When **--profile** is given, the matching **.opencode/profiles/**_name_**.json**
 file is passed to OpenCode via the **OPENCODE_CONFIG** environment variable.
 OpenCode merges this config with its own defaults, so only the fields present
 in the profile file are overridden.
@@ -25,14 +25,14 @@ On macOS, the launch is wrapped in **caffeinate -dims** to prevent display
 sleep, idle sleep, and disk sleep during long agent sessions. On other
 platforms, OpenCode is launched directly.
 
-Profile files are committed and live at **.opencode/profiles/<name>.json**.
+Profile files are committed and live at **.opencode/profiles/**_name_**.json**.
 The **github-copilot-sonnet** profile documents the canonical model configuration. The
 **openrouter-glm5-minimax** profile remaps agents to GLM-5.1 and MiniMax M2.7 via OpenRouter.
 
 # OPTIONS
 
 **--profile** _name_
-: Activate the profile at **.opencode/profiles/<name>.json**. Exits with an
+: Activate the profile at **.opencode/profiles/**_name_**.json**. Exits with an
 error if the profile file does not exist.
 
 **-h**, **--help**
@@ -40,8 +40,8 @@ error if the profile file does not exist.
 
 # PROFILES
 
-Profile files are valid **opencode.json** fragments that override **agent.**
-**_name_**.model\*\* for one or more named agents. Only the keys present in the
+Profile files are valid **opencode.json** fragments that override
+`agent.<name>.model` for one or more named agents. Only the keys present in the
 profile are applied; other agent settings remain unchanged.
 
 Current profiles:

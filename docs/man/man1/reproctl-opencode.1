@@ -12,8 +12,8 @@ the \f[B]model\f[R] field for each agent without editing the agent
 definition files in \f[B].opencode/agents/\f[R].
 .PP
 When \f[B]\-\-profile\f[R] is given, the matching
-\f[B].opencode/profiles/.json\f[R] file is passed to OpenCode via the
-\f[B]OPENCODE_CONFIG\f[R] environment variable.
+\f[B].opencode/profiles/\f[R]_name_\f[B].json\f[R] file is passed to
+OpenCode via the \f[B]OPENCODE_CONFIG\f[R] environment variable.
 OpenCode merges this config with its own defaults, so only the fields
 present in the profile file are overridden.
 .PP
@@ -23,7 +23,7 @@ sessions.
 On other platforms, OpenCode is launched directly.
 .PP
 Profile files are committed and live at
-\f[B].opencode/profiles/.json\f[R].
+\f[B].opencode/profiles/\f[R]_name_\f[B].json\f[R].
 The \f[B]github\-copilot\-sonnet\f[R] profile documents the canonical
 model configuration.
 The \f[B]openrouter\-glm5\-minimax\f[R] profile remaps agents to
@@ -31,15 +31,15 @@ GLM\-5.1 and MiniMax M2.7 via OpenRouter.
 .SH OPTIONS
 .TP
 \f[B]\-\-profile\f[R] \f[I]name\f[R]
-Activate the profile at \f[B].opencode/profiles/.json\f[R].
+Activate the profile at
+\f[B].opencode/profiles/\f[R]_name_\f[B].json\f[R].
 Exits with an error if the profile file does not exist.
 .TP
 \f[B]\-h\f[R], \f[B]\-\-help\f[R]
 Show usage.
 .SH PROFILES
 Profile files are valid \f[B]opencode.json\f[R] fragments that override
-\f[B]agent.\f[R] \f[B]\f[BI]name\f[B]\f[R].model** for one or more named
-agents.
+\f[CR]agent.<name>.model\f[R] for one or more named agents.
 Only the keys present in the profile are applied; other agent settings
 remain unchanged.
 .PP
