@@ -29,6 +29,8 @@ source "$SCRIPT_DIR/lib/completion.sh"
 source "$SCRIPT_DIR/lib/version.sh"
 # shellcheck source=scripts/lib/code-index.sh
 source "$SCRIPT_DIR/lib/code-index.sh"
+# shellcheck source=scripts/lib/opencode.sh
+source "$SCRIPT_DIR/lib/opencode.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -75,6 +77,7 @@ ${CLR_BOLD}GENERAL${CLR_RESET}
   version                         Print the reproctl commit and date
   help [<command>|<topic>]        Show manpage for a command or topic
                                   Topics: environment, exit-codes, json
+  opencode [--profile <name>]     Launch OpenCode with optional model profile
 
 Examples:
   reproctl setup                              # bootstrap entire environment
@@ -157,6 +160,7 @@ USAGE
   cluster) cmd_cluster "$@" ;;
   db)      cmd_db "$@" ;;
   code-index) cmd_code_index "$@" ;;
+  opencode) cmd_opencode "$@" ;;
   start)   cmd_start "$@" ;;
   stop)    cmd_stop "$@" ;;
   restart) cmd_restart "$@" ;;
@@ -196,7 +200,7 @@ USAGE
   -h|--help)      usage ;;
   --version|-V)    cmd_version "$@" ;;
   *)
-    KNOWN_COMMANDS="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help"
+    KNOWN_COMMANDS="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help opencode"
     suggestions=$(python3 "$SCRIPT_DIR/lib/py/suggest_command.py" "$COMMAND" $KNOWN_COMMANDS 2>/dev/null) || true
     if [ -n "$suggestions" ]; then
       printf 'Error: Unknown command: %s\n' "$COMMAND" >&2
