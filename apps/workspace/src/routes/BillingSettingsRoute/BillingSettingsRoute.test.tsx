@@ -59,6 +59,7 @@ const activeSub: BillingSubscriptionResponse = {
 
 // --- window.open stub ---
 const windowOpenCalls: string[] = []
+const originalOpen = window.open
 Object.defineProperty(window, 'open', {
   value: (url: string) => {
     windowOpenCalls.push(url)
@@ -68,6 +69,11 @@ Object.defineProperty(window, 'open', {
 })
 afterEach(() => {
   windowOpenCalls.length = 0
+  Object.defineProperty(window, 'open', {
+    value: originalOpen,
+    writable: true,
+    configurable: true,
+  })
 })
 
 // --- Render helper ---

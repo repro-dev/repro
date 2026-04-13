@@ -12,8 +12,10 @@ import {
   spacing,
   useConfirm,
 } from '@repro/design'
-import type { BillingPlanWithEntitlements } from '@repro/domain'
-import { BillingSubscriptionResponse } from '@repro/domain'
+import type {
+  BillingPlanWithEntitlements,
+  BillingSubscriptionResponse,
+} from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { fork, map } from 'fluture'
 import React, { useCallback, useEffect, useState } from 'react'
@@ -74,11 +76,12 @@ export function BillingSettingsRoute({
   } = useFuture(() => getPlans(apiClient), [apiClient, getPlans])
 
   // Local mutable copy — updated optimistically after cancel succeeds
-  const [subscription, setSubscription] = useState(
-    null as BillingSubscriptionResponse | null
-  )
-  const [cancelError, setCancelError] = useState(null as string | null)
-  const [portalError, setPortalError] = useState(null as string | null)
+  const [subscription, setSubscription] =
+    useState<BillingSubscriptionResponse | null>(null)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [portalError, setPortalError] = useState<string | null>(null)
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
 
   useEffect(() => {
     if (fetchedSub) {
@@ -100,22 +103,28 @@ export function BillingSettingsRoute({
     }
 
     setCancelError(null)
+    setCancelLoading(true)
     cancelSubscription(apiClient).pipe(
       fork(() => {
         setCancelError('Failed to cancel subscription. Please try again.')
+        setCancelLoading(false)
       })(updatedSub => {
         setSubscription(updatedSub)
+        setCancelLoading(false)
       })
     )
   }, [apiClient, cancelSubscription, confirm])
 
   const handlePortal = useCallback(() => {
     setPortalError(null)
+    setPortalLoading(true)
     openPortal(apiClient).pipe(
       fork(() => {
         setPortalError('Failed to open billing portal. Please try again.')
+        setPortalLoading(false)
       })(({ url }) => {
-        window.open(url, '_blank')
+        window.open(url, '_blank', 'noopener,noreferrer')
+        setPortalLoading(false)
       })
     )
   }, [apiClient, openPortal])
@@ -229,11 +238,16 @@ export function BillingSettingsRoute({
                       variant="outlined"
                       context="danger"
                       onClick={handleCancel}
+                      disabled={cancelLoading}
                     >
                       Cancel Subscription
                     </Button>
                   )}
-                  <Button variant="outlined" onClick={handlePortal}>
+                  <Button
+                    variant="outlined"
+                    onClick={handlePortal}
+                    disabled={portalLoading}
+                  >
                     Manage billing
                   </Button>
                 </Row>
