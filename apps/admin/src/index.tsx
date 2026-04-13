@@ -168,7 +168,7 @@ if (rootElem) {
 
                     <Route element={<RequireAdminSession />}>
                       <Route
-                        path="recordings/:recordingId"
+                        path="projects/:projectId/recordings/:recordingId"
                         element={<RecordingRoute />}
                       />
                     </Route>
