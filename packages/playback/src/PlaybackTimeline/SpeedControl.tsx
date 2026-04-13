@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { colors, Tooltip } from '@repro/design'
+import { color, Tooltip } from '@repro/design'
 import {
   isInputElement,
   isSelectElement,
@@ -95,8 +95,8 @@ export const SpeedControl: React.FC = () => {
       height={32}
       minWidth={40}
       paddingH={6}
-      color={colors.blue['700']}
-      hoverBackgroundColor={colors.slate['100']}
+      color={color.primary}
+      hoverBackgroundColor={color.bg.hover}
       borderRadius={4}
       fontSize={11}
       fontWeight={600}
@@ -104,7 +104,7 @@ export const SpeedControl: React.FC = () => {
       userSelect="none"
       cursor="pointer"
       whiteSpace="nowrap"
-      transition="background-color linear 250ms"
+      transition="background-color 250ms ease-in-out"
       props={{ onClick: cycleSpeed }}
     >
       <Block>

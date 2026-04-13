@@ -2,7 +2,7 @@ import { Block } from "@jsxstyle/react";
 import {
   AgenticInput,
   AgenticInputFormState,
-  colors,
+  color,
   spacing,
 } from "@repro/design";
 import React from "react";
@@ -41,8 +41,8 @@ export const AgenticInputSection: React.FC<AgenticInputSectionProps> = ({
 
   return (
     <Block
-      backgroundColor={shouldRaise ? colors.white : colors.slate["100"]}
-      borderColor={shouldRaise ? colors.slate["200"] : "transparent"}
+      backgroundColor={shouldRaise ? color.bg.surface : color.bg.hover}
+      borderColor={shouldRaise ? color.border.default : "transparent"}
       borderStyle="solid"
       borderWidth={0}
       borderBlockStartWidth={1}

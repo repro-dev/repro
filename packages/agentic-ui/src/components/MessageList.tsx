@@ -1,7 +1,7 @@
 import { Block, Col } from "@jsxstyle/react";
 import { Md } from "@m2d/react-markdown";
 import { AgenticError, Entry, Loading, groupToolCalls } from "@repro/agentic";
-import { colors, spacing } from "@repro/design";
+import { color, spacing } from "@repro/design";
 import React, { useMemo } from "react";
 import {
   INPUT_CONTAINER_OFFSET_PX,
@@ -72,8 +72,8 @@ export const MessageList: React.FC<MessageListProps> = ({
                 <Block
                   marginInlineStart={spacing["3xl"]}
                   paddingInline={spacing.lg}
-                  backgroundColor={colors.blue["50"]}
-                  borderColor={colors.blue["100"]}
+                  backgroundColor={color.infoTint}
+                  borderColor={color.primarySubtle}
                   borderStyle="solid"
                   borderWidth={0}
                   borderBlockEndWidth={3}

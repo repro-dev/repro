@@ -1,4 +1,4 @@
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 
 function createResetRules(rootSelector: string = '') {
   return [
@@ -10,7 +10,7 @@ function createResetRules(rootSelector: string = '') {
       font-size: 10px;
       font-weight: normal;
       line-height: 1em;
-      color: ${colors.slate['900']};
+      color: ${color.text.default};
       text-align: initial;
     }`,
   ]

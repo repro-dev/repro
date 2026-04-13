@@ -3,10 +3,9 @@ import {
   createCSSPropertyMap,
   createGroupedCSSPropertyMap,
   CSSPropertyMap,
-  GroupedCSSPropertyMap,
   useReferenceStyle,
 } from '@repro/css-utils'
-import { colors } from '@repro/design'
+import { color, colors } from '@repro/design'
 import { isElementNode } from '@repro/dom-utils'
 import { useElapsed, useLatestControlFrame } from '@repro/playback'
 import React, { useEffect, useState } from 'react'
@@ -17,8 +16,7 @@ export const SelectedNodeComputedStyle: React.FC = () => {
   const latestControlFrame = useLatestControlFrame()
   const elapsed = useElapsed()
   const getReferenceStyle = useReferenceStyle()
-  const [styleMaps, setStyleMaps] =
-    useState<Array<GroupedCSSPropertyMap> | null>(null)
+  const [styleMaps, setStyleMaps] = useState(null)
 
   useEffect(() => {
     if (!selectedElement) {
@@ -82,7 +80,7 @@ export const SelectedNodeComputedStyle: React.FC = () => {
             component="details"
             paddingTop={i > 0 ? 16 : 0}
             paddingBottom={16}
-            borderTop={i > 0 ? `1px solid ${colors.slate['200']}` : ''}
+            borderTop={i > 0 ? `1px solid ${color.border.default}` : ''}
             props={{ open: true }}
           >
             <Block
@@ -92,7 +90,7 @@ export const SelectedNodeComputedStyle: React.FC = () => {
               textTransform="uppercase"
               fontSize={11}
               fontWeight={700}
-              color={colors.slate['700']}
+              color={color.text.secondary}
               userSelect="none"
               props={{ tabIndex: -1 }}
             >
@@ -107,7 +105,7 @@ export const SelectedNodeComputedStyle: React.FC = () => {
                 lineHeight={1.5}
               >
                 <InlineBlock color={colors.rose['500']}>{key}:</InlineBlock>
-                <InlineBlock color={colors.slate['700']} marginLeft={8}>
+                <InlineBlock color={color.text.secondary} marginLeft={8}>
                   {propertyMap[key]};
                 </InlineBlock>
               </Block>

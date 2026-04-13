@@ -4,10 +4,7 @@ import { PointerState } from '@repro/domain'
 import React from 'react'
 import { usePointer, usePointerState } from '../hooks'
 
-const Cursor: React.FC<{ color?: string; size?: number }> = ({
-  color,
-  size = 24,
-}) => (
+const Cursor: React.FC = ({ color, size = 24 }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 12 20"
@@ -63,7 +60,7 @@ export const PointerOverlay: React.FC = () => {
           borderRadius={30}
           opacity={pointerState === PointerState.Up ? 0 : 0.75}
           transform="translate(-10px, -10px)"
-          transition="opacity 100ms linear"
+          transition="opacity 100ms ease-in-out"
         />
 
         <Block isolation="isolate">

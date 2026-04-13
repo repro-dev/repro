@@ -1,8 +1,8 @@
 import { Block, Row } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color, shadow, transition } from '@repro/design'
 import { LogLevel } from '@repro/domain'
 import { CheckCircle, Circle } from 'lucide-react'
-import React, { PropsWithChildren } from 'react'
+import React from 'react'
 import { enumToBitField } from './util'
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
   onChange(value: number): void
 }
 
-export const LevelFilter: React.FC<Props> = ({ value, onChange }) => {
+export const LevelFilter: React.FC = ({ value, onChange }) => {
   function toggleLevel(level: LogLevel) {
     const bits = enumToBitField(level)
     onChange(value ^ bits)
@@ -54,11 +54,7 @@ interface ToggleProps {
   onClick(): void
 }
 
-const Toggle: React.FC<PropsWithChildren<ToggleProps>> = ({
-  active,
-  children,
-  onClick,
-}) => {
+const Toggle: React.FC = ({ active, children, onClick }) => {
   return (
     <Row
       alignItems="center"
@@ -66,28 +62,28 @@ const Toggle: React.FC<PropsWithChildren<ToggleProps>> = ({
       paddingV={6}
       paddingH={12}
       fontSize={11}
-      backgroundColor={active ? colors.slate['500'] : colors.slate['100']}
+      backgroundColor={active ? color.text.muted : color.bg.hover}
       backgroundImage={
         active
-          ? `linear-gradient(to top right, ${colors.slate['600']}, ${colors.slate['500']})`
+          ? `linear-gradient(to top right, ${color.neutralHover}, ${color.text.muted})`
           : undefined
       }
-      borderColor={active ? colors.slate['700'] : 'transparent'}
+      borderColor={active ? color.neutral : 'transparent'}
       borderWidth={1}
       borderStyle="solid"
       borderRadius="99rem"
-      boxShadow={active ? '0 2px 4px rgba(0, 0, 0, 0.25)' : undefined}
-      hoverBackgroundColor={active ? colors.slate['500'] : colors.slate['200']}
-      transition="all linear 100ms"
+      boxShadow={active ? shadow.sm : undefined}
+      hoverBackgroundColor={active ? color.text.muted : color.border.default}
+      transition={transition.fast}
       cursor="pointer"
       userSelect="none"
       props={{ onClick }}
     >
-      <Block color={active ? colors.white : colors.blue['700']}>
+      <Block color={active ? color.text.inverse : color.primary}>
         {active ? <CheckCircle size={14} /> : <Circle size={14} />}
       </Block>
 
-      <Block color={active ? colors.white : colors.slate['800']}>
+      <Block color={active ? color.text.inverse : color.text.default}>
         {children}
       </Block>
     </Row>

@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { Button, colors } from '@repro/design'
+import { Button } from '@repro/design'
 import {
   PlaybackCanvas,
   PlaybackProvider,
@@ -29,8 +29,8 @@ export const PlaybackPane: React.FC = () => {
         position="absolute"
         bottom={60}
         right={20}
-        background={colors.slate['100']}
-        borderColor={colors.slate['700']}
+        background={color.bg.hover}
+        borderColor={color.text.secondary}
         borderStyle="solid"
         borderWidth="3px 1px 1px"
       >
@@ -38,14 +38,14 @@ export const PlaybackPane: React.FC = () => {
           alignItems="center"
           gap={5}
           padding={10}
-          borderColor={colors.slate['300']}
+          borderColor={color.border.strong}
           borderStyle="solid"
           borderWidth="0 0 1px"
           pointerEvents="auto"
         >
-          <PictureInPictureIcon size={24} color={colors.slate['700']} />
+          <PictureInPictureIcon size={24} color={color.text.secondary} />
 
-          <Block color={colors.slate['700']} fontSize={16}>
+          <Block color={color.text.secondary} fontSize={16}>
             Live Playback
           </Block>
 

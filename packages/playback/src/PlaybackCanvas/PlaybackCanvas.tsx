@@ -1,9 +1,8 @@
 import { Block, Row } from '@jsxstyle/react'
-import { colors, Delay, FrameRealm, FX } from '@repro/design'
+import { color, Delay, FrameRealm, FX } from '@repro/design'
 import { Loader as LoaderIcon } from 'lucide-react'
 import React, {
   MutableRefObject,
-  PropsWithChildren,
   useCallback,
   useEffect,
   useRef,
@@ -29,9 +28,7 @@ interface Props {
   onLoad?: (nodeMap: MutableNodeMap) => void
 }
 
-export const PlaybackCanvas = withPlaybackErrorBoundary<
-  PropsWithChildren<Props>
->(
+export const PlaybackCanvas = withPlaybackErrorBoundary(
   ({
     children,
     interactive,
@@ -43,8 +40,8 @@ export const PlaybackCanvas = withPlaybackErrorBoundary<
     onLoad,
   }) => {
     const playback = usePlayback()
-    const frameRef = useRef() as MutableRefObject<HTMLIFrameElement>
-    const [ownerDocument, setOwnerDocument] = useState<Document | null>(null)
+    const frameRef = useRef() as MutableRefObject
+    const [ownerDocument, setOwnerDocument] = useState(null)
 
     const [loaded, setLoaded] = useState(false)
     const [waitingForEvents, setWaitingForEvents] = useState(true)
@@ -118,15 +115,15 @@ export const PlaybackCanvas = withPlaybackErrorBoundary<
         userSelect={interactive ? 'all' : 'none'}
         background={`repeating-linear-gradient(
           45deg,
-          ${colors.slate['50']},
-          ${colors.slate['50']} 10px,
-          ${colors.slate['100']} 10px,
-          ${colors.slate['100']} 20px
+          ${color.bg.subtle},
+          ${color.bg.subtle} 10px,
+          ${color.bg.hover} 10px,
+          ${color.bg.hover} 20px
         )`}
       >
         {(!loaded || waitingForEvents) && (
           <Row alignItems="center" justifyContent="center" height="100%">
-            <FX.Spin height={24} color={colors.slate['500']}>
+            <FX.Spin height={24} color={color.text.muted}>
               <LoaderIcon size={24} />
             </FX.Spin>
           </Row>

@@ -1,9 +1,7 @@
 import { Block } from '@jsxstyle/react'
-import { colors } from '@repro/design'
-import { Point } from '@repro/domain'
+import { color } from '@repro/design'
 import React, {
   MutableRefObject,
-  PropsWithChildren,
   useCallback,
   useEffect,
   useRef,
@@ -11,14 +9,12 @@ import React, {
 } from 'react'
 import { useViewport } from '../hooks'
 
-export const ScaleToFitViewport: React.FC<PropsWithChildren> = ({
-  children,
-}) => {
+export const ScaleToFitViewport: React.FC = ({ children }) => {
   const [vWidth, vHeight] = useViewport()
 
-  const ref = useRef() as MutableRefObject<HTMLDivElement>
+  const ref = useRef() as MutableRefObject
   const [scale, setScale] = useState(1)
-  const [offset, setOffset] = useState<Point>([0, 0])
+  const [offset, setOffset] = useState([0, 0])
 
   const onScale = useCallback(
     (width: number, height: number) => {
@@ -64,7 +60,7 @@ export const ScaleToFitViewport: React.FC<PropsWithChildren> = ({
     <Block position="relative" height="100%" props={{ ref }}>
       <Block
         transformOrigin="center"
-        background={colors.white}
+        background={color.bg.surface}
         props={{
           style: {
             transform: `translate(${offset[0]}px, ${offset[1]}px) scale(${scale})`,

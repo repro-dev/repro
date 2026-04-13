@@ -1,6 +1,6 @@
 import { Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
-import { colors, Tooltip } from '@repro/design'
+import { color, shadow, Tooltip } from '@repro/design'
 import { BugOffIcon, StepBackIcon, StepForwardIcon } from 'lucide-react'
 import React from 'react'
 import {
@@ -64,11 +64,11 @@ export const PlaybackNavigation: React.FC = () => {
           right={0}
           transform="translate(-10px, calc(-100% - 10px))"
           padding={5}
-          backgroundColor={colors.white}
+          backgroundColor={color.bg.surface}
           borderWidth={1}
           borderStyle="solid"
-          borderColor={colors.slate['300']}
-          boxShadow={`0 2px 4px ${colors.slate['200']}`}
+          borderColor={color.border.strong}
+          boxShadow={shadow.sm}
         >
           <Button onClick={stepBack}>
             <StepBackIcon size={16} />

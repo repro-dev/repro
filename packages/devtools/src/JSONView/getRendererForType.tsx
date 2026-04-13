@@ -1,4 +1,4 @@
-import { colors } from '@repro/design'
+import { color, colors } from '@repro/design'
 import React from 'react'
 import { ArrayRenderer } from './ArrayRenderer'
 import { BooleanRenderer } from './BooleanRenderer'
@@ -36,13 +36,13 @@ export function getRendererForType(
     return <BooleanRenderer level={level} objectKey={objectKey} value={value} />
   } else {
     value = objectKey !== null ? `"${value.toString()}"` : value
-    const color = objectKey !== null ? colors.rose['700'] : colors.slate['700']
+    const textColor = objectKey !== null ? color.danger : color.text.secondary
     return (
       <StringRenderer
         level={level}
         objectKey={objectKey}
         value={value}
-        color={color}
+        color={textColor}
       />
     )
   }

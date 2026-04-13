@@ -4,6 +4,7 @@ import { useAcceptInvitation, useSession, useSessionLoading } from '@repro/auth'
 import {
   Button,
   Card,
+  color,
   colors,
   FormField,
   FormFieldError,
@@ -31,7 +32,7 @@ const formSchema = z
     path: ['confirmedPassword'],
   })
 
-type FormState = z.infer<typeof formSchema>
+type FormState = z.infer
 
 const AcceptInvitationRoute: React.FC = () => {
   const navigate = useNavigate()
@@ -43,7 +44,7 @@ const AcceptInvitationRoute: React.FC = () => {
   const invitationToken = searchParams.get('invitationToken') ?? ''
   const email = searchParams.get('email') ?? ''
 
-  const methods = useForm<FormState>({
+  const methods = useForm({
     mode: 'onChange',
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -100,11 +101,11 @@ const AcceptInvitationRoute: React.FC = () => {
       <Col width={320} alignItems="stretch" gap={10}>
         <Card>
           <Col gap={16}>
-            <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
+            <Block fontSize={15} fontWeight={700} color={color.primary}>
               Already Signed In
             </Block>
 
-            <Block fontSize={13} lineHeight="1.5em" color={colors.slate['500']}>
+            <Block fontSize={13} lineHeight="1.5em" color={color.text.muted}>
               You are already signed in. You can go to your workspace or log out
               first to accept this invitation with a different account.
             </Block>
@@ -122,11 +123,11 @@ const AcceptInvitationRoute: React.FC = () => {
       <Col width={320} alignItems="stretch" gap={10}>
         <Card>
           <Col gap={16}>
-            <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
+            <Block fontSize={15} fontWeight={700} color={color.primary}>
               Invalid Invitation Link
             </Block>
 
-            <Block fontSize={13} lineHeight="1.5em" color={colors.slate['500']}>
+            <Block fontSize={13} lineHeight="1.5em" color={color.text.muted}>
               This invitation link is missing required information. Please use
               the link from your invitation email.
             </Block>
@@ -143,11 +144,7 @@ const AcceptInvitationRoute: React.FC = () => {
           <form onSubmit={handleSubmit(onSubmit)}>
             <Col gap={16}>
               <Col gap={12}>
-                <Block
-                  fontSize={15}
-                  fontWeight={700}
-                  color={colors.blue['700']}
-                >
+                <Block fontSize={15} fontWeight={700} color={color.primary}>
                   Accept Invitation
                 </Block>
 
@@ -155,8 +152,8 @@ const AcceptInvitationRoute: React.FC = () => {
                   paddingBottom={10}
                   fontSize={13}
                   lineHeight="1.5em"
-                  borderBottom={`1px solid ${colors.slate['200']}`}
-                  color={colors.slate['500']}
+                  borderBottom={`1px solid ${color.border.default}`}
+                  color={color.text.muted}
                 >
                   Complete your registration to join your team
                 </Block>
@@ -169,7 +166,7 @@ const AcceptInvitationRoute: React.FC = () => {
                   fontSize={13}
                   lineHeight={1.5}
                   backgroundColor={colors.rose['100']}
-                  color={colors.rose['700']}
+                  color={color.danger}
                   borderRadius={4}
                   borderColor={colors.rose['300']}
                   borderStyle="solid"

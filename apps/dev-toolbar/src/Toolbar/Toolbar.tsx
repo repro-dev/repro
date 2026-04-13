@@ -1,6 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { Button, colors, Logo, Toggle } from '@repro/design'
+import { Button, Logo, Toggle } from '@repro/design'
 import { forget } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
 import { useRecordingStream } from '@repro/recording'
@@ -59,11 +59,11 @@ export const Toolbar: React.FC = () => {
       paddingInline={10}
       height={50}
       alignItems="center"
-      backgroundColor={colors.slate['100']}
-      borderColor={colors.slate['700']}
+      backgroundColor={color.bg.hover}
+      borderColor={color.text.secondary}
       borderStyle="solid"
       borderWidth="3px 1px 0"
-      color={colors.slate['700']}
+      color={color.text.secondary}
       fontSize={16}
       pointerEvents="auto"
     >
@@ -73,7 +73,7 @@ export const Toolbar: React.FC = () => {
         <Block
           alignSelf="stretch"
           width={1}
-          backgroundColor={colors.slate['700']}
+          backgroundColor={color.text.secondary}
         />
 
         <Toggle

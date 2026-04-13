@@ -1,6 +1,6 @@
 import { Block, Grid } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import {
   ReduxDispatchEvent,
   SourceEventType,
@@ -16,11 +16,11 @@ export const ReduxPanel: React.FC = () => {
   const playback = usePlayback()
   const snapshot = useSnapshot()
   const activeIndex = useAtomValue(playback.$activeIndex)
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const [selectedIndex, setSelectedIndex] = useState(null)
 
   // Collect all ReduxDispatchEvents with their source indices
   const dispatchEvents = useMemo(() => {
-    const events: Array<[ReduxDispatchEvent, number]> = []
+    const events: Array = []
     const sourceEvents = playback.getSourceEvents().toSource()
     let i = 0
     for (const view of sourceEvents) {
@@ -44,14 +44,14 @@ export const ReduxPanel: React.FC = () => {
   // 2. Find the snapshot event index that corresponds to the baseline
   // 3. Only apply diffs AFTER the snapshot to avoid double-applying pre-snapshot events
   const reconstructedState = useMemo(() => {
-    let state: Record<string, unknown> = {}
+    let state: Record = {}
 
     const baselineJson = snapshot.frameworkState?.reduxState
     if (baselineJson) {
       try {
         const parsed = JSON.parse(baselineJson)
         if (typeof parsed === 'object' && parsed !== null) {
-          state = parsed as Record<string, unknown>
+          state = parsed as Record
         }
       } catch {
         // Baseline unparseable — start from empty state
@@ -78,10 +78,7 @@ export const ReduxPanel: React.FC = () => {
       if (eventIndex > activeIndex) break
       if (eventIndex <= snapshotEventIndex) continue // already in baseline
       try {
-        const diff = JSON.parse(event.stateDiff) as Record<
-          string,
-          { before: unknown; after: unknown }
-        >
+        const diff = JSON.parse(event.stateDiff) as Record
         for (const [key, entry] of Object.entries(diff)) {
           if (entry.after === undefined) {
             // Deleted key — remove from reconstructed state rather than setting to undefined
@@ -100,7 +97,7 @@ export const ReduxPanel: React.FC = () => {
 
   if (dispatchEvents.length === 0) {
     return (
-      <Block padding={16} fontSize={12} color={colors.slate['500']}>
+      <Block padding={16} fontSize={12} color={color.text.muted}>
         No Redux actions recorded.
       </Block>
     )
@@ -119,7 +116,7 @@ export const ReduxPanel: React.FC = () => {
       <Block
         height="100%"
         overflow="auto"
-        borderLeft={`1px solid ${colors.slate['200']}`}
+        borderLeft={`1px solid ${color.border.default}`}
       >
         <StateTreePane state={reconstructedState} />
       </Block>

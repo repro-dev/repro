@@ -1,13 +1,8 @@
 import { Block, Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { formatTime } from '@repro/date-utils'
-import { colors } from '@repro/design'
-import React, {
-  MutableRefObject,
-  PropsWithChildren,
-  useEffect,
-  useRef,
-} from 'react'
+import { color } from '@repro/design'
+import React, { MutableRefObject, useEffect, useRef } from 'react'
 import { NEVER, Observable, Subscription, combineLatest, fromEvent } from 'rxjs'
 import {
   distinctUntilChanged,
@@ -27,13 +22,9 @@ export interface Props {
   max?: number
 }
 
-export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
-  children,
-  min,
-  max,
-}) => {
-  const progressRef = useRef() as MutableRefObject<HTMLDivElement>
-  const elapsedTimeRef = useRef() as MutableRefObject<HTMLDivElement>
+export const SimpleTimeline: React.FC = ({ children, min, max }) => {
+  const progressRef = useRef() as MutableRefObject
+  const elapsedTimeRef = useRef() as MutableRefObject
   const playback = usePlayback()
 
   useEffect(() => {
@@ -87,13 +78,13 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
       }
 
       // Direct events
-      const pointerEnter$ = fromEvent<PointerEvent>(root, 'pointerenter')
-      const pointerLeave$ = fromEvent<PointerEvent>(root, 'pointerleave')
-      const pointerDown$ = fromEvent<PointerEvent>(root, 'pointerdown')
+      const pointerEnter$ = fromEvent(root, 'pointerenter')
+      const pointerLeave$ = fromEvent(root, 'pointerleave')
+      const pointerDown$ = fromEvent(root, 'pointerdown')
 
       // Indirect events
-      const pointerMove$ = fromEvent<PointerEvent>(window, 'pointermove')
-      const pointerUp$ = fromEvent<PointerEvent>(window, 'pointerup')
+      const pointerMove$ = fromEvent(window, 'pointermove')
+      const pointerUp$ = fromEvent(window, 'pointerup')
 
       subscription.add(
         pointerDown$
@@ -255,7 +246,7 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
           width="100%"
           height={8}
           hoverHeight={12}
-          transition="height 100ms linear"
+          transition="height 100ms ease-in-out"
           props={{ ref: progressRef }}
         />
 
@@ -279,14 +270,14 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
         userSelect="none"
       >
         <Block
-          color={colors.blue['700']}
+          color={color.primary}
           whiteSpace="nowrap"
           props={{ ref: elapsedTimeRef }}
         >
           00:00
         </Block>
-        <Block color={colors.slate['500']}>/</Block>
-        <Block color={colors.blue['700']} whiteSpace="nowrap" fontSize={11}>
+        <Block color={color.text.muted}>/</Block>
+        <Block color={color.primary} whiteSpace="nowrap" fontSize={11}>
           {formatTime((max || playback.getDuration()) - (min || 0), 'seconds')}
         </Block>
       </Row>
@@ -299,8 +290,8 @@ function createAnimationObservable(
   initialOffset: number,
   duration: number
 ) {
-  return new Observable<Animation>(observer => {
-    const keyframes: Array<Keyframe> = [
+  return new Observable(observer => {
+    const keyframes: Array = [
       { transform: `scaleX(${initialOffset})` },
       { transform: `scaleX(1.0)` },
     ]
@@ -336,7 +327,7 @@ function createBackgroundElement() {
   const elem = document.createElement('div')
 
   const styles = [
-    ['backgroundColor', colors.slate['100'] as string],
+    ['backgroundColor', color.bg.hover as string],
     ['cursor', 'pointer'],
     ['height', '100%'],
     ['pointerEvents', 'none'],
@@ -355,7 +346,7 @@ function createBufferElement() {
   const elem = document.createElement('div')
 
   const styles = [
-    ['backgroundColor', colors.blue['100'] as string],
+    ['backgroundColor', color.primarySubtle as string],
     ['height', '100%'],
     ['left', '0'],
     ['pointerEvents', 'none'],
@@ -377,7 +368,7 @@ function createProgressElement() {
   const elem = document.createElement('div')
 
   const styles = [
-    ['backgroundColor', colors.blue['500'] as string],
+    ['backgroundColor', color.border.focus as string],
     ['height', '100%'],
     ['left', '0'],
     ['pointerEvents', 'none'],
@@ -399,7 +390,7 @@ function createGhostElement() {
   const elem = document.createElement('div')
 
   const styles = [
-    ['backgroundColor', colors.blue['200'] as string],
+    ['backgroundColor', color.primarySubtleHover as string],
     ['height', '100%'],
     ['left', '0'],
     ['pointerEvents', 'none'],
@@ -421,9 +412,9 @@ function createTooltipElement() {
   const elem = document.createElement('div')
 
   const styles = [
-    ['backgroundColor', colors.slate['700'] as string],
+    ['backgroundColor', color.text.secondary as string],
     ['borderRadius', '8px'],
-    ['color', colors.white],
+    ['color', color.text.inverse],
     ['display', 'none'],
     ['fontSize', '11px'],
     ['left', '0'],

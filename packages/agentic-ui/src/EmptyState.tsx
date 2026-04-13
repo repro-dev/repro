@@ -1,12 +1,5 @@
 import { Block, Col, Row } from "@jsxstyle/react";
-import {
-  color,
-  colors,
-  fontSize,
-  radius,
-  spacing,
-  transition,
-} from "@repro/design";
+import { color, fontSize, radius, spacing, transition } from "@repro/design";
 import { BotMessageSquareIcon } from "lucide-react";
 import React from "react";
 
@@ -20,7 +13,7 @@ const EXAMPLE_PROMPTS = [
 const Ring: React.FC<{ distance: number }> = ({ distance }) => (
   <Block
     position="absolute"
-    borderColor={colors.slate["300"]}
+    borderColor={color.border.strong}
     borderRadius="99em"
     borderStyle="solid"
     borderWidth={1}
@@ -66,7 +59,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
         >
           <BotMessageSquareIcon
             size={40}
-            color={colors.slate["500"]}
+            color={color.text.muted}
             strokeWidth={1}
           />
         </Row>

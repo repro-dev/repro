@@ -38,8 +38,8 @@ export const LiveControls: React.FC = () => {
       alignItems="center"
       gridTemplateColumns="1fr auto auto"
       gap={10}
-      backgroundColor={colors.white}
-      borderColor={colors.blue['900']}
+      backgroundColor={color.bg.surface}
+      borderColor={color.infoFg}
       borderStyle="solid"
       borderWidth="1px 1px 1px 0"
       borderRadius="0 2px 2px 0"
@@ -54,15 +54,15 @@ export const LiveControls: React.FC = () => {
           justifyContent="center"
           width={30}
           height={30}
-          backgroundColor={colors.blue['100']}
+          backgroundColor={color.primarySubtle}
           borderRadius="99rem"
         >
-          <VideoIcon color={colors.blue['700']} size={16} />
+          <VideoIcon color={color.primary} size={16} />
         </Row>
 
         <Block fontFamily="monospace" fontSize={14} color={colors.slate['800']}>
           <Inline>{minutes.toString().padStart(2, '0')}</Inline>
-          <Inline color={colors.blue['500']}>:</Inline>
+          <Inline color={color.border.focus}>:</Inline>
           <Inline>{seconds.toString().padStart(2, '0')}</Inline>
         </Block>
       </Row>

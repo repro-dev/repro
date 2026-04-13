@@ -1,15 +1,10 @@
 import { Block, Grid } from '@jsxstyle/react'
 import { useSelector } from '@repro/atom'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import { NodeId, VElement, VTree } from '@repro/domain'
 import { BreakpointType, usePlayback, useSnapshot } from '@repro/playback'
 import { isDocumentVNode, isElementVNode } from '@repro/vdom-utils'
-import React, {
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  useState,
-} from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { ElementTree } from '../ElementTree'
 import { useElementPicker, useFocusedNode, useSelectedNode } from '../hooks'
 import { SelectedNodeComputedStyle } from './SelectedNodeComputedStyle'
@@ -23,7 +18,7 @@ export const ElementsPanel: React.FC = () => {
   )
 }
 
-const Container: React.FC<PropsWithChildren> = ({ children }) => (
+const Container: React.FC = ({ children }) => (
   <Grid gridTemplateColumns="1fr auto" alignItems="stretch" height="100%">
     {children}
   </Grid>
@@ -129,7 +124,7 @@ const SidebarPane: React.FC = () => {
       height="100%"
       width={size}
       overflow="auto"
-      borderLeft={`1px solid ${colors.slate['200']}`}
+      borderLeft={`1px solid ${color.border.default}`}
     >
       <SelectedNodeComputedStyle />
     </Block>

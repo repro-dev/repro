@@ -1,13 +1,13 @@
 import { Block } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color, colors } from '@repro/design'
 import React from 'react'
 import { JSONView } from '../JSONView/JSONView'
 
 interface Props {
-  state: Record<string, unknown>
+  state: Record
 }
 
-export const StateTreePane: React.FC<Props> = ({ state }) => {
+export const StateTreePane: React.FC = ({ state }) => {
   if (Object.keys(state).length === 0) {
     return (
       <Block padding={16} fontSize={12} color={colors.slate['400']}>
@@ -21,10 +21,10 @@ export const StateTreePane: React.FC<Props> = ({ state }) => {
       <Block
         fontSize={11}
         fontWeight={600}
-        color={colors.slate['600']}
+        color={color.text.label}
         marginBottom={8}
         paddingBottom={4}
-        borderBottom={`1px solid ${colors.slate['200']}`}
+        borderBottom={`1px solid ${color.border.default}`}
       >
         Current State
       </Block>

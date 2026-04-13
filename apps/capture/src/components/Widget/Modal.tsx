@@ -1,6 +1,6 @@
 import { Block, InlineBlock, Row } from '@jsxstyle/react'
 import { animated, config, useTransition } from '@react-spring/web'
-import { colors, Logo } from '@repro/design'
+import { Logo } from '@repro/design'
 import { XIcon } from 'lucide-react'
 import React from 'react'
 
@@ -18,7 +18,7 @@ const defaultStyles = {
   transformOrigin: 'bottom left',
 } as const
 
-export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
+export const Modal: React.FC = ({
   children,
   title,
   onClose,
@@ -44,10 +44,10 @@ export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
               inlineSize={
                 size === 'full-screen' ? 'calc(100vw - 40px)' : 'auto'
               }
-              backgroundColor={colors.white}
+              backgroundColor={color.bg.surface}
               boxShadow="0 0 16px rgba(0, 0, 0, 0.15)"
               borderRadius={8}
-              border={`1px solid ${colors.blue['900']}`}
+              border={`1px solid ${color.infoFg}`}
               overflow="hidden"
             >
               {size !== 'compact' && (
@@ -55,14 +55,14 @@ export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
                   paddingBlock={10}
                   paddingInline={20}
                   height={120}
-                  backgroundColor={colors.blue['800']}
-                  backgroundImage={`linear-gradient(to bottom right, ${colors.blue['900']}, ${colors.blue['700']})`}
+                  backgroundColor={color.primaryHover}
+                  backgroundImage={`linear-gradient(to bottom right, ${color.infoFg}, ${color.primary})`}
                 >
                   <Row alignItems="center" gap={10}>
                     <Logo size={24} inverted={true} />
 
                     {title && (
-                      <InlineBlock color={colors.white} fontSize={16}>
+                      <InlineBlock color={color.text.inverse} fontSize={16}>
                         {title}
                       </InlineBlock>
                     )}
@@ -73,10 +73,10 @@ export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
                         marginLeft="auto"
                         padding={5}
                         transform="translateX(10px)"
-                        color={colors.blue['50']}
-                        hoverBackgroundColor={colors.blue['900']}
+                        color={color.infoTint}
+                        hoverBackgroundColor={color.infoFg}
                         borderRadius={2}
-                        transition="all linear 100ms"
+                        transition="all 100ms ease-in-out"
                         lineHeight={1}
                         cursor="pointer"
                         props={{ onClick: onClose }}

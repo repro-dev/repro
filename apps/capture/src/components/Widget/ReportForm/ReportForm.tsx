@@ -1,13 +1,12 @@
 import { Block, Row } from '@jsxstyle/react'
 import { IfGate, UnlessGate } from '@repro/auth'
 import { formatTime } from '@repro/date-utils'
-import { colors, ToggleGroup } from '@repro/design'
+import { ToggleGroup } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import { RecordingMode } from '@repro/domain'
 import { observeFuture } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
 import { PlaybackProvider, SimpleTimeline, usePlayback } from '@repro/playback'
-import { UploadProgress } from '@repro/recording-api'
 import { fork, FutureInstance } from 'fluture'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Subscription, switchMap, timer } from 'rxjs'
@@ -21,13 +20,13 @@ import { FormValues } from './types'
 const DEFAULT_SELECTED_DURATION = 60_000
 
 export interface ReportFormProps {
-  upload(values: FormValues): FutureInstance<Error, string>
+  upload(values: FormValues): FutureInstance
   onSuccess(): void
   onError(error: Error): void
   onClose(): void
 }
 
-export const ReportForm: React.FC<ReportFormProps> = ({
+export const ReportForm: React.FC = ({
   upload,
   onSuccess,
   onError,
@@ -36,10 +35,10 @@ export const ReportForm: React.FC<ReportFormProps> = ({
   const agent = useMessaging()
   const playback = usePlayback()
   const [recordingMode] = useRecordingMode()
-  const [uploadRef, setUploadRef] = useState<string | null>(null)
+  const [uploadRef, setUploadRef] = useState(null)
   const [uploading, setUploading] = useState(false)
-  const [, setEnqueueError] = useState<Error | null>(null)
-  const [progress, setProgress] = useState<UploadProgress | null>(null)
+  const [, setEnqueueError] = useState(null)
+  const [progress, setProgress] = useState(null)
   const [selectedDuration, setSelectedDuration] = useState(
     DEFAULT_SELECTED_DURATION
   )
@@ -69,7 +68,7 @@ export const ReportForm: React.FC<ReportFormProps> = ({
     if (uploadRef && uploading) {
       const progress$ = timer(0, 250).pipe(
         switchMap(() =>
-          observeFuture<Error, UploadProgress>(
+          observeFuture(
             agent.raiseIntent({
               type: 'upload:progress',
               payload: {
@@ -128,12 +127,13 @@ export const ReportForm: React.FC<ReportFormProps> = ({
               justifyContent="flex-end"
               padding={8}
               zIndex={1}
-              boxShadow={`
-                  0 4px 16px rgba(0, 0, 0, 0.1),
-                  0 1px 2px rgba(0, 0, 0, 0.1)
-                `}
+              boxShadow={shadow.md}
             >
-              <Block fontSize={11} fontWeight={700} color={colors.slate['700']}>
+              <Block
+                fontSize={11}
+                fontWeight={700}
+                color={color.text.secondary}
+              >
                 Duration
               </Block>
 

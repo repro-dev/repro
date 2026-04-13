@@ -1,6 +1,6 @@
 import { Row } from '@jsxstyle/react'
-import { colors } from '@repro/design'
-import React, { PropsWithChildren } from 'react'
+import { color, colors } from '@repro/design'
+import React from 'react'
 
 interface ButtonProps {
   active?: boolean
@@ -8,12 +8,7 @@ interface ButtonProps {
   onClick: () => void
 }
 
-export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
-  children,
-  active,
-  disabled,
-  onClick,
-}) => (
+export const Button: React.FC = ({ children, active, disabled, onClick }) => (
   <Row
     component="button"
     appearance="none"
@@ -23,15 +18,15 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
     height={32}
     color={
       disabled
-        ? colors.slate['300']
+        ? color.border.strong
         : active
         ? colors.pink['500']
-        : colors.blue['700']
+        : color.primary
     }
     border="none"
     borderRadius={4}
     backgroundColor={active ? colors.pink['100'] : 'transparent'}
-    hoverBackgroundColor={disabled || active ? null : colors.blue['50']}
+    hoverBackgroundColor={disabled || active ? null : color.infoTint}
     cursor="pointer"
     pointerEvents={disabled ? 'none' : 'auto'}
     props={{ disabled, onClick }}

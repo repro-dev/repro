@@ -1,7 +1,7 @@
 import { Block, Row } from "@jsxstyle/react";
 import { Loading } from "@repro/agentic";
 import {
-  colors,
+  color,
   fontFamily,
   fontSize,
   FX,
@@ -57,11 +57,11 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   return (
     <Row
       alignItems="center"
-      backgroundColor={isCancelled ? colors.slate["700"] : colors.blue["800"]}
+      backgroundColor={isCancelled ? color.neutral : color.primaryHover}
       backgroundImage={
         isCancelled
-          ? `linear-gradient(to bottom right, ${colors.slate["700"]}, ${colors.slate["600"]})`
-          : `linear-gradient(to bottom right, ${colors.blue["900"]}, ${colors.blue["700"]})`
+          ? `linear-gradient(to bottom right, ${color.neutral}, ${color.neutralHover})`
+          : `linear-gradient(to bottom right, ${color.infoFg}, ${color.primary})`
       }
       borderRadius="99em"
       bottom={0}
@@ -75,7 +75,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
       {isCancelled ? (
         // Brief cancellation confirmation label — no dots, no cancel button
         <Block
-          color={colors.white}
+          color={color.text.inverse}
           fontFamily={fontFamily.sans}
           fontSize={fontSize.xs}
           paddingBlock={spacing.md}
@@ -91,21 +91,33 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
             paddingInline={spacing.lg}
           >
             <FX.Pulse>
-              <CircleIcon size={8} fill={colors.white} stroke={colors.white} />
+              <CircleIcon
+                size={8}
+                fill={color.text.inverse}
+                stroke={color.text.inverse}
+              />
             </FX.Pulse>
 
             <FX.Pulse animationDelay="100ms">
-              <CircleIcon size={8} fill={colors.white} stroke={colors.white} />
+              <CircleIcon
+                size={8}
+                fill={color.text.inverse}
+                stroke={color.text.inverse}
+              />
             </FX.Pulse>
 
             <FX.Pulse animationDelay="200ms">
-              <CircleIcon size={8} fill={colors.white} stroke={colors.white} />
+              <CircleIcon
+                size={8}
+                fill={color.text.inverse}
+                stroke={color.text.inverse}
+              />
             </FX.Pulse>
           </Row>
 
           {label && (
             <Block
-              color={colors.white}
+              color={color.text.inverse}
               fontFamily={fontFamily.sans}
               fontSize={fontSize.xs}
               paddingInlineEnd={spacing.lg}
@@ -128,7 +140,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
                 alignItems="center"
                 background="none"
                 border="none"
-                color={colors.white}
+                color={color.text.inverse}
                 component="button"
                 cursor="pointer"
                 display="flex"
@@ -137,7 +149,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
                 paddingBlock={spacing.md}
                 paddingInline={spacing.lg}
                 transition={transition.fast}
-                hoverBackgroundColor={colors.blue["700"]}
+                hoverBackgroundColor={color.primary}
                 props={{
                   type: "button",
                   "aria-label": "Cancel",

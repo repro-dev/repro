@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Block, Col, Row } from '@jsxstyle/react'
 import {
   Button,
+  color,
   colors,
   Divider,
   FormField,
@@ -34,11 +35,11 @@ const resetFormSchema = z.object({
   email: z.string().email(),
 })
 
-type LoginFormState = z.infer<typeof loginFormSchema>
-type ResetFormState = z.infer<typeof resetFormSchema>
+type LoginFormState = z.infer
+type ResetFormState = z.infer
 type FormState = LoginFormState | ResetFormState
 
-export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
+export const LoginForm: React.FC = ({ onSuccess, onFailure }) => {
   const [errorMessage, setErrorMessage] = useState('')
   const [showResetFlow, setShowResetFlow] = useState(false)
   const [showPostResetMessage, setShowPostResetMessage] = useState(false)
@@ -76,7 +77,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
 
     setLoading(true)
 
-    return fork<Error>(err => {
+    return fork(err => {
       if (err.name === 'TooManyRequests' || (err as any).statusCode === 429) {
         setErrorMessage('Too many login attempts. Please try again later.')
       } else if (
@@ -109,7 +110,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
       <form onSubmit={handleSubmit(onSubmit)}>
         <Col gap={16}>
           <Col gap={12}>
-            <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
+            <Block fontSize={15} fontWeight={700} color={color.primary}>
               {showResetFlow ? 'Reset Your Password' : 'Log In'}
             </Block>
 
@@ -117,8 +118,8 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
               paddingBottom={10}
               fontSize={13}
               lineHeight="1.5em"
-              borderBottom={`1px solid ${colors.slate['200']}`}
-              color={colors.slate['500']}
+              borderBottom={`1px solid ${color.border.default}`}
+              color={color.text.muted}
             >
               {showResetFlow
                 ? 'Enter your email for password reset instructions'
@@ -132,8 +133,8 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
               padding={10}
               fontSize={13}
               lineHeight={1.5}
-              backgroundColor={colors.blue['100']}
-              color={colors.blue['700']}
+              backgroundColor={color.primarySubtle}
+              color={color.primary}
               borderRadius={4}
               borderColor={colors.blue['300']}
               borderStyle="solid"

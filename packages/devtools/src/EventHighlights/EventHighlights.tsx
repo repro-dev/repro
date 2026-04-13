@@ -1,5 +1,5 @@
 import { Grid, InlineBlock, Row } from '@jsxstyle/react'
-import { FX, colors } from '@repro/design'
+import { color, FX } from '@repro/design'
 import {
   InteractionType,
   LogLevel,
@@ -12,7 +12,7 @@ import { ElapsedMarker, usePlayback } from '@repro/playback'
 import { LoaderIcon } from 'lucide-react'
 import React, { Fragment, useEffect, useState } from 'react'
 import AutoSizer from 'react-virtualized-auto-sizer'
-import { FixedSizeList, ListChildComponentProps } from 'react-window'
+import { FixedSizeList } from 'react-window'
 import { distinctUntilChanged } from 'rxjs'
 import { ConsoleEntry } from './ConsoleEntry'
 import { InteractionEntry } from './InteractionEntry'
@@ -41,7 +41,7 @@ function shouldIncludeEvent(event: SourceEvent) {
 
 export const EventHighlights: React.FC = () => {
   const playback = usePlayback()
-  const [userEvents, setUserEvents] = useState<Array<[number, SourceEvent]>>([])
+  const [userEvents, setUserEvents] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export const EventHighlights: React.FC = () => {
         const duration = playback.getDuration()
 
         const allSourceEvents = playback.getSourceEvents().toSource()
-        const events: Array<[number, SourceEvent]> = []
+        const events: Array = []
 
         for (let i = 0, len = allSourceEvents.length; i < len; i++) {
           const dataView = allSourceEvents[i]
@@ -81,8 +81,8 @@ export const EventHighlights: React.FC = () => {
         gap={5}
         paddingBlock={10}
         paddingInline={15}
-        borderTop={`1px solid ${colors.slate['200']}`}
-        backgroundColor={colors.slate['50']}
+        borderTop={`1px solid ${color.border.default}`}
+        backgroundColor={color.bg.subtle}
       >
         <FX.Spin>
           <LoaderIcon size={16} />
@@ -123,9 +123,7 @@ export const EventHighlights: React.FC = () => {
   )
 }
 
-const UserEventRow: React.FC<
-  ListChildComponentProps<Array<[number, SourceEvent]>>
-> = ({ index, style, data: userEvents }) => {
+const UserEventRow: React.FC = ({ index, style, data: userEvents }) => {
   const indexedEvent = userEvents[index]
 
   if (!indexedEvent) {

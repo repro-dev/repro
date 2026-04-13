@@ -1,6 +1,6 @@
 import { Block, Inline, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { colors } from '@repro/design'
+import { color, colors } from '@repro/design'
 import { ReduxDispatchEvent } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import React, { useState } from 'react'
@@ -13,12 +13,7 @@ interface Props {
   onSelect: () => void
 }
 
-export const ActionRow: React.FC<Props> = ({
-  event,
-  index,
-  isSelected,
-  onSelect,
-}) => {
+export const ActionRow: React.FC = ({ event, index, isSelected, onSelect }) => {
   const playback = usePlayback()
   const [expanded, setExpanded] = useState(false)
 
@@ -48,9 +43,9 @@ export const ActionRow: React.FC<Props> = ({
 
   return (
     <Block
-      backgroundColor={isSelected ? colors.blue['50'] : 'transparent'}
-      hoverBackgroundColor={isSelected ? colors.blue['50'] : colors.slate['50']}
-      borderBottom={`1px solid ${colors.slate['100']}`}
+      backgroundColor={isSelected ? color.infoTint : 'transparent'}
+      hoverBackgroundColor={isSelected ? color.infoTint : color.bg.subtle}
+      borderBottom={`1px solid ${color.bg.hover}`}
     >
       <Row
         alignItems="center"
@@ -71,7 +66,7 @@ export const ActionRow: React.FC<Props> = ({
 
         <Inline
           fontSize={11}
-          color={colors.blue['700']}
+          color={color.primary}
           fontWeight={500}
           flexShrink={0}
         >
@@ -80,7 +75,7 @@ export const ActionRow: React.FC<Props> = ({
 
         <Inline
           fontSize={10}
-          color={colors.slate['500']}
+          color={color.text.muted}
           fontFamily="monospace"
           overflow="hidden"
           textOverflow="ellipsis"
@@ -95,7 +90,7 @@ export const ActionRow: React.FC<Props> = ({
           <Block
             fontSize={10}
             fontWeight={600}
-            color={colors.slate['500']}
+            color={color.text.muted}
             marginBottom={4}
           >
             Payload
@@ -105,7 +100,7 @@ export const ActionRow: React.FC<Props> = ({
           <Block
             fontSize={10}
             fontWeight={600}
-            color={colors.slate['500']}
+            color={color.text.muted}
             marginTop={8}
             marginBottom={4}
           >

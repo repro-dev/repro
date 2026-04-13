@@ -1,6 +1,6 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { Button, colors } from '@repro/design'
+import { Button } from '@repro/design'
 import { JSONView } from '@repro/devtools'
 import { SourceEventType } from '@repro/domain'
 import {
@@ -51,17 +51,17 @@ export const Details: React.FC = () => {
         padding={10}
         alignItems="center"
         justifyContent="space-between"
-        backgroundColor={colors.slate['50']}
-        borderColor={colors.slate['300']}
+        backgroundColor={color.bg.subtle}
+        borderColor={color.border.strong}
         borderStyle="solid"
         borderWidth="0 0 1px"
       >
         <Block lineHeight={1.5}>
-          <Block fontSize={16} fontWeight={700} color={colors.blue['700']}>
+          <Block fontSize={16} fontWeight={700} color={color.primary}>
             {SourceEventType[selectedEvent.type]}
           </Block>
 
-          <Block fontSize={12} color={colors.slate['500']}>
+          <Block fontSize={12} color={color.text.muted}>
             {formatTime(selectedEvent.time, 'millis')} &middot;{' '}
             {prettyBytes(approxByteLength(selectedEvent))}
           </Block>
@@ -93,7 +93,7 @@ export const Details: React.FC = () => {
       <Block padding={10} overflow="hidden">
         <Block
           height={480}
-          borderColor={colors.slate['500']}
+          borderColor={color.text.muted}
           borderStyle="solid"
           borderWidth={1}
         >

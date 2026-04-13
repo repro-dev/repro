@@ -1,5 +1,5 @@
 import { Block } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color, colors } from '@repro/design'
 import React, { MutableRefObject, useEffect, useRef } from 'react'
 import { Subscription, fromEvent, map, switchMap, take, takeUntil } from 'rxjs'
 import { usePlayback } from '../hooks'
@@ -21,10 +21,10 @@ function useCallbackRef<T extends (...args: any[]) => unknown>(
   return ref
 }
 
-export const RangeTimeline: React.FC<Props> = ({ onChange }) => {
+export const RangeTimeline: React.FC = ({ onChange }) => {
   const playback = usePlayback()
   const onChangeRef = useCallbackRef(onChange)
-  const containerRef = useRef() as MutableRefObject<HTMLDivElement>
+  const containerRef = useRef() as MutableRefObject
 
   useEffect(() => {
     const subscription = new Subscription()
@@ -114,19 +114,13 @@ export const RangeTimeline: React.FC<Props> = ({ onChange }) => {
       }
 
       // Direct events
-      const lowerPointerDown$ = fromEvent<PointerEvent>(
-        lowerBoundHandle,
-        'pointerdown'
-      )
+      const lowerPointerDown$ = fromEvent(lowerBoundHandle, 'pointerdown')
 
-      const upperPointerDown$ = fromEvent<PointerEvent>(
-        upperBoundHandle,
-        'pointerdown'
-      )
+      const upperPointerDown$ = fromEvent(upperBoundHandle, 'pointerdown')
 
       // Indirect events
-      const pointerMove$ = fromEvent<PointerEvent>(window, 'pointermove')
-      const pointerUp$ = fromEvent<PointerEvent>(window, 'pointerup')
+      const pointerMove$ = fromEvent(window, 'pointermove')
+      const pointerUp$ = fromEvent(window, 'pointerup')
 
       subscription.add(
         lowerPointerDown$
@@ -239,15 +233,12 @@ function createBoundHandleElement(anchor: 'left' | 'right') {
   ])
 
   const head = createElement([
-    ['backgroundColor', colors.blue['700']],
+    ['backgroundColor', color.primary],
     ['height', '12px'],
   ])
 
   const tail = createElement([
-    [
-      'borderColor',
-      `${colors.blue['700']} transparent transparent transparent`,
-    ],
+    ['borderColor', `${color.primary} transparent transparent transparent`],
     ['borderStyle', 'solid'],
     ['borderWidth', '6px'],
   ])
@@ -257,7 +248,7 @@ function createBoundHandleElement(anchor: 'left' | 'right') {
   return elem
 }
 
-function createElement(styles: Array<[keyof CSSStyleDeclaration, string]>) {
+function createElement(styles: Array) {
   const elem = document.createElement('div')
 
   for (const [key, value] of styles) {

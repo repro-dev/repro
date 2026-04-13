@@ -1,7 +1,7 @@
 import { Inline } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color, colors } from '@repro/design'
 import { VElement } from '@repro/domain'
-import React, { Fragment, PropsWithChildren } from 'react'
+import React, { Fragment } from 'react'
 import { FONT_SIZE } from './constants'
 import { Container } from './Container'
 
@@ -9,7 +9,7 @@ interface Props {
   node: VElement
 }
 
-const Open: React.FC<Props> = ({ node }) => (
+const Open: React.FC = ({ node }) => (
   <Container>
     <Syntax>{`<`}</Syntax>
     <TagName>{node.tagName}</TagName>
@@ -20,7 +20,7 @@ const Open: React.FC<Props> = ({ node }) => (
   </Container>
 )
 
-const Close: React.FC<Props> = ({ node }) => (
+const Close: React.FC = ({ node }) => (
   <Container>
     <Syntax>{`</`}</Syntax>
     <TagName>{node.tagName}</TagName>
@@ -33,18 +33,15 @@ export const ElementR = {
   Close,
 }
 
-const Syntax: React.FC<PropsWithChildren> = ({ children }) => (
-  <Inline color={colors.slate['500']}>{children}</Inline>
+const Syntax: React.FC = ({ children }) => (
+  <Inline color={color.text.muted}>{children}</Inline>
 )
 
-const TagName: React.FC<PropsWithChildren> = ({ children }) => (
+const TagName: React.FC = ({ children }) => (
   <Inline color={colors.pink['700']}>{children}</Inline>
 )
 
-const Attribute: React.FC<{ name: string; value: string | null }> = ({
-  name,
-  value,
-}) => (
+const Attribute: React.FC = ({ name, value }) => (
   <Inline marginLeft={FONT_SIZE / 2}>
     <Inline color={colors.amber['700']}>{name}</Inline>
 

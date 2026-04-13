@@ -1,14 +1,13 @@
 import { Block, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import { RequestType } from '@repro/domain'
 import { FetchGroup, WebSocketGroup } from '@repro/source-utils'
 // FIXME: re-export `JsxstyleProps`
 // @ts-expect-error Cannot get declaration from npm-forks
-import { JsxstyleProps } from 'jsxstyle/lib/types'
 import prettyBytes from 'pretty-bytes'
 import prettyMilliseconds from 'pretty-ms'
-import React, { PropsWithChildren, useState } from 'react'
+import React, { useState } from 'react'
 import { SeekAction } from '../SeekAction'
 
 interface Props {
@@ -43,11 +42,7 @@ function getRequestTiming(group: FetchGroup | WebSocketGroup): number | null {
   return group.responseTime - group.requestTime
 }
 
-export const NetworkRow: React.FC<Props> = ({
-  eventGroup,
-  onSelect,
-  selected,
-}) => {
+export const NetworkRow: React.FC = ({ eventGroup, onSelect, selected }) => {
   const [hover, setHover] = useState(false)
 
   function onMouseEnter() {
@@ -59,10 +54,10 @@ export const NetworkRow: React.FC<Props> = ({
   }
 
   const bgColor = selected
-    ? colors.blue['100']
+    ? color.primarySubtle
     : hover
-    ? colors.slate['100']
-    : colors.white
+    ? color.bg.hover
+    : color.bg.surface
 
   const startTime =
     eventGroup.type === 'fetch' ? eventGroup.requestTime : eventGroup.openTime
@@ -90,9 +85,7 @@ export const NetworkRow: React.FC<Props> = ({
       overflowX="hidden"
       fontSize={11}
       color={
-        status !== null && status > 399
-          ? colors.rose['700']
-          : colors.slate['700']
+        status !== null && status > 399 ? color.danger : color.text.secondary
       }
       cursor="default"
       props={{ onClick: onSelect, onMouseEnter, onMouseLeave }}
@@ -102,7 +95,7 @@ export const NetworkRow: React.FC<Props> = ({
         paddingH={10}
         position="relative"
         backgroundColor={bgColor}
-        color={colors.slate['500']}
+        color={color.text.muted}
         lineHeight={1.25}
         cursor="pointer"
       >
@@ -127,7 +120,7 @@ export const NetworkRow: React.FC<Props> = ({
       <Cell
         overflow="hidden"
         backgroundColor={bgColor}
-        color={colors.slate['900']}
+        color={color.text.default}
       >
         <Block overflow="hidden" whiteSpace="nowrap" textOverflow="ellipsis">
           {url}
@@ -151,16 +144,13 @@ export const NetworkRow: React.FC<Props> = ({
   )
 }
 
-const Cell: React.FC<PropsWithChildren<JsxstyleProps<false>>> = ({
-  children,
-  ...props
-}) => (
+const Cell: React.FC = ({ children, ...props }) => (
   <Row
     alignSelf="stretch"
     alignItems="center"
     paddingV={10}
     paddingH={10}
-    borderLeft={`1px solid ${colors.slate['200']}`}
+    borderLeft={`1px solid ${color.border.default}`}
     lineHeight={1.25}
     {...props}
   >
