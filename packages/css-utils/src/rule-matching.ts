@@ -50,14 +50,7 @@ export function extractStylesheetRules(doc: Document): Array<CapturedCSSRule> {
 
   const styleElements = Array.from(doc.querySelectorAll('style'))
   for (const styleEl of styleElements) {
-    if (styleEl.sheet) {
-      try {
-        const sheetRules = extractSheetRules(styleEl.sheet, true)
-        rules.push(...sheetRules)
-      } catch {
-        // Ignore
-      }
-    } else if (styleEl.textContent) {
+    if (!styleEl.sheet && styleEl.textContent) {
       const cssRules = parseInlineCSS(styleEl.textContent)
       for (const item of cssRules) {
         rules.push({
@@ -133,6 +126,9 @@ function extractSheetRules(
           isInline: false,
           isCrossOrigin: false,
         })
+      } else if (cssRule instanceof CSSSupportsRule) {
+        const innerRules = extractSupportsRules(cssRule, mediaCondition)
+        rules.push(...innerRules)
       }
     }
   } catch {
@@ -154,6 +150,39 @@ function extractMediaRules(
 
   try {
     const cssRules = Array.from(mediaRule.cssRules)
+    for (const cssRule of cssRules) {
+      if (cssRule instanceof CSSStyleRule) {
+        rules.push({
+          selector: cssRule.selectorText,
+          declarations: extractDeclarations(cssRule.style),
+          specificity: calculateSpecificity(cssRule.selectorText),
+          sourceStylesheet: null,
+          sourceLine: null,
+          mediaCondition: combinedMedia,
+          isInline: false,
+          isCrossOrigin: false,
+        })
+      }
+    }
+  } catch {
+    // Ignore
+  }
+
+  return rules
+}
+
+function extractSupportsRules(
+  supportsRule: CSSSupportsRule,
+  parentMedia: string | null
+): Array<CapturedCSSRule> {
+  const rules: Array<CapturedCSSRule> = []
+  const supportsCondition = supportsRule.conditionText
+  const combinedMedia = parentMedia
+    ? parentMedia + ' and ' + supportsCondition
+    : supportsCondition
+
+  try {
+    const cssRules = Array.from(supportsRule.cssRules)
     for (const cssRule of cssRules) {
       if (cssRule instanceof CSSStyleRule) {
         rules.push({
@@ -218,8 +247,6 @@ export function matchRulesToElement(
   rules: Array<CapturedCSSRule>
 ): Array<MatchedRule> {
   const matched: Array<MatchedRule> = []
-  const elementStyle =
-    element.ownerDocument?.defaultView?.getComputedStyle(element) ?? null
 
   for (const rule of rules) {
     if (rule.isCrossOrigin) {
@@ -228,18 +255,13 @@ export function matchRulesToElement(
 
     try {
       if (matchesSelector(element, rule.selector)) {
-        const overriddenDeclarations = computeOverriddenDeclarations(
-          rule.declarations,
-          elementStyle
-        )
-
         matched.push({
           rule,
           matchedSelector: rule.selector,
           isInherited: false,
           inheritedFrom: null,
-          isOverridden: overriddenDeclarations.size > 0,
-          overriddenDeclarations,
+          isOverridden: false,
+          overriddenDeclarations: new Set<string>(),
         })
       }
     } catch {
@@ -317,6 +339,13 @@ function hasInheritedProperty(declarations: CSSStyleDeclarationDict): boolean {
   return Object.keys(declarations).some(key => inheritedProperties.has(key))
 }
 
+type PriorityEntry = {
+  specificity: Specificity
+  value: string
+  hasImportant: boolean
+  sourceOrder: number
+}
+
 export function computeOverrideState(
   matchedRules: Array<MatchedRule>,
   computedStyle: CSSStyleDeclaration | null
@@ -329,49 +358,62 @@ export function computeOverrideState(
     }))
   }
 
-  const propertyPriority: Map<
-    string,
-    { specificity: Specificity; value: string }
-  > = new Map()
+  const propertyPriority: Map<string, PriorityEntry> = new Map()
 
-  for (const matchedRule of matchedRules) {
+  return matchedRules.map((matchedRule, i) => {
     const overridden = new Set<string>()
 
     for (const [prop, value] of Object.entries(matchedRule.rule.declarations)) {
+      const hasImportant = declarationHasImportant(value)
       const existing = propertyPriority.get(prop)
+
       if (existing) {
-        overridden.add(prop)
+        const cmp = comparePriority(existing, {
+          specificity: matchedRule.rule.specificity,
+          value,
+          hasImportant,
+          sourceOrder: i,
+        })
+        if (cmp >= 0) {
+          overridden.add(prop)
+        } else {
+          propertyPriority.set(prop, {
+            specificity: matchedRule.rule.specificity,
+            value,
+            hasImportant,
+            sourceOrder: i,
+          })
+        }
       } else {
         propertyPriority.set(prop, {
           specificity: matchedRule.rule.specificity,
           value,
+          hasImportant,
+          sourceOrder: i,
         })
       }
     }
 
-    matchedRule.overriddenDeclarations = overridden
-    matchedRule.isOverridden = overridden.size > 0
-  }
-
-  return matchedRules
+    return {
+      ...matchedRule,
+      overriddenDeclarations: overridden,
+      isOverridden: overridden.size > 0,
+    }
+  })
 }
 
-function computeOverriddenDeclarations(
-  declarations: CSSStyleDeclarationDict,
-  computedStyle: CSSStyleDeclaration | null
-): Set<string> {
-  const overridden = new Set<string>()
+function declarationHasImportant(value: string): boolean {
+  if (!value) return false
+  return value.includes('!important')
+}
 
-  if (!computedStyle) return overridden
-
-  for (const prop of Object.keys(declarations)) {
-    const computedValue = computedStyle.getPropertyValue(prop)
-    if (computedValue && computedValue !== declarations[prop]) {
-      overridden.add(prop)
-    }
+function comparePriority(a: PriorityEntry, b: PriorityEntry): number {
+  if (a.hasImportant !== b.hasImportant) {
+    return a.hasImportant ? -1 : 1
   }
-
-  return overridden
+  const specCmp = compareSpecificity(b.specificity, a.specificity)
+  if (specCmp !== 0) return specCmp
+  return b.sourceOrder - a.sourceOrder
 }
 
 function parseInlineCSS(cssText: string): Array<{

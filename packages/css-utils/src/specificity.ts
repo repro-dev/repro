@@ -18,10 +18,6 @@ const SPECIFICITY_PARTS = 3
 export function calculateSpecificity(selector: string): Specificity {
   const specificity: Specificity = [0, 0, 0]
 
-  if (selector.includes(':where(')) {
-    return specificity
-  }
-
   const tokens = tokenizeSelector(selector)
 
   let inNotIsHas = 0
