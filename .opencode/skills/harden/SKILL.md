@@ -3,6 +3,8 @@ name: harden
 description: Load when asked to make UI resilient, handle edge cases, or improve error handling in UI code.
 ---
 
+# Harden
+
 Strengthen interfaces against edge cases, errors, internationalization issues, and real-world usage scenarios that break idealized designs.
 
 ## Assess Hardening Needs
@@ -100,11 +102,11 @@ Systematically improve resilience:
 - Avoid fixed widths on text containers
 
 ```jsx
-// ❌ Bad: Assumes short English text
-<button className="w-24">Submit</button>
+// ❌ Bad: Fixed width that breaks with translations
+<button style={{ width: '6rem' }}>Submit</button>
 
 // ✅ Good: Adapts to content
-<button className="px-4 py-2">Submit</button>
+<button>Submit</button>
 ```
 
 **RTL (Right-to-Left) support**:
@@ -177,14 +179,24 @@ const handleSuccess = (data: Data) => {
 
 const cancel = fork(handleError)(handleSuccess)(fetchDataFuture);
 
-{
-  error && (
-    <ErrorMessage>
-      <p>Failed to load data. {error.message}</p>
-      <button onClick={retry}>Try again</button>
-    </ErrorMessage>
-  );
-}
+// Cancel on cleanup
+useEffect(() => {
+  return () => {
+    cancel();
+  };
+}, []);
+
+return (
+  <>
+    {error && (
+      <ErrorMessage>
+        <p>Failed to load data. {error.message ?? "Unknown error"}</p>
+        <button onClick={retry}>Try again</button>
+      </ErrorMessage>
+    )}
+    {/* ... rest of component */}
+  </>
+);
 ```
 
 > **Agentic tool errors (AGENTS.md hard requirement)**: Every error response from an
@@ -315,9 +327,10 @@ const cancel = fork(handleError)(handleSuccess)(fetchDataFuture);
 
 ```css
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }
