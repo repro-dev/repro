@@ -89,7 +89,7 @@ import {
   transition,
   focusRing,
   focusWithinRing,
-} from "@repro/design";
+} from '@repro/design'
 ```
 
 | Category      | Key tokens                                                                                                                      | Use for                                                                                |
@@ -110,34 +110,34 @@ For full token tables with every value, read `tokens.md`.
 
 ## Component Selection Guide
 
-| I need to...                           | Use                                                     |
-| -------------------------------------- | ------------------------------------------------------- |
-| Display a clickable action             | `Button` with `variant`, `context`, `size`              |
-| Collect text input                     | `Input` (single line or textarea via `rows` prop)       |
-| Toggle a boolean setting               | `Toggle` with `label`, `checked`, `onChange`            |
-| Select from mutually exclusive options | `ToggleGroup` with `options`, `selected`, `onChange`    |
-| Show contextual feedback (inline)      | `Alert` with `type` (info/success/warning/danger)       |
-| Show a modal dialog                    | `Modal` with `width`, `height` + content as children    |
-| Show a side panel                      | `Drawer` with `open`, `onClose` + content as children   |
-| Display a tooltip                      | `Tooltip` wrapping the trigger element                  |
-| Show a loading spinner                 | `FX.Spin` wrapping `LoaderIcon` from lucide-react       |
-| Show a pulsing indicator               | `FX.Pulse` wrapping the animated element                |
-| Display a form field error             | `FormFieldError` with `error` from react-hook-form      |
-| Display a field label                  | `Label` with optional `icon` and `optional` flag        |
-| Render content in a portal             | `Portal` (must be inside a `PortalRootProvider`)        |
-| Render content in an iframe            | `FrameRealm`                                            |
-| Display a card container               | `Card` with optional `fullBleed`, `height`, `padding`   |
-| Show a progress bar                    | `Meter` with `value`, `min`, `max`                      |
-| Display an avatar                      | `Avatar` with `email`, optional `name`, `mode`, `size`  |
-| Display key-value data                 | `DefinitionList` with `title`, `pairs`                  |
-| Display JSON/object data               | `JSONView` from `@repro/devtools` (not `@repro/design`) |
-| Delay rendering children               | `Delay` with optional `duration`                        |
-| Show a draggable resize handle         | `DragHandle` with `edge`, drag callbacks                |
-| Display the Repro logo                 | `Logo` with optional `inverted`, `size`, `iconOnly`     |
-| Style inline text as a link            | `Link` (visual only — no navigation)                    |
-| Build a page layout                    | See `layouts.md` — use the decision tree                |
-| Stack children vertically              | `Stack` with `gap` (spacing token key)                  |
-| Center content                         | `Center` with optional `maxWidth`                       |
+| I need to...                           | Use                                                                   |
+| -------------------------------------- | --------------------------------------------------------------------- |
+| Display a clickable action             | `Button` with `variant`, `context`, `size`                            |
+| Collect text input                     | `Input` (single line or textarea via `rows` prop)                     |
+| Toggle a boolean setting               | `Toggle` with `label`, `checked`, `onChange`                          |
+| Select from mutually exclusive options | `ToggleGroup` with `options`, `selected`, `onChange`                  |
+| Show contextual feedback (inline)      | `Alert` with `type` (info/success/warning/danger)                     |
+| Show a modal dialog                    | `Modal` with `width`, `height` + content as children                  |
+| Show a side panel                      | `Drawer` with `open`, `onClose` + content as children                 |
+| Display a tooltip                      | `Tooltip` wrapping the trigger element                                |
+| Show a loading spinner                 | `FX.Spin` wrapping `LoaderIcon` from lucide-react                     |
+| Show a pulsing indicator               | `FX.Pulse` wrapping the animated element                              |
+| Display a form field error             | `FormFieldError` with `error` from react-hook-form                    |
+| Display a field label                  | `Label` with optional `icon` and `optional` flag                      |
+| Render content in a portal             | `Portal` (must be inside a `PortalRootProvider`)                      |
+| Render content in an iframe            | `FrameRealm`                                                          |
+| Display a card container               | `Card` with optional `fullBleed`, `height`, `padding`                 |
+| Show a progress bar                    | `Meter` with `value`, `min`, `max`                                    |
+| Display an avatar                      | `Avatar` with `email`, optional `name`, `mode`, `size`                |
+| Display key-value data                 | `DefinitionList` with `title`, `pairs`                                |
+| Display JSON/object data               | `JSONView` from `@repro/devtools` (not `@repro/design`)               |
+| Delay rendering children               | `Delay` with optional `duration`                                      |
+| Show a draggable resize handle         | `DragHandle` with `edge`, drag callbacks                              |
+| Display the Repro logo                 | `Logo` with optional `inverted`, `size`, `iconOnly`                   |
+| Style inline text as a link            | `Link` for inline text links; supports semantic navigation via `href` |
+| Build a page layout                    | See `layouts.md` — use the decision tree                              |
+| Stack children vertically              | `Stack` with `gap` (spacing token key)                                |
+| Center content                         | `Center` with optional `maxWidth`                                     |
 
 ### When to Create vs. Compose
 
@@ -151,14 +151,14 @@ For full token tables with every value, read `tokens.md`.
 
 ## Common API Props
 
-| Prop       | Type                                                                      | Components                              |
-| ---------- | ------------------------------------------------------------------------- | --------------------------------------- |
-| `size`     | `'small' \| 'medium' \| 'large'`                                          | Button, Input (also `'xlarge'`), Toggle |
-| `variant`  | `'contained' \| 'outlined' \| 'text'`                                     | Button                                  |
-| `context`  | `'info' \| 'success' \| 'warning' \| 'danger' \| 'neutral' \| 'inverted'` | Button                                  |
-| `context`  | `'normal' \| 'error'`                                                     | Input                                   |
-| `disabled` | `boolean`                                                                 | Button, Input, AgenticInput             |
-| `rounded`  | `boolean`                                                                 | Button, Toggle                          |
+| Prop       | Type                                                        | Components                              |
+| ---------- | ----------------------------------------------------------- | --------------------------------------- |
+| `size`     | `'small' \| 'medium' \| 'large'`                            | Button, Input (also `'xlarge'`), Toggle |
+| `variant`  | `'contained' \| 'outlined' \| 'text'`                       | Button                                  |
+| `context`  | `'info' \| 'success' \| 'warning' \| 'danger' \| 'neutral'` | Button                                  |
+| `context`  | `'normal' \| 'error'`                                       | Input                                   |
+| `disabled` | `boolean`                                                   | Button, Input, AgenticInput             |
+| `rounded`  | `boolean`                                                   | Button, Toggle                          |
 
 ---
 
@@ -254,7 +254,7 @@ import { color } from '@repro/design'
 <p style={{ fontSize: "14px", lineHeight: 1.5 }}>Caption text</p>;
 
 // After
-import { textStyles } from "@repro/design";
+import { textStyles } from '@repro/design'
 <Block component="p" {...textStyles.body}>
   Caption text
 </Block>;
@@ -277,7 +277,7 @@ import { textStyles } from "@repro/design";
 <button onClick={handleSubmit} className="btn-primary">Save</button>
 
 // After
-<Button variant="primary" onClick={handleSubmit}>Save</Button>
+<Button variant="contained" onClick={handleSubmit}>Save</Button>
 ```
 
 **6. Prop hygiene** — remove all inline `style={{}}` props; use jsxstyle appearance props or design tokens.
@@ -357,8 +357,8 @@ This mirrors the agentic tool error requirement in AGENTS.md — the same three-
 - Destructive actions: use `<Button context="danger">` — copy must name the thing being destroyed.
 
 ```tsx
-<Button variant="primary">Start recording</Button>
-<Button variant="secondary" context="danger">Delete recording</Button>
+<Button variant="contained">Start recording</Button>
+<Button variant="outlined" context="danger">Delete recording</Button>
 ```
 
 ### Help Text
@@ -387,7 +387,7 @@ See the `## Empty State Pattern` section below for the full five-part formula.
 
 - Title: imperative verb + object — "Delete this recording?"
 - Body: one sentence on consequence; no apology language.
-- Use `<Modal>` + `<Button context="danger">` for destructive confirm; `<Button variant="secondary">` for cancel.
+- Use `<Modal>` + `<Button context="danger">` for destructive confirm; `<Button variant="outlined">` for cancel.
 
 ### Clarity Principles
 
@@ -412,7 +412,7 @@ Every list or grid surface must have an empty state. Use the five-part formula:
 ### Five-Part Formula
 
 1. **Icon** — communicates context at a glance.
-   - Implementation: 48×48 icon from `@repro/icons`; wrap in `<Block color={color.text.subtle}>`.
+   - Implementation: 48×48 icon from `lucide-react`; wrap in `<Block color={color.text.subtle}>`.
 
 2. **Heading** — names the empty state clearly (not "Nothing here").
    - Implementation: use `textStyles.heading3` spread; sentence case; max 5 words.
@@ -421,7 +421,7 @@ Every list or grid surface must have an empty state. Use the five-part formula:
    - Implementation: `<Block component="p" {...textStyles.body} color={color.text.secondary}>`.
 
 4. **CTA** — primary action the user should take.
-   - Implementation: `<Button variant="primary">` with a specific verb ("Start recording", "Invite a teammate").
+   - Implementation: `<Button variant="contained">` with a specific verb ("Start recording", "Invite a teammate").
 
 5. **Illustration** — optional; only if the surface warrants it (first-run, marketing-adjacent).
    - Implementation: omit by default; add only when product explicitly requests it.
@@ -429,9 +429,9 @@ Every list or grid surface must have an empty state. Use the five-part formula:
 ### jsxstyle Skeleton
 
 ```tsx
-import { color, spacing, textStyles } from "@repro/design";
-import { Button } from "@repro/design";
-import { SomeIcon } from "@repro/icons";
+import { color, spacing, textStyles } from '@repro/design'
+import { Button } from '@repro/design'
+// Import `SomeIcon` from the icon library used in your app (e.g. lucide-react).
 
 <Col alignItems="center" gap={spacing.lg} padding={spacing.xl}>
   <Block color={color.text.subtle}>
@@ -443,7 +443,7 @@ import { SomeIcon } from "@repro/icons";
   <Block component="p" {...textStyles.body} color={color.text.secondary}>
     Start a session to capture your first recording.
   </Block>
-  <Button variant="primary" onClick={onStart}>
+  <Button variant="contained" onClick={onStart}>
     Start recording
   </Button>
 </Col>;
@@ -459,4 +459,4 @@ import { SomeIcon } from "@repro/icons";
 
 ### Component Promotion
 
-If the same five-part structure is used in 3 or more places, extract it to an `<EmptyState>` component in `@repro/design`. Read `design-package.md` for component-authoring conventions before creating it.
+If the same five-part structure is used in 3 or more places, standardize on the existing `<EmptyState>` compound component from `@repro/design` rather than reimplementing the pattern ad hoc. If the current API does not support the needed use case, read `design-package.md` for component-authoring conventions before extending it.
