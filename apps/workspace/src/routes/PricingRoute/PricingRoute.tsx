@@ -23,13 +23,15 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { getEntitlementMeta } from './entitlementMeta'
 
-function collectFeatures(plans: Array<BillingPlanWithEntitlements>): string[] {
+function collectFeatures(plans: BillingPlanWithEntitlements[]): string[] {
   const featureSet = new Set<string>()
+
   for (const plan of plans) {
     for (const entitlement of plan.entitlements) {
       featureSet.add(entitlement.feature)
     }
   }
+
   return Array.from(featureSet)
 }
 
@@ -54,7 +56,7 @@ export const PricingRoute: React.FC = () => {
 
   const handleSelectPlan = useCallback(
     (planId: string) => {
-      if (sessionLoading) {
+      if (sessionLoading || checkoutInProgressRef.current) {
         return
       }
 
@@ -63,10 +65,6 @@ export const PricingRoute: React.FC = () => {
         navigate(
           `/account/register?redirect=${encodeURIComponent(destination)}`
         )
-        return
-      }
-
-      if (checkoutInProgressRef.current) {
         return
       }
 
@@ -81,12 +79,14 @@ export const PricingRoute: React.FC = () => {
         })
         .pipe(
           fork((err: Error) => {
+            checkoutInProgressRef.current = false
             setLoadingPlanId(null)
             setCheckoutError(err.message ?? 'An unexpected error occurred')
-          })(result => {
+          })(({ transactionId }) => {
+            checkoutInProgressRef.current = false
             setLoadingPlanId(null)
             billingClient.openCheckout(
-              { transactionId: result.transactionId },
+              { transactionId },
               {
                 onCompleted: () => setCheckoutConfirmed(true),
                 onCancelled: () => {},
@@ -98,9 +98,6 @@ export const PricingRoute: React.FC = () => {
     [apiClient, billingClient, session, sessionLoading, navigate]
   )
 
-  // When the user returns from login/register with a planId in the URL and is
-  // authenticated, auto-trigger checkout for the originally selected plan.
-  // Clear planId from the URL immediately to prevent re-triggering on refresh.
   const planIdFromUrl = new URLSearchParams(location.search).get('planId')
   useEffect(() => {
     if (!sessionLoading && session && planIdFromUrl) {
@@ -191,7 +188,7 @@ export const PricingRoute: React.FC = () => {
         <PageFrame.Title>Plans</PageFrame.Title>
       </PageFrame.Header>
       <PageFrame.Body>
-        {checkoutError && <Text color={color.danger}>{checkoutError}</Text>}
+        {checkoutError && <Alert type="error">{checkoutError}</Alert>}
         <Grid
           gridTemplateColumns={`repeat(${plans.length}, 1fr)`}
           gap={spacing['2xl']}
@@ -248,10 +245,10 @@ export const PricingRoute: React.FC = () => {
                   <Button
                     variant="contained"
                     context="info"
-                    onClick={() => handleSelectPlan(plan.id)}
                     disabled={loadingPlanId !== null}
+                    onClick={() => handleSelectPlan(plan.id)}
                   >
-                    {loadingPlanId === plan.id ? 'Loading…' : 'Get started'}
+                    {loadingPlanId === plan.id ? 'Loading' : 'Get started'}
                   </Button>
                 </Stack>
               </Card>

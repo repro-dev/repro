@@ -13,7 +13,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { FutureInstance, resolve } from 'fluture'
+import { FutureInstance, never, reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
@@ -74,20 +74,26 @@ function createMockApiClient(
   }
 }
 
+let lastCheckoutCallbacks: CheckoutCallbacks | undefined
+
+const mockBillingClient: BillingClient = {
+  init: mock.fn(),
+  openCheckout: mock.fn((_opts: unknown, callbacks?: CheckoutCallbacks) => {
+    void _opts
+    lastCheckoutCallbacks = callbacks
+  }),
+  closeCheckout: mock.fn(),
+}
+
 describe('PricingRoute', () => {
   it('renders plan cards normally', async () => {
     const mockApiClient = createMockApiClient((url: string) => {
       if (url === '/billing/plans') {
         return resolve({ items: mockPlans }) as FutureInstance<Error, unknown>
       }
+
       return resolve({}) as FutureInstance<Error, unknown>
     })
-
-    const mockBillingClient: BillingClient = {
-      init: mock.fn(),
-      openCheckout: mock.fn(),
-      closeCheckout: mock.fn(),
-    }
 
     render(
       <MemoryRouter initialEntries={['/pricing']}>
@@ -108,33 +114,90 @@ describe('PricingRoute', () => {
     assert.equal(screen.queryByRole('status'), null)
   })
 
-  it('shows success confirmation after checkout completes', async () => {
-    let capturedCallbacks: CheckoutCallbacks | undefined
-
+  it('shows loading while checkout is in flight', async () => {
     const mockApiClient = createMockApiClient((url: string) => {
       if (url === '/billing/plans') {
         return resolve({ items: mockPlans }) as FutureInstance<Error, unknown>
       }
+
+      return never as unknown as FutureInstance<Error, unknown>
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/pricing']}>
+        <ApiProvider
+          client={mockApiClient as Parameters<typeof ApiProvider>[0]['client']}
+        >
+          <BillingProvider config={{ token: '' }} client={mockBillingClient}>
+            <PricingRoute />
+          </BillingProvider>
+        </ApiProvider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      assert.ok(screen.getByRole('button', { name: /loading/i }))
+    })
+  })
+
+  it('calls openCheckout with transactionId when checkout succeeds', async () => {
+    const mockApiClient = createMockApiClient((url: string) => {
+      if (url === '/billing/plans') {
+        return resolve({ items: mockPlans }) as FutureInstance<Error, unknown>
+      }
+
       if (url === '/billing/checkout') {
-        return resolve({ transactionId: 'txn_123' }) as FutureInstance<
+        return resolve({ transactionId: 'txn-123' }) as FutureInstance<
           Error,
           unknown
         >
       }
+
       return resolve({}) as FutureInstance<Error, unknown>
     })
 
-    const mockOpenCheckout = mock.fn(
-      (_opts: unknown, cbs?: CheckoutCallbacks) => {
-        capturedCallbacks = cbs
-      }
+    render(
+      <MemoryRouter initialEntries={['/pricing']}>
+        <ApiProvider
+          client={mockApiClient as Parameters<typeof ApiProvider>[0]['client']}
+        >
+          <BillingProvider config={{ token: '' }} client={mockBillingClient}>
+            <PricingRoute />
+          </BillingProvider>
+        </ApiProvider>
+      </MemoryRouter>
     )
 
-    const mockBillingClient: BillingClient = {
-      init: mock.fn(),
-      openCheckout: mockOpenCheckout,
-      closeCheckout: mock.fn(),
-    }
+    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /get started/i }))
+    })
+
+    await waitFor(() => {
+      assert.equal((mockBillingClient.openCheckout as any).mock.calls.length, 1)
+      assert.deepEqual(
+        (mockBillingClient.openCheckout as any).mock.calls[0]!.arguments[0] as unknown,
+        { transactionId: 'txn-123' }
+      )
+    })
+  })
+
+  it('shows success confirmation after checkout completes', async () => {
+    const mockApiClient = createMockApiClient((url: string) => {
+      if (url === '/billing/plans') {
+        return resolve({ items: mockPlans }) as FutureInstance<Error, unknown>
+      }
+
+      if (url === '/billing/checkout') {
+        return resolve({ transactionId: 'txn-success' }) as FutureInstance<
+          Error,
+          unknown
+        >
+      }
+
+      return resolve({}) as FutureInstance<Error, unknown>
+    })
 
     render(
       <MemoryRouter initialEntries={['/pricing']}>
@@ -160,11 +223,11 @@ describe('PricingRoute', () => {
     })
 
     await waitFor(() => {
-      assert.ok(capturedCallbacks)
+      assert.ok(lastCheckoutCallbacks)
     })
 
     act(() => {
-      capturedCallbacks!.onCompleted?.()
+      lastCheckoutCallbacks!.onCompleted?.()
     })
 
     await waitFor(() => {
@@ -174,32 +237,20 @@ describe('PricingRoute', () => {
   })
 
   it('stays on pricing page after checkout cancelled', async () => {
-    let capturedCallbacks: CheckoutCallbacks | undefined
-
     const mockApiClient = createMockApiClient((url: string) => {
       if (url === '/billing/plans') {
         return resolve({ items: mockPlans }) as FutureInstance<Error, unknown>
       }
+
       if (url === '/billing/checkout') {
-        return resolve({ transactionId: 'txn_123' }) as FutureInstance<
+        return resolve({ transactionId: 'txn-cancel' }) as FutureInstance<
           Error,
           unknown
         >
       }
+
       return resolve({}) as FutureInstance<Error, unknown>
     })
-
-    const mockOpenCheckout = mock.fn(
-      (_opts: unknown, cbs?: CheckoutCallbacks) => {
-        capturedCallbacks = cbs
-      }
-    )
-
-    const mockBillingClient: BillingClient = {
-      init: mock.fn(),
-      openCheckout: mockOpenCheckout,
-      closeCheckout: mock.fn(),
-    }
 
     render(
       <MemoryRouter initialEntries={['/pricing']}>
@@ -225,14 +276,53 @@ describe('PricingRoute', () => {
     })
 
     await waitFor(() => {
-      assert.ok(capturedCallbacks)
+      assert.ok(lastCheckoutCallbacks)
     })
 
     act(() => {
-      capturedCallbacks!.onCancelled?.()
+      lastCheckoutCallbacks!.onCancelled?.()
     })
 
     assert.ok(screen.getByText('Pro'))
-    assert.equal(screen.queryByRole('status'), null)
+    assert.equal(screen.queryByText(/Thanks for subscribing/i), null)
+  })
+
+  it('shows inline error message when checkout API fails', async () => {
+    const mockApiClient = createMockApiClient((url: string) => {
+      if (url === '/billing/plans') {
+        return resolve({ items: mockPlans }) as FutureInstance<Error, unknown>
+      }
+
+      if (url === '/billing/checkout') {
+        return reject(new Error('checkout failed')) as FutureInstance<
+          Error,
+          unknown
+        >
+      }
+
+      return resolve({}) as FutureInstance<Error, unknown>
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/pricing']}>
+        <ApiProvider
+          client={mockApiClient as Parameters<typeof ApiProvider>[0]['client']}
+        >
+          <BillingProvider config={{ token: '' }} client={mockBillingClient}>
+            <PricingRoute />
+          </BillingProvider>
+        </ApiProvider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /get started/i }))
+    })
+
+    await waitFor(() => {
+      assert.ok(screen.getByText(/checkout failed/i))
+    })
   })
 })

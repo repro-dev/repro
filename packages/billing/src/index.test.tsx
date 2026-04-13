@@ -28,16 +28,6 @@ type GlobalWithWindow = {
   window?: PaddleWindow
 }
 
-type InitializeConfig = {
-  token: string
-  eventCallback?: (data: unknown) => void
-}
-
-type EventData = {
-  name?: string
-  [key: string]: unknown
-}
-
 function setupPaddleMock() {
   const calls: PaddleCalls = {
     'Environment.set': [],
@@ -96,10 +86,12 @@ describe('billing', () => {
         await Promise.resolve()
 
         expect(calls['Initialize']).toHaveLength(1)
-        // eventCallback is now the handleEvent wrapper, not the raw config value
-        const initArg = calls['Initialize']![0]![0] as InitializeConfig
-        expect(initArg['token']).toBe('test_token_123')
-        expect(typeof initArg['eventCallback']).toBe('function')
+        const initArg = calls['Initialize']![0]![0] as {
+          token: string
+          eventCallback?: (d: unknown) => void
+        }
+        expect(initArg.token).toBe('test_token_123')
+        expect(typeof initArg.eventCallback).toBe('function')
       })
 
       it('sets sandbox environment before initializing', async () => {
@@ -108,10 +100,10 @@ describe('billing', () => {
 
         const paddle = (globalThis as unknown as GlobalWithWindow).window!
           .Paddle as PaddleWindow['Paddle']
-        paddle['Environment']!.set = mock.fn(() => {
+        paddle.Environment.set = mock.fn(() => {
           callOrder.push('Environment.set')
         })
-        paddle['Initialize'] = mock.fn(() => {
+        paddle.Initialize = mock.fn(() => {
           callOrder.push('Initialize')
         }) as MockedFn
 
@@ -162,12 +154,15 @@ describe('billing', () => {
 
         client.init()
 
-        const handleEvent = (calls['Initialize']![0]![0] as InitializeConfig)
-          .eventCallback as (d: unknown) => void
+        const handleEvent = (
+          calls['Initialize']![0]![0] as {
+            eventCallback?: (d: unknown) => void
+          }
+        ).eventCallback as (d: unknown) => void
         handleEvent({ name: 'custom.event' })
 
         expect(received).toHaveLength(1)
-        expect((received[0] as EventData).name).toBe('custom.event')
+        expect((received[0] as { name?: string }).name).toBe('custom.event')
       })
 
       it('only initializes once', async () => {
@@ -261,9 +256,15 @@ describe('billing', () => {
         const client = createBillingClientFromConfig({
           token: 'test_token_123',
         })
+
         client.init()
-        const handleEvent = (calls['Initialize']![0]![0] as InitializeConfig)
-          .eventCallback as (d: unknown) => void
+
+        const handleEvent = (
+          calls['Initialize']![0]![0] as {
+            eventCallback?: (d: unknown) => void
+          }
+        ).eventCallback as (d: unknown) => void
+
         return { client, handleEvent }
       }
 
@@ -333,9 +334,14 @@ describe('billing', () => {
           token: 'test_token_123',
           eventCallback: (data: unknown) => globalEvents.push(data),
         })
+
         client.init()
-        const handleEvent = (calls['Initialize']![0]![0] as InitializeConfig)
-          .eventCallback as (d: unknown) => void
+
+        const handleEvent = (
+          calls['Initialize']![0]![0] as {
+            eventCallback?: (d: unknown) => void
+          }
+        ).eventCallback as (d: unknown) => void
 
         const completedFn = mock.fn()
         client.openCheckout(
