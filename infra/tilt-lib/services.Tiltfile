@@ -1,5 +1,3 @@
-load('./dependency_graph.Tiltfile', 'dependency_sync_paths', 'dependency_watch_paths', 'non_dependency_ignore_patterns')
-
 
 def _hash_suffix(s):
   """Return the first 6 hex chars of a deterministic hash of s.
@@ -117,27 +115,29 @@ def _dedupe_paths(paths):
 
 
 def service_watch_paths(svc, root_path):
+  # Services run dev servers (Vite, webpack, etc.) that handle their own file
+  # watching and hot reload. Tilt only needs to restart a service when its
+  # dependency manifest changes — not on every source file edit.
+  #
+  # Watching broad source trees here caused an infinite restart loop: moon
+  # build tasks regenerate files inside watched dirs on every startup, which
+  # Tilt interprets as a change and restarts again. (REP-873 tracks the
+  # long-term fix of moving codegen outputs out of src/.)
   paths = []
 
+  # pnpm-lock.yaml is the aggregate signal for any dependency change.
+  paths.append(os.path.join(root_path, 'pnpm-lock.yaml'))
+
+  # The service's own package.json signals script or direct-dep changes.
   app_dir = svc.get('app_dir', '')
   if app_dir:
-    paths.append(os.path.join(root_path, app_dir))
-
-  moon_project = svc.get('moon_project', '')
-  if moon_project:
-    paths.extend(dependency_sync_paths(moon_project, root_path, root_path))
+    paths.append(os.path.join(root_path, app_dir, 'package.json'))
 
   return _dedupe_paths(paths)
 
 
 def service_watch_ignores(svc, root_path):
-  ignores = list(LOCAL_SERVICE_WATCH_IGNORE_GLOBS)
-
-  moon_project = svc.get('moon_project', '')
-  if moon_project:
-    ignores.extend(non_dependency_ignore_patterns(moon_project, root_path, root_path))
-
-  return _dedupe_paths(ignores)
+  return list(LOCAL_SERVICE_WATCH_IGNORE_GLOBS)
 
 
 def wt_db_name(slug):
