@@ -238,11 +238,31 @@ If the planner returns `not ready` or includes unresolved questions that prevent
 
 ---
 
-## Phase 5: Resequence once using planner output
+## Phase 5: Classify risk, resequence once using planner output, then lock
 
 Do exactly one resequencing pass after planning.
 
-Use the planner's **Sequence Notes** and **Risk Notes** to:
+### Risk classification (runs before resequencing)
+
+For each issue with a completed plan, classify its risk profile using the planner's Sequence Notes and Risk Notes:
+
+| Signal             | Detection                                                                     |
+| ------------------ | ----------------------------------------------------------------------------- |
+| Security-sensitive | Plan touches auth, permissions, tokens, encryption, or user data models       |
+| Data model changes | Plan includes Prisma schema modifications, migrations, or database operations |
+| Multi-service      | Plan's Sequence Notes list files across 3+ packages/services                  |
+| High file count    | Plan lists 10+ files to write or modify                                       |
+
+Classification rules:
+
+- If 2+ signals are present: mark the issue as **high-risk**
+- If fewer than 2 signals: mark as **standard**
+
+Store the risk level alongside the issue in the status table for the rest of the run. The risk level drives reviewer spawning in Phase 7.
+
+### Resequencing
+
+Use the planner's **Sequence Notes** and **Risk Notes** (including the risk level just computed) to:
 
 - Prune issues that are not ready
 - Move issues to a later queued wave if planning revealed overlap or a missing dependency
@@ -357,7 +377,84 @@ For each completed implementation before review:
 
 If the implementation is later fixed during the bounded review loop, create a new local commit for the review-fix pass before re-running `review`. Do not rely on dirty worktree diffs.
 
-Launch `review` subagents for every completed implementation in batches of up to `--wave-concurrency` within the current phase.
+### Conditional reviewer spawning by risk level
+
+Spawn reviewers based on the risk level computed in Phase 5:
+
+**Standard-risk issues**: launch a single `review` agent using the standard prompt template below.
+
+**High-risk issues**: spawn 2–3 focused `review` agents in parallel, each with a scoped prompt:
+
+1. **Correctness + Security reviewer** — always spawned for high-risk issues
+2. **Architecture + Conventions reviewer** — always spawned for high-risk issues
+3. **Performance reviewer** — only spawned when data-heavy changes are detected (e.g. data model changes signal, large batch operations, streaming or pipeline patterns in Sequence Notes)
+
+All reviewers for a single issue launch within the same batch. A batch may have more concurrent review agents than `--wave-concurrency`, but is gated by **issue count**, not agent count.
+
+#### Scoped prompt templates
+
+Use these exact templates for each focused reviewer:
+
+**Correctness + Security reviewer** (always spawned for high-risk issues):
+
+```
+Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
+
+Focus exclusively on correctness and security:
+1. Load the `git-workflow` skill for the review checklist.
+2. Fetch Linear issue REP-xxx via Linear_get_issue.
+3. Review the committed branch diff with: `git diff main...HEAD`
+4. Evaluate: logic gaps, off-by-one errors, unhandled edge cases, error-path handling, async operation correctness (Futures not Promises per project conventions), and security implications (injection, auth bypass, data exposure, unsafe deserialization).
+5. Check AGENTS.md conventions for the affected packages.
+6. Return the structured output required by .opencode/agents/review.md — but only report findings in the correctness and security categories. Assign each finding `role: correctness-security` in the structured output (both correctness and security findings use the same role).
+```
+
+**Architecture + Conventions reviewer** (always spawned for high-risk issues):
+
+```
+Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
+
+Focus exclusively on architecture and conventions:
+1. Load the `git-workflow` skill for the review checklist.
+2. Fetch Linear issue REP-xxx via Linear_get_issue.
+3. Review the committed branch diff with: `git diff main...HEAD`
+4. Evaluate: side effects on other parts of the system, consistency with existing codebase patterns, approach alignment with stated architecture, and package-level AGENTS.md convention compliance.
+5. Check style/conventions (imports, naming, Prettier, no hardcoded values, design tokens).
+6. Return the structured output required by .opencode/agents/review.md — but only report findings in the architecture and conventions categories. Assign each finding `role: architecture-conventions` in the structured output (both architecture and conventions findings use the same role).
+```
+
+**Performance reviewer** (spawned only when data-heavy changes are detected):
+
+```
+Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
+
+Focus exclusively on performance:
+1. Load the `git-workflow` skill for the review checklist.
+2. Fetch Linear issue REP-xxx via Linear_get_issue.
+3. Review the committed branch diff with: `git diff main...HEAD`
+4. Evaluate: algorithmic complexity regressions, unnecessary iteration or duplication, missing indexes or query optimizations (if DB changes are present), unbuffered stream operations, large in-memory collections, and lack of pagination/cursor patterns where appropriate.
+5. Return the structured output required by .opencode/agents/review.md — but only report findings in the performance category. Assign each finding `role: performance` in the structured output.
+```
+
+### Finding merge and deduplication
+
+Each finding in the structured output includes a `category` field (correctness, security, architecture, conventions, or performance). Because combined reviewer roles (Correctness+Security, Architecture+Conventions) produce findings with multiple category values, deduplication uses the reviewer's role rather than category.
+
+- Correctness + Security reviewer → findings tagged `role: correctness-security`
+- Architecture + Conventions reviewer → findings tagged `role: architecture-conventions`
+- Performance reviewer → findings tagged `role: performance`
+
+For deduplication across reviewers, use the merge key: `<file-path>:<line-number>:<role>`
+
+Role vocabulary:
+
+- `correctness-security` — logic errors, off-by-one, unhandled edge cases, broken error paths, injection, auth bypass, data exposure, unsafe deserialization
+- `architecture-conventions` — side effects, pattern inconsistency, approach misalignment, import/naming/style violations, missing design tokens, package AGENTS.md violations
+- `performance` — algorithmic regressions, unnecessary iteration, missing pagination, large in-memory collections
+
+### Batched launch
+
+Launch `review` subagents for every completed implementation in batches of up to `--wave-concurrency` issues within the current phase.
 
 For this phase:
 
@@ -472,5 +569,5 @@ After stopping, if this session will not immediately continue:
 
 - Never commit on `main`.
 - Never write to `/tmp`; use `tmp/` under the relevant checkout or worktree.
-- Keep a simple status table in the response as you go.
+- Keep a simple status table in the response as you go. Include: issue ID, current phase, risk level (standard / high), and active retry waits.
 - Do not introduce a run log, resume flow, merge-watch loop, or other persistent control-plane machinery into this command.
