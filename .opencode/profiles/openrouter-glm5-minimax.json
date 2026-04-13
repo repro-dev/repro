@@ -6,7 +6,7 @@
       "model": "openrouter/minimax/minimax-m2.7"
     },
     "enrich-issues": {
-      "model": "openrouter/minimax/minimax-m2.7"
+      "model": "openrouter/z-ai/glm-5.1"
     },
     "ledger": {
       "model": "openrouter/minimax/minimax-m2.7"
@@ -15,7 +15,7 @@
       "model": "openrouter/minimax/minimax-m2.7"
     },
     "audit-skills": {
-      "model": "openrouter/minimax/minimax-m2.7"
+      "model": "openrouter/z-ai/glm-5.1"
     },
     "update-visual-baselines": {
       "model": "openrouter/minimax/minimax-m2.7"
