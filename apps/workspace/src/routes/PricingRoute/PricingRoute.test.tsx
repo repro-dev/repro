@@ -20,12 +20,28 @@ let currentSession: { id: string; email: string } | null = {
   email: 'test@example.com',
 }
 let currentSessionLoading = false
+let currentSearch = ''
 
 // Register module mocks BEFORE importing the component under test
 mock.module('@repro/auth', {
   namedExports: {
     useSession: () => currentSession,
     useSessionLoading: () => currentSessionLoading,
+  },
+})
+
+const mockNavigate = mock.fn((_path: string) => {
+  void _path
+})
+
+// Mock react-router hooks so they are controlled per-test.
+// MemoryRouter (from react-router-dom) was already loaded before this mock runs,
+// so it retains real react-router internals. Only the component's own hook calls
+// are intercepted here.
+mock.module('react-router', {
+  namedExports: {
+    useNavigate: () => mockNavigate,
+    useLocation: () => ({ search: currentSearch }),
   },
 })
 
@@ -65,8 +81,10 @@ const mockPlans: Array<BillingPlanWithEntitlements> = [
 afterEach(() => {
   cleanup()
   mockOpenCheckout.mock.resetCalls()
+  mockNavigate.mock.resetCalls()
   currentSession = { id: 'user-1', email: 'test@example.com' }
   currentSessionLoading = false
+  currentSearch = ''
 })
 
 function makeClient(checkoutFuture: FutureInstance<unknown, unknown>) {
@@ -235,6 +253,60 @@ describe('PricingRoute checkout', () => {
 
     await waitFor(() => {
       assert.equal(mockOpenCheckout.mock.calls.length, 1)
+    })
+  })
+
+  it('redirects to register with planId when unauthenticated', async () => {
+    currentSession = null
+    currentSessionLoading = false
+
+    render(
+      <MemoryRouter>
+        <ApiProvider client={makeClient(never)}>
+          <PricingRoute />
+        </ApiProvider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
+
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /get started/i }))
+    })
+
+    assert.equal(mockNavigate.mock.calls.length, 1)
+    const navigatedTo = mockNavigate.mock.calls[0]!.arguments[0] as string
+    assert.ok(
+      navigatedTo.startsWith('/account/register?redirect='),
+      `Expected redirect to register page, got: ${navigatedTo}`
+    )
+    assert.ok(
+      navigatedTo.includes(encodeURIComponent('/pricing?planId=')),
+      `Expected redirect to include planId, got: ${navigatedTo}`
+    )
+    // Checkout must not have been triggered for an unauthenticated user
+    assert.equal(mockOpenCheckout.mock.calls.length, 0)
+  })
+
+  it('auto-triggers checkout when returning authenticated with planId in URL', async () => {
+    currentSearch = '?planId=plan-pro'
+
+    render(
+      <MemoryRouter>
+        <ApiProvider
+          client={makeClient(resolve({ transactionId: 'txn-auto' }))}
+        >
+          <PricingRoute />
+        </ApiProvider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      assert.equal(mockOpenCheckout.mock.calls.length, 1)
+      assert.deepEqual(
+        mockOpenCheckout.mock.calls[0]!.arguments[0] as unknown,
+        { transactionId: 'txn-auto' }
+      )
     })
   })
 })

@@ -24,6 +24,20 @@ export interface BillingConfig {
   eventCallback?: (data: any) => void
 }
 
+function loadPaddleScript(): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (window.Paddle) {
+      resolve()
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js'
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Failed to load Paddle.js'))
+    document.head.appendChild(script)
+  })
+}
+
 function createBillingClient(config: BillingConfig) {
   let initialized = false
 
@@ -32,20 +46,25 @@ function createBillingClient(config: BillingConfig) {
       return
     }
 
-    if (!window.Paddle) {
-      return
-    }
+    loadPaddleScript()
+      .then(() => {
+        // Guard against concurrent calls resolving after first init completes
+        if (!window.Paddle || initialized) return
 
-    if (config.environment === 'sandbox') {
-      window.Paddle.Environment.set('sandbox')
-    }
+        if (config.environment === 'sandbox') {
+          window.Paddle.Environment.set('sandbox')
+        }
 
-    window.Paddle.Initialize({
-      token: config.token,
-      eventCallback: config.eventCallback,
-    })
+        window.Paddle.Initialize({
+          token: config.token,
+          eventCallback: config.eventCallback,
+        })
 
-    initialized = true
+        initialized = true
+      })
+      .catch((err: unknown) => {
+        console.error('Billing: failed to load Paddle.js', err)
+      })
   }
 
   function openCheckout(options: any) {

@@ -81,7 +81,7 @@ export const PricingRoute: React.FC = () => {
         .pipe(
           fork((err: Error) => {
             setLoadingPlanId(null)
-            setCheckoutError(err.message)
+            setCheckoutError(err.message ?? 'An unexpected error occurred')
           })(result => {
             setLoadingPlanId(null)
             billingClient.openCheckout({ transactionId: result.transactionId })
