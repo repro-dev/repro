@@ -4,7 +4,7 @@ import React from 'react'
 import { Alert } from '../Alert'
 import { ErrorBoundary } from './ErrorBoundary'
 
-const meta: Meta = {
+const meta: Meta<typeof ErrorBoundary> = {
   title: 'Components/Feedback/ErrorBoundary',
   component: ErrorBoundary,
   tags: ['autodocs', 'design-system'],
@@ -12,7 +12,7 @@ const meta: Meta = {
 
 export default meta
 
-type Story = StoryObj
+type Story = StoryObj<typeof ErrorBoundary>
 
 // Always throws so the error boundary fallback is always shown in the story
 function AlwaysThrows() {

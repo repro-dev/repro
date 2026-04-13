@@ -8,6 +8,13 @@ const meta: Meta = {
   title: 'Components/Feedback/LoadingState',
   component: LoadingState,
   tags: ['autodocs', 'design-system'],
+}
+
+export default meta
+
+type Story = StoryObj
+
+export const Default: Story = {
   decorators: [
     Story => (
       <Block height={400} border={`1px dashed ${color.border.default}`}>
@@ -16,12 +23,6 @@ const meta: Meta = {
     ),
   ],
 }
-
-export default meta
-
-type Story = StoryObj
-
-export const Default: Story = {}
 
 export const SectionHeight: Story = {
   name: 'Section Height',

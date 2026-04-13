@@ -3,7 +3,7 @@ import { FullPageError } from '../FullPageError'
 
 export interface ErrorBoundaryProps {
   children: React.ReactNode
-  fallback?: (error: Error) => React.ReactNode
+  fallback?: (error: unknown) => React.ReactNode
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void
 }
 
@@ -45,12 +45,12 @@ export class ErrorBoundary extends React.Component<
     this.state = { error: null }
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { error }
+  static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
+    return { error: error as Error }
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    this.props.onError?.(error, errorInfo)
+  componentDidCatch(error: unknown, errorInfo: React.ErrorInfo) {
+    this.props.onError?.(error as Error, errorInfo)
   }
 
   render() {

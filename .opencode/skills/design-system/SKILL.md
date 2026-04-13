@@ -110,38 +110,38 @@ For full token tables with every value, read `tokens.md`.
 
 ## Component Selection Guide
 
-| I need to...                           | Use                                                                                                            |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Display a clickable action             | `Button` with `variant`, `context`, `size`                                                                     |
-| Collect text input                     | `Input` (single line or textarea via `rows` prop)                                                              |
-| Toggle a boolean setting               | `Toggle` with `label`, `checked`, `onChange`                                                                   |
-| Select from mutually exclusive options | `ToggleGroup` with `options`, `selected`, `onChange`                                                           |
-| Show contextual feedback (inline)      | `Alert` with `type` (info/success/warning/danger)                                                              |
-| Show a modal dialog                    | `Modal` with `width`, `height` + content as children                                                           |
-| Show a side panel                      | `Drawer` with `open`, `onClose` + content as children                                                          |
-| Display a tooltip                      | `Tooltip` wrapping the trigger element                                                                         |
-| Show a custom inline spinner           | `FX.Spin` wrapping `LoaderIcon` from lucide-react                                                              |
-| Show a section-level loading state     | `LoadingState` — centered spinner within a content section                                                     |
-| Show a full-page loading state         | `FullPageLoading` — fills parent container; place inside a sized element                                       |
-| Show a section-level error state       | `ErrorBoundary` — wraps any subtree; renders `FullPageError` by default, accepts custom `fallback` render prop |
-| Show a full-page error state           | `FullPageError` with `title`, `description`, optional `action`                                                 |
-| Show a pulsing indicator               | `FX.Pulse` wrapping the animated element                                                                       |
-| Display a form field error             | `FormFieldError` with `error` from react-hook-form                                                             |
-| Display a field label                  | `Label` with optional `icon` and `optional` flag                                                               |
-| Render content in a portal             | `Portal` (must be inside a `PortalRootProvider`)                                                               |
-| Render content in an iframe            | `FrameRealm`                                                                                                   |
-| Display a card container               | `Card` with optional `fullBleed`, `height`, `padding`                                                          |
-| Show a progress bar                    | `Meter` with `value`, `min`, `max`                                                                             |
-| Display an avatar                      | `Avatar` with `email`, optional `name`, `mode`, `size`                                                         |
-| Display key-value data                 | `DefinitionList` with `title`, `pairs`                                                                         |
-| Display JSON/object data               | `JSONView` from `@repro/devtools` (not `@repro/design`)                                                        |
-| Delay rendering children               | `Delay` with optional `duration`                                                                               |
-| Show a draggable resize handle         | `DragHandle` with `edge`, drag callbacks                                                                       |
-| Display the Repro logo                 | `Logo` with optional `inverted`, `size`, `iconOnly`                                                            |
-| Style inline text as a link            | `Link` (visual only — no navigation)                                                                           |
-| Build a page layout                    | See `layouts.md` — use the decision tree                                                                       |
-| Stack children vertically              | `Stack` with `gap` (spacing token key)                                                                         |
-| Center content                         | `Center` with optional `maxWidth`                                                                              |
+| I need to...                           | Use                                                                                                                                                                                                                                                 |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Display a clickable action             | `Button` with `variant`, `context`, `size`                                                                                                                                                                                                          |
+| Collect text input                     | `Input` (single line or textarea via `rows` prop)                                                                                                                                                                                                   |
+| Toggle a boolean setting               | `Toggle` with `label`, `checked`, `onChange`                                                                                                                                                                                                        |
+| Select from mutually exclusive options | `ToggleGroup` with `options`, `selected`, `onChange`                                                                                                                                                                                                |
+| Show contextual feedback (inline)      | `Alert` with `type` (info/success/warning/danger)                                                                                                                                                                                                   |
+| Show a modal dialog                    | `Modal` with `width`, `height` + content as children                                                                                                                                                                                                |
+| Show a side panel                      | `Drawer` with `open`, `onClose` + content as children                                                                                                                                                                                               |
+| Display a tooltip                      | `Tooltip` wrapping the trigger element                                                                                                                                                                                                              |
+| Show a custom inline spinner           | `FX.Spin` wrapping `LoaderIcon` from lucide-react                                                                                                                                                                                                   |
+| Show a section-level loading state     | `LoadingState` — centered spinner within a content section                                                                                                                                                                                          |
+| Show a full-page loading state         | `FullPageLoading` — fills parent container; place inside a sized element                                                                                                                                                                            |
+| Show a section-level error state       | `ErrorBoundary` — catches render/runtime exceptions in any subtree; renders `FullPageError` by default, accepts custom `fallback` render prop. For controlled/data-fetch errors that aren't thrown values, render `FullPageError` directly instead. |
+| Show a full-page error state           | `FullPageError` with `title`, `description`, optional `action`                                                                                                                                                                                      |
+| Show a pulsing indicator               | `FX.Pulse` wrapping the animated element                                                                                                                                                                                                            |
+| Display a form field error             | `FormFieldError` with `error` from react-hook-form                                                                                                                                                                                                  |
+| Display a field label                  | `Label` with optional `icon` and `optional` flag                                                                                                                                                                                                    |
+| Render content in a portal             | `Portal` (must be inside a `PortalRootProvider`)                                                                                                                                                                                                    |
+| Render content in an iframe            | `FrameRealm`                                                                                                                                                                                                                                        |
+| Display a card container               | `Card` with optional `fullBleed`, `height`, `padding`                                                                                                                                                                                               |
+| Show a progress bar                    | `Meter` with `value`, `min`, `max`                                                                                                                                                                                                                  |
+| Display an avatar                      | `Avatar` with `email`, optional `name`, `mode`, `size`                                                                                                                                                                                              |
+| Display key-value data                 | `DefinitionList` with `title`, `pairs`                                                                                                                                                                                                              |
+| Display JSON/object data               | `JSONView` from `@repro/devtools` (not `@repro/design`)                                                                                                                                                                                             |
+| Delay rendering children               | `Delay` with optional `duration`                                                                                                                                                                                                                    |
+| Show a draggable resize handle         | `DragHandle` with `edge`, drag callbacks                                                                                                                                                                                                            |
+| Display the Repro logo                 | `Logo` with optional `inverted`, `size`, `iconOnly`                                                                                                                                                                                                 |
+| Style inline text as a link            | `Link` (visual only — no navigation)                                                                                                                                                                                                                |
+| Build a page layout                    | See `layouts.md` — use the decision tree                                                                                                                                                                                                            |
+| Stack children vertically              | `Stack` with `gap` (spacing token key)                                                                                                                                                                                                              |
+| Center content                         | `Center` with optional `maxWidth`                                                                                                                                                                                                                   |
 
 ### Loading and Error Pattern Guide
 
@@ -427,15 +427,19 @@ Every list or grid surface must have an empty state. Use the five-part formula:
 ### Five-Part Formula
 
 1. **Icon** — communicates context at a glance.
+
    - Implementation: 48×48 icon from `lucide-react`; wrap in `<Block color={color.text.subtle}>`.
 
 2. **Heading** — names the empty state clearly (not "Nothing here").
+
    - Implementation: use `textStyles.heading3` spread; sentence case; max 5 words.
 
 3. **Body** — one sentence explaining why it's empty and what the user can do.
+
    - Implementation: `<Block component="p" {...textStyles.body} color={color.text.secondary}>`.
 
 4. **CTA** — primary action the user should take.
+
    - Implementation: `<Button variant="contained">` with a specific verb ("Start recording", "Invite a teammate").
 
 5. **Illustration** — optional; only if the surface warrants it (first-run, marketing-adjacent).
