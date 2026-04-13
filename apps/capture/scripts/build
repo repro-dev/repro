@@ -18,7 +18,7 @@ mkdir -p "$build_dir"
 
 cp -r "$source_dir/extension/static/"* "$build_dir/"
 
-entries="background content bridgeHost capture"
+entries="background content bridgeHost capture reactHook"
 
 if [ "$watch" = true ]; then
   for entry in $entries; do

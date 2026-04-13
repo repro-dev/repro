@@ -33,8 +33,11 @@ interface ReactDevToolsHook {
     root: { current: Fiber },
     priorityLevel: unknown
   ) => void
+  __repro_installed?: true
   isDisabled?: boolean
-  inject?: (...args: unknown[]) => unknown
+  supportsFiber?: boolean
+  inject?: (...args: unknown[]) => number
+  renderers?: Map<number, unknown>
   _renderers?: Record<string, unknown>
   helpers?: Record<string, unknown>
   onCommitFiberUnmount?: (...args: unknown[]) => void
@@ -164,6 +167,10 @@ export function createReactObserver(
   // observe() is called more than once (e.g. for iframes in the same session)
   let isObserving = false
 
+  // Renderer ID counter and Map used by the fallback stub's inject() fn
+  let rendererIdCounter = 0
+  const renderers = new Map<number, unknown>()
+
   let originalOnCommitFiberRoot:
     | ReactDevToolsHook['onCommitFiberRoot']
     | undefined
@@ -274,10 +281,15 @@ export function createReactObserver(
         ;(globalThis as Record<string, unknown>)[
           '__REACT_DEVTOOLS_GLOBAL_HOOK__'
         ] = {
+          __repro_installed: true,
           isDisabled: false,
-          inject: () => {},
-          _renderers: {},
-          helpers: {},
+          supportsFiber: true,
+          renderers,
+          inject: () => {
+            const id = ++rendererIdCounter
+            renderers.set(id, {})
+            return id
+          },
           onCommitFiberUnmount: () => {},
           onPostCommitFiberRoot: () => {},
           onCommitFiberRoot: handleCommit,

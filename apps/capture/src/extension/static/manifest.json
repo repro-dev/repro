@@ -22,7 +22,7 @@
       "run_at": "document_start"
     }
   ],
-  "permissions": ["storage", "tabs"],
+  "permissions": ["storage", "tabs", "scripting"],
   "web_accessible_resources": [
     {
       "resources": ["capture.js", "bridgeHost.html", "bridgeHost.js"],

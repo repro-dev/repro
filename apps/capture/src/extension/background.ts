@@ -17,6 +17,27 @@ import {
 } from 'fluture'
 import z from 'zod'
 import { createRuntimeAgent } from './createRuntimeAgent'
+;(
+  chrome.scripting as typeof chrome.scripting & {
+    registerContentScripts: (
+      scripts: {
+        id: string
+        js: string[]
+        matches: string[]
+        runAt: string
+        world: 'ISOLATED' | 'MAIN'
+      }[]
+    ) => Promise<void>
+  }
+).registerContentScripts([
+  {
+    id: 'repro-react-hook',
+    js: ['reactHook.js'],
+    matches: ['<all_urls>'],
+    runAt: 'document_start',
+    world: 'MAIN',
+  },
+])
 
 function run<L, R>(source: FutureInstance<L, R>, resolve = console.log) {
   return source.pipe(fork<L>(console.error)<R>(resolve))
