@@ -24,10 +24,10 @@ On other platforms, OpenCode is launched directly.
 .PP
 Profile files are committed and live at
 \f[B].opencode/profiles/.json\f[R].
-The \f[B]default\f[R] profile documents the canonical model
-configuration.
-The \f[B]openrouter\f[R] profile remaps agents to models available via
-OpenRouter.
+The \f[B]github\-copilot\-sonnet\f[R] profile documents the canonical
+model configuration.
+The \f[B]openrouter\-glm5\-minimax\f[R] profile remaps agents to
+GLM\-5.1 and MiniMax M2.7 via OpenRouter.
 .SH OPTIONS
 .TP
 \f[B]\-\-profile\f[R] \f[I]name\f[R]
@@ -45,24 +45,25 @@ remain unchanged.
 .PP
 Current profiles:
 .TP
-\f[B]default\f[R]
+\f[B]github\-copilot\-sonnet\f[R]
 Mirrors the models hardcoded in the agent files (all five agents use
 \f[B]github\-copilot/claude\-sonnet\-4.6\f[R]).
 .TP
-\f[B]openrouter\f[R]
-Remaps agents to \f[B]openrouter/z\-ai/glm\-5.1\f[R] and
-\f[B]openrouter/minimax/minimax\-m2.7\f[R] via OpenRouter.
+\f[B]openrouter\-glm5\-minimax\f[R]
+Remaps agents to \f[B]openrouter/z\-ai/glm\-5.1\f[R] (planner, review)
+and \f[B]openrouter/minimax/minimax\-m2.7\f[R] (develop, test, release)
+via OpenRouter.
 .SH EXAMPLES
 .TP
 reproctl opencode
 Launch OpenCode with no profile override.
 .TP
-reproctl opencode \-\-profile openrouter
-Launch OpenCode with the openrouter model profile.
+reproctl opencode \-\-profile openrouter\-glm5\-minimax
+Launch OpenCode with GLM\-5.1 and MiniMax M2.7 via OpenRouter.
 .TP
-reproctl opencode \-\-profile default run \(dqdo the thing\(dq
-Launch OpenCode with the default profile and pass a run command through
-to opencode.
+reproctl opencode \-\-profile github\-copilot\-sonnet run \(dqdo the thing\(dq
+Launch OpenCode with the GitHub Copilot Sonnet profile and pass a run
+command through to opencode.
 .TP
 reproctl opencode \-\-profile nonexistent
 Exits with an error listing available profiles.

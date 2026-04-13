@@ -26,8 +26,8 @@ sleep, idle sleep, and disk sleep during long agent sessions. On other
 platforms, OpenCode is launched directly.
 
 Profile files are committed and live at **.opencode/profiles/<name>.json**.
-The **default** profile documents the canonical model configuration. The
-**openrouter** profile remaps agents to models available via OpenRouter.
+The **github-copilot-sonnet** profile documents the canonical model configuration. The
+**openrouter-glm5-minimax** profile remaps agents to GLM-5.1 and MiniMax M2.7 via OpenRouter.
 
 # OPTIONS
 
@@ -46,24 +46,24 @@ profile are applied; other agent settings remain unchanged.
 
 Current profiles:
 
-**default**
+**github-copilot-sonnet**
 : Mirrors the models hardcoded in the agent files (all five agents use
 **github-copilot/claude-sonnet-4.6**).
 
-**openrouter**
-: Remaps agents to **openrouter/z-ai/glm-5.1** and
-**openrouter/minimax/minimax-m2.7** via OpenRouter.
+**openrouter-glm5-minimax**
+: Remaps agents to **openrouter/z-ai/glm-5.1** (planner, review) and
+**openrouter/minimax/minimax-m2.7** (develop, test, release) via OpenRouter.
 
 # EXAMPLES
 
 reproctl opencode
 : Launch OpenCode with no profile override.
 
-reproctl opencode --profile openrouter
-: Launch OpenCode with the openrouter model profile.
+reproctl opencode --profile openrouter-glm5-minimax
+: Launch OpenCode with GLM-5.1 and MiniMax M2.7 via OpenRouter.
 
-reproctl opencode --profile default run "do the thing"
-: Launch OpenCode with the default profile and pass a run command through to opencode.
+reproctl opencode --profile github-copilot-sonnet run "do the thing"
+: Launch OpenCode with the GitHub Copilot Sonnet profile and pass a run command through to opencode.
 
 reproctl opencode --profile nonexistent
 : Exits with an error listing available profiles.

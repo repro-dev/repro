@@ -22,11 +22,11 @@ ${CLR_BOLD}EXAMPLES${CLR_RESET}
   reproctl opencode
       Launch OpenCode with default agent models.
 
-  reproctl opencode --profile openrouter
-      Launch OpenCode remapped to OpenRouter models.
+  reproctl opencode --profile openrouter-glm5-minimax
+      Launch OpenCode remapped to GLM-5.1 and MiniMax M2.7 via OpenRouter.
 
-  reproctl opencode --profile default run "do the thing"
-      Launch OpenCode with the default profile and pass a run command.
+  reproctl opencode --profile github-copilot-sonnet run "do the thing"
+      Launch OpenCode with the GitHub Copilot Sonnet profile and pass a run command.
 
 ${CLR_BOLD}PROFILES${CLR_RESET}
   Profile files live at .opencode/profiles/<name>.json and are committed.
