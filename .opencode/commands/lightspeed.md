@@ -240,11 +240,31 @@ If the planner returns `not ready` or includes unresolved questions that prevent
 
 ---
 
-## Phase 5: Resequence once using planner output
+## Phase 5: Classify risk, resequence once using planner output, then lock
 
 Do exactly one resequencing pass after planning.
 
-Use the planner's **Sequence Notes** and **Risk Notes** to:
+### Risk classification (runs before resequencing)
+
+For each issue with a completed plan, classify its risk profile using the planner's Sequence Notes and Risk Notes:
+
+| Signal             | Detection                                                                     |
+| ------------------ | ----------------------------------------------------------------------------- |
+| Security-sensitive | Plan touches auth, permissions, tokens, encryption, or user data models       |
+| Data model changes | Plan includes Prisma schema modifications, migrations, or database operations |
+| Multi-service      | Plan's Sequence Notes list files across 3+ packages/services                  |
+| High file count    | Plan lists 10+ files to write or modify                                       |
+
+Classification rules:
+
+- If 2+ signals are present: mark the issue as **high-risk**
+- If fewer than 2 signals: mark as **standard**
+
+Store the risk level alongside the issue in the status table for the rest of the run. The risk level drives reviewer spawning in Phase 7.
+
+### Resequencing
+
+Use the planner's **Sequence Notes** and **Risk Notes** (including the risk level just computed) to:
 
 - Prune issues that are not ready
 - Move issues to a later queued wave if planning revealed overlap or a missing dependency
@@ -326,7 +346,27 @@ For each completed implementation before review:
 
 If the implementation is later fixed during the bounded review loop, create a new local commit for the review-fix pass before re-running `review`. Do not rely on dirty worktree diffs.
 
-Launch `review` subagents for every completed implementation in batches of up to `--wave-concurrency` within the current phase.
+### Conditional reviewer spawning by risk level
+
+Spawn reviewers based on the risk level computed in Phase 5:
+
+**Standard-risk issues**: launch a single `review` agent using the standard prompt template below.
+
+**High-risk issues**: spawn 2–3 focused `review` agents in parallel, each with a scoped prompt:
+
+1. **Correctness + Security reviewer** — always spawned for high-risk issues
+2. **Architecture + Conventions reviewer** — always spawned for high-risk issues
+3. **Performance reviewer** — only spawned when data-heavy changes are detected (e.g. data model changes signal, large batch operations, streaming or pipeline patterns in Sequence Notes)
+
+All reviewers for a single issue launch within the same batch. A batch may have more concurrent review agents than `--wave-concurrency`, but is gated by **issue count**, not agent count.
+
+### Finding merge and deduplication
+
+After collecting findings from multiple reviewers, deduplicate using the merge key: `<file-path>:<line-number>:<category>`. Merge all findings into a single structured review output before applying the bounded fix loop.
+
+### Batched launch
+
+Launch `review` subagents for every completed implementation in batches of up to `--wave-concurrency` issues within the current phase.
 
 For this phase:
 
@@ -441,5 +481,5 @@ After stopping, if this session will not immediately continue:
 
 - Never commit on `main`.
 - Never write to `/tmp`; use `tmp/` under the relevant checkout or worktree.
-- Keep a simple status table in the response as you go.
+- Keep a simple status table in the response as you go. Include: issue ID, current phase, risk level (standard / high), and active retry waits.
 - Do not introduce a run log, resume flow, merge-watch loop, or other persistent control-plane machinery into this command.
