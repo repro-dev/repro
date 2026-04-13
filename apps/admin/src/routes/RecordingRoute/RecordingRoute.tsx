@@ -2,7 +2,6 @@ import { Block } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { Link, Logo, textStyles, ToolView } from '@repro/design'
 import { DevTools } from '@repro/devtools'
-import { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { createNullSource, PlaybackFromSourceProvider } from '@repro/playback'
 import { createApiSource } from '@repro/recording-api'
@@ -13,8 +12,10 @@ import { Loading } from './Loading'
 import { RecordingError } from './RecordingError'
 
 export const RecordingRoute: React.FC = () => {
-  const params = useParams<'projectId' | 'recordingId'>()
-  const projectId = params.projectId
+  const params = useParams()
+  // Fall back to empty string for backward compatibility with old route
+  // /recordings/:recordingId (projectId will be undefined there)
+  const projectId = params.projectId ?? ''
   const recordingId = params.recordingId
   const apiClient = useApiClient()
 
@@ -28,7 +29,7 @@ export const RecordingRoute: React.FC = () => {
     error,
     result: info,
   } = useFuture(() => {
-    return apiClient.fetch<RecordingInfo>(
+    return apiClient.fetch(
       `/projects/${projectId}/recordings/${recordingId}/info`
     )
   }, [apiClient, projectId, recordingId])

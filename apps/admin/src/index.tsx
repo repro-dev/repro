@@ -171,6 +171,16 @@ if (rootElem) {
                         path="projects/:projectId/recordings/:recordingId"
                         element={<RecordingRoute />}
                       />
+                      {/*
+                       * Backward compatibility: old links may still point to
+                       * /recordings/:recordingId. projectId will be undefined
+                       * here, which RecordingRoute handles by falling back to
+                       * empty string (the original behavior for these cases).
+                       */}
+                      <Route
+                        path="recordings/:recordingId"
+                        element={<RecordingRoute />}
+                      />
                     </Route>
                   </Routes>
                 </Suspense>
