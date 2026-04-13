@@ -5,5 +5,6 @@ declare namespace NodeJS {
   interface ProcessEnv {
     GIT_BRANCH: string
     GIT_SLUG: string
+    SENTRY_DSN: string
   }
 }

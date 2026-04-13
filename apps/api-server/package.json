@@ -36,6 +36,7 @@
     "@repro/tdl": "workspace:*",
     "@repro/validation": "workspace:*",
     "@repro/wire-formats": "workspace:*",
+    "@sentry/node": "^8",
     "arctic": "^3.7.0",
     "better-sqlite3": "^11.7.2",
     "compression": "^1.7.4",

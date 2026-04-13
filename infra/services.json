@@ -26,7 +26,8 @@
     "env_passthrough": [
       "OPENROUTER_API_KEY",
       "GOOGLE_CLIENT_ID",
-      "GOOGLE_CLIENT_SECRET"
+      "GOOGLE_CLIENT_SECRET",
+      "SENTRY_DSN"
     ],
     "resource_deps": ["dependencies", "portless-proxy", "redis-ready"],
     "portless_name": "api.repro",
@@ -55,6 +56,7 @@
       "REPRO_APP_URL": "https://app.repro.localhost:1355",
       "REPRO_API_URL": "https://api.repro.localhost:1355"
     },
+    "env_passthrough": ["SENTRY_DSN"],
     "resource_deps": ["dependencies", "portless-proxy"],
     "labels": ["app"],
     "portless_name": "app.repro",
@@ -97,6 +99,7 @@
       "REPRO_API_URL": "https://api.repro.localhost:1355",
       "AGENTIC_MAX_ITERATIONS": "25"
     },
+    "env_passthrough": ["SENTRY_DSN"],
     "resource_deps": ["dependencies"],
     "labels": ["extension"],
     "launch": {

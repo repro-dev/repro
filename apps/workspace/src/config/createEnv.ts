@@ -5,6 +5,7 @@ const envSchema = z.object({
   MIXPANEL_TOKEN: z.string().default(''),
   REPRO_API_URL: z.string().default('https://localhost:8181'),
   REPRO_APP_URL: z.string().default('https://localhost:8080'),
+  SENTRY_DSN: z.string().default(''),
 })
 
 export type Env = z.infer<typeof envSchema>

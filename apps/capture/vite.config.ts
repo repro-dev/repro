@@ -68,11 +68,12 @@ export default defineConfig(({ mode }) => ({
     ),
     'process.env.GIT_BRANCH': JSON.stringify(GIT_BRANCH),
     'process.env.GIT_SLUG': JSON.stringify(GIT_SLUG),
+    'process.env.SENTRY_DSN': JSON.stringify(process.env.SENTRY_DSN ?? ''),
   },
 
   build: {
     outDir: 'dist',
-    sourcemap: mode !== 'production',
+    sourcemap: mode === 'production' ? 'hidden' : true,
     target: 'esnext',
     lib: {
       entry: entries[entry]!,

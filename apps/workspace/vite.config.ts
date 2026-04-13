@@ -61,7 +61,12 @@ function htmlTemplatePlugin(envVarNames: string[]): Plugin {
   }
 }
 
-const envVarNames = ['BUILD_ENV', 'REPRO_APP_URL', 'REPRO_API_URL']
+const envVarNames = [
+  'BUILD_ENV',
+  'REPRO_APP_URL',
+  'REPRO_API_URL',
+  'SENTRY_DSN',
+]
 
 const envVars = Object.fromEntries(
   envVarNames.map(name => [name, process.env[name] ?? ''])
@@ -90,7 +95,7 @@ export default defineConfig(({ mode }) => ({
 
   build: {
     outDir: 'dist',
-    sourcemap: mode !== 'production',
+    sourcemap: mode === 'production' ? 'hidden' : true,
     target: 'esnext',
     rollupOptions: {
       input: {

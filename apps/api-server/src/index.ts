@@ -4,6 +4,7 @@ import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
 import { buildRateLimitOptions } from '~/rateLimit'
 
+import * as Sentry from '@sentry/node'
 import { Google } from 'arctic'
 import fastify, { FastifyPluginAsync } from 'fastify'
 import {
@@ -12,6 +13,7 @@ import {
 } from 'fastify-type-provider-zod'
 import { defaultEnv as env } from '~/config/env'
 import { createSessionDecorator } from '~/decorators/session'
+import { initSentry } from '~/instrument'
 import { createPaddleClient } from '~/modules/billing'
 import { createPostgresDatabaseClient } from '~/modules/database/database-postgres'
 import { createSMTPEmailUtils } from '~/modules/email-utils'
@@ -44,6 +46,8 @@ import { createStaffOAuthRouter } from './routers/staffOAuth'
 import { buildHelmetOptions } from './securityHeaders'
 import { createAgenticService } from './services/agentic'
 import { startExpiredSessionCleanup } from './sessionCleanup'
+
+initSentry(env)
 
 const httpClient = createHttpClient()
 
@@ -303,11 +307,18 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
 
   registerSessionDecorator(app)
 
+  app.addHook('preHandler', async req => {
+    if (req.session?.subjectId) {
+      Sentry.setUser({ id: req.session.subjectId })
+    }
+  })
+
   for (const [path, callback] of Object.entries(routers)) {
     app.register(callback, { prefix: path })
   }
 
   app.setErrorHandler((err, _req, res) => {
+    Sentry.captureException(err)
     res.status(500).send(serverError(err.message))
   })
 

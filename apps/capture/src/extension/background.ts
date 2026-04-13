@@ -4,6 +4,7 @@ import { RecordingMode, SourceEventView } from '@repro/domain'
 import { createUploadWorker } from '@repro/recording-api'
 import { parseSchema } from '@repro/validation'
 import { fromByteString } from '@repro/wire-formats'
+import * as Sentry from '@sentry/browser'
 import {
   FutureInstance,
   and,
@@ -17,6 +18,18 @@ import {
 } from 'fluture'
 import z from 'zod'
 import { createRuntimeAgent } from './createRuntimeAgent'
+
+// Initialise Sentry in the service worker context. The background service
+// worker can use Sentry because it uses the fetch-based transport and is not
+// subject to page CSP. Content scripts run in the page's context and ARE
+// blocked by page CSP — do not add Sentry to content.ts or bridgeHost.ts.
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.GIT_BRANCH,
+    tracesSampleRate: 0,
+  })
+}
 
 function run<L, R>(source: FutureInstance<L, R>, resolve = console.log) {
   return source.pipe(fork<L>(console.error)<R>(resolve))

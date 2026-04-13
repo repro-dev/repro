@@ -11,6 +11,7 @@ import {
 import { Stats } from '@repro/diagnostics'
 import { getDefaultAgent } from '@repro/messaging'
 import { applyResetStyles } from '@repro/theme'
+import * as Sentry from '@sentry/react'
 import React, { lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
@@ -42,6 +43,14 @@ declare global {
 
 if (env.BUILD_ENV === 'development') {
   Stats.enable()
+}
+
+if (env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: env.SENTRY_DSN,
+    environment: env.BUILD_ENV,
+    tracesSampleRate: 0,
+  })
 }
 
 const apiClient = createApiClient({
