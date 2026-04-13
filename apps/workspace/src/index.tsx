@@ -28,6 +28,7 @@ const AcceptInvitationRoute = lazy(
 )
 const PricingRoute = lazy(() => import('./routes/PricingRoute'))
 const ProjectSettingsRoute = lazy(() => import('./routes/ProjectSettingsRoute'))
+const ProjectsRoute = lazy(() => import('./routes/ProjectsRoute'))
 const RecordingRoute = lazy(() => import('./routes/RecordingRoute'))
 const RegisterRoute = lazy(() => import('./routes/RegisterRoute'))
 const ResetPasswordRoute = lazy(() => import('./routes/ResetPasswordRoute'))
@@ -101,6 +102,7 @@ if (rootElem) {
                       <Route element={<Layout />}>
                         <Route element={<SessionRouteBoundary />}>
                           <Route index element={<HomeRoute />} />
+                          <Route path="projects" element={<ProjectsRoute />} />
                           <Route path="pricing" element={<PricingRoute />} />
                           <Route
                             path="account/api-keys"

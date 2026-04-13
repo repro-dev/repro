@@ -1,6 +1,11 @@
 import { IfSession, UnlessSession, UserMenu } from '@repro/auth'
 import { AppShell, Link, SideNav } from '@repro/design'
-import { PlayIcon, SettingsIcon } from 'lucide-react'
+import {
+  CreditCardIcon,
+  FolderIcon,
+  PlayIcon,
+  SettingsIcon,
+} from 'lucide-react'
 import React from 'react'
 import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
 import { ProjectSwitcher } from '~/components/ProjectSwitcher'
@@ -9,6 +14,10 @@ import { ProjectProvider } from './ProjectContext'
 
 export const Layout: React.FC = () => {
   const sessionsActive = useMatch({ path: '/', end: true })
+  const projectsActive = useMatch({ path: '/projects', end: false })
+  // Billing lives under /settings/billing; match it separately so the
+  // Settings item can exclude billing routes from its active range.
+  const billingActive = useMatch({ path: '/settings/billing', end: false })
   const settingsActive = useMatch({ path: '/settings', end: false })
 
   return (
@@ -37,11 +46,30 @@ export const Layout: React.FC = () => {
                   props={{ to: '/' }}
                 />
                 <SideNav.Item
+                  icon={FolderIcon}
+                  label="Projects"
+                  active={!!projectsActive}
+                  component={RouterNavLink}
+                  props={{ to: '/projects' }}
+                />
+              </SideNav.Section>
+
+              <SideNav.Section title="Account">
+                <SideNav.Item
                   icon={SettingsIcon}
                   label="Settings"
-                  active={!!settingsActive}
+                  // Active for all /settings/* routes except /settings/billing,
+                  // which is handled by the Billing item below.
+                  active={!!settingsActive && !billingActive}
                   component={RouterNavLink}
                   props={{ to: '/settings' }}
+                />
+                <SideNav.Item
+                  icon={CreditCardIcon}
+                  label="Billing"
+                  active={!!billingActive}
+                  component={RouterNavLink}
+                  props={{ to: '/settings/billing' }}
                 />
               </SideNav.Section>
             </SideNav>
