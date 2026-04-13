@@ -65,29 +65,28 @@ export function applyPromptSuggestionsFromData(
       continue;
     }
 
-    // First try verbatim match; if that fails, normalise escaped backticks in
-    // the file content (source uses \` inside template literals, but the critic
-    // quotes the evaluated string with plain `) and try again.
-    let searchContent = content;
-    if (!content.includes(suggestion.currentText)) {
-      const normalised = content.replace(/\\`/g, "`");
-      if (!normalised.includes(suggestion.currentText)) {
-        console.warn(
-          `applyPromptSuggestions: currentText not found in "${relFilePath}" (even after backtick normalisation) — skipping`,
-        );
-        continue;
-      }
-      searchContent = normalised;
-    }
+    // Try verbatim match first. If that fails, escape backticks in both
+    // currentText and suggestedText — source files use \` inside template
+    // literals, but the critic may quote the evaluated string with plain `.
+    // Never normalise the whole file content; only apply a targeted replacement.
+    const escapedCurrentText = suggestion.currentText.replace(/`/g, "\\`");
+    const escapedSuggestedText = suggestion.suggestedText.replace(/`/g, "\\`");
 
-    // Replace the first occurrence only (String.prototype.replace with a
-    // string pattern stops after the first match). When we searched against
-    // normalised content the escaped backticks are already gone from
-    // searchContent; the suggestedText is written as-is per the spec.
-    const updated = searchContent.replace(
-      suggestion.currentText,
-      suggestion.suggestedText,
-    );
+    let updated: string;
+    if (content.includes(suggestion.currentText)) {
+      // String.prototype.replace with a string pattern stops after the first match
+      updated = content.replace(
+        suggestion.currentText,
+        suggestion.suggestedText,
+      );
+    } else if (content.includes(escapedCurrentText)) {
+      updated = content.replace(escapedCurrentText, escapedSuggestedText);
+    } else {
+      console.warn(
+        `applyPromptSuggestions: currentText not found in "${relFilePath}" (even after backtick escaping) — skipping`,
+      );
+      continue;
+    }
 
     working.set(relFilePath, updated);
     modified.add(relFilePath);

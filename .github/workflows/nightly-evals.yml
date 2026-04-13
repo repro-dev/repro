@@ -2,7 +2,7 @@ name: Nightly agentic evals
 
 on:
   schedule:
-    - cron: '0 3 * * *'  # 3am UTC daily
+    - cron: "0 3 * * *" # 3am UTC daily
   workflow_dispatch:
 
 jobs:
@@ -135,7 +135,7 @@ jobs:
           git push origin "$BRANCH"
           gh pr create \
             --title "chore(agentic): apply eval prompt suggestions (run #${{ github.run_number }})" \
-            --body "$(cat tmp/agentic-prompt-suggestions.md)" \
+            --body "Apply prompt suggestions from nightly eval run #${{ github.run_number }}. See the downloaded \`prompt-suggestions-${{ github.run_number }}\` artifact for the full JSON." \
             --base main \
             --head "$BRANCH"
         env:

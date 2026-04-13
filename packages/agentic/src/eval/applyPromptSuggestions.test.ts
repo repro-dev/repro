@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { applyPromptSuggestionsFromData } from "./applyPromptSuggestions";
+import {
+  EXPORT_TO_FILE,
+  applyPromptSuggestionsFromData,
+} from "./applyPromptSuggestions";
 import type { PromptSuggestion } from "./promptCritic";
 
-// Hardcoded map mirrors the one in applyPromptSuggestions.ts so tests know
-// which targets are valid.
-const VALID_TARGET = "EXTENSION_SYSTEM_CARD_MESSAGE";
-const VALID_FILE = "packages/agentic/src/model/system.ts";
+// Derive from the canonical map so tests never drift from the source of truth.
+const [VALID_TARGET, VALID_FILE] = Object.entries(EXPORT_TO_FILE)[0]!;
 
 describe("applyPromptSuggestionsFromData", () => {
   it("returns unchanged map when suggestions is empty", () => {
@@ -30,10 +31,11 @@ describe("applyPromptSuggestionsFromData", () => {
     assert.equal(result.get(VALID_FILE), "foo qux baz");
   });
 
-  it("normalises \\` → ` in file content when searching", () => {
-    // The source file uses escaped backtick (\`) inside a template literal;
-    // the critic quotes the evaluated string (plain `). Normalisation allows
-    // the replacement to still find the location.
+  it("matches escaped-backtick form when verbatim match fails", () => {
+    // The source file uses \` inside template literals; the critic quotes the
+    // evaluated string with plain `. The escaped-backtick fallback finds the
+    // location in the original content and replaces with the escaped form of
+    // suggestedText, preserving the file's existing escape style.
     const original = "Use \\`getDOMState\\` tool";
     const fileContents = new Map([[VALID_FILE, original]]);
     const suggestions: Array<PromptSuggestion> = [
@@ -45,11 +47,11 @@ describe("applyPromptSuggestionsFromData", () => {
       },
     ];
     const result = applyPromptSuggestionsFromData(suggestions, fileContents);
-    // The replacement is written as-is (not re-escaped); the matched region in
-    // the original (with escaped backticks) is replaced by suggestedText.
+    // Escaped backticks in the original are preserved; the replacement also
+    // uses the escaped form of suggestedText.
     assert.equal(
       result.get(VALID_FILE),
-      "Use `getDOMState` or `getElementDetails` tool",
+      "Use \\`getDOMState\\` or \\`getElementDetails\\` tool",
     );
   });
 
