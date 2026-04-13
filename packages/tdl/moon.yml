@@ -12,7 +12,7 @@ tasks:
     inputs:
       - file: src/cli/grammar.ohm
     outputs:
-      - src/cli/grammar.ohm-bundle.*
+      - generated/grammar.ohm-bundle.*
     options:
       cache: true
 toolchains:

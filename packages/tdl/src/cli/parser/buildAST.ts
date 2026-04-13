@@ -1,5 +1,5 @@
 import { NonterminalNode, TerminalNode } from 'ohm-js'
-import grammar from '../grammar.ohm-bundle'
+import grammar from '../../../generated/grammar.ohm-bundle'
 import { ASTNode, ASTNodeType, StatementSetNode } from './ASTTypes'
 import { MatchError } from './errors'
 

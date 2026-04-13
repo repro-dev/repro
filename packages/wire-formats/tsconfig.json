@@ -18,13 +18,13 @@
     "noUnusedParameters": true,
     "paths": { "~/*": ["*"] },
     "resolveJsonModule": true,
-    "rootDir": "./src",
+    "rootDir": ".",
     "skipLibCheck": true,
     "strict": true,
     "target": "es2021"
   },
 
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "generated/**/*.ts"],
 
   "ts-node": {
     "files": true

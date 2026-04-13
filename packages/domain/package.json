@@ -5,7 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "bench": "./scripts/bench",
-    "build": "tdlc src --outdir src/generated",
+    "build": "tdlc src --outdir generated",
     "test": "tsx --test src/**/*.test.ts{,x}",
     "fmt": "prettier --write src",
     "typecheck": "tsc --noEmit"

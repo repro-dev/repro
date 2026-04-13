@@ -4,7 +4,7 @@
   "description": "TypeScript Definition Language: TypeScript-compatible binary encodings",
   "main": "./src/index.ts",
   "scripts": {
-    "build": "ohm generateBundles --withTypes src/cli/grammar.ohm",
+    "build": "ohm generateBundles --withTypes src/cli/grammar.ohm && mkdir -p generated && mv src/cli/grammar.ohm-bundle.js generated/grammar.ohm-bundle.js && mv src/cli/grammar.ohm-bundle.d.ts generated/grammar.ohm-bundle.d.ts",
     "test": "tsx --test \"src/**/*.test.ts{,x}\"",
     "fmt": "prettier --write src",
     "typecheck": "tsc --noEmit"
