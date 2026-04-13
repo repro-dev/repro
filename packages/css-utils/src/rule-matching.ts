@@ -409,11 +409,11 @@ function declarationHasImportant(value: string): boolean {
 
 function comparePriority(a: PriorityEntry, b: PriorityEntry): number {
   if (a.hasImportant !== b.hasImportant) {
-    return a.hasImportant ? -1 : 1
+    return a.hasImportant ? 1 : -1
   }
-  const specCmp = compareSpecificity(b.specificity, a.specificity)
+  const specCmp = compareSpecificity(a.specificity, b.specificity)
   if (specCmp !== 0) return specCmp
-  return b.sourceOrder - a.sourceOrder
+  return a.sourceOrder - b.sourceOrder
 }
 
 function parseInlineCSS(cssText: string): Array<{
