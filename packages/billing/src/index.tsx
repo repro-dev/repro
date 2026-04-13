@@ -41,32 +41,6 @@ function createBillingClient(config: BillingConfig): BillingClient {
   let checkoutCompleted = false
   let currentCallbacks: CheckoutCallbacks | null = null
 
-  function init() {
-    if (initialized) {
-      return
-    }
-
-    if (!hasToken) {
-      return
-    }
-
-    if (!window.Paddle) {
-      console.warn('[billing] Paddle not loaded; init() is a no-op')
-      return
-    }
-
-    if (config.environment === 'sandbox') {
-      window.Paddle.Environment.set('sandbox')
-    }
-
-    window.Paddle.Initialize({
-      token: config.token,
-      eventCallback: handleEvent,
-    })
-
-    initialized = true
-  }
-
   function handleEvent(data: any) {
     try {
       config.eventCallback?.(data)
@@ -92,6 +66,35 @@ function createBillingClient(config: BillingConfig): BillingClient {
         console.error('[billing] checkout callback threw:', err)
       }
     }
+  }
+
+  function init() {
+    if (initialized) {
+      return
+    }
+
+    if (!hasToken) {
+      return
+    }
+
+    if (!window.Paddle) {
+      // Guard: Paddle script not yet loaded (e.g. async/deferred). This is
+      // normal in test environments; callers should ensure the script is
+      // synchronous in production.
+      console.warn('[billing] Paddle not loaded; init() is a no-op')
+      return
+    }
+
+    if (config.environment === 'sandbox') {
+      window.Paddle.Environment.set('sandbox')
+    }
+
+    window.Paddle.Initialize({
+      token: config.token,
+      eventCallback: handleEvent,
+    })
+
+    initialized = true
   }
 
   function openCheckout(options: any, callbacks?: CheckoutCallbacks) {
