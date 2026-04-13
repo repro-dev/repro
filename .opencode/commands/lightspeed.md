@@ -360,9 +360,68 @@ Spawn reviewers based on the risk level computed in Phase 5:
 
 All reviewers for a single issue launch within the same batch. A batch may have more concurrent review agents than `--wave-concurrency`, but is gated by **issue count**, not agent count.
 
+#### Scoped prompt templates
+
+Use these exact templates for each focused reviewer:
+
+**Correctness + Security reviewer** (always spawned for high-risk issues):
+
+```
+Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
+
+Focus exclusively on correctness and security:
+1. Load the `git-workflow` skill for the review checklist.
+2. Fetch Linear issue REP-xxx via Linear_get_issue.
+3. Review the committed branch diff with: `git diff main...HEAD`
+4. Evaluate: logic gaps, off-by-one errors, unhandled edge cases, error-path handling, async operation correctness (Futures not Promises per project conventions), and security implications (injection, auth bypass, data exposure, unsafe deserialization).
+5. Check AGENTS.md conventions for the affected packages.
+6. Return the structured output required by .opencode/agents/review.md — but only report findings in the correctness and security categories. Assign each finding `category: correctness` or `category: security` in the structured output.
+```
+
+**Architecture + Conventions reviewer** (always spawned for high-risk issues):
+
+```
+Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
+
+Focus exclusively on architecture and conventions:
+1. Load the `git-workflow` skill for the review checklist.
+2. Fetch Linear issue REP-xxx via Linear_get_issue.
+3. Review the committed branch diff with: `git diff main...HEAD`
+4. Evaluate: side effects on other parts of the system, consistency with existing codebase patterns, approach alignment with stated architecture, and package-level AGENTS.md convention compliance.
+5. Check style/conventions (imports, naming, Prettier, no hardcoded values, design tokens).
+6. Return the structured output required by .opencode/agents/review.md — but only report findings in the architecture and conventions categories. Assign each finding `category: architecture` or `category: conventions` in the structured output.
+```
+
+**Performance reviewer** (spawned only when data-heavy changes are detected):
+
+```
+Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
+
+Focus exclusively on performance:
+1. Load the `git-workflow` skill for the review checklist.
+2. Fetch Linear issue REP-xxx via Linear_get_issue.
+3. Review the committed branch diff with: `git diff main...HEAD`
+4. Evaluate: algorithmic complexity regressions, unnecessary iteration or duplication, missing indexes or query optimizations (if DB changes are present), unbuffered stream operations, large in-memory collections, and lack of pagination/cursor patterns where appropriate.
+5. Return the structured output required by .opencode/agents/review.md — but only report findings in the performance category. Assign each finding `category: performance` in the structured output.
+```
+
 ### Finding merge and deduplication
 
-After collecting findings from multiple reviewers, deduplicate using the merge key: `<file-path>:<line-number>:<category>`. Merge all findings into a single structured review output before applying the bounded fix loop.
+The review agent output format does not include an explicit `category` field. The orchestrator assigns categories based on the reviewer's role:
+
+- Correctness + Security reviewer → findings tagged `correctness` or `security`
+- Architecture + Conventions reviewer → findings tagged `architecture` or `conventions`
+- Performance reviewer → findings tagged `performance`
+
+For deduplication across reviewers, use the merge key: `<file-path>:<line-number>:<category>`
+
+Category vocabulary:
+
+- `correctness` — logic errors, off-by-one, unhandled edge cases, broken error paths
+- `security` — injection, auth bypass, data exposure, unsafe deserialization
+- `architecture` — side effects, pattern inconsistency, approach misalignment
+- `conventions` — import/naming/style violations, missing design tokens, package AGENTS.md violations
+- `performance` — algorithmic regressions, unnecessary iteration, missing pagination, large in-memory collections
 
 ### Batched launch
 
