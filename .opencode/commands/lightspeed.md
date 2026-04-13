@@ -247,6 +247,15 @@ Use the planner's **Sequence Notes** and **Risk Notes** to:
 - Prune issues that are not ready
 - Move issues to a later queued wave if planning revealed overlap or a missing dependency
 - Detect shared-file conflicts: if two or more issues list the same file in their Sequence Notes, proceed if the planner output shows the edit locations are in distinct sections or line ranges of that file (git merge handles non-overlapping edits automatically). If a single file is listed by 3 or more issues without clear section isolation, move all but the highest-priority to a later wave. The orchestrator judges section isolation from the planner's Sequence Notes and the known phase structure of `lightspeed.md` (each phase occupies a distinct section range).
+
+  Example — the REP-884 wave (5 issues, all touching `lightspeed.md` in distinct phases):
+  - REP-884 edits Phase 5 + Phase 7
+  - REP-881 edits Phase 4
+  - REP-882 edits Phase 4 + Phase 7 + Phase 8 + agent templates
+  - REP-880 edits Phase 6 + Phase 7
+  - REP-878 edits Phase 1
+    All five issues list `lightspeed.md` as a touched file. The orchestrator inspects the planner's Sequence Notes and confirms each issue's edits target distinct phase sections (Phase 1, Phase 4, Phase 5, Phase 6, Phase 7/8). Since no two issues share the same phase section, all five can proceed in the same wave — git merge handles the non-overlapping edits automatically.
+
 - Keep only the issues that are independently executable now in the **current ready wave**
 
 After this pass, lock the wave plan for the rest of the run.
