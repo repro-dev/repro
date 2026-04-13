@@ -111,6 +111,16 @@ export function calculateSpecificity(selector: string): Specificity {
           ].includes(token)
         ) {
           specificity[2] = (specificity[2] ?? 0) + 1
+        } else if (token.startsWith('.') || token.startsWith('#')) {
+          // With the tokenizer fix, .container and #myId arrive as single tokens
+          // (previously they were split into '.', 'container' and '#', 'myId').
+          // This branch catches the compound form; the bare '.' and '#' cases
+          // above remain for any legacy callers that still pass split tokens.
+          if (token.startsWith('#')) {
+            specificity[0] = (specificity[0] ?? 0) + 1
+          } else {
+            specificity[1] = (specificity[1] ?? 0) + 1
+          }
         } else if (
           token.startsWith(':') &&
           ![':not(', ':is(', ':has(', ':where(', ':where'].some(p =>
@@ -143,6 +153,10 @@ function tokenizeSelector(selector: string): string[] {
   let current = ''
   let inAttribute = false
   let inParen = 0
+  // When true, skip the start-of-loop push — used after a cond1 continue
+  // to prevent emitting a partially-accumulated prefix before the next char
+  // (which belongs with the prefix) is processed.
+  let skippedPush = false
 
   let i = 0
   while (i < selector.length) {
@@ -181,10 +195,11 @@ function tokenizeSelector(selector: string): string[] {
       inParen = 1
       current = char
     } else if (/[.#:[\],>+~*\s]/.test(char)) {
-      if (current.trim()) {
+      if (!skippedPush && current.trim()) {
         tokens.push(current.trim())
         current = ''
       }
+      skippedPush = false
       if (char === '.' || char === '#' || char === ':' || char === '[') {
         const nextChar = selector[i + 1] ?? ''
         if (
@@ -196,7 +211,13 @@ function tokenizeSelector(selector: string): string[] {
               selector.slice(i + 1, i + 7) === 'where('))
         ) {
           current += char
+          skippedPush = true
+          continue // skip the trailing i++ below to avoid double-increment
         } else if (
+          // Only emit a named pseudo-element if we haven't already accumulated
+          // a leading ':' — that means we're in the :: case and should keep
+          // accumulating the full ::pseudo name rather than splitting it.
+          current === '' &&
           char === ':' &&
           ['::before', '::after', '::first-line', '::first-letter'].some(
             p => selector.slice(i, i + p.length) === p
@@ -205,7 +226,14 @@ function tokenizeSelector(selector: string): string[] {
           tokens.push(selector.slice(i, i + 10) ?? '')
           i += 9
         } else {
-          tokens.push(char)
+          // If next char is alphanumeric, accumulate prefix into current token
+          // so .container, #myId, :hover are single tokens, not split.
+          const nextChar = selector[i + 1] ?? ''
+          if (/[a-zA-Z0-9]/.test(nextChar)) {
+            current += char
+          } else {
+            tokens.push(char)
+          }
         }
       } else if (char === ' ' || char === '\t' || char === '\n') {
         if (current.trim()) {
