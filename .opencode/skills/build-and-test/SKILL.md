@@ -197,22 +197,22 @@ Use this section as a reference for measuring and improving frontend performance
 
 ### Core Web Vitals Targets
 
-| Metric                                | Target                      | Tool                        |
-| ------------------------------------- | --------------------------- | --------------------------- |
-| LCP (Largest Contentful Paint)        | < 2.5 s                     | Chrome DevTools, Lighthouse |
-| FID / INP (Interaction to Next Paint) | FID < 100 ms / INP < 200 ms | Chrome DevTools             |
-| CLS (Cumulative Layout Shift)         | < 0.1                       | Chrome DevTools, Lighthouse |
+| Metric                                                    | Target                      | Tool                        |
+| --------------------------------------------------------- | --------------------------- | --------------------------- |
+| LCP (Largest Contentful Paint)                            | < 2.5 s                     | Chrome DevTools, Lighthouse |
+| FID (First Input Delay) / INP (Interaction to Next Paint) | FID < 100 ms / INP < 200 ms | Chrome DevTools             |
+| CLS (Cumulative Layout Shift)                             | < 0.1                       | Chrome DevTools, Lighthouse |
 
 ### Profiling Tools
 
 - **Chrome DevTools Performance tab** — record runtime performance; look for long tasks (> 50 ms) and layout thrashing.
 - **Lighthouse** — run from DevTools or CLI; save reports to `tmp/lighthouse/` (never `/tmp/`).
-- **webpack-bundle-analyzer** — run via `ANALYZE=true moon run repro/<package>:build`; visualises bundle composition.
+- **Chrome DevTools Coverage** — inspect unused JavaScript and CSS in a production build to spot bundle bloat and dead code.
 - **React DevTools Profiler** — identify unnecessary re-renders; flamegraph shows component render times.
 
 ### Code Splitting
 
-Use dynamic `import()` for routes and heavy components. This works with the existing webpack config — no Vite config changes required.
+Use dynamic `import()` for routes and heavy components in apps whose build target supports it. In this repo, that generally means the Vite-based apps can use it without special changes, but some targets may explicitly disallow dynamic imports, so follow the app's existing build configuration.
 
 ```ts
 const HeavyComponent = React.lazy(() => import("./HeavyComponent"));
