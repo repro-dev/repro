@@ -1,5 +1,26 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "model": "openrouter/z-ai/glm-5.1",
+  "command": {
+    "lightspeed": {
+      "model": "openrouter/minimax/minimax-m2.7"
+    },
+    "enrich-issues": {
+      "model": "openrouter/z-ai/glm-5.1"
+    },
+    "ledger": {
+      "model": "openrouter/minimax/minimax-m2.7"
+    },
+    "handoff": {
+      "model": "openrouter/minimax/minimax-m2.7"
+    },
+    "audit-skills": {
+      "model": "openrouter/z-ai/glm-5.1"
+    },
+    "update-visual-baselines": {
+      "model": "openrouter/minimax/minimax-m2.7"
+    }
+  },
   "agent": {
     "develop": {
       "model": "openrouter/minimax/minimax-m2.7"

@@ -1,7 +1,6 @@
 ---
 description: Handles the commit/push/PR lifecycle — stages changes, writes a Conventional Commit message, pushes the branch, creates a PR via gh CLI, and sets the Linear issue to In Review.
 mode: subagent
-model: github-copilot/claude-sonnet-4.6
 reasoningEffort: medium
 tools:
   read: false
