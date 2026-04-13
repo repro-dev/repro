@@ -185,7 +185,10 @@ export function createFeatureGateMiddleware(
         return
       }
 
-      fork((error: Error) => respondWithError(res, error))(entitled => {
+      fork<Error>((error: Error) => {
+        respondWithError(res, error)
+        done()
+      })((entitled: boolean) => {
         if (entitled) {
           done()
         } else {
@@ -193,6 +196,7 @@ export function createFeatureGateMiddleware(
             res,
             permissionDenied('Feature not available on your plan')
           )
+          done()
         }
       })(
         go(function* () {
