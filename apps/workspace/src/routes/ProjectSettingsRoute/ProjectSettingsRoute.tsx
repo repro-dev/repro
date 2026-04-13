@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Col, Row } from '@jsxstyle/react'
-import { ApiClient, useApiClient } from '@repro/api-client'
+import { useApiClient } from '@repro/api-client'
 import { useSession } from '@repro/auth'
 import {
   Alert,
@@ -18,7 +18,7 @@ import {
   spacing,
   useConfirm,
 } from '@repro/design'
-import { Project, ProjectRole } from '@repro/domain'
+import { ProjectRole } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import {
   ProjectMember,
@@ -26,8 +26,8 @@ import {
   getProjectMembers as defaultGetProjectMembers,
   renameProject as defaultRenameProject,
 } from '@repro/workspace-api'
-import { FutureInstance, fork } from 'fluture'
-import React, { useCallback, useState } from 'react'
+import { fork } from 'fluture'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router-dom'
 import { z } from 'zod'
@@ -37,41 +37,31 @@ const renameSchema = z.object({
   name: z.string().min(1, 'Project name is required'),
 })
 
-type RenameFormValues = z.infer<typeof renameSchema>
+type RenameFormValues = typeof renameSchema._output
 
 interface ProjectSettingsRouteProps {
   // Injected for testing; defaults to the real workspace-api functions
   currentUserId: string
   projectName: string
-  getMembers?: (
-    apiClient: ApiClient,
-    projectId: string
-  ) => FutureInstance<Error, ProjectMember[]>
-  renameProject?: (
-    apiClient: ApiClient,
-    projectId: string,
-    name: string
-  ) => FutureInstance<Error, Project>
-  deactivateProject?: (
-    apiClient: ApiClient,
-    projectId: string
-  ) => FutureInstance<Error, void>
+  getMembers?: typeof defaultGetProjectMembers
+  renameProject?: typeof defaultRenameProject
+  deactivateProject?: typeof defaultDeactivateProject
 }
 
-export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
+export function ProjectSettingsRoute({
   currentUserId,
   projectName,
   getMembers = defaultGetProjectMembers,
   renameProject = defaultRenameProject,
   deactivateProject = defaultDeactivateProject,
-}) => {
+}: ProjectSettingsRouteProps) {
   const { projectId = '' } = useParams()
   const apiClient = useApiClient()
   const navigate = useNavigate()
   const confirm = useConfirm()
 
-  const [renameError, setRenameError] = useState<string | null>(null)
-  const [archiveError, setArchiveError] = useState<string | null>(null)
+  const [renameError, setRenameError] = useState(null as string | null)
+  const [archiveError, setArchiveError] = useState(null as string | null)
 
   const {
     loading,
@@ -92,21 +82,25 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
     defaultValues: { name: projectName },
   })
 
+  useEffect(() => {
+    reset({ name: projectName })
+  }, [projectName, reset])
+
   const onRename = useCallback(
     (values: RenameFormValues) => {
       setRenameError(null)
-      return new Promise<void>(resolve => {
+      return new Promise((resolve: (value: void) => void) => {
         renameProject(apiClient, projectId, values.name).pipe(
           fork((err: unknown) => {
             setRenameError(
               (err as Error).message ??
                 'Failed to rename project. Please try again.'
             )
-            resolve()
+            resolve(undefined)
           })(() => {
             // Reset form to the saved value so isDirty becomes false
             reset({ name: values.name })
-            resolve()
+            resolve(undefined)
           })
         )
       })
@@ -266,17 +260,18 @@ export const ProjectSettingsRoute: React.FC<ProjectSettingsRouteProps> = ({
  */
 export function ProjectSettingsRouteConnected() {
   const session = useSession()
-  const { selectedProject } = useProjectContext()
+  const { projectId = '' } = useParams()
+  const { loading, projects } = useProjectContext()
+  const project = projects.find(candidate => candidate.id === projectId)
 
-  // Wait for session and project to be available before rendering
-  if (!session || !selectedProject) {
+  if (!session || loading) {
     return <FullPageLoading />
   }
 
   return (
     <ProjectSettingsRoute
       currentUserId={session.id}
-      projectName={selectedProject.name}
+      projectName={project?.name ?? ''}
     />
   )
 }
