@@ -136,11 +136,9 @@ Only the earliest ready wave will be implemented in this run. Later waves remain
 
 ## Phase 3: Create worktrees for the provisional ready wave
 
-Before creating worktrees, sweep obvious orphans:
+Worktree creation is safe to run concurrently across sessions — no prune step needed. Each `reproctl wt create --from-issue` either creates fresh or attaches to an existing worktree for that branch. No session ever needs to delete another session's worktrees.
 
-```sh
-reproctl wt prune --yes 2>&1 || echo "[wt prune] Warning: prune failed — continuing"
-```
+Note: worktree creation race detection (failing when target branch already has a local worktree) is a `reproctl` concern, not an orchestrator concern. File separately if needed.
 
 For each issue in the provisional ready wave, create its worktree **sequentially**:
 
@@ -248,7 +246,7 @@ Use the planner's **Sequence Notes** and **Risk Notes** to:
 
 - Prune issues that are not ready
 - Move issues to a later queued wave if planning revealed overlap or a missing dependency
-- Detect shared-file conflicts: if two or more issues in the current wave list the same file in their Sequence Notes, keep only the highest-priority issue in the current wave and move the others to a later queued wave
+- Detect shared-file conflicts: if two or more issues list the same file in their Sequence Notes, proceed if the planner output shows the edit locations are in distinct sections or line ranges of that file (git merge handles non-overlapping edits automatically). If a single file is listed by 3 or more issues without clear section isolation, move all but the highest-priority to a later wave. The orchestrator judges section isolation from the planner's Sequence Notes and the known phase structure of `lightspeed.md` (each phase occupies a distinct section range).
 - Keep only the issues that are independently executable now in the **current ready wave**
 
 After this pass, lock the wave plan for the rest of the run.
@@ -276,6 +274,26 @@ If a develop launch still fails after exhausting the shared retry policy:
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the publishable set
+
+### Worktree existence guard
+
+Before launching each `develop` subagent, verify the worktree path exists and the branch is correct:
+
+```sh
+if [ ! -d "<worktree-path>" ]; then
+  echo "ERROR: worktree missing for REP-xxx at <worktree-path>"
+  echo "Escalating: set issue to Todo, add to escalated_issues"
+  exit 1
+fi
+branch=$(git -C "<worktree-path>" branch --show-current)
+if [ "$branch" != "gary/rep-xxx-..." ]; then
+  echo "ERROR: worktree branch mismatch for REP-xxx (expected gary/rep-xxx-..., got $branch)"
+  echo "Escalating: set issue to Todo, add to escalated_issues"
+  exit 1
+fi
+```
+
+If the guard fails: set the issue state back to **Todo**, add the issue ID to `escalated_issues`, report the error clearly, and do NOT proceed with implementation on `main` or any other branch.
 
 Prompt template per issue:
 
