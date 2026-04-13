@@ -131,3 +131,76 @@ Classify every finding using one of these four levels before writing the review:
 - **State merge-readiness explicitly**: note whether the PR meets the merge-readiness criteria (zero Blockers; Majors fixed or tracked).
 - **Reference issue requirements by ID** when noting gaps (e.g. "REP-155 requires `shadow.focus`; not included in this PR").
 - **End with a verdict**: approve, request changes, or note what needs discussion.
+
+---
+
+## UI Quality Gate
+
+Apply this checklist to every PR that touches UI code. If the PR touches only non-UI code (migrations, API routes, utilities, skill files), skip this section entirely.
+
+### Interaction States
+
+For each interactive element, verify all eight states are implemented:
+
+1. **Default** — renders correctly at rest.
+2. **Hover** — visual feedback present (e.g. `hoverBackgroundColor={color.bg.hover}`).
+3. **Focus** — focus ring visible. Use `focusRing()` or `focusWithinRing()` from `@repro/a11y` — not custom outlines.
+4. **Active / pressed** — depressed state evident.
+5. **Disabled** — visually distinct; `props={{ disabled: true }}` set; no pointer events.
+6. **Loading** — spinner shown via `<FX.Spin><LoaderIcon /></FX.Spin>`; triggering control set `disabled={true}`.
+7. **Error** — error state rendered; message follows the three-part formula (what failed / why / next action) from the `design-system` skill.
+8. **Empty** — empty state rendered per the five-part formula (icon / heading / body / CTA / illustration) from the `design-system` skill.
+
+### Transitions & Motion
+
+- Durations: 150–300 ms. Prefer 150 ms for micro-interactions, 300 ms for panel/modal entrances.
+- Easing: use named tokens — `transition.default`, `transition.fast`, `transition.transform`.
+- `prefers-reduced-motion` support — verify this rule exists at the global stylesheet level before adding per-component overrides:
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+### Code Quality Checklist
+
+Cross-references AGENTS.md rules — treat as a reminder, not a separate system:
+
+- No `console.log` or `debugger` statements.
+- No TypeScript `any` (use `unknown` + narrowing).
+- No hardcoded colour/spacing tokens (hex, px, rem literals in JSX/TSX props).
+- No inline `style={{}}` props (use jsxstyle appearance props or tokens).
+- No writes to `/tmp/` — use `tmp/` at repo root.
+
+### Polish Checklist
+
+1.  All interactive elements have all 8 interaction states listed above.
+2.  Focus is keyboard-navigable in logical order.
+3.  Colour contrast meets WCAG AA (4.5:1 for text, 3:1 for UI components).
+4.  Touch targets ≥ 44×44 px.
+5.  Text scales correctly up to 200% zoom.
+6.  Truncation uses CSS `text-overflow: ellipsis`; no content is clipped silently.
+7.  Loading states are shown for all async operations.
+8.  Errors are recoverable — every error message has a next action.
+9.  Empty states are present on all list/grid surfaces.
+10. Transitions feel snappy — no jank; profile in Chrome DevTools if unsure.
+11. Spacing uses `spacing.*` tokens throughout — no magic numbers.
+12. Colour uses named tokens — no hardcoded hex/rgb.
+13. Typography uses `textStyles.*` spread — no raw `<p>` / `<h*>` with style props.
+14. Icons are from `@repro/icons` — no ad-hoc SVGs.
+15. `aria-label` present on icon-only buttons and inputs without visible labels.
+16. Form validation errors use `<FormFieldError>` and are announced to screen readers.
+17. Modals trap focus and restore focus on close.
+18. Animated elements respect `prefers-reduced-motion`.
+19. Tested in Chrome, Firefox, and Safari.
+20. No regressions: `moon run repro/<package>:typecheck` passes.
+
+### When to Skip
+
+If the PR touches only non-UI code (migrations, API routes, utilities, skill files), skip the UI Quality Gate entirely.
