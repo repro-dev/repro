@@ -249,7 +249,7 @@ export function createAccountService(
               email,
               password: await argon2.hash(password),
             })
-            .returning(['id', 'name', 'email'])
+            .returning(['id', 'name', 'email', 'admin'])
             .executeTakeFirstOrThrow()
         }).pipe(map(asStaffUser))
       )
@@ -275,7 +275,7 @@ export function createAccountService(
     return attemptQuery(async () => {
       const row = await database
         .selectFrom('staff_users')
-        .select(['id', 'name', 'email', 'password'])
+        .select(['id', 'name', 'email', 'admin', 'password'])
         .where('email', '=', email.toLowerCase())
         .where('active', '=', true)
         .executeTakeFirst()
@@ -301,7 +301,7 @@ export function createAccountService(
     return attemptQuery(() =>
       database
         .selectFrom('staff_users')
-        .select(['id', 'name', 'email'])
+        .select(['id', 'name', 'email', 'admin'])
         .where('id', '=', decodeId(staffUserId))
         .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
@@ -314,7 +314,7 @@ export function createAccountService(
     return attemptQuery(() =>
       database
         .selectFrom('staff_users')
-        .select(['id', 'name', 'email'])
+        .select(['id', 'name', 'email', 'admin'])
         .where('email', '=', email.toLowerCase())
         .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())

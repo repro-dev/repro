@@ -915,6 +915,7 @@ describe('Services > Account', () => {
             id: encodeId(99999),
             name: 'Does not exist',
             email: harness.generateRandomEmailAddress(),
+            isAdmin: false,
           })
         )
       ).rejects.toThrow(permissionDenied())

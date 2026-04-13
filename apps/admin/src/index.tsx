@@ -13,11 +13,17 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { Loading } from './components/Loading'
 import { RequireAdminSession } from './components/RequireAdminSession'
+import { RequireAdminStaffSession } from './components/RequireAdminStaffSession'
 import { defaultEnv as env } from './config/env'
 import { Layout } from './Layout'
+import { AccountsRoute } from './routes/AccountsRoute'
+import { FeatureGatesRoute } from './routes/FeatureGatesRoute'
+import { HealthRoute } from './routes/HealthRoute'
 import { HomeRoute } from './routes/HomeRoute'
 import { RecordingRoute } from './routes/RecordingRoute/RecordingRoute'
+import { RecordingsRoute } from './routes/RecordingsRoute'
 import { StaffLoginRoute } from './routes/StaffLoginRoute'
+import { StaffUsersRoute } from './routes/StaffUsersRoute'
 
 declare global {
   interface Window {
@@ -134,6 +140,19 @@ if (rootElem) {
                   <Route element={<Layout />}>
                     <Route element={<RequireAdminSession />}>
                       <Route index element={<HomeRoute />} />
+                      <Route path="recordings" element={<RecordingsRoute />} />
+                      <Route
+                        path="feature-gates"
+                        element={<FeatureGatesRoute />}
+                      />
+                      <Route path="accounts" element={<AccountsRoute />} />
+                      <Route element={<RequireAdminStaffSession />}>
+                        <Route
+                          path="staff-users"
+                          element={<StaffUsersRoute />}
+                        />
+                      </Route>
+                      <Route path="health" element={<HealthRoute />} />
                     </Route>
                   </Route>
 
