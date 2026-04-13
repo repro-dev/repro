@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, useContext, useRef } from 'react'
+import React, { useContext, useEffect, useRef } from 'react'
 
 declare global {
   interface Window {
@@ -84,12 +84,15 @@ export function createBillingClientFromConfig(config: BillingConfig) {
   return createBillingClient(config)
 }
 
-export const BillingProvider: React.FC<PropsWithChildren<Props>> = ({
-  children,
-  config,
-  client,
-}) => {
+export const BillingProvider: React.FC<
+  Props & { children: React.ReactNode }
+> = ({ children, config, client }) => {
   const clientRef = useRef(client ?? createBillingClient(config))
+
+  useEffect(() => {
+    clientRef.current.init()
+  }, [])
+
   return (
     <BillingContext.Provider value={clientRef.current}>
       {children}

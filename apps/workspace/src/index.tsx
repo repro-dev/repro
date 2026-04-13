@@ -2,6 +2,7 @@ import { Analytics } from '@repro/analytics'
 import { createMixpanelBrowserConsumer } from '@repro/analytics-provider-mixpanel'
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { AuthProvider, GateProvider, SessionRouteBoundary } from '@repro/auth'
+import { BillingProvider } from '@repro/billing'
 import {
   ConfirmDialogProvider,
   defaultTheme,
@@ -75,75 +76,88 @@ if (rootElem) {
   root.render(
     <BrowserRouter basename={basename}>
       <ApiProvider client={apiClient}>
-        <GateProvider>
-          <AuthProvider>
-            <ThemeProvider theme={defaultTheme}>
-              <PortalRootProvider>
-                <ConfirmDialogProvider>
-                  <Suspense fallback={<Loading />}>
-                    <Routes>
-                      <Route element={<AuthLayout />}>
-                        <Route path="account/login" element={<LoginRoute />} />
-                        <Route
-                          path="account/register"
-                          element={<RegisterRoute />}
-                        />
-                        <Route path="account/verify" element={<div />} />
-                        <Route
-                          path="account/reset-password/:token"
-                          element={<ResetPasswordRoute />}
-                        />
-                        <Route
-                          path="account/accept-invitation"
-                          element={<AcceptInvitationRoute />}
-                        />
-                      </Route>
+        <BillingProvider
+          config={{
+            token: env.PADDLE_CLIENT_TOKEN,
+            environment: env.PADDLE_ENVIRONMENT,
+          }}
+        >
+          <GateProvider>
+            <AuthProvider>
+              <ThemeProvider theme={defaultTheme}>
+                <PortalRootProvider>
+                  <ConfirmDialogProvider>
+                    <Suspense fallback={<Loading />}>
+                      <Routes>
+                        <Route element={<AuthLayout />}>
+                          <Route
+                            path="account/login"
+                            element={<LoginRoute />}
+                          />
+                          <Route
+                            path="account/register"
+                            element={<RegisterRoute />}
+                          />
+                          <Route path="account/verify" element={<div />} />
+                          <Route
+                            path="account/reset-password/:token"
+                            element={<ResetPasswordRoute />}
+                          />
+                          <Route
+                            path="account/accept-invitation"
+                            element={<AcceptInvitationRoute />}
+                          />
+                        </Route>
 
-                      <Route element={<Layout />}>
+                        <Route element={<Layout />}>
+                          <Route element={<SessionRouteBoundary />}>
+                            <Route index element={<HomeRoute />} />
+                            <Route
+                              path="projects"
+                              element={<ProjectsRoute />}
+                            />
+                            <Route path="pricing" element={<PricingRoute />} />
+                            <Route
+                              path="account/api-keys"
+                              element={
+                                <Navigate to="/settings/api-keys" replace />
+                              }
+                            />
+                          </Route>
+                        </Route>
+
                         <Route element={<SessionRouteBoundary />}>
-                          <Route index element={<HomeRoute />} />
-                          <Route path="projects" element={<ProjectsRoute />} />
-                          <Route path="pricing" element={<PricingRoute />} />
-                          <Route
-                            path="account/api-keys"
-                            element={
-                              <Navigate to="/settings/api-keys" replace />
-                            }
-                          />
+                          <Route element={<SettingsLayout />}>
+                            <Route
+                              path="settings/*"
+                              element={<SettingsRoute />}
+                            />
+                          </Route>
                         </Route>
-                      </Route>
 
-                      <Route element={<SessionRouteBoundary />}>
-                        <Route element={<SettingsLayout />}>
-                          <Route
-                            path="settings/*"
-                            element={<SettingsRoute />}
-                          />
-                        </Route>
-                      </Route>
-
-                      <Route element={<SessionRouteBoundary />}>
-                        <Route
-                          path="projects/:projectId/recordings/:recordingId"
-                          element={<RecordingRoute />}
-                        />
-                      </Route>
-
-                      <Route element={<Layout />}>
                         <Route element={<SessionRouteBoundary />}>
                           <Route
-                            path="projects/:projectId/settings"
-                            element={<ProjectSettingsRoute />}
+                            path="projects/:projectId/recordings/:recordingId"
+                            element={<RecordingRoute />}
                           />
                         </Route>
-                      </Route>
-                    </Routes>
-                  </Suspense>
-                </ConfirmDialogProvider>
-              </PortalRootProvider>
-            </ThemeProvider>
-          </AuthProvider>
-        </GateProvider>
+
+                        <Route element={<Layout />}>
+                          <Route element={<SessionRouteBoundary />}>
+                            <Route
+                              path="projects/:projectId/settings"
+                              element={<ProjectSettingsRoute />}
+                            />
+                          </Route>
+                        </Route>
+                      </Routes>
+                    </Suspense>
+                  </ConfirmDialogProvider>
+                </PortalRootProvider>
+              </ThemeProvider>
+            </AuthProvider>
+          </GateProvider>
+        </BillingProvider>
       </ApiProvider>
     </BrowserRouter>
   )
