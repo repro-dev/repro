@@ -25,6 +25,18 @@ export function calculateSpecificity(selector: string): Specificity {
   const currentArg: string[] = []
 
   for (const token of tokens) {
+    // Handle bundled paren tokens like `(.foo)` — strip parens and recurse
+    if (token.startsWith('(') && token.endsWith(')') && token.length > 2) {
+      const inner = token.slice(1, -1)
+      const argSpec = calculateSpecificity(inner)
+      for (let i = 0; i < SPECIFICITY_PARTS; i++) {
+        const current = specificity[i] ?? 0
+        const arg = argSpec[i] ?? 0
+        specificity[i] = Math.max(current, arg)
+      }
+      continue
+    }
+
     if (token === '(') {
       parenDepth++
       if (parenDepth > 1 || inNotIsHas === 0) {

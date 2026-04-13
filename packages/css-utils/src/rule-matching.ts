@@ -358,39 +358,51 @@ export function computeOverrideState(
     }))
   }
 
-  const propertyPriority: Map<string, PriorityEntry> = new Map()
+  // Pass 1: determine the winning rule index for each property
+  const propertyWinner: Map<string, number> = new Map()
 
-  return matchedRules.map((matchedRule, i) => {
-    const overridden = new Set<string>()
+  for (let i = 0; i < matchedRules.length; i++) {
+    const matchedRule = matchedRules[i]
 
-    for (const [prop, value] of Object.entries(matchedRule.rule.declarations)) {
+    for (const [prop, value] of Object.entries(
+      matchedRule!.rule.declarations
+    )) {
       const hasImportant = declarationHasImportant(value)
-      const existing = propertyPriority.get(prop)
+      const existingWinner = propertyWinner.get(prop)
 
-      if (existing) {
-        const cmp = comparePriority(existing, {
-          specificity: matchedRule.rule.specificity,
-          value,
-          hasImportant,
-          sourceOrder: i,
-        })
-        if (cmp >= 0) {
-          overridden.add(prop)
-        } else {
-          propertyPriority.set(prop, {
-            specificity: matchedRule.rule.specificity,
+      if (existingWinner !== undefined) {
+        const cmp = comparePriority(
+          {
+            specificity: matchedRules[existingWinner]!.rule.specificity,
+            value: matchedRules[existingWinner]!.rule.declarations[prop] ?? '',
+            hasImportant: declarationHasImportant(
+              matchedRules[existingWinner]!.rule.declarations[prop] ?? ''
+            ),
+            sourceOrder: existingWinner,
+          },
+          {
+            specificity: matchedRule!.rule.specificity,
             value,
             hasImportant,
             sourceOrder: i,
-          })
+          }
+        )
+        if (cmp < 0) {
+          propertyWinner.set(prop, i)
         }
       } else {
-        propertyPriority.set(prop, {
-          specificity: matchedRule.rule.specificity,
-          value,
-          hasImportant,
-          sourceOrder: i,
-        })
+        propertyWinner.set(prop, i)
+      }
+    }
+  }
+
+  // Pass 2: mark each rule's declarations as overridden based on winners
+  return matchedRules.map((matchedRule, i) => {
+    const overridden = new Set<string>()
+
+    for (const [prop] of Object.entries(matchedRule.rule.declarations)) {
+      if (propertyWinner.get(prop) !== i) {
+        overridden.add(prop)
       }
     }
 
