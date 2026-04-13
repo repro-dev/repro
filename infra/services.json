@@ -82,6 +82,7 @@
     "serve_cmd": "portless app.repro moon run repro/workspace:dev",
     "serve_env": {
       "BUILD_ENV": "development",
+      "PADDLE_CLIENT_TOKEN": "",
       "PADDLE_ENVIRONMENT": "sandbox",
       "REPRO_APP_URL": "https://app.repro.localhost:1355",
       "REPRO_API_URL": "https://api.repro.localhost:1355"

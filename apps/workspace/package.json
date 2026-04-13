@@ -20,6 +20,7 @@
     "@repro/analytics-provider-mixpanel": "workspace:*",
     "@repro/api-client": "workspace:*",
     "@repro/atom": "workspace:*",
+    "@repro/billing": "workspace:*",
     "@repro/auth": "workspace:*",
     "@repro/billing": "workspace:*",
     "@repro/css-utils": "workspace:*",

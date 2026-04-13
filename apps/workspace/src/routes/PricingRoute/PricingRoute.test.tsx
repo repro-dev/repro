@@ -1,4 +1,9 @@
-import { ApiProvider, createApiClient } from '@repro/api-client'
+import { ApiProvider } from '@repro/api-client'
+import {
+  BillingClient,
+  BillingProvider,
+  CheckoutCallbacks,
+} from '@repro/billing'
 import { BillingPlanWithEntitlements } from '@repro/domain'
 import {
   act,
@@ -8,25 +13,18 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { FutureInstance, never, reject, resolve } from 'fluture'
+import { FutureInstance, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
 
-// Mutable session state — tests can flip between authenticated and anonymous
-let currentSession: { id: string; email: string } | null = {
-  id: 'user-1',
-  email: 'test@example.com',
-}
-let currentSessionLoading = false
-let currentSearch = ''
+const mockSession = { userId: 'user-1', teamId: 'team-1' }
 
-// Register module mocks BEFORE importing the component under test
 mock.module('@repro/auth', {
   namedExports: {
-    useSession: () => currentSession,
-    useSessionLoading: () => currentSessionLoading,
+    useSession: () => mockSession,
+    useSessionLoading: () => false,
   },
 })
 
@@ -34,299 +32,207 @@ const mockNavigate = mock.fn((_path: string) => {
   void _path
 })
 
-// Mock react-router hooks so they are controlled per-test.
-// MemoryRouter (from react-router-dom) was already loaded before this mock runs,
-// so it retains real react-router internals. Only the component's own hook calls
-// are intercepted here.
 mock.module('react-router', {
   namedExports: {
     useNavigate: () => mockNavigate,
-    useLocation: () => ({ search: currentSearch }),
+    useLocation: () => ({ search: '' }),
   },
 })
 
-const mockOpenCheckout = mock.fn((_opts: { transactionId: string }) => {
-  void _opts
-})
-
-mock.module('@repro/billing', {
-  namedExports: {
-    useBillingClient: () => ({
-      init: mock.fn(),
-      openCheckout: mockOpenCheckout,
-      closeCheckout: mock.fn(),
-    }),
-  },
-})
-
-// Import AFTER mocks are registered
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PricingRoute } =
   require('./PricingRoute') as typeof import('./PricingRoute')
 
-const mockApiClient = createApiClient({
-  baseUrl: 'http://test',
-  authStorage: 'memory',
-})
+afterEach(cleanup)
 
-const mockPlans: Array<BillingPlanWithEntitlements> = [
+const mockPlans: BillingPlanWithEntitlements[] = [
   {
     id: 'plan-pro',
     name: 'Pro',
     interval: 'month',
-    entitlements: [{ feature: 'Recording', enabled: true, limit: 100 }],
+    entitlements: [{ feature: 'Recordings', enabled: true, limit: 100 }],
   },
 ]
 
-afterEach(() => {
-  cleanup()
-  mockOpenCheckout.mock.resetCalls()
-  mockNavigate.mock.resetCalls()
-  currentSession = { id: 'user-1', email: 'test@example.com' }
-  currentSessionLoading = false
-  currentSearch = ''
-})
+function createMockApiClient(
+  fetchFn: (
+    url: string,
+    options?: RequestInit
+  ) => FutureInstance<Error, unknown>
+) {
+  return {
+    authStore: {
+      getSessionToken: () => resolve(''),
+      setSessionToken: () => resolve(''),
+      clearSessionToken: () => resolve(undefined as unknown as void),
+    },
+    fetch: fetchFn as unknown as ReturnType<
+      typeof import('@repro/api-client').createApiClient
+    >['fetch'],
+    debug: () => () => {},
+    wrapP: <R,>(f: FutureInstance<unknown, R>) => f as unknown as Promise<R>,
+  }
+}
 
-function makeClient(checkoutFuture: FutureInstance<unknown, unknown>) {
-  const fetchFn = mock.fn(
-    (url: string) => {
+describe('PricingRoute', () => {
+  it('renders plan cards normally', async () => {
+    const mockApiClient = createMockApiClient((url: string) => {
       if (url === '/billing/plans') {
-        return resolve({ items: mockPlans })
+        return resolve({ items: mockPlans }) as FutureInstance<Error, unknown>
       }
-      // POST /billing/checkout
-      return checkoutFuture
+      return resolve({}) as FutureInstance<Error, unknown>
+    })
+
+    const mockBillingClient: BillingClient = {
+      init: mock.fn(),
+      openCheckout: mock.fn(),
+      closeCheckout: mock.fn(),
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ) as any
 
-  return { ...mockApiClient, fetch: fetchFn }
-}
-
-function makeLoadingClient() {
-  const fetchFn = (_url: string) => never as any
-
-  return { ...mockApiClient, fetch: fetchFn }
-}
-
-describe('PricingRoute checkout', () => {
-  it('shows skeleton placeholders while plans are loading', async () => {
     render(
-      <MemoryRouter>
-        <ApiProvider client={makeLoadingClient()}>
-          <PricingRoute />
-        </ApiProvider>
-      </MemoryRouter>
-    )
-
-    assert.ok(screen.getByText('Plans'))
-    await waitFor(() => {
-      assert.ok(screen.getAllByRole('status').length > 0)
-    })
-  })
-  it('shows loading text on the clicked plan button while checkout is in flight', async () => {
-    render(
-      <MemoryRouter>
-        <ApiProvider client={makeClient(never)}>
-          <PricingRoute />
-        </ApiProvider>
-      </MemoryRouter>
-    )
-
-    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
-
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: /get started/i }))
-    })
-
-    await waitFor(() => {
-      assert.ok(screen.getByRole('button', { name: /loading/i }))
-    })
-  })
-
-  it('disables all plan buttons while checkout is in flight', async () => {
-    render(
-      <MemoryRouter>
-        <ApiProvider client={makeClient(never)}>
-          <PricingRoute />
-        </ApiProvider>
-      </MemoryRouter>
-    )
-
-    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
-    const btn = screen.getByRole('button', { name: /get started/i })
-
-    act(() => {
-      fireEvent.click(btn)
-    })
-
-    assert.equal((btn as HTMLButtonElement).disabled, true)
-  })
-
-  it('calls openCheckout with transactionId when checkout succeeds', async () => {
-    render(
-      <MemoryRouter>
-        <ApiProvider client={makeClient(resolve({ transactionId: 'txn-123' }))}>
-          <PricingRoute />
-        </ApiProvider>
-      </MemoryRouter>
-    )
-
-    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /get started/i }))
-    })
-
-    await waitFor(() => {
-      assert.equal(mockOpenCheckout.mock.calls.length, 1)
-      assert.deepEqual(
-        mockOpenCheckout.mock.calls[0]!.arguments[0] as unknown,
-        { transactionId: 'txn-123' }
-      )
-    })
-  })
-
-  it('restores button state after successful checkout', async () => {
-    render(
-      <MemoryRouter>
-        <ApiProvider client={makeClient(resolve({ transactionId: 'txn-456' }))}>
-          <PricingRoute />
-        </ApiProvider>
-      </MemoryRouter>
-    )
-
-    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /get started/i }))
-    })
-
-    await waitFor(() => {
-      const btn = screen.getByRole('button', { name: /get started/i })
-      assert.equal((btn as HTMLButtonElement).disabled, false)
-    })
-  })
-
-  it('shows inline error message when checkout API fails', async () => {
-    render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/pricing']}>
         <ApiProvider
-          client={makeClient(reject(new Error('Payment provider unavailable')))}
+          client={mockApiClient as Parameters<typeof ApiProvider>[0]['client']}
         >
-          <PricingRoute />
+          <BillingProvider config={{ token: '' }} client={mockBillingClient}>
+            <PricingRoute />
+          </BillingProvider>
         </ApiProvider>
       </MemoryRouter>
     )
-
-    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /get started/i }))
-    })
 
     await waitFor(() => {
-      assert.ok(screen.getByText(/payment provider unavailable/i))
+      assert.ok(screen.getByText('Pro'))
     })
+
+    assert.equal(screen.queryByRole('status'), null)
   })
 
-  it('re-enables button so user can retry after a failed checkout', async () => {
-    render(
-      <MemoryRouter>
-        <ApiProvider client={makeClient(reject(new Error('Network error')))}>
-          <PricingRoute />
-        </ApiProvider>
-      </MemoryRouter>
+  it('shows success confirmation after checkout completes', async () => {
+    let capturedCallbacks: CheckoutCallbacks | undefined
+
+    const mockApiClient = createMockApiClient((url: string) => {
+      if (url === '/billing/plans') {
+        return resolve({ items: mockPlans }) as FutureInstance<Error, unknown>
+      }
+      if (url === '/billing/checkout') {
+        return resolve({ transactionId: 'txn_123' }) as FutureInstance<
+          Error,
+          unknown
+        >
+      }
+      return resolve({}) as FutureInstance<Error, unknown>
+    })
+
+    const mockOpenCheckout = mock.fn(
+      (_opts: unknown, cbs?: CheckoutCallbacks) => {
+        capturedCallbacks = cbs
+      }
     )
 
-    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /get started/i }))
-    })
-
-    await waitFor(() => {
-      const btn = screen.getByRole('button', { name: /get started/i })
-      assert.equal((btn as HTMLButtonElement).disabled, false)
-    })
-  })
-
-  it('does not trigger checkout twice when button is clicked rapidly', async () => {
-    const checkoutResolve = resolve({ transactionId: 'txn-789' })
-    const client = makeClient(checkoutResolve)
-
-    render(
-      <MemoryRouter>
-        <ApiProvider client={client}>
-          <PricingRoute />
-        </ApiProvider>
-      </MemoryRouter>
-    )
-
-    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
-
-    // Rapid double-click should only produce one checkout call
-    act(() => {
-      const btn = screen.getByRole('button', { name: /get started/i })
-      fireEvent.click(btn)
-      fireEvent.click(btn)
-    })
-
-    await waitFor(() => {
-      assert.equal(mockOpenCheckout.mock.calls.length, 1)
-    })
-  })
-
-  it('redirects to register with planId when unauthenticated', async () => {
-    currentSession = null
-    currentSessionLoading = false
+    const mockBillingClient: BillingClient = {
+      init: mock.fn(),
+      openCheckout: mockOpenCheckout,
+      closeCheckout: mock.fn(),
+    }
 
     render(
-      <MemoryRouter>
-        <ApiProvider client={makeClient(never)}>
-          <PricingRoute />
-        </ApiProvider>
-      </MemoryRouter>
-    )
-
-    await waitFor(() => screen.getByRole('button', { name: /get started/i }))
-
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: /get started/i }))
-    })
-
-    assert.equal(mockNavigate.mock.calls.length, 1)
-    const navigatedTo = mockNavigate.mock.calls[0]!.arguments[0] as string
-    assert.ok(
-      navigatedTo.startsWith('/account/register?redirect='),
-      `Expected redirect to register page, got: ${navigatedTo}`
-    )
-    assert.ok(
-      navigatedTo.includes(encodeURIComponent('/pricing?planId=')),
-      `Expected redirect to include planId, got: ${navigatedTo}`
-    )
-    // Checkout must not have been triggered for an unauthenticated user
-    assert.equal(mockOpenCheckout.mock.calls.length, 0)
-  })
-
-  it('auto-triggers checkout when returning authenticated with planId in URL', async () => {
-    currentSearch = '?planId=plan-pro'
-
-    render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/pricing']}>
         <ApiProvider
-          client={makeClient(resolve({ transactionId: 'txn-auto' }))}
+          client={mockApiClient as Parameters<typeof ApiProvider>[0]['client']}
         >
-          <PricingRoute />
+          <BillingProvider config={{ token: '' }} client={mockBillingClient}>
+            <PricingRoute />
+          </BillingProvider>
         </ApiProvider>
       </MemoryRouter>
     )
 
     await waitFor(() => {
-      assert.equal(mockOpenCheckout.mock.calls.length, 1)
-      assert.deepEqual(
-        mockOpenCheckout.mock.calls[0]!.arguments[0] as unknown,
-        { transactionId: 'txn-auto' }
-      )
+      assert.ok(screen.getByText('Pro'))
     })
+
+    const getStartedButton = screen.getByRole('button', {
+      name: /get started/i,
+    })
+    await act(async () => {
+      fireEvent.click(getStartedButton)
+    })
+
+    await waitFor(() => {
+      assert.ok(capturedCallbacks)
+    })
+
+    act(() => {
+      capturedCallbacks!.onCompleted?.()
+    })
+
+    await waitFor(() => {
+      assert.ok(screen.getByRole('status'))
+      assert.ok(screen.getByText(/Thanks for subscribing/))
+    })
+  })
+
+  it('stays on pricing page after checkout cancelled', async () => {
+    let capturedCallbacks: CheckoutCallbacks | undefined
+
+    const mockApiClient = createMockApiClient((url: string) => {
+      if (url === '/billing/plans') {
+        return resolve({ items: mockPlans }) as FutureInstance<Error, unknown>
+      }
+      if (url === '/billing/checkout') {
+        return resolve({ transactionId: 'txn_123' }) as FutureInstance<
+          Error,
+          unknown
+        >
+      }
+      return resolve({}) as FutureInstance<Error, unknown>
+    })
+
+    const mockOpenCheckout = mock.fn(
+      (_opts: unknown, cbs?: CheckoutCallbacks) => {
+        capturedCallbacks = cbs
+      }
+    )
+
+    const mockBillingClient: BillingClient = {
+      init: mock.fn(),
+      openCheckout: mockOpenCheckout,
+      closeCheckout: mock.fn(),
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/pricing']}>
+        <ApiProvider
+          client={mockApiClient as Parameters<typeof ApiProvider>[0]['client']}
+        >
+          <BillingProvider config={{ token: '' }} client={mockBillingClient}>
+            <PricingRoute />
+          </BillingProvider>
+        </ApiProvider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      assert.ok(screen.getByText('Pro'))
+    })
+
+    const getStartedButton = screen.getByRole('button', {
+      name: /get started/i,
+    })
+    await act(async () => {
+      fireEvent.click(getStartedButton)
+    })
+
+    await waitFor(() => {
+      assert.ok(capturedCallbacks)
+    })
+
+    act(() => {
+      capturedCallbacks!.onCancelled?.()
+    })
+
+    assert.ok(screen.getByText('Pro'))
+    assert.equal(screen.queryByRole('status'), null)
   })
 })

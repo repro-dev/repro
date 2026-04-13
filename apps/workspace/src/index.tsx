@@ -74,14 +74,14 @@ if (rootElem) {
     : undefined
 
   root.render(
-    <BrowserRouter basename={basename}>
-      <ApiProvider client={apiClient}>
-        <BillingProvider
-          config={{
-            token: env.PADDLE_CLIENT_TOKEN,
-            environment: env.PADDLE_ENVIRONMENT,
-          }}
-        >
+    <BillingProvider
+      config={{
+        token: env.PADDLE_CLIENT_TOKEN,
+        environment: env.PADDLE_ENVIRONMENT,
+      }}
+    >
+      <BrowserRouter basename={basename}>
+        <ApiProvider client={apiClient}>
           <GateProvider>
             <AuthProvider>
               <ThemeProvider>
@@ -146,8 +146,8 @@ if (rootElem) {
               </ThemeProvider>
             </AuthProvider>
           </GateProvider>
-        </BillingProvider>
-      </ApiProvider>
-    </BrowserRouter>
+        </ApiProvider>
+      </BrowserRouter>
+    </BillingProvider>
   )
 }

@@ -3,6 +3,7 @@ import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
 import { useBillingClient } from '@repro/billing'
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -15,7 +16,7 @@ import {
   color,
   spacing,
 } from '@repro/design'
-import { BillingPlanWithEntitlements } from '@repro/domain'
+import { BillingPlanWithEntitlements, ListResponse } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { fork } from 'fluture'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
@@ -39,14 +40,12 @@ export const PricingRoute: React.FC = () => {
   const sessionLoading = useSessionLoading()
   const navigate = useNavigate()
   const location = useLocation()
+  const [checkoutConfirmed, setCheckoutConfirmed] = useState(false)
 
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const checkoutInProgressRef = useRef(false)
 
-  // Reset the in-progress guard after React flushes the cleared loading state.
-  // This ensures a rapid second click (before the next render) is still blocked
-  // even when the underlying Future resolves synchronously.
   useEffect(() => {
     if (loadingPlanId === null) {
       checkoutInProgressRef.current = false
@@ -86,15 +85,19 @@ export const PricingRoute: React.FC = () => {
             setCheckoutError(err.message ?? 'An unexpected error occurred')
           })(result => {
             setLoadingPlanId(null)
-            billingClient.openCheckout({ transactionId: result.transactionId })
+            billingClient.openCheckout(
+              { transactionId: result.transactionId },
+              {
+                onCompleted: () => setCheckoutConfirmed(true),
+                onCancelled: () => {},
+              }
+            )
           })
         )
     },
     [apiClient, billingClient, session, sessionLoading, navigate]
   )
 
-  // When the user returns from login/register with a planId in the URL and is
-  // authenticated, auto-trigger checkout for the originally selected plan
   const planIdFromUrl = new URLSearchParams(location.search).get('planId')
   useEffect(() => {
     if (!sessionLoading && session && planIdFromUrl) {
@@ -102,10 +105,10 @@ export const PricingRoute: React.FC = () => {
     }
   }, [sessionLoading, session, planIdFromUrl, handleSelectPlan])
 
-  const { loading, error, data } = useFuture(
-    () => apiClient.fetch('/billing/plans'),
-    [apiClient]
-  )
+  const { loading, error, data } = useFuture<
+    Error,
+    ListResponse<BillingPlanWithEntitlements>
+  >(() => apiClient.fetch('/billing/plans'), [apiClient])
 
   if (loading) {
     return (
@@ -151,7 +154,29 @@ export const PricingRoute: React.FC = () => {
     )
   }
 
-  const plans: Array<BillingPlanWithEntitlements> = data!.items
+  if (checkoutConfirmed) {
+    return (
+      <PageFrame>
+        <PageFrame.Header>
+          <PageFrame.Title>Plans</PageFrame.Title>
+        </PageFrame.Header>
+        <PageFrame.Body>
+          <Alert type="success">
+            Thanks for subscribing — your plan is being activated
+          </Alert>
+          <Button
+            variant="contained"
+            context="info"
+            onClick={() => navigate('/')}
+          >
+            Continue to app
+          </Button>
+        </PageFrame.Body>
+      </PageFrame>
+    )
+  }
+
+  const plans = data!.items
   const features = collectFeatures(plans)
 
   return (
