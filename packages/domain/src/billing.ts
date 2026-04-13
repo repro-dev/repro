@@ -28,6 +28,7 @@ export interface BillingSubscriptionResponse {
   canceledAt: string | null
   createdAt: string
   updatedAt: string
+  isSelfProvisioned: boolean
 }
 
 export interface PortalSessionResponse {
