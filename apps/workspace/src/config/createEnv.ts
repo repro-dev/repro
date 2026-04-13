@@ -16,17 +16,17 @@ type Replacer = {
 }
 
 export function createEnv(values: Record<string, unknown>): Env & Replacer {
-  const env = envSchema.parse(values) as Env & Replacer
+  const parsed = envSchema.parse(values)
 
-  env.replace = function replace<K extends keyof Env>(key: K, value: Env[K]) {
-    const original = env[key]
-    ;(env as unknown as Record<K, Env[K]>)[key] = envSchema.shape[key].parse(
-      value
-    ) as Env[K]
-    return () => {
-      ;(env as unknown as Record<K, Env[K]>)[key] = original
-    }
-  }
+  const result: Env & Replacer = Object.assign(parsed, {
+    replace<K extends keyof Env>(key: K, value: Env[K]) {
+      const original = parsed[key]
+      parsed[key] = envSchema.shape[key].parse(value) as Env[K]
+      return () => {
+        parsed[key] = original
+      }
+    },
+  })
 
-  return env
+  return result
 }

@@ -57,18 +57,29 @@ function createBillingClient(config: BillingConfig) {
   }
 
   function handleEvent(data: any) {
-    config.eventCallback?.(data)
+    try {
+      config.eventCallback?.(data)
+    } catch (err) {
+      console.error('[billing] eventCallback threw:', err)
+    }
 
     if (data?.name === 'checkout.completed') {
       checkoutCompleted = true
     } else if (data?.name === 'checkout.closed') {
-      if (checkoutCompleted) {
-        currentCallbacks?.onCompleted?.()
-      } else {
-        currentCallbacks?.onCancelled?.()
-      }
-      checkoutCompleted = false
+      const callbacks = currentCallbacks
+      const completed = checkoutCompleted
       currentCallbacks = null
+      checkoutCompleted = false
+
+      try {
+        if (completed) {
+          callbacks?.onCompleted?.()
+        } else {
+          callbacks?.onCancelled?.()
+        }
+      } catch (err) {
+        console.error('[billing] checkout callback threw:', err)
+      }
     }
   }
 

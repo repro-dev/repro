@@ -98,10 +98,16 @@ export const PricingRoute: React.FC = () => {
     [apiClient, billingClient, session, sessionLoading, navigate]
   )
 
+  // When the user returns from login/register with a planId in the URL and is
+  // authenticated, auto-trigger checkout for the originally selected plan.
+  // Clear planId from the URL immediately to prevent re-triggering on refresh.
   const planIdFromUrl = new URLSearchParams(location.search).get('planId')
   useEffect(() => {
     if (!sessionLoading && session && planIdFromUrl) {
       handleSelectPlan(planIdFromUrl)
+      const url = new URL(window.location.href)
+      url.searchParams.delete('planId')
+      window.history.replaceState(null, '', url.toString())
     }
   }, [sessionLoading, session, planIdFromUrl, handleSelectPlan])
 
