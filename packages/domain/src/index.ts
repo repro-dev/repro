@@ -1,7 +1,5 @@
 import { CodecVersion } from './migrations/types'
 
-// Importing file from outside TypeScript root directory
-// @ts-ignore
 import pkg from '../package.json'
 
 // Recording codec types
