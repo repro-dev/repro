@@ -188,3 +188,84 @@ Default threshold: `0.001` (0.1% of pixels changed). To override for a specific 
 ### Storybook port
 
 The script uses port **6099** by default (avoids conflict with the dev server on 6006). Override with `--port <n>` if needed. The script automatically finds the next free port if 6099 is occupied.
+
+---
+
+## Frontend Performance
+
+Use this section as a reference for measuring and improving frontend performance. Always profile production builds (`NODE_ENV=production`) — development mode is not representative.
+
+### Core Web Vitals Targets
+
+| Metric                                                    | Target                      | Tool                        |
+| --------------------------------------------------------- | --------------------------- | --------------------------- |
+| LCP (Largest Contentful Paint)                            | < 2.5 s                     | Chrome DevTools, Lighthouse |
+| FID (First Input Delay) / INP (Interaction to Next Paint) | FID < 100 ms / INP < 200 ms | Chrome DevTools             |
+| CLS (Cumulative Layout Shift)                             | < 0.1                       | Chrome DevTools, Lighthouse |
+
+### Profiling Tools
+
+- **Chrome DevTools Performance tab** — record runtime performance; look for long tasks (> 50 ms) and layout thrashing.
+- **Lighthouse** — run from DevTools or CLI; save reports to `tmp/lighthouse/` (never `/tmp/`).
+- **Chrome DevTools Coverage** — inspect unused JavaScript and CSS in a production build to spot bundle bloat and dead code.
+- **React DevTools Profiler** — identify unnecessary re-renders; flamegraph shows component render times.
+
+### Code Splitting
+
+Use dynamic `import()` for routes and heavy components in apps whose build target supports it. In this repo, that generally means the Vite-based apps can use it without special changes, but some targets may explicitly disallow dynamic imports, so follow the app's existing build configuration.
+
+```ts
+const HeavyComponent = React.lazy(() => import("./HeavyComponent"));
+```
+
+### Render Optimisation
+
+- `React.memo` — wrap components whose props rarely change to skip re-renders.
+- `useMemo` — memoize expensive computations.
+- `useCallback` — stabilise callback references passed to child components.
+
+**Caveat**: these have a cost (memory, comparison overhead). Only apply when profiling confirms a bottleneck — premature memoisation is a code smell.
+
+### Layout Thrashing
+
+Batch DOM reads before writes to avoid forced synchronous layouts:
+
+```ts
+// BAD — read/write interleaved triggers layout thrashing
+element.style.height = element.offsetHeight + "px";
+
+// GOOD — batch reads, then writes
+const height = element.offsetHeight;
+element.style.height = height + "px";
+```
+
+### GPU-Accelerated Animation
+
+Prefer `transform` and `opacity` for animations — they are composited on the GPU and do not trigger layout:
+
+```css
+/* Prefer this */
+transform: translateX(100px);
+opacity: 0;
+
+/* Avoid these — trigger layout */
+left: 100px;
+margin-top: 20px;
+```
+
+### CLS Prevention
+
+Reserve space for dynamic content with `aspect-ratio` or explicit dimensions:
+
+```css
+.image-container {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+}
+```
+
+### NEVER
+
+- Profile in development mode — always profile production builds (`NODE_ENV=production`).
+- Save Lighthouse reports to `/tmp/` — use `tmp/lighthouse/` at the repo root.
+- Add `memo` / `useMemo` / `useCallback` without a profiler-confirmed bottleneck.
