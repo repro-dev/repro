@@ -69,9 +69,11 @@ Return a structured review in this format:
 Each blocking item must include a `fixable_by_agent:` field and a 1-sentence rationale:
 
 - **[file path, line N]** Description of the issue.
+  `category: <category>` — one of: correctness, security, architecture, conventions, performance.
   `fixable_by_agent: true` — One sentence rationale for why the existing issue spec and plan are sufficient for the develop agent to fix it safely.
 
 - **[file path, line N]** Description of the issue.
+  `category: <category>` — one of: correctness, security, architecture, conventions, performance.
   `fixable_by_agent: false` — One sentence rationale for why this requires human judgment, re-planning, or missing product direction.
 
 ## Non-blocking suggestions
