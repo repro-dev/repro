@@ -144,17 +144,17 @@ For each interactive element, verify all eight states are implemented:
 
 1. **Default** — renders correctly at rest.
 2. **Hover** — visual feedback present (e.g. `hoverBackgroundColor={color.bg.hover}`).
-3. **Focus** — focus ring visible. Use `focusRing()` or `focusWithinRing()` from `@repro/a11y` — not custom outlines.
+3. **Focus** — focus ring visible. Use `focusRing()` or `focusWithinRing()` from `@repro/design` — not custom outlines.
 4. **Active / pressed** — depressed state evident.
 5. **Disabled** — visually distinct; `props={{ disabled: true }}` set; no pointer events.
-6. **Loading** — spinner shown via `<FX.Spin><LoaderIcon /></FX.Spin>`; triggering control set `disabled={true}`.
+6. **Loading** — spinner shown via `<FX.Spin><LoaderIcon /></FX.Spin>`; triggering control set `props={{ disabled: true }}`.
 7. **Error** — error state rendered; message follows the three-part formula (what failed / why / next action) from the `design-system` skill.
 8. **Empty** — empty state rendered per the five-part formula (icon / heading / body / CTA / illustration) from the `design-system` skill.
 
 ### Transitions & Motion
 
-- Durations: 150–300 ms. Prefer 150 ms for micro-interactions, 300 ms for panel/modal entrances.
-- Easing: use named tokens — `transition.default`, `transition.fast`, `transition.transform`.
+- Durations: use motion token values (100/200/300 ms). Prefer 100 ms for micro-interactions, 200 ms for standard UI transitions, and 300 ms for panel/modal entrances.
+- Transition presets: use named tokens — `transition.default`, `transition.fast`, `transition.transform`.
 - `prefers-reduced-motion` support — verify this rule exists at the global stylesheet level before adding per-component overrides:
 
 ```css
