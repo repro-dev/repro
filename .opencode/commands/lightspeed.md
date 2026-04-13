@@ -136,9 +136,9 @@ Only the earliest ready wave will be implemented in this run. Later waves remain
 
 ## Phase 3: Create worktrees for the provisional ready wave
 
-Worktree creation is safe to run concurrently across sessions — no prune step needed. Each `reproctl wt create --from-issue` either creates fresh or attaches to an existing worktree for that branch. No session ever needs to delete another session's worktrees.
+Each `reproctl wt create --from-issue` creates a fresh worktree for the issue branch. It does not currently detect whether that branch already has a local worktree (see REP-893); concurrent sessions may create duplicate worktrees for the same branch without an explicit error.
 
-Note: worktree creation race detection (failing when target branch already has a local worktree) is a `reproctl` concern, not an orchestrator concern. File separately if needed.
+No prune step is needed before creating worktrees. Do not delete another session's worktrees.
 
 For each issue in the provisional ready wave, create its worktree **sequentially**:
 
@@ -207,7 +207,7 @@ ready | not ready
 ## Sequence Notes
 - likely touched packages/files
 - dependency or ordering notes
-- list every file this plan will write or modify; flag any that are likely shared with sibling issues in the current wave (the orchestrator uses this to detect conflicts before implementation starts)
+- list every file this plan will write or modify; for each shared file, specify the edit location (e.g., "Phase 4", "lines 40-60", "Phase 7 agent template") so the orchestrator can judge whether edits will overlap with sibling issues in the current wave
 
 ## Risk Notes
 - anything that could force resequencing or issue pruning
@@ -250,13 +250,13 @@ Use the planner's **Sequence Notes** and **Risk Notes** to:
 
   Example — the REP-884 wave (5 issues, all touching `lightspeed.md`):
   - REP-884 edits Phase 5 + Phase 7
-  - REP-881 edits Phase 4
-  - REP-882 edits Phase 4 + Phase 7 + Phase 8 + agent template files
-  - REP-880 edits Phase 6 + Phase 7
+  - REP-881 edits Phase 4 (Phase 4, lines 1–50)
+  - REP-882 edits Phase 4 + Phase 7 + Phase 8 + agent template files (Phase 4, lines 60–120)
+  - REP-880 edits Phase 6 + Phase 7 (Phase 7, lines 200–280)
   - REP-878 edits Phase 1
 
   The orchestrator scans for shared phases:
-  - Phase 4 is touched by 2 issues (REP-881, REP-882) — ok, both can proceed
+  - Phase 4 is touched by 2 issues (REP-881, REP-882) — edit locations are non-overlapping (lines 1–50 vs lines 60–120), so git merge can handle it; both can proceed
   - Phase 7 is touched by 3 issues (REP-884, REP-882, REP-880) — triggers the conservative 3+ rule, so keep highest-priority (REP-884) and defer REP-882 and REP-880 to a later wave
   - Phases 1, 5, 6, 8 are each touched by a single issue — no conflict
 
@@ -298,13 +298,11 @@ Before launching each `develop` subagent, verify the worktree path exists and th
 if [ ! -d "<worktree-path>" ]; then
   echo "ERROR: worktree missing for REP-xxx at <worktree-path>"
   echo "Escalating: set issue to Todo, add to escalated_issues"
-  exit 1
 fi
-branch=$(git -C "<worktree-path>" branch --show-current)
-if [ "$branch" != "gary/rep-xxx-..." ]; then
-  echo "ERROR: worktree branch mismatch for REP-xxx (expected gary/rep-xxx-..., got $branch)"
+branch=$(git -C "<worktree-path>" branch --show-current 2>/dev/null)
+if [ -z "$branch" ] || ! echo "$branch" | grep -qE "^gary/rep-[0-9]+-"; then
+  echo "ERROR: worktree branch mismatch for REP-xxx (expected gary/rep-<number>-..., got '$branch')"
   echo "Escalating: set issue to Todo, add to escalated_issues"
-  exit 1
 fi
 ```
 
