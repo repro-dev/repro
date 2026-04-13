@@ -10,6 +10,7 @@ describe('Routers > Billing', () => {
   let harness: Harness
   let billingService: BillingService
   let app: FastifyInstance
+  let enforcedApp: FastifyInstance
 
   before(async () => {
     harness = await createTestHarness()
@@ -18,6 +19,14 @@ describe('Routers > Billing', () => {
       createBillingRouter(billingService, harness.services.accountService)
     )
     await app.ready()
+
+    enforcedApp = harness.bootstrap(
+      createBillingRouter(billingService, harness.services.accountService, {
+        ...harness.env,
+        BILLING_STUBBED: false,
+      })
+    )
+    await enforcedApp.ready()
   })
 
   beforeEach(async () => {
@@ -369,6 +378,72 @@ describe('Routers > Billing', () => {
       })
 
       expect(res.statusCode).toEqual(400)
+    })
+  })
+
+  describe('GET /plan-summary', () => {
+    it('should return 200 for ProPlan subscriber when BILLING_STUBBED=false', async () => {
+      const [, session] = await harness.loadFixtures([
+        fixtures.billing.AccountA_ProPlan_Subscription,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await enforcedApp.inject({
+        method: 'GET',
+        url: '/plan-summary',
+        cookies: {
+          [harness.env.SESSION_COOKIE]: enforcedApp.signCookie(
+            session.sessionToken
+          ),
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+    })
+
+    it('should return 403 for FreePlan subscriber when BILLING_STUBBED=false', async () => {
+      const [, session] = await harness.loadFixtures([
+        fixtures.billing.AccountA_FreePlan_Subscription,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await enforcedApp.inject({
+        method: 'GET',
+        url: '/plan-summary',
+        cookies: {
+          [harness.env.SESSION_COOKIE]: enforcedApp.signCookie(
+            session.sessionToken
+          ),
+        },
+      })
+
+      expect(res.statusCode).toEqual(403)
+    })
+
+    it('should return 200 for FreePlan subscriber when BILLING_STUBBED=true', async () => {
+      const [, session] = await harness.loadFixtures([
+        fixtures.billing.AccountA_FreePlan_Subscription,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/plan-summary',
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+    })
+
+    it('should return 401 when not authenticated', async () => {
+      const res = await enforcedApp.inject({
+        method: 'GET',
+        url: '/plan-summary',
+      })
+
+      expect(res.statusCode).toEqual(401)
     })
   })
 })

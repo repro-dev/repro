@@ -1,16 +1,30 @@
+import { FastifyReply, FastifyRequest, preHandlerHookHandler } from 'fastify'
 import {
   FutureInstance,
   bichain,
   chain,
+  fork,
+  go,
   map,
   reject,
   resolve,
   swap,
 } from 'fluture'
+import { Env } from '~/config/createEnv'
+import { SystemConfig, defaultSystemConfig } from '~/config/system'
 import { Database, attemptQuery, decodeId } from '~/modules/database'
 import { asFeatureGate } from '~/modules/database/schema/FeatureGateTable'
+import { AccountService } from '~/services/account'
+import { BillingEntitlement, BillingService } from '~/services/billing'
 import { FeatureGate } from '~/types/featureGate'
-import { isNotFound, notFound, resourceConflict } from '~/utils/errors'
+import {
+  isNotFound,
+  notFound,
+  permissionDenied,
+  resourceConflict,
+} from '~/utils/errors'
+import { getCurrentUserAccount } from '~/utils/request'
+import { createResponseUtils } from '~/utils/response'
 
 export function createFeatureGateService(database: Database) {
   function getFeatureGateByName(
@@ -99,11 +113,11 @@ export function createFeatureGateService(database: Database) {
       'Feature gate with this name already exists'
     )
 
-    const checkNameConflict: FutureInstance<Error, void> = name
+    const checkNameConflict: FutureInstance<Error, undefined> = name
       ? getFeatureGateByName(name).pipe(
-          bichain<Error, Error, void>(error =>
+          bichain((error: Error) =>
             isNotFound(error) ? resolve(undefined) : reject(error)
-          )(gate =>
+          )((gate: FeatureGate) =>
             gate.id !== id ? reject(conflictError) : resolve(undefined)
           )
         )
@@ -128,7 +142,7 @@ export function createFeatureGateService(database: Database) {
     )
   }
 
-  function removeFeatureGate(id: string): FutureInstance<Error, void> {
+  function removeFeatureGate(id: string): FutureInstance<Error, undefined> {
     return attemptQuery(() => {
       return database
         .deleteFrom('feature_gates')
@@ -152,3 +166,44 @@ export function createFeatureGateService(database: Database) {
 }
 
 export type FeatureGateService = ReturnType<typeof createFeatureGateService>
+
+// Returns a factory that produces a Fastify preHandler hook enforcing
+// entitlement-based feature gates. When BILLING_STUBBED=true, every gate
+// passes immediately so local dev is never blocked by missing entitlement data.
+export function createFeatureGateMiddleware(
+  billingService: BillingService,
+  accountService: AccountService,
+  env: Env,
+  config: SystemConfig = defaultSystemConfig
+): (feature: string) => preHandlerHookHandler {
+  const { respondWithError } = createResponseUtils(config)
+
+  return function requireFeature(feature: string): preHandlerHookHandler {
+    return function (req: FastifyRequest, res: FastifyReply, done) {
+      if (env.BILLING_STUBBED) {
+        done()
+        return
+      }
+
+      fork((error: Error) => respondWithError(res, error))(entitled => {
+        if (entitled) {
+          done()
+        } else {
+          respondWithError(
+            res,
+            permissionDenied('Feature not available on your plan')
+          )
+        }
+      })(
+        go(function* () {
+          const { account } = yield getCurrentUserAccount(req, accountService)
+          const entitlements: Array<BillingEntitlement> =
+            yield billingService.getEntitlements(account.id)
+          return entitlements.some(
+            (e: BillingEntitlement) => e.feature === feature && e.enabled
+          )
+        })
+      )
+    }
+  }
+}

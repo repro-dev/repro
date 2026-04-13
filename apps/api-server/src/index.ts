@@ -159,7 +159,7 @@ const agenticRouter = createAgenticRouter(
   }
 )
 const apiKeysRouter = createApiKeysRouter(apiKeyService, accountService)
-const billingRouter = createBillingRouter(billingService, accountService)
+const billingRouter = createBillingRouter(billingService, accountService, env)
 const billingWebhookRouter =
   !env.BILLING_STUBBED && env.PADDLE_API_KEY && env.PADDLE_WEBHOOK_SECRET
     ? createBillingWebhookRouter(

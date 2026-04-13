@@ -17,6 +17,7 @@ import { BillingPlanWithEntitlements, ListResponse } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import React, { useCallback, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router'
+import { useEntitlements } from '~/hooks/useEntitlements'
 
 function collectFeatures(
   plans: Array<BillingPlanWithEntitlements>
@@ -36,6 +37,14 @@ export const PricingRoute: React.FC = () => {
   const sessionLoading = useSessionLoading()
   const navigate = useNavigate()
   const location = useLocation()
+  const { entitlements } = useEntitlements()
+
+  // Returns true when the current user has the given feature enabled
+  const isEnabled = useCallback(
+    (feature: string) =>
+      entitlements.some(e => e.feature === feature && e.enabled),
+    [entitlements]
+  )
 
   const handleSelectPlan = useCallback(
     (planId: string) => {
@@ -139,6 +148,9 @@ export const PricingRoute: React.FC = () => {
                             <Text variant="bodySmall" color={color.text.muted}>
                               Not included
                             </Text>
+                          )}
+                          {session && isEnabled(feature) && (
+                            <Badge context="info">Active</Badge>
                           )}
                         </Stack>
                       )
