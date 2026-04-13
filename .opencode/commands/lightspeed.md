@@ -246,15 +246,21 @@ Use the planner's **Sequence Notes** and **Risk Notes** to:
 
 - Prune issues that are not ready
 - Move issues to a later queued wave if planning revealed overlap or a missing dependency
-- Detect shared-file conflicts: if two or more issues list the same file in their Sequence Notes, proceed if the planner output shows the edit locations are in distinct sections or line ranges of that file (git merge handles non-overlapping edits automatically). If a single file is listed by 3 or more issues without clear section isolation, move all but the highest-priority to a later wave. The orchestrator judges section isolation from the planner's Sequence Notes and the known phase structure of `lightspeed.md` (each phase occupies a distinct section range).
+- Detect shared-file conflicts: if two or more issues list the same file in their Sequence Notes, proceed if the planner output shows the edit locations are in distinct sections or line ranges of that file (git merge handles non-overlapping edits automatically). If a single file is listed by 3 or more issues without clear section isolation, move all but the highest-priority to a later wave. The orchestrator judges section isolation from the planner's Sequence Notes and the known structure of the target file (e.g., the phase-section structure of `lightspeed.md`).
 
-  Example — the REP-884 wave (5 issues, all touching `lightspeed.md` in distinct phases):
+  Example — the REP-884 wave (5 issues, all touching `lightspeed.md`):
   - REP-884 edits Phase 5 + Phase 7
   - REP-881 edits Phase 4
-  - REP-882 edits Phase 4 + Phase 7 + Phase 8 + agent templates
+  - REP-882 edits Phase 4 + Phase 7 + Phase 8 + agent template files
   - REP-880 edits Phase 6 + Phase 7
   - REP-878 edits Phase 1
-    All five issues list `lightspeed.md` as a touched file. The orchestrator inspects the planner's Sequence Notes and confirms each issue's edits target distinct phase sections (Phase 1, Phase 4, Phase 5, Phase 6, Phase 7/8). Since no two issues share the same phase section, all five can proceed in the same wave — git merge handles the non-overlapping edits automatically.
+
+  The orchestrator scans for shared phases:
+  - Phase 4 is touched by 2 issues (REP-881, REP-882) — ok, both can proceed
+  - Phase 7 is touched by 3 issues (REP-884, REP-882, REP-880) — triggers the conservative 3+ rule, so keep highest-priority (REP-884) and defer REP-882 and REP-880 to a later wave
+  - Phases 1, 5, 6, 8 are each touched by a single issue — no conflict
+
+  Final wave: REP-884, REP-881, REP-878 proceed. REP-882 and REP-880 are deferred (later wave).
 
 - Keep only the issues that are independently executable now in the **current ready wave**
 
