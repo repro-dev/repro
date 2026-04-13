@@ -1,6 +1,5 @@
 import { IfSession, UnlessSession, UserMenu, useSession } from '@repro/auth'
 import { AppShell, Link, SideNav } from '@repro/design'
-import { StaffUser } from '@repro/domain'
 import {
   ActivityIcon,
   FlagIcon,
@@ -14,8 +13,7 @@ import { AdminHeader } from '~/components/AdminHeader'
 
 export const Layout: React.FC = () => {
   const session = useSession()
-  const isAdminStaff =
-    session?.type === 'staff' && (session as StaffUser).isAdmin
+  const isAdminStaff = session?.type === 'staff' && session.isAdmin
 
   const recordingsActive = useMatch({ path: '/recordings', end: false })
   const featureGatesActive = useMatch({ path: '/feature-gates', end: false })

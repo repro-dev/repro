@@ -13,6 +13,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { Loading } from './components/Loading'
 import { RequireAdminSession } from './components/RequireAdminSession'
+import { RequireAdminStaffSession } from './components/RequireAdminStaffSession'
 import { defaultEnv as env } from './config/env'
 import { Layout } from './Layout'
 import { AccountsRoute } from './routes/AccountsRoute'
@@ -145,7 +146,12 @@ if (rootElem) {
                         element={<FeatureGatesRoute />}
                       />
                       <Route path="accounts" element={<AccountsRoute />} />
-                      <Route path="staff-users" element={<StaffUsersRoute />} />
+                      <Route element={<RequireAdminStaffSession />}>
+                        <Route
+                          path="staff-users"
+                          element={<StaffUsersRoute />}
+                        />
+                      </Route>
                       <Route path="health" element={<HealthRoute />} />
                     </Route>
                   </Route>
