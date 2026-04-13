@@ -61,13 +61,13 @@ _reproctl() {
   local cur prev words cword
   _init_completion || return
 
-  local top_commands="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help"
+  local top_commands="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help opencode"
   local cluster_sub="up down status reset"
   local db_sub="reset migrate shell status"
   local code_index_sub="help"
   local wt_sub="create remove list attach prune"
   local completion_shells="bash zsh fish"
-  local help_topics="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version environment exit-codes json"
+  local help_topics="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version environment exit-codes json opencode"
 
   # Find the subcommand position (skip global flags)
   local cmd="" subcmd=""
@@ -213,6 +213,25 @@ _reproctl() {
 
     version)
       COMPREPLY=($(compgen -W "--json -h --help" -- "$cur"))
+      ;;
+
+    opencode)
+      case "$prev" in
+        --profile)
+          # Complete profile names from .opencode/profiles/
+          local repo
+          repo="$(__reproctl_repo_root)"
+          local profiles=()
+          local pfile
+          for pfile in "$repo/.opencode/profiles/"*.json; do
+            [[ -f "$pfile" ]] || continue
+            profiles+=("$(basename "$pfile" .json)")
+          done
+          COMPREPLY=($(compgen -W "${profiles[*]}" -- "$cur"))
+          return
+          ;;
+      esac
+      COMPREPLY=($(compgen -W "--profile -h --help" -- "$cur"))
       ;;
   esac
 }

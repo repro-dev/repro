@@ -1,4 +1,4 @@
-set -l commands setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help
+set -l commands setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help opencode
 
 function __reproctl_no_subcommand
     set -l cmd (commandline -opc)
@@ -67,6 +67,7 @@ complete -c reproctl -n __reproctl_no_subcommand -f -a wt -d 'Manage git worktre
 complete -c reproctl -n __reproctl_no_subcommand -f -a completion -d 'Generate shell completions'
 complete -c reproctl -n __reproctl_no_subcommand -f -a version -d 'Print reproctl version'
 complete -c reproctl -n __reproctl_no_subcommand -f -a help -d 'Show help for a command'
+complete -c reproctl -n __reproctl_no_subcommand -f -a opencode -d 'Launch OpenCode with optional model profile'
 
 complete -c reproctl -l json -d 'Output machine-readable JSON'
 complete -c reproctl -s q -l quiet -d 'Suppress non-error output'
@@ -150,4 +151,15 @@ complete -c reproctl -n '__reproctl_using_subcommand wt prune' -f -s y -l yes -d
 
 complete -c reproctl -n '__reproctl_using_command completion' -f -a 'bash zsh fish' -d 'Shell'
 
-complete -c reproctl -n '__reproctl_using_command help' -f -a 'setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion environment exit-codes json'
+# opencode --profile completion: enumerate .opencode/profiles/*.json
+function __reproctl_opencode_profiles
+    set -l repo (__reproctl_repo_root)
+    for f in "$repo/.opencode/profiles/"*.json
+        test -f "$f"; and basename "$f" .json
+    end
+end
+
+complete -c reproctl -n '__reproctl_using_command opencode' -f -l profile -d 'Model profile name' -ra '(__reproctl_opencode_profiles)'
+complete -c reproctl -n '__reproctl_using_command opencode' -f -s h -l help -d 'Show help'
+
+complete -c reproctl -n '__reproctl_using_command help' -f -a 'setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion environment exit-codes json opencode'

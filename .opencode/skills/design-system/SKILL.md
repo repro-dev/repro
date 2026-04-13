@@ -216,3 +216,262 @@ For full token tables with every value, read `tokens.md`.
 ```
 
 (Top-level `disabled` overwrites `props` bag value due to jsxstyle prop precedence.)
+
+---
+
+## Normalisation Workflow
+
+Use this workflow when tasked with bringing existing UI into alignment with design system conventions. Consult the sub-reference files in this directory (`tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
+
+### Plan
+
+Before writing any code, audit the target component(s) across all eight normalisation dimensions:
+
+1. Spacing — hardcoded pixel values in padding/margin/gap props
+2. Colour — hardcoded hex/rgb values in color/backgroundColor/borderColor props
+3. Typography — raw `<p>` / `<h*>` elements with inline style props
+4. Layout — `<div style={{display:'flex'}}>` or equivalent raw flex/grid divs
+5. Component substitution — hand-rolled controls that duplicate `@repro/design` components
+6. Prop hygiene — inline `style={{}}` props anywhere
+7. Accessibility — missing `aria-*` attributes or keyboard handlers
+8. Type safety — `any` usages or `noUncheckedIndexedAccess` violations
+
+### Execute
+
+Work through each dimension in order:
+
+**1. Spacing** — replace hardcoded pixel values with `spacing.*` tokens.
+
+```tsx
+// Before
+<Col padding={16} gap={8}>
+
+// After
+import { spacing } from '@repro/design'
+<Col padding={spacing.md} gap={spacing.sm}>
+```
+
+**2. Colour** — replace hardcoded hex/rgb with named colour tokens. Match the token category to the CSS property.
+
+```tsx
+// Before
+<Block color="#333" backgroundColor="#f5f5f5">
+
+// After
+import { color } from '@repro/design'
+<Block color={color.text.primary} backgroundColor={color.bg.surface}>
+```
+
+**3. Typography** — use `<Text>` or spread `textStyles.*` instead of raw `<p>`/`<h*>` with style props.
+
+```tsx
+// Before
+<p style={{ fontSize: "14px", lineHeight: 1.5 }}>Caption text</p>;
+
+// After
+import { textStyles } from "@repro/design";
+<Block component="p" {...textStyles.body}>
+  Caption text
+</Block>;
+```
+
+**4. Layout** — replace raw flex/grid divs with jsxstyle primitives.
+
+```tsx
+// Before
+<div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+
+// After
+<Row alignItems="center">
+```
+
+**5. Component substitution** — replace hand-rolled controls with `@repro/design` equivalents. Consult the Component Selection Guide above.
+
+```tsx
+// Before
+<button onClick={handleSubmit} className="btn-primary">Save</button>
+
+// After
+<Button variant="contained" onClick={handleSubmit}>Save</Button>
+```
+
+**6. Prop hygiene** — remove all inline `style={{}}` props; use jsxstyle appearance props or design tokens.
+
+```tsx
+// Before
+<Row style={{ gap: 8, borderRadius: 4 }}>
+
+// After
+import { spacing, radius } from '@repro/design'
+<Row gap={spacing.sm} borderRadius={radius.sm}>
+```
+
+**7. Accessibility** — add `aria-*` attributes and keyboard handlers per `@repro/a11y` helpers.
+
+```tsx
+// Before
+<Row component="button" props={{ onClick: handleClose }}>
+
+// After
+import { focusRing } from '@repro/design'
+<Row component="button" props={{ onClick: handleClose, 'aria-label': 'Close dialog' }} {...focusRing()}>
+```
+
+**8. Type safety** — eliminate `any`; use `unknown` + narrowing. Ensure `noUncheckedIndexedAccess` compliance (index operations need null-checks).
+
+```ts
+// Before
+function process(data: any) {
+  return data.value;
+}
+
+// After
+function process(data: unknown) {
+  if (typeof data === "object" && data !== null && "value" in data) {
+    return (data as { value: unknown }).value;
+  }
+}
+```
+
+### Clean Up
+
+1. Run `moon run repro/<package>:typecheck` to verify no regressions. Do not use `tsc` directly.
+2. DRYness check: if a normalised pattern appears 3+ times, extract it to a shared helper or component. If a new component is warranted, read `design-package.md` for component-authoring conventions.
+3. Confirm no inline `style={{}}` props remain in the modified files (`git diff` is the fastest check).
+
+---
+
+## Microcopy
+
+Consistent, user-centred microcopy reduces support burden and keeps the product voice coherent. Apply these guidelines whenever writing or reviewing UI copy.
+
+### Error Messages
+
+Structure: **[What failed]** + **[Why it likely failed]** + **[What to do next]**.
+
+This mirrors the agentic tool error requirement in AGENTS.md — the same three-part formula applies to user-facing errors.
+
+> "Recording failed to upload. Your connection may have dropped. Check your network and try again."
+
+- For field errors: wrap in `<FormFieldError>`.
+- For page-level errors: use `<Alert type="danger">`.
+
+### Form Labels
+
+- Sentence case; no trailing colons.
+- Placeholder text should show format, not "Enter your…".
+
+```tsx
+<Label>Session name</Label>
+<Input placeholder="e.g. login-flow-repro" />
+```
+
+### Button / CTA Text
+
+- Lead with a verb; be specific about the outcome ("Start recording", not "Go").
+- Destructive actions: use `<Button context="danger">` — copy must name the thing being destroyed.
+
+```tsx
+<Button variant="contained">Start recording</Button>
+<Button variant="outlined" context="danger">Delete recording</Button>
+```
+
+### Help Text
+
+- Place below the field, not above.
+- Max one sentence; link to docs if more context is needed.
+- Use `<Tooltip>` for inline hints.
+
+### Empty States
+
+See the `## Empty State Pattern` section below for the full five-part formula.
+
+### Loading States
+
+- Progressive disclosure: skeleton first, then spinner only if load exceeds ~1 s.
+- Omit "Please wait" — use a noun phrase describing what's loading.
+- Component: `<FX.Spin><LoaderIcon /></FX.Spin>` with `disabled={true}` on the triggering control.
+
+```tsx
+<FX.Spin>
+  <LoaderIcon size={16} />
+</FX.Spin>
+```
+
+### Confirmation Dialogs
+
+- Title: imperative verb + object — "Delete this recording?"
+- Body: one sentence on consequence; no apology language.
+- Use `<Modal>` + `<Button context="danger">` for destructive confirm; `<Button variant="outlined">` for cancel.
+
+### Clarity Principles
+
+- Active voice. Avoid passive: "Recording deleted" not "Recording was deleted".
+- No jargon: "session" not "recording instance"; "error" not "exception".
+- Sentence case throughout; reserve Title Case for page headings only.
+
+**Repro-specific copy examples:**
+
+| Context               | Copy                                                                                                 |
+| --------------------- | ---------------------------------------------------------------------------------------------------- |
+| Recording controls    | "Start recording" / "Stop recording" / "Discard recording"                                           |
+| Agentic session error | "Session failed to start. The agent may be unavailable. Try again or check the Agentic status page." |
+| Empty recordings list | "No recordings yet. Start a session to capture your first recording."                                |
+
+---
+
+## Empty State Pattern
+
+Every list or grid surface must have an empty state. Use the five-part formula:
+
+### Five-Part Formula
+
+1. **Icon** — communicates context at a glance.
+   - Implementation: 48×48 icon from `lucide-react`; wrap in `<Block color={color.text.subtle}>`.
+
+2. **Heading** — names the empty state clearly (not "Nothing here").
+   - Implementation: use `textStyles.heading3` spread; sentence case; max 5 words.
+
+3. **Body** — one sentence explaining why it's empty and what the user can do.
+   - Implementation: `<Block component="p" {...textStyles.body} color={color.text.secondary}>`.
+
+4. **CTA** — primary action the user should take.
+   - Implementation: `<Button variant="contained">` with a specific verb ("Start recording", "Invite a teammate").
+
+5. **Illustration** — optional; only if the surface warrants it (first-run, marketing-adjacent).
+   - Implementation: omit by default; add only when product explicitly requests it.
+
+### jsxstyle Skeleton
+
+```tsx
+import { color, spacing, textStyles } from "@repro/design";
+import { Button } from "@repro/design";
+// Import `SomeIcon` from the icon library used in your app (e.g. lucide-react).
+
+<Col alignItems="center" gap={spacing.lg} padding={spacing.xl}>
+  <Block color={color.text.subtle}>
+    <SomeIcon size={48} />
+  </Block>
+  <Block component="h3" {...textStyles.heading3}>
+    No recordings yet
+  </Block>
+  <Block component="p" {...textStyles.body} color={color.text.secondary}>
+    Start a session to capture your first recording.
+  </Block>
+  <Button variant="contained" onClick={onStart}>
+    Start recording
+  </Button>
+</Col>;
+```
+
+### Examples
+
+| Surface          | Heading           | Body                                             | CTA              |
+| ---------------- | ----------------- | ------------------------------------------------ | ---------------- |
+| Recordings list  | No recordings yet | Start a session to capture your first recording. | Start recording  |
+| Agentic sessions | No sessions yet   | Run a debugging session to see results here.     | Start session    |
+| Team members     | No teammates yet  | Invite your team to collaborate on recordings.   | Invite teammates |
+
+### Component Promotion
+
+If the same five-part structure is used in 3 or more places, standardize on the existing `<EmptyState>` compound component from `@repro/design` rather than reimplementing the pattern ad hoc. If the current API does not support the needed use case, read `design-package.md` for component-authoring conventions before extending it.
