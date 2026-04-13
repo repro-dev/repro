@@ -10,7 +10,7 @@ interface Props {
 
 const DESCRIPTION_LENGTH = 360
 
-export const Summary: React.FC = ({ info }) => {
+export const Summary: React.FC<Props> = ({ info }) => {
   const [showDrawer, setShowDrawer] = useState(false)
 
   const shouldTruncateDescription = info.description.length > DESCRIPTION_LENGTH

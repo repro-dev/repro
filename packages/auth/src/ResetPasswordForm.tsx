@@ -15,12 +15,6 @@ import { FormProvider, useForm } from 'react-hook-form'
 import z from 'zod'
 import { useConfirmPasswordReset } from './hooks'
 
-interface Props {
-  token: string
-  onSuccess(): void
-  onFailure(error: Error): void
-}
-
 const formSchema = z
   .object({
     newPassword: z.string().min(8, 'Password must be at least 8 characters'),
@@ -33,9 +27,15 @@ const formSchema = z
     path: ['confirmedPassword'],
   })
 
-type FormState = z.infer
+type FormState = z.infer<typeof formSchema>
 
-export const ResetPasswordForm: React.FC = ({
+interface Props {
+  token: string
+  onSuccess(): void
+  onFailure(error: Error): void
+}
+
+export const ResetPasswordForm: React.FC<Props> = ({
   token,
   onSuccess,
   onFailure,

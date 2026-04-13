@@ -1,7 +1,7 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { useApiClient } from '@repro/api-client'
-import { color } from '@repro/design'
+import { color, transition } from '@repro/design'
 import { RecordingMode } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'

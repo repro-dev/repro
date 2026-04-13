@@ -1,5 +1,6 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
+import { color, transition } from '@repro/design'
 import { SourceEventType } from '@repro/domain'
 import { Unboxed, isLens, unwrapLens } from '@repro/tdl'
 import prettyBytes from 'pretty-bytes'
@@ -7,7 +8,7 @@ import React from 'react'
 import { useSelectedEvent } from '~/hooks'
 
 interface Props {
-  event: Unboxed
+  event: Unboxed<any>
   index: number
   style: React.CSSProperties
 }

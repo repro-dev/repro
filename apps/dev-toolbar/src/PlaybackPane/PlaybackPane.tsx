@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { Button } from '@repro/design'
+import { Button, color } from '@repro/design'
 import {
   PlaybackCanvas,
   PlaybackProvider,

@@ -1,4 +1,5 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
+import { color } from '@repro/design'
 import { SourceEventType } from '@repro/domain'
 import { InterruptSignal, useRecordingStream } from '@repro/recording'
 import { TablePropertiesIcon } from 'lucide-react'

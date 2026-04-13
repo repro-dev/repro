@@ -20,12 +20,6 @@ import z from 'zod'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import { useLogin, useResetPassword } from './hooks'
 
-interface Props {
-  redirectTo?: string
-  onSuccess(): void
-  onFailure(error: Error): void
-}
-
 const loginFormSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -35,11 +29,17 @@ const resetFormSchema = z.object({
   email: z.string().email(),
 })
 
-type LoginFormState = z.infer
-type ResetFormState = z.infer
+type LoginFormState = z.infer<typeof loginFormSchema>
+type ResetFormState = z.infer<typeof resetFormSchema>
 type FormState = LoginFormState | ResetFormState
 
-export const LoginForm: React.FC = ({ onSuccess, onFailure }) => {
+interface Props {
+  redirectTo?: string
+  onSuccess(): void
+  onFailure(error: Error): void
+}
+
+export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   const [errorMessage, setErrorMessage] = useState('')
   const [showResetFlow, setShowResetFlow] = useState(false)
   const [showPostResetMessage, setShowPostResetMessage] = useState(false)

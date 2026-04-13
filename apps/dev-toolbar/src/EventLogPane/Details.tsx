@@ -1,6 +1,6 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { Button } from '@repro/design'
+import { Button, color } from '@repro/design'
 import { JSONView } from '@repro/devtools'
 import { SourceEventType } from '@repro/domain'
 import {

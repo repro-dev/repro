@@ -21,10 +21,11 @@ function useCallbackRef<T extends (...args: any[]) => unknown>(
   return ref
 }
 
-export const RangeTimeline: React.FC = ({ onChange }) => {
+export const RangeTimeline: React.FC<Props> = ({ onChange }) => {
   const playback = usePlayback()
   const onChangeRef = useCallbackRef(onChange)
-  const containerRef = useRef() as MutableRefObject
+  const containerRef =
+    useRef<HTMLElement>() as MutableRefObject<HTMLElement | null>
 
   useEffect(() => {
     const subscription = new Subscription()

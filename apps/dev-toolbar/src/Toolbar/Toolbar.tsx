@@ -1,6 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { Button, Logo, Toggle } from '@repro/design'
+import { Button, color, Logo, Toggle } from '@repro/design'
 import { forget } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
 import { useRecordingStream } from '@repro/recording'

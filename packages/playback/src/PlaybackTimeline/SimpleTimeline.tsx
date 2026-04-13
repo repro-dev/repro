@@ -22,9 +22,11 @@ export interface Props {
   max?: number
 }
 
-export const SimpleTimeline: React.FC = ({ children, min, max }) => {
-  const progressRef = useRef() as MutableRefObject
-  const elapsedTimeRef = useRef() as MutableRefObject
+export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
+  const progressRef =
+    useRef<HTMLElement>() as MutableRefObject<HTMLElement | null>
+  const elapsedTimeRef =
+    useRef<HTMLElement>() as MutableRefObject<HTMLElement | null>
   const playback = usePlayback()
 
   useEffect(() => {
@@ -291,7 +293,7 @@ function createAnimationObservable(
   duration: number
 ) {
   return new Observable(observer => {
-    const keyframes: Array = [
+    const keyframes: Array<Keyframe> = [
       { transform: `scaleX(${initialOffset})` },
       { transform: `scaleX(1.0)` },
     ]

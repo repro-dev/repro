@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { color, Tooltip } from '@repro/design'
+import { color, Tooltip, transition } from '@repro/design'
 import {
   isInputElement,
   isSelectElement,
@@ -104,7 +104,7 @@ export const SpeedControl: React.FC = () => {
       userSelect="none"
       cursor="pointer"
       whiteSpace="nowrap"
-      transition="background-color 250ms ease-in-out"
+      transition={transition.default}
       props={{ onClick: cycleSpeed }}
     >
       <Block>

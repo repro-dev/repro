@@ -17,11 +17,6 @@ import z from 'zod'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import { useRegister } from './hooks'
 
-interface Props {
-  onSuccess(): void
-  onFailure(error: Error): void
-}
-
 const formSchema = z
   .object({
     accountName: z.string(),
@@ -37,9 +32,14 @@ const formSchema = z
     path: ['confirmedPassword'],
   })
 
-type FormState = z.infer
+type FormState = z.infer<typeof formSchema>
 
-export const RegisterForm: React.FC = ({ onSuccess, onFailure }) => {
+interface Props {
+  onSuccess(): void
+  onFailure(error: Error): void
+}
+
+export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   const [errorMessage, setErrorMessage] = useState('')
 
   // const navigate = useNavigate()
