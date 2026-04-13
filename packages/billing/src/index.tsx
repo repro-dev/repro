@@ -69,6 +69,7 @@ function createBillingClient(config: BillingConfig) {
 
   function openCheckout(options: any) {
     if (!window.Paddle) {
+      console.warn('Billing: Paddle not available, cannot open checkout')
       return
     }
 
@@ -77,6 +78,7 @@ function createBillingClient(config: BillingConfig) {
 
   function closeCheckout() {
     if (!window.Paddle) {
+      console.warn('Billing: Paddle not available, cannot close checkout')
       return
     }
 
@@ -109,7 +111,16 @@ export const BillingProvider: React.FC<
   const clientRef = useRef(client ?? createBillingClient(config))
 
   useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!window.Paddle) {
+        console.warn(
+          'Billing: Paddle.js not available after initialization. ' +
+            'Ensure the Paddle script tag is present in the host page.'
+        )
+      }
+    }, 2000)
     clientRef.current.init()
+    return () => clearTimeout(timeout)
   }, [])
 
   return (
