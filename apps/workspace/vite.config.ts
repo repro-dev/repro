@@ -72,7 +72,7 @@ const envVars = Object.fromEntries(
   envVarNames.map(name => [name, process.env[name] ?? ''])
 )
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode: _mode }) => ({
   plugins: [
     react(),
     htmlEnvPlugin(envVars),
@@ -95,7 +95,7 @@ export default defineConfig(({ mode }) => ({
 
   build: {
     outDir: 'dist',
-    sourcemap: mode === 'production' ? false : true,
+    sourcemap: false,
     target: 'esnext',
     rollupOptions: {
       input: {

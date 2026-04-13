@@ -73,7 +73,7 @@ export default defineConfig(({ mode }) => ({
 
   build: {
     outDir: 'dist',
-    sourcemap: mode !== 'production',
+    sourcemap: false,
     target: 'esnext',
     lib: {
       entry: entries[entry]!,

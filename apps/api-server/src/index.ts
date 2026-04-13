@@ -49,6 +49,11 @@ import { startExpiredSessionCleanup } from './sessionCleanup'
 
 initSentry(env)
 
+// Track whether Sentry is actually initialized so we can avoid calling it
+// when no DSN is configured (making it a true no-op rather than relying on
+// Sentry's internal guards).
+const sentryEnabled = Boolean(env.SENTRY_DSN)
+
 const httpClient = createHttpClient()
 
 const database = createPostgresDatabaseClient({
@@ -308,9 +313,12 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   registerSessionDecorator(app)
 
   app.addHook('preHandler', async req => {
-    Sentry.setUser(
-      req.session?.subjectId ? { id: req.session.subjectId } : null
-    )
+    if (!sentryEnabled) return
+    if (req.session?.subjectId) {
+      Sentry.setUser({ id: req.session.subjectId })
+    } else {
+      Sentry.setUser(null)
+    }
   })
 
   for (const [path, callback] of Object.entries(routers)) {
@@ -319,7 +327,7 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
 
   app.setErrorHandler((err, _req, res) => {
     const statusCode = (err as { statusCode?: number }).statusCode
-    if (env.SENTRY_DSN && (!statusCode || statusCode >= 500)) {
+    if (sentryEnabled && (!statusCode || statusCode >= 500)) {
       Sentry.captureException(err)
     }
     res.status(500).send(serverError(err.message))
