@@ -17,27 +17,39 @@ import {
 } from 'fluture'
 import z from 'zod'
 import { createRuntimeAgent } from './createRuntimeAgent'
-;(
-  chrome.scripting as typeof chrome.scripting & {
-    registerContentScripts: (
-      scripts: {
-        id: string
-        js: string[]
-        matches: string[]
-        runAt: string
-        world: 'ISOLATED' | 'MAIN'
-      }[]
-    ) => Promise<void>
+
+const scriptingApi = chrome.scripting as typeof chrome.scripting & {
+  registerContentScripts: (
+    scripts: {
+      id: string
+      js: string[]
+      matches: string[]
+      runAt: string
+      world: 'ISOLATED' | 'MAIN'
+    }[]
+  ) => Promise<void>
+  unregisterContentScripts: (options: { ids?: string[] }) => Promise<void>
+}
+
+async function registerReactHookScript(): Promise<void> {
+  try {
+    await scriptingApi.unregisterContentScripts({ ids: ['repro-react-hook'] })
+  } catch {
+    // No existing script with this ID — nothing to unregister
   }
-).registerContentScripts([
-  {
-    id: 'repro-react-hook',
-    js: ['reactHook.js'],
-    matches: ['<all_urls>'],
-    runAt: 'document_start',
-    world: 'MAIN',
-  },
-])
+
+  await scriptingApi.registerContentScripts([
+    {
+      id: 'repro-react-hook',
+      js: ['reactHook.js'],
+      matches: ['<all_urls>'],
+      runAt: 'document_start',
+      world: 'MAIN',
+    },
+  ])
+}
+
+registerReactHookScript()
 
 function run<L, R>(source: FutureInstance<L, R>, resolve = console.log) {
   return source.pipe(fork<L>(console.error)<R>(resolve))
