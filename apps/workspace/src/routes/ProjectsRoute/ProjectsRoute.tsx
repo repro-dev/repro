@@ -2,7 +2,7 @@ import { EmptyState, PageFrame } from '@repro/design'
 import { FolderIcon } from 'lucide-react'
 import React from 'react'
 
-const ProjectsRoute: React.FC = () => {
+export const ProjectsRoute: React.FC = () => {
   return (
     <PageFrame>
       <PageFrame.Header>
@@ -26,5 +26,3 @@ const ProjectsRoute: React.FC = () => {
     </PageFrame>
   )
 }
-
-export default ProjectsRoute
