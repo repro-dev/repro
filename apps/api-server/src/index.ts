@@ -308,9 +308,9 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   registerSessionDecorator(app)
 
   app.addHook('preHandler', async req => {
-    if (req.session?.subjectId) {
-      Sentry.setUser({ id: req.session.subjectId })
-    }
+    Sentry.setUser(
+      req.session?.subjectId ? { id: req.session.subjectId } : null
+    )
   })
 
   for (const [path, callback] of Object.entries(routers)) {
@@ -318,7 +318,10 @@ async function bootstrap(routers: Record<string, FastifyPluginAsync>) {
   }
 
   app.setErrorHandler((err, _req, res) => {
-    Sentry.captureException(err)
+    const statusCode = (err as { statusCode?: number }).statusCode
+    if (env.SENTRY_DSN && (!statusCode || statusCode >= 500)) {
+      Sentry.captureException(err)
+    }
     res.status(500).send(serverError(err.message))
   })
 

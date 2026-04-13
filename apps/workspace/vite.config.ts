@@ -95,7 +95,7 @@ export default defineConfig(({ mode }) => ({
 
   build: {
     outDir: 'dist',
-    sourcemap: mode === 'production' ? 'hidden' : true,
+    sourcemap: mode === 'production' ? false : true,
     target: 'esnext',
     rollupOptions: {
       input: {
