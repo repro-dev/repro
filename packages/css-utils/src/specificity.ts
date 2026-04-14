@@ -212,7 +212,8 @@ function tokenizeSelector(selector: string): string[] {
         ) {
           current += char
           skippedPush = true
-          continue // skip the trailing i++ below to avoid double-increment
+          i++ // advance past this char before continuing
+          continue
         } else if (
           // Only emit a named pseudo-element if we haven't already accumulated
           // a leading ':' — that means we're in the :: case and should keep

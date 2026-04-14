@@ -184,6 +184,8 @@ function TabButton({ active, onClick, children }: TabButtonProps) {
       color={active ? colors.blue['700'] : colors.slate['600']}
       border="none"
       outline="none"
+      focusOutline="2px solid #3b82f6"
+      focusOutlineOffset="1px"
       onClick={onClick}
       props={{
         type: 'button' as const,
