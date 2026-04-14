@@ -1,18 +1,14 @@
-import { Block, Grid } from '@jsxstyle/react'
+import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import { useSelector } from '@repro/atom'
 import { colors } from '@repro/design'
 import { NodeId, VElement, VTree } from '@repro/domain'
 import { BreakpointType, usePlayback, useSnapshot } from '@repro/playback'
 import { isDocumentVNode, isElementVNode } from '@repro/vdom-utils'
-import React, {
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  useState,
-} from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { ElementTree } from '../ElementTree'
 import { useElementPicker, useFocusedNode, useSelectedNode } from '../hooks'
 import { SelectedNodeComputedStyle } from './SelectedNodeComputedStyle'
+import { StylesPane } from './StylesPane'
 
 export const ElementsPanel: React.FC = () => {
   return (
@@ -23,7 +19,7 @@ export const ElementsPanel: React.FC = () => {
   )
 }
 
-const Container: React.FC<PropsWithChildren> = ({ children }) => (
+const Container: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <Grid gridTemplateColumns="1fr auto" alignItems="stretch" height="100%">
     {children}
   </Grid>
@@ -120,9 +116,12 @@ const MainPane: React.FC = React.memo(() => {
 
 const INITIAL_SIDEBAR_SIZE = 360
 
+type SidebarTab = 'styles' | 'computed'
+
 const SidebarPane: React.FC = () => {
   const [size, _setSize] = useState(INITIAL_SIDEBAR_SIZE)
   const [_initialSize, _setInitialSize] = useState(INITIAL_SIDEBAR_SIZE)
+  const [activeTab, setActiveTab] = useState<SidebarTab>('styles')
 
   return (
     <Block
@@ -131,7 +130,95 @@ const SidebarPane: React.FC = () => {
       overflow="auto"
       borderLeft={`1px solid ${colors.slate['200']}`}
     >
-      <SelectedNodeComputedStyle />
+      <Col height="100%">
+        <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+        <Block flex="1" overflow="auto">
+          <Block
+            id="sidebar-panel-styles"
+            props={{ role: 'tabpanel', hidden: activeTab !== 'styles' }}
+          >
+            {activeTab === 'styles' && <StylesPane />}
+          </Block>
+          <Block
+            id="sidebar-panel-computed"
+            props={{ role: 'tabpanel', hidden: activeTab !== 'computed' }}
+          >
+            {activeTab === 'computed' && <SelectedNodeComputedStyle />}
+          </Block>
+        </Block>
+      </Col>
+    </Block>
+  )
+}
+
+interface TabBarProps {
+  activeTab: SidebarTab
+  onTabChange: (tab: SidebarTab) => void
+}
+
+const TabBar: React.FC<TabBarProps> = ({ activeTab, onTabChange }) => (
+  <Row
+    borderBottom={`1px solid ${colors.slate['200']}`}
+    backgroundColor={colors.slate['50']}
+    flexShrink={0}
+    props={{ role: 'tablist' }}
+  >
+    <TabButton
+      label="Styles"
+      tab="styles"
+      activeTab={activeTab}
+      onTabChange={onTabChange}
+    />
+    <TabButton
+      label="Computed"
+      tab="computed"
+      activeTab={activeTab}
+      onTabChange={onTabChange}
+    />
+  </Row>
+)
+
+interface TabButtonProps {
+  label: string
+  tab: SidebarTab
+  activeTab: SidebarTab
+  onTabChange: (tab: SidebarTab) => void
+}
+
+const TabButton: React.FC<TabButtonProps> = ({
+  label,
+  tab,
+  activeTab,
+  onTabChange,
+}) => {
+  const isActive = tab === activeTab
+
+  return (
+    <Block
+      component="button"
+      padding="6px 12px"
+      fontSize={11}
+      fontWeight={isActive ? 600 : 400}
+      color={isActive ? colors.blue['600'] : colors.slate['600']}
+      backgroundColor="transparent"
+      borderBottom={
+        isActive ? `2px solid ${colors.blue['500']}` : '2px solid transparent'
+      }
+      cursor="pointer"
+      outline="none"
+      border="none"
+      borderBottomStyle="solid"
+      borderBottomWidth={2}
+      borderBottomColor={isActive ? colors.blue['500'] : 'transparent'}
+      hoverBackgroundColor={colors.slate['100']}
+      props={{
+        role: 'tab',
+        'aria-selected': isActive,
+        'aria-controls': `sidebar-panel-${tab}`,
+        onClick: () => onTabChange(tab),
+      }}
+    >
+      {label}
     </Block>
   )
 }

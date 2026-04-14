@@ -1,6 +1,15 @@
 import { useAtomState, useAtomValue } from '@repro/atom'
+import {
+  CapturedCSSRule,
+  computeOverrideState,
+  extractStylesheetRules,
+  getAncestorRules,
+  InheritedRule,
+  MatchedRule,
+  matchRulesToElement,
+} from '@repro/css-utils'
 import { isElementNode } from '@repro/dom-utils'
-import { useContext } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { DevToolsStateContext } from './context'
 
 export function useDevToolsState() {
@@ -73,4 +82,62 @@ export function useConsoleSearch() {
 export function useConsoleLevelFilter() {
   const state = useDevToolsState()
   return useAtomState(state.$consoleLevelFilter)
+}
+
+/**
+ * Returns matched CSS rules and inherited rules for the currently selected element.
+ * Reads from the live playback iframe DOM at call time.
+ */
+export function useMatchedCSSRules(): {
+  matchedRules: MatchedRule[]
+  inheritedRules: InheritedRule[]
+} {
+  const selectedElement = useSelectedElement()
+  const [allRules, setAllRules] = useState<CapturedCSSRule[]>([])
+  const [matchedRules, setMatchedRules] = useState<MatchedRule[]>([])
+  const [inheritedRules, setInheritedRules] = useState<InheritedRule[]>([])
+
+  // Extract all stylesheet rules from the element's owner document
+  useEffect(() => {
+    if (!selectedElement) {
+      setAllRules([])
+      return
+    }
+
+    try {
+      const doc = selectedElement.ownerDocument
+      if (doc) {
+        setAllRules(extractStylesheetRules(doc))
+      }
+    } catch {
+      setAllRules([])
+    }
+  }, [selectedElement])
+
+  // Match extracted rules to the selected element
+  useEffect(() => {
+    if (!selectedElement || !allRules.length) {
+      setMatchedRules([])
+      setInheritedRules([])
+      return
+    }
+
+    try {
+      const doc = selectedElement.ownerDocument
+      const win = doc ? doc.defaultView : null
+      const computedStyle = win ? win.getComputedStyle(selectedElement) : null
+
+      const raw = matchRulesToElement(selectedElement, allRules)
+      const withOverrides = computeOverrideState(raw, computedStyle)
+      const inherited = getAncestorRules(selectedElement, allRules)
+
+      setMatchedRules(withOverrides)
+      setInheritedRules(inherited)
+    } catch {
+      setMatchedRules([])
+      setInheritedRules([])
+    }
+  }, [selectedElement, allRules])
+
+  return { matchedRules, inheritedRules }
 }
