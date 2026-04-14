@@ -169,6 +169,9 @@ export const PricingRoute: React.FC = () => {
                               Not included
                             </Text>
                           )}
+                          {entitlement && entitlement.enabled && session && (
+                            <Badge context="info">Active</Badge>
+                          )}
                         </Stack>
                       )
                     })}

@@ -1,9 +1,9 @@
 import expect from 'expect'
 import { parallel, promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
-import { Harness, createTestHarness } from '~/testing'
+import { Harness, createTestHarness, fixtures } from '~/testing'
 import { errorType, notFound, resourceConflict } from '~/utils/errors'
-import { FeatureGateService } from './featureGate'
+import { FeatureGateService, createFeatureGateMiddleware } from './featureGate'
 
 describe('Services > Feature Gate', () => {
   let harness: Harness
@@ -292,5 +292,127 @@ describe('Services > Feature Gate', () => {
     const list = await promise(featureGateService.listEnabledFeatureGates())
 
     expect(list).toEqual([])
+  })
+})
+
+describe('Middleware > createFeatureGateMiddleware', () => {
+  let harness: Harness
+  let stubbedApp: import('fastify').FastifyInstance
+  let enforcedApp: import('fastify').FastifyInstance
+
+  before(async () => {
+    harness = await createTestHarness()
+
+    const { billingService, accountService } = harness.services
+
+    // Default harness env has BILLING_STUBBED=true — gate is bypassed
+    const stubbedRequireFeature = createFeatureGateMiddleware(
+      billingService,
+      accountService,
+      harness.env
+    )
+
+    // Override to enforce entitlement checks
+    const enforcedRequireFeature = createFeatureGateMiddleware(
+      billingService,
+      accountService,
+      { ...harness.env, BILLING_STUBBED: false }
+    )
+
+    stubbedApp = harness.bootstrap(async app => {
+      app.get(
+        '/gated',
+        { preHandler: stubbedRequireFeature('ai_credits') },
+        (_req, res) => {
+          res.status(200).send({ ok: true })
+        }
+      )
+    })
+    await stubbedApp.ready()
+
+    enforcedApp = harness.bootstrap(async app => {
+      app.get(
+        '/gated',
+        { preHandler: enforcedRequireFeature('ai_credits') },
+        (_req, res) => {
+          res.status(200).send({ ok: true })
+        }
+      )
+    })
+    await enforcedApp.ready()
+  })
+
+  beforeEach(async () => {
+    await harness.reset()
+  })
+
+  after(async () => {
+    await harness.close()
+  })
+
+  it('should bypass gate when BILLING_STUBBED=true', async () => {
+    // No subscription needed — gate is a no-op when stubbed
+    const [session] = await harness.loadFixtures([
+      fixtures.account.UserA_Session,
+    ])
+
+    const res = await stubbedApp.inject({
+      method: 'GET',
+      url: '/gated',
+      cookies: {
+        [harness.env.SESSION_COOKIE]: stubbedApp.signCookie(
+          session.sessionToken
+        ),
+      },
+    })
+
+    expect(res.statusCode).toEqual(200)
+  })
+
+  it('should allow request when account is entitled (ProPlan, ai_credits enabled)', async () => {
+    const [, session] = await harness.loadFixtures([
+      fixtures.billing.AccountA_ProPlan_Subscription,
+      fixtures.account.UserA_Session,
+    ])
+
+    const res = await enforcedApp.inject({
+      method: 'GET',
+      url: '/gated',
+      cookies: {
+        [harness.env.SESSION_COOKIE]: enforcedApp.signCookie(
+          session.sessionToken
+        ),
+      },
+    })
+
+    expect(res.statusCode).toEqual(200)
+  })
+
+  it('should return 403 when account is not entitled (FreePlan, ai_credits disabled)', async () => {
+    const [, session] = await harness.loadFixtures([
+      fixtures.billing.AccountA_FreePlan_Subscription,
+      fixtures.account.UserA_Session,
+    ])
+
+    const res = await enforcedApp.inject({
+      method: 'GET',
+      url: '/gated',
+      cookies: {
+        [harness.env.SESSION_COOKIE]: enforcedApp.signCookie(
+          session.sessionToken
+        ),
+      },
+    })
+
+    expect(res.statusCode).toEqual(403)
+  })
+
+  it('should return 401 when not authenticated', async () => {
+    const res = await enforcedApp.inject({
+      method: 'GET',
+      url: '/gated',
+    })
+
+    expect(res.statusCode).toEqual(401)
   })
 })
