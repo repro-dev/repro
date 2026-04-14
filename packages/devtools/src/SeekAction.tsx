@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import { usePlayback } from '@repro/playback'
 import { SkipForward } from 'lucide-react'
 import React, { useCallback } from 'react'
@@ -21,8 +21,8 @@ export const SeekAction: React.FC<Props> = ({ eventIndex }) => {
       gap={5}
       padding={5}
       whiteSpace="nowrap"
-      color={colors.white}
-      backgroundColor={colors.blue['500']}
+      color={color.text.inverse}
+      backgroundColor={color.border.focus}
       borderRadius={4}
       opacity={0}
       hoverOpacity={1}

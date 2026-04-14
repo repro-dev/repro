@@ -1,15 +1,15 @@
 import { Block } from '@jsxstyle/react'
-import { colors } from '@repro/design'
-import React, { PropsWithChildren } from 'react'
+import { color } from '@repro/design'
+import React from 'react'
 
-export const FullWidthViewport: React.FC<PropsWithChildren> = ({
+export const FullWidthViewport: React.FC<{ children?: React.ReactNode }> = ({
   children,
 }) => (
   <Block
     position="relative"
     width="100%"
     height="100%"
-    background={colors.white}
+    background={color.bg.surface}
   >
     {children}
   </Block>

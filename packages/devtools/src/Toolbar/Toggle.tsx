@@ -1,5 +1,5 @@
 import { Row } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color, transition } from '@repro/design'
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react'
 import React from 'react'
 import { useInspecting } from '../hooks'
@@ -14,10 +14,10 @@ export const Toggle: React.FC = () => {
         justifyContent="center"
         width={32}
         height={32}
-        hoverBackgroundColor={colors.slate['100']}
-        color={colors.blue['700']}
+        hoverBackgroundColor={color.bg.hover}
+        color={color.primary}
         borderRadius={4}
-        transition="all linear 250ms"
+        transition={transition.default}
         props={{
           onClick: () => setInspecting(inspecting => !inspecting),
         }}

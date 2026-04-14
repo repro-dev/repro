@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color, colors } from '@repro/design'
 import { NetworkEvent, NetworkMessageType } from '@repro/domain'
 import {
   ArrowUp as FetchRequestIcon,
@@ -27,7 +27,7 @@ const icons = {
   ),
 
   [NetworkMessageType.WebSocketOpen]: (
-    <WebSocketIcon size={16} color={colors.blue['500']} />
+    <WebSocketIcon size={16} color={color.border.focus} />
   ),
 }
 
@@ -46,8 +46,8 @@ export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
               <Block
                 padding={5}
                 borderRadius={4}
-                backgroundColor={colors.slate['100']}
-                color={colors.slate['700']}
+                backgroundColor={color.bg.hover}
+                color={color.text.secondary}
                 fontSize={13}
                 fontWeight={700}
                 textTransform="uppercase"
@@ -66,8 +66,8 @@ export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
               <Block
                 padding={5}
                 borderRadius={4}
-                backgroundColor={colors.slate['100']}
-                color={colors.slate['700']}
+                backgroundColor={color.bg.hover}
+                color={color.text.secondary}
                 fontSize={13}
                 fontWeight={700}
               >

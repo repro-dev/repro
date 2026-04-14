@@ -1,12 +1,7 @@
 import { Block, Grid } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { colors } from '@repro/design'
-import {
-  ReactComponentNode,
-  SourceEventType,
-  SourceEventView,
-  StateEventType,
-} from '@repro/domain'
+import { color, colors } from '@repro/design'
+import { SourceEventType, SourceEventView, StateEventType } from '@repro/domain'
 import { usePlayback, useSnapshot } from '@repro/playback'
 import React, { useMemo, useState } from 'react'
 import { ComponentPropsPanel } from './ComponentPropsPanel'
@@ -21,7 +16,7 @@ export const ReactPanel: React.FC = () => {
   // Single pass: track the latest Snapshot index and collect ReactCommit
   // events that follow it (all at/before activeIndex).
   const componentMap = useMemo(() => {
-    const map = new Map<number, ReactComponentNode>()
+    const map = new Map()
     const sourceEvents = playback.getSourceEvents().toSource()
 
     let snapshotEventIndex = -1
@@ -99,7 +94,7 @@ export const ReactPanel: React.FC = () => {
 
   if (componentMap.size === 0 && !isProductionBuild) {
     return (
-      <Block padding={16} fontSize={12} color={colors.slate['500']}>
+      <Block padding={16} fontSize={12} color={color.text.muted}>
         No component data yet. Scrub the timeline to see the React component
         tree.
       </Block>
@@ -125,14 +120,14 @@ export const ReactPanel: React.FC = () => {
           nodes={componentMap}
           rootId={snapshot.frameworkState?.reactTree?.rootId ?? null}
           selectedFiberId={selectedFiberId}
-          onSelect={setSelectedFiberId}
+          onSelect={id => setSelectedFiberId(id)}
         />
       </Block>
 
       <Block
         height="100%"
         overflow="auto"
-        borderLeft={`1px solid ${colors.slate['200']}`}
+        borderLeft={`1px solid ${color.border.default}`}
       >
         <ComponentPropsPanel node={selectedNode} />
       </Block>

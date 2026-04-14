@@ -1,5 +1,5 @@
 import { Block } from "@jsxstyle/react";
-import { colors } from "@repro/design";
+import { color } from "@repro/design";
 import { Loading } from "@repro/agentic";
 import { ArrowDownIcon } from "lucide-react";
 import React from "react";
@@ -30,10 +30,10 @@ export const JumpToEndButton: React.FC<JumpToEndButtonProps> = ({
           ? `-50% -${INPUT_CONTAINER_OFFSET_PX + GUTTER_PX}px`
           : `-50% -${LOADING_CONTAINER_OFFSET_PX}px`
       }
-      backgroundColor={colors.slate["800"]}
-      backgroundImage={`linear-gradient(to bottom right, ${colors.slate["900"]}, ${colors.slate["700"]})`}
+      backgroundColor={color.text.default}
+      backgroundImage={`linear-gradient(to bottom right, ${color.text.default}, ${color.text.secondary})`}
       boxShadow="0 0 16px rgba(0, 0, 0, 0.15)"
-      color={colors.white}
+      color={color.text.inverse}
       padding={10}
       borderRadius="99rem"
       cursor="pointer"

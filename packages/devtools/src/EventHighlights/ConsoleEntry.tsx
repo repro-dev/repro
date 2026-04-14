@@ -1,4 +1,4 @@
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import { ConsoleEvent, LogLevel, MessagePartType } from '@repro/domain'
 import { AlertCircle, AlertTriangle } from 'lucide-react'
 import React from 'react'
@@ -12,17 +12,17 @@ interface Props {
 }
 
 const textColors = {
-  [LogLevel.Error]: colors.rose['700'],
-  [LogLevel.Info]: colors.slate['700'],
-  [LogLevel.Warning]: colors.amber['700'],
-  [LogLevel.Verbose]: colors.slate['700'],
+  [LogLevel.Error]: color.danger,
+  [LogLevel.Info]: color.text.secondary,
+  [LogLevel.Warning]: color.warning,
+  [LogLevel.Verbose]: color.text.secondary,
 }
 
 const icons = {
-  [LogLevel.Error]: <AlertTriangle size={16} color={colors.rose['700']} />,
-  [LogLevel.Info]: <AlertCircle size={16} color={colors.blue['700']} />,
-  [LogLevel.Warning]: <AlertTriangle size={16} color={colors.amber['700']} />,
-  [LogLevel.Verbose]: <AlertCircle size={16} color={colors.slate['500']} />,
+  [LogLevel.Error]: <AlertTriangle size={16} color={color.danger} />,
+  [LogLevel.Info]: <AlertCircle size={16} color={color.primary} />,
+  [LogLevel.Warning]: <AlertTriangle size={16} color={color.warning} />,
+  [LogLevel.Verbose]: <AlertCircle size={16} color={color.text.muted} />,
 }
 
 export const ConsoleEntry: React.FC<Props> = ({ eventIndex, event }) => {

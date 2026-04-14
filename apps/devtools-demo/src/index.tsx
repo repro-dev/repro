@@ -1,5 +1,5 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { Card, Logo, colors } from '@repro/design'
+import { Card, color, colors, Logo } from '@repro/design'
 import { DevTools, EventHighlights } from '@repro/devtools'
 import { Stats } from '@repro/diagnostics'
 import { applyResetStyles } from '@repro/theme'
@@ -30,8 +30,8 @@ if (rootElem) {
       <Block
         padding={20}
         height={120}
-        backgroundColor={colors.blue['500']}
-        backgroundImage={`linear-gradient(to bottom right, ${colors.blue['900']}, ${colors.blue['700']})`}
+        backgroundColor={color.border.focus}
+        backgroundImage={`linear-gradient(to bottom right, ${color.infoFg}, ${color.primary})`}
       >
         <Row alignItems="center">
           <Logo size={30} inverted={true} />
@@ -57,7 +57,7 @@ if (rootElem) {
                 paddingV={10}
                 height="100%"
                 overflow="hidden"
-                backgroundColor={colors.white}
+                backgroundColor={color.bg.surface}
                 borderRadius={4}
               >
                 <Row
@@ -69,7 +69,7 @@ if (rootElem) {
                   fontSize={20}
                   lineHeight={1}
                 >
-                  <ActivityIcon color={colors.blue['700']} size={20} />
+                  <ActivityIcon color={color.primary} size={20} />
                   Session events
                 </Row>
 

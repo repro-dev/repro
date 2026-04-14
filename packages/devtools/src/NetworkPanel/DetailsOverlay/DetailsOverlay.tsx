@@ -1,5 +1,5 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color, shadow } from '@repro/design'
 import { FetchGroup, WebSocketGroup } from '@repro/source-utils'
 import { X as CloseIcon } from 'lucide-react'
 import React, { Fragment, useState } from 'react'
@@ -55,19 +55,16 @@ export const DetailsOverlay: React.FC<Props> = ({ group, onClose }) => {
       top={0}
       bottom={0}
       right={0}
-      backgroundColor={colors.white}
-      borderLeft={`1px solid ${colors.slate['200']}`}
-      boxShadow={`
-        0 4px 16px rgba(0, 0, 0, 0.1),
-        0 1px 2px rgba(0, 0, 0, 0.1)
-      `}
+      backgroundColor={color.bg.surface}
+      borderLeft={`1px solid ${color.border.default}`}
+      boxShadow={shadow.md}
     >
       <Row
         gap={10}
         alignItems="center"
         padding={10}
-        backgroundColor={colors.slate['50']}
-        borderBottom={`1px solid ${colors.slate['200']}`}
+        backgroundColor={color.bg.subtle}
+        borderBottom={`1px solid ${color.border.default}`}
       >
         <Row
           alignItems="center"
@@ -76,7 +73,7 @@ export const DetailsOverlay: React.FC<Props> = ({ group, onClose }) => {
           height={24}
           borderRadius="99rem"
           backgroundColor="transparent"
-          hoverBackgroundColor={colors.slate['200']}
+          hoverBackgroundColor={color.border.default}
           cursor="pointer"
           props={{ onClick: onClose }}
         >

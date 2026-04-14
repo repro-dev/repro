@@ -1,5 +1,5 @@
 import { Block } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import React, { useEffect, useState } from 'react'
 import { Subscription } from 'rxjs'
 import { usePlayback } from './hooks'
@@ -31,8 +31,8 @@ export const ElapsedMarker: React.FC<Props> = ({ prevIndex, nextIndex }) => {
     <Block position="relative">
       <Block
         height={4}
-        backgroundColor={colors.slate['100']}
-        borderColor={active ? colors.blue['500'] : colors.slate['100']}
+        backgroundColor={color.bg.hover}
+        borderColor={active ? color.border.focus : color.bg.hover}
         borderStyle="solid"
         borderWidth="1px 0 0"
       />
@@ -43,7 +43,7 @@ export const ElapsedMarker: React.FC<Props> = ({ prevIndex, nextIndex }) => {
           bottom={4}
           width={0}
           height={0}
-          borderColor={`transparent transparent ${colors.blue['500']} ${colors.blue['500']}`}
+          borderColor={`transparent transparent ${color.border.focus} ${color.border.focus}`}
           borderStyle="solid"
           borderWidth={4}
         />

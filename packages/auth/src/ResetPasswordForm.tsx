@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Block, Col } from '@jsxstyle/react'
 import {
   Button,
+  color,
   colors,
   FormField,
   FormFieldError,
@@ -13,12 +14,6 @@ import React, { useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import z from 'zod'
 import { useConfirmPasswordReset } from './hooks'
-
-interface Props {
-  token: string
-  onSuccess(): void
-  onFailure(error: Error): void
-}
 
 const formSchema = z
   .object({
@@ -33,6 +28,12 @@ const formSchema = z
   })
 
 type FormState = z.infer<typeof formSchema>
+
+interface Props {
+  token: string
+  onSuccess(): void
+  onFailure(error: Error): void
+}
 
 export const ResetPasswordForm: React.FC<Props> = ({
   token,
@@ -54,7 +55,7 @@ export const ResetPasswordForm: React.FC<Props> = ({
   const { register, formState, handleSubmit } = methods
 
   function onSubmit(data: FormState) {
-    return fork<Error>(err => {
+    return fork((err: Error) => {
       if (err.name === 'NotFoundError') {
         setErrorMessage(
           'This password reset link is invalid or has already been used.'
@@ -75,7 +76,7 @@ export const ResetPasswordForm: React.FC<Props> = ({
       <form onSubmit={handleSubmit(onSubmit)}>
         <Col gap={16}>
           <Col gap={12}>
-            <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
+            <Block fontSize={15} fontWeight={700} color={color.primary}>
               Set New Password
             </Block>
 
@@ -83,8 +84,8 @@ export const ResetPasswordForm: React.FC<Props> = ({
               paddingBottom={10}
               fontSize={13}
               lineHeight="1.5em"
-              borderBottom={`1px solid ${colors.slate['200']}`}
-              color={colors.slate['500']}
+              borderBottom={`1px solid ${color.border.default}`}
+              color={color.text.muted}
             >
               Enter a new password for your account
             </Block>

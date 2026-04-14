@@ -1,5 +1,5 @@
 import { Grid, InlineBlock, Row } from '@jsxstyle/react'
-import { FX, colors } from '@repro/design'
+import { color, FX } from '@repro/design'
 import {
   InteractionType,
   LogLevel,
@@ -81,8 +81,8 @@ export const EventHighlights: React.FC = () => {
         gap={5}
         paddingBlock={10}
         paddingInline={15}
-        borderTop={`1px solid ${colors.slate['200']}`}
-        backgroundColor={colors.slate['50']}
+        borderTop={`1px solid ${color.border.default}`}
+        backgroundColor={color.bg.subtle}
       >
         <FX.Spin>
           <LoaderIcon size={16} />

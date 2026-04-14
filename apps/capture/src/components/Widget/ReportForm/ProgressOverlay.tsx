@@ -1,5 +1,5 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { Button, Card, Meter, colors } from '@repro/design'
+import { Button, Card, color, colors, Meter } from '@repro/design'
 import { UploadProgress, UploadStage } from '@repro/recording-api'
 import {
   AlertTriangleIcon,
@@ -7,7 +7,7 @@ import {
   CopyIcon,
   CornerUpLeftIcon,
 } from 'lucide-react'
-import React, { Fragment, PropsWithChildren } from 'react'
+import React, { Fragment } from 'react'
 
 interface Props {
   progress: UploadProgress
@@ -15,7 +15,7 @@ interface Props {
   onClose: () => void
 }
 
-const Backdrop: React.FC<PropsWithChildren> = ({ children }) => (
+const Backdrop: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
   <Row
     alignItems="center"
     justifyContent="center"
@@ -32,7 +32,7 @@ const Backdrop: React.FC<PropsWithChildren> = ({ children }) => (
   </Row>
 )
 
-const Label: React.FC<PropsWithChildren> = ({ children }) => {
+const Label: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
   return (
     <Block marginBottom={8} fontSize={13} lineHeight={1}>
       {children}
@@ -40,7 +40,7 @@ const Label: React.FC<PropsWithChildren> = ({ children }) => {
   )
 }
 
-const List: React.FC<PropsWithChildren<{ width?: string | number }>> = ({
+const List: React.FC<React.PropsWithChildren<{ width?: string | number }>> = ({
   children,
   width,
 }) => (
@@ -49,7 +49,7 @@ const List: React.FC<PropsWithChildren<{ width?: string | number }>> = ({
   </Col>
 )
 
-const ListItem: React.FC<PropsWithChildren> = ({ children }) => (
+const ListItem: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
   <Block>{children}</Block>
 )
 
@@ -75,7 +75,7 @@ export const ProgressOverlay: React.FC<Props> = ({
                 <Block
                   fontSize={11}
                   fontWeight={700}
-                  color={colors.slate['900']}
+                  color={color.text.default}
                   textTransform="uppercase"
                 >
                   Could not create recording
@@ -102,7 +102,7 @@ export const ProgressOverlay: React.FC<Props> = ({
                 <Block
                   fontSize={11}
                   fontWeight={700}
-                  color={colors.slate['900']}
+                  color={color.text.default}
                   textTransform="uppercase"
                 >
                   Recording Created
@@ -113,7 +113,7 @@ export const ProgressOverlay: React.FC<Props> = ({
                   gap={5}
                   alignItems="center"
                   fontSize={15}
-                  color={colors.blue['700']}
+                  color={color.primary}
                   marginTop={5}
                   props={{
                     href: recordingUrl,
@@ -145,7 +145,7 @@ export const ProgressOverlay: React.FC<Props> = ({
             <Block
               fontSize={11}
               fontWeight={700}
-              color={colors.slate['900']}
+              color={color.text.default}
               textTransform="uppercase"
             >
               Uploading Recording

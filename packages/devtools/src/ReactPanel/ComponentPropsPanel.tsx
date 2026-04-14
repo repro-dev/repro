@@ -1,5 +1,5 @@
 import { Block } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color, colors } from '@repro/design'
 import { ReactComponentNode } from '@repro/domain'
 import React from 'react'
 import { JSONView } from '../JSONView/JSONView'
@@ -33,7 +33,7 @@ export const ComponentPropsPanel: React.FC<Props> = ({ node }) => {
         color={colors.violet['700']}
         marginBottom={8}
         paddingBottom={4}
-        borderBottom={`1px solid ${colors.slate['200']}`}
+        borderBottom={`1px solid ${color.border.default}`}
       >
         &lt;{node.componentName}&gt;
       </Block>

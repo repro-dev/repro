@@ -1,16 +1,10 @@
 import { Block, Grid } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import { ConsoleEvent, MessagePartType, SourceEventView } from '@repro/domain'
 import { ControlFrame, ElapsedMarker, usePlayback } from '@repro/playback'
 import { isConsoleEvent } from '@repro/source-utils'
-import React, {
-  Fragment,
-  MutableRefObject,
-  useEffect,
-  useMemo,
-  useRef,
-} from 'react'
+import React, { Fragment, useEffect, useMemo, useRef } from 'react'
 import { filter } from 'rxjs'
 import { useConsoleLevelFilter, useConsoleSearch } from '../hooks'
 import { pairwise } from '../utils'
@@ -23,7 +17,7 @@ export const ConsolePanel: React.FC = () => {
   const playback = usePlayback()
   const [consoleSearch, setConsoleSearch] = useConsoleSearch()
   const [consoleLevelFilter, setConsoleLevelFilter] = useConsoleLevelFilter()
-  const rowContainerRef = useRef() as MutableRefObject<HTMLDivElement>
+  const rowContainerRef = useRef<HTMLDivElement | null>(null)
 
   const consoleEvents = useMemo(() => {
     const events: Array<[ConsoleEvent, number]> = []
@@ -89,7 +83,7 @@ export const ConsolePanel: React.FC = () => {
           ([, eventIndex]) => eventIndex === activeIndex
         )
 
-        if (listIndex !== -1) {
+        if (listIndex !== -1 && rowContainerRef.current) {
           const row = rowContainerRef.current.querySelectorAll(
             `[data-target='console-row']`
           )[listIndex]
@@ -122,7 +116,7 @@ export const ConsolePanel: React.FC = () => {
         gap={16}
         padding={8}
         gridTemplateColumns="2fr 2fr 1fr"
-        borderBottom={`1px solid ${colors.slate['200']}`}
+        borderBottom={`1px solid ${color.border.default}`}
       >
         <SearchForm value={consoleSearch} onChange={setConsoleSearch} />
 
@@ -131,7 +125,7 @@ export const ConsolePanel: React.FC = () => {
           onChange={setConsoleLevelFilter}
         />
 
-        <Block justifySelf="end" fontSize={11} color={colors.slate['500']}>
+        <Block justifySelf="end" fontSize={11} color={color.text.muted}>
           {consoleEvents.length !== filteredConsoleEvents.length &&
             `${consoleEvents.length - filteredConsoleEvents.length} hidden`}
         </Block>

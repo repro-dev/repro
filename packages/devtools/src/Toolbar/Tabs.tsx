@@ -1,6 +1,6 @@
 import { Block, Inline, Row } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { colors, Tooltip } from '@repro/design'
+import { color, Tooltip, transition } from '@repro/design'
 import { SourceEventType, SourceEventView, StateEventType } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import {
@@ -78,7 +78,7 @@ function useHasReduxEvents(): boolean {
   }, [playback, buffer])
 }
 
-export const Tabs: React.FC = () => {
+export const Tabs: React.FC<{}> = () => {
   const hasReactEvents = useHasReactEvents()
   const hasReduxEvents = useHasReduxEvents()
 
@@ -131,20 +131,20 @@ const Item: React.FC<ItemProps> = ({ disabled, icon, label, view }) => {
     }
   }
 
-  const color = disabled
-    ? colors.slate['300']
+  const tabColor = disabled
+    ? color.border.strong
     : activeView === view && inspecting
-    ? colors.blue['900']
-    : colors.blue['700']
+    ? color.infoFg
+    : color.primary
 
   const active = activeView === view && inspecting
 
   return (
     <Row
       alignItems="center"
-      backgroundColor={active ? colors.blue['50'] : 'transparent'}
-      hoverBackgroundColor={active ? colors.blue['50'] : colors.slate['100']}
-      color={color}
+      backgroundColor={active ? color.infoTint : 'transparent'}
+      hoverBackgroundColor={active ? color.infoTint : color.bg.hover}
+      color={tabColor}
       cursor="pointer"
       fontSize={11}
       gap={4}
@@ -152,7 +152,7 @@ const Item: React.FC<ItemProps> = ({ disabled, icon, label, view }) => {
       blockSize={32}
       borderRadius={4}
       position="relative"
-      transition="all linear 250ms"
+      transition={transition.default}
       userSelect="none"
       props={{
         onClick: handleClick,

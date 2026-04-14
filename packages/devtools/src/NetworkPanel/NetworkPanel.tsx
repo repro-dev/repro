@@ -1,5 +1,5 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
 import { ControlFrame, ElapsedMarker, usePlayback } from '@repro/playback'
 import {
@@ -95,7 +95,9 @@ export const NetworkPanel: React.FC = () => {
                 alignSelf="stretch"
                 alignItems="center"
                 padding={10}
-                borderLeft={i !== 0 ? `1px solid ${colors.slate['200']}` : null}
+                borderLeft={
+                  i !== 0 ? `1px solid ${color.border.default}` : null
+                }
               >
                 {label}
               </Row>

@@ -1,7 +1,7 @@
 import { Block, Grid } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { ReferenceStyleProvider } from '@repro/css-utils'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import { PlaybackCanvas } from '@repro/playback'
 import React, { Fragment, useEffect } from 'react'
 import { ConsolePanel } from './ConsolePanel'
@@ -30,7 +30,7 @@ interface Props {
   resourceBaseURL?: string
 }
 
-export const DevTools: React.FC<Props> = React.memo(props => {
+export const DevTools = React.memo<Props>(props => {
   const [, setCurrentDocument] = useCurrentDocument()
   const [, setNodeMap] = useNodeMap()
   const [inspecting, setInspecting] = useInspecting()
@@ -94,7 +94,7 @@ export const DevTools: React.FC<Props> = React.memo(props => {
   )
 })
 
-const Container: React.FC<React.PropsWithChildren> = ({ children }) => (
+const Container: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <Grid
     height="100%"
     gridTemplateRows="1fr auto"
@@ -106,27 +106,29 @@ const Container: React.FC<React.PropsWithChildren> = ({ children }) => (
   </Grid>
 )
 
-const PlaybackRegion: React.FC<React.PropsWithChildren<{ mask: boolean }>> = ({
-  children,
-  mask,
-}) => (
+const PlaybackRegion: React.FC<{
+  children?: React.ReactNode
+  mask: boolean
+}> = ({ children, mask }) => (
   <Block
     height="100%"
     overflow="hidden"
     position="relative"
     gridArea="playback"
     pointerEvents={mask ? 'none' : 'all'}
-    backgroundColor={colors.white}
+    backgroundColor={color.bg.surface}
   >
     {children}
   </Block>
 )
 
-const InspectorRegion: React.FC<React.PropsWithChildren> = ({ children }) => (
+const InspectorRegion: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => (
   <Grid
     gridArea="inspector"
     position="relative"
-    backgroundColor={colors.white}
+    backgroundColor={color.bg.surface}
     gridTemplateRows="40px auto"
     boxShadow={`0 -4px 16px rgba(0, 0, 0, 0.1)`}
     zIndex={MAX_INT32}
@@ -135,14 +137,16 @@ const InspectorRegion: React.FC<React.PropsWithChildren> = ({ children }) => (
   </Grid>
 )
 
-const ContentRegion: React.FC<React.PropsWithChildren> = ({ children }) => {
+const ContentRegion: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => {
   const [size] = useSize()
   return (
     <Block
       height={size}
       borderTopStyle="solid"
       borderTopWidth={1}
-      borderTopColor={colors.slate['300']}
+      borderTopColor={color.border.strong}
       overflow="auto"
     >
       {children}

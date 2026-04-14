@@ -1,10 +1,10 @@
 import { Block, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import { SourceEvent } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import { Unboxed } from '@repro/tdl'
-import React, { PropsWithChildren } from 'react'
+import React from 'react'
 
 interface Props {
   eventIndex: number
@@ -14,11 +14,11 @@ interface Props {
   onClick?: () => void
 }
 
-export const BaseEntry: React.FC<PropsWithChildren<Props>> = ({
+export const BaseEntry: React.FC<React.PropsWithChildren<Props>> = ({
   children,
   eventIndex,
   event,
-  color,
+  color: entryColor,
   icon,
   onClick,
 }) => {
@@ -39,13 +39,13 @@ export const BaseEntry: React.FC<PropsWithChildren<Props>> = ({
       gap={5}
       overflow="hidden"
       fontSize={13}
-      backgroundColor={colors.white}
-      hoverBackgroundColor={colors.slate['50']}
-      color={color}
+      backgroundColor={color.bg.surface}
+      hoverBackgroundColor={color.bg.subtle}
+      color={entryColor}
       cursor="pointer"
       props={{ onClick: handleClick }}
     >
-      <Block color={colors.slate['500']}>
+      <Block color={color.text.muted}>
         {formatTime(event.time, 'seconds')}
       </Block>
 

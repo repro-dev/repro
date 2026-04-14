@@ -1,7 +1,7 @@
 import { Inline } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color, colors } from '@repro/design'
 import { ReactComponentNode } from '@repro/domain'
-import React, { PropsWithChildren } from 'react'
+import React from 'react'
 import { Container } from '../DOM/Container'
 
 interface Props {
@@ -29,11 +29,13 @@ export const ComponentR = {
   Close,
 }
 
-const Syntax: React.FC<PropsWithChildren> = ({ children }) => (
-  <Inline color={colors.slate['500']}>{children}</Inline>
+const Syntax: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <Inline color={color.text.muted}>{children}</Inline>
 )
 
-const ComponentName: React.FC<PropsWithChildren> = ({ children }) => (
+const ComponentName: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => (
   <Inline color={colors.violet['700']} fontWeight={500}>
     {children}
   </Inline>

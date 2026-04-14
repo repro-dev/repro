@@ -1,6 +1,6 @@
 import { Block, Grid, InlineBlock, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
-import { colors } from '@repro/design'
+import { color, colors } from '@repro/design'
 import { ConsoleEvent, LogLevel, StackEntry } from '@repro/domain'
 import { AlertCircle, AlertTriangle } from 'lucide-react'
 import React from 'react'
@@ -16,16 +16,16 @@ const bgColors = {
 
 const textColors = {
   [LogLevel.Error]: colors.rose['700'],
-  [LogLevel.Info]: colors.slate['700'],
+  [LogLevel.Info]: color.text.secondary,
   [LogLevel.Warning]: colors.amber['700'],
-  [LogLevel.Verbose]: colors.slate['700'],
+  [LogLevel.Verbose]: color.text.secondary,
 }
 
 const icons = {
   [LogLevel.Error]: <AlertTriangle size={14} color={colors.rose['700']} />,
   [LogLevel.Info]: <AlertCircle size={14} color={colors.blue['700']} />,
   [LogLevel.Warning]: <AlertTriangle size={14} color={colors.amber['700']} />,
-  [LogLevel.Verbose]: <AlertCircle size={14} color={colors.slate['500']} />,
+  [LogLevel.Verbose]: <AlertCircle size={14} color={color.text.muted} />,
 }
 
 interface Props {
@@ -51,11 +51,7 @@ export const ConsoleRow: React.FC<Props> = ({
         color={textColors[level]}
         backgroundColor={bgColors[level]}
       >
-        <Block
-          position="relative"
-          color={colors.slate['500']}
-          lineHeight={1.25}
-        >
+        <Block position="relative" color={color.text.muted} lineHeight={1.25}>
           {formatTime(time, 'millis')}
 
           <Block position="absolute" top={-3} left={-10}>

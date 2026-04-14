@@ -1,15 +1,19 @@
 import { Block, Row } from '@jsxstyle/react'
 import { animated, useTransition } from '@react-spring/web'
-import { colors, Logo, Tooltip } from '@repro/design'
+import { color, colors, Logo, Tooltip } from '@repro/design'
 import { RecordingMode } from '@repro/domain'
 import { XIcon } from 'lucide-react'
 import React from 'react'
 import { ReadyState, useReadyState, useRecordingMode } from '~/state'
 
+interface DevBadgeProps {
+  branch: string
+}
+
 // DevBadge renders a small identifier chip over the Launcher in non-production
 // builds, showing which branch/worktree built the extension. Production builds
 // have this component tree-shaken out entirely via the BUILD_ENV guard below.
-const DevBadge: React.FC<{ branch: string }> = ({ branch }) => {
+const DevBadge: React.FC<DevBadgeProps> = ({ branch }) => {
   const issueId = branch.match(/([A-Z]+-\d+)/i)?.[1]?.toUpperCase() ?? null
   const label = issueId ?? branch.split('/').pop()?.slice(0, 10) ?? 'dev'
 
@@ -77,18 +81,18 @@ export const Launcher: React.FC = () => {
       gap={10}
       height={60}
       width={60}
-      backgroundColor={colors.blue['800']}
-      backgroundImage={`linear-gradient(to bottom right, ${colors.blue['900']}, ${colors.blue['700']})`}
-      hoverBackgroundColor={colors.blue['800']}
+      backgroundColor={color.primaryHover}
+      backgroundImage={`linear-gradient(to bottom right, ${color.infoFg}, ${color.primary})`}
+      hoverBackgroundColor={color.primaryHover}
       hoverBackgroundImage="none"
       borderRadius={8}
-      border={`1px solid ${colors.blue['900']}`}
+      border={`1px solid ${color.infoFg}`}
       boxShadow="0 0 16px rgba(0, 0, 0, 0.15)"
       scale={1}
       activeScale={0.9}
       translate="20px -20px"
       cursor="pointer"
-      transition="all linear 100ms"
+      transition="all 100ms ease-in-out"
       onClick={onClick}
     >
       {recordingMode === RecordingMode.None && (
@@ -100,7 +104,7 @@ export const Launcher: React.FC = () => {
           if (active) {
             return (
               <animated.div style={{ ...style, position: 'absolute' }}>
-                <XIcon size={28} color={colors.white} />
+                <XIcon size={28} color={color.text.inverse} />
               </animated.div>
             )
           }

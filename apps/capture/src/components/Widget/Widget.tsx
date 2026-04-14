@@ -1,8 +1,8 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { useApiClient } from '@repro/api-client'
-import { color, colors } from '@repro/design'
-import { ListResponse, Project, RecordingMode } from '@repro/domain'
+import { color, transition } from '@repro/design'
+import { RecordingMode } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
 import { usePlayback } from '@repro/playback'
@@ -26,7 +26,7 @@ export const Widget: React.FC = () => {
   const agent = useMessaging()
   const apiClient = useApiClient()
   const projectsResult = useFuture(
-    () => apiClient.fetch<ListResponse<Project>>('/projects'),
+    () => apiClient.fetch('/projects'),
     [apiClient]
   )
   const projectId = projectsResult.success
@@ -48,7 +48,7 @@ export const Widget: React.FC = () => {
   const upload = useCallback(
     (values: FormValues) => {
       if (!projectId) {
-        return resolve<string>('')
+        return resolve('')
       }
 
       let events = playback.getSourceEvents()
@@ -67,7 +67,7 @@ export const Widget: React.FC = () => {
           .toString(),
       })
 
-      return agent.raiseIntent<string>({
+      return agent.raiseIntent({
         type: 'upload:enqueue',
         payload: {
           projectId,
@@ -101,10 +101,10 @@ export const Widget: React.FC = () => {
         top={0}
         bottom={0}
         pointerEvents="none"
-        borderColor={colors.blue['700']}
+        borderColor={color.primary}
         borderStyle="solid"
         borderWidth={isPendingLiveRecording ? 5 : 0}
-        transition="all linear 250ms"
+        transition={transition.default}
       />
 
       {isReady && (

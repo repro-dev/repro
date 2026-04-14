@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { colors, Tooltip } from '@repro/design'
+import { color, colors, Tooltip, transition } from '@repro/design'
 import { Inspect as PickerIcon } from 'lucide-react'
 import React, { useCallback, useEffect } from 'react'
 import { useElementPicker, useInspecting } from '../hooks'
@@ -25,11 +25,11 @@ export const Picker: React.FC = () => {
         justifyContent="center"
         width={32}
         height={32}
-        color={picker ? colors.pink['500'] : colors.blue['700']}
+        color={picker ? colors.pink['500'] : color.primary}
         backgroundColor={picker ? colors.pink['100'] : 'transparent'}
-        hoverBackgroundColor={picker ? colors.pink['100'] : colors.slate['100']}
+        hoverBackgroundColor={picker ? colors.pink['100'] : color.bg.hover}
         borderRadius={4}
-        transition="all linear 250ms"
+        transition={transition.default}
         props={{ onClick: togglePicker }}
       >
         <Block>

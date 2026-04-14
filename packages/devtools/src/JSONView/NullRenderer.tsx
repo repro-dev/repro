@@ -1,5 +1,5 @@
 import { Block } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import React from 'react'
 import { TreeRow } from './TreeRow'
 
@@ -10,6 +10,6 @@ interface Props {
 
 export const NullRenderer: React.FC<Props> = ({ level, objectKey }) => (
   <TreeRow level={level} objectKey={objectKey}>
-    <Block color={colors.slate['500']}>null</Block>
+    <Block color={color.text.muted}>null</Block>
   </TreeRow>
 )

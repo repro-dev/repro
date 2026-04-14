@@ -1,5 +1,5 @@
 import { Block, Grid } from '@jsxstyle/react'
-import { Card, colors, DefinitionList } from '@repro/design'
+import { Card, color, DefinitionList } from '@repro/design'
 import { EventHighlights } from '@repro/devtools'
 import { RecordingInfo } from '@repro/domain'
 import { ucfirst } from '@repro/string-utils'
@@ -20,7 +20,7 @@ export const Sidebar: React.FC<Props> = ({ info }) => (
     >
       <Summary info={info} />
 
-      <Block backgroundColor={colors.slate['50']}>
+      <Block backgroundColor={color.bg.subtle}>
         <EventHighlights />
       </Block>
 
@@ -29,9 +29,9 @@ export const Sidebar: React.FC<Props> = ({ info }) => (
         paddingH={10}
         gridTemplateColumns="max-content 1fr"
         fontSize={13}
-        backgroundColor={colors.white}
-        borderTop={`1px solid ${colors.slate['200']}`}
-        boxShadow={`0 -4px 16px ${colors.slate['100']}`}
+        backgroundColor={color.bg.surface}
+        borderTop={`1px solid ${color.border.default}`}
+        boxShadow={`0 -4px 16px ${color.bg.hover}`}
       >
         <DefinitionList
           title="System Info"

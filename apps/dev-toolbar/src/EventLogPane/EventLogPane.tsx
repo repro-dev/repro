@@ -1,6 +1,6 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { colors } from '@repro/design'
-import { SourceEvent, SourceEventType } from '@repro/domain'
+import { color } from '@repro/design'
+import { SourceEventType } from '@repro/domain'
 import { InterruptSignal, useRecordingStream } from '@repro/recording'
 import { TablePropertiesIcon } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
@@ -16,7 +16,7 @@ import { PerformanceRow } from './PerformanceRow'
 import { LogItem } from './types'
 import { collapseItemsIntoGroups, unpackFirstEvent } from './utils'
 
-const ItemRow: React.FC<ListChildComponentProps<Array<LogItem>>> = ({
+const ItemRow: React.FC<ListChildComponentProps<LogItem[]>> = ({
   index,
   style,
   data: items,
@@ -66,7 +66,7 @@ const ItemRow: React.FC<ListChildComponentProps<Array<LogItem>>> = ({
 
 export const EventLogPane: React.FC = () => {
   const recordingStream = useRecordingStream()
-  const [items, setItems] = useState<Array<LogItem>>([])
+  const [items, setItems] = useState<LogItem[]>([])
 
   useEffect(() => {
     const event$ = concat(
@@ -75,9 +75,9 @@ export const EventLogPane: React.FC = () => {
     )
 
     const logItems$ = event$.pipe(
-      scan<SourceEvent, Array<LogItem>>((logItems, event) => {
+      scan((logItems: LogItem[], event) => {
         return collapseItemsIntoGroups([...logItems, event])
-      }, [])
+      }, [] as LogItem[])
     )
 
     const subscription = logItems$
@@ -97,8 +97,8 @@ export const EventLogPane: React.FC = () => {
       width={960}
       gridTemplateRows="auto 1fr"
       gridTemplateColumns="300px 1fr"
-      background={colors.slate['100']}
-      borderColor={colors.slate['700']}
+      background={color.bg.hover}
+      borderColor={color.text.secondary}
       borderStyle="solid"
       borderWidth="3px 1px 1px"
       pointerEvents="auto"
@@ -108,22 +108,22 @@ export const EventLogPane: React.FC = () => {
         alignItems="center"
         gap={5}
         padding={10}
-        borderColor={colors.slate['300']}
+        borderColor={color.border.strong}
         borderStyle="solid"
         borderWidth="0 0 1px"
         pointerEvents="auto"
       >
-        <TablePropertiesIcon size={24} color={colors.slate['700']} />
+        <TablePropertiesIcon size={24} color={color.text.secondary} />
 
-        <Block color={colors.slate['700']} fontSize={16}>
+        <Block color={color.text.secondary} fontSize={16}>
           Event Log
         </Block>
       </Row>
 
       <Block
         width={300}
-        backgroundColor={colors.slate['50']}
-        borderColor={colors.slate['300']}
+        backgroundColor={color.bg.subtle}
+        borderColor={color.border.strong}
         borderStyle="solid"
         borderWidth="0 1px 0 0"
       >

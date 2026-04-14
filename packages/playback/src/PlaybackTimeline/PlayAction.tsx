@@ -1,6 +1,6 @@
 import { Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import {
   isInputElement,
   isSelectElement,
@@ -71,7 +71,7 @@ export const PlayAction: React.FC = () => {
       justifyContent="center"
       width={32}
       height={32}
-      color={colors.blue['700']}
+      color={color.primary}
       borderRadius={4}
       cursor="pointer"
       props={{ onClick: togglePlayback }}

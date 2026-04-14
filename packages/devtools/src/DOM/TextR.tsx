@@ -1,5 +1,5 @@
 import { Inline } from '@jsxstyle/react'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import { VText } from '@repro/domain'
 import React from 'react'
 import { Container } from './Container'
@@ -10,6 +10,6 @@ interface Props {
 
 export const TextR: React.FC<Props> = ({ node }) => (
   <Container>
-    <Inline color={colors.slate['700']}>{node.value}</Inline>
+    <Inline color={color.text.secondary}>{node.value}</Inline>
   </Container>
 )

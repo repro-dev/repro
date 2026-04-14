@@ -1,6 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Block, Col, Row } from '@jsxstyle/react'
-import { Button, colors, Divider, FormField, Input, Label } from '@repro/design'
+import {
+  Button,
+  color,
+  colors,
+  Divider,
+  FormField,
+  Input,
+  Label,
+} from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { done } from 'fluture'
 import React, { useState } from 'react'
@@ -8,11 +16,6 @@ import { FormProvider, useForm } from 'react-hook-form'
 import z from 'zod'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import { useRegister } from './hooks'
-
-interface Props {
-  onSuccess(): void
-  onFailure(error: Error): void
-}
 
 const formSchema = z
   .object({
@@ -30,6 +33,11 @@ const formSchema = z
   })
 
 type FormState = z.infer<typeof formSchema>
+
+interface Props {
+  onSuccess(): void
+  onFailure(error: Error): void
+}
 
 export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   const [errorMessage, setErrorMessage] = useState('')
@@ -90,7 +98,7 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
       <form onSubmit={handleSubmit(onSubmit)}>
         <Col gap={16}>
           <Col gap={12}>
-            <Block fontSize={15} fontWeight={700} color={colors.blue['700']}>
+            <Block fontSize={15} fontWeight={700} color={color.primary}>
               Create New Account
             </Block>
 
@@ -98,8 +106,8 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
               paddingBottom={10}
               fontSize={13}
               lineHeight="1.5em"
-              borderBottom={`1px solid ${colors.slate['200']}`}
-              color={colors.slate['500']}
+              borderBottom={`1px solid ${color.border.default}`}
+              color={color.text.muted}
             >
               Register a new Repro account
             </Block>

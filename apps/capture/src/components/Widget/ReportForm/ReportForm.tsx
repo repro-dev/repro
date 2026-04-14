@@ -1,7 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import { IfGate, UnlessGate } from '@repro/auth'
 import { formatTime } from '@repro/date-utils'
-import { colors, ToggleGroup } from '@repro/design'
+import { color, shadow, ToggleGroup } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import { RecordingMode } from '@repro/domain'
 import { observeFuture } from '@repro/future-utils'
@@ -21,7 +21,7 @@ import { FormValues } from './types'
 const DEFAULT_SELECTED_DURATION = 60_000
 
 export interface ReportFormProps {
-  upload(values: FormValues): FutureInstance<Error, string>
+  upload(values: FormValues): FutureInstance<Error, unknown>
   onSuccess(): void
   onError(error: Error): void
   onClose(): void
@@ -69,7 +69,7 @@ export const ReportForm: React.FC<ReportFormProps> = ({
     if (uploadRef && uploading) {
       const progress$ = timer(0, 250).pipe(
         switchMap(() =>
-          observeFuture<Error, UploadProgress>(
+          observeFuture(
             agent.raiseIntent({
               type: 'upload:progress',
               payload: {
@@ -81,7 +81,8 @@ export const ReportForm: React.FC<ReportFormProps> = ({
       )
 
       subscription.add(
-        progress$.subscribe(progress => {
+        progress$.subscribe(rawProgress => {
+          const progress = rawProgress as UploadProgress
           setProgress(progress)
 
           if (progress.completed) {
@@ -108,9 +109,9 @@ export const ReportForm: React.FC<ReportFormProps> = ({
         onError(error)
       }
 
-      function handleEnqueued(ref: string) {
+      function handleEnqueued(ref: unknown) {
         setUploading(true)
-        setUploadRef(ref)
+        setUploadRef(ref as string)
       }
     },
     [upload, setUploading, setUploadRef, onError, onSuccess, setEnqueueError]
@@ -128,12 +129,13 @@ export const ReportForm: React.FC<ReportFormProps> = ({
               justifyContent="flex-end"
               padding={8}
               zIndex={1}
-              boxShadow={`
-                  0 4px 16px rgba(0, 0, 0, 0.1),
-                  0 1px 2px rgba(0, 0, 0, 0.1)
-                `}
+              boxShadow={shadow.md}
             >
-              <Block fontSize={11} fontWeight={700} color={colors.slate['700']}>
+              <Block
+                fontSize={11}
+                fontWeight={700}
+                color={color.text.secondary}
+              >
                 Duration
               </Block>
 

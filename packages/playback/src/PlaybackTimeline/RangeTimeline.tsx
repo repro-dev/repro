@@ -1,6 +1,6 @@
 import { Block } from '@jsxstyle/react'
-import { colors } from '@repro/design'
-import React, { MutableRefObject, useEffect, useRef } from 'react'
+import { color, colors } from '@repro/design'
+import React, { useEffect, useRef } from 'react'
 import { Subscription, fromEvent, map, switchMap, take, takeUntil } from 'rxjs'
 import { usePlayback } from '../hooks'
 import { SimpleTimeline } from './SimpleTimeline'
@@ -24,7 +24,7 @@ function useCallbackRef<T extends (...args: any[]) => unknown>(
 export const RangeTimeline: React.FC<Props> = ({ onChange }) => {
   const playback = usePlayback()
   const onChangeRef = useCallbackRef(onChange)
-  const containerRef = useRef() as MutableRefObject<HTMLDivElement>
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     const subscription = new Subscription()
@@ -92,13 +92,13 @@ export const RangeTimeline: React.FC<Props> = ({ onChange }) => {
 
       function mapPointerEventToLeftOffset(evt: PointerEvent) {
         const { x: rootOffsetX, width: rootWidth } =
-          root?.getBoundingClientRect()
+          root!.getBoundingClientRect()
         return Math.max(0, Math.min(1, (evt.clientX - rootOffsetX) / rootWidth))
       }
 
       function mapPointerEventToRightOffset(evt: PointerEvent) {
         const { x: rootOffsetX, width: rootWidth } =
-          root?.getBoundingClientRect()
+          root!.getBoundingClientRect()
         return Math.max(
           0,
           Math.min(1, (rootWidth - (evt.clientX - rootOffsetX)) / rootWidth)
@@ -114,25 +114,19 @@ export const RangeTimeline: React.FC<Props> = ({ onChange }) => {
       }
 
       // Direct events
-      const lowerPointerDown$ = fromEvent<PointerEvent>(
-        lowerBoundHandle,
-        'pointerdown'
-      )
+      const lowerPointerDown$ = fromEvent(lowerBoundHandle, 'pointerdown')
 
-      const upperPointerDown$ = fromEvent<PointerEvent>(
-        upperBoundHandle,
-        'pointerdown'
-      )
+      const upperPointerDown$ = fromEvent(upperBoundHandle, 'pointerdown')
 
       // Indirect events
-      const pointerMove$ = fromEvent<PointerEvent>(window, 'pointermove')
-      const pointerUp$ = fromEvent<PointerEvent>(window, 'pointerup')
+      const pointerMove$ = fromEvent(window, 'pointermove')
+      const pointerUp$ = fromEvent(window, 'pointerup')
 
       subscription.add(
         lowerPointerDown$
           .pipe(
             switchMap(() => pointerMove$.pipe(takeUntil(pointerUp$))),
-            map(mapPointerEventToLeftOffset)
+            map(evt => mapPointerEventToLeftOffset(evt as PointerEvent))
           )
           .subscribe(offset => {
             updateLowerBoundOffset(lowerBoundHandle, offset)
@@ -144,7 +138,7 @@ export const RangeTimeline: React.FC<Props> = ({ onChange }) => {
         lowerPointerDown$
           .pipe(
             switchMap(() => pointerUp$.pipe(take(1))),
-            map(mapPointerEventToLeftOffset),
+            map(evt => mapPointerEventToLeftOffset(evt as PointerEvent)),
             map(mapLeftOffsetToValue)
           )
           .subscribe(updateMin)
@@ -154,7 +148,7 @@ export const RangeTimeline: React.FC<Props> = ({ onChange }) => {
         upperPointerDown$
           .pipe(
             switchMap(() => pointerUp$.pipe(take(1))),
-            map(mapPointerEventToRightOffset),
+            map(evt => mapPointerEventToRightOffset(evt as PointerEvent)),
             map(mapRightOffsetToValue)
           )
           .subscribe(updateMax)
@@ -164,7 +158,7 @@ export const RangeTimeline: React.FC<Props> = ({ onChange }) => {
         upperPointerDown$
           .pipe(
             switchMap(() => pointerMove$.pipe(takeUntil(pointerUp$))),
-            map(mapPointerEventToRightOffset)
+            map(evt => mapPointerEventToRightOffset(evt as PointerEvent))
           )
           .subscribe(offset => {
             updateUpperBoundOffset(upperBoundHandle, offset)
@@ -239,15 +233,12 @@ function createBoundHandleElement(anchor: 'left' | 'right') {
   ])
 
   const head = createElement([
-    ['backgroundColor', colors.blue['700']],
+    ['backgroundColor', color.primary],
     ['height', '12px'],
   ])
 
   const tail = createElement([
-    [
-      'borderColor',
-      `${colors.blue['700']} transparent transparent transparent`,
-    ],
+    ['borderColor', `${color.primary} transparent transparent transparent`],
     ['borderStyle', 'solid'],
     ['borderWidth', '6px'],
   ])
@@ -257,7 +248,7 @@ function createBoundHandleElement(anchor: 'left' | 'right') {
   return elem
 }
 
-function createElement(styles: Array<[keyof CSSStyleDeclaration, string]>) {
+function createElement(styles: Array<[string, string]>) {
   const elem = document.createElement('div')
 
   for (const [key, value] of styles) {

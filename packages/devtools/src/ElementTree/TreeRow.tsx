@@ -1,6 +1,5 @@
 import { Block } from '@jsxstyle/react'
-import { colors } from '@repro/design'
-import { SyntheticId } from '@repro/domain'
+import { color } from '@repro/design'
 import React, { PropsWithChildren } from 'react'
 import { FONT_SIZE, INDENT } from './constants'
 import { Tag, useNodeState } from './context'
@@ -11,7 +10,7 @@ export type TreeRowBaseProps = PropsWithChildren<{
   depth: number
   isSelected: boolean
   disableFocus?: boolean
-  onClick: () => void
+  onClick?: () => void
   onPointerEnter?: () => void
 }>
 
@@ -27,12 +26,12 @@ export const TreeRowBase: React.FC<TreeRowBaseProps> = ({
     <Block
       position="relative"
       paddingLeft={INDENT * (depth + 1)}
-      backgroundColor={isSelected ? colors.blue['100'] : 'transparent'}
+      backgroundColor={isSelected ? color.primarySubtle : 'transparent'}
       hoverBackgroundColor={
         isSelected
-          ? colors.blue['100']
+          ? color.primarySubtle
           : !disableFocus
-          ? colors.blue['50']
+          ? color.infoTint
           : undefined
       }
       fontSize={FONT_SIZE}
@@ -51,8 +50,8 @@ export const TreeRowBase: React.FC<TreeRowBaseProps> = ({
 
 // Context-bound wrapper used by ElementTree — reads selection state from NodeStateContext.
 type TreeRowProps = PropsWithChildren<{
-  nodeId: SyntheticId
   depth: number
+  nodeId: string
   disableFocus?: boolean
   tag?: Tag
 }>

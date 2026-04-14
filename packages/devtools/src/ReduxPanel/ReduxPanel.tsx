@@ -1,6 +1,6 @@
 import { Block, Grid } from '@jsxstyle/react'
 import { useAtomValue } from '@repro/atom'
-import { colors } from '@repro/design'
+import { color } from '@repro/design'
 import {
   ReduxDispatchEvent,
   SourceEventType,
@@ -80,7 +80,7 @@ export const ReduxPanel: React.FC = () => {
       try {
         const diff = JSON.parse(event.stateDiff) as Record<
           string,
-          { before: unknown; after: unknown }
+          { after?: unknown }
         >
         for (const [key, entry] of Object.entries(diff)) {
           if (entry.after === undefined) {
@@ -100,7 +100,7 @@ export const ReduxPanel: React.FC = () => {
 
   if (dispatchEvents.length === 0) {
     return (
-      <Block padding={16} fontSize={12} color={colors.slate['500']}>
+      <Block padding={16} fontSize={12} color={color.text.muted}>
         No Redux actions recorded.
       </Block>
     )
@@ -112,14 +112,14 @@ export const ReduxPanel: React.FC = () => {
         <ActionLog
           events={dispatchEvents}
           selectedIndex={selectedIndex}
-          onSelect={setSelectedIndex}
+          onSelect={idx => setSelectedIndex(idx)}
         />
       </Block>
 
       <Block
         height="100%"
         overflow="auto"
-        borderLeft={`1px solid ${colors.slate['200']}`}
+        borderLeft={`1px solid ${color.border.default}`}
       >
         <StateTreePane state={reconstructedState} />
       </Block>

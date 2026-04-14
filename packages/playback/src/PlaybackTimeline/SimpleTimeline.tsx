@@ -1,13 +1,8 @@
 import { Block, Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { formatTime } from '@repro/date-utils'
-import { colors } from '@repro/design'
-import React, {
-  MutableRefObject,
-  PropsWithChildren,
-  useEffect,
-  useRef,
-} from 'react'
+import { color } from '@repro/design'
+import React, { useEffect, useRef } from 'react'
 import { NEVER, Observable, Subscription, combineLatest, fromEvent } from 'rxjs'
 import {
   distinctUntilChanged,
@@ -23,17 +18,14 @@ import { PlayAction } from './PlayAction'
 import { SpeedControl } from './SpeedControl'
 
 export interface Props {
+  children?: React.ReactNode
   min?: number
   max?: number
 }
 
-export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
-  children,
-  min,
-  max,
-}) => {
-  const progressRef = useRef() as MutableRefObject<HTMLDivElement>
-  const elapsedTimeRef = useRef() as MutableRefObject<HTMLDivElement>
+export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
+  const progressRef = useRef<HTMLDivElement | null>(null)
+  const elapsedTimeRef = useRef<HTMLDivElement | null>(null)
   const playback = usePlayback()
 
   useEffect(() => {
@@ -60,7 +52,7 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
 
       function mapPointerEventToOffset(evt: PointerEvent) {
         const { x: rootOffsetX, width: rootWidth } =
-          root.getBoundingClientRect()
+          root!.getBoundingClientRect()
         return Math.max(0, Math.min(1, (evt.clientX - rootOffsetX) / rootWidth))
       }
 
@@ -87,19 +79,19 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
       }
 
       // Direct events
-      const pointerEnter$ = fromEvent<PointerEvent>(root, 'pointerenter')
-      const pointerLeave$ = fromEvent<PointerEvent>(root, 'pointerleave')
-      const pointerDown$ = fromEvent<PointerEvent>(root, 'pointerdown')
+      const pointerEnter$ = fromEvent(root, 'pointerenter')
+      const pointerLeave$ = fromEvent(root, 'pointerleave')
+      const pointerDown$ = fromEvent(root, 'pointerdown')
 
       // Indirect events
-      const pointerMove$ = fromEvent<PointerEvent>(window, 'pointermove')
-      const pointerUp$ = fromEvent<PointerEvent>(window, 'pointerup')
+      const pointerMove$ = fromEvent(window, 'pointermove')
+      const pointerUp$ = fromEvent(window, 'pointerup')
 
       subscription.add(
         pointerDown$
           .pipe(
             switchMap(() => pointerUp$.pipe(take(1))),
-            map(mapPointerEventToOffset),
+            map(evt => mapPointerEventToOffset(evt as PointerEvent)),
             map(mapOffsetToRelativeValue),
             map(mapRelativeToAbsoluteValue)
           )
@@ -114,7 +106,7 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
           .pipe(
             switchMap(() => pointerMove$.pipe(takeUntil(pointerLeave$))),
             map(evt => {
-              const offset = mapPointerEventToOffset(evt)
+              const offset = mapPointerEventToOffset(evt as PointerEvent)
               const value = mapOffsetToRelativeValue(offset)
               return [offset, value] as const
             })
@@ -156,20 +148,22 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
       )
 
       subscription.add(
-        pointerDown$.pipe(map(mapPointerEventToOffset)).subscribe(offset => {
-          updateBarOffset(progress, offset)
-          updateElapsedTime(
-            elapsedTime,
-            formatTime(mapOffsetToRelativeValue(offset), 'seconds')
-          )
-        })
+        pointerDown$
+          .pipe(map(evt => mapPointerEventToOffset(evt as PointerEvent)))
+          .subscribe(offset => {
+            updateBarOffset(progress, offset)
+            updateElapsedTime(
+              elapsedTime,
+              formatTime(mapOffsetToRelativeValue(offset), 'seconds')
+            )
+          })
       )
 
       subscription.add(
         pointerDown$
           .pipe(
             switchMap(() => pointerMove$.pipe(takeUntil(pointerUp$))),
-            map(mapPointerEventToOffset)
+            map(evt => mapPointerEventToOffset(evt as PointerEvent))
           )
           .subscribe(offset => {
             updateBarOffset(progress, offset)
@@ -255,7 +249,7 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
           width="100%"
           height={8}
           hoverHeight={12}
-          transition="height 100ms linear"
+          transition="height 100ms ease-in-out"
           props={{ ref: progressRef }}
         />
 
@@ -279,14 +273,14 @@ export const SimpleTimeline: React.FC<PropsWithChildren<Props>> = ({
         userSelect="none"
       >
         <Block
-          color={colors.blue['700']}
+          color={color.primary}
           whiteSpace="nowrap"
           props={{ ref: elapsedTimeRef }}
         >
           00:00
         </Block>
-        <Block color={colors.slate['500']}>/</Block>
-        <Block color={colors.blue['700']} whiteSpace="nowrap" fontSize={11}>
+        <Block color={color.text.muted}>/</Block>
+        <Block color={color.primary} whiteSpace="nowrap" fontSize={11}>
           {formatTime((max || playback.getDuration()) - (min || 0), 'seconds')}
         </Block>
       </Row>
@@ -336,7 +330,7 @@ function createBackgroundElement() {
   const elem = document.createElement('div')
 
   const styles = [
-    ['backgroundColor', colors.slate['100'] as string],
+    ['backgroundColor', color.bg.hover as string],
     ['cursor', 'pointer'],
     ['height', '100%'],
     ['pointerEvents', 'none'],
@@ -355,7 +349,7 @@ function createBufferElement() {
   const elem = document.createElement('div')
 
   const styles = [
-    ['backgroundColor', colors.blue['100'] as string],
+    ['backgroundColor', color.primarySubtle as string],
     ['height', '100%'],
     ['left', '0'],
     ['pointerEvents', 'none'],
@@ -377,7 +371,7 @@ function createProgressElement() {
   const elem = document.createElement('div')
 
   const styles = [
-    ['backgroundColor', colors.blue['500'] as string],
+    ['backgroundColor', color.border.focus as string],
     ['height', '100%'],
     ['left', '0'],
     ['pointerEvents', 'none'],
@@ -399,7 +393,7 @@ function createGhostElement() {
   const elem = document.createElement('div')
 
   const styles = [
-    ['backgroundColor', colors.blue['200'] as string],
+    ['backgroundColor', color.primarySubtleHover as string],
     ['height', '100%'],
     ['left', '0'],
     ['pointerEvents', 'none'],
@@ -421,9 +415,9 @@ function createTooltipElement() {
   const elem = document.createElement('div')
 
   const styles = [
-    ['backgroundColor', colors.slate['700'] as string],
+    ['backgroundColor', color.text.secondary as string],
     ['borderRadius', '8px'],
-    ['color', colors.white],
+    ['color', color.text.inverse],
     ['display', 'none'],
     ['fontSize', '11px'],
     ['left', '0'],
@@ -451,8 +445,10 @@ function updateTooltip(target: HTMLElement, offset: number, value: string) {
   target.textContent = value
 }
 
-function updateElapsedTime(target: HTMLElement, value: string) {
-  target.textContent = value
+function updateElapsedTime(target: HTMLElement | null, value: string) {
+  if (target) {
+    target.textContent = value
+  }
 }
 
 function showTooltip(target: HTMLElement) {

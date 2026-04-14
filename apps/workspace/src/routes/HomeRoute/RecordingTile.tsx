@@ -1,6 +1,6 @@
 import { Block, Col, InlineRow, Row } from '@jsxstyle/react'
 import { formatDate, formatTime } from '@repro/date-utils'
-import { colors } from '@repro/design'
+import { color, transition } from '@repro/design'
 import { RecordingInfo, RecordingMode } from '@repro/domain'
 import { Camera as CameraIcon, Video as VideoIcon } from 'lucide-react'
 import React from 'react'
@@ -25,19 +25,19 @@ export const RecordingTile: React.FC<Props> = ({ recording, projectId }) => {
       padding={15}
       gap={10}
       fontSize={13}
-      color={colors.slate['800']}
-      backgroundColor={colors.slate['100']}
+      color={color.text.default}
+      backgroundColor={color.bg.hover}
       borderColor="transparent"
       borderWidth={1}
       borderStyle="solid"
       borderRadius={4}
       cursor="pointer"
       textDecoration="none"
-      hoverBackgroundColor={colors.white}
-      hoverBorderColor={colors.blue['500']}
-      hoverColor={colors.blue['700']}
-      hoverBoxShadow={`0 4px 8px ${colors.slate['200']}`}
-      transition="all linear 100ms"
+      hoverBackgroundColor={color.bg.surface}
+      hoverBorderColor={color.border.focus}
+      hoverColor={color.primary}
+      hoverBoxShadow={`0 4px 8px ${color.border.default}`}
+      transition={transition.fast}
       props={{ to: href }}
     >
       <Row alignItems="center" gap={10}>
@@ -46,8 +46,8 @@ export const RecordingTile: React.FC<Props> = ({ recording, projectId }) => {
           gap={10}
           height={24}
           paddingH={8}
-          backgroundColor={colors.blue['100']}
-          color={colors.blue['700']}
+          backgroundColor={color.primarySubtle}
+          color={color.primary}
           borderRadius={4}
         >
           {(recording.mode === RecordingMode.Live ||
@@ -68,7 +68,7 @@ export const RecordingTile: React.FC<Props> = ({ recording, projectId }) => {
           recording.mode === RecordingMode.Replay) &&
           formatTime(recording.duration, 'seconds')}
 
-        <Block color={colors.slate['700']}>
+        <Block color={color.text.secondary}>
           {formatDate(recording.createdAt)}
         </Block>
       </Row>
