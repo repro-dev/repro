@@ -94,6 +94,22 @@ When keeping the status table updated, make batching and backoff explicit so the
    - Issue ID is already in this session's `escalated_issues` set
    - The issue does not give the planner enough concrete information to produce a bounded implementation plan without asking for human clarification
 
+   **Scope pre-filter (inline heuristic — no agent spawn):**
+
+   For each issue that passes all hard-exclude checks, count how many of the following 6 signals are present:
+
+   | Signal                                             | Detected when                                                                                                           |
+   | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+   | No acceptance criteria                             | Description contains no checkbox list, no "Acceptance Criteria" section, and no verifiable outcome statements           |
+   | Description under ~80 words                        | The full issue description body contains fewer than ~80 words                                                           |
+   | No named files/packages/components                 | Description names no specific file paths, `@repro/...` package names, component names, function names, or API endpoints |
+   | Multiple services with no implementation direction | Description mentions 3+ services or packages but gives no direction on which to change or how                           |
+   | Vague noun-phrase title                            | Title is a bare noun phrase with no verb and no measurable change (e.g. "Performance improvements", "Auth cleanup")     |
+   | No type label                                      | Issue carries none of the standard labels: Bug, Feature, Improvement, Tech Debt                                         |
+
+   - If **3 or more signals are present**: exclude the issue from the current run. In the candidate table, record the decision as "exclude — scope pre-filter". Post a `Linear_save_comment` on the issue naming the specific signals that triggered exclusion, for example: `"Excluded by scope pre-filter: no acceptance criteria, description under 80 words, no named files/packages."` Do not create a worktree or spawn a planner for this issue.
+   - If **fewer than 3 signals are present**: the issue passes the heuristic — proceed to evaluate supporting signals and the planner as normal.
+
    **Supporting signals (use as evidence, not fake-precise hard gates):**
    - Clear user or developer outcome
    - Concrete acceptance criteria or other verifiable success conditions
