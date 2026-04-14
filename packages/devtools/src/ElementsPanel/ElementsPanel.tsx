@@ -1,33 +1,25 @@
-import { Block, Grid } from '@jsxstyle/react'
+import { Block, Grid, Row } from '@jsxstyle/react'
 import { useSelector } from '@repro/atom'
 import { colors } from '@repro/design'
 import { NodeId, VElement, VTree } from '@repro/domain'
 import { BreakpointType, usePlayback, useSnapshot } from '@repro/playback'
 import { isDocumentVNode, isElementVNode } from '@repro/vdom-utils'
-import React, {
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  useState,
-} from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { ElementTree } from '../ElementTree'
 import { useElementPicker, useFocusedNode, useSelectedNode } from '../hooks'
 import { SelectedNodeComputedStyle } from './SelectedNodeComputedStyle'
+import { StylesPane } from './StylesPane'
+
+type SidebarTab = 'styles' | 'computed'
 
 export const ElementsPanel: React.FC = () => {
   return (
-    <Container>
+    <Grid gridTemplateColumns="1fr auto" alignItems="stretch" height="100%">
       <MainPane />
       <SidebarPane />
-    </Container>
+    </Grid>
   )
 }
-
-const Container: React.FC<PropsWithChildren> = ({ children }) => (
-  <Grid gridTemplateColumns="1fr auto" alignItems="stretch" height="100%">
-    {children}
-  </Grid>
-)
 
 const MainPane: React.FC = React.memo(() => {
   const [focusedNode, setFocusedNode] = useFocusedNode()
@@ -123,6 +115,7 @@ const INITIAL_SIDEBAR_SIZE = 360
 const SidebarPane: React.FC = () => {
   const [size, _setSize] = useState(INITIAL_SIDEBAR_SIZE)
   const [_initialSize, _setInitialSize] = useState(INITIAL_SIDEBAR_SIZE)
+  const [activeTab, setActiveTab] = useState<SidebarTab>('styles')
 
   return (
     <Block
@@ -131,7 +124,72 @@ const SidebarPane: React.FC = () => {
       overflow="auto"
       borderLeft={`1px solid ${colors.slate['200']}`}
     >
-      <SelectedNodeComputedStyle />
+      <TabToggle activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {activeTab === 'styles' ? <StylesPane /> : <SelectedNodeComputedStyle />}
+    </Block>
+  )
+}
+
+interface TabToggleProps {
+  activeTab: SidebarTab
+  onTabChange: (tab: SidebarTab) => void
+}
+
+function TabToggle({ activeTab, onTabChange }: TabToggleProps) {
+  return (
+    <Row
+      borderBottom={`1px solid ${colors.slate['200']}`}
+      paddingLeft={12}
+      paddingRight={12}
+      paddingTop={8}
+      paddingBottom={8}
+      gap={4}
+    >
+      <TabButton
+        active={activeTab === 'styles'}
+        onClick={() => onTabChange('styles')}
+      >
+        Styles
+      </TabButton>
+      <TabButton
+        active={activeTab === 'computed'}
+        onClick={() => onTabChange('computed')}
+      >
+        Computed
+      </TabButton>
+    </Row>
+  )
+}
+
+interface TabButtonProps {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}
+
+function TabButton({ active, onClick, children }: TabButtonProps) {
+  return (
+    <Block
+      component="button"
+      paddingLeft={12}
+      paddingRight={12}
+      paddingTop={6}
+      paddingBottom={6}
+      borderRadius={6}
+      fontSize={12}
+      fontWeight={active ? 600 : 400}
+      cursor="pointer"
+      backgroundColor={active ? colors.blue['100'] : 'transparent'}
+      color={active ? colors.blue['700'] : colors.slate['600']}
+      border="none"
+      outline="none"
+      onClick={onClick}
+      props={{
+        type: 'button' as const,
+      }}
+    >
+      {children}
     </Block>
   )
 }
