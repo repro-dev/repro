@@ -17,12 +17,6 @@
   },
   "content_scripts": [
     {
-      "js": ["capture.js"],
-      "matches": ["<all_urls>"],
-      "run_at": "document_start",
-      "world": "MAIN"
-    },
-    {
       "js": ["content.js"],
       "matches": ["<all_urls>"],
       "run_at": "document_start"
@@ -31,9 +25,8 @@
   "permissions": ["storage", "tabs"],
   "web_accessible_resources": [
     {
-      "resources": ["bridgeHost.html", "bridgeHost.js"],
+      "resources": ["capture.js", "bridgeHost.html", "bridgeHost.js"],
       "matches": ["<all_urls>"]
     }
-  ],
-  "minimum_chrome_version": "111"
+  ]
 }
