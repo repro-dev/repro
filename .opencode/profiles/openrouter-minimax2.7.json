@@ -1,0 +1,51 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "openrouter/minimax/minimax-m2.7",
+  "command": {
+    "lightspeed": {
+      "model": "openrouter/minimax/minimax-m2.7",
+      "template": ""
+    },
+    "enrich-issues": {
+      "model": "openrouter/minimax/minimax-m2.7",
+      "template": ""
+    },
+    "review": {
+      "model": "openrouter/minimax/minimax-m2.7",
+      "template": ""
+    },
+    "ledger": {
+      "model": "openrouter/minimax/minimax-m2.7",
+      "template": ""
+    },
+    "handoff": {
+      "model": "openrouter/minimax/minimax-m2.7",
+      "template": ""
+    },
+    "audit-skills": {
+      "model": "openrouter/minimax/minimax-m2.7",
+      "template": ""
+    },
+    "update-visual-baselines": {
+      "model": "openrouter/minimax/minimax-m2.7",
+      "template": ""
+    }
+  },
+  "agent": {
+    "develop": {
+      "model": "openrouter/minimax/minimax-m2.7"
+    },
+    "planner": {
+      "model": "openrouter/minimax/minimax-m2.7"
+    },
+    "review": {
+      "model": "openrouter/minimax/minimax-m2.7"
+    },
+    "test": {
+      "model": "openrouter/minimax/minimax-m2.7"
+    },
+    "release": {
+      "model": "openrouter/minimax/minimax-m2.7"
+    }
+  }
+}
