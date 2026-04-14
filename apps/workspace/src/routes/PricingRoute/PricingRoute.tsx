@@ -1,6 +1,7 @@
 import { Grid } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
+import { useBillingClient } from '@repro/billing'
 import {
   Badge,
   Button,
@@ -13,14 +14,13 @@ import {
   color,
   spacing,
 } from '@repro/design'
-import { BillingPlanWithEntitlements, ListResponse } from '@repro/domain'
+import { BillingPlanWithEntitlements } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
-import React, { useCallback, useEffect } from 'react'
+import { fork } from 'fluture'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
-function collectFeatures(
-  plans: Array<BillingPlanWithEntitlements>
-): Array<string> {
+function collectFeatures(plans: Array<BillingPlanWithEntitlements>): string[] {
   const featureSet = new Set<string>()
   for (const plan of plans) {
     for (const entitlement of plan.entitlements) {
@@ -32,21 +32,32 @@ function collectFeatures(
 
 export const PricingRoute: React.FC = () => {
   const apiClient = useApiClient()
+  const billingClient = useBillingClient()
   const session = useSession()
   const sessionLoading = useSessionLoading()
   const navigate = useNavigate()
   const location = useLocation()
 
+  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const checkoutInProgressRef = useRef(false)
+
+  // Reset the in-progress guard after React flushes the cleared loading state.
+  // This ensures a rapid second click (before the next render) is still blocked
+  // even when the underlying Future resolves synchronously.
+  useEffect(() => {
+    if (loadingPlanId === null) {
+      checkoutInProgressRef.current = false
+    }
+  }, [loadingPlanId])
+
   const handleSelectPlan = useCallback(
     (planId: string) => {
-      // Guard: if session is not yet resolved, do nothing
       if (sessionLoading) {
         return
       }
 
       if (!session) {
-        // Encode the full destination (including planId) into a single redirect
-        // param so planId is preserved after login/register
         const destination = `/pricing?planId=${encodeURIComponent(planId)}`
         navigate(
           `/account/register?redirect=${encodeURIComponent(destination)}`
@@ -54,10 +65,30 @@ export const PricingRoute: React.FC = () => {
         return
       }
 
-      // Authenticated: proceed to checkout (wired by REP-127)
-      void apiClient
+      if (checkoutInProgressRef.current) {
+        return
+      }
+
+      checkoutInProgressRef.current = true
+      setLoadingPlanId(planId)
+      setCheckoutError(null)
+
+      apiClient
+        .fetch('/billing/checkout', {
+          method: 'POST',
+          body: JSON.stringify({ planId }),
+        })
+        .pipe(
+          fork((err: Error) => {
+            setLoadingPlanId(null)
+            setCheckoutError(err.message ?? 'An unexpected error occurred')
+          })(result => {
+            setLoadingPlanId(null)
+            billingClient.openCheckout({ transactionId: result.transactionId })
+          })
+        )
     },
-    [apiClient, session, sessionLoading, navigate]
+    [apiClient, billingClient, session, sessionLoading, navigate]
   )
 
   // When the user returns from login/register with a planId in the URL and is
@@ -70,10 +101,7 @@ export const PricingRoute: React.FC = () => {
   }, [sessionLoading, session, planIdFromUrl, handleSelectPlan])
 
   const { loading, error, data } = useFuture(
-    () =>
-      apiClient.fetch<ListResponse<BillingPlanWithEntitlements>>(
-        '/billing/plans'
-      ),
+    () => apiClient.fetch('/billing/plans'),
     [apiClient]
   )
 
@@ -90,7 +118,7 @@ export const PricingRoute: React.FC = () => {
     )
   }
 
-  const plans = data!.items
+  const plans: Array<BillingPlanWithEntitlements> = data!.items
   const features = collectFeatures(plans)
 
   return (
@@ -99,6 +127,7 @@ export const PricingRoute: React.FC = () => {
         <PageFrame.Title>Plans</PageFrame.Title>
       </PageFrame.Header>
       <PageFrame.Body>
+        {checkoutError && <Text color={color.danger}>{checkoutError}</Text>}
         <Grid
           gridTemplateColumns={`repeat(${plans.length}, 1fr)`}
           gap={spacing['2xl']}
@@ -149,8 +178,9 @@ export const PricingRoute: React.FC = () => {
                     variant="contained"
                     context="info"
                     onClick={() => handleSelectPlan(plan.id)}
+                    disabled={loadingPlanId !== null}
                   >
-                    Get started
+                    {loadingPlanId === plan.id ? 'Loading…' : 'Get started'}
                   </Button>
                 </Stack>
               </Card>

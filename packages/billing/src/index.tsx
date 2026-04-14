@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, useContext, useRef } from 'react'
+import React, { useContext, useEffect, useRef } from 'react'
 
 declare global {
   interface Window {
@@ -24,6 +24,20 @@ export interface BillingConfig {
   eventCallback?: (data: any) => void
 }
 
+function loadPaddleScript(): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (window.Paddle) {
+      resolve()
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js'
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Failed to load Paddle.js'))
+    document.head.appendChild(script)
+  })
+}
+
 function createBillingClient(config: BillingConfig) {
   let initialized = false
 
@@ -32,24 +46,30 @@ function createBillingClient(config: BillingConfig) {
       return
     }
 
-    if (!window.Paddle) {
-      return
-    }
+    loadPaddleScript()
+      .then(() => {
+        // Guard against concurrent calls resolving after first init completes
+        if (!window.Paddle || initialized) return
 
-    if (config.environment === 'sandbox') {
-      window.Paddle.Environment.set('sandbox')
-    }
+        if (config.environment === 'sandbox') {
+          window.Paddle.Environment.set('sandbox')
+        }
 
-    window.Paddle.Initialize({
-      token: config.token,
-      eventCallback: config.eventCallback,
-    })
+        window.Paddle.Initialize({
+          token: config.token,
+          eventCallback: config.eventCallback,
+        })
 
-    initialized = true
+        initialized = true
+      })
+      .catch((err: unknown) => {
+        console.error('Billing: failed to load Paddle.js', err)
+      })
   }
 
   function openCheckout(options: any) {
     if (!window.Paddle) {
+      console.warn('Billing: Paddle not available, cannot open checkout')
       return
     }
 
@@ -58,6 +78,7 @@ function createBillingClient(config: BillingConfig) {
 
   function closeCheckout() {
     if (!window.Paddle) {
+      console.warn('Billing: Paddle not available, cannot close checkout')
       return
     }
 
@@ -84,12 +105,24 @@ export function createBillingClientFromConfig(config: BillingConfig) {
   return createBillingClient(config)
 }
 
-export const BillingProvider: React.FC<PropsWithChildren<Props>> = ({
-  children,
-  config,
-  client,
-}) => {
+export const BillingProvider: React.FC<
+  Props & { children: React.ReactNode }
+> = ({ children, config, client }) => {
   const clientRef = useRef(client ?? createBillingClient(config))
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!window.Paddle) {
+        console.warn(
+          'Billing: Paddle.js not available after initialization. ' +
+            'Ensure the Paddle script tag is present in the host page.'
+        )
+      }
+    }, 2000)
+    clientRef.current.init()
+    return () => clearTimeout(timeout)
+  }, [])
+
   return (
     <BillingContext.Provider value={clientRef.current}>
       {children}

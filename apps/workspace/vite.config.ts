@@ -61,7 +61,13 @@ function htmlTemplatePlugin(envVarNames: string[]): Plugin {
   }
 }
 
-const envVarNames = ['BUILD_ENV', 'REPRO_APP_URL', 'REPRO_API_URL']
+const envVarNames = [
+  'BUILD_ENV',
+  'PADDLE_CLIENT_TOKEN',
+  'PADDLE_ENVIRONMENT',
+  'REPRO_APP_URL',
+  'REPRO_API_URL',
+]
 
 const envVars = Object.fromEntries(
   envVarNames.map(name => [name, process.env[name] ?? ''])
