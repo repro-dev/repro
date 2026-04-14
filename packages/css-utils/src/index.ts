@@ -8,6 +8,7 @@ export {
   matchRulesToElement,
 } from './rule-matching'
 export type {
+  CSSPropertyValue,
   CSSStyleDeclarationDict,
   CapturedCSSRule,
   InheritedRule,

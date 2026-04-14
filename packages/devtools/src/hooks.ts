@@ -9,6 +9,7 @@ import {
   matchRulesToElement,
 } from '@repro/css-utils'
 import { isElementNode } from '@repro/dom-utils'
+import { useLatestControlFrame } from '@repro/playback'
 import { useContext, useEffect, useState } from 'react'
 import { DevToolsStateContext } from './context'
 
@@ -93,11 +94,13 @@ export function useMatchedCSSRules(): {
   inheritedRules: InheritedRule[]
 } {
   const selectedElement = useSelectedElement()
+  const latestControlFrame = useLatestControlFrame()
   const [allRules, setAllRules] = useState<CapturedCSSRule[]>([])
   const [matchedRules, setMatchedRules] = useState<MatchedRule[]>([])
   const [inheritedRules, setInheritedRules] = useState<InheritedRule[]>([])
 
-  // Extract all stylesheet rules from the element's owner document
+  // Extract all stylesheet rules from the element's owner document.
+  // Re-run on latestControlFrame to pick up CSS-in-JS injections at different playback positions.
   useEffect(() => {
     if (!selectedElement) {
       setAllRules([])
@@ -112,9 +115,10 @@ export function useMatchedCSSRules(): {
     } catch {
       setAllRules([])
     }
-  }, [selectedElement])
+  }, [selectedElement, latestControlFrame])
 
-  // Match extracted rules to the selected element
+  // Match extracted rules to the selected element.
+  // Re-run on latestControlFrame so computed style reflects current playback position.
   useEffect(() => {
     if (!selectedElement || !allRules.length) {
       setMatchedRules([])
@@ -137,7 +141,7 @@ export function useMatchedCSSRules(): {
       setMatchedRules([])
       setInheritedRules([])
     }
-  }, [selectedElement, allRules])
+  }, [selectedElement, allRules, latestControlFrame])
 
   return { matchedRules, inheritedRules }
 }

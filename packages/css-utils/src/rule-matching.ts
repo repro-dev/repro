@@ -1,7 +1,9 @@
 import { calculateSpecificity, Specificity } from './specificity'
 
+export type CSSPropertyValue = { value: string; important: boolean }
+
 export type CSSStyleDeclarationDict = {
-  [key: string]: string
+  [key: string]: CSSPropertyValue
 }
 
 export type CapturedCSSRule = {
@@ -111,19 +113,26 @@ function extractRulesFromSheet(
 
   for (const rule of rules) {
     if (rule instanceof CSSStyleRule) {
-      const selector = rule.selectorText || ''
+      const selectorText = rule.selectorText || ''
       const declarations = extractDeclarations(rule.style)
-      out.push({
-        selector,
-        declarations,
-        specificity: calculateSpecificity(selector),
-        sourceStylesheet: href,
-        sourceLine: null,
-        mediaCondition,
-        supportsCondition,
-        isInline: false,
-        isCrossOrigin: false,
-      })
+      // Split comma-selectors: ".foo, #bar" → two rules with correct individual specificity
+      const selectors = selectorText
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+      for (const selector of selectors) {
+        out.push({
+          selector,
+          declarations,
+          specificity: calculateSpecificity(selector),
+          sourceStylesheet: href,
+          sourceLine: null,
+          mediaCondition,
+          supportsCondition,
+          isInline: false,
+          isCrossOrigin: false,
+        })
+      }
     } else if (rule instanceof CSSMediaRule) {
       // Recurse into @media block
       const nestedMedia = rule.conditionText ?? rule.media.mediaText ?? null
@@ -170,19 +179,26 @@ function extractRulesFromGroupRule(
 
   for (const rule of rules) {
     if (rule instanceof CSSStyleRule) {
-      const selector = rule.selectorText || ''
+      const selectorText = rule.selectorText || ''
       const declarations = extractDeclarations(rule.style)
-      out.push({
-        selector,
-        declarations,
-        specificity: calculateSpecificity(selector),
-        sourceStylesheet: href,
-        sourceLine: null,
-        mediaCondition,
-        supportsCondition,
-        isInline: false,
-        isCrossOrigin: false,
-      })
+      // Split comma-selectors: ".foo, #bar" → two rules with correct individual specificity
+      const selectors = selectorText
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+      for (const selector of selectors) {
+        out.push({
+          selector,
+          declarations,
+          specificity: calculateSpecificity(selector),
+          sourceStylesheet: href,
+          sourceLine: null,
+          mediaCondition,
+          supportsCondition,
+          isInline: false,
+          isCrossOrigin: false,
+        })
+      }
     } else if (rule instanceof CSSMediaRule) {
       const nestedMedia = rule.conditionText ?? rule.media.mediaText ?? null
       extractRulesFromGroupRule(rule, out, nestedMedia, supportsCondition, href)
@@ -201,7 +217,11 @@ function extractDeclarations(
   for (let i = 0; i < style.length; i++) {
     const prop = style.item(i)
     if (prop) {
-      dict[prop] = style.getPropertyValue(prop)
+      dict[prop] = {
+        value: style.getPropertyValue(prop),
+        // getPropertyValue never includes "!important" — use getPropertyPriority instead
+        important: style.getPropertyPriority(prop) === 'important',
+      }
     }
   }
 
@@ -303,8 +323,9 @@ export function computeOverrideState(
     const { rule } = m
 
     for (const prop of Object.keys(rule.declarations)) {
-      const value = rule.declarations[prop] ?? ''
-      const isImportant = value.includes('!important')
+      const entry = rule.declarations[prop]
+      if (!entry) continue
+      const isImportant = entry.important
       const existing = winners.get(prop)
 
       if (!existing) {

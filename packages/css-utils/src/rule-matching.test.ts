@@ -44,8 +44,16 @@ function makeMatchedRule(
 
 describe('computeOverrideState', () => {
   it('two rules with same property — lower specificity rule has that property in overriddenDeclarations', () => {
-    const highRule = makeRule('div', { color: 'red' }, [0, 1, 0]) // class = higher
-    const lowRule = makeRule('p', { color: 'blue' }, [0, 0, 1]) // element = lower
+    const highRule = makeRule(
+      'div',
+      { color: { value: 'red', important: false } },
+      [0, 1, 0]
+    ) // class = higher
+    const lowRule = makeRule(
+      'p',
+      { color: { value: 'blue', important: false } },
+      [0, 0, 1]
+    ) // element = lower
 
     const matched: MatchedRule[] = [
       makeMatchedRule(highRule),
@@ -64,8 +72,16 @@ describe('computeOverrideState', () => {
   })
 
   it('!important on lower-specificity rule overrides higher-specificity non-important declaration', () => {
-    const highRule = makeRule('div#id', { color: 'red' }, [1, 0, 1]) // id+element, no !important
-    const lowRule = makeRule('p', { color: 'blue !important' }, [0, 0, 1]) // element, but !important
+    const highRule = makeRule(
+      'div#id',
+      { color: { value: 'red', important: false } },
+      [1, 0, 1]
+    ) // id+element, no !important
+    const lowRule = makeRule(
+      'p',
+      { color: { value: 'blue', important: true } },
+      [0, 0, 1]
+    ) // element, but !important
 
     const matched: MatchedRule[] = [
       makeMatchedRule(highRule),
@@ -85,8 +101,16 @@ describe('computeOverrideState', () => {
   })
 
   it('different properties are not marked as overridden', () => {
-    const rule1 = makeRule('div', { color: 'red' }, [0, 0, 1])
-    const rule2 = makeRule('p', { margin: '0' }, [0, 0, 1])
+    const rule1 = makeRule(
+      'div',
+      { color: { value: 'red', important: false } },
+      [0, 0, 1]
+    )
+    const rule2 = makeRule(
+      'p',
+      { margin: { value: '0', important: false } },
+      [0, 0, 1]
+    )
 
     const matched: MatchedRule[] = [
       makeMatchedRule(rule1),
@@ -99,8 +123,16 @@ describe('computeOverrideState', () => {
   })
 
   it('isOverridden is true when all declarations are overridden', () => {
-    const highRule = makeRule('div', { color: 'red' }, [0, 1, 0])
-    const lowRule = makeRule('p', { color: 'blue' }, [0, 0, 1])
+    const highRule = makeRule(
+      'div',
+      { color: { value: 'red', important: false } },
+      [0, 1, 0]
+    )
+    const lowRule = makeRule(
+      'p',
+      { color: { value: 'blue', important: false } },
+      [0, 0, 1]
+    )
 
     const matched: MatchedRule[] = [
       makeMatchedRule(highRule),
@@ -117,15 +149,26 @@ describe('computeOverrideState', () => {
 
 describe('hasInheritedProperty', () => {
   it('returns true for declarations containing color', () => {
-    assert.strictEqual(hasInheritedProperty({ color: 'red' }), true)
+    assert.strictEqual(
+      hasInheritedProperty({ color: { value: 'red', important: false } }),
+      true
+    )
   })
 
   it('returns true for declarations containing font-size', () => {
-    assert.strictEqual(hasInheritedProperty({ 'font-size': '16px' }), true)
+    assert.strictEqual(
+      hasInheritedProperty({
+        'font-size': { value: '16px', important: false },
+      }),
+      true
+    )
   })
 
   it('returns false for declarations containing only margin', () => {
-    assert.strictEqual(hasInheritedProperty({ margin: '0' }), false)
+    assert.strictEqual(
+      hasInheritedProperty({ margin: { value: '0', important: false } }),
+      false
+    )
   })
 
   it('returns false for empty declarations', () => {
@@ -133,6 +176,11 @@ describe('hasInheritedProperty', () => {
   })
 
   it('returns true for declarations containing line-height', () => {
-    assert.strictEqual(hasInheritedProperty({ 'line-height': '1.5' }), true)
+    assert.strictEqual(
+      hasInheritedProperty({
+        'line-height': { value: '1.5', important: false },
+      }),
+      true
+    )
   })
 })

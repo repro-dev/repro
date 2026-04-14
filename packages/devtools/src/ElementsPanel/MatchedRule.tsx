@@ -107,7 +107,8 @@ export const MatchedRuleRow: React.FC<MatchedRuleRowProps> = ({
       {/* Declarations */}
       <Col paddingLeft={12}>
         {propertyKeys.map(key => {
-          const value = rule.declarations[key] ?? ''
+          const entry = rule.declarations[key]
+          const value = entry ? entry.value : ''
           const isOverridden = overriddenDeclarations.has(key)
           return (
             <Block
@@ -193,7 +194,8 @@ export const InheritedRuleRow: React.FC<InheritedRuleRowProps> = ({
       {/* Declarations */}
       <Col paddingLeft={12}>
         {propertyKeys.map(key => {
-          const value = rule.declarations[key] ?? ''
+          const entry = rule.declarations[key]
+          const value = entry ? entry.value : ''
           return (
             <Block
               key={key}
