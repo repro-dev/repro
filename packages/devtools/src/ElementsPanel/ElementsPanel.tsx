@@ -1,6 +1,6 @@
-import { Block, Grid } from '@jsxstyle/react'
+import { Block, Grid, Row } from '@jsxstyle/react'
 import { useSelector } from '@repro/atom'
-import { colors } from '@repro/design'
+import { color, colors, spacing } from '@repro/design'
 import { NodeId, VElement, VTree } from '@repro/domain'
 import { BreakpointType, usePlayback, useSnapshot } from '@repro/playback'
 import { isDocumentVNode, isElementVNode } from '@repro/vdom-utils'
@@ -13,6 +13,7 @@ import React, {
 import { ElementTree } from '../ElementTree'
 import { useElementPicker, useFocusedNode, useSelectedNode } from '../hooks'
 import { SelectedNodeComputedStyle } from './SelectedNodeComputedStyle'
+import { SelectedNodeStyles } from './SelectedNodeStyles'
 
 export const ElementsPanel: React.FC = () => {
   return (
@@ -23,7 +24,7 @@ export const ElementsPanel: React.FC = () => {
   )
 }
 
-const Container: React.FC<PropsWithChildren> = ({ children }) => (
+const Container = ({ children }: PropsWithChildren) => (
   <Grid gridTemplateColumns="1fr auto" alignItems="stretch" height="100%">
     {children}
   </Grid>
@@ -120,9 +121,10 @@ const MainPane: React.FC = React.memo(() => {
 
 const INITIAL_SIDEBAR_SIZE = 360
 
-const SidebarPane: React.FC = () => {
+const SidebarPane = () => {
   const [size, _setSize] = useState(INITIAL_SIDEBAR_SIZE)
   const [_initialSize, _setInitialSize] = useState(INITIAL_SIDEBAR_SIZE)
+  const [activeTab, setActiveTab] = useState<'styles' | 'computed'>('computed')
 
   return (
     <Block
@@ -131,8 +133,66 @@ const SidebarPane: React.FC = () => {
       overflow="auto"
       borderLeft={`1px solid ${colors.slate['200']}`}
     >
-      <SelectedNodeComputedStyle />
+      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      {activeTab === 'styles' ? (
+        <SelectedNodeStyles />
+      ) : (
+        <SelectedNodeComputedStyle />
+      )}
     </Block>
+  )
+}
+
+interface TabBarProps {
+  activeTab: 'styles' | 'computed'
+  onTabChange: (tab: 'styles' | 'computed') => void
+}
+
+const TabBar = ({ activeTab, onTabChange }: TabBarProps) => (
+  <Row
+    borderBottom={`1px solid ${colors.slate['200']}`}
+    paddingH={spacing.sm}
+    gap={spacing.xs}
+  >
+    <TabButton
+      active={activeTab === 'styles'}
+      onClick={() => onTabChange('styles')}
+    >
+      Styles
+    </TabButton>
+    <TabButton
+      active={activeTab === 'computed'}
+      onClick={() => onTabChange('computed')}
+    >
+      Computed
+    </TabButton>
+  </Row>
+)
+
+const TabButton = (props: {
+  active: boolean
+  children: React.ReactNode
+  onClick: () => void
+}) => {
+  const { active, children, onClick } = props
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        fontFamily: 'monospace',
+        fontSize: 11,
+        fontWeight: active ? 700 : 400,
+        color: active ? colors.slate[900] : colors.slate[500],
+        padding: `${spacing.sm}px ${spacing.md}px`,
+        borderBottom: `2px solid ${active ? color.primary : 'transparent'}`,
+        backgroundColor: 'transparent',
+        cursor: 'pointer',
+        userSelect: 'none',
+      }}
+    >
+      {children}
+    </button>
   )
 }
 

@@ -1,3 +1,7 @@
 export { ReferenceStyleProvider, useReferenceStyle } from './reference-styles'
+export { parseCSSRule } from './rules'
+export type { ParsedCSSRule, ParsedDeclaration } from './rules'
+export { compareSpecificity, computeSpecificity } from './specificity'
+export type { Specificity } from './specificity'
 export { createCSSPropertyMap, createGroupedCSSPropertyMap } from './utils'
 export type { CSSPropertyMap, GroupedCSSPropertyMap } from './utils'
