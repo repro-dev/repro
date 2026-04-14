@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "name": "block-git-add-all",
+      "command": "git",
+      "subcommand": "add",
+      "block_args": ["-A", "--all", ".", "-u", "--update"],
+      "reason": "Use 'git add <specific-files>' instead of blanket add. Agents should stage intentionally."
+    }
+  ]
+}
