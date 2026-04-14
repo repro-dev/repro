@@ -18,6 +18,7 @@ function makeSnapshotEvent(dom: VTree): SourceEvent {
     data: {
       dom,
       interaction: null,
+      frameworkState: null,
     },
   })
 }
