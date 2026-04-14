@@ -1,6 +1,6 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
 import { useSelector } from '@repro/atom'
-import { colors } from '@repro/design'
+import { colors, focusRing } from '@repro/design'
 import { NodeId, VElement, VTree } from '@repro/domain'
 import { BreakpointType, usePlayback, useSnapshot } from '@repro/playback'
 import { isDocumentVNode, isElementVNode } from '@repro/vdom-utils'
@@ -183,9 +183,7 @@ function TabButton({ active, onClick, children }: TabButtonProps) {
       backgroundColor={active ? colors.blue['100'] : 'transparent'}
       color={active ? colors.blue['700'] : colors.slate['600']}
       border="none"
-      outline="none"
-      focusOutline="2px solid #3b82f6"
-      focusOutlineOffset="1px"
+      {...focusRing()}
       onClick={onClick}
       props={{
         type: 'button' as const,
