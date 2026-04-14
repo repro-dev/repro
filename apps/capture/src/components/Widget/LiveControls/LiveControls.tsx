@@ -1,5 +1,5 @@
 import { Block, Grid, Inline, Row } from '@jsxstyle/react'
-import { Button, colors } from '@repro/design'
+import { Button, color, colors } from '@repro/design'
 import { interrupt } from '@repro/recording'
 import { Check as CheckIcon, Video as VideoIcon } from 'lucide-react'
 import React, { useEffect, useState } from 'react'

@@ -1,7 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import { IfGate, UnlessGate } from '@repro/auth'
 import { formatTime } from '@repro/date-utils'
-import { ToggleGroup } from '@repro/design'
+import { color, shadow, ToggleGroup } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import { RecordingMode } from '@repro/domain'
 import { observeFuture } from '@repro/future-utils'

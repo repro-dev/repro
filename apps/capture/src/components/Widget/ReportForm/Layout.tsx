@@ -1,5 +1,5 @@
 import { Grid } from '@jsxstyle/react'
-import { Card } from '@repro/design'
+import { Card, color, shadow } from '@repro/design'
 import React from 'react'
 import { MAX_INT32 } from '~/constants'
 

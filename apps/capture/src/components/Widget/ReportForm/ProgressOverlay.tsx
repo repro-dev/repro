@@ -1,5 +1,5 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import { Button, Card, colors, Meter } from '@repro/design'
+import { Button, Card, color, colors, Meter } from '@repro/design'
 import { UploadProgress, UploadStage } from '@repro/recording-api'
 import {
   AlertTriangleIcon,

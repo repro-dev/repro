@@ -1,6 +1,6 @@
 import { Block, Row } from '@jsxstyle/react'
 import { animated, useTransition } from '@react-spring/web'
-import { colors, Logo, Tooltip } from '@repro/design'
+import { color, colors, Logo, Tooltip } from '@repro/design'
 import { RecordingMode } from '@repro/domain'
 import { XIcon } from 'lucide-react'
 import React from 'react'

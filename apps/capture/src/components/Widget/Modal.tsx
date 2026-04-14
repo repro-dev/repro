@@ -1,6 +1,6 @@
 import { Block, InlineBlock, Row } from '@jsxstyle/react'
 import { animated, config, useTransition } from '@react-spring/web'
-import { Logo } from '@repro/design'
+import { color, Logo } from '@repro/design'
 import { XIcon } from 'lucide-react'
 import React from 'react'
 
