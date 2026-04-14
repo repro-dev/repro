@@ -37,5 +37,8 @@ export function compile(node: StatementSetNode) {
     }
   }
 
-  return prettier.format(declarations.join('\n\n'), { parser: 'typescript' })
+  const header = '// This file is generated — do not edit directly\n'
+  return prettier.format(header + declarations.join('\n\n'), {
+    parser: 'typescript',
+  })
 }
