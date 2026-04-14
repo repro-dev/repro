@@ -188,13 +188,56 @@ If a planner launch still fails after exhausting the shared retry policy:
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the current ready wave
 
+### Inline skill matching (before each planner spawn)
+
+Before composing the planner prompt for each issue, run the following matching
+inline — do **not** spawn a subagent for this step.
+
+**Scoped skill path-pattern index:**
+
+| Skill file                                     | Path patterns                                                                                                                                                                                                       |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.opencode/skills/agentic/SKILL.md`            | `packages/agentic`, `packages/agentic-ui`, `apps/capture` (Agentic.hoc.tsx), agentic routes or services in `apps/api-server`                                                                                        |
+| `.opencode/skills/database/SKILL.md`           | `packages/data`, Kysely, migrations, schema changes, database queries                                                                                                                                               |
+| `.opencode/skills/design-system/SKILL.md`      | `packages/design`, `@repro/design`, UI components, design tokens                                                                                                                                                    |
+| `.opencode/skills/recording-playback/SKILL.md` | `apps/capture`, `packages/recording`, `packages/playback`, `packages/recording-api`, `packages/buffer-utils`, `packages/vdom-renderer`, `packages/source-utils`, `packages/observer-utils`, `packages/wire-formats` |
+| `.opencode/skills/build-and-test/SKILL.md`     | build system, moon, pnpm workspaces, CI, reproctl, tool version pinning                                                                                                                                             |
+
+General-purpose skills (`feature-dev`, `git-workflow`, `harden`,
+`create-issue`) are **never** injected — the planner loads them independently as needed.
+
+**Matching steps:**
+
+1. From the fetched issue title and description (already available from Phase 1),
+   extract: package names (`packages/<name>`, `apps/<name>`), any explicit file
+   paths, and domain keywords (`migration`, `schema`, `Kysely`, `database`,
+   `UI component`, `design token`).
+2. For each row in the table above, check whether any extracted term appears in
+   that row's Path patterns column.
+3. Collect all matching skill file paths.
+4. If more than 3 match, keep the 3 most specific (prefer full package-path matches
+   over keyword-only matches; prefer longer path segments over shorter ones).
+5. If 0 rows match, skip injection — use the prompt template below unchanged.
+
 Prompt template per issue:
+
+When 1–3 skills matched in the inline skill matching step above, include the
+`## Relevant conventions` block (shown below between `[INJECT IF MATCHED]` and
+`[END INJECT]`) immediately after the `Worktree:` line. Omit the block entirely
+when 0 skills matched.
 
 ```
 Produce an implementation plan for Linear issue REP-xxx in worktree <absolute-worktree-path>.
 
 Issue: REP-xxx
 Worktree: <absolute-worktree-path>
+
+[INJECT IF MATCHED — omit this block when 0 skills matched]
+## Relevant conventions
+Read these skill files before planning. Incorporate their conventions into your
+plan, and document any deviation from them in Risk Notes.
+- <matched-skill-path>   ← one entry per matched skill, capped at 3
+[END INJECT]
 
 Fetch the issue via Linear_get_issue to read the full description and acceptance criteria.
 Explore the codebase as needed to understand affected files and patterns.
