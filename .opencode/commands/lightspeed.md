@@ -221,7 +221,40 @@ ready | not ready
 Do NOT write any files.
 ```
 
-After each planner finishes:
+After each planner finishes, apply QC checks before writing the plan to `tmp/`:
+
+#### QC-A: Missing migration check
+
+Scan the plan text for schema/database signals: `prisma`, `schema`, `migration`, `ALTER TABLE`,
+`CREATE TABLE`, `@prisma/client`, `.prisma`.
+
+If one or more signals are found **and** no migration step is present anywhere in the plan:
+
+- Re-prompt the planner — pass the existing plan output plus this targeted message (do not spawn
+  a new independent planner; treat this as a revision request on the current plan):
+
+  > "Your plan appears to modify the database schema (signals detected: <list matched signals>).
+  > Please revise the plan to either (a) add a migration step or (b) add a note to the Risk Notes
+  > section confirming why no migration is required for this change."
+
+- Use the revised plan output in place of the original for the rest of Phase 4.
+
+If no schema signals are found, or if a migration step is already present anywhere in the plan:
+proceed without re-prompting.
+
+#### QC-B: PR size warning
+
+Count the distinct file paths listed in the plan's **Sequence Notes** section. Also check for
+explicit "large diff" language anywhere in the plan text.
+
+If the file count exceeds 15, or explicit large-diff language is detected:
+
+- Add a visible `⚠️ large diff (N files)` annotation to the status table row for this issue.
+- Record a `large-diff` flag on the issue's in-memory risk profile so Phase 5 classification
+  has full context.
+- Do **not** halt the pipeline — this check is advisory only.
+
+After both QC checks pass (or produce advisory-only results):
 
 - Write the full planner output to `<worktree>/tmp/plan-REP-xxx.md`
 - Treat that file as the authoritative develop input
