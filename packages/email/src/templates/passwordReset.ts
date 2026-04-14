@@ -1,14 +1,14 @@
-import { EmailMessage } from "../types";
+import { EmailMessage } from '../types'
 
 interface PasswordResetEmailOptions {
-  resetUrl: string;
-  userName?: string;
+  resetUrl: string
+  userName?: string
 }
 
 export function passwordResetEmail(
-  opts: PasswordResetEmailOptions,
-): Pick<EmailMessage, "subject" | "html" | "text"> {
-  const greeting = opts.userName ? `Hi ${opts.userName},` : "Hi,";
+  opts: PasswordResetEmailOptions
+): Pick<EmailMessage, 'subject' | 'html' | 'text'> {
+  const greeting = opts.userName ? `Hi ${opts.userName},` : 'Hi,'
 
   const html = `<!DOCTYPE html>
 <html>
@@ -24,7 +24,7 @@ export function passwordResetEmail(
   <p>If the button doesn't work, copy and paste this URL into your browser:</p>
   <p style="word-break: break-all; color: #666;">${opts.resetUrl}</p>
 </body>
-</html>`;
+</html>`
 
   const text = `${greeting}
 
@@ -32,11 +32,11 @@ We received a request to reset your Repro account password.
 
 Reset your password: ${opts.resetUrl}
 
-If you didn't request this, you can safely ignore this email. The link will expire in 1 hour.`;
+If you didn't request this, you can safely ignore this email. The link will expire in 1 hour.`
 
   return {
-    subject: "Reset your Repro password",
+    subject: 'Reset your Repro password',
     html,
     text,
-  };
+  }
 }

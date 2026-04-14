@@ -1,12 +1,12 @@
-import { Block, Row } from "@jsxstyle/react";
-import { Alert, Button } from "@repro/design";
-import { AgenticError } from "@repro/agentic";
-import { AlertCircleIcon } from "lucide-react";
-import React from "react";
+import { Block, Row } from '@jsxstyle/react'
+import { AgenticError } from '@repro/agentic'
+import { Alert, Button } from '@repro/design'
+import { AlertCircleIcon } from 'lucide-react'
+import React from 'react'
 
 interface ErrorMessageProps {
-  error: AgenticError;
-  onRetry: () => void;
+  error: AgenticError
+  onRetry: () => void
 }
 
 export const ErrorMessage: React.FC<ErrorMessageProps> = ({
@@ -28,4 +28,4 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
       )}
     </Row>
   </Alert>
-);
+)

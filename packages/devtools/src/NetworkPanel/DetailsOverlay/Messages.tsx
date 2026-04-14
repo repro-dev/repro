@@ -76,7 +76,7 @@ export const Messages: React.FC<Props> = ({ group }) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
 
   const selectedEvent =
-    selectedIndex !== null ? group.messages?.[selectedIndex] ?? null : null
+    selectedIndex !== null ? (group.messages?.[selectedIndex] ?? null) : null
 
   return (
     <Block position="relative" height="100%" fontSize={11}>

@@ -25,8 +25,8 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
       disabled
         ? colors.slate['300']
         : active
-        ? colors.pink['500']
-        : colors.blue['700']
+          ? colors.pink['500']
+          : colors.blue['700']
     }
     border="none"
     borderRadius={4}

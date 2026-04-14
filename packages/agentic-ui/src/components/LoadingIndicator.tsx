@@ -1,5 +1,5 @@
-import { Block, Row } from "@jsxstyle/react";
-import { Loading } from "@repro/agentic";
+import { Block, Row } from '@jsxstyle/react'
+import { Loading } from '@repro/agentic'
 import {
   colors,
   fontFamily,
@@ -7,13 +7,13 @@ import {
   FX,
   spacing,
   transition,
-} from "@repro/design";
-import { CircleIcon, XIcon } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+} from '@repro/design'
+import { CircleIcon, XIcon } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
 
 interface LoadingIndicatorProps {
-  loading: Loading;
-  onCancel?: () => void;
+  loading: Loading
+  onCancel?: () => void
 }
 
 export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
@@ -22,50 +22,50 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
 }) => {
   // Keep the last non-"none" loading value so the exit animation
   // doesn't flash a blank/wrong state while the pill slides away.
-  const prevLoadingRef = useRef<Loading>(loading);
-  const [displayLoading, setDisplayLoading] = useState<Loading>(loading);
+  const prevLoadingRef = useRef<Loading>(loading)
+  const [displayLoading, setDisplayLoading] = useState<Loading>(loading)
 
   useEffect(() => {
-    if (loading !== "none") {
-      prevLoadingRef.current = loading;
-      setDisplayLoading(loading);
-      return;
+    if (loading !== 'none') {
+      prevLoadingRef.current = loading
+      setDisplayLoading(loading)
+      return
     }
     // "none" means the pill is exiting. Keep showing whatever was last visible
     // until the CSS transition completes (250ms), then switch to "none".
     const timer = setTimeout(() => {
-      setDisplayLoading("none");
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [loading]);
+      setDisplayLoading('none')
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [loading])
 
-  const isHidden = displayLoading === "none";
-  const isCancelled = displayLoading === "cancelled";
+  const isHidden = displayLoading === 'none'
+  const isCancelled = displayLoading === 'cancelled'
 
   // State-specific labels give users a meaningful signal at each phase.
-  const stateLabel: Record<Exclude<Loading, "none" | "cancelled">, string> = {
-    reasoning: "Thinking…",
-    responding: "Responding…",
-    "tool-executing": "Analysing…",
-  };
+  const stateLabel: Record<Exclude<Loading, 'none' | 'cancelled'>, string> = {
+    reasoning: 'Thinking…',
+    responding: 'Responding…',
+    'tool-executing': 'Analysing…',
+  }
 
   const label =
-    displayLoading !== "none" && displayLoading !== "cancelled"
+    displayLoading !== 'none' && displayLoading !== 'cancelled'
       ? stateLabel[displayLoading]
-      : null;
+      : null
 
   return (
     <Row
       alignItems="center"
-      backgroundColor={isCancelled ? colors.slate["700"] : colors.blue["800"]}
+      backgroundColor={isCancelled ? colors.slate['700'] : colors.blue['800']}
       backgroundImage={
         isCancelled
-          ? `linear-gradient(to bottom right, ${colors.slate["700"]}, ${colors.slate["600"]})`
-          : `linear-gradient(to bottom right, ${colors.blue["900"]}, ${colors.blue["700"]})`
+          ? `linear-gradient(to bottom right, ${colors.slate['700']}, ${colors.slate['600']})`
+          : `linear-gradient(to bottom right, ${colors.blue['900']}, ${colors.blue['700']})`
       }
       borderRadius="99em"
       bottom={0}
-      boxShadow={isHidden ? "none" : "0 0 16px rgba(0, 0, 0, 0.15)"}
+      boxShadow={isHidden ? 'none' : '0 0 16px rgba(0, 0, 0, 0.15)'}
       left="50%"
       position="absolute"
       translate={isHidden ? `-50% calc(100% + 20px)` : `-50% -20px`}
@@ -137,10 +137,10 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
                 paddingBlock={spacing.md}
                 paddingInline={spacing.lg}
                 transition={transition.fast}
-                hoverBackgroundColor={colors.blue["700"]}
+                hoverBackgroundColor={colors.blue['700']}
                 props={{
-                  type: "button",
-                  "aria-label": "Cancel",
+                  type: 'button',
+                  'aria-label': 'Cancel',
                   onClick: onCancel,
                 }}
               >
@@ -151,5 +151,5 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
         </>
       )}
     </Row>
-  );
-};
+  )
+}

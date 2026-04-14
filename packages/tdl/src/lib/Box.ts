@@ -81,9 +81,9 @@ type Primitive =
 export type DeeplyUnboxed<T> = T extends Primitive
   ? T
   : T extends Box<infer U>
-  ? DeeplyUnboxed<U>
-  : T extends object
-  ? { [K in keyof T]: DeeplyUnboxed<T[K]> }
-  : T
+    ? DeeplyUnboxed<U>
+    : T extends object
+      ? { [K in keyof T]: DeeplyUnboxed<T[K]> }
+      : T
 
 export type Unboxed<T> = T extends Box<infer U> ? U : T

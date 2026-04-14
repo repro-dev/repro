@@ -1,13 +1,13 @@
-import { Col } from "@jsxstyle/react";
-import { ToolCallPair } from "@repro/agentic";
-import { color, radius, spacing } from "@repro/design";
-import React from "react";
-import { ToolCallRow } from "./ToolCallRow";
+import { Col } from '@jsxstyle/react'
+import { ToolCallPair } from '@repro/agentic'
+import { color, radius, spacing } from '@repro/design'
+import React from 'react'
+import { ToolCallRow } from './ToolCallRow'
 
 interface ToolCallGroupProps {
-  pairs: Array<ToolCallPair>;
-  isExecuting: boolean;
-  wasCancelled: boolean;
+  pairs: Array<ToolCallPair>
+  isExecuting: boolean
+  wasCancelled: boolean
 }
 
 export const ToolCallGroup: React.FC<ToolCallGroupProps> = ({
@@ -25,7 +25,7 @@ export const ToolCallGroup: React.FC<ToolCallGroupProps> = ({
       padding={spacing.sm}
       gap={spacing.xs}
     >
-      {pairs.map((pair) => (
+      {pairs.map(pair => (
         <ToolCallRow
           key={pair.toolCall.id}
           toolName={pair.toolCall.function.name}
@@ -35,5 +35,5 @@ export const ToolCallGroup: React.FC<ToolCallGroupProps> = ({
         />
       ))}
     </Col>
-  );
-};
+  )
+}

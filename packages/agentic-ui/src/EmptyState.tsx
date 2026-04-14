@@ -1,4 +1,4 @@
-import { Block, Col, Row } from "@jsxstyle/react";
+import { Block, Col, Row } from '@jsxstyle/react'
 import {
   color,
   colors,
@@ -6,21 +6,21 @@ import {
   radius,
   spacing,
   transition,
-} from "@repro/design";
-import { BotMessageSquareIcon } from "lucide-react";
-import React from "react";
+} from '@repro/design'
+import { BotMessageSquareIcon } from 'lucide-react'
+import React from 'react'
 
 const EXAMPLE_PROMPTS = [
-  "What errors occurred?",
-  "Why did the page stop responding?",
-  "Walk me through what the user did",
-  "Are there any failed network requests?",
-];
+  'What errors occurred?',
+  'Why did the page stop responding?',
+  'Walk me through what the user did',
+  'Are there any failed network requests?',
+]
 
 const Ring: React.FC<{ distance: number }> = ({ distance }) => (
   <Block
     position="absolute"
-    borderColor={colors.slate["300"]}
+    borderColor={colors.slate['300']}
     borderRadius="99em"
     borderStyle="solid"
     borderWidth={1}
@@ -30,10 +30,10 @@ const Ring: React.FC<{ distance: number }> = ({ distance }) => (
     scale={0.25 + distance * 0.25}
     opacity={Math.min(1, 1 - distance * 0.2)}
   />
-);
+)
 
 interface EmptyStateProps {
-  onSelectPrompt: (prompt: string) => void;
+  onSelectPrompt: (prompt: string) => void
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
@@ -43,7 +43,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
       justifyContent="center"
       gap={spacing.xl}
       blockSize="100%"
-      paddingBlock={spacing["2xl"]}
+      paddingBlock={spacing['2xl']}
     >
       {/* Decorative icon section — constrained so rings don't dominate */}
       <Block
@@ -66,7 +66,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
         >
           <BotMessageSquareIcon
             size={40}
-            color={colors.slate["500"]}
+            color={colors.slate['500']}
             strokeWidth={1}
           />
         </Row>
@@ -84,7 +84,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
 
         {/* Example prompt chips */}
         <Col gap={spacing.md} alignItems="center">
-          {EXAMPLE_PROMPTS.map((prompt) => (
+          {EXAMPLE_PROMPTS.map(prompt => (
             <Block
               key={prompt}
               component="button"
@@ -109,5 +109,5 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectPrompt }) => {
         </Col>
       </Col>
     </Col>
-  );
-};
+  )
+}

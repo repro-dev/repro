@@ -53,9 +53,8 @@ export function createProjectRouter(
       return go<Error, User>(function* () {
         yield accountService.ensureUser(user)
 
-        const account: Account = yield projectService.getAccountForProject(
-          projectId
-        )
+        const account: Account =
+          yield projectService.getAccountForProject(projectId)
 
         yield accountService
           .ensureCanAccessAccount(user, account.id)

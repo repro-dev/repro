@@ -1,7 +1,7 @@
-export { createEmailProvider } from "./createEmailProvider";
-export { createConsoleProvider } from "./providers/console";
-export { createResendProvider } from "./providers/resend";
-export { emailVerificationEmail } from "./templates/emailVerification";
-export { invitationEmail } from "./templates/invitation";
-export { passwordResetEmail } from "./templates/passwordReset";
-export type { EmailMessage, EmailProvider } from "./types";
+export { createEmailProvider } from './createEmailProvider'
+export { createConsoleProvider } from './providers/console'
+export { createResendProvider } from './providers/resend'
+export { emailVerificationEmail } from './templates/emailVerification'
+export { invitationEmail } from './templates/invitation'
+export { passwordResetEmail } from './templates/passwordReset'
+export type { EmailMessage, EmailProvider } from './types'

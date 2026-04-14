@@ -55,9 +55,8 @@ export function createSourcePlayback(
   const [$playbackState, setPlaybackState, getPlaybackState] = createAtom(
     PlaybackState.Paused
   )
-  const [$snapshot, setSnapshot, getSnapshot] = createAtom<Snapshot>(
-    getLeadingSnapshot()
-  )
+  const [$snapshot, setSnapshot, getSnapshot] =
+    createAtom<Snapshot>(getLeadingSnapshot())
   const [$latestControlFrame, setLatestControlFrame, getLatestControlFrame] =
     createAtom<ControlFrame>(ControlFrame.Idle)
 
@@ -322,7 +321,7 @@ export function createSourcePlayback(
         setActiveIndex(activeIndex => {
           const mostRecentEvent = before.at(before.size() - 1)
           const nextActiveIndex = mostRecentEvent
-            ? eventIndex.get(mostRecentEvent) ?? activeIndex
+            ? (eventIndex.get(mostRecentEvent) ?? activeIndex)
             : activeIndex
           return nextActiveIndex
         })

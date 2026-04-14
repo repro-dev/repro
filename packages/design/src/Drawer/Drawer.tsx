@@ -82,8 +82,8 @@ export const Drawer: React.FC<PropsWithChildren<Props>> = ({
             ...(ariaLabel
               ? { 'aria-label': ariaLabel }
               : labelId
-              ? { 'aria-labelledby': labelId }
-              : {}),
+                ? { 'aria-labelledby': labelId }
+                : {}),
           }}
         >
           <Row

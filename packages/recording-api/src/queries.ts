@@ -75,8 +75,8 @@ export function getResourceMap(
   recordingId: string
 ) {
   return apiClient
-    .fetch<Record<string, string>>(
-      `/projects/${projectId}/recordings/${recordingId}/resource-map`
-    )
+    .fetch<
+      Record<string, string>
+    >(`/projects/${projectId}/recordings/${recordingId}/resource-map`)
     .pipe(chainRej(() => resolve(EMPTY_RESOURCE_MAP)))
 }

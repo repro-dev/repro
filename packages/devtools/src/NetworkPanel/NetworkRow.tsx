@@ -61,8 +61,8 @@ export const NetworkRow: React.FC<Props> = ({
   const bgColor = selected
     ? colors.blue['100']
     : hover
-    ? colors.slate['100']
-    : colors.white
+      ? colors.slate['100']
+      : colors.white
 
   const startTime =
     eventGroup.type === 'fetch' ? eventGroup.requestTime : eventGroup.openTime
@@ -78,7 +78,7 @@ export const NetworkRow: React.FC<Props> = ({
       : 'ws'
 
   const status =
-    eventGroup.type === 'fetch' ? eventGroup.response?.status ?? null : null
+    eventGroup.type === 'fetch' ? (eventGroup.response?.status ?? null) : null
 
   const contentLength = getContentByteLength(eventGroup)
   const requestTiming = getRequestTiming(eventGroup)

@@ -8,16 +8,16 @@
  * and left untested here.
  */
 
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import assert from 'node:assert/strict'
+import { describe, it } from 'node:test'
+import type { BaselineEntry } from './regressions'
 import {
+  diffBaselines,
   formatBaselineComparison,
   formatBaselineComparisonMarkdown,
-  diffBaselines,
   TEST_FIXTURE_NAMES,
   type BaselineDiff,
-} from "./update-baseline";
-import type { BaselineEntry } from "./regressions";
+} from './update-baseline'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -28,7 +28,7 @@ function makeEntry(
   correctnessRate: number,
   avgErrorRate: number,
   avgToolCalls: number,
-  avgQuality: number,
+  avgQuality: number
 ): BaselineEntry {
   return {
     fixtureName,
@@ -36,217 +36,217 @@ function makeEntry(
     avgErrorRate,
     avgToolCalls,
     avgQuality,
-  };
+  }
 }
 
 // ---------------------------------------------------------------------------
 // diffBaselines — detects changes between old and new baseline
 // ---------------------------------------------------------------------------
 
-describe("diffBaselines — detects changes", () => {
-  it("returns empty array when baselines are identical", () => {
-    const old = [makeEntry("fixture-a", 1.0, 0.1, 8.0, 2.0)];
-    const updated = [makeEntry("fixture-a", 1.0, 0.1, 8.0, 2.0)];
+describe('diffBaselines — detects changes', () => {
+  it('returns empty array when baselines are identical', () => {
+    const old = [makeEntry('fixture-a', 1.0, 0.1, 8.0, 2.0)]
+    const updated = [makeEntry('fixture-a', 1.0, 0.1, 8.0, 2.0)]
 
-    const diffs = diffBaselines(old, updated);
+    const diffs = diffBaselines(old, updated)
 
-    assert.equal(diffs.length, 0);
-  });
+    assert.equal(diffs.length, 0)
+  })
 
-  it("returns a diff entry when correctnessRate changes", () => {
-    const old = [makeEntry("fixture-a", 1.0, 0.1, 8.0, 2.0)];
-    const updated = [makeEntry("fixture-a", 0.857, 0.1, 8.0, 2.0)];
+  it('returns a diff entry when correctnessRate changes', () => {
+    const old = [makeEntry('fixture-a', 1.0, 0.1, 8.0, 2.0)]
+    const updated = [makeEntry('fixture-a', 0.857, 0.1, 8.0, 2.0)]
 
-    const diffs = diffBaselines(old, updated);
+    const diffs = diffBaselines(old, updated)
 
-    assert.equal(diffs.length, 1);
-    assert.equal(diffs[0]!.fixtureName, "fixture-a");
-    assert.equal(diffs[0]!.old!.correctnessRate, 1.0);
-    assert.equal(diffs[0]!.updated.correctnessRate, 0.857);
-  });
+    assert.equal(diffs.length, 1)
+    assert.equal(diffs[0]!.fixtureName, 'fixture-a')
+    assert.equal(diffs[0]!.old!.correctnessRate, 1.0)
+    assert.equal(diffs[0]!.updated.correctnessRate, 0.857)
+  })
 
-  it("returns a diff entry when any metric changes", () => {
-    const old = [makeEntry("fixture-a", 1.0, 0.1, 8.0, 2.0)];
-    const updated = [makeEntry("fixture-a", 1.0, 0.15, 9.0, 1.9)];
+  it('returns a diff entry when any metric changes', () => {
+    const old = [makeEntry('fixture-a', 1.0, 0.1, 8.0, 2.0)]
+    const updated = [makeEntry('fixture-a', 1.0, 0.15, 9.0, 1.9)]
 
-    const diffs = diffBaselines(old, updated);
+    const diffs = diffBaselines(old, updated)
 
-    assert.equal(diffs.length, 1);
-    assert.equal(diffs[0]!.old!.avgErrorRate, 0.1);
-    assert.equal(diffs[0]!.updated.avgErrorRate, 0.15);
-  });
+    assert.equal(diffs.length, 1)
+    assert.equal(diffs[0]!.old!.avgErrorRate, 0.1)
+    assert.equal(diffs[0]!.updated.avgErrorRate, 0.15)
+  })
 
-  it("handles multiple fixtures with mixed changes", () => {
+  it('handles multiple fixtures with mixed changes', () => {
     const old = [
-      makeEntry("fixture-a", 1.0, 0.1, 8.0, 2.0),
-      makeEntry("fixture-b", 0.67, 0.0, 7.0, 1.8),
-    ];
+      makeEntry('fixture-a', 1.0, 0.1, 8.0, 2.0),
+      makeEntry('fixture-b', 0.67, 0.0, 7.0, 1.8),
+    ]
     const updated = [
-      makeEntry("fixture-a", 0.9, 0.1, 8.0, 2.0), // changed
-      makeEntry("fixture-b", 0.67, 0.0, 7.0, 1.8), // unchanged
-    ];
+      makeEntry('fixture-a', 0.9, 0.1, 8.0, 2.0), // changed
+      makeEntry('fixture-b', 0.67, 0.0, 7.0, 1.8), // unchanged
+    ]
 
-    const diffs = diffBaselines(old, updated);
+    const diffs = diffBaselines(old, updated)
 
-    assert.equal(diffs.length, 1);
-    assert.equal(diffs[0]!.fixtureName, "fixture-a");
-  });
+    assert.equal(diffs.length, 1)
+    assert.equal(diffs[0]!.fixtureName, 'fixture-a')
+  })
 
-  it("includes new fixtures (in updated but not in old) as diffs", () => {
-    const old: BaselineEntry[] = [];
-    const updated = [makeEntry("new-fixture", 1.0, 0.0, 5.0, 2.0)];
+  it('includes new fixtures (in updated but not in old) as diffs', () => {
+    const old: BaselineEntry[] = []
+    const updated = [makeEntry('new-fixture', 1.0, 0.0, 5.0, 2.0)]
 
-    const diffs = diffBaselines(old, updated);
+    const diffs = diffBaselines(old, updated)
 
-    assert.equal(diffs.length, 1);
-    assert.equal(diffs[0]!.fixtureName, "new-fixture");
-    assert.equal(diffs[0]!.old, null);
-  });
-});
+    assert.equal(diffs.length, 1)
+    assert.equal(diffs[0]!.fixtureName, 'new-fixture')
+    assert.equal(diffs[0]!.old, null)
+  })
+})
 
 // ---------------------------------------------------------------------------
 // formatBaselineComparison — plain text table for console output
 // ---------------------------------------------------------------------------
 
-describe("formatBaselineComparison — plain text table", () => {
-  it("returns a no-change message when diffs is empty", () => {
-    const text = formatBaselineComparison([]);
+describe('formatBaselineComparison — plain text table', () => {
+  it('returns a no-change message when diffs is empty', () => {
+    const text = formatBaselineComparison([])
 
     assert.ok(
-      text.includes("No changes"),
-      `expected "No changes" in output, got: ${text}`,
-    );
-  });
+      text.includes('No changes'),
+      `expected "No changes" in output, got: ${text}`
+    )
+  })
 
-  it("includes fixture name and changed metric values", () => {
+  it('includes fixture name and changed metric values', () => {
     const diffs: BaselineDiff[] = [
       {
-        fixtureName: "fixture-a",
-        old: makeEntry("fixture-a", 1.0, 0.1, 8.0, 2.0),
-        updated: makeEntry("fixture-a", 0.857, 0.1, 8.0, 2.0),
+        fixtureName: 'fixture-a',
+        old: makeEntry('fixture-a', 1.0, 0.1, 8.0, 2.0),
+        updated: makeEntry('fixture-a', 0.857, 0.1, 8.0, 2.0),
       },
-    ];
+    ]
 
-    const text = formatBaselineComparison(diffs);
+    const text = formatBaselineComparison(diffs)
 
-    assert.ok(text.includes("fixture-a"), "should mention fixture name");
+    assert.ok(text.includes('fixture-a'), 'should mention fixture name')
     assert.ok(
-      text.includes("1.0") || text.includes("100.0%"),
-      "should show old correctnessRate",
-    );
+      text.includes('1.0') || text.includes('100.0%'),
+      'should show old correctnessRate'
+    )
     assert.ok(
-      text.includes("0.857") || text.includes("85.7%"),
-      "should show new correctnessRate",
-    );
-  });
-});
+      text.includes('0.857') || text.includes('85.7%'),
+      'should show new correctnessRate'
+    )
+  })
+})
 
 // ---------------------------------------------------------------------------
 // formatBaselineComparisonMarkdown — markdown table for PR body
 // ---------------------------------------------------------------------------
 
-describe("formatBaselineComparisonMarkdown — markdown table", () => {
-  it("returns a no-change message when diffs is empty", () => {
-    const md = formatBaselineComparisonMarkdown([]);
+describe('formatBaselineComparisonMarkdown — markdown table', () => {
+  it('returns a no-change message when diffs is empty', () => {
+    const md = formatBaselineComparisonMarkdown([])
 
     assert.ok(
-      md.includes("No changes"),
-      `expected "No changes" in output, got: ${md}`,
-    );
-  });
+      md.includes('No changes'),
+      `expected "No changes" in output, got: ${md}`
+    )
+  })
 
-  it("produces markdown table syntax", () => {
+  it('produces markdown table syntax', () => {
     const diffs: BaselineDiff[] = [
       {
-        fixtureName: "fixture-a",
-        old: makeEntry("fixture-a", 1.0, 0.1, 8.0, 2.0),
-        updated: makeEntry("fixture-a", 0.857, 0.15, 9.0, 2.0),
+        fixtureName: 'fixture-a',
+        old: makeEntry('fixture-a', 1.0, 0.1, 8.0, 2.0),
+        updated: makeEntry('fixture-a', 0.857, 0.15, 9.0, 2.0),
       },
-    ];
+    ]
 
-    const md = formatBaselineComparisonMarkdown(diffs);
+    const md = formatBaselineComparisonMarkdown(diffs)
 
     // Should have markdown table pipe syntax
-    assert.ok(md.includes("|"), "should contain pipe characters for table");
-    assert.ok(md.includes("fixture-a"), "should include fixture name");
+    assert.ok(md.includes('|'), 'should contain pipe characters for table')
+    assert.ok(md.includes('fixture-a'), 'should include fixture name')
     // Should have a header row with "---"
-    assert.ok(md.includes("---"), "should have table header separator");
-  });
+    assert.ok(md.includes('---'), 'should have table header separator')
+  })
 
-  it("includes all four metrics in the table", () => {
+  it('includes all four metrics in the table', () => {
     const diffs: BaselineDiff[] = [
       {
-        fixtureName: "f1",
-        old: makeEntry("f1", 1.0, 0.1, 8.0, 2.0),
-        updated: makeEntry("f1", 0.9, 0.12, 8.5, 1.9),
+        fixtureName: 'f1',
+        old: makeEntry('f1', 1.0, 0.1, 8.0, 2.0),
+        updated: makeEntry('f1', 0.9, 0.12, 8.5, 1.9),
       },
-    ];
+    ]
 
-    const md = formatBaselineComparisonMarkdown(diffs);
+    const md = formatBaselineComparisonMarkdown(diffs)
 
     // All four metric columns must appear somewhere
     assert.ok(
-      md.toLowerCase().includes("correctness"),
-      "should mention correctness",
-    );
-    assert.ok(md.toLowerCase().includes("error"), "should mention error rate");
-    assert.ok(md.toLowerCase().includes("tool"), "should mention tool calls");
-    assert.ok(md.toLowerCase().includes("quality"), "should mention quality");
-  });
+      md.toLowerCase().includes('correctness'),
+      'should mention correctness'
+    )
+    assert.ok(md.toLowerCase().includes('error'), 'should mention error rate')
+    assert.ok(md.toLowerCase().includes('tool'), 'should mention tool calls')
+    assert.ok(md.toLowerCase().includes('quality'), 'should mention quality')
+  })
 
-  it("handles new fixtures (old = null) gracefully", () => {
+  it('handles new fixtures (old = null) gracefully', () => {
     const diffs: BaselineDiff[] = [
       {
-        fixtureName: "new-fixture",
+        fixtureName: 'new-fixture',
         old: null,
-        updated: makeEntry("new-fixture", 1.0, 0.0, 5.0, 2.0),
+        updated: makeEntry('new-fixture', 1.0, 0.0, 5.0, 2.0),
       },
-    ];
+    ]
 
-    const md = formatBaselineComparisonMarkdown(diffs);
+    const md = formatBaselineComparisonMarkdown(diffs)
 
-    assert.ok(md.includes("new-fixture"), "should include new fixture name");
+    assert.ok(md.includes('new-fixture'), 'should include new fixture name')
     // Should not throw — old = null is a valid state
-  });
-});
+  })
+})
 
 // ---------------------------------------------------------------------------
 // TEST_FIXTURE_NAMES — exported constant for held-out test fixtures
 // ---------------------------------------------------------------------------
 
-describe("TEST_FIXTURE_NAMES — held-out test fixture set", () => {
-  it("is exported as a Set", () => {
+describe('TEST_FIXTURE_NAMES — held-out test fixture set', () => {
+  it('is exported as a Set', () => {
     assert.ok(
       TEST_FIXTURE_NAMES instanceof Set,
-      "TEST_FIXTURE_NAMES should be a Set",
-    );
-  });
+      'TEST_FIXTURE_NAMES should be a Set'
+    )
+  })
 
-  it("contains all 6 test fixtures", () => {
+  it('contains all 6 test fixtures', () => {
     const expected = [
-      "websocket-message-missing",
-      "form-validation-silent-failure",
-      "multi-step-error-chain",
-      "slow-session-no-errors",
-      "dropdown-state-not-reset",
-      "error-with-dom-side-effect",
-    ];
+      'websocket-message-missing',
+      'form-validation-silent-failure',
+      'multi-step-error-chain',
+      'slow-session-no-errors',
+      'dropdown-state-not-reset',
+      'error-with-dom-side-effect',
+    ]
     for (const name of expected) {
       assert.ok(
         TEST_FIXTURE_NAMES.has(name),
-        `TEST_FIXTURE_NAMES should contain "${name}"`,
-      );
+        `TEST_FIXTURE_NAMES should contain "${name}"`
+      )
     }
-  });
+  })
 
-  it("does not contain training fixtures", () => {
+  it('does not contain training fixtures', () => {
     assert.ok(
-      !TEST_FIXTURE_NAMES.has("console-error-and-network-failure"),
-      "training fixture should not be in TEST_FIXTURE_NAMES",
-    );
+      !TEST_FIXTURE_NAMES.has('console-error-and-network-failure'),
+      'training fixture should not be in TEST_FIXTURE_NAMES'
+    )
     assert.ok(
-      !TEST_FIXTURE_NAMES.has("conditional-rendering-bug"),
-      "training fixture should not be in TEST_FIXTURE_NAMES",
-    );
-  });
-});
+      !TEST_FIXTURE_NAMES.has('conditional-rendering-bug'),
+      'training fixture should not be in TEST_FIXTURE_NAMES'
+    )
+  })
+})

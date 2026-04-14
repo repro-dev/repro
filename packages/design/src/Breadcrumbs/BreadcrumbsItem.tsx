@@ -27,7 +27,7 @@ export const BreadcrumbsItem = forwardRef<HTMLLIElement, BreadcrumbsItemProps>(
   ) => {
     const showSeparator =
       (rest as { _showSeparator?: boolean })._showSeparator ?? false
-    const Tag = (current ? 'span' : component ?? 'span') as 'span'
+    const Tag = (current ? 'span' : (component ?? 'span')) as 'span'
     const isInteractive = !current && component !== undefined
 
     return (

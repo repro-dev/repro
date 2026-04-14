@@ -1,13 +1,13 @@
-import { FutureInstance } from "fluture";
+import { FutureInstance } from 'fluture'
 
 export interface EmailMessage {
-  to: string;
-  from: string;
-  subject: string;
-  html: string;
-  text?: string;
+  to: string
+  from: string
+  subject: string
+  html: string
+  text?: string
 }
 
 export interface EmailProvider {
-  send(message: EmailMessage): FutureInstance<Error, void>;
+  send(message: EmailMessage): FutureInstance<Error, void>
 }

@@ -138,8 +138,8 @@ export const Input = forwardRef<
           disabled
             ? undefined
             : context === 'error'
-            ? color.dangerHover
-            : color.border.emphasis
+              ? color.dangerHover
+              : color.border.emphasis
         }
         {...focusWithinRing(context === 'error' ? 'danger' : 'default')}
       >

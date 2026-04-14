@@ -1,28 +1,28 @@
-import { resolve } from "fluture";
-import { estimateTokens } from "../token-optimization";
-import type { ToolHandler } from "./common";
+import { resolve } from 'fluture'
+import { estimateTokens } from '../token-optimization'
+import type { ToolHandler } from './common'
 
 export const TOOL_DEFINITION = {
-  type: "function",
+  type: 'function',
   function: {
-    name: "getRecordingDuration",
-    description: "Get the duration of the recording.",
+    name: 'getRecordingDuration',
+    description: 'Get the duration of the recording.',
     parameters: {
-      type: "object",
+      type: 'object',
       properties: {
         detail: {
-          type: "string",
-          enum: ["summary", "normal", "full"],
-          default: "normal",
+          type: 'string',
+          enum: ['summary', 'normal', 'full'],
+          default: 'normal',
           description:
             "Level of detail in the response. Use 'summary' for initial triage, 'normal' for standard debugging, 'full' for deep investigation.",
         },
       },
     },
   },
-};
+}
 
-export const handler: ToolHandler = (recording) => {
-  const result = { durationMs: recording.getDuration() };
-  return resolve({ ...result, _tokenEstimate: estimateTokens(result) });
-};
+export const handler: ToolHandler = recording => {
+  const result = { durationMs: recording.getDuration() }
+  return resolve({ ...result, _tokenEstimate: estimateTokens(result) })
+}

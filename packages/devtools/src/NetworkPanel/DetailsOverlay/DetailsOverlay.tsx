@@ -39,7 +39,7 @@ export const DetailsOverlay: React.FC<Props> = ({ group, onClose }) => {
 
   const responseBody =
     group.type === 'fetch' && group.response?.body.byteLength
-      ? group.response?.body ?? null
+      ? (group.response?.body ?? null)
       : null
 
   const responseContentType =

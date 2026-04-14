@@ -56,8 +56,8 @@ export const SideNavItem = forwardRef<HTMLElement, SideNavItemProps>(
           disabled
             ? undefined
             : active
-            ? color.primarySubtleHover
-            : color.bg.hover
+              ? color.primarySubtleHover
+              : color.bg.hover
         }
         {...focusRing()}
         props={{

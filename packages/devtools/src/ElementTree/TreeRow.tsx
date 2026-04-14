@@ -32,8 +32,8 @@ export const TreeRowBase: React.FC<TreeRowBaseProps> = ({
         isSelected
           ? colors.blue['100']
           : !disableFocus
-          ? colors.blue['50']
-          : undefined
+            ? colors.blue['50']
+            : undefined
       }
       fontSize={FONT_SIZE}
       cursor="default"

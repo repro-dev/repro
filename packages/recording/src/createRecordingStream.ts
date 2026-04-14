@@ -425,7 +425,7 @@ export function createRecordingStream(
 
   function createSnapshotEvent(): Box<SnapshotEvent> {
     const reactTree = frameworks.react
-      ? reactObserverInstance?.getComponentTree() ?? null
+      ? (reactObserverInstance?.getComponentTree() ?? null)
       : null
     const reduxState = frameworks.redux
       ? safeSerialiseReduxState(reduxObserverInstance?.getStoreState() ?? null)

@@ -30,7 +30,7 @@ export const Widget: React.FC = () => {
     [apiClient]
   )
   const projectId = projectsResult.success
-    ? projectsResult.data.items[0]?.id ?? null
+    ? (projectsResult.data.items[0]?.id ?? null)
     : null
 
   const isReady = readyState === ReadyState.Ready

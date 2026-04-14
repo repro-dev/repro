@@ -54,8 +54,8 @@ export const Tab = forwardRef<HTMLButtonElement, TabProps>(
           disabled
             ? color.text.muted
             : isActive
-            ? color.primary
-            : color.text.secondary
+              ? color.primary
+              : color.text.secondary
         }
         backgroundColor="transparent"
         hoverBackgroundColor={disabled || isActive ? undefined : color.bg.hover}

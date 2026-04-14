@@ -95,7 +95,9 @@ export const ReactPanel: React.FC = () => {
   const [selectedFiberId, setSelectedFiberId] = useState<number | null>(null)
 
   const selectedNode =
-    selectedFiberId !== null ? componentMap.get(selectedFiberId) ?? null : null
+    selectedFiberId !== null
+      ? (componentMap.get(selectedFiberId) ?? null)
+      : null
 
   if (componentMap.size === 0 && !isProductionBuild) {
     return (

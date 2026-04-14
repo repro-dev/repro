@@ -4,177 +4,177 @@ import {
   InteractionType,
   LogLevel,
   SourceEventType,
-} from "@repro/domain";
-import { Box } from "@repro/tdl";
-import { resolve } from "fluture";
+} from '@repro/domain'
+import { Box } from '@repro/tdl'
+import { resolve } from 'fluture'
+import type { ToolHandler } from './common'
 import {
   isConsoleEvent,
   isDOMPatchEvent,
   isInteractionEvent,
   isNetworkEvent,
   LOG_LEVEL_NAMES,
-} from "./common";
-import type { ToolHandler } from "./common";
+} from './common'
 
 export const TOOL_DEFINITION = {
-  type: "function",
+  type: 'function',
   function: {
-    name: "getEvents",
+    name: 'getEvents',
     description:
-      "Get a broad timeline of events from the recording. Use this for an initial overview of the session or a large time window. Supports filtering by event type, detail level (summary/normal/full), and pagination. Prefer getEventsAroundTime when you need detailed context around a single known timestamp.",
+      'Get a broad timeline of events from the recording. Use this for an initial overview of the session or a large time window. Supports filtering by event type, detail level (summary/normal/full), and pagination. Prefer getEventsAroundTime when you need detailed context around a single known timestamp.',
     parameters: {
-      type: "object",
+      type: 'object',
       properties: {
         detail: {
-          type: "string",
-          enum: ["summary", "normal", "full"],
-          default: "normal",
+          type: 'string',
+          enum: ['summary', 'normal', 'full'],
+          default: 'normal',
           description:
-            "Level of detail: summary (counts only), normal (key events), full (all events).",
+            'Level of detail: summary (counts only), normal (key events), full (all events).',
         },
         startTimeMs: {
-          type: "number",
-          description: "Start of time range in ms from recording start.",
+          type: 'number',
+          description: 'Start of time range in ms from recording start.',
         },
         endTimeMs: {
-          type: "number",
-          description: "End of time range in ms from recording start.",
+          type: 'number',
+          description: 'End of time range in ms from recording start.',
         },
         eventTypes: {
-          type: "array",
+          type: 'array',
           items: {
-            type: "string",
+            type: 'string',
             enum: [
-              "click",
-              "doubleClick",
-              "keyDown",
-              "keyUp",
-              "scroll",
-              "pageTransition",
-              "viewportResize",
-              "domPatch",
-              "network",
-              "console",
-              "performance",
+              'click',
+              'doubleClick',
+              'keyDown',
+              'keyUp',
+              'scroll',
+              'pageTransition',
+              'viewportResize',
+              'domPatch',
+              'network',
+              'console',
+              'performance',
             ],
           },
           description:
-            "Filter to specific event types. If omitted, returns all types.",
+            'Filter to specific event types. If omitted, returns all types.',
         },
         limit: {
-          type: "number",
-          description: "Maximum number of events to return (default 100).",
+          type: 'number',
+          description: 'Maximum number of events to return (default 100).',
         },
       },
     },
   },
-};
+}
 
 export const handler: ToolHandler = (recording, args) => {
-  const detail = (args.detail as string) ?? "normal";
-  const startTime = args.startTimeMs as number | undefined;
-  const endTime = args.endTimeMs as number | undefined;
-  const eventTypeFilter = args.eventTypes as string[] | undefined;
-  const limit = (args.limit as number) ?? 100;
+  const detail = (args.detail as string) ?? 'normal'
+  const startTime = args.startTimeMs as number | undefined
+  const endTime = args.endTimeMs as number | undefined
+  const eventTypeFilter = args.eventTypes as string[] | undefined
+  const limit = (args.limit as number) ?? 100
 
-  const resultEvents: Array<Record<string, unknown>> = [];
-  const domPatchBuckets: Record<number, number> = {};
-  let hasMore = false;
+  const resultEvents: Array<Record<string, unknown>> = []
+  const domPatchBuckets: Record<number, number> = {}
+  let hasMore = false
 
-  let pendingKeys: Array<{ time: number; key: string }> = [];
+  let pendingKeys: Array<{ time: number; key: string }> = []
 
   function flushKeystrokes() {
-    if (pendingKeys.length === 0) return;
-    if (detail === "normal") {
+    if (pendingKeys.length === 0) return
+    if (detail === 'normal') {
       const text = pendingKeys
-        .map((k) => (k.key.length === 1 ? k.key : `[${k.key}]`))
-        .join("");
+        .map(k => (k.key.length === 1 ? k.key : `[${k.key}]`))
+        .join('')
       resultEvents.push({
         time: pendingKeys[0]!.time,
-        type: "typed",
+        type: 'typed',
         text,
-      });
-    } else if (detail === "full") {
+      })
+    } else if (detail === 'full') {
       for (const k of pendingKeys) {
         resultEvents.push({
           time: k.time,
-          type: "keyDown",
+          type: 'keyDown',
           key: k.key,
-        });
+        })
       }
     }
-    pendingKeys = [];
+    pendingKeys = []
   }
 
-  const duration = recording.getDuration();
+  const duration = recording.getDuration()
   const effectiveEnd =
     endTime !== undefined
       ? endTime
       : duration > 0
-      ? duration
-      : Number.MAX_SAFE_INTEGER;
-  const events = recording.getEventsInRange(startTime ?? 0, effectiveEnd);
+        ? duration
+        : Number.MAX_SAFE_INTEGER
+  const events = recording.getEventsInRange(startTime ?? 0, effectiveEnd)
 
   for (const event of events) {
-    const time = event.get("time").orElse(0);
+    const time = event.get('time').orElse(0)
 
     if (isInteractionEvent(event)) {
       const interactionData = (event as Box<InteractionEvent>)
-        .get("data")
+        .get('data')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .orElse(null) as Box<any> | null;
-      if (!interactionData) continue;
+        .orElse(null) as Box<any> | null
+      if (!interactionData) continue
       const interactionType = interactionData
-        .get("type")
-        .orElse(-1 as InteractionType);
+        .get('type')
+        .orElse(-1 as InteractionType)
 
       if (
         interactionType === InteractionType.PointerMove ||
         interactionType === InteractionType.PointerDown ||
         interactionType === InteractionType.PointerUp
       ) {
-        continue;
+        continue
       }
 
       const typeNameMap: Record<number, string> = {
-        [InteractionType.Click]: "click",
-        [InteractionType.DoubleClick]: "doubleClick",
-        [InteractionType.KeyDown]: "keyDown",
-        [InteractionType.KeyUp]: "keyUp",
-        [InteractionType.Scroll]: "scroll",
-        [InteractionType.PageTransition]: "pageTransition",
-        [InteractionType.ViewportResize]: "viewportResize",
-      };
-      const typeName = typeNameMap[interactionType];
+        [InteractionType.Click]: 'click',
+        [InteractionType.DoubleClick]: 'doubleClick',
+        [InteractionType.KeyDown]: 'keyDown',
+        [InteractionType.KeyUp]: 'keyUp',
+        [InteractionType.Scroll]: 'scroll',
+        [InteractionType.PageTransition]: 'pageTransition',
+        [InteractionType.ViewportResize]: 'viewportResize',
+      }
+      const typeName = typeNameMap[interactionType]
       if (typeName && eventTypeFilter && !eventTypeFilter.includes(typeName))
-        continue;
+        continue
 
       if (
         interactionType === InteractionType.Click ||
         interactionType === InteractionType.DoubleClick
       ) {
-        flushKeystrokes();
+        flushKeystrokes()
         const label = interactionData
-          .get("meta")
-          .get("humanReadableLabel")
-          .orElse(null);
-        const at = interactionData.get("at").orElse([0, 0]);
+          .get('meta')
+          .get('humanReadableLabel')
+          .orElse(null)
+        const at = interactionData.get('at').orElse([0, 0])
         const eventType =
-          interactionType === InteractionType.Click ? "click" : "doubleClick";
-        if (detail === "full") {
-          const meta = interactionData.get("meta");
-          const nodeId = meta.get("node").get("id").orElse(null);
-          const tagName = meta.get("node").get("tagName").orElse("");
+          interactionType === InteractionType.Click ? 'click' : 'doubleClick'
+        if (detail === 'full') {
+          const meta = interactionData.get('meta')
+          const nodeId = meta.get('node').get('id').orElse(null)
+          const tagName = meta.get('node').get('tagName').orElse('')
           const rawAttributes = meta
-            .get("node")
-            .get("attributes")
-            .orElse({}) as Record<string, string | null>;
-          const attributes: Record<string, string> = {};
+            .get('node')
+            .get('attributes')
+            .orElse({}) as Record<string, string | null>
+          const attributes: Record<string, string> = {}
           for (const [k, v] of Object.entries(rawAttributes)) {
-            if (v != null) attributes[k] = v;
+            if (v != null) attributes[k] = v
           }
-          const element = nodeId ? { nodeId, tagName, attributes } : null;
-          const targets = interactionData.get("targets").orElse([]) as string[];
+          const element = nodeId ? { nodeId, tagName, attributes } : null
+          const targets = interactionData.get('targets').orElse([]) as string[]
           resultEvents.push({
             time,
             type: eventType,
@@ -182,152 +182,152 @@ export const handler: ToolHandler = (recording, args) => {
             at: { x: at[0], y: at[1] },
             ...(element ? { element } : {}),
             ...(targets.length > 0 ? { targets } : {}),
-          });
+          })
         } else {
           resultEvents.push({
             time,
             type: eventType,
             ...(label ? { label } : {}),
-          });
+          })
         }
       } else if (interactionType === InteractionType.KeyDown) {
-        if (detail === "summary") continue;
-        const key = interactionData.get("key").orElse("");
-        pendingKeys.push({ time, key });
+        if (detail === 'summary') continue
+        const key = interactionData.get('key').orElse('')
+        pendingKeys.push({ time, key })
       } else if (interactionType === InteractionType.KeyUp) {
-        continue;
+        continue
       } else if (interactionType === InteractionType.Scroll) {
-        flushKeystrokes();
-        if (detail === "summary") continue;
-        const target = interactionData.get("target").orElse("");
-        const to = interactionData.get("to").orElse([0, 0]);
-        if (detail === "full") {
-          const from = interactionData.get("from").orElse([0, 0]);
+        flushKeystrokes()
+        if (detail === 'summary') continue
+        const target = interactionData.get('target').orElse('')
+        const to = interactionData.get('to').orElse([0, 0])
+        if (detail === 'full') {
+          const from = interactionData.get('from').orElse([0, 0])
           resultEvents.push({
             time,
-            type: "scroll",
+            type: 'scroll',
             target,
             from: { x: from[0], y: from[1] },
             to: { x: to[0], y: to[1] },
-          });
+          })
         } else {
           resultEvents.push({
             time,
-            type: "scroll",
+            type: 'scroll',
             target,
             to: { x: to[0], y: to[1] },
-          });
+          })
         }
       } else if (interactionType === InteractionType.PageTransition) {
-        flushKeystrokes();
-        const from = interactionData.get("from").orElse(null);
-        const to = interactionData.get("to").orElse("");
+        flushKeystrokes()
+        const from = interactionData.get('from').orElse(null)
+        const to = interactionData.get('to').orElse('')
         resultEvents.push({
           time,
-          type: "pageTransition",
+          type: 'pageTransition',
           ...(from ? { from } : {}),
           to,
-        });
+        })
       } else if (interactionType === InteractionType.ViewportResize) {
-        flushKeystrokes();
-        if (detail === "summary") continue;
-        const to = interactionData.get("to").orElse([0, 0]);
-        if (detail === "full") {
-          const from = interactionData.get("from").orElse([0, 0]);
+        flushKeystrokes()
+        if (detail === 'summary') continue
+        const to = interactionData.get('to').orElse([0, 0])
+        if (detail === 'full') {
+          const from = interactionData.get('from').orElse([0, 0])
           resultEvents.push({
             time,
-            type: "viewportResize",
+            type: 'viewportResize',
             from: { width: from[0], height: from[1] },
             to: { width: to[0], height: to[1] },
-          });
+          })
         } else {
           resultEvents.push({
             time,
-            type: "viewportResize",
+            type: 'viewportResize',
             to: { width: to[0], height: to[1] },
-          });
+          })
         }
       }
-      continue;
+      continue
     }
 
     if (isDOMPatchEvent(event)) {
-      if (eventTypeFilter && !eventTypeFilter.includes("domPatch")) continue;
-      const bucket = Math.floor(time / 1000);
-      domPatchBuckets[bucket] = (domPatchBuckets[bucket] ?? 0) + 1;
-      continue;
+      if (eventTypeFilter && !eventTypeFilter.includes('domPatch')) continue
+      const bucket = Math.floor(time / 1000)
+      domPatchBuckets[bucket] = (domPatchBuckets[bucket] ?? 0) + 1
+      continue
     }
 
-    if (event.match((e) => e.type === SourceEventType.Snapshot)) continue;
+    if (event.match(e => e.type === SourceEventType.Snapshot)) continue
 
     if (isNetworkEvent(event)) {
-      if (eventTypeFilter && !eventTypeFilter.includes("network")) continue;
-      flushKeystrokes();
-      resultEvents.push({ time, type: "network" });
-      continue;
+      if (eventTypeFilter && !eventTypeFilter.includes('network')) continue
+      flushKeystrokes()
+      resultEvents.push({ time, type: 'network' })
+      continue
     }
 
     if (isConsoleEvent(event)) {
-      if (eventTypeFilter && !eventTypeFilter.includes("console")) continue;
-      flushKeystrokes();
-      const consoleEvent: Box<ConsoleEvent> = event;
-      const level = consoleEvent.get("data").get("level").orElse(LogLevel.Info);
+      if (eventTypeFilter && !eventTypeFilter.includes('console')) continue
+      flushKeystrokes()
+      const consoleEvent: Box<ConsoleEvent> = event
+      const level = consoleEvent.get('data').get('level').orElse(LogLevel.Info)
       resultEvents.push({
         time,
-        type: "console",
-        level: LOG_LEVEL_NAMES[level] ?? "info",
-      });
-      continue;
+        type: 'console',
+        level: LOG_LEVEL_NAMES[level] ?? 'info',
+      })
+      continue
     }
 
-    if (event.match((e) => e.type === SourceEventType.Performance)) {
-      if (eventTypeFilter && !eventTypeFilter.includes("performance")) continue;
-      flushKeystrokes();
-      resultEvents.push({ time, type: "performance" });
-      continue;
+    if (event.match(e => e.type === SourceEventType.Performance)) {
+      if (eventTypeFilter && !eventTypeFilter.includes('performance')) continue
+      flushKeystrokes()
+      resultEvents.push({ time, type: 'performance' })
+      continue
     }
   }
 
-  flushKeystrokes();
+  flushKeystrokes()
 
-  let limitedEvents = resultEvents;
+  let limitedEvents = resultEvents
   if (resultEvents.length > limit) {
-    limitedEvents = resultEvents.slice(0, limit);
-    hasMore = true;
+    limitedEvents = resultEvents.slice(0, limit)
+    hasMore = true
   }
 
-  if (detail === "summary") {
-    const counts: Record<string, number> = {};
+  if (detail === 'summary') {
+    const counts: Record<string, number> = {}
     for (const ev of resultEvents) {
-      const t = ev["type"] as string;
-      counts[t] = (counts[t] ?? 0) + 1;
+      const t = ev['type'] as string
+      counts[t] = (counts[t] ?? 0) + 1
     }
     const totalDomPatches = Object.values(domPatchBuckets).reduce(
       (a, b) => a + b,
-      0,
-    );
+      0
+    )
     if (totalDomPatches > 0) {
-      counts["domPatch"] = totalDomPatches;
+      counts['domPatch'] = totalDomPatches
     }
-    const totalEvents = Object.values(counts).reduce((a, b) => a + b, 0);
+    const totalEvents = Object.values(counts).reduce((a, b) => a + b, 0)
     return resolve({
       totalEvents,
       counts,
       durationMs: recording.getDuration(),
       _tokenEstimate: Math.ceil(JSON.stringify(counts).length / 4) + 20,
-    });
+    })
   }
 
-  const domActivity: Array<{ window: string; patchCount: number }> = [];
+  const domActivity: Array<{ window: string; patchCount: number }> = []
   const bucketKeys = Object.keys(domPatchBuckets)
     .map(Number)
-    .sort((a, b) => a - b);
+    .sort((a, b) => a - b)
   for (const bucket of bucketKeys) {
-    const count = domPatchBuckets[bucket]!;
+    const count = domPatchBuckets[bucket]!
     domActivity.push({
       window: `${bucket}-${bucket + 1}s`,
       patchCount: count,
-    });
+    })
   }
 
   return resolve({
@@ -340,5 +340,5 @@ export const handler: ToolHandler = (recording, args) => {
         ? Math.ceil(JSON.stringify(domActivity).length / 4)
         : 0) +
       10,
-  });
-};
+  })
+}

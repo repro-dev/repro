@@ -42,7 +42,7 @@ const vtree = html2VTree(`
 `)
 
 const boxElement = vtree
-  ? findElementsByClassName(vtree, 'box')[0] ?? null
+  ? (findElementsByClassName(vtree, 'box')[0] ?? null)
   : null
 
 const patch: AttributePatch = {

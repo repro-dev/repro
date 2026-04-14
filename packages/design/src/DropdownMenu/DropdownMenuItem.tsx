@@ -75,15 +75,15 @@ export const DropdownMenuItem = forwardRef<
   const textColor = disabled
     ? color.text.muted
     : destructive
-    ? color.danger
-    : color.text.default
+      ? color.danger
+      : color.text.default
 
   const bgColor =
     isActive && !disabled && destructive
       ? color.dangerSubtle
       : isActive && !disabled
-      ? color.bg.hover
-      : 'transparent'
+        ? color.bg.hover
+        : 'transparent'
 
   return (
     <Block

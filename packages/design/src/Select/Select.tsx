@@ -247,8 +247,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
         item.type === 'group-header'
           ? null
           : item.option?.disabled
-          ? null
-          : item.option?.label ?? null
+            ? null
+            : (item.option?.label ?? null)
       )
     )
 
@@ -257,8 +257,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
         item.type === 'group-header'
           ? null
           : item.option?.disabled
-          ? null
-          : item.option?.label ?? null
+            ? null
+            : (item.option?.label ?? null)
       )
     }, [filteredFlatItems])
 
@@ -481,8 +481,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
             isDisabled
               ? undefined
               : error
-              ? color.dangerHover
-              : color.border.emphasis
+                ? color.dangerHover
+                : color.border.emphasis
           }
           textAlign="left"
           {...focusRing(error ? 'danger' : 'default')}
@@ -721,17 +721,17 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                             isOptionDisabled
                               ? color.text.muted
                               : isSelected
-                              ? color.primary
-                              : color.text.default
+                                ? color.primary
+                                : color.text.default
                           }
                           backgroundColor={
                             isActive && !isOptionDisabled && isSelected
                               ? color.primarySubtleHover
                               : isActive && !isOptionDisabled
-                              ? color.bg.hover
-                              : isSelected
-                              ? color.primarySubtle
-                              : 'transparent'
+                                ? color.bg.hover
+                                : isSelected
+                                  ? color.primarySubtle
+                                  : 'transparent'
                           }
                           opacity={isOptionDisabled ? 0.5 : 1}
                           props={{

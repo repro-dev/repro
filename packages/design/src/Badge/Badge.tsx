@@ -66,8 +66,8 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
           size === 'small'
             ? fontSize.xs
             : size === 'large'
-            ? fontSize.md
-            : fontSize.sm
+              ? fontSize.md
+              : fontSize.sm
         }
         fontWeight={size === 'small' ? fontWeight.normal : fontWeight.semibold}
         lineHeight={lineHeight.tight}

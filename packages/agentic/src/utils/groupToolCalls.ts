@@ -4,93 +4,93 @@ import {
   ToolCall,
   ToolMessage,
   UserMessage,
-} from "../types";
+} from '../types'
 
 export interface UserMessageItem {
-  type: "user-message";
-  entry: UserMessage;
+  type: 'user-message'
+  entry: UserMessage
 }
 
 export interface AssistantMessageItem {
-  type: "assistant-message";
-  entry: AssistantMessage;
+  type: 'assistant-message'
+  entry: AssistantMessage
 }
 
 export interface ToolCallPair {
-  toolCall: ToolCall;
-  result: ToolMessage | null;
+  toolCall: ToolCall
+  result: ToolMessage | null
 }
 
 export interface ToolCallGroupItem {
-  type: "tool-call-group";
-  pairs: Array<ToolCallPair>;
+  type: 'tool-call-group'
+  pairs: Array<ToolCallPair>
 }
 
 export interface TruncationIndicatorItem {
-  type: "truncation-indicator";
+  type: 'truncation-indicator'
 }
 
 export type RenderItem =
   | UserMessageItem
   | AssistantMessageItem
   | ToolCallGroupItem
-  | TruncationIndicatorItem;
+  | TruncationIndicatorItem
 
 export function groupToolCalls(
   entries: Array<Entry>,
-  truncatedBeforeId?: string | null,
+  truncatedBeforeId?: string | null
 ): Array<RenderItem> {
-  const result: Array<RenderItem> = [];
-  const toolMessages = new Map<string, ToolMessage>();
+  const result: Array<RenderItem> = []
+  const toolMessages = new Map<string, ToolMessage>()
 
   for (const entry of entries) {
-    if (entry.role === "tool") {
-      toolMessages.set(entry.tool_call_id, entry);
+    if (entry.role === 'tool') {
+      toolMessages.set(entry.tool_call_id, entry)
     }
   }
 
   for (const entry of entries) {
-    if (entry.role === "user") {
+    if (entry.role === 'user') {
       if (truncatedBeforeId != null && entry.id === truncatedBeforeId) {
-        result.push({ type: "truncation-indicator" });
+        result.push({ type: 'truncation-indicator' })
       }
-      result.push({ type: "user-message", entry });
-    } else if (entry.role === "assistant") {
+      result.push({ type: 'user-message', entry })
+    } else if (entry.role === 'assistant') {
       // Emit text and tool calls independently — they are not mutually exclusive.
       // The truncation indicator always appears before the first item for this entry.
-      const hasContent = entry.content.length > 0;
-      const hasToolCalls = entry.toolCalls.length > 0;
+      const hasContent = entry.content.length > 0
+      const hasToolCalls = entry.toolCalls.length > 0
 
       if (hasContent) {
         if (truncatedBeforeId != null && entry.id === truncatedBeforeId) {
-          result.push({ type: "truncation-indicator" });
+          result.push({ type: 'truncation-indicator' })
         }
-        result.push({ type: "assistant-message", entry });
+        result.push({ type: 'assistant-message', entry })
         if (hasToolCalls) {
-          const pairs: Array<ToolCallPair> = entry.toolCalls.map((toolCall) => {
-            const toolResult = toolMessages.get(toolCall.id) ?? null;
-            return { toolCall, result: toolResult };
-          });
-          result.push({ type: "tool-call-group", pairs });
+          const pairs: Array<ToolCallPair> = entry.toolCalls.map(toolCall => {
+            const toolResult = toolMessages.get(toolCall.id) ?? null
+            return { toolCall, result: toolResult }
+          })
+          result.push({ type: 'tool-call-group', pairs })
         }
       } else if (hasToolCalls) {
         if (truncatedBeforeId != null && entry.id === truncatedBeforeId) {
-          result.push({ type: "truncation-indicator" });
+          result.push({ type: 'truncation-indicator' })
         }
-        const pairs: Array<ToolCallPair> = entry.toolCalls.map((toolCall) => {
-          const toolResult = toolMessages.get(toolCall.id) ?? null;
-          return { toolCall, result: toolResult };
-        });
-        result.push({ type: "tool-call-group", pairs });
+        const pairs: Array<ToolCallPair> = entry.toolCalls.map(toolCall => {
+          const toolResult = toolMessages.get(toolCall.id) ?? null
+          return { toolCall, result: toolResult }
+        })
+        result.push({ type: 'tool-call-group', pairs })
       } else {
         // Fallback: empty content and no tool calls (loading/in-progress state).
         if (truncatedBeforeId != null && entry.id === truncatedBeforeId) {
-          result.push({ type: "truncation-indicator" });
+          result.push({ type: 'truncation-indicator' })
         }
-        result.push({ type: "assistant-message", entry });
+        result.push({ type: 'assistant-message', entry })
       }
     }
   }
 
-  return result;
+  return result
 }

@@ -88,7 +88,7 @@ describe('ProjectSwitcher', () => {
     assert.ok(
       Boolean(
         separator.compareDocumentPosition(createButton) &
-          Node.DOCUMENT_POSITION_FOLLOWING
+        Node.DOCUMENT_POSITION_FOLLOWING
       )
     )
   })

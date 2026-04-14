@@ -134,8 +134,8 @@ const Item: React.FC<ItemProps> = ({ disabled, icon, label, view }) => {
   const color = disabled
     ? colors.slate['300']
     : activeView === view && inspecting
-    ? colors.blue['900']
-    : colors.blue['700']
+      ? colors.blue['900']
+      : colors.blue['700']
 
   const active = activeView === view && inspecting
 

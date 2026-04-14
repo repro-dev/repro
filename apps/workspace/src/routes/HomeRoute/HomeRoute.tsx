@@ -63,7 +63,7 @@ export const HomeRoute = ({
   const effectiveLoading = loading || !isDataCurrent
 
   const currentProjectId = isDataCurrent ? confirmedProjectId : null
-  const items: RecordingInfo[] = isDataCurrent ? recordings ?? [] : []
+  const items: RecordingInfo[] = isDataCurrent ? (recordings ?? []) : []
 
   if (effectiveLoading) {
     return (

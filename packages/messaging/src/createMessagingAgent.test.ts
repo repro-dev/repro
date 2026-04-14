@@ -20,9 +20,11 @@ function createTestContext(): typeof globalThis {
           options: { targetOrigin?: string; transfer?: Transferable[] } | string
         ) => {
           const targetOrigin =
-            typeof options === 'string' ? options : options?.targetOrigin ?? '*'
+            typeof options === 'string'
+              ? options
+              : (options?.targetOrigin ?? '*')
           const transfer =
-            typeof options === 'object' ? options?.transfer ?? [] : []
+            typeof options === 'object' ? (options?.transfer ?? []) : []
           ;(target as unknown as Window).postMessage(
             message,
             targetOrigin,

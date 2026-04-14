@@ -10,32 +10,32 @@
  * This module is pure (no I/O). File reads/writes live in update-baseline.ts.
  */
 
-import type { BaselineEntry } from "./regressions";
+import type { BaselineEntry } from './regressions'
 
 /** Number of calendar days included in the rolling average window. */
-export const ROLLING_WINDOW_DAYS = 7;
+export const ROLLING_WINDOW_DAYS = 7
 
 /**
  * Minimum number of data points required before we compute a rolling average.
  * If fewer data points exist for a fixture, the committed baseline value is
  * preserved — this prevents bootstrapping noise from an empty history file.
  */
-export const MIN_DATA_POINTS = 3;
+export const MIN_DATA_POINTS = 3
 
 /** Per-fixture metrics for a single nightly run. */
 export interface HistoryRun {
-  fixtureName: string;
-  correctnessRate: number;
-  avgErrorRate: number;
-  avgToolCalls: number;
-  avgQuality: number;
+  fixtureName: string
+  correctnessRate: number
+  avgErrorRate: number
+  avgToolCalls: number
+  avgQuality: number
 }
 
 /** A single day's entry in the history file. */
 export interface HistoryEntry {
   /** ISO date string: YYYY-MM-DD */
-  date: string;
-  runs: HistoryRun[];
+  date: string
+  runs: HistoryRun[]
 }
 
 /**
@@ -50,29 +50,29 @@ export interface HistoryEntry {
 export function appendRunToHistory(
   existing: HistoryEntry[],
   newRuns: HistoryRun[],
-  date: string,
+  date: string
 ): HistoryEntry[] {
-  const result = existing.map((e) => ({ ...e, runs: [...e.runs] }));
+  const result = existing.map(e => ({ ...e, runs: [...e.runs] }))
 
-  let dateEntry = result.find((e) => e.date === date);
+  let dateEntry = result.find(e => e.date === date)
   if (dateEntry === undefined) {
-    dateEntry = { date, runs: [] };
-    result.push(dateEntry);
+    dateEntry = { date, runs: [] }
+    result.push(dateEntry)
   }
 
   for (const run of newRuns) {
     const existingIdx = dateEntry.runs.findIndex(
-      (r) => r.fixtureName === run.fixtureName,
-    );
+      r => r.fixtureName === run.fixtureName
+    )
     if (existingIdx >= 0) {
       // Replace with newer value
-      dateEntry.runs[existingIdx] = run;
+      dateEntry.runs[existingIdx] = run
     } else {
-      dateEntry.runs.push(run);
+      dateEntry.runs.push(run)
     }
   }
 
-  return result;
+  return result
 }
 
 /**
@@ -92,46 +92,46 @@ export function appendRunToHistory(
 export function computeRollingBaseline(
   history: HistoryEntry[],
   committed: BaselineEntry[],
-  referenceDate = new Date(),
+  referenceDate = new Date()
 ): BaselineEntry[] {
   // Build the window boundary: entries strictly newer than this date are in-window.
   // We compare ISO date strings (YYYY-MM-DD) which sort lexicographically.
-  const windowStart = new Date(referenceDate);
-  windowStart.setUTCDate(windowStart.getUTCDate() - ROLLING_WINDOW_DAYS);
-  const windowStartStr = windowStart.toISOString().slice(0, 10);
+  const windowStart = new Date(referenceDate)
+  windowStart.setUTCDate(windowStart.getUTCDate() - ROLLING_WINDOW_DAYS)
+  const windowStartStr = windowStart.toISOString().slice(0, 10)
 
   // Filter entries that fall within the rolling window
-  const inWindow = history.filter((e) => e.date > windowStartStr);
+  const inWindow = history.filter(e => e.date > windowStartStr)
 
-  return committed.map((committedEntry) => {
+  return committed.map(committedEntry => {
     // Collect per-date values for this fixture within the window
-    const fixtureRuns: HistoryRun[] = [];
+    const fixtureRuns: HistoryRun[] = []
     for (const entry of inWindow) {
       const run = entry.runs.find(
-        (r) => r.fixtureName === committedEntry.fixtureName,
-      );
+        r => r.fixtureName === committedEntry.fixtureName
+      )
       if (run !== undefined) {
-        fixtureRuns.push(run);
+        fixtureRuns.push(run)
       }
     }
 
     if (fixtureRuns.length < MIN_DATA_POINTS) {
       // Not enough data — keep the committed baseline unchanged
-      return committedEntry;
+      return committedEntry
     }
 
-    const n = fixtureRuns.length;
+    const n = fixtureRuns.length
     const avg = (values: number[]): number => {
-      const sum = values.reduce((acc, v) => acc + v, 0);
-      return Math.round((sum / n) * 1000) / 1000;
-    };
+      const sum = values.reduce((acc, v) => acc + v, 0)
+      return Math.round((sum / n) * 1000) / 1000
+    }
 
     return {
       fixtureName: committedEntry.fixtureName,
-      correctnessRate: avg(fixtureRuns.map((r) => r.correctnessRate)),
-      avgErrorRate: avg(fixtureRuns.map((r) => r.avgErrorRate)),
-      avgToolCalls: avg(fixtureRuns.map((r) => r.avgToolCalls)),
-      avgQuality: avg(fixtureRuns.map((r) => r.avgQuality)),
-    };
-  });
+      correctnessRate: avg(fixtureRuns.map(r => r.correctnessRate)),
+      avgErrorRate: avg(fixtureRuns.map(r => r.avgErrorRate)),
+      avgToolCalls: avg(fixtureRuns.map(r => r.avgToolCalls)),
+      avgQuality: avg(fixtureRuns.map(r => r.avgQuality)),
+    }
+  })
 }

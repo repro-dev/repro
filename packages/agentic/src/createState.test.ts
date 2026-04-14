@@ -1,7 +1,14 @@
-import assert from "node:assert";
-import { describe, it } from "node:test";
 import {
-  MAX_TOOL_ITERATIONS,
+  fork,
+  Future,
+  FutureInstance,
+  reject as futureReject,
+  isFuture,
+  resolve,
+} from 'fluture'
+import assert from 'node:assert'
+import { describe, it } from 'node:test'
+import {
   accumulateToolCalls,
   buildIterationLimitMessage,
   buildToolMessageContent,
@@ -10,8 +17,9 @@ import {
   executeToolCalls,
   getOrientPhaseToolCallIds,
   isValidMessageDelta,
-} from "./createState";
-import { PURGE_ERROR_TURNS } from "./model/context-window";
+  MAX_TOOL_ITERATIONS,
+} from './createState'
+import { PURGE_ERROR_TURNS } from './model/context-window'
 import {
   AssistantMessageContext,
   Context,
@@ -19,15 +27,7 @@ import {
   StreamProvider,
   ToolCall,
   ToolMessageContext,
-} from "./types";
-import {
-  fork,
-  Future,
-  isFuture,
-  FutureInstance,
-  resolve,
-  reject as futureReject,
-} from "fluture";
+} from './types'
 
 function makeEmptyAccessor(): RecordingDataAccessor {
   return {
@@ -36,436 +36,436 @@ function makeEmptyAccessor(): RecordingDataAccessor {
     getEventsByType: () => [],
     getEventsInRange: () => [],
     getResourceMap: () => ({}),
-  };
+  }
 }
 
-describe("isValidMessageDelta", () => {
-  it("accepts valid delta with content", () => {
+describe('isValidMessageDelta', () => {
+  it('accepts valid delta with content', () => {
     const data = {
-      choices: [{ delta: { content: "hello" } }],
-    };
-    assert.strictEqual(isValidMessageDelta(data), true);
-  });
+      choices: [{ delta: { content: 'hello' } }],
+    }
+    assert.strictEqual(isValidMessageDelta(data), true)
+  })
 
-  it("accepts valid delta with tool_calls", () => {
+  it('accepts valid delta with tool_calls', () => {
     const data = {
       choices: [
         {
           delta: {
             tool_calls: [
-              { index: 0, id: "tc1", function: { name: "foo", arguments: "" } },
+              { index: 0, id: 'tc1', function: { name: 'foo', arguments: '' } },
             ],
           },
         },
       ],
-    };
-    assert.strictEqual(isValidMessageDelta(data), true);
-  });
+    }
+    assert.strictEqual(isValidMessageDelta(data), true)
+  })
 
-  it("accepts valid delta with empty delta object", () => {
-    const data = { choices: [{ delta: {} }] };
-    assert.strictEqual(isValidMessageDelta(data), true);
-  });
+  it('accepts valid delta with empty delta object', () => {
+    const data = { choices: [{ delta: {} }] }
+    assert.strictEqual(isValidMessageDelta(data), true)
+  })
 
-  it("rejects null", () => {
-    assert.strictEqual(isValidMessageDelta(null), false);
-  });
+  it('rejects null', () => {
+    assert.strictEqual(isValidMessageDelta(null), false)
+  })
 
-  it("rejects undefined", () => {
-    assert.strictEqual(isValidMessageDelta(undefined), false);
-  });
+  it('rejects undefined', () => {
+    assert.strictEqual(isValidMessageDelta(undefined), false)
+  })
 
-  it("rejects plain string", () => {
-    assert.strictEqual(isValidMessageDelta("hello"), false);
-  });
+  it('rejects plain string', () => {
+    assert.strictEqual(isValidMessageDelta('hello'), false)
+  })
 
-  it("rejects object without choices", () => {
-    assert.strictEqual(isValidMessageDelta({ role: "assistant" }), false);
-  });
+  it('rejects object without choices', () => {
+    assert.strictEqual(isValidMessageDelta({ role: 'assistant' }), false)
+  })
 
-  it("rejects object with empty choices array", () => {
-    assert.strictEqual(isValidMessageDelta({ choices: [] }), false);
-  });
+  it('rejects object with empty choices array', () => {
+    assert.strictEqual(isValidMessageDelta({ choices: [] }), false)
+  })
 
-  it("rejects object with non-array choices", () => {
-    assert.strictEqual(isValidMessageDelta({ choices: "bad" }), false);
-  });
+  it('rejects object with non-array choices', () => {
+    assert.strictEqual(isValidMessageDelta({ choices: 'bad' }), false)
+  })
 
-  it("rejects when choices[0].delta is null", () => {
+  it('rejects when choices[0].delta is null', () => {
     assert.strictEqual(
       isValidMessageDelta({ choices: [{ delta: null }] }),
-      false,
-    );
-  });
+      false
+    )
+  })
 
-  it("rejects when choices[0].delta is missing", () => {
-    assert.strictEqual(isValidMessageDelta({ choices: [{}] }), false);
-  });
-});
+  it('rejects when choices[0].delta is missing', () => {
+    assert.strictEqual(isValidMessageDelta({ choices: [{}] }), false)
+  })
+})
 
-describe("accumulateToolCalls", () => {
-  it("first delta creates new entry with id, index, function.name, function.arguments", () => {
+describe('accumulateToolCalls', () => {
+  it('first delta creates new entry with id, index, function.name, function.arguments', () => {
     const result = accumulateToolCalls(
       [],
       [
         {
           index: 0,
-          id: "tc1",
-          function: { name: "myTool", arguments: '{"a":' },
+          id: 'tc1',
+          function: { name: 'myTool', arguments: '{"a":' },
         },
-      ],
-    );
-    assert.strictEqual(result.length, 1);
-    assert.strictEqual(result[0]!.id, "tc1");
-    assert.strictEqual(result[0]!.index, 0);
-    assert.strictEqual(result[0]!.function.name, "myTool");
-    assert.strictEqual(result[0]!.function.arguments, '{"a":');
-  });
+      ]
+    )
+    assert.strictEqual(result.length, 1)
+    assert.strictEqual(result[0]!.id, 'tc1')
+    assert.strictEqual(result[0]!.index, 0)
+    assert.strictEqual(result[0]!.function.name, 'myTool')
+    assert.strictEqual(result[0]!.function.arguments, '{"a":')
+  })
 
-  it("subsequent deltas append arguments only (not name)", () => {
+  it('subsequent deltas append arguments only (not name)', () => {
     const initial = accumulateToolCalls(
       [],
       [
         {
           index: 0,
-          id: "tc1",
-          function: { name: "myTool", arguments: '{"a":' },
+          id: 'tc1',
+          function: { name: 'myTool', arguments: '{"a":' },
         },
-      ],
-    );
+      ]
+    )
     const result = accumulateToolCalls(initial, [
-      { index: 0, function: { arguments: "1}" } },
-    ]);
-    assert.strictEqual(result[0]!.function.name, "myTool");
-    assert.strictEqual(result[0]!.function.arguments, '{"a":1}');
-  });
+      { index: 0, function: { arguments: '1}' } },
+    ])
+    assert.strictEqual(result[0]!.function.name, 'myTool')
+    assert.strictEqual(result[0]!.function.arguments, '{"a":1}')
+  })
 
-  it("sparse index handling — delta at index 2 with empty array", () => {
+  it('sparse index handling — delta at index 2 with empty array', () => {
     const result = accumulateToolCalls(
       [],
       [
         {
           index: 2,
-          id: "tc2",
-          function: { name: "sparseFunc", arguments: "" },
+          id: 'tc2',
+          function: { name: 'sparseFunc', arguments: '' },
         },
-      ],
-    );
-    assert.strictEqual(result[2]!.id, "tc2");
-    assert.strictEqual(result[2]!.function.name, "sparseFunc");
-  });
+      ]
+    )
+    assert.strictEqual(result[2]!.id, 'tc2')
+    assert.strictEqual(result[2]!.function.name, 'sparseFunc')
+  })
 
-  it("multiple parallel tool calls accumulate correctly", () => {
+  it('multiple parallel tool calls accumulate correctly', () => {
     const step1 = accumulateToolCalls(
       [],
       [
         {
           index: 0,
-          id: "tc0",
-          function: { name: "funcA", arguments: '{"x":' },
+          id: 'tc0',
+          function: { name: 'funcA', arguments: '{"x":' },
         },
         {
           index: 1,
-          id: "tc1",
-          function: { name: "funcB", arguments: '{"y":' },
+          id: 'tc1',
+          function: { name: 'funcB', arguments: '{"y":' },
         },
-      ],
-    );
+      ]
+    )
     const result = accumulateToolCalls(step1, [
-      { index: 0, function: { arguments: "1}" } },
-      { index: 1, function: { arguments: "2}" } },
-    ]);
-    assert.strictEqual(result[0]!.function.arguments, '{"x":1}');
-    assert.strictEqual(result[1]!.function.arguments, '{"y":2}');
-  });
+      { index: 0, function: { arguments: '1}' } },
+      { index: 1, function: { arguments: '2}' } },
+    ])
+    assert.strictEqual(result[0]!.function.arguments, '{"x":1}')
+    assert.strictEqual(result[1]!.function.arguments, '{"y":2}')
+  })
 
-  it("returns new array (immutability)", () => {
-    const original: Array<ToolCall> = [];
+  it('returns new array (immutability)', () => {
+    const original: Array<ToolCall> = []
     const result = accumulateToolCalls(original, [
-      { index: 0, id: "tc1", function: { name: "f", arguments: "" } },
-    ]);
-    assert.notStrictEqual(result, original);
-  });
+      { index: 0, id: 'tc1', function: { name: 'f', arguments: '' } },
+    ])
+    assert.notStrictEqual(result, original)
+  })
 
-  it("defaults missing id to empty string", () => {
+  it('defaults missing id to empty string', () => {
     const result = accumulateToolCalls(
       [],
-      [{ index: 0, function: { name: "f", arguments: "" } }],
-    );
-    assert.strictEqual(result[0]!.id, "");
-  });
+      [{ index: 0, function: { name: 'f', arguments: '' } }]
+    )
+    assert.strictEqual(result[0]!.id, '')
+  })
 
-  it("defaults missing name to empty string", () => {
+  it('defaults missing name to empty string', () => {
     const result = accumulateToolCalls(
       [],
-      [{ index: 0, id: "tc1", function: { arguments: "" } }],
-    );
-    assert.strictEqual(result[0]!.function.name, "");
-  });
+      [{ index: 0, id: 'tc1', function: { arguments: '' } }]
+    )
+    assert.strictEqual(result[0]!.function.name, '')
+  })
 
-  it("defaults missing arguments to empty string", () => {
+  it('defaults missing arguments to empty string', () => {
     const result = accumulateToolCalls(
       [],
-      [{ index: 0, id: "tc1", function: { name: "f" } }],
-    );
-    assert.strictEqual(result[0]!.function.arguments, "");
-  });
+      [{ index: 0, id: 'tc1', function: { name: 'f' } }]
+    )
+    assert.strictEqual(result[0]!.function.arguments, '')
+  })
 
-  it("id from existing entry takes precedence over empty delta id", () => {
+  it('id from existing entry takes precedence over empty delta id', () => {
     const initial = accumulateToolCalls(
       [],
-      [{ index: 0, id: "original-id", function: { name: "f", arguments: "" } }],
-    );
+      [{ index: 0, id: 'original-id', function: { name: 'f', arguments: '' } }]
+    )
     const result = accumulateToolCalls(initial, [
-      { index: 0, id: "", function: { arguments: "more" } },
-    ]);
-    assert.strictEqual(result[0]!.id, "original-id");
-  });
+      { index: 0, id: '', function: { arguments: 'more' } },
+    ])
+    assert.strictEqual(result[0]!.id, 'original-id')
+  })
 
-  it("backfills id from later delta when existing id is empty", () => {
+  it('backfills id from later delta when existing id is empty', () => {
     const initial = accumulateToolCalls(
       [],
-      [{ index: 0, function: { name: "f", arguments: "" } }],
-    );
+      [{ index: 0, function: { name: 'f', arguments: '' } }]
+    )
     const result = accumulateToolCalls(initial, [
-      { index: 0, id: "later-id", function: { arguments: "args" } },
-    ]);
-    assert.strictEqual(result[0]!.id, "later-id");
-  });
+      { index: 0, id: 'later-id', function: { arguments: 'args' } },
+    ])
+    assert.strictEqual(result[0]!.id, 'later-id')
+  })
 
-  it("delta with name overwrites existing name", () => {
+  it('delta with name overwrites existing name', () => {
     const initial = accumulateToolCalls(
       [],
-      [{ index: 0, id: "tc1", function: { name: "original", arguments: "" } }],
-    );
+      [{ index: 0, id: 'tc1', function: { name: 'original', arguments: '' } }]
+    )
     const result = accumulateToolCalls(initial, [
-      { index: 0, function: { name: "overwritten", arguments: "" } },
-    ]);
-    assert.strictEqual(result[0]!.function.name, "overwritten");
-  });
+      { index: 0, function: { name: 'overwritten', arguments: '' } },
+    ])
+    assert.strictEqual(result[0]!.function.name, 'overwritten')
+  })
 
-  it("delta without name preserves existing name", () => {
+  it('delta without name preserves existing name', () => {
     const initial = accumulateToolCalls(
       [],
-      [{ index: 0, id: "tc1", function: { name: "keepMe", arguments: "" } }],
-    );
+      [{ index: 0, id: 'tc1', function: { name: 'keepMe', arguments: '' } }]
+    )
     const result = accumulateToolCalls(initial, [
-      { index: 0, function: { arguments: "extra" } },
-    ]);
-    assert.strictEqual(result[0]!.function.name, "keepMe");
-  });
-});
+      { index: 0, function: { arguments: 'extra' } },
+    ])
+    assert.strictEqual(result[0]!.function.name, 'keepMe')
+  })
+})
 
-describe("executeToolCalls", () => {
+describe('executeToolCalls', () => {
   function runFuture<L, R>(fut: FutureInstance<L, R>): Promise<R> {
     return new Promise((res, rej) => {
-      fut.pipe(fork(rej)(res));
-    });
+      fut.pipe(fork(rej)(res))
+    })
   }
 
-  it("returns a FutureInstance", () => {
-    const accessor = makeEmptyAccessor();
-    const result = executeToolCalls(accessor, []);
-    assert.ok(isFuture(result));
-  });
+  it('returns a FutureInstance', () => {
+    const accessor = makeEmptyAccessor()
+    const result = executeToolCalls(accessor, [])
+    assert.ok(isFuture(result))
+  })
 
-  it("returns empty array for empty input", async () => {
-    const accessor = makeEmptyAccessor();
-    const result = await runFuture(executeToolCalls(accessor, []));
-    assert.deepStrictEqual(result, []);
-  });
+  it('returns empty array for empty input', async () => {
+    const accessor = makeEmptyAccessor()
+    const result = await runFuture(executeToolCalls(accessor, []))
+    assert.deepStrictEqual(result, [])
+  })
 
-  it("produces ToolMessage entries for valid tool calls", async () => {
-    const accessor = makeEmptyAccessor();
+  it('produces ToolMessage entries for valid tool calls', async () => {
+    const accessor = makeEmptyAccessor()
     const toolCalls: Array<ToolCall> = [
       {
-        id: "tc1",
+        id: 'tc1',
         index: 0,
-        function: { name: "getRecordingDuration", arguments: "{}" },
+        function: { name: 'getRecordingDuration', arguments: '{}' },
       },
-    ];
+    ]
     const result = await runFuture(
-      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
-    );
-    assert.strictEqual(result.length, 1);
-    assert.strictEqual(result[0]!.role, "tool");
-  });
+      executeToolCalls(accessor, toolCalls, () => 'fixed-id')
+    )
+    assert.strictEqual(result.length, 1)
+    assert.strictEqual(result[0]!.role, 'tool')
+  })
 
-  it("each result includes correct tool_call_id", async () => {
-    const accessor = makeEmptyAccessor();
+  it('each result includes correct tool_call_id', async () => {
+    const accessor = makeEmptyAccessor()
     const toolCalls: Array<ToolCall> = [
       {
-        id: "my-call-id",
+        id: 'my-call-id',
         index: 0,
-        function: { name: "getRecordingDuration", arguments: "{}" },
+        function: { name: 'getRecordingDuration', arguments: '{}' },
       },
-    ];
+    ]
     const result = await runFuture(
-      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
-    );
-    assert.strictEqual(result[0]!.tool_call_id, "my-call-id");
-  });
+      executeToolCalls(accessor, toolCalls, () => 'fixed-id')
+    )
+    assert.strictEqual(result[0]!.tool_call_id, 'my-call-id')
+  })
 
-  it("result content is JSON-serialized tool output", async () => {
-    const accessor = makeEmptyAccessor();
+  it('result content is JSON-serialized tool output', async () => {
+    const accessor = makeEmptyAccessor()
     const toolCalls: Array<ToolCall> = [
       {
-        id: "tc1",
+        id: 'tc1',
         index: 0,
-        function: { name: "getRecordingDuration", arguments: "{}" },
+        function: { name: 'getRecordingDuration', arguments: '{}' },
       },
-    ];
+    ]
     const result = await runFuture(
-      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
-    );
+      executeToolCalls(accessor, toolCalls, () => 'fixed-id')
+    )
     const parsed = JSON.parse(result[0]!.content as string) as {
-      durationMs: number;
-    };
-    assert.strictEqual(parsed.durationMs, 0);
-  });
+      durationMs: number
+    }
+    assert.strictEqual(parsed.durationMs, 0)
+  })
 
-  it("malformed JSON arguments produce error message", async () => {
-    const accessor = makeEmptyAccessor();
+  it('malformed JSON arguments produce error message', async () => {
+    const accessor = makeEmptyAccessor()
     const toolCalls: Array<ToolCall> = [
       {
-        id: "tc1",
+        id: 'tc1',
         index: 0,
-        function: { name: "getRecordingDuration", arguments: "not-json" },
+        function: { name: 'getRecordingDuration', arguments: 'not-json' },
       },
-    ];
+    ]
     const result = await runFuture(
-      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
-    );
+      executeToolCalls(accessor, toolCalls, () => 'fixed-id')
+    )
     const parsed = JSON.parse(result[0]!.content as string) as {
-      error: string;
-    };
-    assert.ok(typeof parsed.error === "string");
-  });
+      error: string
+    }
+    assert.ok(typeof parsed.error === 'string')
+  })
 
-  it("unknown tool name produces error message", async () => {
-    const accessor = makeEmptyAccessor();
+  it('unknown tool name produces error message', async () => {
+    const accessor = makeEmptyAccessor()
     const toolCalls: Array<ToolCall> = [
       {
-        id: "tc1",
+        id: 'tc1',
         index: 0,
-        function: { name: "nonExistentTool", arguments: "{}" },
+        function: { name: 'nonExistentTool', arguments: '{}' },
       },
-    ];
+    ]
     const result = await runFuture(
-      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
-    );
+      executeToolCalls(accessor, toolCalls, () => 'fixed-id')
+    )
     const parsed = JSON.parse(result[0]!.content as string) as {
-      error: string;
-    };
-    assert.ok(parsed.error.includes("nonExistentTool"));
-  });
+      error: string
+    }
+    assert.ok(parsed.error.includes('nonExistentTool'))
+  })
 
-  it("empty arguments string treated as empty object", async () => {
-    const accessor = makeEmptyAccessor();
+  it('empty arguments string treated as empty object', async () => {
+    const accessor = makeEmptyAccessor()
     const toolCalls: Array<ToolCall> = [
       {
-        id: "tc1",
+        id: 'tc1',
         index: 0,
-        function: { name: "getRecordingDuration", arguments: "" },
+        function: { name: 'getRecordingDuration', arguments: '' },
       },
-    ];
+    ]
     const result = await runFuture(
-      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
-    );
-    assert.strictEqual(result.length, 1);
+      executeToolCalls(accessor, toolCalls, () => 'fixed-id')
+    )
+    assert.strictEqual(result.length, 1)
     const parsed = JSON.parse(result[0]!.content as string) as {
-      durationMs: number;
-    };
-    assert.strictEqual(parsed.durationMs, 0);
-  });
+      durationMs: number
+    }
+    assert.strictEqual(parsed.durationMs, 0)
+  })
 
-  it("filters out falsy entries in sparse array", async () => {
-    const accessor = makeEmptyAccessor();
-    const sparse = [] as Array<ToolCall>;
+  it('filters out falsy entries in sparse array', async () => {
+    const accessor = makeEmptyAccessor()
+    const sparse = [] as Array<ToolCall>
     sparse[2] = {
-      id: "tc2",
+      id: 'tc2',
       index: 2,
-      function: { name: "getRecordingDuration", arguments: "{}" },
-    };
+      function: { name: 'getRecordingDuration', arguments: '{}' },
+    }
     const result = await runFuture(
-      executeToolCalls(accessor, sparse, () => "fixed-id"),
-    );
-    assert.strictEqual(result.length, 1);
-    assert.strictEqual(result[0]!.tool_call_id, "tc2");
-  });
+      executeToolCalls(accessor, sparse, () => 'fixed-id')
+    )
+    assert.strictEqual(result.length, 1)
+    assert.strictEqual(result[0]!.tool_call_id, 'tc2')
+  })
 
-  it("resolves Future tool handlers before serializing result", async () => {
-    const accessor = makeEmptyAccessor();
+  it('resolves Future tool handlers before serializing result', async () => {
+    const accessor = makeEmptyAccessor()
     // getRecordingDuration now returns a Future; verify the resolved value is serialized
     const toolCalls: Array<ToolCall> = [
       {
-        id: "async-tc",
+        id: 'async-tc',
         index: 0,
-        function: { name: "getRecordingDuration", arguments: "{}" },
+        function: { name: 'getRecordingDuration', arguments: '{}' },
       },
-    ];
+    ]
     const result = await runFuture(
-      executeToolCalls(accessor, toolCalls, () => "fixed-id"),
-    );
+      executeToolCalls(accessor, toolCalls, () => 'fixed-id')
+    )
     // If the Future were not resolved, content would be "{}" (empty serialized Future object)
     const parsed = JSON.parse(result[0]!.content as string) as {
-      durationMs: number;
-    };
-    assert.strictEqual(typeof parsed.durationMs, "number");
-  });
+      durationMs: number
+    }
+    assert.strictEqual(typeof parsed.durationMs, 'number')
+  })
 
-  it("executes multiple tool calls concurrently (all start before any complete)", async () => {
-    const accessor = makeEmptyAccessor();
-    const startTimes: Array<number> = [];
-    const endTimes: Array<number> = [];
+  it('executes multiple tool calls concurrently (all start before any complete)', async () => {
+    const accessor = makeEmptyAccessor()
+    const startTimes: Array<number> = []
+    const endTimes: Array<number> = []
 
     // Inject a custom executeFn that records start/end times and waits briefly
-    const delayMs = 50;
+    const delayMs = 50
     const executeFn = (
       _recording: RecordingDataAccessor,
       _name: string,
-      _args: Record<string, unknown>,
+      _args: Record<string, unknown>
     ): FutureInstance<unknown, unknown> => {
-      const idx = startTimes.length;
-      startTimes.push(Date.now());
+      const idx = startTimes.length
+      startTimes.push(Date.now())
       return Future((_, res) => {
         const timer = setTimeout(() => {
-          endTimes[idx] = Date.now();
-          res({ result: idx });
-        }, delayMs);
-        return () => clearTimeout(timer);
-      });
-    };
+          endTimes[idx] = Date.now()
+          res({ result: idx })
+        }, delayMs)
+        return () => clearTimeout(timer)
+      })
+    }
 
     const toolCalls: Array<ToolCall> = [
       {
-        id: "tc0",
+        id: 'tc0',
         index: 0,
-        function: { name: "getRecordingDuration", arguments: "{}" },
+        function: { name: 'getRecordingDuration', arguments: '{}' },
       },
       {
-        id: "tc1",
+        id: 'tc1',
         index: 1,
-        function: { name: "getRecordingDuration", arguments: "{}" },
+        function: { name: 'getRecordingDuration', arguments: '{}' },
       },
       {
-        id: "tc2",
+        id: 'tc2',
         index: 2,
-        function: { name: "getRecordingDuration", arguments: "{}" },
+        function: { name: 'getRecordingDuration', arguments: '{}' },
       },
-    ];
+    ]
 
-    const wallStart = Date.now();
+    const wallStart = Date.now()
     const results = await runFuture(
-      executeToolCalls(accessor, toolCalls, () => "id", executeFn),
-    );
-    const wallElapsed = Date.now() - wallStart;
+      executeToolCalls(accessor, toolCalls, () => 'id', executeFn)
+    )
+    const wallElapsed = Date.now() - wallStart
 
     // All 3 results must be present and preserve original call order
-    assert.strictEqual(results.length, 3);
-    assert.strictEqual(results[0]!.tool_call_id, "tc0");
-    assert.strictEqual(results[1]!.tool_call_id, "tc1");
-    assert.strictEqual(results[2]!.tool_call_id, "tc2");
+    assert.strictEqual(results.length, 3)
+    assert.strictEqual(results[0]!.tool_call_id, 'tc0')
+    assert.strictEqual(results[1]!.tool_call_id, 'tc1')
+    assert.strictEqual(results[2]!.tool_call_id, 'tc2')
 
     // Serial execution would take >= 3 * delayMs. Concurrent should be ~delayMs.
     // We allow 2.5× to avoid flakiness, but serial (3×) must never pass.
@@ -473,114 +473,114 @@ describe("executeToolCalls", () => {
       wallElapsed < delayMs * 2.5,
       `Expected concurrent execution (~${delayMs}ms) but took ${wallElapsed}ms (serial would be ~${
         delayMs * 3
-      }ms)`,
-    );
+      }ms)`
+    )
 
     // All 3 calls must have started before any completed (overlap in time)
     assert.strictEqual(
       startTimes.length,
       3,
-      "Expected all 3 tool calls to have started",
-    );
+      'Expected all 3 tool calls to have started'
+    )
 
     // The earliest end time must be after all start times (proving concurrent start)
     const earliestEnd = Math.min(
-      ...(endTimes.filter((t) => t !== undefined) as Array<number>),
-    );
-    const latestStart = Math.max(...startTimes);
+      ...(endTimes.filter(t => t !== undefined) as Array<number>)
+    )
+    const latestStart = Math.max(...startTimes)
     assert.ok(
       latestStart < earliestEnd,
-      `Expected all calls to start before any completed. latestStart=${latestStart}, earliestEnd=${earliestEnd}`,
-    );
-  });
-});
+      `Expected all calls to start before any completed. latestStart=${latestStart}, earliestEnd=${earliestEnd}`
+    )
+  })
+})
 
-describe("buildToolMessageContent", () => {
-  it("returns plain JSON string for non-screenshot tool output", () => {
-    const output = { durationMs: 1234 };
-    const result = buildToolMessageContent("getRecordingDuration", output);
-    assert.strictEqual(typeof result, "string");
-    assert.strictEqual(result, JSON.stringify(output));
-  });
+describe('buildToolMessageContent', () => {
+  it('returns plain JSON string for non-screenshot tool output', () => {
+    const output = { durationMs: 1234 }
+    const result = buildToolMessageContent('getRecordingDuration', output)
+    assert.strictEqual(typeof result, 'string')
+    assert.strictEqual(result, JSON.stringify(output))
+  })
 
-  it("returns vision content blocks when captureScreenshot returns a dataUrl", () => {
-    const dataUrl = "data:image/png;base64,abc123";
-    const output = { timestampMs: 500, dataUrl };
-    const result = buildToolMessageContent("captureScreenshot", output);
-    assert.ok(Array.isArray(result));
-    const blocks = result as Array<{ type: string }>;
-    assert.strictEqual(blocks.length, 2);
-    assert.strictEqual(blocks[0]!.type, "text");
-    assert.strictEqual(blocks[1]!.type, "image_url");
+  it('returns vision content blocks when captureScreenshot returns a dataUrl', () => {
+    const dataUrl = 'data:image/png;base64,abc123'
+    const output = { timestampMs: 500, dataUrl }
+    const result = buildToolMessageContent('captureScreenshot', output)
+    assert.ok(Array.isArray(result))
+    const blocks = result as Array<{ type: string }>
+    assert.strictEqual(blocks.length, 2)
+    assert.strictEqual(blocks[0]!.type, 'text')
+    assert.strictEqual(blocks[1]!.type, 'image_url')
     const imageBlock = blocks[1] as {
-      type: string;
-      image_url: { url: string };
-    };
-    assert.strictEqual(imageBlock.image_url.url, dataUrl);
-  });
+      type: string
+      image_url: { url: string }
+    }
+    assert.strictEqual(imageBlock.image_url.url, dataUrl)
+  })
 
-  it("falls back to plain JSON string when captureScreenshot output has no dataUrl", () => {
-    const output = { error: "No snapshot available" };
-    const result = buildToolMessageContent("captureScreenshot", output);
-    assert.strictEqual(typeof result, "string");
-    assert.strictEqual(result, JSON.stringify(output));
-  });
+  it('falls back to plain JSON string when captureScreenshot output has no dataUrl', () => {
+    const output = { error: 'No snapshot available' }
+    const result = buildToolMessageContent('captureScreenshot', output)
+    assert.strictEqual(typeof result, 'string')
+    assert.strictEqual(result, JSON.stringify(output))
+  })
 
-  it("falls back to plain JSON string when captureScreenshot dataUrl is not a string", () => {
-    const output = { timestampMs: 0, dataUrl: null };
-    const result = buildToolMessageContent("captureScreenshot", output);
-    assert.strictEqual(typeof result, "string");
-  });
+  it('falls back to plain JSON string when captureScreenshot dataUrl is not a string', () => {
+    const output = { timestampMs: 0, dataUrl: null }
+    const result = buildToolMessageContent('captureScreenshot', output)
+    assert.strictEqual(typeof result, 'string')
+  })
 
-  it("text block includes the timestamp for context", () => {
-    const dataUrl = "data:image/png;base64,xyz";
-    const output = { timestampMs: 1000, dataUrl };
-    const result = buildToolMessageContent("captureScreenshot", output);
-    assert.ok(Array.isArray(result));
-    const textBlock = (result as Array<{ type: string; text?: string }>)[0]!;
-    assert.ok(typeof textBlock.text === "string");
-    assert.ok(textBlock.text.includes("1000"));
-  });
-});
+  it('text block includes the timestamp for context', () => {
+    const dataUrl = 'data:image/png;base64,xyz'
+    const output = { timestampMs: 1000, dataUrl }
+    const result = buildToolMessageContent('captureScreenshot', output)
+    assert.ok(Array.isArray(result))
+    const textBlock = (result as Array<{ type: string; text?: string }>)[0]!
+    assert.ok(typeof textBlock.text === 'string')
+    assert.ok(textBlock.text.includes('1000'))
+  })
+})
 
-describe("MAX_TOOL_ITERATIONS", () => {
-  it("is a positive integer of at least 10", () => {
-    assert.ok(typeof MAX_TOOL_ITERATIONS === "number");
-    assert.ok(Number.isInteger(MAX_TOOL_ITERATIONS));
-    assert.ok(MAX_TOOL_ITERATIONS >= 10);
-  });
+describe('MAX_TOOL_ITERATIONS', () => {
+  it('is a positive integer of at least 10', () => {
+    assert.ok(typeof MAX_TOOL_ITERATIONS === 'number')
+    assert.ok(Number.isInteger(MAX_TOOL_ITERATIONS))
+    assert.ok(MAX_TOOL_ITERATIONS >= 10)
+  })
 
-  it("defaults to 25", () => {
-    assert.strictEqual(MAX_TOOL_ITERATIONS, 25);
-  });
-});
+  it('defaults to 25', () => {
+    assert.strictEqual(MAX_TOOL_ITERATIONS, 25)
+  })
+})
 
-describe("buildIterationLimitMessage", () => {
-  it("returns an assistant message", () => {
-    const msg = buildIterationLimitMessage("fixed-id");
-    assert.strictEqual(msg.role, "assistant");
-  });
+describe('buildIterationLimitMessage', () => {
+  it('returns an assistant message', () => {
+    const msg = buildIterationLimitMessage('fixed-id')
+    assert.strictEqual(msg.role, 'assistant')
+  })
 
-  it("uses the provided id", () => {
-    const msg = buildIterationLimitMessage("my-id");
-    assert.strictEqual(msg.id, "my-id");
-  });
+  it('uses the provided id', () => {
+    const msg = buildIterationLimitMessage('my-id')
+    assert.strictEqual(msg.id, 'my-id')
+  })
 
-  it("content mentions iteration limit", () => {
-    const msg = buildIterationLimitMessage("x");
-    assert.ok(msg.content.includes("iteration limit"));
-  });
+  it('content mentions iteration limit', () => {
+    const msg = buildIterationLimitMessage('x')
+    assert.ok(msg.content.includes('iteration limit'))
+  })
 
-  it("content includes the MAX_TOOL_ITERATIONS count", () => {
-    const msg = buildIterationLimitMessage("x");
-    assert.ok(msg.content.includes(String(MAX_TOOL_ITERATIONS)));
-  });
+  it('content includes the MAX_TOOL_ITERATIONS count', () => {
+    const msg = buildIterationLimitMessage('x')
+    assert.ok(msg.content.includes(String(MAX_TOOL_ITERATIONS)))
+  })
 
-  it("has empty toolCalls array", () => {
-    const msg = buildIterationLimitMessage("x");
-    assert.deepStrictEqual(msg.toolCalls, []);
-  });
-});
+  it('has empty toolCalls array', () => {
+    const msg = buildIterationLimitMessage('x')
+    assert.deepStrictEqual(msg.toolCalls, [])
+  })
+})
 
 function makeEmptyAccessorNew(): RecordingDataAccessor {
   return {
@@ -589,541 +589,538 @@ function makeEmptyAccessorNew(): RecordingDataAccessor {
     getEventsByType: () => [],
     getEventsInRange: () => [],
     getResourceMap: () => ({}),
-  };
+  }
 }
 
 function makeMessageEvent(data: string): { data: string } {
-  return { data };
+  return { data }
 }
 
 function makeDeltaEvent(content: string): { data: string } {
   return makeMessageEvent(
     JSON.stringify({
       choices: [{ delta: { content } }],
-    }),
-  );
+    })
+  )
 }
 
 function makeSseStream(
-  events: Array<{ data: string }>,
+  events: Array<{ data: string }>
 ): ReadableStream<{ data: string }> {
-  let index = 0;
+  let index = 0
   return new ReadableStream<{ data: string }>({
     pull(controller) {
       if (index < events.length) {
-        controller.enqueue(events[index++]!);
+        controller.enqueue(events[index++]!)
       } else {
-        controller.close();
+        controller.close()
       }
     },
-  });
+  })
 }
 
 function waitForCondition(
   condition: () => boolean,
-  timeout = 2000,
+  timeout = 2000
 ): Promise<void> {
   return new Promise((res, rej) => {
-    const start = Date.now();
+    const start = Date.now()
     const interval = setInterval(() => {
       if (condition()) {
-        clearInterval(interval);
-        res();
+        clearInterval(interval)
+        res()
       } else if (Date.now() - start > timeout) {
-        clearInterval(interval);
-        rej(new Error("Condition timed out"));
+        clearInterval(interval)
+        rej(new Error('Condition timed out'))
       }
-    }, 10);
-  });
+    }, 10)
+  })
 }
 
-describe("createAgenticState — cancel and error handling", () => {
-  it("cancel() sets loading to cancelled", async () => {
+describe('createAgenticState — cancel and error handling', () => {
+  it('cancel() sets loading to cancelled', async () => {
     const streamProvider: StreamProvider = () =>
       resolve(
-        makeSseStream([makeDeltaEvent("partial"), makeMessageEvent("[DONE]")]),
-      ) as never;
+        makeSseStream([makeDeltaEvent('partial'), makeMessageEvent('[DONE]')])
+      ) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
-    state.cancel();
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
+    state.cancel()
 
-    assert.strictEqual(state.$loading.getValue(), "cancelled");
+    assert.strictEqual(state.$loading.getValue(), 'cancelled')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("cancel() aborts the signal passed to the stream provider", async () => {
-    let capturedSignal: AbortSignal | undefined;
+  it('cancel() aborts the signal passed to the stream provider', async () => {
+    let capturedSignal: AbortSignal | undefined
     const streamProvider: StreamProvider = (_ctx, _tools, signal) => {
-      capturedSignal = signal;
-      return resolve(new ReadableStream()) as never;
-    };
+      capturedSignal = signal
+      return resolve(new ReadableStream()) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => capturedSignal !== undefined);
+    await waitForCondition(() => capturedSignal !== undefined)
 
-    assert.ok(capturedSignal !== undefined);
-    assert.strictEqual(capturedSignal.aborted, false);
+    assert.ok(capturedSignal !== undefined)
+    assert.strictEqual(capturedSignal.aborted, false)
 
-    state.cancel();
+    state.cancel()
 
-    assert.strictEqual(capturedSignal.aborted, true);
+    assert.strictEqual(capturedSignal.aborted, true)
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("network error (TypeError) sets $error with retryable=true", async () => {
-    const networkError = new TypeError("Failed to fetch");
+  it('network error (TypeError) sets $error with retryable=true', async () => {
+    const networkError = new TypeError('Failed to fetch')
     const streamProvider: StreamProvider = () =>
-      futureReject(networkError) as never;
+      futureReject(networkError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000);
+    await waitForCondition(() => state.$error.getValue() !== null, 10000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(error.retryable, true);
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.retryable, true)
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("HTTP 500 sets $error with retryable=false and loading to none", async () => {
-    const httpError = { status: 500, statusText: "Internal Server Error" };
+  it('HTTP 500 sets $error with retryable=false and loading to none', async () => {
+    const httpError = { status: 500, statusText: 'Internal Server Error' }
     const streamProvider: StreamProvider = () =>
-      futureReject(httpError) as never;
+      futureReject(httpError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 5000);
+    await waitForCondition(() => state.$error.getValue() !== null, 5000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(error.retryable, false);
-    assert.strictEqual(state.$loading.getValue(), "none");
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.retryable, false)
+    assert.strictEqual(state.$loading.getValue(), 'none')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("HTTP 401 sets $error with retryable=false", async () => {
-    const httpError = { status: 401, statusText: "Unauthorized" };
+  it('HTTP 401 sets $error with retryable=false', async () => {
+    const httpError = { status: 401, statusText: 'Unauthorized' }
     const streamProvider: StreamProvider = () =>
-      futureReject(httpError) as never;
+      futureReject(httpError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 5000);
+    await waitForCondition(() => state.$error.getValue() !== null, 5000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(error.retryable, false);
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.retryable, false)
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("new query() clears $error", async () => {
-    const httpError = { status: 500, statusText: "Internal Server Error" };
-    let callCount = 0;
+  it('new query() clears $error', async () => {
+    const httpError = { status: 500, statusText: 'Internal Server Error' }
+    let callCount = 0
     const streamProvider: StreamProvider = () => {
-      callCount++;
+      callCount++
       if (callCount === 1) {
-        return futureReject(httpError) as never;
+        return futureReject(httpError) as never
       }
-      return resolve(new ReadableStream()) as never;
-    };
+      return resolve(new ReadableStream()) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("first");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('first')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 5000);
-    assert.ok(state.$error.getValue() !== null);
+    await waitForCondition(() => state.$error.getValue() !== null, 5000)
+    assert.ok(state.$error.getValue() !== null)
 
-    state.query("second");
+    state.query('second')
 
-    assert.strictEqual(state.$error.getValue(), null);
+    assert.strictEqual(state.$error.getValue(), null)
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("cancel() when no in-flight request still sets loading to cancelled", () => {
+  it('cancel() when no in-flight request still sets loading to cancelled', () => {
     const streamProvider: StreamProvider = () =>
-      resolve(new ReadableStream()) as never;
+      resolve(new ReadableStream()) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.cancel();
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.cancel()
 
-    assert.strictEqual(state.$loading.getValue(), "cancelled");
+    assert.strictEqual(state.$loading.getValue(), 'cancelled')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("AbortError from stream is silently swallowed — loading stays cancelled", async () => {
-    let resolveAbort!: () => void;
-    const abortPromise = new Promise<void>((res) => {
-      resolveAbort = res;
-    });
+  it('AbortError from stream is silently swallowed — loading stays cancelled', async () => {
+    let resolveAbort!: () => void
+    const abortPromise = new Promise<void>(res => {
+      resolveAbort = res
+    })
 
     const streamProvider: StreamProvider = (_ctx, _tools, signal) => {
       if (signal) {
-        signal.addEventListener("abort", () => resolveAbort());
+        signal.addEventListener('abort', () => resolveAbort())
       }
-      return resolve(new ReadableStream()) as never;
-    };
+      return resolve(new ReadableStream()) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
-    state.cancel();
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
+    state.cancel()
 
-    await abortPromise;
+    await abortPromise
 
-    assert.strictEqual(state.$loading.getValue(), "cancelled");
-    assert.strictEqual(state.$error.getValue(), null);
+    assert.strictEqual(state.$loading.getValue(), 'cancelled')
+    assert.strictEqual(state.$error.getValue(), null)
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("HTTP 429 is retryable and sets $error after exhausting retries", async () => {
-    const rateLimitError = { status: 429 };
-    let callCount = 0;
+  it('HTTP 429 is retryable and sets $error after exhausting retries', async () => {
+    const rateLimitError = { status: 429 }
+    let callCount = 0
     const streamProvider: StreamProvider = () => {
-      callCount++;
-      return futureReject(rateLimitError) as never;
-    };
+      callCount++
+      return futureReject(rateLimitError) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000);
+    await waitForCondition(() => state.$error.getValue() !== null, 10000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(error.retryable, true);
-    assert.ok(callCount >= 3);
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.retryable, true)
+    assert.ok(callCount >= 3)
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("HTTP 503 is retryable and sets $error after exhausting retries", async () => {
-    const serviceUnavailableError = { status: 503 };
+  it('HTTP 503 is retryable and sets $error after exhausting retries', async () => {
+    const serviceUnavailableError = { status: 503 }
     const streamProvider: StreamProvider = () =>
-      futureReject(serviceUnavailableError) as never;
+      futureReject(serviceUnavailableError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000);
+    await waitForCondition(() => state.$error.getValue() !== null, 10000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(error.retryable, true);
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.retryable, true)
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("HTTP 408 is retryable and sets $error after exhausting retries", async () => {
-    const timeoutError = { status: 408 };
+  it('HTTP 408 is retryable and sets $error after exhausting retries', async () => {
+    const timeoutError = { status: 408 }
     const streamProvider: StreamProvider = () =>
-      futureReject(timeoutError) as never;
+      futureReject(timeoutError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000);
+    await waitForCondition(() => state.$error.getValue() !== null, 10000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(error.retryable, true);
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.retryable, true)
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
   it("HTTP 403 sets $error with retryable=false and message 'Access denied.'", async () => {
-    const forbiddenError = { status: 403 };
+    const forbiddenError = { status: 403 }
     const streamProvider: StreamProvider = () =>
-      futureReject(forbiddenError) as never;
+      futureReject(forbiddenError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 5000);
+    await waitForCondition(() => state.$error.getValue() !== null, 5000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(error.retryable, false);
-    assert.strictEqual(error.message, "Access denied.");
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.retryable, false)
+    assert.strictEqual(error.message, 'Access denied.')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("HTTP 401 sets friendly authentication-failed message", async () => {
-    const authError = { status: 401 };
+  it('HTTP 401 sets friendly authentication-failed message', async () => {
+    const authError = { status: 401 }
     const streamProvider: StreamProvider = () =>
-      futureReject(authError) as never;
+      futureReject(authError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 5000);
+    await waitForCondition(() => state.$error.getValue() !== null, 5000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
     assert.strictEqual(
       error.message,
-      "Authentication failed. Please refresh and try again.",
-    );
+      'Authentication failed. Please refresh and try again.'
+    )
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("HTTP 500 sets server-error message", async () => {
-    const serverError = { status: 500 };
+  it('HTTP 500 sets server-error message', async () => {
+    const serverError = { status: 500 }
     const streamProvider: StreamProvider = () =>
-      futureReject(serverError) as never;
+      futureReject(serverError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 5000);
+    await waitForCondition(() => state.$error.getValue() !== null, 5000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(error.message, "Server error. Please try again.");
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.message, 'Server error. Please try again.')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("network error sets generic fallback message", async () => {
-    const networkError = new TypeError("Failed to fetch");
+  it('network error sets generic fallback message', async () => {
+    const networkError = new TypeError('Failed to fetch')
     const streamProvider: StreamProvider = () =>
-      futureReject(networkError) as never;
+      futureReject(networkError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000);
+    await waitForCondition(() => state.$error.getValue() !== null, 10000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(
-      error.message,
-      "Something went wrong. Please try again.",
-    );
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.message, 'Something went wrong. Please try again.')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("$error.attempt is 0 for first immediate non-retryable failure", async () => {
-    const httpError = { status: 500 };
+  it('$error.attempt is 0 for first immediate non-retryable failure', async () => {
+    const httpError = { status: 500 }
     const streamProvider: StreamProvider = () =>
-      futureReject(httpError) as never;
+      futureReject(httpError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 5000);
+    await waitForCondition(() => state.$error.getValue() !== null, 5000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(error.attempt, 0);
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.attempt, 0)
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("$error.attempt records retryAttempt at time of final failure (should be 2 for 429 after 3 tries)", async () => {
-    const rateLimitError = { status: 429 };
+  it('$error.attempt records retryAttempt at time of final failure (should be 2 for 429 after 3 tries)', async () => {
+    const rateLimitError = { status: 429 }
     const streamProvider: StreamProvider = () =>
-      futureReject(rateLimitError) as never;
+      futureReject(rateLimitError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000);
+    await waitForCondition(() => state.$error.getValue() !== null, 10000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(error.attempt, 2);
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.attempt, 2)
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("destroy() aborts in-flight work", async () => {
-    let capturedSignal: AbortSignal | undefined;
+  it('destroy() aborts in-flight work', async () => {
+    let capturedSignal: AbortSignal | undefined
     const streamProvider: StreamProvider = (_ctx, _tools, signal) => {
-      capturedSignal = signal;
-      return resolve(new ReadableStream()) as never;
-    };
+      capturedSignal = signal
+      return resolve(new ReadableStream()) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => capturedSignal !== undefined);
+    await waitForCondition(() => capturedSignal !== undefined)
 
-    assert.strictEqual(capturedSignal!.aborted, false);
+    assert.strictEqual(capturedSignal!.aborted, false)
 
-    state.destroy();
+    state.destroy()
 
-    assert.strictEqual(capturedSignal!.aborted, true);
-  });
+    assert.strictEqual(capturedSignal!.aborted, true)
+  })
 
-  it("successful completion sets loading to none and $error stays null", async () => {
+  it('successful completion sets loading to none and $error stays null', async () => {
     const stream = makeSseStream([
-      makeDeltaEvent("response text"),
-      makeMessageEvent("[DONE]"),
-    ]);
-    const streamProvider: StreamProvider = () => resolve(stream) as never;
+      makeDeltaEvent('response text'),
+      makeMessageEvent('[DONE]'),
+    ])
+    const streamProvider: StreamProvider = () => resolve(stream) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$loading.getValue() === "none", 5000);
+    await waitForCondition(() => state.$loading.getValue() === 'none', 5000)
 
-    assert.strictEqual(state.$loading.getValue(), "none");
-    assert.strictEqual(state.$error.getValue(), null);
+    assert.strictEqual(state.$loading.getValue(), 'none')
+    assert.strictEqual(state.$error.getValue(), null)
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
   it('HTTP 429 final failure sets try-again message (not "Retrying...")', async () => {
-    const rateLimitError = { status: 429 };
+    const rateLimitError = { status: 429 }
     const streamProvider: StreamProvider = () =>
-      futureReject(rateLimitError) as never;
+      futureReject(rateLimitError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000);
+    await waitForCondition(() => state.$error.getValue() !== null, 10000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(error.message, "Rate limit reached. Please try again.");
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.message, 'Rate limit reached. Please try again.')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
   it('HTTP 503 final failure sets try-again message (not "Retrying...")', async () => {
-    const serviceUnavailableError = { status: 503 };
+    const serviceUnavailableError = { status: 503 }
     const streamProvider: StreamProvider = () =>
-      futureReject(serviceUnavailableError) as never;
+      futureReject(serviceUnavailableError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 10000);
+    await waitForCondition(() => state.$error.getValue() !== null, 10000)
 
-    const error = state.$error.getValue();
-    assert.ok(error !== null);
-    assert.strictEqual(error.message, "Connection lost. Please try again.");
+    const error = state.$error.getValue()
+    assert.ok(error !== null)
+    assert.strictEqual(error.message, 'Connection lost. Please try again.')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("cancel() while retry is pending does not trigger another request", async () => {
-    const rateLimitError = { status: 429 };
-    let callCount = 0;
+  it('cancel() while retry is pending does not trigger another request', async () => {
+    const rateLimitError = { status: 429 }
+    let callCount = 0
     const streamProvider: StreamProvider = () => {
-      callCount++;
-      return futureReject(rateLimitError) as never;
-    };
+      callCount++
+      return futureReject(rateLimitError) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
-    await waitForCondition(() => callCount >= 1);
+    await waitForCondition(() => callCount >= 1)
 
-    state.cancel();
+    state.cancel()
 
-    const countAfterCancel = callCount;
+    const countAfterCancel = callCount
 
     // Wait long enough for the cancelled→none transition (1500ms) to have fired
-    await new Promise((res) => setTimeout(res, 2000));
+    await new Promise(res => setTimeout(res, 2000))
 
-    assert.strictEqual(callCount, countAfterCancel);
+    assert.strictEqual(callCount, countAfterCancel)
     // After the transition delay, loading should be back to 'none'
-    assert.strictEqual(state.$loading.getValue(), "none");
+    assert.strictEqual(state.$loading.getValue(), 'none')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
   it("cancel() transitions loading from 'cancelled' to 'none' after ~1500ms", async () => {
     const streamProvider: StreamProvider = () =>
-      resolve(new ReadableStream()) as never;
+      resolve(new ReadableStream()) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
-    state.cancel();
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
+    state.cancel()
 
     // Immediately after cancel(), loading should be 'cancelled'
-    assert.strictEqual(state.$loading.getValue(), "cancelled");
+    assert.strictEqual(state.$loading.getValue(), 'cancelled')
 
     // After ~1500ms, loading should reset to 'none'
-    await waitForCondition(() => state.$loading.getValue() === "none", 3000);
-    assert.strictEqual(state.$loading.getValue(), "none");
+    await waitForCondition(() => state.$loading.getValue() === 'none', 3000)
+    assert.strictEqual(state.$loading.getValue(), 'none')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
   it("cancel() while streaming does not let subsequent stream chunks revert loading to 'responding'", async () => {
     // A slow SSE stream that pauses between events via a promise
-    let releasePull!: () => void;
-    let pullCount = 0;
+    let releasePull!: () => void
+    let pullCount = 0
     const events = [
-      makeDeltaEvent("chunk1"),
-      makeDeltaEvent("chunk2"),
-      makeMessageEvent("[DONE]"),
-    ];
-    let eventIndex = 0;
+      makeDeltaEvent('chunk1'),
+      makeDeltaEvent('chunk2'),
+      makeMessageEvent('[DONE]'),
+    ]
+    let eventIndex = 0
 
     const slowStream = new ReadableStream<{ data: string }>({
       pull(controller) {
-        pullCount++;
+        pullCount++
         // Pause after the first pull so we can cancel mid-stream
-        return new Promise<void>((res) => {
-          releasePull = res;
+        return new Promise<void>(res => {
+          releasePull = res
           // Auto-release after a short delay to avoid test hanging
           setTimeout(() => {
             if (eventIndex < events.length) {
-              controller.enqueue(events[eventIndex++]!);
+              controller.enqueue(events[eventIndex++]!)
             } else {
-              controller.close();
+              controller.close()
             }
-            res();
-          }, 50);
-        });
+            res()
+          }, 50)
+        })
       },
-    });
+    })
 
-    const streamProvider: StreamProvider = () => resolve(slowStream) as never;
+    const streamProvider: StreamProvider = () => resolve(slowStream) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
     // Wait for the pull function to be called at least once (stream started)
-    await waitForCondition(() => pullCount >= 1);
+    await waitForCondition(() => pullCount >= 1)
 
-    state.cancel();
+    state.cancel()
 
     // Immediately after cancel, loading must be 'cancelled'
-    assert.strictEqual(state.$loading.getValue(), "cancelled");
+    assert.strictEqual(state.$loading.getValue(), 'cancelled')
 
     // Release the paused pull so any pending chunks can arrive
-    if (releasePull) releasePull();
+    if (releasePull) releasePull()
 
     // Wait 100ms for any async events to process
-    await new Promise((res) => setTimeout(res, 100));
+    await new Promise(res => setTimeout(res, 100))
 
     // Loading must still be 'cancelled' — not reverted to 'responding'
-    assert.strictEqual(state.$loading.getValue(), "cancelled");
+    assert.strictEqual(state.$loading.getValue(), 'cancelled')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("cancel() during tool-executing stops tool calls and does not trigger a new LLM request", async () => {
+  it('cancel() during tool-executing stops tool calls and does not trigger a new LLM request', async () => {
     // Build an SSE event that carries a tool call (no content — assistant requests a tool)
     const toolCallEvent = JSON.stringify({
       choices: [
@@ -1132,184 +1129,184 @@ describe("createAgenticState — cancel and error handling", () => {
             tool_calls: [
               {
                 index: 0,
-                id: "tc1",
-                function: { name: "getRecordingDuration", arguments: "{}" },
+                id: 'tc1',
+                function: { name: 'getRecordingDuration', arguments: '{}' },
               },
             ],
           },
         },
       ],
-    });
+    })
 
     // Block the second LLM request indefinitely so we can detect if it fires at all
-    let streamCallCount = 0;
+    let streamCallCount = 0
     const streamProvider: StreamProvider = () => {
-      streamCallCount++;
+      streamCallCount++
       if (streamCallCount === 1) {
         // First call: return a tool-call completion stream
         return resolve(
           new ReadableStream<{ data: string }>({
             start(controller) {
-              controller.enqueue({ data: toolCallEvent });
-              controller.enqueue({ data: "[DONE]" });
-              controller.close();
+              controller.enqueue({ data: toolCallEvent })
+              controller.enqueue({ data: '[DONE]' })
+              controller.close()
             },
-          }),
-        ) as never;
+          })
+        ) as never
       }
       // Any subsequent call: return a stream that never emits, so we can detect
       // that it was triggered at all
-      return resolve(new ReadableStream()) as never;
-    };
+      return resolve(new ReadableStream()) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
     // Wait until the first LLM request has been initiated (streamCallCount >= 1)
     // and the stream has had time to process its events asynchronously
-    await waitForCondition(() => streamCallCount >= 1);
+    await waitForCondition(() => streamCallCount >= 1)
 
     // Give the stream a tick to process its events (tool_calls + [DONE])
-    await new Promise((res) => setTimeout(res, 50));
+    await new Promise(res => setTimeout(res, 50))
 
     // Now cancel — at this point the tool Future may or may not have run.
     // The key invariant: after cancel(), no *new* LLM request should fire.
-    state.cancel();
+    state.cancel()
 
-    const countAtCancel = streamCallCount;
+    const countAtCancel = streamCallCount
 
     // Wait long enough for any async tool completion and toolCallTrigger to fire
-    await new Promise((res) => setTimeout(res, 500));
+    await new Promise(res => setTimeout(res, 500))
 
     // No new LLM request should have been triggered after cancel()
     assert.strictEqual(
       streamCallCount,
       countAtCancel,
-      `Expected no new LLM request after cancel(), but streamCallCount went from ${countAtCancel} to ${streamCallCount}`,
-    );
+      `Expected no new LLM request after cancel(), but streamCallCount went from ${countAtCancel} to ${streamCallCount}`
+    )
 
     // Loading must not be in an active state — must be 'cancelled' or 'none'
-    const loadingVal = state.$loading.getValue();
+    const loadingVal = state.$loading.getValue()
     assert.ok(
-      loadingVal === "cancelled" || loadingVal === "none",
-      `Expected loading to be 'cancelled' or 'none', got '${loadingVal}'`,
-    );
+      loadingVal === 'cancelled' || loadingVal === 'none',
+      `Expected loading to be 'cancelled' or 'none', got '${loadingVal}'`
+    )
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("cancel() is idempotent — calling it twice does not throw", () => {
+  it('cancel() is idempotent — calling it twice does not throw', () => {
     const streamProvider: StreamProvider = () =>
-      resolve(new ReadableStream()) as never;
+      resolve(new ReadableStream()) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
     // First cancel: sets currentAbortController to null and flags cancelled
-    assert.doesNotThrow(() => state.cancel());
+    assert.doesNotThrow(() => state.cancel())
     // Second cancel: currentAbortController is already null — must not throw
-    assert.doesNotThrow(() => state.cancel());
+    assert.doesNotThrow(() => state.cancel())
 
-    assert.strictEqual(state.$loading.getValue(), "cancelled");
+    assert.strictEqual(state.$loading.getValue(), 'cancelled')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("query() after cancel() resets cancelled flag so new stream chunks update loading normally", async () => {
+  it('query() after cancel() resets cancelled flag so new stream chunks update loading normally', async () => {
     // First query: cancel it immediately
     const streamProvider: StreamProvider = () =>
-      resolve(new ReadableStream()) as never;
+      resolve(new ReadableStream()) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("first");
-    state.cancel();
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('first')
+    state.cancel()
 
-    assert.strictEqual(state.$loading.getValue(), "cancelled");
+    assert.strictEqual(state.$loading.getValue(), 'cancelled')
 
     // Second query: cancelled flag must be cleared so the stream can set loading
     // to 'responding' when message content arrives
     const secondStreamProvider: StreamProvider = () =>
       // Return a stream that yields a content chunk then done
       resolve(
-        makeSseStream([makeDeltaEvent("hello"), makeMessageEvent("[DONE]")]),
-      ) as never;
+        makeSseStream([makeDeltaEvent('hello'), makeMessageEvent('[DONE]')])
+      ) as never
 
     // We need a new state instance because the stream provider is captured at
     // construction time — but we can verify the same behaviour inline by
     // re-issuing query() on the same state after cancelling.
     const state2 = createAgenticState(
       secondStreamProvider,
-      makeEmptyAccessorNew(),
-    );
-    state2.query("first");
-    state2.cancel();
+      makeEmptyAccessorNew()
+    )
+    state2.query('first')
+    state2.cancel()
     // Now query again — cancelled must be cleared
-    state2.query("second");
+    state2.query('second')
 
     // Wait for loading to reach 'none' (successful completion)
-    await waitForCondition(() => state2.$loading.getValue() === "none", 5000);
-    assert.strictEqual(state2.$loading.getValue(), "none");
+    await waitForCondition(() => state2.$loading.getValue() === 'none', 5000)
+    assert.strictEqual(state2.$loading.getValue(), 'none')
 
-    state.destroy();
-    state2.destroy();
-  });
+    state.destroy()
+    state2.destroy()
+  })
 
-  it("cancelled flag does not block setEntryMap() — message content accumulates after cancel", async () => {
+  it('cancelled flag does not block setEntryMap() — message content accumulates after cancel', async () => {
     // Build a stream that delivers a content chunk AFTER we cancel.
     // We pause the stream using a promise, cancel, then let it proceed.
-    let releaseChunk!: () => void;
-    const chunkReleased = new Promise<void>((res) => {
-      releaseChunk = res;
-    });
+    let releaseChunk!: () => void
+    const chunkReleased = new Promise<void>(res => {
+      releaseChunk = res
+    })
 
-    let streamStarted = false;
+    let streamStarted = false
     const slowStream = new ReadableStream<{ data: string }>({
       async pull(controller) {
-        streamStarted = true;
+        streamStarted = true
         // Block until we release
-        await chunkReleased;
-        controller.enqueue(makeDeltaEvent("content after cancel"));
-        controller.enqueue(makeMessageEvent("[DONE]"));
-        controller.close();
+        await chunkReleased
+        controller.enqueue(makeDeltaEvent('content after cancel'))
+        controller.enqueue(makeMessageEvent('[DONE]'))
+        controller.close()
       },
-    });
+    })
 
-    const streamProvider: StreamProvider = () => resolve(slowStream) as never;
+    const streamProvider: StreamProvider = () => resolve(slowStream) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
     // Wait until the stream pull has been invoked
-    await waitForCondition(() => streamStarted);
+    await waitForCondition(() => streamStarted)
 
-    state.cancel();
+    state.cancel()
 
     // Release the stream — chunk arrives after cancel
-    releaseChunk();
+    releaseChunk()
 
     // Give RxJS time to process the chunk
-    await new Promise((res) => setTimeout(res, 150));
+    await new Promise(res => setTimeout(res, 150))
 
     // The assistant entry should have been written (setEntryMap is not guarded)
-    const entries = state.$entries.getValue();
-    const assistantEntries = entries.filter((e) => e.role === "assistant");
+    const entries = state.$entries.getValue()
+    const assistantEntries = entries.filter(e => e.role === 'assistant')
     assert.ok(
       assistantEntries.length > 0,
-      "Expected at least one assistant entry even though cancelled",
-    );
+      'Expected at least one assistant entry even though cancelled'
+    )
 
     // But loading must NOT have been set to 'responding' — it stays 'cancelled'
     // (or 'none' after the 1500ms timeout, but 150ms have not elapsed that long)
-    const loading = state.$loading.getValue();
+    const loading = state.$loading.getValue()
     assert.ok(
-      loading === "cancelled" || loading === "none",
-      `Expected loading to remain 'cancelled', got '${loading}'`,
-    );
+      loading === 'cancelled' || loading === 'none',
+      `Expected loading to remain 'cancelled', got '${loading}'`
+    )
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("destroy() cleans up currentToolSubscription", async () => {
+  it('destroy() cleans up currentToolSubscription', async () => {
     // Build a stream that triggers a tool call, then destroy before the
     // tool Future settles — the subscription should be unsubscribed without error.
     const toolCallEvent = JSON.stringify({
@@ -1319,54 +1316,54 @@ describe("createAgenticState — cancel and error handling", () => {
             tool_calls: [
               {
                 index: 0,
-                id: "tc1",
-                function: { name: "getRecordingDuration", arguments: "{}" },
+                id: 'tc1',
+                function: { name: 'getRecordingDuration', arguments: '{}' },
               },
             ],
           },
         },
       ],
-    });
+    })
 
-    let streamCallCount = 0;
+    let streamCallCount = 0
     const streamProvider: StreamProvider = () => {
-      streamCallCount++;
+      streamCallCount++
       if (streamCallCount === 1) {
         return resolve(
           new ReadableStream<{ data: string }>({
             start(controller) {
-              controller.enqueue({ data: toolCallEvent });
-              controller.enqueue({ data: "[DONE]" });
-              controller.close();
+              controller.enqueue({ data: toolCallEvent })
+              controller.enqueue({ data: '[DONE]' })
+              controller.close()
             },
-          }),
-        ) as never;
+          })
+        ) as never
       }
       // Subsequent calls: never-ending stream (should not be reached)
-      return resolve(new ReadableStream()) as never;
-    };
+      return resolve(new ReadableStream()) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("hello");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('hello')
 
     // Wait until the first stream has been consumed (tool-executing state)
     await waitForCondition(
       () =>
-        state.$loading.getValue() === "tool-executing" || streamCallCount >= 1,
-      5000,
-    );
+        state.$loading.getValue() === 'tool-executing' || streamCallCount >= 1,
+      5000
+    )
 
     // Give the Future a tick to start executing (but not necessarily finish)
-    await new Promise((res) => setTimeout(res, 10));
+    await new Promise(res => setTimeout(res, 10))
 
     // destroy() must not throw even if currentToolSubscription is set
-    assert.doesNotThrow(() => state.destroy());
-  });
-});
+    assert.doesNotThrow(() => state.destroy())
+  })
+})
 
 // ─── token estimate caching ──────────────────────────────────────────────────
 
-describe("token estimate caching", () => {
+describe('token estimate caching', () => {
   // Local helpers for this describe block
   function makeEmptyAccessorLocal(): RecordingDataAccessor {
     return {
@@ -1375,41 +1372,41 @@ describe("token estimate caching", () => {
       getEventsByType: () => [],
       getEventsInRange: () => [],
       getResourceMap: () => ({}),
-    };
+    }
   }
 
   function waitForConditionLocal(
     predicate: () => boolean,
-    timeout = 10000,
+    timeout = 10000
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const start = Date.now();
+      const start = Date.now()
       function check() {
-        if (predicate()) return resolve();
-        if (Date.now() - start > timeout) return reject(new Error("timeout"));
-        setTimeout(check, 10);
+        if (predicate()) return resolve()
+        if (Date.now() - start > timeout) return reject(new Error('timeout'))
+        setTimeout(check, 10)
       }
-      check();
-    });
+      check()
+    })
   }
 
   function makeTextStream(content: string): ReadableStream<{ data: string }> {
     const event = JSON.stringify({
       choices: [{ delta: { content } }],
-    });
+    })
     return new ReadableStream<{ data: string }>({
       start(controller) {
-        controller.enqueue({ data: event });
-        controller.enqueue({ data: "[DONE]" });
-        controller.close();
+        controller.enqueue({ data: event })
+        controller.enqueue({ data: '[DONE]' })
+        controller.close()
       },
-    });
+    })
   }
 
   function makeToolCallStream(
     toolCallId: string,
     toolName: string,
-    args = "{}",
+    args = '{}'
   ): ReadableStream<{ data: string }> {
     const toolCallEvent = JSON.stringify({
       choices: [
@@ -1425,146 +1422,144 @@ describe("token estimate caching", () => {
           },
         },
       ],
-    });
+    })
     return new ReadableStream<{ data: string }>({
       start(controller) {
-        controller.enqueue({ data: toolCallEvent });
-        controller.enqueue({ data: "[DONE]" });
-        controller.close();
+        controller.enqueue({ data: toolCallEvent })
+        controller.enqueue({ data: '[DONE]' })
+        controller.close()
       },
-    });
+    })
   }
 
-  it("entries accumulate correctly across multiple fetchResponse calls (cache correctness)", async () => {
+  it('entries accumulate correctly across multiple fetchResponse calls (cache correctness)', async () => {
     // Drive the state machine through 2 LLM turns:
     //   turn 1: user → assistant (tool call)
     //   turn 2: tool result → assistant (text response)
     // After both turns complete, entries must reflect the full conversation history.
     // This verifies that caching does not corrupt context passed to subsequent calls.
-    let callCount = 0;
-    let secondRequestDone = false;
+    let callCount = 0
+    let secondRequestDone = false
 
     const streamProvider: StreamProvider = () => {
-      callCount++;
+      callCount++
       if (callCount === 1) {
         // First request: return a tool call
         return resolve(
-          makeToolCallStream("tc1", "getRecordingDuration"),
-        ) as never;
+          makeToolCallStream('tc1', 'getRecordingDuration')
+        ) as never
       }
       // Second request: return plain text to end the loop
-      secondRequestDone = true;
-      return resolve(makeTextStream("done")) as never;
-    };
+      secondRequestDone = true
+      return resolve(makeTextStream('done')) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorLocal());
-    state.query("hello world");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorLocal())
+    state.query('hello world')
 
-    await waitForConditionLocal(() => secondRequestDone, 10000);
+    await waitForConditionLocal(() => secondRequestDone, 10000)
     // Give the final stream time to complete
-    await new Promise((res) => setTimeout(res, 200));
+    await new Promise(res => setTimeout(res, 200))
 
-    const entries = state.$entries.getValue();
+    const entries = state.$entries.getValue()
 
     // Expect: user message + assistant (tool call) + tool result + assistant (text)
-    const userEntries = entries.filter((e) => e.role === "user");
-    const assistantEntries = entries.filter((e) => e.role === "assistant");
-    const toolEntries = entries.filter((e) => e.role === "tool");
+    const userEntries = entries.filter(e => e.role === 'user')
+    const assistantEntries = entries.filter(e => e.role === 'assistant')
+    const toolEntries = entries.filter(e => e.role === 'tool')
 
-    assert.strictEqual(userEntries.length, 1, "Expected exactly 1 user entry");
+    assert.strictEqual(userEntries.length, 1, 'Expected exactly 1 user entry')
     assert.ok(
       assistantEntries.length >= 2,
-      `Expected at least 2 assistant entries (tool call + text response), got ${assistantEntries.length}`,
-    );
+      `Expected at least 2 assistant entries (tool call + text response), got ${assistantEntries.length}`
+    )
     assert.strictEqual(
       toolEntries.length,
       1,
-      "Expected exactly 1 tool result entry",
-    );
+      'Expected exactly 1 tool result entry'
+    )
 
     // Verify both fetchResponse calls completed (streamProvider was called twice)
-    assert.strictEqual(callCount, 2, "Expected exactly 2 fetchResponse calls");
+    assert.strictEqual(callCount, 2, 'Expected exactly 2 fetchResponse calls')
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("reset() clears entries and allows a fresh query", async () => {
+  it('reset() clears entries and allows a fresh query', async () => {
     // After reset(), all entries are cleared. A subsequent query must start
     // a fresh conversation (no stale entries from before reset).
-    let callCount = 0;
-    let firstQueryDone = false;
-    let secondQueryDone = false;
+    let callCount = 0
+    let firstQueryDone = false
+    let secondQueryDone = false
 
     const streamProvider: StreamProvider = () => {
-      callCount++;
+      callCount++
       if (callCount === 1) {
-        firstQueryDone = true;
-        return resolve(makeTextStream("first response")) as never;
+        firstQueryDone = true
+        return resolve(makeTextStream('first response')) as never
       }
       // Second query's stream
-      secondQueryDone = true;
-      return resolve(makeTextStream("second response")) as never;
-    };
+      secondQueryDone = true
+      return resolve(makeTextStream('second response')) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorLocal());
+    const state = createAgenticState(streamProvider, makeEmptyAccessorLocal())
 
     // First query
-    state.query("first question");
-    await waitForConditionLocal(() => firstQueryDone, 5000);
-    await new Promise((res) => setTimeout(res, 100));
+    state.query('first question')
+    await waitForConditionLocal(() => firstQueryDone, 5000)
+    await new Promise(res => setTimeout(res, 100))
 
-    const entriesBeforeReset = state.$entries.getValue();
+    const entriesBeforeReset = state.$entries.getValue()
     assert.ok(
       entriesBeforeReset.length >= 2,
-      `Expected at least 2 entries after first query, got ${entriesBeforeReset.length}`,
-    );
+      `Expected at least 2 entries after first query, got ${entriesBeforeReset.length}`
+    )
 
     // Reset — must clear all entries and any internal cache
-    state.reset();
+    state.reset()
 
-    const entriesAfterReset = state.$entries.getValue();
+    const entriesAfterReset = state.$entries.getValue()
     assert.strictEqual(
       entriesAfterReset.length,
       0,
-      "Expected 0 entries immediately after reset()",
-    );
+      'Expected 0 entries immediately after reset()'
+    )
 
     // Second query — must work correctly from a clean slate
-    state.query("second question");
-    await waitForConditionLocal(() => secondQueryDone, 5000);
-    await new Promise((res) => setTimeout(res, 100));
+    state.query('second question')
+    await waitForConditionLocal(() => secondQueryDone, 5000)
+    await new Promise(res => setTimeout(res, 100))
 
-    const entriesAfterSecondQuery = state.$entries.getValue();
+    const entriesAfterSecondQuery = state.$entries.getValue()
     // Should only have entries from the second query (user + assistant)
-    const userEntries = entriesAfterSecondQuery.filter(
-      (e) => e.role === "user",
-    );
+    const userEntries = entriesAfterSecondQuery.filter(e => e.role === 'user')
     const assistantEntries = entriesAfterSecondQuery.filter(
-      (e) => e.role === "assistant",
-    );
+      e => e.role === 'assistant'
+    )
 
     assert.strictEqual(
       userEntries.length,
       1,
-      "Expected exactly 1 user entry after reset + second query",
-    );
+      'Expected exactly 1 user entry after reset + second query'
+    )
     assert.strictEqual(
       assistantEntries.length,
       1,
-      "Expected exactly 1 assistant entry after reset + second query",
-    );
+      'Expected exactly 1 assistant entry after reset + second query'
+    )
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
   // Note: the cache-hit verification test (estimateTokens called at most once
   // per unique entry) lives in createState.cache.test.ts. It requires a
   // separate file with no static import of createState so that mock.module()
   // intercepts the very first load and the spy binding is active when
   // createState.ts is evaluated.
-});
+})
 
-describe("createAgenticState — options.tools override", () => {
+describe('createAgenticState — options.tools override', () => {
   function makeEmptyAccessor(): RecordingDataAccessor {
     return {
       getDuration: () => 0,
@@ -1572,56 +1567,56 @@ describe("createAgenticState — options.tools override", () => {
       getEventsByType: () => [],
       getEventsInRange: () => [],
       getResourceMap: () => ({}),
-    };
+    }
   }
 
-  it("passes the full default tools array to streamProvider when no override is given", async () => {
-    const { tools: defaultTools } = await import("./model/tools/index");
-    let capturedTools: unknown[] = [];
+  it('passes the full default tools array to streamProvider when no override is given', async () => {
+    const { tools: defaultTools } = await import('./model/tools/index')
+    let capturedTools: unknown[] = []
 
     const streamProvider: StreamProvider = (_ctx, toolDefs) => {
-      capturedTools = toolDefs;
-      return resolve(new ReadableStream()) as never;
-    };
+      capturedTools = toolDefs
+      return resolve(new ReadableStream()) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessor());
-    state.query("test");
+    const state = createAgenticState(streamProvider, makeEmptyAccessor())
+    state.query('test')
 
-    await new Promise((res) => setTimeout(res, 50));
-    assert.deepStrictEqual(capturedTools, defaultTools);
-    state.destroy();
-  });
+    await new Promise(res => setTimeout(res, 50))
+    assert.deepStrictEqual(capturedTools, defaultTools)
+    state.destroy()
+  })
 
-  it("passes the override tools array to streamProvider when options.tools is given", async () => {
+  it('passes the override tools array to streamProvider when options.tools is given', async () => {
     const customTools = [
       {
-        type: "function" as const,
+        type: 'function' as const,
         function: {
-          name: "customTool",
-          description: "A custom tool",
-          parameters: { type: "object", properties: {}, required: [] },
+          name: 'customTool',
+          description: 'A custom tool',
+          parameters: { type: 'object', properties: {}, required: [] },
         },
       },
-    ];
-    let capturedTools: unknown[] = [];
+    ]
+    let capturedTools: unknown[] = []
 
     const streamProvider: StreamProvider = (_ctx, toolDefs) => {
-      capturedTools = toolDefs;
-      return resolve(new ReadableStream()) as never;
-    };
+      capturedTools = toolDefs
+      return resolve(new ReadableStream()) as never
+    }
 
     const state = createAgenticState(streamProvider, makeEmptyAccessor(), {
       tools: customTools,
-    });
-    state.query("test");
+    })
+    state.query('test')
 
-    await new Promise((res) => setTimeout(res, 50));
-    assert.deepStrictEqual(capturedTools, customTools);
-    state.destroy();
-  });
-});
+    await new Promise(res => setTimeout(res, 50))
+    assert.deepStrictEqual(capturedTools, customTools)
+    state.destroy()
+  })
+})
 
-describe("reset()", () => {
+describe('reset()', () => {
   function makeEmptyAccessorNew(): RecordingDataAccessor {
     return {
       getDuration: () => 0,
@@ -1629,35 +1624,35 @@ describe("reset()", () => {
       getEventsByType: () => [],
       getEventsInRange: () => [],
       getResourceMap: () => ({}),
-    };
+    }
   }
 
   function waitForCondition(
     predicate: () => boolean,
-    timeout = 5000,
+    timeout = 5000
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const start = Date.now();
+      const start = Date.now()
       function check() {
-        if (predicate()) return resolve();
-        if (Date.now() - start > timeout) return reject(new Error("timeout"));
-        setTimeout(check, 10);
+        if (predicate()) return resolve()
+        if (Date.now() - start > timeout) return reject(new Error('timeout'))
+        setTimeout(check, 10)
       }
-      check();
-    });
+      check()
+    })
   }
 
   function makeSseStream(
-    events: Array<{ data: string }>,
+    events: Array<{ data: string }>
   ): ReadableStream<{ data: string }> {
     return new ReadableStream({
       start(controller) {
         for (const event of events) {
-          controller.enqueue(event);
+          controller.enqueue(event)
         }
-        controller.close();
+        controller.close()
       },
-    });
+    })
   }
 
   function makeDeltaEvent(content: string): { data: string } {
@@ -1665,416 +1660,416 @@ describe("reset()", () => {
       data: JSON.stringify({
         choices: [{ delta: { content } }],
       }),
-    };
+    }
   }
 
   function makeMessageEvent(data: string): { data: string } {
-    return { data };
+    return { data }
   }
 
-  it("reset() clears all entries", async () => {
+  it('reset() clears all entries', async () => {
     const stream = makeSseStream([
-      makeDeltaEvent("hello"),
-      makeMessageEvent("[DONE]"),
-    ]);
-    const streamProvider: StreamProvider = () => resolve(stream) as never;
+      makeDeltaEvent('hello'),
+      makeMessageEvent('[DONE]'),
+    ])
+    const streamProvider: StreamProvider = () => resolve(stream) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("test");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('test')
 
-    await waitForCondition(() => state.$entries.getValue().length > 0);
+    await waitForCondition(() => state.$entries.getValue().length > 0)
 
-    state.reset();
+    state.reset()
 
-    assert.deepStrictEqual(state.$entries.getValue(), []);
-    state.destroy();
-  });
+    assert.deepStrictEqual(state.$entries.getValue(), [])
+    state.destroy()
+  })
 
   it("reset() sets $loading to 'none'", () => {
-    const streamProvider: StreamProvider = () => new Promise(() => {}) as never;
+    const streamProvider: StreamProvider = () => new Promise(() => {}) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("test");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('test')
 
-    state.reset();
+    state.reset()
 
-    assert.strictEqual(state.$loading.getValue(), "none");
-    state.destroy();
-  });
+    assert.strictEqual(state.$loading.getValue(), 'none')
+    state.destroy()
+  })
 
-  it("reset() clears $error", async () => {
-    const forbiddenError = { status: 403 };
+  it('reset() clears $error', async () => {
+    const forbiddenError = { status: 403 }
     const streamProvider: StreamProvider = () =>
-      futureReject(forbiddenError) as never;
+      futureReject(forbiddenError) as never
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("test");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('test')
 
-    await waitForCondition(() => state.$error.getValue() !== null, 5000);
+    await waitForCondition(() => state.$error.getValue() !== null, 5000)
 
-    state.reset();
+    state.reset()
 
-    assert.strictEqual(state.$error.getValue(), null);
-    state.destroy();
-  });
+    assert.strictEqual(state.$error.getValue(), null)
+    state.destroy()
+  })
 
-  it("reset() aborts any in-flight request", async () => {
-    let aborted = false;
+  it('reset() aborts any in-flight request', async () => {
+    let aborted = false
     const streamProvider: StreamProvider = (_ctx, _tools, signal) => {
       if (signal) {
-        signal.addEventListener("abort", () => {
-          aborted = true;
-        });
+        signal.addEventListener('abort', () => {
+          aborted = true
+        })
       }
-      return resolve(new ReadableStream()) as never;
-    };
+      return resolve(new ReadableStream()) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("test");
-    state.reset();
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('test')
+    state.reset()
 
-    await new Promise((res) => setTimeout(res, 50));
+    await new Promise(res => setTimeout(res, 50))
 
-    assert.strictEqual(aborted, true);
-    state.destroy();
-  });
-});
+    assert.strictEqual(aborted, true)
+    state.destroy()
+  })
+})
 
 // ─── Helpers for building minimal Context messages ──────────────────────────
 
 function makeAssistantWithToolCalls(
-  toolCallIds: Array<{ id: string; name: string }>,
+  toolCallIds: Array<{ id: string; name: string }>
 ): Context[number] {
   return {
-    role: "assistant",
-    content: "",
+    role: 'assistant',
+    content: '',
     tool_calls: toolCallIds.map(({ id, name }) => ({
       id,
-      type: "function" as const,
-      function: { name, arguments: "{}" },
+      type: 'function' as const,
+      function: { name, arguments: '{}' },
     })),
-  };
+  }
 }
 
 function makeToolResult(toolCallId: string): Context[number] {
   return {
-    role: "tool",
-    content: "{}",
+    role: 'tool',
+    content: '{}',
     tool_call_id: toolCallId,
-  };
+  }
 }
 
-function makeUserMessage(content = "hello"): Context[number] {
-  return { role: "user", content };
+function makeUserMessage(content = 'hello'): Context[number] {
+  return { role: 'user', content }
 }
 
 // ─── getOrientPhaseToolCallIds ───────────────────────────────────────────────
 
-describe("getOrientPhaseToolCallIds", () => {
-  it("returns IDs for the first findErrors and getEvents calls", () => {
+describe('getOrientPhaseToolCallIds', () => {
+  it('returns IDs for the first findErrors and getEvents calls', () => {
     const context: Context = [
       makeUserMessage(),
       makeAssistantWithToolCalls([
-        { id: "fe1", name: "findErrors" },
-        { id: "ge1", name: "getEvents" },
+        { id: 'fe1', name: 'findErrors' },
+        { id: 'ge1', name: 'getEvents' },
       ]),
-      makeToolResult("fe1"),
-      makeToolResult("ge1"),
-    ];
+      makeToolResult('fe1'),
+      makeToolResult('ge1'),
+    ]
 
-    const ids = getOrientPhaseToolCallIds(context);
-    assert.strictEqual(ids.size, 2);
-    assert.ok(ids.has("fe1"));
-    assert.ok(ids.has("ge1"));
-  });
+    const ids = getOrientPhaseToolCallIds(context)
+    assert.strictEqual(ids.size, 2)
+    assert.ok(ids.has('fe1'))
+    assert.ok(ids.has('ge1'))
+  })
 
-  it("returns only the findErrors ID when getEvents is absent", () => {
+  it('returns only the findErrors ID when getEvents is absent', () => {
     const context: Context = [
       makeUserMessage(),
-      makeAssistantWithToolCalls([{ id: "fe1", name: "findErrors" }]),
-      makeToolResult("fe1"),
-    ];
+      makeAssistantWithToolCalls([{ id: 'fe1', name: 'findErrors' }]),
+      makeToolResult('fe1'),
+    ]
 
-    const ids = getOrientPhaseToolCallIds(context);
-    assert.strictEqual(ids.size, 1);
-    assert.ok(ids.has("fe1"));
-  });
+    const ids = getOrientPhaseToolCallIds(context)
+    assert.strictEqual(ids.size, 1)
+    assert.ok(ids.has('fe1'))
+  })
 
-  it("does NOT include a second findErrors call — only the first is orient", () => {
+  it('does NOT include a second findErrors call — only the first is orient', () => {
     const context: Context = [
       makeUserMessage(),
       // First turn: findErrors (orient)
-      makeAssistantWithToolCalls([{ id: "fe1", name: "findErrors" }]),
-      makeToolResult("fe1"),
+      makeAssistantWithToolCalls([{ id: 'fe1', name: 'findErrors' }]),
+      makeToolResult('fe1'),
       // Second turn: findErrors again (investigate — not orient)
-      makeAssistantWithToolCalls([{ id: "fe2", name: "findErrors" }]),
-      makeToolResult("fe2"),
-    ];
+      makeAssistantWithToolCalls([{ id: 'fe2', name: 'findErrors' }]),
+      makeToolResult('fe2'),
+    ]
 
-    const ids = getOrientPhaseToolCallIds(context);
-    assert.strictEqual(ids.size, 1);
-    assert.ok(ids.has("fe1"));
-    assert.ok(!ids.has("fe2"));
-  });
+    const ids = getOrientPhaseToolCallIds(context)
+    assert.strictEqual(ids.size, 1)
+    assert.ok(ids.has('fe1'))
+    assert.ok(!ids.has('fe2'))
+  })
 
-  it("returns an empty set when no findErrors or getEvents calls exist", () => {
+  it('returns an empty set when no findErrors or getEvents calls exist', () => {
     const context: Context = [
       makeUserMessage(),
-      makeAssistantWithToolCalls([{ id: "tc1", name: "someOtherTool" }]),
-      makeToolResult("tc1"),
-    ];
+      makeAssistantWithToolCalls([{ id: 'tc1', name: 'someOtherTool' }]),
+      makeToolResult('tc1'),
+    ]
 
-    const ids = getOrientPhaseToolCallIds(context);
-    assert.strictEqual(ids.size, 0);
-  });
+    const ids = getOrientPhaseToolCallIds(context)
+    assert.strictEqual(ids.size, 0)
+  })
 
-  it("returns empty set for empty context", () => {
-    const ids = getOrientPhaseToolCallIds([]);
-    assert.strictEqual(ids.size, 0);
-  });
-});
+  it('returns empty set for empty context', () => {
+    const ids = getOrientPhaseToolCallIds([])
+    assert.strictEqual(ids.size, 0)
+  })
+})
 
 // ─── isProtected wiring in fetchResponse ────────────────────────────────────
 
-describe("isProtected predicate (constructed same as in fetchResponse)", () => {
+describe('isProtected predicate (constructed same as in fetchResponse)', () => {
   // Build the same isProtected predicate that fetchResponse uses
   function buildIsProtected(
-    context: Context,
+    context: Context
   ): (msg: Context[number]) => boolean {
-    const orientIds = getOrientPhaseToolCallIds(context);
+    const orientIds = getOrientPhaseToolCallIds(context)
     return (msg: Context[number]) => {
-      if (msg.role === "tool" && orientIds.has(msg.tool_call_id)) {
-        return true;
+      if (msg.role === 'tool' && orientIds.has(msg.tool_call_id)) {
+        return true
       }
-      if (msg.role === "assistant" && "tool_calls" in msg && msg.tool_calls) {
-        return msg.tool_calls.some((tc) => orientIds.has(tc.id));
+      if (msg.role === 'assistant' && 'tool_calls' in msg && msg.tool_calls) {
+        return msg.tool_calls.some(tc => orientIds.has(tc.id))
       }
-      return false;
-    };
+      return false
+    }
   }
 
-  it("marks orient tool result messages as protected", () => {
+  it('marks orient tool result messages as protected', () => {
     const context: Context = [
       makeUserMessage(),
       makeAssistantWithToolCalls([
-        { id: "fe1", name: "findErrors" },
-        { id: "ge1", name: "getEvents" },
+        { id: 'fe1', name: 'findErrors' },
+        { id: 'ge1', name: 'getEvents' },
       ]),
-      makeToolResult("fe1"),
-      makeToolResult("ge1"),
-    ];
+      makeToolResult('fe1'),
+      makeToolResult('ge1'),
+    ]
 
-    const isProtected = buildIsProtected(context);
-    assert.strictEqual(isProtected(makeToolResult("fe1")), true);
-    assert.strictEqual(isProtected(makeToolResult("ge1")), true);
-  });
+    const isProtected = buildIsProtected(context)
+    assert.strictEqual(isProtected(makeToolResult('fe1')), true)
+    assert.strictEqual(isProtected(makeToolResult('ge1')), true)
+  })
 
-  it("marks the parent assistant message as protected", () => {
+  it('marks the parent assistant message as protected', () => {
     const context: Context = [
       makeUserMessage(),
       makeAssistantWithToolCalls([
-        { id: "fe1", name: "findErrors" },
-        { id: "ge1", name: "getEvents" },
+        { id: 'fe1', name: 'findErrors' },
+        { id: 'ge1', name: 'getEvents' },
       ]),
-      makeToolResult("fe1"),
-      makeToolResult("ge1"),
-    ];
+      makeToolResult('fe1'),
+      makeToolResult('ge1'),
+    ]
 
-    const isProtected = buildIsProtected(context);
-    const assistantMsg = context[1]!;
-    assert.strictEqual(isProtected(assistantMsg), true);
-  });
+    const isProtected = buildIsProtected(context)
+    const assistantMsg = context[1]!
+    assert.strictEqual(isProtected(assistantMsg), true)
+  })
 
-  it("does NOT mark unrelated tool results as protected", () => {
+  it('does NOT mark unrelated tool results as protected', () => {
     const context: Context = [
       makeUserMessage(),
       makeAssistantWithToolCalls([
-        { id: "fe1", name: "findErrors" },
-        { id: "ge1", name: "getEvents" },
+        { id: 'fe1', name: 'findErrors' },
+        { id: 'ge1', name: 'getEvents' },
       ]),
-      makeToolResult("fe1"),
-      makeToolResult("ge1"),
-      makeAssistantWithToolCalls([{ id: "other1", name: "someOtherTool" }]),
-      makeToolResult("other1"),
-    ];
+      makeToolResult('fe1'),
+      makeToolResult('ge1'),
+      makeAssistantWithToolCalls([{ id: 'other1', name: 'someOtherTool' }]),
+      makeToolResult('other1'),
+    ]
 
-    const isProtected = buildIsProtected(context);
-    assert.strictEqual(isProtected(makeToolResult("other1")), false);
-  });
+    const isProtected = buildIsProtected(context)
+    assert.strictEqual(isProtected(makeToolResult('other1')), false)
+  })
 
-  it("does NOT mark unrelated assistant messages as protected", () => {
+  it('does NOT mark unrelated assistant messages as protected', () => {
     const context: Context = [
       makeUserMessage(),
       makeAssistantWithToolCalls([
-        { id: "fe1", name: "findErrors" },
-        { id: "ge1", name: "getEvents" },
+        { id: 'fe1', name: 'findErrors' },
+        { id: 'ge1', name: 'getEvents' },
       ]),
-      makeToolResult("fe1"),
-      makeToolResult("ge1"),
-      makeAssistantWithToolCalls([{ id: "other1", name: "someOtherTool" }]),
-      makeToolResult("other1"),
-    ];
+      makeToolResult('fe1'),
+      makeToolResult('ge1'),
+      makeAssistantWithToolCalls([{ id: 'other1', name: 'someOtherTool' }]),
+      makeToolResult('other1'),
+    ]
 
-    const isProtected = buildIsProtected(context);
-    const unrelatedAssistant = context[4]!;
-    assert.strictEqual(isProtected(unrelatedAssistant), false);
-  });
+    const isProtected = buildIsProtected(context)
+    const unrelatedAssistant = context[4]!
+    assert.strictEqual(isProtected(unrelatedAssistant), false)
+  })
 
-  it("does NOT mark user messages as protected", () => {
+  it('does NOT mark user messages as protected', () => {
     const context: Context = [
       makeUserMessage(),
-      makeAssistantWithToolCalls([{ id: "fe1", name: "findErrors" }]),
-      makeToolResult("fe1"),
-    ];
+      makeAssistantWithToolCalls([{ id: 'fe1', name: 'findErrors' }]),
+      makeToolResult('fe1'),
+    ]
 
-    const isProtected = buildIsProtected(context);
-    assert.strictEqual(isProtected(makeUserMessage()), false);
-  });
+    const isProtected = buildIsProtected(context)
+    assert.strictEqual(isProtected(makeUserMessage()), false)
+  })
 
-  it("no messages are protected when no orient calls exist", () => {
+  it('no messages are protected when no orient calls exist', () => {
     const context: Context = [
       makeUserMessage(),
-      makeAssistantWithToolCalls([{ id: "tc1", name: "someOtherTool" }]),
-      makeToolResult("tc1"),
-    ];
+      makeAssistantWithToolCalls([{ id: 'tc1', name: 'someOtherTool' }]),
+      makeToolResult('tc1'),
+    ]
 
-    const isProtected = buildIsProtected(context);
+    const isProtected = buildIsProtected(context)
     for (const msg of context) {
-      assert.strictEqual(isProtected(msg), false);
+      assert.strictEqual(isProtected(msg), false)
     }
-  });
-});
+  })
+})
 
 // ─── deduplicateToolCalls ────────────────────────────────────────────────────
 
-describe("deduplicateToolCalls", () => {
+describe('deduplicateToolCalls', () => {
   function makeAssistantWithArgs(
     id: string,
     name: string,
-    args: Record<string, unknown>,
+    args: Record<string, unknown>
   ): Context[number] {
     return {
-      role: "assistant",
-      content: "",
+      role: 'assistant',
+      content: '',
       tool_calls: [
         {
           id,
-          type: "function" as const,
+          type: 'function' as const,
           function: { name, arguments: JSON.stringify(args) },
         },
       ],
-    };
+    }
   }
 
-  it("drops older duplicate and keeps the newer call", () => {
+  it('drops older duplicate and keeps the newer call', () => {
     // Two identical getDOMState calls — the second is newer
     const context: Context = [
       makeUserMessage(),
-      makeAssistantWithArgs("tc1", "getDOMState", { timestampMs: 100 }),
-      makeToolResult("tc1"),
-      makeAssistantWithArgs("tc2", "getDOMState", { timestampMs: 100 }),
-      makeToolResult("tc2"),
-    ];
+      makeAssistantWithArgs('tc1', 'getDOMState', { timestampMs: 100 }),
+      makeToolResult('tc1'),
+      makeAssistantWithArgs('tc2', 'getDOMState', { timestampMs: 100 }),
+      makeToolResult('tc2'),
+    ]
 
-    const result = deduplicateToolCalls(context, new Set());
+    const result = deduplicateToolCalls(context, new Set())
 
     // tc1 pair should be removed; tc2 pair should remain
     const ids = result
       .filter(
-        (m): m is { role: "tool"; content: string; tool_call_id: string } =>
-          m.role === "tool",
+        (m): m is { role: 'tool'; content: string; tool_call_id: string } =>
+          m.role === 'tool'
       )
-      .map((m) => m.tool_call_id);
+      .map(m => m.tool_call_id)
 
-    assert.deepStrictEqual(ids, ["tc2"]);
+    assert.deepStrictEqual(ids, ['tc2'])
     // Only the newer assistant message remains (plus user message)
-    const assistantMsgs = result.filter((m) => m.role === "assistant");
-    assert.strictEqual(assistantMsgs.length, 1);
+    const assistantMsgs = result.filter(m => m.role === 'assistant')
+    assert.strictEqual(assistantMsgs.length, 1)
     const assistantMsg = assistantMsgs[0] as {
-      role: "assistant";
-      tool_calls?: Array<{ id: string }>;
-    };
-    assert.strictEqual(assistantMsg.tool_calls?.[0]?.id, "tc2");
-  });
+      role: 'assistant'
+      tool_calls?: Array<{ id: string }>
+    }
+    assert.strictEqual(assistantMsg.tool_calls?.[0]?.id, 'tc2')
+  })
 
-  it("keeps both calls when arguments differ", () => {
+  it('keeps both calls when arguments differ', () => {
     const context: Context = [
       makeUserMessage(),
-      makeAssistantWithArgs("tc1", "getDOMState", { timestampMs: 100 }),
-      makeToolResult("tc1"),
-      makeAssistantWithArgs("tc2", "getDOMState", { timestampMs: 200 }),
-      makeToolResult("tc2"),
-    ];
+      makeAssistantWithArgs('tc1', 'getDOMState', { timestampMs: 100 }),
+      makeToolResult('tc1'),
+      makeAssistantWithArgs('tc2', 'getDOMState', { timestampMs: 200 }),
+      makeToolResult('tc2'),
+    ]
 
-    const result = deduplicateToolCalls(context, new Set());
+    const result = deduplicateToolCalls(context, new Set())
 
     const ids = result
       .filter(
-        (m): m is { role: "tool"; content: string; tool_call_id: string } =>
-          m.role === "tool",
+        (m): m is { role: 'tool'; content: string; tool_call_id: string } =>
+          m.role === 'tool'
       )
-      .map((m) => m.tool_call_id);
+      .map(m => m.tool_call_id)
 
-    assert.deepStrictEqual(ids, ["tc1", "tc2"]);
-  });
+    assert.deepStrictEqual(ids, ['tc1', 'tc2'])
+  })
 
-  it("keeps the protected copy even when a later duplicate exists", () => {
+  it('keeps the protected copy even when a later duplicate exists', () => {
     // tc1 is the protected (Orient phase) call; tc2 is a later duplicate.
     // The protected copy (tc1) must survive; tc2 must be dropped.
     const context: Context = [
       makeUserMessage(),
-      makeAssistantWithArgs("tc1", "findErrors", {}),
-      makeToolResult("tc1"),
-      makeAssistantWithArgs("tc2", "findErrors", {}),
-      makeToolResult("tc2"),
-    ];
+      makeAssistantWithArgs('tc1', 'findErrors', {}),
+      makeToolResult('tc1'),
+      makeAssistantWithArgs('tc2', 'findErrors', {}),
+      makeToolResult('tc2'),
+    ]
 
-    const result = deduplicateToolCalls(context, new Set(["tc1"]));
+    const result = deduplicateToolCalls(context, new Set(['tc1']))
 
     const ids = result
       .filter(
-        (m): m is { role: "tool"; content: string; tool_call_id: string } =>
-          m.role === "tool",
+        (m): m is { role: 'tool'; content: string; tool_call_id: string } =>
+          m.role === 'tool'
       )
-      .map((m) => m.tool_call_id);
+      .map(m => m.tool_call_id)
 
-    assert.deepStrictEqual(ids, ["tc1"]);
-  });
+    assert.deepStrictEqual(ids, ['tc1'])
+  })
 
-  it("normalises argument key order for deduplication", () => {
+  it('normalises argument key order for deduplication', () => {
     // Same call but different key ordering — should deduplicate
     const context: Context = [
       makeUserMessage(),
-      makeAssistantWithArgs("tc1", "findErrors", { b: 2, a: 1 }),
-      makeToolResult("tc1"),
-      makeAssistantWithArgs("tc2", "findErrors", { a: 1, b: 2 }),
-      makeToolResult("tc2"),
-    ];
+      makeAssistantWithArgs('tc1', 'findErrors', { b: 2, a: 1 }),
+      makeToolResult('tc1'),
+      makeAssistantWithArgs('tc2', 'findErrors', { a: 1, b: 2 }),
+      makeToolResult('tc2'),
+    ]
 
-    const result = deduplicateToolCalls(context, new Set());
+    const result = deduplicateToolCalls(context, new Set())
 
     const ids = result
       .filter(
-        (m): m is { role: "tool"; content: string; tool_call_id: string } =>
-          m.role === "tool",
+        (m): m is { role: 'tool'; content: string; tool_call_id: string } =>
+          m.role === 'tool'
       )
-      .map((m) => m.tool_call_id);
+      .map(m => m.tool_call_id)
 
     // tc1 is older, should be dropped; tc2 is newer, should be kept
-    assert.deepStrictEqual(ids, ["tc2"]);
-  });
+    assert.deepStrictEqual(ids, ['tc2'])
+  })
 
-  it("passes through non-tool messages unchanged", () => {
+  it('passes through non-tool messages unchanged', () => {
     const context: Context = [
-      makeUserMessage("first"),
-      makeUserMessage("second"),
-    ];
+      makeUserMessage('first'),
+      makeUserMessage('second'),
+    ]
 
-    const result = deduplicateToolCalls(context, new Set());
-    assert.strictEqual(result.length, 2);
-  });
+    const result = deduplicateToolCalls(context, new Set())
+    assert.strictEqual(result.length, 2)
+  })
 
-  it("removes only duplicate tool_calls from a mixed assistant message, preserving the message", () => {
+  it('removes only duplicate tool_calls from a mixed assistant message, preserving the message', () => {
     // One assistant message has two tool_calls: toolA (duplicate) and toolB (unique).
     // A later assistant message also calls toolA with the same args — making the
     // first toolA call a duplicate. toolB appears only once.
@@ -2090,180 +2085,178 @@ describe("deduplicateToolCalls", () => {
       makeUserMessage(),
       // First assistant message: calls toolA AND toolB
       {
-        role: "assistant",
-        content: "",
+        role: 'assistant',
+        content: '',
         tool_calls: [
           {
-            id: "tc-a1",
-            type: "function" as const,
-            function: { name: "toolA", arguments: JSON.stringify({ x: 1 }) },
+            id: 'tc-a1',
+            type: 'function' as const,
+            function: { name: 'toolA', arguments: JSON.stringify({ x: 1 }) },
           },
           {
-            id: "tc-b",
-            type: "function" as const,
-            function: { name: "toolB", arguments: JSON.stringify({ y: 2 }) },
+            id: 'tc-b',
+            type: 'function' as const,
+            function: { name: 'toolB', arguments: JSON.stringify({ y: 2 }) },
           },
         ],
       },
-      makeToolResult("tc-a1"),
-      makeToolResult("tc-b"),
+      makeToolResult('tc-a1'),
+      makeToolResult('tc-b'),
       // Second assistant message: calls toolA again with identical args → duplicate
-      makeAssistantWithArgs("tc-a2", "toolA", { x: 1 }),
-      makeToolResult("tc-a2"),
-    ];
+      makeAssistantWithArgs('tc-a2', 'toolA', { x: 1 }),
+      makeToolResult('tc-a2'),
+    ]
 
-    const result = deduplicateToolCalls(context, new Set());
+    const result = deduplicateToolCalls(context, new Set())
 
     // The first assistant message must still exist (toolB keeps it alive)
-    const assistantMsgs = result.filter((m) => m.role === "assistant") as Array<
-      Extract<Context[number], { role: "assistant" }>
-    >;
+    const assistantMsgs = result.filter(m => m.role === 'assistant') as Array<
+      Extract<Context[number], { role: 'assistant' }>
+    >
     assert.strictEqual(
       assistantMsgs.length,
       2,
-      "both assistant messages should survive",
-    );
+      'both assistant messages should survive'
+    )
 
     // The first assistant message must have only toolB's tool_call remaining
-    const firstAssistant = assistantMsgs[0]!;
+    const firstAssistant = assistantMsgs[0]!
     assert.ok(
-      "tool_calls" in firstAssistant,
-      "first assistant message should have tool_calls",
-    );
+      'tool_calls' in firstAssistant,
+      'first assistant message should have tool_calls'
+    )
     const firstToolCalls =
       (firstAssistant as { tool_calls?: Array<{ id: string }> }).tool_calls ??
-      [];
+      []
     assert.strictEqual(
       firstToolCalls.length,
       1,
-      "only one tool_call should remain in the first assistant message",
-    );
+      'only one tool_call should remain in the first assistant message'
+    )
     assert.strictEqual(
       firstToolCalls[0]!.id,
-      "tc-b",
-      "toolB's call should remain",
-    );
+      'tc-b',
+      "toolB's call should remain"
+    )
 
     // tc-a1 tool result must be dropped; tc-b and tc-a2 must be kept
     const toolResultIds = result
       .filter(
-        (m): m is { role: "tool"; content: string; tool_call_id: string } =>
-          m.role === "tool",
+        (m): m is { role: 'tool'; content: string; tool_call_id: string } =>
+          m.role === 'tool'
       )
-      .map((m) => m.tool_call_id);
-    assert.deepStrictEqual(toolResultIds, ["tc-b", "tc-a2"]);
-  });
+      .map(m => m.tool_call_id)
+    assert.deepStrictEqual(toolResultIds, ['tc-b', 'tc-a2'])
+  })
 
-  it("keeps unrelated tool calls in an assistant message when only some are duplicates", () => {
+  it('keeps unrelated tool calls in an assistant message when only some are duplicates', () => {
     // msg1: assistant with two tool calls — toolA (will be a duplicate) and toolB (unique)
     const msg1: AssistantMessageContext = {
-      role: "assistant",
+      role: 'assistant',
       content: null as unknown as string,
       tool_calls: [
         {
-          id: "tc-a1",
-          type: "function",
-          function: { name: "toolA", arguments: "{}" },
+          id: 'tc-a1',
+          type: 'function',
+          function: { name: 'toolA', arguments: '{}' },
         },
         {
-          id: "tc-b1",
-          type: "function",
-          function: { name: "toolB", arguments: "{}" },
+          id: 'tc-b1',
+          type: 'function',
+          function: { name: 'toolB', arguments: '{}' },
         },
       ],
-    };
+    }
     const resultA1: ToolMessageContext = {
-      role: "tool",
-      tool_call_id: "tc-a1",
-      content: "resultA1",
-    };
+      role: 'tool',
+      tool_call_id: 'tc-a1',
+      content: 'resultA1',
+    }
     const resultB1: ToolMessageContext = {
-      role: "tool",
-      tool_call_id: "tc-b1",
-      content: "resultB1",
-    };
+      role: 'tool',
+      tool_call_id: 'tc-b1',
+      content: 'resultB1',
+    }
     // msg2: assistant with a duplicate toolA call
     const msg2: AssistantMessageContext = {
-      role: "assistant",
+      role: 'assistant',
       content: null as unknown as string,
       tool_calls: [
         {
-          id: "tc-a2",
-          type: "function",
-          function: { name: "toolA", arguments: "{}" },
+          id: 'tc-a2',
+          type: 'function',
+          function: { name: 'toolA', arguments: '{}' },
         },
       ],
-    };
+    }
     const resultA2: ToolMessageContext = {
-      role: "tool",
-      tool_call_id: "tc-a2",
-      content: "resultA2",
-    };
+      role: 'tool',
+      tool_call_id: 'tc-a2',
+      content: 'resultA2',
+    }
 
-    const context: Context = [msg1, resultA1, resultB1, msg2, resultA2];
-    const result = deduplicateToolCalls(context, new Set());
+    const context: Context = [msg1, resultA1, resultB1, msg2, resultA2]
+    const result = deduplicateToolCalls(context, new Set())
 
     // msg1 should survive but with tc-a1 removed (only tc-b1 remains)
     const survivingMsg1 = result.find(
-      (m) =>
-        m.role === "assistant" &&
-        "tool_calls" in m &&
-        (m as AssistantMessageContext).tool_calls?.some(
-          (tc) => tc.id === "tc-b1",
-        ),
-    ) as AssistantMessageContext | undefined;
-    assert.ok(survivingMsg1, "msg1 (with toolB) should survive");
-    assert.equal(survivingMsg1.tool_calls?.length, 1);
-    assert.equal(survivingMsg1.tool_calls?.[0]?.id, "tc-b1");
+      m =>
+        m.role === 'assistant' &&
+        'tool_calls' in m &&
+        (m as AssistantMessageContext).tool_calls?.some(tc => tc.id === 'tc-b1')
+    ) as AssistantMessageContext | undefined
+    assert.ok(survivingMsg1, 'msg1 (with toolB) should survive')
+    assert.equal(survivingMsg1.tool_calls?.length, 1)
+    assert.equal(survivingMsg1.tool_calls?.[0]?.id, 'tc-b1')
 
     // tc-a1 result should be dropped, tc-b1 result should survive
     assert.ok(
       !result.some(
-        (m) =>
-          m.role === "tool" &&
-          (m as ToolMessageContext).tool_call_id === "tc-a1",
+        m =>
+          m.role === 'tool' &&
+          (m as ToolMessageContext).tool_call_id === 'tc-a1'
       ),
-      "resultA1 should be dropped",
-    );
+      'resultA1 should be dropped'
+    )
     assert.ok(
       result.some(
-        (m) =>
-          m.role === "tool" &&
-          (m as ToolMessageContext).tool_call_id === "tc-b1",
+        m =>
+          m.role === 'tool' &&
+          (m as ToolMessageContext).tool_call_id === 'tc-b1'
       ),
-      "resultB1 should survive",
-    );
+      'resultB1 should survive'
+    )
 
     // msg2 and its result should survive (most recent toolA)
     assert.ok(
       result.some(
-        (m) =>
-          m.role === "assistant" &&
-          "tool_calls" in m &&
+        m =>
+          m.role === 'assistant' &&
+          'tool_calls' in m &&
           (m as AssistantMessageContext).tool_calls?.some(
-            (tc) => tc.id === "tc-a2",
-          ),
+            tc => tc.id === 'tc-a2'
+          )
       ),
-      "msg2 should survive",
-    );
+      'msg2 should survive'
+    )
     assert.ok(
       result.some(
-        (m) =>
-          m.role === "tool" &&
-          (m as ToolMessageContext).tool_call_id === "tc-a2",
+        m =>
+          m.role === 'tool' &&
+          (m as ToolMessageContext).tool_call_id === 'tc-a2'
       ),
-      "resultA2 should survive",
-    );
-  });
-});
+      'resultA2 should survive'
+    )
+  })
+})
 
 // ─── purgeErroredToolCallInputs integration in createAgenticState ─────────────
 
-describe("createAgenticState — errored tool call purge", () => {
+describe('createAgenticState — errored tool call purge', () => {
   // Build a one-shot SSE stream from a tool_calls event + [DONE]
   function makeToolCallStream(
     toolCallId: string,
-    toolName: string,
+    toolName: string
   ): ReadableStream<{ data: string }> {
     const toolCallEvent = JSON.stringify({
       choices: [
@@ -2273,149 +2266,149 @@ describe("createAgenticState — errored tool call purge", () => {
               {
                 index: 0,
                 id: toolCallId,
-                function: { name: toolName, arguments: "{}" },
+                function: { name: toolName, arguments: '{}' },
               },
             ],
           },
         },
       ],
-    });
+    })
     return new ReadableStream<{ data: string }>({
       start(controller) {
-        controller.enqueue({ data: toolCallEvent });
-        controller.enqueue({ data: "[DONE]" });
-        controller.close();
+        controller.enqueue({ data: toolCallEvent })
+        controller.enqueue({ data: '[DONE]' })
+        controller.close()
       },
-    });
+    })
   }
 
   // Build a one-shot SSE stream with plain text content (no tool calls)
   function makeTextStream(content: string): ReadableStream<{ data: string }> {
     const event = JSON.stringify({
       choices: [{ delta: { content } }],
-    });
+    })
     return new ReadableStream<{ data: string }>({
       start(controller) {
-        controller.enqueue({ data: event });
-        controller.enqueue({ data: "[DONE]" });
-        controller.close();
+        controller.enqueue({ data: event })
+        controller.enqueue({ data: '[DONE]' })
+        controller.close()
       },
-    });
+    })
   }
 
   function waitForCondition(
     predicate: () => boolean,
-    timeout = 5000,
+    timeout = 5000
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const start = Date.now();
+      const start = Date.now()
       function check() {
-        if (predicate()) return resolve();
+        if (predicate()) return resolve()
         if (Date.now() - start > timeout)
-          return reject(new Error("Condition timed out"));
-        setTimeout(check, 10);
+          return reject(new Error('Condition timed out'))
+        setTimeout(check, 10)
       }
-      check();
-    });
+      check()
+    })
   }
 
-  it("errored tool call is NOT stripped from context within PURGE_ERROR_TURNS iterations", async () => {
+  it('errored tool call is NOT stripped from context within PURGE_ERROR_TURNS iterations', async () => {
     // We track the context passed to the stream provider on the 2nd request
     // (after tool results are appended) to verify tc1's assistant block is still present.
     // The real getDOMState tool on an empty accessor returns an error response.
-    let secondRequestContext: Context | null = null;
-    let callCount = 0;
+    let secondRequestContext: Context | null = null
+    let callCount = 0
 
-    const streamProvider: StreamProvider = (ctx) => {
-      callCount++;
+    const streamProvider: StreamProvider = ctx => {
+      callCount++
       if (callCount === 1) {
         // First request: LLM returns a tool call
-        return resolve(makeToolCallStream("tc1", "getDOMState")) as never;
+        return resolve(makeToolCallStream('tc1', 'getDOMState')) as never
       }
       // Second request: capture the context, then return plain text to end the loop
-      secondRequestContext = [...ctx];
-      return resolve(makeTextStream("done")) as never;
-    };
+      secondRequestContext = [...ctx]
+      return resolve(makeTextStream('done')) as never
+    }
 
-    const accessor = makeEmptyAccessorNew();
+    const accessor = makeEmptyAccessorNew()
     // Inject custom executeFn via the executeToolCalls call signature requires
     // us to test through createAgenticState. Since executeToolCalls is internal,
     // we use the real one but override the tool handler via options.
     // Instead, let's use the real state machine + a real tool that errors:
     // getDOMState with no snapshot returns an error.
-    const state = createAgenticState(streamProvider, accessor);
-    state.query("test");
+    const state = createAgenticState(streamProvider, accessor)
+    state.query('test')
 
-    await waitForCondition(() => secondRequestContext !== null, 5000);
+    await waitForCondition(() => secondRequestContext !== null, 5000)
 
     // Within the first iteration (delta = 0, below PURGE_ERROR_TURNS = 4),
     // the assistant block for tc1 should still be present in the context.
     const assistantMsgsWithTc1 = secondRequestContext!.filter(
-      (m) =>
-        m.role === "assistant" &&
-        "tool_calls" in m &&
+      m =>
+        m.role === 'assistant' &&
+        'tool_calls' in m &&
         (m as { tool_calls?: Array<{ id: string }> }).tool_calls?.some(
-          (tc) => tc.id === "tc1",
-        ),
-    );
+          tc => tc.id === 'tc1'
+        )
+    )
     assert.ok(
       assistantMsgsWithTc1.length > 0,
-      "tc1 assistant block should still be present within PURGE_ERROR_TURNS",
-    );
+      'tc1 assistant block should still be present within PURGE_ERROR_TURNS'
+    )
 
     // The tool result for tc1 should be present too
     const toolResultForTc1 = secondRequestContext!.filter(
-      (m) =>
-        m.role === "tool" &&
-        (m as { tool_call_id?: string }).tool_call_id === "tc1",
-    );
+      m =>
+        m.role === 'tool' &&
+        (m as { tool_call_id?: string }).tool_call_id === 'tc1'
+    )
     assert.ok(
       toolResultForTc1.length > 0,
-      "tc1 tool result should always be present",
-    );
+      'tc1 tool result should always be present'
+    )
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("successful tool call input is never stripped from context", async () => {
+  it('successful tool call input is never stripped from context', async () => {
     // Use getRecordingDuration which always succeeds
-    let secondRequestContext: Context | null = null;
-    let callCount = 0;
+    let secondRequestContext: Context | null = null
+    let callCount = 0
 
-    const streamProvider: StreamProvider = (ctx) => {
-      callCount++;
+    const streamProvider: StreamProvider = ctx => {
+      callCount++
       if (callCount === 1) {
         return resolve(
-          makeToolCallStream("tc1", "getRecordingDuration"),
-        ) as never;
+          makeToolCallStream('tc1', 'getRecordingDuration')
+        ) as never
       }
-      secondRequestContext = [...ctx];
-      return resolve(makeTextStream("done")) as never;
-    };
+      secondRequestContext = [...ctx]
+      return resolve(makeTextStream('done')) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("test");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('test')
 
-    await waitForCondition(() => secondRequestContext !== null, 5000);
+    await waitForCondition(() => secondRequestContext !== null, 5000)
 
     // The assistant block for tc1 (successful) should always be present
     const assistantMsgsWithTc1 = secondRequestContext!.filter(
-      (m) =>
-        m.role === "assistant" &&
-        "tool_calls" in m &&
+      m =>
+        m.role === 'assistant' &&
+        'tool_calls' in m &&
         (m as { tool_calls?: Array<{ id: string }> }).tool_calls?.some(
-          (tc) => tc.id === "tc1",
-        ),
-    );
+          tc => tc.id === 'tc1'
+        )
+    )
     assert.ok(
       assistantMsgsWithTc1.length > 0,
-      "successful tc1 assistant block should always be present",
-    );
+      'successful tc1 assistant block should always be present'
+    )
 
-    state.destroy();
-  });
+    state.destroy()
+  })
 
-  it("errored tool call assistant block IS stubbed in context beyond PURGE_ERROR_TURNS iterations", async () => {
+  it('errored tool call assistant block IS stubbed in context beyond PURGE_ERROR_TURNS iterations', async () => {
     // Drive the state machine through PURGE_ERROR_TURNS + 1 iterations where
     // tc-err-0 is the first errored call, recorded at iteration 1. Each call
     // uses unique args (timestampMs: N) to prevent deduplicateToolCalls from
@@ -2425,17 +2418,17 @@ describe("createAgenticState — errored tool call purge", () => {
     //   tc-err-0 was recorded as errored at iteration 1.
     //   currentIteration at the final request = PURGE_ERROR_TURNS + 2.
     //   delta = (PURGE_ERROR_TURNS + 2) - 1 = PURGE_ERROR_TURNS + 1 >= PURGE_ERROR_TURNS → STUBBED.
-    const totalToolCallIterations = PURGE_ERROR_TURNS + 2;
-    let capturedContext: Context | null = null;
-    let callCount = 0;
+    const totalToolCallIterations = PURGE_ERROR_TURNS + 2
+    let capturedContext: Context | null = null
+    let callCount = 0
 
-    const streamProvider: StreamProvider = (ctx) => {
-      callCount++;
+    const streamProvider: StreamProvider = ctx => {
+      callCount++
       if (callCount <= totalToolCallIterations) {
-        const toolCallId = `tc-err-${callCount - 1}`;
+        const toolCallId = `tc-err-${callCount - 1}`
         // Pass unique timestampMs so each call has a distinct signature and
         // deduplicateToolCalls does not remove earlier tool results.
-        const args = JSON.stringify({ timestampMs: callCount * 1000 });
+        const args = JSON.stringify({ timestampMs: callCount * 1000 })
         const toolCallEvent = JSON.stringify({
           choices: [
             {
@@ -2444,73 +2437,73 @@ describe("createAgenticState — errored tool call purge", () => {
                   {
                     index: 0,
                     id: toolCallId,
-                    function: { name: "getDOMState", arguments: args },
+                    function: { name: 'getDOMState', arguments: args },
                   },
                 ],
               },
             },
           ],
-        });
+        })
         return resolve(
           new ReadableStream<{ data: string }>({
             start(controller) {
-              controller.enqueue({ data: toolCallEvent });
-              controller.enqueue({ data: "[DONE]" });
-              controller.close();
+              controller.enqueue({ data: toolCallEvent })
+              controller.enqueue({ data: '[DONE]' })
+              controller.close()
             },
-          }),
-        ) as never;
+          })
+        ) as never
       }
       // Final call: capture context and return plain text to end the loop.
-      capturedContext = [...ctx];
-      return resolve(makeTextStream("done")) as never;
-    };
+      capturedContext = [...ctx]
+      return resolve(makeTextStream('done')) as never
+    }
 
-    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
-    state.query("test");
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew())
+    state.query('test')
 
-    await waitForCondition(() => capturedContext !== null, 15000);
+    await waitForCondition(() => capturedContext !== null, 15000)
 
     // "tc-err-0" was the first errored call, recorded at iteration 1.
     // By the final request, currentIteration = PURGE_ERROR_TURNS + 2 and
     // delta = PURGE_ERROR_TURNS + 1 >= PURGE_ERROR_TURNS → assistant block STUBBED.
     // The message itself must be retained (preserves role:"tool" linkage).
     const assistantMsgsWithTcErr0 = capturedContext!.filter(
-      (m) =>
-        m.role === "assistant" &&
-        "tool_calls" in m &&
+      m =>
+        m.role === 'assistant' &&
+        'tool_calls' in m &&
         (m as { tool_calls?: Array<{ id: string }> }).tool_calls?.some(
-          (tc) => tc.id === "tc-err-0",
-        ),
-    ) as Array<Extract<Context[number], { role: "assistant" }>>;
+          tc => tc.id === 'tc-err-0'
+        )
+    ) as Array<Extract<Context[number], { role: 'assistant' }>>
     assert.strictEqual(
       assistantMsgsWithTcErr0.length,
       1,
-      "tc-err-0 assistant stub must remain (preserves tool-message linkage)",
-    );
+      'tc-err-0 assistant stub must remain (preserves tool-message linkage)'
+    )
 
     // The stub must have its arguments cleared to "{}"
     const stubCall = assistantMsgsWithTcErr0[0]!.tool_calls?.find(
-      (tc) => tc.id === "tc-err-0",
-    );
-    assert.ok(stubCall, "tc-err-0 tool_call entry must exist in the stub");
+      tc => tc.id === 'tc-err-0'
+    )
+    assert.ok(stubCall, 'tc-err-0 tool_call entry must exist in the stub')
     assert.strictEqual(
       stubCall!.function.arguments,
-      "{}",
-      "tc-err-0 stub must have arguments stripped to '{}'",
-    );
+      '{}',
+      "tc-err-0 stub must have arguments stripped to '{}'"
+    )
 
     // The tool result for tc-err-0 must still be present (purge only removes inputs).
     const toolResultForTcErr0 = capturedContext!.filter(
-      (m) =>
-        m.role === "tool" &&
-        (m as { tool_call_id?: string }).tool_call_id === "tc-err-0",
-    );
+      m =>
+        m.role === 'tool' &&
+        (m as { tool_call_id?: string }).tool_call_id === 'tc-err-0'
+    )
     assert.ok(
       toolResultForTcErr0.length > 0,
-      "tc-err-0 tool result should always be kept",
-    );
+      'tc-err-0 tool result should always be kept'
+    )
 
-    state.destroy();
-  });
-});
+    state.destroy()
+  })
+})
