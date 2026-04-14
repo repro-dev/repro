@@ -1,0 +1,51 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "github-copilot/claude-sonnet-4.6",
+  "command": {
+    "lightspeed": {
+      "model": "github-copilot/claude-sonnet-4.6",
+      "template": ""
+    },
+    "enrich-issues": {
+      "model": "github-copilot/claude-opus-4.6",
+      "template": ""
+    },
+    "review": {
+      "model": "github-copilot/claude-opus-4.6",
+      "template": ""
+    },
+    "ledger": {
+      "model": "github-copilot/claude-sonnet-4.6",
+      "template": ""
+    },
+    "handoff": {
+      "model": "github-copilot/claude-sonnet-4.6",
+      "template": ""
+    },
+    "audit-skills": {
+      "model": "github-copilot/claude-opus-4.6",
+      "template": ""
+    },
+    "update-visual-baselines": {
+      "model": "github-copilot/claude-sonnet-4.6",
+      "template": ""
+    }
+  },
+  "agent": {
+    "develop": {
+      "model": "github-copilot/claude-sonnet-4.6"
+    },
+    "planner": {
+      "model": "github-copilot/claude-opus-4.6"
+    },
+    "review": {
+      "model": "github-copilot/claude-opus-4.6"
+    },
+    "test": {
+      "model": "github-copilot/claude-sonnet-4.6"
+    },
+    "release": {
+      "model": "github-copilot/claude-sonnet-4.6"
+    }
+  }
+}
