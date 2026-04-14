@@ -19,6 +19,7 @@ import { useFuture } from '@repro/future-utils'
 import { fork } from 'fluture'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
+import { getEntitlementMeta } from './entitlementMeta'
 
 function collectFeatures(plans: Array<BillingPlanWithEntitlements>): string[] {
   const featureSet = new Set<string>()
@@ -150,26 +151,30 @@ export const PricingRoute: React.FC = () => {
                   <Stack gap="md">
                     {features.map(feature => {
                       const entitlement = entitlementMap.get(feature)
+                      const meta = getEntitlementMeta(feature)
+                      const formattedValue = meta.valueFormatter(entitlement)
 
                       return (
                         <Stack key={feature} gap="xs">
                           <Text variant="caption" weight="semibold">
-                            {feature}
+                            {meta.label}
                           </Text>
-                          {entitlement && entitlement.enabled ? (
-                            entitlement.limit === null ? (
-                              <Badge context="success">Unlimited</Badge>
-                            ) : (
-                              <Text variant="bodySmall">
-                                {entitlement.limit}
-                              </Text>
-                            )
-                          ) : (
-                            <Text variant="bodySmall" color={color.text.muted}>
-                              Not included
+                          {meta.description && (
+                            <Text variant="caption" color={color.text.muted}>
+                              {meta.description}
                             </Text>
                           )}
-                          {entitlement && entitlement.enabled && session && (
+                          <Text
+                            variant="bodySmall"
+                            color={
+                              !entitlement?.enabled
+                                ? color.text.muted
+                                : undefined
+                            }
+                          >
+                            {formattedValue}
+                          </Text>
+                          {entitlement?.enabled && session && (
                             <Badge context="info">Active</Badge>
                           )}
                         </Stack>
