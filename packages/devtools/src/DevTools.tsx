@@ -30,7 +30,7 @@ interface Props {
   resourceBaseURL?: string
 }
 
-export const DevTools: React.FC = React.memo(props => {
+export const DevTools = React.memo<Props>(props => {
   const [, setCurrentDocument] = useCurrentDocument()
   const [, setNodeMap] = useNodeMap()
   const [inspecting, setInspecting] = useInspecting()
@@ -94,7 +94,7 @@ export const DevTools: React.FC = React.memo(props => {
   )
 })
 
-const Container: React.FC = ({ children }) => (
+const Container: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <Grid
     height="100%"
     gridTemplateRows="1fr auto"
@@ -106,7 +106,10 @@ const Container: React.FC = ({ children }) => (
   </Grid>
 )
 
-const PlaybackRegion: React.FC = ({ children, mask }) => (
+const PlaybackRegion: React.FC<{
+  children?: React.ReactNode
+  mask: boolean
+}> = ({ children, mask }) => (
   <Block
     height="100%"
     overflow="hidden"
@@ -119,7 +122,9 @@ const PlaybackRegion: React.FC = ({ children, mask }) => (
   </Block>
 )
 
-const InspectorRegion: React.FC = ({ children }) => (
+const InspectorRegion: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => (
   <Grid
     gridArea="inspector"
     position="relative"
@@ -132,7 +137,9 @@ const InspectorRegion: React.FC = ({ children }) => (
   </Grid>
 )
 
-const ContentRegion: React.FC = ({ children }) => {
+const ContentRegion: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => {
   const [size] = useSize()
   return (
     <Block

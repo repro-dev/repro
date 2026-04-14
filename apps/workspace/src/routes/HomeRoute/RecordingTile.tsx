@@ -11,7 +11,7 @@ interface Props {
   projectId: string
 }
 
-export const RecordingTile: React.FC = ({ recording, projectId }) => {
+export const RecordingTile: React.FC<Props> = ({ recording, projectId }) => {
   const href = `/projects/${projectId}/recordings/${recording.id}`
 
   return (

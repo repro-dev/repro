@@ -3,7 +3,7 @@ import { Card, color, shadow } from '@repro/design'
 import React from 'react'
 import { MAX_INT32 } from '~/constants'
 
-export const Layout: React.FC = ({ children }) => (
+export const Layout: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
   <Grid
     gridTemplateColumns="1fr 420px"
     gridTemplateRows="100%"
@@ -19,7 +19,9 @@ export const Layout: React.FC = ({ children }) => (
   </Grid>
 )
 
-export const PlaybackRegion: React.FC = ({ children }) => (
+export const PlaybackRegion: React.FC<React.PropsWithChildren<{}>> = ({
+  children,
+}) => (
   <Grid
     gridArea="playback"
     gridTemplateRows="auto 1fr auto"
@@ -34,7 +36,9 @@ export const PlaybackRegion: React.FC = ({ children }) => (
   </Grid>
 )
 
-export const AsideRegion: React.FC = ({ children }) => (
+export const AsideRegion: React.FC<React.PropsWithChildren<{}>> = ({
+  children,
+}) => (
   <Grid
     gridArea="aside"
     alignItems="stretch"

@@ -13,7 +13,12 @@ interface Props {
   style: React.CSSProperties
 }
 
-export const BaseRow: React.FC = ({ children, event, index, style }) => {
+export const BaseRow: React.FC<React.PropsWithChildren<Props>> = ({
+  children,
+  event,
+  index,
+  style,
+}) => {
   const [, setSelectedEvent] = useSelectedEvent()
 
   return (

@@ -8,7 +8,7 @@ interface Props {
   eventIndex: number
 }
 
-export const SeekAction: React.FC = ({ eventIndex }) => {
+export const SeekAction: React.FC<Props> = ({ eventIndex }) => {
   const playback = usePlayback()
 
   const onClick = useCallback(() => {

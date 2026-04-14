@@ -9,18 +9,18 @@ interface Props {
   node: VElement
 }
 
-const Open: React.FC = ({ node }) => (
+const Open: React.FC<Props> = ({ node }) => (
   <Container>
     <Syntax>{`<`}</Syntax>
     <TagName>{node.tagName}</TagName>
     {Object.entries(node.attributes).map(([name, value]) => (
-      <Attribute key={name} name={name} value={value} />
+      <Attribute key={name} name={name} value={value ?? undefined} />
     ))}
     <Syntax>{`>`}</Syntax>
   </Container>
 )
 
-const Close: React.FC = ({ node }) => (
+const Close: React.FC<Props> = ({ node }) => (
   <Container>
     <Syntax>{`</`}</Syntax>
     <TagName>{node.tagName}</TagName>
@@ -33,15 +33,18 @@ export const ElementR = {
   Close,
 }
 
-const Syntax: React.FC = ({ children }) => (
+const Syntax: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <Inline color={color.text.muted}>{children}</Inline>
 )
 
-const TagName: React.FC = ({ children }) => (
+const TagName: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <Inline color={colors.pink['700']}>{children}</Inline>
 )
 
-const Attribute: React.FC = ({ name, value }) => (
+const Attribute: React.FC<{ name: string; value?: string }> = ({
+  name,
+  value,
+}) => (
   <Inline marginLeft={FONT_SIZE / 2}>
     <Inline color={colors.amber['700']}>{name}</Inline>
 

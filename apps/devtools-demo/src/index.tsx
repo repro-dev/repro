@@ -12,7 +12,7 @@ Stats.enable()
 
 const rootSelector = '#root'
 const rootElem = document.querySelector(rootSelector)
-const rootStyleSheet = document.querySelector('#root-styles')
+const rootStyleSheet = document.querySelector<HTMLStyleElement>('#root-styles')
 
 if (rootStyleSheet) {
   applyResetStyles(rootSelector, rootStyleSheet)

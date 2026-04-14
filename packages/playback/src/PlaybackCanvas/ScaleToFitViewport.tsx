@@ -1,18 +1,14 @@
 import { Block } from '@jsxstyle/react'
 import { color } from '@repro/design'
-import React, {
-  MutableRefObject,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useViewport } from '../hooks'
 
-export const ScaleToFitViewport: React.FC = ({ children }) => {
+export const ScaleToFitViewport: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => {
   const [vWidth, vHeight] = useViewport()
 
-  const ref = useRef() as MutableRefObject
+  const ref = useRef<HTMLDivElement | null>(null)
   const [scale, setScale] = useState(1)
   const [offset, setOffset] = useState([0, 0])
 

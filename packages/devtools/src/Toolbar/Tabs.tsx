@@ -78,7 +78,7 @@ function useHasReduxEvents(): boolean {
   }, [playback, buffer])
 }
 
-export const Tabs: React.FC = () => {
+export const Tabs: React.FC<{}> = () => {
   const hasReactEvents = useHasReactEvents()
   const hasReduxEvents = useHasReduxEvents()
 
@@ -120,7 +120,7 @@ interface ItemProps {
   disabled?: boolean
 }
 
-const Item: React.FC = ({ disabled, icon, label, view }) => {
+const Item: React.FC<ItemProps> = ({ disabled, icon, label, view }) => {
   const [activeView, setActiveView] = useDevToolsView()
   const [inspecting, setInspecting] = useInspecting()
 

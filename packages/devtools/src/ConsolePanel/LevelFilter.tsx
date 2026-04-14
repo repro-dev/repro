@@ -10,7 +10,7 @@ interface Props {
   onChange(value: number): void
 }
 
-export const LevelFilter: React.FC = ({ value, onChange }) => {
+export const LevelFilter: React.FC<Props> = ({ value, onChange }) => {
   function toggleLevel(level: LogLevel) {
     const bits = enumToBitField(level)
     onChange(value ^ bits)
@@ -54,7 +54,11 @@ interface ToggleProps {
   onClick(): void
 }
 
-const Toggle: React.FC = ({ active, children, onClick }) => {
+const Toggle: React.FC<React.PropsWithChildren<ToggleProps>> = ({
+  active,
+  children,
+  onClick,
+}) => {
   return (
     <Row
       alignItems="center"

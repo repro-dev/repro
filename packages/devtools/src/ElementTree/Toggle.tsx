@@ -15,7 +15,10 @@ const ClosedIcon: React.FC = () => (
   </Inline>
 )
 
-export const Toggle: React.FC = ({ isOpen, onClick }) => (
+export const Toggle: React.FC<{ isOpen: boolean; onClick: () => void }> = ({
+  isOpen,
+  onClick,
+}) => (
   <Inline
     position="absolute"
     lineHeight={1.25}

@@ -6,10 +6,14 @@ import { XIcon } from 'lucide-react'
 import React from 'react'
 import { ReadyState, useReadyState, useRecordingMode } from '~/state'
 
+interface DevBadgeProps {
+  branch: string
+}
+
 // DevBadge renders a small identifier chip over the Launcher in non-production
 // builds, showing which branch/worktree built the extension. Production builds
 // have this component tree-shaken out entirely via the BUILD_ENV guard below.
-const DevBadge: React.FC = ({ branch }) => {
+const DevBadge: React.FC<DevBadgeProps> = ({ branch }) => {
   const issueId = branch.match(/([A-Z]+-\d+)/i)?.[1]?.toUpperCase() ?? null
   const label = issueId ?? branch.split('/').pop()?.slice(0, 10) ?? 'dev'
 

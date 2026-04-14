@@ -9,7 +9,7 @@ interface Props {
   nextIndex: number
 }
 
-export const ElapsedMarker: React.FC = ({ prevIndex, nextIndex }) => {
+export const ElapsedMarker: React.FC<Props> = ({ prevIndex, nextIndex }) => {
   const playback = usePlayback()
   const [active, setActive] = useState(false)
 

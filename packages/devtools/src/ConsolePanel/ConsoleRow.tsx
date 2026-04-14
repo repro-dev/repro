@@ -33,7 +33,7 @@ interface Props {
   index: number
 }
 
-export const ConsoleRow: React.FC = ({
+export const ConsoleRow: React.FC<Props> = ({
   event: {
     time,
     data: { level, parts, stack },
@@ -77,7 +77,7 @@ interface StackReferenceProps {
   entry: StackEntry
 }
 
-const StackReference: React.FC = ({ entry }) => (
+const StackReference: React.FC<StackReferenceProps> = ({ entry }) => (
   <InlineBlock lineHeight={1.25}>
     {entry.fileName}:{entry.lineNumber}
   </InlineBlock>

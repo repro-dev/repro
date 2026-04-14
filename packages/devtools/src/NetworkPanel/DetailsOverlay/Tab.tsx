@@ -8,7 +8,7 @@ interface Props {
   onClick(): void
 }
 
-export const Tab: React.FC = ({ active, label, onClick }) => (
+export const Tab: React.FC<Props> = ({ active, label, onClick }) => (
   <Block
     paddingV={8}
     fontSize={11}

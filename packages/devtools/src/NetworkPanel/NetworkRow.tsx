@@ -3,9 +3,10 @@ import { formatTime } from '@repro/date-utils'
 import { color } from '@repro/design'
 import { RequestType } from '@repro/domain'
 import { FetchGroup, WebSocketGroup } from '@repro/source-utils'
-// FIXME: re-export `JsxstyleProps`
-// @ts-expect-error Cannot get declaration from npm-forks
 import prettyBytes from 'pretty-bytes'
+// FIXME: Re-export `JsxstyleProps`
+// @ts-expect-error Cannot find declaration in npm-forks
+import { JsxstyleProps } from 'jsxstyle/lib/types'
 import prettyMilliseconds from 'pretty-ms'
 import React, { useState } from 'react'
 import { SeekAction } from '../SeekAction'
@@ -42,7 +43,11 @@ function getRequestTiming(group: FetchGroup | WebSocketGroup): number | null {
   return group.responseTime - group.requestTime
 }
 
-export const NetworkRow: React.FC = ({ eventGroup, onSelect, selected }) => {
+export const NetworkRow: React.FC<Props> = ({
+  eventGroup,
+  onSelect,
+  selected,
+}) => {
   const [hover, setHover] = useState(false)
 
   function onMouseEnter() {
@@ -144,7 +149,10 @@ export const NetworkRow: React.FC = ({ eventGroup, onSelect, selected }) => {
   )
 }
 
-const Cell: React.FC = ({ children, ...props }) => (
+const Cell: React.FC<React.PropsWithChildren<JsxstyleProps<false>>> = ({
+  children,
+  ...props
+}) => (
   <Row
     alignSelf="stretch"
     alignItems="center"

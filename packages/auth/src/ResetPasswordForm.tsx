@@ -55,7 +55,7 @@ export const ResetPasswordForm: React.FC<Props> = ({
   const { register, formState, handleSubmit } = methods
 
   function onSubmit(data: FormState) {
-    return fork(err => {
+    return fork((err: Error) => {
       if (err.name === 'NotFoundError') {
         setErrorMessage(
           'This password reset link is invalid or has already been used.'

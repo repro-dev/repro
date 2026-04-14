@@ -11,7 +11,7 @@ interface Props {
   timeline?: React.ReactNode
 }
 
-export const Toolbar: React.FC = ({ timeline }) => {
+export const Toolbar: React.FC<Props> = ({ timeline }) => {
   return (
     <Container>
       <Toggle />
@@ -31,11 +31,11 @@ export const Toolbar: React.FC = ({ timeline }) => {
   )
 }
 
-const Container: React.FC = ({ children }) => (
+const Container: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <Row alignItems="stretch">{children}</Row>
 )
 
-const Separator: React.FC = () => (
+const Separator: React.FC<{}> = () => (
   <Block
     alignSelf="center"
     backgroundColor={color.border.default}
@@ -44,7 +44,9 @@ const Separator: React.FC = () => (
   />
 )
 
-const TimelineRegion: React.FC = ({ children }) => (
+const TimelineRegion: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => (
   <Block flex={1} marginV={5} marginH={16}>
     {children}
   </Block>

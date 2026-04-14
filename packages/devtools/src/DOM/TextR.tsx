@@ -8,7 +8,7 @@ interface Props {
   node: VText
 }
 
-export const TextR: React.FC = ({ node }) => (
+export const TextR: React.FC<Props> = ({ node }) => (
   <Container>
     <Inline color={color.text.secondary}>{node.value}</Inline>
   </Container>

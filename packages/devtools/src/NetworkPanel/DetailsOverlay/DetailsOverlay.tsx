@@ -15,7 +15,7 @@ interface Props {
 
 type View = 'headers' | 'request' | 'response' | 'messages'
 
-function extractContentType(headers: Record) {
+function extractContentType(headers: Record<string, string>) {
   const header =
     Object.entries(headers).find(([key]) => {
       return key.toLowerCase() === 'content-type'
@@ -24,8 +24,10 @@ function extractContentType(headers: Record) {
   return header ? header[1] : null
 }
 
-export const DetailsOverlay: React.FC = ({ group, onClose }) => {
-  const [view, setView] = useState(group.type === 'ws' ? 'messages' : 'headers')
+export const DetailsOverlay: React.FC<Props> = ({ group, onClose }) => {
+  const [view, setView] = useState<View>(
+    group.type === 'ws' ? 'messages' : 'headers'
+  )
 
   const requestBody =
     group.type === 'fetch' && group.request.body.byteLength

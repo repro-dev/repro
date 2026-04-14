@@ -8,7 +8,7 @@ interface Props {
   node: VDocType
 }
 
-export const DocTypeR: React.FC = ({ node }) => (
+export const DocTypeR: React.FC<Props> = ({ node }) => (
   <Container>
     <Inline color={color.text.muted}>{`<!DOCTYPE ${node.name}${
       node.publicId && `PUBLIC ${node.publicId}`

@@ -20,7 +20,12 @@ export const ReactPanel: React.FC = () => {
     const sourceEvents = playback.getSourceEvents().toSource()
 
     let snapshotEventIndex = -1
-    const postSnapshotCommits: Array = []
+    const postSnapshotCommits: Array<{
+      fiberNodeId: number
+      parentFiberId: number | null
+      componentName: string
+      propsDelta: string
+    }> = []
 
     let i = 0
     for (const view of sourceEvents) {
@@ -82,7 +87,7 @@ export const ReactPanel: React.FC = () => {
     return componentMap.size === 0 && nodes.length > 0
   }, [componentMap, snapshot])
 
-  const [selectedFiberId, setSelectedFiberId] = useState(null)
+  const [selectedFiberId, setSelectedFiberId] = useState<number | null>(null)
 
   const selectedNode =
     selectedFiberId !== null ? componentMap.get(selectedFiberId) ?? null : null
@@ -115,7 +120,7 @@ export const ReactPanel: React.FC = () => {
           nodes={componentMap}
           rootId={snapshot.frameworkState?.reactTree?.rootId ?? null}
           selectedFiberId={selectedFiberId}
-          onSelect={setSelectedFiberId}
+          onSelect={id => setSelectedFiberId(id)}
         />
       </Block>
 

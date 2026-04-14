@@ -9,7 +9,11 @@ interface Props {
   objectKey: string | null
 }
 
-export const TreeRow: React.FC = ({ children, level, objectKey }) => (
+export const TreeRow: React.FC<React.PropsWithChildren<Props>> = ({
+  children,
+  level,
+  objectKey,
+}) => (
   <Row position="relative" marginLeft={level * INDENT_SIZE}>
     {objectKey && (
       <Block marginRight={5} color={color.text.secondary} fontWeight={700}>

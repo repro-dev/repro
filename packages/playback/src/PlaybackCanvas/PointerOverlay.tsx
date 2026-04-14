@@ -4,7 +4,10 @@ import { PointerState } from '@repro/domain'
 import React from 'react'
 import { usePointer, usePointerState } from '../hooks'
 
-const Cursor: React.FC = ({ color, size = 24 }) => (
+const Cursor: React.FC<{ color: string; size?: number }> = ({
+  color,
+  size = 24,
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 12 20"

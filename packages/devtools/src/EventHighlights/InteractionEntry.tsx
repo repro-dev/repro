@@ -38,7 +38,7 @@ const icons = {
   ),
 }
 
-export const InteractionEntry: React.FC = ({ eventIndex, event }) => {
+export const InteractionEntry: React.FC<Props> = ({ eventIndex, event }) => {
   const [, setSelectedNode] = useSelectedNode()
   const [, setView] = useDevToolsView()
 

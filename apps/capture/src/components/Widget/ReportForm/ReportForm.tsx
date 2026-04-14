@@ -7,6 +7,7 @@ import { RecordingMode } from '@repro/domain'
 import { observeFuture } from '@repro/future-utils'
 import { useMessaging } from '@repro/messaging'
 import { PlaybackProvider, SimpleTimeline, usePlayback } from '@repro/playback'
+import { UploadProgress } from '@repro/recording-api'
 import { fork, FutureInstance } from 'fluture'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Subscription, switchMap, timer } from 'rxjs'
@@ -20,13 +21,13 @@ import { FormValues } from './types'
 const DEFAULT_SELECTED_DURATION = 60_000
 
 export interface ReportFormProps {
-  upload(values: FormValues): FutureInstance
+  upload(values: FormValues): FutureInstance<Error, unknown>
   onSuccess(): void
   onError(error: Error): void
   onClose(): void
 }
 
-export const ReportForm: React.FC = ({
+export const ReportForm: React.FC<ReportFormProps> = ({
   upload,
   onSuccess,
   onError,
@@ -35,10 +36,10 @@ export const ReportForm: React.FC = ({
   const agent = useMessaging()
   const playback = usePlayback()
   const [recordingMode] = useRecordingMode()
-  const [uploadRef, setUploadRef] = useState(null)
+  const [uploadRef, setUploadRef] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
-  const [, setEnqueueError] = useState(null)
-  const [progress, setProgress] = useState(null)
+  const [, setEnqueueError] = useState<Error | null>(null)
+  const [progress, setProgress] = useState<UploadProgress | null>(null)
   const [selectedDuration, setSelectedDuration] = useState(
     DEFAULT_SELECTED_DURATION
   )
@@ -80,7 +81,8 @@ export const ReportForm: React.FC = ({
       )
 
       subscription.add(
-        progress$.subscribe(progress => {
+        progress$.subscribe(rawProgress => {
+          const progress = rawProgress as UploadProgress
           setProgress(progress)
 
           if (progress.completed) {
@@ -107,9 +109,9 @@ export const ReportForm: React.FC = ({
         onError(error)
       }
 
-      function handleEnqueued(ref: string) {
+      function handleEnqueued(ref: unknown) {
         setUploading(true)
-        setUploadRef(ref)
+        setUploadRef(ref as string)
       }
     },
     [upload, setUploading, setUploadRef, onError, onSuccess, setEnqueueError]

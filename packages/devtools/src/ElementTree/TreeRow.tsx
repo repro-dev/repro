@@ -2,13 +2,19 @@ import { Block } from '@jsxstyle/react'
 import { color } from '@repro/design'
 import React, { PropsWithChildren } from 'react'
 import { FONT_SIZE, INDENT } from './constants'
-import { useNodeState } from './context'
+import { Tag, useNodeState } from './context'
 
 // Generic tree row container — shared by ElementTree and ReactPanel.
 // Handles indent, selection highlight, hover, font size, and click/hover callbacks.
-export type TreeRowBaseProps = PropsWithChildren
+export type TreeRowBaseProps = PropsWithChildren<{
+  depth: number
+  isSelected: boolean
+  disableFocus?: boolean
+  onClick?: () => void
+  onPointerEnter?: () => void
+}>
 
-export const TreeRowBase: React.FC = ({
+export const TreeRowBase: React.FC<TreeRowBaseProps> = ({
   children,
   depth,
   isSelected,
@@ -43,9 +49,14 @@ export const TreeRowBase: React.FC = ({
 }
 
 // Context-bound wrapper used by ElementTree — reads selection state from NodeStateContext.
-type TreeRowProps = PropsWithChildren
+type TreeRowProps = PropsWithChildren<{
+  depth: number
+  nodeId: string
+  disableFocus?: boolean
+  tag?: Tag
+}>
 
-export const TreeRow: React.FC = ({
+export const TreeRow: React.FC<TreeRowProps> = ({
   children,
   depth,
   nodeId,

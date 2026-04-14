@@ -20,7 +20,9 @@ function getStartIndex(group: FetchGroup | WebSocketGroup) {
 
 export const NetworkPanel: React.FC = () => {
   const playback = usePlayback()
-  const [selectedGroup, setSelectedGroup] = useState(null)
+  const [selectedGroup, setSelectedGroup] = useState<
+    FetchGroup | WebSocketGroup | null
+  >(null)
 
   const networkEvents = useMemo(() => {
     return Stats.time(

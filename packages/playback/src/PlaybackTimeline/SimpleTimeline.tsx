@@ -2,7 +2,7 @@ import { Block, Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { formatTime } from '@repro/date-utils'
 import { color } from '@repro/design'
-import React, { MutableRefObject, useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { NEVER, Observable, Subscription, combineLatest, fromEvent } from 'rxjs'
 import {
   distinctUntilChanged,
@@ -18,15 +18,14 @@ import { PlayAction } from './PlayAction'
 import { SpeedControl } from './SpeedControl'
 
 export interface Props {
+  children?: React.ReactNode
   min?: number
   max?: number
 }
 
 export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
-  const progressRef =
-    useRef<HTMLElement>() as MutableRefObject<HTMLElement | null>
-  const elapsedTimeRef =
-    useRef<HTMLElement>() as MutableRefObject<HTMLElement | null>
+  const progressRef = useRef<HTMLDivElement | null>(null)
+  const elapsedTimeRef = useRef<HTMLDivElement | null>(null)
   const playback = usePlayback()
 
   useEffect(() => {
@@ -53,7 +52,7 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
 
       function mapPointerEventToOffset(evt: PointerEvent) {
         const { x: rootOffsetX, width: rootWidth } =
-          root.getBoundingClientRect()
+          root!.getBoundingClientRect()
         return Math.max(0, Math.min(1, (evt.clientX - rootOffsetX) / rootWidth))
       }
 
@@ -92,7 +91,7 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
         pointerDown$
           .pipe(
             switchMap(() => pointerUp$.pipe(take(1))),
-            map(mapPointerEventToOffset),
+            map(evt => mapPointerEventToOffset(evt as PointerEvent)),
             map(mapOffsetToRelativeValue),
             map(mapRelativeToAbsoluteValue)
           )
@@ -107,7 +106,7 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
           .pipe(
             switchMap(() => pointerMove$.pipe(takeUntil(pointerLeave$))),
             map(evt => {
-              const offset = mapPointerEventToOffset(evt)
+              const offset = mapPointerEventToOffset(evt as PointerEvent)
               const value = mapOffsetToRelativeValue(offset)
               return [offset, value] as const
             })
@@ -149,20 +148,22 @@ export const SimpleTimeline: React.FC<Props> = ({ children, min, max }) => {
       )
 
       subscription.add(
-        pointerDown$.pipe(map(mapPointerEventToOffset)).subscribe(offset => {
-          updateBarOffset(progress, offset)
-          updateElapsedTime(
-            elapsedTime,
-            formatTime(mapOffsetToRelativeValue(offset), 'seconds')
-          )
-        })
+        pointerDown$
+          .pipe(map(evt => mapPointerEventToOffset(evt as PointerEvent)))
+          .subscribe(offset => {
+            updateBarOffset(progress, offset)
+            updateElapsedTime(
+              elapsedTime,
+              formatTime(mapOffsetToRelativeValue(offset), 'seconds')
+            )
+          })
       )
 
       subscription.add(
         pointerDown$
           .pipe(
             switchMap(() => pointerMove$.pipe(takeUntil(pointerUp$))),
-            map(mapPointerEventToOffset)
+            map(evt => mapPointerEventToOffset(evt as PointerEvent))
           )
           .subscribe(offset => {
             updateBarOffset(progress, offset)
@@ -292,7 +293,7 @@ function createAnimationObservable(
   initialOffset: number,
   duration: number
 ) {
-  return new Observable(observer => {
+  return new Observable<Animation>(observer => {
     const keyframes: Array<Keyframe> = [
       { transform: `scaleX(${initialOffset})` },
       { transform: `scaleX(1.0)` },
@@ -444,8 +445,10 @@ function updateTooltip(target: HTMLElement, offset: number, value: string) {
   target.textContent = value
 }
 
-function updateElapsedTime(target: HTMLElement, value: string) {
-  target.textContent = value
+function updateElapsedTime(target: HTMLElement | null, value: string) {
+  if (target) {
+    target.textContent = value
+  }
 }
 
 function showTooltip(target: HTMLElement) {

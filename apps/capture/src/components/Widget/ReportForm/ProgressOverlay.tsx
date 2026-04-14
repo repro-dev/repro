@@ -15,7 +15,7 @@ interface Props {
   onClose: () => void
 }
 
-const Backdrop: React.FC = ({ children }) => (
+const Backdrop: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
   <Row
     alignItems="center"
     justifyContent="center"
@@ -32,7 +32,7 @@ const Backdrop: React.FC = ({ children }) => (
   </Row>
 )
 
-const Label: React.FC = ({ children }) => {
+const Label: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
   return (
     <Block marginBottom={8} fontSize={13} lineHeight={1}>
       {children}
@@ -40,15 +40,20 @@ const Label: React.FC = ({ children }) => {
   )
 }
 
-const List: React.FC = ({ children, width }) => (
+const List: React.FC<React.PropsWithChildren<{ width?: string | number }>> = ({
+  children,
+  width,
+}) => (
   <Col gap={16} width={width}>
     {children}
   </Col>
 )
 
-const ListItem: React.FC = ({ children }) => <Block>{children}</Block>
+const ListItem: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
+  <Block>{children}</Block>
+)
 
-export const ProgressOverlay: React.FC = ({
+export const ProgressOverlay: React.FC<Props> = ({
   progress,
   onClose,
   width = 240,

@@ -12,7 +12,7 @@ interface Props {
 
 const DEFAULT_COLOR = color.text.secondary
 
-export const StringRenderer: React.FC = ({
+export const StringRenderer: React.FC<Props> = ({
   level,
   objectKey,
   value,

@@ -77,7 +77,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
 
     setLoading(true)
 
-    return fork(err => {
+    return fork((err: Error) => {
       if (err.name === 'TooManyRequests' || (err as any).statusCode === 429) {
         setErrorMessage('Too many login attempts. Please try again later.')
       } else if (

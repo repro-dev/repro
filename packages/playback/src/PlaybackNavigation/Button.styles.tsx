@@ -8,7 +8,12 @@ interface ButtonProps {
   onClick: () => void
 }
 
-export const Button: React.FC = ({ children, active, disabled, onClick }) => (
+export const Button: React.FC<ButtonProps & { children?: React.ReactNode }> = ({
+  children,
+  active,
+  disabled,
+  onClick,
+}) => (
   <Row
     component="button"
     appearance="none"

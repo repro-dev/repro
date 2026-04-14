@@ -8,7 +8,7 @@ interface Props {
   objectKey: string | null
 }
 
-export const UndefinedRenderer: React.FC = ({ level, objectKey }) => (
+export const UndefinedRenderer: React.FC<Props> = ({ level, objectKey }) => (
   <TreeRow level={level} objectKey={objectKey}>
     <Block color={color.text.muted}>undefined</Block>
   </TreeRow>

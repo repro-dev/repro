@@ -10,7 +10,10 @@ const ClosedIcon: React.FC = () => (
   <Inline color={color.text.secondary}>{String.fromCharCode(0x25b8)}</Inline>
 )
 
-export const Toggle: React.FC = ({ isOpen, onClick }) => (
+export const Toggle: React.FC<{ isOpen: boolean; onClick: () => void }> = ({
+  isOpen,
+  onClick,
+}) => (
   <Block
     height={13.75}
     fontSize={16}

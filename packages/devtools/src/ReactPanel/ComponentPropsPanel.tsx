@@ -8,7 +8,7 @@ interface Props {
   node: ReactComponentNode | null
 }
 
-export const ComponentPropsPanel: React.FC = ({ node }) => {
+export const ComponentPropsPanel: React.FC<Props> = ({ node }) => {
   if (!node) {
     return (
       <Block padding={16} fontSize={12} color={colors.slate['400']}>

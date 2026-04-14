@@ -25,7 +25,7 @@ const icons = {
   [LogLevel.Verbose]: <AlertCircle size={16} color={color.text.muted} />,
 }
 
-export const ConsoleEntry: React.FC = ({ eventIndex, event }) => {
+export const ConsoleEntry: React.FC<Props> = ({ eventIndex, event }) => {
   const [, setView] = useDevToolsView()
   const level = event.data.level
   const firstPart = event.data.parts[0]

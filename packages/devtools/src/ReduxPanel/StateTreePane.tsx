@@ -4,10 +4,10 @@ import React from 'react'
 import { JSONView } from '../JSONView/JSONView'
 
 interface Props {
-  state: Record
+  state: Record<string, unknown>
 }
 
-export const StateTreePane: React.FC = ({ state }) => {
+export const StateTreePane: React.FC<Props> = ({ state }) => {
   if (Object.keys(state).length === 0) {
     return (
       <Block padding={16} fontSize={12} color={colors.slate['400']}>

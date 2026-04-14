@@ -10,7 +10,7 @@ interface Props {
   info: RecordingInfo
 }
 
-export const Sidebar: React.FC = ({ info }) => (
+export const Sidebar: React.FC<Props> = ({ info }) => (
   <Card>
     <Grid
       gridTemplateRows="auto 1fr auto"

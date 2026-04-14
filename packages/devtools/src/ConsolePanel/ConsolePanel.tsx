@@ -1,16 +1,10 @@
 import { Block, Grid } from '@jsxstyle/react'
 import { color } from '@repro/design'
 import { Stats } from '@repro/diagnostics'
-import { MessagePartType, SourceEventView } from '@repro/domain'
+import { ConsoleEvent, MessagePartType, SourceEventView } from '@repro/domain'
 import { ControlFrame, ElapsedMarker, usePlayback } from '@repro/playback'
 import { isConsoleEvent } from '@repro/source-utils'
-import React, {
-  Fragment,
-  MutableRefObject,
-  useEffect,
-  useMemo,
-  useRef,
-} from 'react'
+import React, { Fragment, useEffect, useMemo, useRef } from 'react'
 import { filter } from 'rxjs'
 import { useConsoleLevelFilter, useConsoleSearch } from '../hooks'
 import { pairwise } from '../utils'
@@ -23,10 +17,10 @@ export const ConsolePanel: React.FC = () => {
   const playback = usePlayback()
   const [consoleSearch, setConsoleSearch] = useConsoleSearch()
   const [consoleLevelFilter, setConsoleLevelFilter] = useConsoleLevelFilter()
-  const rowContainerRef = useRef() as MutableRefObject
+  const rowContainerRef = useRef<HTMLDivElement | null>(null)
 
   const consoleEvents = useMemo(() => {
-    const events: Array = []
+    const events: Array<[ConsoleEvent, number]> = []
 
     Stats.time(
       'ConsolePanel -> get console messages from source events',
@@ -89,7 +83,7 @@ export const ConsolePanel: React.FC = () => {
           ([, eventIndex]) => eventIndex === activeIndex
         )
 
-        if (listIndex !== -1) {
+        if (listIndex !== -1 && rowContainerRef.current) {
           const row = rowContainerRef.current.querySelectorAll(
             `[data-target='console-row']`
           )[listIndex]

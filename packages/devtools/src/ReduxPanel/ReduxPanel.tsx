@@ -16,11 +16,11 @@ export const ReduxPanel: React.FC = () => {
   const playback = usePlayback()
   const snapshot = useSnapshot()
   const activeIndex = useAtomValue(playback.$activeIndex)
-  const [selectedIndex, setSelectedIndex] = useState(null)
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
 
   // Collect all ReduxDispatchEvents with their source indices
   const dispatchEvents = useMemo(() => {
-    const events: Array = []
+    const events: Array<[ReduxDispatchEvent, number]> = []
     const sourceEvents = playback.getSourceEvents().toSource()
     let i = 0
     for (const view of sourceEvents) {
@@ -44,14 +44,14 @@ export const ReduxPanel: React.FC = () => {
   // 2. Find the snapshot event index that corresponds to the baseline
   // 3. Only apply diffs AFTER the snapshot to avoid double-applying pre-snapshot events
   const reconstructedState = useMemo(() => {
-    let state: Record = {}
+    let state: Record<string, unknown> = {}
 
     const baselineJson = snapshot.frameworkState?.reduxState
     if (baselineJson) {
       try {
         const parsed = JSON.parse(baselineJson)
         if (typeof parsed === 'object' && parsed !== null) {
-          state = parsed as Record
+          state = parsed as Record<string, unknown>
         }
       } catch {
         // Baseline unparseable — start from empty state
@@ -78,7 +78,10 @@ export const ReduxPanel: React.FC = () => {
       if (eventIndex > activeIndex) break
       if (eventIndex <= snapshotEventIndex) continue // already in baseline
       try {
-        const diff = JSON.parse(event.stateDiff) as Record
+        const diff = JSON.parse(event.stateDiff) as Record<
+          string,
+          { after?: unknown }
+        >
         for (const [key, entry] of Object.entries(diff)) {
           if (entry.after === undefined) {
             // Deleted key — remove from reconstructed state rather than setting to undefined
@@ -109,7 +112,7 @@ export const ReduxPanel: React.FC = () => {
         <ActionLog
           events={dispatchEvents}
           selectedIndex={selectedIndex}
-          onSelect={setSelectedIndex}
+          onSelect={idx => setSelectedIndex(idx)}
         />
       </Block>
 

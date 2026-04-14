@@ -18,7 +18,7 @@ const defaultStyles = {
   transformOrigin: 'bottom left',
 } as const
 
-export const Modal: React.FC = ({
+export const Modal: React.FC<React.PropsWithChildren<ModalProps>> = ({
   children,
   title,
   onClose,

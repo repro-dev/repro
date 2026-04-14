@@ -18,7 +18,7 @@ export const ElementsPanel: React.FC = () => {
   )
 }
 
-const Container: React.FC = ({ children }) => (
+const Container: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <Grid gridTemplateColumns="1fr auto" alignItems="stretch" height="100%">
     {children}
   </Grid>

@@ -13,7 +13,12 @@ interface Props {
   onSelect: () => void
 }
 
-export const ActionRow: React.FC = ({ event, index, isSelected, onSelect }) => {
+export const ActionRow: React.FC<Props> = ({
+  event,
+  index,
+  isSelected,
+  onSelect,
+}) => {
   const playback = usePlayback()
   const [expanded, setExpanded] = useState(false)
 

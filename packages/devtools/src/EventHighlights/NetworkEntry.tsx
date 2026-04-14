@@ -31,7 +31,7 @@ const icons = {
   ),
 }
 
-export const NetworkEntry: React.FC = ({ eventIndex, event }) => {
+export const NetworkEntry: React.FC<Props> = ({ eventIndex, event }) => {
   const [, setView] = useDevToolsView()
 
   return event.data

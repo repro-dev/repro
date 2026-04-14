@@ -8,7 +8,7 @@ interface Props {
   node: ReactComponentNode
 }
 
-const Open: React.FC = ({ node }) => (
+const Open: React.FC<Props> = ({ node }) => (
   <Container>
     <Syntax>{'<'}</Syntax>
     <ComponentName>{node.componentName}</ComponentName>
@@ -16,7 +16,7 @@ const Open: React.FC = ({ node }) => (
   </Container>
 )
 
-const Close: React.FC = ({ node }) => (
+const Close: React.FC<Props> = ({ node }) => (
   <Container>
     <Syntax>{'</'}</Syntax>
     <ComponentName>{node.componentName}</ComponentName>
@@ -29,11 +29,13 @@ export const ComponentR = {
   Close,
 }
 
-const Syntax: React.FC = ({ children }) => (
+const Syntax: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <Inline color={color.text.muted}>{children}</Inline>
 )
 
-const ComponentName: React.FC = ({ children }) => (
+const ComponentName: React.FC<{ children?: React.ReactNode }> = ({
+  children,
+}) => (
   <Inline color={colors.violet['700']} fontWeight={500}>
     {children}
   </Inline>

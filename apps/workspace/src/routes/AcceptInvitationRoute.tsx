@@ -32,7 +32,7 @@ const formSchema = z
     path: ['confirmedPassword'],
   })
 
-type FormState = z.infer
+type FormState = z.infer<typeof formSchema>
 
 const AcceptInvitationRoute: React.FC = () => {
   const navigate = useNavigate()

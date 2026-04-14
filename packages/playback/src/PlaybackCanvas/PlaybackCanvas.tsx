@@ -1,13 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import { color, Delay, FrameRealm, FX } from '@repro/design'
 import { Loader as LoaderIcon } from 'lucide-react'
-import React, {
-  MutableRefObject,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { asyncScheduler, combineLatest, observeOn } from 'rxjs'
 import { usePlayback } from '..'
 import { withPlaybackErrorBoundary } from '../PlaybackErrorBoundary'
@@ -38,10 +32,10 @@ export const PlaybackCanvas = withPlaybackErrorBoundary(
     resourceBaseURL,
     onDocumentReady,
     onLoad,
-  }) => {
+  }: Props & { children?: React.ReactNode }) => {
     const playback = usePlayback()
-    const frameRef = useRef() as MutableRefObject
-    const [ownerDocument, setOwnerDocument] = useState(null)
+    const frameRef = useRef<HTMLIFrameElement | null>(null)
+    const [ownerDocument, setOwnerDocument] = useState<Document | null>(null)
 
     const [loaded, setLoaded] = useState(false)
     const [waitingForEvents, setWaitingForEvents] = useState(true)

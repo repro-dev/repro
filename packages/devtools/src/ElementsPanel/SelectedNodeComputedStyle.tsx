@@ -3,6 +3,7 @@ import {
   createCSSPropertyMap,
   createGroupedCSSPropertyMap,
   CSSPropertyMap,
+  GroupedCSSPropertyMap,
   useReferenceStyle,
 } from '@repro/css-utils'
 import { color, colors } from '@repro/design'
@@ -16,7 +17,9 @@ export const SelectedNodeComputedStyle: React.FC = () => {
   const latestControlFrame = useLatestControlFrame()
   const elapsed = useElapsed()
   const getReferenceStyle = useReferenceStyle()
-  const [styleMaps, setStyleMaps] = useState(null)
+  const [styleMaps, setStyleMaps] = useState<GroupedCSSPropertyMap[] | null>(
+    null
+  )
 
   useEffect(() => {
     if (!selectedElement) {

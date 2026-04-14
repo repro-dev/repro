@@ -1,19 +1,20 @@
 import { Block, Row } from '@jsxstyle/react'
 import { formatTime } from '@repro/date-utils'
 import { color } from '@repro/design'
+import { SourceEvent } from '@repro/domain'
 import { usePlayback } from '@repro/playback'
 import { Unboxed } from '@repro/tdl'
 import React from 'react'
 
 interface Props {
   eventIndex: number
-  event: Unboxed
+  event: Unboxed<SourceEvent>
   color?: string
   icon?: React.ReactNode
   onClick?: () => void
 }
 
-export const BaseEntry: React.FC = ({
+export const BaseEntry: React.FC<React.PropsWithChildren<Props>> = ({
   children,
   eventIndex,
   event,

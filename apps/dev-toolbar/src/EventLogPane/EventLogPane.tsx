@@ -4,7 +4,7 @@ import { SourceEventType } from '@repro/domain'
 import { InterruptSignal, useRecordingStream } from '@repro/recording'
 import { TablePropertiesIcon } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
-import { FixedSizeList } from 'react-window'
+import { FixedSizeList, ListChildComponentProps } from 'react-window'
 import { asyncScheduler, concat, from, observeOn, scan } from 'rxjs'
 import { BaseRow } from './BaseRow'
 import { ConsoleRow } from './ConsoleRow'
@@ -13,9 +13,14 @@ import { Details } from './Details'
 import { InteractionRow } from './InteractionRow'
 import { NetworkRow } from './NetworkRow'
 import { PerformanceRow } from './PerformanceRow'
+import { LogItem } from './types'
 import { collapseItemsIntoGroups, unpackFirstEvent } from './utils'
 
-const ItemRow: React.FC = ({ index, style, data: items }) => {
+const ItemRow: React.FC<ListChildComponentProps<LogItem[]>> = ({
+  index,
+  style,
+  data: items,
+}) => {
   const item = items[index]
 
   if (!item) {
@@ -61,7 +66,7 @@ const ItemRow: React.FC = ({ index, style, data: items }) => {
 
 export const EventLogPane: React.FC = () => {
   const recordingStream = useRecordingStream()
-  const [items, setItems] = useState([])
+  const [items, setItems] = useState<LogItem[]>([])
 
   useEffect(() => {
     const event$ = concat(
@@ -70,9 +75,9 @@ export const EventLogPane: React.FC = () => {
     )
 
     const logItems$ = event$.pipe(
-      scan((logItems, event) => {
+      scan((logItems: LogItem[], event) => {
         return collapseItemsIntoGroups([...logItems, event])
-      }, [])
+      }, [] as LogItem[])
     )
 
     const subscription = logItems$
