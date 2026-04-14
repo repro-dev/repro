@@ -2,6 +2,7 @@ import { Col } from '@jsxstyle/react'
 import { PageFrame, spacing } from '@repro/design'
 import React from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import BillingSettingsRouteConnected from '~/routes/BillingSettingsRoute'
 
 const ProfilePage: React.FC = () => (
   <PageFrame>
@@ -36,17 +37,6 @@ const TeamPage: React.FC = () => (
   </PageFrame>
 )
 
-const BillingPage: React.FC = () => (
-  <PageFrame>
-    <PageFrame.Header>
-      <PageFrame.Title>Billing</PageFrame.Title>
-    </PageFrame.Header>
-    <PageFrame.Body maxWidth={720}>
-      <Col gap={spacing['2xl']} />
-    </PageFrame.Body>
-  </PageFrame>
-)
-
 const ApiKeysPage: React.FC = () => (
   <PageFrame>
     <PageFrame.Header>
@@ -66,7 +56,7 @@ const SettingsRoute: React.FC = () => (
     <Route path="account" element={<AccountPage />} />
     <Route path="api-keys" element={<ApiKeysPage />} />
     <Route path="team" element={<TeamPage />} />
-    <Route path="billing" element={<BillingPage />} />
+    <Route path="billing" element={<BillingSettingsRouteConnected />} />
   </Routes>
 )
 

@@ -47,6 +47,7 @@ function toSubscriptionResponse(
     canceledAt: sub.canceledAt ? sub.canceledAt.toISOString() : null,
     createdAt: sub.createdAt.toISOString(),
     updatedAt: sub.updatedAt.toISOString(),
+    isSelfProvisioned: sub.isSelfProvisioned,
   }
 }
 

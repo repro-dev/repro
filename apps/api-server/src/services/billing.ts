@@ -39,6 +39,7 @@ export interface BillingSubscription {
   canceledAt: Date | null
   createdAt: Date
   updatedAt: Date
+  isSelfProvisioned: boolean
 }
 
 export interface BillingEntitlement {
@@ -135,6 +136,9 @@ function asBillingSubscription(row: {
     canceledAt: row.canceledAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    // All Paddle-provisioned subscriptions are not self-provisioned;
+    // a future manual/enterprise tier would set this to true at the service layer.
+    isSelfProvisioned: false,
   }
 }
 
