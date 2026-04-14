@@ -14,13 +14,13 @@ model assignments without modifying the agent definition files.
 
 ${CLR_BOLD}OPTIONS${CLR_RESET}
   --profile <name>    Load .opencode/profiles/<name>.json as OPENCODE_CONFIG.
-                      Without this flag, OpenCode is launched with no profile
-                      override (uses each agent's own hardcoded model).
+                      Without this flag, an fzf picker lets you choose from
+                      available profiles in .opencode/profiles/.
   -h, --help          Show this help.
 
 ${CLR_BOLD}EXAMPLES${CLR_RESET}
   reproctl opencode
-      Launch OpenCode with default agent models.
+      Open an fzf picker to select a profile, then launch OpenCode.
 
   reproctl opencode --profile openrouter-glm5-minimax
       Launch OpenCode remapped to GLM-5.1 and MiniMax M2.7 via OpenRouter.
@@ -53,6 +53,29 @@ cmd_opencode() {
         ;;
     esac
   done
+
+  # No --profile given: select one interactively via fzf.
+  if [[ -z "$profile" ]]; then
+    # Collect available profiles (Bash 3.2 safe: no mapfile/readarray).
+    local profiles=()
+    local pfile
+    for pfile in "$REPO_ROOT/.opencode/profiles/"*.json; do
+      [[ -f "$pfile" ]] || continue
+      profiles+=("$(basename "$pfile" .json)")
+    done
+
+    if [[ ${#profiles[@]} -eq 0 ]]; then
+      die "No profiles found in $REPO_ROOT/.opencode/profiles/\nCreate a .json profile file or pass --profile <name> to skip the picker."
+    fi
+
+    # fzf is required when there is more than one profile.
+    # _pick auto-selects without fzf when there is exactly one profile.
+    if [[ ${#profiles[@]} -gt 1 ]] && ! command -v fzf > /dev/null 2>&1; then
+      die "No --profile flag given and fzf is not installed.\nInstall fzf to enable the interactive profile picker: brew install fzf\nOr pass --profile <name> to skip the picker."
+    fi
+
+    profile="$(_pick "Select a profile" "${profiles[@]}")" || exit $?
+  fi
 
   if [[ -n "$profile" ]]; then
     local profile_path="$REPO_ROOT/.opencode/profiles/${profile}.json"
