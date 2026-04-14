@@ -302,6 +302,37 @@ For this phase:
 4. Do not stop mid-batch. If a develop launch is throttled, use the shared subagent launch retry policy and keep the batch visible in status output.
 5. Make publishability and stop/continue decisions only at the normal phase or wave boundaries.
 
+### Smoke tests after each batch
+
+After each batch of `develop` agents finishes, run existing tests for each issue that succeeded in that batch. This step is informational only — test failures do not halt the pipeline.
+
+For each issue whose develop run succeeded in this batch:
+
+1. Determine affected packages from the worktree diff:
+
+   ```sh
+   git -C <worktree-path> diff main...HEAD --name-only
+   ```
+
+   Extract the first path segment from every line that starts with `apps/` or `packages/` (e.g. `packages/agentic/src/foo.ts` → `agentic`). Deduplicate. Skip all other paths (e.g. `.opencode/`, root config files).
+
+2. For each affected package `<name>`, run:
+
+   ```sh
+   pnpm --filter @repro/<name> test
+   ```
+
+   If pnpm exits because the package has no `test` script (error output contains "missing script: test"), skip that package — this is not a test failure.
+
+3. **If all tests pass** (or no testable packages were touched): record `smoke_test_result: pass` for this issue. Do not alter the Phase 7 review prompt.
+
+4. **If one or more tests fail**: record `smoke_test_result: fail` for this issue with a structured failure summary:
+   - Package name (`@repro/<name>`)
+   - Failing test file(s)
+   - Condensed error output (first ~10 lines per failing file)
+
+Store the per-issue smoke test result in memory for use in the Phase 7 review prompt.
+
 If a develop launch still fails after exhausting the shared retry policy:
 
 - Report the issue ID and launch failure clearly
@@ -407,6 +438,16 @@ Focus exclusively on correctness and security:
 4. Evaluate: logic gaps, off-by-one errors, unhandled edge cases, error-path handling, async operation correctness (Futures not Promises per project conventions), and security implications (injection, auth bypass, data exposure, unsafe deserialization).
 5. Check AGENTS.md conventions for the affected packages.
 6. Return the structured output required by .opencode/agents/review.md — but only report findings in the correctness and security categories. Assign each finding `role: correctness-security` in the structured output (both correctness and security findings use the same role).
+
+[If smoke_test_result is fail for this issue, also include:]
+
+## Smoke test failures
+
+The following packages had test failures after implementation. For each failure, classify it as **caused-by-this-change** or **pre-existing**:
+- **caused-by-this-change**: add as a blocking finding (`category: correctness`, `fixable_by_agent: true`) in your structured output.
+- **pre-existing**: add as a non-blocking suggestion only.
+
+<structured failure summary from Phase 6 smoke tests>
 ```
 
 **Architecture + Conventions reviewer** (always spawned for high-risk issues):
@@ -421,6 +462,16 @@ Focus exclusively on architecture and conventions:
 4. Evaluate: side effects on other parts of the system, consistency with existing codebase patterns, approach alignment with stated architecture, and package-level AGENTS.md convention compliance.
 5. Check style/conventions (imports, naming, Prettier, no hardcoded values, design tokens).
 6. Return the structured output required by .opencode/agents/review.md — but only report findings in the architecture and conventions categories. Assign each finding `role: architecture-conventions` in the structured output (both architecture and conventions findings use the same role).
+
+[If smoke_test_result is fail for this issue, also include:]
+
+## Smoke test failures
+
+The following packages had test failures after implementation. For each failure, classify it as **caused-by-this-change** or **pre-existing**:
+- **caused-by-this-change**: add as a blocking finding (`category: correctness`, `fixable_by_agent: true`) in your structured output.
+- **pre-existing**: add as a non-blocking suggestion only.
+
+<structured failure summary from Phase 6 smoke tests>
 ```
 
 **Performance reviewer** (spawned only when data-heavy changes are detected):
@@ -434,6 +485,16 @@ Focus exclusively on performance:
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Evaluate: algorithmic complexity regressions, unnecessary iteration or duplication, missing indexes or query optimizations (if DB changes are present), unbuffered stream operations, large in-memory collections, and lack of pagination/cursor patterns where appropriate.
 5. Return the structured output required by .opencode/agents/review.md — but only report findings in the performance category. Assign each finding `role: performance` in the structured output.
+
+[If smoke_test_result is fail for this issue, also include:]
+
+## Smoke test failures
+
+The following packages had test failures after implementation. For each failure, classify it as **caused-by-this-change** or **pre-existing**:
+- **caused-by-this-change**: add as a blocking finding (`category: correctness`, `fixable_by_agent: true`) in your structured output.
+- **pre-existing**: add as a non-blocking suggestion only.
+
+<structured failure summary from Phase 6 smoke tests>
 ```
 
 ### Finding merge and deduplication
@@ -484,6 +545,16 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Review against requirements coverage, correctness, test coverage, conventions, and architecture.
 5. Return the structured output required by .opencode/agents/review.md.
+
+[If smoke_test_result is fail for this issue, also include:]
+
+## Smoke test failures
+
+The following packages had test failures after implementation. For each failure, classify it as **caused-by-this-change** or **pre-existing**:
+- **caused-by-this-change**: add as a blocking finding (`category: correctness`, `fixable_by_agent: true`) in your structured output.
+- **pre-existing**: add as a non-blocking suggestion only.
+
+<structured failure summary from Phase 6 smoke tests>
 ```
 
 For each issue, apply this bounded loop:
