@@ -234,6 +234,70 @@ cmd_wt_remove nonexistent-slug 2>/dev/null || rc=\$?
 if [[ \"\$rc\" -ne 0 ]]; then echo PASS; else echo 'FAIL:expected non-zero exit'; fi
 "
 
+# ── REP-898: ignored-only auto-remove ─────────────────────────────────
+
+run_git_test "cmd_wt_remove: worktree with only ignored files auto-removes without --force" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree ignored-only)\"
+# Stage a .gitignore that ignores tmp/
+printf 'tmp/\n' >\"\$wt_dir/.gitignore\"
+git -C \"\$wt_dir\" add .gitignore
+git -C \"\$wt_dir\" commit -m 'add gitignore' >/dev/null 2>&1
+# Create an ignored artifact
+mkdir -p \"\$wt_dir/tmp\"
+printf 'output\n' >\"\$wt_dir/tmp/output.txt\"
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false WT_YES=false
+rc=0
+output=\"\$(cmd_wt_remove ignored-only 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -eq 0 && ! -d \"\$wt_dir\" ]]; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc output=\$output wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no)\"
+fi
+"
+
+# ── REP-898: WT_YES + has-changes skips with rc=0 ─────────────────────
+
+run_git_test "cmd_wt_remove: WT_YES + tracked changes skips worktree and returns 0" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree yes-has-changes)\"
+# Commit a tracked file, then modify it (unstaged)
+printf 'initial\n' >\"\$wt_dir/tracked.txt\"
+git -C \"\$wt_dir\" add tracked.txt
+git -C \"\$wt_dir\" commit -m 'add tracked file' >/dev/null 2>&1
+printf 'modified\n' >\"\$wt_dir/tracked.txt\"
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+rc=0
+output=\"\$(cmd_wt_remove yes-has-changes 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -eq 0 && -d \"\$wt_dir\" ]]; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc output=\$output wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no)\"
+fi
+"
+
+# ── REP-898: non-interactive + tracked changes exits non-zero ──────────
+
+run_git_test "cmd_wt_remove: non-interactive + tracked changes exits non-zero and leaves worktree intact" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree noninteractive-tracked)\"
+printf 'initial\n' >\"\$wt_dir/tracked.txt\"
+git -C \"\$wt_dir\" add tracked.txt
+git -C \"\$wt_dir\" commit -m 'add tracked file' >/dev/null 2>&1
+printf 'modified\n' >\"\$wt_dir/tracked.txt\"
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false WT_YES=false
+rc=0
+output=\"\$(cmd_wt_remove noninteractive-tracked </dev/null 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -ne 0 && -d \"\$wt_dir\" ]]; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc output=\$output wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no)\"
+fi
+"
+
 printf '\n%d/%d tests passed\n' "$PASS" "$TESTS_RUN"
 
 if [ "$FAIL" -gt 0 ]; then

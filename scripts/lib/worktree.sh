@@ -344,6 +344,39 @@ _drop_worktree_db() {
   }
 } >&2
 
+# _wt_change_state <wt_path>
+# Prints one of: clean | ignored-only | has-changes
+# Bash 3.2-compatible (no declare -A, no ${var,,}, no mapfile)
+_wt_change_state() {
+  local wt_path="$1"
+
+  # Staged changes
+  if ! git -C "$wt_path" diff --cached --quiet 2>/dev/null; then
+    echo "has-changes"
+    return
+  fi
+
+  # Unstaged tracked changes
+  if ! git -C "$wt_path" diff --quiet 2>/dev/null; then
+    echo "has-changes"
+    return
+  fi
+
+  # Untracked non-ignored files (potentially valuable work — treat as has-changes)
+  if git -C "$wt_path" ls-files --others --exclude-standard --directory 2>/dev/null | grep -q .; then
+    echo "has-changes"
+    return
+  fi
+
+  # Git-ignored files only (e.g. tmp/, node_modules/, build artifacts)
+  if git -C "$wt_path" ls-files --others --ignored --exclude-standard --directory 2>/dev/null | grep -q .; then
+    echo "ignored-only"
+    return
+  fi
+
+  echo "clean"
+}
+
 cmd_wt_remove() {
   local input="$1"
   local wt_path
@@ -376,10 +409,56 @@ cmd_wt_remove() {
     return 0
   fi
 
+  local _force_remove=false
+
+  if [ "${WT_FORCE:-false}" = true ]; then
+    # --force bypasses all checks; existing behaviour unchanged
+    _force_remove=true
+  else
+    local _state
+    _state="$(_wt_change_state "$wt_path")"
+    case "$_state" in
+      clean)
+        # Nothing extra needed; standard remove works
+        ;;
+      ignored-only)
+        # Only git-ignored artifacts present (e.g. tmp/); safe to auto-remove
+        _force_remove=true
+        ;;
+      has-changes)
+        # WT_YES is set internally by cmd_wt_prune; not available via CLI for 'remove'
+        if [ "${WT_YES:-false}" = true ]; then
+          # Non-interactive path (e.g. post-merge hook): skip with warning, return 0
+          _warn "Skipping $wt_path: has uncommitted changes (use --force to override)"
+          return 0
+        elif ! { true </dev/tty; } 2>/dev/null; then
+          # No TTY: fail loudly so caller is aware
+          _err "Worktree has uncommitted changes: $wt_path (use --force to override)"
+          return 1
+        else
+          # Interactive: show status and ask
+          echo "" >&2
+          echo "${CLR_BOLD}Worktree has uncommitted changes:${CLR_RESET}" >&2
+          git -C "$wt_path" status --short >&2
+          echo "" >&2
+          local _answer
+          read -r -p "Discard changes and remove? [y/N] " _answer </dev/tty
+          case "$_answer" in
+            [yY]) _force_remove=true ;;
+            *)
+              echo "Keeping worktree: $wt_path" >&2
+              return 0
+              ;;
+          esac
+        fi
+        ;;
+    esac
+  fi
+
   _cleanup_worktree_services "$wt_path"
 
   _step 1 2 "Removing git worktree..."
-  if [ "${WT_FORCE:-false}" = true ]; then
+  if [ "$_force_remove" = true ]; then
     git worktree remove --force "$wt_path" || return $?
   else
     git worktree remove "$wt_path" || return $?
