@@ -68,11 +68,11 @@ importers:
         specifier: ^7.0.0
         version: 7.0.0
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
 
   apps/admin:
     dependencies:
@@ -168,11 +168,11 @@ importers:
         specifier: 4.7.0
         version: 4.7.0(vite@6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3))
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -364,11 +364,11 @@ importers:
         specifier: ^2.0.19
         version: 2.0.19
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       rimraf:
         specifier: ^3.0.2
         version: 3.0.2
@@ -525,7 +525,7 @@ importers:
     devDependencies:
       '@storybook/react':
         specifier: ^10.2.13
-        version: 10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.7.3)
+        version: 10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.7.3)
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.0)(@types/react@18.3.10)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -551,11 +551,11 @@ importers:
         specifier: ^6.4.7
         version: 6.4.7
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -678,11 +678,11 @@ importers:
         specifier: 29.7.0
         version: 29.7.0
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -772,11 +772,11 @@ importers:
         specifier: 4.7.0
         version: 4.7.0(vite@6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3))
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       serve:
         specifier: ^14.2.3
         version: 14.2.3
@@ -833,11 +833,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -1060,11 +1060,11 @@ importers:
         specifier: ^6.4.7
         version: 6.4.7
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       serve:
         specifier: ^14.2.3
         version: 14.2.3
@@ -1109,11 +1109,11 @@ importers:
         specifier: 27.0.0
         version: 27.0.0(jsdom@27.0.0(postcss@8.5.8))
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       react-dom:
         specifier: 18.3.1
         version: 18.3.1(react@18.3.1)
@@ -1173,11 +1173,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -1231,11 +1231,11 @@ importers:
         specifier: 27.0.0
         version: 27.0.0(jsdom@27.0.0(postcss@8.5.8))
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -1268,11 +1268,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1308,11 +1308,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1387,11 +1387,11 @@ importers:
         specifier: 29.7.0
         version: 29.7.0
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1424,11 +1424,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1500,11 +1500,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1540,11 +1540,11 @@ importers:
         specifier: 29.7.0
         version: 29.7.0
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1574,11 +1574,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1611,11 +1611,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1635,11 +1635,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1709,10 +1709,10 @@ importers:
     devDependencies:
       '@storybook/addon-docs':
         specifier: ^10.2.13
-        version: 10.2.13(@types/react@18.3.10)(esbuild@0.25.2)(rollup@4.59.0)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(vite@6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3))(webpack@5.99.8(@swc/core@1.13.5)(esbuild@0.25.2))
+        version: 10.2.13(@types/react@18.3.10)(esbuild@0.25.2)(rollup@4.59.0)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(vite@6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3))(webpack@5.99.8(@swc/core@1.13.5)(esbuild@0.25.2))
       '@storybook/react':
         specifier: ^10.2.13
-        version: 10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.7.3)
+        version: 10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.7.3)
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.0)(@types/react@18.3.10)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1750,14 +1750,14 @@ importers:
         specifier: 27.0.0
         version: 27.0.0(jsdom@27.0.0(postcss@8.4.35))
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       storybook:
         specifier: ^10.2.13
-        version: 10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1848,7 +1848,7 @@ importers:
     devDependencies:
       '@storybook/react':
         specifier: ^10.2.13
-        version: 10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.7.3)
+        version: 10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.7.3)
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.0)(@types/react@18.3.10)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1868,11 +1868,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1902,11 +1902,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1923,11 +1923,11 @@ importers:
         specifier: 22.14.0
         version: 22.14.0
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -1948,11 +1948,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -1994,11 +1994,11 @@ importers:
         specifier: ^0.7.3
         version: 0.7.3
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2022,11 +2022,11 @@ importers:
         specifier: 22.14.0
         version: 22.14.0
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -2053,11 +2053,11 @@ importers:
         specifier: 29.7.0
         version: 29.7.0
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2090,11 +2090,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2114,11 +2114,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2172,11 +2172,11 @@ importers:
         specifier: 27.0.0
         version: 27.0.0(jsdom@27.0.0(postcss@8.5.8))
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2203,11 +2203,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2301,7 +2301,7 @@ importers:
         version: link:../testing-utils
       '@storybook/react':
         specifier: ^10.2.13
-        version: 10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.7.3)
+        version: 10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.7.3)
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.0)(@types/react@18.3.10)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2324,11 +2324,11 @@ importers:
         specifier: 27.0.0
         version: 27.0.0(jsdom@27.0.0(postcss@8.5.8))
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2348,11 +2348,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2448,11 +2448,11 @@ importers:
         specifier: ^8.1.0
         version: 8.1.0
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2521,11 +2521,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2542,11 +2542,11 @@ importers:
         specifier: 22.14.0
         version: 22.14.0
       prettier:
-        specifier: ^3.0.0
+        specifier: ^3.8
         version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -2584,11 +2584,11 @@ importers:
         specifier: ^8.3.4
         version: 8.3.4
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2615,11 +2615,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2639,11 +2639,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2663,11 +2663,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2693,8 +2693,8 @@ importers:
         specifier: ^17.1.0
         version: 17.1.0
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       yargs:
         specifier: ^17.7.2
         version: 17.7.2
@@ -2724,8 +2724,8 @@ importers:
         specifier: 29.7.0
         version: 29.7.0
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -2746,11 +2746,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2774,11 +2774,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2798,11 +2798,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2829,11 +2829,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -2860,11 +2860,11 @@ importers:
         specifier: 22.14.0
         version: 22.14.0
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -2906,11 +2906,11 @@ importers:
         specifier: 29.7.0
         version: 29.7.0
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       ts-eager:
         specifier: ^2.0.2
         version: 2.0.2
@@ -2946,11 +2946,11 @@ importers:
         specifier: 29.7.0
         version: 29.7.0
       prettier:
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.8
+        version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       rimraf:
         specifier: ^3.0.2
         version: 3.0.2
@@ -2983,11 +2983,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       prettier:
-        specifier: ^3.0.0
+        specifier: ^3.8
         version: 3.8.1
       prettier-plugin-organize-imports:
-        specifier: ^3.2.3
-        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
+        specifier: ^4.3.0
+        version: 4.3.0(prettier@3.8.1)(typescript@5.7.3)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
@@ -8282,23 +8282,15 @@ packages:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
 
-  prettier-plugin-organize-imports@3.2.3:
-    resolution: {integrity: sha512-KFvk8C/zGyvUaE3RvxN2MhCLwzV6OBbFSkwZ2OamCrs9ZY4i5L77jQ/w4UmUr+lqX8qbaqVq6bZZkApn+IgJSg==}
+  prettier-plugin-organize-imports@4.3.0:
+    resolution: {integrity: sha512-FxFz0qFhyBsGdIsb697f/EkvHzi5SZOhWAjxcx2dLt+Q532bAlhswcXGYB1yzjZ69kW8UoadFBw7TyNwlq96Iw==}
     peerDependencies:
-      '@volar/vue-language-plugin-pug': ^1.0.4
-      '@volar/vue-typescript': ^1.0.4
       prettier: '>=2.0'
       typescript: 5.7.3
+      vue-tsc: ^2.1.0 || 3
     peerDependenciesMeta:
-      '@volar/vue-language-plugin-pug':
+      vue-tsc:
         optional: true
-      '@volar/vue-typescript':
-        optional: true
-
-  prettier@3.0.0:
-    resolution: {integrity: sha512-zBf5eHpwHOGPC47h0zrPyNn+eAEIdEzfywMoYn2XPi0P44Zp0tSq64rq0xAREh4auw2cJZHo9QUob+NqCQky4g==}
-    engines: {node: '>=14'}
-    hasBin: true
 
   prettier@3.8.1:
     resolution: {integrity: sha512-UOnG6LftzbdaHZcKoPFtOcCKztrQ57WkHDeRD9t/PTQtmT0NHSeWWepj6pS0z/N7+08BHFDQVUrfmfMRcZwbMg==}
@@ -12228,15 +12220,15 @@ snapshots:
       axe-core: 4.11.1
       storybook: 10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
-  '@storybook/addon-docs@10.2.13(@types/react@18.3.10)(esbuild@0.25.2)(rollup@4.59.0)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(vite@6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3))(webpack@5.99.8(@swc/core@1.13.5)(esbuild@0.25.2))':
+  '@storybook/addon-docs@10.2.13(@types/react@18.3.10)(esbuild@0.25.2)(rollup@4.59.0)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(vite@6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3))(webpack@5.99.8(@swc/core@1.13.5)(esbuild@0.25.2))':
     dependencies:
       '@mdx-js/react': 3.0.1(@types/react@18.3.10)(react@18.3.1)
-      '@storybook/csf-plugin': 10.2.13(esbuild@0.25.2)(rollup@4.59.0)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(vite@6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3))(webpack@5.99.8(@swc/core@1.13.5)(esbuild@0.25.2))
+      '@storybook/csf-plugin': 10.2.13(esbuild@0.25.2)(rollup@4.59.0)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(vite@6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3))(webpack@5.99.8(@swc/core@1.13.5)(esbuild@0.25.2))
       '@storybook/icons': 2.0.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@storybook/react-dom-shim': 10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))
+      '@storybook/react-dom-shim': 10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
-      storybook: 10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      storybook: 10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       ts-dedent: 2.2.0
     transitivePeerDependencies:
       - '@types/react'
@@ -12273,9 +12265,9 @@ snapshots:
       - rollup
       - webpack
 
-  '@storybook/csf-plugin@10.2.13(esbuild@0.25.2)(rollup@4.59.0)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(vite@6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3))(webpack@5.99.8(@swc/core@1.13.5)(esbuild@0.25.2))':
+  '@storybook/csf-plugin@10.2.13(esbuild@0.25.2)(rollup@4.59.0)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(vite@6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3))(webpack@5.99.8(@swc/core@1.13.5)(esbuild@0.25.2))':
     dependencies:
-      storybook: 10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      storybook: 10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       unplugin: 2.3.11
     optionalDependencies:
       esbuild: 0.25.2
@@ -12299,12 +12291,6 @@ snapshots:
     dependencies:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
-
-  '@storybook/react-dom-shim@10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))':
-    dependencies:
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      storybook: 10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   '@storybook/react-dom-shim@10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))':
     dependencies:
@@ -12333,19 +12319,6 @@ snapshots:
       - supports-color
       - typescript
       - webpack
-
-  '@storybook/react@10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.7.3)':
-    dependencies:
-      '@storybook/global': 5.0.0
-      '@storybook/react-dom-shim': 10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))
-      react: 18.3.1
-      react-docgen: 8.0.2
-      react-dom: 18.3.1(react@18.3.1)
-      storybook: 10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-    optionalDependencies:
-      typescript: 5.7.3
-    transitivePeerDependencies:
-      - supports-color
 
   '@storybook/react@10.2.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.7.3)':
     dependencies:
@@ -16027,17 +16000,10 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
-  prettier-plugin-organize-imports@3.2.3(prettier@3.0.0)(typescript@5.7.3):
-    dependencies:
-      prettier: 3.0.0
-      typescript: 5.7.3
-
-  prettier-plugin-organize-imports@3.2.3(prettier@3.8.1)(typescript@5.7.3):
+  prettier-plugin-organize-imports@4.3.0(prettier@3.8.1)(typescript@5.7.3):
     dependencies:
       prettier: 3.8.1
       typescript: 5.7.3
-
-  prettier@3.0.0: {}
 
   prettier@3.8.1: {}
 
@@ -16790,29 +16756,6 @@ snapshots:
     dependencies:
       es-errors: 1.3.0
       internal-slot: 1.1.0
-
-  storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.0.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
-    dependencies:
-      '@storybook/global': 5.0.0
-      '@storybook/icons': 2.0.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@testing-library/jest-dom': 6.8.0
-      '@testing-library/user-event': 14.6.1(@testing-library/dom@10.4.1)
-      '@vitest/expect': 3.2.4
-      '@vitest/spy': 3.2.4
-      esbuild: 0.25.2
-      open: 10.2.0
-      recast: 0.23.11
-      semver: 7.7.4
-      use-sync-external-store: 1.6.0(react@18.3.1)
-      ws: 8.18.2
-    optionalDependencies:
-      prettier: 3.0.0
-    transitivePeerDependencies:
-      - '@testing-library/dom'
-      - bufferutil
-      - react
-      - react-dom
-      - utf-8-validate
 
   storybook@10.2.13(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:

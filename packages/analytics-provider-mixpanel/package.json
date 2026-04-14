@@ -18,8 +18,8 @@
     "@types/mixpanel-browser": "^2.38.0",
     "@types/node": "22.14.0",
     "@types/repro-shared-types": "workspace:*",
-    "prettier": "^3.0.0",
-    "prettier-plugin-organize-imports": "^3.2.3",
+    "prettier": "^3.8",
+    "prettier-plugin-organize-imports": "^4.3.0",
     "ts-eager": "^2.0.2",
     "tsx": "4.19.3",
     "typescript": "overridden"
