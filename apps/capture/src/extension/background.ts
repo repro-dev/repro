@@ -41,6 +41,59 @@ const uploadWorker = createUploadWorker(apiClient, {
   withEncryptionScheme: 'none',
 })
 
+// Registers capture.js via chrome.scripting API (Chrome 102+)
+// This replaces the old <script> tag injection in content.ts
+//
+// Bridge @types/chrome's incomplete scripting types with local call signatures.
+// Tighter union types catch typos that `string` would silently accept.
+const scripting = chrome.scripting as unknown as {
+  registerContentScripts(
+    scripts: {
+      id: string
+      js?: string[]
+      matches?: string[]
+      runAt?: 'document_start' | 'document_end' | 'document_idle'
+      world?: 'ISOLATED' | 'MAIN'
+    }[]
+  ): Promise<unknown>
+  unregisterContentScripts(opts: { ids: string[] }): Promise<unknown>
+}
+
+// Single-flight promise: prevents overlapping register/unregister races
+// when onInstalled and onStartup fire in close succession.
+let captureScriptRegistration: Promise<void> | null = null
+
+function registerCaptureContentScript(): Promise<void> {
+  if (captureScriptRegistration) return captureScriptRegistration
+
+  captureScriptRegistration = (async () => {
+    // Unregister first — Chrome persists registered content scripts across
+    // service worker restarts, so subsequent calls would otherwise throw.
+    try {
+      await scripting.unregisterContentScripts({ ids: ['@repro/capture'] })
+    } catch (err) {
+      // Only suppress the expected "not registered" error; re-throw anything else.
+      const message = err instanceof Error ? err.message : String(err)
+      if (!message.includes('not registered')) throw err
+    }
+
+    await scripting.registerContentScripts([
+      {
+        id: '@repro/capture',
+        js: ['capture.js'],
+        matches: ['<all_urls>'],
+        runAt: 'document_start',
+        world: 'MAIN',
+      },
+    ])
+  })().finally(() => {
+    // Clear after completion so a future extension reload can re-register.
+    captureScriptRegistration = null
+  })
+
+  return captureScriptRegistration
+}
+
 const UploadEnqueuePayloadSchema = z.object({
   projectId: z.string(),
   title: z.string(),
@@ -82,6 +135,8 @@ agent.subscribeToIntent('upload:progress', (payload: UploadProgressPayload) => {
 })
 
 chrome.runtime.onInstalled.addListener(() => {
+  registerCaptureContentScript().catch(console.error)
+
   const source = isFirstRun().pipe(
     chain(firstRun =>
       firstRun ? setEnabledState(true) : resolve<void>(undefined)
@@ -94,6 +149,8 @@ chrome.runtime.onInstalled.addListener(() => {
 })
 
 chrome.runtime.onStartup.addListener(() => {
+  registerCaptureContentScript().catch(console.error)
+
   return run(syncActionState(), () => {
     console.debug('LIFECYCLE: on-startup')
   })

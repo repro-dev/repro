@@ -10,7 +10,7 @@ import {
   createRecordingStream,
 } from '@repro/recording'
 import { applyResetStyles } from '@repro/theme'
-import { resolve } from 'fluture'
+import Future, { FutureInstance, map, resolve } from 'fluture'
 import React from 'react'
 import { Root, createRoot } from 'react-dom/client'
 import { Controller } from './components/Controller'
@@ -43,6 +43,21 @@ Analytics.setAgent(agent)
 
 // Proxy API calls over messaging layer
 const apiClientBridge = createApiClientBridge(agent)
+
+// Resolves once document.body is available. At document_start, document.body
+// may be null; this defers DOM mutations until the body element exists.
+function waitForBody(): FutureInstance<never, HTMLElement> {
+  return Future((_, resolve) => {
+    if (document.body) {
+      resolve(document.body)
+      return () => {}
+    }
+
+    const onReady = () => resolve(document.body!)
+    document.addEventListener('DOMContentLoaded', onReady, { once: true })
+    return () => document.removeEventListener('DOMContentLoaded', onReady)
+  })
+}
 
 class ReproCapture extends HTMLElement {
   private renderRoot: Root | null = null
@@ -135,16 +150,18 @@ declare global {
 
 if (!window.__REPRO_USING_SDK) {
   agent.subscribeToIntent('enable', () => {
-    if (!window.customElements.get(NODE_NAME)) {
-      window.customElements.define(NODE_NAME, ReproCapture)
-    }
+    return waitForBody().pipe(
+      map(body => {
+        if (!window.customElements.get(NODE_NAME)) {
+          window.customElements.define(NODE_NAME, ReproCapture)
+        }
 
-    if (!document.querySelector(NODE_NAME)) {
-      const root = new ReproCapture()
-      document.body.appendChild(root)
-    }
-
-    return resolve<void>(undefined)
+        if (!document.querySelector(NODE_NAME)) {
+          const root = new ReproCapture()
+          body.appendChild(root)
+        }
+      })
+    )
   })
 
   agent.subscribeToIntent('disable', () => {

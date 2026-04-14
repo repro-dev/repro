@@ -19,7 +19,8 @@ export function createIframe(
       reject(new Error('Could not create IFrame element'))
     }
 
-    document.body.appendChild(iframe)
+    // document.body may be null at document_start; fall back to documentElement
+    ;(document.body ?? document.documentElement).appendChild(iframe)
 
     return () => {
       iframe.remove()
