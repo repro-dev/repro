@@ -34,5 +34,6 @@
       "resources": ["bridgeHost.html", "bridgeHost.js"],
       "matches": ["<all_urls>"]
     }
-  ]
+  ],
+  "minimum_chrome_version": "111"
 }
