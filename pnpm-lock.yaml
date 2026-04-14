@@ -905,6 +905,9 @@ importers:
       '@repro/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@repro/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@repro/css-utils':
         specifier: workspace:*
         version: link:../../packages/css-utils
