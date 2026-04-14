@@ -120,7 +120,7 @@ else
 fi
 "
 
-run_git_test "cmd_wt_create_from_issue: repeated runs use unique branch and path suffixes" "
+run_git_test "cmd_wt_create_from_issue: second run for same issue is blocked by duplicate guard" "
 $COMMON_SETUP
 _src_wt
 WT_NO_STATUS_UPDATE=true
@@ -130,18 +130,39 @@ output=\"\$(cmd_wt_create_from_issue REP-812 2>&1)\" || {
   exit 0
 }
 REPRO_ISSUE_WORKTREE_SUFFIX=second2
-output=\"\$(cmd_wt_create_from_issue REP-812 2>&1)\" || {
-  echo \"FAIL:second create failed: \$output\"
-  exit 0
-}
-if [[ ! -d \"\$_TDIR/repro-wt-rep-812-first1\" ]]; then
-  echo \"FAIL:first worktree missing\"
-elif [[ ! -d \"\$_TDIR/repro-wt-rep-812-second2\" ]]; then
-  echo \"FAIL:second worktree missing\"
-elif ! git -C \"\$_main\" rev-parse --verify --quiet \"refs/heads/\$issue_branch-first1\" >/dev/null 2>&1; then
-  echo \"FAIL:first unique branch missing\"
-elif ! git -C \"\$_main\" rev-parse --verify --quiet \"refs/heads/\$issue_branch-second2\" >/dev/null 2>&1; then
-  echo \"FAIL:second unique branch missing\"
+set +e
+output=\"\$(cmd_wt_create_from_issue REP-812 2>&1)\"
+rc=\$?
+set -e
+if [[ \$rc -eq 0 ]]; then
+  echo \"FAIL:second create should have failed but exited 0\"
+elif [[ \"\$output\" != *\"worktree already exists\"* ]]; then
+  echo \"FAIL:expected 'worktree already exists' in output; got: \$output\"
+elif [[ \"\$output\" != *\"REP-812\"* ]]; then
+  echo \"FAIL:expected issue identifier in error output; got: \$output\"
+else
+  echo PASS
+fi
+"
+
+run_git_test "cmd_wt_create_from_issue: fails when a worktree for the issue already exists" "
+$COMMON_SETUP
+_src_wt
+WT_NO_STATUS_UPDATE=true
+export REPRO_ISSUE_WORKTREE_SUFFIX=exist1
+cmd_wt_create_from_issue REP-812 2>/dev/null
+
+export REPRO_ISSUE_WORKTREE_SUFFIX=exist2
+set +e
+_output=\"\$(cmd_wt_create_from_issue REP-812 2>&1)\"
+_rc=\$?
+set -e
+if [[ \$_rc -eq 0 ]]; then
+  echo \"FAIL:Expected non-zero exit, got 0\"
+elif [[ \"\$_output\" != *\"worktree already exists\"* ]]; then
+  echo \"FAIL:Expected 'worktree already exists' in output; got: \$_output\"
+elif [[ \"\$_output\" != *\"repro-wt-rep-812-exist1\"* ]]; then
+  echo \"FAIL:Expected existing path in output; got: \$_output\"
 else
   echo PASS
 fi

@@ -143,6 +143,32 @@ cmd_wt_create_from_issue() {
     die "No branch name returned by Linear for ${issue_identifier}."
   fi
 
+  # Detect if a worktree already exists for this issue. All worktrees created
+  # via --from-issue use the format ${branch_name}-${suffix}, so we scan for
+  # any branch matching "${branch_name}-*".
+  local _existing_wt_path="" _wt_path="" _wt_branch="" _line
+  while IFS= read -r _line; do
+    case "$_line" in
+      worktree\ *) _wt_path="${_line#worktree }" ;;
+      branch\ *)   _wt_branch="${_line#branch }"; _wt_branch="${_wt_branch#refs/heads/}" ;;
+      "")
+        if [[ "$_wt_branch" == "${branch_name}-"* ]]; then
+          _existing_wt_path="$_wt_path"
+        fi
+        _wt_path="" _wt_branch=""
+        ;;
+    esac
+  done < <(git worktree list --porcelain)
+  # Flush final entry (porcelain output may not end with a blank line)
+  if [[ "$_wt_branch" == "${branch_name}-"* ]]; then
+    _existing_wt_path="$_wt_path"
+  fi
+
+  if [[ -n "$_existing_wt_path" ]]; then
+    die "worktree already exists for ${issue_identifier} at \`${_existing_wt_path}\`"
+    return 1
+  fi
+
   local issue_names fresh_branch fresh_slug start_ref
   issue_names="$(_resolve_issue_worktree_names "$issue_identifier" "$branch_name")"
   fresh_branch="$(sed -n '1p' <<< "$issue_names")"
