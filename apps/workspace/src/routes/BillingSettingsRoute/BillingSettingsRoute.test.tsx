@@ -14,7 +14,7 @@ import {
 } from '@testing-library/react'
 import { never, reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
-import { afterEach, describe, it } from 'node:test'
+import { afterEach, before, describe, it } from 'node:test'
 import React from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { BillingSettingsRoute } from './BillingSettingsRoute'
@@ -59,21 +59,20 @@ const activeSub: BillingSubscriptionResponse = {
 
 // --- window.open stub ---
 const windowOpenCalls: string[] = []
-const originalOpen = window.open
-Object.defineProperty(window, 'open', {
-  value: (url: string) => {
-    windowOpenCalls.push(url)
-  },
-  writable: true,
-  configurable: true,
-})
-afterEach(() => {
-  windowOpenCalls.length = 0
+
+// Apply stub once before all tests; jsdom resets it between describe blocks
+// otherwise, so we use `before` to ensure it's in place for the full suite.
+before(() => {
   Object.defineProperty(window, 'open', {
-    value: originalOpen,
+    value: (url: string) => {
+      windowOpenCalls.push(url)
+    },
     writable: true,
     configurable: true,
   })
+})
+afterEach(() => {
+  windowOpenCalls.length = 0
 })
 
 // --- Render helper ---
