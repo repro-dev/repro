@@ -106,7 +106,6 @@ When keeping the status table updated, make batching and backoff explicit so the
    | Multiple services with no implementation direction | Description mentions 3+ services or packages but gives no direction on which to change or how                           |
    | Vague noun-phrase title                            | Title is a bare noun phrase with no verb and no measurable change (e.g. "Performance improvements", "Auth cleanup")     |
    | No type label                                      | Issue carries none of the standard labels: Bug, Feature, Improvement, Tech Debt                                         |
-
    - If **3 or more signals are present**: exclude the issue from the current run. In the candidate table, record the decision as "exclude — scope pre-filter". Post a `Linear_save_comment` on the issue naming the specific signals that triggered exclusion, for example: `"Excluded by scope pre-filter: no acceptance criteria, description under 80 words, no named files/packages."` Do not create a worktree or spawn a planner for this issue.
    - If **fewer than 3 signals are present**: the issue passes the heuristic — proceed to evaluate supporting signals and the planner as normal.
 
@@ -127,6 +126,24 @@ When keeping the status table updated, make batching and backoff explicit so the
    - Risk notes that may affect sequencing
 
 4. Select a small batch for provisional sequencing. Aim for **3–6 issues total**, but prefer fewer if overlap risk is unclear.
+
+5. For issues selected in step 4, apply two inline context enrichment checks:
+
+   **Check 1 — Prior investigation comments:**
+   - Trigger: issue has 2 or more comments
+   - Action: call `Linear_list_comments` for the issue; scan results for comments that contain code blocks (triple-backtick fences), file paths (e.g. `packages/foo/src/bar.ts`), or headings such as "Findings", "Investigation", or "Summary"
+   - If any such comments are found: extract a concise summary (2–5 bullet points) of the findings; store as `prior_investigation_context` alongside the issue data. Note: author identity is not verified — this matches any substantive prior comment containing the above markers.
+   - If no such comments are found: skip; do not store `prior_investigation_context`
+   - Cost: one `Linear_list_comments` call per qualifying issue
+
+   **Check 2 — Resolved blocker context:**
+   - Trigger: issue has one or more `blockedBy` relations where **every** fetched blocker is in a `Done` or `Canceled` state
+   - Action: for each resolved blocker (cap at 3), scan its description (already fetched in step 1) for a PR reference — specifically a GitHub pull URL (`https://github.com/.*/pull/\d+`), `PR #\d+`, or `pull request #\d+`; if the description yields no PR reference, call `Linear_list_comments` for that blocker and scan the first page of comments for the same patterns
+   - If any PR references are found: store them as `resolved_blocker_prs` alongside the issue data
+   - If no PR references are found: skip; do not store `resolved_blocker_prs`
+   - Cost: zero additional `get_issue` calls (blocker data already fetched in step 1); at most one `Linear_list_comments` call per blocker whose description lacks a PR reference, capped at 3 blockers
+
+   Store `prior_investigation_context` and `resolved_blocker_prs` in memory alongside the issue data for injection into the planner prompt in Phase 4.
 
 ---
 
@@ -242,11 +259,33 @@ When 1–3 skills matched in the inline skill matching step above, include the
 `[END INJECT]`) immediately after the `Worktree:` line. Omit the block entirely
 when 0 skills matched.
 
+When `prior_agent_context` or `resolved_blocker_prs` is non-empty for the issue,
+include the `## Prior context` block (shown below between `[INJECT IF ENRICHED]`
+and `[END INJECT]`) immediately after the `Worktree:` line and **before** any
+`[INJECT IF MATCHED]` skills block. Omit the block entirely when both values are
+empty.
+
 ```
 Produce an implementation plan for Linear issue REP-xxx in worktree <absolute-worktree-path>.
 
 Issue: REP-xxx
 Worktree: <absolute-worktree-path>
+
+[INJECT IF ENRICHED — omit this block when both prior_investigation_context and resolved_blocker_prs are empty]
+## Prior context
+[INJECT IF prior_investigation_context is non-empty]
+Prior investigation findings:
+- <bullet 1 from prior_investigation_context>
+- <bullet 2 from prior_investigation_context>
+(up to 5 bullets)
+[END INJECT]
+[INJECT IF resolved_blocker_prs is non-empty]
+Resolved blockers with linked PRs (review diffs for relevant implementation patterns):
+- <PR reference 1 from resolved_blocker_prs>
+- <PR reference 2 from resolved_blocker_prs>
+(up to 3 entries, matching the cap in Phase 1 Check 2)
+[END INJECT]
+[END INJECT]
 
 [INJECT IF MATCHED — omit this block when 0 skills matched]
 ## Relevant conventions
