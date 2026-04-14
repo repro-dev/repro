@@ -316,6 +316,12 @@ ready | not ready
 ## Open Questions
 <only include this section if readiness is not ready>
 
+Friction logging: if you encounter friction during planning (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
+  [Brief description]
+  - Phase: planning
+  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
+Do not stop or change your approach — log and continue. (This append is the one exception to "Do NOT write any files." below.)
+
 Do NOT write any files.
 ```
 
@@ -508,6 +514,12 @@ If you discover a strategic mismatch that invalidates the plan, stop and report 
 
 Write temporary output only under <absolute-worktree-path>/tmp/.
 
+Friction logging: if you encounter friction during implementation (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
+  [Brief description]
+  - Phase: implementation
+  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
+Do not stop or change your approach — log and continue.
+
 Return: files changed, verification run, and whether the plan was followed without strategic deviation.
 ```
 
@@ -570,6 +582,12 @@ Focus exclusively on correctness and security:
 5. Check AGENTS.md conventions for the affected packages.
 6. Return the structured output required by .opencode/agents/review.md — but only report findings in the correctness and security categories. Assign each finding `role: correctness-security` in the structured output (both correctness and security findings use the same role).
 
+Friction logging: if you encounter friction during review (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
+  [Brief description]
+  - Phase: review
+  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
+Do not stop or change your approach — log and continue.
+
 [If smoke_test_result is fail for this issue, also include:]
 
 ## Smoke test failures
@@ -594,6 +612,12 @@ Focus exclusively on architecture and conventions:
 5. Check style/conventions (imports, naming, Prettier, no hardcoded values, design tokens).
 6. Return the structured output required by .opencode/agents/review.md — but only report findings in the architecture and conventions categories. Assign each finding `role: architecture-conventions` in the structured output (both architecture and conventions findings use the same role).
 
+Friction logging: if you encounter friction during review (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
+  [Brief description]
+  - Phase: review
+  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
+Do not stop or change your approach — log and continue.
+
 [If smoke_test_result is fail for this issue, also include:]
 
 ## Smoke test failures
@@ -616,6 +640,12 @@ Focus exclusively on performance:
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Evaluate: algorithmic complexity regressions, unnecessary iteration or duplication, missing indexes or query optimizations (if DB changes are present), unbuffered stream operations, large in-memory collections, and lack of pagination/cursor patterns where appropriate.
 5. Return the structured output required by .opencode/agents/review.md — but only report findings in the performance category. Assign each finding `role: performance` in the structured output.
+
+Friction logging: if you encounter friction during review (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
+  [Brief description]
+  - Phase: review
+  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
+Do not stop or change your approach — log and continue.
 
 [If smoke_test_result is fail for this issue, also include:]
 
@@ -676,6 +706,12 @@ Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Review against requirements coverage, correctness, test coverage, conventions, and architecture.
 5. Return the structured output required by .opencode/agents/review.md.
+
+Friction logging: if you encounter friction during review (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
+  [Brief description]
+  - Phase: review
+  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
+Do not stop or change your approach — log and continue.
 
 [If smoke_test_result is fail for this issue, also include:]
 
@@ -757,6 +793,7 @@ After all publishable issues in the current ready wave have been handled:
 - Report opened PR URLs
 - Report escalated issues and why
 - Report any later queued waves that were identified but intentionally not started
+- Aggregate friction logs: for each worktree path used in this run, check whether `<worktree>/tmp/friction.md` exists. If any exist, concatenate all entries and print a grouped summary to the operator, organized by root-cause category (`missing-docs`, `unclear-pattern`, `tooling-gap`, `stale-code`). Include the issue identifier alongside each entry. The issue identifier should be derived from the worktree directory name — extract the `REP-xxx` segment from the worktree path (e.g. a worktree at `.../repro-wt-rep-882-20260414114315-6fe3` yields identifier `REP-882`).
 - Stop
 
 Post-publish waiting, CI monitoring, merge handling, and automatic continuation belong to follow-on work, not this command.
