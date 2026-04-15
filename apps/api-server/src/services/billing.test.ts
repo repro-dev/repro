@@ -3,7 +3,7 @@ import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { Harness, createTestHarness, fixtures } from '~/testing'
 import { notFound } from '~/utils/errors'
-import { BillingService } from './billing'
+import { BillingService, createBillingService } from './billing'
 
 describe('Services > Billing (dev adapter)', () => {
   let harness: Harness
@@ -117,6 +117,35 @@ describe('Services > Billing (dev adapter)', () => {
         accountId: account.id,
         status: 'active',
         planId: freePlan.id,
+      })
+    })
+
+    it('should auto-wire stub Paddle client when BILLING_STUBBED=true without an injected client', async () => {
+      const [account, freePlan] = await harness.loadFixtures([
+        fixtures.account.AccountA,
+        fixtures.billing.FreePlan,
+      ])
+
+      const billingServiceWithoutInjectedPaddle = createBillingService(
+        harness.db,
+        {
+          ...harness.env,
+          BILLING_STUBBED: true,
+          PADDLE_API_KEY: '',
+          PADDLE_WEBHOOK_SECRET: '',
+        }
+      )
+
+      await expect(
+        promise(
+          billingServiceWithoutInjectedPaddle.createCheckoutSession(
+            account.id,
+            'checkout@repro.test',
+            freePlan.id
+          )
+        )
+      ).resolves.toMatchObject({
+        transactionId: expect.any(String),
       })
     })
   })
