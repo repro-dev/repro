@@ -19,30 +19,60 @@ def _slug_port_offset(slug):
   return (h % 999) + 1
 
 
-def _dns_slug(slug):
-  """Truncate a worktree slug so the full DNS label 'wt-<slug>' stays ≤63 chars.
+def wt_portless_name(slug):
+  """Return a short, stable DNS-safe identifier for a worktree slug.
 
-  The slug is embedded as 'wt-' + slug inside a hostname label, so the slug
-  itself must be ≤60 characters (63 - len('wt-')).  After truncation, strip
-  any trailing '-', '_', or '.' so the label ends on an alphanumeric character.
+  When the slug is short enough to fit as a DNS label on its own (≤60 chars,
+  leaving room for the 'wt-' prefix), return it unchanged.
+
+  When the slug is too long, derive a short form from the Linear issue number
+  embedded in the slug (expected pattern: '...-rep-NNN-...' or starts with
+  'rep-NNN-...'), combined with a 4-char hash of the full slug for uniqueness:
+
+    rep-473-a3f2
+
+  If no issue number is found, fall back to a 4-char hash of the full slug:
+
+    wt-a3f2c1d2
+
+  The returned string is always ≤60 chars so that 'wt-' + result ≤ 63 chars.
   """
-  max_slug = 63 - len('wt-')  # 60
-  if len(slug) > max_slug:
-    slug = slug[:max_slug].rstrip('-_.')
-  return slug
+  MAX = 60  # 63 - len('wt-')
+  if len(slug) <= MAX:
+    return slug
+
+  # Extract 'rep-NNN' from anywhere in the slug.
+  # Starlark has no regex; scan for 'rep-' followed by digits manually.
+  issue_part = ''
+  idx = slug.find('rep-')
+  while idx != -1:
+    # Collect digits after 'rep-'
+    start = idx + len('rep-')
+    end = start
+    for ch in slug[start:].elems():
+      if ch >= '0' and ch <= '9':
+        end += 1
+      else:
+        break
+    if end > start:  # found at least one digit
+      issue_part = 'rep-' + slug[start:end]
+      break
+    idx = slug.find('rep-', idx + 1)
+
+  h = _hash_suffix(slug)[:4]
+  if issue_part:
+    return issue_part + '-' + h
+  return h
 
 
 def wt_label(slug):
-  """Build a Tilt label for a worktree slug, truncated to 63 chars.
+  """Build a Tilt label for a worktree slug.
 
-  Kubernetes label values must be ≤63 chars and end with an alphanumeric
-  character. After truncation, strip any trailing '-', '_', or '.' that
-  would fail the label regex.
+  Uses wt_portless_name() to produce a DNS-safe short form when needed,
+  then prepends 'wt.' — the result is always a valid Kubernetes label value
+  (≤63 chars, ending on an alphanumeric character).
   """
-  label = 'wt.' + slug
-  if len(label) > 63:
-    label = label[:63].rstrip('-_.')
-  return label
+  return 'wt.' + wt_portless_name(slug)
 
 
 def wt_name(base, slug, max_len=49):
@@ -175,7 +205,7 @@ def _service_host(portless_name, slug):
   """
   if slug:
     parts = portless_name.split('.')
-    dns = _dns_slug(slug)
+    dns = wt_portless_name(slug)
     if len(parts) >= 2 and parts[-1] == 'repro':
       return '.'.join(parts[:-1]) + '.wt-' + dns + '.repro.localhost:1355'
     return portless_name + '.wt-' + dns + '.localhost:1355'
@@ -192,7 +222,7 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
 
   portless_base = svc.get('portless_name', service_name + '.repro')
   parts = portless_base.split('.')
-  dns = _dns_slug(wt_slug)
+  dns = wt_portless_name(wt_slug)
   if len(parts) >= 2 and parts[-1] == 'repro':
     portless_wt_name = '.'.join(parts[:-1]) + '.wt-' + dns + '.repro'
   else:
