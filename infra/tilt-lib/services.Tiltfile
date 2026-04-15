@@ -19,11 +19,29 @@ def _slug_port_offset(slug):
   return (h % 999) + 1
 
 
+def _dns_slug(slug):
+  """Truncate a worktree slug so it fits in a single DNS label (≤63 chars).
+
+  The slug is embedded as a DNS label component (e.g. 'wt-<slug>' inside a
+  hostname), so the slug itself must be short enough that the full label stays
+  within the 63-character DNS limit.  After truncation, strip any trailing
+  '-', '_', or '.' so the label ends on an alphanumeric character.
+  """
+  if len(slug) > 63:
+    slug = slug[:63].rstrip('-_.')
+  return slug
+
+
 def wt_label(slug):
-  """Build a Tilt label for a worktree slug, truncated to 63 chars."""
+  """Build a Tilt label for a worktree slug, truncated to 63 chars.
+
+  Kubernetes label values must be ≤63 chars and end with an alphanumeric
+  character. After truncation, strip any trailing '-', '_', or '.' that
+  would fail the label regex.
+  """
   label = 'wt.' + slug
   if len(label) > 63:
-    label = label[:63]
+    label = label[:63].rstrip('-_.')
   return label
 
 
@@ -157,9 +175,10 @@ def _service_host(portless_name, slug):
   """
   if slug:
     parts = portless_name.split('.')
+    dns = _dns_slug(slug)
     if len(parts) >= 2 and parts[-1] == 'repro':
-      return '.'.join(parts[:-1]) + '.wt-' + slug + '.repro.localhost:1355'
-    return portless_name + '.wt-' + slug + '.localhost:1355'
+      return '.'.join(parts[:-1]) + '.wt-' + dns + '.repro.localhost:1355'
+    return portless_name + '.wt-' + dns + '.localhost:1355'
   return portless_name + '.localhost:1355'
 
 
@@ -173,10 +192,11 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
 
   portless_base = svc.get('portless_name', service_name + '.repro')
   parts = portless_base.split('.')
+  dns = _dns_slug(wt_slug)
   if len(parts) >= 2 and parts[-1] == 'repro':
-    portless_wt_name = '.'.join(parts[:-1]) + '.wt-' + wt_slug + '.repro'
+    portless_wt_name = '.'.join(parts[:-1]) + '.wt-' + dns + '.repro'
   else:
-    portless_wt_name = portless_base + '.wt-' + wt_slug
+    portless_wt_name = portless_base + '.wt-' + dns
 
   app_slug = service_slugs.get('workspace', '')
   api_slug = service_slugs.get('api-server', '')
