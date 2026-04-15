@@ -299,23 +299,24 @@ for item in data.get("items", []):
         _diag_row "wt-$display_slug" "ok" "$resource_count Tilt resource(s)"
         _add_check "wt_$slug" "ok" "$resource_count Tilt resource(s)"
 
-        local dns_label="wt-${slug}"
-        if [ ${#dns_label} -gt 63 ]; then
-          _diag_row "wt-$display_slug DNS" "warn" "hostname label exceeds 63-byte DNS limit"
-          _add_check "wt_${slug}_dns" "warn" "DNS label too long"
-          _add_issue "warning" "Worktree slug '$slug' produces a DNS label longer than 63 bytes — .localhost resolution will fail. Consider a shorter branch name or see REP-361."
-          has_warnings=true
+        # Derive the DNS-safe short form using the same logic as wt_portless_name()
+        # in infra/tilt-lib/services.Tiltfile via service_manifest.py.
+        local dns_name
+        dns_name=$(python3 -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib/py')
+from service_manifest import portless_name_for_slug
+print(portless_name_for_slug('${slug}'))
+")
+        local dns_hostname="app.wt-${dns_name}.repro.localhost"
+        if python3 -c "import socket; socket.getaddrinfo('$dns_hostname', 80)" >/dev/null 2>&1; then
+          _diag_row "wt-$display_slug DNS" "ok" "$dns_hostname resolves"
+          _add_check "wt_${slug}_dns" "ok" "$dns_hostname resolves"
         else
-          local dns_hostname="app.wt-${slug}.repro.localhost"
-          if python3 -c "import socket; socket.getaddrinfo('$dns_hostname', 80)" >/dev/null 2>&1; then
-            _diag_row "wt-$display_slug DNS" "ok" "$dns_hostname resolves"
-            _add_check "wt_${slug}_dns" "ok" "$dns_hostname resolves"
-          else
-            _diag_row "wt-$display_slug DNS" "warn" "$dns_hostname does not resolve"
-            _add_check "wt_${slug}_dns" "warn" "$dns_hostname does not resolve"
-            _add_issue "warning" "DNS for $dns_hostname does not resolve — browser DNS-over-HTTPS (DoH) may bypass OS resolver. Disable DoH or add entries to /etc/hosts."
-            has_warnings=true
-          fi
+          _diag_row "wt-$display_slug DNS" "warn" "$dns_hostname does not resolve"
+          _add_check "wt_${slug}_dns" "warn" "$dns_hostname does not resolve"
+          _add_issue "warning" "DNS for $dns_hostname does not resolve — browser DNS-over-HTTPS (DoH) may bypass OS resolver. Disable DoH or add entries to /etc/hosts."
+          has_warnings=true
         fi
       done
     fi
