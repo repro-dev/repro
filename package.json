@@ -51,7 +51,8 @@
   "packageManager": "pnpm@10.17.0",
   "scripts": {
     "prepare": "husky",
-    "fmt:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path .gitignore"
+    "fmt:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path .gitignore",
+    "check:test-file-size": "bash scripts/check-test-file-size.sh"
   },
   "lint-staged": {
     "*.{ts,tsx}": "prettier --write"
