@@ -2,7 +2,11 @@ import { BillingPlanWithEntitlements } from '@repro/domain'
 import { tapF } from '@repro/future-utils'
 import { FutureInstance, chain, chainRej, map, reject, resolve } from 'fluture'
 import { Env } from '~/config/createEnv'
-import { PaddleClient, createPaddleClient } from '~/modules/billing'
+import {
+  PaddleClient,
+  createPaddleClient,
+  createStubPaddleClient,
+} from '~/modules/billing'
 import { Database, attemptQuery, decodeId, encodeId } from '~/modules/database'
 import {
   BillingEntitlementService,
@@ -149,18 +153,25 @@ export function createBillingService(
 ) {
   let paddleClient: PaddleClient | null = injectedPaddleClient ?? null
 
-  if (!paddleClient && !env.BILLING_STUBBED) {
-    if (!env.PADDLE_API_KEY || !env.PADDLE_WEBHOOK_SECRET) {
-      throw new Error(
-        'PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET are required when BILLING_STUBBED=false'
-      )
-    }
+  if (!paddleClient) {
+    if (env.BILLING_STUBBED) {
+      // Dev server: auto-wire the stub so getPaddle() never throws when
+      // BILLING_STUBBED=true. Tests inject the stub directly via the third
+      // argument and never reach this branch.
+      paddleClient = createStubPaddleClient(database)
+    } else {
+      if (!env.PADDLE_API_KEY || !env.PADDLE_WEBHOOK_SECRET) {
+        throw new Error(
+          'PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET are required when BILLING_STUBBED=false'
+        )
+      }
 
-    paddleClient = createPaddleClient({
-      apiKey: env.PADDLE_API_KEY,
-      environment: env.PADDLE_ENVIRONMENT,
-      webhookSecret: env.PADDLE_WEBHOOK_SECRET,
-    })
+      paddleClient = createPaddleClient({
+        apiKey: env.PADDLE_API_KEY,
+        environment: env.PADDLE_ENVIRONMENT,
+        webhookSecret: env.PADDLE_WEBHOOK_SECRET,
+      })
+    }
   }
 
   const entitlementService: BillingEntitlementService =
