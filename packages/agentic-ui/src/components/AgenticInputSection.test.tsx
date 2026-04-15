@@ -1,46 +1,16 @@
-import { cleanup, render } from "@testing-library/react";
-import expect from "expect";
-import { afterEach, describe, it, mock } from "node:test";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, it } from "node:test";
 import React from "react";
 
-// Capture the last placeholders prop passed to AgenticInput.
-// Must be registered before importing AgenticInputSection (which imports @repro/design).
-let capturedPlaceholders: Array<string> | undefined;
-
-mock.module("@repro/design", {
-  namedExports: {
-    AgenticInput: (props: {
-      disabled?: boolean;
-      placeholders?: Array<string>;
-      historyValue?: string;
-      onFocusChange: (hasFocus: boolean) => void;
-      onNavigateHistory?: (direction: "up" | "down") => void;
-      onSubmit: () => void;
-    }) => {
-      capturedPlaceholders = props.placeholders;
-      return null;
-    },
-    AgenticInputFormState: {},
-    colors: { white: "#fff", slate: { "100": "#f1f5f9", "200": "#e2e8f0" } },
-    spacing: { "2xl": 24 },
-  },
-});
-
-// Import after mock registration so the mock takes effect
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { AgenticInputSection } =
-  require("./AgenticInputSection") as typeof import("./AgenticInputSection");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { PLACEHOLDER_COPY, REPLY_PLACEHOLDER } =
-  require("../constants") as typeof import("../constants");
+import { PLACEHOLDER_COPY, REPLY_PLACEHOLDER } from "../constants";
+import { AgenticInputSection } from "./AgenticInputSection";
 
 afterEach(() => {
-  capturedPlaceholders = undefined;
   cleanup();
 });
 
 describe("AgenticInputSection placeholder behaviour (REP-708)", () => {
-  it("passes cycling PLACEHOLDER_COPY when conversation has not started", () => {
+  it("renders the first cycling placeholder when conversation has not started", () => {
     render(
       <AgenticInputSection
         disabled={false}
@@ -52,10 +22,13 @@ describe("AgenticInputSection placeholder behaviour (REP-708)", () => {
       />,
     );
 
-    expect(capturedPlaceholders).toEqual(PLACEHOLDER_COPY);
+    // AgenticInput renders placeholders as text content in animated divs
+    // (not as the <textarea placeholder> attribute). The first item in
+    // PLACEHOLDER_COPY is shown synchronously on initial render.
+    screen.getByText(PLACEHOLDER_COPY[0]!);
   });
 
-  it("passes a single static REPLY_PLACEHOLDER once conversation has started", () => {
+  it("renders the static REPLY_PLACEHOLDER once conversation has started", () => {
     render(
       <AgenticInputSection
         disabled={false}
@@ -67,10 +40,10 @@ describe("AgenticInputSection placeholder behaviour (REP-708)", () => {
       />,
     );
 
-    expect(capturedPlaceholders).toEqual([REPLY_PLACEHOLDER]);
+    screen.getByText(REPLY_PLACEHOLDER);
   });
 
-  it("reverts to cycling PLACEHOLDER_COPY after conversation is reset", () => {
+  it("shows REPLY_PLACEHOLDER then reverts to cycling placeholder after conversation is reset", () => {
     const { rerender } = render(
       <AgenticInputSection
         disabled={false}
@@ -82,7 +55,7 @@ describe("AgenticInputSection placeholder behaviour (REP-708)", () => {
       />,
     );
 
-    expect(capturedPlaceholders).toEqual([REPLY_PLACEHOLDER]);
+    screen.getByText(REPLY_PLACEHOLDER);
 
     // Simulate agentic.reset() clearing the conversation
     rerender(
@@ -96,6 +69,6 @@ describe("AgenticInputSection placeholder behaviour (REP-708)", () => {
       />,
     );
 
-    expect(capturedPlaceholders).toEqual(PLACEHOLDER_COPY);
+    screen.getByText(PLACEHOLDER_COPY[0]!);
   });
 });
