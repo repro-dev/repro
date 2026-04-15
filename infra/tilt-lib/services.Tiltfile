@@ -33,11 +33,18 @@ def wt_portless_name(slug):
 
   If no issue number is found, fall back to a 4-char hash of the full slug:
 
-    wt-a3f2c1d2
+    a3f2
 
   The returned string is always ≤60 chars so that 'wt-' + result ≤ 63 chars.
   """
   MAX = 60  # 63 - len('wt-')
+
+  # Normalize: DNS labels allow only [a-z0-9-]; replace . and _ with -,
+  # then strip any leading/trailing hyphens produced by the replacement.
+  slug = slug.replace('.', '-').replace('_', '-').strip('-')
+  if not slug:
+    slug = 'wt'
+
   if len(slug) <= MAX:
     return slug
 
@@ -59,7 +66,9 @@ def wt_portless_name(slug):
       break
     idx = slug.find('rep-', idx + 1)
 
-  h = _hash_suffix(slug)[:4]
+  # Pad to at least 4 hex chars so the suffix is always fixed-width.
+  raw = _hash_suffix(slug)
+  h = ('0000' + raw)[-4:]
   if issue_part:
     return issue_part + '-' + h
   return h
@@ -72,7 +81,7 @@ def wt_label(slug):
   then prepends 'wt.' — the result is always a valid Kubernetes label value
   (≤63 chars, ending on an alphanumeric character).
   """
-  return 'wt.' + wt_portless_name(slug)
+  return ('wt.' + wt_portless_name(slug)).rstrip('-_.')
 
 
 def wt_name(base, slug, max_len=49):
