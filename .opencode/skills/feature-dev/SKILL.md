@@ -105,14 +105,15 @@ After the `develop` agent completes, launch the `test` agent to audit coverage a
 
 Follow the project conventions for each domain. Domain-specific rules are loaded on demand from their respective skills — do not guess, load the skill when working in that domain.
 
-| Domain                     | Where to find the rules                                                                                                            |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Code style**             | Front-loaded in root `AGENTS.md` (always available)                                                                                |
-| **Code navigation**        | jcodemunch-mcp — `resolve_repo` → `search_symbols` → `get_file_outline` → `get_blast_radius`; see `AGENTS.md` Code Navigation rule |
-| **Git & commits**          | Load the `git-workflow` skill                                                                                                      |
-| **Design system & UI**     | Load the `design-system` skill                                                                                                     |
-| **Build, test & reproctl** | Load the `build-and-test` skill                                                                                                    |
-| **Database & migrations**  | Load the `database` skill                                                                                                          |
+| Domain                             | Where to find the rules                                                                                                            |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Code style**                     | Front-loaded in root `AGENTS.md` (always available)                                                                                |
+| **Code navigation**                | jcodemunch-mcp — `resolve_repo` → `search_symbols` → `get_file_outline` → `get_blast_radius`; see `AGENTS.md` Code Navigation rule |
+| **Git & commits**                  | Load the `git-workflow` skill                                                                                                      |
+| **Design system & UI**             | Load the `design-system` skill                                                                                                     |
+| **UI quality audit / polish pass** | Load the `audit-ui-quality` skill                                                                                                  |
+| **Build, test & reproctl**         | Load the `build-and-test` skill                                                                                                    |
+| **Database & migrations**          | Load the `database` skill                                                                                                          |
 
 Key rules that apply to every implementation (details in the skills above):
 

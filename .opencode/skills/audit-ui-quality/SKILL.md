@@ -1,0 +1,122 @@
+---
+name: audit-ui-quality
+description: Systematic UI quality review workflow — Scope, Scan, Score, Report, Suggest. Load when asked to audit UI quality, check design system compliance, find token violations, review accessibility, or run a polish pass on a feature.
+---
+
+# Audit
+
+A repeatable, exhaustive workflow for UI quality review. Consolidates checks from `design-system`, `git-workflow`, and `harden` into a single entry point.
+
+## When to load this skill
+
+Load when the task involves any of:
+
+- "Audit the UI / design system compliance"
+- "Review UI quality"
+- "Check for accessibility issues"
+- "Find token violations"
+- "Polish pass on [feature]"
+
+---
+
+## Workflow: Five Phases
+
+### Phase 1 — Scope
+
+Before scanning anything:
+
+1. **Identify the surfaces** to audit: list specific file paths or component names.
+2. **Classify each surface**:
+   - **New** — high bar; all eight dimensions must pass before shipping.
+   - **Existing** — pragmatic bar; fix Critical and Major, note Minor for next iteration.
+   - **Legacy** — document only; do not rewrite unless the issue is a Critical a11y or interaction break.
+3. **Time-box**: set a maximum number of files per run (suggested: 5–10) to avoid scope creep. Audit in batches if the surface is large.
+
+### Phase 2 — Scan
+
+Work through all eight dimensions for each scoped file. Log every finding with file path, line number, dimension, and a one-line description.
+
+**Do not fix during this phase — report only.**
+
+#### Scan Dimensions
+
+1. **Token compliance** — hardcoded hex/px/rem values in JSX props. Every visual value must use a token from `@repro/design` (`color.*`, `spacing.*`, `radius.*`, `textStyles.*`, etc.).
+
+2. **Component substitution** — hand-rolled controls that `@repro/design` already covers. Check for: custom buttons, inputs, toggles, modals, drawers, tooltips, spinners, error/loading states, avatars, cards.
+
+3. **Layout primitives** — `<div style={{ display: 'flex' }}>` or equivalent raw flex/grid divs instead of jsxstyle `Row` / `Col` / `Grid`. Inline `style={{}}` props are also a violation.
+
+4. **Interaction states** — missing hover / focus / active / disabled / loading / error / empty states. Every interactive element needs at minimum a focus ring (`focusRing()` from `@repro/design`) and a disabled state.
+
+5. **Accessibility** — missing `aria-*` attributes, no keyboard navigation, no focus management in modals/overlays, missing `alt` text, missing semantic HTML (`role`, `aria-live` for dynamic regions).
+
+6. **Microcopy** — placeholder-quality copy, missing error context, non-actionable empty states, passive voice, jargon. Apply the three-part error formula: _[What failed] + [Why it likely failed] + [What to do next]_.
+
+7. **Type safety** — `any` usages, unchecked indexing without null-guards (`noUncheckedIndexedAccess`), implicit returns in functions that should always return a value.
+
+8. **Resilience** — unhandled async errors, missing loading/error boundaries, unclean teardown (event listeners, subscriptions, pending futures not cancelled on unmount). **Cross-reference**: load the `harden` skill for the full resilience checklist. Do not duplicate its content here.
+
+### Phase 3 — Score
+
+Rate each scoped file on a **1–5 scale** per dimension (5 = fully compliant, 1 = critical violations).
+
+Produce a summary table:
+
+| File | Tokens | Components | Layout | States | A11y | Copy | Types | Resilience | Total |
+| ---- | ------ | ---------- | ------ | ------ | ---- | ---- | ----- | ---------- | ----- |
+| ...  | 1–5    | 1–5        | 1–5    | 1–5    | 1–5  | 1–5  | 1–5   | 1–5        | /40   |
+
+Maximum total: **40** (8 dimensions × 5).
+
+### Phase 4 — Report
+
+Organise findings by severity:
+
+1. **Critical** — breaks interaction or accessibility (e.g. keyboard trap, missing focus management, unhandled crash path).
+2. **Major** — design system violation that ships visible inconsistency (e.g. hardcoded colour, missing loading state, hand-rolled component).
+3. **Minor** — copy/polish issue that doesn't affect functionality (e.g. passive voice, placeholder copy, missing empty-state CTA).
+
+For each finding, include:
+
+- **File path + line number**
+- **Dimension** (from the eight above)
+- **Description** (one sentence: what is wrong)
+- **Fix hint** (one sentence: what to do)
+
+**Do not fix during the audit phase.** Mixing audit and fix produces an incomplete report.
+
+### Phase 5 — Suggest
+
+Recommend the next action based on the aggregate score across all scoped files:
+
+| Score band     | Recommendation                                                                                |
+| -------------- | --------------------------------------------------------------------------------------------- |
+| **≥ 35 / 40**  | Ship as-is. Note Minor issues in a follow-up issue for the next polish pass.                  |
+| **25–34 / 40** | Fix all Critical and Major findings before shipping. Minor findings can go to next iteration. |
+| **< 25 / 40**  | Load the `design-system` skill and run the full Normalisation Workflow before shipping.       |
+
+---
+
+## Suggested Commands
+
+```bash
+# Type-check the audited package
+moon run repro/<package>:typecheck
+
+# Run tests
+moon run repro/<package>:test
+
+# After fixes: load harden skill for resilience hardening
+# (see REP-853)
+```
+
+---
+
+## Do / Don't
+
+| Do                                                          | Don't                                         |
+| ----------------------------------------------------------- | --------------------------------------------- |
+| Time-box the audit to avoid infinite scope                  | Audit the entire codebase in one pass         |
+| Report findings before fixing                               | Fix-as-you-go during audit (loses the report) |
+| Classify surfaces (new / existing / legacy) before scanning | Apply the same bar to all surfaces            |
+| Cross-reference `harden` skill for resilience               | Duplicate resilience checks in this skill     |
