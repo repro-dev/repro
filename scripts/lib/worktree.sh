@@ -345,35 +345,39 @@ _drop_worktree_db() {
 } >&2
 
 # _wt_change_state <wt_path>
-# Prints one of: clean | ignored-only | has-changes
+# Prints one of: clean | has-tracked-changes | has-untracked
+#
+# has-tracked-changes — staged or unstaged changes in tracked paths; represents
+#                       real uncommitted work that should block automated pruning.
+# has-untracked       — untracked non-ignored files exist, but no tracked changes;
+#                       may be WIP scratch files, but safe to force-remove.
+# clean               — no staged/unstaged tracked changes, no untracked non-ignored
+#                       files (git-ignored artifacts fall through to this state).
+#
 # Bash 3.2-compatible (no declare -A, no ${var,,}, no mapfile)
 _wt_change_state() {
   local wt_path="$1"
 
   # Staged changes
   if ! git -C "$wt_path" diff --cached --quiet 2>/dev/null; then
-    echo "has-changes"
+    echo "has-tracked-changes"
     return
   fi
 
-  # Unstaged tracked changes
+  # Unstaged changes in tracked paths
   if ! git -C "$wt_path" diff --quiet 2>/dev/null; then
-    echo "has-changes"
+    echo "has-tracked-changes"
     return
   fi
 
-  # Untracked non-ignored files (potentially valuable work — treat as has-changes)
+  # Untracked non-ignored files (potential WIP, but not committed work)
   if git -C "$wt_path" ls-files --others --exclude-standard --directory 2>/dev/null | grep -q .; then
-    echo "has-changes"
+    echo "has-untracked"
     return
   fi
 
-  # Git-ignored files only (e.g. tmp/, node_modules/, build artifacts)
-  if git -C "$wt_path" ls-files --others --ignored --exclude-standard --directory 2>/dev/null | grep -q .; then
-    echo "ignored-only"
-    return
-  fi
-
+  # Git-ignored files only (e.g. tmp/, node_modules/, build artifacts) fall
+  # through to clean — they are always safe to purge without acknowledgement.
   echo "clean"
 }
 
@@ -421,11 +425,12 @@ cmd_wt_remove() {
       clean)
         # Nothing extra needed; standard remove works
         ;;
-      ignored-only)
-        # Only git-ignored artifacts present (e.g. tmp/); safe to auto-remove
+      has-untracked)
+        # Untracked non-ignored files present, but no tracked changes.
+        # Untracked files are not committed work — safe to force-remove in all paths.
         _force_remove=true
         ;;
-      has-changes)
+      has-tracked-changes)
         # WT_YES is set internally by cmd_wt_prune; not available via CLI for 'remove'
         if [ "${WT_YES:-false}" = true ]; then
           # Non-interactive path (e.g. post-merge hook): skip with warning, return 0
@@ -436,10 +441,19 @@ cmd_wt_remove() {
           _err "Worktree has uncommitted changes: $wt_path (use --force to override)"
           return 1
         else
-          # Interactive: show status and ask
+          # Interactive: show categorised status and ask
           echo "" >&2
-          echo "${CLR_BOLD}Worktree has uncommitted changes:${CLR_RESET}" >&2
-          git -C "$wt_path" status --short >&2
+          echo "${CLR_BOLD}Uncommitted changes:${CLR_RESET}" >&2
+          git -C "$wt_path" diff --cached --name-only 2>/dev/null | sed 's/^/  /' >&2
+          git -C "$wt_path" diff --name-only 2>/dev/null | sed 's/^/  /' >&2
+          # Also show untracked non-ignored files if any are present
+          local _untracked
+          _untracked="$(git -C "$wt_path" ls-files --others --exclude-standard 2>/dev/null || true)"
+          if [ -n "$_untracked" ]; then
+            echo "" >&2
+            echo "${CLR_BOLD}Untracked files:${CLR_RESET}" >&2
+            printf '%s\n' "$_untracked" | sed 's/^/  /' >&2
+          fi
           echo "" >&2
           local _answer
           read -r -p "Discard changes and remove? [y/N] " _answer </dev/tty
