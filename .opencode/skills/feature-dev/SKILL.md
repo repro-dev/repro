@@ -177,6 +177,9 @@ If doing it manually:
 1. Push the branch: `git push -u origin <branch-name>`
 2. Create the PR via `gh` CLI with a summary, Linear issue reference, change list, and verification checklist. For full PR conventions and the code review checklist, load the `git-workflow` skill.
 3. **Set the Linear issue to In Review** immediately after PR creation.
+
+> 💡 **Blog-worthiness check (optional):** Before moving on, ask: is this work novel, non-obvious, or broadly applicable enough to interest other engineers? If yes — an interesting architectural decision, a tricky tradeoff, a useful pattern — consider capturing it as a blog post idea. Run `/blog-ideas` for a fast scan, or file an issue directly in the [Blog Posts](https://linear.app/repro/project/blog-posts-d914c9cd0c12) project.
+
 4. Never set the issue to Done — that happens only after merge.
 
 ## Quick Reference: Linear Status Lifecycle

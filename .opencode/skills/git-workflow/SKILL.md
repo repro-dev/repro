@@ -57,6 +57,8 @@ When creating the PR:
 - Always include a detailed summary of changes in the PR description body.
 - Always use the `gh` CLI to interact with GitHub (e.g., creating PRs, checking CI status, managing releases).
 
+> 💡 **Blog-worthiness check (optional):** If this PR introduces a novel pattern, an interesting architectural decision, or a non-obvious tradeoff, it's worth capturing. Run `/blog-ideas` for a fast scan, or file directly in the [Blog Posts](https://linear.app/repro/project/blog-posts-d914c9cd0c12) project.
+
 ## Linear Issue Status Lifecycle
 
 | Status          | When to set it                                                                     |
