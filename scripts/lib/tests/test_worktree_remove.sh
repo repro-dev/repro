@@ -195,10 +195,14 @@ output=\"\$(cmd_wt_remove force-test 2>&1)\"
 if echo \"\$output\" | grep -q 'dry-run'; then echo PASS; else echo \"FAIL:\$output\"; fi
 "
 
-run_git_test "cmd_wt_remove: dirty worktree without --force exits non-zero and leaves worktree intact" "
+run_git_test "cmd_wt_remove: worktree with tracked changes without --force exits non-zero and leaves worktree intact" "
 $COMMON_SETUP
 wt_dir=\"\$(_add_worktree dirty-no-force)\"
-printf 'dirty\n' >\"\$wt_dir/.dirty-uncommitted\"
+# Create a tracked file with uncommitted changes (unstaged modification)
+printf 'initial\n' >\"\$wt_dir/tracked-file.txt\"
+git -C \"\$wt_dir\" add tracked-file.txt
+git -C \"\$wt_dir\" commit -m 'add tracked file' >/dev/null 2>&1
+printf 'modified\n' >\"\$wt_dir/tracked-file.txt\"
 _src_wt
 WT_DRY_RUN=false WT_FORCE=false
 rc=0
@@ -291,6 +295,95 @@ _src_wt
 WT_DRY_RUN=false WT_FORCE=false WT_YES=false
 rc=0
 output=\"\$(cmd_wt_remove noninteractive-tracked </dev/null 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -ne 0 && -d \"\$wt_dir\" ]]; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc output=\$output wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no)\"
+fi
+"
+
+
+# ── REP-921: _wt_change_state new states ──────────────────────────────
+
+run_git_test "_wt_change_state: returns has-untracked for worktree with only untracked non-ignored files" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree change-state-untracked)\"
+# Create an untracked file (not gitignored)
+printf 'scratch\n' >\"\$wt_dir/scratch.txt\"
+_src_wt
+result=\"\$(_wt_change_state \"\$wt_dir\")\"
+if [[ \"\$result\" == \"has-untracked\" ]]; then echo PASS; else echo \"FAIL:expected=has-untracked actual=\$result\"; fi
+"
+
+run_git_test "_wt_change_state: returns clean for worktree with only git-ignored files" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree change-state-ignored)\"
+# Commit a .gitignore that ignores tmp/
+printf 'tmp/\n' >\"\$wt_dir/.gitignore\"
+git -C \"\$wt_dir\" add .gitignore
+git -C \"\$wt_dir\" commit -m 'add gitignore' >/dev/null 2>&1
+# Create an ignored artifact
+mkdir -p \"\$wt_dir/tmp\"
+printf 'output\n' >\"\$wt_dir/tmp/artifact.txt\"
+_src_wt
+result=\"\$(_wt_change_state \"\$wt_dir\")\"
+if [[ \"\$result\" == \"clean\" ]]; then echo PASS; else echo \"FAIL:expected=clean actual=\$result\"; fi
+"
+
+run_git_test "_wt_change_state: returns has-tracked-changes for worktree with staged changes" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree change-state-staged)\"
+# Create and stage a new file
+printf 'content\n' >\"\$wt_dir/staged.txt\"
+git -C \"\$wt_dir\" add staged.txt
+_src_wt
+result=\"\$(_wt_change_state \"\$wt_dir\")\"
+if [[ \"\$result\" == \"has-tracked-changes\" ]]; then echo PASS; else echo \"FAIL:expected=has-tracked-changes actual=\$result\"; fi
+"
+
+run_git_test "_wt_change_state: returns has-tracked-changes for worktree with unstaged changes to tracked file" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree change-state-unstaged)\"
+# Commit a tracked file, then modify it (unstaged)
+printf 'initial\n' >\"\$wt_dir/tracked.txt\"
+git -C \"\$wt_dir\" add tracked.txt
+git -C \"\$wt_dir\" commit -m 'add tracked file' >/dev/null 2>&1
+printf 'modified\n' >\"\$wt_dir/tracked.txt\"
+_src_wt
+result=\"\$(_wt_change_state \"\$wt_dir\")\"
+if [[ \"\$result\" == \"has-tracked-changes\" ]]; then echo PASS; else echo \"FAIL:expected=has-tracked-changes actual=\$result\"; fi
+"
+
+# REP-921: has-untracked should NOT trigger the skip-with-warning path in WT_YES mode
+run_git_test "cmd_wt_remove: WT_YES + only untracked files removes worktree (does not skip)" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree yes-untracked-only)\"
+# Only untracked (non-ignored) file — no tracked changes
+printf 'scratch\n' >\"\$wt_dir/scratch.txt\"
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false WT_YES=true
+rc=0
+output=\"\$(cmd_wt_remove yes-untracked-only 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -eq 0 && ! -d \"\$wt_dir\" ]]; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc output=\$output wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no)\"
+fi
+"
+
+# REP-921 Fix 1: has-untracked in non-interactive non-WT_YES path must NOT silently delete.
+# When WT_YES=false and no TTY, a worktree with only untracked files should exit non-zero.
+# NOTE: The interactive-output path (TTY prompt text) is verified manually — pseudo-tty
+# testing is not supported in this harness.
+run_git_test "cmd_wt_remove: no-TTY + only untracked files (no --force, no --yes) exits non-zero and leaves worktree intact" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree noyes-untracked)\"
+# Only untracked (non-ignored) file — no tracked changes
+printf 'scratch\n' >\"\$wt_dir/scratch.txt\"
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false WT_YES=false
+rc=0
+output=\"\$(cmd_wt_remove noyes-untracked </dev/null 2>&1)\" || rc=\$?
 if [[ \"\$rc\" -ne 0 && -d \"\$wt_dir\" ]]; then
   echo PASS
 else
