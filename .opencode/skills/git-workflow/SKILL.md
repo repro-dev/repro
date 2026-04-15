@@ -138,6 +138,8 @@ Classify every finding using one of these four levels before writing the review:
 
 Apply this checklist to every PR that touches UI code. If the PR touches only non-UI code (migrations, API routes, utilities, skill files), skip this section entirely.
 
+For a deeper, scored audit across all 8 dimensions (tokens, components, layout, interaction states, accessibility, copy, type safety, resilience), load the `audit-ui-quality` skill.
+
 ### Interaction States
 
 For each interactive element, verify all eight states are implemented:
