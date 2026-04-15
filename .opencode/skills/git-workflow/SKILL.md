@@ -195,7 +195,7 @@ Cross-references AGENTS.md rules — treat as a reminder, not a separate system:
 11. Spacing uses `spacing.*` tokens throughout — no magic numbers.
 12. Colour uses named tokens — no hardcoded hex/rgb.
 13. Typography uses `textStyles.*` spread — no raw `<p>` / `<h*>` with style props.
-14. Icons are from `@repro/icons` — no ad-hoc SVGs.
+14. Icons are from `lucide-react` — no ad-hoc SVGs.
 15. `aria-label` present on icon-only buttons and inputs without visible labels.
 16. Form validation errors use `<FormFieldError>` and are announced to screen readers.
 17. Modals trap focus and restore focus on close.
