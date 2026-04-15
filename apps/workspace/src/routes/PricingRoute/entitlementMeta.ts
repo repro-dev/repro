@@ -24,38 +24,63 @@ function toTitleCase(key: string): string {
 /**
  * Returns a formatter that produces:
  *   undefined / disabled  → "Not included"
+ *   enabled + limit === 0 → "Not included" (sentinel: excluded despite enabled flag)
  *   enabled + null limit  → "Unlimited"
- *   enabled + number      → `${limit} ${noun}` (bare number when noun is empty)
+ *   enabled + number      → `${limit} ${noun}` with singular/plural support
+ *                           (bare number when noun is empty string)
  */
-function makeFormatter(noun: string): EntitlementMeta['valueFormatter'] {
+function makeFormatter(
+  noun: string | { singular: string; plural: string }
+): EntitlementMeta['valueFormatter'] {
+  const rules = new Intl.PluralRules('en')
   return entitlement => {
     if (!entitlement || !entitlement.enabled) return 'Not included'
+    if (entitlement.limit === 0) return 'Not included'
     if (entitlement.limit === null) return 'Unlimited'
-    return noun ? `${entitlement.limit} ${noun}` : String(entitlement.limit)
+    if (!noun) return String(entitlement.limit)
+    const resolvedNoun =
+      typeof noun === 'string'
+        ? noun
+        : rules.select(entitlement.limit) === 'one'
+        ? noun.singular
+        : noun.plural
+    return `${entitlement.limit} ${resolvedNoun}`
   }
+}
+
+/** Formatter for boolean gates: shows "Included" / "Not included", no quantity. */
+const booleanFormatter: EntitlementMeta['valueFormatter'] = entitlement => {
+  if (!entitlement || !entitlement.enabled) return 'Not included'
+  return 'Included'
 }
 
 const ENTITLEMENT_META: Record<string, EntitlementMeta> = {
   recordings: {
     label: 'Recordings',
     description: 'Browser sessions you can capture',
-    valueFormatter: makeFormatter('recordings'),
+    valueFormatter: makeFormatter({
+      singular: 'recording',
+      plural: 'recordings',
+    }),
   },
   seats: {
     label: 'Team Seats',
     description: 'Members in your workspace',
-    valueFormatter: makeFormatter('seats'),
+    valueFormatter: makeFormatter({ singular: 'seat', plural: 'seats' }),
   },
   ai_credits: {
     label: 'AI Credits',
     description: 'Monthly AI-assisted debugging credits',
-    valueFormatter: makeFormatter('AI credits'),
+    valueFormatter: makeFormatter({
+      singular: 'AI credit',
+      plural: 'AI credits',
+    }),
   },
   priority_support: {
     label: 'Priority Support',
     description: 'Dedicated support channel',
-    // Boolean gate only — never has a numeric limit in practice
-    valueFormatter: makeFormatter(''),
+    // Boolean gate — never has a numeric limit; shows "Included" when enabled
+    valueFormatter: booleanFormatter,
   },
 }
 

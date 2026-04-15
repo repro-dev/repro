@@ -41,10 +41,28 @@ describe('getEntitlementMeta — known keys', () => {
       '10 recordings'
     )
   })
+  it('recordings: numeric → "1 recording" (singular)', () => {
+    assert.equal(
+      getEntitlementMeta('recordings').valueFormatter(e(true, 1)),
+      '1 recording'
+    )
+  })
+  it('recordings: limit 0 → "Not included"', () => {
+    assert.equal(
+      getEntitlementMeta('recordings').valueFormatter(e(true, 0)),
+      'Not included'
+    )
+  })
   it('seats: numeric → "5 seats"', () => {
     assert.equal(
       getEntitlementMeta('seats').valueFormatter(e(true, 5)),
       '5 seats'
+    )
+  })
+  it('seats: numeric → "1 seat" (singular)', () => {
+    assert.equal(
+      getEntitlementMeta('seats').valueFormatter(e(true, 1)),
+      '1 seat'
     )
   })
   it('ai_credits: numeric → "500 AI credits"', () => {
@@ -59,10 +77,16 @@ describe('getEntitlementMeta — known keys', () => {
       'Priority Support'
     )
   })
-  it('priority_support: unlimited → Unlimited (no noun)', () => {
+  it('priority_support: enabled → "Included"', () => {
     assert.equal(
       getEntitlementMeta('priority_support').valueFormatter(e(true, null)),
-      'Unlimited'
+      'Included'
+    )
+  })
+  it('priority_support: disabled → "Not included"', () => {
+    assert.equal(
+      getEntitlementMeta('priority_support').valueFormatter(e(false, null)),
+      'Not included'
     )
   })
 })
