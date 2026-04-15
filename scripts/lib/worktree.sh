@@ -427,8 +427,11 @@ cmd_wt_remove() {
         ;;
       has-untracked)
         # Untracked non-ignored files present, but no tracked changes.
-        # Untracked files are not committed work — safe to force-remove in all paths.
-        _force_remove=true
+        # In non-interactive (--yes) mode these are safe to force-remove;
+        # in interactive mode, still prompt so the user can inspect them.
+        if [ "${WT_YES:-false}" = true ]; then
+          _force_remove=true
+        fi
         ;;
       has-tracked-changes)
         # WT_YES is set internally by cmd_wt_prune; not available via CLI for 'remove'
@@ -436,37 +439,52 @@ cmd_wt_remove() {
           # Non-interactive path (e.g. post-merge hook): skip with warning, return 0
           _warn "Skipping $wt_path: has uncommitted changes (use --force to override)"
           return 0
-        elif ! { true </dev/tty; } 2>/dev/null; then
-          # No TTY: fail loudly so caller is aware
-          _err "Worktree has uncommitted changes: $wt_path (use --force to override)"
-          return 1
-        else
-          # Interactive: show categorised status and ask
-          echo "" >&2
-          echo "${CLR_BOLD}Uncommitted changes:${CLR_RESET}" >&2
-          git -C "$wt_path" diff --cached --name-only 2>/dev/null | sed 's/^/  /' >&2
-          git -C "$wt_path" diff --name-only 2>/dev/null | sed 's/^/  /' >&2
-          # Also show untracked non-ignored files if any are present
-          local _untracked
-          _untracked="$(git -C "$wt_path" ls-files --others --exclude-standard 2>/dev/null || true)"
-          if [ -n "$_untracked" ]; then
-            echo "" >&2
-            echo "${CLR_BOLD}Untracked files:${CLR_RESET}" >&2
-            printf '%s\n' "$_untracked" | sed 's/^/  /' >&2
-          fi
-          echo "" >&2
-          local _answer
-          read -r -p "Discard changes and remove? [y/N] " _answer </dev/tty
-          case "$_answer" in
-            [yY]) _force_remove=true ;;
-            *)
-              echo "Keeping worktree: $wt_path" >&2
-              return 0
-              ;;
-          esac
         fi
         ;;
     esac
+    # Interactive prompt for has-tracked-changes or has-untracked (with WT_YES=false).
+    # Skip if _force_remove was already resolved in the WT_YES path above.
+    if [ "$_force_remove" = false ] && { [ "$_state" = "has-tracked-changes" ] || [ "$_state" = "has-untracked" ]; }; then
+      if ! { true </dev/tty; } 2>/dev/null; then
+        # No TTY: fail loudly so caller is aware
+        _err "Worktree has uncommitted changes: $wt_path (use --force to override)"
+        return 1
+      else
+        # Interactive: show categorised status via git status --porcelain, then ask
+        local _porcelain
+        _porcelain="$(git -C "$wt_path" status --porcelain 2>/dev/null || true)"
+
+        # Tracked changes: lines where the first char is not ' ' or '?'
+        local _tracked_lines
+        _tracked_lines="$(printf '%s\n' "$_porcelain" | grep -v '^??' | grep -v '^  ' | sed 's/^...//' || true)"
+
+        # Untracked: lines starting with '??'
+        local _untracked_lines
+        _untracked_lines="$(printf '%s\n' "$_porcelain" | grep '^??' | sed 's/^?? //' || true)"
+
+        if [ -n "$_tracked_lines" ]; then
+          echo "" >&2
+          echo "${CLR_BOLD}Uncommitted changes:${CLR_RESET}" >&2
+          printf '%s\n' "$_tracked_lines" | sed 's/^/  /' >&2
+        fi
+
+        if [ -n "$_untracked_lines" ]; then
+          echo "" >&2
+          echo "${CLR_BOLD}Untracked files:${CLR_RESET}" >&2
+          printf '%s\n' "$_untracked_lines" | sed 's/^/  /' >&2
+        fi
+        echo "" >&2
+        local _answer
+        read -r -p "Discard changes and remove? [y/N] " _answer </dev/tty
+        case "$_answer" in
+          [yY]) _force_remove=true ;;
+          *)
+            echo "Keeping worktree: $wt_path" >&2
+            return 0
+            ;;
+        esac
+      fi
+    fi
   fi
 
   _cleanup_worktree_services "$wt_path"

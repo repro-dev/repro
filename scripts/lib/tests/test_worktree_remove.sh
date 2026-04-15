@@ -371,6 +371,26 @@ else
 fi
 "
 
+# REP-921 Fix 1: has-untracked in non-interactive non-WT_YES path must NOT silently delete.
+# When WT_YES=false and no TTY, a worktree with only untracked files should exit non-zero.
+# NOTE: The interactive-output path (TTY prompt text) is verified manually — pseudo-tty
+# testing is not supported in this harness.
+run_git_test "cmd_wt_remove: no-TTY + only untracked files (no --force, no --yes) exits non-zero and leaves worktree intact" "
+$COMMON_SETUP
+wt_dir=\"\$(_add_worktree noyes-untracked)\"
+# Only untracked (non-ignored) file — no tracked changes
+printf 'scratch\n' >\"\$wt_dir/scratch.txt\"
+_src_wt
+WT_DRY_RUN=false WT_FORCE=false WT_YES=false
+rc=0
+output=\"\$(cmd_wt_remove noyes-untracked </dev/null 2>&1)\" || rc=\$?
+if [[ \"\$rc\" -ne 0 && -d \"\$wt_dir\" ]]; then
+  echo PASS
+else
+  echo \"FAIL:rc=\$rc output=\$output wt_exists=\$(test -d \"\$wt_dir\" && echo yes || echo no)\"
+fi
+"
+
 printf '\n%d/%d tests passed\n' "$PASS" "$TESTS_RUN"
 
 if [ "$FAIL" -gt 0 ]; then
