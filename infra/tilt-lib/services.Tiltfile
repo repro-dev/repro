@@ -20,15 +20,15 @@ def _slug_port_offset(slug):
 
 
 def _dns_slug(slug):
-  """Truncate a worktree slug so it fits in a single DNS label (≤63 chars).
+  """Truncate a worktree slug so the full DNS label 'wt-<slug>' stays ≤63 chars.
 
-  The slug is embedded as a DNS label component (e.g. 'wt-<slug>' inside a
-  hostname), so the slug itself must be short enough that the full label stays
-  within the 63-character DNS limit.  After truncation, strip any trailing
-  '-', '_', or '.' so the label ends on an alphanumeric character.
+  The slug is embedded as 'wt-' + slug inside a hostname label, so the slug
+  itself must be ≤60 characters (63 - len('wt-')).  After truncation, strip
+  any trailing '-', '_', or '.' so the label ends on an alphanumeric character.
   """
-  if len(slug) > 63:
-    slug = slug[:63].rstrip('-_.')
+  max_slug = 63 - len('wt-')  # 60
+  if len(slug) > max_slug:
+    slug = slug[:max_slug].rstrip('-_.')
   return slug
 
 
