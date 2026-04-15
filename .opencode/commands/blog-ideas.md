@@ -67,14 +67,12 @@ Aim for 3–7 ranked ideas. If fewer than 3 pass the bar, present what is availa
 
 _Skip this step entirely unless `--create-issues` was passed._
 
-1. Confirm the Blog Posts project exists: call `Linear_list_projects` with `query: "Blog Posts"`. Use the first matching project ID.
+1. Confirm the Blog Posts project exists: call `Linear_list_projects` with `query: "Blog Posts"`. Find the first result whose `name` is exactly `"Blog Posts"` (case-insensitive). If no exact match is found, print an error and skip — do not create issues in any other project.
 2. For each ranked idea, call `Linear_save_issue` with:
    - `title`: working title
    - `team`: `Repro`
    - `project`: Blog Posts project ID
    - `priority`: 3 (Normal)
-   - `labels`: `["Feature"]`
+   - `labels`: `["Improvement"]`
    - `description`: Markdown body with Hook, Angle, Source sections
 3. Print a summary table of created issues.
-
-If Blog Posts project is not found, print an error and skip. Do not create issues in any other project.
