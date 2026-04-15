@@ -20,7 +20,6 @@ import { Loading } from './components/Loading'
 import { Env } from './config/createEnv'
 import { defaultEnv as env } from './config/env'
 import { Layout } from './Layout'
-import { SettingsLayout } from './SettingsLayout'
 
 const HomeRoute = lazy(() => import('./routes/HomeRoute'))
 const LoginRoute = lazy(() => import('./routes/LoginRoute'))
@@ -123,11 +122,6 @@ if (rootElem) {
                                 <Navigate to="/settings/api-keys" replace />
                               }
                             />
-                          </Route>
-                        </Route>
-
-                        <Route element={<SessionRouteBoundary />}>
-                          <Route element={<SettingsLayout />}>
                             <Route
                               path="settings/*"
                               element={<SettingsRoute />}
