@@ -86,6 +86,19 @@ export function HeroSection() {
             See how it works
           </Block>
         </Row>
+
+        {/* Legal footer link */}
+        <Block
+          component="a"
+          props={{ href: '/refund-policy' }}
+          {...textStyles.caption}
+          color={color.text.muted}
+          textDecoration="none"
+          transition={transition.default}
+          hoverColor={color.text.secondary}
+        >
+          Refund &amp; cancellation policy
+        </Block>
       </Col>
     </Col>
   )
