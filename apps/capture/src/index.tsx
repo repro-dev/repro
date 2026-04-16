@@ -86,18 +86,56 @@ class ReproCapture extends HTMLElement {
       ignoredNodes.push(document.currentScript)
     }
 
+    // Detect types already installed by the headless runtime bundle.
+    // Exclude them from the stream to avoid double-patching observers.
+    const runtimeInstalledTypes = new Set(
+      window.__REPRO_RUNTIME_INSTALLED_TYPES__ ?? []
+    )
+
+    type RecordingType =
+      | 'dom'
+      | 'interaction'
+      | 'network'
+      | 'console'
+      | 'performance'
+      | 'state'
+
+    const allTypes: RecordingType[] = [
+      'dom',
+      'interaction',
+      'network',
+      'console',
+      'performance',
+      'state',
+    ]
+
+    // Remove types already patched by the runtime so observers are not
+    // re-installed (which would double-wrap globalThis proxies).
+    const streamTypes = new Set(
+      allTypes.filter(t => !runtimeInstalledTypes.has(t))
+    )
+
     const stream = createRecordingStream(document, {
-      types: new Set([
-        'dom',
-        'interaction',
-        'network',
-        'console',
-        'performance',
-        'state',
-      ]),
+      types: streamTypes,
       ignoredNodes,
       ignoredSelectors,
     })
+
+    // Drain the runtime pre-stream buffer synchronously before stream.start()
+    // so pre-load events are correctly sequenced. The buffer holds raw events
+    // pushed by the headless runtime (network messages, console entries, etc.).
+    if (
+      window.__REPRO_RUNTIME_BUFFER__ &&
+      window.__REPRO_RUNTIME_BUFFER__.length > 0
+    ) {
+      // The runtime pushes NetworkMessage / PerformanceEntry / console objects.
+      // injectBufferedEvents accepts SourceEvent[] — the stream's addEvent
+      // encodes them; we inject the raw objects here using the same pathway.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      stream.injectBufferedEvents(window.__REPRO_RUNTIME_BUFFER__ as any[])
+      // Clear the buffer so future enable/disable cycles don't re-inject.
+      window.__REPRO_RUNTIME_BUFFER__ = []
+    }
 
     if (refs.activeStyleRoot) {
       applyResetStyles(`#${REPRO_ROOT_ID}`, refs.activeStyleRoot)
@@ -130,6 +168,9 @@ class ReproCapture extends HTMLElement {
 declare global {
   interface Window {
     __REPRO_USING_SDK: boolean
+    __REPRO_RUNTIME_BUFFER__?: Array<unknown>
+    __REPRO_RUNTIME_INSTALLED__?: boolean
+    __REPRO_RUNTIME_INSTALLED_TYPES__?: string[]
   }
 }
 
@@ -144,7 +185,7 @@ if (!window.__REPRO_USING_SDK) {
       document.body.appendChild(root)
     }
 
-    return resolve<void>(undefined)
+    return resolve(undefined)
   })
 
   agent.subscribeToIntent('disable', () => {
@@ -154,6 +195,6 @@ if (!window.__REPRO_USING_SDK) {
       root.remove()
     }
 
-    return resolve<void>(undefined)
+    return resolve(undefined)
   })
 }

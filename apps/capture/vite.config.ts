@@ -25,6 +25,7 @@ const entries: Record<string, string> = {
   content: path.resolve(__dirname, 'src/extension/content.ts'),
   bridgeHost: path.resolve(__dirname, 'src/extension/bridgeHost.ts'),
   capture: path.resolve(__dirname, 'src/index.tsx'),
+  runtime: path.resolve(__dirname, 'src/runtime.ts'),
 }
 
 const entry = process.env.VITE_ENTRY

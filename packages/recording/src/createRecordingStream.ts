@@ -97,6 +97,11 @@ export interface RecordingStream {
   slice(start?: number, end?: number): List<SourceEventView>
   snapshot(): Snapshot
   tail(signal: Subject<void>): Observable<SourceEvent>
+  /**
+   * Inject pre-stream buffered events (e.g. from the headless runtime) into
+   * the recording buffer. Must be called synchronously before `start()`.
+   */
+  injectBufferedEvents(events: Array<SourceEvent>): void
 }
 
 interface BufferSubscriptions {
@@ -113,6 +118,7 @@ export const EMPTY_RECORDING_STREAM: RecordingStream = {
   slice: () => new List(SourceEventView, []),
   snapshot: () => SnapshotView.from(createEmptySnapshot()),
   tail: () => NEVER,
+  injectBufferedEvents: () => undefined,
 }
 
 export const InterruptSignal = new Subject<void>()
@@ -716,6 +722,12 @@ export function createRecordingStream(
     }
   }
 
+  function injectBufferedEvents(events: Array<SourceEvent>) {
+    for (const event of events) {
+      addEvent(event)
+    }
+  }
+
   return {
     start,
     stop,
@@ -725,5 +737,6 @@ export function createRecordingStream(
     slice,
     snapshot,
     tail,
+    injectBufferedEvents,
   }
 }
