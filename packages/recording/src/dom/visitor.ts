@@ -32,7 +32,7 @@ export function createDOMVisitor() {
    * [x] Insert cross-origin stylesheets as-is
    * [x] Strip inline event listeners
    * [x] Build nested VTree for same-origin iframes
-   * [ ] Build nested VTree for Shadow DOM
+   * [x] Build nested VTree for Shadow DOM
    * [ ] Convert same-origin images to data-uris
    * [ ] Convert cross-origin images to data-uris via extension proxy
    */
@@ -120,12 +120,26 @@ export function createDOMVisitor() {
       }
 
       const vNode = new Box(createVElement(node))
-      createOrUpdateVTree(vNode, node.parentNode && getNodeId(node.parentNode))
+      // Shadow root children have a ShadowRoot as their parentNode.
+      // Resolve to the host element so the VNode is correctly parented.
+      const elementParentNode =
+        node.parentNode instanceof ShadowRoot
+          ? node.parentNode.host
+          : node.parentNode
+      createOrUpdateVTree(
+        vNode,
+        elementParentNode && getNodeId(elementParentNode)
+      )
     },
 
     textNode(node) {
       const vNode = new Box(createVText(node))
-      createOrUpdateVTree(vNode, node.parentNode && getNodeId(node.parentNode))
+      // Same shadow root parent resolution as elementNode above.
+      const textParentNode =
+        node.parentNode instanceof ShadowRoot
+          ? node.parentNode.host
+          : node.parentNode
+      createOrUpdateVTree(vNode, textParentNode && getNodeId(textParentNode))
     },
 
     done() {

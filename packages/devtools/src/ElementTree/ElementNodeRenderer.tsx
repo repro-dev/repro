@@ -6,6 +6,7 @@ import React, { useContext } from 'react'
 import { ElementR } from '../DOM'
 import { BreakpointAction } from './BreakpointAction'
 import { NodeRenderer } from './NodeRenderer'
+import { ShadowRootNodeRenderer } from './ShadowRootNodeRenderer'
 import { Toggle } from './Toggle'
 import { TreeRow } from './TreeRow'
 import {
@@ -66,13 +67,20 @@ export const ElementNodeRenderer: React.FC<Props> = ({ nodeId, depth }) => {
 
           {!isEmptyElement && isVisible && (
             <Block>
-              {node.children.map(childId => (
-                <NodeRenderer
-                  key={childId}
-                  nodeId={childId}
+              {node.shadowRoot ? (
+                <ShadowRootNodeRenderer
                   depth={depth + 1}
+                  childIds={node.children}
                 />
-              ))}
+              ) : (
+                node.children.map(childId => (
+                  <NodeRenderer
+                    key={childId}
+                    nodeId={childId}
+                    depth={depth + 1}
+                  />
+                ))
+              )}
             </Block>
           )}
 

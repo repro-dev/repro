@@ -166,6 +166,14 @@ export function applyDOMPatchEvent(
           const nextSiblingId = data.nextSiblingId;
 
           const parent = nodeMap[parentId];
+          // If the parent element has an attached shadow root, insert into
+          // the shadow root instead of the host element directly.
+          const insertionTarget: Node | null =
+            parent != null &&
+            isElementNode(parent) &&
+            (parent as Element).shadowRoot != null
+              ? (parent as Element).shadowRoot
+              : parent ?? null;
           const parentIsStyleRoot =
             parent != null &&
             isElementNode(parent) &&
@@ -177,7 +185,7 @@ export function applyDOMPatchEvent(
             }
           }
 
-          if (parent) {
+          if (insertionTarget) {
             const [fragment, newNodeMap] = data.nodes
               .map((vtree) =>
                 createDOMFromVTree({
@@ -217,22 +225,22 @@ export function applyDOMPatchEvent(
             let didMount = false;
 
             if (prev && prev.parentNode) {
-              if (prev.parentNode === parent) {
+              if (prev.parentNode === insertionTarget) {
                 if (prev.nextSibling) {
-                  parent.insertBefore(fragment, prev.nextSibling);
+                  insertionTarget.insertBefore(fragment, prev.nextSibling);
                   didMount = true;
                 } else {
-                  parent.appendChild(fragment);
+                  insertionTarget.appendChild(fragment);
                   didMount = true;
                 }
               }
             } else if (next && next.parentNode) {
-              if (next.parentNode === parent) {
-                parent.insertBefore(fragment, next);
+              if (next.parentNode === insertionTarget) {
+                insertionTarget.insertBefore(fragment, next);
                 didMount = true;
               }
             } else {
-              parent.appendChild(fragment);
+              insertionTarget.appendChild(fragment);
               didMount = true;
             }
 
@@ -488,8 +496,16 @@ export function createDOMFromVTree({
               }
             });
 
+            // If this element has a shadow root, route all children into it.
+            // Shadow root children were recorded as children of the host VElement.
+            const childContainer: Element | ShadowRoot = vNode.shadowRoot
+              ? element.attachShadow({ mode: "open" })
+              : element;
+
             for (const childId of vNode.children) {
-              element.appendChild(createNode(childId, nodeId, svgContext));
+              childContainer.appendChild(
+                createNode(childId, nodeId, svgContext),
+              );
             }
 
             node = element;

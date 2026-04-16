@@ -393,6 +393,15 @@ function createMutationObserver(
   options: RecordingOptions,
   subscriber: (patch: DOMPatch) => void
 ): ObserverLike<Document> {
+  const observeConfig = {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeOldValue: true,
+    characterData: true,
+    characterDataOldValue: true,
+  }
+
   const domObserver = new MutationObserver(records => {
     Stats.time(
       'DOMObserver~processMutationRecords',
@@ -406,19 +415,42 @@ function createMutationObserver(
       },
       StatsLevel.Debug
     )
+
+    // Attach observer to shadow roots of any newly added elements.
+    for (const record of records) {
+      if (record.type === 'childList') {
+        record.addedNodes.forEach(node => {
+          if (
+            node instanceof Element &&
+            node.shadowRoot &&
+            !options.ignoredNodes.includes(node)
+          ) {
+            domObserver.observe(node.shadowRoot, observeConfig)
+          }
+        })
+      }
+    }
   })
 
   return {
     disconnect: () => domObserver.disconnect(),
     observe(doc) {
-      domObserver.observe(doc, {
-        subtree: true,
-        childList: true,
-        attributes: true,
-        attributeOldValue: true,
-        characterData: true,
-        characterDataOldValue: true,
-      })
+      domObserver.observe(doc, observeConfig)
+
+      // Also observe all open shadow roots reachable from doc at setup time.
+      // MutationObserver does not auto-pierce shadow boundaries.
+      const treeWalker = doc.createTreeWalker(doc, NodeFilter.SHOW_ELEMENT)
+      let el: Node | null = treeWalker.nextNode()
+      while (el) {
+        if (
+          el instanceof Element &&
+          el.shadowRoot &&
+          !options.ignoredNodes.includes(el)
+        ) {
+          domObserver.observe(el.shadowRoot, observeConfig)
+        }
+        el = treeWalker.nextNode()
+      }
     },
   }
 }

@@ -111,6 +111,73 @@ describe('libs/record: dom observers', () => {
     ])
   })
 
+  it('should include shadow root children in walkDOMTree snapshot', () => {
+    const host = document.createElement('div')
+    const shadowRoot = host.attachShadow({ mode: 'open' })
+    const shadowChild = document.createElement('span')
+    shadowChild.textContent = 'shadow content'
+    shadowRoot.appendChild(shadowChild)
+    document.body.appendChild(host)
+
+    const options: RecordingOptions = {
+      types: new Set(['dom']),
+      snapshotInterval: 10_000,
+      ignoredNodes: [],
+      ignoredSelectors: [],
+      eventSampling: {
+        pointerMove: 50,
+        resize: 250,
+        scroll: 100,
+      },
+    }
+
+    const walkDOMTree = createDOMTreeWalker(options)
+    walkDOMTree.acceptDOMVisitor(createDOMVisitor())
+
+    const vtree = walkDOMTree(host)
+
+    expect(vtree).not.toBeNull()
+    // The shadow child span should appear in the vtree nodes
+    const nodeIds = Object.keys(vtree!.nodes)
+    const shadowChildId = getNodeId(shadowChild)
+    expect(nodeIds).toContain(shadowChildId)
+
+    document.body.removeChild(host)
+  })
+
+  it('should not traverse into shadow root of ignored host node', () => {
+    const host = document.createElement('repro-capture')
+    const shadowRoot = host.attachShadow({ mode: 'open' })
+    const shadowChild = document.createElement('span')
+    shadowRoot.appendChild(shadowChild)
+    document.body.appendChild(host)
+
+    const options: RecordingOptions = {
+      types: new Set(['dom']),
+      snapshotInterval: 10_000,
+      ignoredNodes: [host],
+      ignoredSelectors: [],
+      eventSampling: {
+        pointerMove: 50,
+        resize: 250,
+        scroll: 100,
+      },
+    }
+
+    const walkDOMTree = createDOMTreeWalker(options)
+    walkDOMTree.acceptDOMVisitor(createDOMVisitor())
+
+    // Walking from body — host is ignored, shadow child must not appear
+    document.body.appendChild(document.createElement('p'))
+    const vtree = walkDOMTree(document.body)
+
+    const nodeIds = Object.keys(vtree?.nodes ?? {})
+    const shadowChildId = getNodeId(shadowChild)
+    expect(nodeIds).not.toContain(shadowChildId)
+
+    document.body.removeChild(host)
+  })
+
   it('should correctly process childList mutation records', () => {
     const patches: Array<DOMPatch> = []
 

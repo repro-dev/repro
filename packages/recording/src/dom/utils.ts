@@ -53,6 +53,16 @@ function walkDOMTree(
       if (isIFrameElement(node) && node.contentDocument) {
         queue.push(node.contentDocument)
       }
+
+      // Enqueue shadow root children after regular children.
+      // Note: el.shadowRoot is null for closed shadow roots — they are
+      // inaccessible by design and will be silently skipped.
+      // Note: Node.contains() does not pierce shadow boundaries, so we check
+      // ignoredNodes directly against the host element rather than relying on
+      // the isIgnoredByNode helper.
+      if (node.shadowRoot && !options.ignoredNodes.includes(node)) {
+        queue.push(...Array.from(node.shadowRoot.childNodes))
+      }
     } else if (isTextNode(node)) {
       for (const visitor of visitors) {
         visitor.textNode(node)
