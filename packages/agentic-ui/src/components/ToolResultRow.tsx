@@ -1,8 +1,9 @@
 import { Block, Row } from "@jsxstyle/react";
-import { color, fontFamily, fontSize, transition } from "@repro/design";
+import { color, fontFamily, transition } from "@repro/design";
 import React from "react";
 import { formatTimeMs } from "./formatTimeMs";
 import { ToolResultSeekAction } from "./ToolResultSeekAction";
+import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
 
 interface ToolResultRowProps {
   timeMs: number;
@@ -28,35 +29,53 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
   return (
     <Row
       alignItems={rowAlignItems}
-      gap={10}
-      paddingBlock={kind === "network" ? 10 : 6}
-      paddingInline={15}
+      gap={TOOL_RESULT_ROW_STYLES.gap}
+      paddingBlock={
+        kind === "network"
+          ? TOOL_RESULT_ROW_STYLES.paddingBlockNetwork
+          : TOOL_RESULT_ROW_STYLES.paddingBlockConsole
+      }
+      paddingInline={TOOL_RESULT_ROW_STYLES.paddingInline}
       position="relative"
-      fontSize={11}
-      lineHeight={1.25}
-      borderBottom={`1px solid ${color.border.default}`}
+      fontSize={TOOL_RESULT_ROW_STYLES.rowFontSize}
+      lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+      borderBottomWidth={TOOL_RESULT_ROW_STYLES.borderWidth}
+      borderBottomStyle="solid"
+      borderBottomColor={color.border.default}
       hoverBackgroundColor={color.bg.hover}
       transition={transition.fast}
       cursor="default"
     >
       <Block
         flexShrink={0}
-        minWidth={72}
+        minWidth={TOOL_RESULT_ROW_STYLES.timeColumnMinWidth}
         position="relative"
-        fontSize={fontSize.xs}
+        fontSize={TOOL_RESULT_ROW_STYLES.rowFontSize}
         fontFamily={fontFamily.mono}
         color={color.text.muted}
         whiteSpace="nowrap"
-        lineHeight={1.25}
+        lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
       >
         {formatTimeMs(timeMs)}
 
         {showAction && (
           <Block
             position="absolute"
-            top={kind === "network" ? "50%" : -3}
-            left={kind === "network" ? 5 : -10}
-            transform={kind === "network" ? "translateY(-50%)" : undefined}
+            top={
+              kind === "network"
+                ? "50%"
+                : TOOL_RESULT_ROW_STYLES.timeActionConsoleTop
+            }
+            left={
+              kind === "network"
+                ? TOOL_RESULT_ROW_STYLES.timeActionNetworkLeft
+                : TOOL_RESULT_ROW_STYLES.timeActionConsoleLeft
+            }
+            transform={
+              kind === "network"
+                ? TOOL_RESULT_ROW_STYLES.timeActionNetworkTransform
+                : undefined
+            }
           >
             <ToolResultSeekAction timeMs={timeMs} onGoToTime={onGoToTime} />
           </Block>
@@ -67,7 +86,7 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
         flexGrow={1}
         minWidth={0}
         alignItems={contentAlignItems}
-        gap={10}
+        gap={TOOL_RESULT_ROW_STYLES.gap}
         flexWrap={kind === "console" ? "wrap" : "nowrap"}
       >
         {children}

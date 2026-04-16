@@ -9,6 +9,7 @@ import {
 } from "@repro/design";
 import React from "react";
 import { ToolResultRow } from "./ToolResultRow";
+import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
 
 interface ConsoleMessage {
   timeMs: number;
@@ -86,12 +87,16 @@ export const ConsoleMessageResultView: React.FC<
             fontFamily={fontFamily.mono}
             color={color.text.secondary}
             wordBreak="break-word"
-            lineHeight={1.25}
+            lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
             flexGrow={1}
           >
             {msg.text}
             {msg.count !== undefined && msg.count > 1 && (
-              <Block component="span" color={color.text.muted} marginLeft={5}>
+              <Block
+                component="span"
+                color={color.text.muted}
+                marginLeft={TOOL_RESULT_ROW_STYLES.actionLabelSpacing}
+              >
                 ×{msg.count}
               </Block>
             )}

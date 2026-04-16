@@ -9,6 +9,7 @@ import {
 } from "@repro/design";
 import React from "react";
 import { ToolResultRow } from "./ToolResultRow";
+import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
 
 interface NetworkRequest {
   timeMs: number;
@@ -130,7 +131,7 @@ export const NetworkRequestResultView: React.FC<
             overflow="hidden"
             whiteSpace="nowrap"
             textOverflow="ellipsis"
-            lineHeight={1.25}
+            lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
           >
             {truncateUrl(req.url)}
           </Block>

@@ -9,6 +9,7 @@ import {
 } from "@repro/design";
 import React from "react";
 import { ToolResultRow } from "./ToolResultRow";
+import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
 
 interface ErrorEntry {
   time: number;
@@ -79,7 +80,7 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
             color={color.text.secondary}
             flexGrow={1}
             wordBreak="break-word"
-            lineHeight={1.25}
+            lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
           >
             {err.summary}
           </Block>
