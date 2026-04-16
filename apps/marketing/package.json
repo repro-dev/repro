@@ -9,7 +9,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "fmt": "prettier --write src",
-    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}"
+    "test": "tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/**/*.test.ts{,x}"
   },
   "license": "UNLICENSED",
   "dependencies": {
@@ -28,6 +28,7 @@
     "@types/react": "overridden",
     "@types/react-dom": "overridden",
     "@types/repro-shared-types": "workspace:*",
+    "global-jsdom": "overridden",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
     "tsx": "4.19.3",

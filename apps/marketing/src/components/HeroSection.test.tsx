@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import React from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
+import { hydrateRoot } from 'react-dom/client'
+import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 
 function registerUiMocks(t: any) {
   t.mock.module('@jsxstyle/react', {
@@ -50,7 +51,7 @@ describe('HeroSection', () => {
 })
 
 describe('HomePage', () => {
-  it('resolves the app URL on the server and passes it to HeroSection', async t => {
+  it('hydrates the home page route without changing the CTA href', async t => {
     registerUiMocks(t)
 
     const createEnv = t.mock.fn(() => ({
@@ -65,10 +66,29 @@ describe('HomePage', () => {
 
     const { default: HomePage } = await import('../app/page')
     const element = HomePage()
-    const markup = renderToStaticMarkup(element)
+    const markup = renderToString(element)
+    const consoleError = t.mock.method(console, 'error', () => {})
+
+    const container = document.createElement('div')
+    container.innerHTML = markup
+
+    const beforeHref = container
+      .querySelector('a[href^="https://app.example.test"]')
+      ?.getAttribute('href')
+
+    const root = hydrateRoot(container, element)
+
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const afterHref = container
+      .querySelector('a[href^="https://app.example.test"]')
+      ?.getAttribute('href')
 
     assert.equal(createEnv.mock.calls.length, 1)
-    assert.equal(element.props.appUrl, 'https://app.example.test')
-    assert.match(markup, /href="https:\/\/app\.example\.test"/)
+    assert.equal(beforeHref, 'https://app.example.test')
+    assert.equal(afterHref, 'https://app.example.test')
+    assert.equal(consoleError.mock.calls.length, 0)
+
+    root.unmount()
   })
 })
