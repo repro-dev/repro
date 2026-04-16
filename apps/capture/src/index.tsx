@@ -4,11 +4,26 @@ import { ApiProvider, createApiClientBridge } from '@repro/api-client'
 import { AuthProvider, GateProvider } from '@repro/auth'
 import { PortalRootProvider } from '@repro/design'
 import { Stats, Trace } from '@repro/diagnostics'
+import {
+  ConsoleEvent,
+  ConsoleMessage,
+  LogLevel,
+  MessagePart,
+  MessagePartType,
+  NetworkEvent,
+  NetworkMessage,
+  PerformanceEntry,
+  PerformanceEvent,
+  SourceEvent,
+  SourceEventType,
+  StackEntry,
+} from '@repro/domain'
 import { MessagingProvider, getDefaultAgent } from '@repro/messaging'
 import {
   RecordingStreamProvider,
   createRecordingStream,
 } from '@repro/recording'
+import { Box } from '@repro/tdl'
 import { applyResetStyles } from '@repro/theme'
 import { resolve } from 'fluture'
 import React from 'react'
@@ -43,6 +58,34 @@ Analytics.setAgent(agent)
 
 // Proxy API calls over messaging layer
 const apiClientBridge = createApiClientBridge(agent)
+
+// ---------------------------------------------------------------------------
+// Helpers for transforming runtime buffer events to SourceEvent envelopes
+// ---------------------------------------------------------------------------
+
+function levelStringToLogLevel(level: string): LogLevel {
+  switch (level) {
+    case 'verbose':
+      return LogLevel.Verbose
+    case 'info':
+      return LogLevel.Info
+    case 'warning':
+      return LogLevel.Warning
+    case 'error':
+      return LogLevel.Error
+    default:
+      return LogLevel.Info
+  }
+}
+
+function isPerformanceEntry(event: unknown): event is PerformanceEntry {
+  return (
+    typeof event === 'object' &&
+    event !== null &&
+    'entryType' in event &&
+    'startTime' in event
+  )
+}
 
 class ReproCapture extends HTMLElement {
   private renderRoot: Root | null = null
@@ -123,18 +166,71 @@ class ReproCapture extends HTMLElement {
 
     // Drain the runtime pre-stream buffer synchronously before stream.start()
     // so pre-load events are correctly sequenced. The buffer holds raw events
-    // pushed by the headless runtime (network messages, console entries, etc.).
+    // pushed by the headless runtime: NetworkMessage, {__runtimeConsole}, PerformanceEntry.
     if (
       window.__REPRO_RUNTIME_BUFFER__ &&
       window.__REPRO_RUNTIME_BUFFER__.length > 0
     ) {
-      // The runtime pushes NetworkMessage / PerformanceEntry / console objects.
-      // injectBufferedEvents accepts SourceEvent[] — the stream's addEvent
-      // encodes them; we inject the raw objects here using the same pathway.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      stream.injectBufferedEvents(window.__REPRO_RUNTIME_BUFFER__ as any[])
-      // Clear the buffer so future enable/disable cycles don't re-inject.
-      window.__REPRO_RUNTIME_BUFFER__ = []
+      const sourceEvents: SourceEvent[] = []
+
+      for (const event of window.__REPRO_RUNTIME_BUFFER__) {
+        if (
+          typeof event === 'object' &&
+          event !== null &&
+          '__runtimeConsole' in event
+        ) {
+          // Console message: runtime format → ConsoleMessage → ConsoleEvent envelope
+          const runtimeConsole = event as {
+            __runtimeConsole: true
+            level: string
+            args: unknown[]
+            time: number
+          }
+          const parts: MessagePart[] = runtimeConsole.args.map(
+            arg =>
+              new Box({
+                type: MessagePartType.String,
+                value: String(arg),
+              })
+          )
+          const logLevel = levelStringToLogLevel(runtimeConsole.level)
+          const consoleMessage: ConsoleMessage = {
+            level: logLevel,
+            parts,
+            stack: [] as StackEntry[],
+          }
+          const consoleEvent: ConsoleEvent = {
+            type: SourceEventType.Console,
+            time: runtimeConsole.time,
+            data: consoleMessage,
+          }
+          sourceEvents.push(new Box(consoleEvent))
+        } else if (isPerformanceEntry(event)) {
+          // Performance entry: PerformanceEntry → PerformanceEvent envelope
+          const entry = event as PerformanceEntry
+          const perfEvent: PerformanceEvent = {
+            type: SourceEventType.Performance,
+            time: performance.now(),
+            data: entry,
+          }
+          sourceEvents.push(new Box(perfEvent))
+        } else {
+          // Network message: NetworkMessage → NetworkEvent envelope
+          const message = event as NetworkMessage
+          const netEvent: NetworkEvent = {
+            type: SourceEventType.Network,
+            time: performance.now(),
+            data: message,
+          }
+          sourceEvents.push(new Box(netEvent))
+        }
+      }
+
+      stream.injectBufferedEvents(sourceEvents)
+
+      // Mutate the buffer in-place to preserve the closure reference held by
+      // the runtime's event subscriber (creating a new array would break it).
+      window.__REPRO_RUNTIME_BUFFER__.length = 0
     }
 
     if (refs.activeStyleRoot) {
