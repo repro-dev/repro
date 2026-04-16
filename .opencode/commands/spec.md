@@ -1,8 +1,8 @@
 ---
-description: Guide spec-writing for Needs Decision issues — surfaces gaps, asks targeted questions, and proposes updated descriptions with acceptance criteria
+description: Guide spec-writing for needs-spec issues — surfaces gaps, asks targeted questions, and proposes updated descriptions with acceptance criteria
 ---
 
-Work through issues labeled `Needs Decision` by surfacing gaps, asking targeted questions, generating a proposed updated description (with acceptance criteria and resolved decisions), and writing the result back to Linear only after human approval.
+Work through issues labeled `needs-spec` by surfacing gaps, asking targeted questions, generating a proposed updated description (with acceptance criteria and resolved decisions), and writing the result back to Linear only after human approval.
 
 `$ARGUMENTS` is a required positional argument: either a single issue ID (e.g. `REP-42`) or a natural-language filter (e.g. `"all high-priority issues in project X under milestone Y"`).
 
@@ -20,7 +20,7 @@ Examples:
   /spec all high-priority Platform issues — filter mode
 
 Invoke with an issue ID or a natural-language filter. Running /spec
-with no argument is not supported — it would process all Needs Decision
+with no argument is not supported — it would process all needs-spec
 issues without bounded scope.
 ```
 
@@ -56,16 +56,16 @@ _Only runs when Step 2 detected a natural-language filter._
    - Milestone name
    - Label names
    - Priority (e.g. `high-priority` → `priority: 2`)
-2. Call `Linear_list_issues` with the extracted filters plus `label: "Needs Decision"`, paginating through all results. If no project was identified, do not restrict by project (but always filter by `Needs Decision` label).
+2. Call `Linear_list_issues` with the extracted filters plus `label: "needs-spec"`, paginating through all results. If no project was identified, do not restrict by project (but always filter by `needs-spec` label).
 3. If no issues match, print:
    ```
-   No Needs Decision issues found matching: "<filter string>"
+   No needs-spec issues found matching: "<filter string>"
    ```
    and exit.
 4. Present the matching issues as a numbered list:
 
    ```
-   Found N Needs Decision issue(s) matching "<filter>":
+   Found N needs-spec issue(s) matching "<filter>":
 
      1. REP-42 — <title> [Priority: Medium, Project: Platform]
      2. REP-57 — <title> [Priority: High, Project: Engineering]
@@ -201,13 +201,13 @@ Call `Linear_get_issue` to retrieve the current full description and labels list
 
 Construct the updated description (original description + proposed additions from Step 7).
 
-Build the updated labels list: take the fetched `labels` array, filter out the `Needs Decision` label (ID: `773c7a1c-3e16-4d18-bf0d-2f8d5429ca23`), and use this filtered list.
+Build the updated labels list: take the fetched `labels` array, filter out any label named `needs-spec`, and use this filtered list.
 
 Call `Linear_save_issue` with:
 
 - `id`: the issue ID
 - `description`: the updated description (original + additions)
-- `labels`: the filtered labels array (with Needs Decision removed)
+- `labels`: the filtered labels array (with `needs-spec` removed)
 
 ### 8c: Post audit comment
 
@@ -229,7 +229,7 @@ Call `Linear_save_comment` with:
 Print confirmation:
 
 ```
-✅ REP-xxx updated — Needs Decision label removed, spec comment posted.
+✅ REP-xxx updated — needs-spec label removed, spec comment posted.
 ```
 
 ---
