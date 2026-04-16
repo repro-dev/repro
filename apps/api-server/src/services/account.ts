@@ -249,7 +249,7 @@ export function createAccountService(
               email,
               password: await argon2.hash(password),
             })
-            .returning(['id', 'name', 'email', 'admin'])
+            .returning(['id', 'name', 'email', 'admin', 'active'])
             .executeTakeFirstOrThrow()
         }).pipe(map(asStaffUser))
       )
@@ -275,7 +275,7 @@ export function createAccountService(
     return attemptQuery(async () => {
       const row = await database
         .selectFrom('staff_users')
-        .select(['id', 'name', 'email', 'admin', 'password'])
+        .select(['id', 'name', 'email', 'admin', 'password', 'active'])
         .where('email', '=', email.toLowerCase())
         .where('active', '=', true)
         .executeTakeFirst()
@@ -301,7 +301,7 @@ export function createAccountService(
     return attemptQuery(() =>
       database
         .selectFrom('staff_users')
-        .select(['id', 'name', 'email', 'admin'])
+        .select(['id', 'name', 'email', 'admin', 'active'])
         .where('id', '=', decodeId(staffUserId))
         .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
@@ -314,7 +314,7 @@ export function createAccountService(
     return attemptQuery(() =>
       database
         .selectFrom('staff_users')
-        .select(['id', 'name', 'email', 'admin'])
+        .select(['id', 'name', 'email', 'admin', 'active'])
         .where('email', '=', email.toLowerCase())
         .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
@@ -351,6 +351,39 @@ export function createAccountService(
             .execute()
         })
       )
+    )
+  }
+
+  function setStaffUserIsAdmin(
+    staffUserId: string,
+    admin: boolean
+  ): FutureInstance<Error, void> {
+    return getStaffUserById(staffUserId).pipe(
+      chain(() =>
+        attemptQuery(async () => {
+          await database
+            .updateTable('staff_users')
+            .set('admin', admin)
+            .where('id', '=', decodeId(staffUserId))
+            .execute()
+        })
+      )
+    )
+  }
+
+  function listStaffUsers(
+    order: 'asc' | 'desc' = 'asc'
+  ): FutureInstance<Error, { items: Array<StaffUser> }> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('staff_users')
+        .select(['id', 'name', 'email', 'admin', 'active'])
+        .orderBy(`id ${order}`)
+        .execute()
+    ).pipe(
+      map(rows => ({
+        items: rows.map(asStaffUser),
+      }))
     )
   }
 
@@ -1137,6 +1170,8 @@ export function createAccountService(
     createStaffUser,
     deactivateStaffUser,
     updateStaffUserName,
+    setStaffUserIsAdmin,
+    listStaffUsers,
     getStaffUserByEmailAndPassword,
     getStaffUserById,
     getStaffUserByEmail,

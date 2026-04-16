@@ -241,5 +241,118 @@ export function createStaffRouter(
         )
       }
     )
+
+    // Staff user management
+
+    const staffUserIdSchema = {
+      params: z.object({
+        staffUserId: z.string(),
+      }),
+    } as const
+
+    // GET /staff-users — list all staff users (admin-only)
+    app.get('/staff-users', (req, res) => {
+      respondWith(
+        res,
+        go(function* () {
+          const user = yield req.getCurrentUser()
+          yield accountService.ensureStaffUserIsAdmin(user)
+          return yield accountService.listStaffUsers()
+        })
+      )
+    })
+
+    // POST /staff-users — create a new staff user (admin-only)
+    const createStaffUserSchema = {
+      body: z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        password: z.string().min(8),
+      }),
+    } as const
+
+    app.post<{
+      Body: z.infer<typeof createStaffUserSchema.body>
+    }>('/staff-users', { schema: createStaffUserSchema }, (req, res) => {
+      const { name, email, password } = req.body
+      respondWith(
+        res,
+        go(function* () {
+          const user = yield req.getCurrentUser()
+          yield accountService.ensureStaffUserIsAdmin(user)
+          return yield accountService.createStaffUser(name, email, password)
+        })
+      )
+    })
+
+    // GET /staff-users/:staffUserId — get a staff user by ID (admin-only)
+    app.get<{
+      Params: z.infer<typeof staffUserIdSchema.params>
+    }>(
+      '/staff-users/:staffUserId',
+      { schema: staffUserIdSchema },
+      (req, res) => {
+        const { staffUserId } = req.params
+        respondWith(
+          res,
+          go(function* () {
+            const user = yield req.getCurrentUser()
+            yield accountService.ensureStaffUserIsAdmin(user)
+            return yield accountService.getStaffUserById(staffUserId)
+          })
+        )
+      }
+    )
+
+    // PATCH /staff-users/:staffUserId — update a staff user's name (admin-only)
+    const updateStaffUserSchema = {
+      params: z.object({
+        staffUserId: z.string(),
+      }),
+      body: z.object({
+        name: z.string().min(1),
+      }),
+    } as const
+
+    app.patch<{
+      Params: z.infer<typeof updateStaffUserSchema.params>
+      Body: z.infer<typeof updateStaffUserSchema.body>
+    }>(
+      '/staff-users/:staffUserId',
+      { schema: updateStaffUserSchema },
+      (req, res) => {
+        const { staffUserId } = req.params
+        const { name } = req.body
+        respondWith(
+          res,
+          go(function* () {
+            const user = yield req.getCurrentUser()
+            yield accountService.ensureCanModifyStaffUser(user, staffUserId)
+            yield accountService.updateStaffUserName(staffUserId, name)
+            return yield accountService.getStaffUserById(staffUserId)
+          })
+        )
+      }
+    )
+
+    // DELETE /staff-users/:staffUserId — deactivate a staff user (admin-only)
+    app.delete<{
+      Params: z.infer<typeof staffUserIdSchema.params>
+    }>(
+      '/staff-users/:staffUserId',
+      { schema: staffUserIdSchema },
+      (req, res) => {
+        const { staffUserId } = req.params
+        respondWith(
+          res,
+          go(function* () {
+            const user = yield req.getCurrentUser()
+            yield accountService.ensureStaffUserIsAdmin(user)
+            yield accountService.deactivateStaffUser(staffUserId)
+            return { ok: true }
+          })
+        )
+      }
+    )
   }
 }
