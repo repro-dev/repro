@@ -229,11 +229,13 @@ export function createAccountService(
     email: string,
     password: string
   ): FutureInstance<Error, StaffUser> {
+    const normalizedEmail = email.toLowerCase()
+
     const existingStaffUser = attemptQuery(async () => {
       return database
         .selectFrom('staff_users')
         .select('id')
-        .where('email', '=', email)
+        .where('email', '=', normalizedEmail)
         .executeTakeFirstOrThrow()
     })
       .pipe(map(() => resourceConflict()))
@@ -246,7 +248,7 @@ export function createAccountService(
             .insertInto('staff_users')
             .values({
               name,
-              email,
+              email: normalizedEmail,
               password: await argon2.hash(password),
             })
             .returning(['id', 'name', 'email', 'admin', 'active'])

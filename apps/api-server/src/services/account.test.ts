@@ -40,8 +40,9 @@ describe('Services > Account', () => {
   })
 
   describe('Staff users', () => {
-    it('should create a staff user', async () => {
-      const email = harness.generateRandomEmailAddress()
+    it('should create a staff user with a normalized email address', async () => {
+      const email = 'John.Smith@Example.com'
+      const normalizedEmail = email.toLowerCase()
 
       const user = await promise(
         accountService.createStaffUser('John Smith', email, 'hunter2!')
@@ -51,12 +52,24 @@ describe('Services > Account', () => {
         type: 'staff',
         id: expect.any(String),
         name: 'John Smith',
-        email,
+        email: normalizedEmail,
+      })
+
+      await expect(
+        promise(
+          accountService.getStaffUserByEmailAndPassword(
+            normalizedEmail,
+            'hunter2!'
+          )
+        )
+      ).resolves.toMatchObject({
+        id: user.id,
+        email: normalizedEmail,
       })
     })
 
-    it('should fail to create a staff user with a duplicate email address', async () => {
-      const email = harness.generateRandomEmailAddress()
+    it('should fail to create a staff user with a duplicate email address regardless of casing', async () => {
+      const email = 'John.Smith@Example.com'
 
       await promise(
         accountService.createStaffUser('John Jackson', email, 'hunter2!')
@@ -64,7 +77,11 @@ describe('Services > Account', () => {
 
       await expect(
         promise(
-          accountService.createStaffUser('Jack Johnson', email, 'hunter2!')
+          accountService.createStaffUser(
+            'Jack Johnson',
+            email.toLowerCase(),
+            'hunter2!'
+          )
         )
       ).rejects.toThrow(resourceConflict())
     })
