@@ -16,6 +16,30 @@ exit_code=0
 warn_count=0
 error_count=0
 
+is_ci=false
+if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
+  is_ci=true
+fi
+
+get_candidate_files() {
+  if [ "$is_ci" = true ]; then
+    base_ref="origin/${GITHUB_BASE_REF:-main}"
+    if ! git rev-parse --verify --quiet "$base_ref" >/dev/null; then
+      base_ref="HEAD~1"
+    fi
+
+    git diff --name-only --diff-filter=AM "$base_ref...HEAD" | while IFS= read -r file; do
+      case "$file" in
+        *.test.ts|*.test.tsx) printf '%s\n' "$file" ;;
+      esac
+    done
+    return
+  fi
+
+  find . \( -name "*.test.ts" -o -name "*.test.tsx" \) \
+    | grep -v node_modules | grep -v dist | grep -v ".git" | sort
+}
+
 while IFS= read -r file; do
   lines=$(wc -l < "$file" | tr -d ' ')
   if [ "$lines" -gt "$ERROR_THRESHOLD" ]; then
@@ -26,8 +50,7 @@ while IFS= read -r file; do
     echo "WARN: $file has $lines lines (warning threshold: $WARN_THRESHOLD)"
     warn_count=$((warn_count + 1))
   fi
-done < <(find . \( -name "*.test.ts" -o -name "*.test.tsx" \) \
-  | grep -v node_modules | grep -v dist | grep -v ".git" | sort)
+done < <(get_candidate_files)
 
 echo ""
 echo "Test file size check complete: $error_count error(s), $warn_count warning(s)"

@@ -185,6 +185,8 @@ After starting Storybook, query `http://localhost:6099/index.json` to get canoni
 
 Default threshold: `0.001` (0.1% of pixels changed). To override for a specific package, create a `.visual-threshold` file in the package root containing just the threshold value (e.g. `0.005`).
 
+For test-file-size guardrails, CI only scans changed `.test.ts` / `.test.tsx` files from the PR diff; local manual runs still scan the whole repo when no CI context is present. Current thresholds are 400 lines for warnings and 500 lines for errors.
+
 ### Storybook port
 
 The script uses port **6099** by default (avoids conflict with the dev server on 6006). Override with `--port <n>` if needed. The script automatically finds the next free port if 6099 is occupied.
