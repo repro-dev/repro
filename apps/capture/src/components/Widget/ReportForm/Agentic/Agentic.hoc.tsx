@@ -14,7 +14,7 @@ import { parse } from 'event-stream-parser'
 import { attemptP, chain, fork } from 'fluture'
 import React, { useMemo } from 'react'
 
-async function hashPromptVersion(prompt: string): Promise<string> {
+async function hashPromptVersion(prompt: string): Promise {
   const encoder = new TextEncoder()
   const data = encoder.encode(prompt)
   const hashBuffer = await crypto.subtle.digest('SHA-256', data)
@@ -32,7 +32,7 @@ export const Agentic: React.FC = () => {
   const streamProvider: StreamProvider = useMemo(
     () =>
       (context: Context, toolDefs: ToolDefinition[], signal?: AbortSignal) => {
-        const response = apiClient.fetch<ReadableStream>(
+        const response = apiClient.fetch(
           '/agentic/response',
           {
             method: 'POST',
@@ -89,12 +89,13 @@ export const Agentic: React.FC = () => {
   return (
     <AgenticStateContext.Provider value={state}>
       <AgenticView
+        onGoToTime={timestampMs => playback.seekToTime(timestampMs)}
         onFeedback={sentiment => {
           // Fire-and-forget — no error handling beyond a console.warn
-          fork<Error>(() =>
-            console.warn('[Agentic] feedback submission failed')
-          )(() => undefined)(
-            attemptP<Error, string>(() =>
+          fork(() => console.warn('[Agentic] feedback submission failed'))(
+            () => undefined
+          )(
+            attemptP(() =>
               hashPromptVersion(EXTENSION_SYSTEM_CARD_MESSAGE)
             ).pipe(
               chain(promptVersion =>

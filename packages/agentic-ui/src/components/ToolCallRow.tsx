@@ -52,6 +52,7 @@ interface ToolCallRowProps {
   result: ToolMessage | null;
   isExecuting: boolean;
   wasCancelled: boolean;
+  onGoToTime?: (timeMs: number) => void;
 }
 
 // Resolve tool message content to a plain string for display. When content
@@ -71,6 +72,7 @@ function contentToString(content: string | Array<ContentBlock>): string {
 interface ToolResultDetailProps {
   toolName: string;
   content: string | Array<ContentBlock>;
+  onGoToTime?: (timeMs: number) => void;
 }
 
 function parseJsonContent(content: string): unknown | null {
@@ -90,6 +92,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
   toolName,
   content,
+  onGoToTime,
 }) => {
   const parsedContent =
     typeof content === "string" ? parseJsonContent(content) : null;
@@ -160,7 +163,12 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
         typeof parsedContent._hint === "string"
           ? parsedContent._hint
           : undefined;
-      inner = <ConsoleMessageResultView result={{ messages, hint }} />;
+      inner = (
+        <ConsoleMessageResultView
+          result={{ messages, hint }}
+          onGoToTime={onGoToTime}
+        />
+      );
     } else if (toolName === "getNetworkRequests") {
       const requests = Array.isArray(parsedContent.requests)
         ? parsedContent.requests
@@ -169,7 +177,12 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
         typeof parsedContent._hint === "string"
           ? parsedContent._hint
           : undefined;
-      inner = <NetworkRequestResultView result={{ requests, hint }} />;
+      inner = (
+        <NetworkRequestResultView
+          result={{ requests, hint }}
+          onGoToTime={onGoToTime}
+        />
+      );
     } else if (toolName === "findErrors") {
       const errors = Array.isArray(parsedContent.errors)
         ? parsedContent.errors
@@ -215,6 +228,7 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
   result,
   isExecuting,
   wasCancelled,
+  onGoToTime,
 }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -311,7 +325,11 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
       </Row>
 
       {expanded && result !== null && (
-        <ToolResultDetail toolName={toolName} content={result.content} />
+        <ToolResultDetail
+          toolName={toolName}
+          content={result.content}
+          onGoToTime={onGoToTime}
+        />
       )}
     </Col>
   );

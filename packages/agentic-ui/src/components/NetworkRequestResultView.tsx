@@ -1,4 +1,4 @@
-import { Block, Col, Row } from "@jsxstyle/react";
+import { Block, Col } from "@jsxstyle/react";
 import { Badge } from "@repro/design";
 import {
   color,
@@ -8,6 +8,7 @@ import {
   textStyles,
 } from "@repro/design";
 import React from "react";
+import { ToolResultRow } from "./ToolResultRow";
 
 interface NetworkRequest {
   timeMs: number;
@@ -30,6 +31,7 @@ interface NetworkRequestResult {
 
 interface NetworkRequestResultViewProps {
   result: NetworkRequestResult;
+  onGoToTime?: (timeMs: number) => void;
 }
 
 // Maps HTTP method strings to Badge context values.
@@ -67,7 +69,7 @@ function truncateUrl(url: string, maxLen = 80): string {
 
 export const NetworkRequestResultView: React.FC<
   NetworkRequestResultViewProps
-> = ({ result }) => {
+> = ({ result, onGoToTime }) => {
   const { requests, hint } = result;
 
   if (requests.length === 0) {
@@ -88,16 +90,12 @@ export const NetworkRequestResultView: React.FC<
   return (
     <Col>
       {requests.map((req, i) => (
-        <Row
+        <ToolResultRow
           key={i}
+          timeMs={req.timeMs}
           alignItems="center"
-          gap={spacing.sm}
-          paddingV={spacing.xs}
-          paddingH={spacing.sm}
-          borderBottom={`1px solid ${color.border.default}`}
-          flexWrap="wrap"
+          onGoToTime={onGoToTime}
         >
-          {/* HTTP method badge (only for fetch requests) */}
           {req.type === "fetch" && req.method != null && (
             <Block flexShrink={0}>
               <Badge context={methodToContext(req.method)} size="small" rounded>
@@ -106,7 +104,6 @@ export const NetworkRequestResultView: React.FC<
             </Block>
           )}
 
-          {/* WebSocket indicator */}
           {req.type === "ws" && (
             <Block flexShrink={0}>
               <Badge context="neutral" size="small" rounded>
@@ -115,7 +112,6 @@ export const NetworkRequestResultView: React.FC<
             </Block>
           )}
 
-          {/* Status code — colour-coded by range */}
           {req.status != null && (
             <Block flexShrink={0}>
               <Badge context={statusToContext(req.status)} size="small">
@@ -124,8 +120,8 @@ export const NetworkRequestResultView: React.FC<
             </Block>
           )}
 
-          {/* URL — truncated for long paths */}
           <Block
+            minWidth={0}
             fontSize={fontSize.xs}
             fontFamily={fontFamily.mono}
             color={color.text.secondary}
@@ -135,19 +131,18 @@ export const NetworkRequestResultView: React.FC<
             {truncateUrl(req.url)}
           </Block>
 
-          {/* Duration */}
           {req.durationMs != null && (
             <Block
+              flexShrink={0}
               fontSize={fontSize.xs}
               fontFamily={fontFamily.mono}
               color={color.text.muted}
-              flexShrink={0}
               whiteSpace="nowrap"
             >
               {req.durationMs}ms
             </Block>
           )}
-        </Row>
+        </ToolResultRow>
       ))}
     </Col>
   );

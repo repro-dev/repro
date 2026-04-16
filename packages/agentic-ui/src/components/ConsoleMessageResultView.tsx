@@ -1,4 +1,4 @@
-import { Block, Col, Row } from "@jsxstyle/react";
+import { Block, Col } from "@jsxstyle/react";
 import { Badge } from "@repro/design";
 import {
   color,
@@ -8,7 +8,7 @@ import {
   textStyles,
 } from "@repro/design";
 import React from "react";
-import { formatTimeMs } from "./formatTimeMs";
+import { ToolResultRow } from "./ToolResultRow";
 
 interface ConsoleMessage {
   timeMs: number;
@@ -25,6 +25,7 @@ interface ConsoleMessageResult {
 
 interface ConsoleMessageResultViewProps {
   result: ConsoleMessageResult;
+  onGoToTime?: (timeMs: number) => void;
 }
 
 // Maps log level strings to Badge context values for semantic colour-coding.
@@ -45,7 +46,7 @@ function levelToContext(level: string): BadgeContext {
 
 export const ConsoleMessageResultView: React.FC<
   ConsoleMessageResultViewProps
-> = ({ result }) => {
+> = ({ result, onGoToTime }) => {
   const { messages, hint } = result;
 
   if (messages.length === 0) {
@@ -66,35 +67,20 @@ export const ConsoleMessageResultView: React.FC<
   return (
     <Col>
       {messages.map((msg, i) => (
-        <Row
+        <ToolResultRow
           key={i}
+          timeMs={msg.timeMs}
           alignItems="flex-start"
-          gap={spacing.sm}
-          paddingV={spacing.xs}
-          paddingH={spacing.sm}
-          borderBottom={`1px solid ${color.border.default}`}
-          flexWrap="wrap"
+          onGoToTime={onGoToTime}
         >
-          {/* Level badge — coloured by severity */}
-          <Block flexShrink={0}>
+          <Block flexShrink={0} alignSelf="flex-start">
             <Badge context={levelToContext(msg.level)} size="small" rounded>
               {msg.level}
             </Badge>
           </Block>
 
-          {/* Timestamp */}
           <Block
-            fontSize={fontSize.xs}
-            fontFamily={fontFamily.mono}
-            color={color.text.muted}
-            flexShrink={0}
-            whiteSpace="nowrap"
-          >
-            {formatTimeMs(msg.timeMs)}
-          </Block>
-
-          {/* Message text */}
-          <Block
+            minWidth={0}
             fontSize={fontSize.xs}
             fontFamily={fontFamily.mono}
             color={color.text.secondary}
@@ -112,7 +98,7 @@ export const ConsoleMessageResultView: React.FC<
               </Block>
             )}
           </Block>
-        </Row>
+        </ToolResultRow>
       ))}
     </Col>
   );

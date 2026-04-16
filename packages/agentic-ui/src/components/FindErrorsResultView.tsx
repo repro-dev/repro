@@ -1,4 +1,4 @@
-import { Block, Col, Row } from "@jsxstyle/react";
+import { Block, Col } from "@jsxstyle/react";
 import { Badge } from "@repro/design";
 import {
   color,
@@ -8,7 +8,7 @@ import {
   textStyles,
 } from "@repro/design";
 import React from "react";
-import { formatTimeMs } from "./formatTimeMs";
+import { ToolResultRow } from "./ToolResultRow";
 
 interface ErrorEntry {
   time: number;
@@ -59,24 +59,20 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
   return (
     <Col>
       {errors.map((err, i) => (
-        <Row
+        <ToolResultRow
           key={i}
+          timeMs={err.time}
           alignItems="flex-start"
-          gap={spacing.sm}
-          paddingV={spacing.xs}
-          paddingH={spacing.sm}
-          borderBottom={`1px solid ${color.border.default}`}
-          flexWrap="wrap"
+          showGoToTime={false}
         >
-          {/* Source badge — console (danger) or network (warning) */}
-          <Block flexShrink={0}>
+          <Block flexShrink={0} alignSelf="flex-start">
             <Badge context={sourceToContext(err.source)} size="small" rounded>
               {err.source}
             </Badge>
           </Block>
 
-          {/* Error summary text */}
           <Block
+            minWidth={0}
             fontSize={fontSize.xs}
             fontFamily={fontFamily.mono}
             color={color.text.secondary}
@@ -85,18 +81,7 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
           >
             {err.summary}
           </Block>
-
-          {/* Timestamp */}
-          <Block
-            fontSize={fontSize.xs}
-            fontFamily={fontFamily.mono}
-            color={color.text.muted}
-            flexShrink={0}
-            whiteSpace="nowrap"
-          >
-            {formatTimeMs(err.time)}
-          </Block>
-        </Row>
+        </ToolResultRow>
       ))}
     </Col>
   );

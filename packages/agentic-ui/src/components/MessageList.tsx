@@ -1,7 +1,7 @@
 import { Block, Col } from "@jsxstyle/react";
 import { Md } from "@m2d/react-markdown";
 import { AgenticError, Entry, Loading, groupToolCalls } from "@repro/agentic";
-import { color, spacing } from "@repro/design";
+import { colors, spacing } from "@repro/design";
 import React, { useMemo } from "react";
 import {
   INPUT_CONTAINER_OFFSET_PX,
@@ -23,6 +23,7 @@ interface MessageListProps {
   onSelectPrompt: (prompt: string) => void;
   wasCancelled: boolean;
   onFeedback?: (sentiment: "positive" | "negative") => void;
+  onGoToTime?: (timeMs: number) => void;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -35,6 +36,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   onSelectPrompt,
   wasCancelled,
   onFeedback,
+  onGoToTime,
 }) => {
   const renderItems = useMemo(() => groupToolCalls(entries), [entries]);
 
@@ -72,8 +74,8 @@ export const MessageList: React.FC<MessageListProps> = ({
                 <Block
                   marginInlineStart={spacing["3xl"]}
                   paddingInline={spacing.lg}
-                  backgroundColor={color.infoTint}
-                  borderColor={color.primarySubtle}
+                  backgroundColor={colors.blue["50"]}
+                  borderColor={colors.blue["100"]}
                   borderStyle="solid"
                   borderWidth={0}
                   borderBlockEndWidth={3}
@@ -106,6 +108,7 @@ export const MessageList: React.FC<MessageListProps> = ({
               pairs={item.pairs}
               isExecuting={loading === "tool-executing"}
               wasCancelled={wasCancelled}
+              onGoToTime={onGoToTime}
             />
           );
         })}

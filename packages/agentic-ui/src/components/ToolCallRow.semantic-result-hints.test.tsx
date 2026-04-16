@@ -68,4 +68,70 @@ describe("ToolCallRow semantic result hints", () => {
       ),
     ).toBeDefined();
   });
+
+  it("jumps to the console message time when requested", () => {
+    let jumpedTo: number | null = null;
+
+    render(
+      <ToolCallRow
+        toolName="getConsoleMessages"
+        result={makeToolResult({
+          messages: [{ timeMs: 1500, level: "info", text: "App initialised" }],
+        })}
+        isExecuting={false}
+        wasCancelled={false}
+        onGoToTime={(timeMs) => {
+          jumpedTo = timeMs;
+        }}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle details for getConsoleMessages",
+      }),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Go to time >",
+      }),
+    );
+
+    expect(jumpedTo).toBe(1500);
+  });
+
+  it("renders the network time action without a callback", () => {
+    render(
+      <ToolCallRow
+        toolName="getNetworkRequests"
+        result={makeToolResult({
+          requests: [
+            {
+              timeMs: 800,
+              type: "fetch",
+              method: "GET",
+              url: "/api/health",
+              status: 200,
+              durationMs: 10,
+            },
+          ],
+        })}
+        isExecuting={false}
+        wasCancelled={false}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle details for getNetworkRequests",
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: "Go to time >",
+      }),
+    ).toBeDefined();
+  });
 });
