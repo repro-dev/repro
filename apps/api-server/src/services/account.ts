@@ -519,7 +519,7 @@ export function createAccountService(
       ])
 
       const userCountMap = new Map<number, number>()
-      const emailMap = new Map<number, string>()
+      const emailsByAccount = new Map<number, Array<string>>()
       const activeMap = new Map<number, boolean>()
       const lastActiveMap = new Map<number, Date>()
       for (const row of users) {
@@ -527,8 +527,10 @@ export function createAccountService(
           row.accountId,
           (userCountMap.get(row.accountId) ?? 0) + 1
         )
-        if (!emailMap.has(row.accountId)) {
-          emailMap.set(row.accountId, row.email)
+        if (row.email) {
+          const emails = emailsByAccount.get(row.accountId) ?? []
+          emails.push(row.email)
+          emailsByAccount.set(row.accountId, emails)
         }
         if (row.active) {
           activeMap.set(row.accountId, true)
@@ -539,6 +541,10 @@ export function createAccountService(
         if (!current || row.createdAt > current) {
           lastActiveMap.set(row.accountId, row.createdAt)
         }
+      }
+
+      for (const emails of emailsByAccount.values()) {
+        emails.sort((a, b) => a.localeCompare(b))
       }
 
       const recordingCountMap = new Map<number, number>()
@@ -563,7 +569,7 @@ export function createAccountService(
           id: row.id,
           name: row.name,
           createdAt: row.createdAt,
-          email: emailMap.get(row.id) ?? null,
+          email: emailsByAccount.get(row.id)?.[0] ?? null,
           planName: planMap.get(row.id) ?? null,
           subscriptionStatus: subscriptionStatusMap.get(row.id) ?? null,
           active: activeMap.get(row.id) ?? false,
@@ -575,12 +581,18 @@ export function createAccountService(
 
       if (search) {
         const searchLower = search.toLowerCase()
-        items = items.filter(
-          item =>
-            item.email.toLowerCase().includes(searchLower) ||
-            item.name.toLowerCase().includes(searchLower) ||
-            item.id.toLowerCase().includes(searchLower)
-        )
+        items = items.filter(item => {
+          const decodedId = decodeId(item.id)
+          const accountEmails =
+            decodedId == null ? [] : emailsByAccount.get(decodedId) ?? []
+
+          return (
+            item.id.toLowerCase().includes(searchLower) ||
+            accountEmails.some(email =>
+              email.toLowerCase().includes(searchLower)
+            )
+          )
+        })
       }
 
       if (plan) {

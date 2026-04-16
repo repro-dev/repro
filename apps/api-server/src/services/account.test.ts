@@ -356,6 +356,39 @@ describe('Services > Account', () => {
       expect(result.nextCursor).toBeUndefined()
     })
 
+    it('should match any email address belonging to an account', async () => {
+      const accountName = `Email Match ${randomString()}`
+      const account = await promise(accountService.createAccount(accountName))
+
+      await promise(
+        accountService.createUser(
+          account.id,
+          'Primary User',
+          `primary-${randomString()}@example.com`,
+          'hunter2!'
+        )
+      )
+
+      const matchingEmail = `secondary-${randomString()}@example.com`
+      await promise(
+        accountService.createUser(
+          account.id,
+          'Secondary User',
+          matchingEmail,
+          'hunter2!'
+        )
+      )
+
+      const result = await promise(
+        accountService.listAccounts({ search: matchingEmail, limit: 50 })
+      )
+
+      expect(result.items.map(account => account.id)).toEqual([account.id])
+      const selectedEmail = result.items[0]?.email
+      expect(selectedEmail).toBeDefined()
+      expect(selectedEmail!.toLowerCase()).not.toEqual(matchingEmail)
+    })
+
     it('should include subscription and active status in the staff account detail', async () => {
       await harness.loadFixtures([fixtures.billing.FreePlan])
 

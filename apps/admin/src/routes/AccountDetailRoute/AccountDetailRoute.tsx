@@ -25,6 +25,10 @@ export const AccountDetailRoute: React.FC = () => {
   const [previousUserCursors, setPreviousUserCursors] = useState<
     Array<string | undefined>
   >([])
+  const [projectCursor, setProjectCursor] = useState<string | undefined>()
+  const [previousProjectCursors, setPreviousProjectCursors] = useState<
+    Array<string | undefined>
+  >([])
 
   const {
     account,
@@ -42,7 +46,7 @@ export const AccountDetailRoute: React.FC = () => {
     nextCursor: projectsNextCursor,
     isLoading: projectsLoading,
     error: projectsError,
-  } = useStaffAccountProjects(resolvedAccountId)
+  } = useStaffAccountProjects(resolvedAccountId, { cursor: projectCursor })
 
   if (!accountId) {
     return (
@@ -70,6 +74,22 @@ export const AccountDetailRoute: React.FC = () => {
       const nextPrevious = [...previous]
       const previousCursor = nextPrevious.pop()
       setUserCursor(previousCursor)
+      return nextPrevious
+    })
+  }
+
+  const handleNextProjectsPage = () => {
+    if (!projectsNextCursor) return
+
+    setPreviousProjectCursors(previous => [...previous, projectCursor])
+    setProjectCursor(projectsNextCursor)
+  }
+
+  const handlePreviousProjectsPage = () => {
+    setPreviousProjectCursors(previous => {
+      const nextPrevious = [...previous]
+      const previousCursor = nextPrevious.pop()
+      setProjectCursor(previousCursor)
       return nextPrevious
     })
   }
@@ -227,11 +247,32 @@ export const AccountDetailRoute: React.FC = () => {
                   )}
                 </Table.Body>
               </Table>
-              {projectsNextCursor && (
-                <p style={{ marginBottom: 0, marginTop: 16 }}>
-                  More than 50 projects exist for this account. Pagination is
-                  not available for projects yet.
-                </p>
+              {(previousProjectCursors.length > 0 || projectsNextCursor) && (
+                <div
+                  style={{
+                    alignItems: 'center',
+                    display: 'flex',
+                    gap: 12,
+                    justifyContent: 'flex-end',
+                    marginTop: 16,
+                  }}
+                >
+                  <button
+                    disabled={previousProjectCursors.length === 0}
+                    onClick={handlePreviousProjectsPage}
+                    type="button"
+                  >
+                    Previous
+                  </button>
+                  <span>Page {previousProjectCursors.length + 1}</span>
+                  <button
+                    disabled={!projectsNextCursor}
+                    onClick={handleNextProjectsPage}
+                    type="button"
+                  >
+                    Next
+                  </button>
+                </div>
               )}
             </>
           )}
