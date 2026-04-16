@@ -1,3 +1,4 @@
+import { AccountPlan } from '@repro/domain'
 import { tapF } from '@repro/future-utils'
 import { FastifyPluginAsync } from 'fastify'
 import { chain, chainRej, go, reject } from 'fluture'
@@ -89,6 +90,8 @@ export function createStaffRouter(
       querystring: z.object({
         cursor: z.string().optional(),
         limit: z.coerce.number().int().min(1).max(250).default(50),
+        search: z.string().optional(),
+        plan: z.enum(['free', 'starter', 'pro', 'enterprise']).optional(),
       }),
     } as const
 
@@ -96,13 +99,18 @@ export function createStaffRouter(
     app.get<{
       Querystring: z.infer<typeof paginationSchema.querystring>
     }>('/accounts', { schema: paginationSchema }, (req, res) => {
-      const { cursor, limit } = req.query
+      const { cursor, limit, search, plan } = req.query
       respondWith(
         res,
         go(function* () {
           const user = yield req.getCurrentUser()
           yield accountService.ensureStaffUser(user)
-          return yield accountService.listAccounts({ cursor, limit })
+          return yield accountService.listAccounts({
+            cursor,
+            limit,
+            search,
+            plan: plan as AccountPlan | undefined,
+          })
         })
       )
     })
@@ -113,7 +121,7 @@ export function createStaffRouter(
       }),
     } as const
 
-    // Get account by ID
+    // Get account by ID (enriched staff view)
     app.get<{
       Params: z.infer<typeof accountIdSchema.params>
     }>(
@@ -128,7 +136,7 @@ export function createStaffRouter(
           go(function* () {
             const user = yield req.getCurrentUser()
             yield accountService.ensureStaffUser(user)
-            return yield accountService.getAccountById(accountId)
+            return yield accountService.getStaffAccountById(accountId)
           })
         )
       }
@@ -160,6 +168,30 @@ export function createStaffRouter(
             const user = yield req.getCurrentUser()
             yield accountService.ensureStaffUser(user)
             return yield accountService.listUsersForAccount(accountId, {
+              cursor,
+              limit,
+            })
+          })
+        )
+      }
+    )
+
+    // List projects for account
+    app.get<{
+      Params: z.infer<typeof accountUsersPaginationSchema.params>
+      Querystring: z.infer<typeof accountUsersPaginationSchema.querystring>
+    }>(
+      '/accounts/:accountId/projects',
+      { schema: accountUsersPaginationSchema },
+      (req, res) => {
+        const { accountId } = req.params
+        const { cursor, limit } = req.query
+        respondWith(
+          res,
+          go(function* () {
+            const user = yield req.getCurrentUser()
+            yield accountService.ensureStaffUser(user)
+            return yield accountService.listProjectsForAccount(accountId, {
               cursor,
               limit,
             })

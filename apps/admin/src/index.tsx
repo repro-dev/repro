@@ -17,6 +17,7 @@ import { RequireAdminSession } from './components/RequireAdminSession'
 import { RequireAdminStaffSession } from './components/RequireAdminStaffSession'
 import { defaultEnv as env } from './config/env'
 import { Layout } from './Layout'
+import { AccountDetailRoute } from './routes/AccountDetailRoute'
 import { AccountsRoute } from './routes/AccountsRoute'
 import { FeatureGatesRoute } from './routes/FeatureGatesRoute'
 import { HealthRoute } from './routes/HealthRoute'
@@ -118,7 +119,7 @@ const adminTheme: ThemeDefinition = {
 
 const rootSelector = '#root'
 const rootElem = document.querySelector(rootSelector)
-const rootStyleSheet = document.querySelector<HTMLStyleElement>('#root-styles')
+const rootStyleSheet = document.querySelector('#root-styles')
 
 if (rootStyleSheet) {
   applyResetStyles(rootSelector, rootStyleSheet)
@@ -156,6 +157,10 @@ if (rootElem) {
                           element={<FeatureGatesRoute />}
                         />
                         <Route path="accounts" element={<AccountsRoute />} />
+                        <Route
+                          path="accounts/:accountId"
+                          element={<AccountDetailRoute />}
+                        />
                         <Route element={<RequireAdminStaffSession />}>
                           <Route
                             path="staff-users"

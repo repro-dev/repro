@@ -3,6 +3,20 @@ export interface Account {
   name: string
 }
 
+export type AccountPlan = 'free' | 'starter' | 'pro' | 'enterprise'
+
+// Staff-facing view of an account with enriched metadata
+export interface StaffAccount {
+  id: string
+  name: string
+  email: string
+  plan: AccountPlan | null
+  createdAt: string
+  lastActiveAt: string | null
+  userCount: number
+  recordingCount: number
+}
+
 export interface Invitation {
   id: string
   token: string
