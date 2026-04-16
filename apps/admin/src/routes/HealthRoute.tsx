@@ -25,6 +25,22 @@ interface SubsystemCardProps {
   check: SubsystemCheck
 }
 
+function getOverallStatusLabel(status: HealthCheckResult['status']) {
+  return status === 'ok'
+    ? 'Healthy'
+    : status === 'degraded'
+    ? 'Degraded'
+    : 'Unhealthy'
+}
+
+function getSubsystemStatusLabel(status: SubsystemCheck['status']) {
+  return status === 'ok'
+    ? 'Connected'
+    : status === 'degraded'
+    ? 'Degraded'
+    : 'Disconnected'
+}
+
 function isHealthCheckResult(value: unknown): value is HealthCheckResult {
   if (value == null || typeof value !== 'object') {
     return false
@@ -55,6 +71,9 @@ const SubsystemCard = ({ name, check }: SubsystemCardProps) => (
       />
       <Block flex={1}>
         <Block fontWeight={500}>{name}</Block>
+        <Block fontSize={13} color={color.text.secondary}>
+          Status: {getSubsystemStatusLabel(check.status)}
+        </Block>
         {check.latencyMs != null && (
           <Block fontSize={13} color={color.text.secondary}>
             {check.latencyMs}ms
@@ -133,12 +152,7 @@ export const HealthRoute: React.FC = () => {
 
   const alertType =
     status === 'ok' ? 'success' : status === 'degraded' ? 'warning' : 'danger'
-  const alertLabel =
-    status === 'ok'
-      ? 'Healthy'
-      : status === 'degraded'
-      ? 'Degraded'
-      : 'Unhealthy'
+  const alertLabel = getOverallStatusLabel(status)
 
   return (
     <PageFrame>
@@ -147,7 +161,7 @@ export const HealthRoute: React.FC = () => {
       </PageFrame.Header>
       <PageFrame.Body>
         <Block paddingBottom={spacing.lg}>
-          <Alert type={alertType}>{alertLabel}</Alert>
+          <Alert type={alertType}>System status: {alertLabel}</Alert>
         </Block>
 
         <Grid gap={spacing.md} paddingBottom={spacing.lg}>
