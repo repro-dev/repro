@@ -334,7 +334,18 @@ describe('Services > Account', () => {
       const searchPrefix = `match-${randomString()}`
 
       for (let index = 0; index < 10; index += 1) {
-        await promise(accountService.createAccount(`${searchPrefix}-${index}`))
+        const account = await promise(
+          accountService.createAccount(`Account ${index}`)
+        )
+
+        await promise(
+          accountService.createUser(
+            account.id,
+            `User ${index}`,
+            `${searchPrefix}-${index}@example.com`,
+            'hunter2!'
+          )
+        )
       }
 
       for (let index = 0; index < 50; index += 1) {
