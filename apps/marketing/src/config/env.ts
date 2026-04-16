@@ -11,12 +11,6 @@ const envSchema = z.object({
   REPRO_MARKETING_URL: z.string().url().default('https://repro.dev'),
 })
 
-export function createEnv(values: Record<string, unknown>) {
+export function createEnv(values: unknown) {
   return envSchema.parse(values)
 }
-
-export const defaultEnv = createEnv({
-  BUILD_ENV: process.env.BUILD_ENV,
-  REPRO_APP_URL: process.env.REPRO_APP_URL,
-  REPRO_MARKETING_URL: process.env.REPRO_MARKETING_URL,
-})
