@@ -65,8 +65,10 @@ describe('HomePage', () => {
 
     const { default: HomePage } = await import('../app/page')
     const element = HomePage()
+    const markup = renderToStaticMarkup(element)
 
     assert.equal(createEnv.mock.calls.length, 1)
     assert.equal(element.props.appUrl, 'https://app.example.test')
+    assert.match(markup, /href="https:\/\/app\.example\.test"/)
   })
 })
