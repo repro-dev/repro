@@ -119,7 +119,8 @@ const adminTheme: ThemeDefinition = {
 
 const rootSelector = '#root'
 const rootElem = document.querySelector(rootSelector)
-const rootStyleSheet = document.querySelector('#root-styles')
+const rootStyleSheet: HTMLStyleElement | null =
+  document.querySelector('#root-styles')
 
 if (rootStyleSheet) {
   applyResetStyles(rootSelector, rootStyleSheet)

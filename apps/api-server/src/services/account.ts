@@ -1,5 +1,5 @@
 import * as argon2 from '@node-rs/argon2'
-import { StaffUser, User } from '@repro/domain'
+import { AccountPlan, StaffAccount, StaffUser, User } from '@repro/domain'
 import { addMinutes } from 'date-fns'
 import {
   FutureInstance,
@@ -58,7 +58,9 @@ export function createAccountService(
   sessionHardExpirySeconds: number = 28 * 24 * 3600,
   _config: SystemConfig = defaultSystemConfig
 ) {
-  function ensureStaffUser(user: User | StaffUser | null): FutureInstance {
+  function ensureStaffUser(
+    user: User | StaffUser | null
+  ): FutureInstance<Error, StaffUser> {
     return user != null && user.type === 'staff'
       ? getStaffUserById(user.id)
       : reject(permissionDenied())
@@ -66,7 +68,7 @@ export function createAccountService(
 
   function ensureStaffUserIsAdmin(
     user: User | StaffUser | null
-  ): FutureInstance {
+  ): FutureInstance<Error, StaffUser> {
     if (user == null) {
       return reject(permissionDenied())
     }
@@ -82,13 +84,17 @@ export function createAccountService(
     )
   }
 
-  function ensureUser(user: User | StaffUser | null): FutureInstance {
+  function ensureUser(
+    user: User | StaffUser | null
+  ): FutureInstance<Error, User> {
     return user != null && user.type === 'user'
       ? getUserById(user.id)
       : reject(permissionDenied())
   }
 
-  function ensureUserIsAdmin(user: User | StaffUser | null): FutureInstance {
+  function ensureUserIsAdmin(
+    user: User | StaffUser | null
+  ): FutureInstance<Error, User> {
     if (user == null) {
       return reject(permissionDenied())
     }
@@ -107,7 +113,7 @@ export function createAccountService(
   function ensureUserMatchesEmail(
     user: User | StaffUser | null,
     email: string
-  ): FutureInstance {
+  ): FutureInstance<Error, User> {
     if (user == null) {
       return reject(permissionDenied())
     }
@@ -128,14 +134,14 @@ export function createAccountService(
   function ensureCanModifyStaffUser(
     actor: User | StaffUser | null,
     _subjectStaffUserId: string
-  ): FutureInstance {
+  ): FutureInstance<Error, StaffUser> {
     return ensureStaffUserIsAdmin(actor)
   }
 
   function ensureCanAccessAccount(
     actor: User | StaffUser | null,
     subjectAccountId: string
-  ): FutureInstance {
+  ): FutureInstance<Error, User | StaffUser> {
     if (actor == null) {
       return reject(permissionDenied())
     }
@@ -158,7 +164,7 @@ export function createAccountService(
   function ensureCanModifyAccount(
     actor: User | StaffUser | null,
     subjectAccountId: string
-  ): FutureInstance {
+  ): FutureInstance<Error, User | StaffUser> {
     return alt(
       and(ensureCanAccessAccount(actor, subjectAccountId))(
         ensureUserIsAdmin(actor)
@@ -169,7 +175,7 @@ export function createAccountService(
   function ensureCanAccessUser(
     actor: User | StaffUser | null,
     subjectUserId: string
-  ): FutureInstance {
+  ): FutureInstance<Error, User | StaffUser> {
     if (actor == null) {
       return reject(permissionDenied())
     }
@@ -193,7 +199,7 @@ export function createAccountService(
   function ensureCanModifyUser(
     actor: User | StaffUser | null,
     subjectUserId: string
-  ): FutureInstance {
+  ): FutureInstance<Error, User | StaffUser> {
     if (actor == null) {
       return reject(permissionDenied())
     }
@@ -213,7 +219,7 @@ export function createAccountService(
     name: string,
     email: string,
     password: string
-  ): FutureInstance {
+  ): FutureInstance<Error, StaffUser> {
     const existingStaffUser = attemptQuery(async () => {
       return database
         .selectFrom('staff_users')
@@ -241,7 +247,9 @@ export function createAccountService(
     )
   }
 
-  function getStaffUserIsAdmin(staffUserId: string): FutureInstance {
+  function getStaffUserIsAdmin(
+    staffUserId: string
+  ): FutureInstance<Error, boolean> {
     return attemptQuery(() => {
       return database
         .selectFrom('staff_users')
@@ -254,7 +262,7 @@ export function createAccountService(
   function getStaffUserByEmailAndPassword(
     email: string,
     password: string
-  ): FutureInstance {
+  ): FutureInstance<Error, StaffUser> {
     return attemptQuery(async () => {
       const row = await database
         .selectFrom('staff_users')
@@ -278,7 +286,9 @@ export function createAccountService(
     }).pipe(map(asStaffUser))
   }
 
-  function getStaffUserById(staffUserId: string): FutureInstance {
+  function getStaffUserById(
+    staffUserId: string
+  ): FutureInstance<Error, StaffUser> {
     return attemptQuery(() =>
       database
         .selectFrom('staff_users')
@@ -289,7 +299,9 @@ export function createAccountService(
     ).pipe(map(asStaffUser))
   }
 
-  function getStaffUserByEmail(email: string): FutureInstance {
+  function getStaffUserByEmail(
+    email: string
+  ): FutureInstance<Error, StaffUser> {
     return attemptQuery(() =>
       database
         .selectFrom('staff_users')
@@ -303,7 +315,7 @@ export function createAccountService(
   function updateStaffUserName(
     staffUserId: string,
     name: string
-  ): FutureInstance {
+  ): FutureInstance<Error, void> {
     return getStaffUserById(staffUserId).pipe(
       chain(() =>
         attemptQuery(async () => {
@@ -317,7 +329,9 @@ export function createAccountService(
     )
   }
 
-  function deactivateStaffUser(staffUserId: string): FutureInstance {
+  function deactivateStaffUser(
+    staffUserId: string
+  ): FutureInstance<Error, StaffUser> {
     return getStaffUserById(staffUserId).pipe(
       chain(() =>
         attemptQuery(async () => {
@@ -331,7 +345,7 @@ export function createAccountService(
     )
   }
 
-  function createAccount(name: string): FutureInstance {
+  function createAccount(name: string): FutureInstance<Error, Account> {
     return attemptQuery(() => {
       return database
         .insertInto('accounts')
@@ -353,7 +367,7 @@ export function createAccountService(
       )
   }
 
-  function getAccountById(accountId: string): FutureInstance {
+  function getAccountById(accountId: string): FutureInstance<Error, Account> {
     return attemptQuery(() => {
       return database
         .selectFrom('accounts')
@@ -363,7 +377,7 @@ export function createAccountService(
     }).pipe(map(withEncodedId))
   }
 
-  function getAccountForUser(userId: string): FutureInstance {
+  function getAccountForUser(userId: string): FutureInstance<Error, Account> {
     return attemptQuery(() => {
       return database
         .selectFrom('users as u')
@@ -374,7 +388,9 @@ export function createAccountService(
     }).pipe(map(withEncodedId))
   }
 
-  function getAccountForInvitation(invitationId: string): FutureInstance {
+  function getAccountForInvitation(
+    invitationId: string
+  ): FutureInstance<Error, Account> {
     return attemptQuery(() => {
       return database
         .selectFrom('invitations as i')
@@ -433,7 +449,10 @@ export function createAccountService(
     order?: 'asc' | 'desc'
     search?: string
     plan?: AccountPlan
-  } = {}): FutureInstance {
+  } = {}): FutureInstance<
+    Error,
+    { items: StaffAccount[]; nextCursor?: string }
+  > {
     return attemptQuery(async () => {
       // Get accounts with pagination
       let query = database
@@ -576,7 +595,9 @@ export function createAccountService(
     })
   }
 
-  function getStaffAccountById(accountId: string): FutureInstance {
+  function getStaffAccountById(
+    accountId: string
+  ): FutureInstance<Error, StaffAccount> {
     return attemptQuery(async () => {
       const decodedId = decodeId(accountId)
       if (decodedId == null) {
@@ -655,7 +676,7 @@ export function createAccountService(
       cursor?: string
       limit?: number
     } = {}
-  ): FutureInstance {
+  ): FutureInstance<Error, { items: Project[]; nextCursor?: string }> {
     return attemptQuery(() => {
       let query = database
         .selectFrom('projects')
@@ -689,7 +710,7 @@ export function createAccountService(
       cursor?: string
       limit?: number
     } = {}
-  ): FutureInstance {
+  ): FutureInstance<Error, { items: StaffUserDetail[]; nextCursor?: string }> {
     return attemptQuery(() => {
       let query = database
         .selectFrom('users')
@@ -715,7 +736,10 @@ export function createAccountService(
     )
   }
 
-  function updateAccountName(accountId: string, name: string): FutureInstance {
+  function updateAccountName(
+    accountId: string,
+    name: string
+  ): FutureInstance<Error, void> {
     return getAccountById(accountId).pipe(
       chain(() =>
         attemptQuery(async () => {
@@ -729,7 +753,10 @@ export function createAccountService(
     )
   }
 
-  function createInvitation(accountId: string, email: string): FutureInstance {
+  function createInvitation(
+    accountId: string,
+    email: string
+  ): FutureInstance<Error, Invitation> {
     const decodedAccountId = decodeId(accountId)
 
     if (decodedAccountId == null) {
@@ -754,7 +781,9 @@ export function createAccountService(
     }).pipe(map(withEncodedId))
   }
 
-  function getInvitationById(invitationId: string): FutureInstance {
+  function getInvitationById(
+    invitationId: string
+  ): FutureInstance<Error, Invitation> {
     return attemptQuery(() => {
       return database
         .selectFrom('invitations')
@@ -767,7 +796,7 @@ export function createAccountService(
   function getInvitationByTokenAndEmail(
     token: string,
     email: string
-  ): FutureInstance {
+  ): FutureInstance<Error, Invitation> {
     return attemptQuery(() => {
       return database
         .selectFrom('invitations')
@@ -779,7 +808,9 @@ export function createAccountService(
     }).pipe(map(withEncodedId))
   }
 
-  function deactivateInvitation(invitationId: string): FutureInstance {
+  function deactivateInvitation(
+    invitationId: string
+  ): FutureInstance<Error, void> {
     return getInvitationById(invitationId).pipe(
       chain(() =>
         attemptQuery(async () => {
@@ -798,7 +829,7 @@ export function createAccountService(
     name: string,
     email: string,
     password: string
-  ): FutureInstance {
+  ): FutureInstance<Error, User> {
     const decodedAccountId = decodeId(accountId)
 
     if (decodedAccountId == null) {
@@ -844,7 +875,10 @@ export function createAccountService(
     }).pipe(map(row => row.admin))
   }
 
-  function setUserIsAdmin(userId: string, admin: boolean): FutureInstance {
+  function setUserIsAdmin(
+    userId: string,
+    admin: boolean
+  ): FutureInstance<Error, void> {
     return getUserById(userId).pipe(
       chain(() =>
         attemptQuery(async () => {
@@ -858,7 +892,10 @@ export function createAccountService(
     )
   }
 
-  function updateUserName(userId: string, name: string): FutureInstance {
+  function updateUserName(
+    userId: string,
+    name: string
+  ): FutureInstance<Error, void> {
     return attemptQuery(async () => {
       await database
         .updateTable('users')
@@ -868,7 +905,7 @@ export function createAccountService(
     })
   }
 
-  function getUserById(id: string): FutureInstance {
+  function getUserById(id: string): FutureInstance<Error, User> {
     return attemptQuery(() =>
       database
         .selectFrom('users')
@@ -880,7 +917,9 @@ export function createAccountService(
   }
 
   // Staff-facing variant that includes email in the response
-  function getUserByIdForStaff(id: string): FutureInstance {
+  function getUserByIdForStaff(
+    id: string
+  ): FutureInstance<Error, StaffUserDetail> {
     return attemptQuery(() =>
       database
         .selectFrom('users')
@@ -891,7 +930,7 @@ export function createAccountService(
     ).pipe(map(asStaffUserDetail))
   }
 
-  function getUserEmailById(id: string): FutureInstance {
+  function getUserEmailById(id: string): FutureInstance<Error, string> {
     return attemptQuery(() =>
       database
         .selectFrom('users')
@@ -902,7 +941,7 @@ export function createAccountService(
     ).pipe(map(row => row.email))
   }
 
-  function getUserByEmail(email: string): FutureInstance {
+  function getUserByEmail(email: string): FutureInstance<Error, User> {
     return attemptQuery(async () => {
       return database
         .selectFrom('users')
@@ -916,7 +955,7 @@ export function createAccountService(
   function getUserByEmailAndPassword(
     email: string,
     password: string
-  ): FutureInstance {
+  ): FutureInstance<Error, User> {
     return attemptQuery(async () => {
       const row = await database
         .selectFrom('users')
@@ -940,7 +979,7 @@ export function createAccountService(
     }).pipe(map(asUser))
   }
 
-  function deactivateUser(userId: string): FutureInstance {
+  function deactivateUser(userId: string): FutureInstance<Error, void> {
     return attemptQuery(async () => {
       await database
         .updateTable('users')
@@ -950,7 +989,7 @@ export function createAccountService(
     })
   }
 
-  function sendVerificationEmail(userId: string): FutureInstance {
+  function sendVerificationEmail(userId: string): FutureInstance<Error, void> {
     const result = attemptQuery(async () => {
       return database
         .selectFrom('users')
@@ -977,7 +1016,7 @@ export function createAccountService(
   function verifyUser(
     verificationToken: string,
     email: string
-  ): FutureInstance {
+  ): FutureInstance<Error, void> {
     return getUserByEmail(email).pipe(
       chain(() =>
         attemptQuery(async () => {
@@ -996,9 +1035,11 @@ export function createAccountService(
   const LOCKOUT_DURATION_MS = 15 * 60 * 1000
 
   function ensureEmailNotLocked(
-    getLockoutState: (normalizedEmail: string) => Promise,
+    getLockoutState: (
+      normalizedEmail: string
+    ) => Promise<{ lockedUntil: Date | null } | undefined>,
     email: string
-  ): FutureInstance {
+  ): FutureInstance<Error, void> {
     return attemptQuery(() => getLockoutState(email.toLowerCase())).pipe(
       chain(row => {
         if (row?.lockedUntil && row.lockedUntil.getTime() > Date.now()) {
@@ -1013,15 +1054,15 @@ export function createAccountService(
   }
 
   function resetFailedLoginState(
-    resetByEmail: (normalizedEmail: string) => Promise,
+    resetByEmail: (normalizedEmail: string) => Promise<unknown>,
     email: string
-  ): FutureInstance {
+  ): FutureInstance<Error, void> {
     return attemptQuery(async () => {
       await resetByEmail(email.toLowerCase())
     })
   }
 
-  function ensureNotLocked(email: string): FutureInstance {
+  function ensureNotLocked(email: string): FutureInstance<Error, void> {
     return ensureEmailNotLocked(
       normalizedEmail =>
         database
@@ -1034,7 +1075,7 @@ export function createAccountService(
     )
   }
 
-  function recordFailedLogin(email: string): FutureInstance {
+  function recordFailedLogin(email: string): FutureInstance<Error, void> {
     return attemptQuery(async () => {
       const row = await database
         .selectFrom('users')
@@ -1068,7 +1109,7 @@ export function createAccountService(
     })
   }
 
-  function resetFailedLoginCount(email: string): FutureInstance {
+  function resetFailedLoginCount(email: string): FutureInstance<Error, void> {
     return resetFailedLoginState(
       normalizedEmail =>
         database
@@ -1083,7 +1124,7 @@ export function createAccountService(
 
   // Staff lockout
 
-  function ensureStaffNotLocked(email: string): FutureInstance {
+  function ensureStaffNotLocked(email: string): FutureInstance<Error, void> {
     return ensureEmailNotLocked(
       normalizedEmail =>
         database
@@ -1096,7 +1137,7 @@ export function createAccountService(
     )
   }
 
-  function recordStaffFailedLogin(email: string): FutureInstance {
+  function recordStaffFailedLogin(email: string): FutureInstance<Error, void> {
     return attemptQuery(async () => {
       const lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS)
 
@@ -1119,7 +1160,9 @@ export function createAccountService(
     })
   }
 
-  function resetStaffFailedLoginCount(email: string): FutureInstance {
+  function resetStaffFailedLoginCount(
+    email: string
+  ): FutureInstance<Error, void> {
     return resetFailedLoginState(
       normalizedEmail =>
         database
@@ -1135,7 +1178,7 @@ export function createAccountService(
   function createSession(
     subjectId: string,
     subjectType: 'user' | 'staff'
-  ): FutureInstance {
+  ): FutureInstance<Error, Session> {
     const decodedSubjectId = decodeId(subjectId)
 
     if (decodedSubjectId == null) {
@@ -1172,7 +1215,9 @@ export function createAccountService(
     )
   }
 
-  function getSessionByToken(sessionToken: string): FutureInstance {
+  function getSessionByToken(
+    sessionToken: string
+  ): FutureInstance<Error, Session> {
     const tokenHash = hashToken(sessionToken)
     // Reject sessions older than the hard expiry window
     const cutoff = addMinutes(new Date(), -sessionHardExpirySeconds / 60)
@@ -1201,7 +1246,7 @@ export function createAccountService(
     )
   }
 
-  function destroySession(sessionToken: string): FutureInstance {
+  function destroySession(sessionToken: string): FutureInstance<Error, void> {
     return getSessionByToken(sessionToken).pipe(
       chain(() =>
         attemptQuery(async () => {
@@ -1214,7 +1259,7 @@ export function createAccountService(
     )
   }
 
-  function deleteExpiredSessions(): FutureInstance {
+  function deleteExpiredSessions(): FutureInstance<Error, bigint> {
     const cutoff = addMinutes(new Date(), -sessionHardExpirySeconds / 60)
     return attemptQuery(() =>
       database
@@ -1227,7 +1272,9 @@ export function createAccountService(
   // Password reset tokens expire after 1 hour
   const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000
 
-  function createPasswordResetToken(userId: string): FutureInstance {
+  function createPasswordResetToken(
+    userId: string
+  ): FutureInstance<Error, string> {
     const decodedUserId = decodeId(userId)
 
     if (decodedUserId == null) {
@@ -1248,7 +1295,9 @@ export function createAccountService(
     }).pipe(map(() => rawToken))
   }
 
-  function validatePasswordResetToken(token: string): FutureInstance {
+  function validatePasswordResetToken(
+    token: string
+  ): FutureInstance<Error, { id: string; userId: string }> {
     return attemptQuery(() =>
       database
         .selectFrom('password_reset_tokens')
@@ -1278,7 +1327,7 @@ export function createAccountService(
   function applyPasswordReset(
     token: string,
     newPassword: string
-  ): FutureInstance {
+  ): FutureInstance<Error, void> {
     return validatePasswordResetToken(token).pipe(
       chain(({ userId }) => {
         const decodedUserId = decodeId(userId)
@@ -1400,4 +1449,4 @@ export function createAccountService(
   }
 }
 
-export type AccountService = ReturnType
+export type AccountService = ReturnType<typeof createAccountService>
