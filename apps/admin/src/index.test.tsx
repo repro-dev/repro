@@ -224,7 +224,7 @@ function findRoutePath(
 }
 
 describe('AppRoutes', () => {
-  it('keeps the health route behind RequireAdminStaffSession', () => {
+  it('keeps the health route behind the staff auth boundary', () => {
     const routesElement = AppRoutes({})
     assert.ok(React.isValidElement(routesElement))
     assert.equal(routesElement.type, Routes)
@@ -238,11 +238,29 @@ describe('AppRoutes', () => {
     assert.ok(healthRoutePath)
     assert.deepEqual(
       healthRoutePath.map(route => getComponentName(route.element)),
+      ['Layout', 'RequireAdminSession', 'HealthRoute']
+    )
+  })
+
+  it('keeps the staff users route behind RequireAdminStaffSession', () => {
+    const routesElement = AppRoutes({})
+    assert.ok(React.isValidElement(routesElement))
+    assert.equal(routesElement.type, Routes)
+
+    const routeTree = collectRouteTree(routesElement.props.children)
+    const staffUsersRoutePath = findRoutePath(
+      routeTree,
+      route => route.path === 'staff-users'
+    )
+
+    assert.ok(staffUsersRoutePath)
+    assert.deepEqual(
+      staffUsersRoutePath.map(route => getComponentName(route.element)),
       [
         'Layout',
         'RequireAdminSession',
         'RequireAdminStaffSession',
-        'HealthRoute',
+        'StaffUsersRoute',
       ]
     )
   })

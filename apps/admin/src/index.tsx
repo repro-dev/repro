@@ -134,9 +134,9 @@ export const AppRoutes: React.FC = () => (
         <Route path="recordings" element={<RecordingsRoute />} />
         <Route path="feature-gates" element={<FeatureGatesRoute />} />
         <Route path="accounts" element={<AccountsRoute />} />
+        <Route path="health" element={<HealthRoute />} />
         <Route element={<RequireAdminStaffSession />}>
           <Route path="staff-users" element={<StaffUsersRoute />} />
-          <Route path="health" element={<HealthRoute />} />
         </Route>
       </Route>
     </Route>
