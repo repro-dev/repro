@@ -10,8 +10,11 @@ import {
   PageFrame,
   spacing,
 } from '@repro/design'
-import type { SubsystemCheck, SubsystemStatus } from '@repro/domain'
-import { HealthCheckResult } from '@repro/domain'
+import type {
+  HealthCheckResult,
+  SubsystemCheck,
+  SubsystemStatus,
+} from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import React, { useEffect, useState } from 'react'
 
@@ -30,12 +33,10 @@ const SubsystemCard: React.FC<SubsystemCardProps> = ({ name, check }) => (
   <Card padding={spacing.md}>
     <Row alignItems="center" gap={spacing.md}>
       <Block
-        style={{
-          width: 12,
-          height: 12,
-          borderRadius: '50%',
-          backgroundColor: STATUS_COLOR_MAP[check.status],
-        }}
+        width={12}
+        height={12}
+        borderRadius="50%"
+        backgroundColor={STATUS_COLOR_MAP[check.status]}
       />
       <Block flex={1}>
         <Block fontWeight={500}>{name}</Block>

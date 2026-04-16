@@ -4,7 +4,7 @@ import type {
   SubsystemCheck,
   SubsystemStatus,
 } from '@repro/domain'
-import { attemptP, both, chain, FutureInstance, map } from 'fluture'
+import { attemptP, both, chain, coalesce, FutureInstance, map } from 'fluture'
 import { sql } from 'kysely'
 import { Readable } from 'node:stream'
 import { attemptQuery, Database } from '~/modules/database'
@@ -25,7 +25,12 @@ export function createHealthService(
 ) {
   function checkDb(): FutureInstance<Error, SubsystemCheck> {
     return attemptQuery(() => sql`SELECT 1`.execute(db)).pipe(
-      map(() => ({ status: 'ok' as SubsystemStatus }))
+      coalesce<Error, SubsystemCheck>(
+        (err: Error): SubsystemCheck => ({
+          status: 'error' as SubsystemStatus,
+          error: err.message,
+        })
+      )(() => ({ status: 'ok' as SubsystemStatus }))
     )
   }
 
@@ -34,7 +39,14 @@ export function createHealthService(
     return storage
       .write(STORAGE_PATH, Readable.from(['ok']))
       .pipe(chain(() => storage.read(STORAGE_PATH)))
-      .pipe(map(() => ({ status: 'ok' as SubsystemStatus })))
+      .pipe(
+        coalesce<Error, SubsystemCheck>(
+          (err: Error): SubsystemCheck => ({
+            status: 'error' as SubsystemStatus,
+            error: err.message,
+          })
+        )(() => ({ status: 'ok' as SubsystemStatus }))
+      )
   }
 
   function checkRedis(): FutureInstance<Error, SubsystemCheck> {
@@ -82,38 +94,38 @@ export function createHealthService(
     return 'ok'
   }
 
+  function buildHealthResult(
+    checks: HealthCheckResult['checks']
+  ): HealthCheckResult {
+    return {
+      status: computeOverallStatus(checks),
+      timestamp: new Date().toISOString(),
+      checks,
+    }
+  }
+
   function checkDetailed(): FutureInstance<Error, HealthCheckResult> {
     const dbCheck = checkDb()
     const storageCheck = checkStorage()
 
-    const withRedis = redisClient
-      ? both(dbCheck)(storageCheck).pipe(
-          chain(([db, storage]) =>
-            checkRedis().pipe(
-              map(redis => ({
-                database: db,
-                storage,
-                redis,
-              }))
-            )
-          )
-        )
-      : both(dbCheck)(storageCheck).pipe(
-          map(([db, storage]) => ({
-            database: db,
-            storage,
-          }))
-        )
+    const coreChecks = both(dbCheck)(storageCheck)
 
-    return withRedis.pipe(
-      map(checks => {
-        const status = computeOverallStatus(checks)
-        return {
-          status,
-          timestamp: new Date().toISOString(),
-          checks,
-        } as HealthCheckResult
-      })
+    if (redisClient) {
+      return coreChecks.pipe(
+        chain(
+          ([db, storage]): FutureInstance<Error, HealthCheckResult> =>
+            checkRedis().pipe(
+              map(redis => buildHealthResult({ database: db, storage, redis }))
+            )
+        )
+      )
+    }
+
+    return coreChecks.pipe(
+      map(
+        ([db, storage]): HealthCheckResult =>
+          buildHealthResult({ database: db, storage })
+      )
     )
   }
 
