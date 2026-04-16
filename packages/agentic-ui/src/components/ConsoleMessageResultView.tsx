@@ -85,9 +85,7 @@ export const ConsoleMessageResultView: React.FC<
             fontSize={fontSize.xs}
             fontFamily={fontFamily.mono}
             color={color.text.secondary}
-            overflow="hidden"
-            whiteSpace="nowrap"
-            textOverflow="ellipsis"
+            wordBreak="break-word"
             lineHeight={1.25}
             flexGrow={1}
           >

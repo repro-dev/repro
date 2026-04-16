@@ -63,7 +63,13 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
         )}
       </Block>
 
-      <Row flexGrow={1} minWidth={0} alignItems={contentAlignItems} gap={10}>
+      <Row
+        flexGrow={1}
+        minWidth={0}
+        alignItems={contentAlignItems}
+        gap={10}
+        flexWrap={kind === "console" ? "wrap" : "nowrap"}
+      >
         {children}
       </Row>
     </Row>

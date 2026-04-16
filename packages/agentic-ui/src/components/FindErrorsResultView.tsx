@@ -78,9 +78,7 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
             fontFamily={fontFamily.mono}
             color={color.text.secondary}
             flexGrow={1}
-            overflow="hidden"
-            whiteSpace="nowrap"
-            textOverflow="ellipsis"
+            wordBreak="break-word"
             lineHeight={1.25}
           >
             {err.summary}
