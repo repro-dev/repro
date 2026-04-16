@@ -18,7 +18,7 @@ export const ShadowRootNodeRenderer: React.FC<Props> = ({
     <Block>
       {/* Non-interactive #shadow-root (open) label row */}
       <Block
-        paddingLeft={INDENT * (depth + 1)}
+        paddingLeft={INDENT * depth}
         fontSize={FONT_SIZE}
         userSelect="none"
         cursor="default"

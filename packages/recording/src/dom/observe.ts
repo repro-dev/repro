@@ -267,6 +267,10 @@ export function internal__processMutationRecords(
         }
 
         const parentNode = record.target.parentNode
+        let parentId = parentNode ? getNodeId(parentNode) : null
+        if (parentNode instanceof ShadowRoot) {
+          parentId = getNodeId(parentNode.host)
+        }
 
         patches.push(
           new Box({
@@ -274,7 +278,7 @@ export function internal__processMutationRecords(
             targetId: getNodeId(record.target),
             value: (record.target as Text).data,
             oldValue: record.oldValue || '',
-            parentId: parentNode ? getNodeId(parentNode) : null,
+            parentId,
           })
         )
 
@@ -338,10 +342,15 @@ export function internal__processMutationRecords(
             }
           }
 
+          let removeParentId = getNodeId(record.target)
+          if (record.target instanceof ShadowRoot) {
+            removeParentId = getNodeId(record.target.host)
+          }
+
           patches.push(
             new Box({
               type: PatchType.RemoveNodes,
-              parentId: getNodeId(record.target),
+              parentId: removeParentId,
               previousSiblingId:
                 previousSibling !== null ? getNodeId(previousSibling) : null,
               nextSiblingId:
@@ -365,10 +374,15 @@ export function internal__processMutationRecords(
               }
             }
 
+            let addParentId = getNodeId(record.target)
+            if (record.target instanceof ShadowRoot) {
+              addParentId = getNodeId(record.target.host)
+            }
+
             patches.push(
               new Box({
                 type: PatchType.AddNodes,
-                parentId: getNodeId(record.target),
+                parentId: addParentId,
                 previousSiblingId:
                   previousSibling !== null ? getNodeId(previousSibling) : null,
                 nextSiblingId:
