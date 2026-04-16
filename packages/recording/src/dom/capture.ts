@@ -36,8 +36,11 @@ function extractRulesFromSheet(
   let cssRules: CSSRuleList
   try {
     cssRules = sheet.cssRules
-  } catch {
+  } catch (err) {
     // SecurityError for cross-origin sheets — handled by caller
+    if (!(err instanceof DOMException && err.name === 'SecurityError')) {
+      throw err
+    }
     throw new Error('SecurityError')
   }
 

@@ -1,3 +1,5 @@
+import { PatchType } from './generated/vdom'
+
 export type Specificity = [number, number, number]
 
 export interface CapturedCSSRule {
@@ -18,8 +20,6 @@ export interface CapturedStyleSheet {
   rules: CapturedCSSRule[]
   inaccessible: boolean
 }
-
-import { PatchType } from './generated/vdom'
 
 export interface StyleSheetMutationPatch {
   type: PatchType.StyleSheetMutation

@@ -181,4 +181,18 @@ describe('captureStyleSheets', () => {
     expect(h1Rule!.stylesheetId).toBe(sheetWithH1!.id)
     expect(sheetWithH1!.id).toBeTruthy()
   })
+
+  it('should capture @supports nested rules with supportsCondition', () => {
+    if (typeof CSSSupportsRule === 'undefined') {
+      // Skip if JSDOM doesn't support CSSSupportsRule
+      return
+    }
+    addStyleElement('@supports (display: grid) { .item { display: grid; } }')
+    const result = captureStyleSheets(document)
+    const allRules = result.flatMap(s => s.rules).filter(r => !r.isInline)
+    const itemRule = allRules.find(r => r.selectorText === '.item')
+    expect(itemRule).toBeDefined()
+    expect(itemRule!.supportsCondition).toBe('(display: grid)')
+    expect(itemRule!.declarations['display']).toBe('grid')
+  })
 })
