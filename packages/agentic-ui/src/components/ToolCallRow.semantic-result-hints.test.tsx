@@ -69,6 +69,36 @@ describe("ToolCallRow semantic result hints", () => {
     ).toBeDefined();
   });
 
+  it("renders console messages without a level badge", () => {
+    render(
+      <ToolCallRow
+        toolName="getConsoleMessages"
+        result={makeToolResult({
+          messages: [
+            {
+              timeMs: 1500,
+              level: "warning",
+              text: "Retrying request",
+              stack: ["app.ts:12"],
+            },
+          ],
+        })}
+        isExecuting={false}
+        wasCancelled={false}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle details for getConsoleMessages",
+      }),
+    );
+
+    expect(screen.getByText("Retrying request")).toBeDefined();
+    expect(screen.getByText("app.ts:12")).toBeDefined();
+    expect(screen.queryByText("warning")).toBeNull();
+  });
+
   it("jumps to the console message time when requested", () => {
     let jumpedTo: number | null = null;
 
@@ -133,5 +163,37 @@ describe("ToolCallRow semantic result hints", () => {
         name: /go to time/i,
       }),
     ).toBeDefined();
+  });
+
+  it("renders the network verb as plain text", () => {
+    render(
+      <ToolCallRow
+        toolName="getNetworkRequests"
+        result={makeToolResult({
+          requests: [
+            {
+              timeMs: 800,
+              type: "fetch",
+              method: "GET",
+              url: "/api/health",
+              status: 200,
+              durationMs: 10,
+            },
+          ],
+        })}
+        isExecuting={false}
+        wasCancelled={false}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle details for getNetworkRequests",
+      }),
+    );
+
+    expect(screen.getByText("GET")).toBeDefined();
+    expect(screen.getByText("/api/health")).toBeDefined();
+    expect(screen.getByText("10ms")).toBeDefined();
   });
 });

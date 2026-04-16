@@ -1,12 +1,13 @@
-import { Block, Col } from "@jsxstyle/react";
-import { Badge } from "@repro/design";
+import { Block, Col, Row } from "@jsxstyle/react";
 import {
   color,
   fontFamily,
+  fontWeight,
   fontSize,
   spacing,
   textStyles,
 } from "@repro/design";
+import { AlertCircle, AlertTriangle } from "lucide-react";
 import React from "react";
 import { ToolResultRow } from "./ToolResultRow";
 import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
@@ -29,19 +30,31 @@ interface ConsoleMessageResultViewProps {
   onGoToTime?: (timeMs: number) => void;
 }
 
-// Maps log level strings to Badge context values for semantic colour-coding.
-type BadgeContext = "neutral" | "info" | "success" | "warning" | "danger";
-
-function levelToContext(level: string): BadgeContext {
+function getLevelPresentation(level: string): {
+  icon: React.ReactNode;
+  color: string;
+} {
   switch (level) {
     case "error":
-      return "danger";
+      return {
+        icon: <AlertTriangle size={14} color={color.danger} />,
+        color: color.danger,
+      };
     case "warning":
-      return "warning";
+      return {
+        icon: <AlertTriangle size={14} color={color.warning} />,
+        color: color.warning,
+      };
     case "info":
-      return "info";
+      return {
+        icon: <AlertCircle size={14} color={color.info} />,
+        color: color.info,
+      };
     default:
-      return "neutral";
+      return {
+        icon: <AlertCircle size={14} color={color.text.muted} />,
+        color: color.text.muted,
+      };
   }
 }
 
@@ -75,32 +88,59 @@ export const ConsoleMessageResultView: React.FC<
           kind="console"
           onGoToTime={onGoToTime}
         >
-          <Block flexShrink={0} alignSelf="flex-start">
-            <Badge context={levelToContext(msg.level)} size="small" rounded>
-              {msg.level}
-            </Badge>
-          </Block>
+          {(() => {
+            const { icon, color: messageColor } = getLevelPresentation(
+              msg.level,
+            );
+            const stackReference = msg.stack?.[0];
 
-          <Block
-            minWidth={0}
-            fontSize={fontSize.xs}
-            fontFamily={fontFamily.mono}
-            color={color.text.secondary}
-            wordBreak="break-word"
-            lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-            flexGrow={1}
-          >
-            {msg.text}
-            {msg.count !== undefined && msg.count > 1 && (
-              <Block
-                component="span"
-                color={color.text.muted}
-                marginLeft={TOOL_RESULT_ROW_STYLES.actionLabelSpacing}
+            return (
+              <Row
+                minWidth={0}
+                flexGrow={1}
+                alignItems="flex-start"
+                gap={TOOL_RESULT_ROW_STYLES.gap}
               >
-                ×{msg.count}
-              </Block>
-            )}
-          </Block>
+                <Block flexShrink={0} paddingTop={1} color={messageColor}>
+                  {icon}
+                </Block>
+
+                <Block
+                  minWidth={0}
+                  fontSize={fontSize.xs}
+                  fontFamily={fontFamily.mono}
+                  color={messageColor}
+                  wordBreak="break-word"
+                  lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                  flexGrow={1}
+                >
+                  {msg.text}
+                  {msg.count !== undefined && msg.count > 1 && (
+                    <Block
+                      component="span"
+                      color={color.text.muted}
+                      marginLeft={TOOL_RESULT_ROW_STYLES.actionLabelSpacing}
+                      fontWeight={fontWeight.semibold}
+                    >
+                      ×{msg.count}
+                    </Block>
+                  )}
+                </Block>
+
+                {stackReference && (
+                  <Block
+                    flexShrink={0}
+                    fontSize={fontSize.xs}
+                    fontFamily={fontFamily.mono}
+                    color={color.text.muted}
+                    whiteSpace="nowrap"
+                  >
+                    {stackReference}
+                  </Block>
+                )}
+              </Row>
+            );
+          })()}
         </ToolResultRow>
       ))}
     </Col>

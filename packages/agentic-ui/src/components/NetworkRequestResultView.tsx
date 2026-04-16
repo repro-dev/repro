@@ -1,8 +1,8 @@
-import { Block, Col } from "@jsxstyle/react";
-import { Badge } from "@repro/design";
+import { Block, Col, Row } from "@jsxstyle/react";
 import {
   color,
   fontFamily,
+  fontWeight,
   fontSize,
   spacing,
   textStyles,
@@ -35,24 +35,7 @@ interface NetworkRequestResultViewProps {
   onGoToTime?: (timeMs: number) => void;
 }
 
-// Maps HTTP method strings to Badge context values.
 type BadgeContext = "neutral" | "info" | "success" | "warning" | "danger";
-
-function methodToContext(method: string): BadgeContext {
-  switch (method.toUpperCase()) {
-    case "GET":
-      return "info";
-    case "POST":
-      return "success";
-    case "PUT":
-    case "PATCH":
-      return "warning";
-    case "DELETE":
-      return "danger";
-    default:
-      return "neutral";
-  }
-}
 
 // Returns a semantic colour for HTTP status codes.
 function statusToContext(status: number): BadgeContext {
@@ -98,55 +81,74 @@ export const NetworkRequestResultView: React.FC<
           kind="network"
           onGoToTime={onGoToTime}
         >
-          {req.type === "fetch" && req.method != null && (
-            <Block flexShrink={0}>
-              <Badge context={methodToContext(req.method)} size="small" rounded>
-                {req.method.toUpperCase()}
-              </Badge>
-            </Block>
-          )}
-
-          {req.type === "ws" && (
-            <Block flexShrink={0}>
-              <Badge context="neutral" size="small" rounded>
-                WS
-              </Badge>
-            </Block>
-          )}
-
-          {req.status != null && (
-            <Block flexShrink={0}>
-              <Badge context={statusToContext(req.status)} size="small">
-                {req.status}
-              </Badge>
-            </Block>
-          )}
-
-          <Block
+          <Row
             minWidth={0}
-            fontSize={fontSize.xs}
-            fontFamily={fontFamily.mono}
-            color={color.text.secondary}
             flexGrow={1}
-            overflow="hidden"
-            whiteSpace="nowrap"
-            textOverflow="ellipsis"
-            lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+            alignItems="center"
+            gap={TOOL_RESULT_ROW_STYLES.gap}
           >
-            {truncateUrl(req.url)}
-          </Block>
-
-          {req.durationMs != null && (
             <Block
               flexShrink={0}
               fontSize={fontSize.xs}
               fontFamily={fontFamily.mono}
-              color={color.text.muted}
+              color={color.text.secondary}
+              fontWeight={fontWeight.semibold}
               whiteSpace="nowrap"
             >
-              {req.durationMs}ms
+              {req.type === "fetch" && req.method != null
+                ? req.method.toUpperCase()
+                : req.type === "ws"
+                ? "WS"
+                : req.type}
             </Block>
-          )}
+
+            {req.status != null && (
+              <Block flexShrink={0}>
+                <Block
+                  component="span"
+                  fontSize={fontSize.xs}
+                  fontFamily={fontFamily.mono}
+                  color={
+                    statusToContext(req.status) === "danger"
+                      ? color.danger
+                      : statusToContext(req.status) === "warning"
+                      ? color.warning
+                      : statusToContext(req.status) === "success"
+                      ? color.success
+                      : color.text.muted
+                  }
+                >
+                  {req.status}
+                </Block>
+              </Block>
+            )}
+
+            <Block
+              minWidth={0}
+              fontSize={fontSize.xs}
+              fontFamily={fontFamily.mono}
+              color={color.text.secondary}
+              flexGrow={1}
+              overflow="hidden"
+              whiteSpace="nowrap"
+              textOverflow="ellipsis"
+              lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+            >
+              {truncateUrl(req.url)}
+            </Block>
+
+            {req.durationMs != null && (
+              <Block
+                flexShrink={0}
+                fontSize={fontSize.xs}
+                fontFamily={fontFamily.mono}
+                color={color.text.muted}
+                whiteSpace="nowrap"
+              >
+                {req.durationMs}ms
+              </Block>
+            )}
+          </Row>
         </ToolResultRow>
       ))}
     </Col>
