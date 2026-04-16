@@ -42,8 +42,19 @@ describe('Routers > Health', () => {
       url: '/',
     })
 
+    const body = JSON.parse(res.body)
+
     expect(res.headers['content-type']).toMatch(/json/)
     expect(res.statusCode).toEqual(200)
+    expect(body).toEqual(
+      expect.objectContaining({
+        timestamp: expect.any(String),
+        checks: expect.objectContaining({
+          database: expect.objectContaining({ status: 'ok' }),
+          storage: expect.objectContaining({ status: 'ok' }),
+        }),
+      })
+    )
   })
 
   it('should return 503 with unhealthy status in body when a core subsystem is down', async () => {

@@ -20,15 +20,18 @@ let currentResult: {
   error: null,
 }
 
+const fetchMock = mock.fn(() => null)
+const useFutureMock = mock.fn((..._args: Array<unknown>) => currentResult)
+
 mock.module('@repro/api-client', {
   namedExports: {
-    useApiClient: () => ({ fetch: mock.fn() }),
+    useApiClient: () => ({ fetch: fetchMock }),
   },
 })
 
 mock.module('@repro/future-utils', {
   namedExports: {
-    useFuture: () => currentResult,
+    useFuture: (...args: Array<unknown>) => useFutureMock(...args),
   },
 })
 
@@ -60,6 +63,8 @@ afterEach(() => {
     data: null,
     error: null,
   }
+  fetchMock.mock.resetCalls()
+  useFutureMock.mock.resetCalls()
 })
 
 describe('HealthRoute', () => {
@@ -75,6 +80,33 @@ describe('HealthRoute', () => {
     assert.match(html, /System status: Healthy/)
     assert.match(html, /Status: Connected/)
     assert.match(html, /Status: Degraded/)
+    assert.match(
+      html,
+      new RegExp(
+        `Last checked: ${new Date(
+          healthyHealthResult.timestamp
+        ).toLocaleString()}`
+      )
+    )
+  })
+
+  it('wires the health fetch through a refresh key dependency', () => {
+    currentResult = {
+      loading: false,
+      data: healthyHealthResult,
+      error: null,
+    }
+
+    const html = renderToStaticMarkup(<HealthRoute />)
+    const useFutureArgs = useFutureMock.mock.calls[0]!.arguments
+    const deps = useFutureArgs[1] as Array<unknown>
+
+    assert.match(html, /Refresh/)
+    assert.equal(useFutureMock.mock.calls.length, 1)
+    assert.equal(typeof useFutureArgs[0], 'function')
+    assert.equal(Array.isArray(deps), true)
+    assert.equal(deps.length, 2)
+    assert.equal(deps[1], 0)
   })
 
   it('renders a 503 health payload instead of the generic error state', () => {
