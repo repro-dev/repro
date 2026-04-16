@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import expect from "expect";
 import { afterEach, describe, it } from "node:test";
 import React from "react";
@@ -70,7 +76,7 @@ describe("ToolCallRow semantic result hints", () => {
   });
 
   it("renders console messages without a level badge", () => {
-    render(
+    const { container } = render(
       <ToolCallRow
         toolName="getConsoleMessages"
         result={makeToolResult({
@@ -97,6 +103,19 @@ describe("ToolCallRow semantic result hints", () => {
     expect(screen.getByText("Retrying request")).toBeDefined();
     expect(screen.getByText("app.ts:12")).toBeDefined();
     expect(screen.queryByText("warning")).toBeNull();
+
+    const icon = container.querySelector("svg");
+    const messageRow =
+      screen.getByText("Retrying request").parentElement?.parentElement;
+
+    expect(icon?.parentElement).not.toBeNull();
+    expect(messageRow).not.toBeNull();
+
+    const iconWrapperStyle = window.getComputedStyle(icon!.parentElement!);
+    const messageRowStyle = window.getComputedStyle(messageRow!);
+
+    expect(iconWrapperStyle.paddingTop).toBe("");
+    expect(messageRowStyle.alignItems).toBe("center");
   });
 
   it("jumps to the console message time when requested", () => {
@@ -163,6 +182,72 @@ describe("ToolCallRow semantic result hints", () => {
         name: /go to time/i,
       }),
     ).toBeDefined();
+  });
+
+  it("places the network seek action using the console offset", () => {
+    const consoleRender = render(
+      <ToolCallRow
+        toolName="getConsoleMessages"
+        result={makeToolResult({
+          messages: [{ timeMs: 800, level: "info", text: "Console message" }],
+        })}
+        isExecuting={false}
+        wasCancelled={false}
+      />,
+    );
+
+    fireEvent.click(
+      within(consoleRender.container).getByRole("button", {
+        name: "Toggle details for getConsoleMessages",
+      }),
+    );
+
+    const consoleAction = within(consoleRender.container).getByRole("button", {
+      name: /go to time/i,
+    });
+    const consoleActionWrapper = consoleAction.parentElement;
+
+    const networkRender = render(
+      <ToolCallRow
+        toolName="getNetworkRequests"
+        result={makeToolResult({
+          requests: [
+            {
+              timeMs: 800,
+              type: "fetch",
+              method: "GET",
+              url: "/api/health",
+              status: 200,
+              durationMs: 10,
+            },
+          ],
+        })}
+        isExecuting={false}
+        wasCancelled={false}
+      />,
+    );
+
+    fireEvent.click(
+      within(networkRender.container).getByRole("button", {
+        name: "Toggle details for getNetworkRequests",
+      }),
+    );
+
+    const networkAction = within(networkRender.container).getByRole("button", {
+      name: /go to time/i,
+    });
+    const networkActionWrapper = networkAction.parentElement;
+
+    expect(consoleActionWrapper).not.toBeNull();
+    expect(networkActionWrapper).not.toBeNull();
+
+    const consoleStyle = window.getComputedStyle(consoleActionWrapper!);
+    const networkStyle = window.getComputedStyle(networkActionWrapper!);
+
+    expect(consoleStyle.top).toBe(networkStyle.top);
+    expect(consoleStyle.left).toBe(networkStyle.left);
+    expect(networkStyle.top).toBe("-3px");
+    expect(networkStyle.left).toBe("-10px");
   });
 
   it("renders the network verb as plain text", () => {

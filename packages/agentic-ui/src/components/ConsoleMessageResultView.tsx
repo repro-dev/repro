@@ -84,7 +84,7 @@ export const ConsoleMessageResultView: React.FC<
         <ToolResultRow
           key={i}
           timeMs={msg.timeMs}
-          alignItems="flex-start"
+          alignItems="center"
           kind="console"
           onGoToTime={onGoToTime}
         >
@@ -98,10 +98,11 @@ export const ConsoleMessageResultView: React.FC<
               <Row
                 minWidth={0}
                 flexGrow={1}
-                alignItems="flex-start"
+                alignItems="center"
+                lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
                 gap={TOOL_RESULT_ROW_STYLES.gap}
               >
-                <Block flexShrink={0} paddingTop={1} color={messageColor}>
+                <Block flexShrink={0} color={messageColor} lineHeight={1}>
                   {icon}
                 </Block>
 

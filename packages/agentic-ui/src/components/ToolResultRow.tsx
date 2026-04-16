@@ -61,21 +61,8 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
         {showAction && (
           <Block
             position="absolute"
-            top={
-              kind === "network"
-                ? "50%"
-                : TOOL_RESULT_ROW_STYLES.timeActionConsoleTop
-            }
-            left={
-              kind === "network"
-                ? TOOL_RESULT_ROW_STYLES.timeActionNetworkLeft
-                : TOOL_RESULT_ROW_STYLES.timeActionConsoleLeft
-            }
-            transform={
-              kind === "network"
-                ? TOOL_RESULT_ROW_STYLES.timeActionNetworkTransform
-                : undefined
-            }
+            top={TOOL_RESULT_ROW_STYLES.timeActionConsoleTop}
+            left={TOOL_RESULT_ROW_STYLES.timeActionConsoleLeft}
           >
             <ToolResultSeekAction timeMs={timeMs} onGoToTime={onGoToTime} />
           </Block>

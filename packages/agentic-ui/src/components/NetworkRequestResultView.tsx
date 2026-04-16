@@ -94,6 +94,7 @@ export const NetworkRequestResultView: React.FC<
               color={color.text.secondary}
               fontWeight={fontWeight.semibold}
               whiteSpace="nowrap"
+              lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
             >
               {req.type === "fetch" && req.method != null
                 ? req.method.toUpperCase()

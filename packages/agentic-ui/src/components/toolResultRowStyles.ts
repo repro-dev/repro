@@ -9,8 +9,6 @@ export const TOOL_RESULT_ROW_STYLES = {
   timeColumnMinWidth: 72,
   timeActionConsoleTop: -3,
   timeActionConsoleLeft: -10,
-  timeActionNetworkLeft: spacing.sm,
-  timeActionNetworkTransform: "translateY(-50%)",
   rowFontSize: fontSize.xs,
   rowLineHeight: lineHeight.normal,
   actionGap: spacing.sm,
