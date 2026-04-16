@@ -75,26 +75,38 @@ export const handler: ToolHandler = (recording, args) => {
     );
   }
 
+  if (!snapshot1.interaction || !snapshot2.interaction) {
+    const missingTimestamp = !snapshot1.interaction
+      ? `t1Ms=${t1Ms}`
+      : `t2Ms=${t2Ms}`;
+    return resolve(
+      createError(
+        `No interaction metadata available at ${missingTimestamp}`,
+        "The DOM snapshot was captured without page URL or viewport metadata",
+        "Retry with timestamps that have interaction events, or use getEvents(detail='summary') to confirm the recording includes interaction metadata",
+      ),
+    );
+  }
+
   const { changes, omittedCount } = diffVTrees(snapshot1.dom, snapshot2.dom);
+
+  const beforeViewport = snapshot1.interaction.viewport;
+  const afterViewport = snapshot2.interaction.viewport;
 
   const result = {
     pageURL: {
-      before: snapshot1.interaction?.pageURL ?? null,
-      after: snapshot2.interaction?.pageURL ?? null,
+      before: snapshot1.interaction.pageURL,
+      after: snapshot2.interaction.pageURL,
     },
     viewport: {
-      before: snapshot1.interaction
-        ? {
-            width: snapshot1.interaction.viewport[0],
-            height: snapshot1.interaction.viewport[1],
-          }
-        : null,
-      after: snapshot2.interaction
-        ? {
-            width: snapshot2.interaction.viewport[0],
-            height: snapshot2.interaction.viewport[1],
-          }
-        : null,
+      before: {
+        width: beforeViewport[0],
+        height: beforeViewport[1],
+      },
+      after: {
+        width: afterViewport[0],
+        height: afterViewport[1],
+      },
     },
     changes,
     omittedCount,
