@@ -17,12 +17,14 @@ export {
   accumulateToolCalls,
   buildIterationLimitMessage,
   buildToolMessageContent,
+  classifyError,
   createAgenticState,
   executeToolCalls,
   isValidMessageDelta,
 } from "./createState";
 export type {
   AgenticError,
+  AgenticErrorKind,
   AgenticState,
   AssistantMessage,
   AssistantMessageContext,

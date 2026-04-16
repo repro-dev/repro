@@ -30,6 +30,7 @@ import { estimateTokens } from "./model/token-optimization";
 import { executeTool, tools } from "./model/tools/index";
 import {
   AgenticError,
+  AgenticErrorKind,
   AgenticState,
   AssistantMessage,
   ContentBlock,
@@ -382,6 +383,19 @@ function isRetryable(error: unknown): boolean {
     return status === 408 || status === 429 || status === 503;
   }
   return true;
+}
+
+// One-hour fallback when Retry-After header is not surfaced through the stream
+// abstraction. Epoch ms.
+const RATE_LIMIT_RESET_FALLBACK_MS = 60 * 60 * 1000;
+
+export function classifyError(error: unknown): AgenticErrorKind {
+  if (error != null && typeof error === "object" && "status" in error) {
+    const status = (error as { status: number }).status;
+    if (status === 429) return "rate_limited";
+    if (status === 503) return "service_unavailable";
+  }
+  return "malformed_response";
 }
 
 function friendlyMessage(error: unknown, isFinal = false): string {
@@ -811,10 +825,17 @@ export function createAgenticState(
         }
 
         setLoading("none");
+        const kind = classifyError(err);
         setError({
+          kind,
           message: friendlyMessage(err, true),
           retryable,
           attempt,
+          // Rate limits use a 1-hour fallback because Retry-After is not
+          // surfaced through the stream abstraction.
+          ...(kind === "rate_limited"
+            ? { retryAfter: Date.now() + RATE_LIMIT_RESET_FALLBACK_MS }
+            : {}),
         });
         return EMPTY;
       }),

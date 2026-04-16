@@ -8,10 +8,33 @@ import {
   LOADING_CONTAINER_OFFSET_PX,
 } from "../constants";
 import { EmptyState } from "../EmptyState";
-import { ErrorMessage } from "./ErrorMessage";
+import { AgenticMessageError } from "./AgenticMessageError";
+import { AgenticRateLimitNotice } from "./AgenticRateLimitNotice";
 import { ResponseFeedback } from "./ResponseFeedback";
 import { ToolCallGroup } from "./ToolCallGroup";
 import { TruncationSeparator } from "./TruncationSeparator";
+
+// Dispatch error to the appropriate inline component based on kind.
+// service_unavailable is handled at AgenticView level (full-width banner) so
+// it is NOT rendered in the message list. The legacy ErrorMessage component is
+// retained as a fallback for any error shape that predates AgenticErrorKind.
+function renderInlineError(error: AgenticError, onRetry: () => void) {
+  if (error.kind === "service_unavailable") {
+    // Banner is rendered above the input in AgenticView; nothing in the list.
+    return null;
+  }
+
+  if (error.kind === "rate_limited") {
+    return (
+      <AgenticRateLimitNotice
+        retryAfter={error.retryAfter ?? Date.now() + 60 * 60 * 1000}
+      />
+    );
+  }
+
+  // terminal_tool_failure | malformed_response — inline message error
+  return <AgenticMessageError error={error} onRetry={onRetry} />;
+}
 
 interface MessageListProps {
   entries: Array<Entry>;
@@ -110,7 +133,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           );
         })}
 
-        {error !== null && <ErrorMessage error={error} onRetry={onRetry} />}
+        {error !== null && renderInlineError(error, onRetry)}
       </Col>
     </Block>
   );

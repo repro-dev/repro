@@ -1,7 +1,10 @@
 export { AgenticView } from "./AgenticView";
 export { AgenticStateContext, useAgenticState } from "./context";
 export { EmptyState } from "./EmptyState";
+export { AgenticErrorBanner } from "./components/AgenticErrorBanner";
 export { AgenticInputSection } from "./components/AgenticInputSection";
+export { AgenticMessageError } from "./components/AgenticMessageError";
+export { AgenticRateLimitNotice } from "./components/AgenticRateLimitNotice";
 export { ErrorMessage } from "./components/ErrorMessage";
 export { JumpToEndButton } from "./components/JumpToEndButton";
 export { LoadingIndicator } from "./components/LoadingIndicator";

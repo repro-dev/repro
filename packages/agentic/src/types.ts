@@ -119,10 +119,19 @@ export type Loading =
   | "cancelled"
   | "none";
 
+export type AgenticErrorKind =
+  | "terminal_tool_failure"
+  | "malformed_response"
+  | "rate_limited"
+  | "service_unavailable";
+
 export interface AgenticError {
+  kind: AgenticErrorKind;
   message: string;
   retryable: boolean;
   attempt: number;
+  // Epoch ms at which the rate limit resets. Only set when kind === 'rate_limited'.
+  retryAfter?: number;
 }
 
 export interface AgenticState {
