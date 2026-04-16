@@ -4,11 +4,24 @@ set -euo pipefail
 WARN_THRESHOLD=400
 ERROR_THRESHOLD=500
 
+usage() {
+  echo "Usage: $0 [--warn-threshold N] [--error-threshold N]" >&2
+  exit 2
+}
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --warn-threshold) WARN_THRESHOLD="$2"; shift 2 ;;
-    --error-threshold) ERROR_THRESHOLD="$2"; shift 2 ;;
-    *) shift ;;
+    --warn-threshold)
+      [ "$#" -ge 2 ] || usage
+      WARN_THRESHOLD="$2"
+      shift 2
+      ;;
+    --error-threshold)
+      [ "$#" -ge 2 ] || usage
+      ERROR_THRESHOLD="$2"
+      shift 2
+      ;;
+    *) usage ;;
   esac
 done
 
@@ -36,8 +49,9 @@ get_candidate_files() {
     return
   fi
 
-  find . \( -name "*.test.ts" -o -name "*.test.tsx" \) \
-    | grep -v node_modules | grep -v dist | grep -v ".git" | sort
+  find . \
+    \( -path './node_modules' -o -path './dist' -o -path './.git' \) -prune -o \
+    \( -name "*.test.ts" -o -name "*.test.tsx" \) -print | sort
 }
 
 while IFS= read -r file; do
