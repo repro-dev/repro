@@ -73,12 +73,27 @@ interface ToolResultDetailProps {
   content: string | Array<ContentBlock>;
 }
 
+function parseJsonContent(content: string): unknown | null {
+  try {
+    return JSON.parse(content) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 // Renders a screenshot dataUrl as an inline image; falls back to pretty-printed
 // JSON for all other tools. Handles both plain string and ContentBlock[] content.
 const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
   toolName,
   content,
 }) => {
+  const parsedContent =
+    typeof content === "string" ? parseJsonContent(content) : null;
+
   // Determine the inner content node based on tool name.
   let inner: React.ReactNode;
 
@@ -107,16 +122,11 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
     }
 
     // Check for dataUrl in a plain JSON string (legacy / fallback path)
-    if (inner === undefined && typeof content === "string") {
-      let dataUrl: string | null = null;
-      try {
-        const parsed = JSON.parse(content) as Record<string, unknown>;
-        if (typeof parsed.dataUrl === "string") {
-          dataUrl = parsed.dataUrl;
-        }
-      } catch {
-        // fall through to JSON block below
-      }
+    if (inner === undefined && isRecord(parsedContent)) {
+      const dataUrl =
+        typeof parsedContent.dataUrl === "string"
+          ? parsedContent.dataUrl
+          : null;
 
       if (dataUrl !== null) {
         inner = (
@@ -141,32 +151,38 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
 
   // Dispatch to semantic sub-renderers for supported tools. Parse the raw JSON
   // result string and pass the typed result object to the appropriate component.
-  if (inner === undefined && typeof content === "string") {
-    try {
-      const parsed = JSON.parse(content) as Record<string, unknown>;
-
-      if (toolName === "getConsoleMessages") {
-        const messages = Array.isArray(parsed.messages) ? parsed.messages : [];
-        const hint =
-          typeof parsed._hint === "string" ? parsed._hint : undefined;
-        inner = <ConsoleMessageResultView result={{ messages, hint }} />;
-      } else if (toolName === "getNetworkRequests") {
-        const requests = Array.isArray(parsed.requests) ? parsed.requests : [];
-        const hint =
-          typeof parsed._hint === "string" ? parsed._hint : undefined;
-        inner = <NetworkRequestResultView result={{ requests, hint }} />;
-      } else if (toolName === "findErrors") {
-        const errors = Array.isArray(parsed.errors) ? parsed.errors : [];
-        inner = <FindErrorsResultView result={{ errors }} />;
-      }
-    } catch {
-      // Unparseable content falls through to the JSON fallback below.
+  if (inner === undefined && isRecord(parsedContent)) {
+    if (toolName === "getConsoleMessages") {
+      const messages = Array.isArray(parsedContent.messages)
+        ? parsedContent.messages
+        : [];
+      const hint =
+        typeof parsedContent._hint === "string"
+          ? parsedContent._hint
+          : undefined;
+      inner = <ConsoleMessageResultView result={{ messages, hint }} />;
+    } else if (toolName === "getNetworkRequests") {
+      const requests = Array.isArray(parsedContent.requests)
+        ? parsedContent.requests
+        : [];
+      const hint =
+        typeof parsedContent._hint === "string"
+          ? parsedContent._hint
+          : undefined;
+      inner = <NetworkRequestResultView result={{ requests, hint }} />;
+    } else if (toolName === "findErrors") {
+      const errors = Array.isArray(parsedContent.errors)
+        ? parsedContent.errors
+        : [];
+      inner = <FindErrorsResultView result={{ errors }} />;
     }
   }
 
   // Fallback: pretty-printed JSON for all unrecognised tools.
   if (inner === undefined) {
     const raw = contentToString(content);
+    const prettyJson =
+      parsedContent !== null ? JSON.stringify(parsedContent, null, 2) : raw;
     inner = (
       <Block
         fontSize={fontSize.xs}
@@ -180,13 +196,7 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
         wordBreak="break-all"
         component="pre"
       >
-        {(() => {
-          try {
-            return JSON.stringify(JSON.parse(raw), null, 2);
-          } catch {
-            return raw;
-          }
-        })()}
+        {prettyJson}
       </Block>
     );
   }

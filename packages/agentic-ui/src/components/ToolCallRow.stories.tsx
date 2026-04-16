@@ -109,7 +109,7 @@ export const ConsoleMessages: StoryObj<typeof ToolCallRow> = {
           count: 2,
           stack: ["app.js:42:15", "runtime.js:1:45"],
         },
-        { timeMs: 4000, level: "log", text: "User clicked submit", count: 1 },
+        { timeMs: 4000, level: "debug", text: "User clicked submit", count: 1 },
       ],
       summary: { verbose: 0, info: 1, warning: 1, error: 2 },
     }),
