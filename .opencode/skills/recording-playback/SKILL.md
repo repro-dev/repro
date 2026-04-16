@@ -196,7 +196,7 @@ Progress is tracked in `progressMap` (keyed by upload `ref`). The widget polls e
 
 ## The Binary Codec
 
-`SourceEventView` (generated in `packages/domain/src/generated/event.ts`) is the **single artifact** that flows through the entire pipeline — from observer callback to wire format to DOM renderer. It is a `@repro/tdl`-based binary codec.
+`SourceEventView` (generated in `packages/domain/generated/event.ts`) is the **single artifact** that flows through the entire pipeline — from observer callback to wire format to DOM renderer. It is a `@repro/tdl`-based binary codec.
 
 ```
 Observer callback
@@ -253,4 +253,4 @@ The `Snapshot` type (from `packages/domain`) is the shared state currency: mutat
 | `packages/playback/src/PlaybackCanvas/NativeDOMRenderer.tsx` | Full rebuild + incremental patch rendering                                |
 | `packages/source-utils/src/mutations/index.ts`               | `applyEventToSnapshot`                                                    |
 | `packages/recording-api/src/createUploadWorker.ts`           | `createUploadWorker`, `saveEvents`, `saveResources`                       |
-| `packages/domain/src/generated/event.ts`                     | `SourceEventView`, `SourceEventType`, all event types                     |
+| `packages/domain/generated/event.ts`                         | `SourceEventView`, `SourceEventType`, all event types                     |
