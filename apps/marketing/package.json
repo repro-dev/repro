@@ -9,7 +9,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "fmt": "prettier --write src",
-    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}"
+    "test": "tsx --experimental-test-module-mocks --tsconfig tsconfig.test.json --test src/**/*.test.ts{,x}"
   },
   "license": "UNLICENSED",
   "dependencies": {
