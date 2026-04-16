@@ -17,15 +17,9 @@ import { permissionDenied } from '~/utils/errors'
 import { createAgenticRouter } from './agentic'
 
 const stubAgenticService: AgenticService = {
-  getStreamingResponse: () =>
-    resolve({
-      statusCode: 200,
-      headers: {},
-      trailers: {},
-      opaque: null,
-      context: null,
-      body: Readable.from(['data: [DONE]\n\n']),
-    } as never),
+  getStreamingResponse: () => resolve(Readable.from(['data: [DONE]\n\n'])),
+  logToolResult: () => undefined,
+  logNodeIdValidity: () => undefined,
   recordFeedback: () => resolve(undefined),
 }
 

@@ -1,5 +1,6 @@
 import { FastifyPluginAsync, FastifyRequest } from 'fastify'
-import { chain, fork, go, map, resolve } from 'fluture'
+import { chain, fork, go, resolve } from 'fluture'
+import { randomUUID } from 'node:crypto'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { agenticMessageRateLimitOptions } from '~/rateLimit'
@@ -114,6 +115,15 @@ export function createAgenticRouter(
       (req, res) => {
         const { messages, tools, tool_choice, recordingId } = req.body as any
 
+        // Thread conversation_id through all log events for this request.
+        // The client may supply x-conversation-id to correlate multiple
+        // round-trips; if absent we generate a per-request UUID instead.
+        // Per-conversation token aggregation requires summing by conversation_id
+        // across log entries — no in-process accumulation is performed (v1).
+        const conversationId =
+          (req.headers['x-conversation-id'] as string | undefined) ??
+          randomUUID()
+
         fork((error: Error) => respondWithError(res, error))(value => {
           if (!res.sent) {
             respondWithValue(res, value)
@@ -151,9 +161,13 @@ export function createAgenticRouter(
                 }
 
                 res.header('content-type', 'text/event-stream')
-                return agenticService
-                  .getStreamingResponse(messages, tools ?? [], tool_choice)
-                  .pipe(map(data => data.body))
+                return agenticService.getStreamingResponse(
+                  messages,
+                  tools ?? [],
+                  tool_choice,
+                  conversationId,
+                  req.log
+                )
               })
             )
         )
