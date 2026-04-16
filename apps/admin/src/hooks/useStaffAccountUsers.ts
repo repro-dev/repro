@@ -1,5 +1,5 @@
 import { useApiClient } from '@repro/api-client'
-import { ListResponse, StaffUserDetail } from '@repro/domain'
+import { PaginatedResponse, StaffUserDetail } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { useCallback } from 'react'
 
@@ -30,15 +30,15 @@ export function useStaffAccountUsers(
     return `/staff/accounts/${accountId}/users${query ? `?${query}` : ''}`
   }, [accountId, cursor, limit])
 
-  const result = useFuture<Error, ListResponse<StaffUserDetail>>(
-    () => apiClient.fetch<ListResponse<StaffUserDetail>>(buildUrl()),
+  const result = useFuture<Error, PaginatedResponse<StaffUserDetail>>(
+    () => apiClient.fetch<PaginatedResponse<StaffUserDetail>>(buildUrl()),
     [apiClient, buildUrl]
   )
 
   if (result.success) {
     return {
       users: result.data.items,
-      nextCursor: undefined,
+      nextCursor: result.data.nextCursor,
       isLoading: false,
       error: null,
     }

@@ -314,6 +314,73 @@ describe('Services > Account', () => {
       )
     })
 
+    it('should sort accounts by created date newest first by default', async () => {
+      const firstAccount = await promise(
+        accountService.createAccount('First Account')
+      )
+      const secondAccount = await promise(
+        accountService.createAccount('Second Account')
+      )
+
+      const result = await promise(accountService.listAccounts({ limit: 2 }))
+
+      expect(result.items.map(account => account.id)).toEqual([
+        secondAccount.id,
+        firstAccount.id,
+      ])
+    })
+
+    it('should apply search filtering before pagination', async () => {
+      const searchPrefix = `match-${randomString()}`
+
+      for (let index = 0; index < 10; index += 1) {
+        await promise(accountService.createAccount(`${searchPrefix}-${index}`))
+      }
+
+      for (let index = 0; index < 50; index += 1) {
+        await promise(
+          accountService.createAccount(`other-${index}-${randomString()}`)
+        )
+      }
+
+      const result = await promise(
+        accountService.listAccounts({ search: searchPrefix, limit: 50 })
+      )
+
+      expect(result.items).toHaveLength(10)
+      expect(result.items.map(account => account.name).sort()).toEqual(
+        range(10)
+          .map((_, index) => `${searchPrefix}-${index}`)
+          .sort()
+      )
+      expect(result.nextCursor).toBeUndefined()
+    })
+
+    it('should include subscription and active status in the staff account detail', async () => {
+      await harness.loadFixtures([fixtures.billing.FreePlan])
+
+      const account = await promise(
+        accountService.createAccount('Detailed Account')
+      )
+
+      await promise(
+        accountService.createUser(
+          account.id,
+          'Active User',
+          harness.generateRandomEmailAddress(),
+          'hunter2!'
+        )
+      )
+
+      await expect(
+        promise(accountService.getStaffAccountById(account.id))
+      ).resolves.toMatchObject({
+        id: account.id,
+        subscriptionStatus: 'active',
+        active: true,
+      })
+    })
+
     it('should update an account name', async () => {
       const account = await promise(accountService.createAccount('New Account'))
 
@@ -711,6 +778,53 @@ describe('Services > Account', () => {
       await expect(
         promise(accountService.getAccountForUser(user.id))
       ).resolves.toMatchObject({ ...account })
+    })
+
+    it('should include inactive and admin users across paginated staff account user results', async () => {
+      const account = await promise(
+        accountService.createAccount('Paginated Users')
+      )
+      const createdUserIds: string[] = []
+
+      for (let index = 0; index < 51; index += 1) {
+        const user = await promise(
+          accountService.createUser(
+            account.id,
+            `User ${index}`,
+            harness.generateRandomEmailAddress(),
+            'hunter2!'
+          )
+        )
+
+        createdUserIds.push(user.id)
+      }
+
+      await promise(accountService.setUserIsAdmin(createdUserIds[1]!, true))
+      await promise(accountService.deactivateUser(createdUserIds[0]!))
+
+      const firstPage = await promise(
+        accountService.listUsersForAccount(account.id, { limit: 50 })
+      )
+
+      expect(firstPage.items).toHaveLength(50)
+      expect(firstPage.nextCursor).toBeDefined()
+      expect(firstPage.items.some(user => user.isAdmin)).toBe(true)
+
+      const secondPage = await promise(
+        accountService.listUsersForAccount(account.id, {
+          cursor: firstPage.nextCursor,
+          limit: 50,
+        })
+      )
+
+      expect(secondPage.items).toHaveLength(1)
+      expect(secondPage.nextCursor).toBeUndefined()
+
+      const allUsers = [...firstPage.items, ...secondPage.items]
+
+      expect(allUsers).toHaveLength(51)
+      expect(allUsers.some(user => user.active === false)).toBe(true)
+      expect(allUsers.some(user => user.isAdmin)).toBe(true)
     })
   })
 

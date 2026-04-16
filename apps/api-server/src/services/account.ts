@@ -1,5 +1,16 @@
 import * as argon2 from '@node-rs/argon2'
-import { AccountPlan, StaffAccount, StaffUser, User } from '@repro/domain'
+import {
+  Account,
+  AccountPlan,
+  AccountSubscriptionStatus,
+  Invitation,
+  Project,
+  Session,
+  StaffAccount,
+  StaffUser,
+  StaffUserDetail,
+  User,
+} from '@repro/domain'
 import { addMinutes } from 'date-fns'
 import {
   FutureInstance,
@@ -152,13 +163,13 @@ export function createAccountService(
           return getAccountForUser(actor.id).pipe(
             chain(account =>
               account.id === subjectAccountId
-                ? resolve(user)
+                ? resolve<User | StaffUser>(user)
                 : reject(permissionDenied())
             )
           )
         })
       )
-    )(ensureStaffUser(actor))
+    )(ensureStaffUser(actor).pipe(map(user => user as User | StaffUser)))
   }
 
   function ensureCanModifyAccount(
@@ -204,15 +215,21 @@ export function createAccountService(
       return reject(permissionDenied())
     }
 
-    return alt(
-      alt(
-        and(ensureUserIsAdmin(actor))(ensureCanAccessUser(actor, subjectUserId))
-      )(
-        actor.id === subjectUserId
-          ? ensureUser(actor)
-          : reject(permissionDenied())
+    if (actor.type === 'staff') {
+      return ensureStaffUser(actor)
+    }
+
+    if (actor.id === subjectUserId) {
+      return ensureUser(actor)
+    }
+
+    return ensureUserIsAdmin(actor).pipe(
+      chain(user =>
+        ensureCanAccessUser(actor, subjectUserId).pipe(
+          map(() => user as User | StaffUser)
+        )
       )
-    )(ensureStaffUser(actor))
+    )
   }
 
   function createStaffUser(
@@ -331,7 +348,7 @@ export function createAccountService(
 
   function deactivateStaffUser(
     staffUserId: string
-  ): FutureInstance<Error, StaffUser> {
+  ): FutureInstance<Error, void> {
     return getStaffUserById(staffUserId).pipe(
       chain(() =>
         attemptQuery(async () => {
@@ -419,6 +436,8 @@ export function createAccountService(
     createdAt: Date
     email: string | null
     planName: string | null
+    subscriptionStatus: AccountSubscriptionStatus | null
+    active: boolean
     lastActiveAt: Date | null
     userCount: number
     recordingCount: number
@@ -430,6 +449,8 @@ export function createAccountService(
       name: row.name,
       email: row.email ?? '',
       plan: mapPlanName(row.planName),
+      subscriptionStatus: row.subscriptionStatus,
+      active: row.active,
       createdAt: row.createdAt.toISOString(),
       lastActiveAt: row.lastActiveAt?.toISOString() ?? null,
       userCount: Number(row.userCount),
@@ -454,80 +475,73 @@ export function createAccountService(
     { items: StaffAccount[]; nextCursor?: string }
   > {
     return attemptQuery(async () => {
-      // Get accounts with pagination
-      let query = database
+      const rows = await database
         .selectFrom('accounts')
         .select(['id', 'name', 'createdAt'])
-        .orderBy(`id ${order}`)
-        .limit(limit + 1)
+        .orderBy('createdAt', order)
+        .orderBy('id', order)
+        .execute()
 
-      if (cursor != null) {
-        query = query.where('id', order === 'asc' ? '>' : '<', decodeId(cursor))
-      }
-
-      const rows = await query.execute()
-      const hasMore = rows.length > limit
-      const pageRows = hasMore ? rows.slice(0, limit) : rows
-
-      // Get account IDs to enrich
-      const accountIds = pageRows.map(row => row.id)
+      const accountIds = rows.map(row => row.id)
 
       if (accountIds.length === 0) {
         return { items: [], nextCursor: undefined }
       }
 
-      // Get enrichment data for these accounts
-      const [userCounts, recordingCounts, emails, plans, lastActiveDates] =
-        await Promise.all([
-          // User counts per account
-          database
-            .selectFrom('users')
-            .select(['accountId'])
-            .where('accountId', 'in', accountIds)
-            .execute(),
-          // Recording counts per account (via project_recordings -> projects)
-          database
-            .selectFrom('project_recordings as pr')
-            .innerJoin('projects as p', 'p.id', 'pr.projectId')
-            .select(['p.accountId'])
-            .where('p.accountId', 'in', accountIds)
-            .execute(),
-          // First user email per account
-          database
-            .selectFrom('users')
-            .select(['accountId', 'email'])
-            .where('accountId', 'in', accountIds)
-            .execute(),
-          // Plan names per account
-          database
-            .selectFrom('billing_subscriptions')
-            .innerJoin(
-              'billing_plans',
-              'billing_plans.id',
-              'billing_subscriptions.planId'
-            )
-            .select(['billing_subscriptions.accountId', 'billing_plans.name'])
-            .where('billing_subscriptions.accountId', 'in', accountIds)
-            .execute(),
-          // Last active date per account (max createdAt of users)
-          database
-            .selectFrom('users')
-            .select(['accountId', 'createdAt'])
-            .where('accountId', 'in', accountIds)
-            .execute(),
-        ])
+      const [users, recordingCounts, plans] = await Promise.all([
+        database
+          .selectFrom('users')
+          .select(['accountId', 'email', 'active', 'createdAt'])
+          .where('accountId', 'in', accountIds)
+          .execute(),
+        database
+          .selectFrom('project_recordings as pr')
+          .innerJoin('projects as p', 'p.id', 'pr.projectId')
+          .select(['p.accountId'])
+          .where('p.accountId', 'in', accountIds)
+          .execute(),
+        database
+          .selectFrom('billing_subscriptions')
+          .innerJoin(
+            'billing_plans',
+            'billing_plans.id',
+            'billing_subscriptions.planId'
+          )
+          .select([
+            'billing_subscriptions.accountId',
+            'billing_subscriptions.status',
+            'billing_subscriptions.createdAt',
+            'billing_plans.name',
+          ])
+          .where('billing_subscriptions.accountId', 'in', accountIds)
+          .orderBy('billing_subscriptions.createdAt', 'desc')
+          .execute(),
+      ])
 
-      // Aggregate user counts
-      const userCountMap = new Map()
-      for (const row of userCounts) {
+      const userCountMap = new Map<number, number>()
+      const emailMap = new Map<number, string>()
+      const activeMap = new Map<number, boolean>()
+      const lastActiveMap = new Map<number, Date>()
+      for (const row of users) {
         userCountMap.set(
           row.accountId,
           (userCountMap.get(row.accountId) ?? 0) + 1
         )
+        if (!emailMap.has(row.accountId)) {
+          emailMap.set(row.accountId, row.email)
+        }
+        if (row.active) {
+          activeMap.set(row.accountId, true)
+        } else if (!activeMap.has(row.accountId)) {
+          activeMap.set(row.accountId, false)
+        }
+        const current = lastActiveMap.get(row.accountId)
+        if (!current || row.createdAt > current) {
+          lastActiveMap.set(row.accountId, row.createdAt)
+        }
       }
 
-      // Aggregate recording counts
-      const recordingCountMap = new Map()
+      const recordingCountMap = new Map<number, number>()
       for (const row of recordingCounts) {
         recordingCountMap.set(
           row.accountId,
@@ -535,46 +549,30 @@ export function createAccountService(
         )
       }
 
-      // Get first email per account
-      const emailMap = new Map()
-      for (const row of emails) {
-        if (!emailMap.has(row.accountId)) {
-          emailMap.set(row.accountId, row.email)
-        }
-      }
-
-      // Get plan per account (most recent subscription)
-      const planMap = new Map()
+      const planMap = new Map<number, string>()
+      const subscriptionStatusMap = new Map<number, AccountSubscriptionStatus>()
       for (const row of plans) {
         if (!planMap.has(row.accountId)) {
           planMap.set(row.accountId, row.name)
+          subscriptionStatusMap.set(row.accountId, row.status)
         }
       }
 
-      // Get last active per account (max createdAt)
-      const lastActiveMap = new Map()
-      for (const row of lastActiveDates) {
-        const current = lastActiveMap.get(row.accountId)
-        if (!current || row.createdAt > current) {
-          lastActiveMap.set(row.accountId, row.createdAt)
-        }
-      }
-
-      // Build enriched accounts
-      let items = pageRows.map(row =>
+      let items = rows.map(row =>
         asStaffAccount({
           id: row.id,
           name: row.name,
           createdAt: row.createdAt,
           email: emailMap.get(row.id) ?? null,
           planName: planMap.get(row.id) ?? null,
+          subscriptionStatus: subscriptionStatusMap.get(row.id) ?? null,
+          active: activeMap.get(row.id) ?? false,
           lastActiveAt: lastActiveMap.get(row.id) ?? null,
           userCount: userCountMap.get(row.id) ?? 0,
           recordingCount: recordingCountMap.get(row.id) ?? 0,
         })
       )
 
-      // Apply search filter
       if (search) {
         const searchLower = search.toLowerCase()
         items = items.filter(
@@ -585,13 +583,25 @@ export function createAccountService(
         )
       }
 
-      // Apply plan filter
       if (plan) {
         items = items.filter(item => item.plan === plan)
       }
 
-      const nextCursor = hasMore ? items[items.length - 1]?.id : undefined
-      return { items, nextCursor }
+      const startIndex =
+        cursor == null ? 0 : items.findIndex(item => item.id === cursor) + 1
+
+      if (cursor != null && startIndex === 0) {
+        return { items: [], nextCursor: undefined }
+      }
+
+      const pageItems = items.slice(startIndex, startIndex + limit + 1)
+      const hasMore = pageItems.length > limit
+      const paginatedItems = hasMore ? pageItems.slice(0, limit) : pageItems
+      const nextCursor = hasMore
+        ? paginatedItems[paginatedItems.length - 1]?.id
+        : undefined
+
+      return { items: paginatedItems, nextCursor }
     })
   }
 
@@ -604,55 +614,53 @@ export function createAccountService(
         throw notFound()
       }
 
-      // Get account
       const account = await database
         .selectFrom('accounts')
         .select(['id', 'name', 'createdAt'])
         .where('id', '=', decodedId)
         .executeTakeFirstOrThrow(() => notFound())
 
-      // Get enrichment data in parallel
-      const [userCounts, recordingCounts, emails, plans, lastActiveDates] =
-        await Promise.all([
-          database
-            .selectFrom('users')
-            .select(['accountId'])
-            .where('accountId', '=', decodedId)
-            .execute(),
-          database
-            .selectFrom('project_recordings as pr')
-            .innerJoin('projects as p', 'p.id', 'pr.projectId')
-            .where('p.accountId', '=', decodedId)
-            .execute(),
-          database
-            .selectFrom('users')
-            .select(['email'])
-            .where('accountId', '=', decodedId)
-            .execute(),
-          database
-            .selectFrom('billing_subscriptions')
-            .innerJoin(
-              'billing_plans',
-              'billing_plans.id',
-              'billing_subscriptions.planId'
-            )
-            .select(['billing_plans.name'])
-            .where('billing_subscriptions.accountId', '=', decodedId)
-            .execute(),
-          database
-            .selectFrom('users')
-            .select(['createdAt'])
-            .where('accountId', '=', decodedId)
-            .orderBy('createdAt', 'desc')
-            .limit(1)
-            .execute(),
-        ])
+      const [users, recordingCounts, plans] = await Promise.all([
+        database
+          .selectFrom('users')
+          .select(['email', 'active', 'createdAt'])
+          .where('accountId', '=', decodedId)
+          .execute(),
+        database
+          .selectFrom('project_recordings as pr')
+          .innerJoin('projects as p', 'p.id', 'pr.projectId')
+          .where('p.accountId', '=', decodedId)
+          .execute(),
+        database
+          .selectFrom('billing_subscriptions')
+          .innerJoin(
+            'billing_plans',
+            'billing_plans.id',
+            'billing_subscriptions.planId'
+          )
+          .select([
+            'billing_plans.name',
+            'billing_subscriptions.status',
+            'billing_subscriptions.createdAt',
+          ])
+          .where('billing_subscriptions.accountId', '=', decodedId)
+          .orderBy('billing_subscriptions.createdAt', 'desc')
+          .execute(),
+      ])
 
-      const userCount = userCounts.length
+      const userCount = users.length
       const recordingCount = recordingCounts.length
-      const email = emails[0]?.email ?? ''
+      const email = users[0]?.email ?? ''
       const planName = plans[0]?.name ?? null
-      const lastActiveAt = lastActiveDates[0]?.createdAt ?? null
+      const subscriptionStatus = plans[0]?.status ?? null
+      const active = users.some(user => user.active)
+      const lastActiveAt = users.reduce<Date | null>((latest, user) => {
+        if (!latest || user.createdAt > latest) {
+          return user.createdAt
+        }
+
+        return latest
+      }, null)
 
       return asStaffAccount({
         id: account.id,
@@ -660,6 +668,8 @@ export function createAccountService(
         createdAt: account.createdAt,
         email,
         planName,
+        subscriptionStatus,
+        active,
         lastActiveAt,
         userCount,
         recordingCount,
@@ -714,9 +724,8 @@ export function createAccountService(
     return attemptQuery(() => {
       let query = database
         .selectFrom('users')
-        .select(['id', 'name', 'email', 'verified'])
+        .select(['id', 'name', 'email', 'verified', 'admin', 'active'])
         .where('accountId', '=', decodeId(accountId))
-        .where('active', '=', true)
         .orderBy('id asc')
         .limit(limit + 1)
 
@@ -865,7 +874,7 @@ export function createAccountService(
     )
   }
 
-  function getUserIsAdmin(userId: string): FutureInstance {
+  function getUserIsAdmin(userId: string): FutureInstance<Error, boolean> {
     return attemptQuery(() => {
       return database
         .selectFrom('users')
@@ -923,9 +932,8 @@ export function createAccountService(
     return attemptQuery(() =>
       database
         .selectFrom('users')
-        .select(['id', 'name', 'email', 'verified'])
+        .select(['id', 'name', 'email', 'verified', 'admin', 'active'])
         .where('id', '=', decodeId(id))
-        .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
     ).pipe(map(asStaffUserDetail))
   }

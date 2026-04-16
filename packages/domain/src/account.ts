@@ -5,12 +5,21 @@ export interface Account {
 
 export type AccountPlan = 'free' | 'starter' | 'pro' | 'enterprise'
 
+export type AccountSubscriptionStatus =
+  | 'active'
+  | 'past_due'
+  | 'paused'
+  | 'canceled'
+  | 'trialing'
+
 // Staff-facing view of an account with enriched metadata
 export interface StaffAccount {
   id: string
   name: string
   email: string
   plan: AccountPlan | null
+  subscriptionStatus: AccountSubscriptionStatus | null
+  active: boolean
   createdAt: string
   lastActiveAt: string | null
   userCount: number
@@ -37,6 +46,8 @@ export interface StaffUserDetail {
   name: string
   email: string
   verified: boolean
+  isAdmin: boolean
+  active: boolean
 }
 
 export interface StaffUser {
