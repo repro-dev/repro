@@ -2,6 +2,7 @@ import { Atom, createAtom } from '@repro/atom'
 import { Unsubscribe, createBuffer } from '@repro/buffer-utils'
 import { Stats, StatsLevel } from '@repro/diagnostics'
 import {
+  CapturedStyleSheet,
   ConsoleEvent,
   ConsoleMessage,
   DOMPatch,
@@ -45,6 +46,7 @@ import {
 } from 'rxjs'
 import { createConsoleObserver } from './console'
 import {
+  captureStyleSheets,
   createDOMObserver,
   createDOMTreeWalker,
   createDOMVisitor,
@@ -97,6 +99,7 @@ export interface RecordingStream {
   slice(start?: number, end?: number): List<SourceEventView>
   snapshot(): Snapshot
   tail(signal: Subject<void>): Observable<SourceEvent>
+  getCapturedCSSRules(): CapturedStyleSheet[]
 }
 
 interface BufferSubscriptions {
@@ -113,6 +116,7 @@ export const EMPTY_RECORDING_STREAM: RecordingStream = {
   slice: () => new List(SourceEventView, []),
   snapshot: () => SnapshotView.from(createEmptySnapshot()),
   tail: () => NEVER,
+  getCapturedCSSRules: () => [],
 }
 
 export const InterruptSignal = new Subject<void>()
@@ -142,6 +146,7 @@ export function createRecordingStream(
   let leadingSnapshot = createEmptySnapshot()
   let trailingSnapshot = createEmptySnapshot()
   let sourceDocuments = [rootDocument]
+  let capturedCSSRules: CapturedStyleSheet[] = []
 
   // Detect frameworks once at stream creation time
   const frameworks = detectFrameworks()
@@ -214,6 +219,9 @@ export function createRecordingStream(
       Stats.time('RecordingStream#start: build VTree snapshot', () => {
         domTreeWalker(rootDocument)
       })
+
+      // Capture CSS rules at snapshot time
+      capturedCSSRules = captureStyleSheets(rootDocument)
 
       const trailingVTree = trailingSnapshot.dom
 
@@ -716,6 +724,10 @@ export function createRecordingStream(
     }
   }
 
+  function getCapturedCSSRules(): CapturedStyleSheet[] {
+    return capturedCSSRules
+  }
+
   return {
     start,
     stop,
@@ -725,5 +737,6 @@ export function createRecordingStream(
     slice,
     snapshot,
     tail,
+    getCapturedCSSRules,
   }
 }

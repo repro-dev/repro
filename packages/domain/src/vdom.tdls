@@ -65,6 +65,7 @@ type PatchType: enum<uint8> {
   TextProperty: 4
   NumberProperty: 5
   BooleanProperty: 6
+  StyleSheetMutation: 9
 }
 
 type AttributePatch: struct {

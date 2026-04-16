@@ -1,3 +1,4 @@
+import { computeSpecificity } from '@repro/css-utils'
 import { Stats, StatsLevel } from '@repro/diagnostics'
 import {
   isInputElement,
@@ -9,6 +10,7 @@ import {
   DOMPatch,
   NodeType,
   PatchType,
+  StyleSheetMutationPatch,
   SyntheticId,
   VTree,
 } from '@repro/domain'
@@ -510,6 +512,57 @@ function createStyleSheetObserver(
     }
   }
 
+  function emitInsertRulePatch(sheet: CSSStyleSheet, index: number) {
+    const sheetId = sheet.ownerNode ? getNodeId(sheet.ownerNode) : null
+    if (!sheetId) return
+    try {
+      const rule = sheet.cssRules[index]
+      if (!rule || !(rule instanceof CSSStyleRule)) return
+      const declarations: Record<string, string> = {}
+      const priorities: Record<string, '' | 'important'> = {}
+      const style = rule.style
+      for (let i = 0; i < style.length; i++) {
+        const prop = style[i]
+        if (!prop) continue
+        declarations[prop] = style.getPropertyValue(prop)
+        priorities[prop] = (
+          style.getPropertyPriority(prop) === 'important' ? 'important' : ''
+        ) as '' | 'important'
+      }
+      const selectors = rule.selectorText.split(',').map(s => s.trim())
+      const insertedRules = selectors.map(selectorText => ({
+        selectorText,
+        declarations,
+        priorities,
+        specificity: computeSpecificity(selectorText),
+        stylesheetId: sheetId,
+        ruleIndex: index,
+        isInline: false as const,
+      }))
+      subscriber(
+        new Box({
+          type: PatchType.StyleSheetMutation,
+          stylesheetId: sheetId,
+          insertedRules,
+        } satisfies StyleSheetMutationPatch) as unknown as DOMPatch
+      )
+    } catch {
+      // If cssRules is inaccessible, skip structured patch
+    }
+  }
+
+  function emitDeleteRulePatch(sheet: CSSStyleSheet, index: number) {
+    const sheetId = sheet.ownerNode ? getNodeId(sheet.ownerNode) : null
+    if (!sheetId) return
+    subscriber(
+      new Box({
+        type: PatchType.StyleSheetMutation,
+        stylesheetId: sheetId,
+        deletedRuleIndex: index,
+      } satisfies StyleSheetMutationPatch) as unknown as DOMPatch
+    )
+  }
+
   const insertRule = window.CSSStyleSheet.prototype.insertRule
   const deleteRule = window.CSSStyleSheet.prototype.deleteRule
 
@@ -531,10 +584,15 @@ function createStyleSheetObserver(
 
         win.CSSStyleSheet.prototype.insertRule = function (this, ...args) {
           insertRuleEffect(vtree, this, ...args)
-          return insertRule.call(this, ...args)
+          const resultIndex = insertRule.call(this, ...args)
+          // Emit structured mutation patch after real insertRule so cssRules is updated
+          emitInsertRulePatch(this, resultIndex)
+          return resultIndex
         }
 
         win.CSSStyleSheet.prototype.deleteRule = function (this, ...args) {
+          // Emit structured delete patch before deletion so we have the index
+          emitDeleteRulePatch(this, args[0] ?? 0)
           deleteRuleEffect(vtree, this, ...args)
           return deleteRule.call(this, ...args)
         }

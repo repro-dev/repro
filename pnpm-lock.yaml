@@ -1594,6 +1594,9 @@ importers:
       '@repro/design':
         specifier: workspace:*
         version: link:../design
+      '@repro/domain':
+        specifier: workspace:*
+        version: link:../domain
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -2371,6 +2374,9 @@ importers:
       '@repro/buffer-utils':
         specifier: workspace:*
         version: link:../buffer-utils
+      '@repro/css-utils':
+        specifier: workspace:*
+        version: link:../css-utils
       '@repro/diagnostics':
         specifier: workspace:*
         version: link:../diagnostics

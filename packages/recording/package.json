@@ -25,7 +25,8 @@
     "react": "^18.2.0",
     "rxjs": "^7.8.0",
     "serialize-error": "^11.0.3",
-    "stacktrace-js": "^2.0.2"
+    "stacktrace-js": "^2.0.2",
+    "@repro/css-utils": "workspace:*"
   },
   "devDependencies": {
     "@repro/testing-utils": "workspace:*",
