@@ -308,6 +308,19 @@ export function createAccountService(
     ).pipe(map(asStaffUser))
   }
 
+  // Admin-facing: returns a staff user by ID including deactivated users.
+  function getStaffUserByIdIncludingInactive(
+    staffUserId: string
+  ): FutureInstance<Error, StaffUser> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('staff_users')
+        .select(['id', 'name', 'email', 'admin', 'active'])
+        .where('id', '=', decodeId(staffUserId))
+        .executeTakeFirstOrThrow(() => notFound())
+    ).pipe(map(asStaffUser))
+  }
+
   function getStaffUserByEmail(
     email: string
   ): FutureInstance<Error, StaffUser> {
@@ -1174,6 +1187,7 @@ export function createAccountService(
     listStaffUsers,
     getStaffUserByEmailAndPassword,
     getStaffUserById,
+    getStaffUserByIdIncludingInactive,
     getStaffUserByEmail,
     getStaffUserIsAdmin,
 

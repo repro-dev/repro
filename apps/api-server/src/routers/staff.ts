@@ -298,7 +298,9 @@ export function createStaffRouter(
           go(function* () {
             const user = yield req.getCurrentUser()
             yield accountService.ensureStaffUserIsAdmin(user)
-            return yield accountService.getStaffUserById(staffUserId)
+            return yield accountService.getStaffUserByIdIncludingInactive(
+              staffUserId
+            )
           })
         )
       }
@@ -329,7 +331,9 @@ export function createStaffRouter(
             const user = yield req.getCurrentUser()
             yield accountService.ensureCanModifyStaffUser(user, staffUserId)
             yield accountService.updateStaffUserName(staffUserId, name)
-            return yield accountService.getStaffUserById(staffUserId)
+            return yield accountService.getStaffUserByIdIncludingInactive(
+              staffUserId
+            )
           })
         )
       }
