@@ -597,8 +597,8 @@ describe('Routers > Staff', () => {
 
       expect(res.statusCode).toEqual(200)
       const body = res.json()
-      expect(body).toHaveLength(1)
-      expect(body[0]).toMatchObject({
+      expect(body.items).toHaveLength(1)
+      expect(body.items[0]).toMatchObject({
         project: {
           id: expect.any(String),
           name: 'Project A',
@@ -623,7 +623,7 @@ describe('Routers > Staff', () => {
 
       expect(res.statusCode).toEqual(200)
       const body = res.json()
-      expect(body).toHaveLength(0)
+      expect(body.items).toHaveLength(0)
     })
 
     it('should return 403 when not authenticated as staff', async () => {

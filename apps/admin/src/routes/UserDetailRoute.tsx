@@ -30,13 +30,16 @@ export const UserDetailRoute: React.FC = () => {
 
   const projectsResult = useFuture(
     () =>
-      apiClient.fetch<Array<UserProjectMembership>>(
+      apiClient.fetch<{ items: UserProjectMembership[] }>(
         `/staff/users/${userId}/projects`
       ),
     [userId]
   )
 
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
+  const [toggleError, setToggleError] = useState<string | null>(null)
+  const [deactivateError, setDeactivateError] = useState<string | null>(null)
+  const [isToggling, setIsToggling] = useState(false)
 
   if (userResult.loading) {
     return <FullPageLoading />
@@ -54,21 +57,43 @@ export const UserDetailRoute: React.FC = () => {
   const user = userResult.data
 
   const handleToggleAdmin = async () => {
-    await apiClient.fetch(`/staff/users/${userId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ isAdmin: !user.admin }),
-      headers: { 'Content-Type': 'application/json' },
-    })
-    // Refetch user data
-    window.location.reload()
+    setIsToggling(true)
+    setToggleError(null)
+    try {
+      await apiClient.wrapP(
+        apiClient.fetch(`/staff/users/${userId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ isAdmin: !user.admin }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+      // Refetch user data
+      window.location.reload()
+    } catch (err) {
+      setToggleError(
+        err instanceof Error ? err.message : 'Failed to update admin status'
+      )
+    } finally {
+      setIsToggling(false)
+    }
   }
 
   const handleDeactivate = async () => {
-    await apiClient.fetch(`/staff/users/${userId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ isActive: false }),
-      headers: { 'Content-Type': 'application/json' },
-    })
+    setDeactivateError(null)
+    try {
+      await apiClient.wrapP(
+        apiClient.fetch(`/staff/users/${userId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ isActive: false }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    } catch (err) {
+      setDeactivateError(
+        err instanceof Error ? err.message : 'Failed to deactivate user'
+      )
+      throw err
+    }
     // Navigate back to account
     navigate(`/accounts/${user.accountId}`)
   }
@@ -105,12 +130,14 @@ export const UserDetailRoute: React.FC = () => {
                   label="Admin"
                   checked={user.admin}
                   onChange={handleToggleAdmin}
+                  disabled={isToggling}
                 />,
               ],
               ['Status', user.active ? 'Active' : 'Deactivated'],
               ['Created', formatDate(user.createdAt)],
             ]}
           />
+          {toggleError && <Alert type="danger">{toggleError}</Alert>}
           {!user.active && (
             <Alert type="warning">This user has been deactivated.</Alert>
           )}
@@ -129,11 +156,16 @@ export const UserDetailRoute: React.FC = () => {
         <JsxBlock marginTop={16}>
           <Card>
             <JsxBlock fontWeight={500} marginBottom={12}>
-              Project Memberships ({projectsResult.data?.length ?? 0})
+              Project Memberships ({projectsResult.data?.items.length ?? 0})
             </JsxBlock>
             {projectsResult.loading ? (
               <JsxBlock color="muted">Loading...</JsxBlock>
-            ) : projectsResult.data?.length === 0 ? (
+            ) : projectsResult.error ? (
+              <Alert type="danger">
+                Failed to load project memberships:{' '}
+                {projectsResult.error.message}
+              </Alert>
+            ) : projectsResult.data?.items.length === 0 ? (
               <JsxBlock color="muted">No project memberships.</JsxBlock>
             ) : (
               <Table>
@@ -144,12 +176,14 @@ export const UserDetailRoute: React.FC = () => {
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
-                  {projectsResult.data?.map(m => (
-                    <Table.Row key={m.project.id}>
-                      <Table.Cell>{m.project.name}</Table.Cell>
-                      <Table.Cell>{m.role}</Table.Cell>
-                    </Table.Row>
-                  ))}
+                  {projectsResult.data?.items.map(
+                    (m: UserProjectMembership) => (
+                      <Table.Row key={m.project.id}>
+                        <Table.Cell>{m.project.name}</Table.Cell>
+                        <Table.Cell>{m.role}</Table.Cell>
+                      </Table.Row>
+                    )
+                  )}
                 </Table.Body>
               </Table>
             )}
@@ -161,6 +195,8 @@ export const UserDetailRoute: React.FC = () => {
           userName={user.name}
           onConfirm={handleDeactivate}
           onClose={() => setShowDeactivateDialog(false)}
+          confirmError={deactivateError}
+          onConfirmError={setDeactivateError}
         />
       )}
     </PageFrame>

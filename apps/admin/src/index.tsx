@@ -162,11 +162,11 @@ if (rootElem) {
                             path="staff-users"
                             element={<StaffUsersRoute />}
                           />
+                          <Route
+                            path="users/:userId"
+                            element={<UserDetailRoute />}
+                          />
                         </Route>
-                        <Route
-                          path="users/:userId"
-                          element={<UserDetailRoute />}
-                        />
                         <Route path="health" element={<HealthRoute />} />
                       </Route>
                     </Route>

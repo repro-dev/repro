@@ -1,3 +1,4 @@
+import { ListResponse } from '@repro/domain'
 import { tapF } from '@repro/future-utils'
 import { FastifyPluginAsync } from 'fastify'
 import { chain, chainRej, go, reject } from 'fluture'
@@ -259,7 +260,12 @@ export function createStaffRouter(
           go(function* () {
             const user = yield req.getCurrentUser()
             yield accountService.ensureStaffUser(user)
-            return yield projectService.getUserProjectsWithRoles(userId)
+            const memberships = yield projectService.getUserProjectsWithRoles(
+              userId
+            )
+            return {
+              items: memberships,
+            } as ListResponse<(typeof memberships)[number]>
           })
         )
       }

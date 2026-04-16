@@ -4,21 +4,30 @@ import React, { useState } from 'react'
 
 interface DeactivateUserDialogProps {
   userName: string
-  onConfirm: () => void
+  onConfirm: () => Promise<void>
   onClose: () => void
+  confirmError: string | null
+  onConfirmError: (error: string | null) => void
 }
 
 export const DeactivateUserDialog: React.FC<DeactivateUserDialogProps> = ({
   userName,
   onConfirm,
   onClose,
+  confirmError,
+  onConfirmError,
 }) => {
   const [loading, setLoading] = useState(false)
 
   const handleConfirm = async () => {
     setLoading(true)
+    onConfirmError(null)
     try {
       await onConfirm()
+    } catch (err) {
+      onConfirmError(
+        err instanceof Error ? err.message : 'Failed to deactivate user'
+      )
     } finally {
       setLoading(false)
     }
@@ -42,6 +51,20 @@ export const DeactivateUserDialog: React.FC<DeactivateUserDialogProps> = ({
         This will permanently deactivate this user. They will lose access to all
         projects and recordings. This action cannot be undone.
       </Row>
+      {confirmError && (
+        <Row paddingH={spacing.xl} paddingBottom={spacing.md}>
+          <Row
+            component="p"
+            {...{
+              fontSize: 13,
+              color: 'var(--color-danger-fg)',
+              lineHeight: 1.4,
+            }}
+          >
+            {confirmError}
+          </Row>
+        </Row>
+      )}
       <Row justifyContent="flex-end" gap={spacing.md} padding={spacing.xl}>
         <Button
           variant="outlined"
