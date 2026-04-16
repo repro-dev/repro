@@ -185,6 +185,90 @@ describe('Services > Project', () => {
     )
   })
 
+  it('should filter recordings by search query (title)', async () => {
+    const [project, recordingA] = await harness.loadFixtures([
+      fixtures.project.ProjectA_Multiple_Recordings,
+      fixtures.recording.RecordingA,
+      fixtures.recording.RecordingB,
+    ])
+
+    const recordings = await promise(
+      projectService.getRecordingsForProject(project.id, { q: 'Recording A' })
+    )
+
+    expect(recordings).toHaveLength(1)
+    expect(recordings[0]).toMatchObject({ id: recordingA.id })
+  })
+
+  it('should filter recordings by browser', async () => {
+    const [project, , recordingB] = await harness.loadFixtures([
+      fixtures.project.ProjectA_Multiple_Recordings,
+      fixtures.recording.RecordingA,
+      fixtures.recording.RecordingB,
+    ])
+
+    const recordings = await promise(
+      projectService.getRecordingsForProject(project.id, {
+        browser: 'Firefox',
+      })
+    )
+
+    expect(recordings).toHaveLength(1)
+    expect(recordings[0]).toMatchObject({ id: recordingB.id })
+  })
+
+  it('should filter recordings by minDuration', async () => {
+    const [project, , recordingB] = await harness.loadFixtures([
+      fixtures.project.ProjectA_Multiple_Recordings,
+      fixtures.recording.RecordingA,
+      fixtures.recording.RecordingB,
+    ])
+
+    // RecordingA duration=10000, RecordingB duration=30000
+    const recordings = await promise(
+      projectService.getRecordingsForProject(project.id, {
+        minDuration: 20_000,
+      })
+    )
+
+    expect(recordings).toHaveLength(1)
+    expect(recordings[0]).toMatchObject({ id: recordingB.id })
+  })
+
+  it('should filter recordings by maxDuration', async () => {
+    const [project, recordingA] = await harness.loadFixtures([
+      fixtures.project.ProjectA_Multiple_Recordings,
+      fixtures.recording.RecordingA,
+      fixtures.recording.RecordingB,
+    ])
+
+    // RecordingA duration=10000, RecordingB duration=30000
+    const recordings = await promise(
+      projectService.getRecordingsForProject(project.id, {
+        maxDuration: 20_000,
+      })
+    )
+
+    expect(recordings).toHaveLength(1)
+    expect(recordings[0]).toMatchObject({ id: recordingA.id })
+  })
+
+  it('should return empty list when no recordings match filter', async () => {
+    const [project] = await harness.loadFixtures([
+      fixtures.project.ProjectA_Multiple_Recordings,
+      fixtures.recording.RecordingA,
+      fixtures.recording.RecordingB,
+    ])
+
+    const recordings = await promise(
+      projectService.getRecordingsForProject(project.id, {
+        q: 'nomatch-xyz',
+      })
+    )
+
+    expect(recordings).toHaveLength(0)
+  })
+
   it('should throw not-found when getting a project that does not exist', async () => {
     await expect(
       promise(projectService.getProjectById(encodeId(999)))

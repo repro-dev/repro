@@ -18,6 +18,19 @@ import {
 } from '~/modules/database'
 import { badRequest, notFound, permissionDenied } from '~/utils/errors'
 
+// Server-side filter params; dates use Date objects rather than ISO strings.
+export interface RecordingFilterParams {
+  q?: string
+  startDate?: Date
+  endDate?: Date
+  browser?: string
+  minDuration?: number
+  maxDuration?: number
+  limit?: number
+  offset?: number
+  orderBy?: 'createdAt' | 'duration'
+}
+
 export function createProjectService(
   database: Database,
   _config: SystemConfig = defaultSystemConfig
@@ -216,16 +229,53 @@ export function createProjectService(
   }
 
   function getRecordingsForProject(
-    projectId: string
+    projectId: string,
+    filters: RecordingFilterParams = {}
   ): FutureInstance<Error, Array<RecordingInfo>> {
     return attemptQuery(() => {
-      return database
+      let query = database
         .selectFrom('project_recordings as pr')
         .innerJoin('recordings as r', 'r.id', 'pr.recordingId')
         .selectAll('r')
         .where('pr.projectId', '=', decodeId(projectId))
-        .orderBy('r.createdAt desc')
-        .execute()
+
+      if (filters.q) {
+        const pattern = `%${filters.q}%`
+        query = query.where(eb =>
+          eb.or([
+            eb('r.title', 'ilike', pattern),
+            eb('r.url', 'ilike', pattern),
+          ])
+        )
+      }
+
+      if (filters.startDate) {
+        query = query.where('r.createdAt', '>=', filters.startDate)
+      }
+
+      if (filters.endDate) {
+        query = query.where('r.createdAt', '<=', filters.endDate)
+      }
+
+      if (filters.browser) {
+        query = query.where('r.browserName', '=', filters.browser)
+      }
+
+      if (filters.minDuration !== undefined) {
+        query = query.where('r.duration', '>=', filters.minDuration)
+      }
+
+      if (filters.maxDuration !== undefined) {
+        query = query.where('r.duration', '<=', filters.maxDuration)
+      }
+
+      query = query.orderBy(
+        filters.orderBy === 'duration' ? 'r.duration desc' : 'r.createdAt desc'
+      )
+      query = query.limit(Math.min(filters.limit ?? 50, 250))
+      query = query.offset(filters.offset ?? 0)
+
+      return query.execute()
     }).pipe(
       map(rows =>
         rows.map(row => ({

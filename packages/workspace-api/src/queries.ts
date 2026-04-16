@@ -1,4 +1,5 @@
 import type { ApiClient } from '@repro/api-client'
+import type { RecordingQueryParams } from '@repro/domain'
 import { map } from 'fluture'
 
 export function getProjects(apiClient: ApiClient) {
@@ -36,9 +37,23 @@ export function deactivateProject(apiClient: ApiClient, projectId: string) {
   })
 }
 
-export function getProjectRecordings(apiClient: ApiClient, projectId: string) {
+export function getProjectRecordings(
+  apiClient: ApiClient,
+  projectId: string,
+  filters?: RecordingQueryParams
+) {
+  const qs = filters
+    ? '?' +
+      Object.entries(filters)
+        .filter(([, v]) => v !== undefined)
+        .map(
+          ([k, v]) =>
+            `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`
+        )
+        .join('&')
+    : ''
   return apiClient
-    .fetch(`/projects/${projectId}/recordings`)
+    .fetch(`/projects/${projectId}/recordings${qs}`)
     .pipe(map(res => res.items))
 }
 

@@ -23,7 +23,7 @@ import { createEnv } from '~/config/createEnv'
 import { defaultSystemConfig } from '~/config/system'
 import { uploadRateLimitOptions } from '~/rateLimit'
 import { AccountService } from '~/services/account'
-import { ProjectService } from '~/services/project'
+import { ProjectService, RecordingFilterParams } from '~/services/project'
 import { RecordingService } from '~/services/recording'
 import {
   badRequest,
@@ -464,10 +464,22 @@ export function createProjectRouter(
       params: z.object({
         projectId: z.string(),
       }),
+      querystring: z.object({
+        q: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        browser: z.string().optional(),
+        minDuration: z.coerce.number().optional(),
+        maxDuration: z.coerce.number().optional(),
+        limit: z.coerce.number().optional(),
+        offset: z.coerce.number().optional(),
+        orderBy: z.enum(['createdAt', 'duration']).optional(),
+      }),
     } as const
 
     app.get<{
       Params: z.infer<typeof projectRecordingsSchema.params>
+      Querystring: z.infer<typeof projectRecordingsSchema.querystring>
     }>(
       '/:projectId/recordings',
 
@@ -477,12 +489,27 @@ export function createProjectRouter(
 
       (req, res) => {
         const { projectId } = req.params
+        const qs = req.query
+        const filters: RecordingFilterParams = {
+          q: qs.q,
+          startDate: qs.startDate ? new Date(qs.startDate) : undefined,
+          endDate: qs.endDate ? new Date(qs.endDate) : undefined,
+          browser: qs.browser,
+          minDuration: qs.minDuration,
+          maxDuration: qs.maxDuration,
+          limit: qs.limit,
+          offset: qs.offset,
+          orderBy: qs.orderBy,
+        }
         respondWith(
           res,
           go(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
             yield ensureCanAccessProject(user, projectId)
-            return yield projectService.getRecordingsForProject(projectId)
+            return yield projectService.getRecordingsForProject(
+              projectId,
+              filters
+            )
           }).pipe(map(toListResponse))
         )
       }
