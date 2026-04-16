@@ -123,6 +123,23 @@ describe('PricingRoute checkout', () => {
     })
   })
 
+  it('shows a refund policy link on the pricing page', async () => {
+    render(
+      <MemoryRouter>
+        <ApiProvider client={makeClient(never)}>
+          <PricingRoute />
+        </ApiProvider>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      const link = screen.getByRole('link', {
+        name: /refund & cancellation policy/i,
+      })
+      assert.equal(link.getAttribute('href'), '/refund-policy')
+    })
+  })
+
   it('disables all plan buttons while checkout is in flight', async () => {
     render(
       <MemoryRouter>

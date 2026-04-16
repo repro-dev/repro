@@ -8,6 +8,7 @@ import {
   Card,
   FullPageError,
   FullPageLoading,
+  Link,
   PageFrame,
   Stack,
   Text,
@@ -21,14 +22,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { getEntitlementMeta } from './entitlementMeta'
 
-function collectFeatures(plans: Array<BillingPlanWithEntitlements>): string[] {
-  const featureSet = new Set<string>()
+function collectFeatures(plans: BillingPlanWithEntitlements[]): string[] {
+  const featureSet = new Set()
   for (const plan of plans) {
     for (const entitlement of plan.entitlements) {
       featureSet.add(entitlement.feature)
     }
   }
-  return Array.from(featureSet)
+  return Array.from(featureSet) as string[]
 }
 
 export const PricingRoute: React.FC = () => {
@@ -39,8 +40,8 @@ export const PricingRoute: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null)
-  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [loadingPlanId, setLoadingPlanId] = useState(null as string | null)
+  const [checkoutError, setCheckoutError] = useState(null as string | null)
   const checkoutInProgressRef = useRef(false)
 
   // Reset the in-progress guard after React flushes the cleared loading state.
@@ -119,7 +120,7 @@ export const PricingRoute: React.FC = () => {
     )
   }
 
-  const plans: Array<BillingPlanWithEntitlements> = data!.items
+  const plans = data!.items as BillingPlanWithEntitlements[]
   const features = collectFeatures(plans)
 
   return (
@@ -128,6 +129,7 @@ export const PricingRoute: React.FC = () => {
         <PageFrame.Title>Plans</PageFrame.Title>
       </PageFrame.Header>
       <PageFrame.Body>
+        <Link href="/refund-policy">Refund &amp; cancellation policy</Link>
         {checkoutError && <Text color={color.danger}>{checkoutError}</Text>}
         <Grid
           gridTemplateColumns={`repeat(${plans.length}, 1fr)`}
