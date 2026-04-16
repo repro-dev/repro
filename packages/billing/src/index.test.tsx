@@ -2,40 +2,81 @@ import expect from 'expect'
 import { afterEach, describe, it, mock } from 'node:test'
 const { createBillingClientFromConfig } = require('./index')
 
+type MockedFn = ((...args: unknown[]) => void) & {
+  mock: { callCount(): number }
+}
+
+type PaddleCalls = {
+  'Environment.set': unknown[][]
+  Initialize: unknown[][]
+  'Checkout.open': unknown[][]
+  'Checkout.close': unknown[][]
+}
+
+type PaddleWindow = {
+  Paddle: {
+    Environment: { set: MockedFn }
+    Initialize: MockedFn
+    Checkout: {
+      open: MockedFn
+      close: MockedFn
+    }
+  }
+}
+
+type GlobalWithWindow = {
+  window?: PaddleWindow
+}
+
+type InitializeConfig = {
+  token: string
+  eventCallback?: (data: unknown) => void
+}
+
+type EventData = {
+  name?: string
+  [key: string]: unknown
+}
+
 function setupPaddleMock() {
-  const calls: Record<string, unknown[][]> = {
+  const calls: PaddleCalls = {
     'Environment.set': [],
     Initialize: [],
     'Checkout.open': [],
     'Checkout.close': [],
   }
 
+  const environmentSet = mock.fn((...args: unknown[]) => {
+    calls['Environment.set']!.push(args)
+  }) as unknown as MockedFn
+  const initialize = mock.fn((...args: unknown[]) => {
+    calls['Initialize']!.push(args)
+  }) as unknown as MockedFn
+  const checkoutOpen = mock.fn((...args: unknown[]) => {
+    calls['Checkout.open']!.push(args)
+  }) as unknown as MockedFn
+  const checkoutClose = mock.fn((...args: unknown[]) => {
+    calls['Checkout.close']!.push(args)
+  }) as unknown as MockedFn
+
   const paddle = {
     Environment: {
-      set: mock.fn((...args: unknown[]) => {
-        calls['Environment.set']!.push(args)
-      }),
+      set: environmentSet,
     },
-    Initialize: mock.fn((...args: unknown[]) => {
-      calls['Initialize']!.push(args)
-    }),
+    Initialize: initialize,
     Checkout: {
-      open: mock.fn((...args: unknown[]) => {
-        calls['Checkout.open']!.push(args)
-      }),
-      close: mock.fn((...args: unknown[]) => {
-        calls['Checkout.close']!.push(args)
-      }),
+      open: checkoutOpen,
+      close: checkoutClose,
     },
   }
 
-  ;(globalThis as Record<string, unknown>).window = { Paddle: paddle }
+  ;(globalThis as unknown as GlobalWithWindow).window = { Paddle: paddle }
 
   return { paddle, calls }
 }
 
 function clearPaddleMock() {
-  delete (globalThis as Record<string, unknown>).window
+  delete (globalThis as unknown as GlobalWithWindow).window
 }
 
 describe('billing', () => {
@@ -55,7 +96,8 @@ describe('billing', () => {
         await Promise.resolve()
 
         expect(calls['Initialize']).toHaveLength(1)
-        const initArg = calls['Initialize']![0]![0] as Record<string, unknown>
+        // eventCallback is now the handleEvent wrapper, not the raw config value
+        const initArg = calls['Initialize']![0]![0] as InitializeConfig
         expect(initArg['token']).toBe('test_token_123')
         expect(typeof initArg['eventCallback']).toBe('function')
       })
@@ -64,14 +106,14 @@ describe('billing', () => {
         setupPaddleMock()
         const callOrder: string[] = []
 
-        const paddle = (window as Record<string, Record<string, unknown>>)
-          .Paddle as Record<string, Record<string, unknown>>
+        const paddle = (globalThis as unknown as GlobalWithWindow).window!
+          .Paddle as PaddleWindow['Paddle']
         paddle['Environment']!.set = mock.fn(() => {
           callOrder.push('Environment.set')
         })
         paddle['Initialize'] = mock.fn(() => {
           callOrder.push('Initialize')
-        }) as unknown as Record<string, unknown>
+        }) as MockedFn
 
         const client = createBillingClientFromConfig({
           token: 'test_token_123',
@@ -119,15 +161,13 @@ describe('billing', () => {
         })
 
         client.init()
-        const handleEvent = (
-          calls['Initialize']![0]![0] as Record<string, unknown>
-        ).eventCallback as (d: unknown) => void
+
+        const handleEvent = (calls['Initialize']![0]![0] as InitializeConfig)
+          .eventCallback as (d: unknown) => void
         handleEvent({ name: 'custom.event' })
 
         expect(received).toHaveLength(1)
-        expect((received[0] as Record<string, unknown>).name).toBe(
-          'custom.event'
-        )
+        expect((received[0] as EventData).name).toBe('custom.event')
       })
 
       it('only initializes once', async () => {
@@ -144,11 +184,26 @@ describe('billing', () => {
       })
 
       it('does nothing when Paddle is not loaded', () => {
+        ;(globalThis as unknown as GlobalWithWindow).window =
+          {} as unknown as PaddleWindow
         const client = createBillingClientFromConfig({
           token: 'test_token_123',
         })
 
         expect(() => client.init()).not.toThrow()
+      })
+
+      it('treats a blank token as disabled mode', () => {
+        const { calls } = setupPaddleMock()
+        const client = createBillingClientFromConfig({
+          token: '',
+        })
+
+        expect(() => client.init()).not.toThrow()
+        client.openCheckout({ transactionId: 'txn_disabled' })
+
+        expect(calls['Initialize']).toHaveLength(0)
+        expect(calls['Checkout.open']).toHaveLength(0)
       })
     })
 
@@ -167,6 +222,8 @@ describe('billing', () => {
       })
 
       it('does nothing when Paddle is not loaded', () => {
+        ;(globalThis as unknown as GlobalWithWindow).window =
+          {} as unknown as PaddleWindow
         const client = createBillingClientFromConfig({
           token: 'test_token_123',
         })
@@ -188,6 +245,8 @@ describe('billing', () => {
       })
 
       it('does nothing when Paddle is not loaded', () => {
+        ;(globalThis as unknown as GlobalWithWindow).window =
+          {} as unknown as PaddleWindow
         const client = createBillingClientFromConfig({
           token: 'test_token_123',
         })
@@ -203,9 +262,8 @@ describe('billing', () => {
           token: 'test_token_123',
         })
         client.init()
-        const handleEvent = (
-          calls['Initialize']![0]![0] as Record<string, unknown>
-        ).eventCallback as (d: unknown) => void
+        const handleEvent = (calls['Initialize']![0]![0] as InitializeConfig)
+          .eventCallback as (d: unknown) => void
         return { client, handleEvent }
       }
 
@@ -276,9 +334,8 @@ describe('billing', () => {
           eventCallback: (data: unknown) => globalEvents.push(data),
         })
         client.init()
-        const handleEvent = (
-          calls['Initialize']![0]![0] as Record<string, unknown>
-        ).eventCallback as (d: unknown) => void
+        const handleEvent = (calls['Initialize']![0]![0] as InitializeConfig)
+          .eventCallback as (d: unknown) => void
 
         const completedFn = mock.fn()
         client.openCheckout(

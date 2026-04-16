@@ -29,13 +29,24 @@ export interface CheckoutCallbacks {
   onCancelled?: () => void
 }
 
-function createBillingClient(config: BillingConfig) {
+export interface BillingClient {
+  init(): void
+  openCheckout(options: any, callbacks?: CheckoutCallbacks): void
+  closeCheckout(): void
+}
+
+function createBillingClient(config: BillingConfig): BillingClient {
   let initialized = false
+  const hasToken = config.token.trim().length > 0
   let checkoutCompleted = false
   let currentCallbacks: CheckoutCallbacks | null = null
 
   function init() {
     if (initialized) {
+      return
+    }
+
+    if (!hasToken) {
       return
     }
 
@@ -84,6 +95,10 @@ function createBillingClient(config: BillingConfig) {
   }
 
   function openCheckout(options: any, callbacks?: CheckoutCallbacks) {
+    if (!hasToken) {
+      return
+    }
+
     if (!window.Paddle) {
       return
     }
@@ -94,6 +109,10 @@ function createBillingClient(config: BillingConfig) {
   }
 
   function closeCheckout() {
+    if (!hasToken) {
+      return
+    }
+
     if (!window.Paddle) {
       console.warn('Billing: Paddle not available, cannot close checkout')
       return
@@ -109,22 +128,21 @@ function createBillingClient(config: BillingConfig) {
   }
 }
 
-export type BillingClient = ReturnType<typeof createBillingClient>
-
-const BillingContext = React.createContext<BillingClient | null>(null)
-
-interface Props {
-  config: BillingConfig
-  client?: BillingClient
-}
+const BillingContext = React.createContext(null as BillingClient | null)
 
 export function createBillingClientFromConfig(config: BillingConfig) {
   return createBillingClient(config)
 }
 
-export const BillingProvider: React.FC<
-  Props & { children: React.ReactNode }
-> = ({ children, config, client }) => {
+export const BillingProvider = ({
+  children,
+  config,
+  client,
+}: {
+  children?: React.ReactNode
+  config: BillingConfig
+  client?: BillingClient
+}) => {
   const clientRef = useRef(client ?? createBillingClient(config))
 
   useEffect(() => {
