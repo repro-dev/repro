@@ -201,7 +201,7 @@ Call `Linear_get_issue` to retrieve the current full description and labels list
 
 Construct the updated description (original description + proposed additions from Step 7).
 
-Build the updated labels list: take the fetched `labels` array, filter out the `needs-spec` label (ID: `773c7a1c-3e16-4d18-bf0d-2f8d5429ca23`), and use this filtered list.
+Build the updated labels list: take the fetched `labels` array, filter out any label named `needs-spec`, and use this filtered list.
 
 Call `Linear_save_issue` with:
 
