@@ -11,6 +11,10 @@ const envSchema = z.object({
   REPRO_MARKETING_URL: z.string().url().default('https://repro.dev'),
 })
 
-export function createEnv(values: unknown) {
+type EnvValues = {
+  [key: string]: string | undefined
+}
+
+export function createEnv(values: EnvValues) {
   return envSchema.parse(values)
 }
