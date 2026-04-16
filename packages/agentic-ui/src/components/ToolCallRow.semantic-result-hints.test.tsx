@@ -94,7 +94,7 @@ describe("ToolCallRow semantic result hints", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Go to time >",
+        name: /go to time/i,
       }),
     );
 
@@ -130,7 +130,7 @@ describe("ToolCallRow semantic result hints", () => {
 
     expect(
       screen.getByRole("button", {
-        name: "Go to time >",
+        name: /go to time/i,
       }),
     ).toBeDefined();
   });

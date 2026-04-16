@@ -63,6 +63,7 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
           key={i}
           timeMs={err.time}
           alignItems="flex-start"
+          kind="console"
           showGoToTime={false}
         >
           <Block flexShrink={0} alignSelf="flex-start">
@@ -77,7 +78,10 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
             fontFamily={fontFamily.mono}
             color={color.text.secondary}
             flexGrow={1}
-            wordBreak="break-all"
+            overflow="hidden"
+            whiteSpace="nowrap"
+            textOverflow="ellipsis"
+            lineHeight={1.25}
           >
             {err.summary}
           </Block>

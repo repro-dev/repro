@@ -94,6 +94,7 @@ export const NetworkRequestResultView: React.FC<
           key={i}
           timeMs={req.timeMs}
           alignItems="center"
+          kind="network"
           onGoToTime={onGoToTime}
         >
           {req.type === "fetch" && req.method != null && (
@@ -126,7 +127,10 @@ export const NetworkRequestResultView: React.FC<
             fontFamily={fontFamily.mono}
             color={color.text.secondary}
             flexGrow={1}
-            wordBreak="break-all"
+            overflow="hidden"
+            whiteSpace="nowrap"
+            textOverflow="ellipsis"
+            lineHeight={1.25}
           >
             {truncateUrl(req.url)}
           </Block>

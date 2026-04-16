@@ -71,6 +71,7 @@ export const ConsoleMessageResultView: React.FC<
           key={i}
           timeMs={msg.timeMs}
           alignItems="flex-start"
+          kind="console"
           onGoToTime={onGoToTime}
         >
           <Block flexShrink={0} alignSelf="flex-start">
@@ -84,16 +85,15 @@ export const ConsoleMessageResultView: React.FC<
             fontSize={fontSize.xs}
             fontFamily={fontFamily.mono}
             color={color.text.secondary}
-            wordBreak="break-all"
+            overflow="hidden"
+            whiteSpace="nowrap"
+            textOverflow="ellipsis"
+            lineHeight={1.25}
             flexGrow={1}
           >
             {msg.text}
             {msg.count !== undefined && msg.count > 1 && (
-              <Block
-                component="span"
-                color={color.text.muted}
-                marginLeft={spacing.xs}
-              >
+              <Block component="span" color={color.text.muted} marginLeft={5}>
                 ×{msg.count}
               </Block>
             )}

@@ -1,15 +1,8 @@
 import { Block, Row } from "@jsxstyle/react";
-import {
-  color,
-  focusRing,
-  fontFamily,
-  fontSize,
-  radius,
-  spacing,
-  transition,
-} from "@repro/design";
-import React, { useState } from "react";
+import { color, fontFamily, fontSize, transition } from "@repro/design";
+import React from "react";
 import { formatTimeMs } from "./formatTimeMs";
+import { ToolResultSeekAction } from "./ToolResultSeekAction";
 
 interface ToolResultRowProps {
   timeMs: number;
@@ -17,6 +10,7 @@ interface ToolResultRowProps {
   alignItems?: "center" | "flex-start";
   onGoToTime?: (timeMs: number) => void;
   showGoToTime?: boolean;
+  kind?: "console" | "network";
 }
 
 export const ToolResultRow: React.FC<ToolResultRowProps> = ({
@@ -25,72 +19,53 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
   alignItems = "center",
   onGoToTime,
   showGoToTime = true,
+  kind = "console",
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
+  const showAction = showGoToTime;
+  const rowAlignItems = kind === "network" ? "center" : alignItems;
+  const contentAlignItems = kind === "network" ? "center" : alignItems;
 
   return (
     <Row
-      alignItems={alignItems}
-      gap={spacing.sm}
-      paddingBlock={spacing.xs}
-      paddingInline={spacing.sm}
-      paddingInlineEnd={showGoToTime ? spacing["3xl"] : spacing.sm}
+      alignItems={rowAlignItems}
+      gap={10}
+      paddingBlock={kind === "network" ? 10 : 6}
+      paddingInline={15}
       position="relative"
+      fontSize={11}
+      lineHeight={1.25}
       borderBottom={`1px solid ${color.border.default}`}
       hoverBackgroundColor={color.bg.hover}
       transition={transition.fast}
-      props={{
-        onMouseEnter: () => setIsHovered(true),
-        onMouseLeave: () => setIsHovered(false),
-      }}
+      cursor="default"
     >
       <Block
         flexShrink={0}
+        minWidth={72}
+        position="relative"
         fontSize={fontSize.xs}
         fontFamily={fontFamily.mono}
         color={color.text.muted}
         whiteSpace="nowrap"
+        lineHeight={1.25}
       >
         {formatTimeMs(timeMs)}
+
+        {showAction && (
+          <Block
+            position="absolute"
+            top={kind === "network" ? "50%" : -3}
+            left={kind === "network" ? 5 : -10}
+            transform={kind === "network" ? "translateY(-50%)" : undefined}
+          >
+            <ToolResultSeekAction timeMs={timeMs} onGoToTime={onGoToTime} />
+          </Block>
+        )}
       </Block>
 
-      <Row flexGrow={1} minWidth={0} alignItems={alignItems} gap={spacing.sm}>
+      <Row flexGrow={1} minWidth={0} alignItems={contentAlignItems} gap={10}>
         {children}
       </Row>
-
-      {showGoToTime && (
-        <Block
-          component="button"
-          position="absolute"
-          right={spacing.sm}
-          top="50%"
-          transform="translateY(-50%)"
-          opacity={isHovered ? 1 : 0}
-          pointerEvents={isHovered ? "auto" : "none"}
-          paddingBlock={spacing.xs}
-          paddingInline={spacing.sm}
-          borderStyle="solid"
-          borderWidth={1}
-          borderColor={color.border.default}
-          borderRadius={radius.sm}
-          backgroundColor={color.bg.surface}
-          color={color.text.secondary}
-          cursor="pointer"
-          fontSize={fontSize.xs}
-          fontFamily={fontFamily.sans}
-          transition={transition.fast}
-          hoverBackgroundColor={color.bg.hover}
-          hoverColor={color.text.default}
-          {...focusRing("neutral")}
-          props={{
-            type: "button",
-            onClick: () => onGoToTime?.(timeMs),
-            "aria-label": "Go to time >",
-          }}
-        >
-          Go to time &gt;
-        </Block>
-      )}
     </Row>
   );
 };
