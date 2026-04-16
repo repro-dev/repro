@@ -10,15 +10,11 @@ import {
   PageFrame,
   spacing,
 } from '@repro/design'
-import type {
-  HealthCheckResult,
-  SubsystemCheck,
-  SubsystemStatus,
-} from '@repro/domain'
+import type { HealthCheckResult, SubsystemCheck } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import React, { useEffect, useState } from 'react'
 
-const STATUS_COLOR_MAP: Record<SubsystemStatus, string> = {
+const STATUS_COLOR_MAP: { [status in SubsystemCheck['status']]: string } = {
   ok: color.success,
   degraded: color.warning,
   error: color.danger,
@@ -29,7 +25,26 @@ interface SubsystemCardProps {
   check: SubsystemCheck
 }
 
-const SubsystemCard: React.FC<SubsystemCardProps> = ({ name, check }) => (
+function isHealthCheckResult(value: unknown): value is HealthCheckResult {
+  if (value == null || typeof value !== 'object') {
+    return false
+  }
+
+  const result = value as {
+    status?: unknown
+    timestamp?: unknown
+    checks?: unknown
+  }
+
+  return (
+    typeof result.status === 'string' &&
+    typeof result.timestamp === 'string' &&
+    result.checks != null &&
+    typeof result.checks === 'object'
+  )
+}
+
+const SubsystemCard = ({ name, check }: SubsystemCardProps) => (
   <Card padding={spacing.md}>
     <Row alignItems="center" gap={spacing.md}>
       <Block
@@ -60,7 +75,7 @@ export const HealthRoute: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0)
 
   const result = useFuture(
-    () => apiClient.fetch<HealthCheckResult>('/health'),
+    () => apiClient.fetch('/health'),
     [apiClient, refreshKey]
   )
 
@@ -69,6 +84,12 @@ export const HealthRoute: React.FC = () => {
     const interval = setInterval(() => setRefreshKey(k => k + 1), 30_000)
     return () => clearInterval(interval)
   }, [])
+
+  const healthResult = isHealthCheckResult(result.error)
+    ? result.error
+    : isHealthCheckResult(result.data)
+    ? result.data
+    : null
 
   if (result.loading) {
     return (
@@ -83,7 +104,7 @@ export const HealthRoute: React.FC = () => {
     )
   }
 
-  if (result.error) {
+  if (result.error && healthResult == null) {
     return (
       <PageFrame>
         <PageFrame.Header>
@@ -104,7 +125,11 @@ export const HealthRoute: React.FC = () => {
     )
   }
 
-  const { status, timestamp, checks } = result.data
+  if (healthResult == null) {
+    return null
+  }
+
+  const { status, timestamp, checks } = healthResult
 
   const alertType =
     status === 'ok' ? 'success' : status === 'degraded' ? 'warning' : 'danger'
