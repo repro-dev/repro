@@ -41,11 +41,14 @@ export const SpeedControl: React.FC = () => {
 
   const shortcutEntries = useMemo(
     () => [
-      // + or = key to increase speed
+      // Numpad + key
       { shortcut: 'Plus', handler: increaseSpeed },
-      { shortcut: 'Equal', handler: increaseSpeed },
+      // Main keyboard + key (Shift+=)
+      { shortcut: 'Shift+=', handler: increaseSpeed },
+      // Main keyboard = key
+      { shortcut: '=', handler: increaseSpeed },
       // - key to decrease speed
-      { shortcut: 'Minus', handler: decreaseSpeed },
+      { shortcut: '-', handler: decreaseSpeed },
     ],
     [increaseSpeed, decreaseSpeed]
   )
