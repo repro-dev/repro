@@ -361,7 +361,7 @@ describe('Services > Account', () => {
       expect(result.items).toHaveLength(10)
       expect(result.items.map(account => account.name).sort()).toEqual(
         range(10)
-          .map((_, index) => `${searchPrefix}-${index}`)
+          .map((_, index) => `Account ${index}`)
           .sort()
       )
       expect(result.nextCursor).toBeUndefined()
