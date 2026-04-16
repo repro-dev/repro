@@ -6,6 +6,7 @@ import {
   buildIterationLimitMessage,
   buildToolMessageContent,
   createAgenticState,
+  classifyToolFailure,
   deduplicateToolCalls,
   executeToolCalls,
   getOrientPhaseToolCallIds,
@@ -543,6 +544,42 @@ describe("buildToolMessageContent", () => {
   });
 });
 
+describe("classifyToolFailure", () => {
+  it("classifies timestamp and missing-node failures as recoverable", () => {
+    assert.strictEqual(
+      classifyToolFailure({
+        error: "Timestamp 99999ms is outside the recording range (0–10000ms)",
+        reason:
+          "The provided timestamp falls outside the bounds of the recording",
+        suggestion: "Use getRecordingDuration to find the valid range",
+      }),
+      "recoverable",
+    );
+
+    assert.strictEqual(
+      classifyToolFailure({
+        error: 'Element with nodeId "zzz99" not found',
+        reason: "The nodeId may be stale or from a different timestamp",
+        suggestion: "Use getDOMState at the requested time",
+      }),
+      "recoverable",
+    );
+  });
+
+  it("classifies inaccessible snapshot failures as terminal", () => {
+    assert.strictEqual(
+      classifyToolFailure({
+        error: "Could not build accessibility tree",
+        reason:
+          "The DOM snapshot may be incomplete or corrupted at this timestamp",
+        suggestion:
+          "Use getDOMState detail='summary' or inspect a different timestamp",
+      }),
+      "terminal",
+    );
+  });
+});
+
 describe("MAX_TOOL_ITERATIONS", () => {
   it("is a positive integer of at least 10", () => {
     assert.ok(typeof MAX_TOOL_ITERATIONS === "number");
@@ -747,6 +784,33 @@ describe("createAgenticState — cancel and error handling", () => {
     state.query("second");
 
     assert.strictEqual(state.$error.getValue(), null);
+
+    state.destroy();
+  });
+
+  it("retry() reuses the existing prompt without appending a duplicate user message", async () => {
+    let callCount = 0;
+    const streamProvider: StreamProvider = () => {
+      callCount++;
+      return resolve(new ReadableStream()) as never;
+    };
+
+    const state = createAgenticState(streamProvider, makeEmptyAccessorNew());
+    state.query("hello");
+
+    await waitForCondition(() => callCount === 1, 5000);
+    assert.strictEqual(
+      state.$entries.getValue().filter((entry) => entry.role === "user").length,
+      1,
+    );
+
+    state.retry();
+
+    await waitForCondition(() => callCount === 2, 5000);
+    assert.strictEqual(
+      state.$entries.getValue().filter((entry) => entry.role === "user").length,
+      1,
+    );
 
     state.destroy();
   });

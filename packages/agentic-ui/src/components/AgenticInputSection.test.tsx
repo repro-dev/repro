@@ -21,7 +21,11 @@ mock.module("@repro/design", {
       return null;
     },
     AgenticInputFormState: {},
-    colors: { white: "#fff", slate: { "100": "#f1f5f9", "200": "#e2e8f0" } },
+    color: {
+      bg: { hover: "#f1f5f9", surface: "#fff" },
+      border: { default: "#e2e8f0" },
+      text: { default: "#0f172a", muted: "#64748b" },
+    },
     spacing: { "2xl": 24 },
   },
 });

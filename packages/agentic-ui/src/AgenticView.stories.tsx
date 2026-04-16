@@ -51,6 +51,7 @@ function makeState(
     $truncatedBefore: atom<string | null>(truncatedBeforeId),
     cancel: () => {},
     destroy: () => {},
+    retry: () => {},
     query: () => {},
     reset: () => {},
   };

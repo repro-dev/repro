@@ -48,11 +48,13 @@ export const AgenticView: React.FC<{
 
   const isActive = loading !== "none" && loading !== "cancelled";
   const isServiceUnavailable = error?.kind === "service_unavailable";
+  const isRateLimited = error?.kind === "rate_limited";
   const shouldRaiseInput = inputHasFocus || entries.length > 0;
 
-  // Auto-retry when service becomes unavailable. Schedules silent re-queries
-  // at increasing backoff intervals (30s → 60s → 120s). On success the error
-  // atom is cleared by the state layer and the banner disappears automatically.
+  // Auto-retry when service becomes unavailable. Schedules silent retries of
+  // the current context at increasing backoff intervals (30s → 60s → 120s).
+  // On success the error atom is cleared by the state layer and the banner
+  // disappears automatically.
   useEffect(() => {
     if (!isServiceUnavailable || lastPromptRef.current === "") {
       return;
@@ -71,7 +73,7 @@ export const AgenticView: React.FC<{
 
     const timer = setTimeout(() => {
       autoRetryAttemptRef.current = attempt + 1;
-      agentic.query(lastPromptRef.current);
+      agentic.retry();
     }, delay);
 
     return () => clearTimeout(timer);
@@ -86,7 +88,7 @@ export const AgenticView: React.FC<{
   }
 
   function handleRetry() {
-    agentic.query(lastPromptRef.current);
+    agentic.retry();
   }
 
   function handleReset() {
@@ -132,7 +134,7 @@ export const AgenticView: React.FC<{
       </Col>
 
       <AgenticInputSection
-        disabled={isActive || isServiceUnavailable}
+        disabled={isActive || isServiceUnavailable || isRateLimited}
         entries={entries}
         shouldRaise={shouldRaiseInput}
         hasConversationStarted={entries.length > 0}

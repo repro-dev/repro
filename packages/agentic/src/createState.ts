@@ -398,6 +398,39 @@ export function classifyError(error: unknown): AgenticErrorKind {
   return "malformed_response";
 }
 
+function toolFailureMessage(): string {
+  return "A tool could not complete. Please try again.";
+}
+
+export function classifyToolFailure(
+  error: unknown,
+): "recoverable" | "terminal" | null {
+  if (
+    error === null ||
+    typeof error !== "object" ||
+    !("error" in error) ||
+    typeof (error as Record<string, unknown>).error !== "string"
+  ) {
+    return null;
+  }
+
+  const haystack = ["error", "reason", "suggestion"]
+    .map((key) => (error as Record<string, unknown>)[key])
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+
+  if (
+    /not found|outside.*range|out of range|stale|missing|no dom snapshot/.test(
+      haystack,
+    )
+  ) {
+    return "recoverable";
+  }
+
+  return "terminal";
+}
+
 function friendlyMessage(error: unknown, isFinal = false): string {
   if (error != null && typeof error === "object" && "status" in error) {
     const status = (error as { status: number }).status;
@@ -545,6 +578,26 @@ export function createAgenticState(
     }));
   }
 
+  function retry() {
+    clearPendingRetry();
+    cancelled = false;
+    iterationCount = 0;
+    retryAttempt = 0;
+    erroredToolCalls.clear();
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+    }
+    if (currentToolSubscription) {
+      currentToolSubscription.unsubscribe();
+      currentToolSubscription = null;
+    }
+    setWasCancelled(false);
+    setError(null);
+    setLoading("reasoning");
+    toolCallTrigger$.next();
+  }
+
   function fetchResponse(
     context: Context,
   ): FutureInstance<unknown, ReadableStream<{ data: string }>> {
@@ -675,12 +728,8 @@ export function createAgenticState(
     // occurred. The same `{ error: string }` shape is used by ToolCallRow
     // for UI error detection.
     const parsed = safeParse(toolMessage.content);
-    if (
-      parsed !== null &&
-      typeof parsed === "object" &&
-      "error" in parsed &&
-      typeof (parsed as Record<string, unknown>)["error"] === "string"
-    ) {
+    const failureKind = classifyToolFailure(parsed);
+    if (failureKind !== null) {
       erroredToolCalls.set(toolMessage.tool_call_id, iterationCount);
     }
 
@@ -701,6 +750,16 @@ export function createAgenticState(
         content: toolMessage.content,
       }),
     );
+
+    if (failureKind === "terminal") {
+      setLoading("none");
+      setError({
+        kind: "terminal_tool_failure",
+        message: toolFailureMessage(),
+        retryable: true,
+        attempt: 0,
+      });
+    }
   }
 
   const entries$ = $entryMap
@@ -940,11 +999,22 @@ export function createAgenticState(
             ).subscribe((toolMessages) => {
               currentToolSubscription = null;
               if (!cancelled) {
+                let sawTerminalFailure = false;
                 for (const toolMessage of toolMessages) {
-                  appendToolMessage(toolMessage);
+                  const parsed = safeParse(toolMessage.content);
+                  const failureKind = classifyToolFailure(parsed);
+                  appendToolMessage({
+                    ...toolMessage,
+                    hidden: failureKind !== null,
+                  });
+                  if (failureKind === "terminal") {
+                    sawTerminalFailure = true;
+                  }
                 }
-                setLoading("reasoning");
-                toolCallTrigger$.next();
+                if (!sawTerminalFailure) {
+                  setLoading("reasoning");
+                  toolCallTrigger$.next();
+                }
               }
             });
           } else {
@@ -968,6 +1038,7 @@ export function createAgenticState(
     $truncatedBefore,
     cancel,
     destroy,
+    retry,
     query,
     reset,
   };

@@ -10,6 +10,7 @@ export const AgenticStateContext = React.createContext<AgenticState>({
   $truncatedBefore: atom<string | null>(null),
   cancel: () => {},
   destroy: () => {},
+  retry: () => {},
   query: () => {},
   reset: () => {},
 });

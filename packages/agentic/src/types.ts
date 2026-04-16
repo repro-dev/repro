@@ -82,6 +82,7 @@ export interface ToolMessage {
   // return visual data (e.g. captureScreenshot returns an image_url block).
   content: string | Array<ContentBlock>;
   tool_call_id: string;
+  hidden?: boolean;
 }
 
 export interface ToolMessageContext {
@@ -144,6 +145,7 @@ export interface AgenticState {
   $truncatedBefore: Atom<string | null>;
   cancel(): void;
   destroy(): void;
+  retry(): void;
   query(input: string): void;
   reset(): void;
 }

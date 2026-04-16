@@ -35,6 +35,7 @@ function makeTool(
   id: string,
   toolCallId: string,
   content: string,
+  hidden = false,
 ): ToolMessage {
   return {
     id,
@@ -42,6 +43,7 @@ function makeTool(
     role: "tool",
     content,
     tool_call_id: toolCallId,
+    hidden,
   };
 }
 
@@ -135,6 +137,26 @@ describe("groupToolCalls", () => {
 
   it("skips standalone tool messages not consumed by any assistant", () => {
     const entries: Array<Entry> = [makeTool("t1", "tc1", "{}")];
+    const result = groupToolCalls(entries);
+    assert.equal(result.length, 0);
+  });
+
+  it("hides recoverable tool failures from the rendered conversation", () => {
+    const entries: Array<Entry> = [
+      makeAssistant("a1", "", ["tc1"]),
+      makeTool(
+        "t1",
+        "tc1",
+        JSON.stringify({
+          error: "Timestamp 99999ms is outside the recording range (0–10000ms)",
+          reason:
+            "The provided timestamp falls outside the bounds of the recording",
+          suggestion: "Use getRecordingDuration to find the valid range",
+        }),
+        true,
+      ),
+    ];
+
     const result = groupToolCalls(entries);
     assert.equal(result.length, 0);
   });

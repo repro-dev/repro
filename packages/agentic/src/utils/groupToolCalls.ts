@@ -42,10 +42,15 @@ export function groupToolCalls(
 ): Array<RenderItem> {
   const result: Array<RenderItem> = [];
   const toolMessages = new Map<string, ToolMessage>();
+  const hiddenToolCallIds = new Set<string>();
 
   for (const entry of entries) {
     if (entry.role === "tool") {
-      toolMessages.set(entry.tool_call_id, entry);
+      if (entry.hidden === true) {
+        hiddenToolCallIds.add(entry.tool_call_id);
+      } else {
+        toolMessages.set(entry.tool_call_id, entry);
+      }
     }
   }
 
@@ -67,21 +72,29 @@ export function groupToolCalls(
         }
         result.push({ type: "assistant-message", entry });
         if (hasToolCalls) {
-          const pairs: Array<ToolCallPair> = entry.toolCalls.map((toolCall) => {
-            const toolResult = toolMessages.get(toolCall.id) ?? null;
-            return { toolCall, result: toolResult };
-          });
-          result.push({ type: "tool-call-group", pairs });
+          const pairs: Array<ToolCallPair> = entry.toolCalls
+            .filter((toolCall) => !hiddenToolCallIds.has(toolCall.id))
+            .map((toolCall) => {
+              const toolResult = toolMessages.get(toolCall.id) ?? null;
+              return { toolCall, result: toolResult };
+            });
+          if (pairs.length > 0) {
+            result.push({ type: "tool-call-group", pairs });
+          }
         }
       } else if (hasToolCalls) {
         if (truncatedBeforeId != null && entry.id === truncatedBeforeId) {
           result.push({ type: "truncation-indicator" });
         }
-        const pairs: Array<ToolCallPair> = entry.toolCalls.map((toolCall) => {
-          const toolResult = toolMessages.get(toolCall.id) ?? null;
-          return { toolCall, result: toolResult };
-        });
-        result.push({ type: "tool-call-group", pairs });
+        const pairs: Array<ToolCallPair> = entry.toolCalls
+          .filter((toolCall) => !hiddenToolCallIds.has(toolCall.id))
+          .map((toolCall) => {
+            const toolResult = toolMessages.get(toolCall.id) ?? null;
+            return { toolCall, result: toolResult };
+          });
+        if (pairs.length > 0) {
+          result.push({ type: "tool-call-group", pairs });
+        }
       } else {
         // Fallback: empty content and no tool calls (loading/in-progress state).
         if (truncatedBeforeId != null && entry.id === truncatedBeforeId) {
