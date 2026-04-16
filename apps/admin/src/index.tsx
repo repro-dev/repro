@@ -22,6 +22,7 @@ import { FeatureGatesRoute } from './routes/FeatureGatesRoute'
 import { HealthRoute } from './routes/HealthRoute'
 import { RecordingsRoute } from './routes/RecordingsRoute'
 import { StaffUsersRoute } from './routes/StaffUsersRoute'
+import { UserDetailRoute } from './routes/UserDetailRoute'
 
 const HomeRoute = React.lazy(() =>
   import('./routes/HomeRoute').then(m => ({ default: m.HomeRoute }))
@@ -162,6 +163,10 @@ if (rootElem) {
                             element={<StaffUsersRoute />}
                           />
                         </Route>
+                        <Route
+                          path="users/:userId"
+                          element={<UserDetailRoute />}
+                        />
                         <Route path="health" element={<HealthRoute />} />
                       </Route>
                     </Route>
