@@ -1,9 +1,9 @@
-import { Generated, GeneratedAlways } from 'kysely'
+import { GeneratedAlways } from 'kysely'
 
 export interface AgenticConversationTable {
   id: GeneratedAlways<number>
   recordingId: number
   userId: number
-  createdAt: Generated<Date>
-  updatedAt: Generated<Date>
+  createdAt: GeneratedAlways<Date>
+  updatedAt: GeneratedAlways<Date>
 }

@@ -1,4 +1,4 @@
-import { Generated, GeneratedAlways } from 'kysely'
+import { GeneratedAlways } from 'kysely'
 
 export type AgenticMessageRole =
   | 'user'
@@ -12,5 +12,5 @@ export interface AgenticMessageTable {
   role: AgenticMessageRole
   // JSONB column — typed as unknown since Kysely 0.27 does not export a JsonValue helper
   content: unknown
-  createdAt: Generated<Date>
+  createdAt: GeneratedAlways<Date>
 }
