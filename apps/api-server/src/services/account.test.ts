@@ -389,12 +389,11 @@ describe('Services > Account', () => {
       expect(selectedEmail!.toLowerCase()).not.toEqual(matchingEmail)
     })
 
-    it('should include subscription and active status in the staff account detail', async () => {
-      await harness.loadFixtures([fixtures.billing.FreePlan])
-
-      const account = await promise(
-        accountService.createAccount('Detailed Account')
-      )
+    it('should include canonical plan labels in the staff account detail', async () => {
+      const [account] = await harness.loadFixtures([
+        fixtures.account.AccountA,
+        fixtures.billing.AccountA_ProPlan_Subscription,
+      ])
 
       await promise(
         accountService.createUser(
@@ -409,6 +408,7 @@ describe('Services > Account', () => {
         promise(accountService.getStaffAccountById(account.id))
       ).resolves.toMatchObject({
         id: account.id,
+        plan: 'Repro+',
         subscriptionStatus: 'active',
         active: true,
       })

@@ -91,7 +91,9 @@ export function createStaffRouter(
         cursor: z.string().optional(),
         limit: z.coerce.number().int().min(1).max(250).default(50),
         search: z.string().optional(),
-        plan: z.enum(['free', 'starter', 'pro', 'enterprise']).optional(),
+        plan: z
+          .enum(['free', 'Repro+', 'Repro++', 'enterprise', 'starter', 'pro'])
+          .optional(),
       }),
     } as const
 
@@ -105,11 +107,13 @@ export function createStaffRouter(
         go(function* () {
           const user = yield req.getCurrentUser()
           yield accountService.ensureStaffUser(user)
+          const normalizedPlan =
+            plan === 'starter' ? 'Repro+' : plan === 'pro' ? 'Repro++' : plan
           return yield accountService.listAccounts({
             cursor,
             limit,
             search,
-            plan: plan as AccountPlan | undefined,
+            plan: normalizedPlan as AccountPlan | undefined,
           })
         })
       )

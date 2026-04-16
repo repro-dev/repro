@@ -418,13 +418,13 @@ export function createAccountService(
     }).pipe(map(withEncodedId))
   }
 
-  // Map billing plan names to AccountPlan type
+  // Map billing plan names to the canonical staff-facing labels.
   function mapPlanName(name: string | null): AccountPlan | null {
     if (name == null) return null
     const normalized = name.toLowerCase()
     if (normalized === 'free') return 'free'
-    if (normalized === 'repro+') return 'starter'
-    if (normalized === 'repro++') return 'pro'
+    if (normalized === 'repro+' || normalized === 'starter') return 'Repro+'
+    if (normalized === 'repro++' || normalized === 'pro') return 'Repro++'
     if (normalized === 'enterprise') return 'enterprise'
     return null
   }

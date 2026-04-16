@@ -3,7 +3,7 @@ export interface Account {
   name: string
 }
 
-export type AccountPlan = 'free' | 'starter' | 'pro' | 'enterprise'
+export type AccountPlan = 'free' | 'Repro+' | 'Repro++' | 'enterprise'
 
 export type AccountSubscriptionStatus =
   | 'active'

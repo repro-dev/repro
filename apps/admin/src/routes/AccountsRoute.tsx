@@ -77,8 +77,8 @@ export const AccountsRoute: React.FC = () => {
               >
                 <option value="">All plans</option>
                 <option value="free">Free</option>
-                <option value="starter">Starter</option>
-                <option value="pro">Pro</option>
+                <option value="Repro+">Repro+</option>
+                <option value="Repro++">Repro++</option>
                 <option value="enterprise">Enterprise</option>
               </select>
             </div>

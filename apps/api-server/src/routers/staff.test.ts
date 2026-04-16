@@ -231,6 +231,30 @@ describe('Routers > Staff', () => {
       expect(body.items.length).toBeGreaterThanOrEqual(2)
     })
 
+    it('should accept canonical plan labels when filtering accounts', async () => {
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      await harness.loadFixtures([
+        fixtures.account.AccountB,
+        fixtures.billing.AccountA_ProPlan_Subscription,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/accounts?${new URLSearchParams({ plan: 'Repro+' }).toString()}`,
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      const body = res.json()
+      expect(body.items).toHaveLength(1)
+      expect(body.items[0]).toMatchObject({ plan: 'Repro+' })
+    })
+
     it('should respect limit and return nextCursor when more results exist', async () => {
       const [staffSession] = await harness.loadFixtures([
         fixtures.account.StaffUserA_Session,
