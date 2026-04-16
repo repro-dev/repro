@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Repro logo">
+  <rect width="128" height="128" rx="32" fill="#1D4ED8"/>
+  <path d="M35 39h31c12 0 21 8 21 19 0 8-4 14-11 17l14 14H71L59 78H54v11H35V39Zm19 28h9c6 0 10-3 10-9s-4-9-10-9h-9v18Z" fill="#fff"/>
+</svg>

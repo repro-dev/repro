@@ -9,33 +9,10 @@ describe('sitemap', () => {
     assert.ok(result.length > 0)
   })
 
-  it('includes a root / entry', () => {
+  it('includes only the homepage entry', () => {
     const result = sitemap()
-    const hasRoot = result.some(entry => entry.url.endsWith('/'))
-    assert.ok(hasRoot, 'Expected root / entry in sitemap')
-  })
-
-  it('includes /privacy entry', () => {
-    const result = sitemap()
-    const hasPrivacy = result.some(entry => entry.url.includes('/privacy'))
-    assert.ok(hasPrivacy, 'Expected /privacy entry in sitemap')
-  })
-
-  it('includes /terms entry', () => {
-    const result = sitemap()
-    const hasTerms = result.some(entry => entry.url.includes('/terms'))
-    assert.ok(hasTerms, 'Expected /terms entry in sitemap')
-  })
-
-  it('includes /refund-policy entry', () => {
-    const result = sitemap()
-    const hasRefund = result.some(entry => entry.url.includes('/refund-policy'))
-    assert.ok(hasRefund, 'Expected /refund-policy entry in sitemap')
-  })
-
-  it('has exactly 4 static entries', () => {
-    const result = sitemap()
-    assert.equal(result.length, 4)
+    assert.equal(result.length, 1)
+    assert.equal(result[0]?.url, 'https://repro.dev')
   })
 
   it('all URLs use REPRO_MARKETING_URL base (https://)', () => {

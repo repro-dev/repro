@@ -26,10 +26,41 @@ describe('defaultMetadata', () => {
 
   it('has openGraph metadata', () => {
     assert.ok(defaultMetadata.openGraph !== undefined)
+    const openGraph = defaultMetadata.openGraph as {
+      title?: string
+      description?: string
+      url?: string
+      images?: { url?: string }[]
+    }
+    assert.equal(
+      openGraph.title,
+      'Repro — Bug reporting that captures every detail'
+    )
+    assert.equal(
+      openGraph.description,
+      'Repro automatically captures sessions so your team can reproduce and fix bugs faster — without the back-and-forth.'
+    )
+    assert.equal(openGraph.url, 'https://repro.dev')
+    assert.equal(openGraph.images?.[0]?.url, 'https://repro.dev/og-image.svg')
   })
 
   it('has twitter metadata', () => {
     assert.ok(defaultMetadata.twitter !== undefined)
+    const twitter = defaultMetadata.twitter as {
+      title?: string
+      description?: string
+      images?: string[]
+    }
+    assert.equal(
+      twitter.title,
+      'Repro — Bug reporting that captures every detail'
+    )
+    assert.equal(
+      twitter.description,
+      'Repro automatically captures sessions so your team can reproduce and fix bugs faster — without the back-and-forth.'
+    )
+    assert.equal(twitter.images?.[0], 'https://repro.dev/og-image.svg')
+    assert.equal(defaultMetadata.other?.['twitter:url'], 'https://repro.dev')
   })
 })
 
@@ -56,6 +87,15 @@ describe('buildPageMetadata', () => {
     assert.ok(meta.openGraph !== undefined)
     const og = meta.openGraph as { title?: string }
     assert.equal(og.title, 'OG Custom')
+  })
+
+  it('deep-merges twitter overrides', () => {
+    const meta = buildPageMetadata({
+      twitter: { title: 'Twitter Custom' },
+    })
+    assert.ok(meta.twitter !== undefined)
+    const twitter = meta.twitter as { title?: string }
+    assert.equal(twitter.title, 'Twitter Custom')
   })
 
   it('preserves defaults for unoverridden fields', () => {

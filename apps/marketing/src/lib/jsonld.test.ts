@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { buildOrganizationJsonLd, buildWebSiteJsonLd } from './jsonld'
+import {
+  buildOrganizationJsonLd,
+  buildSoftwareApplicationJsonLd,
+  buildWebSiteJsonLd,
+} from './jsonld'
 
 describe('buildOrganizationJsonLd', () => {
   it('returns @context of schema.org', () => {
@@ -27,6 +31,33 @@ describe('buildOrganizationJsonLd', () => {
       typeof schema['url'] === 'string' && (schema['url'] as string).length > 0
     )
   })
+
+  it('uses the published logo asset', () => {
+    const schema = buildOrganizationJsonLd()
+    assert.equal(schema['logo'], 'https://repro.dev/logo.svg')
+  })
+})
+
+describe('buildSoftwareApplicationJsonLd', () => {
+  it('returns @context of schema.org', () => {
+    const schema = buildSoftwareApplicationJsonLd()
+    assert.equal(schema['@context'], 'https://schema.org')
+  })
+
+  it('returns @type of SoftwareApplication', () => {
+    const schema = buildSoftwareApplicationJsonLd()
+    assert.equal(schema['@type'], 'SoftwareApplication')
+  })
+
+  it('points to the app URL', () => {
+    const schema = buildSoftwareApplicationJsonLd()
+    assert.equal(schema['url'], 'https://app.repro.dev')
+  })
+
+  it('does not include a SearchAction', () => {
+    const schema = buildSoftwareApplicationJsonLd()
+    assert.equal(schema['potentialAction'], undefined)
+  })
 })
 
 describe('buildWebSiteJsonLd', () => {
@@ -45,8 +76,8 @@ describe('buildWebSiteJsonLd', () => {
     assert.equal(schema['url'], 'https://repro.dev')
   })
 
-  it('includes a SearchAction', () => {
+  it('does not include a SearchAction', () => {
     const schema = buildWebSiteJsonLd('https://repro.dev')
-    assert.ok(schema['potentialAction'] !== undefined)
+    assert.equal(schema['potentialAction'], undefined)
   })
 })

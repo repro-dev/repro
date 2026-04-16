@@ -14,9 +14,13 @@ export const defaultMetadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'Repro',
+    title: 'Repro — Bug reporting that captures every detail',
+    description:
+      'Repro automatically captures sessions so your team can reproduce and fix bugs faster — without the back-and-forth.',
+    url: defaultEnv.REPRO_MARKETING_URL,
     images: [
       {
-        url: `${defaultEnv.REPRO_MARKETING_URL}/og-image.png`,
+        url: `${defaultEnv.REPRO_MARKETING_URL}/og-image.svg`,
         width: 1200,
         height: 630,
         alt: 'Repro — Bug reporting that captures every detail',
@@ -25,7 +29,13 @@ export const defaultMetadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    images: [`${defaultEnv.REPRO_MARKETING_URL}/og-image.png`],
+    title: 'Repro — Bug reporting that captures every detail',
+    description:
+      'Repro automatically captures sessions so your team can reproduce and fix bugs faster — without the back-and-forth.',
+    images: [`${defaultEnv.REPRO_MARKETING_URL}/og-image.svg`],
+  },
+  other: {
+    'twitter:url': defaultEnv.REPRO_MARKETING_URL,
   },
   alternates: {
     canonical: defaultEnv.REPRO_MARKETING_URL,
@@ -36,7 +46,11 @@ export const defaultMetadata: Metadata = {
  * Merge site-wide defaults with per-page overrides.
  * Returns a new Metadata object — never mutates defaultMetadata.
  */
-export function buildPageMetadata(overrides?: Partial<Metadata>): Metadata {
+type PageMetadataOverrides = {
+  [K in keyof Metadata]?: Metadata[K]
+}
+
+export function buildPageMetadata(overrides?: PageMetadataOverrides): Metadata {
   if (overrides === undefined) {
     return defaultMetadata
   }

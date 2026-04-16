@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Repro social preview">
+  <rect width="1200" height="630" fill="#0F172A"/>
+  <rect x="72" y="72" width="1056" height="486" rx="40" fill="#111827" stroke="#334155" stroke-width="2"/>
+  <circle cx="156" cy="156" r="36" fill="#2563EB"/>
+  <text x="220" y="172" fill="#E5E7EB" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="700">Repro</text>
+  <text x="120" y="326" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="68" font-weight="700">Bug reporting that captures every detail</text>
+  <text x="120" y="408" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="28">Repro automatically captures sessions so your team can reproduce and fix bugs faster.</text>
+</svg>

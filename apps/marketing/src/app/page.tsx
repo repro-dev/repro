@@ -2,7 +2,11 @@ import type { Metadata } from 'next'
 import { HeroSection } from '~/components/HeroSection'
 import { JsonLd } from '~/components/JsonLd'
 import { defaultEnv } from '~/config/env'
-import { buildOrganizationJsonLd, buildWebSiteJsonLd } from '~/lib/jsonld'
+import {
+  buildOrganizationJsonLd,
+  buildSoftwareApplicationJsonLd,
+  buildWebSiteJsonLd,
+} from '~/lib/jsonld'
 import { buildPageMetadata } from '~/lib/metadata'
 
 export const metadata: Metadata = buildPageMetadata({
@@ -15,6 +19,7 @@ export default function HomePage() {
   return (
     <>
       <JsonLd data={buildOrganizationJsonLd()} />
+      <JsonLd data={buildSoftwareApplicationJsonLd()} />
       <JsonLd data={buildWebSiteJsonLd(defaultEnv.REPRO_MARKETING_URL)} />
       <HeroSection />
     </>
