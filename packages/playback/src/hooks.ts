@@ -78,3 +78,5 @@ export function useSpeed() {
   const playback = usePlayback()
   return useAtomValue(playback.$speed)
 }
+
+export { usePlaybackShortcuts } from './hooks/usePlaybackShortcuts'

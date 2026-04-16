@@ -1,16 +1,10 @@
 import { Row } from '@jsxstyle/react'
 import { Analytics } from '@repro/analytics'
 import { color } from '@repro/design'
-import {
-  isInputElement,
-  isSelectElement,
-  isTextAreaElement,
-} from '@repro/dom-utils'
 import { Pause as PauseIcon, Play as PlayIcon } from 'lucide-react'
-import React, { useCallback, useEffect } from 'react'
-import { Shortcuts } from 'shortcuts'
+import React, { useCallback, useMemo } from 'react'
 import { usePlaybackState } from '..'
-import { usePlayback } from '../hooks'
+import { usePlayback, usePlaybackShortcuts } from '../hooks'
 import { PlaybackState } from '../types'
 
 export const PlayAction: React.FC = () => {
@@ -32,38 +26,12 @@ export const PlayAction: React.FC = () => {
     }
   }, [playback, playing])
 
-  useEffect(() => {
-    const shortcuts = new Shortcuts({
-      shouldHandleEvent() {
-        let target = document.activeElement
+  const shortcutEntries = useMemo(
+    () => [{ shortcut: 'Space', handler: togglePlayback }],
+    [togglePlayback]
+  )
 
-        if (target?.shadowRoot) {
-          target = target.shadowRoot.activeElement
-        }
-
-        if (target) {
-          return (
-            !isInputElement(target) &&
-            !isTextAreaElement(target) &&
-            !isSelectElement(target)
-          )
-        }
-
-        return true
-      },
-    })
-
-    shortcuts.add([
-      {
-        shortcut: 'Space',
-        handler: togglePlayback,
-      },
-    ])
-
-    return () => {
-      shortcuts.reset()
-    }
-  }, [togglePlayback])
+  usePlaybackShortcuts(shortcutEntries)
 
   return (
     <Row

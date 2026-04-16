@@ -1,13 +1,7 @@
 import { Block, Row } from '@jsxstyle/react'
 import { color, Tooltip, transition } from '@repro/design'
-import {
-  isInputElement,
-  isSelectElement,
-  isTextAreaElement,
-} from '@repro/dom-utils'
-import React, { useCallback, useEffect } from 'react'
-import { Shortcuts } from 'shortcuts'
-import { usePlayback, useSpeed } from '../hooks'
+import React, { useCallback, useMemo } from 'react'
+import { usePlayback, usePlaybackShortcuts, useSpeed } from '../hooks'
 import { PlaybackSpeed, VALID_SPEEDS } from '../types'
 
 // Cycle through valid speeds in the given direction
@@ -45,48 +39,18 @@ export const SpeedControl: React.FC = () => {
     playback.setSpeed(getNextSpeed(speed, 'down'))
   }, [playback, speed])
 
-  useEffect(() => {
-    const shortcuts = new Shortcuts({
-      shouldHandleEvent() {
-        let target = document.activeElement
+  const shortcutEntries = useMemo(
+    () => [
+      // + or = key to increase speed
+      { shortcut: 'Plus', handler: increaseSpeed },
+      { shortcut: 'Equal', handler: increaseSpeed },
+      // - key to decrease speed
+      { shortcut: 'Minus', handler: decreaseSpeed },
+    ],
+    [increaseSpeed, decreaseSpeed]
+  )
 
-        if (target?.shadowRoot) {
-          target = target.shadowRoot.activeElement
-        }
-
-        if (target) {
-          return (
-            !isInputElement(target) &&
-            !isTextAreaElement(target) &&
-            !isSelectElement(target)
-          )
-        }
-
-        return true
-      },
-    })
-
-    shortcuts.add([
-      {
-        // + or = key to increase speed
-        shortcut: 'Plus',
-        handler: increaseSpeed,
-      },
-      {
-        shortcut: 'Equal',
-        handler: increaseSpeed,
-      },
-      {
-        // - key to decrease speed
-        shortcut: 'Minus',
-        handler: decreaseSpeed,
-      },
-    ])
-
-    return () => {
-      shortcuts.reset()
-    }
-  }, [increaseSpeed, decreaseSpeed])
+  usePlaybackShortcuts(shortcutEntries)
 
   return (
     <Row
