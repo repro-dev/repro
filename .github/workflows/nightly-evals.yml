@@ -93,6 +93,16 @@ jobs:
           name: prompt-suggestions-${{ github.run_number }}
           path: tmp/agentic-prompt-suggestions.json
           if-no-files-found: ignore
+      - name: Copy prompt suggestions markdown
+        if: always()
+        run: cp "$ANALYSIS_PATH" tmp/agentic-prompt-suggestions.md
+      - name: Upload prompt suggestions markdown
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt-suggestions-markdown-${{ github.run_number }}
+          path: tmp/agentic-prompt-suggestions.md
+          if-no-files-found: ignore
 
   apply-prompt-suggestions:
     name: Apply prompt suggestions
@@ -118,24 +128,33 @@ jobs:
         with:
           name: prompt-suggestions-${{ github.run_number }}
           path: tmp/
+      - name: Download prompt suggestions markdown
+        uses: actions/download-artifact@v4
+        with:
+          name: prompt-suggestions-markdown-${{ github.run_number }}
+          path: tmp/
       - name: Apply suggestions
         run: moon run repro/agentic:apply-prompt-suggestions
       - name: Open PR if changes made
         run: |
           if git diff --quiet; then
-            echo "No changes — skipping PR"
             exit 0
           fi
-          BRANCH="chore/prompt-suggestions-${{ github.run_number }}"
+          BRANCH="chore/prompt-suggestions-${{ github.run_number }}-${{ github.run_attempt }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
           git add packages/agentic/src/model/
           git commit -m "chore(agentic): apply eval prompt suggestions (run #${{ github.run_number }})"
           git push origin "$BRANCH"
+          BODY_FILE=tmp/agentic-prompt-suggestions-pr-body.md
+          {
+            printf 'Nightly --analyse pipeline suggestions for run #%s.\n\n' "${{ github.run_number }}"
+            cat tmp/agentic-prompt-suggestions.md
+          } > "$BODY_FILE"
           gh pr create \
             --title "chore(agentic): apply eval prompt suggestions (run #${{ github.run_number }})" \
-            --body "Apply prompt suggestions from nightly eval run #${{ github.run_number }}. See the downloaded \`prompt-suggestions-${{ github.run_number }}\` artifact for the full JSON." \
+            --body-file "$BODY_FILE" \
             --base main \
             --head "$BRANCH"
         env:
