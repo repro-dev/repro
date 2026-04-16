@@ -17,8 +17,12 @@ export default function LegalPageShell({
   lastUpdated,
   children,
 }: LegalPageShellProps) {
+  const titleId = React.useId()
+
   return (
     <Col
+      component="main"
+      props={{ 'aria-labelledby': titleId }}
       minHeight="100vh"
       backgroundColor={color.bg.subtle}
       paddingV={spacing['4xl']}
@@ -29,6 +33,7 @@ export default function LegalPageShell({
         <Col gap={spacing.md}>
           <Block
             component="h1"
+            id={titleId}
             {...textStyles.display}
             color={color.text.default}
             margin="0"
