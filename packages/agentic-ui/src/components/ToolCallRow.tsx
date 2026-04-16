@@ -13,6 +13,9 @@ import {
 } from "@repro/design";
 import { AlertCircleIcon, ChevronRightIcon, WrenchIcon } from "lucide-react";
 import React, { useState } from "react";
+import { ConsoleMessageResultView } from "./ConsoleMessageResultView";
+import { FindErrorsResultView } from "./FindErrorsResultView";
+import { NetworkRequestResultView } from "./NetworkRequestResultView";
 
 // Maps raw camelCase tool names to human-readable labels for display.
 // Raw names are preserved in aria-label for developer context.
@@ -76,12 +79,15 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
   toolName,
   content,
 }) => {
+  // Determine the inner content node based on tool name.
+  let inner: React.ReactNode;
+
   if (toolName === "captureScreenshot") {
     // Check for dataUrl in a ContentBlock array (image_url block)
     if (Array.isArray(content)) {
       const imageBlock = content.find((b) => b.type === "image_url");
       if (imageBlock && imageBlock.type === "image_url") {
-        return (
+        inner = (
           <Block
             backgroundColor={color.bg.muted}
             borderRadius={radius.sm}
@@ -101,7 +107,7 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
     }
 
     // Check for dataUrl in a plain JSON string (legacy / fallback path)
-    if (typeof content === "string") {
+    if (inner === undefined && typeof content === "string") {
       let dataUrl: string | null = null;
       try {
         const parsed = JSON.parse(content) as Record<string, unknown>;
@@ -113,7 +119,7 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
       }
 
       if (dataUrl !== null) {
-        return (
+        inner = (
           <Block
             backgroundColor={color.bg.muted}
             borderRadius={radius.sm}
@@ -133,28 +139,59 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
     }
   }
 
-  const raw = contentToString(content);
+  // Dispatch to semantic sub-renderers for supported tools. Parse the raw JSON
+  // result string and pass the typed result object to the appropriate component.
+  if (inner === undefined && typeof content === "string") {
+    try {
+      const parsed = JSON.parse(content) as Record<string, unknown>;
 
+      if (toolName === "getConsoleMessages") {
+        const messages = Array.isArray(parsed.messages) ? parsed.messages : [];
+        inner = <ConsoleMessageResultView result={{ messages }} />;
+      } else if (toolName === "getNetworkRequests") {
+        const requests = Array.isArray(parsed.requests) ? parsed.requests : [];
+        inner = <NetworkRequestResultView result={{ requests }} />;
+      } else if (toolName === "findErrors") {
+        const errors = Array.isArray(parsed.errors) ? parsed.errors : [];
+        inner = <FindErrorsResultView result={{ errors }} />;
+      }
+    } catch {
+      // Unparseable content falls through to the JSON fallback below.
+    }
+  }
+
+  // Fallback: pretty-printed JSON for all unrecognised tools.
+  if (inner === undefined) {
+    const raw = contentToString(content);
+    inner = (
+      <Block
+        fontSize={fontSize.xs}
+        fontFamily={fontFamily.mono}
+        color={color.text.secondary}
+        backgroundColor={color.bg.muted}
+        borderRadius={radius.sm}
+        padding={spacing.md}
+        overflowX="auto"
+        whiteSpace="pre-wrap"
+        wordBreak="break-all"
+        component="pre"
+      >
+        {(() => {
+          try {
+            return JSON.stringify(JSON.parse(raw), null, 2);
+          } catch {
+            return raw;
+          }
+        })()}
+      </Block>
+    );
+  }
+
+  // Wrap every result in a max-height scroll container so large results do not
+  // dominate the layout.
   return (
-    <Block
-      fontSize={fontSize.xs}
-      fontFamily={fontFamily.mono}
-      color={color.text.secondary}
-      backgroundColor={color.bg.muted}
-      borderRadius={radius.sm}
-      padding={spacing.md}
-      overflowX="auto"
-      whiteSpace="pre-wrap"
-      wordBreak="break-all"
-      component="pre"
-    >
-      {(() => {
-        try {
-          return JSON.stringify(JSON.parse(raw), null, 2);
-        } catch {
-          return raw;
-        }
-      })()}
+    <Block maxHeight="320px" overflowY="auto" borderRadius={radius.sm}>
+      {inner}
     </Block>
   );
 };
