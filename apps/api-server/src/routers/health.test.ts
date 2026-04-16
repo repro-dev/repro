@@ -1,5 +1,5 @@
 import expect from 'expect'
-import { reject } from 'fluture'
+import { resolve } from 'fluture'
 import { after, before, describe, it } from 'node:test'
 import { Database } from '~/modules/database'
 import { Storage } from '~/modules/storage'
@@ -7,7 +7,6 @@ import { createHealthService } from '~/services/health'
 import { setUpTestDatabase } from '~/testing/database'
 import { setUpTestFileSystemStorage } from '~/testing/storage'
 import { fromRouter } from '~/testing/utils'
-import { serviceUnavailable } from '~/utils/errors'
 import { createHealthRouter } from './health'
 
 describe('Routers > Health', () => {
@@ -47,10 +46,20 @@ describe('Routers > Health', () => {
     expect(res.statusCode).toEqual(200)
   })
 
-  it('should return 503 on an invalid health check', async () => {
+  it('should return 503 on an unhealthy check', async () => {
     const healthRouter = createHealthRouter({
+      checkDetailed() {
+        return resolve({
+          status: 'unhealthy' as const,
+          timestamp: new Date().toISOString(),
+          checks: {
+            database: { status: 'error', error: 'connection refused' },
+            storage: { status: 'ok' },
+          },
+        })
+      },
       check() {
-        return reject(serviceUnavailable('Health check failed'))
+        return resolve({ status: 'ok' as const })
       },
     })
 
