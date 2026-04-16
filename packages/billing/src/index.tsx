@@ -69,18 +69,11 @@ function createBillingClient(config: BillingConfig): BillingClient {
   }
 
   function init() {
-    if (initialized) {
-      return
-    }
-
-    if (!hasToken) {
+    if (initialized || !hasToken) {
       return
     }
 
     if (!window.Paddle) {
-      // Guard: Paddle script not yet loaded (e.g. async/deferred). This is
-      // normal in test environments; callers should ensure the script is
-      // synchronous in production.
       console.warn('[billing] Paddle not loaded; init() is a no-op')
       return
     }
