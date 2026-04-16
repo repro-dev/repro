@@ -78,7 +78,7 @@ describe('captureStyleSheets', () => {
     const allRules = result.flatMap(s => s.rules).filter(r => !r.isInline)
     const h1Rule = allRules.find(r => r.selectorText === 'h1')
     expect(h1Rule).toBeDefined()
-    expect(h1Rule!.specificity).toEqual([0, 0, 0])
+    expect(h1Rule!.specificity).toEqual({ a: 0, b: 0, c: 0 })
   })
 
   it('should capture @media nested rules with mediaCondition', () => {

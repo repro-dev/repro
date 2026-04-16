@@ -175,7 +175,7 @@ function extractStyleRule(
 ): CapturedCSSRule[] {
   const style = rule.style
   const declarations: Record<string, string> = {}
-  const priorities: Record<string, 'important' | ''> = {}
+  const priorities: Record<string, string> = {}
 
   for (let j = 0; j < style.length; j++) {
     const prop = style[j]
@@ -187,24 +187,17 @@ function extractStyleRule(
 
   // Split comma-separated selectors into individual entries
   const selectors = rule.selectorText.split(',').map(s => s.trim())
-  return selectors.map(selectorText => {
-    const capturedRule: CapturedCSSRule = {
-      selectorText,
-      declarations,
-      priorities,
-      specificity: computeSpecificity(selectorText),
-      stylesheetId: sheetId,
-      ruleIndex,
-      isInline: false,
-    }
-    if (mediaCondition !== undefined) {
-      capturedRule.mediaCondition = mediaCondition
-    }
-    if (supportsCondition !== undefined) {
-      capturedRule.supportsCondition = supportsCondition
-    }
-    return capturedRule
-  })
+  return selectors.map(selectorText => ({
+    selectorText,
+    declarations,
+    priorities,
+    specificity: computeSpecificity(selectorText),
+    stylesheetId: sheetId,
+    ruleIndex,
+    mediaCondition: mediaCondition ?? null,
+    supportsCondition: supportsCondition ?? null,
+    isInline: false,
+  }))
 }
 
 function captureInlineStyles(doc: Document): CapturedCSSRule[] {
@@ -218,7 +211,7 @@ function captureInlineStyles(doc: Document): CapturedCSSRule[] {
       return
     }
     const declarations: Record<string, string> = {}
-    const priorities: Record<string, 'important' | ''> = {}
+    const priorities: Record<string, string> = {}
     for (let i = 0; i < style.length; i++) {
       const prop = style[i]
       if (!prop) continue
@@ -230,9 +223,11 @@ function captureInlineStyles(doc: Document): CapturedCSSRule[] {
       selectorText: '',
       declarations,
       priorities,
-      specificity: [0, 0, 0],
+      specificity: { a: 0, b: 0, c: 0 },
       stylesheetId: 'inline',
       ruleIndex,
+      mediaCondition: null,
+      supportsCondition: null,
       isInline: true,
     })
     ruleIndex++

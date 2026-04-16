@@ -519,15 +519,14 @@ function createStyleSheetObserver(
       const rule = sheet.cssRules[index]
       if (!rule || !(rule instanceof CSSStyleRule)) return
       const declarations: Record<string, string> = {}
-      const priorities: Record<string, '' | 'important'> = {}
+      const priorities: Record<string, string> = {}
       const style = rule.style
       for (let i = 0; i < style.length; i++) {
         const prop = style[i]
         if (!prop) continue
         declarations[prop] = style.getPropertyValue(prop)
-        priorities[prop] = (
+        priorities[prop] =
           style.getPropertyPriority(prop) === 'important' ? 'important' : ''
-        ) as '' | 'important'
       }
       const selectors = rule.selectorText.split(',').map(s => s.trim())
       const insertedRules = selectors.map(selectorText => ({
@@ -537,6 +536,8 @@ function createStyleSheetObserver(
         specificity: computeSpecificity(selectorText),
         stylesheetId: sheetId,
         ruleIndex: index,
+        mediaCondition: null,
+        supportsCondition: null,
         isInline: false as const,
       }))
       subscriber(
@@ -544,7 +545,8 @@ function createStyleSheetObserver(
           type: PatchType.StyleSheetMutation,
           stylesheetId: sheetId,
           insertedRules,
-        } satisfies StyleSheetMutationPatch) as unknown as DOMPatch
+          deletedRuleIndex: null,
+        } satisfies StyleSheetMutationPatch) as DOMPatch
       )
     } catch {
       // If cssRules is inaccessible, skip structured patch
@@ -558,8 +560,9 @@ function createStyleSheetObserver(
       new Box({
         type: PatchType.StyleSheetMutation,
         stylesheetId: sheetId,
+        insertedRules: null,
         deletedRuleIndex: index,
-      } satisfies StyleSheetMutationPatch) as unknown as DOMPatch
+      } satisfies StyleSheetMutationPatch) as DOMPatch
     )
   }
 

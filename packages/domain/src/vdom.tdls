@@ -124,6 +124,38 @@ type RemoveNodesPatch: struct {
   4) nodes: vector<VTree>
 }
 
+type Specificity: struct {
+  0) a: int32
+  1) b: int32
+  2) c: int32
+}
+
+type CapturedCSSRule: struct {
+  0) selectorText: string
+  1) declarations: map<string, string>
+  2) priorities: map<string, string>
+  3) specificity: Specificity
+  4) stylesheetId: string
+  5) ruleIndex: int32
+  6) mediaCondition: ?string
+  7) supportsCondition: ?string
+  8) isInline: bool
+}
+
+type CapturedStyleSheet: struct {
+  0) id: string
+  1) href: ?string
+  2) rules: vector<CapturedCSSRule>
+  3) inaccessible: bool
+}
+
+type StyleSheetMutationPatch: struct {
+  0) type: PatchType.StyleSheetMutation
+  1) stylesheetId: string
+  2) insertedRules: ?vector<CapturedCSSRule>
+  3) deletedRuleIndex: ?int32
+}
+
 type DOMPatch: union(type) {
   AttributePatch
   TextPatch
@@ -132,4 +164,5 @@ type DOMPatch: union(type) {
   BooleanPropertyPatch
   AddNodesPatch
   RemoveNodesPatch
+  StyleSheetMutationPatch
 }
