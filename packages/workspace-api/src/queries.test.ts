@@ -40,7 +40,7 @@ function createStubApiClient(
       return resolve(responseFactory(url, { body }) as R)
     },
     debug: () => () => undefined,
-    wrapP<R>(_method: FutureInstance<unknown, R>): Promise<R> {
+    wrapP<R>(_method: FutureInstance<unknown, unknown>): Promise<R> {
       return Promise.resolve(undefined as unknown as R)
     },
   }
@@ -180,6 +180,30 @@ describe('workspace-api: queries', () => {
       await promise(getProjectRecordings(stub, 'proj-1'))
       assert.equal(stub.calls[0]?.url, '/projects/proj-1/recordings')
     })
+
+    it('appends q filter as query string', async () => {
+      const stub = createStubApiClient(() => ({ items: [] }))
+      await promise(getProjectRecordings(stub, 'proj-1', { q: 'hello' }))
+      assert.equal(stub.calls[0]?.url, '/projects/proj-1/recordings?q=hello')
+    })
+
+    it('appends limit and offset as query string', async () => {
+      const stub = createStubApiClient(() => ({ items: [] }))
+      await promise(
+        getProjectRecordings(stub, 'proj-1', { limit: 10, offset: 20 })
+      )
+      const url = stub.calls[0]!.url
+      assert.ok(url.includes('limit=10'), `Expected limit=10 in URL: ${url}`)
+      assert.ok(url.includes('offset=20'), `Expected offset=20 in URL: ${url}`)
+    })
+
+    it('omits undefined fields from query string', async () => {
+      const stub = createStubApiClient(() => ({ items: [] }))
+      await promise(
+        getProjectRecordings(stub, 'proj-1', { q: 'hello', browser: undefined })
+      )
+      assert.equal(stub.calls[0]?.url, '/projects/proj-1/recordings?q=hello')
+    })
   })
 
   describe('getProjectMembers', () => {
@@ -208,7 +232,7 @@ describe('workspace-api: queries', () => {
           return futureReject(apiError as unknown as Error)
         },
         debug: () => () => undefined,
-        wrapP<R>(_method: FutureInstance<unknown, R>): Promise<R> {
+        wrapP<R>(_method: FutureInstance<unknown, unknown>): Promise<R> {
           return Promise.resolve(undefined as unknown as R)
         },
       }

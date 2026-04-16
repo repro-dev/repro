@@ -7,7 +7,6 @@ import {
   User,
 } from '@repro/domain'
 import { FastifyPluginAsync } from 'fastify'
-import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import {
   FutureInstance,
   alt,
@@ -44,13 +43,13 @@ export function createProjectRouter(
   const { respondWith } = createResponseUtils(config)
 
   return async function (fastify) {
-    const app = fastify.withTypeProvider<ZodTypeProvider>()
+    const app = fastify.withTypeProvider()
 
     function ensureCanAccessProject(
       user: User | StaffUser,
       projectId: string
-    ): FutureInstance<Error, User> {
-      return go<Error, User>(function* () {
+    ): FutureInstance {
+      return go(function* () {
         yield accountService.ensureUser(user)
 
         const account: Account = yield projectService.getAccountForProject(
@@ -63,7 +62,7 @@ export function createProjectRouter(
             mapRej(error => (isPermissionDenied(error) ? notFound() : error))
           )
 
-        yield alt<Error, void>(
+        yield alt(
           accountService.ensureUserIsAdmin(user).pipe(map(() => undefined))
         )(projectService.ensureUserCanAccessProject(user.id, projectId))
 
@@ -74,8 +73,8 @@ export function createProjectRouter(
     function ensureCanModifyProject(
       user: User | StaffUser,
       projectId: string
-    ): FutureInstance<Error, User> {
-      return go<Error, User>(function* () {
+    ): FutureInstance {
+      return go(function* () {
         yield ensureCanAccessProject(user, projectId)
         return yield alt(accountService.ensureUserIsAdmin(user))(
           projectService
@@ -102,9 +101,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.post<{
-      Body: z.infer<typeof createProjectSchema.body>
-    }>(
+    app.post(
       '/',
 
       {
@@ -147,9 +144,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.get<{
-      Params: z.infer<typeof projectIdSchema.params>
-    }>(
+    app.get(
       '/:projectId',
 
       {
@@ -178,10 +173,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.put<{
-      Body: z.infer<typeof updateProjectActiveSchema.body>
-      Params: z.infer<typeof updateProjectActiveSchema.params>
-    }>(
+    app.put(
       '/:projectId/active',
 
       {
@@ -217,10 +209,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.put<{
-      Body: z.infer<typeof updateProjectNameSchema.body>
-      Params: z.infer<typeof updateProjectNameSchema.params>
-    }>(
+    app.put(
       '/:projectId/name',
 
       {
@@ -249,9 +238,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.get<{
-      Params: z.infer<typeof projectMembersSchema.params>
-    }>(
+    app.get(
       '/:projectId/members',
 
       {
@@ -267,8 +254,9 @@ export function createProjectRouter(
             const user: User | StaffUser = yield req.getCurrentUser()
             yield ensureCanAccessProject(user, projectId)
 
-            const members: Array<{ userId: string; role: ProjectRole }> =
-              yield projectService.getProjectMembers(projectId)
+            const members: Array = yield projectService.getProjectMembers(
+              projectId
+            )
 
             return yield parallel(Infinity)(
               members.map(member =>
@@ -292,10 +280,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.post<{
-      Body: z.infer<typeof addProjectMemberSchema.body>
-      Params: z.infer<typeof addProjectMemberSchema.params>
-    }>(
+    app.post(
       '/:projectId/members',
 
       {
@@ -342,9 +327,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.get<{
-      Params: z.infer<typeof projectMemberSchema.params>
-    }>(
+    app.get(
       '/:projectId/members/:userId',
 
       {
@@ -381,9 +364,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.delete<{
-      Params: z.infer<typeof removeProjectMemberSchema.params>
-    }>(
+    app.delete(
       '/:projectId/members/:userId',
 
       {
@@ -422,10 +403,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.put<{
-      Body: z.infer<typeof updateProjectMemberRoleSchema.body>
-      Params: z.infer<typeof updateProjectMemberRoleSchema.params>
-    }>(
+    app.put(
       '/:projectId/members/:userId/role',
 
       {
@@ -466,21 +444,18 @@ export function createProjectRouter(
       }),
       querystring: z.object({
         q: z.string().optional(),
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
+        startDate: z.string().datetime().optional(),
+        endDate: z.string().datetime().optional(),
         browser: z.string().optional(),
-        minDuration: z.coerce.number().optional(),
-        maxDuration: z.coerce.number().optional(),
-        limit: z.coerce.number().optional(),
-        offset: z.coerce.number().optional(),
-        orderBy: z.enum(['createdAt', 'duration']).optional(),
+        minDuration: z.coerce.number().int().nonnegative().optional(),
+        maxDuration: z.coerce.number().int().nonnegative().optional(),
+        limit: z.coerce.number().int().min(1).max(250).default(50),
+        offset: z.coerce.number().int().nonnegative().default(0),
+        orderBy: z.enum(['createdAt', 'duration']).default('createdAt'),
       }),
     } as const
 
-    app.get<{
-      Params: z.infer<typeof projectRecordingsSchema.params>
-      Querystring: z.infer<typeof projectRecordingsSchema.querystring>
-    }>(
+    app.get(
       '/:projectId/recordings',
 
       {
@@ -522,9 +497,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.get<{
-      Params: z.infer<typeof projectRecordingInfoSchema.params>
-    }>(
+    app.get(
       '/:projectId/recordings/:recordingId/info',
 
       {
@@ -561,10 +534,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.post<{
-      Body: z.infer<typeof createProjectRecordingSchema.body>
-      Params: z.infer<typeof createProjectRecordingSchema.params>
-    }>(
+    app.post(
       '/:projectId/recordings',
 
       {
@@ -602,9 +572,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.get<{
-      Params: z.infer<typeof projectRecordingDataSchema.params>
-    }>(
+    app.get(
       '/:projectId/recordings/:recordingId/data',
 
       {
@@ -632,9 +600,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.put<{
-      Params: z.infer<typeof updateProjectRecordingDataSchema.params>
-    }>(
+    app.put(
       '/:projectId/recordings/:recordingId/data',
 
       {
@@ -669,9 +635,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.get<{
-      Params: z.infer<typeof projectRecordingResourceSchema.params>
-    }>(
+    app.get(
       '/:projectId/recordings/:recordingId/resources/:resourceId',
 
       {
@@ -704,9 +668,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.put<{
-      Params: z.infer<typeof updateProjectRecordingResourceSchema.params>
-    }>(
+    app.put(
       '/:projectId/recordings/:recordingId/resources/:resourceId',
 
       {
@@ -738,9 +700,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.get<{
-      Params: z.infer<typeof projectRecordingResourceMapSchema.params>
-    }>(
+    app.get(
       '/:projectId/recordings/:recordingId/resource-map',
 
       {
@@ -752,7 +712,7 @@ export function createProjectRouter(
 
         respondWith(
           res,
-          go<Error, Record<string, string>>(function* () {
+          go(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
             yield ensureCanAccessProject(user, projectId)
             return yield recordingService.readResourceMap(recordingId)
@@ -769,10 +729,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.put<{
-      Body: z.infer<typeof updateProjectRecordingResourceMapSchema.body>
-      Params: z.infer<typeof updateProjectRecordingResourceMapSchema.params>
-    }>(
+    app.put(
       '/:projectId/recordings/:recordingId/resource-map',
 
       {
@@ -784,7 +741,7 @@ export function createProjectRouter(
 
         respondWith(
           res,
-          go<Error, Record<string, string>>(function* () {
+          go(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
             yield ensureCanAccessProject(user, projectId)
             return yield recordingService.writeResourceMap(
@@ -814,10 +771,7 @@ export function createProjectRouter(
       }),
     } as const
 
-    app.put<{
-      Body: z.infer<typeof updateProjectRecordingEventIndexSchema.body>
-      Params: z.infer<typeof updateProjectRecordingEventIndexSchema.params>
-    }>(
+    app.put(
       '/:projectId/recordings/:recordingId/event-index',
 
       {
@@ -829,7 +783,7 @@ export function createProjectRouter(
 
         respondWith(
           res,
-          go<Error, void>(function* () {
+          go(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
             yield ensureCanAccessProject(user, projectId)
             return yield recordingService.writeEventIndex(
@@ -861,7 +815,7 @@ export function createProjectRouter(
 
         respondWith(
           res,
-          go<Error, void>(function* () {
+          go(function* () {
             const user: User | StaffUser = yield req.getCurrentUser()
             yield ensureCanModifyProject(user, projectId)
             return yield recordingService.deleteRecording(

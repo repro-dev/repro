@@ -253,6 +253,111 @@ describe('Services > Project', () => {
     expect(recordings[0]).toMatchObject({ id: recordingA.id })
   })
 
+  it('should filter recordings by search query (url)', async () => {
+    const [project, recordingB] = await harness.loadFixtures([
+      fixtures.project.ProjectA_Multiple_Recordings,
+      fixtures.recording.RecordingA,
+      fixtures.recording.RecordingB,
+    ])
+
+    const recordings = await promise(
+      projectService.getRecordingsForProject(project.id, {
+        q: 'example.com/recording-b',
+      })
+    )
+
+    expect(recordings).toHaveLength(1)
+    expect(recordings[0]).toMatchObject({ id: recordingB.id })
+  })
+
+  it('should filter recordings by date range', async () => {
+    const [project] = await harness.loadFixtures([
+      fixtures.project.ProjectA_Multiple_Recordings,
+      fixtures.recording.RecordingA,
+      fixtures.recording.RecordingB,
+    ])
+
+    // Both recordings exist; use a startDate far in the future → no results
+    const recordings = await promise(
+      projectService.getRecordingsForProject(project.id, {
+        startDate: new Date('2999-01-01'),
+      })
+    )
+
+    expect(recordings).toHaveLength(0)
+  })
+
+  it('should paginate recordings with limit', async () => {
+    const [project] = await harness.loadFixtures([
+      fixtures.project.ProjectA_Multiple_Recordings,
+      fixtures.recording.RecordingA,
+      fixtures.recording.RecordingB,
+    ])
+
+    const recordings = await promise(
+      projectService.getRecordingsForProject(project.id, { limit: 1 })
+    )
+
+    expect(recordings).toHaveLength(1)
+  })
+
+  it('should paginate recordings with offset', async () => {
+    const [project] = await harness.loadFixtures([
+      fixtures.project.ProjectA_Multiple_Recordings,
+      fixtures.recording.RecordingA,
+      fixtures.recording.RecordingB,
+    ])
+
+    // Get second page (skip first recording)
+    const recordings = await promise(
+      projectService.getRecordingsForProject(project.id, {
+        limit: 1,
+        offset: 1,
+      })
+    )
+
+    expect(recordings).toHaveLength(1)
+  })
+
+  it('should order recordings by duration', async () => {
+    const [project, recordingA, recordingB] = await harness.loadFixtures([
+      fixtures.project.ProjectA_Multiple_Recordings,
+      fixtures.recording.RecordingA,
+      fixtures.recording.RecordingB,
+    ])
+
+    // RecordingA duration=10000, RecordingB duration=30000
+    const recordings = await promise(
+      projectService.getRecordingsForProject(project.id, {
+        orderBy: 'duration',
+      })
+    )
+
+    expect(recordings).toHaveLength(2)
+    expect(recordings[0]!.id).toBe(recordingB.id)
+    expect(recordings[1]!.id).toBe(recordingA.id)
+  })
+
+  it('should combine multiple filters with AND logic', async () => {
+    const [project, recordingB] = await harness.loadFixtures([
+      fixtures.project.ProjectA_Multiple_Recordings,
+      fixtures.recording.RecordingA,
+      fixtures.recording.RecordingB,
+    ])
+
+    // RecordingB is Firefox with duration=30000
+    // Filter by browser=Firefox and minDuration=20000 should match only RecordingB
+    const recordings = await promise(
+      projectService.getRecordingsForProject(project.id, {
+        browser: 'Firefox',
+        minDuration: 20_000,
+      })
+    )
+
+    expect(recordings).toHaveLength(1)
+    expect(recordings[0]!.id).toBe(recordingB.id)
+  })
+
   it('should return empty list when no recordings match filter', async () => {
     const [project] = await harness.loadFixtures([
       fixtures.project.ProjectA_Multiple_Recordings,

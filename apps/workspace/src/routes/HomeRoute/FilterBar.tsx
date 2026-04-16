@@ -1,5 +1,5 @@
 import { Row } from '@jsxstyle/react'
-import { Select, spacing } from '@repro/design'
+import { Select, formControlHeight, spacing } from '@repro/design'
 import type { RecordingQueryParams } from '@repro/domain'
 import React from 'react'
 
@@ -33,8 +33,50 @@ export const FilterBar = ({ filters, onChange }: Props) => {
     })
   }
 
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange({
+      ...filters,
+      startDate: e.target.value || undefined,
+    })
+  }
+
+  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange({
+      ...filters,
+      endDate: e.target.value || undefined,
+    })
+  }
+
   return (
     <Row gap={spacing.sm} alignItems="center">
+      <input
+        type="date"
+        aria-label="Start date"
+        value={filters.startDate ?? ''}
+        onChange={handleStartDateChange}
+        style={{
+          height: formControlHeight.medium,
+          padding: `0 ${spacing.sm}`,
+          borderRadius: 4,
+          border: '1px solid var(--color-border)',
+          fontSize: 'var(--font-size-sm)',
+        }}
+      />
+
+      <input
+        type="date"
+        aria-label="End date"
+        value={filters.endDate ?? ''}
+        onChange={handleEndDateChange}
+        style={{
+          height: formControlHeight.medium,
+          padding: `0 ${spacing.sm}`,
+          borderRadius: 4,
+          border: '1px solid var(--color-border)',
+          fontSize: 'var(--font-size-sm)',
+        }}
+      />
+
       <Select
         options={BROWSER_OPTIONS}
         value={filters.browser ?? ''}

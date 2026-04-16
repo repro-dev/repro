@@ -22,6 +22,15 @@ export const SearchBar = ({
     setLocalValue(value)
   }, [value])
 
+  // Cleanup timeout on unmount to prevent onChange firing on unmounted component.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current)
+      }
+    }
+  }, [])
+
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const next = e.target.value
