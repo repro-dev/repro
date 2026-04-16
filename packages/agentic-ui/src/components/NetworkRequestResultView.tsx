@@ -25,6 +25,7 @@ interface NetworkRequest {
 
 interface NetworkRequestResult {
   requests: NetworkRequest[];
+  hint?: string;
 }
 
 interface NetworkRequestResultViewProps {
@@ -67,17 +68,20 @@ function truncateUrl(url: string, maxLen = 80): string {
 export const NetworkRequestResultView: React.FC<
   NetworkRequestResultViewProps
 > = ({ result }) => {
-  const { requests } = result;
+  const { requests, hint } = result;
 
   if (requests.length === 0) {
     return (
-      <Block
-        {...textStyles.caption}
-        color={color.text.muted}
-        padding={spacing.sm}
-      >
-        No network requests
-      </Block>
+      <Col gap={spacing.xs} padding={spacing.sm}>
+        <Block {...textStyles.caption} color={color.text.muted}>
+          No network requests
+        </Block>
+        {hint && (
+          <Block {...textStyles.caption} color={color.text.secondary}>
+            Hint: {hint}
+          </Block>
+        )}
+      </Col>
     );
   }
 

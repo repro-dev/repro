@@ -147,10 +147,14 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
 
       if (toolName === "getConsoleMessages") {
         const messages = Array.isArray(parsed.messages) ? parsed.messages : [];
-        inner = <ConsoleMessageResultView result={{ messages }} />;
+        const hint =
+          typeof parsed._hint === "string" ? parsed._hint : undefined;
+        inner = <ConsoleMessageResultView result={{ messages, hint }} />;
       } else if (toolName === "getNetworkRequests") {
         const requests = Array.isArray(parsed.requests) ? parsed.requests : [];
-        inner = <NetworkRequestResultView result={{ requests }} />;
+        const hint =
+          typeof parsed._hint === "string" ? parsed._hint : undefined;
+        inner = <NetworkRequestResultView result={{ requests, hint }} />;
       } else if (toolName === "findErrors") {
         const errors = Array.isArray(parsed.errors) ? parsed.errors : [];
         inner = <FindErrorsResultView result={{ errors }} />;

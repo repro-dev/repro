@@ -19,6 +19,7 @@ interface ConsoleMessage {
 
 interface ConsoleMessageResult {
   messages: ConsoleMessage[];
+  hint?: string;
 }
 
 interface ConsoleMessageResultViewProps {
@@ -62,17 +63,20 @@ function formatTimeMs(ms: number): string {
 export const ConsoleMessageResultView: React.FC<
   ConsoleMessageResultViewProps
 > = ({ result }) => {
-  const { messages } = result;
+  const { messages, hint } = result;
 
   if (messages.length === 0) {
     return (
-      <Block
-        {...textStyles.caption}
-        color={color.text.muted}
-        padding={spacing.sm}
-      >
-        No console messages
-      </Block>
+      <Col gap={spacing.xs} padding={spacing.sm}>
+        <Block {...textStyles.caption} color={color.text.muted}>
+          No console messages
+        </Block>
+        {hint && (
+          <Block {...textStyles.caption} color={color.text.secondary}>
+            Hint: {hint}
+          </Block>
+        )}
+      </Col>
     );
   }
 
