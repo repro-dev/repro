@@ -7,7 +7,12 @@ import {
   SettingsIcon,
 } from 'lucide-react'
 import React from 'react'
-import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
+import {
+  Outlet,
+  Link as RouterLink,
+  NavLink as RouterNavLink,
+  useMatch,
+} from 'react-router-dom'
 import { ProjectSettingsNavItem } from '~/components/ProjectSettingsNavItem'
 import { ProjectSwitcher } from '~/components/ProjectSwitcher'
 import { WorkspaceHeader } from '~/components/WorkspaceHeader'
@@ -56,7 +61,7 @@ export const Layout: React.FC = () => {
                   icon={FolderIcon}
                   label="Projects"
                   active={!!projectsActive && !projectSettingsSubtreeActive}
-                  component={RouterNavLink}
+                  component={RouterLink}
                   props={{ to: '/projects' }}
                 />
               </SideNav.Section>

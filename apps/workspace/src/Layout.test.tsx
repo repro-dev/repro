@@ -174,6 +174,11 @@ describe('Layout nav active states', () => {
       false,
       'Projects link should NOT be visually active at /projects/:projectId/settings'
     )
+    assert.equal(
+      projectsLink.getAttribute('aria-current'),
+      null,
+      'Projects link should NOT expose semantic current-state at /projects/:projectId/settings'
+    )
   })
 
   it('/projects — Projects IS active', async () => {
