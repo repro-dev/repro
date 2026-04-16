@@ -62,6 +62,10 @@ import {
   TOOL_DEFINITION as searchEventsDef,
   handler as searchEvents,
 } from "./search-events";
+import {
+  TOOL_DEFINITION as compareDOMAtTimesDef,
+  handler as compareDOMAtTimes,
+} from "./compare-dom-at-times";
 import type { ToolHandler } from "./common";
 
 export const tools = [
@@ -80,6 +84,7 @@ export const tools = [
   getStateChangesDef,
   findUserFrustrationDef,
   searchEventsDef,
+  compareDOMAtTimesDef,
 ];
 
 // Subset of tools for the browser extension agent. captureScreenshot is
@@ -105,6 +110,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   getStateChanges,
   findUserFrustration,
   searchEvents,
+  compareDOMAtTimes,
 };
 
 export function executeTool(
