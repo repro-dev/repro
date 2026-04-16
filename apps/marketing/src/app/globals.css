@@ -8,6 +8,18 @@ body {
   margin: 0;
 }
 
+.marketing-shell__desktop-nav {
+  display: flex;
+}
+
+.marketing-shell__mobile-toggle {
+  display: none;
+}
+
+.marketing-shell__footer-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 /* Skip-to-content link — visually hidden until focused */
 .skip-link {
   position: absolute;
@@ -27,4 +39,18 @@ body {
   overflow: visible;
   z-index: 9999;
   padding: 8px 16px;
+}
+
+@media (max-width: 767px) {
+  .marketing-shell__desktop-nav {
+    display: none;
+  }
+
+  .marketing-shell__mobile-toggle {
+    display: inline-flex;
+  }
+
+  .marketing-shell__footer-grid {
+    grid-template-columns: 1fr;
+  }
 }

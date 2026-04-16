@@ -3,10 +3,11 @@
 // jsxstyle requires a client boundary because it injects styles via React context.
 
 import { Block, Col } from '@jsxstyle/react'
-import { color, textStyles } from '@repro/design'
+import { color, spacing, textStyles } from '@repro/design'
 import React from 'react'
 import { Footer } from './Footer'
 import { Header } from './Header'
+import { shellMaxWidth } from './marketingShell'
 
 interface SiteLayoutProps {
   children: React.ReactNode
@@ -37,6 +38,10 @@ export function SiteLayout({ children }: SiteLayoutProps) {
         props={{ id: 'main-content' }}
         flex="1"
         width="100%"
+        maxWidth={shellMaxWidth}
+        marginH="auto"
+        paddingH={spacing.lg}
+        paddingV={spacing['3xl']}
       >
         {children}
       </Block>

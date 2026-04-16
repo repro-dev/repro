@@ -2,15 +2,9 @@
 
 // jsxstyle requires a client boundary because it injects styles via React context.
 
-import { Block, Row } from '@jsxstyle/react'
-import { color, spacing, textStyles } from '@repro/design'
-import Link from 'next/link'
-
-const footerLinks = [
-  { href: '/privacy', label: 'Privacy Policy' },
-  { href: '/terms', label: 'Terms of Service' },
-  { href: '/refund-policy', label: 'Refund Policy' },
-]
+import { Block, Col, Grid, Row } from '@jsxstyle/react'
+import { color, focusRing, radius, spacing, textStyles } from '@repro/design'
+import { footerGroups, shellMaxWidth, socialLinks } from './marketingShell'
 
 export function Footer() {
   const year = new Date().getFullYear()
@@ -18,41 +12,86 @@ export function Footer() {
   return (
     <Block
       component="footer"
-      backgroundColor={color.bg.surface}
       borderTop={`1px solid ${color.border.default}`}
+      backgroundColor={color.bg.surface}
     >
-      <Row
-        maxWidth="1200px"
+      <Col
+        maxWidth={shellMaxWidth}
         marginH="auto"
-        paddingH={spacing['2xl']}
-        paddingV={spacing.xl}
-        alignItems="center"
-        justifyContent="space-between"
-        flexWrap="wrap"
-        gap={spacing.lg}
+        padding={spacing.lg}
+        gap={spacing.xl}
       >
-        {/* Copyright */}
-        <Block {...textStyles.bodySmall} color={color.text.secondary}>
-          © {year} Repro
-        </Block>
+        <Grid
+          className="marketing-shell__footer-grid"
+          gap={spacing.xl}
+          gridTemplateColumns="repeat(4, minmax(0, 1fr))"
+        >
+          {footerGroups.map(group => (
+            <Col key={group.title} gap={spacing.md}>
+              <Block
+                component="h2"
+                {...textStyles.label}
+                color={color.text.default}
+              >
+                {group.title}
+              </Block>
 
-        {/* Footer links */}
-        <Row component="nav" gap={spacing.xl} flexWrap="wrap">
-          {footerLinks.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              style={{
-                ...textStyles.bodySmall,
-                color: color.text.secondary,
-                textDecoration: 'none',
-              }}
-            >
-              {label}
-            </Link>
+              <Col component="nav" gap={spacing.sm}>
+                {group.links.map(link => (
+                  <Block
+                    key={link.href}
+                    component="a"
+                    props={{ href: link.href }}
+                    {...textStyles.bodySmall}
+                    color={color.text.secondary}
+                    textDecoration="none"
+                    {...focusRing()}
+                  >
+                    {link.label}
+                  </Block>
+                ))}
+              </Col>
+            </Col>
           ))}
+        </Grid>
+
+        <Row
+          alignItems="center"
+          justifyContent="space-between"
+          gap={spacing.md}
+          flexWrap="wrap"
+        >
+          <Block {...textStyles.bodySmall} color={color.text.secondary}>
+            © {year} Repro
+          </Block>
+
+          <Row
+            component="nav"
+            aria-label="Social links"
+            gap={spacing.md}
+            flexWrap="wrap"
+          >
+            {socialLinks.map(link => (
+              <Block
+                key={link.href}
+                component="a"
+                props={{ href: link.href, target: '_blank', rel: 'noreferrer' }}
+                {...textStyles.bodySmall}
+                color={color.text.secondary}
+                textDecoration="none"
+                paddingTop={spacing.xs}
+                paddingBottom={spacing.xs}
+                paddingLeft={spacing.sm}
+                paddingRight={spacing.sm}
+                borderRadius={radius.md}
+                {...focusRing()}
+              >
+                {link.label}
+              </Block>
+            ))}
+          </Row>
         </Row>
-      </Row>
+      </Col>
     </Block>
   )
 }
