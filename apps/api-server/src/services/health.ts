@@ -4,7 +4,7 @@ import type {
   SubsystemCheck,
   SubsystemStatus,
 } from '@repro/domain'
-import { attemptP, both, chain, coalesce, FutureInstance, map } from 'fluture'
+import { attemptP, both, chain, coalesce, map } from 'fluture'
 import { sql } from 'kysely'
 import { Readable } from 'node:stream'
 import { attemptQuery, Database } from '~/modules/database'
@@ -13,7 +13,7 @@ import { Storage } from '~/modules/storage'
 // Minimal interface required of a Redis client for the health check.
 // ioredis.Redis satisfies this interface.
 interface PingableClient {
-  ping(): Promise<string>
+  ping(): any
 }
 
 export type HealthStatus = { status: 'ok' | 'degraded' }
@@ -23,41 +23,41 @@ export function createHealthService(
   storage: Storage,
   redisClient?: PingableClient
 ) {
-  function checkDb(): FutureInstance<Error, SubsystemCheck> {
+  function checkDb() {
     return attemptQuery(() => sql`SELECT 1`.execute(db)).pipe(
-      coalesce<Error, SubsystemCheck>(
-        (err: Error): SubsystemCheck => ({
+      coalesce(
+        (): SubsystemCheck => ({
           status: 'error' as SubsystemStatus,
-          error: err.message,
+          error: 'Health check failed',
         })
       )(() => ({ status: 'ok' as SubsystemStatus }))
     )
   }
 
-  function checkStorage(): FutureInstance<Error, SubsystemCheck> {
+  function checkStorage() {
     const STORAGE_PATH = '.well-known/health'
     return storage
       .write(STORAGE_PATH, Readable.from(['ok']))
-      .pipe(chain(() => storage.read(STORAGE_PATH)))
+      .pipe(chain(() => storage.exists(STORAGE_PATH)))
       .pipe(
-        coalesce<Error, SubsystemCheck>(
-          (err: Error): SubsystemCheck => ({
+        coalesce(
+          (): SubsystemCheck => ({
             status: 'error' as SubsystemStatus,
-            error: err.message,
+            error: 'Health check failed',
           })
         )(() => ({ status: 'ok' as SubsystemStatus }))
       )
   }
 
-  function checkRedis(): FutureInstance<Error, SubsystemCheck> {
+  function checkRedis() {
     if (!redisClient) {
       // Should not be called when redisClient is absent; caller gates this.
-      return attemptP<Error, SubsystemCheck>(() =>
+      return attemptP(() =>
         Promise.resolve({ status: 'degraded' as SubsystemStatus })
       )
     }
     const start = Date.now()
-    return attemptP<Error, SubsystemCheck>(() =>
+    return attemptP(() =>
       redisClient
         .ping()
         .then(
@@ -67,10 +67,10 @@ export function createHealthService(
           })
         )
         .catch(
-          (err: unknown): SubsystemCheck => ({
+          (): SubsystemCheck => ({
             status: 'degraded' as SubsystemStatus,
             latencyMs: Date.now() - start,
-            error: err instanceof Error ? err.message : String(err),
+            error: 'Health check failed',
           })
         )
     )
@@ -82,8 +82,15 @@ export function createHealthService(
     const dbOk = checks.database.status === 'ok'
     const storageOk = checks.storage.status === 'ok'
 
-    if (!dbOk || !storageOk) {
+    if (
+      checks.database.status === 'error' ||
+      checks.storage.status === 'error'
+    ) {
       return 'unhealthy'
+    }
+
+    if (!dbOk || !storageOk) {
+      return 'degraded'
     }
 
     const redisCheck = checks.redis
@@ -104,7 +111,7 @@ export function createHealthService(
     }
   }
 
-  function checkDetailed(): FutureInstance<Error, HealthCheckResult> {
+  function checkDetailed() {
     const dbCheck = checkDb()
     const storageCheck = checkStorage()
 
@@ -112,11 +119,10 @@ export function createHealthService(
 
     if (redisClient) {
       return coreChecks.pipe(
-        chain(
-          ([db, storage]): FutureInstance<Error, HealthCheckResult> =>
-            checkRedis().pipe(
-              map(redis => buildHealthResult({ database: db, storage, redis }))
-            )
+        chain(([db, storage]) =>
+          checkRedis().pipe(
+            map(redis => buildHealthResult({ database: db, storage, redis }))
+          )
         )
       )
     }
@@ -129,7 +135,7 @@ export function createHealthService(
     )
   }
 
-  function check(): FutureInstance<Error, HealthStatus> {
+  function check() {
     return checkDetailed().pipe(
       map(result => {
         // Map overall status to the legacy ok/degraded shape.
@@ -148,4 +154,7 @@ export function createHealthService(
   }
 }
 
-export type HealthService = ReturnType<typeof createHealthService>
+export interface HealthService {
+  check: () => any
+  checkDetailed: () => any
+}
