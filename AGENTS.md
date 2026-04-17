@@ -6,7 +6,9 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 
 | Task type                 | Start here                  |
 | ------------------------- | --------------------------- |
-| Feature / fix             | Load `feature-dev` skill    |
+| Feature / fix             | Load `delivery-workflow` skill |
+| Worktree / parallel work   | Load `worktree-workflow` skill |
+| Implementation / testing   | Load `implementation-rigor` skill |
 | Commit / PR / code review | Load `git-workflow` skill   |
 | Build / test / typecheck  | Load `build-and-test` skill |
 | UI / components           | Load `design-system` skill  |
@@ -78,7 +80,7 @@ Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer 
 
 All specifications, plans, and tracked work live in Linear. Use projects, milestones, and issues to organize deliverables. Update the Linear issue when scope changes.
 
-**Code reviews**: When a PR references Linear issues (e.g. `REP-123` in branch name, title, or body), fetch those issues before reviewing. Requirements and resolved decisions in the issue take precedence over assumptions from codebase patterns. Load the `git-workflow` skill for the full review checklist.
+**Code reviews**: When a PR references Linear issues (e.g. `REP-123` in branch name, title, or body), fetch those issues before reviewing. Requirements and resolved decisions in the issue take precedence over assumptions from codebase patterns. Load the `review-standards` skill for the full review contract.
 
 ### Workspace structure
 
