@@ -118,11 +118,11 @@ export const ConsoleMessageResultView: React.FC<
                   id={`console-message-line-1-${i}`}
                   minWidth={0}
                   gridColumn="1 / span 2"
-                  paddingLeft={TOOL_RESULT_ROW_STYLES.contentShift}
+                  paddingLeft={TOOL_RESULT_ROW_STYLES.consoleContentShift}
                 >
                   <Row
                     alignItems="center"
-                    gap={TOOL_RESULT_ROW_STYLES.gap}
+                    gap={TOOL_RESULT_ROW_STYLES.consoleHeaderGap}
                     lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
                   >
                     <Block color={messageColor} lineHeight={1}>

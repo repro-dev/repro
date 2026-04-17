@@ -11,6 +11,7 @@ import React from "react";
 import type { ToolMessage } from "@repro/agentic";
 
 import { ToolCallRow } from "./ToolCallRow";
+import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
 
 function makeToolResult(content: Record<string, unknown>): ToolMessage {
   return { content: JSON.stringify(content) } as unknown as ToolMessage;
@@ -336,6 +337,46 @@ describe("ToolCallRow semantic result hints", () => {
     });
 
     expect(timeCell.parentElement?.contains(seekAction)).toBe(true);
+  });
+
+  it("uses tighter console header spacing", () => {
+    render(
+      <ToolCallRow
+        toolName="getConsoleMessages"
+        result={makeToolResult({
+          messages: [
+            {
+              timeMs: 1500,
+              level: "warning",
+              text: "Retrying request",
+              stack: ["app.ts:12"],
+            },
+          ],
+        })}
+        isExecuting={false}
+        wasCancelled={false}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle details for getConsoleMessages",
+      }),
+    );
+
+    const consoleHeader = screen.getByText("warning").parentElement;
+    const consoleLine1 = document.querySelector(
+      '[id^="console-message-line-1"]',
+    ) as HTMLElement | null;
+
+    expect(consoleHeader).not.toBeNull();
+    expect(window.getComputedStyle(consoleHeader!).gap).toBe(
+      `${TOOL_RESULT_ROW_STYLES.consoleHeaderGap}px`,
+    );
+    expect(consoleLine1).not.toBeNull();
+    expect(window.getComputedStyle(consoleLine1!).paddingLeft).toBe(
+      `${TOOL_RESULT_ROW_STYLES.consoleContentShift}px`,
+    );
   });
 
   it("renders the network verb as plain text", () => {

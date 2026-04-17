@@ -96,7 +96,7 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
                   id={`find-errors-line-1-${i}`}
                   minWidth={0}
                   gridColumn="1 / span 2"
-                  paddingLeft={TOOL_RESULT_ROW_STYLES.contentShift}
+                  paddingLeft={TOOL_RESULT_ROW_STYLES.rowContentShift}
                 >
                   <Row
                     alignItems="center"

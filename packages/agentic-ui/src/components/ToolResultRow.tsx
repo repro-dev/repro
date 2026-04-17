@@ -31,6 +31,7 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
       alignItems={rowAlignItems}
       gap={TOOL_RESULT_ROW_STYLES.gap}
       gridTemplateColumns={`${TOOL_RESULT_ROW_STYLES.timeColumnMinWidth}px minmax(0, 1fr)`}
+      width={kind === "network" ? "100%" : undefined}
       paddingBlock={
         kind === "network"
           ? TOOL_RESULT_ROW_STYLES.paddingBlockNetwork
@@ -73,8 +74,8 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
       <Block
         minWidth={0}
         gridColumn="2"
-        width={`calc(100% + ${TOOL_RESULT_ROW_STYLES.contentShift}px)`}
-        marginLeft={-TOOL_RESULT_ROW_STYLES.contentShift}
+        width={`calc(100% + ${TOOL_RESULT_ROW_STYLES.rowContentShift}px)`}
+        marginLeft={-TOOL_RESULT_ROW_STYLES.rowContentShift}
       >
         {children}
       </Block>

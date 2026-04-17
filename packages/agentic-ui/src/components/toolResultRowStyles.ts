@@ -2,13 +2,15 @@ import { fontSize, lineHeight, spacing } from "@repro/design";
 
 export const TOOL_RESULT_ROW_STYLES = {
   gap: spacing.lg,
+  consoleHeaderGap: spacing.xs,
   lineGap: spacing.xs,
   paddingBlockConsole: spacing.md,
   paddingBlockNetwork: spacing.lg,
   paddingInline: spacing.xl,
   borderWidth: 1,
   timeColumnMinWidth: 72,
-  contentShift: 72 + spacing.lg,
+  rowContentShift: 72 + spacing.lg,
+  consoleContentShift: 72 + spacing.xl,
   timeActionConsoleTop: -3,
   timeActionConsoleLeft: -10,
   rowFontSize: fontSize.xs,

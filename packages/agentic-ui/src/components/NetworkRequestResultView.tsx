@@ -92,7 +92,7 @@ export const NetworkRequestResultView: React.FC<
             <Block
               id={`network-request-line-1-${i}`}
               minWidth={0}
-              paddingLeft={TOOL_RESULT_ROW_STYLES.contentShift}
+              paddingLeft={TOOL_RESULT_ROW_STYLES.rowContentShift}
               fontSize={fontSize.xs}
               fontFamily={fontFamily.mono}
               fontWeight={fontWeight.semibold}
