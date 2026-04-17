@@ -11,6 +11,7 @@ import { AlertCircle, AlertTriangle } from "lucide-react";
 import React from "react";
 import { ToolResultRow } from "./ToolResultRow";
 import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
+import { JSONView } from "../../../devtools/src/JSONView";
 
 interface ConsoleMessage {
   timeMs: number;
@@ -28,6 +29,14 @@ interface ConsoleMessageResult {
 interface ConsoleMessageResultViewProps {
   result: ConsoleMessageResult;
   onGoToTime?: (timeMs: number) => void;
+}
+
+function parseStructuredMessage(text: string): unknown | null {
+  try {
+    return JSON.parse(text.trim()) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 function getLevelPresentation(level: string): {
@@ -84,7 +93,7 @@ export const ConsoleMessageResultView: React.FC<
         <ToolResultRow
           key={i}
           timeMs={msg.timeMs}
-          alignItems="center"
+          alignItems="flex-start"
           kind="console"
           onGoToTime={onGoToTime}
         >
@@ -93,53 +102,81 @@ export const ConsoleMessageResultView: React.FC<
               msg.level,
             );
             const stackReference = msg.stack?.[0];
+            const structuredMessage = parseStructuredMessage(msg.text);
 
             return (
-              <Row
+              <Col
                 minWidth={0}
                 flexGrow={1}
-                alignItems="center"
-                lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                gap={TOOL_RESULT_ROW_STYLES.gap}
+                gap={TOOL_RESULT_ROW_STYLES.lineGap}
               >
-                <Block flexShrink={0} color={messageColor} lineHeight={1}>
-                  {icon}
-                </Block>
+                <Row
+                  id={`console-message-line-1-${i}`}
+                  minWidth={0}
+                  alignItems="center"
+                  gap={TOOL_RESULT_ROW_STYLES.gap}
+                  lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                  flexWrap="wrap"
+                >
+                  <Block flexShrink={0} color={messageColor} lineHeight={1}>
+                    {icon}
+                  </Block>
+
+                  <Block
+                    flexShrink={0}
+                    fontSize={fontSize.xs}
+                    fontFamily={fontFamily.mono}
+                    color={messageColor}
+                    fontWeight={fontWeight.semibold}
+                    textTransform="uppercase"
+                    lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                  >
+                    {msg.level}
+                  </Block>
+
+                  {msg.count !== undefined && msg.count > 1 && (
+                    <Block
+                      flexShrink={0}
+                      color={color.text.muted}
+                      fontSize={fontSize.xs}
+                      fontFamily={fontFamily.mono}
+                      lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                    >
+                      ×{msg.count}
+                    </Block>
+                  )}
+
+                  {stackReference && (
+                    <Block
+                      flexShrink={0}
+                      fontSize={fontSize.xs}
+                      fontFamily={fontFamily.mono}
+                      color={color.text.muted}
+                      whiteSpace="nowrap"
+                      lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                    >
+                      {stackReference}
+                    </Block>
+                  )}
+                </Row>
 
                 <Block
+                  id={`console-message-line-2-${i}`}
                   minWidth={0}
                   fontSize={fontSize.xs}
                   fontFamily={fontFamily.mono}
                   color={messageColor}
                   wordBreak="break-word"
                   lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                  flexGrow={1}
+                  whiteSpace="pre-wrap"
                 >
-                  {msg.text}
-                  {msg.count !== undefined && msg.count > 1 && (
-                    <Block
-                      component="span"
-                      color={color.text.muted}
-                      marginLeft={TOOL_RESULT_ROW_STYLES.actionLabelSpacing}
-                      fontWeight={fontWeight.semibold}
-                    >
-                      ×{msg.count}
-                    </Block>
+                  {structuredMessage !== null ? (
+                    <JSONView data={structuredMessage} />
+                  ) : (
+                    msg.text
                   )}
                 </Block>
-
-                {stackReference && (
-                  <Block
-                    flexShrink={0}
-                    fontSize={fontSize.xs}
-                    fontFamily={fontFamily.mono}
-                    color={color.text.muted}
-                    whiteSpace="nowrap"
-                  >
-                    {stackReference}
-                  </Block>
-                )}
-              </Row>
+              </Col>
             );
           })()}
         </ToolResultRow>

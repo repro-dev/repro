@@ -75,8 +75,8 @@ describe("ToolCallRow semantic result hints", () => {
     ).toBeDefined();
   });
 
-  it("renders console messages without a level badge", () => {
-    const { container } = render(
+  it("renders console messages with a structured first line", () => {
+    render(
       <ToolCallRow
         toolName="getConsoleMessages"
         result={makeToolResult({
@@ -100,22 +100,83 @@ describe("ToolCallRow semantic result hints", () => {
       }),
     );
 
-    expect(screen.getByText("Retrying request")).toBeDefined();
+    expect(
+      document.querySelector('[id^="console-message-line-1"]'),
+    ).toBeDefined();
+    expect(
+      document.querySelector('[id^="console-message-line-2"]'),
+    ).toBeDefined();
+    expect(screen.getByText("warning")).toBeDefined();
     expect(screen.getByText("app.ts:12")).toBeDefined();
-    expect(screen.queryByText("warning")).toBeNull();
+    expect(screen.getByText("Retrying request")).toBeDefined();
+  });
 
-    const icon = container.querySelector("svg");
-    const messageRow =
-      screen.getByText("Retrying request").parentElement?.parentElement;
+  it("splits console messages into metadata and message lines", () => {
+    render(
+      <ToolCallRow
+        toolName="getConsoleMessages"
+        result={makeToolResult({
+          messages: [
+            {
+              timeMs: 1500,
+              level: "error",
+              text: "{" + '"ok"' + ":false}",
+              stack: ["app.ts:12"],
+            },
+          ],
+        })}
+        isExecuting={false}
+        wasCancelled={false}
+      />,
+    );
 
-    expect(icon?.parentElement).not.toBeNull();
-    expect(messageRow).not.toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle details for getConsoleMessages",
+      }),
+    );
 
-    const iconWrapperStyle = window.getComputedStyle(icon!.parentElement!);
-    const messageRowStyle = window.getComputedStyle(messageRow!);
+    expect(
+      document.querySelector('[id^="console-message-line-1"]'),
+    ).toBeDefined();
+    expect(
+      document.querySelector('[id^="console-message-line-2"]'),
+    ).toBeDefined();
+    expect(screen.getByText("error")).toBeDefined();
+    expect(screen.getByText("app.ts:12")).toBeDefined();
+    expect(screen.queryByText("App message")).toBeNull();
+  });
 
-    expect(iconWrapperStyle.paddingTop).toBe("");
-    expect(messageRowStyle.alignItems).toBe("center");
+  it("splits findErrors rows into metadata and summary lines", () => {
+    render(
+      <ToolCallRow
+        toolName="findErrors"
+        result={makeToolResult({
+          errors: [
+            {
+              time: 2500,
+              source: "console",
+              summary: "Request failed",
+              stack: ["app.ts:12"],
+            },
+          ],
+        })}
+        isExecuting={false}
+        wasCancelled={false}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle details for findErrors",
+      }),
+    );
+
+    expect(document.querySelector('[id^="find-errors-line-1"]')).toBeDefined();
+    expect(document.querySelector('[id^="find-errors-line-2"]')).toBeDefined();
+    expect(screen.getByText("console")).toBeDefined();
+    expect(screen.getByText("app.ts:12")).toBeDefined();
+    expect(screen.getByText("Request failed")).toBeDefined();
   });
 
   it("jumps to the console message time when requested", () => {
@@ -281,5 +342,45 @@ describe("ToolCallRow semantic result hints", () => {
     expect(screen.getByText("GET")).toBeDefined();
     expect(screen.getByText("/api/health")).toBeDefined();
     expect(screen.getByText("10ms")).toBeDefined();
+  });
+
+  it("splits network requests into compact and detailed lines", () => {
+    render(
+      <ToolCallRow
+        toolName="getNetworkRequests"
+        result={makeToolResult({
+          requests: [
+            {
+              timeMs: 800,
+              type: "fetch",
+              method: "POST",
+              url: "/api/health",
+              status: 201,
+              durationMs: 10,
+              contentType: "application/json",
+            },
+          ],
+        })}
+        isExecuting={false}
+        wasCancelled={false}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle details for getNetworkRequests",
+      }),
+    );
+
+    expect(
+      document.querySelector('[id^="network-request-line-1"]'),
+    ).toBeDefined();
+    expect(
+      document.querySelector('[id^="network-request-line-2"]'),
+    ).toBeDefined();
+    expect(screen.getByText("201")).toBeDefined();
+    expect(screen.getByText("POST")).toBeDefined();
+    expect(screen.getByText("/api/health")).toBeDefined();
+    expect(screen.getByText("application/json")).toBeDefined();
   });
 });

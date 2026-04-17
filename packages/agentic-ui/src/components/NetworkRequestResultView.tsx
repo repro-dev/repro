@@ -77,38 +77,25 @@ export const NetworkRequestResultView: React.FC<
         <ToolResultRow
           key={i}
           timeMs={req.timeMs}
-          alignItems="center"
+          alignItems="flex-start"
           kind="network"
           onGoToTime={onGoToTime}
         >
-          <Row
-            minWidth={0}
-            flexGrow={1}
-            alignItems="center"
-            gap={TOOL_RESULT_ROW_STYLES.gap}
-          >
-            <Block
-              flexShrink={0}
-              fontSize={fontSize.xs}
-              fontFamily={fontFamily.mono}
-              color={color.text.secondary}
-              fontWeight={fontWeight.semibold}
-              whiteSpace="nowrap"
+          <Col minWidth={0} flexGrow={1} gap={TOOL_RESULT_ROW_STYLES.lineGap}>
+            <Row
+              id={`network-request-line-1-${i}`}
+              minWidth={0}
+              alignItems="center"
+              gap={TOOL_RESULT_ROW_STYLES.gap}
               lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+              flexWrap="wrap"
             >
-              {req.type === "fetch" && req.method != null
-                ? req.method.toUpperCase()
-                : req.type === "ws"
-                ? "WS"
-                : req.type}
-            </Block>
-
-            {req.status != null && (
-              <Block flexShrink={0}>
+              {req.status != null && (
                 <Block
-                  component="span"
+                  flexShrink={0}
                   fontSize={fontSize.xs}
                   fontFamily={fontFamily.mono}
+                  fontWeight={fontWeight.semibold}
                   color={
                     statusToContext(req.status) === "danger"
                       ? color.danger
@@ -121,35 +108,71 @@ export const NetworkRequestResultView: React.FC<
                 >
                   {req.status}
                 </Block>
-              </Block>
-            )}
+              )}
 
-            <Block
+              {req.durationMs != null && (
+                <Block
+                  flexShrink={0}
+                  fontSize={fontSize.xs}
+                  fontFamily={fontFamily.mono}
+                  color={color.text.muted}
+                  whiteSpace="nowrap"
+                >
+                  {req.durationMs}ms
+                </Block>
+              )}
+            </Row>
+
+            <Row
+              id={`network-request-line-2-${i}`}
               minWidth={0}
-              fontSize={fontSize.xs}
-              fontFamily={fontFamily.mono}
-              color={color.text.secondary}
-              flexGrow={1}
-              overflow="hidden"
-              whiteSpace="nowrap"
-              textOverflow="ellipsis"
+              alignItems="center"
+              gap={TOOL_RESULT_ROW_STYLES.gap}
               lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+              flexWrap="wrap"
             >
-              {truncateUrl(req.url)}
-            </Block>
-
-            {req.durationMs != null && (
               <Block
                 flexShrink={0}
                 fontSize={fontSize.xs}
                 fontFamily={fontFamily.mono}
-                color={color.text.muted}
+                color={color.text.secondary}
+                fontWeight={fontWeight.semibold}
                 whiteSpace="nowrap"
               >
-                {req.durationMs}ms
+                {req.type === "fetch" && req.method != null
+                  ? req.method.toUpperCase()
+                  : req.type === "ws"
+                  ? "WS"
+                  : req.method?.toUpperCase() ?? req.type}
               </Block>
-            )}
-          </Row>
+
+              <Block
+                minWidth={0}
+                fontSize={fontSize.xs}
+                fontFamily={fontFamily.mono}
+                color={color.text.secondary}
+                flexGrow={1}
+                overflow="hidden"
+                whiteSpace="nowrap"
+                textOverflow="ellipsis"
+                lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+              >
+                {truncateUrl(req.url)}
+              </Block>
+
+              {req.contentType != null && (
+                <Block
+                  flexShrink={0}
+                  fontSize={fontSize.xs}
+                  fontFamily={fontFamily.mono}
+                  color={color.text.muted}
+                  whiteSpace="nowrap"
+                >
+                  {req.contentType}
+                </Block>
+              )}
+            </Row>
+          </Col>
         </ToolResultRow>
       ))}
     </Col>

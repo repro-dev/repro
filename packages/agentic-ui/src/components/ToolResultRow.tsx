@@ -23,8 +23,10 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
   kind = "console",
 }) => {
   const showAction = showGoToTime;
-  const rowAlignItems = kind === "network" ? "center" : alignItems;
-  const contentAlignItems = kind === "network" ? "center" : alignItems;
+  const rowAlignItems =
+    kind === "network" || kind === "console" ? "flex-start" : alignItems;
+  const contentAlignItems =
+    kind === "network" || kind === "console" ? "stretch" : alignItems;
 
   return (
     <Row
@@ -74,7 +76,7 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
         minWidth={0}
         alignItems={contentAlignItems}
         gap={TOOL_RESULT_ROW_STYLES.gap}
-        flexWrap={kind === "console" ? "wrap" : "nowrap"}
+        flexWrap="nowrap"
       >
         {children}
       </Row>

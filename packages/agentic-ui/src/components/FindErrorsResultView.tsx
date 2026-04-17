@@ -84,17 +84,51 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
             const stackReference = err.stack?.[0];
 
             return (
-              <Row
+              <Col
                 minWidth={0}
                 flexGrow={1}
-                alignItems="flex-start"
-                gap={TOOL_RESULT_ROW_STYLES.gap}
+                gap={TOOL_RESULT_ROW_STYLES.lineGap}
               >
-                <Block flexShrink={0} paddingTop={1} color={entryColor}>
-                  {icon}
-                </Block>
+                <Row
+                  id={`find-errors-line-1-${i}`}
+                  minWidth={0}
+                  alignItems="center"
+                  gap={TOOL_RESULT_ROW_STYLES.gap}
+                  lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                  flexWrap="wrap"
+                >
+                  <Block flexShrink={0} color={entryColor} lineHeight={1}>
+                    {icon}
+                  </Block>
+
+                  <Block
+                    flexShrink={0}
+                    fontSize={fontSize.xs}
+                    fontFamily={fontFamily.mono}
+                    color={entryColor}
+                    fontWeight={fontWeight.semibold}
+                    textTransform="uppercase"
+                    lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                  >
+                    {err.source}
+                  </Block>
+
+                  {stackReference && (
+                    <Block
+                      flexShrink={0}
+                      fontSize={fontSize.xs}
+                      fontFamily={fontFamily.mono}
+                      color={color.text.muted}
+                      whiteSpace="nowrap"
+                      lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                    >
+                      {stackReference}
+                    </Block>
+                  )}
+                </Row>
 
                 <Block
+                  id={`find-errors-line-2-${i}`}
                   minWidth={0}
                   fontSize={fontSize.xs}
                   fontFamily={fontFamily.mono}
@@ -103,24 +137,9 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
                   wordBreak="break-word"
                   lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
                 >
-                  <Block component="span" fontWeight={fontWeight.semibold}>
-                    {err.source}
-                  </Block>{" "}
                   {err.summary}
                 </Block>
-
-                {stackReference && (
-                  <Block
-                    flexShrink={0}
-                    fontSize={fontSize.xs}
-                    fontFamily={fontFamily.mono}
-                    color={color.text.muted}
-                    whiteSpace="nowrap"
-                  >
-                    {stackReference}
-                  </Block>
-                )}
-              </Row>
+              </Col>
             );
           })()}
         </ToolResultRow>
