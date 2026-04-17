@@ -122,7 +122,7 @@ export const NetworkRequestResultView: React.FC<
             )}
 
             {req.durationMs != null && (
-              <Row width="100%" justifyContent="flex-end">
+              <Row width="100%" justifyContent="flex-end" gridColumn="-1">
                 <Block
                   fontSize={fontSize.xs}
                   fontFamily={fontFamily.mono}

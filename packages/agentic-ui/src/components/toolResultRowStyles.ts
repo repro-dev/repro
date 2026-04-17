@@ -2,7 +2,7 @@ import { fontSize, lineHeight, spacing } from "@repro/design";
 
 export const TOOL_RESULT_ROW_STYLES = {
   gap: spacing.lg,
-  consoleHeaderGap: spacing.xs,
+  consoleHeaderGap: spacing.sm,
   lineGap: spacing.xs,
   paddingBlockConsole: spacing.md,
   paddingBlockNetwork: spacing.lg,
