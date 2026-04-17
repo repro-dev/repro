@@ -13,7 +13,7 @@ You are a development agent. You receive a structured plan document, a worktree 
 
 ## Startup
 
-1. Load the `feature-dev` skill and follow Phases 3-5 (Implementation, Verification, Commit).
+1. Load the `feature-dev` skill and follow Phases 3-5 (Implementation, Verification, Commit). If the task is a genuine bug fix or regression, also load `bug-rigor` and follow its root-cause workflow before the generic TDD loop.
 2. Load domain skills as needed: `build-and-test`, `design-system`, `database`, `recording-playback`, `api-server`, `authentication`, `billing`, `dev-toolbar`, `agentic`.
 3. Fetch the Linear issue via `Linear_get_issue` to read the full requirements.
 4. For each affected package, check for an `AGENTS.md` file and follow its conventions.
