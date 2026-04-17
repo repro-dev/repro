@@ -18,18 +18,35 @@ const STATUS_COLOR_MAP = {
   unhealthy: color.danger,
 } as const
 
+const STATUS_BG_COLOR_MAP = {
+  ok: color.successTint,
+  degraded: color.warningTint,
+  unhealthy: color.dangerTint,
+} as const
+
+const STATUS_HOVER_BG_COLOR_MAP = {
+  ok: color.successSubtle,
+  degraded: color.warningSubtle,
+  unhealthy: color.dangerSubtle,
+} as const
+
 export const HealthStatusFooter: React.FC = () => {
   const { status } = useHealthStatus()
 
   const label = status ? getHealthStatusLabel(status) : 'Checking…'
   const statusColor = status ? STATUS_COLOR_MAP[status] : color.text.secondary
+  const backgroundColor = status ? STATUS_BG_COLOR_MAP[status] : color.bg.subtle
+  const hoverBackgroundColor = status
+    ? STATUS_HOVER_BG_COLOR_MAP[status]
+    : color.bg.hover
 
   return (
     <Block
       component={RouterLink}
       padding={spacing.lg}
+      backgroundColor={backgroundColor}
       textDecoration="none"
-      hoverBackgroundColor={color.bg.hover}
+      hoverBackgroundColor={hoverBackgroundColor}
       cursor="pointer"
       transition={transition.fast}
       {...focusRing()}
@@ -38,19 +55,20 @@ export const HealthStatusFooter: React.FC = () => {
         'aria-label': `System health: ${label}. Open detailed inspection.`,
       }}
     >
-      <Row alignItems="center" gap={spacing.md}>
+      <Row alignItems="flex-start" gap={spacing.md}>
         <Block
-          width={8}
-          height={8}
+          width={12}
+          height={12}
           borderRadius={radius.full}
           backgroundColor={statusColor}
           flexShrink={0}
+          marginTop={2}
         />
 
-        <Col gap={spacing.sm}>
+        <Col gap={spacing.xs}>
           <Block
             {...textStyles.label}
-            lineHeight={lineHeight.relaxed}
+            lineHeight={lineHeight.normal}
             color={color.text.default}
           >
             System health
