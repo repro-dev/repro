@@ -1,4 +1,4 @@
-import { Block, Col, Grid, Row } from "@jsxstyle/react";
+import { Block, Col, Row } from "@jsxstyle/react";
 import {
   color,
   fontFamily,
@@ -9,7 +9,7 @@ import {
 } from "@repro/design";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import React from "react";
-import { ToolResultRow } from "./ToolResultRow";
+import { ToolResultSemanticGrid } from "./ToolResultSemanticGrid";
 import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
 import { JSONView } from "../../../devtools/src/JSONView";
 
@@ -90,12 +90,12 @@ export const ConsoleMessageResultView: React.FC<
   return (
     <Col>
       {messages.map((msg, i) => (
-        <ToolResultRow
+        <ToolResultSemanticGrid
           key={i}
           timeMs={msg.timeMs}
-          alignItems="flex-start"
           kind="console"
           onGoToTime={onGoToTime}
+          gridTemplateColumns="auto auto 1fr"
         >
           {(() => {
             const { icon, color: messageColor } = getLevelPresentation(
@@ -106,14 +106,7 @@ export const ConsoleMessageResultView: React.FC<
             const hasCount = msg.count !== undefined && msg.count > 1;
 
             return (
-              <Grid
-                minWidth={0}
-                width="100%"
-                flexGrow={1}
-                rowGap={TOOL_RESULT_ROW_STYLES.lineGap}
-                gridTemplateColumns="auto auto 1fr"
-                columnGap={TOOL_RESULT_ROW_STYLES.gap}
-              >
+              <>
                 <Block
                   id={`console-message-line-1-${i}`}
                   minWidth={0}
@@ -185,10 +178,10 @@ export const ConsoleMessageResultView: React.FC<
                     msg.text
                   )}
                 </Block>
-              </Grid>
+              </>
             );
           })()}
-        </ToolResultRow>
+        </ToolResultSemanticGrid>
       ))}
     </Col>
   );

@@ -1,4 +1,4 @@
-import { Block, Col, Grid, Row } from "@jsxstyle/react";
+import { Block, Col, Row } from "@jsxstyle/react";
 import {
   color,
   fontFamily,
@@ -9,7 +9,7 @@ import {
 } from "@repro/design";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import React from "react";
-import { ToolResultRow } from "./ToolResultRow";
+import { ToolResultSemanticGrid } from "./ToolResultSemanticGrid";
 import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
 
 interface ErrorEntry {
@@ -70,12 +70,12 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
   return (
     <Col>
       {errors.map((err, i) => (
-        <ToolResultRow
+        <ToolResultSemanticGrid
           key={i}
           timeMs={err.time}
-          alignItems="flex-start"
           kind="console"
           showGoToTime={false}
+          gridTemplateColumns="auto auto 1fr"
         >
           {(() => {
             const { icon, color: entryColor } = sourceToPresentation(
@@ -84,14 +84,7 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
             const stackReference = err.stack?.[0];
 
             return (
-              <Grid
-                minWidth={0}
-                width="100%"
-                flexGrow={1}
-                rowGap={TOOL_RESULT_ROW_STYLES.lineGap}
-                gridTemplateColumns="auto auto 1fr"
-                columnGap={TOOL_RESULT_ROW_STYLES.gap}
-              >
+              <>
                 <Block
                   id={`find-errors-line-1-${i}`}
                   minWidth={0}
@@ -146,10 +139,10 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
                 >
                   {err.summary}
                 </Block>
-              </Grid>
+              </>
             );
           })()}
-        </ToolResultRow>
+        </ToolResultSemanticGrid>
       ))}
     </Col>
   );
