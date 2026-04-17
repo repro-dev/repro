@@ -312,6 +312,32 @@ describe("ToolCallRow semantic result hints", () => {
     expect(networkStyle.left).toBe("-10px");
   });
 
+  it("keeps the time and seek action in the first grid cell", () => {
+    render(
+      <ToolCallRow
+        toolName="getConsoleMessages"
+        result={makeToolResult({
+          messages: [{ timeMs: 1500, level: "info", text: "Console message" }],
+        })}
+        isExecuting={false}
+        wasCancelled={false}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle details for getConsoleMessages",
+      }),
+    );
+
+    const timeCell = screen.getByText("00:00:01.500");
+    const seekAction = screen.getByRole("button", {
+      name: /go to time/i,
+    });
+
+    expect(timeCell.parentElement?.contains(seekAction)).toBe(true);
+  });
+
   it("renders the network verb as plain text", () => {
     render(
       <ToolCallRow

@@ -1,4 +1,4 @@
-import { Block, Row } from "@jsxstyle/react";
+import { Block, Grid } from "@jsxstyle/react";
 import { color, fontFamily, transition } from "@repro/design";
 import React from "react";
 import { formatTimeMs } from "./formatTimeMs";
@@ -25,13 +25,12 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
   const showAction = showGoToTime;
   const rowAlignItems =
     kind === "network" || kind === "console" ? "flex-start" : alignItems;
-  const contentAlignItems =
-    kind === "network" || kind === "console" ? "stretch" : alignItems;
 
   return (
-    <Row
+    <Grid
       alignItems={rowAlignItems}
       gap={TOOL_RESULT_ROW_STYLES.gap}
+      gridTemplateColumns={`${TOOL_RESULT_ROW_STYLES.timeColumnMinWidth}px minmax(0, 1fr)`}
       paddingBlock={
         kind === "network"
           ? TOOL_RESULT_ROW_STYLES.paddingBlockNetwork
@@ -71,15 +70,9 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
         )}
       </Block>
 
-      <Row
-        flexGrow={1}
-        minWidth={0}
-        alignItems={contentAlignItems}
-        gap={TOOL_RESULT_ROW_STYLES.gap}
-        flexWrap="nowrap"
-      >
+      <Block minWidth={0} gridColumn="2">
         {children}
-      </Row>
-    </Row>
+      </Block>
+    </Grid>
   );
 };
