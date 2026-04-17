@@ -2,10 +2,10 @@ import { Block, Col, Row } from '@jsxstyle/react'
 import {
   color,
   focusRing,
-  fontSize,
-  fontWeight,
+  lineHeight,
   radius,
   spacing,
+  textStyles,
   transition,
 } from '@repro/design'
 import React from 'react'
@@ -38,7 +38,7 @@ export const HealthStatusFooter: React.FC = () => {
         'aria-label': `System health: ${label}. Open detailed inspection.`,
       }}
     >
-      <Row alignItems="center" gap={spacing.sm}>
+      <Row alignItems="center" gap={spacing.md}>
         <Block
           width={8}
           height={8}
@@ -47,15 +47,15 @@ export const HealthStatusFooter: React.FC = () => {
           flexShrink={0}
         />
 
-        <Col gap={spacing.xs}>
+        <Col gap={spacing.sm}>
           <Block
-            fontSize={fontSize.xs}
-            fontWeight={fontWeight.semibold}
+            {...textStyles.label}
+            lineHeight={lineHeight.relaxed}
             color={color.text.default}
           >
             System health
           </Block>
-          <Block fontSize={fontSize.xs} color={statusColor}>
+          <Block {...textStyles.bodySmall} color={statusColor}>
             {label}
           </Block>
         </Col>

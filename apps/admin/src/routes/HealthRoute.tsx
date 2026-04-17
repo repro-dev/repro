@@ -1,4 +1,4 @@
-import { Block, Grid, Row } from '@jsxstyle/react'
+import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import {
   Alert,
   Button,
@@ -8,6 +8,7 @@ import {
   FullPageLoading,
   PageFrame,
   spacing,
+  textStyles,
 } from '@repro/design'
 import type { SubsystemCheck } from '@repro/domain'
 import React from 'react'
@@ -33,30 +34,32 @@ function getSubsystemStatusLabel(status: SubsystemCheck['status']) {
 }
 
 const SubsystemCard = ({ name, check }: SubsystemCardProps) => (
-  <Card padding={spacing.md}>
-    <Row alignItems="center" gap={spacing.md}>
+  <Card padding={spacing.lg}>
+    <Row alignItems="flex-start" gap={spacing.md}>
       <Block
         width={12}
         height={12}
         borderRadius="50%"
         backgroundColor={STATUS_COLOR_MAP[check.status]}
       />
-      <Block flex={1}>
-        <Block fontWeight={500}>{name}</Block>
-        <Block fontSize={13} color={color.text.secondary}>
+      <Col flex={1} gap={spacing.sm}>
+        <Block {...textStyles.label} color={color.text.default}>
+          {name}
+        </Block>
+        <Block {...textStyles.bodySmall} color={color.text.secondary}>
           Status: {getSubsystemStatusLabel(check.status)}
         </Block>
         {check.latencyMs != null && (
-          <Block fontSize={13} color={color.text.secondary}>
+          <Block {...textStyles.bodySmall} color={color.text.secondary}>
             {check.latencyMs}ms
           </Block>
         )}
         {check.error && (
-          <Block fontSize={13} color={color.danger}>
+          <Block {...textStyles.bodySmall} color={color.danger}>
             {check.error}
           </Block>
         )}
-      </Block>
+      </Col>
     </Row>
   </Card>
 )
@@ -126,7 +129,7 @@ export const HealthRoute: React.FC = () => {
         </Grid>
 
         <Row alignItems="center" gap={spacing.md}>
-          <Block fontSize={13} color={color.text.secondary}>
+          <Block {...textStyles.bodySmall} color={color.text.secondary}>
             Last checked: {new Date(timestamp).toLocaleString()}
           </Block>
           <Button variant="outlined" size="small" onClick={refresh}>
