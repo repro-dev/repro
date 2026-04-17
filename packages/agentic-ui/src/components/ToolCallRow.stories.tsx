@@ -166,6 +166,42 @@ export const NetworkRequests: StoryObj<typeof ToolCallRow> = {
   },
 };
 
+export const FindErrors: StoryObj<typeof ToolCallRow> = {
+  args: {
+    toolName: "findErrors",
+    isExecuting: false,
+    result: makeResult({
+      errors: [
+        {
+          time: 1500,
+          source: "console",
+          summary:
+            "Uncaught TypeError: Cannot read properties of undefined (reading 'map') while rendering SessionList after the latest filter change.",
+          stack: ["app.js:42:15", "SessionList.tsx:87:21"],
+        },
+        {
+          time: 2200,
+          source: "network",
+          summary:
+            "GET /api/users/me → 401 Unauthorized — missing session cookie after redirect.",
+        },
+        {
+          time: 3100,
+          source: "console",
+          summary:
+            "Failed to load resource: net::ERR_CONNECTION_REFUSED while syncing recording metadata.",
+        },
+        {
+          time: 4000,
+          source: "network",
+          summary:
+            "POST /api/recordings → 500 Internal Server Error — the write path rejected the request payload.",
+        },
+      ],
+    }),
+  },
+};
+
 export const JsonFallback: StoryObj<typeof ToolCallRow> = {
   args: {
     toolName: "getElementDetails",
