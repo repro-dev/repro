@@ -92,6 +92,7 @@ export const NetworkRequestResultView: React.FC<
             <Block
               id={`network-request-line-1-${i}`}
               minWidth={0}
+              paddingLeft={TOOL_RESULT_ROW_STYLES.contentShift}
               fontSize={fontSize.xs}
               fontFamily={fontFamily.mono}
               fontWeight={fontWeight.semibold}
@@ -121,14 +122,16 @@ export const NetworkRequestResultView: React.FC<
             )}
 
             {req.durationMs != null && (
-              <Block
-                fontSize={fontSize.xs}
-                fontFamily={fontFamily.mono}
-                color={color.text.muted}
-                whiteSpace="nowrap"
-              >
-                {req.durationMs}ms
-              </Block>
+              <Row width="100%" justifyContent="flex-end">
+                <Block
+                  fontSize={fontSize.xs}
+                  fontFamily={fontFamily.mono}
+                  color={color.text.muted}
+                  whiteSpace="nowrap"
+                >
+                  {req.durationMs}ms
+                </Block>
+              </Row>
             )}
 
             <Block

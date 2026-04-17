@@ -70,7 +70,12 @@ export const ToolResultRow: React.FC<ToolResultRowProps> = ({
         )}
       </Block>
 
-      <Block minWidth={0} gridColumn="2">
+      <Block
+        minWidth={0}
+        gridColumn="2"
+        width={`calc(100% + ${TOOL_RESULT_ROW_STYLES.contentShift}px)`}
+        marginLeft={-TOOL_RESULT_ROW_STYLES.contentShift}
+      >
         {children}
       </Block>
     </Grid>

@@ -118,6 +118,7 @@ export const ConsoleMessageResultView: React.FC<
                   id={`console-message-line-1-${i}`}
                   minWidth={0}
                   gridColumn="1 / span 2"
+                  paddingLeft={TOOL_RESULT_ROW_STYLES.contentShift}
                 >
                   <Row
                     alignItems="center"
@@ -153,15 +154,17 @@ export const ConsoleMessageResultView: React.FC<
                 </Block>
 
                 {stackReference && (
-                  <Block
-                    fontSize={fontSize.xs}
-                    fontFamily={fontFamily.mono}
-                    color={color.text.muted}
-                    whiteSpace="nowrap"
-                    lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                  >
-                    {stackReference}
-                  </Block>
+                  <Row width="100%" justifyContent="flex-end">
+                    <Block
+                      fontSize={fontSize.xs}
+                      fontFamily={fontFamily.mono}
+                      color={color.text.muted}
+                      whiteSpace="nowrap"
+                      lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                    >
+                      {stackReference}
+                    </Block>
+                  </Row>
                 )}
 
                 <Block

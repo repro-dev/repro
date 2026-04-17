@@ -8,6 +8,7 @@ export const TOOL_RESULT_ROW_STYLES = {
   paddingInline: spacing.xl,
   borderWidth: 1,
   timeColumnMinWidth: 72,
+  contentShift: 72 + spacing.lg,
   timeActionConsoleTop: -3,
   timeActionConsoleLeft: -10,
   rowFontSize: fontSize.xs,
