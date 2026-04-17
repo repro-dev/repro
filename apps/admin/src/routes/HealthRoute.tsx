@@ -1,5 +1,4 @@
 import { Block, Grid, Row } from '@jsxstyle/react'
-import { useApiClient } from '@repro/api-client'
 import {
   Alert,
   Button,
@@ -10,9 +9,9 @@ import {
   PageFrame,
   spacing,
 } from '@repro/design'
-import type { HealthCheckResult, SubsystemCheck } from '@repro/domain'
-import { useFuture } from '@repro/future-utils'
-import React, { useEffect, useState } from 'react'
+import type { SubsystemCheck } from '@repro/domain'
+import React from 'react'
+import { getHealthStatusLabel, useHealthStatus } from '~/hooks/useHealthStatus'
 
 const STATUS_COLOR_MAP: { [status in SubsystemCheck['status']]: string } = {
   ok: color.success,
@@ -25,39 +24,12 @@ interface SubsystemCardProps {
   check: SubsystemCheck
 }
 
-function getOverallStatusLabel(status: HealthCheckResult['status']) {
-  return status === 'ok'
-    ? 'Healthy'
-    : status === 'degraded'
-    ? 'Degraded'
-    : 'Unhealthy'
-}
-
 function getSubsystemStatusLabel(status: SubsystemCheck['status']) {
   return status === 'ok'
     ? 'Connected'
     : status === 'degraded'
     ? 'Degraded'
     : 'Disconnected'
-}
-
-function isHealthCheckResult(value: unknown): value is HealthCheckResult {
-  if (value == null || typeof value !== 'object') {
-    return false
-  }
-
-  const result = value as {
-    status?: unknown
-    timestamp?: unknown
-    checks?: unknown
-  }
-
-  return (
-    typeof result.status === 'string' &&
-    typeof result.timestamp === 'string' &&
-    result.checks != null &&
-    typeof result.checks === 'object'
-  )
 }
 
 const SubsystemCard = ({ name, check }: SubsystemCardProps) => (
@@ -90,27 +62,9 @@ const SubsystemCard = ({ name, check }: SubsystemCardProps) => (
 )
 
 export const HealthRoute: React.FC = () => {
-  const apiClient = useApiClient()
-  const [refreshKey, setRefreshKey] = useState(0)
+  const { loading, error, healthResult, refresh } = useHealthStatus()
 
-  const result = useFuture(
-    () => apiClient.fetch('/health'),
-    [apiClient, refreshKey]
-  )
-
-  // Auto-refresh every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => setRefreshKey(k => k + 1), 30_000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const healthResult = isHealthCheckResult(result.error)
-    ? result.error
-    : isHealthCheckResult(result.data)
-    ? result.data
-    : null
-
-  if (result.loading) {
+  if (loading) {
     return (
       <PageFrame>
         <PageFrame.Header>
@@ -123,7 +77,12 @@ export const HealthRoute: React.FC = () => {
     )
   }
 
-  if (result.error && healthResult == null) {
+  if (error && healthResult == null) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : 'Unable to reach the health endpoint.'
+
     return (
       <PageFrame>
         <PageFrame.Header>
@@ -132,12 +91,8 @@ export const HealthRoute: React.FC = () => {
         <PageFrame.Body>
           <FullPageError
             title="Health check failed"
-            description={
-              result.error.message ?? 'Unable to reach the health endpoint.'
-            }
-            action={
-              <Button onClick={() => setRefreshKey(k => k + 1)}>Retry</Button>
-            }
+            description={errorMessage}
+            action={<Button onClick={refresh}>Retry</Button>}
           />
         </PageFrame.Body>
       </PageFrame>
@@ -152,7 +107,7 @@ export const HealthRoute: React.FC = () => {
 
   const alertType =
     status === 'ok' ? 'success' : status === 'degraded' ? 'warning' : 'danger'
-  const alertLabel = getOverallStatusLabel(status)
+  const alertLabel = getHealthStatusLabel(status)
 
   return (
     <PageFrame>
@@ -174,11 +129,7 @@ export const HealthRoute: React.FC = () => {
           <Block fontSize={13} color={color.text.secondary}>
             Last checked: {new Date(timestamp).toLocaleString()}
           </Block>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setRefreshKey(k => k + 1)}
-          >
+          <Button variant="outlined" size="small" onClick={refresh}>
             Refresh
           </Button>
         </Row>
