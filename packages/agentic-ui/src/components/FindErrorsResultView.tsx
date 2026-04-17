@@ -1,16 +1,14 @@
-import { Block, Col, Row } from "@jsxstyle/react";
-import {
-  color,
-  fontFamily,
-  fontWeight,
-  fontSize,
-  spacing,
-  textStyles,
-} from "@repro/design";
-import { AlertCircle, AlertTriangle } from "lucide-react";
+import { Block, Col } from "@jsxstyle/react";
+import { color, spacing, textStyles } from "@repro/design";
 import React from "react";
-import { ToolResultSemanticGrid } from "./ToolResultSemanticGrid";
-import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
+import {
+  ConsoleMessageResultRow,
+  type ConsoleMessage,
+} from "./ConsoleMessageResultView";
+import {
+  NetworkRequestResultRow,
+  type NetworkRequest,
+} from "./NetworkRequestResultView";
 
 interface ErrorEntry {
   time: number;
@@ -27,27 +25,64 @@ interface FindErrorsResultViewProps {
   result: FindErrorsResult;
 }
 
-function sourceToPresentation(source: string): {
-  icon: React.ReactNode;
-  color: string;
+type FindErrorsRenderItem =
+  | { kind: "console"; time: number; message: ConsoleMessage }
+  | { kind: "network"; time: number; request: NetworkRequest };
+
+type IndexedFindErrorsRenderItem = FindErrorsRenderItem & {
+  originalIndex: number;
+};
+
+function parseNetworkFailureSummary(summary: string): {
+  method?: string;
+  url: string;
+  status?: number;
 } {
-  switch (source) {
-    case "console":
-      return {
-        icon: <AlertTriangle size={14} color={color.danger} />,
-        color: color.danger,
-      };
-    case "network":
-      return {
-        icon: <AlertCircle size={14} color={color.warning} />,
-        color: color.warning,
-      };
-    default:
-      return {
-        icon: <AlertCircle size={14} color={color.text.muted} />,
-        color: color.text.muted,
-      };
+  const match = summary.match(
+    /^(?<method>[A-Z]+)\s+(?<url>\S+?)(?:\s*(?:→|->|—|-+)\s*(?<status>\d{3}))?(?:\s|$)/,
+  );
+
+  if (match?.groups?.url) {
+    return {
+      method: match.groups.method,
+      url: match.groups.url,
+      status:
+        match.groups.status !== undefined
+          ? Number.parseInt(match.groups.status, 10)
+          : undefined,
+    };
   }
+
+  return { url: summary };
+}
+
+function adaptFindError(err: ErrorEntry): FindErrorsRenderItem {
+  if (err.source === "console") {
+    return {
+      kind: "console",
+      time: err.time,
+      message: {
+        timeMs: err.time,
+        level: "error",
+        text: err.summary,
+        stack: err.stack,
+      },
+    };
+  }
+
+  const parsed = parseNetworkFailureSummary(err.summary);
+
+  return {
+    kind: "network",
+    time: err.time,
+    request: {
+      timeMs: err.time,
+      type: "fetch",
+      method: parsed.method,
+      url: parsed.url,
+      status: parsed.status,
+    },
+  };
 }
 
 export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
@@ -67,83 +102,32 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
     );
   }
 
+  const rows = errors
+    .map(
+      (err, originalIndex): IndexedFindErrorsRenderItem => ({
+        ...adaptFindError(err),
+        originalIndex,
+      }),
+    )
+    .sort((a, b) => a.time - b.time || a.originalIndex - b.originalIndex);
+
   return (
     <Col>
-      {errors.map((err, i) => (
-        <ToolResultSemanticGrid
-          key={i}
-          timeMs={err.time}
-          kind="console"
-          showGoToTime={false}
-          gridTemplateColumns="auto auto 1fr"
-        >
-          {(() => {
-            const { icon, color: entryColor } = sourceToPresentation(
-              err.source,
-            );
-            const stackReference = err.stack?.[0];
-
-            return (
-              <>
-                <Block
-                  id={`find-errors-line-1-${i}`}
-                  minWidth={0}
-                  gridColumn="1 / span 2"
-                  paddingLeft={TOOL_RESULT_ROW_STYLES.rowContentShift}
-                >
-                  <Row
-                    alignItems="center"
-                    gap={TOOL_RESULT_ROW_STYLES.gap}
-                    lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                  >
-                    <Block color={entryColor} lineHeight={1}>
-                      {icon}
-                    </Block>
-
-                    <Block
-                      fontSize={fontSize.xs}
-                      fontFamily={fontFamily.mono}
-                      color={entryColor}
-                      fontWeight={fontWeight.semibold}
-                      textTransform="uppercase"
-                      lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                    >
-                      {err.source}
-                    </Block>
-                  </Row>
-                </Block>
-
-                {stackReference && (
-                  <Block
-                    fontSize={fontSize.xs}
-                    fontFamily={fontFamily.mono}
-                    color={color.text.muted}
-                    whiteSpace="nowrap"
-                    lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                  >
-                    {stackReference}
-                  </Block>
-                )}
-
-                <Block
-                  id={`find-errors-line-2-${i}`}
-                  minWidth={0}
-                  gridColumn="1 / -1"
-                  width="100%"
-                  fontSize={fontSize.xs}
-                  fontFamily={fontFamily.mono}
-                  color={entryColor}
-                  flexGrow={1}
-                  wordBreak="break-word"
-                  lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                >
-                  {err.summary}
-                </Block>
-              </>
-            );
-          })()}
-        </ToolResultSemanticGrid>
-      ))}
+      {rows.map((row, i) =>
+        row.kind === "console" ? (
+          <ConsoleMessageResultRow
+            key={`console-${row.time}-${row.originalIndex}`}
+            message={row.message}
+            index={i}
+          />
+        ) : (
+          <NetworkRequestResultRow
+            key={`network-${row.time}-${row.originalIndex}`}
+            request={row.request}
+            index={i}
+          />
+        ),
+      )}
     </Col>
   );
 };

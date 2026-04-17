@@ -13,7 +13,7 @@ import { ToolResultSemanticGrid } from "./ToolResultSemanticGrid";
 import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
 import { JSONView } from "../../../devtools/src/JSONView";
 
-interface ConsoleMessage {
+export interface ConsoleMessage {
   timeMs: number;
   level: string;
   text: string;
@@ -21,7 +21,7 @@ interface ConsoleMessage {
   count?: number;
 }
 
-interface ConsoleMessageResult {
+export interface ConsoleMessageResult {
   messages: ConsoleMessage[];
   hint?: string;
 }
@@ -67,6 +67,103 @@ function getLevelPresentation(level: string): {
   }
 }
 
+interface ConsoleMessageResultRowProps {
+  message: ConsoleMessage;
+  index: number;
+  onGoToTime?: (timeMs: number) => void;
+}
+
+export const ConsoleMessageResultRow: React.FC<
+  ConsoleMessageResultRowProps
+> = ({ message: msg, index, onGoToTime }) => {
+  const { icon, color: messageColor } = getLevelPresentation(msg.level);
+  const stackReference = msg.stack?.[0];
+  const structuredMessage = parseStructuredMessage(msg.text);
+  const hasCount = msg.count !== undefined && msg.count > 1;
+
+  return (
+    <ToolResultSemanticGrid
+      key={index}
+      timeMs={msg.timeMs}
+      kind="console"
+      onGoToTime={onGoToTime}
+      gridTemplateColumns="auto auto 1fr"
+    >
+      <Block
+        id={`console-message-line-1-${index}`}
+        minWidth={0}
+        gridColumn="1 / span 2"
+        paddingLeft={TOOL_RESULT_ROW_STYLES.consoleContentShift}
+      >
+        <Row
+          alignItems="center"
+          gap={TOOL_RESULT_ROW_STYLES.consoleHeaderGap}
+          lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+        >
+          <Block color={messageColor} lineHeight={1}>
+            {icon}
+          </Block>
+
+          <Block
+            fontSize={fontSize.xs}
+            fontFamily={fontFamily.mono}
+            color={messageColor}
+            fontWeight={fontWeight.semibold}
+            textTransform="uppercase"
+            lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+          >
+            {msg.level}
+          </Block>
+
+          {hasCount && (
+            <Block
+              color={color.text.muted}
+              fontSize={fontSize.xs}
+              fontFamily={fontFamily.mono}
+              lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+            >
+              ×{msg.count}
+            </Block>
+          )}
+        </Row>
+      </Block>
+
+      {stackReference && (
+        <Row width="100%" justifyContent="flex-end">
+          <Block
+            fontSize={fontSize.xs}
+            fontFamily={fontFamily.mono}
+            color={color.text.muted}
+            whiteSpace="nowrap"
+            lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+          >
+            {stackReference}
+          </Block>
+        </Row>
+      )}
+
+      <Block
+        id={`console-message-line-2-${index}`}
+        minWidth={0}
+        gridColumn="1 / -1"
+        width="100%"
+        fontSize={fontSize.xs}
+        fontFamily={fontFamily.mono}
+        color={messageColor}
+        wordBreak="break-word"
+        lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+        whiteSpace="pre-wrap"
+      >
+        {structuredMessage !== null ? (
+          <JSONView data={structuredMessage} />
+        ) : (
+          msg.text
+        )}
+      </Block>
+    </ToolResultSemanticGrid>
+  );
+};
+
 export const ConsoleMessageResultView: React.FC<
   ConsoleMessageResultViewProps
 > = ({ result, onGoToTime }) => {
@@ -90,98 +187,12 @@ export const ConsoleMessageResultView: React.FC<
   return (
     <Col>
       {messages.map((msg, i) => (
-        <ToolResultSemanticGrid
+        <ConsoleMessageResultRow
           key={i}
-          timeMs={msg.timeMs}
-          kind="console"
+          message={msg}
+          index={i}
           onGoToTime={onGoToTime}
-          gridTemplateColumns="auto auto 1fr"
-        >
-          {(() => {
-            const { icon, color: messageColor } = getLevelPresentation(
-              msg.level,
-            );
-            const stackReference = msg.stack?.[0];
-            const structuredMessage = parseStructuredMessage(msg.text);
-            const hasCount = msg.count !== undefined && msg.count > 1;
-
-            return (
-              <>
-                <Block
-                  id={`console-message-line-1-${i}`}
-                  minWidth={0}
-                  gridColumn="1 / span 2"
-                  paddingLeft={TOOL_RESULT_ROW_STYLES.consoleContentShift}
-                >
-                  <Row
-                    alignItems="center"
-                    gap={TOOL_RESULT_ROW_STYLES.consoleHeaderGap}
-                    lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                  >
-                    <Block color={messageColor} lineHeight={1}>
-                      {icon}
-                    </Block>
-
-                    <Block
-                      fontSize={fontSize.xs}
-                      fontFamily={fontFamily.mono}
-                      color={messageColor}
-                      fontWeight={fontWeight.semibold}
-                      textTransform="uppercase"
-                      lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                    >
-                      {msg.level}
-                    </Block>
-
-                    {hasCount && (
-                      <Block
-                        color={color.text.muted}
-                        fontSize={fontSize.xs}
-                        fontFamily={fontFamily.mono}
-                        lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                      >
-                        ×{msg.count}
-                      </Block>
-                    )}
-                  </Row>
-                </Block>
-
-                {stackReference && (
-                  <Row width="100%" justifyContent="flex-end">
-                    <Block
-                      fontSize={fontSize.xs}
-                      fontFamily={fontFamily.mono}
-                      color={color.text.muted}
-                      whiteSpace="nowrap"
-                      lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                    >
-                      {stackReference}
-                    </Block>
-                  </Row>
-                )}
-
-                <Block
-                  id={`console-message-line-2-${i}`}
-                  minWidth={0}
-                  gridColumn="1 / -1"
-                  width="100%"
-                  fontSize={fontSize.xs}
-                  fontFamily={fontFamily.mono}
-                  color={messageColor}
-                  wordBreak="break-word"
-                  lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                  whiteSpace="pre-wrap"
-                >
-                  {structuredMessage !== null ? (
-                    <JSONView data={structuredMessage} />
-                  ) : (
-                    msg.text
-                  )}
-                </Block>
-              </>
-            );
-          })()}
-        </ToolResultSemanticGrid>
+        />
       ))}
     </Col>
   );

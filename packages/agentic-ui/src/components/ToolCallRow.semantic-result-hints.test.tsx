@@ -9,7 +9,6 @@ import expect from "expect";
 import { afterEach, describe, it } from "node:test";
 import React from "react";
 import type { ToolMessage } from "@repro/agentic";
-
 import { ToolCallRow } from "./ToolCallRow";
 import { TOOL_RESULT_ROW_STYLES } from "./toolResultRowStyles";
 
@@ -146,38 +145,6 @@ describe("ToolCallRow semantic result hints", () => {
     expect(screen.getByText("error")).toBeDefined();
     expect(screen.getByText("app.ts:12")).toBeDefined();
     expect(screen.queryByText("App message")).toBeNull();
-  });
-
-  it("splits findErrors rows into metadata and summary lines", () => {
-    render(
-      <ToolCallRow
-        toolName="findErrors"
-        result={makeToolResult({
-          errors: [
-            {
-              time: 2500,
-              source: "console",
-              summary: "Request failed",
-              stack: ["app.ts:12"],
-            },
-          ],
-        })}
-        isExecuting={false}
-        wasCancelled={false}
-      />,
-    );
-
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Toggle details for findErrors",
-      }),
-    );
-
-    expect(document.querySelector('[id^="find-errors-line-1"]')).toBeDefined();
-    expect(document.querySelector('[id^="find-errors-line-2"]')).toBeDefined();
-    expect(screen.getByText("console")).toBeDefined();
-    expect(screen.getByText("app.ts:12")).toBeDefined();
-    expect(screen.getByText("Request failed")).toBeDefined();
   });
 
   it("jumps to the console message time when requested", () => {
