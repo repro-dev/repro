@@ -148,6 +148,7 @@ describe("ToolCallRow semantic result hints", () => {
     );
 
     expect(jumpedTo).toBe(1500);
+    expect(document.activeElement?.tagName).not.toBe("BUTTON");
   });
 
   it("renders the network time action without a callback", () => {
