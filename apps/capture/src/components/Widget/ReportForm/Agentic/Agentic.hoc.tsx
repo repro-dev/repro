@@ -14,7 +14,7 @@ import { parse } from 'event-stream-parser'
 import { attemptP, chain, fork } from 'fluture'
 import React, { useMemo } from 'react'
 
-async function hashPromptVersion(prompt: string): Promise {
+async function hashPromptVersion(prompt: string) {
   const encoder = new TextEncoder()
   const data = encoder.encode(prompt)
   const hashBuffer = await crypto.subtle.digest('SHA-256', data)
