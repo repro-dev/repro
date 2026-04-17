@@ -83,10 +83,20 @@ runs:
           echo "::error::SCW_SECRET_KEY is not set. Add it as a GitHub secret and map it via env: in the workflow."
           exit 1
         fi
+        if [ -z "$SCW_BUCKET_NAME" ]; then
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            echo "::error::bucket-name is not set. Configure SCW_STATIC_BUCKET_NAME for production deploys."
+            exit 1
+          fi
+
+          echo "::notice::bucket-name is not set. Skipping static deploy for this non-production run."
+          echo "SKIP_STATIC_DEPLOY=true" >> "$GITHUB_ENV"
+        fi
       shell: bash
       env:
         SCW_ACCESS_KEY: ${{ inputs.access-key }}
         SCW_SECRET_KEY: ${{ inputs.secret-key }}
+        SCW_BUCKET_NAME: ${{ inputs.bucket-name }}
 
     - name: Validate deployment target
       id: deploy-config
@@ -156,7 +166,7 @@ runs:
       shell: bash
 
     - name: Initialize Scaleway CLI
-      if: ${{ steps.deploy-config.outputs.enabled == 'true' }}
+      if: env.SKIP_STATIC_DEPLOY != 'true'
       uses: scaleway/action-scw@v0
       with:
         save-config: true
@@ -166,14 +176,14 @@ runs:
         default-organization-id: ${{ inputs.organization-id }}
 
     - name: Download artifacts
-      if: ${{ steps.deploy-config.outputs.enabled == 'true' }}
+      if: env.SKIP_STATIC_DEPLOY != 'true'
       uses: actions/download-artifact@v5
       with:
         name: build-artifacts-${{ github.run_number }}
         path: apps
 
     - name: Prepare environment
-      if: ${{ steps.deploy-config.outputs.enabled == 'true' }}
+      if: env.SKIP_STATIC_DEPLOY != 'true'
       run: |
         if [ ! -f "apps/${{ inputs.app-name }}/scripts/prepare-env" ]; then
           # Some static apps do not need deploy-time env templating.
@@ -201,7 +211,7 @@ runs:
         AUTH_STORAGE: ${{ inputs.auth-storage }}
 
     - name: Upload hashed assets to S3
-      if: ${{ steps.deploy-config.outputs.enabled == 'true' }}
+      if: env.SKIP_STATIC_DEPLOY != 'true'
       # Upload everything except index.html with long-lived immutable cache headers.
       # Hashed filenames (e.g. main.abc123.js) mean these files are safe to cache forever.
       run: |
@@ -220,7 +230,7 @@ runs:
         AWS_DEFAULT_REGION: ${{ inputs.region }}
 
     - name: Upload index.html to S3
-      if: ${{ steps.deploy-config.outputs.enabled == 'true' }}
+      if: env.SKIP_STATIC_DEPLOY != 'true'
       # Upload index.html separately with a short TTL so the entry point always reflects
       # the latest deployment without requiring a cache bust on the URL itself.
       run: |
@@ -237,7 +247,7 @@ runs:
         AWS_DEFAULT_REGION: ${{ inputs.region }}
 
     - name: Invalidate CDN cache
-      if: ${{ steps.deploy-config.outputs.enabled == 'true' }}
+      if: env.SKIP_STATIC_DEPLOY != 'true'
       # Scaleway CDN invalidation purges cached objects so users receive the new index.html
       # immediately. This is best-effort — a failure here does not block deployment.
       run: |
