@@ -185,6 +185,8 @@ After starting Storybook, query `http://localhost:6099/index.json` to get canoni
 
 Default threshold: `0.001` (0.1% of pixels changed). To override for a specific package, create a `.visual-threshold` file in the package root containing just the threshold value (e.g. `0.005`).
 
+For test-file-size guardrails, CI only scans changed `.test.ts` / `.test.tsx` files from the PR diff; local manual runs still scan the whole repo when no CI context is present. Current thresholds are 400 lines for warnings and 500 lines for errors.
+
 ### Storybook port
 
 The script uses port **6099** by default (avoids conflict with the dev server on 6006). Override with `--port <n>` if needed. The script automatically finds the next free port if 6099 is occupied.
@@ -269,3 +271,45 @@ Reserve space for dynamic content with `aspect-ratio` or explicit dimensions:
 - Profile in development mode — always profile production builds (`NODE_ENV=production`).
 - Save Lighthouse reports to `/tmp/` — use `tmp/lighthouse/` at the repo root.
 - Add `memo` / `useMemo` / `useCallback` without a profiler-confirmed bottleneck.
+
+---
+
+## Test File Size Limits
+
+### Problem
+
+`node:test` + `tsx` (v4.19.3) + `--experimental-test-module-mocks` hangs indefinitely when a test file exceeds ~500–800 lines. The process never completes — no output, no timeout. This was discovered during the REP-436 workstream when `tools.test.ts` reached 847 lines.
+
+**Environment where hang was observed**: tsx 4.19.3, Node 22.19.0, `--experimental-test-module-mocks`.
+
+**Likely contributing factors**: The `--experimental-test-module-mocks` flag is experimental; this is a known risk area for tsx/node:test interop.
+
+### Version testing status
+
+Testing tsx v4.20+ and Node v23.x against the hang is **blocked**: the workaround (splitting files to <300 lines each) has already been applied, so no file large enough to trigger the hang reliably exists in the codebase. Creating a deliberately oversized file would itself violate the CI lint rule below.
+
+### Enforced limits
+
+CI runs `scripts/check-test-file-size.sh` after the migration duplicate check step:
+
+| Threshold   | Action                 |
+| ----------- | ---------------------- |
+| > 400 lines | Warning (non-blocking) |
+| > 500 lines | Error (blocks CI)      |
+
+Run locally with:
+
+```sh
+pnpm check:test-file-size
+# or
+bash scripts/check-test-file-size.sh
+```
+
+### Workaround
+
+Split large test files into per-feature files under `src/<module>/__tests__/`. Each file should stay under ~300 lines for a comfortable safety margin. The established pattern is in `packages/agentic/src/model/tools/__tests__/` — one file per tool.
+
+### NEVER
+
+- Write a test file that exceeds 500 lines. CI will reject it.
+- Merge files that were previously split to work around the hang.

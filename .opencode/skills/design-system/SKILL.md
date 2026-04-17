@@ -427,19 +427,15 @@ Every list or grid surface must have an empty state. Use the five-part formula:
 ### Five-Part Formula
 
 1. **Icon** — communicates context at a glance.
-
    - Implementation: 48×48 icon from `lucide-react`; wrap in `<Block color={color.text.subtle}>`.
 
 2. **Heading** — names the empty state clearly (not "Nothing here").
-
    - Implementation: use `textStyles.heading3` spread; sentence case; max 5 words.
 
 3. **Body** — one sentence explaining why it's empty and what the user can do.
-
    - Implementation: `<Block component="p" {...textStyles.body} color={color.text.secondary}>`.
 
 4. **CTA** — primary action the user should take.
-
    - Implementation: `<Button variant="contained">` with a specific verb ("Start recording", "Invite a teammate").
 
 5. **Illustration** — optional; only if the surface warrants it (first-run, marketing-adjacent).
@@ -479,3 +475,58 @@ import { Button } from "@repro/design";
 ### Component Promotion
 
 If the same five-part structure is used in 3 or more places, standardize on the existing `<EmptyState>` compound component from `@repro/design` rather than reimplementing the pattern ad hoc. If the current API does not support the needed use case, read `design-package.md` for component-authoring conventions before extending it.
+
+---
+
+## Component Testing
+
+### Root cause: `@jsxstyle/core` requires a DOM at import time
+
+`@jsxstyle/core` calls `document.createElement('style')` at module load time to inject CSS. In a Node.js test environment without a DOM shim loaded first, this throws. The fix is to preload `global-jsdom/register` before any module that imports `@repro/design`:
+
+```sh
+tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/**/*.test.ts
+```
+
+**This flag is already present** in `packages/agentic-ui/moon.yml` and the `package.json` test script. Any new package that renders `@repro/design` components in tests must include it.
+
+### Strategy: real DOM render, no mocks
+
+`@repro/design` is fully testable in Node/jsdom. The chosen strategy is to use real `@testing-library/react` rendering — not component mocks. This gives higher-fidelity tests and avoids brittle prop-capture patterns.
+
+Do not add `react-dom` to `packages/agentic-ui` unless it was already required — `@testing-library/react` brings its own `react-dom` peer. Check whether `react-dom` is already present in devDependencies before adding it.
+
+### Assertion pattern
+
+Assert on DOM output, not on captured props.
+
+```ts
+// CORRECT — assert what the user sees
+expect(screen.getByText(PLACEHOLDER_COPY[0]!)).toBeDefined();
+
+// WRONG — prop-capture anti-pattern
+const capturedProps = { placeholders: undefined };
+mock.module("@repro/design", () => ({
+  AgenticInput: (props: any) => {
+    capturedProps.placeholders = props.placeholders;
+    return null;
+  },
+}));
+expect(capturedProps.placeholders).toEqual(PLACEHOLDER_COPY);
+```
+
+Note: `AgenticInput` renders placeholder text as animated `div` elements (via `@react-spring/web`), NOT as `<textarea placeholder="...">`. Use `screen.getByText(PLACEHOLDER_COPY[0]!)` — synchronous, no `findByText` needed for the first placeholder.
+
+### No shared mock factory
+
+A shared `renderWithDesign` helper was considered but is not needed. Import `render` and `screen` from `@testing-library/react` directly in each test file.
+
+### NEVER
+
+- Use `mock.module('@repro/design', ...)` in consumer package tests. This hides real render behavior and creates a brittle prop-capture anti-pattern.
+- Write tests that assert on internal prop values of design system components.
+- Omit `--import=global-jsdom/register` from test scripts in packages that render React components using `@repro/design`.
+
+### Workspace audit findings (as of REP-740)
+
+Only `packages/agentic-ui` had a broken test due to the prop-capture anti-pattern. After the fix, all packages with React component tests render correctly under Node/jsdom. No other package requires remediation.

@@ -217,19 +217,19 @@ The `Snapshot` type (from `packages/domain`) is the shared state currency: mutat
 
 ## Package Responsibility Map
 
-| Package                   | Responsibility                                                                                                              |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `apps/capture`            | Extension entry points, UI widget, `RecordingStream` wiring, upload serialisation                                           |
-| `packages/recording`      | `RecordingStream`, all six observers, `createBuffer` wiring, snapshot management                                            |
-| `packages/buffer-utils`   | Generic ring buffer (`createBuffer`) with eviction callbacks                                                                |
-| `packages/observer-utils` | Shared observer utilities (rate-limiting, proxy helpers)                                                                    |
-| `packages/playback`       | `Playback` interface, `createSourcePlayback`, `createLivePlayback`, `PlaybackCanvas`, `PlaybackEditor`, `NativeDOMRenderer` |
-| `packages/source-utils`   | `applyEventToSnapshot` — the reducer that reconstructs a `Snapshot` from a stream of events                                 |
-| `packages/vdom-renderer`  | `applyDOMPatchEvent`, `createDOMFromVTree` — live DOM mutation from VTree patches                                           |
-| `packages/recording-api`  | `createUploadWorker`, `createApiClient` — API integration for upload                                                        |
-| `packages/wire-formats`   | `toBinaryWireFormat`, `fromBinaryWireFormat` — binary packing of event lists                                                |
-| `packages/domain`         | `SourceEventView` codec, `SourceEventType` enum, `Snapshot` type, all event types, `ListResponse<T>`                        |
-| `packages/messaging`      | `createMessagingAgent` — postMessage bus with routing and tab linking                                                       |
+| Package                   | Responsibility                                                                                                                               |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/capture`            | Extension entry points, UI widget, `RecordingStream` wiring, upload serialisation                                                            |
+| `packages/recording`      | `RecordingStream`, all six observers, `createBuffer` wiring, snapshot management                                                             |
+| `packages/buffer-utils`   | Generic ring buffer (`createBuffer`) with eviction callbacks                                                                                 |
+| `packages/observer-utils` | Shared observer utilities (rate-limiting, proxy helpers)                                                                                     |
+| `packages/playback`       | `Playback` interface, `createSourcePlayback`, `createLivePlayback`, `PlaybackCanvas`, `PlaybackEditor`, `NativeDOMRenderer`                  |
+| `packages/source-utils`   | `applyEventToSnapshot` — the reducer that reconstructs a `Snapshot` from a stream of events                                                  |
+| `packages/vdom-renderer`  | `applyDOMPatchEvent`, `createDOMFromVTree` — live DOM mutation from VTree patches                                                            |
+| `packages/recording-api`  | `createUploadWorker`, `createApiClient` — API integration for upload                                                                         |
+| `packages/wire-formats`   | `toBinaryWireFormat`, `fromBinaryWireFormat` — binary packing of event lists                                                                 |
+| `packages/domain`         | `SourceEventView` codec, `SourceEventType` enum, `Snapshot` type, all event types, `ListResponse<T>`, DOM/VTree patches — see TDL note below |
+| `packages/messaging`      | `createMessagingAgent` — postMessage bus with routing and tab linking                                                                        |
 
 ---
 
@@ -254,3 +254,32 @@ The `Snapshot` type (from `packages/domain`) is the shared state currency: mutat
 | `packages/source-utils/src/mutations/index.ts`               | `applyEventToSnapshot`                                                    |
 | `packages/recording-api/src/createUploadWorker.ts`           | `createUploadWorker`, `saveEvents`, `saveResources`                       |
 | `packages/domain/src/generated/event.ts`                     | `SourceEventView`, `SourceEventType`, all event types                     |
+| `packages/domain/src/generated/vdom.ts`                      | `DOMPatch`, `PatchType`, `VTree`, all VNode and patch codecs              |
+
+---
+
+## Domain Schema Warning
+
+All types in `packages/domain/src/generated/*.ts` are **auto-generated from `.tdls` files**. The pipeline is:
+
+```
+packages/domain/src/*.tdls  →  tdlc  →  packages/domain/src/generated/*.ts
+```
+
+**Never edit generated files directly.** Changes will be overwritten on the next `tdlc` run. Instead:
+
+1. Edit the corresponding `.tdls` schema file (e.g. `vdom.tdls` for patch types).
+2. Run `pnpm run build` in `packages/domain` (which runs `tdlc src --outdir src/generated`).
+3. The generated `.ts` files will be updated with correct codecs and type definitions.
+
+When adding a new **patch type** that should be part of an existing union (e.g. a new `DOMPatch` variant):
+
+1. Define the struct in the relevant `.tdls` file.
+2. Add it to the parent union (e.g. `DOMPatch` union in `vdom.tdls`).
+3. Add the enum value to `PatchType` in the same `.tdls` file.
+4. Regenerate with `pnpm run build`.
+5. Remove any hand-written interfaces that the generated code now replaces — update imports accordingly.
+
+Cross-file imports within `packages/domain/src/*.tdls` are supported. If a type in `css.tdls` needs to be referenced in `vdom.tdls`, it can be imported.
+
+Hand-written files like `css.ts`, `account.ts`, `project.ts` are for **domain interfaces that are NOT serialised through TDL codecs**. If a type needs to be in a wire format (sent over the network or persisted), it must be defined in `.tdls`.

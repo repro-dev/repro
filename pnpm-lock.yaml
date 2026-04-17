@@ -832,6 +832,9 @@ importers:
       '@types/repro-shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
+      global-jsdom:
+        specifier: 27.0.0
+        version: 27.0.0(jsdom@27.0.0(postcss@8.5.8))
       prettier:
         specifier: ^3.0.0
         version: 3.0.0
@@ -1221,6 +1224,9 @@ importers:
       '@types/react':
         specifier: 18.3.10
         version: 18.3.10
+      '@types/react-dom':
+        specifier: 18.3.0
+        version: 18.3.0
       '@types/repro-shared-types':
         specifier: workspace:*
         version: link:../shared-types
@@ -1236,6 +1242,9 @@ importers:
       prettier-plugin-organize-imports:
         specifier: ^3.2.3
         version: 3.2.3(prettier@3.0.0)(typescript@5.7.3)
+      react-dom:
+        specifier: 18.3.1
+        version: 18.3.1(react@18.3.1)
       tsx:
         specifier: 4.19.3
         version: 4.19.3
