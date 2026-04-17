@@ -1,4 +1,4 @@
-import { Block, Col, Grid } from "@jsxstyle/react";
+import { Block, Col, Grid, Row } from "@jsxstyle/react";
 import {
   color,
   fontFamily,
@@ -37,23 +37,6 @@ function parseStructuredMessage(text: string): unknown | null {
   } catch {
     return null;
   }
-}
-
-function getConsoleLine1Tracks(
-  hasCount: boolean,
-  hasStackReference: boolean,
-): string {
-  const tracks = ["auto", "auto"];
-
-  if (hasCount) {
-    tracks.push("auto");
-  }
-
-  if (hasStackReference) {
-    tracks.push("minmax(0, 1fr)");
-  }
-
-  return tracks.join(" ");
 }
 
 function getLevelPresentation(level: string): {
@@ -121,10 +104,6 @@ export const ConsoleMessageResultView: React.FC<
             const stackReference = msg.stack?.[0];
             const structuredMessage = parseStructuredMessage(msg.text);
             const hasCount = msg.count !== undefined && msg.count > 1;
-            const line1Tracks = getConsoleLine1Tracks(
-              hasCount,
-              stackReference != null,
-            );
 
             return (
               <Grid
@@ -132,54 +111,58 @@ export const ConsoleMessageResultView: React.FC<
                 width="100%"
                 flexGrow={1}
                 rowGap={TOOL_RESULT_ROW_STYLES.lineGap}
-                gridTemplateColumns="minmax(0, 1fr)"
+                gridTemplateColumns="auto auto 1fr"
+                columnGap={TOOL_RESULT_ROW_STYLES.gap}
               >
-                <Grid
+                <Block
                   id={`console-message-line-1-${i}`}
                   minWidth={0}
-                  alignItems="center"
-                  columnGap={TOOL_RESULT_ROW_STYLES.gap}
-                  lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                  gridTemplateColumns={line1Tracks}
+                  gridColumn="1 / span 2"
                 >
-                  <Block color={messageColor} lineHeight={1}>
-                    {icon}
-                  </Block>
+                  <Row
+                    alignItems="center"
+                    gap={TOOL_RESULT_ROW_STYLES.gap}
+                    lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                  >
+                    <Block color={messageColor} lineHeight={1}>
+                      {icon}
+                    </Block>
 
+                    <Block
+                      fontSize={fontSize.xs}
+                      fontFamily={fontFamily.mono}
+                      color={messageColor}
+                      fontWeight={fontWeight.semibold}
+                      textTransform="uppercase"
+                      lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                    >
+                      {msg.level}
+                    </Block>
+
+                    {hasCount && (
+                      <Block
+                        color={color.text.muted}
+                        fontSize={fontSize.xs}
+                        fontFamily={fontFamily.mono}
+                        lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                      >
+                        ×{msg.count}
+                      </Block>
+                    )}
+                  </Row>
+                </Block>
+
+                {stackReference && (
                   <Block
                     fontSize={fontSize.xs}
                     fontFamily={fontFamily.mono}
-                    color={messageColor}
-                    fontWeight={fontWeight.semibold}
-                    textTransform="uppercase"
+                    color={color.text.muted}
+                    whiteSpace="nowrap"
                     lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
                   >
-                    {msg.level}
+                    {stackReference}
                   </Block>
-
-                  {hasCount && (
-                    <Block
-                      color={color.text.muted}
-                      fontSize={fontSize.xs}
-                      fontFamily={fontFamily.mono}
-                      lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                    >
-                      ×{msg.count}
-                    </Block>
-                  )}
-
-                  {stackReference && (
-                    <Block
-                      fontSize={fontSize.xs}
-                      fontFamily={fontFamily.mono}
-                      color={color.text.muted}
-                      whiteSpace="nowrap"
-                      lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                    >
-                      {stackReference}
-                    </Block>
-                  )}
-                </Grid>
+                )}
 
                 <Block
                   id={`console-message-line-2-${i}`}

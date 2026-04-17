@@ -1,4 +1,4 @@
-import { Block, Col, Grid } from "@jsxstyle/react";
+import { Block, Col, Grid, Row } from "@jsxstyle/react";
 import {
   color,
   fontFamily,
@@ -83,53 +83,53 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
             );
             const stackReference = err.stack?.[0];
 
-            const line1Tracks = stackReference
-              ? "auto auto minmax(0, 1fr)"
-              : "auto auto";
-
             return (
               <Grid
                 minWidth={0}
                 width="100%"
                 flexGrow={1}
                 rowGap={TOOL_RESULT_ROW_STYLES.lineGap}
-                gridTemplateColumns="minmax(0, 1fr)"
+                gridTemplateColumns="auto auto 1fr"
+                columnGap={TOOL_RESULT_ROW_STYLES.gap}
               >
-                <Grid
+                <Block
                   id={`find-errors-line-1-${i}`}
                   minWidth={0}
-                  alignItems="center"
-                  columnGap={TOOL_RESULT_ROW_STYLES.gap}
-                  lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                  gridTemplateColumns={line1Tracks}
+                  gridColumn="1 / span 2"
                 >
-                  <Block color={entryColor} lineHeight={1}>
-                    {icon}
-                  </Block>
-
-                  <Block
-                    fontSize={fontSize.xs}
-                    fontFamily={fontFamily.mono}
-                    color={entryColor}
-                    fontWeight={fontWeight.semibold}
-                    textTransform="uppercase"
+                  <Row
+                    alignItems="center"
+                    gap={TOOL_RESULT_ROW_STYLES.gap}
                     lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
                   >
-                    {err.source}
-                  </Block>
+                    <Block color={entryColor} lineHeight={1}>
+                      {icon}
+                    </Block>
 
-                  {stackReference && (
                     <Block
                       fontSize={fontSize.xs}
                       fontFamily={fontFamily.mono}
-                      color={color.text.muted}
-                      whiteSpace="nowrap"
+                      color={entryColor}
+                      fontWeight={fontWeight.semibold}
+                      textTransform="uppercase"
                       lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
                     >
-                      {stackReference}
+                      {err.source}
                     </Block>
-                  )}
-                </Grid>
+                  </Row>
+                </Block>
+
+                {stackReference && (
+                  <Block
+                    fontSize={fontSize.xs}
+                    fontFamily={fontFamily.mono}
+                    color={color.text.muted}
+                    whiteSpace="nowrap"
+                    lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
+                  >
+                    {stackReference}
+                  </Block>
+                )}
 
                 <Block
                   id={`find-errors-line-2-${i}`}
