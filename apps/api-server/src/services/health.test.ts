@@ -5,7 +5,7 @@ import { Database } from '~/modules/database'
 import { Storage } from '~/modules/storage'
 import { setUpTestDatabase } from '~/testing/database'
 import { setUpTestFileSystemStorage } from '~/testing/storage'
-import { HealthStatus, createHealthService } from './health'
+import { createHealthService } from './health'
 
 describe('Services > Health', () => {
   let reset: () => Promise<void>
@@ -66,7 +66,7 @@ describe('Services > Health', () => {
     const healthService = createHealthService(db, storage, redisClient)
 
     // Must resolve (not reject) — Redis failure is a soft degraded state
-    let result: HealthStatus | undefined
+    let result: { status: 'ok' | 'degraded' } | undefined
     let threw = false
     try {
       result = await promise(healthService.check())
@@ -78,11 +78,13 @@ describe('Services > Health', () => {
     expect(result?.status).toEqual('degraded')
   })
 
-  it('should return a response matching the expected health status schema', async () => {
+  it('should return a detailed response matching the expected health status schema', async () => {
     const healthService = createHealthService(db, storage)
 
-    const result = await promise(healthService.check())
+    const result = await promise(healthService.checkDetailed())
     expect(result).toHaveProperty('status')
-    expect(['ok', 'degraded']).toContain(result.status)
+    expect(result).toHaveProperty('timestamp')
+    expect(result).toHaveProperty('checks')
+    expect(['ok', 'degraded', 'unhealthy']).toContain(result.status)
   })
 })

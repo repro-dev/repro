@@ -4,6 +4,7 @@ import type {
   SubsystemCheck,
   SubsystemStatus,
 } from '@repro/domain'
+import type { FutureInstance } from 'fluture'
 import { attemptP, both, chain, coalesce, map } from 'fluture'
 import { sql } from 'kysely'
 import { Readable } from 'node:stream'
@@ -18,12 +19,14 @@ interface PingableClient {
 
 export type HealthStatus = { status: 'ok' | 'degraded' }
 
+type HealthFuture<T> = FutureInstance<Error, T>
+
 export function createHealthService(
   db: Database,
   storage: Storage,
   redisClient?: PingableClient
 ) {
-  function checkDb() {
+  function checkDb(): HealthFuture<SubsystemCheck> {
     return attemptQuery(() => sql`SELECT 1`.execute(db)).pipe(
       coalesce(
         (): SubsystemCheck => ({
@@ -34,7 +37,7 @@ export function createHealthService(
     )
   }
 
-  function checkStorage() {
+  function checkStorage(): HealthFuture<SubsystemCheck> {
     const STORAGE_PATH = '.well-known/health'
     return storage
       .write(STORAGE_PATH, Readable.from(['ok']))
@@ -49,7 +52,7 @@ export function createHealthService(
       )
   }
 
-  function checkRedis() {
+  function checkRedis(): HealthFuture<SubsystemCheck> {
     if (!redisClient) {
       // Should not be called when redisClient is absent; caller gates this.
       return attemptP(() =>
@@ -111,11 +114,12 @@ export function createHealthService(
     }
   }
 
-  function checkDetailed() {
+  function checkDetailed(): HealthFuture<HealthCheckResult> {
     const dbCheck = checkDb()
     const storageCheck = checkStorage()
 
-    const coreChecks = both(dbCheck)(storageCheck)
+    const coreChecks: HealthFuture<[SubsystemCheck, SubsystemCheck]> =
+      both(dbCheck)(storageCheck)
 
     if (redisClient) {
       return coreChecks.pipe(
@@ -135,7 +139,7 @@ export function createHealthService(
     )
   }
 
-  function check() {
+  function check(): HealthFuture<HealthStatus> {
     return checkDetailed().pipe(
       map(result => {
         // Map overall status to the legacy ok/degraded shape.
@@ -155,6 +159,6 @@ export function createHealthService(
 }
 
 export interface HealthService {
-  check: () => any
-  checkDetailed: () => any
+  check: () => HealthFuture<HealthStatus>
+  checkDetailed: () => HealthFuture<HealthCheckResult>
 }
