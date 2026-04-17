@@ -166,36 +166,6 @@ export const NetworkRequests: StoryObj<typeof ToolCallRow> = {
   },
 };
 
-export const FindErrors: StoryObj<typeof ToolCallRow> = {
-  args: {
-    toolName: "findErrors",
-    isExecuting: false,
-    result: makeResult({
-      errors: [
-        {
-          time: 1500,
-          source: "console",
-          summary:
-            "Uncaught TypeError: Cannot read properties of undefined (reading 'map')",
-          stack: ["app.js:42:15"],
-        },
-        { time: 2200, source: "network", summary: "GET /api/users/me → 401" },
-        {
-          time: 3100,
-          source: "console",
-          summary: "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-        },
-        {
-          time: 4000,
-          source: "network",
-          summary: "POST /api/recordings → 500",
-        },
-      ],
-      summary: { console: 2, network: 2, total: 4 },
-    }),
-  },
-};
-
 export const JsonFallback: StoryObj<typeof ToolCallRow> = {
   args: {
     toolName: "getElementDetails",
