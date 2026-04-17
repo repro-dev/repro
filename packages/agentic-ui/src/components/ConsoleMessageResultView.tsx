@@ -1,4 +1,4 @@
-import { Block, Col, Row } from "@jsxstyle/react";
+import { Block, Col, Grid } from "@jsxstyle/react";
 import {
   color,
   fontFamily,
@@ -37,6 +37,23 @@ function parseStructuredMessage(text: string): unknown | null {
   } catch {
     return null;
   }
+}
+
+function getConsoleLine1Tracks(
+  hasCount: boolean,
+  hasStackReference: boolean,
+): string {
+  const tracks = ["auto", "auto"];
+
+  if (hasCount) {
+    tracks.push("auto");
+  }
+
+  if (hasStackReference) {
+    tracks.push("minmax(0, 1fr)");
+  }
+
+  return tracks.join(" ");
 }
 
 function getLevelPresentation(level: string): {
@@ -103,27 +120,33 @@ export const ConsoleMessageResultView: React.FC<
             );
             const stackReference = msg.stack?.[0];
             const structuredMessage = parseStructuredMessage(msg.text);
+            const hasCount = msg.count !== undefined && msg.count > 1;
+            const line1Tracks = getConsoleLine1Tracks(
+              hasCount,
+              stackReference != null,
+            );
 
             return (
-              <Col
+              <Grid
                 minWidth={0}
+                width="100%"
                 flexGrow={1}
-                gap={TOOL_RESULT_ROW_STYLES.lineGap}
+                rowGap={TOOL_RESULT_ROW_STYLES.lineGap}
+                gridTemplateColumns="minmax(0, 1fr)"
               >
-                <Row
+                <Grid
                   id={`console-message-line-1-${i}`}
                   minWidth={0}
                   alignItems="center"
-                  gap={TOOL_RESULT_ROW_STYLES.gap}
+                  columnGap={TOOL_RESULT_ROW_STYLES.gap}
                   lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                  flexWrap="wrap"
+                  gridTemplateColumns={line1Tracks}
                 >
-                  <Block flexShrink={0} color={messageColor} lineHeight={1}>
+                  <Block color={messageColor} lineHeight={1}>
                     {icon}
                   </Block>
 
                   <Block
-                    flexShrink={0}
                     fontSize={fontSize.xs}
                     fontFamily={fontFamily.mono}
                     color={messageColor}
@@ -134,9 +157,8 @@ export const ConsoleMessageResultView: React.FC<
                     {msg.level}
                   </Block>
 
-                  {msg.count !== undefined && msg.count > 1 && (
+                  {hasCount && (
                     <Block
-                      flexShrink={0}
                       color={color.text.muted}
                       fontSize={fontSize.xs}
                       fontFamily={fontFamily.mono}
@@ -148,7 +170,6 @@ export const ConsoleMessageResultView: React.FC<
 
                   {stackReference && (
                     <Block
-                      flexShrink={0}
                       fontSize={fontSize.xs}
                       fontFamily={fontFamily.mono}
                       color={color.text.muted}
@@ -158,11 +179,13 @@ export const ConsoleMessageResultView: React.FC<
                       {stackReference}
                     </Block>
                   )}
-                </Row>
+                </Grid>
 
                 <Block
                   id={`console-message-line-2-${i}`}
                   minWidth={0}
+                  gridColumn="1 / -1"
+                  width="100%"
                   fontSize={fontSize.xs}
                   fontFamily={fontFamily.mono}
                   color={messageColor}
@@ -176,7 +199,7 @@ export const ConsoleMessageResultView: React.FC<
                     msg.text
                   )}
                 </Block>
-              </Col>
+              </Grid>
             );
           })()}
         </ToolResultRow>

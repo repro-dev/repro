@@ -1,4 +1,4 @@
-import { Block, Col, Row } from "@jsxstyle/react";
+import { Block, Col, Grid } from "@jsxstyle/react";
 import {
   color,
   fontFamily,
@@ -83,26 +83,31 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
             );
             const stackReference = err.stack?.[0];
 
+            const line1Tracks = stackReference
+              ? "auto auto minmax(0, 1fr)"
+              : "auto auto";
+
             return (
-              <Col
+              <Grid
                 minWidth={0}
+                width="100%"
                 flexGrow={1}
-                gap={TOOL_RESULT_ROW_STYLES.lineGap}
+                rowGap={TOOL_RESULT_ROW_STYLES.lineGap}
+                gridTemplateColumns="minmax(0, 1fr)"
               >
-                <Row
+                <Grid
                   id={`find-errors-line-1-${i}`}
                   minWidth={0}
                   alignItems="center"
-                  gap={TOOL_RESULT_ROW_STYLES.gap}
+                  columnGap={TOOL_RESULT_ROW_STYLES.gap}
                   lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-                  flexWrap="wrap"
+                  gridTemplateColumns={line1Tracks}
                 >
-                  <Block flexShrink={0} color={entryColor} lineHeight={1}>
+                  <Block color={entryColor} lineHeight={1}>
                     {icon}
                   </Block>
 
                   <Block
-                    flexShrink={0}
                     fontSize={fontSize.xs}
                     fontFamily={fontFamily.mono}
                     color={entryColor}
@@ -115,7 +120,6 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
 
                   {stackReference && (
                     <Block
-                      flexShrink={0}
                       fontSize={fontSize.xs}
                       fontFamily={fontFamily.mono}
                       color={color.text.muted}
@@ -125,11 +129,13 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
                       {stackReference}
                     </Block>
                   )}
-                </Row>
+                </Grid>
 
                 <Block
                   id={`find-errors-line-2-${i}`}
                   minWidth={0}
+                  gridColumn="1 / -1"
+                  width="100%"
                   fontSize={fontSize.xs}
                   fontFamily={fontFamily.mono}
                   color={entryColor}
@@ -139,7 +145,7 @@ export const FindErrorsResultView: React.FC<FindErrorsResultViewProps> = ({
                 >
                   {err.summary}
                 </Block>
-              </Col>
+              </Grid>
             );
           })()}
         </ToolResultRow>

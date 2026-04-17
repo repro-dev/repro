@@ -1,4 +1,4 @@
-import { Block, Col, Row } from "@jsxstyle/react";
+import { Block, Col, Grid } from "@jsxstyle/react";
 import {
   color,
   fontFamily,
@@ -51,6 +51,42 @@ function truncateUrl(url: string, maxLen = 80): string {
   return url.slice(0, maxLen - 1) + "…";
 }
 
+function getNetworkLine1Tracks(
+  hasStatus: boolean,
+  hasDuration: boolean,
+): string {
+  const tracks = ["auto"];
+
+  if (hasStatus) {
+    tracks.push("auto");
+  }
+
+  if (hasDuration) {
+    tracks.push("auto");
+  }
+
+  return tracks.join(" ");
+}
+
+function getNetworkLine2Tracks(
+  hasMethod: boolean,
+  hasContentType: boolean,
+): string {
+  const tracks = [];
+
+  if (hasMethod) {
+    tracks.push("auto");
+  }
+
+  tracks.push("minmax(0, 1fr)");
+
+  if (hasContentType) {
+    tracks.push("auto");
+  }
+
+  return tracks.join(" ");
+}
+
 export const NetworkRequestResultView: React.FC<
   NetworkRequestResultViewProps
 > = ({ result, onGoToTime }) => {
@@ -81,18 +117,37 @@ export const NetworkRequestResultView: React.FC<
           kind="network"
           onGoToTime={onGoToTime}
         >
-          <Col minWidth={0} flexGrow={1} gap={TOOL_RESULT_ROW_STYLES.lineGap}>
-            <Row
+          <Grid
+            minWidth={0}
+            width="100%"
+            flexGrow={1}
+            rowGap={TOOL_RESULT_ROW_STYLES.lineGap}
+            gridTemplateColumns="minmax(0, 1fr)"
+          >
+            <Grid
               id={`network-request-line-1-${i}`}
               minWidth={0}
               alignItems="center"
-              gap={TOOL_RESULT_ROW_STYLES.gap}
+              columnGap={TOOL_RESULT_ROW_STYLES.gap}
               lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-              flexWrap="wrap"
+              gridTemplateColumns={getNetworkLine1Tracks(
+                req.status != null,
+                req.durationMs != null,
+              )}
             >
+              <Block
+                flexShrink={0}
+                fontSize={fontSize.xs}
+                fontFamily={fontFamily.mono}
+                fontWeight={fontWeight.semibold}
+                color={color.text.secondary}
+                whiteSpace="nowrap"
+              >
+                {req.type === "ws" ? "WS" : req.type}
+              </Block>
+
               {req.status != null && (
                 <Block
-                  flexShrink={0}
                   fontSize={fontSize.xs}
                   fontFamily={fontFamily.mono}
                   fontWeight={fontWeight.semibold}
@@ -112,7 +167,6 @@ export const NetworkRequestResultView: React.FC<
 
               {req.durationMs != null && (
                 <Block
-                  flexShrink={0}
                   fontSize={fontSize.xs}
                   fontFamily={fontFamily.mono}
                   color={color.text.muted}
@@ -121,15 +175,20 @@ export const NetworkRequestResultView: React.FC<
                   {req.durationMs}ms
                 </Block>
               )}
-            </Row>
+            </Grid>
 
-            <Row
+            <Grid
               id={`network-request-line-2-${i}`}
               minWidth={0}
+              width="100%"
               alignItems="center"
-              gap={TOOL_RESULT_ROW_STYLES.gap}
+              columnGap={TOOL_RESULT_ROW_STYLES.gap}
               lineHeight={TOOL_RESULT_ROW_STYLES.rowLineHeight}
-              flexWrap="wrap"
+              gridColumn="1 / -1"
+              gridTemplateColumns={getNetworkLine2Tracks(
+                req.method != null,
+                req.contentType != null,
+              )}
             >
               <Block
                 flexShrink={0}
@@ -171,8 +230,8 @@ export const NetworkRequestResultView: React.FC<
                   {req.contentType}
                 </Block>
               )}
-            </Row>
-          </Col>
+            </Grid>
+          </Grid>
         </ToolResultRow>
       ))}
     </Col>

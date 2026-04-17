@@ -383,4 +383,48 @@ describe("ToolCallRow semantic result hints", () => {
     expect(screen.getByText("/api/health")).toBeDefined();
     expect(screen.getByText("application/json")).toBeDefined();
   });
+
+  it("handles websocket requests without status or method fields", () => {
+    render(
+      <ToolCallRow
+        toolName="getNetworkRequests"
+        result={makeToolResult({
+          requests: [
+            {
+              timeMs: 1200,
+              type: "ws",
+              url: "wss://example.test/socket",
+            },
+          ],
+        })}
+        isExecuting={false}
+        wasCancelled={false}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle details for getNetworkRequests",
+      }),
+    );
+
+    expect(
+      document.querySelector('[id^="network-request-line-1"]'),
+    ).toBeDefined();
+    expect(
+      document.querySelector('[id^="network-request-line-2"]'),
+    ).toBeDefined();
+    const line1 = document.querySelector(
+      '[id^="network-request-line-1"]',
+    ) as HTMLElement | null;
+    const line2 = document.querySelector(
+      '[id^="network-request-line-2"]',
+    ) as HTMLElement | null;
+
+    expect(line1).not.toBeNull();
+    expect(line2).not.toBeNull();
+    expect(within(line1!).getByText("WS")).toBeDefined();
+    expect(within(line2!).getByText("wss://example.test/socket")).toBeDefined();
+    expect(screen.queryByText("undefined")).toBeNull();
+  });
 });
