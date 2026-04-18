@@ -107,7 +107,7 @@ describe('HomeRoute interactions', () => {
     resetSessionListControlsForTests()
   })
 
-  it('sorts by newest first by default and supports alternate sorts', async () => {
+  it('sorts by newest first by default and supports keyboard changes', async () => {
     const getProjectRecordings = (
       _apiClient: ApiClient,
       _projectId: string

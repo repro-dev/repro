@@ -31,6 +31,13 @@ import {
   type SessionListSortOrder,
 } from './sessionListControls'
 
+const SESSION_LIST_SORT_TOGGLE_OPTIONS = SESSION_LIST_SORT_OPTIONS.map(
+  (option, index) => ({
+    value: index,
+    label: option.label,
+  })
+)
+
 // The real Chrome Web Store listing for the Repro capture extension.
 const CHROME_WEB_STORE_URL =
   'https://chrome.google.com/webstore/detail/repro/ecmbphfjfhnifmhbjhpejbpdnpanpice'
@@ -118,14 +125,6 @@ export const HomeRoute = ({
     }
   }, [filters.searchText])
 
-  const handleSortChange = useCallback(
-    (nextSortOrder: SessionListSortOrder) => {
-      setSortOrder(nextSortOrder)
-      writeSessionListSortOrder(globalThis.localStorage, nextSortOrder)
-    },
-    []
-  )
-
   const updateFilters = useCallback(
     (updater: (current: SessionListFilters) => SessionListFilters) => {
       if (!projectId) {
@@ -197,6 +196,22 @@ export const HomeRoute = ({
     [filters.selectedModes]
   )
 
+  const selectedSortIndex = Math.max(
+    0,
+    SESSION_LIST_SORT_OPTIONS.findIndex(option => option.value === sortOrder)
+  )
+
+  const handleSortChange = useCallback((nextSortIndex: number) => {
+    const nextSortOrder = SESSION_LIST_SORT_OPTIONS[nextSortIndex]?.value
+
+    if (!nextSortOrder) {
+      return
+    }
+
+    setSortOrder(nextSortOrder)
+    writeSessionListSortOrder(globalThis.localStorage, nextSortOrder)
+  }, [])
+
   if (effectiveLoading) {
     return (
       <PageFrame>
@@ -219,8 +234,8 @@ export const HomeRoute = ({
             <PageFrame.Title>Sessions</PageFrame.Title>
 
             <ToggleGroup
-              options={SESSION_LIST_SORT_OPTIONS}
-              selected={sortOrder}
+              options={SESSION_LIST_SORT_TOGGLE_OPTIONS}
+              selected={selectedSortIndex}
               onChange={handleSortChange}
             />
           </Row>
@@ -276,8 +291,8 @@ export const HomeRoute = ({
           <PageFrame.Title>Sessions ({visibleItems.length})</PageFrame.Title>
 
           <ToggleGroup
-            options={SESSION_LIST_SORT_OPTIONS}
-            selected={sortOrder}
+            options={SESSION_LIST_SORT_TOGGLE_OPTIONS}
+            selected={selectedSortIndex}
             onChange={handleSortChange}
           />
         </Row>
