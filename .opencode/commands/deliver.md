@@ -88,16 +88,21 @@ Parsing rules:
 If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead:
 
 1. Fetch `target_issue_id` via `Linear_get_issue` with `includeRelations: true`.
-2. Fetch each blocker issue referenced in `relations.blockedBy` so blocker status is known before proceeding.
-3. Fail fast and stop cleanly if any of the following are true:
+2. Fetch child issues with `Linear_list_issues` using `parentId: target_issue_id`, paginating if needed.
+3. Fetch each blocker issue referenced in `relations.blockedBy` so blocker status is known before proceeding.
+4. Fail fast and stop cleanly if any of the following are true:
+   - the child-issue query returns one or more issues; treat the target as a tracking issue rather than a bounded implementation issue
    - any blocker issue is not `Done` or `Canceled`
    - the issue is already `Done` or `Canceled`
    - the issue is already **In Progress** or **In Review**
    - the issue already has an active worktree (`reproctl wt list`)
    - the issue ID appears in an open PR branch name
    - the issue does not provide enough concrete information for a bounded implementation plan without human clarification
-4. If any stop condition is hit, report the reason clearly, add the issue ID to `escalated_issues`, and stop the run. Do not continue into planning.
-5. Create a singleton `current_ready_wave` containing only `target_issue_id` and continue directly to Phase 3.
+5. If the stop condition is that the target has child issues, report clearly that `/deliver REP-xxx` is single-track mode and does not expand tracking issues into a wave. Suggest these next steps:
+   - rerun `/deliver` with no issue ID for autonomous wave selection
+   - rerun `/deliver REP-child` with a concrete child issue ID
+6. If any other stop condition is hit, report the reason clearly, add the issue ID to `escalated_issues`, and stop the run. Do not continue into planning.
+7. Create a singleton `current_ready_wave` containing only `target_issue_id` and continue directly to Phase 3.
 
 In single-track mode, skip Phase 1 and Phase 2 entirely.
 
