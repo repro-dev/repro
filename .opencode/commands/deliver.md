@@ -84,8 +84,8 @@ Parsing rules:
 If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead:
 
 1. Refresh in-flight state immediately before evaluating stop conditions:
-   - Run `reproctl wt list` and treat the result as the authoritative active-worktree list for this phase.
-   - Run `gh pr list --state open --json number,headRefName,title` and treat the result as the authoritative open-PR list for this phase.
+   - Run `reproctl wt list --json` and treat the returned branch/worktree records as the authoritative active-worktree list for this phase.
+   - Run `gh pr list --state open --limit 1000 --json number,headRefName,title` and treat the result as the authoritative open-PR list for this phase, using `headRefName` for any "issue ID appears in an open PR branch name" checks.
 2. Fetch `target_issue_id` via `Linear_get_issue` with `includeRelations: true`.
 3. Fetch child issues with `Linear_list_issues` using `parentId: target_issue_id`, paginating if needed.
 4. Fetch each blocker issue referenced in `relations.blockedBy` so blocker status is known before proceeding.
@@ -129,7 +129,7 @@ When keeping the status table updated, make batching and backoff explicit so the
 Run this phase only when `mode = wave`.
 
 1. Fetch Linear issues in **Todo** and **Backlog** across all projects (or filtered by `$ARGUMENTS` if provided):
-   - Refresh in-flight state first by running `reproctl wt list` and `gh pr list --state open --json number,headRefName,title`; treat those results as the authoritative active-worktree and open-PR snapshots for this phase.
+   - Refresh in-flight state first by running `reproctl wt list --json` and `gh pr list --state open --limit 1000 --json number,headRefName,title`; treat those results as the authoritative active-worktree and open-PR snapshots for this phase, using the structured worktree records and returned `headRefName` values for exclusion checks.
    - Use `Linear_list_issues` with `state: "Todo"`, paginating through all results.
    - Use `Linear_list_issues` with `state: "Backlog"`, paginating through all results.
    - Deduplicate the combined results by issue ID.
