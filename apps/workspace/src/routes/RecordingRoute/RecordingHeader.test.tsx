@@ -49,9 +49,17 @@ describe('RecordingHeader', () => {
 
     assert.ok(screen.getByRole('link', { name: '← Sessions' }))
     assert.ok(screen.getByRole('link', { name: 'Project Alpha' }))
-    assert.ok(screen.getByText('Session 1'))
+    assert.equal(
+      screen.getByText('Session 1').getAttribute('aria-current'),
+      'page'
+    )
     assert.equal(screen.queryByRole('link', { name: 'Session 1' }), null)
-    assert.ok(screen.getByRole('link', { name: 'https://example.com/page' }))
+    assert.equal(
+      screen
+        .getByRole('link', { name: 'https://example.com/page' })
+        .getAttribute('href'),
+      'https://example.com/page'
+    )
     assert.ok(screen.getByText('Jan 1, 2026, 12:00 AM'))
     assert.ok(screen.getByText('01:00'))
     assert.ok(screen.getByText('Chrome 120'))

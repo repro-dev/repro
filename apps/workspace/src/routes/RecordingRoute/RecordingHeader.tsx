@@ -88,7 +88,10 @@ export const RecordingHeader: React.FC<Props> = ({
         rel="noopener noreferrer"
         props={{
           style: {
+            display: 'block',
             maxWidth: '18rem',
+            minWidth: 0,
+            flexShrink: 1,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
