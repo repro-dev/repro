@@ -13,9 +13,10 @@ You are the orchestrator for the `/deliver` command.
 
 ### Mode detection rules
 
-- If the first positional argument matches `REP-<number>`, select single-track mode.
-- Otherwise, treat the arguments as a wave-mode project/filter string.
-- No arguments means wave mode across all projects.
+- Parse and remove recognized flags first.
+- If the remaining first positional argument matches `REP-<number>`, select single-track mode.
+- Otherwise, treat the remaining positional arguments as a wave-mode project/filter string.
+- No remaining positional arguments means wave mode across all projects.
 
 You are the orchestrator for a precision-first autonomous delivery flow.
 
@@ -90,6 +91,7 @@ If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead
 2. Fetch each blocker issue referenced in `relations.blockedBy` so blocker status is known before proceeding.
 3. Fail fast and stop cleanly if any of the following are true:
    - any blocker issue is not `Done` or `Canceled`
+   - the issue is already `Done` or `Canceled`
    - the issue is already **In Progress** or **In Review**
    - the issue already has an active worktree (`reproctl wt list`)
    - the issue ID appears in an open PR branch name
@@ -245,7 +247,7 @@ If worktree creation still fails for an issue:
 - Exclude that issue from the current run
 - Add the issue ID to `escalated_issues`
 
-Do not stop the whole run unless every issue in the provisional ready wave fails here.
+Do not stop the whole run unless every issue in the active ready wave fails here.
 
 ---
 
@@ -289,7 +291,7 @@ General-purpose skills (`feature-dev`, `git-workflow`, `harden`,
 
 **Matching steps:**
 
-1. From the fetched issue title and description (already available from Phase 1),
+1. From the fetched issue title and description (available from Phase 1 in wave mode or the single-track preamble in single-track mode),
    extract: package names (`packages/<name>`, `apps/<name>`), any explicit file
    paths, and domain keywords (`migration`, `schema`, `Kysely`, `database`,
    `UI component`, `design token`).
