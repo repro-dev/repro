@@ -69,9 +69,10 @@ If the surface is reusable, verify it in the smallest realistic host and once in
 
 Use the built-in `agent-browser auth` vault for any reusable login state:
 
-- store credentials locally with `agent-browser auth save`
-- reuse them with `agent-browser auth login`
-- inspect or rotate profiles with `agent-browser auth list`, `agent-browser auth show`, and `agent-browser auth delete`
+- store credentials locally in a named profile with `agent-browser auth save <profile>`
+- reuse them with `agent-browser auth login <profile>`
+- inspect saved profiles with `agent-browser auth list` and `agent-browser auth show`
+- remove an outdated profile with `agent-browser auth delete`; to rotate credentials, delete the old profile and save it again with the updated login details
 
 The auth vault is machine-local, encrypted, and keeps secrets out of LLM context. Prefer a named profile per app/account role, and keep any browser session artifacts worktree-scoped so parallel runs do not share hidden state.
 
