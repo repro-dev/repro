@@ -62,7 +62,7 @@ For 2+ independent issues, create one worktree per issue and use the Task tool t
 ## Phase 1: Pre-flight
 
 1. **Fetch the Linear issue** via MCP (`Linear_get_issue`) for the work item. Read the full description — check for requirements, resolved decisions, and open considerations. These take precedence over assumptions.
-2. **Load relevant skills** — this skill (`feature-dev`) provides the phased workflow; load domain skills (`build-and-test`, `design-system`, `database`, `git-workflow`) as needed during implementation.
+2. **Load relevant skills** — this skill (`feature-dev`) provides the phased workflow; load domain skills (`build-and-test`, `design-system`, `database`, `git-workflow`) as needed during implementation. For non-trivial UI changes, pair `design-system` with `ui-verification` so implementation and post-change validation stay separate.
 3. **Create a worktree** (if one doesn't already exist for this issue):
 
    ```sh
@@ -110,7 +110,7 @@ Follow the project conventions for each domain. Domain-specific rules are loaded
 | **Code style**                     | Front-loaded in root `AGENTS.md` (always available)                                                                                |
 | **Code navigation**                | jcodemunch-mcp — `resolve_repo` → `search_symbols` → `get_file_outline` → `get_blast_radius`; see `AGENTS.md` Code Navigation rule |
 | **Git & commits**                  | Load the `git-workflow` skill                                                                                                      |
-| **Design system & UI**             | Load the `design-system` skill                                                                                                     |
+| **Design system & UI**             | Load the `design-system` skill for implementation conventions and `ui-verification` after the change is built                     |
 | **UI quality audit / polish pass** | Load the `audit-ui-quality` skill                                                                                                  |
 | **Build, test & reproctl**         | Load the `build-and-test` skill                                                                                                    |
 | **Database & migrations**          | Load the `database` skill                                                                                                          |
