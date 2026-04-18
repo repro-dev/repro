@@ -13,11 +13,11 @@ Use this skill for **genuine bug work only**. It is intentionally heavier than g
 - the user reports a regression, defect, crash, data corruption, or flaky behavior
 - the fix requires proving a root cause before changing code
 
-Do **not** load it just because a task is hard; if the work is not a bug, use `feature-dev` alone.
+Do **not** load it just because a task is hard; if the work is not a bug, use `delivery-workflow` and `implementation-rigor` alone.
 
-## Relationship to `feature-dev`
+## Relationship to `delivery-workflow` and `implementation-rigor`
 
-`feature-dev` still provides the worktree, phased delivery, generic red/green/refactor TDD, verification, and commit workflow.
+`delivery-workflow` still provides the phased delivery orchestration and support-skill loading, while `implementation-rigor` still owns the generic red/green/refactor TDD loop and verification order.
 
 `bug-rigor` adds the bug-specific diagnosis and safety checks that keep fixes from stopping at the symptom.
 
