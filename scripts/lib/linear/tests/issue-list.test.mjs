@@ -127,6 +127,78 @@ function makeClient(records) {
   };
 }
 
+function makeBoundMethodClient(records) {
+  const team = {
+    id: "team-1",
+    key: "REP",
+    name: "Workspace",
+    states: async function (vars) {
+      if (!this._request) throw new Error("unbound states method");
+      records.states.push(vars);
+      return {
+        nodes: [
+          { id: "state-backlog", name: "Backlog", type: "backlog" },
+          { id: "state-todo", name: "Todo", type: "unstarted" },
+        ],
+      };
+    },
+    labels: async function (vars) {
+      if (!this._request) throw new Error("unbound labels method");
+      records.labels.push(vars);
+      return { nodes: [] };
+    },
+    projects: async function (vars) {
+      if (!this._request) throw new Error("unbound projects method");
+      records.projects.push(vars);
+      return { nodes: [] };
+    },
+    issues: async function (vars) {
+      if (!this._request) throw new Error("unbound issues method");
+      records.issues.push(vars);
+      return { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } };
+    },
+    _request: {},
+  };
+
+  return {
+    _request: {},
+    viewer: async () => ({
+      id: "viewer-1",
+      name: "Test User",
+      email: "test@example.com",
+    }),
+    teams: async function (vars) {
+      if (!this._request) throw new Error("unbound teams method");
+      records.teams.push(vars);
+      return { nodes: [team] };
+    },
+    users: async function (vars) {
+      if (!this._request) throw new Error("unbound users method");
+      records.users.push(vars);
+      return {
+        nodes: [
+          {
+            id: "user-1",
+            name: "Test User",
+            displayName: "Test User",
+            email: "test@example.com",
+          },
+        ],
+      };
+    },
+    projectMilestones: async function (vars) {
+      if (!this._request) throw new Error("unbound projectMilestones method");
+      records.projectMilestones.push(vars);
+      return { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } };
+    },
+    issueLabel: async function (id) {
+      if (!this._request) throw new Error("unbound issueLabel method");
+      records.issueLabels.push(id);
+      return { id, name: "Feature" };
+    },
+  };
+}
+
 test("issue list constructs server-side filters and forwards pagination", async () => {
   const records = {
     teams: [],
@@ -175,6 +247,26 @@ test("issue list constructs server-side filters and forwards pagination", async 
   ]);
 });
 
+test("issue list keeps SDK-style methods bound when invoking queries", async () => {
+  const records = {
+    teams: [],
+    states: [],
+    labels: [],
+    projects: [],
+    issues: [],
+    users: [],
+    projectMilestones: [],
+    issueLabels: [],
+  };
+
+  const result = await execute(["issue", "list", "--json"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => makeBoundMethodClient(records),
+  });
+
+  assert.equal(result.code, 0);
+});
+
 test("issue list defaults to backlog and todo when no filters are supplied", async () => {
   const records = {
     teams: [],
@@ -220,5 +312,6 @@ test("issue show returns the shared serializer plus description", async () => {
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.item.identifier, "REP-875");
   assert.equal(payload.item.description, "desc");
+  assert.equal(payload.item.milestone.name, "Sprint 1");
   assert.deepEqual(records.issueLabels, ["label-1"]);
 });

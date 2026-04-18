@@ -6,6 +6,14 @@ function callOrAwait(value, ...args) {
   return value;
 }
 
+function callBoundMethod(receiver, value, ...args) {
+  if (typeof value === "function") {
+    return value.apply(receiver, args);
+  }
+
+  return value;
+}
+
 function normalizeText(value) {
   return String(value ?? "")
     .trim()
@@ -45,7 +53,7 @@ export async function createLinearClient(apiKey, clientFactory) {
 }
 
 export async function resolveTeam(client, teamKey) {
-  const result = await callOrAwait(client.teams, {
+  const result = await callBoundMethod(client, client.teams, {
     filter: { key: { eqIgnoreCase: teamKey } },
     first: 20,
   });
@@ -62,7 +70,7 @@ export async function resolveViewer(client) {
 }
 
 export async function resolveProject(team, projectName) {
-  const result = await callOrAwait(team.projects, {
+  const result = await callBoundMethod(team, team.projects, {
     filter: { name: { eqIgnoreCase: projectName } },
     first: 20,
   });
@@ -71,7 +79,8 @@ export async function resolveProject(team, projectName) {
 
 export async function resolveMilestone({ client, project, milestoneName }) {
   const source = project ? project.projectMilestones : client.projectMilestones;
-  const result = await callOrAwait(source, {
+  const receiver = project ?? client;
+  const result = await callBoundMethod(receiver, source, {
     filter: { name: { eqIgnoreCase: milestoneName } },
     first: 20,
   });
@@ -79,7 +88,7 @@ export async function resolveMilestone({ client, project, milestoneName }) {
 }
 
 export async function resolveUser(client, userInput) {
-  const result = await callOrAwait(client.users, {
+  const result = await callBoundMethod(client, client.users, {
     filter: {
       or: [
         { email: { eqIgnoreCase: userInput } },
@@ -98,12 +107,12 @@ export async function resolveUser(client, userInput) {
 }
 
 export async function resolveStates(team) {
-  const result = await callOrAwait(team.states, { first: 200 });
+  const result = await callBoundMethod(team, team.states, { first: 200 });
   return result?.nodes ?? [];
 }
 
 export async function resolveLabels(team) {
-  const result = await callOrAwait(team.labels, { first: 200 });
+  const result = await callBoundMethod(team, team.labels, { first: 200 });
   return result?.nodes ?? [];
 }
 
@@ -219,22 +228,22 @@ export function buildIssueFilter({
 }
 
 export async function fetchIssues(team, variables) {
-  return callOrAwait(team.issues, variables);
+  return callBoundMethod(team, team.issues, variables);
 }
 
-export async function fetchProjectMilestones(source, variables) {
-  return callOrAwait(source, variables);
+export async function fetchProjectMilestones(receiver, source, variables) {
+  return callBoundMethod(receiver, source, variables);
 }
 
 export async function fetchIssueLabel(client, labelId) {
-  return callOrAwait(client.issueLabel, labelId);
+  return callBoundMethod(client, client.issueLabel, labelId);
 }
 
 export async function fetchProject(projectId, client) {
   if (client.project) {
-    return callOrAwait(client.project, projectId);
+    return callBoundMethod(client, client.project, projectId);
   }
   return null;
 }
 
-export { callOrAwait, normalizeText, unique };
+export { callOrAwait, callBoundMethod, normalizeText, unique };

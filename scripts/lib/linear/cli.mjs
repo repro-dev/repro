@@ -283,7 +283,7 @@ async function serializeIssue(client, issue) {
         }
       : null,
     project: serializeProject(project),
-    milestone: serializeMilestone(milestone),
+    milestone: await serializeMilestone(milestone),
     assignee: serializeUser(assignee),
     labels: labels.map((label) => ({
       id: label.id ?? null,
@@ -650,6 +650,7 @@ async function projectShowCommand(args, context) {
   const team = await resolveTeam(client, config.team);
   const project = await resolveProject(team, name);
   const milestonesResponse = await fetchProjectMilestones(
+    project,
     project.projectMilestones,
     { first: 200 },
   );
@@ -701,7 +702,7 @@ async function milestoneListCommand(args, context) {
     source = project.projectMilestones;
   }
 
-  const response = await fetchProjectMilestones(source, { first: 200 });
+  const response = await fetchProjectMilestones(team, source, { first: 200 });
   const items = await Promise.all(
     (response?.nodes ?? []).map(serializeMilestoneSummary),
   );
