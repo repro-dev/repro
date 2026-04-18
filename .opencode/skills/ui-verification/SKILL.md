@@ -1,11 +1,11 @@
 ---
 name: ui-verification
-description: Practical post-change UI verification workflow — use after non-trivial UI changes to validate behavior, interactions, accessibility, and evidence capture. Load when checking a changed surface in-browser, via Storybook, or with screenshots and console/network inspection.
+description: Practical post-change UI verification workflow — use after non-trivial UI changes to run a worktree-local `reproctl start --wait` + `agent-browser` loop, validate behavior, interactions, accessibility, and evidence capture.
 ---
 
 # UI Verification
 
-Use this skill after you have changed a UI surface and need to confirm it behaves correctly.
+Use this skill after you have changed a UI surface and need to confirm it behaves correctly in the browser.
 
 ## When to load this skill
 
@@ -17,6 +17,8 @@ Load `ui-verification` when the task is to validate a recent UI change, especial
 - accessibility, focus, keyboard, or form handling changes
 - loading, empty, error, or success state updates
 - design-system or token changes that need real-browser confirmation
+
+Use `reproctl start --wait` to bring up the worktree-local app under test. Use `reproctl launch` only for one-off human preview; it opens the system browser and is not the standard `agent-browser` entrypoint.
 
 Do **not** use this skill as the default audit/polish workflow. If you need a broad audit, scoring pass, or design-system compliance review, load `audit-ui-quality` instead.
 
@@ -34,17 +36,29 @@ Examples:
 
 Tiny copy tweaks or isolated token swaps are usually trivial unless they change behavior or state handling.
 
-## Practical verification checklist
+## Practical verification loop
 
-1. Open the changed surface in the browser or Storybook.
-2. Confirm the happy path renders as expected.
-3. Exercise relevant interaction states:
+1. Start the worktree-local app under test.
+   ```bash
+   reproctl start --wait <service>
+   ```
+2. Open the changed surface in `agent-browser` using the worktree-local URL.
+   ```bash
+   agent-browser open <url>
+   ```
+3. Snapshot the initial state before interacting.
+4. Exercise relevant interaction states:
    - hover, focus, active, disabled, loading
    - empty, error, success, and retry states
    - keyboard-only navigation, tab order, escape/close behavior
-4. Inspect the console for runtime errors or warnings.
-5. Inspect the network panel for unexpected failures, retries, or payload issues.
-6. If the surface is reusable, verify it in the smallest realistic host and once in a real consuming screen.
+5. Re-snapshot after each meaningful navigation or state change.
+6. Capture evidence when the behavior is confirmed.
+   ```bash
+   agent-browser screenshot tmp/ui-verification/<issue-or-surface>/after/<scenario>.png
+   ```
+7. Close the browser session when done.
+
+If the surface is reusable, verify it in the smallest realistic host and once in a real consuming screen.
 
 ## Evidence and screenshots
 
@@ -55,8 +69,9 @@ Suggested layout:
 - `tmp/ui-verification/<issue-or-surface>/`
 - `tmp/ui-verification/<issue-or-surface>/before/`
 - `tmp/ui-verification/<issue-or-surface>/after/`
+- `tmp/ui-verification/<issue-or-surface>/notes.md`
 
-Keep filenames descriptive and short. Include the scenario name, browser or Storybook target, and date if helpful.
+Keep filenames descriptive and short. Include the scenario name, browser target, and date if helpful. Keep throwaway browser artifacts inside this tree so routine verification stays easy to clean up.
 
 ## When to load `harden`
 
@@ -64,5 +79,5 @@ If verification reveals brittle async behavior, teardown problems, race conditio
 
 ## ui-verification vs. audit-ui-quality
 
-- `ui-verification` = routine post-change validation of a specific changed surface
+- `ui-verification` = routine post-change validation of a specific changed surface using `reproctl start --wait` + `agent-browser`
 - `audit-ui-quality` = broader audit, polish, scoring, and reporting pass across scoped UI surfaces

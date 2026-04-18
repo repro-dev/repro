@@ -14,6 +14,8 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 | Code review              | Load `review-standards` skill      |
 | Build / test / typecheck | Load `build-and-test` skill        |
 | UI / components          | Load `design-system` skill         |
+| UI verification          | Load `ui-verification` skill       |
+| UI audits / polish       | Load `audit-ui-quality` skill      |
 | Database / migrations    | Load `database` skill              |
 | File a Linear issue      | Load `create-issue` skill          |
 
