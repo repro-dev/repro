@@ -1,4 +1,4 @@
-import { Col, Row } from '@jsxstyle/react'
+import { Row } from '@jsxstyle/react'
 import { formatDate, formatTime } from '@repro/date-utils'
 import { Badge, Breadcrumbs, Link, Text, color, spacing } from '@repro/design'
 import { RecordingInfo, RecordingMode } from '@repro/domain'
@@ -60,55 +60,67 @@ export const RecordingHeader: React.FC<Props> = ({
   const operatingSystemLabel = getOperatingSystemLabel(recording)
 
   return (
-    <Col gap={spacing.xs} minWidth={0} width="100%">
-      <Row alignItems="center" gap={spacing.md} flexWrap="wrap" minWidth={0}>
-        <Link component={RouterLink} props={{ to: '/' }}>
-          ← Sessions
-        </Link>
+    <Row
+      alignItems="center"
+      gap={spacing.md}
+      minWidth={0}
+      width="100%"
+      overflow="hidden"
+      flexWrap="nowrap"
+    >
+      <Link component={RouterLink} props={{ to: '/' }}>
+        ← Sessions
+      </Link>
 
-        <Breadcrumbs ariaLabel="Recording breadcrumb">
-          <Breadcrumbs.Item component={RouterLink} props={{ to: '/' }}>
-            Sessions
-          </Breadcrumbs.Item>
-          <Breadcrumbs.Item
-            component={RouterLink}
-            props={{ to: `/projects/${projectId}` }}
-          >
-            {projectName}
-          </Breadcrumbs.Item>
-        </Breadcrumbs>
+      <Breadcrumbs ariaLabel="Recording breadcrumb">
+        <Breadcrumbs.Item
+          component={RouterLink}
+          props={{ to: `/projects/${projectId}` }}
+        >
+          {projectName}
+        </Breadcrumbs.Item>
+        <Breadcrumbs.Item current>{recording.title}</Breadcrumbs.Item>
+      </Breadcrumbs>
 
-        <Badge context={getModeContext(recording.mode)} size="small">
-          {getModeLabel(recording.mode)}
-        </Badge>
-      </Row>
-
-      <Text variant="heading3" as="h1" truncate>
-        {recording.title}
-      </Text>
-
-      <Text variant="bodySmall" color={color.text.muted} truncate>
+      <Link
+        href={recording.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        props={{
+          style: {
+            maxWidth: '18rem',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          },
+        }}
+      >
         {recording.url}
+      </Link>
+
+      <Badge context={getModeContext(recording.mode)} size="small">
+        {getModeLabel(recording.mode)}
+      </Badge>
+
+      <Text variant="caption" color={color.text.muted}>
+        {formatDate(recording.createdAt)}
       </Text>
 
-      <Row alignItems="center" gap={spacing.sm} flexWrap="wrap">
+      <Text variant="caption" color={color.text.muted}>
+        {formatTime(recording.duration, 'seconds')}
+      </Text>
+
+      {browserLabel && (
         <Text variant="caption" color={color.text.muted}>
-          {formatDate(recording.createdAt)}
+          {browserLabel}
         </Text>
+      )}
+
+      {operatingSystemLabel && (
         <Text variant="caption" color={color.text.muted}>
-          {formatTime(recording.duration, 'seconds')}
+          {operatingSystemLabel}
         </Text>
-        {browserLabel && (
-          <Text variant="caption" color={color.text.muted}>
-            {browserLabel}
-          </Text>
-        )}
-        {operatingSystemLabel && (
-          <Text variant="caption" color={color.text.muted}>
-            {operatingSystemLabel}
-          </Text>
-        )}
-      </Row>
-    </Col>
+      )}
+    </Row>
   )
 }

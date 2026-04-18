@@ -106,9 +106,10 @@ describe('RecordingRoute', () => {
     )
 
     await waitFor(() => {
-      assert.ok(screen.getByText('Project Alpha'))
+      assert.ok(screen.getByRole('link', { name: 'Project Alpha' }))
       assert.ok(screen.getByText('Session 1'))
-      assert.ok(screen.getByText('https://example.com/page'))
+      assert.equal(screen.queryByRole('link', { name: 'Session 1' }), null)
+      assert.ok(screen.getByRole('link', { name: 'https://example.com/page' }))
       assert.ok(screen.getByText('Chrome 120'))
       assert.ok(screen.getByText('macOS'))
       assert.ok(screen.getByText('Replay'))
