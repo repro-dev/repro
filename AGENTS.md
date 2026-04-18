@@ -7,6 +7,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 | Task type                | Start here                         |
 | ------------------------ | ---------------------------------- |
 | Feature / fix            | Load `delivery-workflow` skill     |
+| Bug fix / root-cause work | Load `bug-rigor` with `delivery-workflow` |
 | Worktree / parallel work | Load `worktree-workflow` skill     |
 | Implementation / testing | Load `implementation-rigor` skill  |
 | Commit / PR              | Load `git-workflow` skill          |

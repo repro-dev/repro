@@ -13,6 +13,7 @@ Use this skill when you are starting a feature or fix. Keep it thin: it coordina
 - `implementation-rigor` — red/green/refactor, verification, and test expectations
 - `build-and-test` — test runners, typecheck, and formatting commands
 - `git-workflow` — commits, PR mechanics, and Linear status lifecycle
+- `bug-rigor` — root-cause-first bug workflow for genuine defects and regressions
 - Domain skills — only when the changed code lives in that domain
 
 For non-trivial UI changes, pair `design-system` with `ui-verification` so implementation guidance and post-change validation stay separate.
@@ -20,7 +21,7 @@ For non-trivial UI changes, pair `design-system` with `ui-verification` so imple
 ## 1. Pre-flight
 
 1. Fetch the Linear issue via MCP and read the full description, decisions, and considerations.
-2. Load the support skills you need for this change.
+2. Load the support skills you need for this change. If the work is a genuine bug fix or regression, load `bug-rigor` before implementation begins.
 3. Create or confirm the worktree for the issue.
 4. Set the issue to **In Progress**.
 
