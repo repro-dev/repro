@@ -35,11 +35,7 @@ Arguments (optional): `$ARGUMENTS`
 Current branch context:
 !`git branch --show-current`
 
-Worktrees already in flight:
-!`reproctl wt list 2>/dev/null || echo "(none)"`
-
-Open PRs (branch name + title — used to detect in-flight issues):
-!`gh pr list --state open --json number,headRefName,title --jq '.[] | "\(.number) \(.headRefName) \(.title)"' 2>/dev/null || echo "(none)"`
+Do not rely on command-template shell output for mutable in-flight-work state. Active worktrees, open PRs, and other in-flight-work signals must be refreshed inside the relevant phase immediately before they are used for exclusion or gating decisions.
 
 Session-local exclusions:
 
@@ -87,10 +83,13 @@ Parsing rules:
 
 If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead:
 
-1. Fetch `target_issue_id` via `Linear_get_issue` with `includeRelations: true`.
-2. Fetch child issues with `Linear_list_issues` using `parentId: target_issue_id`, paginating if needed.
-3. Fetch each blocker issue referenced in `relations.blockedBy` so blocker status is known before proceeding.
-4. Fail fast and stop cleanly if any of the following are true:
+1. Refresh in-flight state immediately before evaluating stop conditions:
+   - Run `reproctl wt list` and treat the result as the authoritative active-worktree list for this phase.
+   - Run `gh pr list --state open --json number,headRefName,title` and treat the result as the authoritative open-PR list for this phase.
+2. Fetch `target_issue_id` via `Linear_get_issue` with `includeRelations: true`.
+3. Fetch child issues with `Linear_list_issues` using `parentId: target_issue_id`, paginating if needed.
+4. Fetch each blocker issue referenced in `relations.blockedBy` so blocker status is known before proceeding.
+5. Fail fast and stop cleanly if any of the following are true:
    - the child-issue query returns one or more issues; treat the target as a tracking issue rather than a bounded implementation issue
    - any blocker issue is not `Done` or `Canceled`
    - the issue is already `Done` or `Canceled`
@@ -98,11 +97,11 @@ If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead
    - the issue already has an active worktree (`reproctl wt list`)
    - the issue ID appears in an open PR branch name
    - the issue does not provide enough concrete information for a bounded implementation plan without human clarification
-5. If the stop condition is that the target has child issues, report clearly that `/deliver REP-xxx` is single-track mode and does not expand tracking issues into a wave. Suggest these next steps:
+6. If the stop condition is that the target has child issues, report clearly that `/deliver REP-xxx` is single-track mode and does not expand tracking issues into a wave. Suggest these next steps:
    - rerun `/deliver` with no issue ID for autonomous wave selection
    - rerun `/deliver REP-child` with a concrete child issue ID
-6. If any other stop condition is hit, report the reason clearly, add the issue ID to `escalated_issues`, and stop the run. Do not continue into planning.
-7. Create a singleton `current_ready_wave` containing only `target_issue_id` and continue directly to Phase 3.
+7. If any other stop condition is hit, report the reason clearly, add the issue ID to `escalated_issues`, and stop the run. Do not continue into planning.
+8. Create a singleton `current_ready_wave` containing only `target_issue_id` and continue directly to Phase 3.
 
 In single-track mode, skip Phase 1 and Phase 2 entirely.
 
@@ -130,6 +129,7 @@ When keeping the status table updated, make batching and backoff explicit so the
 Run this phase only when `mode = wave`.
 
 1. Fetch Linear issues in **Todo** and **Backlog** across all projects (or filtered by `$ARGUMENTS` if provided):
+   - Refresh in-flight state first by running `reproctl wt list` and `gh pr list --state open --json number,headRefName,title`; treat those results as the authoritative active-worktree and open-PR snapshots for this phase.
    - Use `Linear_list_issues` with `state: "Todo"`, paginating through all results.
    - Use `Linear_list_issues` with `state: "Backlog"`, paginating through all results.
    - Deduplicate the combined results by issue ID.
