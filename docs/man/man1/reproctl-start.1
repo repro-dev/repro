@@ -33,6 +33,11 @@ For extension verification, \f[CR]reproctl start \-\-wait capture\f[R]
 or \f[CR]reproctl start \-\-wait dev\-toolbar\f[R] is the standard prep
 step before \f[CR]agent\-browser\f[R] attaches to the isolated browser
 session.
+Shared browser profiles, auth, and cache live under
+\f[CR]/Users/gary/Projects/repro\-dev/repro/tmp/agent\-browser/\f[R],
+while screenshots, notes, logs, and disposable profile overrides stay
+under the worktree
+\f[CR]tmp/extension\-verification/<issue\-or\-surface>/...\f[R] tree.
 This brings up the extension build/watch pipeline and any required local
 services before browser automation begins.
 .SH OPTIONS
@@ -83,10 +88,18 @@ Shows database, storage, and migration dependency status while waiting.
 reproctl start \-\-wait capture
 Prepare the capture\-extension workflow by waiting for the extension
 build/watch pipeline and local dependencies to become healthy.
+Use the main\-checkout \f[CR]tmp/agent\-browser/\f[R] tree for shared
+browser state and the worktree
+\f[CR]tmp/extension\-verification/<issue\-or\-surface>/\f[R] tree for
+screenshots and notes.
 .TP
 reproctl start \-\-wait dev\-toolbar
 Prepare the Dev Toolbar extension workflow by waiting for the extension
 build/watch pipeline and local dependencies to become healthy.
+Use the main\-checkout \f[CR]tmp/agent\-browser/\f[R] tree for shared
+browser state and the worktree
+\f[CR]tmp/extension\-verification/<issue\-or\-surface>/\f[R] tree for
+screenshots and notes.
 .TP
 reproctl start \-\-wait \-\-timeout 60s api\-server workspace
 Start services and wait up to 60 seconds for all to become healthy.

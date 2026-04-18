@@ -14,7 +14,7 @@ Use this skill when the changed surface is a browser extension rather than a nor
 1. Start the required local surfaces with `reproctl start --wait <service>`.
 2. Launch a fresh isolated browser profile with `agent-browser` and attach the extension build output from the current worktree.
 3. Verify the extension surface, host-page interaction, and evidence capture in the same browser session.
-4. Store screenshots, notes, and disposable profile data under `tmp/extension-verification/<issue-or-surface>/`.
+4. Keep shared browser state in the main checkout `tmp/agent-browser/` tree and keep per-worktree artifacts under the worktree `tmp/` tree.
 
 ## Local surfaces
 
@@ -25,17 +25,36 @@ Use the service that matches the extension you are verifying:
 
 The common pattern is to use `reproctl start --wait <service>` so the extension build/watch pipeline and any required local services are ready before browser automation begins.
 
-## Evidence layout
+## Shared browser state
 
-Suggested artifact tree:
+Keep browser state that should survive across worktrees in the main checkout `tmp/` tree:
+
+- profiles: `/Users/gary/Projects/repro-dev/repro/tmp/agent-browser/profiles/`
+- auth: `/Users/gary/Projects/repro-dev/repro/tmp/agent-browser/auth/`
+- cache/downloads: `/Users/gary/Projects/repro-dev/repro/tmp/agent-browser/cache/`
+
+Use these paths for reusable `agent-browser` profiles, shared auth vault data, and optional cached downloads that multiple extension runs may reuse.
+
+## Per-worktree artifacts
+
+Keep run-specific artifacts under the worktree `tmp/` tree, typically below `tmp/extension-verification/<issue-or-surface>/...`:
+
+- screenshots
+- notes and logs
+- disposable profile overrides for a single run
+
+Suggested layout:
 
 - `tmp/extension-verification/<issue-or-surface>/`
 - `tmp/extension-verification/<issue-or-surface>/before/`
 - `tmp/extension-verification/<issue-or-surface>/after/`
 - `tmp/extension-verification/<issue-or-surface>/notes.md`
+- `tmp/extension-verification/<issue-or-surface>/logs/`
 - `tmp/extension-verification/<issue-or-surface>/profile/`
 
-Keep the profile disposable and worktree-scoped so parallel runs do not share browser state.
+## Evidence layout
+
+Keep the worktree-scoped profile disposable so parallel runs do not share browser state.
 
 ## Migration note
 

@@ -24,7 +24,7 @@ If no service names are provided and stdin is a terminal, an interactive picker 
 
 The available service list in **reproctl start --help** is generated directly from **infra/services.json**, so new services appear automatically without shell-script changes.
 
-For extension verification, `reproctl start --wait capture` or `reproctl start --wait dev-toolbar` is the standard prep step before `agent-browser` attaches to the isolated browser session. This brings up the extension build/watch pipeline and any required local services before browser automation begins.
+For extension verification, `reproctl start --wait capture` or `reproctl start --wait dev-toolbar` is the standard prep step before `agent-browser` attaches to the isolated browser session. Shared browser profiles, auth, and cache live under `/Users/gary/Projects/repro-dev/repro/tmp/agent-browser/`, while screenshots, notes, logs, and disposable profile overrides stay under the worktree `tmp/extension-verification/<issue-or-surface>/...` tree. This brings up the extension build/watch pipeline and any required local services before browser automation begins.
 
 # OPTIONS
 
@@ -57,10 +57,10 @@ reproctl start --wait api-server
 : Start the api-server and block until it is healthy. Shows database, storage, and migration dependency status while waiting.
 
 reproctl start --wait capture
-: Prepare the capture-extension workflow by waiting for the extension build/watch pipeline and local dependencies to become healthy.
+: Prepare the capture-extension workflow by waiting for the extension build/watch pipeline and local dependencies to become healthy. Use the main-checkout `tmp/agent-browser/` tree for shared browser state and the worktree `tmp/extension-verification/<issue-or-surface>/` tree for screenshots and notes.
 
 reproctl start --wait dev-toolbar
-: Prepare the Dev Toolbar extension workflow by waiting for the extension build/watch pipeline and local dependencies to become healthy.
+: Prepare the Dev Toolbar extension workflow by waiting for the extension build/watch pipeline and local dependencies to become healthy. Use the main-checkout `tmp/agent-browser/` tree for shared browser state and the worktree `tmp/extension-verification/<issue-or-surface>/` tree for screenshots and notes.
 
 reproctl start --wait --timeout 60s api-server workspace
 : Start services and wait up to 60 seconds for all to become healthy.

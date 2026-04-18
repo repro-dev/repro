@@ -16,7 +16,7 @@ Open a service URL in the browser, or launch the capture Chrome extension in a d
 
 For web services, the URL is resolved from **infra/services.json** for the current worktree context and opened with **open**(1). Services with **launch.kind=url** and either **portless_name** or **port** are launchable; services without a browser URL remain start-only.
 
-For **capture**, a pinned Playwright Chromium browser is launched with **--load-extension** pointing at the worktree's **apps/capture/dist/** directory. A persistent per-worktree user-data-dir is used at **~/.repro/browser-profiles/<slug>/** so browser state (cookies, DevTools settings) is preserved between launches. The workspace URL is also opened automatically in the same browser instance. Treat this as a transitional preview path, not the normative extension-verification workflow.
+For **capture**, a pinned Playwright Chromium browser is launched with **--load-extension** pointing at the worktree's **apps/capture/dist/** directory. A persistent per-worktree user-data-dir is used at `/Users/gary/Projects/repro-dev/repro/tmp/agent-browser/profiles/<slug>/` so browser state (cookies, DevTools settings) is preserved between launches. The workspace URL is also opened automatically in the same browser instance. Treat this as a transitional preview path, not the normative extension-verification workflow.
 
 # OPTIONS
 
