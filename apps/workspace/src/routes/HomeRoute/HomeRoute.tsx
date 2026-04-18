@@ -1,14 +1,34 @@
-import { Col, Grid } from '@jsxstyle/react'
+import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import { ApiClient, useApiClient } from '@repro/api-client'
-import { Button, EmptyState, PageFrame, spacing } from '@repro/design'
+import {
+  Button,
+  color,
+  EmptyState,
+  Input,
+  PageFrame,
+  spacing,
+} from '@repro/design'
 import type { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/workspace-api'
 import { FutureInstance, resolve } from 'fluture'
 import { PuzzleIcon } from 'lucide-react'
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useProjectContext } from '~/ProjectContext'
 import { RecordingTile } from './RecordingTile'
+import {
+  deriveVisibleSessionRecordings,
+  getDefaultSessionListFilters,
+  getSessionListFilters,
+  isSessionListFilteringActive,
+  readSessionListSortOrder,
+  SESSION_LIST_MODE_OPTIONS,
+  SESSION_LIST_SORT_OPTIONS,
+  setSessionListFilters,
+  writeSessionListSortOrder,
+  type SessionListFilters,
+  type SessionListSortOrder,
+} from './sessionListControls'
 
 // The real Chrome Web Store listing for the Repro capture extension.
 const CHROME_WEB_STORE_URL =
@@ -34,6 +54,18 @@ export const HomeRoute = ({
   const { selectedProject } = useProjectContext()
 
   const projectId = selectedProject?.id ?? null
+
+  const [sortOrder, setSortOrder] = useState<SessionListSortOrder>(() =>
+    readSessionListSortOrder(globalThis.localStorage)
+  )
+  const [filters, setFilters] = useState<SessionListFilters>(() =>
+    projectId == null
+      ? getDefaultSessionListFilters()
+      : getSessionListFilters(projectId)
+  )
+  const [debouncedSearchText, setDebouncedSearchText] = useState(
+    filters.searchText
+  )
 
   // Re-fetch whenever the selected project changes.
   const { loading, data: recordings } = useFuture<
@@ -65,6 +97,105 @@ export const HomeRoute = ({
   const currentProjectId = isDataCurrent ? confirmedProjectId : null
   const items: RecordingInfo[] = isDataCurrent ? recordings ?? [] : []
 
+  useEffect(() => {
+    const nextFilters =
+      projectId == null
+        ? getDefaultSessionListFilters()
+        : getSessionListFilters(projectId)
+
+    setFilters(nextFilters)
+    setDebouncedSearchText(nextFilters.searchText)
+  }, [projectId])
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedSearchText(filters.searchText)
+    }, 250)
+
+    return () => {
+      window.clearTimeout(handle)
+    }
+  }, [filters.searchText])
+
+  const handleSortChange = useCallback(
+    (nextSortOrder: SessionListSortOrder) => {
+      setSortOrder(nextSortOrder)
+      writeSessionListSortOrder(globalThis.localStorage, nextSortOrder)
+    },
+    []
+  )
+
+  const updateFilters = useCallback(
+    (updater: (current: SessionListFilters) => SessionListFilters) => {
+      if (!projectId) {
+        return
+      }
+
+      setFilters(current => {
+        const next = updater(current)
+        setSessionListFilters(projectId, next)
+        return next
+      })
+    },
+    [projectId]
+  )
+
+  const handleSearchChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const nextSearchText = event.target.value
+
+      updateFilters(current => ({
+        ...current,
+        searchText: nextSearchText,
+      }))
+    },
+    [updateFilters]
+  )
+
+  const toggleMode = useCallback(
+    (mode: SessionListFilters['selectedModes'][number]) => {
+      updateFilters(current => {
+        const selectedModes = current.selectedModes.includes(mode)
+          ? current.selectedModes.filter(selectedMode => selectedMode !== mode)
+          : [...current.selectedModes, mode]
+
+        return {
+          ...current,
+          selectedModes,
+        }
+      })
+    },
+    [updateFilters]
+  )
+
+  const clearFilters = useCallback(() => {
+    if (!projectId) {
+      return
+    }
+
+    const nextFilters = getDefaultSessionListFilters()
+    setFilters(nextFilters)
+    setDebouncedSearchText(nextFilters.searchText)
+    setSessionListFilters(projectId, nextFilters)
+  }, [projectId])
+
+  const visibleItems = useMemo(
+    () =>
+      deriveVisibleSessionRecordings(items, sortOrder, {
+        searchText: debouncedSearchText,
+        selectedModes: filters.selectedModes,
+      }),
+    [debouncedSearchText, filters.selectedModes, items, sortOrder]
+  )
+
+  const hasActiveFilters = isSessionListFilteringActive(filters)
+
+  const modeIsSelected = useCallback(
+    (mode: SessionListFilters['selectedModes'][number]) =>
+      filters.selectedModes.includes(mode),
+    [filters.selectedModes]
+  )
+
   if (effectiveLoading) {
     return (
       <PageFrame>
@@ -79,7 +210,51 @@ export const HomeRoute = ({
     return (
       <PageFrame>
         <PageFrame.Header>
-          <PageFrame.Title>Sessions</PageFrame.Title>
+          <Row
+            alignItems="center"
+            justifyContent="space-between"
+            gap={spacing.md}
+          >
+            <PageFrame.Title>Sessions</PageFrame.Title>
+
+            <Row gap={spacing.sm} props={{ role: 'radiogroup' }}>
+              {SESSION_LIST_SORT_OPTIONS.map(option => {
+                const selected = sortOrder === option.value
+
+                return (
+                  <Block
+                    key={option.value}
+                    component="button"
+                    type="button"
+                    paddingV={8}
+                    paddingH={12}
+                    borderWidth={1}
+                    borderStyle="solid"
+                    borderRadius={9999}
+                    fontSize={13}
+                    cursor="pointer"
+                    backgroundColor={
+                      selected ? color.primarySubtle : color.bg.hover
+                    }
+                    color={selected ? color.primary : color.text.secondary}
+                    borderColor={
+                      selected ? color.primary : color.border.default
+                    }
+                    hoverBackgroundColor={
+                      selected ? color.primarySubtle : color.bg.surface
+                    }
+                    props={{
+                      role: 'radio',
+                      'aria-checked': selected,
+                      onClick: () => handleSortChange(option.value),
+                    }}
+                  >
+                    {option.label}
+                  </Block>
+                )
+              })}
+            </Row>
+          </Row>
         </PageFrame.Header>
 
         <PageFrame.Body>
@@ -123,22 +298,138 @@ export const HomeRoute = ({
   return (
     <PageFrame>
       <PageFrame.Header>
-        <PageFrame.Title>Sessions ({items.length})</PageFrame.Title>
+        <Row
+          alignItems="center"
+          justifyContent="space-between"
+          gap={spacing.md}
+          flexWrap="wrap"
+        >
+          <PageFrame.Title>Sessions ({visibleItems.length})</PageFrame.Title>
+
+          <Row gap={spacing.sm} props={{ role: 'radiogroup' }}>
+            {SESSION_LIST_SORT_OPTIONS.map(option => {
+              const selected = sortOrder === option.value
+
+              return (
+                <Block
+                  key={option.value}
+                  component="button"
+                  type="button"
+                  paddingV={8}
+                  paddingH={12}
+                  borderWidth={1}
+                  borderStyle="solid"
+                  borderRadius={9999}
+                  fontSize={13}
+                  cursor="pointer"
+                  backgroundColor={
+                    selected ? color.primarySubtle : color.bg.hover
+                  }
+                  color={selected ? color.primary : color.text.secondary}
+                  borderColor={selected ? color.primary : color.border.default}
+                  hoverBackgroundColor={
+                    selected ? color.primarySubtle : color.bg.surface
+                  }
+                  props={{
+                    role: 'radio',
+                    'aria-checked': selected,
+                    onClick: () => handleSortChange(option.value),
+                  }}
+                >
+                  {option.label}
+                </Block>
+              )
+            })}
+          </Row>
+        </Row>
       </PageFrame.Header>
 
       <PageFrame.Body>
-        <Grid
-          gridTemplateColumns="repeat(auto-fill, minmax(320px, 1fr))"
-          gap={spacing.md}
-        >
-          {items.map(recording => (
-            <RecordingTile
-              key={recording.id}
-              recording={recording}
-              projectId={currentProjectId}
+        <Col gap={spacing.lg}>
+          <Col gap={spacing.sm}>
+            <Input
+              aria-label="Search sessions"
+              placeholder="Search by title or URL"
+              value={filters.searchText}
+              onChange={handleSearchChange}
             />
-          ))}
-        </Grid>
+
+            <Row gap={spacing.sm} flexWrap="wrap">
+              {SESSION_LIST_MODE_OPTIONS.map(option => {
+                const selected = modeIsSelected(option.value)
+
+                return (
+                  <Block
+                    key={option.value}
+                    component="button"
+                    type="button"
+                    paddingV={8}
+                    paddingH={12}
+                    borderWidth={1}
+                    borderStyle="solid"
+                    borderRadius={9999}
+                    fontSize={13}
+                    cursor="pointer"
+                    backgroundColor={
+                      selected ? color.primarySubtle : color.bg.hover
+                    }
+                    color={selected ? color.primary : color.text.secondary}
+                    borderColor={
+                      selected ? color.primary : color.border.default
+                    }
+                    hoverBackgroundColor={
+                      selected ? color.primarySubtle : color.bg.surface
+                    }
+                    props={{
+                      type: 'button',
+                      'aria-pressed': selected,
+                      onClick: () => toggleMode(option.value),
+                    }}
+                  >
+                    {option.label}
+                  </Block>
+                )
+              })}
+            </Row>
+          </Col>
+
+          {visibleItems.length === 0 ? (
+            <EmptyState>
+              <EmptyState.Title>
+                No sessions match your filters
+              </EmptyState.Title>
+
+              <EmptyState.Description>
+                Try a different search term or recording mode.
+              </EmptyState.Description>
+
+              {hasActiveFilters && (
+                <EmptyState.Action>
+                  <Button
+                    variant="outlined"
+                    context="neutral"
+                    onClick={clearFilters}
+                  >
+                    Clear filters
+                  </Button>
+                </EmptyState.Action>
+              )}
+            </EmptyState>
+          ) : (
+            <Grid
+              gridTemplateColumns="repeat(auto-fill, minmax(320px, 1fr))"
+              gap={spacing.md}
+            >
+              {visibleItems.map(recording => (
+                <RecordingTile
+                  key={recording.id}
+                  recording={recording}
+                  projectId={currentProjectId}
+                />
+              ))}
+            </Grid>
+          )}
+        </Col>
       </PageFrame.Body>
     </PageFrame>
   )
