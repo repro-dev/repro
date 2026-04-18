@@ -6,6 +6,7 @@ import { createIframe } from './iframe'
 
 const hostAgent = createMessagingAgent({ name: 'contentScript' })
 const runtimeAgent = createRuntimeAgent()
+const scriptMountTarget = document.head ?? document.documentElement
 
 const initializePageHost = Future<any, unknown>((reject, resolve) => {
   const scriptElements: Array<HTMLScriptElement> = []
@@ -15,7 +16,7 @@ const initializePageHost = Future<any, unknown>((reject, resolve) => {
     scriptElement.src = src
     scriptElement.onerror = reject
     scriptElement.onload = onload
-    document.head.appendChild(scriptElement)
+    scriptMountTarget.appendChild(scriptElement)
     scriptElements.push(scriptElement)
   }
 

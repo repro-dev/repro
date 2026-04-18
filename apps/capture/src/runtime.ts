@@ -28,6 +28,7 @@ interface RuntimeHook {
 declare global {
   interface Window {
     __REPRO_RUNTIME_BUFFER__?: Array<DataView>
+    __REPRO_RUNTIME_BUFFER_SINK__?: (event: DataView) => void
     __REPRO_RUNTIME_INSTALLED__?: boolean
     __REPRO_RUNTIME_INSTALLED_TYPES__?: Set<RuntimeInstalledType>
     __REACT_DEVTOOLS_GLOBAL_HOOK__?: RuntimeHook
@@ -50,7 +51,15 @@ function getInstalledTypes() {
 }
 
 function bufferSourceEvent(event: unknown) {
-  getRuntimeBuffer().push(SourceEventView.encode(new Box(event as never)))
+  const encodedEvent = SourceEventView.encode(new Box(event as never))
+  const sink = window.__REPRO_RUNTIME_BUFFER_SINK__
+
+  if (sink) {
+    sink(encodedEvent)
+    return
+  }
+
+  getRuntimeBuffer().push(encodedEvent)
 }
 
 function safeSerialize(value: unknown) {
@@ -67,10 +76,10 @@ function safeSerialize(value: unknown) {
 }
 
 function createConsoleMessage(level: LogLevel, args: Array<unknown>) {
-  return new Box({
+  return {
     time: performance.now(),
     type: SourceEventType.Console,
-    data: new Box({
+    data: {
       level,
       parts: args.map(value => {
         return new Box({
@@ -79,8 +88,8 @@ function createConsoleMessage(level: LogLevel, args: Array<unknown>) {
         })
       }),
       stack: [],
-    }),
-  })
+    },
+  }
 }
 
 function installConsoleObserver() {

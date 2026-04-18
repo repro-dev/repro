@@ -15,6 +15,7 @@ import React from 'react'
 import { Root, createRoot } from 'react-dom/client'
 import { Controller } from './components/Controller'
 import { REPRO_ROOT_ID } from './constants'
+import { clearRuntimeBuffer } from './runtimeBuffer'
 import { StateProvider, createState } from './state'
 
 if (process.env.NODE_ENV === 'development') {
@@ -29,6 +30,7 @@ type RuntimeInstalledType = 'console' | 'network' | 'performance'
 declare global {
   interface Window {
     __REPRO_RUNTIME_BUFFER__?: Array<DataView>
+    __REPRO_RUNTIME_BUFFER_SINK__?: (event: DataView) => void
     __REPRO_RUNTIME_INSTALLED__?: boolean
     __REPRO_RUNTIME_INSTALLED_TYPES__?: Set<RuntimeInstalledType>
     __REPRO_USING_SDK: boolean
@@ -94,6 +96,20 @@ function drainRuntimeBuffer(stream: {
   runtimeBuffer.length = 0
 }
 
+function attachRuntimeBufferSink(stream: {
+  injectBufferedEvents(events: Array<DataView>): void
+}) {
+  window.__REPRO_RUNTIME_BUFFER_SINK__ = event => {
+    stream.injectBufferedEvents([event])
+  }
+
+  return () => {
+    if (window.__REPRO_RUNTIME_BUFFER_SINK__) {
+      window.__REPRO_RUNTIME_BUFFER_SINK__ = undefined
+    }
+  }
+}
+
 interface Refs {
   // jsxstyle prevents multiple invocations of `cache.injectOptions`,
   // so we cannot register a new style root per custom element.
@@ -117,6 +133,7 @@ const apiClientBridge = createApiClientBridge(agent)
 class ReproCapture extends HTMLElement {
   private renderRoot: Root | null = null
   private state = createState()
+  private detachRuntimeBufferSink: (() => void) | null = null
 
   public connectedCallback() {
     const shadowRoot = this.attachShadow({ mode: 'open' })
@@ -162,6 +179,7 @@ class ReproCapture extends HTMLElement {
       ignoredSelectors,
     })
 
+    this.detachRuntimeBufferSink = attachRuntimeBufferSink(stream)
     drainRuntimeBuffer(stream)
 
     if (refs.activeStyleRoot) {
@@ -188,6 +206,9 @@ class ReproCapture extends HTMLElement {
   }
 
   public disconnectedCallback() {
+    this.detachRuntimeBufferSink?.()
+    this.detachRuntimeBufferSink = null
+    clearRuntimeBuffer()
     this.renderRoot?.unmount()
   }
 }

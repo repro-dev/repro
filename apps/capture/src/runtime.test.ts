@@ -3,6 +3,7 @@ import 'global-jsdom/register'
 import assert from 'node:assert/strict'
 import { it } from 'node:test'
 import { installRuntime } from './runtime'
+import { clearRuntimeBuffer } from './runtimeBuffer'
 
 it('installs the runtime hook stub and stays idempotent', () => {
   const hook = (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
@@ -47,4 +48,28 @@ it('installs the runtime hook stub and stays idempotent', () => {
   assert.equal(window.__REPRO_RUNTIME_INSTALLED_TYPES__, installedTypes)
   assert.equal(window.__REPRO_RUNTIME_INSTALLED__, true)
   assert.ok(installedTypes?.has('console'))
+})
+
+it('forwards live runtime events to the active sink without refilling the buffer', () => {
+  const forwarded: Array<DataView> = []
+
+  window.__REPRO_RUNTIME_BUFFER__ = []
+  window.__REPRO_RUNTIME_BUFFER_SINK__ = event => {
+    forwarded.push(event)
+  }
+
+  window.__REPRO_RUNTIME_BUFFER_SINK__(new DataView(new ArrayBuffer(4)))
+
+  assert.equal(forwarded.length, 1)
+  assert.equal(window.__REPRO_RUNTIME_BUFFER__?.length, 0)
+
+  window.__REPRO_RUNTIME_BUFFER_SINK__ = undefined
+})
+
+it('clears the runtime buffer when disconnecting the recording', () => {
+  window.__REPRO_RUNTIME_BUFFER__ = [new DataView(new ArrayBuffer(1))]
+
+  clearRuntimeBuffer()
+
+  assert.equal(window.__REPRO_RUNTIME_BUFFER__?.length, 0)
 })
