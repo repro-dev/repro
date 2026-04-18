@@ -45,16 +45,6 @@ _write_bootstrap_stubs() {
   chmod +x "$bindir"/*
 }
 
-_source_setup_lib() {
-  export REPO_ROOT MAIN_CHECKOUT PARENT_DIR SCRIPTS_DIR TMP_DIR CONFIG_FILE INFRA_DIR
-  # shellcheck source=/dev/null
-  source "$COMMON_SH"
-  # shellcheck source=/dev/null
-  source "$CLUSTER_SH"
-  # shellcheck source=/dev/null
-  source "$SETUP_SH"
-}
-
 test_bootstrap_installs_browser_runtime_when_health_check_fails() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -120,7 +110,7 @@ test_doctor_reports_healthy_agent_browser_runtime() {
   " 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q "agent-browser runtime" && printf '%s\n' "$output" | grep -q "ok"; then
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -Eq '^[[:space:]]*ok[[:space:]]+agent-browser runtime[[:space:]]+.*healthy'; then
     _pass "doctor reports healthy agent-browser runtime"
   else
     _fail "doctor reports healthy agent-browser runtime" "rc=$rc; output: $output"
