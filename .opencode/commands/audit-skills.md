@@ -158,16 +158,16 @@ For each stale reference tagged `confidence: unambiguous`:
 
 For each stale reference tagged `confidence: ambiguous`:
 
-1. File a new Linear issue via the repo-owned `linear` CLI. If issue creation is not implemented yet, stop and report the missing CLI capability instead of using MCP.
-   - `title`: `Stale skill reference: <skill-file> line <line> — could not auto-resolve '<stale-name>'`
-   - `team`: `Repro`
-   - `project`: `Platform`
-   - `labels`: `["Tech Debt"]`
-   - `priority`: 4 (Low)
-   - `description`: structured markdown including:
-     - **Context**: `An autonomous skill audit found a stale reference that could not be auto-resolved.`
-     - **Details**: the stale reference (file path or symbol name), the skill file and line number, what candidates were found (if any), and why confidence was insufficient.
-     - **Action**: `Manually verify whether this reference should be updated, removed, or is intentionally referencing something outside the index.`
+1. File a new Linear issue via the repo-owned `linear` CLI:
+
+   `linear issue create --title "Stale skill reference: <skill-file> line <line> — could not auto-resolve '<stale-name>'" --project Platform --label "Tech Debt" --priority low --description "<structured markdown including Context, Details, and Action>"`
+
+   The description should include:
+
+   - **Context**: `An autonomous skill audit found a stale reference that could not be auto-resolved.`
+   - **Details**: the stale reference (file path or symbol name), the skill file and line number, what candidates were found (if any), and why confidence was insufficient.
+   - **Action**: `Manually verify whether this reference should be updated, removed, or is intentionally referencing something outside the index.`
+
 2. Log: `Filed Platform issue <issue-ID>: ambiguous stale reference '<stale>' in <file>:<line>`
 
 #### Re-audit and report

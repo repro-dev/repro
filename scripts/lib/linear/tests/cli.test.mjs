@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import path from "node:path";
 
 import { execute } from "../cli.mjs";
 
@@ -47,7 +48,158 @@ test("top-level help prints command surface", async () => {
   assert.equal(result.code, 0);
   assert.match(result.stdout, /whoami/);
   assert.match(result.stdout, /linear issue list/);
+  assert.match(result.stdout, /issue create/);
+  assert.match(result.stdout, /issue children <id>/);
+  assert.match(result.stdout, /issue start <id>/);
+  assert.match(result.stdout, /issue update <id>/);
+  assert.match(result.stdout, /issue comment <id> <body>/);
+  assert.match(result.stdout, /label list/);
+  assert.match(result.stdout, /label create --name <name>/);
+  assert.match(result.stdout, /login/);
   assert.match(result.stdout, /statuses backlog and todo/i);
+});
+
+test("login help describes the required flags", async () => {
+  const result = await execute(["help", "login"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => makeClient(),
+  });
+
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /Usage: linear login \[options\]/);
+  assert.match(result.stdout, /--api-key <value>/);
+  assert.match(result.stdout, /--team <value>/);
+});
+
+test("login writes the repo-local config file", async () => {
+  const writes = [];
+  const fsImpl = {
+    writeFileSync(filePath, contents, encoding) {
+      writes.push({ filePath, contents, encoding });
+    },
+  };
+  const cwd = path.join(process.cwd(), "tmp", "repro-login");
+
+  const result = await execute(["login", "--api-key", "api", "--team", "REP"], {
+    cwd,
+    fsImpl,
+    interactive: false,
+  });
+
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /Saved Linear credentials to \.linear/);
+  assert.deepEqual(writes, [
+    {
+      filePath: `${cwd}/.linear`,
+      contents: "api_key=api\nteam=REP\n",
+      encoding: "utf8",
+    },
+  ]);
+});
+
+test("login prompts for missing values when interactive", async () => {
+  const prompts = [];
+  const writes = [];
+  const fsImpl = {
+    writeFileSync(filePath, contents, encoding) {
+      writes.push({ filePath, contents, encoding });
+    },
+  };
+  const promptCwd = path.join(process.cwd(), "tmp", "repro-login-prompt");
+
+  const result = await execute(["login", "--api-key", "api"], {
+    cwd: promptCwd,
+    fsImpl,
+    interactive: true,
+    prompt: async ({ field, message }) => {
+      prompts.push({ field, message });
+      return "REP";
+    },
+  });
+
+  assert.equal(result.code, 0);
+  assert.deepEqual(prompts, [{ field: "team", message: "Linear team: " }]);
+  assert.deepEqual(writes, [
+    {
+      filePath: `${promptCwd}/.linear`,
+      contents: "api_key=api\nteam=REP\n",
+      encoding: "utf8",
+    },
+  ]);
+});
+
+test("auth-dependent commands suggest linear login", async () => {
+  const result = await execute(["issue", "list"], {
+    env: {},
+    cwd: path.join(process.cwd(), "tmp", "linear-no-config"),
+    homeDir: path.join(process.cwd(), "tmp", "linear-no-home"),
+    clientFactory: async () => makeClient(),
+  });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /linear login/i);
+});
+
+test("login fails clearly when run non-interactively without required values", async () => {
+  const result = await execute(["login"], {
+    interactive: false,
+  });
+
+  assert.equal(result.code, 2);
+  assert.match(result.stderr, /--api-key/i);
+  assert.match(result.stderr, /--team/i);
+  assert.match(result.stderr, /interactively/i);
+});
+
+test("issue help lists the new issue subcommands", async () => {
+  const result = await execute(["help", "issue"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => makeClient(),
+  });
+
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /create --title <title> --project <name>/);
+  assert.match(result.stdout, /--related <issue-id>/);
+  assert.match(result.stdout, /--blocks <issue-id>/);
+  assert.match(result.stdout, /--blocked-by <issue-id>/);
+  assert.match(result.stdout, /children <id>/);
+  assert.match(result.stdout, /start <id> \[--json\]/);
+  assert.match(result.stdout, /update <id> \[options\]/);
+  assert.match(result.stdout, /comment <id> <body>/);
+});
+
+test("issue start help describes the self-start shortcut", async () => {
+  const result = await execute(["help", "issue", "start"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => makeClient(),
+  });
+
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /assign the issue to yourself/i);
+  assert.match(result.stdout, /--json/);
+});
+
+test("label help lists the new label subcommands", async () => {
+  const result = await execute(["help", "label"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => makeClient(),
+  });
+
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /label <subcommand>/);
+  assert.match(result.stdout, /create --name <name>/);
+});
+
+test("issue update help advertises label merge and mine flags", async () => {
+  const result = await execute(["help", "issue", "update"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => makeClient(),
+  });
+
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /--add-label <name>/);
+  assert.match(result.stdout, /--remove-label <name>/);
+  assert.match(result.stdout, /--mine/);
 });
 
 test("version output remains available for bootstrap checks", async () => {
@@ -68,6 +220,7 @@ test("issue list help describes pagination and defaults", async () => {
 
   assert.equal(result.code, 0);
   assert.match(result.stdout, /--after <cursor>/);
+  assert.match(result.stdout, /--leaf/);
   assert.match(result.stdout, /backlog.*todo/i);
 });
 
@@ -176,6 +329,13 @@ test("validation rejects invalid priority, invalid limit, and assignee conflicts
   assert.equal(badLimit.code, 2);
   assert.match(badLimit.stderr, /limit/i);
 
+  const tooLargeLimit = await execute(["issue", "list", "--limit", "251"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory,
+  });
+  assert.equal(tooLargeLimit.code, 2);
+  assert.match(tooLargeLimit.stderr, /250/);
+
   const mineAndAssignee = await execute(
     ["issue", "list", "--mine", "--assignee", "test@example.com"],
     {
@@ -185,4 +345,22 @@ test("validation rejects invalid priority, invalid limit, and assignee conflicts
   );
   assert.equal(mineAndAssignee.code, 2);
   assert.match(mineAndAssignee.stderr, /mutually exclusive/i);
+});
+
+test("issue update and comment validate required arguments", async () => {
+  const clientFactory = async () => makeClient();
+
+  const missingStatus = await execute(["issue", "update", "REP-875"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory,
+  });
+  assert.equal(missingStatus.code, 2);
+  assert.match(missingStatus.stderr, /update fields/i);
+
+  const missingBody = await execute(["issue", "comment", "REP-875"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory,
+  });
+  assert.equal(missingBody.code, 2);
+  assert.match(missingBody.stderr, /comment body/i);
 });

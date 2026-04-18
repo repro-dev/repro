@@ -36,6 +36,10 @@ function pickTrimmed(value) {
   return value.trim();
 }
 
+function formatLinearConfig({ apiKey, team }) {
+  return [`api_key=${apiKey}`, `team=${team}`, ""].join("\n");
+}
+
 export function resolveLinearConfig({
   cwd = process.cwd(),
   homeDir = os.homedir(),
@@ -57,6 +61,24 @@ export function resolveLinearConfig({
       globalConfig.team ||
       "",
   };
+}
+
+export function writeLinearConfig({
+  cwd = process.cwd(),
+  fsImpl = fs,
+  apiKey,
+  team,
+}) {
+  const filePath = path.join(cwd, ".linear");
+  fsImpl.writeFileSync(
+    filePath,
+    formatLinearConfig({
+      apiKey: pickTrimmed(apiKey),
+      team: pickTrimmed(team),
+    }),
+    "utf8",
+  );
+  return filePath;
 }
 
 export { parseLinearConfig };

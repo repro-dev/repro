@@ -17,13 +17,14 @@ Parse `$ARGUMENTS` carefully: separate the positional project filter from the `-
 
 ## Step 1: Ensure `needs-spec` Label Exists
 
-Use the repo-owned `linear` CLI to check whether the `needs-spec` label exists.
+Use the repo-owned `linear` CLI to check whether the `needs-spec` label exists:
+
+`linear label list --json | jq '[.items[] | {id, name, color}]'`
 
 - If the label is found: note its ID, proceed to Step 2.
-- If not found: create it via the repo-owned `linear` CLI label flow. If label creation is not implemented yet, stop and report the missing CLI capability instead of using MCP:
-  - `name`: `needs-spec`
-  - `color`: `#F2994A`
-  - `description`: `Issue requires additional specification before autonomous implementation`
+- If not found: create it via the repo-owned `linear` CLI:
+
+  `linear label create --name needs-spec --description "Issue requires additional specification before autonomous implementation" --color "#F2994A"`
 
 This step is idempotent — if the label already exists, skip creation.
 
@@ -31,8 +32,8 @@ This step is idempotent — if the label already exists, skip creation.
 
 ## Step 2: Fetch Candidate Issues
 
-1. Run `linear issue list --status backlog --json`, paginating through all results.
-2. Run `linear issue list --status todo --json`, paginating through all results.
+1. Run `linear issue list --status backlog --json`, paginating through all results and trimming the list with `jq` to keep only routing fields needed for enrichment triage.
+2. Run `linear issue list --status todo --json`, paginating through all results and trimming the list with `jq` to keep only routing fields needed for enrichment triage.
 3. If the positional argument from `$ARGUMENTS` is a project name (not a flag), pass it as the `project` filter in both calls.
 4. Deduplicate by issue ID.
 5. For each issue, run `linear issue show <issue-id> --json` to fetch blockers, comments, and the full description.
@@ -83,7 +84,7 @@ Use jcodemunch tools to ground the enrichment in the actual codebase:
 1. Call `jcodemunch_resolve_repo` with the main checkout path `/Users/gary/Projects/repro-dev/repro` to get the repo identifier.
 2. Call `jcodemunch_search_symbols` using keywords from the issue title to find relevant code areas (e.g. component names, function names, package names).
 3. Call `jcodemunch_get_file_outline` on likely affected files identified in step 2.
-4. Check related/sibling issues in the same project using the repo-owned `linear` CLI to find similar completed work. If the needed status filtering is not implemented in `linear issue list`, stop and report the missing CLI capability.
+4. Check related/sibling issues in the same project using the repo-owned `linear` CLI to find similar completed work.
 5. Read the issue's related issues via `linear issue show <issue-id> --json` and then `linear issue show <related-id> --json` for design decisions or prior context.
 
 ### 4c: Generate enrichment
@@ -147,14 +148,18 @@ Before writing, inspect the issue's comments via `linear issue show <issue-id> -
 
 ### 6b: Update description
 
-Update the issue with the repo-owned `linear` CLI. If issue mutation is not implemented yet, stop and report the missing CLI capability instead of using MCP. The updated description must:
+Update the issue with the repo-owned `linear` CLI. The updated description must:
 
 - Contain the full original description verbatim
 - Append new sections below (e.g. `## Acceptance Criteria`, `## Context`) — never restructure or paraphrase existing content
 
 ### 6c: Add audit comment
 
-Add the audit comment with the repo-owned `linear` CLI. If comment mutation is not implemented yet, stop and report the missing CLI capability instead of using MCP. The comment body must be:
+Add the audit comment with the repo-owned `linear` CLI, for example:
+
+`linear issue comment <issue-id> "**Enriched by agent on <YYYY-MM-DD>** ..."`
+
+The comment body must be:
 
 ```
 **Enriched by agent on <YYYY-MM-DD>**
@@ -172,8 +177,13 @@ Failure reasons addressed:
 
 For each issue the fabrication guard rejected (Step 4d):
 
-1. Apply the `needs-spec` label with the repo-owned `linear` CLI. This is **additive** — do not replace the full labels array. Fetch the current labels first via `linear issue show <issue-id> --json`, then merge `needs-spec` into the existing labels list before saving. If label mutation is not implemented yet, stop and report the missing CLI capability.
-2. Add a comment with the repo-owned `linear` CLI: `"This issue could not be automatically enriched because: <reason>. Human specification is needed before autonomous implementation."` If comment mutation is not implemented yet, stop and report the missing CLI capability.
+1. Apply the `needs-spec` label with the repo-owned `linear` CLI. This is **additive** — do not replace the full labels array. Fetch the current labels first via `linear issue show <issue-id> --json`, then add the label with:
+
+   `linear issue update <issue-id> --add-label needs-spec`
+
+2. Add a comment with the repo-owned `linear` CLI:
+
+   `linear issue comment <issue-id> "This issue could not be automatically enriched because: <reason>. Human specification is needed before autonomous implementation."`
 
 ---
 

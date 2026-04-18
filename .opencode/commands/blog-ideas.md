@@ -69,11 +69,8 @@ Aim for 3–7 ranked ideas. If fewer than 3 pass the bar, present what is availa
 _Skip this step entirely unless `--create-issues` was passed._
 
 1. Confirm the Blog Posts project exists using the repo-owned `linear` CLI project listing. Find the first result whose `name` is exactly `"Blog Posts"` (case-insensitive). If no exact match is found, print an error and skip — do not create issues in any other project.
-2. For each ranked idea, create the issue with the repo-owned `linear` CLI. If the necessary issue-create subcommand is not implemented yet, stop and report the missing CLI capability instead of using MCP.
-   - `title`: working title
-   - `team`: `Repro`
-   - `project`: `"Blog Posts"`
-   - `priority`: 3 (Normal)
-   - `labels`: `["Improvement"]`
-   - `description`: Markdown body with Hook, Angle, Source sections
+2. For each ranked idea, create the issue with the repo-owned `linear` CLI:
+
+   `linear issue create --title "<working title>" --project "Blog Posts" --priority medium --label Improvement --description "<Markdown body with Hook, Angle, Source sections>"`
+
 3. Print a summary table of created issues.

@@ -13,17 +13,17 @@ Structured workflow for filing Linear issues in the Repro workspace. Follow thes
 
 Select the project that best fits the work. When in doubt, prefer the product-area project over a cross-cutting one.
 
-| Project | Use for |
-|---------|---------|
-| Platform | reproctl, infrastructure, CI/CD, developer experience |
-| Engineering | Code style, conventions, tooling, technical hygiene |
-| Design System | UI components, tokens, patterns for `@repro/design` |
-| Accessibility | Reusable a11y helpers (`@repro/a11y`) |
-| Recording & Playback | Session capture, playback engine, DevTools |
-| Authentication | Auth flows, social login, passkeys |
-| Agentic | Agentic debugging experience, agent tools |
-| Billing | Paid plans, subscriptions, entitlements (Paddle) |
-| Marketing Website | Public-facing site |
+| Project              | Use for                                               |
+| -------------------- | ----------------------------------------------------- |
+| Platform             | reproctl, infrastructure, CI/CD, developer experience |
+| Engineering          | Code style, conventions, tooling, technical hygiene   |
+| Design System        | UI components, tokens, patterns for `@repro/design`   |
+| Accessibility        | Reusable a11y helpers (`@repro/a11y`)                 |
+| Recording & Playback | Session capture, playback engine, DevTools            |
+| Authentication       | Auth flows, social login, passkeys                    |
+| Agentic              | Agentic debugging experience, agent tools             |
+| Billing              | Paid plans, subscriptions, entitlements (Paddle)      |
+| Marketing Website    | Public-facing site                                    |
 
 ## Step 2: Write the Title
 
@@ -68,23 +68,23 @@ If the requirements section is not sufficient to verify completeness, add explic
 
 Every issue gets exactly one type label:
 
-| Label | When to use |
-|-------|-------------|
-| Bug | Broken behavior that needs fixing |
-| Feature | New user-facing functionality |
-| Improvement | Enhancement to existing functionality |
-| Tech Debt | Internal quality, refactoring, cleanup |
+| Label       | When to use                            |
+| ----------- | -------------------------------------- |
+| Bug         | Broken behavior that needs fixing      |
+| Feature     | New user-facing functionality          |
+| Improvement | Enhancement to existing functionality  |
+| Tech Debt   | Internal quality, refactoring, cleanup |
 
 ## Step 5: Set Priority
 
 Set priority on every issue:
 
-| Priority | Meaning |
-|----------|---------|
-| 1 — Urgent | Drop everything, fix now |
-| 2 — High | Do this cycle |
-| 3 — Normal | Standard priority |
-| 4 — Low | Nice to have, do when convenient |
+| Priority   | Meaning                          |
+| ---------- | -------------------------------- |
+| 1 — Urgent | Drop everything, fix now         |
+| 2 — High   | Do this cycle                    |
+| 3 — Normal | Standard priority                |
+| 4 — Low    | Nice to have, do when convenient |
 
 ## Step 6: Agentic Tool Parity
 
@@ -104,7 +104,7 @@ Examples of capabilities that map to agentic tools:
 
 1. File a related issue in the **Agentic** project describing the proposed tool API surface.
 2. Reference the originating issue in the description.
-3. Link the two issues as related using `relatedTo`.
+3. Link the two issues as related using the repo-owned CLI relation flags (`--related`, `--blocks`, `--blocked-by`, or `--duplicate-of`) when appropriate.
 
 **If the answer is no**, move on — not every issue needs an agentic counterpart.
 
@@ -119,17 +119,10 @@ Do not create milestones for one-off issues.
 
 ## Step 8: Create the Issue
 
-Use the repo-owned `linear` CLI issue-create flow with all the fields gathered above. If the necessary create subcommand is not implemented yet, stop and report the missing CLI capability instead of using MCP.
+Use the repo-owned `linear` CLI issue-create flow with all the fields gathered above.
 
 ```
-linear issue create(
-  title: "...",
-  team: "Repro",
-  project: "<project name>",
-  description: "<markdown description>",
-  labels: ["<one type label>"],
-  priority: <1-4>
-)
+linear issue create --title "..." --project "<project name>" --description "<markdown description>" --label "<one type label>" --priority high
 ```
 
-After creation, link related issues if applicable using `relatedTo`, `blocks`, or `blockedBy`.
+When creating the issue, add relation flags as needed: `--related <issue-id>`, `--blocks <issue-id>`, `--blocked-by <issue-id>`, or `--duplicate-of <issue-id>`.

@@ -56,7 +56,10 @@ _Only runs when Step 2 detected a natural-language filter._
    - Milestone name
    - Label names
    - Priority (e.g. `high-priority` → `priority: 2`)
-2. Use the repo-owned `linear` CLI to list issues matching the extracted filters plus the `needs-spec` label. If label filtering is not implemented yet in `linear issue list`, stop and report the missing CLI capability instead of using MCP. If no project was identified, do not restrict by project.
+2. Use the repo-owned `linear` CLI to list issues matching the extracted filters plus the `needs-spec` label, for example:
+   `linear issue list --status backlog --status todo --label needs-spec --project "Platform" --json`
+   If no project was identified, do not restrict by project.
+   For broad scans, trim the list output with `jq` before inspection so only routing fields remain (for example `id`, `identifier`, `title`, `state`, `priority`, `project`).
 3. If no issues match, print:
    ```
    No needs-spec issues found matching: "<filter string>"
@@ -143,6 +146,7 @@ Wait for the user to answer all questions before proceeding.
 Based on the user's answers:
 
 1. Draft a proposed updated description. This must:
+
    - **Preserve the original description verbatim** (never replace — always append or restructure with the original content intact).
    - Add or replace the `### Acceptance Criteria` section with a concrete checkbox list grounded in user answers.
    - Add a `### Decisions` section (if unresolved decisions were present) documenting the resolution.
@@ -201,9 +205,11 @@ Call `linear issue show <issue-id> --json` to retrieve the current full descript
 
 Construct the updated description (original description + proposed additions from Step 7).
 
-Build the updated labels list: take the fetched `labels` array, filter out any label named `needs-spec`, and use this filtered list.
+Build the updated labels list by removing `needs-spec` from the fetched `labels` array, then update the issue with the repo-owned `linear` CLI, for example:
 
-Update the issue with the repo-owned `linear` CLI. If issue mutation is not implemented yet, stop and report the missing CLI capability instead of using MCP. The update must set:
+`linear issue update <issue-id> --description "..." --remove-label needs-spec`
+
+The update must set:
 
 - `id`: the issue ID
 - `description`: the updated description (original + additions)
@@ -211,7 +217,11 @@ Update the issue with the repo-owned `linear` CLI. If issue mutation is not impl
 
 ### 8c: Post audit comment
 
-Add the audit comment with the repo-owned `linear` CLI. If comment mutation is not implemented yet, stop and report the missing CLI capability instead of using MCP. The comment must include:
+Add the audit comment with the repo-owned `linear` CLI, for example:
+
+`linear issue comment <issue-id> "**Spec written by agent on <YYYY-MM-DD>** ..."`
+
+The comment must include:
 
 - `issueId`: the issue ID
 - `body`:

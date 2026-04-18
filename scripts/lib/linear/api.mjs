@@ -195,6 +195,7 @@ export function buildIssueFilter({
   priority,
   mine,
   unblocked,
+  leaf,
   open,
   defaultBacklogStateIds,
 }) {
@@ -213,6 +214,7 @@ export function buildIssueFilter({
   if (mine && viewer?.id) filters.push({ assignee: { id: { eq: viewer.id } } });
   if (assignee) filters.push({ assignee: { id: { eq: assignee.id } } });
   if (unblocked) filters.push({ hasBlockedByRelations: { eq: false } });
+  if (leaf) filters.push({ children: { length: { eq: 0 } } });
 
   for (const labelId of labelIds ?? []) {
     filters.push({ labels: { some: { id: { eq: labelId } } } });
@@ -237,6 +239,40 @@ export async function fetchProjectMilestones(receiver, source, variables) {
 
 export async function fetchIssueLabel(client, labelId) {
   return callBoundMethod(client, client.issueLabel, labelId);
+}
+
+export async function createIssueWithFallback(receiver, payload) {
+  for (const methodName of ["createIssue", "issueCreate"]) {
+    if (typeof receiver?.[methodName] === "function") {
+      return callBoundMethod(receiver, receiver[methodName], payload);
+    }
+  }
+
+  return null;
+}
+
+export async function createIssueLabelWithFallback(receiver, payload) {
+  for (const methodName of [
+    "createIssueLabel",
+    "createLabel",
+    "issueLabelCreate",
+  ]) {
+    if (typeof receiver?.[methodName] === "function") {
+      return callBoundMethod(receiver, receiver[methodName], payload);
+    }
+  }
+
+  return null;
+}
+
+export async function createIssueRelationWithFallback(receiver, payload) {
+  for (const methodName of ["createIssueRelation", "issueRelationCreate"]) {
+    if (typeof receiver?.[methodName] === "function") {
+      return callBoundMethod(receiver, receiver[methodName], payload);
+    }
+  }
+
+  return null;
 }
 
 export async function fetchProject(projectId, client) {

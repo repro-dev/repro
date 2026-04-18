@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { resolveLinearConfig } from "../config.mjs";
+import { resolveLinearConfig, writeLinearConfig } from "../config.mjs";
 
 function makeTempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "linear-config-"));
@@ -74,4 +74,30 @@ test("resolveLinearConfig tolerates comments and whitespace", () => {
 
   assert.equal(config.apiKey, "trimmed");
   assert.equal(config.team, "REP");
+});
+
+test("writeLinearConfig writes the local repo config format", () => {
+  const writes = [];
+  const fsImpl = {
+    writeFileSync(filePath, contents, encoding) {
+      writes.push({ filePath, contents, encoding });
+    },
+  };
+
+  const cwd = path.join(makeTempDir(), "repo");
+  const filePath = writeLinearConfig({
+    cwd,
+    fsImpl,
+    apiKey: "api",
+    team: "REP",
+  });
+
+  assert.equal(filePath, path.join(cwd, ".linear"));
+  assert.deepEqual(writes, [
+    {
+      filePath: path.join(cwd, ".linear"),
+      contents: "api_key=api\nteam=REP\n",
+      encoding: "utf8",
+    },
+  ]);
 });

@@ -91,7 +91,9 @@ Always include `Closes REP-xxx` so the Linear integration links the PR to the is
 
 Set the Linear issue to **In Review** immediately after the PR is created:
 
-Use the repo-owned `linear` CLI to move the issue to `In Review`. If the required issue-update subcommand is not implemented yet, stop and report the missing CLI capability instead of using MCP or another Linear transport.
+Use the repo-owned `linear` CLI to move the issue to `In Review`:
+
+`linear issue update <issue-id> --status "In Review"`
 
 ## Return structured summary
 

@@ -13,9 +13,16 @@ You are the orchestrator for the `/deliver` command.
 
 ### Linear transport
 
+- Load `.opencode/skills/linear-cli/SKILL.md` before using the repo-owned CLI.
 - Use the `linear` CLI for every Linear operation in this command.
 - Do not use MCP or legacy `Linear_*` tool names in execution. Translate every Linear step to the repo-owned `linear` CLI.
 - If `linear` is unavailable, stop and report that the repo-local `bin/linear` wrapper is unavailable in the current shell.
+- Use these concrete commands for issue mutation and child checks:
+  - `linear issue children <issue-id> --json`
+  - `linear issue comment <issue-id> "<body>" --json`
+  - `linear issue update <issue-id> --status "Todo" --json`
+  - `linear issue update <issue-id> --status "In Progress" --json`
+  - `linear issue update <issue-id> --status "In Review" --json`
 
 ### Mode detection rules
 
@@ -101,7 +108,7 @@ If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead
    - Run `reproctl wt list --json` and treat the returned branch/worktree records as the authoritative active-worktree list for this phase.
    - Run `gh pr list --state open --limit 1000 --json number,headRefName,title` and treat the result as the authoritative open-PR list for this phase, using `headRefName` for any "issue ID appears in an open PR branch name" checks.
 2. Fetch `target_issue_id` via `linear issue show <issue-id> --json`.
-3. Fetch child issues with the repo-owned `linear` CLI. If parent filtering is not implemented in `linear issue list`, stop and report the missing CLI capability instead of using MCP.
+3. Fetch child issues with `linear issue children <issue-id> --json`.
 4. Fetch each blocker issue referenced in `relations.blockedBy` so blocker status is known before proceeding.
 5. Fail fast and stop cleanly if any of the following are true:
    - the child-issue query returns one or more issues; treat the target as a tracking issue rather than a bounded implementation issue
@@ -143,26 +150,30 @@ When keeping the status table updated, make batching and backoff explicit so the
 Run this phase only when `mode = wave`.
 
 1. Fetch Linear issues in **Todo** and **Backlog** within one resolved Linear project using this exact protocol, then apply `--query <term>` locally if present:
-     - Refresh in-flight state first by running `reproctl wt list --json` and `gh pr list --state open --limit 1000 --json number,headRefName,title`; treat those results as the authoritative active-worktree and open-PR snapshots for this phase, using the structured worktree records and returned `headRefName` values for exclusion checks.
-     - Resolve `project_filter` to exactly one Linear project before any backlog-discovery call. In wave mode, a project must always be defined; do not scan across all projects and do not treat raw `$ARGUMENTS` as the Linear filter input once parsing is complete.
-     - If `project_filter` cannot be resolved to exactly one Linear project, stop with a clear validation error instead of guessing, broadening the scan, or searching by title terms.
-     - After project resolution, make exactly two backlog-discovery calls: one `linear issue list --project <project> --status todo --json` call and one `linear issue list --project <project> --status backlog --json` call.
-     - Before sending each backlog-discovery `linear issue list` call, perform a self-check on the outgoing flags. If the call includes any filter outside the intentionally selected project, status, limit, and output flags, treat that as a command bug, do not send the call, and rebuild it.
-     - Construct each `linear issue list` call by omission, not by empty defaults. Only include flags that intentionally constrain backlog discovery.
-     - For backlog discovery, include only `state`, `project`, `limit`, `orderBy`, and `includeArchived`, where `project` is the single resolved project name or ID from `project_filter`.
-     - Do **not** send placeholder values such as `assignee: null`, `priority: 0`, `query: ""`, `team: ""`, `cycle: ""`, `label: ""`, `delegate: ""`, `parentId: ""`, `createdAt: ""`, `updatedAt: ""`, or `cursor: ""`; these can narrow the Linear query instead of acting as no-ops.
-     - Example discovery payloads: `{ limit: 250, orderBy: "updatedAt", state: "Todo", project: "Workspace", includeArchived: false }` and `{ limit: 250, orderBy: "updatedAt", state: "Backlog", project: "Workspace", includeArchived: false }`.
-     - If a tool trace or status line shows any disallowed key on a backlog-discovery call, treat that run as invalid. Retry immediately with the corrected minimal payload and discard the bad result set.
-     - If the corrected minimal payload still returns no issues, stop and report that no matching backlog issues were found for the resolved project. Do **not** fall back to alternate project identifiers, cross-project scans, team-wide searches, empty-state probes, or semantic title searches to compensate.
-     - If `query_filter` is present, use it only for local fuzzy scoring after the issues are fetched; do not send it as a direct `linear issue list` filter.
-     - Do **not** add an assignee filter when scanning the backlog; the wave should include assigned and unassigned issues alike.
-     - Deduplicate the combined results by issue ID.
-    - For each issue in the full deduplicated set, call `linear issue show <issue-id> --json`.
-    - For each issue that has any `relations.blockedBy` entries, call `linear issue show <blocker-id> --json` for each blocker as well so blocker status is known before applying the readiness filter.
+
+   - Refresh in-flight state first by running `reproctl wt list --json` and `gh pr list --state open --limit 1000 --json number,headRefName,title`; treat those results as the authoritative active-worktree and open-PR snapshots for this phase, using the structured worktree records and returned `headRefName` values for exclusion checks.
+   - Resolve `project_filter` to exactly one Linear project before any backlog-discovery call. In wave mode, a project must always be defined; do not scan across all projects and do not treat raw `$ARGUMENTS` as the Linear filter input once parsing is complete.
+   - If `project_filter` cannot be resolved to exactly one Linear project, stop with a clear validation error instead of guessing, broadening the scan, or searching by title terms.
+   - After project resolution, make exactly two backlog-discovery calls: one `linear issue list --project <project> --status todo --unblocked --leaf --limit 250 --json` call and one `linear issue list --project <project> --status backlog --unblocked --leaf --limit 250 --json` call.
+   - Trim each backlog-discovery result with `jq` before bringing it into context so only routing fields survive (for example: `id`, `identifier`, `title`, `state`, `priority`, `project`).
+   - Before sending each backlog-discovery `linear issue list` call, perform a self-check on the outgoing flags. If the call includes any filter outside the intentionally selected project, status, limit, and output flags, treat that as a command bug, do not send the call, and rebuild it.
+   - Construct each `linear issue list` call by omission, not by empty defaults. Only include flags that intentionally constrain backlog discovery.
+   - For backlog discovery, include only `state`, `project`, `limit`, `orderBy`, `includeArchived`, `unblocked`, and `leaf`, where `project` is the single resolved project name or ID from `project_filter`.
+   - Do **not** send placeholder values such as `assignee: null`, `priority: 0`, `query: ""`, `team: ""`, `cycle: ""`, `label: ""`, `delegate: ""`, `parentId: ""`, `createdAt: ""`, `updatedAt: ""`, or `cursor: ""`; these can narrow the Linear query instead of acting as no-ops.
+   - Example discovery payloads: `{ limit: 250, orderBy: "updatedAt", state: "Todo", project: "Workspace", includeArchived: false, unblocked: true, leaf: true }` and `{ limit: 250, orderBy: "updatedAt", state: "Backlog", project: "Workspace", includeArchived: false, unblocked: true, leaf: true }`.
+   - If a tool trace or status line shows any disallowed key on a backlog-discovery call, treat that run as invalid. Retry immediately with the corrected minimal payload and discard the bad result set.
+   - If the corrected minimal payload still returns no issues, stop and report that no matching backlog issues were found for the resolved project. Do **not** fall back to alternate project identifiers, cross-project scans, team-wide searches, empty-state probes, or semantic title searches to compensate.
+   - Keep later `linear issue show <issue-id> --json` calls full when you need richer issue, blocker, or comment context.
+   - If `query_filter` is present, use it only for local fuzzy scoring after the issues are fetched; do not send it as a direct `linear issue list` filter.
+   - Do **not** add an assignee filter when scanning the backlog; the wave should include assigned and unassigned issues alike.
+   - Deduplicate the combined results by issue ID.
+   - For each issue in the full deduplicated set, call `linear issue show <issue-id> --json`.
+   - For each issue that has any `relations.blockedBy` entries, call `linear issue show <blocker-id> --json` for each blocker as well so blocker status is known before applying the readiness filter.
 
 2. Apply a precision-first selection bar.
 
    **Hard excludes:**
+
    - Has any `blockedBy` relation whose fetched blocker issue is not `Done` or `Canceled`
    - If a `blockedBy` relation still exists but every fetched blocker is `Done` or `Canceled`, treat the issue as not blocked and note the stale relation in the rationale instead of excluding it
    - State is already **In Progress** or **In Review**
@@ -183,10 +194,12 @@ Run this phase only when `mode = wave`.
    | Multiple services with no implementation direction | Description mentions 3+ services or packages but gives no direction on which to change or how                           |
    | Vague noun-phrase title                            | Title is a bare noun phrase with no verb and no measurable change (e.g. "Performance improvements", "Auth cleanup")     |
    | No type label                                      | Issue carries none of the standard labels: Bug, Feature, Improvement, Tech Debt                                         |
-    - If **3 or more signals are present**: exclude the issue from the current run. In the candidate table, record the decision as "exclude — scope pre-filter". If the repo-owned `linear` CLI supports commenting, post a comment naming the specific signals that triggered exclusion, for example: `"Excluded by scope pre-filter: no acceptance criteria, description under 80 words, no named files/packages."` If comment mutation is not implemented yet, record the skipped write in the run output. Do not create a worktree or spawn a planner for this issue.
+
+   - If **3 or more signals are present**: exclude the issue from the current run. In the candidate table, record the decision as "exclude — scope pre-filter". Post a concise comment with `linear issue comment <issue-id> "Excluded by scope pre-filter: no acceptance criteria, description under 80 words, no named files/packages." --json`. Do not create a worktree or spawn a planner for this issue.
    - If **fewer than 3 signals are present**: the issue passes the heuristic — proceed to evaluate supporting signals and the planner as normal.
 
    **Supporting signals (use as evidence, not fake-precise hard gates):**
+
    - Clear user or developer outcome
    - Concrete acceptance criteria or other verifiable success conditions
    - Named packages, files, components, APIs, or workflows
@@ -194,6 +207,7 @@ Run this phase only when `mode = wave`.
    - Useful risk notes or dependency notes already present in the issue
 
 3. Produce a candidate table from the full deduplicated issue set before proceeding. For each issue, show:
+
    - Issue ID
    - Title
    - Priority
@@ -207,18 +221,20 @@ Run this phase only when `mode = wave`.
 5. For issues selected in step 4, apply two inline context enrichment checks:
 
    **Check 1 — Prior investigation comments:**
+
    - Trigger: issue has 2 or more comments
-    - Action: inspect the issue's `comments` from `linear issue show <issue-id> --json`; scan them for code blocks (triple-backtick fences), file paths (e.g. `packages/foo/src/bar.ts`), or headings such as "Findings", "Investigation", or "Summary"
+   - Action: inspect the issue's `comments` from `linear issue show <issue-id> --json`; scan them for code blocks (triple-backtick fences), file paths (e.g. `packages/foo/src/bar.ts`), or headings such as "Findings", "Investigation", or "Summary"
    - If any such comments are found: extract a concise summary (2–5 bullet points) of the findings; store as `prior_investigation_context` alongside the issue data. Note: author identity is not verified — this matches any substantive prior comment containing the above markers.
    - If no such comments are found: skip; do not store `prior_investigation_context`
-    - Cost: one `linear issue show --json` call per qualifying issue if the comments are not already loaded
+   - Cost: one `linear issue show --json` call per qualifying issue if the comments are not already loaded
 
    **Check 2 — Resolved blocker context:**
+
    - Trigger: issue has one or more `blockedBy` relations where **every** fetched blocker is in a `Done` or `Canceled` state
-    - Action: for each resolved blocker (cap at 3), scan its description (already fetched in step 1) for a PR reference — specifically a GitHub pull URL (`https://github.com/.*/pull/\d+`), `PR #\d+`, or `pull request #\d+`; if the description yields no PR reference, inspect the blocker's `comments` from `linear issue show <blocker-id> --json` for the same patterns
+   - Action: for each resolved blocker (cap at 3), scan its description (already fetched in step 1) for a PR reference — specifically a GitHub pull URL (`https://github.com/.*/pull/\d+`), `PR #\d+`, or `pull request #\d+`; if the description yields no PR reference, inspect the blocker's `comments` from `linear issue show <blocker-id> --json` for the same patterns
    - If any PR references are found: store them as `resolved_blocker_prs` alongside the issue data
    - If no PR references are found: skip; do not store `resolved_blocker_prs`
-    - Cost: zero additional `linear issue show` calls when blocker comments are already loaded; otherwise at most one extra `linear issue show --json` call per blocker whose description lacks a PR reference, capped at 3 blockers
+   - Cost: zero additional `linear issue show` calls when blocker comments are already loaded; otherwise at most one extra `linear issue show --json` call per blocker whose description lacks a PR reference, capped at 3 blockers
 
    Store `prior_investigation_context` and `resolved_blocker_prs` in memory alongside the issue data for injection into the planner prompt in Phase 4.
 
@@ -295,7 +311,7 @@ For this phase:
 If a planner launch still fails after exhausting the shared retry policy:
 
 - Report the issue ID and launch failure clearly
-- Set the issue state back to **Todo**
+- Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the current ready wave
@@ -446,8 +462,8 @@ After both QC checks pass (or produce advisory-only results):
 
 If the planner returns `not ready` or includes unresolved questions that prevent confident implementation:
 
-- Post a concise Linear comment describing the blocking questions
-- Set the issue state back to **Todo**
+- Post a concise Linear comment describing the blocking questions with `linear issue comment <issue-id> "<blocking questions summary>" --json`
+- Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the current ready wave
@@ -487,6 +503,7 @@ Use the planner's **Sequence Notes** and **Risk Notes** (including the risk leve
 - Detect shared-file conflicts: if two or more issues list the same file in their Sequence Notes, proceed if the planner output shows the edit locations are in distinct sections or line ranges of that file (git merge handles non-overlapping edits automatically). If a single file is listed by 3 or more issues without clear section isolation, move all but the highest-priority to a later wave. The orchestrator judges section isolation from the planner's Sequence Notes and the known structure of the target file (e.g., the phase-section structure of `deliver.md`).
 
   Example — the REP-884 wave (5 issues, all touching `deliver.md`):
+
   - REP-884 edits Phase 5 + Phase 7
   - REP-881 edits Phase 4 (Phase 4, lines 1–50)
   - REP-882 edits Phase 4 + Phase 7 + Phase 8 + agent template files (Phase 4, lines 60–120)
@@ -494,6 +511,7 @@ Use the planner's **Sequence Notes** and **Risk Notes** (including the risk leve
   - REP-878 edits Phase 1
 
   The orchestrator scans for shared phases:
+
   - Phase 4 is touched by 2 issues (REP-881, REP-882) — edit locations are non-overlapping (lines 1–50 vs lines 60–120), so git merge can handle it; both can proceed
   - Phase 7 is touched by 3 issues (REP-884, REP-882, REP-880) — triggers the conservative 3+ rule, so keep highest-priority (REP-884) and defer REP-882 and REP-880 to a later wave
   - Phases 1, 5, 6, 8 are each touched by a single issue — no conflict
@@ -554,7 +572,7 @@ Store the per-issue smoke test result in memory for use in the Phase 7 review pr
 If a develop launch still fails after exhausting the shared retry policy:
 
 - Report the issue ID and launch failure clearly
-- Set the issue state back to **Todo**
+- Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the publishable set
@@ -608,8 +626,8 @@ Return: files changed, verification run, and whether the plan was followed witho
 
 If a `develop` run reports an unresolved build failure, typecheck failure, or strategic planning mismatch:
 
-- Post a concise Linear comment with the blocking reason
-- Set the issue state back to **Todo**
+- Post a concise Linear comment with the blocking reason using `linear issue comment <issue-id> "<blocking reason>" --json`
+- Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the publishable set
@@ -770,7 +788,7 @@ For this phase:
 If a review launch still fails after exhausting the shared retry policy:
 
 - Report the issue ID and launch failure clearly
-- Set the issue state back to **Todo**
+- Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the publishable set
@@ -810,8 +828,8 @@ For each issue, apply this bounded loop:
 1. **If review approves**: mark the issue publishable.
 2. **If any blocking issue has `fixable_by_agent: false`**:
    - Escalate immediately
-   - Post a concise Linear comment summarizing the blocking findings
-   - Set the issue state back to **Todo**
+   - Post a concise Linear comment summarizing the blocking findings with `linear issue comment <issue-id> "<blocking findings summary>" --json`
+   - Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
    - Add the issue ID to `escalated_issues`
 3. **If all blocking issues have `fixable_by_agent: true` and no fix attempt has happened yet**:
    - Re-run `develop` once with the original plan plus the blocking findings
@@ -820,7 +838,7 @@ For each issue, apply this bounded loop:
    - Escalate with the remaining findings
    - Create the PR instead of discarding the branch
    - Include a concise summary of the remaining blocking findings in the PR body as reviewer follow-up context
-   - Set the issue state to **In Review**
+   - Set the issue state to **In Review** with `linear issue update <issue-id> --status "In Review" --json`
    - Add the issue ID to `escalated_issues`
 
 This is the entire loop: **review → fix once if agent-fixable → review again → publish or escalate into human review**.
@@ -848,10 +866,11 @@ For each publishable issue:
    Use this same guard for the initial publish path and any future re-push path.
 
    If the rebase conflicts:
+
    - Capture the conflicting files
    - Run `git -C <worktree-path> rebase --abort`
-   - Post a structured, concise Linear comment summarizing the conflict
-   - Set the issue state back to **In Progress**
+   - Post a structured, concise Linear comment summarizing the conflict with `linear issue comment <issue-id> "<rebase conflict summary>" --json`
+   - Set the issue state back to **In Progress** with `linear issue update <issue-id> --status "In Progress" --json`
    - Add the issue ID to `escalated_issues`
    - Stop publish or re-push for that issue
 
@@ -860,6 +879,7 @@ For each publishable issue:
 2. Push with the same lightweight retry posture used for worktree creation: retry transient failures up to 3 times; escalate permanent failures immediately.
 
 3. Create the PR. The body should help a human reviewer quickly understand the change. Include:
+
    - `Closes REP-xxx`
    - A short summary of the change
    - Verification performed
