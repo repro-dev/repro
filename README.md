@@ -57,6 +57,11 @@ state per checkout.
 reproctl doctor
 ```
 
+Agent sessions assume the shared machine-local `agent-browser` CLI/runtime has
+already been provisioned by bootstrap. The supported checks and recovery path
+are `reproctl doctor` and `agent-browser doctor` (use `agent-browser doctor
+--fix` when needed).
+
 If `reproctl doctor` reports an `agent-browser` runtime problem, recover with:
 
 ```sh
@@ -82,18 +87,18 @@ reproctl logs -f api-server
 
 ### Day-to-day commands
 
-| Command | Description |
-|---------|-------------|
-| `reproctl start <service>` | Start a service |
-| `reproctl stop <service>` | Stop a service |
-| `reproctl stop --all` | Tear down everything |
-| `reproctl restart <service>` | Rebuild and redeploy |
-| `reproctl status` | Show running services |
-| `reproctl logs -f <service>` | Stream logs |
-| `reproctl ui` | Open Tilt dashboard |
-| `reproctl db reset` | Drop + recreate + migrate database |
-| `reproctl db shell` | Open psql session |
-| `reproctl doctor` | Check environment health |
+| Command                      | Description                        |
+| ---------------------------- | ---------------------------------- |
+| `reproctl start <service>`   | Start a service                    |
+| `reproctl stop <service>`    | Stop a service                     |
+| `reproctl stop --all`        | Tear down everything               |
+| `reproctl restart <service>` | Rebuild and redeploy               |
+| `reproctl status`            | Show running services              |
+| `reproctl logs -f <service>` | Stream logs                        |
+| `reproctl ui`                | Open Tilt dashboard                |
+| `reproctl db reset`          | Drop + recreate + migrate database |
+| `reproctl db shell`          | Open psql session                  |
+| `reproctl doctor`            | Check environment health           |
 
 ### Parallel development with worktrees
 

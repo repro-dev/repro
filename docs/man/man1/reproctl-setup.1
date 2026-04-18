@@ -36,6 +36,13 @@ This file is gitignored and regenerated on every run.
 registry.
 .PP
 Each step is idempotent and safe to re\-run.
+.PP
+Agent sessions assume the shared machine\-local
+\f[CR]agent\-browser\f[R] CLI/runtime has already been provisioned by
+bootstrap.
+The supported checks and recovery path are \f[CR]reproctl doctor\f[R]
+and \f[CR]agent\-browser doctor\f[R] (use
+\f[CR]agent\-browser doctor \-\-fix\f[R] when needed).
 .SH OPTIONS
 .TP
 \f[B]\-\-skip\-cluster\f[R]
