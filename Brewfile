@@ -1,3 +1,4 @@
+brew "agent-browser"
 brew "direnv"
 brew "fzf"
 brew "kind"
