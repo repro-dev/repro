@@ -1,11 +1,13 @@
 ---
 name: ui-verification
-description: Practical post-change UI verification workflow — use after non-trivial UI changes to run a worktree-local `reproctl start --wait` + `agent-browser` loop, validate behavior, interactions, accessibility, and evidence capture.
+description: Practical post-change UI verification workflow — use after non-trivial UI changes to validate behavior, interactions, accessibility, evidence capture, and authenticated browser sessions.
 ---
 
 # UI Verification
 
 Use this skill after you have changed a UI surface and need to confirm it behaves correctly in the browser.
+
+If the surface is behind login or otherwise requires a signed-in user, use `agent-browser auth` as the standard authenticated path instead of ad hoc manual login steps.
 
 ## When to load this skill
 
@@ -42,23 +44,38 @@ Tiny copy tweaks or isolated token swaps are usually trivial unless they change 
    ```bash
    reproctl start --wait <service>
    ```
-2. Open the changed surface in `agent-browser` using the worktree-local URL.
+2. If the surface is protected, authenticate first with `agent-browser auth login <profile>`.
+3. Open the changed surface in `agent-browser` using the worktree-local URL.
    ```bash
    agent-browser open <url>
    ```
-3. Snapshot the initial state before interacting.
-4. Exercise relevant interaction states:
+4. Snapshot the initial state before interacting.
+5. Exercise relevant interaction states:
    - hover, focus, active, disabled, loading
    - empty, error, success, and retry states
    - keyboard-only navigation, tab order, escape/close behavior
-5. Re-snapshot after each meaningful navigation or state change.
-6. Capture evidence when the behavior is confirmed.
+6. Re-snapshot after each meaningful navigation or state change.
+7. Capture evidence when the behavior is confirmed.
    ```bash
    agent-browser screenshot tmp/ui-verification/<issue-or-surface>/after/<scenario>.png
    ```
-7. Close the browser session when done.
+8. Close the browser session when done.
 
 If the surface is reusable, verify it in the smallest realistic host and once in a real consuming screen.
+
+## Authenticated sessions
+
+Use the built-in `agent-browser auth` vault for any reusable login state:
+
+- store credentials locally with `agent-browser auth save`
+- reuse them with `agent-browser auth login`
+- inspect or rotate profiles with `agent-browser auth list`, `agent-browser auth show`, and `agent-browser auth delete`
+
+The auth vault is machine-local, encrypted, and keeps secrets out of LLM context. Prefer a named profile per app/account role, and keep any browser session artifacts worktree-scoped so parallel runs do not share hidden state.
+
+If you need to persist transient browser state for a verification run, write it under `tmp/ui-verification/<issue-or-surface>/auth/` and treat it as disposable secret material. Delete it after the run unless a follow-up note says otherwise.
+
+Use authenticated verification whenever the changed surface cannot be exercised anonymously, when you need state that survives a page reload, or when a login-gated flow is part of the behavior under test.
 
 ## Evidence and screenshots
 
@@ -79,5 +96,5 @@ If verification reveals brittle async behavior, teardown problems, race conditio
 
 ## ui-verification vs. audit-ui-quality
 
-- `ui-verification` = routine post-change validation of a specific changed surface using `reproctl start --wait` + `agent-browser`
+- `ui-verification` = routine post-change validation of a specific changed surface using `reproctl start --wait` + `agent-browser`, including authenticated runs when needed
 - `audit-ui-quality` = broader audit, polish, scoring, and reporting pass across scoped UI surfaces
