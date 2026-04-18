@@ -7,6 +7,8 @@ description: Practical post-change UI verification workflow — use after non-tr
 
 Use this skill after you have changed a UI surface and need to confirm it behaves correctly in the browser.
 
+For the current agent-browser command reference and skill content, load the CLI-served core skill with `agent-browser skills get core --full`.
+
 If the surface is behind login or otherwise requires a signed-in user, use `agent-browser auth` as the standard authenticated path instead of ad hoc manual login steps.
 
 ## When to load this skill
