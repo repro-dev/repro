@@ -110,8 +110,7 @@ Follow the project conventions for each domain. Domain-specific rules are loaded
 | **Code style**                     | Front-loaded in root `AGENTS.md` (always available)                                                                                |
 | **Code navigation**                | jcodemunch-mcp — `resolve_repo` → `search_symbols` → `get_file_outline` → `get_blast_radius`; see `AGENTS.md` Code Navigation rule |
 | **Git & commits**                  | Load the `git-workflow` skill                                                                                                      |
-| **Design system & UI**             | Load the `design-system` skill                                                                                                     |
-| **UI implementation**             | Load the `design-system` skill for implementation conventions and `ui-verification` after the change is built                          |
+| **Design system & UI**             | Load the `design-system` skill for implementation conventions and `ui-verification` after the change is built                     |
 | **UI quality audit / polish pass** | Load the `audit-ui-quality` skill                                                                                                  |
 | **Build, test & reproctl**         | Load the `build-and-test` skill                                                                                                    |
 | **Database & migrations**          | Load the `database` skill                                                                                                          |
