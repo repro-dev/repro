@@ -1,7 +1,7 @@
 #!/bin/bash
 # scripts/lib/tests/test_setup.sh
 #
-# Regression tests for agent-browser bootstrap and doctor coverage.
+# Regression tests for bootstrap, doctor, and .envrc coverage.
 
 set -euo pipefail
 
@@ -25,16 +25,13 @@ _make_tmpdir() {
 }
 
 _write_bootstrap_stubs() {
-  local tmpdir="$1" browser_state="$2" browser_install_state="$3"
+  local tmpdir="$1" browser_state="$2" browser_install_state="$3" linear_mode="${4:-available}"
   local bindir="$tmpdir/bin"
-  local npm_prefix="$tmpdir/npm-global"
   mkdir -p "$bindir"
-  mkdir -p "$npm_prefix/bin"
 
   printf '#!/bin/bash\ncase "$1" in\n  bundle) exit 0 ;;\n  --version) echo "Homebrew 4.0.0" ;;\n  list) exit 0 ;;\n  *) echo "unexpected brew $*" >&2; exit 1 ;;\nesac\n' > "$bindir/brew"
   printf '#!/bin/bash\nexit 0\n' > "$bindir/direnv"
   printf '#!/bin/bash\nexit 0\n' > "$bindir/proto"
-  printf '#!/bin/bash\nexit 0\n' > "$bindir/pnpm"
   printf '#!/bin/bash\nexit 0\n' > "$bindir/docker"
   printf '#!/bin/bash\nexit 0\n' > "$bindir/kind"
   printf '#!/bin/bash\nexit 0\n' > "$bindir/pandoc"
@@ -44,37 +41,28 @@ _write_bootstrap_stubs() {
   printf '#!/bin/bash\ncase "$1" in\n  version) echo "Tilt v0.33.0, built ..." ;;\n  *) exit 0 ;;\nesac\n' > "$bindir/tilt"
   printf '#!/bin/bash\ncase "$1" in\n  version) echo "v1.3.0" ;;\n  *) exit 0 ;;\nesac\n' > "$bindir/helm"
   printf '#!/bin/bash\ncase "$1" in\n  version) echo "ctlptl v0.8.0" ;;\n  *) exit 0 ;;\nesac\n' > "$bindir/ctlptl"
-  cat > "$bindir/npm" <<'EOF'
-#!/bin/bash
-case "$1 $2" in
-  "prefix -g")
-    echo "__NPM_PREFIX__"
-    ;;
-  "install -g")
-    if [ "$3" = "@dabble/linear-cli" ]; then
-      cat > "__NPM_PREFIX__/linear" <<'LINEAR'
-#!/bin/bash
-case "$1" in
-  --version) echo "linear 1.0.0" ;;
-  *) exit 0 ;;
-esac
-LINEAR
-      chmod +x "__NPM_PREFIX__/linear"
-      exit 0
-    fi
-    ;;
-esac
-exit 0
-EOF
-  python3 - <<PY
-from pathlib import Path
-path = Path("$bindir/npm")
-text = path.read_text()
-text = text.replace("__NPM_PREFIX__", "$npm_prefix/bin")
-path.write_text(text)
-PY
+  printf '#!/bin/bash\necho "unexpected npm $*" >&2\nexit 1\n' > "$bindir/npm"
+  printf '#!/bin/bash\ncase "$1" in\n  install) exit 0 ;;\n  exec)\n    if [ "$2" = "linear" ] && [ "$3" = "--version" ]; then\n      if [ "%s" = "available" ]; then\n        echo "linear 1.0.0"\n        exit 0\n      fi\n      echo "linear missing" >&2\n      exit 1\n    fi\n    ;;\nesac\necho "unexpected pnpm $*" >&2\nexit 1\n' "$linear_mode" > "$bindir/pnpm"
   printf '#!/bin/bash\ncase "$1" in\n  --version) echo "agent-browser 1.2.3" ;;\n  doctor) if [ -f "%s" ]; then exit 0; else exit 1; fi ;;\n  install) : > "%s"; printf installed > "%s"; exit 0 ;;\n  *) echo "unexpected agent-browser $*" >&2; exit 1 ;;\nesac\n' "$browser_state" "$browser_state" "$browser_install_state" > "$bindir/agent-browser"
   chmod +x "$bindir"/*
+}
+
+_run_doctor() {
+  local path="$1"
+  bash -c "
+    REPO_ROOT='$REPO_ROOT'
+    MAIN_CHECKOUT='$REPO_ROOT'
+    PARENT_DIR='$(dirname "$REPO_ROOT")'
+    SCRIPTS_DIR='$REPO_ROOT/scripts'
+    TMP_DIR='$REPO_ROOT/tmp'
+    CONFIG_FILE='$REPO_ROOT/tmp/reproctl_services.json'
+    INFRA_DIR='$REPO_ROOT/infra'
+    PATH='$path'
+    source '$COMMON_SH'
+    source '$CLUSTER_SH'
+    source '$SETUP_SH'
+    cmd_doctor
+  " 2>&1
 }
 
 test_bootstrap_installs_browser_runtime_when_health_check_fails() {
@@ -96,22 +84,43 @@ test_bootstrap_installs_browser_runtime_when_health_check_fails() {
   fi
 }
 
-test_bootstrap_installs_linear_cli_globally_when_missing() {
+test_bootstrap_uses_repo_local_linear_cli_from_pnpm_install() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
   local browser_state="$tmpdir/browser-ok"
   local browser_install_state="$tmpdir/browser-installed"
-  rm -f "$browser_state" "$browser_install_state"
+  : > "$browser_state"
+  rm -f "$browser_install_state"
   _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state"
 
   local output
   output="$(PATH="$tmpdir/bin:$SYSTEM_PATH" bash "$BOOTSTRAP_SH" --no-cluster 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q "linear CLI installed globally"; then
-    _pass "bootstrap installs linear CLI globally when missing"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q "linear CLI available from workspace dependency"; then
+    _pass "bootstrap uses repo-local linear CLI from pnpm install"
   else
-    _fail "bootstrap installs linear CLI globally when missing" "rc=$rc; output: $output"
+    _fail "bootstrap uses repo-local linear CLI from pnpm install" "rc=$rc; output: $output"
+  fi
+}
+
+test_bootstrap_fails_when_repo_local_linear_cli_is_missing() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  local browser_state="$tmpdir/browser-ok"
+  local browser_install_state="$tmpdir/browser-installed"
+  : > "$browser_state"
+  rm -f "$browser_install_state"
+  _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state" missing
+
+  local output
+  output="$(PATH="$tmpdir/bin:$SYSTEM_PATH" bash "$BOOTSTRAP_SH" --no-cluster 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q "linear CLI was not available after pnpm install"; then
+    _pass "bootstrap fails when repo-local linear CLI is missing"
+  else
+    _fail "bootstrap fails when repo-local linear CLI is missing" "rc=$rc; output: $output"
   fi
 }
 
@@ -135,68 +144,26 @@ test_bootstrap_skips_install_when_runtime_is_healthy() {
   fi
 }
 
-test_bootstrap_skips_linear_install_when_cli_is_present() {
-  local tmpdir rc=0
-  tmpdir="$(_make_tmpdir)"
-  local browser_state="$tmpdir/browser-ok"
-  local browser_install_state="$tmpdir/browser-installed"
-  mkdir -p "$tmpdir/npm-global/bin"
-  cat > "$tmpdir/npm-global/bin/linear" <<'EOF'
-#!/bin/bash
-case "$1" in
-  --version) echo "linear 1.0.0" ;;
-  *) exit 0 ;;
-esac
-EOF
-  chmod +x "$tmpdir/npm-global/bin/linear"
-  : > "$browser_state"
-  rm -f "$browser_install_state"
-  _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state"
-
-  local output
-  output="$(PATH="$tmpdir/npm-global/bin:$tmpdir/bin:$SYSTEM_PATH" bash "$BOOTSTRAP_SH" --no-cluster 2>&1)" || rc=$?
-  rm -rf "$tmpdir"
-
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q "linear CLI already installed"; then
-    _pass "bootstrap skips linear install when CLI is present"
-  else
-    _fail "bootstrap skips linear install when CLI is present" "rc=$rc; output: $output"
-  fi
-}
-
 test_doctor_reports_healthy_agent_browser_runtime() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
   local browser_state="$tmpdir/browser-ok"
   local browser_install_state="$tmpdir/browser-installed"
-  mkdir -p "$tmpdir/npm-global/bin"
-  cat > "$tmpdir/npm-global/bin/linear" <<'EOF'
+  mkdir -p "$tmpdir/node_modules/.bin"
+  cat > "$tmpdir/node_modules/.bin/linear" <<'EOF'
 #!/bin/bash
 case "$1" in
   --version) echo "linear 1.0.0" ;;
   *) exit 0 ;;
 esac
 EOF
-  chmod +x "$tmpdir/npm-global/bin/linear"
+  chmod +x "$tmpdir/node_modules/.bin/linear"
   : > "$browser_state"
   rm -f "$browser_install_state"
   _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state"
 
   local output
-  output="$(bash -c "
-    REPO_ROOT='$REPO_ROOT'
-    MAIN_CHECKOUT='$REPO_ROOT'
-    PARENT_DIR='$(dirname "$REPO_ROOT")'
-    SCRIPTS_DIR='$REPO_ROOT/scripts'
-    TMP_DIR='$REPO_ROOT/tmp'
-    CONFIG_FILE='$REPO_ROOT/tmp/reproctl_services.json'
-    INFRA_DIR='$REPO_ROOT/infra'
-    PATH='$tmpdir/npm-global/bin:$tmpdir/bin:$SYSTEM_PATH'
-    source '$COMMON_SH'
-    source '$CLUSTER_SH'
-    source '$SETUP_SH'
-    cmd_doctor
-  " 2>&1)" || rc=$?
+  output="$(_run_doctor "$tmpdir/node_modules/.bin:$tmpdir/bin:$SYSTEM_PATH")" || rc=$?
   rm -rf "$tmpdir"
 
   if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -Eq '^[[:space:]]*ok[[:space:]]+agent-browser runtime[[:space:]]+.*healthy'; then
@@ -211,34 +178,21 @@ test_doctor_reports_healthy_linear_cli() {
   tmpdir="$(_make_tmpdir)"
   local browser_state="$tmpdir/browser-ok"
   local browser_install_state="$tmpdir/browser-installed"
-  mkdir -p "$tmpdir/npm-global/bin"
-  cat > "$tmpdir/npm-global/bin/linear" <<'EOF'
+  mkdir -p "$tmpdir/node_modules/.bin"
+  cat > "$tmpdir/node_modules/.bin/linear" <<'EOF'
 #!/bin/bash
 case "$1" in
   --version) echo "linear 1.0.0" ;;
   *) exit 0 ;;
 esac
 EOF
-  chmod +x "$tmpdir/npm-global/bin/linear"
+  chmod +x "$tmpdir/node_modules/.bin/linear"
   : > "$browser_state"
   rm -f "$browser_install_state"
   _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state"
 
   local output
-  output="$(bash -c "
-    REPO_ROOT='$REPO_ROOT'
-    MAIN_CHECKOUT='$REPO_ROOT'
-    PARENT_DIR='$(dirname "$REPO_ROOT")'
-    SCRIPTS_DIR='$REPO_ROOT/scripts'
-    TMP_DIR='$REPO_ROOT/tmp'
-    CONFIG_FILE='$REPO_ROOT/tmp/reproctl_services.json'
-    INFRA_DIR='$REPO_ROOT/infra'
-    PATH='$tmpdir/npm-global/bin:$tmpdir/bin:$SYSTEM_PATH'
-    source '$COMMON_SH'
-    source '$CLUSTER_SH'
-    source '$SETUP_SH'
-    cmd_doctor
-  " 2>&1)" || rc=$?
+  output="$(_run_doctor "$tmpdir/node_modules/.bin:$tmpdir/bin:$SYSTEM_PATH")" || rc=$?
   rm -rf "$tmpdir"
 
   if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -Eq '^[[:space:]]*ok[[:space:]]+linear[[:space:]]+.*v1\.0\.0'; then
@@ -253,33 +207,20 @@ test_doctor_reports_broken_agent_browser_runtime_with_recovery_guidance() {
   tmpdir="$(_make_tmpdir)"
   local browser_state="$tmpdir/browser-ok"
   local browser_install_state="$tmpdir/browser-installed"
-  mkdir -p "$tmpdir/npm-global/bin"
-  cat > "$tmpdir/npm-global/bin/linear" <<'EOF'
+  mkdir -p "$tmpdir/node_modules/.bin"
+  cat > "$tmpdir/node_modules/.bin/linear" <<'EOF'
 #!/bin/bash
 case "$1" in
   --version) echo "linear 1.0.0" ;;
   *) exit 0 ;;
 esac
 EOF
-  chmod +x "$tmpdir/npm-global/bin/linear"
+  chmod +x "$tmpdir/node_modules/.bin/linear"
   rm -f "$browser_state" "$browser_install_state"
   _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state"
 
   local output
-  output="$(bash -c "
-    REPO_ROOT='$REPO_ROOT'
-    MAIN_CHECKOUT='$REPO_ROOT'
-    PARENT_DIR='$(dirname "$REPO_ROOT")'
-    SCRIPTS_DIR='$REPO_ROOT/scripts'
-    TMP_DIR='$REPO_ROOT/tmp'
-    CONFIG_FILE='$REPO_ROOT/tmp/reproctl_services.json'
-    INFRA_DIR='$REPO_ROOT/infra'
-    PATH='$tmpdir/npm-global/bin:$tmpdir/bin:$SYSTEM_PATH'
-    source '$COMMON_SH'
-    source '$CLUSTER_SH'
-    source '$SETUP_SH'
-    cmd_doctor
-  " 2>&1)" || rc=$?
+  output="$(_run_doctor "$tmpdir/node_modules/.bin:$tmpdir/bin:$SYSTEM_PATH")" || rc=$?
   rm -rf "$tmpdir"
 
   if [ $rc -eq 1 ] && printf '%s\n' "$output" | grep -q "agent-browser doctor --fix" && printf '%s\n' "$output" | grep -q "runtime unhealthy"; then
@@ -293,15 +234,15 @@ test_doctor_reports_missing_agent_browser_binary() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
   mkdir -p "$tmpdir/bin"
-  mkdir -p "$tmpdir/npm-global/bin"
-  cat > "$tmpdir/npm-global/bin/linear" <<'EOF'
+  mkdir -p "$tmpdir/node_modules/.bin"
+  cat > "$tmpdir/node_modules/.bin/linear" <<'EOF'
 #!/bin/bash
 case "$1" in
   --version) echo "linear 1.0.0" ;;
   *) exit 0 ;;
 esac
 EOF
-  chmod +x "$tmpdir/npm-global/bin/linear"
+  chmod +x "$tmpdir/node_modules/.bin/linear"
   printf '#!/bin/bash\nexit 0\n' > "$tmpdir/bin/brew"
   printf '#!/bin/bash\nexit 0\n' > "$tmpdir/bin/direnv"
   printf '#!/bin/bash\nexit 0\n' > "$tmpdir/bin/proto"
@@ -310,20 +251,7 @@ EOF
   chmod +x "$tmpdir/bin"/*
 
   local output
-  output="$(bash -c "
-    REPO_ROOT='$REPO_ROOT'
-    MAIN_CHECKOUT='$REPO_ROOT'
-    PARENT_DIR='$(dirname "$REPO_ROOT")'
-    SCRIPTS_DIR='$REPO_ROOT/scripts'
-    TMP_DIR='$REPO_ROOT/tmp'
-    CONFIG_FILE='$REPO_ROOT/tmp/reproctl_services.json'
-    INFRA_DIR='$REPO_ROOT/infra'
-    PATH='$tmpdir/npm-global/bin:$tmpdir/bin:$SYSTEM_PATH'
-    source '$COMMON_SH'
-    source '$CLUSTER_SH'
-    source '$SETUP_SH'
-    cmd_doctor
-  " 2>&1)" || rc=$?
+  output="$(_run_doctor "$tmpdir/node_modules/.bin:$tmpdir/bin:$SYSTEM_PATH")" || rc=$?
   rm -rf "$tmpdir"
 
   if [ $rc -eq 1 ] && printf '%s\n' "$output" | grep -q "not installed — run 'reproctl setup'"; then
@@ -343,38 +271,64 @@ test_doctor_reports_missing_linear_cli() {
   _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state"
 
   local output
-  output="$(bash -c "
-    REPO_ROOT='$REPO_ROOT'
-    MAIN_CHECKOUT='$REPO_ROOT'
-    PARENT_DIR='$(dirname "$REPO_ROOT")'
-    SCRIPTS_DIR='$REPO_ROOT/scripts'
-    TMP_DIR='$REPO_ROOT/tmp'
-    CONFIG_FILE='$REPO_ROOT/tmp/reproctl_services.json'
-    INFRA_DIR='$REPO_ROOT/infra'
-    PATH='$tmpdir/bin:$SYSTEM_PATH'
-    source '$COMMON_SH'
-    source '$CLUSTER_SH'
-    source '$SETUP_SH'
-    cmd_doctor
-  " 2>&1)" || rc=$?
+  output="$(_run_doctor "$tmpdir/bin:$SYSTEM_PATH")" || rc=$?
   rm -rf "$tmpdir"
 
-  if [ $rc -eq 1 ] && printf '%s\n' "$output" | grep -q "not installed — run 'reproctl setup'" && printf '%s\n' "$output" | grep -q "linear"; then
+  if [ $rc -eq 1 ] && printf '%s\n' "$output" | grep -q "repo-local CLI missing" && printf '%s\n' "$output" | grep -q "linear"; then
     _pass "doctor reports missing linear CLI"
   else
     _fail "doctor reports missing linear CLI" "rc=$rc; output: $output"
   fi
 }
 
+test_envrc_adds_repo_local_workspace_bin_path() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  mkdir -p "$tmpdir/node_modules/.bin" "$tmpdir/bin" "$tmpdir/npm-global/bin"
+  cat > "$tmpdir/bin/npm" <<EOF
+#!/bin/bash
+case "\$1 \$2" in
+  "prefix -g") echo "$tmpdir/npm-global" ;;
+  *) exit 1 ;;
+esac
+EOF
+  chmod +x "$tmpdir/bin/npm"
+
+  local output
+  output="$(bash -c '
+    set -euo pipefail
+    PATH="'"$tmpdir/bin"'"
+    PATH_add() {
+      if [ "$1" = node_modules/.bin ]; then
+        PATH="${PATH:+$PATH:}$PWD/$1"
+      else
+        PATH="${PATH:+$PATH:}$1"
+      fi
+    }
+    source_env_if_exists() { :; }
+    cd "'$tmpdir'"
+    source "'"$REPO_ROOT"'/.envrc"
+    printf "%s" "$PATH"
+  ' 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if [ $rc -eq 0 ] && printf '%s' "$output" | grep -q '/node_modules/.bin' && ! printf '%s' "$output" | grep -q '/npm-global/bin'; then
+    _pass ".envrc exposes the repo-local pnpm bin path"
+  else
+    _fail ".envrc exposes the repo-local pnpm bin path" "rc=$rc; output: $output"
+  fi
+}
+
 test_bootstrap_installs_browser_runtime_when_health_check_fails
-test_bootstrap_installs_linear_cli_globally_when_missing
+test_bootstrap_uses_repo_local_linear_cli_from_pnpm_install
+test_bootstrap_fails_when_repo_local_linear_cli_is_missing
 test_bootstrap_skips_install_when_runtime_is_healthy
-test_bootstrap_skips_linear_install_when_cli_is_present
 test_doctor_reports_healthy_agent_browser_runtime
 test_doctor_reports_healthy_linear_cli
 test_doctor_reports_broken_agent_browser_runtime_with_recovery_guidance
 test_doctor_reports_missing_agent_browser_binary
 test_doctor_reports_missing_linear_cli
+test_envrc_adds_repo_local_workspace_bin_path
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

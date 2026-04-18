@@ -1,5 +1,5 @@
 ---
-description: Deliver orchestration — wave mode for autonomous backlog delivery plus single-track mode for a specific REP-<number> issue
+description: Deliver orchestration — explicit project-scoped wave mode or issue-scoped single-track mode
 return: "After the active run's PRs are published, run /ledger to capture the session summary for continuity."
 ---
 
@@ -7,16 +7,25 @@ You are the orchestrator for the `/deliver` command.
 
 ## Command contract
 
-- `/deliver` => wave mode
-- `/deliver <project/filter>` => wave mode filtered by project/filter
-- `/deliver REP-123` => single-track mode
+- `/deliver --project <project>` => wave mode filtered to one exact Linear project
+- `/deliver --issue REP-123` => single-track mode
+- `--query <term>` provides a semantic hint after `--project` and is used for fuzzy candidate scoring, not as a hard Linear text search
+
+### Linear transport
+
+- Use the `linear` CLI for every Linear operation in this command.
+- Treat legacy `Linear_*` references below as shorthand for the matching `linear` subcommand, not as MCP tool calls.
+- If `linear` is unavailable, stop and report that `@dabble/linear-cli` needs to be installed with `pnpm install` before `/deliver` can run.
 
 ### Mode detection rules
 
 - Parse and remove recognized flags first.
-- If the remaining first positional argument matches `REP-<number>`, select single-track mode.
-- Otherwise, treat the remaining positional arguments as a wave-mode project/filter string.
-- No remaining positional arguments means wave mode across all projects.
+- Exactly one of `--project <project>` or `--issue REP-<number>` must be present.
+- If `--issue` is present, select single-track mode and store it as `target_issue_id`.
+- If `--project` is present, select wave mode and store it as the exact project filter.
+- If both or neither are present, stop with a clear validation error.
+- If `--query <term>` is present, require `--project` and store it as the semantic candidate-scoring hint within that project scope.
+- Reject any bare positional arguments; scope and filters must be expressed with flags.
 
 You are the orchestrator for a precision-first autonomous delivery flow.
 
@@ -25,11 +34,11 @@ You are the orchestrator for a precision-first autonomous delivery flow.
 
 Stop after PRs for the active run are published. Do not wait on CI, merges, or post-publish monitoring here — that follow-on behavior is handled separately.
 
-Arguments (optional): `$ARGUMENTS`
+Arguments (required): `$ARGUMENTS`
 
-- First positional argument:
-  - `REP-123` => single-track mode for that issue
-  - any other text => wave-mode project/filter (for example `Engineering` or `Platform`)
+- `--project <project>` => exact Linear project filter for wave mode
+- `--issue REP-123` => exact Linear issue for single-track mode
+- `--query <term>` => optional semantic scoring hint, valid only with `--project`
 - Execution control: `--wave-concurrency <1-6>` — limit planner, develop, and review subagent launches to batches of up to this many issues within a phase. Default `6`. The wave remains the sequencing unit in wave mode.
 
 Current branch context:
@@ -61,14 +70,19 @@ Parse `$ARGUMENTS` before Phase 1 and derive these values:
 
 - `mode = wave | single-track`
 - `target_issue_id` when in single-track mode
-- `project_filter` when in wave mode and a non-issue positional argument is present
+- `project_filter` when `--project <project>` is present in wave mode
+- `query_filter` when `--query <term>` is present with `--project` (used for local fuzzy matching, not a direct API filter)
 
 Parsing rules:
 
-- If the first positional argument matches `REP-<number>`, set `mode = single-track` and store it as `target_issue_id`.
-- Otherwise, set `mode = wave` and treat the remaining positional text, if any, as `project_filter`.
-- If `--wave-concurrency <1-6>` is present, parse and remove it before interpreting the remaining positional argument.
+- If `--issue <issue>` is present, set `mode = single-track` and store it as `target_issue_id`.
+- If `--project <project>` is present, set `mode = wave` and store it as `project_filter`.
+- If `--issue` and `--project` are both present, stop with a clear validation error.
+- If neither `--issue` nor `--project` is present, stop with a clear validation error.
+- If `--query <term>` is present, require `--project` and store it as `query_filter` for fuzzy scoring.
+- If `--wave-concurrency <1-6>` is present, parse and remove it before interpreting the remaining arguments.
 - In single-track mode, reject `--wave-concurrency` with a clear validation error instead of silently ignoring it.
+- Reject any remaining bare positional arguments with a clear validation error.
 
 ### `--wave-concurrency <1-6>`
 
@@ -128,12 +142,22 @@ When keeping the status table updated, make batching and backoff explicit so the
 
 Run this phase only when `mode = wave`.
 
-1. Fetch Linear issues in **Todo** and **Backlog** across all projects (or filtered by `$ARGUMENTS` if provided):
-   - Refresh in-flight state first by running `reproctl wt list --json` and `gh pr list --state open --limit 1000 --json number,headRefName,title`; treat those results as the authoritative active-worktree and open-PR snapshots for this phase, using the structured worktree records and returned `headRefName` values for exclusion checks.
-   - Use `Linear_list_issues` with `state: "Todo"`, paginating through all results.
-   - Use `Linear_list_issues` with `state: "Backlog"`, paginating through all results.
-   - Deduplicate the combined results by issue ID.
-   - For each issue in the full deduplicated set, call `Linear_get_issue` with `includeRelations: true`.
+1. Fetch Linear issues in **Todo** and **Backlog** within one resolved Linear project using this exact protocol, then apply `--query <term>` locally if present:
+     - Refresh in-flight state first by running `reproctl wt list --json` and `gh pr list --state open --limit 1000 --json number,headRefName,title`; treat those results as the authoritative active-worktree and open-PR snapshots for this phase, using the structured worktree records and returned `headRefName` values for exclusion checks.
+     - Resolve `project_filter` to exactly one Linear project before any backlog-discovery call. In wave mode, a project must always be defined; do not scan across all projects and do not treat raw `$ARGUMENTS` as the Linear filter input once parsing is complete.
+     - If `project_filter` cannot be resolved to exactly one Linear project, stop with a clear validation error instead of guessing, broadening the scan, or searching by title terms.
+     - After project resolution, make exactly two backlog-discovery calls: one `Linear_list_issues` call for `state: "Todo"` and one for `state: "Backlog"`.
+     - Before sending each backlog-discovery `Linear_list_issues` call, perform a self-check on the outgoing payload. If it contains any key outside `state`, `project`, `limit`, `orderBy`, or `includeArchived`, treat that as a command bug, do not send the call, and rebuild the payload.
+     - Construct each `Linear_list_issues` call by omission, not by empty defaults. Only include keys that intentionally constrain backlog discovery.
+     - For backlog discovery, include only `state`, `project`, `limit`, `orderBy`, and `includeArchived`, where `project` is the single resolved project name or ID from `project_filter`.
+     - Do **not** send placeholder values such as `assignee: null`, `priority: 0`, `query: ""`, `team: ""`, `cycle: ""`, `label: ""`, `delegate: ""`, `parentId: ""`, `createdAt: ""`, `updatedAt: ""`, or `cursor: ""`; these can narrow the Linear query instead of acting as no-ops.
+     - Example discovery payloads: `{ limit: 250, orderBy: "updatedAt", state: "Todo", project: "Workspace", includeArchived: false }` and `{ limit: 250, orderBy: "updatedAt", state: "Backlog", project: "Workspace", includeArchived: false }`.
+     - If a tool trace or status line shows any disallowed key on a backlog-discovery call, treat that run as invalid. Retry immediately with the corrected minimal payload and discard the bad result set.
+     - If the corrected minimal payload still returns no issues, stop and report that no matching backlog issues were found for the resolved project. Do **not** fall back to alternate project identifiers, cross-project scans, team-wide searches, empty-state probes, or semantic title searches to compensate.
+     - If `query_filter` is present, use it only for local fuzzy scoring after the issues are fetched; do not send it as a direct `Linear_list_issues` filter.
+     - Do **not** add an assignee filter when scanning the backlog; the wave should include assigned and unassigned issues alike.
+     - Deduplicate the combined results by issue ID.
+    - For each issue in the full deduplicated set, call `Linear_get_issue` with `includeRelations: true`.
    - For each issue that has any `relations.blockedBy` entries, call `Linear_get_issue` for each blocker issue ID as well. `relations.blockedBy` entries only include identifiers and titles, so blocker status must be fetched separately before applying the readiness filter.
 
 2. Apply a precision-first selection bar.

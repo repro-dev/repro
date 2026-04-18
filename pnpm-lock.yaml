@@ -43,6 +43,9 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^20.4.2
         version: 20.4.2
+      '@dabble/linear-cli':
+        specifier: ^1.1.10
+        version: 1.1.10
       '@jsxstyle/core':
         specifier: ^3.0.1
         version: 3.0.1(patch_hash=f01c696c3290a899c0c02cf47a135a226b695495ba95d4ad82675e2e6136b9cd)
@@ -3801,6 +3804,11 @@ packages:
   '@csstools/css-tokenizer@3.0.4':
     resolution: {integrity: sha512-Vd/9EVDiu6PPJt9yAh6roZP6El1xHrdvIVGjyBsHR0RYwNHgL7FJPyIIW4fANJNG6FtyZfvlRPpFI4ZM/lubvw==}
     engines: {node: '>=18'}
+
+  '@dabble/linear-cli@1.1.10':
+    resolution: {integrity: sha512-oO43QYLZmejpLnNHOUnhd+1CEpMxAngAhoQfcT6X4/7wtZvMFSPsP3RTcUWLf5cyNBpTfiQi5wC1sL85ShmjXw==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
 
   '@dabh/diagnostics@2.0.3':
     resolution: {integrity: sha512-hrlQOIi7hAfzsMqlGSFyVucrx38O+j6wiGOf//H2ecvIEqYN4ADBSS2iLMh5UFyDunCNniUIPk/q3riFv45xRA==}
@@ -11002,6 +11010,8 @@ snapshots:
       postcss: 8.5.8
 
   '@csstools/css-tokenizer@3.0.4': {}
+
+  '@dabble/linear-cli@1.1.10': {}
 
   '@dabh/diagnostics@2.0.3':
     dependencies:

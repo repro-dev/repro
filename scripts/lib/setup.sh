@@ -230,8 +230,8 @@ cmd_doctor() {
     [ "$json_mode" != true ] && _doctor_row "ok" "linear" "v${linear_version:-unknown}"
     _doctor_add "linear" "ok" --actual "${linear_version:-unknown}"
   else
-    [ "$json_mode" != true ] && _doctor_row "error" "linear" "not installed — run 'reproctl setup'"
-    _doctor_add "linear" "fail" --message "not installed — run 'reproctl setup'"
+    [ "$json_mode" != true ] && _doctor_row "error" "linear" "repo-local CLI missing — run 'pnpm install' or 'reproctl setup'"
+    _doctor_add "linear" "fail" --message "repo-local CLI missing — run 'pnpm install' or 'reproctl setup'"
     has_failures=true
   fi
 
