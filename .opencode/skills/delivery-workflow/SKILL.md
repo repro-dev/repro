@@ -12,7 +12,7 @@ Use this skill when you are starting a feature or fix. Keep it thin: it coordina
 - `worktree-workflow` — worktree isolation, lifecycle, and parallel worktree rules
 - `implementation-rigor` — red/green/refactor, verification, and test expectations
 - `build-and-test` — test runners, typecheck, and formatting commands
-- `git-workflow` — commits, PRs, and review lifecycle
+- `git-workflow` — commits, PR mechanics, and Linear status lifecycle
 - Domain skills — only when the changed code lives in that domain
 
 ## 1. Pre-flight

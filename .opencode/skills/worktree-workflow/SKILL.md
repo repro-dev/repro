@@ -24,7 +24,7 @@ reproctl wt create --from-issue REP-123
 reproctl wt create feat/REP-123-add-auth
 ```
 
-Both forms create a sibling directory, install dependencies, copy `.env` files, and run `direnv allow`.
+Both forms create a sibling directory, install dependencies, run `moon run :build`, and may run `direnv allow` when configured.
 
 Keep worktrees alive through review. Remove them only after the branch is merged:
 
@@ -36,7 +36,7 @@ reproctl wt prune
 ## Coordination
 
 - One branch per worktree.
-- Do not modify the main checkout while active worktrees depend on its shared `node_modules` or build artifacts.
+- Do not use the main checkout for active implementation work while other worktrees are running if that would contend on shared resources such as the `.git` object store, git lock files, or shared service/build state.
 - Stagger git operations that take locks (`fetch`, `rebase`, `merge`, `gc`).
 - If a lock error occurs, wait and retry rather than forcing cleanup.
 
