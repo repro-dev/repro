@@ -7,7 +7,7 @@ description: Practical post-change UI verification workflow — use after non-tr
 
 Use this skill after you have changed a UI surface and need to confirm it behaves correctly in the browser.
 
-If the changed surface is a browser extension, stop here and load `extension-verification` instead.
+If the changed surface is a browser extension, stop here and follow the `extension-verification` workflow in `.opencode/skills/extension-verification/SKILL.md` instead.
 
 For the current agent-browser command reference and skill content, load the CLI-served core skill with `agent-browser skills get core --full`.
 
@@ -26,7 +26,7 @@ Load `ui-verification` when the task is to validate a recent UI change, especial
 
 For normal app pages, use `reproctl start --wait` to bring up the worktree-local app under test, then verify it with `agent-browser`.
 
-If the surface is a browser extension, use `extension-verification` instead of this workflow.
+If the surface is a browser extension, use the `extension-verification` workflow instead of this workflow.
 
 Use `reproctl start --wait` to bring up the worktree-local app under test. Use `reproctl launch` only for one-off human preview; it opens the system browser and is not the standard `agent-browser` entrypoint.
 
@@ -106,5 +106,5 @@ If verification reveals brittle async behavior, teardown problems, race conditio
 ## ui-verification vs. extension-verification vs. audit-ui-quality
 
 - `ui-verification` = routine post-change validation of a specific changed surface using `reproctl start --wait` + `agent-browser`, including authenticated runs when needed
-- `extension-verification` = browser-extension verification with `agent-browser`, isolated profiles, and `tmp/extension-verification/...` artifacts
+- `extension-verification` = browser-extension verification workflow with `agent-browser`, isolated profiles, and `tmp/extension-verification/...` artifacts
 - `audit-ui-quality` = broader audit, polish, scoring, and reporting pass across scoped UI surfaces
