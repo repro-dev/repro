@@ -13,7 +13,6 @@ import {
   NavLink as RouterNavLink,
   useMatch,
 } from 'react-router-dom'
-import { ProjectSettingsNavItem } from '~/components/ProjectSettingsNavItem'
 import { ProjectSwitcher } from '~/components/ProjectSwitcher'
 import { WorkspaceHeader } from '~/components/WorkspaceHeader'
 import { ProjectProvider } from './ProjectContext'
@@ -21,7 +20,6 @@ import { ProjectProvider } from './ProjectContext'
 export const Layout: React.FC = () => {
   const sessionsActive = useMatch({ path: '/', end: true })
   const projectsActive = useMatch({ path: '/projects', end: false })
-  // Exclude /projects/:projectId/settings — handled by ProjectSettingsNavItem.
   const projectSettingsSubtreeActive = useMatch({
     path: '/projects/:projectId/settings',
     end: false,
@@ -46,7 +44,6 @@ export const Layout: React.FC = () => {
             <SideNav aria-label="Main navigation">
               <SideNav.Section title="Project">
                 <ProjectSwitcher />
-                <ProjectSettingsNavItem />
               </SideNav.Section>
 
               <SideNav.Section title="Main">

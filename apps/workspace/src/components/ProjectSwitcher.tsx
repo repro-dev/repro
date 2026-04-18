@@ -1,13 +1,30 @@
 import { Block, Row } from '@jsxstyle/react'
 import { Button, color, DropdownMenu, spacing } from '@repro/design'
-import { ChevronDownIcon, FolderIcon, PlusIcon } from 'lucide-react'
+import { getProjectMembers as defaultGetProjectMembers } from '@repro/workspace-api'
+import {
+  ChevronDownIcon,
+  FolderIcon,
+  PlusIcon,
+  SettingsIcon,
+} from 'lucide-react'
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useProjectContext } from '~/ProjectContext'
 import { CreateProjectDialog } from './CreateProjectDialog'
+import { useProjectSettingsAccess } from './ProjectSettingsNavItem'
 
-export const ProjectSwitcher: React.FC = () => {
+export interface ProjectSwitcherProps {
+  getMembers?: typeof defaultGetProjectMembers
+}
+
+export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = ({
+  getMembers = defaultGetProjectMembers,
+}) => {
   const { projects, selectedProject, loading, selectProject } =
     useProjectContext()
+  const navigate = useNavigate()
+  const { href: projectSettingsHref, loading: projectSettingsLoading } =
+    useProjectSettingsAccess({ getMembers })
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -23,23 +40,27 @@ export const ProjectSwitcher: React.FC = () => {
           alignItems="center"
           gap={spacing.sm}
           padding={spacing.lg}
-          color={color.text.muted}
+          justifyContent="flex-end"
           fontSize={13}
         >
-          <FolderIcon size={14} />
-          <Block
+          <Row
             component="button"
             type="button"
             background="none"
             border="none"
-            padding={0}
+            padding={spacing.xs}
+            borderRadius={4}
             cursor="pointer"
-            color={color.text.secondary}
-            fontSize={13}
-            props={{ onClick: () => setShowCreateDialog(true) }}
+            color={color.text.muted}
+            hoverColor={color.text.secondary}
+            hoverBackgroundColor={color.bg.hover}
+            props={{
+              'aria-label': 'Create project',
+              onClick: () => setShowCreateDialog(true),
+            }}
           >
-            Create project
-          </Block>
+            <PlusIcon size={14} />
+          </Row>
         </Row>
 
         <CreateProjectDialog
@@ -66,23 +87,50 @@ export const ProjectSwitcher: React.FC = () => {
           <Block flexGrow={1}>
             {selectedProject?.name ?? projects[0]?.name}
           </Block>
-          <Row
-            component="button"
-            type="button"
-            alignItems="center"
-            justifyContent="center"
-            background="none"
-            border="none"
-            cursor="pointer"
-            color={color.text.muted}
-            padding={0}
-            hoverColor={color.text.secondary}
-            props={{
-              'aria-label': 'Create project',
-              onClick: () => setShowCreateDialog(true),
-            }}
-          >
-            <PlusIcon size={14} />
+          <Row gap={spacing.xs} alignItems="center">
+            {projectSettingsHref && !projectSettingsLoading ? (
+              <Row
+                component="button"
+                type="button"
+                alignItems="center"
+                justifyContent="center"
+                background="none"
+                border="none"
+                cursor="pointer"
+                color={color.text.muted}
+                padding={spacing.xs}
+                borderRadius={4}
+                hoverColor={color.text.secondary}
+                hoverBackgroundColor={color.bg.hover}
+                props={{
+                  'aria-label': 'Project settings',
+                  onClick: () => navigate(projectSettingsHref),
+                }}
+              >
+                <SettingsIcon size={14} />
+              </Row>
+            ) : null}
+
+            <Row
+              component="button"
+              type="button"
+              alignItems="center"
+              justifyContent="center"
+              background="none"
+              border="none"
+              cursor="pointer"
+              color={color.text.muted}
+              padding={spacing.xs}
+              borderRadius={4}
+              hoverColor={color.text.secondary}
+              hoverBackgroundColor={color.bg.hover}
+              props={{
+                'aria-label': 'Create project',
+                onClick: () => setShowCreateDialog(true),
+              }}
+            >
+              <PlusIcon size={14} />
+            </Row>
           </Row>
         </Row>
 
@@ -96,61 +144,114 @@ export const ProjectSwitcher: React.FC = () => {
 
   return (
     <>
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenu.Trigger fullWidth>
+      <Row
+        alignItems="center"
+        gap={spacing.sm}
+        padding={spacing.lg}
+        color={color.text.secondary}
+        fontSize={13}
+        fontWeight={500}
+      >
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenu.Trigger>
+            <Row
+              component="button"
+              type="button"
+              alignItems="center"
+              gap={spacing.sm}
+              cursor="pointer"
+              border="none"
+              background="none"
+              color={color.text.secondary}
+              fontSize={13}
+              fontWeight={500}
+              hoverBackgroundColor={color.bg.hover}
+              props={{
+                'aria-label': `Switch project. Current: ${selectedProject.name}`,
+              }}
+            >
+              <FolderIcon size={14} />
+              <Block flexGrow={1} textAlign="left">
+                {selectedProject.name}
+              </Block>
+              <ChevronDownIcon size={12} color={color.text.muted} />
+            </Row>
+          </DropdownMenu.Trigger>
+
+          <DropdownMenu.Content side="bottom" align="start">
+            {projects.map(project => (
+              <DropdownMenu.Item
+                key={project.id}
+                onSelect={() => selectProject(project.id)}
+              >
+                {project.name}
+              </DropdownMenu.Item>
+            ))}
+            <DropdownMenu.Separator />
+            <Row padding={spacing.xs} justifyContent="flex-start">
+              <Button
+                variant="outlined"
+                context="neutral"
+                size="medium"
+                rounded
+                onClick={() => {
+                  setMenuOpen(false)
+                  setShowCreateDialog(true)
+                }}
+              >
+                <PlusIcon size={14} />
+                Create project
+              </Button>
+            </Row>
+          </DropdownMenu.Content>
+        </DropdownMenu>
+
+        <Row gap={spacing.xs} marginLeft="auto" alignItems="center">
+          {projectSettingsHref && !projectSettingsLoading ? (
+            <Row
+              component="button"
+              type="button"
+              alignItems="center"
+              justifyContent="center"
+              background="none"
+              border="none"
+              cursor="pointer"
+              color={color.text.muted}
+              padding={spacing.xs}
+              borderRadius={4}
+              hoverColor={color.text.secondary}
+              hoverBackgroundColor={color.bg.hover}
+              props={{
+                'aria-label': 'Project settings',
+                onClick: () => navigate(projectSettingsHref),
+              }}
+            >
+              <SettingsIcon size={14} />
+            </Row>
+          ) : null}
+
           <Row
             component="button"
             type="button"
-            width="100%"
             alignItems="center"
-            gap={spacing.sm}
-            padding={spacing.lg}
-            cursor="pointer"
-            border="none"
+            justifyContent="center"
             background="none"
-            color={color.text.secondary}
-            fontSize={13}
-            fontWeight={500}
+            border="none"
+            cursor="pointer"
+            color={color.text.muted}
+            padding={spacing.xs}
+            borderRadius={4}
+            hoverColor={color.text.secondary}
             hoverBackgroundColor={color.bg.hover}
             props={{
-              'aria-label': `Switch project. Current: ${selectedProject.name}`,
+              'aria-label': 'Create project',
+              onClick: () => setShowCreateDialog(true),
             }}
           >
-            <FolderIcon size={14} />
-            <Block flexGrow={1} textAlign="left">
-              {selectedProject.name}
-            </Block>
-            <ChevronDownIcon size={12} color={color.text.muted} />
+            <PlusIcon size={14} />
           </Row>
-        </DropdownMenu.Trigger>
-
-        <DropdownMenu.Content side="bottom" align="start">
-          {projects.map(project => (
-            <DropdownMenu.Item
-              key={project.id}
-              onSelect={() => selectProject(project.id)}
-            >
-              {project.name}
-            </DropdownMenu.Item>
-          ))}
-          <DropdownMenu.Separator />
-          <Row padding={spacing.xs} justifyContent="flex-start">
-            <Button
-              variant="outlined"
-              context="neutral"
-              size="medium"
-              rounded
-              onClick={() => {
-                setMenuOpen(false)
-                setShowCreateDialog(true)
-              }}
-            >
-              <PlusIcon size={14} />
-              Create project
-            </Button>
-          </Row>
-        </DropdownMenu.Content>
-      </DropdownMenu>
+        </Row>
+      </Row>
 
       <CreateProjectDialog
         open={showCreateDialog}
