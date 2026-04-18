@@ -4,15 +4,15 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 
 **Task entry points:**
 
-| Task type                 | Start here                            |
-| ------------------------- | ------------------------------------- |
-| Feature / fix             | Load `feature-dev` skill              |
-| Bug fix / root-cause work  | Load `bug-rigor` with `feature-dev`   |
-| Commit / PR / code review | Load `git-workflow` skill             |
-| Build / test / typecheck  | Load `build-and-test` skill           |
-| UI / components           | Load `design-system` skill            |
-| Database / migrations     | Load `database` skill                 |
-| File a Linear issue       | Load `create-issue` skill             |
+| Task type                | Start here                          |
+| ------------------------ | ----------------------------------- |
+| Feature / fix            | Load `feature-dev` skill            |
+| Bug fix / root-cause work | Load `bug-rigor` with `feature-dev` |
+| Commit / PR / code review | Load `git-workflow` skill           |
+| Build / test / typecheck | Load `build-and-test` skill         |
+| UI / components          | Load `design-system` skill          |
+| Database / migrations    | Load `database` skill               |
+| File a Linear issue      | Load `create-issue` skill           |
 
 ## Code Style & Conventions
 
