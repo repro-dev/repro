@@ -18,7 +18,7 @@ Load when the task involves any of:
 - "Score the UI"
 - "Polish pass on [feature]"
 
-Do **not** use this as the routine verification entrypoint for a recently changed surface. If you need to confirm that a specific UI change behaves correctly, load `ui-verification` instead.
+Do **not** use this as the routine verification entrypoint for a recently changed surface. If you need to confirm that a specific UI change behaves correctly, load `ui-verification` and follow the `reproctl start --wait` + `agent-browser` workflow instead.
 
 ---
 

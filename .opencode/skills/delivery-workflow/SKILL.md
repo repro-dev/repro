@@ -16,7 +16,7 @@ Use this skill when you are starting a feature or fix. Keep it thin: it coordina
 - `bug-rigor` — root-cause-first bug workflow for genuine defects and regressions
 - Domain skills — only when the changed code lives in that domain
 
-For non-trivial UI changes, pair `design-system` with `ui-verification` so implementation guidance and post-change validation stay separate.
+For non-trivial UI changes, pair `design-system` with `ui-verification` so implementation guidance stays separate from the executable browser workflow. Use `audit-ui-quality` only for broader audit, scoring, and polish passes.
 
 ## 1. Pre-flight
 
