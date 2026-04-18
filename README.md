@@ -27,6 +27,7 @@ Use Repro for faster debugging, better software and happier users!
 - [Homebrew](https://brew.sh)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (must be running)
 - direnv shell hook (the bootstrap script will remind you if it's missing)
+- `agent-browser` (installed and provisioned by bootstrap)
 
 ### First-time setup
 
@@ -36,7 +37,7 @@ git clone git@github.com:AnomalyInnovations/repro.git
 cd repro
 
 # Bootstrap everything in one shot:
-#   brew deps → proto tools → pnpm install → direnv allow → kind cluster
+#   brew deps → agent-browser runtime → proto tools → pnpm install → direnv allow → kind cluster
 ./scripts/bootstrap.sh
 
 # Or skip cluster creation if you already have one
@@ -46,11 +47,21 @@ cd repro
 The bootstrap script handles the full dependency chain in the right order,
 including steps that must happen before `reproctl` is available on PATH.
 After it completes, `reproctl` works as a bare command in any new shell.
+It also provisions the shared `agent-browser` Chrome runtime when needed, so
+worktrees reuse the same machine-level install instead of duplicating browser
+state per checkout.
 
 ### Verify your environment
 
 ```sh
 reproctl doctor
+```
+
+If `reproctl doctor` reports an `agent-browser` runtime problem, recover with:
+
+```sh
+agent-browser doctor
+agent-browser doctor --fix
 ```
 
 ### Start services
@@ -102,6 +113,9 @@ reproctl wt list
 # Clean up
 reproctl wt remove feat/my-feature
 ```
+
+Worktrees reuse the same machine-level `agent-browser` install and Chrome
+runtime. You only need to provision it once per Mac, not once per checkout.
 
 ### Teardown
 

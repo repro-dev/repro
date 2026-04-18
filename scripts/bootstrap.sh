@@ -6,12 +6,14 @@
 # to be available first:
 #
 #   1. Homebrew dependencies  (brew bundle)
-#   2. direnv shell hook      (check + remind)
-#   3. Proto-managed tools    (proto use)
-#   4. Node.js dependencies   (pnpm install)
-#   5. Docker                 (check daemon is running, wait if needed)
-#   6. Trust .envrc           (direnv allow)
-#   7. Cluster + registry     (reproctl cluster up)
+#   2. agent-browser runtime   (doctor/install as needed)
+#   3. direnv shell hook      (check + remind)
+#   4. Proto-managed tools    (proto use)
+#   5. Node.js dependencies   (pnpm install)
+#   6. Docker                 (check daemon is running, wait if needed)
+#   7. Trust .envrc           (direnv allow)
+#   8. OpenCode local config  (.envrc.local)
+#   9. Cluster + registry     (reproctl cluster up)
 #
 # Also invoked by `reproctl setup`, which passes through its flags.
 #
@@ -29,7 +31,7 @@ cd "$REPO_ROOT"
 # ── Helpers ─────────────────────────────────────────────────────────
 
 step=0
-total=8
+total=9
 
 next_step() {
   step=$((step + 1))
@@ -58,7 +60,7 @@ Usage: ./scripts/bootstrap.sh [options]
 Bootstrap the development environment from a fresh clone.
 
 Options:
-  --no-cluster    Skip kind cluster creation (step 7)
+  --no-cluster    Skip kind cluster creation (step 9)
   -h, --help      Show this help
 EOF
       exit 0
@@ -78,7 +80,28 @@ fi
 brew bundle --file="$REPO_ROOT/Brewfile"
 ok "Homebrew dependencies installed"
 
-# ── Step 2: direnv shell hook ───────────────────────────────────────
+# ── Step 2: agent-browser runtime ────────────────────────────────────
+
+next_step "Provisioning agent-browser runtime..."
+
+if ! command -v agent-browser > /dev/null 2>&1; then
+  die "agent-browser was not installed by brew bundle. Check the output above."
+fi
+
+if agent-browser doctor --offline --quick > /dev/null 2>&1; then
+  ok "agent-browser runtime healthy"
+else
+  echo "  agent-browser runtime is missing or unhealthy. Running agent-browser install..."
+  if ! agent-browser install; then
+    die "agent-browser install failed. Run 'agent-browser doctor' or 'agent-browser doctor --fix' to repair the runtime."
+  fi
+  if ! agent-browser doctor --offline --quick > /dev/null 2>&1; then
+    die "agent-browser install completed, but the runtime is still unhealthy. Run 'agent-browser doctor' or 'agent-browser doctor --fix'."
+  fi
+  ok "agent-browser runtime provisioned"
+fi
+
+# ── Step 3: direnv shell hook ───────────────────────────────────────
 
 next_step "Checking direnv shell hook..."
 
@@ -102,7 +125,7 @@ else
   ok "direnv shell hook active"
 fi
 
-# ── Step 3: Proto-managed tools ─────────────────────────────────────
+# ── Step 4: Proto-managed tools ─────────────────────────────────────
 
 next_step "Installing proto-managed tools..."
 
@@ -113,14 +136,14 @@ fi
 proto use
 ok "Proto tools installed (node, pnpm, moon, tilt, helm, ctlptl)"
 
-# ── Step 4: Node.js dependencies ───────────────────────────────────
+# ── Step 5: Node.js dependencies ───────────────────────────────────
 
 next_step "Installing Node.js dependencies..."
 
 pnpm install
 ok "Node.js dependencies installed"
 
-# ── Step 5: Docker ──────────────────────────────────────────────────
+# ── Step 6: Docker ──────────────────────────────────────────────────
 
 next_step "Checking Docker..."
 
@@ -147,14 +170,14 @@ fi
 docker_version="$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "unknown")"
 ok "Docker $docker_version, daemon running"
 
-# ── Step 6: Trust .envrc ────────────────────────────────────────────
+# ── Step 7: Trust .envrc ────────────────────────────────────────────
 
 next_step "Trusting .envrc (enables reproctl as a bare command)..."
 
 direnv allow "$REPO_ROOT"
 ok ".envrc allowed"
 
-# ── Step 7: OpenCode local config ───────────────────────────────────
+# ── Step 8: OpenCode local config ───────────────────────────────────
 
 next_step "Writing .envrc.local (machine-local OpenCode permissions)..."
 
@@ -189,7 +212,7 @@ ENVRC_EOF
 
 ok ".envrc.local written (external_directory: $PARENT_DIR/**)"
 
-# ── Step 8: Cluster + registry ──────────────────────────────────────
+# ── Step 9: Cluster + registry ──────────────────────────────────────
 
 if [ "$skip_cluster" = true ]; then
   next_step "Skipping cluster creation (--no-cluster)"
