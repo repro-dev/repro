@@ -286,7 +286,7 @@ inline — do **not** spawn a subagent for this step.
 | `.opencode/skills/recording-playback/SKILL.md` | `apps/capture`, `packages/recording`, `packages/playback`, `packages/recording-api`, `packages/buffer-utils`, `packages/vdom-renderer`, `packages/source-utils`, `packages/observer-utils`, `packages/wire-formats` |
 | `.opencode/skills/build-and-test/SKILL.md`     | build system, moon, pnpm workspaces, CI, reproctl, tool version pinning                                                                                                                                             |
 
-General-purpose skills (`feature-dev`, `git-workflow`, `harden`,
+General-purpose skills (`delivery-workflow`, `worktree-workflow`, `implementation-rigor`, `git-workflow`, `harden`,
 `create-issue`) are **never** injected — the planner loads them independently as needed.
 
 **Matching steps:**
@@ -627,7 +627,7 @@ Use these exact templates for each focused reviewer:
 Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 Focus exclusively on correctness and security:
-1. Load the `git-workflow` skill for the review checklist.
+1. Load the `review-standards` skill for the review checklist.
 2. Fetch Linear issue REP-xxx via Linear_get_issue.
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Evaluate: logic gaps, off-by-one errors, unhandled edge cases, error-path handling, async operation correctness (Futures not Promises per project conventions), and security implications (injection, auth bypass, data exposure, unsafe deserialization).
@@ -657,7 +657,7 @@ The following packages had test failures after implementation. For each failure,
 Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 Focus exclusively on architecture and conventions:
-1. Load the `git-workflow` skill for the review checklist.
+1. Load the `review-standards` skill for the review checklist.
 2. Fetch Linear issue REP-xxx via Linear_get_issue.
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Evaluate: side effects on other parts of the system, consistency with existing codebase patterns, approach alignment with stated architecture, and package-level AGENTS.md convention compliance.
@@ -687,7 +687,7 @@ The following packages had test failures after implementation. For each failure,
 Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 Focus exclusively on performance:
-1. Load the `git-workflow` skill for the review checklist.
+1. Load the `review-standards` skill for the review checklist.
 2. Fetch Linear issue REP-xxx via Linear_get_issue.
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Evaluate: algorithmic complexity regressions, unnecessary iteration or duplication, missing indexes or query optimizations (if DB changes are present), unbuffered stream operations, large in-memory collections, and lack of pagination/cursor patterns where appropriate.
@@ -753,7 +753,7 @@ Prompt template per issue:
 ```
 Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
-1. Load the `git-workflow` skill for the full review checklist.
+1. Load the `review-standards` skill for the full review checklist.
 2. Fetch Linear issue REP-xxx via Linear_get_issue.
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Review against requirements coverage, correctness, test coverage, conventions, and architecture.

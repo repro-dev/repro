@@ -52,9 +52,9 @@ If no issue IDs are found, note this in the output and proceed with convention-o
 
 ## Step 3: Load the review checklist
 
-Load the `git-workflow` skill. This is the authoritative source for:
+Load the `review-standards` skill. This is the authoritative source for:
 
-- The four-step review process (Gather Context → Review Diff → Classify → Structure)
+- The review contract and output structure
 - Severity definitions (Blocker / Major / Minor / Nit)
 - Merge-readiness criteria
 
@@ -64,7 +64,7 @@ Do **not** duplicate the checklist inline — follow it from the skill.
 
 ## Step 4: Run the review
 
-Apply the full `git-workflow` checklist to the diff. Evaluate:
+Apply the full `review-standards` checklist to the diff. Evaluate:
 
 - **Requirements coverage**: does the diff satisfy every acceptance criterion in the fetched Linear issues?
 - **Code correctness**: logical gaps, unhandled edge cases, async conventions (`FutureInstance` not Promises), error paths
@@ -72,7 +72,7 @@ Apply the full `git-workflow` checklist to the diff. Evaluate:
 - **Style and conventions**: matches `AGENTS.md` conventions (Prettier style, naming, no magic values, no bare arrays from list endpoints)
 - **Architecture**: consistent with existing patterns; no unintended side effects
 
-Classify every finding using the severity table from the `git-workflow` skill before writing the output.
+Classify every finding using the severity table from the `review-standards` skill before writing the output.
 
 ---
 
