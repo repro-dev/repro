@@ -1,16 +1,36 @@
 ---
-description: Lightspeed delivery — select a ready wave, plan it, implement it in parallel, review it, and publish PRs
-return: "After all PRs for the current wave are published, run /ledger to capture the wave summary for session continuity."
+description: Deliver orchestration — wave mode for autonomous backlog delivery plus single-track mode for a specific REP-<number> issue
+return: "After the active run's PRs are published, run /ledger to capture the session summary for continuity."
 ---
 
-You are the orchestrator for a precision-first autonomous delivery flow. Scan Linear, select a small set of issues that are ready for autonomous work, sequence them provisionally, plan them, resequence once using planner output, implement the current ready wave in parallel, review each result, fix review findings when the agent can do so safely, and publish PRs.
+You are the orchestrator for the `/deliver` command.
 
-Stop after PRs for the current ready wave are published. Do not wait on CI, merges, or post-publish monitoring here — that follow-on behavior is handled separately.
+## Command contract
+
+- `/deliver` => wave mode
+- `/deliver <project/filter>` => wave mode filtered by project/filter
+- `/deliver REP-123` => single-track mode
+
+### Mode detection rules
+
+- Parse and remove recognized flags first.
+- If the remaining first positional argument matches `REP-<number>`, select single-track mode.
+- Otherwise, treat the remaining positional arguments as a wave-mode project/filter string.
+- No remaining positional arguments means wave mode across all projects.
+
+You are the orchestrator for a precision-first autonomous delivery flow.
+
+- In **wave mode**, scan Linear, select a small set of issues that are ready for autonomous work, sequence them provisionally, plan them, resequence once using planner output, implement the current ready wave in parallel, review each result, fix review findings when the agent can do so safely, and publish PRs.
+- In **single-track mode**, deliver the specified issue only. Skip backlog scanning and sequencing, but keep the planning, implementation, review, and PR pipeline intact.
+
+Stop after PRs for the active run are published. Do not wait on CI, merges, or post-publish monitoring here — that follow-on behavior is handled separately.
 
 Arguments (optional): `$ARGUMENTS`
 
-- Project filter: a project name or filter to restrict which issues are considered (for example `Engineering` or `Platform`). If empty, scan all projects.
-- Execution control: `--wave-concurrency <1-6>` — limit planner, develop, and review subagent launches to batches of up to this many issues within a phase. Default `6`. The wave remains the sequencing unit.
+- First positional argument:
+  - `REP-123` => single-track mode for that issue
+  - any other text => wave-mode project/filter (for example `Engineering` or `Platform`)
+- Execution control: `--wave-concurrency <1-6>` — limit planner, develop, and review subagent launches to batches of up to this many issues within a phase. Default `6`. The wave remains the sequencing unit in wave mode.
 
 Current branch context:
 !`git branch --show-current`
@@ -37,14 +57,22 @@ Session-local exclusions:
 - Use `fixable_by_agent: true | false` for blocking review findings.
 - Do not run a skill-audit preflight, do not maintain a run log, and do not run a visual regression phase here.
 
-> Tip: Run `/enrich-issues` before `/lightspeed` if the backlog contains issues that look promising but under-specified.
+> Tip: Run `/enrich-issues` before `/deliver` if the backlog contains issues that look promising but under-specified.
 
 ## Execution control
 
-Parse `$ARGUMENTS` before Phase 1.
+Parse `$ARGUMENTS` before Phase 1 and derive these values:
 
-- If `--wave-concurrency <1-6>` is present, remove that flag and value from the argument string before applying the remaining project filter.
-- The remaining argument text, if any, is the project filter.
+- `mode = wave | single-track`
+- `target_issue_id` when in single-track mode
+- `project_filter` when in wave mode and a non-issue positional argument is present
+
+Parsing rules:
+
+- If the first positional argument matches `REP-<number>`, set `mode = single-track` and store it as `target_issue_id`.
+- Otherwise, set `mode = wave` and treat the remaining positional text, if any, as `project_filter`.
+- If `--wave-concurrency <1-6>` is present, parse and remove it before interpreting the remaining positional argument.
+- In single-track mode, reject `--wave-concurrency` with a clear validation error instead of silently ignoring it.
 
 ### `--wave-concurrency <1-6>`
 
@@ -54,6 +82,24 @@ Parse `$ARGUMENTS` before Phase 1.
 - If the provided value is outside `1..6`, stop immediately with a clear validation error instead of clamping or guessing.
 - This flag limits how many `planner`, `develop`, or `review` subagents are launched concurrently within a phase.
 - It does **not** change wave selection, resequencing, or publish boundaries. Waves remain the sequencing unit.
+
+## Single-track mode (replaces Phases 1 and 2)
+
+If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead:
+
+1. Fetch `target_issue_id` via `Linear_get_issue` with `includeRelations: true`.
+2. Fetch each blocker issue referenced in `relations.blockedBy` so blocker status is known before proceeding.
+3. Fail fast and stop cleanly if any of the following are true:
+   - any blocker issue is not `Done` or `Canceled`
+   - the issue is already `Done` or `Canceled`
+   - the issue is already **In Progress** or **In Review**
+   - the issue already has an active worktree (`reproctl wt list`)
+   - the issue ID appears in an open PR branch name
+   - the issue does not provide enough concrete information for a bounded implementation plan without human clarification
+4. If any stop condition is hit, report the reason clearly, add the issue ID to `escalated_issues`, and stop the run. Do not continue into planning.
+5. Create a singleton `current_ready_wave` containing only `target_issue_id` and continue directly to Phase 3.
+
+In single-track mode, skip Phase 1 and Phase 2 entirely.
 
 ### Shared subagent launch retry policy
 
@@ -75,6 +121,8 @@ When keeping the status table updated, make batching and backoff explicit so the
 ---
 
 ## Phase 1: Scan and select
+
+Run this phase only when `mode = wave`.
 
 1. Fetch Linear issues in **Todo** and **Backlog** across all projects (or filtered by `$ARGUMENTS` if provided):
    - Use `Linear_list_issues` with `state: "Todo"`, paginating through all results.
@@ -149,6 +197,8 @@ When keeping the status table updated, make batching and backoff explicit so the
 
 ## Phase 2: Provisional sequencing
 
+Run this phase only when `mode = wave`.
+
 1. Group the selected issues into **provisional** waves using likely file independence and dependency order.
 2. When in doubt, separate issues into different waves.
 3. Display the provisional wave plan and why each issue is in that wave.
@@ -167,13 +217,13 @@ Only the earliest ready wave will be implemented in this run. Later waves remain
 
 ---
 
-## Phase 3: Create worktrees for the provisional ready wave
+## Phase 3: Create worktrees for the active ready wave
 
 Each `reproctl wt create --from-issue` creates a fresh worktree for the issue branch. It does not currently detect whether that branch already has a local worktree (see REP-893); concurrent sessions may create duplicate worktrees for the same branch without an explicit error.
 
 No prune step is needed before creating worktrees. Do not delete another session's worktrees.
 
-For each issue in the provisional ready wave, create its worktree **sequentially**:
+For each issue in the active ready wave, create its worktree **sequentially**:
 
 ```sh
 reproctl wt create --from-issue REP-xxx
@@ -197,13 +247,13 @@ If worktree creation still fails for an issue:
 - Exclude that issue from the current run
 - Add the issue ID to `escalated_issues`
 
-Do not stop the whole run unless every issue in the provisional ready wave fails here.
+Do not stop the whole run unless every issue in the active ready wave fails here.
 
 ---
 
 ## Phase 4: Plan in bounded batches
 
-Launch `planner` subagents for every issue that has a worktree in batches of up to `--wave-concurrency` within the current phase.
+Launch `planner` subagents for every issue that has a worktree in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
 For this phase:
 
@@ -241,7 +291,7 @@ General-purpose skills (`delivery-workflow`, `worktree-workflow`, `implementatio
 
 **Matching steps:**
 
-1. From the fetched issue title and description (already available from Phase 1),
+1. From the fetched issue title and description (available from Phase 1 in wave mode or the single-track preamble in single-track mode),
    extract: package names (`packages/<name>`, `apps/<name>`), any explicit file
    paths, and domain keywords (`migration`, `schema`, `Kysely`, `database`,
    `UI component`, `design token`).
@@ -377,7 +427,9 @@ If the planner returns `not ready` or includes unresolved questions that prevent
 
 ## Phase 5: Classify risk, resequence once using planner output, then lock
 
-Do exactly one resequencing pass after planning.
+Do exactly one resequencing pass after planning in wave mode.
+
+If `mode = single-track`, skip resequencing entirely. Classify risk for the issue, keep the singleton `current_ready_wave` unchanged, and continue.
 
 ### Risk classification (runs before resequencing)
 
@@ -403,9 +455,9 @@ Use the planner's **Sequence Notes** and **Risk Notes** (including the risk leve
 
 - Prune issues that are not ready
 - Move issues to a later queued wave if planning revealed overlap or a missing dependency
-- Detect shared-file conflicts: if two or more issues list the same file in their Sequence Notes, proceed if the planner output shows the edit locations are in distinct sections or line ranges of that file (git merge handles non-overlapping edits automatically). If a single file is listed by 3 or more issues without clear section isolation, move all but the highest-priority to a later wave. The orchestrator judges section isolation from the planner's Sequence Notes and the known structure of the target file (e.g., the phase-section structure of `lightspeed.md`).
+- Detect shared-file conflicts: if two or more issues list the same file in their Sequence Notes, proceed if the planner output shows the edit locations are in distinct sections or line ranges of that file (git merge handles non-overlapping edits automatically). If a single file is listed by 3 or more issues without clear section isolation, move all but the highest-priority to a later wave. The orchestrator judges section isolation from the planner's Sequence Notes and the known structure of the target file (e.g., the phase-section structure of `deliver.md`).
 
-  Example — the REP-884 wave (5 issues, all touching `lightspeed.md`):
+  Example — the REP-884 wave (5 issues, all touching `deliver.md`):
   - REP-884 edits Phase 5 + Phase 7
   - REP-881 edits Phase 4 (Phase 4, lines 1–50)
   - REP-882 edits Phase 4 + Phase 7 + Phase 8 + agent template files (Phase 4, lines 60–120)
@@ -429,7 +481,7 @@ If the current ready wave becomes empty, stop and report why.
 
 ## Phase 6: Implement in bounded batches
 
-Launch `develop` subagents for every issue still in the current ready wave in batches of up to `--wave-concurrency` within the current phase.
+Launch `develop` subagents for every issue still in the current ready wave in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
 For this phase:
 
@@ -676,7 +728,7 @@ Role vocabulary:
 
 ### Batched launch
 
-Launch `review` subagents for every completed implementation in batches of up to `--wave-concurrency` issues within the current phase.
+Launch `review` subagents for every completed implementation in batches of up to `--wave-concurrency` issues within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
 For this phase:
 
@@ -748,7 +800,7 @@ Do **not** paste full AI review output back into Linear comments. Use Linear com
 
 ---
 
-## Phase 8: Publish the current ready wave and stop
+## Phase 8: Publish the active ready wave and stop
 
 For each publishable issue:
 
@@ -788,7 +840,7 @@ For each publishable issue:
 
 4. Set the Linear issue to **In Review**.
 
-After all publishable issues in the current ready wave have been handled:
+After all publishable issues in the active ready wave have been handled:
 
 - Report opened PR URLs
 - Report escalated issues and why

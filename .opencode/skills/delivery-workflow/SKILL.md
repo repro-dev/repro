@@ -15,6 +15,8 @@ Use this skill when you are starting a feature or fix. Keep it thin: it coordina
 - `git-workflow` — commits, PR mechanics, and Linear status lifecycle
 - Domain skills — only when the changed code lives in that domain
 
+For non-trivial UI changes, pair `design-system` with `ui-verification` so implementation guidance and post-change validation stay separate.
+
 ## 1. Pre-flight
 
 1. Fetch the Linear issue via MCP and read the full description, decisions, and considerations.
