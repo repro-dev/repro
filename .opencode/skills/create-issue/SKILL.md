@@ -119,10 +119,10 @@ Do not create milestones for one-off issues.
 
 ## Step 8: Create the Issue
 
-Use `Linear_save_issue` with all the fields gathered above:
+Use the repo-owned `linear` CLI issue-create flow with all the fields gathered above. If the necessary create subcommand is not implemented yet, stop and report the missing CLI capability instead of using MCP.
 
 ```
-Linear_save_issue(
+linear issue create(
   title: "...",
   team: "Repro",
   project: "<project name>",

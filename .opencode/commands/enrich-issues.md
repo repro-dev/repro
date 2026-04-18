@@ -17,10 +17,10 @@ Parse `$ARGUMENTS` carefully: separate the positional project filter from the `-
 
 ## Step 1: Ensure `needs-spec` Label Exists
 
-Call `Linear_list_issue_labels` filtering by `name: "needs-spec"`.
+Use the repo-owned `linear` CLI to check whether the `needs-spec` label exists.
 
 - If the label is found: note its ID, proceed to Step 2.
-- If not found: create it via `Linear_create_issue_label`:
+- If not found: create it via the repo-owned `linear` CLI label flow. If label creation is not implemented yet, stop and report the missing CLI capability instead of using MCP:
   - `name`: `needs-spec`
   - `color`: `#F2994A`
   - `description`: `Issue requires additional specification before autonomous implementation`
@@ -31,12 +31,12 @@ This step is idempotent — if the label already exists, skip creation.
 
 ## Step 2: Fetch Candidate Issues
 
-1. Call `Linear_list_issues` with `state: "Backlog"`, paginating through all results.
-2. Call `Linear_list_issues` with `state: "Todo"`, paginating through all results.
+1. Run `linear issue list --status backlog --json`, paginating through all results.
+2. Run `linear issue list --status todo --json`, paginating through all results.
 3. If the positional argument from `$ARGUMENTS` is a project name (not a flag), pass it as the `project` filter in both calls.
 4. Deduplicate by issue ID.
-5. For each issue, call `Linear_get_issue` with `includeRelations: true` to fetch blockers and full description.
-6. For each issue that has any `relations.blockedBy` entries, call `Linear_get_issue` for each blocker issue ID as well. `relations.blockedBy` entries only include identifiers and titles, so blocker status must be fetched separately before applying the readiness rubric.
+5. For each issue, run `linear issue show <issue-id> --json` to fetch blockers, comments, and the full description.
+6. For each issue that has any `relations.blockedBy` entries, run `linear issue show <blocker-id> --json` for each blocker issue as well so blocker status is known before applying the readiness rubric.
 
 ---
 
@@ -83,8 +83,8 @@ Use jcodemunch tools to ground the enrichment in the actual codebase:
 1. Call `jcodemunch_resolve_repo` with the main checkout path `/Users/gary/Projects/repro-dev/repro` to get the repo identifier.
 2. Call `jcodemunch_search_symbols` using keywords from the issue title to find relevant code areas (e.g. component names, function names, package names).
 3. Call `jcodemunch_get_file_outline` on likely affected files identified in step 2.
-4. Check related/sibling issues in the same project: call `Linear_list_issues` with the same `project` filter and `state: "Done"` to find patterns from similar completed work.
-5. Read the issue's `relatedTo` issues (if any) via `Linear_get_issue` for design decisions or prior context.
+4. Check related/sibling issues in the same project using the repo-owned `linear` CLI to find similar completed work. If the needed status filtering is not implemented in `linear issue list`, stop and report the missing CLI capability.
+5. Read the issue's related issues via `linear issue show <issue-id> --json` and then `linear issue show <related-id> --json` for design decisions or prior context.
 
 ### 4c: Generate enrichment
 
@@ -143,18 +143,18 @@ For each approved enrichment:
 
 ### 6a: Idempotency check
 
-Before writing, call `Linear_list_comments` on the issue. If any comment body contains the string `"Enriched by agent"`, skip this issue and note it as "already enriched" in the summary. Do not write again.
+Before writing, inspect the issue's comments via `linear issue show <issue-id> --json`. If any comment body contains the string `"Enriched by agent"`, skip this issue and note it as "already enriched" in the summary. Do not write again.
 
 ### 6b: Update description
 
-Call `Linear_save_issue` with `id` and the updated `description`. The updated description must:
+Update the issue with the repo-owned `linear` CLI. If issue mutation is not implemented yet, stop and report the missing CLI capability instead of using MCP. The updated description must:
 
 - Contain the full original description verbatim
 - Append new sections below (e.g. `## Acceptance Criteria`, `## Context`) — never restructure or paraphrase existing content
 
 ### 6c: Add audit comment
 
-Call `Linear_save_comment` with `issueId` and the following body (fill in the date and specifics):
+Add the audit comment with the repo-owned `linear` CLI. If comment mutation is not implemented yet, stop and report the missing CLI capability instead of using MCP. The comment body must be:
 
 ```
 **Enriched by agent on <YYYY-MM-DD>**
@@ -172,8 +172,8 @@ Failure reasons addressed:
 
 For each issue the fabrication guard rejected (Step 4d):
 
-1. Apply the `needs-spec` label via `Linear_save_issue` with `labels: ["needs-spec"]`. This is **additive** — do not pass a full labels array that would replace existing labels. Fetch the current labels first via `Linear_get_issue`, then merge `needs-spec` into the existing labels list before saving.
-2. Add a comment via `Linear_save_comment`: `"This issue could not be automatically enriched because: <reason>. Human specification is needed before autonomous implementation."`
+1. Apply the `needs-spec` label with the repo-owned `linear` CLI. This is **additive** — do not replace the full labels array. Fetch the current labels first via `linear issue show <issue-id> --json`, then merge `needs-spec` into the existing labels list before saving. If label mutation is not implemented yet, stop and report the missing CLI capability.
+2. Add a comment with the repo-owned `linear` CLI: `"This issue could not be automatically enriched because: <reason>. Human specification is needed before autonomous implementation."` If comment mutation is not implemented yet, stop and report the missing CLI capability.
 
 ---
 

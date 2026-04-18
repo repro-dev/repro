@@ -18,7 +18,7 @@ You are a code review agent. Your job is to review a branch or PR against the Li
 ## Startup
 
 1. Load the `review-standards` skill for the review contract.
-2. Fetch the Linear issue via `Linear_get_issue` and read the full description, decisions, and acceptance criteria.
+2. Fetch the Linear issue via `linear issue show REP-123 --json` and read the full description, decisions, relations, and acceptance criteria.
 3. Read the diff for the branch (`git diff main...HEAD` or as specified).
 4. For each affected package, check for an `AGENTS.md` file and incorporate its conventions into the review.
 

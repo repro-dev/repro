@@ -44,7 +44,7 @@ git log main...<target-branch> --oneline
 
 Scan the target branch name and each commit subject line for patterns matching `REP-\d+`.
 
-For each unique issue ID found, call `Linear_get_issue` with `includeRelations: true`. Read the full description, acceptance criteria, decisions, and considerations. If a parent project or milestone is referenced, fetch that too.
+For each unique issue ID found, run `linear issue show <issue-id> --json`. Read the full description, acceptance criteria, decisions, comments, and relations. If a parent project or milestone is referenced, fetch that too using the repo-owned `linear` CLI.
 
 If no issue IDs are found, note this in the output and proceed with convention-only review.
 

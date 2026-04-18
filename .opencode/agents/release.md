@@ -91,7 +91,7 @@ Always include `Closes REP-xxx` so the Linear integration links the PR to the is
 
 Set the Linear issue to **In Review** immediately after the PR is created:
 
-Use `Linear_save_issue` with `id: REP-xxx` and `state: "In Review"`.
+Use the repo-owned `linear` CLI to move the issue to `In Review`. If the required issue-update subcommand is not implemented yet, stop and report the missing CLI capability instead of using MCP or another Linear transport.
 
 ## Return structured summary
 

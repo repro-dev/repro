@@ -158,7 +158,7 @@ For each stale reference tagged `confidence: unambiguous`:
 
 For each stale reference tagged `confidence: ambiguous`:
 
-1. File a new Linear issue via `Linear_save_issue`:
+1. File a new Linear issue via the repo-owned `linear` CLI. If issue creation is not implemented yet, stop and report the missing CLI capability instead of using MCP.
    - `title`: `Stale skill reference: <skill-file> line <line> — could not auto-resolve '<stale-name>'`
    - `team`: `Repro`
    - `project`: `Platform`

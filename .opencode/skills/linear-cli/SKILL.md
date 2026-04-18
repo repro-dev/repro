@@ -5,31 +5,29 @@ description: OpenCode guidance for the Linear CLI port of the Claude Code skill.
 
 # Linear CLI
 
-Use the `linear` command from `@dabble/linear-cli` when OpenCode needs to work with Linear without MCP.
+Use the repo-owned `linear` command when OpenCode needs Linear data or Linear mutations. Do not use MCP transports or any alternate Linear wrapper.
 
 ## Setup
 
 - Install: `pnpm install`
-- Authenticate: `linear login`
+- Configure credentials via `LINEAR_API_KEY` / `LINEAR_TEAM`, local `.linear`, or `~/.linear`
 - Verify: `command -v linear && linear whoami`
 
-The repo's `.envrc` adds `node_modules/.bin` so the workspace-local `linear` binary is available in repo shells after install.
+The repo's `.envrc` adds `bin/` to `PATH`, so the checked-in `bin/linear` wrapper is available in repo shells.
 
 ## Common commands
 
-- List ready work: `linear issues --unblocked`
 - List backlog work: `linear issues --status backlog --status todo`
 - Show an issue: `linear issue show ISSUE-1`
-- Update an issue: `linear issue update ISSUE-1 --append "..."`
-- Add a comment: `linear issue comment ISSUE-1 "..."`
 - List projects: `linear projects`
 - Show a project: `linear project show "Workspace"`
 - Show milestones: `linear milestones --project "Workspace"`
-- Pick the next issue: `linear next`
-- Mark work done: `linear done ISSUE-1`
+- Show issue details as JSON: `linear issue show ISSUE-1 --json`
 
 ## Usage notes
 
 - Prefer JSON output when scripting or when the command supports it.
-- Use the CLI as the source of truth for issue/project lookup when MCP is disabled.
-- Keep the OpenCode prompts aligned with CLI commands rather than MCP tool names.
+- Use the repo-owned CLI as the source of truth for all Linear work in this repo.
+- Keep OpenCode prompts aligned with concrete CLI commands rather than abstract tool names.
+- The current CLI surface is read-heavy: `whoami`, `issue list`, `issue show`, `project list`, `project show`, `milestone list`.
+- If a workflow needs a missing subcommand, stop and report the gap so the repo-owned CLI can be extended. Do not fall back to MCP or the legacy third-party CLI.

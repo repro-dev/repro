@@ -40,7 +40,7 @@ Exit immediately. Do not proceed to Step 2.
 
 _Only runs when Step 2 detected a single issue ID._
 
-1. Call `Linear_get_issue` with `id: <issue-id>` and `includeRelations: true`.
+1. Run `linear issue show <issue-id> --json`.
 2. Verify the issue exists. If not found, print `Issue <ID> not found in Linear.` and exit.
 3. Proceed to **Step 5** (gap analysis) for this single issue.
 4. After Steps 5–8 complete for this issue, the command is done.
@@ -56,7 +56,7 @@ _Only runs when Step 2 detected a natural-language filter._
    - Milestone name
    - Label names
    - Priority (e.g. `high-priority` → `priority: 2`)
-2. Call `Linear_list_issues` with the extracted filters plus `label: "needs-spec"`, paginating through all results. If no project was identified, do not restrict by project (but always filter by `needs-spec` label).
+2. Use the repo-owned `linear` CLI to list issues matching the extracted filters plus the `needs-spec` label. If label filtering is not implemented yet in `linear issue list`, stop and report the missing CLI capability instead of using MCP. If no project was identified, do not restrict by project.
 3. If no issues match, print:
    ```
    No needs-spec issues found matching: "<filter string>"
@@ -189,7 +189,7 @@ _Only runs for issues where the user approved in Step 7._
 
 ### 8a: Idempotency check
 
-Call `Linear_list_comments` on the issue. If any comment body contains the string `"Spec written by agent"`, skip the write and print:
+Inspect the issue's comments via `linear issue show <issue-id> --json`. If any comment body contains the string `"Spec written by agent"`, skip the write and print:
 
 ```
 ⚠️ REP-xxx: already has a "Spec written by agent" comment — skipping to avoid duplicate write.
@@ -197,13 +197,13 @@ Call `Linear_list_comments` on the issue. If any comment body contains the strin
 
 ### 8b: Update the issue description
 
-Call `Linear_get_issue` to retrieve the current full description and labels list.
+Call `linear issue show <issue-id> --json` to retrieve the current full description and labels list.
 
 Construct the updated description (original description + proposed additions from Step 7).
 
 Build the updated labels list: take the fetched `labels` array, filter out any label named `needs-spec`, and use this filtered list.
 
-Call `Linear_save_issue` with:
+Update the issue with the repo-owned `linear` CLI. If issue mutation is not implemented yet, stop and report the missing CLI capability instead of using MCP. The update must set:
 
 - `id`: the issue ID
 - `description`: the updated description (original + additions)
@@ -211,7 +211,7 @@ Call `Linear_save_issue` with:
 
 ### 8c: Post audit comment
 
-Call `Linear_save_comment` with:
+Add the audit comment with the repo-owned `linear` CLI. If comment mutation is not implemented yet, stop and report the missing CLI capability instead of using MCP. The comment must include:
 
 - `issueId`: the issue ID
 - `body`:
