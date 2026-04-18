@@ -10,7 +10,7 @@ import {
   createRecordingStream,
 } from '@repro/recording'
 import { applyResetStyles } from '@repro/theme'
-import { resolve } from 'fluture'
+import Future, { map, resolve } from 'fluture'
 import React from 'react'
 import { Root, createRoot } from 'react-dom/client'
 import { Controller } from './components/Controller'
@@ -23,6 +23,76 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 const NODE_NAME = 'repro-capture'
+
+type RuntimeInstalledType = 'console' | 'network' | 'performance'
+
+declare global {
+  interface Window {
+    __REPRO_RUNTIME_BUFFER__?: Array<DataView>
+    __REPRO_RUNTIME_INSTALLED__?: boolean
+    __REPRO_RUNTIME_INSTALLED_TYPES__?: Set<RuntimeInstalledType>
+    __REPRO_USING_SDK: boolean
+  }
+}
+
+function waitForBody() {
+  return Future<Error, HTMLBodyElement>((reject, resolve) => {
+    if (document.body) {
+      resolve(document.body as HTMLBodyElement)
+      return () => undefined
+    }
+
+    const observer = new MutationObserver(() => {
+      if (!document.body) {
+        return
+      }
+
+      observer.disconnect()
+      resolve(document.body as HTMLBodyElement)
+    })
+
+    try {
+      observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+      })
+    } catch (error) {
+      reject(error as Error)
+    }
+
+    return () => {
+      observer.disconnect()
+    }
+  })
+}
+
+function createRecordingTypes() {
+  const runtimeInstalledTypes =
+    window.__REPRO_RUNTIME_INSTALLED_TYPES__ ?? new Set<RuntimeInstalledType>()
+
+  const recordingTypes: Array<
+    'dom' | 'interaction' | 'network' | 'console' | 'performance' | 'state'
+  > = ['dom', 'interaction', 'network', 'console', 'performance', 'state']
+
+  return new Set(
+    recordingTypes.filter(
+      type => !runtimeInstalledTypes.has(type as RuntimeInstalledType)
+    )
+  )
+}
+
+function drainRuntimeBuffer(stream: {
+  injectBufferedEvents(events: Array<DataView>): void
+}) {
+  const runtimeBuffer = window.__REPRO_RUNTIME_BUFFER__
+
+  if (!runtimeBuffer?.length) {
+    return
+  }
+
+  stream.injectBufferedEvents(runtimeBuffer)
+  runtimeBuffer.length = 0
+}
 
 interface Refs {
   // jsxstyle prevents multiple invocations of `cache.injectOptions`,
@@ -87,17 +157,12 @@ class ReproCapture extends HTMLElement {
     }
 
     const stream = createRecordingStream(document, {
-      types: new Set([
-        'dom',
-        'interaction',
-        'network',
-        'console',
-        'performance',
-        'state',
-      ]),
+      types: createRecordingTypes(),
       ignoredNodes,
       ignoredSelectors,
     })
+
+    drainRuntimeBuffer(stream)
 
     if (refs.activeStyleRoot) {
       applyResetStyles(`#${REPRO_ROOT_ID}`, refs.activeStyleRoot)
@@ -127,24 +192,22 @@ class ReproCapture extends HTMLElement {
   }
 }
 
-declare global {
-  interface Window {
-    __REPRO_USING_SDK: boolean
-  }
-}
-
 if (!window.__REPRO_USING_SDK) {
   agent.subscribeToIntent('enable', () => {
-    if (!window.customElements.get(NODE_NAME)) {
-      window.customElements.define(NODE_NAME, ReproCapture)
-    }
+    return waitForBody().pipe(
+      map(body => {
+        if (!window.customElements.get(NODE_NAME)) {
+          window.customElements.define(NODE_NAME, ReproCapture)
+        }
 
-    if (!document.querySelector(NODE_NAME)) {
-      const root = new ReproCapture()
-      document.body.appendChild(root)
-    }
+        if (!document.querySelector(NODE_NAME)) {
+          const root = new ReproCapture()
+          body.appendChild(root)
+        }
 
-    return resolve<void>(undefined)
+        return undefined
+      })
+    )
   })
 
   agent.subscribeToIntent('disable', () => {

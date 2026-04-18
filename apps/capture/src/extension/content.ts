@@ -8,12 +8,26 @@ const hostAgent = createMessagingAgent({ name: 'contentScript' })
 const runtimeAgent = createRuntimeAgent()
 
 const initializePageHost = Future<any, unknown>((reject, resolve) => {
-  const scriptElement = document.createElement('script')
-  scriptElement.src = chrome.runtime.getURL('capture.js')
-  scriptElement.onerror = reject
-  scriptElement.onload = resolve
-  document.head.appendChild(scriptElement)
-  return () => {}
+  const scriptElements: Array<HTMLScriptElement> = []
+
+  function appendScript(src: string, onload: () => void) {
+    const scriptElement = document.createElement('script')
+    scriptElement.src = src
+    scriptElement.onerror = reject
+    scriptElement.onload = onload
+    document.head.appendChild(scriptElement)
+    scriptElements.push(scriptElement)
+  }
+
+  appendScript(chrome.runtime.getURL('runtime.js'), () => {
+    appendScript(chrome.runtime.getURL('capture.js'), () => resolve(undefined))
+  })
+
+  return () => {
+    for (const scriptElement of scriptElements) {
+      scriptElement.remove()
+    }
+  }
 })
 
 const initializeBridgeHost = createIframe(
