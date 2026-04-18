@@ -125,11 +125,11 @@ Skill files in `.opencode/skills/` are the authoritative reference for domain-sp
 
 Update a skill proactively when any of these stronger triggers occur:
 
-- **Repeated correction**: the user corrects the same kind of mistake twice.
-- **Slow convention discovery**: a convention is only discovered after 3+ turns of exploration.
-- **Tooling or environment workaround**: you needed a workaround that future sessions would benefit from knowing.
-- **Recurring review pattern**: a review uncovers the same class of issue more than once.
-- **Skill/intent drift**: a skill's current name or scope no longer matches what it actually teaches.
+- **Repeated correction**: When the user corrects the same kind of mistake twice.
+- **Slow convention discovery**: When a convention is only discovered after 3+ turns of exploration.
+- **Tooling or environment workaround**: When you need a workaround that future sessions would benefit from knowing.
+- **Recurring review pattern**: When a review uncovers the same class of issue more than once.
+- **Skill/intent drift**: When a skill's current name or scope no longer matches what it actually teaches.
 
 ### Where to update
 
