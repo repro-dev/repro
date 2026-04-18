@@ -65,6 +65,7 @@ are `reproctl doctor` and `agent-browser doctor` (use `agent-browser doctor
 If `reproctl doctor` reports an `agent-browser` runtime problem, recover with:
 
 ```sh
+agent-browser install
 agent-browser doctor
 agent-browser doctor --fix
 ```

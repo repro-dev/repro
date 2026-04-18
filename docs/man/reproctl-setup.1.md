@@ -26,7 +26,7 @@ Runs a 9-step bootstrap sequence to prepare the local development environment:
 
 Each step is idempotent and safe to re-run.
 
-Agent sessions assume the shared machine-local `agent-browser` CLI/runtime has already been provisioned by bootstrap. The supported checks and recovery path are `reproctl doctor` and `agent-browser doctor` (use `agent-browser doctor --fix` when needed).
+Agent sessions assume the shared machine-local `agent-browser` CLI/runtime has already been provisioned by bootstrap. The supported checks are `reproctl doctor` and `agent-browser doctor`; recover with `agent-browser install` first, then `agent-browser doctor` and `agent-browser doctor --fix` when needed.
 
 # OPTIONS
 
