@@ -224,6 +224,17 @@ cmd_doctor() {
     fi
   done
 
+  if command -v linear > /dev/null 2>&1; then
+    local linear_version
+    linear_version="$(linear --version 2>/dev/null | awk '{print $NF}')"
+    [ "$json_mode" != true ] && _doctor_row "ok" "linear" "v${linear_version:-unknown}"
+    _doctor_add "linear" "ok" --actual "${linear_version:-unknown}"
+  else
+    [ "$json_mode" != true ] && _doctor_row "error" "linear" "not installed — run 'reproctl setup'"
+    _doctor_add "linear" "fail" --message "not installed — run 'reproctl setup'"
+    has_failures=true
+  fi
+
   if command -v docker > /dev/null 2>&1; then
     if docker info > /dev/null 2>&1; then
       local docker_version

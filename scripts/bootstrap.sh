@@ -9,11 +9,12 @@
 #   2. agent-browser runtime   (doctor/install as needed)
 #   3. direnv shell hook      (check + remind)
 #   4. Proto-managed tools    (proto use)
-#   5. Node.js dependencies   (pnpm install)
-#   6. Docker                 (check daemon is running, wait if needed)
-#   7. Trust .envrc           (direnv allow)
-#   8. OpenCode local config  (.envrc.local)
-#   9. Cluster + registry     (reproctl cluster up)
+#   5. Global CLI tools       (npm install -g ...)
+#   6. Node.js dependencies   (pnpm install)
+#   7. Docker                 (check daemon is running, wait if needed)
+#   8. Trust .envrc           (direnv allow)
+#   9. OpenCode local config  (.envrc.local)
+#   10. Cluster + registry    (reproctl cluster up)
 #
 # Also invoked by `reproctl setup`, which passes through its flags.
 #
@@ -31,7 +32,7 @@ cd "$REPO_ROOT"
 # ── Helpers ─────────────────────────────────────────────────────────
 
 step=0
-total=9
+total=10
 
 next_step() {
   step=$((step + 1))
@@ -60,7 +61,7 @@ Usage: ./scripts/bootstrap.sh [options]
 Bootstrap the development environment from a fresh clone.
 
 Options:
-  --no-cluster    Skip kind cluster creation (step 9)
+  --no-cluster    Skip kind cluster creation (step 10)
   -h, --help      Show this help
 EOF
       exit 0
@@ -136,14 +137,29 @@ fi
 proto use
 ok "Proto tools installed (node, pnpm, moon, tilt, helm, ctlptl)"
 
-# ── Step 5: Node.js dependencies ───────────────────────────────────
+# ── Step 5: Global CLI tools ────────────────────────────────────────
+
+next_step "Installing global CLI tools..."
+
+if ! command -v npm > /dev/null 2>&1; then
+  die "npm is not on PATH after proto use. Check the proto-managed Node.js install."
+fi
+
+if command -v linear >/dev/null 2>&1; then
+  ok "linear CLI already installed"
+else
+  npm install -g @dabble/linear-cli
+  ok "linear CLI installed globally"
+fi
+
+# ── Step 6: Node.js dependencies ───────────────────────────────────
 
 next_step "Installing Node.js dependencies..."
 
 pnpm install
 ok "Node.js dependencies installed"
 
-# ── Step 6: Docker ──────────────────────────────────────────────────
+# ── Step 7: Docker ──────────────────────────────────────────────────
 
 next_step "Checking Docker..."
 
@@ -170,14 +186,14 @@ fi
 docker_version="$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "unknown")"
 ok "Docker $docker_version, daemon running"
 
-# ── Step 7: Trust .envrc ────────────────────────────────────────────
+# ── Step 8: Trust .envrc ────────────────────────────────────────────
 
 next_step "Trusting .envrc (enables reproctl as a bare command)..."
 
 direnv allow "$REPO_ROOT"
 ok ".envrc allowed"
 
-# ── Step 8: OpenCode local config ───────────────────────────────────
+# ── Step 9: OpenCode local config ───────────────────────────────────
 
 next_step "Writing .envrc.local (machine-local OpenCode permissions)..."
 
@@ -212,7 +228,7 @@ ENVRC_EOF
 
 ok ".envrc.local written (external_directory: $PARENT_DIR/**)"
 
-# ── Step 9: Cluster + registry ──────────────────────────────────────
+# ── Step 10: Cluster + registry ─────────────────────────────────────
 
 if [ "$skip_cluster" = true ]; then
   next_step "Skipping cluster creation (--no-cluster)"
