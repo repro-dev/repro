@@ -123,11 +123,27 @@ Skill files in `.opencode/skills/` are the authoritative reference for domain-sp
 - **Stale information found during work**: When a skill file describes a file path, function name, API shape, or pattern that no longer matches the codebase, update it in the same PR. Do not silently work around stale guidance. If the staleness is unrelated to the current task, file a Linear issue so it doesn't get dropped.
 - **New patterns worth capturing**: When you discover a non-obvious pattern, gotcha, or convention during implementation that would have saved time if documented, add it to the relevant skill file.
 
+Update a skill proactively when any of these stronger triggers occur:
+
+- **Repeated correction**: When the user corrects the same kind of mistake twice.
+- **Slow convention discovery**: When a convention is only discovered after 3+ turns of exploration.
+- **Tooling or environment workaround**: When you need a workaround that future sessions would benefit from knowing.
+- **Recurring review pattern**: When a review uncovers the same class of issue more than once.
+- **Skill/intent drift**: When a skill's current name or scope no longer matches what it actually teaches.
+
 ### Where to update
 
 - `.opencode/skills/<domain>/SKILL.md` for cross-cutting domain knowledge.
 - A package-level `AGENTS.md` for conventions too specific for a shared skill.
 - If no skill file exists for the domain and the knowledge is reusable, create one following the structure of existing skill files.
+
+### Naming rules
+
+- Skill names should describe the actual thing they teach.
+- Use **workflow** names for step-by-step operating guidance (for example `delivery-workflow`).
+- Use **policy / standards** names for reusable contracts or rules (for example `review-standards`).
+- Avoid names that are broader than the skill's real scope.
+- If a skill accumulates multiple concerns that no longer fit its name, split it or rename it instead of letting the mismatch persist.
 
 ## Agent Delegation Policy
 
