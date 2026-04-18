@@ -7,6 +7,7 @@ import {
   Input,
   PageFrame,
   spacing,
+  ToggleGroup,
 } from '@repro/design'
 import type { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
@@ -217,43 +218,11 @@ export const HomeRoute = ({
           >
             <PageFrame.Title>Sessions</PageFrame.Title>
 
-            <Row gap={spacing.sm} props={{ role: 'radiogroup' }}>
-              {SESSION_LIST_SORT_OPTIONS.map(option => {
-                const selected = sortOrder === option.value
-
-                return (
-                  <Block
-                    key={option.value}
-                    component="button"
-                    type="button"
-                    paddingV={8}
-                    paddingH={12}
-                    borderWidth={1}
-                    borderStyle="solid"
-                    borderRadius={9999}
-                    fontSize={13}
-                    cursor="pointer"
-                    backgroundColor={
-                      selected ? color.primarySubtle : color.bg.hover
-                    }
-                    color={selected ? color.primary : color.text.secondary}
-                    borderColor={
-                      selected ? color.primary : color.border.default
-                    }
-                    hoverBackgroundColor={
-                      selected ? color.primarySubtle : color.bg.surface
-                    }
-                    props={{
-                      role: 'radio',
-                      'aria-checked': selected,
-                      onClick: () => handleSortChange(option.value),
-                    }}
-                  >
-                    {option.label}
-                  </Block>
-                )
-              })}
-            </Row>
+            <ToggleGroup
+              options={SESSION_LIST_SORT_OPTIONS}
+              selected={sortOrder}
+              onChange={handleSortChange}
+            />
           </Row>
         </PageFrame.Header>
 
@@ -306,41 +275,11 @@ export const HomeRoute = ({
         >
           <PageFrame.Title>Sessions ({visibleItems.length})</PageFrame.Title>
 
-          <Row gap={spacing.sm} props={{ role: 'radiogroup' }}>
-            {SESSION_LIST_SORT_OPTIONS.map(option => {
-              const selected = sortOrder === option.value
-
-              return (
-                <Block
-                  key={option.value}
-                  component="button"
-                  type="button"
-                  paddingV={8}
-                  paddingH={12}
-                  borderWidth={1}
-                  borderStyle="solid"
-                  borderRadius={9999}
-                  fontSize={13}
-                  cursor="pointer"
-                  backgroundColor={
-                    selected ? color.primarySubtle : color.bg.hover
-                  }
-                  color={selected ? color.primary : color.text.secondary}
-                  borderColor={selected ? color.primary : color.border.default}
-                  hoverBackgroundColor={
-                    selected ? color.primarySubtle : color.bg.surface
-                  }
-                  props={{
-                    role: 'radio',
-                    'aria-checked': selected,
-                    onClick: () => handleSortChange(option.value),
-                  }}
-                >
-                  {option.label}
-                </Block>
-              )
-            })}
-          </Row>
+          <ToggleGroup
+            options={SESSION_LIST_SORT_OPTIONS}
+            selected={sortOrder}
+            onChange={handleSortChange}
+          />
         </Row>
       </PageFrame.Header>
 

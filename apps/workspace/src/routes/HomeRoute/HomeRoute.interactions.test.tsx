@@ -124,14 +124,24 @@ describe('HomeRoute interactions', () => {
       assert.ok(getTileTitles()[2]?.includes('Alpha Recording'))
     })
 
+    screen.getByRole('radio', { name: 'Newest first' }).focus()
+
     act(() => {
-      screen.getByRole('radio', { name: 'Longest first' }).click()
+      fireEvent.keyDown(screen.getByRole('radio', { name: 'Newest first' }), {
+        key: 'ArrowRight',
+      })
     })
 
     await waitFor(() => {
-      assert.ok(getTileTitles()[0]?.includes('Gamma Recording'))
-      assert.ok(getTileTitles()[1]?.includes('Alpha Recording'))
+      assert.ok(getTileTitles()[0]?.includes('Alpha Recording'))
+      assert.ok(getTileTitles()[1]?.includes('Gamma Recording'))
       assert.ok(getTileTitles()[2]?.includes('Beta Recording'))
+      assert.equal(
+        screen
+          .getByRole('radio', { name: 'Oldest first' })
+          .getAttribute('aria-checked'),
+        'true'
+      )
     })
   })
 
