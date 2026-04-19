@@ -8,6 +8,7 @@ import type { FutureInstance } from 'fluture'
 import { attemptP, both, chain, coalesce, map } from 'fluture'
 import { sql } from 'kysely'
 import { Readable } from 'node:stream'
+import { finished } from 'node:stream/promises'
 import { attemptQuery, Database } from '~/modules/database'
 import { Storage } from '~/modules/storage'
 
@@ -74,11 +75,21 @@ export function createHealthService(
         chain(() =>
           storage.read(STORAGE_PATH).pipe(
             chain(readable => {
-              readable.destroy()
+              return attemptP(async () => {
+                readable.resume()
 
-              return storage
-                .delete(STORAGE_PATH)
-                .pipe(map(() => ({ status: 'ok' as SubsystemStatus })))
+                try {
+                  await finished(readable)
+                } finally {
+                  readable.destroy()
+                }
+              }).pipe(
+                chain(() =>
+                  storage
+                    .delete(STORAGE_PATH)
+                    .pipe(map(() => ({ status: 'ok' as SubsystemStatus })))
+                )
+              )
             })
           )
         )

@@ -124,6 +124,38 @@ describe('Services > Health', () => {
     expect(healthStream.destroyed).toEqual(true)
   })
 
+  it('should wait for the storage read stream to settle before deleting the file', async () => {
+    let settled = false
+    const healthStream = new Readable({
+      read(this: Readable) {
+        setImmediate(() => {
+          this.push('ok')
+          this.push(null)
+        })
+      },
+    })
+
+    healthStream.once('end', () => {
+      settled = true
+    })
+
+    const healthService = createHealthService(db, {
+      exists: () => resolve(true),
+      write: () => resolve(void 0),
+      read: () => resolve(healthStream),
+      delete: () =>
+        settled
+          ? resolve(void 0)
+          : reject(new Error('storage deleted before the stream settled')),
+    })
+
+    const result = await promise(healthService.checkDetailed())
+
+    expect(result.status).toEqual('ok')
+    expect(settled).toEqual(true)
+    expect(healthStream.destroyed).toEqual(true)
+  })
+
   it('should mark degraded core checks as degraded and errors as unhealthy', () => {
     const healthService = createHealthService(db, storage)
 
