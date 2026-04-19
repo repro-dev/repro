@@ -13,7 +13,7 @@
 #   6. Docker                 (check daemon is running, wait if needed)
 #   7. Trust .envrc           (direnv allow)
 #   8. OpenCode local config  (.envrc.local)
-#   9. Cluster + registry     (reproctl cluster up)
+#   9. Cluster + registry    (reproctl cluster up)
 #
 # Also invoked by `reproctl setup`, which passes through its flags.
 #
@@ -143,6 +143,12 @@ next_step "Installing Node.js dependencies..."
 pnpm install
 ok "Node.js dependencies installed"
 
+if pnpm exec linear --version > /dev/null 2>&1 && pnpm exec node --input-type=module -e "await import('@linear/sdk')" > /dev/null 2>&1; then
+  ok "linear CLI wrapper and @linear/sdk are available from workspace dependency"
+else
+  die "repo-local Linear CLI wrapper could not execute or resolve @linear/sdk after pnpm install. Run 'pnpm install' again or check the @linear/sdk dependency in package.json."
+fi
+
 # ── Step 6: Docker ──────────────────────────────────────────────────
 
 next_step "Checking Docker..."
@@ -212,7 +218,7 @@ ENVRC_EOF
 
 ok ".envrc.local written (external_directory: $PARENT_DIR/**)"
 
-# ── Step 9: Cluster + registry ──────────────────────────────────────
+# ── Step 9: Cluster + registry ─────────────────────────────────────
 
 if [ "$skip_cluster" = true ]; then
   next_step "Skipping cluster creation (--no-cluster)"

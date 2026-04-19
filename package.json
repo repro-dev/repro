@@ -4,9 +4,13 @@
   "description": "",
   "main": "index.js",
   "license": "UNLICENSED",
+  "bin": {
+    "linear": "bin/linear"
+  },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",
     "@commitlint/config-conventional": "^20.4.2",
+    "@linear/sdk": "^82.0.0",
     "@jsxstyle/core": "^3.0.1",
     "@playwright/test": "^1.58.2",
     "@types/pngjs": "^6.0.0",
