@@ -259,12 +259,6 @@ export function createRecordingStream(
   }
 
   function injectBufferedEvents(events: Array<DataView>) {
-    if (isStarted()) {
-      throw new Error(
-        'RecordingStream#injectBufferedEvents: stream has already started'
-      )
-    }
-
     for (const event of events) {
       eventBuffer.push(copyDataView(event))
     }

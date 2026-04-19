@@ -4,9 +4,12 @@ import {
   SourceEventType,
   SourceEventView,
 } from '@repro/domain'
+import {
+  createNetworkObserver,
+  createPerformanceObserver,
+} from '@repro/recording'
 import { Box } from '@repro/tdl'
-import { createNetworkObserver } from '../../../packages/recording/src/network/observe'
-import { createPerformanceObserver } from '../../../packages/recording/src/performance/observe'
+import { appendRuntimeBuffer } from './runtimeBuffer'
 
 type RuntimeInstalledType = 'console' | 'network' | 'performance'
 
@@ -40,11 +43,6 @@ const runtimeVTree = {
   nodes: {},
 } as any
 
-function getRuntimeBuffer() {
-  window.__REPRO_RUNTIME_BUFFER__ ??= []
-  return window.__REPRO_RUNTIME_BUFFER__
-}
-
 function getInstalledTypes() {
   window.__REPRO_RUNTIME_INSTALLED_TYPES__ ??= new Set()
   return window.__REPRO_RUNTIME_INSTALLED_TYPES__
@@ -59,7 +57,7 @@ function bufferSourceEvent(event: unknown) {
     return
   }
 
-  getRuntimeBuffer().push(encodedEvent)
+  appendRuntimeBuffer(encodedEvent)
 }
 
 function safeSerialize(value: unknown) {
@@ -265,7 +263,7 @@ export function installRuntime() {
     return
   }
 
-  getRuntimeBuffer()
+  window.__REPRO_RUNTIME_BUFFER__ ??= []
   getInstalledTypes()
   installReactHookStub()
   installNetworkObserver()

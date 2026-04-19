@@ -11,7 +11,7 @@ if (!globalThis.requestIdleCallback) {
       () => callback({ didTimeout: false, timeRemaining: () => 0 }),
       0
     )
-  }) as typeof requestIdleCallback
+  }) as unknown as typeof requestIdleCallback
 }
 
 if (!globalThis.cancelIdleCallback) {
@@ -58,4 +58,18 @@ it('preserves buffered event ordering and timestamps through slice()', () => {
   assert.equal(events.length, 2)
   assert.equal(first.time, 0)
   assert.equal(second.time, 40)
+})
+
+it('keeps live buffered events flowing after start in event order', () => {
+  const stream = createRecordingStream(document, {
+    types: new Set() as any,
+    ignoredNodes: [],
+    ignoredSelectors: [],
+  })
+
+  stream.injectBufferedEvents([createSnapshotEvent(10, 'pre')])
+  stream.$started.next(true)
+  stream.injectBufferedEvents([createSnapshotEvent(30, 'live')])
+
+  assert.equal(stream.slice().toArray().length, 2)
 })
