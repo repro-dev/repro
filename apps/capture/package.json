@@ -7,7 +7,7 @@
     "build": "BUILD_ENV=production ./scripts/build",
     "watch": "./scripts/build -w",
     "fmt": "prettier --write src",
-    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
+    "test": "tsx --experimental-test-module-mocks --import=../../scripts/register-capture-test-env.ts --test src/**/*.test.ts{,x}",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",
