@@ -11,6 +11,6 @@ tasks:
       - glob: src/**/*.tdls
         cache: true
     outputs:
-      - src/generated/**/*
+      - generated/**/*
 toolchains:
   default: node

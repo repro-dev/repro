@@ -44,11 +44,15 @@ def _manifest(tilt_result, name):
 
 
 def _serve_env(manifest):
-    env = {}
-    for item in manifest["DeployTarget"]["ServeCmd"]["Env"]:
-        key, _, value = item.partition("=")
-        env[key] = value
-    return env
+  env = {}
+  for item in manifest["DeployTarget"]["ServeCmd"]["Env"]:
+    key, _, value = item.partition("=")
+    env[key] = value
+  return env
+
+
+def _read_json(path):
+  return json.loads(path.read_text())
 
 
 class TestTiltServiceRegistration:
@@ -229,3 +233,34 @@ class TestTiltServiceRegistration:
         assert marketing_env["REPRO_MARKETING_URL"] == "https://marketing.repro.localhost:1355"
         assert api_server_env["REPRO_APP_URL"] == "https://app.repro.localhost:1355"
         assert api_server_env["REPRO_API_URL"] == "https://api.repro.localhost:1355"
+
+    def test_codegen_outputs_live_outside_src_and_need_no_tilt_workaround(self):
+        domain_package = _read_json(REPO_ROOT / "packages" / "domain" / "package.json")
+        domain_moon = (REPO_ROOT / "packages" / "domain" / "moon.yml").read_text()
+        domain_tsconfig = _read_json(REPO_ROOT / "packages" / "domain" / "tsconfig.json")
+        domain_gitignore = (REPO_ROOT / "packages" / "domain" / ".gitignore").read_text()
+
+        wire_package = _read_json(
+            REPO_ROOT / "packages" / "wire-formats" / "package.json"
+        )
+        wire_moon = (REPO_ROOT / "packages" / "wire-formats" / "moon.yml").read_text()
+        wire_tsconfig = _read_json(REPO_ROOT / "packages" / "wire-formats" / "tsconfig.json")
+        wire_gitignore = (REPO_ROOT / "packages" / "wire-formats" / ".gitignore").read_text()
+
+        tiltfile_text = (REPO_ROOT / "infra" / "tilt-lib" / "services.Tiltfile").read_text()
+
+        assert domain_package["scripts"]["build"] == "tdlc src --outdir generated"
+        assert "generated/**/*" in domain_moon
+        assert "generated/**/*.ts" in domain_tsconfig["include"]
+        assert domain_tsconfig["compilerOptions"]["rootDir"] == "."
+        assert domain_gitignore.splitlines()[0] == "generated"
+
+        assert wire_package["scripts"]["build"] == "tdlc src --outdir generated"
+        assert wire_package["scripts"]["clean"] == "rimraf generated"
+        assert "generated/**/*" in wire_moon
+        assert "generated/**/*.ts" in wire_tsconfig["include"]
+        assert wire_tsconfig["compilerOptions"]["rootDir"] == "."
+        assert wire_gitignore.splitlines()[0] == "generated"
+
+        assert "REP-873" not in tiltfile_text
+        assert "src/generated" not in tiltfile_text

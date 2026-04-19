@@ -176,10 +176,8 @@ def service_watch_paths(svc, root_path):
   # watching and hot reload. Tilt only needs to restart a service when its
   # dependency manifest changes — not on every source file edit.
   #
-  # Watching broad source trees here caused an infinite restart loop: moon
-  # build tasks regenerate files inside watched dirs on every startup, which
-  # Tilt interprets as a change and restarts again. (REP-873 tracks the
-  # long-term fix of moving codegen outputs out of src/.)
+  # Watching broad source trees here caused restart loops when build tasks
+  # regenerated files during startup.
   paths = []
 
   # pnpm-lock.yaml is the aggregate signal for any dependency change.

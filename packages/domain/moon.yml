@@ -13,7 +13,7 @@ tasks:
       - glob: src/**/*.tdls
         cache: true
     outputs:
-      - src/generated/**/*
+      - generated/**/*
     options:
       cache: true
 toolchains:

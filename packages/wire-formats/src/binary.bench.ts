@@ -1,6 +1,6 @@
+import { Entity, EntityView } from '../generated/binary-test-schema'
 import { stress } from './bench-utils'
 import { fromBinaryWireFormat, toBinaryWireFormat } from './binary'
-import { Entity, EntityView } from './generated/binary-test-schema'
 import { fromWireFormat, toWireFormat } from './legacyText'
 
 const input: Array<Entity> = [
