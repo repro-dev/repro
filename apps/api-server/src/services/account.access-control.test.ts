@@ -67,6 +67,7 @@ describe('Services > Account', () => {
             name: 'Does not exist',
             email: harness.generateRandomEmailAddress(),
             isAdmin: false,
+            isActive: false,
           })
         )
       ).rejects.toThrow(permissionDenied())
