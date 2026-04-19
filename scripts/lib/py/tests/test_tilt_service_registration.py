@@ -152,3 +152,27 @@ class TestTiltServiceRegistration:
         assert workspace_env["REPRO_API_URL"] == "https://api.wt-rep-397.repro.localhost:1355"
         assert admin_env["REPRO_API_URL"] == "https://api.wt-rep-397.repro.localhost:1355"
         assert api_server["Name"] == "api-server-wt-rep-397"
+
+    def test_worktree_service_urls_stay_scoped_per_slug(self):
+        first_wt = str(REPO_ROOT / "tmp" / "worktree-one")
+        second_wt = str(REPO_ROOT / "tmp" / "worktree-two")
+
+        tilt_result = _render_tilt(
+            [
+                {"name": "workspace", "source": first_wt, "slug": "rep-397"},
+                {"name": "api-server", "source": first_wt, "slug": "rep-397"},
+                {"name": "workspace", "source": second_wt, "slug": "rep-812"},
+                {"name": "api-server", "source": second_wt, "slug": "rep-812"},
+            ]
+        )
+
+        first_workspace = _manifest(tilt_result, "workspace-wt-rep-397")
+        second_workspace = _manifest(tilt_result, "workspace-wt-rep-812")
+
+        first_env = _serve_env(first_workspace)
+        second_env = _serve_env(second_workspace)
+
+        assert first_env["REPRO_APP_URL"] == "https://app.wt-rep-397.repro.localhost:1355"
+        assert first_env["REPRO_API_URL"] == "https://api.wt-rep-397.repro.localhost:1355"
+        assert second_env["REPRO_APP_URL"] == "https://app.wt-rep-812.repro.localhost:1355"
+        assert second_env["REPRO_API_URL"] == "https://api.wt-rep-812.repro.localhost:1355"

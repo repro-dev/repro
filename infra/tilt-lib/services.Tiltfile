@@ -237,8 +237,11 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
   else:
     portless_wt_name = portless_base + '.wt-' + dns
 
-  app_slug = service_slugs.get('workspace', '')
-  api_slug = service_slugs.get('api-server', '')
+  # Scope dependency URLs to the current worktree so identical service names in
+  # other worktrees cannot overwrite the URLs this service should use.
+  current_service_slugs = service_slugs.get(wt_slug, {})
+  app_slug = current_service_slugs.get('workspace', '')
+  api_slug = current_service_slugs.get('api-server', '')
   app_host = _service_host('app.repro', app_slug)
   api_host = _service_host('api.repro', api_slug)
 
@@ -336,8 +339,9 @@ def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_pa
   serve_env = dict(svc.get('serve_env', {}))
 
   if wt_slug:
-    app_slug = service_slugs.get('workspace', '')
-    api_slug = service_slugs.get('api-server', '')
+    current_service_slugs = service_slugs.get(wt_slug, {})
+    app_slug = current_service_slugs.get('workspace', '')
+    api_slug = current_service_slugs.get('api-server', '')
     serve_env['REPRO_APP_URL'] = 'https://' + _service_host('app.repro', app_slug)
     serve_env['REPRO_API_URL'] = 'https://' + _service_host('api.repro', api_slug)
 
