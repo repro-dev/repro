@@ -21,19 +21,6 @@ mock.module("@repro/design", {
       return null;
     },
     AgenticInputFormState: {},
-    color: {
-      bg: {
-        hover: "#f8fafc",
-        surface: "#ffffff",
-      },
-      border: {
-        default: "#cbd5e1",
-      },
-      text: {
-        default: "#0f172a",
-        secondary: "#475569",
-      },
-    },
     colors: { white: "#fff", slate: { "100": "#f1f5f9", "200": "#e2e8f0" } },
     color: {
       bg: { surface: "#fff", hover: "#f1f5f9" },

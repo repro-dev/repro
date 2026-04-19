@@ -84,7 +84,7 @@ describe('Routers > Health', () => {
     expect(res.statusCode).toEqual(503)
     expect(body.status).toEqual('unhealthy')
     expect(body.checks.database.status).toEqual('error')
-    expect(body.checks.database.error).toEqual('connection refused')
+    expect(body.checks.database.error).toEqual('Health check failed')
   })
 
   it('should return 200 with degraded status when Redis is down', async () => {

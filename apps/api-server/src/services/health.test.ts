@@ -1,11 +1,20 @@
 import expect from 'expect'
-import { promise } from 'fluture'
+import { promise, reject, resolve } from 'fluture'
+import { Readable } from 'node:stream'
 import { after, before, describe, it } from 'node:test'
 import { Database } from '~/modules/database'
 import { Storage } from '~/modules/storage'
 import { setUpTestDatabase } from '~/testing/database'
-import { setUpTestFileSystemStorage } from '~/testing/storage'
 import { createHealthService } from './health'
+
+function createHealthyStorage(): Storage {
+  return {
+    exists: () => resolve(true),
+    write: () => resolve(void 0),
+    read: () => resolve(Readable.from(['ok'])),
+    delete: () => resolve(void 0),
+  }
+}
 
 describe('Services > Health', () => {
   let reset: () => Promise<void>
@@ -14,15 +23,12 @@ describe('Services > Health', () => {
 
   before(async () => {
     const { db: dbInstance, close: closeDb } = await setUpTestDatabase()
-    const { storage: storageInstance, close: closeStorage } =
-      await setUpTestFileSystemStorage()
 
     db = dbInstance
-    storage = storageInstance
+    storage = createHealthyStorage()
 
     reset = async () => {
       await closeDb()
-      await closeStorage()
     }
   })
 
@@ -86,5 +92,53 @@ describe('Services > Health', () => {
     expect(result).toHaveProperty('timestamp')
     expect(result).toHaveProperty('checks')
     expect(['ok', 'degraded', 'unhealthy']).toContain(result.status)
+  })
+
+  it('should sanitize storage errors in the detailed response', async () => {
+    const healthService = createHealthService(db, {
+      exists: () => resolve(true),
+      write: () => resolve(void 0),
+      read: () => reject(new Error('S3AccessDenied: leaked detail')),
+      delete: () => resolve(void 0),
+    })
+
+    const result = await promise(healthService.checkDetailed())
+
+    expect(result.status).toEqual('unhealthy')
+    expect(result.checks.storage.status).toEqual('error')
+    expect(result.checks.storage.error).toEqual('Health check failed')
+  })
+
+  it('should close the storage read stream during the health check', async () => {
+    const healthStream = Readable.from(['ok'])
+    const healthService = createHealthService(db, {
+      exists: () => resolve(true),
+      write: () => resolve(void 0),
+      read: () => resolve(healthStream),
+      delete: () => resolve(void 0),
+    })
+
+    const result = await promise(healthService.checkDetailed())
+
+    expect(result.status).toEqual('ok')
+    expect(healthStream.destroyed).toEqual(true)
+  })
+
+  it('should mark degraded core checks as degraded and errors as unhealthy', () => {
+    const healthService = createHealthService(db, storage)
+
+    expect(
+      healthService.computeOverallStatus({
+        database: { status: 'degraded' },
+        storage: { status: 'ok' },
+      } as never)
+    ).toEqual('degraded')
+
+    expect(
+      healthService.computeOverallStatus({
+        database: { status: 'error' },
+        storage: { status: 'ok' },
+      } as never)
+    ).toEqual('unhealthy')
   })
 })

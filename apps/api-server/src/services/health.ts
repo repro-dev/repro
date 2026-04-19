@@ -21,6 +21,35 @@ export type HealthStatus = { status: 'ok' | 'degraded' }
 
 type HealthFuture<T> = FutureInstance<Error, T>
 
+export function sanitizeSubsystemCheck(check: SubsystemCheck): SubsystemCheck {
+  if (check.status !== 'error') {
+    return check
+  }
+
+  return {
+    status: 'error' as SubsystemStatus,
+    error: 'Health check failed',
+  }
+}
+
+export function sanitizeHealthResult(
+  result: HealthCheckResult
+): HealthCheckResult {
+  const checks: HealthCheckResult['checks'] = {
+    database: sanitizeSubsystemCheck(result.checks.database),
+    storage: sanitizeSubsystemCheck(result.checks.storage),
+  }
+
+  if (result.checks.redis) {
+    checks.redis = sanitizeSubsystemCheck(result.checks.redis)
+  }
+
+  return {
+    ...result,
+    checks,
+  }
+}
+
 export function createHealthService(
   db: Database,
   storage: Storage,
@@ -41,7 +70,19 @@ export function createHealthService(
     const STORAGE_PATH = '.well-known/health'
     return storage
       .write(STORAGE_PATH, Readable.from(['ok']))
-      .pipe(chain(() => storage.exists(STORAGE_PATH)))
+      .pipe(
+        chain(() =>
+          storage.read(STORAGE_PATH).pipe(
+            chain(readable => {
+              readable.destroy()
+
+              return storage
+                .delete(STORAGE_PATH)
+                .pipe(map(() => ({ status: 'ok' as SubsystemStatus })))
+            })
+          )
+        )
+      )
       .pipe(
         coalesce(
           (): SubsystemCheck => ({
@@ -82,17 +123,13 @@ export function createHealthService(
   function computeOverallStatus(
     checks: HealthCheckResult['checks']
   ): OverallStatus {
-    const dbOk = checks.database.status === 'ok'
-    const storageOk = checks.storage.status === 'ok'
+    const coreChecks = [checks.database, checks.storage]
 
-    if (
-      checks.database.status === 'error' ||
-      checks.storage.status === 'error'
-    ) {
+    if (coreChecks.some(check => check.status === 'error')) {
       return 'unhealthy'
     }
 
-    if (!dbOk || !storageOk) {
+    if (coreChecks.some(check => check.status === 'degraded')) {
       return 'degraded'
     }
 
@@ -107,11 +144,11 @@ export function createHealthService(
   function buildHealthResult(
     checks: HealthCheckResult['checks']
   ): HealthCheckResult {
-    return {
+    return sanitizeHealthResult({
       status: computeOverallStatus(checks),
       timestamp: new Date().toISOString(),
       checks,
-    }
+    })
   }
 
   function checkDetailed(): HealthFuture<HealthCheckResult> {
@@ -153,8 +190,10 @@ export function createHealthService(
   }
 
   return {
+    computeOverallStatus,
     check,
     checkDetailed,
+    sanitizeHealthResult,
   }
 }
 
