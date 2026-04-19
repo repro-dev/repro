@@ -143,6 +143,9 @@ class TestTiltServiceRegistration:
         workspace = _manifest(tilt_result, "workspace-wt-rep-397")
         admin = _manifest(tilt_result, "admin-wt-rep-397")
 
+        assert api_server["Name"] == "api-server-wt-rep-397"
+        assert workspace["Name"] == "workspace-wt-rep-397"
+        assert admin["Name"] == "admin-wt-rep-397"
         assert "dependencies-wt-rep-397" in workspace["ResourceDependencies"]
         assert "dependencies-wt-rep-397" in admin["ResourceDependencies"]
 
@@ -200,6 +203,29 @@ class TestTiltServiceRegistration:
         api_server_env = _serve_env(api_server)
 
         assert marketing_env["REPRO_APP_URL"] == "https://app.wt-rep-397.repro.localhost:1355"
+        assert marketing_env["REPRO_MARKETING_URL"] == "https://marketing.wt-rep-397.repro.localhost:1355"
         assert api_server_env["REPRO_APP_URL"] == "https://app.wt-rep-397.repro.localhost:1355"
         assert api_server_env["REPRO_API_URL"] == "https://api.wt-rep-397.repro.localhost:1355"
         assert api_server_env["REPRO_ADMIN_URL"] == "https://admin.wt-rep-397.repro.localhost:1355"
+
+    def test_main_checkout_portless_services_stay_unsuffixed(self):
+        tilt_result = _render_tilt(
+            [
+                {"name": "marketing", "source": ".", "slug": ""},
+                {"name": "api-server", "source": ".", "slug": ""},
+            ]
+        )
+
+        marketing = _manifest(tilt_result, "marketing")
+        api_server = _manifest(tilt_result, "api-server")
+
+        assert marketing["Name"] == "marketing"
+        assert api_server["Name"] == "api-server"
+
+        marketing_env = _serve_env(marketing)
+        api_server_env = _serve_env(api_server)
+
+        assert marketing_env["REPRO_APP_URL"] == "https://app.repro.localhost:1355"
+        assert marketing_env["REPRO_MARKETING_URL"] == "https://marketing.repro.localhost:1355"
+        assert api_server_env["REPRO_APP_URL"] == "https://app.repro.localhost:1355"
+        assert api_server_env["REPRO_API_URL"] == "https://api.repro.localhost:1355"

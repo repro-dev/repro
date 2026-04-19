@@ -243,14 +243,17 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
   app_slug = current_service_slugs.get('workspace', wt_slug)
   api_slug = current_service_slugs.get('api-server', wt_slug)
   admin_slug = current_service_slugs.get('admin', wt_slug)
+  marketing_slug = current_service_slugs.get('marketing', wt_slug)
   app_host = _service_host('app.repro', app_slug)
   api_host = _service_host('api.repro', api_slug)
   admin_host = _service_host('admin.repro', admin_slug)
+  marketing_host = _service_host('marketing.repro', marketing_slug)
 
   serve_env = dict(svc.get('serve_env', {}))
   serve_env['REPRO_APP_URL'] = 'https://' + app_host
   serve_env['REPRO_API_URL'] = 'https://' + api_host
   serve_env['REPRO_ADMIN_URL'] = 'https://' + admin_host
+  serve_env['REPRO_MARKETING_URL'] = 'https://' + marketing_host
 
   for env_key in svc.get('env_passthrough', []):
     serve_env[env_key] = os.getenv(env_key, '')
@@ -346,9 +349,11 @@ def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_pa
     app_slug = current_service_slugs.get('workspace', wt_slug)
     api_slug = current_service_slugs.get('api-server', wt_slug)
     admin_slug = current_service_slugs.get('admin', wt_slug)
+    marketing_slug = current_service_slugs.get('marketing', wt_slug)
     serve_env['REPRO_APP_URL'] = 'https://' + _service_host('app.repro', app_slug)
     serve_env['REPRO_API_URL'] = 'https://' + _service_host('api.repro', api_slug)
     serve_env['REPRO_ADMIN_URL'] = 'https://' + _service_host('admin.repro', admin_slug)
+    serve_env['REPRO_MARKETING_URL'] = 'https://' + _service_host('marketing.repro', marketing_slug)
 
   resource_deps = list(svc.get('resource_deps', []))
   if wt_slug and 'dependencies' in resource_deps:
