@@ -184,3 +184,22 @@ class TestTiltServiceRegistration:
         assert second_env["REPRO_APP_URL"] == "https://app.wt-rep-812.repro.localhost:1355"
         assert second_env["REPRO_API_URL"] == "https://api.wt-rep-812.repro.localhost:1355"
         assert second_admin_env["REPRO_ADMIN_URL"] == "https://admin.wt-rep-812.repro.localhost:1355"
+
+    def test_standalone_worktree_services_do_not_fall_back_to_main_checkout_urls(self):
+        tilt_result = _render_tilt(
+            [
+                {"name": "marketing", "source": str(REPO_ROOT), "slug": "rep-397"},
+                {"name": "api-server", "source": str(REPO_ROOT), "slug": "rep-397"},
+            ]
+        )
+
+        marketing = _manifest(tilt_result, "marketing-wt-rep-397")
+        api_server = _manifest(tilt_result, "api-server-wt-rep-397")
+
+        marketing_env = _serve_env(marketing)
+        api_server_env = _serve_env(api_server)
+
+        assert marketing_env["REPRO_APP_URL"] == "https://app.wt-rep-397.repro.localhost:1355"
+        assert api_server_env["REPRO_APP_URL"] == "https://app.wt-rep-397.repro.localhost:1355"
+        assert api_server_env["REPRO_API_URL"] == "https://api.wt-rep-397.repro.localhost:1355"
+        assert api_server_env["REPRO_ADMIN_URL"] == "https://admin.wt-rep-397.repro.localhost:1355"
