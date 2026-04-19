@@ -18,3 +18,5 @@ type EnvValues = {
 export function createEnv(values: EnvValues) {
   return envSchema.parse(values)
 }
+
+export const defaultEnv = createEnv({})
