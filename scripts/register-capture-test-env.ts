@@ -1,3 +1,14 @@
+/**
+ * Shared capture/recording test environment.
+ *
+ * Keep this preload as the single source of truth for tests that need DOM
+ * globals and idle-callback behavior. It installs jsdom before any test file
+ * runs and provides the async requestIdleCallback/cancelIdleCallback fallback
+ * used by buffer eviction and other idle-time code paths.
+ *
+ * Future capture/recording tests should rely on this preload instead of adding
+ * ad hoc shims so the runtime contract stays consistent across suites.
+ */
 import "global-jsdom/register";
 
 type IdleDeadline = {
