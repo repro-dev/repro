@@ -55,11 +55,17 @@ For non-trivial UI changes, pair `design-system` with `ui-verification` so imple
 
 ## 5. Review loop handling
 
-When a task enters the develop → review cycle, keep the loop bounded.
+When a task enters the develop → review cycle, keep the loop iterative until blocking issues are fixed, with an explicit safety stop to avoid runaway retries.
 
-1. Fix the blockers the review report identifies and rerun verification.
-2. If a review comes back clean for some issues but still flags blockers for others, open PRs for the merge-ready issues and leave the blocked ones in the current work cycle.
-3. After publishing the ready PRs, ask the user what to do next instead of automatically starting another unattended develop → review pass for the blocked items.
-4. If the user asks for another pass, repeat the same bounded loop until the work reaches a terminal condition: merge-ready, explicitly deferred, or cancelled.
+1. Start from the current review output.
+2. If the review has no Blockers, treat the issue as merge-ready and exit the loop.
+3. If any Blocker is marked `fixable_by_agent: false`, stop the automatic loop and escalate to the user with the blocking findings.
+4. If all Blockers are `fixable_by_agent: true`, run another fix pass, rerun verification, and review again.
+5. Repeat the fix → verify → review cycle until one of these terminal conditions is reached:
+   - the review comes back with zero Blockers
+   - a new Blocker is classified as `fixable_by_agent: false`
+   - the loop reaches 3 consecutive fix attempts for the same issue
+6. If the loop reaches the 3-attempt safety limit without clearing the Blockers, stop and ask the user whether to continue, defer, or escalate.
+7. If some issues in a batch are clean while others hit the safety stop, publish the merge-ready ones and surface a concise status summary for the blocked remainder.
 
-This keeps unattended iterations from running forever while still letting non-blocking feedback pass through and preserving user control over the remaining work.
+This keeps the workflow moving toward a clean review by default while still preserving a hard stop before unattended retries turn into a runaway loop.
