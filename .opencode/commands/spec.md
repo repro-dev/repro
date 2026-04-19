@@ -40,7 +40,7 @@ Exit immediately. Do not proceed to Step 2.
 
 _Only runs when Step 2 detected a single issue ID._
 
-1. Call `Linear_get_issue` with `id: <issue-id>` and `includeRelations: true`.
+1. Run `linear issue show <issue-id> --json`.
 2. Verify the issue exists. If not found, print `Issue <ID> not found in Linear.` and exit.
 3. Proceed to **Step 5** (gap analysis) for this single issue.
 4. After Steps 5–8 complete for this issue, the command is done.
@@ -56,7 +56,10 @@ _Only runs when Step 2 detected a natural-language filter._
    - Milestone name
    - Label names
    - Priority (e.g. `high-priority` → `priority: 2`)
-2. Call `Linear_list_issues` with the extracted filters plus `label: "needs-spec"`, paginating through all results. If no project was identified, do not restrict by project (but always filter by `needs-spec` label).
+2. Use the repo-owned `linear` CLI to list issues matching the extracted filters plus the `needs-spec` label, for example:
+   `linear issue list --status backlog --status todo --label needs-spec --project "Platform" --json`
+   If no project was identified, do not restrict by project.
+   For broad scans, trim the list output with `jq` before inspection so only routing fields remain (for example `id`, `identifier`, `title`, `state`, `priority`, `project`).
 3. If no issues match, print:
    ```
    No needs-spec issues found matching: "<filter string>"
@@ -143,6 +146,7 @@ Wait for the user to answer all questions before proceeding.
 Based on the user's answers:
 
 1. Draft a proposed updated description. This must:
+
    - **Preserve the original description verbatim** (never replace — always append or restructure with the original content intact).
    - Add or replace the `### Acceptance Criteria` section with a concrete checkbox list grounded in user answers.
    - Add a `### Decisions` section (if unresolved decisions were present) documenting the resolution.
@@ -189,7 +193,7 @@ _Only runs for issues where the user approved in Step 7._
 
 ### 8a: Idempotency check
 
-Call `Linear_list_comments` on the issue. If any comment body contains the string `"Spec written by agent"`, skip the write and print:
+Inspect the issue's comments via `linear issue show <issue-id> --json`. If any comment body contains the string `"Spec written by agent"`, skip the write and print:
 
 ```
 ⚠️ REP-xxx: already has a "Spec written by agent" comment — skipping to avoid duplicate write.
@@ -197,13 +201,15 @@ Call `Linear_list_comments` on the issue. If any comment body contains the strin
 
 ### 8b: Update the issue description
 
-Call `Linear_get_issue` to retrieve the current full description and labels list.
+Call `linear issue show <issue-id> --json` to retrieve the current full description and labels list.
 
 Construct the updated description (original description + proposed additions from Step 7).
 
-Build the updated labels list: take the fetched `labels` array, filter out any label named `needs-spec`, and use this filtered list.
+Build the updated labels list by removing `needs-spec` from the fetched `labels` array, then update the issue with the repo-owned `linear` CLI, for example:
 
-Call `Linear_save_issue` with:
+`linear issue update <issue-id> --description "..." --remove-label needs-spec`
+
+The update must set:
 
 - `id`: the issue ID
 - `description`: the updated description (original + additions)
@@ -211,7 +217,11 @@ Call `Linear_save_issue` with:
 
 ### 8c: Post audit comment
 
-Call `Linear_save_comment` with:
+Add the audit comment with the repo-owned `linear` CLI, for example:
+
+`linear issue comment <issue-id> "**Spec written by agent on <YYYY-MM-DD>** ..."`
+
+The comment must include:
 
 - `issueId`: the issue ID
 - `body`:

@@ -20,7 +20,7 @@ For non-trivial UI changes, pair `design-system` with `ui-verification` so imple
 
 ## 1. Pre-flight
 
-1. Fetch the Linear issue via MCP and read the full description, decisions, and considerations.
+1. Fetch the Linear issue via the repo-owned `linear` CLI (`linear issue show REP-123 --json`) and read the full description, decisions, and considerations.
 2. Load the support skills you need for this change. If the work is a genuine bug fix or regression, load `bug-rigor` before implementation begins.
 3. Create or confirm the worktree for the issue.
 4. Set the issue to **In Progress**.
@@ -45,3 +45,14 @@ For non-trivial UI changes, pair `design-system` with `ui-verification` so imple
 - Let `worktree-workflow` own isolation and branch/worktree mechanics.
 - Let `git-workflow` own commit and PR handling.
 - Never duplicate those rules here; this skill is the orchestrator, not the rule book.
+
+## 5. Review loop handling
+
+When a task enters the develop → review cycle, keep the loop bounded.
+
+1. Fix the blockers the review report identifies and rerun verification.
+2. If a review comes back clean for some issues but still flags blockers for others, open PRs for the merge-ready issues and leave the blocked ones in the current work cycle.
+3. After publishing the ready PRs, ask the user what to do next instead of automatically starting another unattended develop → review pass for the blocked items.
+4. If the user asks for another pass, repeat the same bounded loop until the work reaches a terminal condition: merge-ready, explicitly deferred, or cancelled.
+
+This keeps unattended iterations from running forever while still letting non-blocking feedback pass through and preserving user control over the remaining work.

@@ -15,9 +15,10 @@ Parse `$ARGUMENTS` carefully: separate the `--project <name>` pair from the `--c
 
 ## Step 1: Gather Linear signals
 
-1. Call `Linear_list_issues` with `state: "Done"`, ordered by `updatedAt` descending, limit 50.
-   - If `--project <name>` was provided, add it as the `project` filter.
-2. Call `Linear_list_issues` with `state: "In Review"` with the same project filter (if any), limit 20.
+1. Run `linear issue list --json` to gather recently finished work.
+   - If `--project <name>` was provided, add `--project <name>`.
+   - Request only the statuses needed for this scan. If the repo-owned CLI cannot yet express `Done` / `In Review` listing for this workflow, stop and report the missing `linear issue list` filter support.
+2. Run a second `linear issue list --json` query for issues currently `In Review` with the same project filter (if any).
 3. Deduplicate by issue ID. For each issue note: title, project, description (first 200 words), decisions, and tradeoff language.
 4. Also include any Linear issues already loaded in the current session context.
 
@@ -67,12 +68,9 @@ Aim for 3–7 ranked ideas. If fewer than 3 pass the bar, present what is availa
 
 _Skip this step entirely unless `--create-issues` was passed._
 
-1. Confirm the Blog Posts project exists: call `Linear_list_projects` with `query: "Blog Posts"`. Find the first result whose `name` is exactly `"Blog Posts"` (case-insensitive). If no exact match is found, print an error and skip — do not create issues in any other project. Use this lookup only as validation.
-2. For each ranked idea, call `Linear_save_issue` with:
-   - `title`: working title
-   - `team`: `Repro`
-   - `project`: `"Blog Posts"`
-   - `priority`: 3 (Normal)
-   - `labels`: `["Improvement"]`
-   - `description`: Markdown body with Hook, Angle, Source sections
+1. Confirm the Blog Posts project exists using the repo-owned `linear` CLI project listing. Find the first result whose `name` is exactly `"Blog Posts"` (case-insensitive). If no exact match is found, print an error and skip — do not create issues in any other project.
+2. For each ranked idea, create the issue with the repo-owned `linear` CLI:
+
+   `linear issue create --title "<working title>" --project "Blog Posts" --priority medium --label Improvement --description "<Markdown body with Hook, Angle, Source sections>"`
+
 3. Print a summary table of created issues.

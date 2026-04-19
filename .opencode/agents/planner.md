@@ -18,7 +18,7 @@ You are a planning agent. Your job is to take a Linear issue (or user descriptio
 ## Startup
 
 1. Load the `delivery-workflow` skill for the phased workflow.
-2. Fetch the Linear issue via `Linear_get_issue` and read the full description, decisions, and considerations.
+2. Fetch the Linear issue via `linear issue show REP-123 --json` and read the full description, decisions, relations, and considerations.
 3. Explore the codebase to understand the current state — find affected packages, existing patterns, and relevant tests.
 
 ## Output format

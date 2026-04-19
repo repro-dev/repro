@@ -46,7 +46,7 @@ Format the handoff prompt as follows:
 **Linear issues:**
 {list open issue IDs and titles, e.g. REP-123 — Add auth flow}
 
-**To resume:** Fetch {issue ID} via Linear_get_issue, read the files listed above, and continue from: {single most important next step}
+**To resume:** Fetch {issue ID} via `linear issue show {issue ID} --json`, read the files listed above, and continue from: {single most important next step}
 
 ---
 
