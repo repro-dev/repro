@@ -250,7 +250,7 @@ Only after this loop should an issue be marked publishable or moved to In Review
 
 This project uses [DCP](https://github.com/Opencode-DCP/opencode-dynamic-context-pruning) for context compression. **Treat provider auto-compaction as a failure mode, not a fallback** — if the provider's built-in summarization fires, context was mismanaged.
 
-**GitHub Copilot context ceiling**: When running via GitHub Copilot, `claude-sonnet-4.6` has `limit.input = 128k` (not Anthropic's native 200k). OpenCode reserves 20k for output, so the effective usable ceiling is **108k tokens** — auto-compaction fires at ~108k, which is only ~54% of the model's theoretical window. DCP thresholds in `.opencode/dcp.jsonc` are set accordingly (`maxContextLimit: 85000`, `minContextLimit: 45000`) so DCP nudges fire before OpenCode's hard gate triggers provider-side compaction. If you switch to native Anthropic API access (where `limit.input ≈ 190k`, usable ≈ 170k), recalibrate these thresholds upward.
+**OpenAI GPT-5.4 ceiling**: We use `openai/gpt-5.4-mini` as the conservative lower bound for mixed-model sessions. It has a 400k input window; OpenCode reserves 20k for output, so the usable ceiling is about **380k tokens** before provider-side auto-compaction. DCP thresholds in `.opencode/dcp.jsonc` are set to `maxContextLimit: 300000` and `minContextLimit: 160000` so nudges stay well below the hard gate without being as aggressive as the old 85k/45k setup.
 
 Use the `compress` tool proactively at these checkpoints:
 
