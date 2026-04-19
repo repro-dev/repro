@@ -223,6 +223,8 @@ For full token tables with every value, read `tokens.md`.
 
 Use this workflow when tasked with bringing existing UI into alignment with design system conventions. Consult the sub-reference files in this directory (`tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
 
+After you finish a non-trivial UI change, switch to `ui-verification` for the `reproctl start --wait` + `agent-browser` browser loop. Reserve `audit-ui-quality` for broader audits, scoring, and polish passes.
+
 ### Plan
 
 Before writing any code, audit the target component(s) across all eight normalisation dimensions:

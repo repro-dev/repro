@@ -27,6 +27,7 @@ Use Repro for faster debugging, better software and happier users!
 - [Homebrew](https://brew.sh)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (must be running)
 - direnv shell hook (the bootstrap script will remind you if it's missing)
+- `agent-browser` (installed and provisioned by bootstrap)
 
 ### First-time setup
 
@@ -36,7 +37,7 @@ git clone git@github.com:AnomalyInnovations/repro.git
 cd repro
 
 # Bootstrap everything in one shot:
-#   brew deps → proto tools → pnpm install → direnv allow → kind cluster
+#   brew deps → agent-browser runtime → proto tools → pnpm install → direnv allow → kind cluster
 ./scripts/bootstrap.sh
 
 # Or skip cluster creation if you already have one
@@ -46,11 +47,27 @@ cd repro
 The bootstrap script handles the full dependency chain in the right order,
 including steps that must happen before `reproctl` is available on PATH.
 After it completes, `reproctl` works as a bare command in any new shell.
+It also provisions the shared `agent-browser` Chrome runtime when needed, so
+worktrees reuse the same machine-level install instead of duplicating browser
+state per checkout.
 
 ### Verify your environment
 
 ```sh
 reproctl doctor
+```
+
+Agent sessions assume the shared machine-local `agent-browser` CLI/runtime has
+already been provisioned by bootstrap. The supported checks and recovery path
+are `reproctl doctor` and `agent-browser doctor` (use `agent-browser doctor
+--fix` when needed).
+
+If `reproctl doctor` reports an `agent-browser` runtime problem, recover with:
+
+```sh
+agent-browser install
+agent-browser doctor
+agent-browser doctor --fix
 ```
 
 ### Start services
@@ -71,18 +88,18 @@ reproctl logs -f api-server
 
 ### Day-to-day commands
 
-| Command | Description |
-|---------|-------------|
-| `reproctl start <service>` | Start a service |
-| `reproctl stop <service>` | Stop a service |
-| `reproctl stop --all` | Tear down everything |
-| `reproctl restart <service>` | Rebuild and redeploy |
-| `reproctl status` | Show running services |
-| `reproctl logs -f <service>` | Stream logs |
-| `reproctl ui` | Open Tilt dashboard |
-| `reproctl db reset` | Drop + recreate + migrate database |
-| `reproctl db shell` | Open psql session |
-| `reproctl doctor` | Check environment health |
+| Command                      | Description                        |
+| ---------------------------- | ---------------------------------- |
+| `reproctl start <service>`   | Start a service                    |
+| `reproctl stop <service>`    | Stop a service                     |
+| `reproctl stop --all`        | Tear down everything               |
+| `reproctl restart <service>` | Rebuild and redeploy               |
+| `reproctl status`            | Show running services              |
+| `reproctl logs -f <service>` | Stream logs                        |
+| `reproctl ui`                | Open Tilt dashboard                |
+| `reproctl db reset`          | Drop + recreate + migrate database |
+| `reproctl db shell`          | Open psql session                  |
+| `reproctl doctor`            | Check environment health           |
 
 ### Parallel development with worktrees
 
@@ -102,6 +119,9 @@ reproctl wt list
 # Clean up
 reproctl wt remove feat/my-feature
 ```
+
+Worktrees reuse the same machine-level `agent-browser` install and Chrome
+runtime. You only need to provision it once per Mac, not once per checkout.
 
 ### Teardown
 

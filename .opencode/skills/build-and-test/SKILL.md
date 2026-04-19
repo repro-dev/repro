@@ -132,7 +132,7 @@ Replace `~/path/to/parent-of-checkouts` with the directory that contains your ma
 
 ## Visual Regression Tooling
 
-The repo includes standalone visual regression tooling in `scripts/`. It is useful for manual UI checks and for refreshing local baselines, but it is not an active `/lightspeed` pipeline phase. The tooling consists of two scripts:
+The repo includes standalone visual regression tooling in `scripts/`. It is useful for manual UI checks and for refreshing local baselines, but it is not an active `/deliver` pipeline phase. The tooling consists of two scripts:
 
 | Script                                 | Purpose                                                        |
 | -------------------------------------- | -------------------------------------------------------------- |
@@ -184,6 +184,8 @@ After starting Storybook, query `http://localhost:6099/index.json` to get canoni
 ### Threshold configuration
 
 Default threshold: `0.001` (0.1% of pixels changed). To override for a specific package, create a `.visual-threshold` file in the package root containing just the threshold value (e.g. `0.005`).
+
+For test-file-size guardrails, CI only scans changed `.test.ts` / `.test.tsx` files from the PR diff; local manual runs still scan the whole repo when no CI context is present. Current thresholds are 400 lines for warnings and 500 lines for errors.
 
 ### Storybook port
 

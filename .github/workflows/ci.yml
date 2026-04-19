@@ -73,6 +73,10 @@ jobs:
           fi
           echo "Migration timestamp collision check passed."
 
+      - name: Check test file sizes
+        run: |
+          bash scripts/check-test-file-size.sh --error-threshold 500 --warn-threshold 400
+
       - name: Set PNPM store directory
         run: |
           pnpm config set store-dir .pnpm-store

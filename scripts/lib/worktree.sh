@@ -380,7 +380,6 @@ _wt_change_state() {
   # through to clean — they are always safe to purge without acknowledgement.
   echo "clean"
 }
-
 cmd_wt_remove() {
   local input="$1"
   local wt_path
@@ -407,10 +406,10 @@ cmd_wt_remove() {
   if [ "$WT_DRY_RUN" = true ]; then
     echo ""
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: git worktree remove \"$wt_path\""
-    echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: git worktree prune"
-    echo ""
-    echo "${CLR_DIM}[dry-run] No changes were made.${CLR_RESET}"
-    return 0
+  echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: git worktree prune"
+  echo ""
+  echo "${CLR_DIM}[dry-run] No changes were made.${CLR_RESET}"
+  return 0
   fi
 
   local _force_remove=false
@@ -486,11 +485,10 @@ cmd_wt_remove() {
       fi
     fi
   fi
-
   _cleanup_worktree_services "$wt_path"
 
   _step 1 2 "Removing git worktree..."
-  if [ "$_force_remove" = true ]; then
+  if [ "${WT_FORCE:-false}" = true ]; then
     git worktree remove --force "$wt_path" || return $?
   else
     git worktree remove "$wt_path" || return $?

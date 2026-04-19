@@ -20,7 +20,8 @@ import { useHistoryScroll } from "./hooks/useHistoryScroll";
 
 export const AgenticView: React.FC<{
   onFeedback?: (sentiment: "positive" | "negative") => void;
-}> = ({ onFeedback }) => {
+  onGoToTime?: (timeMs: number) => void;
+}> = ({ onFeedback, onGoToTime }) => {
   const [inputHasFocus, setInputHasFocus] = useState(false);
 
   const agentic = useAgenticState();
@@ -73,6 +74,7 @@ export const AgenticView: React.FC<{
           contentContainerRef={contentContainerRef}
           wasCancelled={wasCancelled}
           onFeedback={onFeedback}
+          onGoToTime={onGoToTime}
           onSelectPrompt={(prompt) => {
             lastPromptRef.current = prompt;
             agentic.query(prompt);

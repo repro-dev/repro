@@ -7,7 +7,12 @@ import {
   SettingsIcon,
 } from 'lucide-react'
 import React from 'react'
-import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
+import {
+  Outlet,
+  Link as RouterLink,
+  NavLink as RouterNavLink,
+  useMatch,
+} from 'react-router-dom'
 import { ProjectSettingsNavItem } from '~/components/ProjectSettingsNavItem'
 import { ProjectSwitcher } from '~/components/ProjectSwitcher'
 import { WorkspaceHeader } from '~/components/WorkspaceHeader'
@@ -16,6 +21,11 @@ import { ProjectProvider } from './ProjectContext'
 export const Layout: React.FC = () => {
   const sessionsActive = useMatch({ path: '/', end: true })
   const projectsActive = useMatch({ path: '/projects', end: false })
+  // Exclude /projects/:projectId/settings — handled by ProjectSettingsNavItem.
+  const projectSettingsSubtreeActive = useMatch({
+    path: '/projects/:projectId/settings',
+    end: false,
+  })
   // Billing lives under /settings/billing; match it separately so the
   // Settings item can exclude billing routes from its active range.
   const billingActive = useMatch({ path: '/settings/billing', end: false })
@@ -50,8 +60,8 @@ export const Layout: React.FC = () => {
                 <SideNav.Item
                   icon={FolderIcon}
                   label="Projects"
-                  active={!!projectsActive}
-                  component={RouterNavLink}
+                  active={!!projectsActive && !projectSettingsSubtreeActive}
+                  component={RouterLink}
                   props={{ to: '/projects' }}
                 />
               </SideNav.Section>

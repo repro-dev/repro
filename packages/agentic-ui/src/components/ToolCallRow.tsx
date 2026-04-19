@@ -13,6 +13,9 @@ import {
 } from "@repro/design";
 import { AlertCircleIcon, ChevronRightIcon, WrenchIcon } from "lucide-react";
 import React, { useState } from "react";
+import { ConsoleMessageResultView } from "./ConsoleMessageResultView";
+import { FindErrorsResultView } from "./FindErrorsResultView";
+import { NetworkRequestResultView } from "./NetworkRequestResultView";
 
 // Maps raw camelCase tool names to human-readable labels for display.
 // Raw names are preserved in aria-label for developer context.
@@ -49,6 +52,7 @@ interface ToolCallRowProps {
   result: ToolMessage | null;
   isExecuting: boolean;
   wasCancelled: boolean;
+  onGoToTime?: (timeMs: number) => void;
 }
 
 // Resolve tool message content to a plain string for display. When content
@@ -68,6 +72,19 @@ function contentToString(content: string | Array<ContentBlock>): string {
 interface ToolResultDetailProps {
   toolName: string;
   content: string | Array<ContentBlock>;
+  onGoToTime?: (timeMs: number) => void;
+}
+
+function parseJsonContent(content: string): unknown | null {
+  try {
+    return JSON.parse(content) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 // Renders a screenshot dataUrl as an inline image; falls back to pretty-printed
@@ -75,13 +92,20 @@ interface ToolResultDetailProps {
 const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
   toolName,
   content,
+  onGoToTime,
 }) => {
+  const parsedContent =
+    typeof content === "string" ? parseJsonContent(content) : null;
+
+  // Determine the inner content node based on tool name.
+  let inner: React.ReactNode;
+
   if (toolName === "captureScreenshot") {
     // Check for dataUrl in a ContentBlock array (image_url block)
     if (Array.isArray(content)) {
       const imageBlock = content.find((b) => b.type === "image_url");
       if (imageBlock && imageBlock.type === "image_url") {
-        return (
+        inner = (
           <Block
             backgroundColor={color.bg.muted}
             borderRadius={radius.sm}
@@ -101,19 +125,14 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
     }
 
     // Check for dataUrl in a plain JSON string (legacy / fallback path)
-    if (typeof content === "string") {
-      let dataUrl: string | null = null;
-      try {
-        const parsed = JSON.parse(content) as Record<string, unknown>;
-        if (typeof parsed.dataUrl === "string") {
-          dataUrl = parsed.dataUrl;
-        }
-      } catch {
-        // fall through to JSON block below
-      }
+    if (inner === undefined && isRecord(parsedContent)) {
+      const dataUrl =
+        typeof parsedContent.dataUrl === "string"
+          ? parsedContent.dataUrl
+          : null;
 
       if (dataUrl !== null) {
-        return (
+        inner = (
           <Block
             backgroundColor={color.bg.muted}
             borderRadius={radius.sm}
@@ -133,28 +152,73 @@ const ToolResultDetail: React.FC<ToolResultDetailProps> = ({
     }
   }
 
-  const raw = contentToString(content);
+  // Dispatch to semantic sub-renderers for supported tools. Parse the raw JSON
+  // result string and pass the typed result object to the appropriate component.
+  if (inner === undefined && isRecord(parsedContent)) {
+    if (toolName === "getConsoleMessages") {
+      const messages = Array.isArray(parsedContent.messages)
+        ? parsedContent.messages
+        : [];
+      const hint =
+        typeof parsedContent._hint === "string"
+          ? parsedContent._hint
+          : undefined;
+      inner = (
+        <ConsoleMessageResultView
+          result={{ messages, hint }}
+          onGoToTime={onGoToTime}
+        />
+      );
+    } else if (toolName === "getNetworkRequests") {
+      const requests = Array.isArray(parsedContent.requests)
+        ? parsedContent.requests
+        : [];
+      const hint =
+        typeof parsedContent._hint === "string"
+          ? parsedContent._hint
+          : undefined;
+      inner = (
+        <NetworkRequestResultView
+          result={{ requests, hint }}
+          onGoToTime={onGoToTime}
+        />
+      );
+    } else if (toolName === "findErrors") {
+      const errors = Array.isArray(parsedContent.errors)
+        ? parsedContent.errors
+        : [];
+      inner = <FindErrorsResultView result={{ errors }} />;
+    }
+  }
 
+  // Fallback: pretty-printed JSON for all unrecognised tools.
+  if (inner === undefined) {
+    const raw = contentToString(content);
+    const prettyJson =
+      parsedContent !== null ? JSON.stringify(parsedContent, null, 2) : raw;
+    inner = (
+      <Block
+        fontSize={fontSize.xs}
+        fontFamily={fontFamily.mono}
+        color={color.text.secondary}
+        backgroundColor={color.bg.muted}
+        borderRadius={radius.sm}
+        padding={spacing.md}
+        overflowX="auto"
+        whiteSpace="pre-wrap"
+        wordBreak="break-all"
+        component="pre"
+      >
+        {prettyJson}
+      </Block>
+    );
+  }
+
+  // Wrap every result in a max-height scroll container so large results do not
+  // dominate the layout.
   return (
-    <Block
-      fontSize={fontSize.xs}
-      fontFamily={fontFamily.mono}
-      color={color.text.secondary}
-      backgroundColor={color.bg.muted}
-      borderRadius={radius.sm}
-      padding={spacing.md}
-      overflowX="auto"
-      whiteSpace="pre-wrap"
-      wordBreak="break-all"
-      component="pre"
-    >
-      {(() => {
-        try {
-          return JSON.stringify(JSON.parse(raw), null, 2);
-        } catch {
-          return raw;
-        }
-      })()}
+    <Block maxHeight="320px" overflowY="auto" borderRadius={radius.sm}>
+      {inner}
     </Block>
   );
 };
@@ -164,6 +228,7 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
   result,
   isExecuting,
   wasCancelled,
+  onGoToTime,
 }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -260,7 +325,11 @@ export const ToolCallRow: React.FC<ToolCallRowProps> = ({
       </Row>
 
       {expanded && result !== null && (
-        <ToolResultDetail toolName={toolName} content={result.content} />
+        <ToolResultDetail
+          toolName={toolName}
+          content={result.content}
+          onGoToTime={onGoToTime}
+        />
       )}
     </Col>
   );
