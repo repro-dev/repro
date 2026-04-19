@@ -71,6 +71,45 @@ describe('Routers > Staff', () => {
       expect(res.statusCode).toEqual(403)
     })
 
+    it('should page account results at 50 items with a stable nextCursor', async () => {
+      const [staffSession] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+      ])
+
+      await promise(accountService.createAccount('Page Account A'))
+      await promise(accountService.createAccount('Page Account B'))
+      await promise(accountService.createAccount('Page Account C'))
+      for (let n = 0; n < 48; n++) {
+        await promise(accountService.createAccount(`Page Account ${n + 4}`))
+      }
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/accounts',
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      const body = res.json()
+      expect(body.items).toHaveLength(50)
+      expect(body.nextCursor).toBeDefined()
+
+      const nextPage = await app.inject({
+        method: 'GET',
+        url: `/accounts?cursor=${body.nextCursor}`,
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(nextPage.statusCode).toEqual(200)
+      const nextBody = nextPage.json()
+      expect(nextBody.items).toHaveLength(1)
+      expect(nextBody.nextCursor).toBeUndefined()
+    })
+
     it('should return 401 when called by unauthenticated user', async () => {
       const res = await app.inject({
         method: 'GET',

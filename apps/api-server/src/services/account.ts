@@ -462,31 +462,41 @@ export function createAccountService(
     }).pipe(map(withEncodedId))
   }
 
+  type AccountListQueryOptions = {
+    cursor?: string
+    limit?: number
+    order?: 'asc' | 'desc'
+  }
+
+  function buildAccountListQuery({
+    cursor,
+    limit = 50,
+    order = 'asc',
+  }: AccountListQueryOptions = {}) {
+    let query = database
+      .selectFrom('accounts')
+      .select(['id', 'name'])
+      .orderBy(`id ${order}`)
+      .limit(limit + 1)
+
+    if (cursor != null) {
+      query = query.where('id', order === 'asc' ? '>' : '<', decodeId(cursor))
+    }
+
+    return query
+  }
+
   function listAccounts({
     cursor,
     limit = 50,
     order = 'asc',
-  }: {
-    cursor?: string
-    limit?: number
-    order?: 'asc' | 'desc'
-  } = {}): FutureInstance<
+  }: AccountListQueryOptions = {}): FutureInstance<
     Error,
     { items: Array<Account>; nextCursor?: string }
   > {
-    return attemptQuery(() => {
-      let query = database
-        .selectFrom('accounts')
-        .select(['id', 'name'])
-        .orderBy(`id ${order}`)
-        .limit(limit + 1)
-
-      if (cursor != null) {
-        query = query.where('id', order === 'asc' ? '>' : '<', decodeId(cursor))
-      }
-
-      return query.execute()
-    }).pipe(
+    return attemptQuery(() =>
+      buildAccountListQuery({ cursor, limit, order }).execute()
+    ).pipe(
       map(rows => {
         const hasMore = rows.length > limit
         const pageRows = hasMore ? rows.slice(0, limit) : rows
