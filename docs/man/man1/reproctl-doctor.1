@@ -18,6 +18,14 @@ The following checks are performed:
 .IP \(bu 2
 \f[B]brew\f[R] \(em Homebrew is installed and functional.
 .IP \(bu 2
+\f[B]agent\-browser\f[R] \(em the CLI is installed via Homebrew.
+.IP \(bu 2
+\f[B]agent\-browser runtime\f[R] \(em the shared Chrome for Testing
+runtime is healthy.
+When this check fails, run \f[CR]agent\-browser install\f[R]; use
+\f[CR]agent\-browser doctor\f[R] and
+\f[CR]agent\-browser doctor \-\-fix\f[R] for deeper recovery.
+.IP \(bu 2
 \f[B]direnv\f[R] \(em direnv is installed and hooked into the shell.
 .IP \(bu 2
 \f[B]kind\f[R] \(em kind CLI is available.

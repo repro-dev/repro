@@ -4,9 +4,13 @@
   "description": "",
   "main": "index.js",
   "license": "UNLICENSED",
+  "bin": {
+    "linear": "bin/linear"
+  },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",
     "@commitlint/config-conventional": "^20.4.2",
+    "@linear/sdk": "^82.0.0",
     "@jsxstyle/core": "^3.0.1",
     "@playwright/test": "^1.58.2",
     "@types/pngjs": "^6.0.0",
@@ -51,7 +55,8 @@
   "packageManager": "pnpm@10.17.0",
   "scripts": {
     "prepare": "husky",
-    "fmt:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path .gitignore"
+    "fmt:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path .gitignore",
+    "check:test-file-size": "bash scripts/check-test-file-size.sh"
   },
   "lint-staged": {
     "*.{ts,tsx}": "prettier --write"

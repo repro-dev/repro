@@ -19,6 +19,8 @@ With the global **--json** flag, outputs a JSON object with an **items** array w
 The following checks are performed:
 
 - **brew** — Homebrew is installed and functional.
+- **agent-browser** — the CLI is installed via Homebrew.
+- **agent-browser runtime** — the shared Chrome for Testing runtime is healthy. When this check fails, run `agent-browser install`; use `agent-browser doctor` and `agent-browser doctor --fix` for deeper recovery.
 - **direnv** — direnv is installed and hooked into the shell.
 - **kind** — kind CLI is available.
 - **pandoc** — pandoc document converter is available (used for manpage generation).

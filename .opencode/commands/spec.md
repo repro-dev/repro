@@ -1,8 +1,8 @@
 ---
-description: Guide spec-writing for Needs Decision issues — surfaces gaps, asks targeted questions, and proposes updated descriptions with acceptance criteria
+description: Guide spec-writing for needs-spec issues — surfaces gaps, asks targeted questions, and proposes updated descriptions with acceptance criteria
 ---
 
-Work through issues labeled `Needs Decision` by surfacing gaps, asking targeted questions, generating a proposed updated description (with acceptance criteria and resolved decisions), and writing the result back to Linear only after human approval.
+Work through issues labeled `needs-spec` by surfacing gaps, asking targeted questions, generating a proposed updated description (with acceptance criteria and resolved decisions), and writing the result back to Linear only after human approval.
 
 `$ARGUMENTS` is a required positional argument: either a single issue ID (e.g. `REP-42`) or a natural-language filter (e.g. `"all high-priority issues in project X under milestone Y"`).
 
@@ -20,7 +20,7 @@ Examples:
   /spec all high-priority Platform issues — filter mode
 
 Invoke with an issue ID or a natural-language filter. Running /spec
-with no argument is not supported — it would process all Needs Decision
+with no argument is not supported — it would process all needs-spec
 issues without bounded scope.
 ```
 
@@ -40,7 +40,7 @@ Exit immediately. Do not proceed to Step 2.
 
 _Only runs when Step 2 detected a single issue ID._
 
-1. Call `Linear_get_issue` with `id: <issue-id>` and `includeRelations: true`.
+1. Run `linear issue show <issue-id> --json`.
 2. Verify the issue exists. If not found, print `Issue <ID> not found in Linear.` and exit.
 3. Proceed to **Step 5** (gap analysis) for this single issue.
 4. After Steps 5–8 complete for this issue, the command is done.
@@ -56,16 +56,19 @@ _Only runs when Step 2 detected a natural-language filter._
    - Milestone name
    - Label names
    - Priority (e.g. `high-priority` → `priority: 2`)
-2. Call `Linear_list_issues` with the extracted filters plus `label: "Needs Decision"`, paginating through all results. If no project was identified, do not restrict by project (but always filter by `Needs Decision` label).
+2. Use the repo-owned `linear` CLI to list issues matching the extracted filters plus the `needs-spec` label, for example:
+   `linear issue list --status backlog --status todo --label needs-spec --project "Platform" --json`
+   If no project was identified, do not restrict by project.
+   For broad scans, trim the list output with `jq` before inspection so only routing fields remain (for example `id`, `identifier`, `title`, `state`, `priority`, `project`).
 3. If no issues match, print:
    ```
-   No Needs Decision issues found matching: "<filter string>"
+   No needs-spec issues found matching: "<filter string>"
    ```
    and exit.
 4. Present the matching issues as a numbered list:
 
    ```
-   Found N Needs Decision issue(s) matching "<filter>":
+   Found N needs-spec issue(s) matching "<filter>":
 
      1. REP-42 — <title> [Priority: Medium, Project: Platform]
      2. REP-57 — <title> [Priority: High, Project: Engineering]
@@ -143,6 +146,7 @@ Wait for the user to answer all questions before proceeding.
 Based on the user's answers:
 
 1. Draft a proposed updated description. This must:
+
    - **Preserve the original description verbatim** (never replace — always append or restructure with the original content intact).
    - Add or replace the `### Acceptance Criteria` section with a concrete checkbox list grounded in user answers.
    - Add a `### Decisions` section (if unresolved decisions were present) documenting the resolution.
@@ -189,7 +193,7 @@ _Only runs for issues where the user approved in Step 7._
 
 ### 8a: Idempotency check
 
-Call `Linear_list_comments` on the issue. If any comment body contains the string `"Spec written by agent"`, skip the write and print:
+Inspect the issue's comments via `linear issue show <issue-id> --json`. If any comment body contains the string `"Spec written by agent"`, skip the write and print:
 
 ```
 ⚠️ REP-xxx: already has a "Spec written by agent" comment — skipping to avoid duplicate write.
@@ -197,21 +201,27 @@ Call `Linear_list_comments` on the issue. If any comment body contains the strin
 
 ### 8b: Update the issue description
 
-Call `Linear_get_issue` to retrieve the current full description and labels list.
+Call `linear issue show <issue-id> --json` to retrieve the current full description and labels list.
 
 Construct the updated description (original description + proposed additions from Step 7).
 
-Build the updated labels list: take the fetched `labels` array, filter out the `Needs Decision` label (ID: `773c7a1c-3e16-4d18-bf0d-2f8d5429ca23`), and use this filtered list.
+Build the updated labels list by removing `needs-spec` from the fetched `labels` array, then update the issue with the repo-owned `linear` CLI, for example:
 
-Call `Linear_save_issue` with:
+`linear issue update <issue-id> --description "..." --remove-label needs-spec`
+
+The update must set:
 
 - `id`: the issue ID
 - `description`: the updated description (original + additions)
-- `labels`: the filtered labels array (with Needs Decision removed)
+- `labels`: the filtered labels array (with `needs-spec` removed)
 
 ### 8c: Post audit comment
 
-Call `Linear_save_comment` with:
+Add the audit comment with the repo-owned `linear` CLI, for example:
+
+`linear issue comment <issue-id> "**Spec written by agent on <YYYY-MM-DD>** ..."`
+
+The comment must include:
 
 - `issueId`: the issue ID
 - `body`:
@@ -229,7 +239,7 @@ Call `Linear_save_comment` with:
 Print confirmation:
 
 ```
-✅ REP-xxx updated — Needs Decision label removed, spec comment posted.
+✅ REP-xxx updated — needs-spec label removed, spec comment posted.
 ```
 
 ---

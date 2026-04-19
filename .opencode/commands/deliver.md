@@ -1,25 +1,63 @@
 ---
-description: Lightspeed delivery — select a ready wave, plan it, implement it in parallel, review it, and publish PRs
-return: "After all PRs for the current wave are published, run /ledger to capture the wave summary for session continuity."
+description: Deliver orchestration — explicit project-scoped wave mode or issue-scoped single-track mode
+return: "After the active run's PRs are published, run /ledger to capture the session summary for continuity."
 ---
 
-You are the orchestrator for a precision-first autonomous delivery flow. Scan Linear, select a small set of issues that are ready for autonomous work, sequence them provisionally, plan them, resequence once using planner output, implement the current ready wave in parallel, review each result, fix review findings when the agent can do so safely, and publish PRs.
+You are the orchestrator for the `/deliver` command.
 
-Stop after PRs for the current ready wave are published. Do not wait on CI, merges, or post-publish monitoring here — that follow-on behavior is handled separately.
+## Orchestration boundaries
 
-Arguments (optional): `$ARGUMENTS`
+- Coordinate phases and gates only. Do not plan, implement, review, smoke test, or publish directly in the outer conversation.
+- Treat missing `planner`, `develop`, or `review` delegation as a workflow violation, not a shortcut.
+- Fail closed if a phase cannot be executed by the expected subagent.
 
-- Project filter: a project name or filter to restrict which issues are considered (for example `Engineering` or `Platform`). If empty, scan all projects.
-- Execution control: `--wave-concurrency <1-6>` — limit planner, develop, and review subagent launches to batches of up to this many issues within a phase. Default `6`. The wave remains the sequencing unit.
+## Command contract
+
+- `/deliver --project <project>` => wave mode filtered to one exact Linear project
+- `/deliver --issue REP-123` => single-track mode
+- `--query <term>` provides a semantic hint after `--project` and is used for fuzzy candidate scoring, not as a hard Linear text search
+
+### Linear transport
+
+- Load `.opencode/skills/linear-cli/SKILL.md` before using the repo-owned CLI.
+- Use the `linear` CLI for every Linear operation in this command.
+- Do not use MCP or legacy `Linear_*` tool names in execution. Translate every Linear step to the repo-owned `linear` CLI.
+- If `linear` is unavailable, stop and report that the repo-local `bin/linear` wrapper is unavailable in the current shell.
+- Use these concrete commands for issue mutation and child checks:
+  - `linear issue children <issue-id> --json`
+  - `linear issue comment <issue-id> "<body>" --json`
+  - `linear issue update <issue-id> --status "Todo" --json`
+  - `linear issue update <issue-id> --status "In Progress" --json`
+  - `linear issue update <issue-id> --status "In Review" --json`
+
+### Mode detection rules
+
+- Parse and remove recognized flags first.
+- Exactly one of `--project <project>` or `--issue REP-<number>` must be present.
+- If `--issue` is present, select single-track mode and store it as `target_issue_id`.
+- If `--project` is present, select wave mode and store it as the exact project filter.
+- If both or neither are present, stop with a clear validation error.
+- If `--query <term>` is present, require `--project` and store it as the semantic candidate-scoring hint within that project scope.
+- Reject any bare positional arguments; scope and filters must be expressed with flags.
+
+You are the orchestrator for a precision-first autonomous delivery flow.
+
+- In **wave mode**, scan Linear, select a small set of issues that are ready for autonomous work, sequence them provisionally, plan them, resequence once using planner output, implement the current ready wave in parallel, review each result, fix review findings when the agent can do so safely, and publish PRs.
+- In **single-track mode**, deliver the specified issue only. Skip backlog scanning and sequencing, but keep the planning, implementation, review, and PR pipeline intact.
+
+Stop after PRs for the active run are published. Do not wait on CI, merges, or post-publish monitoring here — that follow-on behavior is handled separately.
+
+Arguments (required): `$ARGUMENTS`
+
+- `--project <project>` => exact Linear project filter for wave mode
+- `--issue REP-123` => exact Linear issue for single-track mode
+- `--query <term>` => optional semantic scoring hint, valid only with `--project`
+- Execution control: `--wave-concurrency <1-6>` — limit planner, develop, and review subagent launches to batches of up to this many issues within a phase. Default `6`. The wave remains the sequencing unit in wave mode.
 
 Current branch context:
 !`git branch --show-current`
 
-Worktrees already in flight:
-!`reproctl wt list 2>/dev/null || echo "(none)"`
-
-Open PRs (branch name + title — used to detect in-flight issues):
-!`gh pr list --state open --json number,headRefName,title --jq '.[] | "\(.number) \(.headRefName) \(.title)"' 2>/dev/null || echo "(none)"`
+Do not rely on command-template shell output for mutable in-flight-work state. Active worktrees, open PRs, and other in-flight-work signals must be refreshed inside the relevant phase immediately before they are used for exclusion or gating decisions.
 
 Session-local exclusions:
 
@@ -30,21 +68,35 @@ Session-local exclusions:
 ## Operating principles
 
 - Keep orchestration light. Do not recreate a long-lived control plane.
-- Plan files are the only required durable handoff artifact in this flow: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
+- Plan files are the required durable handoff into implementation: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
+- Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
 - Use issue selection notes plus explicit risk notes as the handoff from selection into sequencing.
 - Sequencing is provisional until planning finishes. Resequence once after planner output is available, then lock the ready wave.
 - Tactical implementation deviations are allowed if they preserve the plan's intent. Large strategic deviations mean planning failed — stop and escalate the issue instead of freelancing.
 - Use `fixable_by_agent: true | false` for blocking review findings.
 - Do not run a skill-audit preflight, do not maintain a run log, and do not run a visual regression phase here.
 
-> Tip: Run `/enrich-issues` before `/lightspeed` if the backlog contains issues that look promising but under-specified.
+> Tip: Run `/enrich-issues` before `/deliver` if the backlog contains issues that look promising but under-specified.
 
 ## Execution control
 
-Parse `$ARGUMENTS` before Phase 1.
+Parse `$ARGUMENTS` before Phase 1 and derive these values:
 
-- If `--wave-concurrency <1-6>` is present, remove that flag and value from the argument string before applying the remaining project filter.
-- The remaining argument text, if any, is the project filter.
+- `mode = wave | single-track`
+- `target_issue_id` when in single-track mode
+- `project_filter` when `--project <project>` is present in wave mode
+- `query_filter` when `--query <term>` is present with `--project` (used for local fuzzy matching, not a direct API filter)
+
+Parsing rules:
+
+- If `--issue <issue>` is present, set `mode = single-track` and store it as `target_issue_id`.
+- If `--project <project>` is present, set `mode = wave` and store it as `project_filter`.
+- If `--issue` and `--project` are both present, stop with a clear validation error.
+- If neither `--issue` nor `--project` is present, stop with a clear validation error.
+- If `--query <term>` is present, require `--project` and store it as `query_filter` for fuzzy scoring.
+- If `--wave-concurrency <1-6>` is present, parse and remove it before interpreting the remaining arguments.
+- In single-track mode, reject `--wave-concurrency` with a clear validation error instead of silently ignoring it.
+- Reject any remaining bare positional arguments with a clear validation error.
 
 ### `--wave-concurrency <1-6>`
 
@@ -54,6 +106,32 @@ Parse `$ARGUMENTS` before Phase 1.
 - If the provided value is outside `1..6`, stop immediately with a clear validation error instead of clamping or guessing.
 - This flag limits how many `planner`, `develop`, or `review` subagents are launched concurrently within a phase.
 - It does **not** change wave selection, resequencing, or publish boundaries. Waves remain the sequencing unit.
+
+## Single-track mode (replaces Phases 1 and 2)
+
+If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead:
+
+1. Refresh in-flight state immediately before evaluating stop conditions:
+   - Run `reproctl wt list --json` and treat the returned branch/worktree records as the authoritative active-worktree list for this phase.
+   - Run `gh pr list --state open --limit 1000 --json number,headRefName,title` and treat the result as the authoritative open-PR list for this phase, using `headRefName` for any "issue ID appears in an open PR branch name" checks.
+2. Fetch `target_issue_id` via `linear issue show <issue-id> --json`.
+3. Fetch child issues with `linear issue children <issue-id> --json`.
+4. Fetch each blocker issue referenced in `relations.blockedBy` so blocker status is known before proceeding.
+5. Fail fast and stop cleanly if any of the following are true:
+   - the child-issue query returns one or more issues; treat the target as a tracking issue rather than a bounded implementation issue
+   - any blocker issue is not `Done` or `Canceled`
+   - the issue is already `Done` or `Canceled`
+   - the issue is already **In Progress** or **In Review**
+   - the issue already has an active worktree (`reproctl wt list`)
+   - the issue ID appears in an open PR branch name
+   - the issue does not provide enough concrete information for a bounded implementation plan without human clarification
+6. If the stop condition is that the target has child issues, report clearly that `/deliver REP-xxx` is single-track mode and does not expand tracking issues into a wave. Suggest these next steps:
+   - rerun `/deliver` with no issue ID for autonomous wave selection
+   - rerun `/deliver REP-child` with a concrete child issue ID
+7. If any other stop condition is hit, report the reason clearly, add the issue ID to `escalated_issues`, and stop the run. Do not continue into planning.
+8. Create a singleton `current_ready_wave` containing only `target_issue_id` and continue directly to Phase 3.
+
+In single-track mode, skip Phase 1 and Phase 2 entirely.
 
 ### Shared subagent launch retry policy
 
@@ -76,16 +154,33 @@ When keeping the status table updated, make batching and backoff explicit so the
 
 ## Phase 1: Scan and select
 
-1. Fetch Linear issues in **Todo** and **Backlog** across all projects (or filtered by `$ARGUMENTS` if provided):
-   - Use `Linear_list_issues` with `state: "Todo"`, paginating through all results.
-   - Use `Linear_list_issues` with `state: "Backlog"`, paginating through all results.
+Run this phase only when `mode = wave`.
+
+1. Fetch Linear issues in **Todo** and **Backlog** within one resolved Linear project using this exact protocol, then apply `--query <term>` locally if present:
+
+   - Refresh in-flight state first by running `reproctl wt list --json` and `gh pr list --state open --limit 1000 --json number,headRefName,title`; treat those results as the authoritative active-worktree and open-PR snapshots for this phase, using the structured worktree records and returned `headRefName` values for exclusion checks.
+   - Resolve `project_filter` to exactly one Linear project before any backlog-discovery call. In wave mode, a project must always be defined; do not scan across all projects and do not treat raw `$ARGUMENTS` as the Linear filter input once parsing is complete.
+   - If `project_filter` cannot be resolved to exactly one Linear project, stop with a clear validation error instead of guessing, broadening the scan, or searching by title terms.
+   - After project resolution, make exactly two backlog-discovery calls: one `linear issue list --project <project> --status todo --unblocked --leaf --limit 250 --json` call and one `linear issue list --project <project> --status backlog --unblocked --leaf --limit 250 --json` call.
+   - Trim each backlog-discovery result with `jq` before bringing it into context so only routing fields survive (for example: `id`, `identifier`, `title`, `state`, `priority`, `project`).
+   - Before sending each backlog-discovery `linear issue list` call, perform a self-check on the outgoing flags. If the call includes any filter outside the intentionally selected project, status, limit, and output flags, treat that as a command bug, do not send the call, and rebuild it.
+   - Construct each `linear issue list` call by omission, not by empty defaults. Only include flags that intentionally constrain backlog discovery.
+   - For backlog discovery, include only `state`, `project`, `limit`, `orderBy`, `includeArchived`, `unblocked`, and `leaf`, where `project` is the single resolved project name or ID from `project_filter`.
+   - Do **not** send placeholder values such as `assignee: null`, `priority: 0`, `query: ""`, `team: ""`, `cycle: ""`, `label: ""`, `delegate: ""`, `parentId: ""`, `createdAt: ""`, `updatedAt: ""`, or `cursor: ""`; these can narrow the Linear query instead of acting as no-ops.
+   - Example discovery payloads: `{ limit: 250, orderBy: "updatedAt", state: "Todo", project: "Workspace", includeArchived: false, unblocked: true, leaf: true }` and `{ limit: 250, orderBy: "updatedAt", state: "Backlog", project: "Workspace", includeArchived: false, unblocked: true, leaf: true }`.
+   - If a tool trace or status line shows any disallowed key on a backlog-discovery call, treat that run as invalid. Retry immediately with the corrected minimal payload and discard the bad result set.
+   - If the corrected minimal payload still returns no issues, stop and report that no matching backlog issues were found for the resolved project. Do **not** fall back to alternate project identifiers, cross-project scans, team-wide searches, empty-state probes, or semantic title searches to compensate.
+   - Keep later `linear issue show <issue-id> --json` calls full when you need richer issue, blocker, or comment context.
+   - If `query_filter` is present, use it only for local fuzzy scoring after the issues are fetched; do not send it as a direct `linear issue list` filter.
+   - Do **not** add an assignee filter when scanning the backlog; the wave should include assigned and unassigned issues alike.
    - Deduplicate the combined results by issue ID.
-   - For each issue in the full deduplicated set, call `Linear_get_issue` with `includeRelations: true`.
-   - For each issue that has any `relations.blockedBy` entries, call `Linear_get_issue` for each blocker issue ID as well. `relations.blockedBy` entries only include identifiers and titles, so blocker status must be fetched separately before applying the readiness filter.
+   - For each issue in the full deduplicated set, call `linear issue show <issue-id> --json`.
+   - For each issue that has any `relations.blockedBy` entries, call `linear issue show <blocker-id> --json` for each blocker as well so blocker status is known before applying the readiness filter.
 
 2. Apply a precision-first selection bar.
 
    **Hard excludes:**
+
    - Has any `blockedBy` relation whose fetched blocker issue is not `Done` or `Canceled`
    - If a `blockedBy` relation still exists but every fetched blocker is `Done` or `Canceled`, treat the issue as not blocked and note the stale relation in the rationale instead of excluding it
    - State is already **In Progress** or **In Review**
@@ -106,10 +201,12 @@ When keeping the status table updated, make batching and backoff explicit so the
    | Multiple services with no implementation direction | Description mentions 3+ services or packages but gives no direction on which to change or how                           |
    | Vague noun-phrase title                            | Title is a bare noun phrase with no verb and no measurable change (e.g. "Performance improvements", "Auth cleanup")     |
    | No type label                                      | Issue carries none of the standard labels: Bug, Feature, Improvement, Tech Debt                                         |
-   - If **3 or more signals are present**: exclude the issue from the current run. In the candidate table, record the decision as "exclude — scope pre-filter". Post a `Linear_save_comment` on the issue naming the specific signals that triggered exclusion, for example: `"Excluded by scope pre-filter: no acceptance criteria, description under 80 words, no named files/packages."` Do not create a worktree or spawn a planner for this issue.
+
+   - If **3 or more signals are present**: exclude the issue from the current run. In the candidate table, record the decision as "exclude — scope pre-filter". Post a concise comment with `linear issue comment <issue-id> "Excluded by scope pre-filter: no acceptance criteria, description under 80 words, no named files/packages." --json`. Do not create a worktree or spawn a planner for this issue.
    - If **fewer than 3 signals are present**: the issue passes the heuristic — proceed to evaluate supporting signals and the planner as normal.
 
    **Supporting signals (use as evidence, not fake-precise hard gates):**
+
    - Clear user or developer outcome
    - Concrete acceptance criteria or other verifiable success conditions
    - Named packages, files, components, APIs, or workflows
@@ -117,6 +214,7 @@ When keeping the status table updated, make batching and backoff explicit so the
    - Useful risk notes or dependency notes already present in the issue
 
 3. Produce a candidate table from the full deduplicated issue set before proceeding. For each issue, show:
+
    - Issue ID
    - Title
    - Priority
@@ -125,29 +223,41 @@ When keeping the status table updated, make batching and backoff explicit so the
    - Brief rationale
    - Risk notes that may affect sequencing
 
-4. Select a small batch for provisional sequencing. Aim for **3–6 issues total**, but prefer fewer if overlap risk is unclear.
+4. Write a durable selection note to `tmp/deliver-wave-selection.md` that records:
 
-5. For issues selected in step 4, apply two inline context enrichment checks:
+   - the chosen ready wave
+   - why each selected issue is the best ready candidate
+   - why each excluded issue was skipped or deferred
+
+   Treat this file as the authoritative rationale for wave selection and resequencing.
+
+5. Select a small batch for provisional sequencing. Aim for **3–6 issues total**, but prefer fewer if overlap risk is unclear.
+
+6. For issues selected in step 5, apply two inline context enrichment checks:
 
    **Check 1 — Prior investigation comments:**
+
    - Trigger: issue has 2 or more comments
-   - Action: call `Linear_list_comments` for the issue; scan results for comments that contain code blocks (triple-backtick fences), file paths (e.g. `packages/foo/src/bar.ts`), or headings such as "Findings", "Investigation", or "Summary"
+   - Action: inspect the issue's `comments` from `linear issue show <issue-id> --json`; scan them for code blocks (triple-backtick fences), file paths (e.g. `packages/foo/src/bar.ts`), or headings such as "Findings", "Investigation", or "Summary"
    - If any such comments are found: extract a concise summary (2–5 bullet points) of the findings; store as `prior_investigation_context` alongside the issue data. Note: author identity is not verified — this matches any substantive prior comment containing the above markers.
    - If no such comments are found: skip; do not store `prior_investigation_context`
-   - Cost: one `Linear_list_comments` call per qualifying issue
+   - Cost: one `linear issue show --json` call per qualifying issue if the comments are not already loaded
 
    **Check 2 — Resolved blocker context:**
+
    - Trigger: issue has one or more `blockedBy` relations where **every** fetched blocker is in a `Done` or `Canceled` state
-   - Action: for each resolved blocker (cap at 3), scan its description (already fetched in step 1) for a PR reference — specifically a GitHub pull URL (`https://github.com/.*/pull/\d+`), `PR #\d+`, or `pull request #\d+`; if the description yields no PR reference, call `Linear_list_comments` for that blocker and scan the first page of comments for the same patterns
+   - Action: for each resolved blocker (cap at 3), scan its description (already fetched in step 1) for a PR reference — specifically a GitHub pull URL (`https://github.com/.*/pull/\d+`), `PR #\d+`, or `pull request #\d+`; if the description yields no PR reference, inspect the blocker's `comments` from `linear issue show <blocker-id> --json` for the same patterns
    - If any PR references are found: store them as `resolved_blocker_prs` alongside the issue data
    - If no PR references are found: skip; do not store `resolved_blocker_prs`
-   - Cost: zero additional `get_issue` calls (blocker data already fetched in step 1); at most one `Linear_list_comments` call per blocker whose description lacks a PR reference, capped at 3 blockers
+   - Cost: zero additional `linear issue show` calls when blocker comments are already loaded; otherwise at most one extra `linear issue show --json` call per blocker whose description lacks a PR reference, capped at 3 blockers
 
    Store `prior_investigation_context` and `resolved_blocker_prs` in memory alongside the issue data for injection into the planner prompt in Phase 4.
 
 ---
 
 ## Phase 2: Provisional sequencing
+
+Run this phase only when `mode = wave`.
 
 1. Group the selected issues into **provisional** waves using likely file independence and dependency order.
 2. When in doubt, separate issues into different waves.
@@ -167,13 +277,13 @@ Only the earliest ready wave will be implemented in this run. Later waves remain
 
 ---
 
-## Phase 3: Create worktrees for the provisional ready wave
+## Phase 3: Create worktrees for the active ready wave
 
 Each `reproctl wt create --from-issue` creates a fresh worktree for the issue branch. It does not currently detect whether that branch already has a local worktree (see REP-893); concurrent sessions may create duplicate worktrees for the same branch without an explicit error.
 
 No prune step is needed before creating worktrees. Do not delete another session's worktrees.
 
-For each issue in the provisional ready wave, create its worktree **sequentially**:
+For each issue in the active ready wave, create its worktree **sequentially**:
 
 ```sh
 reproctl wt create --from-issue REP-xxx
@@ -197,13 +307,13 @@ If worktree creation still fails for an issue:
 - Exclude that issue from the current run
 - Add the issue ID to `escalated_issues`
 
-Do not stop the whole run unless every issue in the provisional ready wave fails here.
+Do not stop the whole run unless every issue in the active ready wave fails here.
 
 ---
 
 ## Phase 4: Plan in bounded batches
 
-Launch `planner` subagents for every issue that has a worktree in batches of up to `--wave-concurrency` within the current phase.
+Launch `planner` subagents for every issue that has a worktree in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
 For this phase:
 
@@ -216,7 +326,7 @@ For this phase:
 If a planner launch still fails after exhausting the shared retry policy:
 
 - Report the issue ID and launch failure clearly
-- Set the issue state back to **Todo**
+- Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the current ready wave
@@ -236,12 +346,12 @@ inline — do **not** spawn a subagent for this step.
 | `.opencode/skills/recording-playback/SKILL.md` | `apps/capture`, `packages/recording`, `packages/playback`, `packages/recording-api`, `packages/buffer-utils`, `packages/vdom-renderer`, `packages/source-utils`, `packages/observer-utils`, `packages/wire-formats` |
 | `.opencode/skills/build-and-test/SKILL.md`     | build system, moon, pnpm workspaces, CI, reproctl, tool version pinning                                                                                                                                             |
 
-General-purpose skills (`feature-dev`, `git-workflow`, `harden`,
+General-purpose skills (`delivery-workflow`, `worktree-workflow`, `implementation-rigor`, `git-workflow`, `harden`,
 `create-issue`) are **never** injected — the planner loads them independently as needed.
 
 **Matching steps:**
 
-1. From the fetched issue title and description (already available from Phase 1),
+1. From the fetched issue title and description (available from Phase 1 in wave mode or the single-track preamble in single-track mode),
    extract: package names (`packages/<name>`, `apps/<name>`), any explicit file
    paths, and domain keywords (`migration`, `schema`, `Kysely`, `database`,
    `UI component`, `design token`).
@@ -294,7 +404,7 @@ plan, and document any deviation from them in Risk Notes.
 - <matched-skill-path>   ← one entry per matched skill, capped at 3
 [END INJECT]
 
-Fetch the issue via Linear_get_issue to read the full description and acceptance criteria.
+Fetch the issue via `linear issue show <issue-id> --json` to read the full description and acceptance criteria.
 Explore the codebase as needed to understand affected files and patterns.
 
 Return a plan document using this structure:
@@ -367,8 +477,8 @@ After both QC checks pass (or produce advisory-only results):
 
 If the planner returns `not ready` or includes unresolved questions that prevent confident implementation:
 
-- Post a concise Linear comment describing the blocking questions
-- Set the issue state back to **Todo**
+- Post a concise Linear comment describing the blocking questions with `linear issue comment <issue-id> "<blocking questions summary>" --json`
+- Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the current ready wave
@@ -377,7 +487,9 @@ If the planner returns `not ready` or includes unresolved questions that prevent
 
 ## Phase 5: Classify risk, resequence once using planner output, then lock
 
-Do exactly one resequencing pass after planning.
+Do exactly one resequencing pass after planning in wave mode.
+
+If `mode = single-track`, skip resequencing entirely. Classify risk for the issue, keep the singleton `current_ready_wave` unchanged, and continue.
 
 ### Risk classification (runs before resequencing)
 
@@ -403,9 +515,10 @@ Use the planner's **Sequence Notes** and **Risk Notes** (including the risk leve
 
 - Prune issues that are not ready
 - Move issues to a later queued wave if planning revealed overlap or a missing dependency
-- Detect shared-file conflicts: if two or more issues list the same file in their Sequence Notes, proceed if the planner output shows the edit locations are in distinct sections or line ranges of that file (git merge handles non-overlapping edits automatically). If a single file is listed by 3 or more issues without clear section isolation, move all but the highest-priority to a later wave. The orchestrator judges section isolation from the planner's Sequence Notes and the known structure of the target file (e.g., the phase-section structure of `lightspeed.md`).
+- Detect shared-file conflicts: if two or more issues list the same file in their Sequence Notes, proceed if the planner output shows the edit locations are in distinct sections or line ranges of that file (git merge handles non-overlapping edits automatically). If a single file is listed by 3 or more issues without clear section isolation, move all but the highest-priority to a later wave. The orchestrator judges section isolation from the planner's Sequence Notes and the known structure of the target file (e.g., the phase-section structure of `deliver.md`).
 
-  Example — the REP-884 wave (5 issues, all touching `lightspeed.md`):
+  Example — the REP-884 wave (5 issues, all touching `deliver.md`):
+
   - REP-884 edits Phase 5 + Phase 7
   - REP-881 edits Phase 4 (Phase 4, lines 1–50)
   - REP-882 edits Phase 4 + Phase 7 + Phase 8 + agent template files (Phase 4, lines 60–120)
@@ -413,6 +526,7 @@ Use the planner's **Sequence Notes** and **Risk Notes** (including the risk leve
   - REP-878 edits Phase 1
 
   The orchestrator scans for shared phases:
+
   - Phase 4 is touched by 2 issues (REP-881, REP-882) — edit locations are non-overlapping (lines 1–50 vs lines 60–120), so git merge can handle it; both can proceed
   - Phase 7 is touched by 3 issues (REP-884, REP-882, REP-880) — triggers the conservative 3+ rule, so keep highest-priority (REP-884) and defer REP-882 and REP-880 to a later wave
   - Phases 1, 5, 6, 8 are each touched by a single issue — no conflict
@@ -429,7 +543,9 @@ If the current ready wave becomes empty, stop and report why.
 
 ## Phase 6: Implement in bounded batches
 
-Launch `develop` subagents for every issue still in the current ready wave in batches of up to `--wave-concurrency` within the current phase.
+Launch `develop` subagents for every issue still in the current ready wave in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
+
+Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts for its scope. If the context artifact is missing, stop and escalate instead of improvising the implementation path.
 
 For this phase:
 
@@ -473,7 +589,7 @@ Store the per-issue smoke test result in memory for use in the Phase 7 review pr
 If a develop launch still fails after exhausting the shared retry policy:
 
 - Report the issue ID and launch failure clearly
-- Set the issue state back to **Todo**
+- Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the publishable set
@@ -527,8 +643,8 @@ Return: files changed, verification run, and whether the plan was followed witho
 
 If a `develop` run reports an unresolved build failure, typecheck failure, or strategic planning mismatch:
 
-- Post a concise Linear comment with the blocking reason
-- Set the issue state back to **Todo**
+- Post a concise Linear comment with the blocking reason using `linear issue comment <issue-id> "<blocking reason>" --json`
+- Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the publishable set
@@ -575,8 +691,8 @@ Use these exact templates for each focused reviewer:
 Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 Focus exclusively on correctness and security:
-1. Load the `git-workflow` skill for the review checklist.
-2. Fetch Linear issue REP-xxx via Linear_get_issue.
+1. Load the `review-standards` skill for the review checklist.
+2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Evaluate: logic gaps, off-by-one errors, unhandled edge cases, error-path handling, async operation correctness (Futures not Promises per project conventions), and security implications (injection, auth bypass, data exposure, unsafe deserialization).
 5. Check AGENTS.md conventions for the affected packages.
@@ -605,8 +721,8 @@ The following packages had test failures after implementation. For each failure,
 Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 Focus exclusively on architecture and conventions:
-1. Load the `git-workflow` skill for the review checklist.
-2. Fetch Linear issue REP-xxx via Linear_get_issue.
+1. Load the `review-standards` skill for the review checklist.
+2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Evaluate: side effects on other parts of the system, consistency with existing codebase patterns, approach alignment with stated architecture, and package-level AGENTS.md convention compliance.
 5. Check style/conventions (imports, naming, Prettier, no hardcoded values, design tokens).
@@ -635,8 +751,8 @@ The following packages had test failures after implementation. For each failure,
 Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
 Focus exclusively on performance:
-1. Load the `git-workflow` skill for the review checklist.
-2. Fetch Linear issue REP-xxx via Linear_get_issue.
+1. Load the `review-standards` skill for the review checklist.
+2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Evaluate: algorithmic complexity regressions, unnecessary iteration or duplication, missing indexes or query optimizations (if DB changes are present), unbuffered stream operations, large in-memory collections, and lack of pagination/cursor patterns where appropriate.
 5. Return the structured output required by .opencode/agents/review.md — but only report findings in the performance category. Assign each finding `role: performance` in the structured output.
@@ -676,7 +792,7 @@ Role vocabulary:
 
 ### Batched launch
 
-Launch `review` subagents for every completed implementation in batches of up to `--wave-concurrency` issues within the current phase.
+Launch `review` subagents for every completed implementation in batches of up to `--wave-concurrency` issues within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
 For this phase:
 
@@ -689,7 +805,7 @@ For this phase:
 If a review launch still fails after exhausting the shared retry policy:
 
 - Report the issue ID and launch failure clearly
-- Set the issue state back to **Todo**
+- Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the publishable set
@@ -701,8 +817,8 @@ Prompt template per issue:
 ```
 Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
 
-1. Load the `git-workflow` skill for the full review checklist.
-2. Fetch Linear issue REP-xxx via Linear_get_issue.
+1. Load the `review-standards` skill for the full review checklist.
+2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
 3. Review the committed branch diff with: `git diff main...HEAD`
 4. Review against requirements coverage, correctness, test coverage, conventions, and architecture.
 5. Return the structured output required by .opencode/agents/review.md.
@@ -724,31 +840,38 @@ The following packages had test failures after implementation. For each failure,
 <structured failure summary from Phase 6 smoke tests>
 ```
 
-For each issue, apply this bounded loop:
+For each issue, apply this iterative loop:
 
-1. **If review approves**: mark the issue publishable.
+1. **If review approves or returns zero Blockers**: mark the issue publishable.
 2. **If any blocking issue has `fixable_by_agent: false`**:
    - Escalate immediately
-   - Post a concise Linear comment summarizing the blocking findings
-   - Set the issue state back to **Todo**
+   - Post a concise Linear comment summarizing the blocking findings with `linear issue comment <issue-id> "<blocking findings summary>" --json`
+   - Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
    - Add the issue ID to `escalated_issues`
-3. **If all blocking issues have `fixable_by_agent: true` and no fix attempt has happened yet**:
-   - Re-run `develop` once with the original plan plus the blocking findings
-   - Re-run `review` once
-4. **If the second review still has blocking issues**:
-   - Escalate with the remaining findings
+3. **If all blocking issues have `fixable_by_agent: true`**:
+   - Re-run `develop` with the original plan plus the current blocking findings
+   - Re-run `review`
+   - Increment the per-issue fix-attempt counter
+   - Continue looping while the review still has Blockers and every Blocker remains `fixable_by_agent: true`
+4. **If the loop clears all Blockers within 3 fix attempts**:
+   - Mark the issue publishable
+5. **If the loop reaches 3 consecutive fix attempts and the review still has Blockers**:
+   - Stop the automatic loop
    - Create the PR instead of discarding the branch
    - Include a concise summary of the remaining blocking findings in the PR body as reviewer follow-up context
-   - Set the issue state to **In Review**
+   - Set the issue state to **In Review** with `linear issue update <issue-id> --status "In Review" --json`
    - Add the issue ID to `escalated_issues`
+   - Ask the user whether to continue, defer, or escalate further before attempting a fourth fix pass
 
-This is the entire loop: **review → fix once if agent-fixable → review again → publish or escalate into human review**.
+This is the entire loop: **review → fix while agent-fixable → review again → stop cleanly at zero Blockers or pause at the 3-attempt safety gate**.
+
+Do not create a PR or set `In Review` until an issue has cleared review or hit the explicit 3-attempt pause path.
 
 Do **not** paste full AI review output back into Linear comments. Use Linear comments only for short phase-local blocker summaries when an issue is being kicked back.
 
 ---
 
-## Phase 8: Publish the current ready wave and stop
+## Phase 8: Publish the active ready wave and stop
 
 For each publishable issue:
 
@@ -767,10 +890,11 @@ For each publishable issue:
    Use this same guard for the initial publish path and any future re-push path.
 
    If the rebase conflicts:
+
    - Capture the conflicting files
    - Run `git -C <worktree-path> rebase --abort`
-   - Post a structured, concise Linear comment summarizing the conflict
-   - Set the issue state back to **In Progress**
+   - Post a structured, concise Linear comment summarizing the conflict with `linear issue comment <issue-id> "<rebase conflict summary>" --json`
+   - Set the issue state back to **In Progress** with `linear issue update <issue-id> --status "In Progress" --json`
    - Add the issue ID to `escalated_issues`
    - Stop publish or re-push for that issue
 
@@ -779,6 +903,7 @@ For each publishable issue:
 2. Push with the same lightweight retry posture used for worktree creation: retry transient failures up to 3 times; escalate permanent failures immediately.
 
 3. Create the PR. The body should help a human reviewer quickly understand the change. Include:
+
    - `Closes REP-xxx`
    - A short summary of the change
    - Verification performed
@@ -786,9 +911,9 @@ For each publishable issue:
 
    Do **not** paste the full AI review output into the PR body, and do **not** duplicate that review output into Linear comments.
 
-4. Set the Linear issue to **In Review**.
+4. Set the Linear issue to **In Review** only after the PR exists.
 
-After all publishable issues in the current ready wave have been handled:
+After all publishable issues in the active ready wave have been handled:
 
 - Report opened PR URLs
 - Report escalated issues and why

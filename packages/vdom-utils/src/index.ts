@@ -1,5 +1,6 @@
 export * from './a11yTree'
 export * from './createVTreeWalker'
+export * from './diffVTrees'
 export * from './id-factory'
 export * from './matchers'
 export * from './mutation'
