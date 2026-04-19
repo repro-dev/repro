@@ -694,7 +694,13 @@ async function resolveLinearContext({
   fsImpl,
   clientFactory,
 }) {
-  const config = resolveLinearConfig({ cwd, homeDir, env, fsImpl });
+  const config = resolveLinearConfig({
+    cwd,
+    repoRoot: REPO_ROOT,
+    homeDir,
+    env,
+    fsImpl,
+  });
   if (!config.apiKey) {
     runtimeError(missingApiKeyError());
   }
@@ -741,6 +747,7 @@ async function loginCommand(args, context) {
 
   writeLinearConfig({
     cwd: context.cwd,
+    repoRoot: REPO_ROOT,
     fsImpl: context.fsImpl,
     apiKey,
     team,
@@ -1517,7 +1524,9 @@ async function projectListCommand(args, context) {
   const { config, client } = await resolveLinearContext(context);
   if (!config.team) runtimeError(missingTeamError());
   const team = await resolveTeam(client, config.team);
-  const projectsResponse = await team.projects({ first: 200 });
+  const projectsResponse = await callBoundMethod(team, team.projects, {
+    first: 200,
+  });
 
   const items = await Promise.all(
     (projectsResponse?.nodes ?? []).map((project) =>
@@ -1613,7 +1622,9 @@ async function milestoneListCommand(args, context) {
     source = project.projectMilestones;
   }
 
-  const response = await fetchProjectMilestones(team, source, { first: 200 });
+  const response = await fetchProjectMilestones(project ?? client, source, {
+    first: 200,
+  });
   const items = await Promise.all(
     (response?.nodes ?? []).map(serializeMilestoneSummary),
   );

@@ -224,14 +224,12 @@ cmd_doctor() {
     fi
   done
 
-  if command -v linear > /dev/null 2>&1; then
-    local linear_version
-    linear_version="$(linear --version 2>/dev/null | awk '{print $NF}')"
-    [ "$json_mode" != true ] && _doctor_row "ok" "linear" "v${linear_version:-unknown}"
-    _doctor_add "linear" "ok" --actual "${linear_version:-unknown}"
+  if command -v pnpm > /dev/null 2>&1 && pnpm exec linear --version > /dev/null 2>&1 && pnpm exec node --input-type=module -e "await import('@linear/sdk')" > /dev/null 2>&1; then
+    [ "$json_mode" != true ] && _doctor_row "ok" "linear" "repo-local CLI wrapper can execute and resolve @linear/sdk"
+    _doctor_add "linear" "ok" --actual "repo-local CLI wrapper can execute and resolve @linear/sdk"
   else
-    [ "$json_mode" != true ] && _doctor_row "error" "linear" "repo-local CLI missing — run 'pnpm install' or 'reproctl setup'"
-    _doctor_add "linear" "fail" --message "repo-local CLI missing — run 'pnpm install' or 'reproctl setup'"
+    [ "$json_mode" != true ] && _doctor_row "error" "linear" "repo-local CLI wrapper cannot execute or resolve @linear/sdk — run 'pnpm install' or 'reproctl setup'"
+    _doctor_add "linear" "fail" --message "repo-local CLI wrapper cannot execute or resolve @linear/sdk — run 'pnpm install' or 'reproctl setup'"
     has_failures=true
   fi
 

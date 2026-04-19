@@ -42,12 +42,13 @@ function formatLinearConfig({ apiKey, team }) {
 
 export function resolveLinearConfig({
   cwd = process.cwd(),
+  repoRoot = cwd,
   homeDir = os.homedir(),
   env = process.env,
   fsImpl = fs,
 } = {}) {
   const globalConfig = readLinearConfig(path.join(homeDir, ".linear"), fsImpl);
-  const localConfig = readLinearConfig(path.join(cwd, ".linear"), fsImpl);
+  const localConfig = readLinearConfig(path.join(repoRoot, ".linear"), fsImpl);
 
   return {
     apiKey:
@@ -65,11 +66,12 @@ export function resolveLinearConfig({
 
 export function writeLinearConfig({
   cwd = process.cwd(),
+  repoRoot = cwd,
   fsImpl = fs,
   apiKey,
   team,
 }) {
-  const filePath = path.join(cwd, ".linear");
+  const filePath = path.join(repoRoot, ".linear");
   fsImpl.writeFileSync(
     filePath,
     formatLinearConfig({

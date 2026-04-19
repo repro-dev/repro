@@ -25,7 +25,7 @@ _make_tmpdir() {
 }
 
 _write_bootstrap_stubs() {
-  local tmpdir="$1" browser_state="$2" browser_install_state="$3" linear_mode="${4:-available}"
+  local tmpdir="$1" browser_state="$2" browser_install_state="$3" linear_mode="${4:-available}" sdk_mode="${5:-available}"
   local bindir="$tmpdir/bin"
   mkdir -p "$bindir"
 
@@ -42,7 +42,7 @@ _write_bootstrap_stubs() {
   printf '#!/bin/bash\ncase "$1" in\n  version) echo "v1.3.0" ;;\n  *) exit 0 ;;\nesac\n' > "$bindir/helm"
   printf '#!/bin/bash\ncase "$1" in\n  version) echo "ctlptl v0.8.0" ;;\n  *) exit 0 ;;\nesac\n' > "$bindir/ctlptl"
   printf '#!/bin/bash\necho "unexpected npm $*" >&2\nexit 1\n' > "$bindir/npm"
-  printf '#!/bin/bash\ncase "$1" in\n  install) exit 0 ;;\n  exec)\n    if [ "$2" = "linear" ] && [ "$3" = "--version" ]; then\n      if [ "%s" = "available" ]; then\n        echo "linear 1.0.0"\n        exit 0\n      fi\n      echo "linear missing" >&2\n      exit 1\n    fi\n    ;;\nesac\necho "unexpected pnpm $*" >&2\nexit 1\n' "$linear_mode" > "$bindir/pnpm"
+  printf '#!/bin/bash\ncase "$1" in\n  install) exit 0 ;;\n  exec)\n    if [ "$2" = "linear" ] && [ "$3" = "--version" ]; then\n      if [ "%s" = "available" ]; then\n        echo "linear 1.0.0"\n        exit 0\n      fi\n      echo "linear missing" >&2\n      exit 1\n    fi\n    if [ "$2" = "node" ] && [ "$3" = "--input-type=module" ] && [ "$4" = "-e" ]; then\n      if [ "%s" = "available" ]; then\n        exit 0\n      fi\n      echo "Cannot find module @linear/sdk" >&2\n      exit 1\n    fi\n    ;;\nesac\necho "unexpected pnpm $*" >&2\nexit 1\n' "$linear_mode" "$sdk_mode" > "$bindir/pnpm"
   printf '#!/bin/bash\ncase "$1" in\n  --version) echo "agent-browser 1.2.3" ;;\n  doctor) if [ -f "%s" ]; then exit 0; else exit 1; fi ;;\n  install) : > "%s"; printf installed > "%s"; exit 0 ;;\n  *) echo "unexpected agent-browser $*" >&2; exit 1 ;;\nesac\n' "$browser_state" "$browser_state" "$browser_install_state" > "$bindir/agent-browser"
   chmod +x "$bindir"/*
 }
@@ -97,30 +97,50 @@ test_bootstrap_uses_repo_local_linear_cli_from_pnpm_install() {
   output="$(PATH="$tmpdir/bin:$SYSTEM_PATH" bash "$BOOTSTRAP_SH" --no-cluster 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q "linear CLI available from workspace dependency"; then
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q "linear CLI wrapper and @linear/sdk are available from workspace dependency"; then
     _pass "bootstrap uses repo-local linear CLI from pnpm install"
   else
     _fail "bootstrap uses repo-local linear CLI from pnpm install" "rc=$rc; output: $output"
   fi
 }
 
-test_bootstrap_fails_when_repo_local_linear_cli_is_missing() {
+test_bootstrap_fails_when_linear_wrapper_execution_fails_but_sdk_resolution_succeeds() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
   local browser_state="$tmpdir/browser-ok"
   local browser_install_state="$tmpdir/browser-installed"
   : > "$browser_state"
   rm -f "$browser_install_state"
-  _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state" missing
+  _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state" missing available
 
   local output
   output="$(PATH="$tmpdir/bin:$SYSTEM_PATH" bash "$BOOTSTRAP_SH" --no-cluster 2>&1)" || rc=$?
   rm -rf "$tmpdir"
 
-  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q "linear CLI was not available after pnpm install"; then
-    _pass "bootstrap fails when repo-local linear CLI is missing"
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q "repo-local Linear CLI wrapper could not execute or resolve @linear/sdk after pnpm install"; then
+    _pass "bootstrap fails when linear wrapper execution fails but SDK resolution succeeds"
   else
-    _fail "bootstrap fails when repo-local linear CLI is missing" "rc=$rc; output: $output"
+    _fail "bootstrap fails when linear wrapper execution fails but SDK resolution succeeds" "rc=$rc; output: $output"
+  fi
+}
+
+test_bootstrap_fails_when_linear_version_succeeds_but_sdk_resolution_fails() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  local browser_state="$tmpdir/browser-ok"
+  local browser_install_state="$tmpdir/browser-installed"
+  : > "$browser_state"
+  rm -f "$browser_install_state"
+  _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state" available missing
+
+  local output
+  output="$(PATH="$tmpdir/bin:$SYSTEM_PATH" bash "$BOOTSTRAP_SH" --no-cluster 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q "repo-local Linear CLI wrapper could not execute or resolve @linear/sdk after pnpm install"; then
+    _pass "bootstrap fails when linear version succeeds but SDK resolution fails"
+  else
+    _fail "bootstrap fails when linear version succeeds but SDK resolution fails" "rc=$rc; output: $output"
   fi
 }
 
@@ -173,32 +193,43 @@ EOF
   fi
 }
 
-test_doctor_reports_healthy_linear_cli() {
+test_doctor_reports_healthy_linear_sdk_dependency_resolution() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
   local browser_state="$tmpdir/browser-ok"
   local browser_install_state="$tmpdir/browser-installed"
-  mkdir -p "$tmpdir/node_modules/.bin"
-  cat > "$tmpdir/node_modules/.bin/linear" <<'EOF'
-#!/bin/bash
-case "$1" in
-  --version) echo "linear 1.0.0" ;;
-  *) exit 0 ;;
-esac
-EOF
-  chmod +x "$tmpdir/node_modules/.bin/linear"
   : > "$browser_state"
   rm -f "$browser_install_state"
   _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state"
 
   local output
-  output="$(_run_doctor "$tmpdir/node_modules/.bin:$tmpdir/bin:$SYSTEM_PATH")" || rc=$?
+  output="$(_run_doctor "$tmpdir/bin:$SYSTEM_PATH")" || rc=$?
   rm -rf "$tmpdir"
 
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -Eq '^[[:space:]]*ok[[:space:]]+linear[[:space:]]+.*v1\.0\.0'; then
-    _pass "doctor reports healthy linear CLI"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -Eq '^[[:space:]]*ok[[:space:]]+linear[[:space:]]+.*wrapper.*@linear/sdk'; then
+    _pass "doctor reports healthy linear SDK dependency resolution"
   else
-    _fail "doctor reports healthy linear CLI" "rc=$rc; output: $output"
+    _fail "doctor reports healthy linear SDK dependency resolution" "rc=$rc; output: $output"
+  fi
+}
+
+test_doctor_reports_missing_linear_wrapper_even_if_sdk_dependency_resolves() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  local browser_state="$tmpdir/browser-ok"
+  local browser_install_state="$tmpdir/browser-installed"
+  : > "$browser_state"
+  rm -f "$browser_install_state"
+  _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state" missing available
+
+  local output
+  output="$(_run_doctor "$tmpdir/bin:$SYSTEM_PATH")" || rc=$?
+  rm -rf "$tmpdir"
+
+  if [ $rc -eq 1 ] && printf '%s\n' "$output" | grep -q "repo-local CLI wrapper cannot execute or resolve @linear/sdk"; then
+    _pass "doctor reports missing linear wrapper even if SDK dependency resolves"
+  else
+    _fail "doctor reports missing linear wrapper even if SDK dependency resolves" "rc=$rc; output: $output"
   fi
 }
 
@@ -261,23 +292,23 @@ EOF
   fi
 }
 
-test_doctor_reports_missing_linear_cli() {
+test_doctor_reports_missing_linear_sdk_dependency() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
   local browser_state="$tmpdir/browser-ok"
   local browser_install_state="$tmpdir/browser-installed"
   : > "$browser_state"
   rm -f "$browser_install_state"
-  _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state"
+  _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state" available missing
 
   local output
   output="$(_run_doctor "$tmpdir/bin:$SYSTEM_PATH")" || rc=$?
   rm -rf "$tmpdir"
 
-  if [ $rc -eq 1 ] && printf '%s\n' "$output" | grep -q "repo-local CLI missing" && printf '%s\n' "$output" | grep -q "linear"; then
-    _pass "doctor reports missing linear CLI"
+  if [ $rc -eq 1 ] && printf '%s\n' "$output" | grep -q "@linear/sdk" && printf '%s\n' "$output" | grep -q "repo-local CLI wrapper cannot execute or resolve"; then
+    _pass "doctor reports missing linear SDK dependency"
   else
-    _fail "doctor reports missing linear CLI" "rc=$rc; output: $output"
+    _fail "doctor reports missing linear SDK dependency" "rc=$rc; output: $output"
   fi
 }
 
@@ -321,13 +352,15 @@ EOF
 
 test_bootstrap_installs_browser_runtime_when_health_check_fails
 test_bootstrap_uses_repo_local_linear_cli_from_pnpm_install
-test_bootstrap_fails_when_repo_local_linear_cli_is_missing
+test_bootstrap_fails_when_linear_wrapper_execution_fails_but_sdk_resolution_succeeds
+test_bootstrap_fails_when_linear_version_succeeds_but_sdk_resolution_fails
 test_bootstrap_skips_install_when_runtime_is_healthy
 test_doctor_reports_healthy_agent_browser_runtime
-test_doctor_reports_healthy_linear_cli
+test_doctor_reports_healthy_linear_sdk_dependency_resolution
+test_doctor_reports_missing_linear_wrapper_even_if_sdk_dependency_resolves
 test_doctor_reports_broken_agent_browser_runtime_with_recovery_guidance
 test_doctor_reports_missing_agent_browser_binary
-test_doctor_reports_missing_linear_cli
+test_doctor_reports_missing_linear_sdk_dependency
 test_envrc_adds_repo_local_workspace_bin_path
 
 echo ""

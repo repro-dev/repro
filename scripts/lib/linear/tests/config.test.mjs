@@ -58,6 +58,32 @@ test("resolveLinearConfig falls back to local then global files", () => {
   assert.equal(config.team, "LOCAL");
 });
 
+test("resolveLinearConfig uses the repo root from a nested directory", () => {
+  const tmp = makeTempDir();
+  const home = path.join(tmp, "home");
+  const repo = path.join(tmp, "repo");
+  const nested = path.join(repo, "scripts", "lib", "linear");
+  fs.mkdirSync(home, { recursive: true });
+  fs.mkdirSync(nested, { recursive: true });
+
+  fs.writeFileSync(path.join(home, ".linear"), "api_key=global-key\nteam=GLOBAL\n");
+  fs.writeFileSync(path.join(repo, ".linear"), "api_key=repo-key\nteam=REPO\n");
+  fs.writeFileSync(
+    path.join(nested, ".linear"),
+    "api_key=nested-key\nteam=NESTED\n",
+  );
+
+  const config = resolveLinearConfig({
+    cwd: nested,
+    repoRoot: repo,
+    homeDir: home,
+    env: {},
+  });
+
+  assert.equal(config.apiKey, "repo-key");
+  assert.equal(config.team, "REPO");
+});
+
 test("resolveLinearConfig tolerates comments and whitespace", () => {
   const tmp = makeTempDir();
   const home = path.join(tmp, "home");
@@ -96,6 +122,36 @@ test("writeLinearConfig writes the local repo config format", () => {
   assert.deepEqual(writes, [
     {
       filePath: path.join(cwd, ".linear"),
+      contents: "api_key=api\nteam=REP\n",
+      encoding: "utf8",
+    },
+  ]);
+});
+
+test("writeLinearConfig writes to the repo root from a nested directory", () => {
+  const writes = [];
+  const fsImpl = {
+    writeFileSync(filePath, contents, encoding) {
+      writes.push({ filePath, contents, encoding });
+    },
+  };
+
+  const repo = path.join(makeTempDir(), "repo");
+  const nested = path.join(repo, "scripts", "lib", "linear");
+  fs.mkdirSync(nested, { recursive: true });
+
+  const filePath = writeLinearConfig({
+    cwd: nested,
+    repoRoot: repo,
+    fsImpl,
+    apiKey: "api",
+    team: "REP",
+  });
+
+  assert.equal(filePath, path.join(repo, ".linear"));
+  assert.deepEqual(writes, [
+    {
+      filePath: path.join(repo, ".linear"),
       contents: "api_key=api\nteam=REP\n",
       encoding: "utf8",
     },

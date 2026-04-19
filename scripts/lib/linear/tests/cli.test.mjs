@@ -39,6 +39,96 @@ function makeClient() {
   };
 }
 
+function makeBoundMethodClient(records) {
+  const project = {
+    id: "project-1",
+    name: "Workspace",
+    url: "https://linear.app/acme/project/workspace",
+    _request: {},
+    projectMilestones: async function (vars) {
+      if (!this._request) throw new Error("unbound projectMilestones method");
+      records.projectMilestones.push(vars);
+      return {
+        nodes: [
+          {
+            id: "ms-1",
+            name: "Sprint 1",
+            targetDate: null,
+            updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+            project: Promise.resolve(project),
+          },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+    },
+  };
+
+  const team = {
+    id: "team-1",
+    key: "REP",
+    name: "Workspace",
+    _request: {},
+    states: async function () {
+      if (!this._request) throw new Error("unbound states method");
+      return { nodes: [] };
+    },
+    labels: async function () {
+      if (!this._request) throw new Error("unbound labels method");
+      return { nodes: [] };
+    },
+    projects: async function (vars) {
+      if (!this._request) throw new Error("unbound projects method");
+      records.projects.push(vars);
+      return { nodes: [project] };
+    },
+    issues: async function () {
+      if (!this._request) throw new Error("unbound issues method");
+      return {
+        nodes: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+    },
+  };
+
+  return {
+    _request: {},
+    viewer: async () => ({
+      id: "viewer-1",
+      name: "Test User",
+      email: "test@example.com",
+    }),
+    teams: async function (vars) {
+      if (!this._request) throw new Error("unbound teams method");
+      records.teams.push(vars);
+      return { nodes: [team] };
+    },
+    users: async function () {
+      if (!this._request) throw new Error("unbound users method");
+      return { nodes: [] };
+    },
+    projectMilestones: async function (vars) {
+      if (!this._request) throw new Error("unbound projectMilestones method");
+      records.projectMilestones.push(vars);
+      return {
+        nodes: [
+          {
+            id: "ms-1",
+            name: "Sprint 1",
+            targetDate: null,
+            updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+            project: Promise.resolve(project),
+          },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+    },
+    issueLabel: async function () {
+      if (!this._request) throw new Error("unbound issueLabel method");
+      return { id: "label-1", name: "Feature" };
+    },
+  };
+}
+
 test("top-level help prints command surface", async () => {
   const result = await execute(["--help"], {
     env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
@@ -78,7 +168,8 @@ test("login writes the repo-local config file", async () => {
       writes.push({ filePath, contents, encoding });
     },
   };
-  const cwd = path.join(process.cwd(), "tmp", "repro-login");
+  const repoRoot = process.cwd();
+  const cwd = path.join(repoRoot, "tmp", "repro-login");
 
   const result = await execute(["login", "--api-key", "api", "--team", "REP"], {
     cwd,
@@ -90,7 +181,7 @@ test("login writes the repo-local config file", async () => {
   assert.match(result.stdout, /Saved Linear credentials to \.linear/);
   assert.deepEqual(writes, [
     {
-      filePath: `${cwd}/.linear`,
+      filePath: `${repoRoot}/.linear`,
       contents: "api_key=api\nteam=REP\n",
       encoding: "utf8",
     },
@@ -105,7 +196,8 @@ test("login prompts for missing values when interactive", async () => {
       writes.push({ filePath, contents, encoding });
     },
   };
-  const promptCwd = path.join(process.cwd(), "tmp", "repro-login-prompt");
+  const repoRoot = process.cwd();
+  const promptCwd = path.join(repoRoot, "tmp", "repro-login-prompt");
 
   const result = await execute(["login", "--api-key", "api"], {
     cwd: promptCwd,
@@ -121,7 +213,7 @@ test("login prompts for missing values when interactive", async () => {
   assert.deepEqual(prompts, [{ field: "team", message: "Linear team: " }]);
   assert.deepEqual(writes, [
     {
-      filePath: `${promptCwd}/.linear`,
+      filePath: `${repoRoot}/.linear`,
       contents: "api_key=api\nteam=REP\n",
       encoding: "utf8",
     },
@@ -129,10 +221,19 @@ test("login prompts for missing values when interactive", async () => {
 });
 
 test("auth-dependent commands suggest linear login", async () => {
+  const fsImpl = {
+    readFileSync() {
+      const error = new Error("ENOENT");
+      error.code = "ENOENT";
+      throw error;
+    },
+  };
+
   const result = await execute(["issue", "list"], {
     env: {},
     cwd: path.join(process.cwd(), "tmp", "linear-no-config"),
     homeDir: path.join(process.cwd(), "tmp", "linear-no-home"),
+    fsImpl,
     clientFactory: async () => makeClient(),
   });
 
@@ -236,58 +337,13 @@ test("whoami shows the viewer and configured team", async () => {
   assert.equal(payload.item.team.key, "REP");
 });
 
-test("project list and milestone list are usable", async () => {
-  const project = {
-    id: "project-1",
-    name: "Workspace",
-    url: "https://linear.app/acme/project/workspace",
-    projectMilestones: async () => ({
-      nodes: [
-        {
-          id: "ms-1",
-          name: "Sprint 1",
-          targetDate: null,
-          project: Promise.resolve(null),
-          updatedAt: new Date("2026-04-18T00:00:00.000Z"),
-        },
-      ],
-      pageInfo: { hasNextPage: false, endCursor: null },
-    }),
+test("project list and milestone list keep SDK-style receivers bound", async () => {
+  const records = {
+    teams: [],
+    projects: [],
+    projectMilestones: [],
   };
-
-  const team = {
-    id: "team-1",
-    key: "REP",
-    name: "Workspace",
-    states: async () => ({ nodes: [] }),
-    labels: async () => ({ nodes: [] }),
-    projects: async () => ({ nodes: [project] }),
-    issues: async () => ({
-      nodes: [],
-      pageInfo: { hasNextPage: false, endCursor: null },
-    }),
-  };
-
-  const client = {
-    viewer: async () => ({
-      id: "viewer-1",
-      name: "Test User",
-      email: "test@example.com",
-    }),
-    teams: async () => ({
-      nodes: [team],
-    }),
-    users: async () => ({ nodes: [] }),
-    projectMilestones: async () => ({
-      nodes: [],
-      pageInfo: { hasNextPage: false, endCursor: null },
-    }),
-    issueLabel: async (id) => ({ id, name: id }),
-  };
-
-  client.teams = async () => ({
-    nodes: [team],
-  });
+  const client = makeBoundMethodClient(records);
 
   const projectList = await execute(["project", "list", "--json"], {
     env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
@@ -296,17 +352,34 @@ test("project list and milestone list are usable", async () => {
   assert.equal(projectList.code, 0);
   const projects = JSON.parse(projectList.stdout);
   assert.equal(projects.items[0].name, "Workspace");
+  assert.deepEqual(records.projects, [{ first: 200 }]);
 
-  const milestoneList = await execute(
+  const bareMilestoneList = await execute(["milestone", "list", "--json"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => client,
+  });
+  assert.equal(bareMilestoneList.code, 0);
+  const bareMilestones = JSON.parse(bareMilestoneList.stdout);
+  assert.equal(bareMilestones.items[0].name, "Sprint 1");
+
+  const projectMilestoneList = await execute(
     ["milestone", "list", "--project", "Workspace", "--json"],
     {
       env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
       clientFactory: async () => client,
     },
   );
-  assert.equal(milestoneList.code, 0);
-  const milestones = JSON.parse(milestoneList.stdout);
-  assert.equal(milestones.items[0].name, "Sprint 1");
+  assert.equal(projectMilestoneList.code, 0);
+  const projectMilestones = JSON.parse(projectMilestoneList.stdout);
+  assert.equal(projectMilestones.items[0].name, "Sprint 1");
+  assert.deepEqual(records.projects[1], {
+    filter: { name: { eqIgnoreCase: "Workspace" } },
+    first: 20,
+  });
+  assert.deepEqual(records.projectMilestones, [
+    { first: 200 },
+    { first: 200 },
+  ]);
 });
 
 test("validation rejects invalid priority, invalid limit, and assignee conflicts", async () => {

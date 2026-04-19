@@ -143,10 +143,10 @@ next_step "Installing Node.js dependencies..."
 pnpm install
 ok "Node.js dependencies installed"
 
-if pnpm exec linear --version > /dev/null 2>&1; then
-  ok "linear CLI available from workspace dependency"
+if pnpm exec linear --version > /dev/null 2>&1 && pnpm exec node --input-type=module -e "await import('@linear/sdk')" > /dev/null 2>&1; then
+  ok "linear CLI wrapper and @linear/sdk are available from workspace dependency"
 else
-  die "linear CLI was not available after pnpm install. Run 'pnpm install' again or check @dabble/linear-cli in package.json."
+  die "repo-local Linear CLI wrapper could not execute or resolve @linear/sdk after pnpm install. Run 'pnpm install' again or check the @linear/sdk dependency in package.json."
 fi
 
 # ── Step 6: Docker ──────────────────────────────────────────────────
