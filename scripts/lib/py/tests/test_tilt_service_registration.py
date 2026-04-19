@@ -43,6 +43,14 @@ def _manifest(tilt_result, name):
     raise AssertionError(f"Missing manifest: {name}")
 
 
+def _serve_env(manifest):
+    env = {}
+    for item in manifest["DeployTarget"]["ServeCmd"]["Env"]:
+        key, _, value = item.partition("=")
+        env[key] = value
+    return env
+
+
 class TestTiltServiceRegistration:
     def test_storybook_worktree_watches_only_manifest_files(self):
         tilt_result = _render_tilt(
@@ -89,3 +97,23 @@ class TestTiltServiceRegistration:
         assert str(REPO_ROOT / "packages" / "design") not in deps
         assert str(REPO_ROOT / "apps" / "workspace") not in deps
         assert str(REPO_ROOT / "apps" / "workspace" / "src") not in deps
+
+    def test_worktree_dependency_services_stay_in_worktree(self):
+        tilt_result = _render_tilt(
+            [
+                {
+                    "name": "workspace",
+                    "source": str(REPO_ROOT),
+                    "slug": "rep-397",
+                }
+            ]
+        )
+
+        workspace = _manifest(tilt_result, "workspace-wt-rep-397")
+        _manifest(tilt_result, "api-server-wt-rep-397")
+
+        assert "dependencies-wt-rep-397" in workspace["ResourceDependencies"]
+
+        env = _serve_env(workspace)
+        assert env["REPRO_APP_URL"] == "https://app.wt-rep-397.repro.localhost:1355"
+        assert env["REPRO_API_URL"] == "https://api.wt-rep-397.repro.localhost:1355"

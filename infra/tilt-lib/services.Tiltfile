@@ -379,10 +379,10 @@ def resolve_dependencies(service_config, services):
   """Expand transitive service dependencies in the config list.
 
   For each service in the config, look up its `deps` in the services
-  dict and inject any missing dependencies as main-checkout entries
-  (slug="", source="."). Only services that are NOT already present
-  get added — if the user explicitly listed a dependency it keeps its
-  original source/slug.
+  dict and inject any missing dependencies using the same source tree
+  and worktree slug as the service that depends on them. Only services
+  that are NOT already present get added — if the user explicitly
+  listed a dependency it keeps its original source/slug.
 
   Args:
     service_config: list of dicts [{name, source, slug}, ...]
@@ -418,11 +418,14 @@ def resolve_dependencies(service_config, services):
           break
 
       if not has_any:
-        dep_entry = {'name': dep_name, 'source': '.', 'slug': ''}
+        dep_entry = {
+          'name': dep_name,
+          'source': entry.get('source', '.'),
+          'slug': entry.get('slug', ''),
+        }
         result.append(dep_entry)
         present[main_key] = True
         queue.append(dep_entry)
 
   return result
-
 
