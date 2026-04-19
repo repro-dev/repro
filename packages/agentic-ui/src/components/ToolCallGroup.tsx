@@ -8,12 +8,14 @@ interface ToolCallGroupProps {
   pairs: Array<ToolCallPair>;
   isExecuting: boolean;
   wasCancelled: boolean;
+  onGoToTime?: (timeMs: number) => void;
 }
 
 export const ToolCallGroup: React.FC<ToolCallGroupProps> = ({
   pairs,
   isExecuting,
   wasCancelled,
+  onGoToTime,
 }) => {
   return (
     <Col
@@ -32,6 +34,7 @@ export const ToolCallGroup: React.FC<ToolCallGroupProps> = ({
           result={pair.result}
           isExecuting={isExecuting}
           wasCancelled={wasCancelled}
+          onGoToTime={onGoToTime}
         />
       ))}
     </Col>

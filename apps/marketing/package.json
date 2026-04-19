@@ -9,7 +9,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "fmt": "prettier --write src",
-    "test": "tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/**/*.test.ts{,x}"
+    "test": "tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/**/*.test.ts src/**/*.test.tsx"
   },
   "license": "UNLICENSED",
   "dependencies": {

@@ -1,6 +1,6 @@
 ---
 name: audit-ui-quality
-description: Systematic UI quality review workflow — Scope, Scan, Score, Report, Suggest. Load when asked to audit UI quality, check design system compliance, find token violations, review accessibility, or run a polish pass on a feature.
+description: Systematic UI quality audit workflow — Scope, Scan, Score, Report, Suggest. Load for audits, design-system compliance checks, scoring, and polish passes, not routine post-change verification.
 ---
 
 # Audit
@@ -15,7 +15,10 @@ Load when the task involves any of:
 - "Review UI quality"
 - "Check for accessibility issues"
 - "Find token violations"
+- "Score the UI"
 - "Polish pass on [feature]"
+
+Do **not** use this as the routine verification entrypoint for a recently changed surface. If you need to confirm that a specific UI change behaves correctly, load `ui-verification` and follow the `reproctl start --wait` + `agent-browser` workflow instead.
 
 ---
 
