@@ -161,18 +161,26 @@ class TestTiltServiceRegistration:
             [
                 {"name": "workspace", "source": first_wt, "slug": "rep-397"},
                 {"name": "api-server", "source": first_wt, "slug": "rep-397"},
+                {"name": "admin", "source": first_wt, "slug": "rep-397"},
                 {"name": "workspace", "source": second_wt, "slug": "rep-812"},
                 {"name": "api-server", "source": second_wt, "slug": "rep-812"},
+                {"name": "admin", "source": second_wt, "slug": "rep-812"},
             ]
         )
 
         first_workspace = _manifest(tilt_result, "workspace-wt-rep-397")
+        first_admin = _manifest(tilt_result, "admin-wt-rep-397")
         second_workspace = _manifest(tilt_result, "workspace-wt-rep-812")
+        second_admin = _manifest(tilt_result, "admin-wt-rep-812")
 
         first_env = _serve_env(first_workspace)
+        first_admin_env = _serve_env(first_admin)
         second_env = _serve_env(second_workspace)
+        second_admin_env = _serve_env(second_admin)
 
         assert first_env["REPRO_APP_URL"] == "https://app.wt-rep-397.repro.localhost:1355"
         assert first_env["REPRO_API_URL"] == "https://api.wt-rep-397.repro.localhost:1355"
+        assert first_admin_env["REPRO_ADMIN_URL"] == "https://admin.wt-rep-397.repro.localhost:1355"
         assert second_env["REPRO_APP_URL"] == "https://app.wt-rep-812.repro.localhost:1355"
         assert second_env["REPRO_API_URL"] == "https://api.wt-rep-812.repro.localhost:1355"
+        assert second_admin_env["REPRO_ADMIN_URL"] == "https://admin.wt-rep-812.repro.localhost:1355"
