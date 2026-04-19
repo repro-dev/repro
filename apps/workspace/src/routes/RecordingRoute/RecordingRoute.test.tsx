@@ -1,7 +1,7 @@
 import { type ApiClient } from '@repro/api-client'
 import { RecordingMode, type Project, type RecordingInfo } from '@repro/domain'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
-import { resolve } from 'fluture'
+import { reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
@@ -79,6 +79,18 @@ const fetch = mock.fn((url: string) => {
   throw new Error(`unexpected fetch: ${url}`)
 })
 
+const fetchWithProjectFailure = mock.fn((url: string) => {
+  if (url === '/projects/proj-1') {
+    return reject(new Error('Project unavailable'))
+  }
+
+  if (url === '/projects/proj-1/recordings/rec-1/info') {
+    return resolve(recording)
+  }
+
+  throw new Error(`unexpected fetch: ${url}`)
+})
+
 const mockApiClient = {
   authStore: {} as never,
   debug: () => () => undefined,
@@ -90,6 +102,7 @@ afterEach(() => {
   cleanup()
   createApiSource.mock.resetCalls()
   fetch.mock.resetCalls()
+  mockApiClient.fetch = fetch as unknown as ApiClient['fetch']
 })
 
 describe('RecordingRoute', () => {
@@ -124,12 +137,10 @@ describe('RecordingRoute', () => {
       assert.ok(screen.getByTestId('devtools'))
     })
 
-    assert.equal(fetch.mock.calls.length, 2)
-    assert.equal(
-      fetch.mock.calls[0]?.arguments[0],
-      '/projects/proj-1/recordings/rec-1/info'
+    assert.deepEqual(
+      new Set(fetch.mock.calls.map(call => call.arguments[0])),
+      new Set(['/projects/proj-1/recordings/rec-1/info', '/projects/proj-1'])
     )
-    assert.equal(fetch.mock.calls[1]?.arguments[0], '/projects/proj-1')
     assert.equal(createApiSource.mock.calls.length, 1)
     assert.deepEqual(createApiSource.mock.calls[0]?.arguments, [
       'proj-1',
@@ -141,5 +152,29 @@ describe('RecordingRoute', () => {
         .getByTestId('devtools')
         .textContent?.endsWith('/projects/proj-1/recordings/rec-1/resources/')
     )
+  })
+
+  it('keeps playback visible when project metadata fails', async () => {
+    mockApiClient.fetch =
+      fetchWithProjectFailure as unknown as ApiClient['fetch']
+
+    render(
+      <MemoryRouter initialEntries={['/projects/proj-1/recordings/rec-1']}>
+        <Routes>
+          <Route
+            path="/projects/:projectId/recordings/:recordingId"
+            element={<RecordingRoute />}
+          />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      assert.ok(screen.getByText('Session 1'))
+      assert.ok(screen.getByTestId('devtools'))
+      assert.equal(screen.queryByText('Could not find recording'), null)
+    })
+
+    assert.equal(screen.queryByRole('link', { name: 'Project Alpha' }), null)
   })
 })

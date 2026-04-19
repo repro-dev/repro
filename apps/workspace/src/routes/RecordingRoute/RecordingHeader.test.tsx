@@ -67,6 +67,27 @@ describe('RecordingHeader', () => {
     assert.ok(screen.getByText('Replay'))
   })
 
+  it('does not make unsafe recording URLs clickable', () => {
+    render(
+      <MemoryRouter>
+        <RecordingHeader
+          projectId="proj-1"
+          projectName="Project Alpha"
+          recording={{
+            ...recording,
+            url: 'javascript:alert(1)',
+          }}
+        />
+      </MemoryRouter>
+    )
+
+    assert.equal(
+      screen.queryByRole('link', { name: 'javascript:alert(1)' }),
+      null
+    )
+    assert.ok(screen.getByText('javascript:alert(1)'))
+  })
+
   it('omits unavailable system metadata', () => {
     render(
       <MemoryRouter>

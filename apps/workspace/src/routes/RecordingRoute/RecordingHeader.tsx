@@ -7,8 +7,8 @@ import React from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 
 interface Props {
-  projectId: string
-  projectName: string
+  projectId?: string | null
+  projectName?: string | null
   recording: RecordingInfo
 }
 
@@ -51,6 +51,20 @@ function getOperatingSystemLabel(recording: RecordingInfo): string | null {
   return recording.operatingSystem
 }
 
+function getSafeRecordingHref(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.toString()
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
 export const RecordingHeader: React.FC<Props> = ({
   projectId,
   projectName,
@@ -58,6 +72,16 @@ export const RecordingHeader: React.FC<Props> = ({
 }) => {
   const browserLabel = getBrowserLabel(recording)
   const operatingSystemLabel = getOperatingSystemLabel(recording)
+  const recordingHref = getSafeRecordingHref(recording.url)
+  const recordingLinkStyles = {
+    display: 'block',
+    maxWidth: '18rem',
+    minWidth: 0,
+    flexShrink: 1,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  }
 
   return (
     <Row
@@ -73,33 +97,31 @@ export const RecordingHeader: React.FC<Props> = ({
       </Link>
 
       <Breadcrumbs ariaLabel="Recording breadcrumb">
-        <Breadcrumbs.Item
-          component={RouterLink}
-          props={{ to: `/projects/${projectId}` }}
-        >
-          {projectName}
-        </Breadcrumbs.Item>
+        {projectName && projectId ? (
+          <Breadcrumbs.Item
+            component={RouterLink}
+            props={{ to: `/projects/${projectId}` }}
+          >
+            {projectName}
+          </Breadcrumbs.Item>
+        ) : null}
         <Breadcrumbs.Item current>{recording.title}</Breadcrumbs.Item>
       </Breadcrumbs>
 
-      <Link
-        href={recording.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        props={{
-          style: {
-            display: 'block',
-            maxWidth: '18rem',
-            minWidth: 0,
-            flexShrink: 1,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          },
-        }}
-      >
-        {recording.url}
-      </Link>
+      {recordingHref ? (
+        <Link
+          href={recordingHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          props={{ style: recordingLinkStyles }}
+        >
+          {recording.url}
+        </Link>
+      ) : (
+        <Text variant="caption" color={color.text.muted}>
+          {recording.url}
+        </Text>
+      )}
 
       <Badge context={getModeContext(recording.mode)} size="small">
         {getModeLabel(recording.mode)}

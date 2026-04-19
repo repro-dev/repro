@@ -7,6 +7,7 @@ import { useFuture } from '@repro/future-utils'
 import { createNullSource, PlaybackFromSourceProvider } from '@repro/playback'
 import { createApiSource } from '@repro/recording-api'
 import { getProject } from '@repro/workspace-api'
+import { reject } from 'fluture'
 import React, { useEffect, useState } from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 import { defaultEnv as env } from '~/config/env'
@@ -30,20 +31,22 @@ export const RecordingRoute: React.FC = () => {
     error,
     result: info,
   } = useFuture(() => {
+    if (!projectId || !recordingId) {
+      return reject(new Error('Missing recording route params'))
+    }
+
     return apiClient.fetch<RecordingInfo>(
       `/projects/${projectId}/recordings/${recordingId}/info`
     )
   }, [apiClient, projectId, recordingId])
 
-  const {
-    loading: projectLoading,
-    error: projectError,
-    result: project,
-  } = useFuture(() => {
-    return getProject(apiClient, projectId as string)
+  const { result: project } = useFuture(() => {
+    if (!projectId) {
+      return reject(new Error('Missing recording route params'))
+    }
+
+    return getProject(apiClient, projectId)
   }, [apiClient, projectId]) as {
-    loading: boolean
-    error: Error | null
     result: Project | undefined
   }
 
@@ -67,13 +70,18 @@ export const RecordingRoute: React.FC = () => {
     }
   }, [info])
 
-  const isLoading = loading || projectLoading
-  const routeError = error ?? projectError
+  const isLoading = loading
 
   return (
     <ToolView>
       <ToolView.Header>
-        {isLoading || routeError || !info || !project ? (
+        {info ? (
+          <RecordingHeader
+            projectId={projectId}
+            projectName={project?.name}
+            recording={info}
+          />
+        ) : (
           <>
             <Logo size={24} />
             <Link
@@ -82,21 +90,15 @@ export const RecordingRoute: React.FC = () => {
             >
               &larr; Sessions
             </Link>
-            {info && <Block {...textStyles.body}>{info.title}</Block>}
+            <Block {...textStyles.body}>Loading recording</Block>
           </>
-        ) : (
-          <RecordingHeader
-            projectId={projectId as string}
-            projectName={project.name}
-            recording={info}
-          />
         )}
       </ToolView.Header>
       <ToolView.Content>
         {isLoading ? (
           <Loading />
-        ) : routeError ? (
-          <RecordingError error={routeError} />
+        ) : error ? (
+          <RecordingError error={error} />
         ) : (
           <PlaybackFromSourceProvider source={source}>
             <DevTools resourceBaseURL={resourceBaseURL} />
