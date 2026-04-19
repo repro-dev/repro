@@ -14,6 +14,8 @@ Use this skill when you are starting a feature or fix. Keep it thin: it coordina
 - `build-and-test` — test runners, typecheck, and formatting commands
 - `git-workflow` — commits, PR mechanics, and Linear status lifecycle
 - `bug-rigor` — root-cause-first bug workflow for genuine defects and regressions
+- `context-gather` — assemble issue, dependency, and prior-work context before planning
+- `test-plan` — write the test strategy explicitly when coverage needs coordination
 - Domain skills — only when the changed code lives in that domain
 
 For non-trivial UI changes, pair `design-system` with `ui-verification` so implementation guidance stays separate from the executable browser workflow. Use `audit-ui-quality` only for broader audit, scoring, and polish passes.
@@ -24,6 +26,7 @@ For non-trivial UI changes, pair `design-system` with `ui-verification` so imple
 2. Load the support skills you need for this change. If the work is a genuine bug fix or regression, load `bug-rigor` before implementation begins.
 3. Create or confirm the worktree for the issue.
 4. Set the issue to **In Progress**.
+5. If the issue spans multiple files, packages, or prior investigation threads, run `context-gather` and write `tmp/context-<issue-id>.md` before planning.
 
 ## 2. Planning
 
@@ -32,6 +35,7 @@ For non-trivial UI changes, pair `design-system` with `ui-verification` so imple
 3. Use jcodemunch before full-file reads: `resolve_repo` → `search_symbols` → `get_file_outline` → `get_blast_radius`.
 4. For complex work (multiple packages or heavy exploration), delegate planning to `planner` and keep the output as the working plan document.
 5. Capture session context with `/ledger` when the work will span sessions.
+6. For non-trivial behavior changes, produce a small `tmp/test-plan-<issue-id>.md` artifact or inline equivalent before implementation starts.
 
 ## 3. Delegation
 

@@ -13,11 +13,16 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 | Commit / PR              | Load `git-workflow` skill          |
 | Code review              | Load `review-standards` skill      |
 | Build / test / typecheck | Load `build-and-test` skill        |
+| Context assembly         | Load `context-gather` skill        |
+| Test planning            | Load `test-plan` skill             |
 | UI / components          | Load `design-system` skill         |
 | UI verification          | Load `ui-verification` skill       |
 | UI audits / polish       | Load `audit-ui-quality` skill      |
 | Database / migrations    | Load `database` skill              |
 | File a Linear issue      | Load `create-issue` skill          |
+| Debug investigation      | Load `debug-workflow` skill        |
+| Command authoring        | Load `command-thin-shim` skill     |
+| Skill compliance review  | Load `skill-compliance` skill      |
 
 ## Code Style & Conventions
 
@@ -63,6 +68,7 @@ Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer 
   - **Prohibited regardless**: Never use `--no-verify` (skips hooks) or `--no-gpg-sign` (bypasses commit signing), even to avoid interactive prompts
 - **Comments**: Add brief comments when they clarify non-obvious intent, invariants, sentinel values, or protocol quirks. Avoid comments that restate the code.
 - **Temporary files**: **Always use `tmp/` at the repo root** for any ephemeral output — screenshots, build artifacts, scratch files, test results, anything throwaway. **Never write to `/tmp`** (OpenCode requires elevated permission to access paths outside the project root, which blocks automated pipelines) **or `~/Downloads`** (pollutes the user's filesystem). `tmp/` is git-ignored; the `.gitkeep` sentinel keeps it tracked.
+- **Context artifacts**: For larger delivery work, prefer small durable artifacts in `tmp/` such as `tmp/context-REP-123.md`, `tmp/test-plan-REP-123.md`, or `tmp/debug-foo.md` rather than re-explaining the same context in every turn.
 
 ## Environment Variables
 
@@ -142,6 +148,14 @@ Update a skill proactively when any of these stronger triggers occur:
 - `.opencode/skills/<domain>/SKILL.md` for cross-cutting domain knowledge.
 - A package-level `AGENTS.md` for conventions too specific for a shared skill.
 - If no skill file exists for the domain and the knowledge is reusable, create one following the structure of existing skill files.
+- For command-specific workflow glue, keep `.opencode/commands/*.md` thin and move reusable operating logic into skills.
+- New skill files are discovered on session startup. In the same session that creates a skill, read the new `SKILL.md` directly instead of assuming the `skill` tool can load it by name immediately.
+
+### Command authoring
+
+- Command files should parse arguments, validate mode selection, and dispatch into the skill or workflow that owns the behavior.
+- Avoid copying long checklists or domain rules into commands when the same guidance belongs in a reusable skill.
+- For existing heavyweight commands, apply this incrementally when you are already modifying them; do not churn stable commands just to satisfy the pattern.
 
 ### Naming rules
 

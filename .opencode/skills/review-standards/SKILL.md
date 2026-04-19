@@ -13,6 +13,7 @@ description: Review contract for branch and PR reviews — changed-code focus, s
 - Zero-finding reviews are valid.
 - Every finding must include an actionable fix path.
 - Prefer specific, testable feedback over broad style commentary.
+- Do not cap findings arbitrarily; improve signal with deduplication, relevance, and confidence filtering instead.
 
 ## Linear-first context
 
@@ -56,6 +57,12 @@ Classify every finding using one of these four levels:
 - Reference issue requirements by ID when noting gaps.
 - End with a clear verdict: approve, request changes, or discuss.
 - If there are no findings, say that explicitly.
+
+## Compliance pass
+
+- For changes governed by repository skills, run a distinct compliance pass after correctness review.
+- Load `skill-compliance` when you need to verify that the applicable skills and `AGENTS.md` guidance were actually followed.
+- Keep compliance findings separate from general correctness findings so the review stays easy to act on.
 
 ## UI review gate
 
