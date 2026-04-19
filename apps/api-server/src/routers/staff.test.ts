@@ -930,9 +930,9 @@ describe('Routers > Staff', () => {
       })
 
       expect(res.statusCode).toEqual(200)
-      const body = res.json()
+      const body = res.json() as { items: Array<StaffUser> }
       const deactivatedUser = body.items.find(
-        (item: any) => item.email === 'temp-staff@example.com'
+        item => item.email === 'temp-staff@example.com'
       )
       expect(deactivatedUser).toMatchObject({
         isActive: false,

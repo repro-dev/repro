@@ -144,6 +144,25 @@ describe('Services > Account', () => {
       ).rejects.toThrow(notFound())
     })
 
+    it('should not allow a passwordless staff account to authenticate with an empty password', async () => {
+      const email = harness.generateRandomEmailAddress()
+
+      const staffUser = await promise(
+        accountService.createStaffUser('OAuth Staff', email, '')
+      )
+
+      await expect(
+        promise(accountService.getStaffUserByEmailAndPassword(email, ''))
+      ).rejects.toThrow(notFound())
+
+      await expect(
+        promise(accountService.getStaffUserById(staffUser.id))
+      ).resolves.toMatchObject({
+        id: staffUser.id,
+        email,
+      })
+    })
+
     it('should get a staff user by ID', async () => {
       const email = harness.generateRandomEmailAddress()
 

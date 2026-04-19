@@ -274,6 +274,10 @@ export function createAccountService(
     email: string,
     password: string
   ): FutureInstance<Error, StaffUser> {
+    if (password.length === 0) {
+      return reject(notFound())
+    }
+
     return attemptQuery(async () => {
       const row = await database
         .selectFrom('staff_users')
