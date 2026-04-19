@@ -20,6 +20,8 @@ description: Review contract for branch and PR reviews — changed-code focus, s
 - Extract issue IDs from the branch name, PR title, and PR body.
 - Fetch every referenced Linear issue and read the full description, decisions, requirements, and considerations.
 - Fetch the parent project and milestone when they help explain the intended outcome.
+- When issue-scoped artifacts exist in `tmp/` (for example `tmp/context-REP-123.md` or `tmp/test-plan-REP-123.md`), use them as supplemental review context rather than ignoring the documented plan/history.
+- For non-Linear work, use the matching topic-scoped artifacts (for example `tmp/context-foo.md` or `tmp/test-plan-foo.md`) when they exist.
 
 ## Severity classification
 
@@ -52,6 +54,8 @@ Classify every finding using one of these four levels:
 ## Review output
 
 - Lead with context: briefly note which Linear issues were reviewed and any decisions that affected the review.
+- Note which `tmp/` artifacts were consulted, or state that none were present.
+- Note which `tmp/` artifacts still need updating before the next implementation or handoff step, or state that none do.
 - Classify every finding using the severity levels above.
 - State merge-readiness explicitly.
 - Reference issue requirements by ID when noting gaps.

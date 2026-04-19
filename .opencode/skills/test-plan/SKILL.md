@@ -7,7 +7,7 @@ description: Create a focused test strategy before or during implementation. Loa
 
 Use this skill when the work needs more than ad hoc test selection.
 
-Write the artifact to `tmp/test-plan-<issue-id>.md` for larger work, or keep it inline for small changes.
+Write the artifact to `tmp/test-plan-<issue-id>.md` whenever the work will be delegated to `develop` for a new behavior, bug fix, or public contract change. For non-Linear work, use `tmp/test-plan-<topic>.md` instead. Inline plans are only acceptable for small non-delegated changes handled directly in the outer conversation.
 
 ## Testing principles
 

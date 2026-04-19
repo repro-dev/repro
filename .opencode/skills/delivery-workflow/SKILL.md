@@ -22,24 +22,27 @@ For non-trivial UI changes, pair `design-system` with `ui-verification` so imple
 
 ## 1. Pre-flight
 
-1. Fetch the Linear issue via the repo-owned `linear` CLI (`linear issue show REP-123 --json`) and read the full description, decisions, and considerations.
+1. Fetch the Linear issue via the repo-owned `linear` CLI (`linear issue show REP-123 --json`) and read the full description, decisions, and considerations. For non-Linear work, establish a stable topic label that can be used in `tmp/context-<topic>.md` artifacts.
 2. Load the support skills you need for this change. If the work is a genuine bug fix or regression, load `bug-rigor` before implementation begins.
 3. Create or confirm the worktree for the issue.
 4. Set the issue to **In Progress**.
-5. If the issue spans multiple files, packages, or prior investigation threads, run `context-gather` and write `tmp/context-<issue-id>.md` before planning.
+5. If the issue spans 3+ packages, depends on prior investigation threads, or the relevant scope is scattered across related issues/comments/docs, run `context-gather` and write `tmp/context-<issue-id>.md` before planning. For non-Linear work, write `tmp/context-<topic>.md`.
 
 ## 2. Planning
 
 1. Break the issue into concrete tasks.
 2. Identify affected packages and read any package-level `AGENTS.md` files.
 3. Use jcodemunch before full-file reads: `resolve_repo` → `search_symbols` → `get_file_outline` → `get_blast_radius`.
-4. For complex work (multiple packages or heavy exploration), delegate planning to `planner` and keep the output as the working plan document.
+4. For complex work (multiple packages or heavy exploration), delegate planning to `planner` and keep the output as the working plan document. If the work crosses the context threshold from pre-flight, do not delegate to `planner` until the matching `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md` artifact exists.
 5. Capture session context with `/ledger` when the work will span sessions.
-6. For non-trivial behavior changes, produce a small `tmp/test-plan-<issue-id>.md` artifact or inline equivalent before implementation starts.
+6. For non-trivial behavior changes, produce a small `tmp/test-plan-<issue-id>.md` artifact before implementation starts. For non-Linear work, use `tmp/test-plan-<topic>.md`. Inline plans are only acceptable for small non-delegated changes handled directly in the outer conversation.
+7. If a `develop` agent will implement a new behavior, bug fix, or public contract change, promote that test plan from optional guidance to a required artifact before delegation.
 
 ## 3. Delegation
 
 - Use `develop` for implementation that touches 2+ files.
+- Give `develop` the current `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md` when one exists.
+- Give `develop` a `tmp/test-plan-<issue-id>.md` artifact for any new behavior, bug fix, or public contract change. For non-Linear work, use `tmp/test-plan-<topic>.md`.
 - Use `test` after implementation to audit coverage and add regressions.
 - Use parallel worktrees only for independent issues; each issue gets one branch and one worktree.
 

@@ -15,8 +15,10 @@ You are a development agent. You receive a structured plan document, a worktree 
 
 1. Load the `delivery-workflow`, `worktree-workflow`, and `implementation-rigor` skills. If the task is a genuine bug fix or regression, also load `bug-rigor` and follow its root-cause workflow before the generic TDD loop.
 2. Load domain skills as needed: `build-and-test`, `design-system`, `database`, `recording-playback`, `api-server`, `authentication`, `billing`, `dev-toolbar`, `agentic`.
-3. Fetch the Linear issue via `linear issue show REP-123 --json` to read the full requirements.
-4. For each affected package, check for an `AGENTS.md` file and follow its conventions.
+3. Fetch the Linear issue via `linear issue show REP-123 --json` to read the full requirements. For non-Linear work, rely on the outer conversation prompt plus any supplied planning artifacts instead.
+4. Read any supplied `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md` artifact before implementation when the outer conversation or planner provided one.
+5. For each affected package, check for an `AGENTS.md` file and follow its conventions.
+6. For any new behavior, bug fix, or public contract change, load `test-plan` and require a supplied `tmp/test-plan-<issue-id>.md` artifact before the first implementation edit. For non-Linear work, accept `tmp/test-plan-<topic>.md` instead. If the required artifact is missing, stop and report the missing precondition instead of inventing an inline substitute.
 
 ## TDD discipline
 
@@ -81,6 +83,9 @@ If you receive review feedback alongside the plan, address only the specific iss
 Return a summary of what was implemented:
 
 ```
+## Artifacts
+<which `tmp/context-*`, `tmp/test-plan-*`, or `tmp/debug-*` artifacts were consumed or updated>
+
 ## Changes
 <list of files modified/created with brief description>
 

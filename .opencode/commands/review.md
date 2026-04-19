@@ -52,6 +52,8 @@ For each unique issue ID found, run `linear issue show <issue-id> --json`. Read 
 
 If no issue IDs are found, note this in the output and proceed with convention-only review.
 
+If issue-scoped artifacts such as `tmp/context-<issue-id>.md`, `tmp/test-plan-<issue-id>.md`, or recent `tmp/debug-*.md` files exist for the work under review, read them and use them as supplemental context. For non-Linear work, use the matching `tmp/context-<topic>.md` and `tmp/test-plan-<topic>.md` artifacts instead.
+
 ---
 
 ## Step 3: Load the review checklist
@@ -84,4 +86,4 @@ Use the output structure from `review-standards`.
 
 If a compliance pass ran, keep its material findings in a separate section rather than mixing them into correctness findings.
 
-Include the requirements checklist from the fetched Linear issues, and write `(none)` for any empty findings section instead of omitting it.
+Include the requirements checklist from the fetched Linear issues, note which `tmp/` artifacts were consulted, note which still need updating before the next implementation or handoff step, and write `(none)` for any empty findings section instead of omitting it.
