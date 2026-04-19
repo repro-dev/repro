@@ -5,6 +5,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { asyncScheduler, combineLatest, observeOn } from 'rxjs'
 import { usePlayback } from '..'
 import { withPlaybackErrorBoundary } from '../PlaybackErrorBoundary'
+import { Button } from '../PlaybackNavigation/Button.styles'
+import { SimpleTimeline } from '../PlaybackTimeline'
 import { FullWidthViewport } from './FullWidthViewport'
 import { InteractionMask } from './InteractionMask'
 import { NativeDOMRenderer } from './NativeDOMRenderer'
@@ -35,10 +37,31 @@ export const PlaybackCanvas = withPlaybackErrorBoundary(
   }: Props & { children?: React.ReactNode }) => {
     const playback = usePlayback()
     const frameRef = useRef<HTMLIFrameElement | null>(null)
+    const containerRef = useRef<HTMLDivElement | null>(null)
     const [ownerDocument, setOwnerDocument] = useState<Document | null>(null)
 
     const [loaded, setLoaded] = useState(false)
     const [waitingForEvents, setWaitingForEvents] = useState(true)
+    const [isFullscreen, setIsFullscreen] = useState(false)
+
+    const updateFullscreenState = useCallback(() => {
+      setIsFullscreen(document.fullscreenElement === containerRef.current)
+    }, [])
+
+    const toggleFullscreen = useCallback(() => {
+      const container = containerRef.current
+
+      if (!container) {
+        return
+      }
+
+      if (document.fullscreenElement === container) {
+        void document.exitFullscreen()
+        return
+      }
+
+      void container.requestFullscreen()
+    }, [])
 
     const handleLoad = useCallback(
       (nodeMap: MutableNodeMap) => {
@@ -64,6 +87,16 @@ export const PlaybackCanvas = withPlaybackErrorBoundary(
         onDocumentReady(contentDocument)
       }
     }, [frameRef, setOwnerDocument, onDocumentReady])
+
+    useEffect(() => {
+      updateFullscreenState()
+
+      document.addEventListener('fullscreenchange', updateFullscreenState)
+
+      return () => {
+        document.removeEventListener('fullscreenchange', updateFullscreenState)
+      }
+    }, [updateFullscreenState])
 
     useEffect(() => {
       const subscription = combineLatest([
@@ -104,8 +137,10 @@ export const PlaybackCanvas = withPlaybackErrorBoundary(
 
     return (
       <Block
+        position="relative"
         overflow="hidden"
         height="100%"
+        width="100%"
         userSelect={interactive ? 'all' : 'none'}
         background={`repeating-linear-gradient(
           45deg,
@@ -114,7 +149,16 @@ export const PlaybackCanvas = withPlaybackErrorBoundary(
           ${color.bg.hover} 10px,
           ${color.bg.hover} 20px
         )`}
+        props={{ ref: containerRef }}
       >
+        {!isFullscreen && (
+          <Row position="absolute" top={12} right={12} zIndex={2}>
+            <Button title="Enter fullscreen" onClick={toggleFullscreen}>
+              Fullscreen
+            </Button>
+          </Row>
+        )}
+
         {(!loaded || waitingForEvents) && (
           <Row alignItems="center" justifyContent="center" height="100%">
             <FX.Spin height={24} color={color.text.muted}>
@@ -129,6 +173,33 @@ export const PlaybackCanvas = withPlaybackErrorBoundary(
 
         {scaling === 'scale-to-fit' && (
           <ScaleToFitViewport>{viewportContents}</ScaleToFitViewport>
+        )}
+
+        {isFullscreen && (
+          <Row
+            position="absolute"
+            left={12}
+            right={12}
+            bottom={12}
+            alignItems="center"
+            gap={12}
+            padding={8}
+            backgroundColor={color.bg.surface}
+            borderWidth={1}
+            borderStyle="solid"
+            borderColor={color.border.default}
+            borderRadius={8}
+            boxShadow="0 8px 24px rgba(0, 0, 0, 0.18)"
+            zIndex={2}
+          >
+            <Block flex={1} minWidth={0} height={36}>
+              <SimpleTimeline />
+            </Block>
+
+            <Button title="Exit fullscreen" onClick={toggleFullscreen}>
+              Exit
+            </Button>
+          </Row>
         )}
       </Block>
     )
