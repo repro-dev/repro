@@ -410,22 +410,16 @@ def resolve_dependencies(service_config, services):
     deps = svc.get('deps', [])
 
     for dep_name in deps:
-      main_key = dep_name + ':'
-      has_any = False
-      for existing_key in present:
-        if existing_key.startswith(dep_name + ':'):
-          has_any = True
-          break
+      dep_key = dep_name + ':' + entry.get('slug', '')
 
-      if not has_any:
+      if dep_key not in present:
         dep_entry = {
           'name': dep_name,
           'source': entry.get('source', '.'),
           'slug': entry.get('slug', ''),
         }
         result.append(dep_entry)
-        present[main_key] = True
+        present[dep_key] = True
         queue.append(dep_entry)
 
   return result
-

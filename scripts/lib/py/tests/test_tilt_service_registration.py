@@ -117,3 +117,38 @@ class TestTiltServiceRegistration:
         env = _serve_env(workspace)
         assert env["REPRO_APP_URL"] == "https://app.wt-rep-397.repro.localhost:1355"
         assert env["REPRO_API_URL"] == "https://api.wt-rep-397.repro.localhost:1355"
+
+    def test_worktree_dependencies_do_not_get_suppressed_by_main_checkout_services(self):
+        tilt_result = _render_tilt(
+            [
+                {
+                    "name": "api-server",
+                    "source": ".",
+                    "slug": "",
+                },
+                {
+                    "name": "workspace",
+                    "source": str(REPO_ROOT),
+                    "slug": "rep-397",
+                },
+                {
+                    "name": "admin",
+                    "source": str(REPO_ROOT),
+                    "slug": "rep-397",
+                },
+            ]
+        )
+
+        api_server = _manifest(tilt_result, "api-server-wt-rep-397")
+        workspace = _manifest(tilt_result, "workspace-wt-rep-397")
+        admin = _manifest(tilt_result, "admin-wt-rep-397")
+
+        assert "dependencies-wt-rep-397" in workspace["ResourceDependencies"]
+        assert "dependencies-wt-rep-397" in admin["ResourceDependencies"]
+
+        workspace_env = _serve_env(workspace)
+        admin_env = _serve_env(admin)
+
+        assert workspace_env["REPRO_API_URL"] == "https://api.wt-rep-397.repro.localhost:1355"
+        assert admin_env["REPRO_API_URL"] == "https://api.wt-rep-397.repro.localhost:1355"
+        assert api_server["Name"] == "api-server-wt-rep-397"
