@@ -823,25 +823,30 @@ The following packages had test failures after implementation. For each failure,
 <structured failure summary from Phase 6 smoke tests>
 ```
 
-For each issue, apply this bounded loop:
+For each issue, apply this iterative loop:
 
-1. **If review approves**: mark the issue publishable.
+1. **If review approves or returns zero Blockers**: mark the issue publishable.
 2. **If any blocking issue has `fixable_by_agent: false`**:
    - Escalate immediately
    - Post a concise Linear comment summarizing the blocking findings with `linear issue comment <issue-id> "<blocking findings summary>" --json`
    - Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
    - Add the issue ID to `escalated_issues`
-3. **If all blocking issues have `fixable_by_agent: true` and no fix attempt has happened yet**:
-   - Re-run `develop` once with the original plan plus the blocking findings
-   - Re-run `review` once
-4. **If the second review still has blocking issues**:
-   - Escalate with the remaining findings
+3. **If all blocking issues have `fixable_by_agent: true`**:
+   - Re-run `develop` with the original plan plus the current blocking findings
+   - Re-run `review`
+   - Increment the per-issue fix-attempt counter
+   - Continue looping while the review still has Blockers and every Blocker remains `fixable_by_agent: true`
+4. **If the loop clears all Blockers within 3 fix attempts**:
+   - Mark the issue publishable
+5. **If the loop reaches 3 consecutive fix attempts and the review still has Blockers**:
+   - Stop the automatic loop
    - Create the PR instead of discarding the branch
    - Include a concise summary of the remaining blocking findings in the PR body as reviewer follow-up context
    - Set the issue state to **In Review** with `linear issue update <issue-id> --status "In Review" --json`
    - Add the issue ID to `escalated_issues`
+   - Ask the user whether to continue, defer, or escalate further before attempting a fourth fix pass
 
-This is the entire loop: **review → fix once if agent-fixable → review again → publish or escalate into human review**.
+This is the entire loop: **review → fix while agent-fixable → review again → stop cleanly at zero Blockers or pause at the 3-attempt safety gate**.
 
 Do **not** paste full AI review output back into Linear comments. Use Linear comments only for short phase-local blocker summaries when an issue is being kicked back.
 

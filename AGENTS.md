@@ -13,11 +13,16 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 | Commit / PR              | Load `git-workflow` skill          |
 | Code review              | Load `review-standards` skill      |
 | Build / test / typecheck | Load `build-and-test` skill        |
+| Context assembly         | Load `context-gather` skill        |
+| Test planning            | Load `test-plan` skill             |
 | UI / components          | Load `design-system` skill         |
 | UI verification          | Load `ui-verification` skill       |
 | UI audits / polish       | Load `audit-ui-quality` skill      |
 | Database / migrations    | Load `database` skill              |
 | File a Linear issue      | Load `create-issue` skill          |
+| Debug investigation      | Load `debug-workflow` skill        |
+| Command authoring        | Load `command-thin-shim` skill     |
+| Skill compliance review  | Load `skill-compliance` skill      |
 
 ## Code Style & Conventions
 
@@ -63,6 +68,7 @@ Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer 
   - **Prohibited regardless**: Never use `--no-verify` (skips hooks) or `--no-gpg-sign` (bypasses commit signing), even to avoid interactive prompts
 - **Comments**: Add brief comments when they clarify non-obvious intent, invariants, sentinel values, or protocol quirks. Avoid comments that restate the code.
 - **Temporary files**: **Always use `tmp/` at the repo root** for any ephemeral output — screenshots, build artifacts, scratch files, test results, anything throwaway. **Never write to `/tmp`** (OpenCode requires elevated permission to access paths outside the project root, which blocks automated pipelines) **or `~/Downloads`** (pollutes the user's filesystem). `tmp/` is git-ignored; the `.gitkeep` sentinel keeps it tracked.
+- **Context artifacts**: For larger delivery work, prefer small durable artifacts in `tmp/` such as `tmp/context-REP-123.md`, `tmp/test-plan-REP-123.md`, or `tmp/debug-foo.md` rather than re-explaining the same context in every turn.
 
 ## Environment Variables
 
@@ -142,6 +148,14 @@ Update a skill proactively when any of these stronger triggers occur:
 - `.opencode/skills/<domain>/SKILL.md` for cross-cutting domain knowledge.
 - A package-level `AGENTS.md` for conventions too specific for a shared skill.
 - If no skill file exists for the domain and the knowledge is reusable, create one following the structure of existing skill files.
+- For command-specific workflow glue, keep `.opencode/commands/*.md` thin and move reusable operating logic into skills.
+- New skill files are discovered on session startup. In the same session that creates a skill, read the new `SKILL.md` directly instead of assuming the `skill` tool can load it by name immediately.
+
+### Command authoring
+
+- Command files should parse arguments, validate mode selection, and dispatch into the skill or workflow that owns the behavior.
+- Avoid copying long checklists or domain rules into commands when the same guidance belongs in a reusable skill.
+- For existing heavyweight commands, apply this incrementally when you are already modifying them; do not churn stable commands just to satisfy the pattern.
 
 ### Naming rules
 
@@ -194,6 +208,8 @@ This table is normative — agents must treat it as a constraint, not a suggesti
 ### Mandatory delegation
 
 - **`develop` agent**: Use for ALL implementation work that touches 2+ files. Do NOT write code directly in the outer conversation except for trivial single-file edits (e.g. fixing a typo, updating a config value). Provide the develop agent with: (1) the worktree path, (2) the exact file paths and line ranges to modify, (3) the specific changes to make, (4) how to verify (test commands), and (5) the Linear issue ID for commit messages.
+- Before delegating to `planner` for work that spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs, create `tmp/context-<issue-id>.md` first and pass it in as planning input. For non-Linear work, use `tmp/context-<topic>.md`.
+- Before delegating to `develop` for a new behavior, bug fix, or public contract change, create or confirm `tmp/test-plan-<issue-id>.md` and pass it in with the task. For non-Linear work, use `tmp/test-plan-<topic>.md`.
 - **`test` agent**: Use after implementation to audit test coverage and write additional tests. Do NOT write tests in the outer conversation. Provide the test agent with: (1) the worktree path, (2) which files were changed, (3) the relevant test commands.
 
 ### When to skip delegation
@@ -209,9 +225,16 @@ Delegation adds overhead. Skip it for:
 The typical flow for a feature or fix:
 
 1. **Outer conversation**: Fetch the Linear issue, explore the codebase, discuss design with the user. For complex features (3+ packages or significant codebase exploration needed), delegate planning to the `planner` agent to produce a structured plan document. For simpler changes, plan inline.
-2. **`develop` agent**: Receives the plan and implements it using TDD. Returns when tests pass and code is verified.
-3. **`test` agent**: Audits coverage, writes regression tests, flags gaps.
-4. **Outer conversation**: Reviews the result, commits, creates the PR.
+2. **Outer conversation**: When the work crosses the context threshold, run `context-gather` first and keep `tmp/context-<issue-id>.md` as the planning input. For non-Linear work, use `tmp/context-<topic>.md` instead. When the work adds behavior, fixes a bug, or changes a public contract, create or confirm `tmp/test-plan-<issue-id>.md` before implementation starts. For non-Linear work, use `tmp/test-plan-<topic>.md` instead.
+3. **`develop` agent**: Receives the plan and implements it using TDD. Returns when tests pass and code is verified.
+4. **`test` agent**: Audits coverage, writes regression tests, flags gaps.
+5. **Outer conversation**: Reviews the result, commits, creates the PR.
+
+### Artifact lifecycle
+
+- `tmp/context-<issue-id>.md`: required before planner delegation once work spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs. Use `tmp/context-<topic>.md` for non-Linear work.
+- `tmp/test-plan-<issue-id>.md`: required before `develop` for new behavior, bug fixes, and public contract changes. Use `tmp/test-plan-<topic>.md` for non-Linear work.
+- Review and handoff workflows should explicitly note which `tmp/` artifacts were consumed and which still need updating.
 
 ### Challenge-verify-validate (post-subtask behavior)
 
