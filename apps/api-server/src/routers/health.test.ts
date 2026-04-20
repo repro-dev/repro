@@ -1,5 +1,5 @@
 import expect from 'expect'
-import { reject } from 'fluture'
+import { resolve } from 'fluture'
 import { after, before, describe, it } from 'node:test'
 import { Database } from '~/modules/database'
 import { Storage } from '~/modules/storage'
@@ -7,11 +7,10 @@ import { createHealthService } from '~/services/health'
 import { setUpTestDatabase } from '~/testing/database'
 import { setUpTestFileSystemStorage } from '~/testing/storage'
 import { fromRouter } from '~/testing/utils'
-import { serviceUnavailable } from '~/utils/errors'
 import { createHealthRouter } from './health'
 
 describe('Routers > Health', () => {
-  let reset: () => Promise<void>
+  let reset = async () => {}
   let db: Database
   let storage: Storage
 
@@ -43,14 +42,35 @@ describe('Routers > Health', () => {
       url: '/',
     })
 
+    const body = JSON.parse(res.body)
+
     expect(res.headers['content-type']).toMatch(/json/)
     expect(res.statusCode).toEqual(200)
+    expect(body).toEqual(
+      expect.objectContaining({
+        timestamp: expect.any(String),
+        checks: expect.objectContaining({
+          database: expect.objectContaining({ status: 'ok' }),
+          storage: expect.objectContaining({ status: 'ok' }),
+        }),
+      })
+    )
   })
 
-  it('should return 503 on an invalid health check', async () => {
+  it('should return 503 with unhealthy status in body when a core subsystem is down', async () => {
     const healthRouter = createHealthRouter({
+      checkDetailed() {
+        return resolve({
+          status: 'unhealthy' as const,
+          timestamp: new Date().toISOString(),
+          checks: {
+            database: { status: 'error', error: 'connection refused' },
+            storage: { status: 'ok' },
+          },
+        })
+      },
       check() {
-        return reject(serviceUnavailable('Health check failed'))
+        return resolve({ status: 'ok' as const })
       },
     })
 
@@ -60,12 +80,16 @@ describe('Routers > Health', () => {
       url: '/',
     })
 
+    const body = JSON.parse(res.body)
     expect(res.statusCode).toEqual(503)
+    expect(body.status).toEqual('unhealthy')
+    expect(body.checks.database.status).toEqual('error')
+    expect(body.checks.database.error).toEqual('Health check failed')
   })
 
   it('should return 200 with degraded status when Redis is down', async () => {
     const redisClient = {
-      ping: async (): Promise<string> => {
+      ping: async () => {
         throw new Error('Connection refused')
       },
     }
