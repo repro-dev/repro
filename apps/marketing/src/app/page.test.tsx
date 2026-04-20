@@ -51,6 +51,16 @@ describe('marketing homepage route', () => {
     assert.ok(screen.getByText('Capture the full context'))
     assert.ok(screen.getByText('Share one reproducible link'))
     assert.ok(screen.getByText('Move from bug to fix faster'))
+
+    const styleText = Array.from(document.querySelectorAll('style'))
+      .map(style => style.textContent ?? '')
+      .join('\n')
+
+    assert.ok(
+      !/min-width:\s*320px/.test(styleText),
+      'homepage hero should not enforce a 320px minimum width on narrow viewports'
+    )
+
     const socialProofQuote = screen
       .getAllByText(
         (_text: string, element: HTMLElement | SVGElement | null) =>

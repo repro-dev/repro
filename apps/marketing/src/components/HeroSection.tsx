@@ -25,7 +25,7 @@ export function HeroSection({ appUrl }: HeroSectionProps) {
       gap={spacing['3xl']}
       flexWrap="wrap"
     >
-      <Col gap={spacing.xl} flex="1 1 360px" minWidth="320px">
+      <Col gap={spacing.xl} flex="1 1 360px" minWidth={0}>
         <Col gap={spacing.md}>
           <Block component="p" {...textStyles.label} color={color.info}>
             Capture bugs with context
@@ -126,7 +126,7 @@ export function HeroSection({ appUrl }: HeroSectionProps) {
 
       <Col
         flex="1 1 360px"
-        minWidth="320px"
+        minWidth={0}
         gap={spacing.md}
         border={`1px solid ${color.border.default}`}
         backgroundColor={color.bg.surface}
