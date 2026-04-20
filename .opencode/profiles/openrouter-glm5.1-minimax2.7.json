@@ -6,6 +6,10 @@
       "model": "openrouter/minimax/minimax-m2.7",
       "template": ""
     },
+    "groom": {
+      "model": "openrouter/minimax/minimax-m2.7",
+      "template": ""
+    },
     "enrich-issues": {
       "model": "openrouter/z-ai/glm-5.1",
       "template": ""

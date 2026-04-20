@@ -76,7 +76,7 @@ Session-local exclusions:
 - Use `fixable_by_agent: true | false` for blocking review findings.
 - Do not run a skill-audit preflight, do not maintain a run log, and do not run a visual regression phase here.
 
-> Tip: Run `/enrich-issues` before `/deliver` if the backlog contains issues that look promising but under-specified.
+> Tip: Run `/groom` first when the queue itself needs normalization, then `/enrich-issues` for promising issues that are still under-specified before `/deliver`.
 
 ## Execution control
 
@@ -176,6 +176,7 @@ Run this phase only when `mode = wave`.
    - Deduplicate the combined results by issue ID.
    - For each issue in the full deduplicated set, call `linear issue show <issue-id> --json`.
    - For each issue that has any `relations.blockedBy` entries, call `linear issue show <blocker-id> --json` for each blocker as well so blocker status is known before applying the readiness filter.
+   - If the queue health signals point to blocked work, stale parent/spec placement, or duplicate/superseded issues rather than delivery-ready candidates, hand those issues to `/groom` instead of forcing them into the delivery wave.
 
 2. Apply a precision-first selection bar.
 

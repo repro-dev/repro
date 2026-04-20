@@ -6,6 +6,10 @@
       "model": "opencode-go/minimax-m2.7",
       "template": ""
     },
+    "groom": {
+      "model": "opencode-go/minimax-m2.7",
+      "template": ""
+    },
     "enrich-issues": {
       "model": "opencode-go/glm-5.1",
       "template": ""
