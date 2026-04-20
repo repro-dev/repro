@@ -39,7 +39,7 @@ test("issue list constructs server-side filters and forwards pagination", async 
       "--status",
       "todo",
       "--limit",
-      "250",
+      "100",
       "--after",
       "cursor-1",
       "--json",
@@ -57,7 +57,7 @@ test("issue list constructs server-side filters and forwards pagination", async 
   assert.equal(payload.pageInfo.endCursor, "abc123");
   assert.equal(records.issues.length, 1);
   assert.equal(records.issues[0].after, "cursor-1");
-  assert.equal(records.issues[0].first, 250);
+  assert.equal(records.issues[0].first, 100);
   assert.ok(records.issues[0].filter.and);
   assert.equal(records.issues[0].filter.and[0].project.id.eq, "project-1");
   assert.deepEqual(records.issues[0].filter.and[1].state.id.in, [
@@ -67,6 +67,93 @@ test("issue list constructs server-side filters and forwards pagination", async 
   assert.equal(records.viewerCalls.length, 0);
   assert.equal(records.labels.length, 1);
   assert.deepEqual(records.issueLabels, []);
+});
+
+test("issue list paginates large limits with safe page sizes", async () => {
+  const records = {
+    teams: [],
+    states: [],
+    issues: [],
+  };
+
+  const makeIssue = (index) => ({
+    id: `issue-${index}`,
+    identifier: `REP-${1000 + index}`,
+    title: `Issue ${index}`,
+    url: `https://linear.app/acme/issue/REP-${1000 + index}`,
+    priority: 3,
+    priorityLabel: "Medium",
+    updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+    labelIds: [],
+    project: Promise.resolve(null),
+    projectMilestone: Promise.resolve(null),
+    assignee: Promise.resolve(null),
+    state: Promise.resolve({
+      id: "state-backlog",
+      name: "Backlog",
+      type: "backlog",
+    }),
+  });
+
+  const pages = [0, 1, 2].map((page) => ({
+    nodes: Array.from({ length: 100 }, (_, index) =>
+      makeIssue(page * 100 + index + 1),
+    ),
+    pageInfo: {
+      hasNextPage: true,
+      endCursor: `cursor-${page + 1}`,
+    },
+  }));
+
+  const team = {
+    id: "team-1",
+    key: "REP",
+    name: "Workspace",
+    states: async (vars) => {
+      records.states.push(vars);
+      return {
+        nodes: [
+          { id: "state-backlog", name: "Backlog", type: "backlog" },
+          { id: "state-todo", name: "Todo", type: "unstarted" },
+        ],
+      };
+    },
+    issues: async (vars) => {
+      records.issues.push(vars);
+      if (vars.first > 100) {
+        throw new Error(`Unsafe page size: ${vars.first}`);
+      }
+
+      const page = pages[records.issues.length - 1];
+      return {
+        nodes: page.nodes.slice(0, vars.first),
+        pageInfo: page.pageInfo,
+      };
+    },
+  };
+
+  const client = {
+    teams: async () => ({ nodes: [team] }),
+  };
+
+  const result = await execute(["issue", "list", "--limit", "250", "--json"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => client,
+  });
+
+  assert.equal(result.code, 0);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.items.length, 250);
+  assert.equal(payload.pageInfo.hasNextPage, true);
+  assert.equal(payload.pageInfo.endCursor, "cursor-3");
+  assert.deepEqual(
+    records.issues.map(({ after, first }) => ({ after, first })),
+    [
+      { after: undefined, first: 100 },
+      { after: "cursor-1", first: 100 },
+      { after: "cursor-2", first: 50 },
+    ],
+  );
 });
 
 test("issue list forwards leaf and unblocked filters together", async () => {

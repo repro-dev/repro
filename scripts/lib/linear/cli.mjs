@@ -372,7 +372,9 @@ function serializeIssueLabel(label) {
 }
 
 function serializeIssueLabels(issue, labels = []) {
-  return selectLabelsById(labels, issue?.labelIds ?? []).map(serializeIssueLabel);
+  return selectLabelsById(labels, issue?.labelIds ?? []).map(
+    serializeIssueLabel,
+  );
 }
 
 function serializeStatus(status) {
@@ -476,7 +478,8 @@ async function resolveRelationValue(value) {
 }
 
 async function serializeMilestoneProject(milestone, project = null) {
-  const sourceProject = project ?? (milestone?.project ? await milestone.project : null);
+  const sourceProject =
+    project ?? (milestone?.project ? await milestone.project : null);
   if (!sourceProject) return null;
   return serializeProjectSummary(sourceProject);
 }
@@ -497,7 +500,9 @@ async function serializeMilestone(milestone, project = null) {
 
 async function serializeMilestonePreview(milestone, project = null) {
   if (!milestone) return null;
-  const resolvedProject = await resolveRelationValue(project ?? milestone.project);
+  const resolvedProject = await resolveRelationValue(
+    project ?? milestone.project,
+  );
   return {
     id: milestone.id ?? null,
     name: milestone.name ?? null,
@@ -506,7 +511,9 @@ async function serializeMilestonePreview(milestone, project = null) {
       milestone.updatedAt instanceof Date
         ? milestone.updatedAt.toISOString()
         : milestone.updatedAt ?? null,
-    project: resolvedProject ? await serializeProjectSummary(resolvedProject) : null,
+    project: resolvedProject
+      ? await serializeProjectSummary(resolvedProject)
+      : null,
   };
 }
 
@@ -562,7 +569,9 @@ async function serializeIssueListItem(issue, labels = []) {
     priorityLabel: issue.priorityLabel ?? null,
     status: status ? serializeStatus(status) : null,
     project: project ? await serializeProjectSummary(project) : null,
-    milestone: milestone ? await serializeMilestonePreview(milestone, project) : null,
+    milestone: milestone
+      ? await serializeMilestonePreview(milestone, project)
+      : null,
     assignee: serializeUser(assignee),
     labels: serializeIssueLabels(issue, labels),
     updatedAt:
@@ -646,7 +655,9 @@ async function serializeIssueDetails(issue) {
           relatedIssuePromise,
         ]);
         const otherIssue =
-          sourceIssue?.id === issue.id ? relatedIssue : sourceIssue ?? relatedIssue;
+          sourceIssue?.id === issue.id
+            ? relatedIssue
+            : sourceIssue ?? relatedIssue;
 
         if (!otherIssue) return;
 
@@ -874,6 +885,44 @@ function parseIssueIdentifier(issueId) {
   return { teamKey: match[1], number: Number(match[2]) };
 }
 
+const ISSUE_LIST_PAGE_SIZE = 100;
+
+async function fetchIssueListPages(team, { after, first, filter }) {
+  const items = [];
+  let nextCursor = after ?? undefined;
+  let pageInfo = { hasNextPage: false, endCursor: null };
+
+  while (items.length < first) {
+    const pageSize = Math.min(ISSUE_LIST_PAGE_SIZE, first - items.length);
+    const response = await fetchIssues(team, {
+      after: nextCursor,
+      first: pageSize,
+      filter,
+    });
+
+    const nodes = response?.nodes ?? [];
+    const pageItems = nodes.slice(0, pageSize);
+    items.push(...pageItems);
+
+    pageInfo = {
+      hasNextPage: Boolean(response?.pageInfo?.hasNextPage),
+      endCursor: response?.pageInfo?.endCursor ?? null,
+    };
+
+    if (
+      !pageInfo.hasNextPage ||
+      !pageInfo.endCursor ||
+      nodes.length < pageSize
+    ) {
+      break;
+    }
+
+    nextCursor = pageInfo.endCursor;
+  }
+
+  return { items, pageInfo };
+}
+
 async function issueListCommand(args, context) {
   const options = parseOptions(args, [
     "--project",
@@ -915,9 +964,10 @@ async function issueListCommand(args, context) {
     options.open,
   ].some(normalizeBool);
 
-  const states = !explicitFilters || options.statuses?.length
-    ? await resolveStates(team)
-    : [];
+  const states =
+    !explicitFilters || options.statuses?.length
+      ? await resolveStates(team)
+      : [];
   const viewer = options.mine ? await resolveViewer(client) : null;
   const labels = options.labels?.length ? await resolveLabels(team) : [];
 
@@ -961,13 +1011,12 @@ async function issueListCommand(args, context) {
     defaultBacklogStateIds: defaultBacklogStates.map((state) => state.id),
   });
 
-  const response = await fetchIssues(team, {
+  const { items: responseIssues, pageInfo } = await fetchIssueListPages(team, {
     after: options.after ?? undefined,
     first: limit,
     filter,
   });
 
-  const responseIssues = response?.nodes ?? [];
   const issueLabelIds = collectLabelIds(responseIssues);
   const issueLabels = labels.length
     ? labels
@@ -978,10 +1027,6 @@ async function issueListCommand(args, context) {
   const items = await Promise.all(
     responseIssues.map((issue) => serializeIssueListItem(issue, issueLabels)),
   );
-  const pageInfo = {
-    hasNextPage: Boolean(response?.pageInfo?.hasNextPage),
-    endCursor: response?.pageInfo?.endCursor ?? null,
-  };
 
   if (context.json) {
     return {
@@ -1017,8 +1062,13 @@ async function issueShowCommand(args, context) {
     usageError("Usage: linear issue show <id>");
   }
 
-  const { client, issue, team } = await resolveIssueByIdentifier(context, issueId);
-  const issueLabels = collectLabelIds([issue]).length ? await resolveLabels(team) : [];
+  const { client, issue, team } = await resolveIssueByIdentifier(
+    context,
+    issueId,
+  );
+  const issueLabels = collectLabelIds([issue]).length
+    ? await resolveLabels(team)
+    : [];
 
   const item = await serializeIssue(client, issue, issueLabels);
   const details = await serializeIssueDetails(issue);
@@ -1102,7 +1152,10 @@ async function issueChildrenCommand(args, context) {
   const issueId = options._[0];
   if (!issueId) usageError("Missing issue identifier.");
 
-  const { client, issue, team } = await resolveIssueByIdentifier(context, issueId);
+  const { client, issue, team } = await resolveIssueByIdentifier(
+    context,
+    issueId,
+  );
   const response = await callBoundMethod(issue, issue.children, { first: 200 });
   const childIssues = response?.nodes ?? [];
   const childLabelIds = collectLabelIds(childIssues);
@@ -1214,20 +1267,24 @@ async function issueCreateCommand(args, context) {
 
     for (const relationSpec of relationSpecs) {
       const sourceIssueId = relationSpec.sourceIssueIdentifier
-        ? (await resolveIssueByIdentifierOnTeam(
-            context,
-            team,
-            relationSpec.sourceIssueIdentifier,
-            issueResolutionCache,
-          )).issue.id
+        ? (
+            await resolveIssueByIdentifierOnTeam(
+              context,
+              team,
+              relationSpec.sourceIssueIdentifier,
+              issueResolutionCache,
+            )
+          ).issue.id
         : relationSpec.sourceIssueId;
       const targetIssueId = relationSpec.targetIssueIdentifier
-        ? (await resolveIssueByIdentifierOnTeam(
-            context,
-            team,
-            relationSpec.targetIssueIdentifier,
-            issueResolutionCache,
-          )).issue.id
+        ? (
+            await resolveIssueByIdentifierOnTeam(
+              context,
+              team,
+              relationSpec.targetIssueIdentifier,
+              issueResolutionCache,
+            )
+          ).issue.id
         : relationSpec.targetIssueId;
       await createIssueRelationWithFallback(client, {
         issueId: sourceIssueId,
@@ -1440,7 +1497,7 @@ async function issueUpdateCommand(args, context) {
 
   return {
     code: 0,
-    stdout: `${item.identifier} updated\n`,
+    stdout: `${item.identifier ?? issue.identifier} updated\n`,
     stderr: "",
   };
 }

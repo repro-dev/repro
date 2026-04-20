@@ -468,6 +468,44 @@ test("issue update resolves statuses and calls updateIssue", async () => {
   assert.equal(records.updateIssue[0].input.assigneeId, "user-1");
 });
 
+test("issue update human output keeps the original identifier when updateIssue is sparse", async () => {
+  const records = {};
+  const client = makeClient(records);
+
+  client.updateIssue = async function (id, input) {
+    records.updateIssue.push({ id, input });
+    return {
+      id: "issue-1",
+      title: "Parent issue",
+      url: "https://linear.app/acme/issue/REP-875",
+      priority: 3,
+      priorityLabel: "Medium",
+      updatedAt: new Date("2026-04-18T02:00:00.000Z"),
+      description: "desc",
+      labelIds: [],
+      project: Promise.resolve(null),
+      projectMilestone: Promise.resolve(null),
+      assignee: Promise.resolve(null),
+      state: Promise.resolve({
+        id: "state-review",
+        name: "In Review",
+        type: "started",
+      }),
+    };
+  };
+
+  const result = await execute(
+    ["issue", "update", "REP-875", "--status", "In Review"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => client,
+    },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stdout, "REP-875 updated\n");
+});
+
 test("issue update merges add/remove label flags against current labels", async () => {
   const records = { issueLabelIds: ["label-feature"] };
 
