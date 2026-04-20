@@ -176,7 +176,9 @@ const billingWebhookRouter =
     : null
 const featureGateRouter = createFeatureGateRouter(
   featureGateService,
-  accountService
+  accountService,
+  billingService,
+  env
 )
 const healthRouter = createHealthRouter(healthService)
 const oauthRouter = createOAuthRouter(oauthService, accountService)
