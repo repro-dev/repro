@@ -64,3 +64,4 @@ packages/tdl/src/cli/*.ohm-bundle.*
 .opencode/package-lock.json
 # Machine-local direnv overrides written by `reproctl setup` (e.g. OPENCODE_CONFIG_CONTENT)
 .envrc.local
+.linear

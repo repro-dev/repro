@@ -17,9 +17,10 @@ Launch OpenCode, optionally activating a model profile that overrides the
 **.opencode/agents/**.
 
 When **--profile** is given, the matching **.opencode/profiles/**_name_**.json**
-file is passed to OpenCode via the **OPENCODE_CONFIG** environment variable.
-OpenCode merges this config with its own defaults, so only the fields present
-in the profile file are overridden.
+file is layered on top of the tracked project config in
+**.opencode/opencode.json** and passed to OpenCode via the
+**OPENCODE_CONFIG** environment variable. OpenCode merges this config with its
+own defaults, so only the fields present in the profile file are overridden.
 
 On macOS, the launch is wrapped in **caffeinate -dims** to prevent display
 sleep, idle sleep, and disk sleep during long agent sessions. On other
