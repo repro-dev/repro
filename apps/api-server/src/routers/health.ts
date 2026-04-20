@@ -1,17 +1,22 @@
 import { FastifyPluginAsync } from 'fastify'
-import { SystemConfig, defaultSystemConfig } from '~/config/system'
+import { promise } from 'fluture'
 import type { HealthService } from '~/services/health'
-import { createResponseUtils } from '~/utils/response'
+import { sanitizeHealthResult } from '~/services/health'
 
 export function createHealthRouter(
-  healthService: HealthService,
-  config: SystemConfig = defaultSystemConfig
+  healthService: HealthService
 ): FastifyPluginAsync {
-  const { respondWith } = createResponseUtils(config)
-
   return async function (fastify) {
-    fastify.get('/', (_, res) => {
-      respondWith(res, healthService.check())
+    fastify.get('/', async (_, res) => {
+      const result = sanitizeHealthResult(
+        await promise(healthService.checkDetailed())
+      )
+
+      if (result.status === 'unhealthy') {
+        res.status(503)
+      }
+
+      return res.send(result)
     })
   }
 }

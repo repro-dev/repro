@@ -7,13 +7,14 @@
 #
 #   1. Homebrew dependencies  (brew bundle)
 #   2. agent-browser runtime   (doctor/install as needed)
-#   3. direnv shell hook      (check + remind)
-#   4. Proto-managed tools    (proto use)
-#   5. Node.js dependencies   (pnpm install)
-#   6. Docker                 (check daemon is running, wait if needed)
-#   7. Trust .envrc           (direnv allow)
-#   8. OpenCode local config  (.envrc.local)
-#   9. Cluster + registry    (reproctl cluster up)
+#   3. agent-browser auth vault (seed dev logins)
+#   4. direnv shell hook      (check + remind)
+#   5. Proto-managed tools    (proto use)
+#   6. Node.js dependencies   (pnpm install)
+#   7. Docker                 (check daemon is running, wait if needed)
+#   8. Trust .envrc           (direnv allow)
+#   9. OpenCode local config  (.envrc.local)
+#  10. Cluster + registry    (reproctl cluster up)
 #
 # Also invoked by `reproctl setup`, which passes through its flags.
 #
@@ -31,7 +32,7 @@ cd "$REPO_ROOT"
 # ── Helpers ─────────────────────────────────────────────────────────
 
 step=0
-total=9
+total=10
 
 next_step() {
   step=$((step + 1))
@@ -47,6 +48,62 @@ die() {
   exit 1
 }
 
+current_worktree_slug() {
+  local basename
+  basename="$(basename "$REPO_ROOT")"
+  if [[ "$basename" == repro-wt-* ]]; then
+    echo "${basename#repro-wt-}"
+  fi
+}
+
+local_service_url() {
+  local service="$1"
+  local slug="${2:-}"
+  local url
+
+  if [[ -n "$slug" ]]; then
+    url="$(python3 "$REPO_ROOT/scripts/lib/py/local_service_url.py" "$service" "$REPO_ROOT/infra/services.json" "$slug" 2>/dev/null)"
+  else
+    url="$(python3 "$REPO_ROOT/scripts/lib/py/local_service_url.py" "$service" "$REPO_ROOT/infra/services.json" 2>/dev/null)"
+  fi
+
+  [[ -n "$url" ]] || return 1
+  echo "$url"
+}
+
+auth_vault_bootstrap_entries() {
+  local workspace_url="$1"
+  local admin_url="$2"
+
+  python3 - "$REPO_ROOT/scripts/lib/data/auth-vault-bootstrap.json" "$workspace_url" "$admin_url" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text())
+workspace_url = sys.argv[2]
+admin_url = sys.argv[3]
+
+for login in data['logins']:
+  url = workspace_url if login['service'] == 'workspace' else admin_url
+  print(f"{login['profile']}\t{url}\t{login['username']}\t{data['password']}")
+PY
+}
+
+seed_agent_browser_auth_vault() {
+  local slug workspace_url admin_url auth_vault_entries profile url username password
+  slug="$(current_worktree_slug)"
+  workspace_url="$(local_service_url workspace "$slug")" || return 1
+  admin_url="$(local_service_url admin "$slug")" || return 1
+
+  auth_vault_entries="$(auth_vault_bootstrap_entries "$workspace_url" "$admin_url")" || return 1
+
+  while IFS=$'\t' read -r profile url username password; do
+    [ -n "$profile" ] || continue
+    agent-browser auth save "$profile" --url "$url" --username "$username" --password "$password"
+  done <<< "$auth_vault_entries"
+}
+
 # ── Parse flags ─────────────────────────────────────────────────────
 
 skip_cluster=false
@@ -60,7 +117,7 @@ Usage: ./scripts/bootstrap.sh [options]
 Bootstrap the development environment from a fresh clone.
 
 Options:
-  --no-cluster    Skip kind cluster creation (step 9)
+  --no-cluster    Skip kind cluster creation (step 10)
   -h, --help      Show this help
 EOF
       exit 0
@@ -101,7 +158,14 @@ else
   ok "agent-browser runtime provisioned"
 fi
 
-# ── Step 3: direnv shell hook ───────────────────────────────────────
+# ── Step 3: agent-browser auth vault ────────────────────────────────
+
+next_step "Seeding agent-browser auth vault..."
+
+seed_agent_browser_auth_vault
+ok "agent-browser auth vault seeded"
+
+# ── Step 4: direnv shell hook ───────────────────────────────────────
 
 next_step "Checking direnv shell hook..."
 
@@ -125,7 +189,7 @@ else
   ok "direnv shell hook active"
 fi
 
-# ── Step 4: Proto-managed tools ─────────────────────────────────────
+# ── Step 5: Proto-managed tools ─────────────────────────────────────
 
 next_step "Installing proto-managed tools..."
 
@@ -136,7 +200,7 @@ fi
 proto use
 ok "Proto tools installed (node, pnpm, moon, tilt, helm, ctlptl)"
 
-# ── Step 5: Node.js dependencies ───────────────────────────────────
+# ── Step 6: Node.js dependencies ───────────────────────────────────
 
 next_step "Installing Node.js dependencies..."
 
@@ -149,7 +213,7 @@ else
   die "repo-local Linear CLI wrapper could not execute or resolve @linear/sdk after pnpm install. Run 'pnpm install' again or check the @linear/sdk dependency in package.json."
 fi
 
-# ── Step 6: Docker ──────────────────────────────────────────────────
+# ── Step 7: Docker ──────────────────────────────────────────────────
 
 next_step "Checking Docker..."
 
@@ -176,14 +240,14 @@ fi
 docker_version="$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "unknown")"
 ok "Docker $docker_version, daemon running"
 
-# ── Step 7: Trust .envrc ────────────────────────────────────────────
+# ── Step 8: Trust .envrc ────────────────────────────────────────────
 
 next_step "Trusting .envrc (enables reproctl as a bare command)..."
 
 direnv allow "$REPO_ROOT"
 ok ".envrc allowed"
 
-# ── Step 8: OpenCode local config ───────────────────────────────────
+# ── Step 9: OpenCode local config ───────────────────────────────────
 
 next_step "Writing .envrc.local (machine-local OpenCode permissions)..."
 
@@ -218,7 +282,7 @@ ENVRC_EOF
 
 ok ".envrc.local written (external_directory: $PARENT_DIR/**)"
 
-# ── Step 9: Cluster + registry ─────────────────────────────────────
+# ── Step 10: Cluster + registry ────────────────────────────────────
 
 if [ "$skip_cluster" = true ]; then
   next_step "Skipping cluster creation (--no-cluster)"

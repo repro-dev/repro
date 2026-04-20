@@ -118,7 +118,44 @@ const adminTheme: ThemeDefinition = {
 
 const rootSelector = '#root'
 const rootElem = document.querySelector(rootSelector)
-const rootStyleSheet = document.querySelector<HTMLStyleElement>('#root-styles')
+const rootStyleSheet = document.querySelector(
+  '#root-styles'
+) as HTMLStyleElement | null
+
+export const AppRoutes: React.FC = () => (
+  <Routes>
+    <Route element={<AuthLayout />}>
+      <Route path="login" element={<StaffLoginRoute />} />
+    </Route>
+
+    <Route element={<Layout />}>
+      <Route element={<RequireAdminSession />}>
+        <Route index element={<HomeRoute />} />
+        <Route path="recordings" element={<RecordingsRoute />} />
+        <Route path="feature-gates" element={<FeatureGatesRoute />} />
+        <Route path="accounts" element={<AccountsRoute />} />
+        <Route path="health" element={<HealthRoute />} />
+        <Route element={<RequireAdminStaffSession />}>
+          <Route path="staff-users" element={<StaffUsersRoute />} />
+        </Route>
+      </Route>
+    </Route>
+
+    <Route element={<RequireAdminSession />}>
+      <Route
+        path="projects/:projectId/recordings/:recordingId"
+        element={<RecordingRoute />}
+      />
+      {/*
+       * Backward compatibility: old links may still point to
+       * /recordings/:recordingId. projectId will be undefined
+       * here, which RecordingRoute handles by falling back to
+       * empty string (the original behavior for these cases).
+       */}
+      <Route path="recordings/:recordingId" element={<RecordingRoute />} />
+    </Route>
+  </Routes>
+)
 
 if (rootStyleSheet) {
   applyResetStyles(rootSelector, rootStyleSheet)
@@ -139,50 +176,7 @@ if (rootElem) {
             <ThemeProvider theme={adminTheme}>
               <PortalRootProvider>
                 <Suspense fallback={<Loading />}>
-                  <Routes>
-                    <Route element={<AuthLayout />}>
-                      <Route path="login" element={<StaffLoginRoute />} />
-                    </Route>
-
-                    <Route element={<Layout />}>
-                      <Route element={<RequireAdminSession />}>
-                        <Route index element={<HomeRoute />} />
-                        <Route
-                          path="recordings"
-                          element={<RecordingsRoute />}
-                        />
-                        <Route
-                          path="feature-gates"
-                          element={<FeatureGatesRoute />}
-                        />
-                        <Route path="accounts" element={<AccountsRoute />} />
-                        <Route element={<RequireAdminStaffSession />}>
-                          <Route
-                            path="staff-users"
-                            element={<StaffUsersRoute />}
-                          />
-                        </Route>
-                        <Route path="health" element={<HealthRoute />} />
-                      </Route>
-                    </Route>
-
-                    <Route element={<RequireAdminSession />}>
-                      <Route
-                        path="projects/:projectId/recordings/:recordingId"
-                        element={<RecordingRoute />}
-                      />
-                      {/*
-                       * Backward compatibility: old links may still point to
-                       * /recordings/:recordingId. projectId will be undefined
-                       * here, which RecordingRoute handles by falling back to
-                       * empty string (the original behavior for these cases).
-                       */}
-                      <Route
-                        path="recordings/:recordingId"
-                        element={<RecordingRoute />}
-                      />
-                    </Route>
-                  </Routes>
+                  <AppRoutes />
                 </Suspense>
               </PortalRootProvider>
             </ThemeProvider>

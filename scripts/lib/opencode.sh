@@ -9,8 +9,9 @@ _opencode_usage() {
   cat <<EOF
 Usage: reproctl opencode [--profile <name>] [opencode-args...]
 
-Launch OpenCode, optionally with a model profile that overrides agent
-model assignments without modifying the agent definition files.
+Launch OpenCode, optionally with a model profile that layers on top of the
+tracked project config in .opencode/opencode.json and overrides agent model
+assignments without modifying the agent definition files.
 
 ${CLR_BOLD}OPTIONS${CLR_RESET}
   --profile <name>    Load .opencode/profiles/<name>.json as OPENCODE_CONFIG.
