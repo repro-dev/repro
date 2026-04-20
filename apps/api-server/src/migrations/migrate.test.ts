@@ -1,3 +1,9 @@
+import type {
+  AgenticConversationAssistantToolCall,
+  AgenticConversationId,
+  AgenticConversationMessageId,
+  AgenticConversationToolContent,
+} from '@repro/domain'
 import { sql } from 'kysely'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
@@ -93,7 +99,19 @@ describe('agentic conversation migrations', () => {
       ORDER BY id DESC
       LIMIT 1
     `.execute(db)) as unknown as { rows: Array<{ id: number }> }
-    const conversationId = conversationResult.rows[0]!.id
+    const conversationId: AgenticConversationId = conversationResult.rows[0]!.id
+
+    const assistantToolCalls: Array<AgenticConversationAssistantToolCall> = [
+      {
+        id: 'call-1',
+        index: 0,
+        type: 'function',
+        function: {
+          name: 'ask-user',
+          arguments: '{"prompt":"Need more info"}',
+        },
+      },
+    ]
 
     await sql`
       INSERT INTO agentic_conversation_messages (
@@ -110,17 +128,7 @@ describe('agentic conversation migrations', () => {
         1,
         'assistant',
         CAST(${JSON.stringify('Ready to help')} AS jsonb),
-        CAST(${JSON.stringify([
-          {
-            id: 'call-1',
-            index: 0,
-            type: 'function',
-            function: {
-              name: 'ask-user',
-              arguments: '{"prompt":"Need more info"}',
-            },
-          },
-        ])} AS jsonb),
+        CAST(${JSON.stringify(assistantToolCalls)} AS jsonb),
         NULL,
         CURRENT_TIMESTAMP
       )
@@ -140,12 +148,58 @@ describe('agentic conversation migrations', () => {
           )
           VALUES (
             ${conversationId},
-            3,
+            2,
             'assistant',
+            CAST(${JSON.stringify('Still here')} AS jsonb),
             CAST(${JSON.stringify([
-              { type: 'text', text: 'not allowed here' },
+              {
+                id: 'call-2',
+                index: 0,
+                function: {
+                  name: 'ask-user',
+                  arguments: '{"prompt":"Need more info"}',
+                },
+              },
             ])} AS jsonb),
             NULL,
+            CURRENT_TIMESTAMP
+          )
+        `.execute(db),
+      (error: unknown) =>
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === '23514'
+    )
+
+    await assert.rejects(
+      () =>
+        sql`
+          INSERT INTO agentic_conversation_messages (
+            "conversationId",
+            "sequence",
+            "role",
+            "content",
+            "toolCalls",
+            "toolCallId",
+            "createdAt"
+          )
+          VALUES (
+            ${conversationId},
+            3,
+            'assistant',
+            CAST(${JSON.stringify('Still here')} AS jsonb),
+            CAST(${JSON.stringify([
+              {
+                id: 'call-3',
+                index: 0,
+                type: 'tool',
+                function: {
+                  name: 'ask-user',
+                  arguments: '{"prompt":"Need more info"}',
+                },
+              },
+            ])} AS jsonb),
             NULL,
             CURRENT_TIMESTAMP
           )
@@ -173,10 +227,12 @@ describe('agentic conversation migrations', () => {
             ${conversationId},
             4,
             'tool',
-            CAST(${JSON.stringify({
-              type: 'text',
-              text: 'wrong shape',
-            })} AS jsonb),
+            CAST(${JSON.stringify([
+              {
+                type: 'image_url',
+                image_url: {},
+              },
+            ])} AS jsonb),
             NULL,
             'call-2',
             CURRENT_TIMESTAMP
@@ -188,6 +244,47 @@ describe('agentic conversation migrations', () => {
         'code' in error &&
         (error as { code?: string }).code === '23514'
     )
+
+    await assert.rejects(
+      () =>
+        sql`
+          INSERT INTO agentic_conversation_messages (
+            "conversationId",
+            "sequence",
+            "role",
+            "content",
+            "toolCalls",
+            "toolCallId",
+            "createdAt"
+          )
+          VALUES (
+            ${conversationId},
+            4,
+            'tool',
+            CAST(${JSON.stringify([
+              {
+                type: 'text',
+              },
+            ])} AS jsonb),
+            NULL,
+            'call-2',
+            CURRENT_TIMESTAMP
+          )
+        `.execute(db),
+      (error: unknown) =>
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === '23514'
+    )
+
+    const toolContent: AgenticConversationToolContent = [
+      { type: 'text', text: 'tool result' },
+      {
+        type: 'image_url',
+        image_url: { url: 'https://example.test/tool.png' },
+      },
+    ]
 
     await sql`
       INSERT INTO agentic_conversation_messages (
@@ -201,43 +298,77 @@ describe('agentic conversation migrations', () => {
       )
       VALUES (
         ${conversationId},
-        2,
+        5,
         'tool',
-        CAST(${JSON.stringify([
-          { type: 'text', text: 'tool result' },
-          {
-            type: 'image_url',
-            image_url: { url: 'https://example.test/tool.png' },
-          },
-        ])} AS jsonb),
+        CAST(${JSON.stringify(toolContent)} AS jsonb),
         NULL,
         'call-1',
         CURRENT_TIMESTAMP
       )
     `.execute(db)
 
+    await assert.rejects(
+      () =>
+        sql`
+          INSERT INTO agentic_conversation_messages (
+            "conversationId",
+            "sequence",
+            "role",
+            "content",
+            "toolCalls",
+            "toolCallId",
+            "createdAt"
+          )
+          VALUES (
+            ${conversationId},
+            6,
+            'tool',
+            CAST(${JSON.stringify([
+              {
+                text: 'missing type',
+              },
+            ])} AS jsonb),
+            NULL,
+            'call-1',
+            CURRENT_TIMESTAMP
+          )
+        `.execute(db),
+      (error: unknown) =>
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === '23514'
+    )
+
     const messagesResult = (await sql`
-      SELECT role, sequence, "toolCalls"
+      SELECT id, role, sequence, content, "toolCalls"
       FROM agentic_conversation_messages
       WHERE "conversationId" = ${conversationId}
       ORDER BY sequence
     `.execute(db)) as unknown as {
       rows: Array<{
+        id: number
         role: string
         sequence: number
-        toolCalls: Array<{
-          id: string
-          index: number
-          type: 'function'
-          function: { name: string; arguments: string }
-        }> | null
+        content:
+          | string
+          | Array<
+              | { type: 'text'; text: string }
+              | { type: 'image_url'; image_url: { url: string } }
+            >
+        toolCalls: Array<AgenticConversationAssistantToolCall> | null
       }>
     }
 
+    const assistantMessageId: AgenticConversationMessageId =
+      messagesResult.rows[0]!.id
+
     assert.deepEqual(messagesResult.rows, [
       {
+        id: assistantMessageId,
         role: 'assistant',
         sequence: 1,
+        content: 'Ready to help',
         toolCalls: [
           {
             id: 'call-1',
@@ -250,7 +381,13 @@ describe('agentic conversation migrations', () => {
           },
         ],
       },
-      { role: 'tool', sequence: 2, toolCalls: null },
+      {
+        id: messagesResult.rows[1]!.id,
+        role: 'tool',
+        sequence: 5,
+        content: toolContent,
+        toolCalls: null,
+      },
     ])
   })
 
@@ -290,7 +427,7 @@ describe('agentic conversation migrations', () => {
       ORDER BY id DESC
       LIMIT 1
     `.execute(db)) as unknown as { rows: Array<{ id: number }> }
-    const conversationId = conversationResult.rows[0]!.id
+    const conversationId: AgenticConversationId = conversationResult.rows[0]!.id
 
     await sql`
       INSERT INTO agentic_conversation_messages (

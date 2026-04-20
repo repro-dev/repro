@@ -5,6 +5,10 @@ export type AgenticConversationRole = 'assistant' | 'system' | 'tool' | 'user'
 // public identifier contract without changing downstream call sites.
 export type AgenticConversationId = number
 
+// Persisted message rows need their own identifier contract so they do not
+// silently inherit the conversation identifier shape.
+export type AgenticConversationMessageId = number
+
 export interface AgenticTextContentBlock {
   type: 'text'
   text: string
@@ -23,7 +27,7 @@ export type AgenticConversationToolContent =
   | string
   | Array<AgenticConversationContentBlock>
 
-export interface AgenticToolCall {
+export interface AgenticConversationAssistantToolCall {
   id: string
   index: number
   type: 'function'
@@ -33,8 +37,10 @@ export interface AgenticToolCall {
   }
 }
 
+export type AgenticToolCall = AgenticConversationAssistantToolCall
+
 interface AgenticConversationMessageRecordBase {
-  id: number
+  id: AgenticConversationMessageId
   conversationId: AgenticConversationId
   sequence: number
   createdAt: Date
@@ -60,7 +66,7 @@ export interface AgenticConversationAssistantMessageRecord
   extends AgenticConversationMessageRecordBase {
   role: 'assistant'
   content: string
-  toolCalls: Array<AgenticToolCall> | null
+  toolCalls: Array<AgenticConversationAssistantToolCall> | null
   toolCallId: null
 }
 

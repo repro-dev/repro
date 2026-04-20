@@ -1,7 +1,8 @@
 import type {
+  AgenticConversationAssistantToolCall,
   AgenticConversationId,
+  AgenticConversationMessageId,
   AgenticConversationToolContent,
-  AgenticToolCall,
 } from '@repro/domain'
 import { ColumnType, Generated, GeneratedAlways } from 'kysely'
 
@@ -16,7 +17,7 @@ type JsonbNullableColumn<SelectType> = ColumnType<
 >
 
 interface AgenticConversationMessageTableBase {
-  id: GeneratedAlways<AgenticConversationId>
+  id: GeneratedAlways<AgenticConversationMessageId>
   conversationId: AgenticConversationId
   sequence: number
   createdAt: Generated<Date>
@@ -42,7 +43,7 @@ export interface AgenticConversationAssistantMessageTable
   extends AgenticConversationMessageTableBase {
   role: 'assistant'
   content: JsonbColumn<string>
-  toolCalls: JsonbNullableColumn<Array<AgenticToolCall>>
+  toolCalls: JsonbNullableColumn<Array<AgenticConversationAssistantToolCall>>
   toolCallId: null
 }
 
