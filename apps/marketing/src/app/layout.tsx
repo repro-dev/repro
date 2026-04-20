@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import React from 'react'
 import { SiteLayout } from '~/components/SiteLayout'
 import './globals.css'
+import { JsxstyleRegistry } from './JsxstyleRegistry'
 
 export const metadata: Metadata = {
   title: {
@@ -21,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <SiteLayout>{children}</SiteLayout>
+        <JsxstyleRegistry>
+          <SiteLayout>{children}</SiteLayout>
+        </JsxstyleRegistry>
       </body>
     </html>
   )

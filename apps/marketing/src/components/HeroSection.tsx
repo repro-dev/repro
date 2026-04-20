@@ -1,11 +1,5 @@
 'use client'
 
-import React from 'react'
-
-// jsxstyle requires a client boundary because it injects styles via React context.
-// When jsxstyle style extraction for SSR/SSG is solved (see Platform issue), this
-// boundary can be removed from leaf components.
-
 import { Block, Col, Row } from '@jsxstyle/react'
 import {
   Logo,
@@ -15,6 +9,7 @@ import {
   textStyles,
   transition,
 } from '@repro/design'
+import React from 'react'
 
 void React
 

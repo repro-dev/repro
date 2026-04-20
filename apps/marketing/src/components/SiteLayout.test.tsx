@@ -1,5 +1,6 @@
 import { createRequire } from 'module'
 import { afterEach, describe, it } from 'node:test'
+import type { ReactNode } from 'react'
 
 const require = createRequire(import.meta.url)
 
@@ -15,6 +16,7 @@ const {
 } = require('@testing-library/react')
 const { SiteLayout } = require('./SiteLayout')
 const assert = require('node:assert/strict')
+const { renderToStaticMarkup } = require('react-dom/server')
 
 globalThis.React = React
 
@@ -78,5 +80,42 @@ describe('marketing shell', () => {
     assert.ok(screen.getByRole('main'))
     assert.ok(window.getComputedStyle(screen.getByRole('main')).maxWidth)
     assert.ok(screen.getByText('Page content'))
+  })
+
+  it('flushes shell styles during server rendering', async t => {
+    const insertedHtmlCallbacks: Array<() => ReactNode> = []
+
+    t.mock.module('next/navigation', {
+      namedExports: {
+        useServerInsertedHTML(callback: () => ReactNode) {
+          insertedHtmlCallbacks.push(callback)
+        },
+      },
+    })
+
+    const { JsxstyleRegistry } = await import('../app/JsxstyleRegistry')
+
+    renderToStaticMarkup(
+      React.createElement(
+        JsxstyleRegistry,
+        null,
+        React.createElement(
+          SiteLayout,
+          null,
+          React.createElement('div', null, 'Page content')
+        )
+      )
+    )
+
+    const callback = insertedHtmlCallbacks[insertedHtmlCallbacks.length - 1]
+
+    assert.ok(callback)
+
+    const styleMarkup = renderToStaticMarkup(
+      React.createElement(React.Fragment, null, callback!())
+    )
+
+    assert.match(styleMarkup, /background-color:/i)
+    assert.match(styleMarkup, /padding-top:/i)
   })
 })

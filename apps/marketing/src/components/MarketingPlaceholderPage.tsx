@@ -1,14 +1,15 @@
 'use client'
 
-// jsxstyle requires a client boundary because it injects styles via React context.
-
 import { Block, Col, Row } from '@jsxstyle/react'
 import { color, focusRing, radius, spacing, textStyles } from '@repro/design'
+import React from 'react'
 import {
   placeholderPageContent,
   signupHref,
   type MarketingRouteSlug,
 } from './marketingShell'
+
+void React
 
 interface MarketingPlaceholderPageProps {
   slug: MarketingRouteSlug

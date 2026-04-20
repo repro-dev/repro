@@ -1,10 +1,11 @@
 'use client'
 
-// jsxstyle requires a client boundary because it injects styles via React context.
-
 import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import { color, focusRing, radius, spacing, textStyles } from '@repro/design'
+import React from 'react'
 import { footerGroups, shellMaxWidth, socialLinks } from './marketingShell'
+
+void React
 
 export function Footer() {
   const year = new Date().getFullYear()

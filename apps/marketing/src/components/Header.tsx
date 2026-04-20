@@ -1,6 +1,7 @@
 'use client'
 
-// jsxstyle requires a client boundary because it injects styles via React context.
+// This component stays client-side because it owns the mobile menu state.
+// jsxstyle itself is server-compatible once the app root uses the registry.
 
 import { Block, Col, Row } from '@jsxstyle/react'
 import {
@@ -11,8 +12,10 @@ import {
   spacing,
   textStyles,
 } from '@repro/design'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { primaryNavLinks, shellMaxWidth, signupHref } from './marketingShell'
+
+void React
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
