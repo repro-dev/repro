@@ -73,7 +73,7 @@ describe('Services > Account', () => {
             email,
             password: 'hunter2!',
           })
-        .execute()
+          .execute()
       ).rejects.toThrow(/staff_users_email_lower_idx/)
     })
 
