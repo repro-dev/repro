@@ -35,6 +35,31 @@ const PROMPT_TARGET_FILE_PATHS: Record<string, string> = {
   SYSTEM_CARD_MESSAGE: SYSTEM_PROMPT_FILE_PATH,
 };
 
+const PROMPT_TARGET_SOURCE_SEGMENTS: Record<
+  string,
+  {
+    start: string;
+    end: string | null;
+  }
+> = {
+  SHARED_SYSTEM_CARD: {
+    start: "const SHARED_SYSTEM_CARD = `",
+    end: "export const EXTENSION_SYSTEM_CARD_MESSAGE =",
+  },
+  EXTENSION_SYSTEM_CARD_MESSAGE: {
+    start: "export const EXTENSION_SYSTEM_CARD_MESSAGE =",
+    end: "export const WORKSPACE_SYSTEM_CARD_MESSAGE =",
+  },
+  WORKSPACE_SYSTEM_CARD_MESSAGE: {
+    start: "export const WORKSPACE_SYSTEM_CARD_MESSAGE =",
+    end: "export const SYSTEM_CARD_MESSAGE =",
+  },
+  SYSTEM_CARD_MESSAGE: {
+    start: "export const SYSTEM_CARD_MESSAGE =",
+    end: null,
+  },
+};
+
 export interface AppliedPromptSuggestionsResult {
   updatedSources: Map<string, string>;
   appliedCount: number;
@@ -51,18 +76,56 @@ function escapeTemplateLiteralText(text: string): string {
   return text.replace(/`/g, "\\`");
 }
 
+function resolvePromptSuggestionSourceRange(
+  source: string,
+  target: string,
+): { start: number; end: number } | null {
+  const segment = PROMPT_TARGET_SOURCE_SEGMENTS[target];
+  if (segment === undefined) {
+    return null;
+  }
+
+  const start = source.indexOf(segment.start);
+  if (start === -1) {
+    return null;
+  }
+
+  if (segment.end === null) {
+    return { start, end: source.length };
+  }
+
+  const end = source.indexOf(segment.end, start + segment.start.length);
+  if (end === -1) {
+    return null;
+  }
+
+  return { start, end };
+}
+
 export function applyPromptSuggestionToSource(
   source: string,
   suggestion: PromptSuggestion,
 ): { updatedSource: string; applied: boolean } {
-  const directIndex = source.indexOf(suggestion.currentText);
+  const sourceRange = resolvePromptSuggestionSourceRange(
+    source,
+    suggestion.target,
+  );
+  if (sourceRange === null) {
+    return { updatedSource: source, applied: false };
+  }
+
+  const sourceSegment = source.slice(sourceRange.start, sourceRange.end);
+
+  const directIndex = sourceSegment.indexOf(suggestion.currentText);
   if (directIndex !== -1) {
     return {
       applied: true,
       updatedSource:
-        source.slice(0, directIndex) +
+        source.slice(0, sourceRange.start + directIndex) +
         suggestion.suggestedText +
-        source.slice(directIndex + suggestion.currentText.length),
+        source.slice(
+          sourceRange.start + directIndex + suggestion.currentText.length,
+        ),
     };
   }
 
@@ -71,7 +134,7 @@ export function applyPromptSuggestionToSource(
   }
 
   const escapedCurrentText = escapeTemplateLiteralText(suggestion.currentText);
-  const escapedIndex = source.indexOf(escapedCurrentText);
+  const escapedIndex = sourceSegment.indexOf(escapedCurrentText);
   if (escapedIndex === -1) {
     return { updatedSource: source, applied: false };
   }
@@ -79,9 +142,11 @@ export function applyPromptSuggestionToSource(
   return {
     applied: true,
     updatedSource:
-      source.slice(0, escapedIndex) +
+      source.slice(0, sourceRange.start + escapedIndex) +
       escapeTemplateLiteralText(suggestion.suggestedText) +
-      source.slice(escapedIndex + escapedCurrentText.length),
+      source.slice(
+        sourceRange.start + escapedIndex + escapedCurrentText.length,
+      ),
   };
 }
 

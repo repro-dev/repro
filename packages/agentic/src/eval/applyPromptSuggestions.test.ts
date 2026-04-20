@@ -60,10 +60,73 @@ describe("applyPromptSuggestionToSource", () => {
       currentText: "old",
       suggestedText: "new",
     });
-    const result = applyPromptSuggestionToSource("old middle old", suggestion);
+    const source = [
+      "const SHARED_SYSTEM_CARD = `",
+      "old middle old",
+      "`;",
+      "",
+      "// System card for the capture extension context.",
+      "export const EXTENSION_SYSTEM_CARD_MESSAGE = SHARED_SYSTEM_CARD + `extension`;",
+    ].join("\n");
+    const result = applyPromptSuggestionToSource(source, suggestion);
 
     assert.equal(result.applied, true);
-    assert.equal(result.updatedSource, "new middle old");
+    assert.equal(
+      result.updatedSource,
+      [
+        "const SHARED_SYSTEM_CARD = `",
+        "new middle old",
+        "`;",
+        "",
+        "// System card for the capture extension context.",
+        "export const EXTENSION_SYSTEM_CARD_MESSAGE = SHARED_SYSTEM_CARD + `extension`;",
+      ].join("\n"),
+    );
+  });
+
+  it("limits replacements to the targeted prompt export segment", () => {
+    const suggestion = makeSuggestion({
+      target: "EXTENSION_SYSTEM_CARD_MESSAGE",
+      currentText: "shared text",
+      suggestedText: "updated text",
+    });
+    const source = [
+      "const SHARED_SYSTEM_CARD = `shared text`;",
+      "",
+      "export const EXTENSION_SYSTEM_CARD_MESSAGE =",
+      "  SHARED_SYSTEM_CARD +",
+      "  `",
+      "shared text",
+      "`",
+      "",
+      "export const WORKSPACE_SYSTEM_CARD_MESSAGE =",
+      "  SHARED_SYSTEM_CARD +",
+      "  `",
+      "shared text",
+      "`",
+    ].join("\n");
+
+    const result = applyPromptSuggestionToSource(source, suggestion);
+
+    assert.equal(result.applied, true);
+    assert.equal(
+      result.updatedSource,
+      [
+        "const SHARED_SYSTEM_CARD = `shared text`;",
+        "",
+        "export const EXTENSION_SYSTEM_CARD_MESSAGE =",
+        "  SHARED_SYSTEM_CARD +",
+        "  `",
+        "updated text",
+        "`",
+        "",
+        "export const WORKSPACE_SYSTEM_CARD_MESSAGE =",
+        "  SHARED_SYSTEM_CARD +",
+        "  `",
+        "shared text",
+        "`",
+      ].join("\n"),
+    );
   });
 
   it("falls back to escaped backticks for template literals", () => {
@@ -71,14 +134,26 @@ describe("applyPromptSuggestionToSource", () => {
       currentText: "Use `backticks` carefully",
       suggestedText: "Use `code fences` carefully",
     });
-    const source = "const prompt = `Use \\`backticks\\` carefully`";
+    const source = [
+      "const SHARED_SYSTEM_CARD = `",
+      "Use \\`backticks\\` carefully",
+      "`;",
+      "",
+      "export const EXTENSION_SYSTEM_CARD_MESSAGE = SHARED_SYSTEM_CARD + `extension`;",
+    ].join("\n");
 
     const result = applyPromptSuggestionToSource(source, suggestion);
 
     assert.equal(result.applied, true);
     assert.equal(
       result.updatedSource,
-      "const prompt = `Use \\`code fences\\` carefully`",
+      [
+        "const SHARED_SYSTEM_CARD = `",
+        "Use \\`code fences\\` carefully",
+        "`;",
+        "",
+        "export const EXTENSION_SYSTEM_CARD_MESSAGE = SHARED_SYSTEM_CARD + `extension`;",
+      ].join("\n"),
     );
   });
 
@@ -96,7 +171,15 @@ describe("applyPromptSuggestionToSource", () => {
 describe("applyPromptSuggestionsToSources", () => {
   it("skips unknown targets and leaves sources unchanged when suggestions are empty", () => {
     const sources = new Map([
-      [path.resolve(process.cwd(), "src", "model", "system.ts"), "unchanged"],
+      [
+        path.resolve(process.cwd(), "src", "model", "system.ts"),
+        [
+          "const SHARED_SYSTEM_CARD = `shared text`;",
+          "",
+          "// System card for the capture extension context.",
+          "export const EXTENSION_SYSTEM_CARD_MESSAGE = SHARED_SYSTEM_CARD + `extension`;",
+        ].join("\n"),
+      ],
     ]);
     const result = applyPromptSuggestionsToSources(sources, []);
 
@@ -106,13 +189,31 @@ describe("applyPromptSuggestionsToSources", () => {
       result.updatedSources.get(
         path.resolve(process.cwd(), "src", "model", "system.ts"),
       ),
-      "unchanged",
+      [
+        "const SHARED_SYSTEM_CARD = `shared text`;",
+        "",
+        "// System card for the capture extension context.",
+        "export const EXTENSION_SYSTEM_CARD_MESSAGE = SHARED_SYSTEM_CARD + `extension`;",
+      ].join("\n"),
     );
   });
 
   it("applies only known targets and reports skipped entries", () => {
     const systemFile = path.resolve(process.cwd(), "src", "model", "system.ts");
-    const sources = new Map([[systemFile, "alpha old beta old"]]);
+    const sources = new Map([
+      [
+        systemFile,
+        [
+          "const SHARED_SYSTEM_CARD = `old text`;",
+          "",
+          "// System card for the capture extension context.",
+          "export const EXTENSION_SYSTEM_CARD_MESSAGE = SHARED_SYSTEM_CARD + `extension`;",
+          "",
+          "// System card for the workspace context.",
+          "export const WORKSPACE_SYSTEM_CARD_MESSAGE = SHARED_SYSTEM_CARD + `workspace`;",
+        ].join("\n"),
+      ],
+    ]);
     const result = applyPromptSuggestionsToSources(sources, [
       makeSuggestion({ currentText: "old", suggestedText: "new" }),
       makeSuggestion({
@@ -123,7 +224,18 @@ describe("applyPromptSuggestionsToSources", () => {
     ]);
 
     assert.equal(result.appliedCount, 1);
-    assert.equal(result.updatedSources.get(systemFile), "alpha new beta old");
+    assert.equal(
+      result.updatedSources.get(systemFile),
+      [
+        "const SHARED_SYSTEM_CARD = `new text`;",
+        "",
+        "// System card for the capture extension context.",
+        "export const EXTENSION_SYSTEM_CARD_MESSAGE = SHARED_SYSTEM_CARD + `extension`;",
+        "",
+        "// System card for the workspace context.",
+        "export const WORKSPACE_SYSTEM_CARD_MESSAGE = SHARED_SYSTEM_CARD + `workspace`;",
+      ].join("\n"),
+    );
     assert.ok(
       result.warnings.some((warning) => warning.includes("UNKNOWN_TARGET")),
     );
