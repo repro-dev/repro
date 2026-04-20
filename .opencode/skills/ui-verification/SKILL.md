@@ -24,11 +24,11 @@ Load `ui-verification` when the task is to validate a recent UI change, especial
 - loading, empty, error, or success state updates
 - design-system or token changes that need real-browser confirmation
 
-For normal app pages, use `reproctl start --wait` to bring up the worktree-local app under test, then verify it with `agent-browser`.
+For normal app pages, use `reproctl start --wait --full-stack <service>` to bring up the worktree-local app under test, then verify it with `agent-browser`.
 
 If the surface is a browser extension, use the `extension-verification` workflow instead of this workflow.
 
-Use `reproctl start --wait` to bring up the worktree-local app under test. Use `reproctl launch` only for one-off human preview; it opens the system browser and is not the standard `agent-browser` entrypoint.
+Use `reproctl start --wait --full-stack <service>` to bring up the worktree-local app under test. Use `reproctl launch` only for one-off human preview; it opens the system browser and is not the standard `agent-browser` entrypoint.
 
 Do **not** use this skill as the default audit/polish workflow. If you need a broad audit, scoring pass, or design-system compliance review, load `audit-ui-quality` instead.
 
@@ -84,7 +84,7 @@ The auth vault is machine-local, encrypted, and keeps secrets out of LLM context
 
 If you need to persist transient browser state for a verification run, write it under `tmp/ui-verification/<issue-or-surface>/auth/` and treat it as disposable secret material. Delete it after the run unless a follow-up note says otherwise.
 
-Use authenticated verification whenever the changed surface cannot be exercised anonymously, when you need state that survives a page reload, or when a login-gated flow is part of the behavior under test.
+Use authenticated verification whenever the changed surface cannot be exercised anonymously, when you need state that survives a page reload, or when a login-gated flow is part of the behavior under test. Always pair that flow with `reproctl start --wait --full-stack <service>` so the signed-in session is verified against worktree-local backend state.
 
 ## Evidence and screenshots
 
@@ -105,6 +105,6 @@ If verification reveals brittle async behavior, teardown problems, race conditio
 
 ## ui-verification vs. extension-verification vs. audit-ui-quality
 
-- `ui-verification` = routine post-change validation of a specific changed surface using `reproctl start --wait` + `agent-browser`, including authenticated runs when needed
+- `ui-verification` = routine post-change validation of a specific changed surface using `reproctl start --wait --full-stack` + `agent-browser`, including authenticated runs when needed
 - `extension-verification` = browser-extension verification workflow with `agent-browser`, isolated profiles, and `tmp/extension-verification/...` artifacts
 - `audit-ui-quality` = broader audit, polish, scoring, and reporting pass across scoped UI surfaces

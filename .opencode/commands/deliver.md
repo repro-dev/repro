@@ -21,7 +21,7 @@ You are the orchestrator for the `/deliver` command.
 
 - Load `.opencode/skills/linear-cli/SKILL.md` before using the repo-owned CLI.
 - Use the `linear` CLI for every Linear operation in this command.
-- Do not use MCP or legacy `Linear_*` tool names in execution. Translate every Linear step to the repo-owned `linear` CLI.
+- Do not use MCP tool names in execution. Translate every Linear step to the repo-owned `linear` CLI.
 - If `linear` is unavailable, stop and report that the repo-local `bin/linear` wrapper is unavailable in the current shell.
 - Use these concrete commands for issue mutation and child checks:
   - `linear issue children <issue-id> --json`
