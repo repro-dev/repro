@@ -17,11 +17,24 @@ let currentSession: { type: 'staff'; isAdmin: boolean } | null = {
   isAdmin: false,
 }
 
+let authProviderProps: {
+  basePath?: string
+  loginPath?: string
+} | null = null
+
 mock.module('@repro/auth', {
   namedExports: {
-    AuthProvider: ({ children }: { children: React.ReactNode }) => (
-      <>{children}</>
-    ),
+    AuthProvider: ({
+      children,
+      ...props
+    }: React.PropsWithChildren<{
+      basePath?: string
+      loginPath?: string
+    }>) => {
+      authProviderProps = props
+
+      return <>{children}</>
+    },
     IfSession: ({ children }: { children: React.ReactNode }) =>
       currentSession ? <>{children}</> : null,
     UnlessSession: ({ children }: { children: React.ReactNode }) =>
@@ -157,6 +170,7 @@ afterEach(() => {
     type: 'staff',
     isAdmin: false,
   }
+  authProviderProps = null
 })
 
 interface RouteNode {
@@ -224,6 +238,15 @@ function findRoutePath(
 }
 
 describe('AppRoutes', () => {
+  it('mounts AuthProvider with the admin base path and browser login path', () => {
+    require('./index')
+
+    assert.deepEqual(authProviderProps, {
+      basePath: '/staff',
+      loginPath: '/login',
+    })
+  })
+
   it('keeps the health route behind the staff auth boundary', () => {
     const routesElement = AppRoutes({})
     assert.ok(React.isValidElement(routesElement))
