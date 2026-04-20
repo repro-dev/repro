@@ -67,7 +67,7 @@ describe('repro SDK', () => {
 
   it('accepts window.__REPRO__.mark through the ambient Window type', () => {
     if (typeof window !== 'undefined' && window.__REPRO__) {
-      window.__REPRO__.mark('typed-check', { enabled: true })
+      window.__REPRO__.mark?.('typed-check', { enabled: true })
     }
 
     assert.equal(true, true)

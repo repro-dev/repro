@@ -3,5 +3,5 @@ function getExtension(): ReproExtension | undefined {
 }
 
 export function mark(name: string, data?: Record<string, unknown>): void {
-  getExtension()?.mark(name, data)
+  getExtension()?.mark?.(name, data)
 }

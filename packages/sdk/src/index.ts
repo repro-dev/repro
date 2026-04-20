@@ -1,4 +1,17 @@
+/// <reference path="./global.d.ts" />
+
 import { mark } from './mark'
+
+declare global {
+  interface ReproExtension {
+    mark?: (name: string, data?: Record<string, unknown>) => void
+    captureState?: (component: string, state: Record<string, unknown>) => void
+  }
+
+  interface Window {
+    __REPRO__?: ReproExtension
+  }
+}
 
 // Access the extension via globalThis so this module works in both browser and
 // Node.js test environments without referencing `window` directly.
@@ -25,7 +38,7 @@ export const repro = {
    * See REP-798 for the exploration issue.
    */
   captureState(component: string, state: Record<string, unknown>): void {
-    getExtension()?.captureState(component, state)
+    getExtension()?.captureState?.(component, state)
   },
 }
 
