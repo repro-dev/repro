@@ -1,11 +1,16 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React, { useState } from 'react'
 import { Accordion } from './index'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  window.matchMedia = originalMatchMedia
+})
+
+const originalMatchMedia = window.matchMedia
 
 function pressKey(key: string, target?: Element) {
   const event = new KeyboardEvent('keydown', {
@@ -96,6 +101,73 @@ describe('Accordion', () => {
     await user.click(second)
 
     expect(second.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('marks collapsing panels inert while they animate out', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <Accordion defaultValue="first">
+        <Accordion.Item value="first">
+          <Accordion.Trigger>First</Accordion.Trigger>
+          <Accordion.Content>
+            <button type="button">Inner action</button>
+          </Accordion.Content>
+        </Accordion.Item>
+        <Accordion.Item value="second">
+          <Accordion.Trigger>Second</Accordion.Trigger>
+          <Accordion.Content>Second content</Accordion.Content>
+        </Accordion.Item>
+      </Accordion>
+    )
+
+    const firstRegion = screen.getByRole('region', { name: 'First' })
+    const second = screen.getByRole('button', { name: 'Second' })
+
+    await user.click(second)
+
+    expect(firstRegion.getAttribute('inert')).toBe('')
+    expect(screen.getByText('Inner action')).toBeDefined()
+
+    fireEvent.transitionEnd(firstRegion)
+
+    expect(
+      screen.queryByRole('region', { name: 'First', hidden: true })
+    ).toBeNull()
+  })
+
+  it('unmounts immediately when reduced motion is preferred', async () => {
+    const user = userEvent.setup()
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: query.includes('prefers-reduced-motion'),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as MediaQueryList) as typeof window.matchMedia
+
+    render(
+      <Accordion defaultValue="first">
+        <Accordion.Item value="first">
+          <Accordion.Trigger>First</Accordion.Trigger>
+          <Accordion.Content>First content</Accordion.Content>
+        </Accordion.Item>
+        <Accordion.Item value="second">
+          <Accordion.Trigger>Second</Accordion.Trigger>
+          <Accordion.Content>Second content</Accordion.Content>
+        </Accordion.Item>
+      </Accordion>
+    )
+
+    const first = screen.getByRole('button', { name: 'First' })
+
+    await user.click(first)
+
+    expect(screen.queryByRole('region', { name: 'First' })).toBeNull()
   })
 
   it('moves focus with keyboard navigation without changing expansion', () => {

@@ -4,8 +4,10 @@ import React, {
   PropsWithChildren,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
+import mergeRefs from 'react-merge-refs'
 import { color } from '../tokens/colors'
 import { duration, easing } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
@@ -35,6 +37,19 @@ export const AccordionContent = forwardRef<
   const { open, triggerId, contentId } = useAccordionItemContext()
   const reducedMotion = useMemo(prefersReducedMotion, [])
   const [isMounted, setIsMounted] = useState(open)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const element = contentRef.current
+    if (!element) return
+
+    if (open) {
+      element.removeAttribute('inert')
+      return
+    }
+
+    element.setAttribute('inert', '')
+  }, [open])
 
   useEffect(() => {
     if (open) {
@@ -56,6 +71,7 @@ export const AccordionContent = forwardRef<
       display="grid"
       gridTemplateRows={open ? '1fr' : '0fr'}
       opacity={open ? 1 : 0}
+      pointerEvents={open ? undefined : 'none'}
       overflow="hidden"
       transition={
         reducedMotion
@@ -63,7 +79,7 @@ export const AccordionContent = forwardRef<
           : `grid-template-rows ${duration[200]} ${easing.easeOut}, opacity ${duration[200]} ${easing.easeOut}`
       }
       props={{
-        ref,
+        ref: mergeRefs([ref, contentRef]),
         role: 'region',
         id: contentId,
         'aria-labelledby': triggerId,

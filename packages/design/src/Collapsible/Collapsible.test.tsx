@@ -5,7 +5,12 @@ import { afterEach, describe, it } from 'node:test'
 import React, { useState } from 'react'
 import { Collapsible } from './index'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  window.matchMedia = originalMatchMedia
+})
+
+const originalMatchMedia = window.matchMedia
 
 function pressKey(key: string, target?: Element) {
   const event = new KeyboardEvent('keydown', {
@@ -106,10 +111,39 @@ describe('Collapsible', () => {
     await user.click(trigger)
 
     expect(screen.getByText('Lifecycle content')).toBeDefined()
+    expect(content.hasAttribute('inert')).toBe(true)
 
     fireEvent.transitionEnd(content)
 
     expect(screen.queryByRole('region', { hidden: true })).toBeNull()
+  })
+
+  it('unmounts immediately when reduced motion is preferred', async () => {
+    const user = userEvent.setup()
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: query.includes('prefers-reduced-motion'),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as MediaQueryList) as typeof window.matchMedia
+
+    render(
+      <Collapsible defaultOpen>
+        <Collapsible.Trigger>Motion</Collapsible.Trigger>
+        <Collapsible.Content>Motion content</Collapsible.Content>
+      </Collapsible>
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Motion' })
+
+    await user.click(trigger)
+
+    expect(screen.queryByRole('region')).toBeNull()
   })
 
   it('wires trigger and content ids together', () => {
