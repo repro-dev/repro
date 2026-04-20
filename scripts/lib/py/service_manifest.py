@@ -149,7 +149,7 @@ def resolve_local_service_url(service, services_path, slug=""):
 
     portless_name = entry.get("portless_name")
     if isinstance(portless_name, str) and portless_name:
-        return f"http://{portless_host(portless_name, slug)}:1355"
+        return f"https://{portless_host(portless_name, slug)}:1355"
 
     port = entry.get("port")
     if isinstance(port, int):

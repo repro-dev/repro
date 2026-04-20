@@ -1,0 +1,83 @@
+{
+  "password": "password",
+  "logins": [
+    {
+      "profile": "acme-admin",
+      "service": "workspace",
+      "username": "admin@acme.repro.test",
+      "target": "users",
+      "name": "Acme Admin",
+      "account": "acme",
+      "verified": true,
+      "active": true,
+      "admin": true,
+      "verificationToken": ""
+    },
+    {
+      "profile": "acme-member",
+      "service": "workspace",
+      "username": "member@acme.repro.test",
+      "target": "users",
+      "name": "Acme Member",
+      "account": "acme",
+      "verified": true,
+      "active": true,
+      "admin": false,
+      "verificationToken": ""
+    },
+    {
+      "profile": "acme-viewer",
+      "service": "workspace",
+      "username": "viewer@acme.repro.test",
+      "target": "users",
+      "name": "Acme Viewer",
+      "account": "acme",
+      "verified": true,
+      "active": true,
+      "admin": false,
+      "verificationToken": ""
+    },
+    {
+      "profile": "beta-admin",
+      "service": "workspace",
+      "username": "admin@beta.repro.test",
+      "target": "users",
+      "name": "Beta Admin",
+      "account": "beta",
+      "verified": true,
+      "active": true,
+      "admin": true,
+      "verificationToken": ""
+    },
+    {
+      "profile": "beta-unverified",
+      "service": "workspace",
+      "username": "unverified@beta.repro.test",
+      "target": "users",
+      "name": "Beta Unverified",
+      "account": "beta",
+      "verified": false,
+      "active": true,
+      "admin": false,
+      "verificationToken": "dev_verification_token"
+    },
+    {
+      "profile": "staff",
+      "service": "admin",
+      "username": "staff@repro.test",
+      "target": "staff_users",
+      "name": "Staff User",
+      "active": true,
+      "admin": false
+    },
+    {
+      "profile": "staff-admin",
+      "service": "admin",
+      "username": "staffadmin@repro.test",
+      "target": "staff_users",
+      "name": "Staff Admin",
+      "active": true,
+      "admin": true
+    }
+  ]
+}
