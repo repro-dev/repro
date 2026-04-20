@@ -104,7 +104,7 @@ import {
 
 **Token category discipline**: Always use tokens from the category matching the CSS property — `color.bg.*` for `backgroundColor`, `color.border.*` for `borderColor`, `color.text.*` for `color`. Even when two tokens resolve to the same raw value, using the wrong category is a semantic misuse.
 
-**Typography rule**: Prefer `textStyles.*` or `Text` for semantic content text. Use raw `fontSize`, `fontWeight`, and `lineHeight` only in tightly constrained component internals or one-off low-level composition where `textStyles.*` would be the wrong abstraction.
+**Typography rule**: Prefer `textStyles.*` for semantic content text. Use raw `fontSize`, `fontWeight`, and `lineHeight` only in tightly constrained component internals or one-off low-level composition where `textStyles.*` would be the wrong abstraction.
 
 For full token tables with every value, read `tokens.md`.
 
@@ -266,7 +266,7 @@ import { color } from '@repro/design'
 <Block color={color.text.primary} backgroundColor={color.bg.surface}>
 ```
 
-**3. Typography** — use `Text` or spread `textStyles.*` instead of raw `<p>`/`<h*>` with style props. Treat raw `fontSize`, `fontWeight`, and `lineHeight` as edge-case exceptions for constrained internals, not the default way to establish hierarchy.
+**3. Typography** — spread `textStyles.*` instead of raw `<p>`/`<h*>` with style props. Treat raw `fontSize`, `fontWeight`, and `lineHeight` as edge-case exceptions for constrained internals, not the default way to establish hierarchy.
 
 ```tsx
 // Before
