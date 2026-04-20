@@ -73,3 +73,50 @@ it('keeps live buffered events flowing after start in event order', () => {
 
   assert.equal(stream.slice().toArray().length, 2)
 })
+
+it('captures custom marks and restores the previous hook on stop', () => {
+  const previousMarkCalls: Array<{
+    name: string
+    data?: Record<string, unknown>
+  }> = []
+
+  window.__REPRO__ = {
+    mark(name: string, data?: Record<string, unknown>) {
+      previousMarkCalls.push({ name, data })
+    },
+    captureState() {
+      return undefined
+    },
+  }
+
+  const repro = window.__REPRO__!
+  const originalMark = repro.mark
+  const stream = createRecordingStream(document, {
+    types: new Set(['custom']) as any,
+    ignoredNodes: [],
+    ignoredSelectors: [],
+  })
+
+  stream.start()
+  repro.mark?.('user_action', { nested: true })
+
+  const events = stream.slice().toArray()
+  const customMark = SourceEventView.over(events[events.length - 1])
+
+  assert.equal(
+    customMark.map(event => event.type).orElse(null),
+    SourceEventType.CustomMark
+  )
+  assert.deepEqual(customMark.map(event => event.data).orElse(null), {
+    name: 'user_action',
+    data: '{"nested":true}',
+    frameId: 0,
+  })
+  assert.equal(previousMarkCalls.length, 1)
+  assert.notEqual(repro.mark, originalMark)
+
+  stream.stop()
+
+  assert.equal(repro.mark, originalMark)
+  delete window.__REPRO__
+})

@@ -20,7 +20,13 @@ export interface DOMOptions {
 
 export interface RecordingOptions extends DOMOptions {
   types: Set<
-    'dom' | 'interaction' | 'network' | 'performance' | 'console' | 'state'
+    | 'dom'
+    | 'interaction'
+    | 'network'
+    | 'performance'
+    | 'console'
+    | 'state'
+    | 'custom'
   >
   snapshotInterval: number
   eventSampling: {

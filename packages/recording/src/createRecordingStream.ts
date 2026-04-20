@@ -4,6 +4,8 @@ import { Stats, StatsLevel } from '@repro/diagnostics'
 import {
   ConsoleEvent,
   ConsoleMessage,
+  CustomMark,
+  CustomMarkEvent,
   DOMPatch,
   DOMPatchEvent,
   Interaction,
@@ -44,6 +46,7 @@ import {
   takeUntil,
 } from 'rxjs'
 import { createConsoleObserver } from './console'
+import { createCustomMarkObserver } from './custom'
 import {
   createDOMObserver,
   createDOMTreeWalker,
@@ -182,6 +185,10 @@ export function createRecordingStream(
 
   if (options.types.has('network')) {
     registerNetworkObserver()
+  }
+
+  if (options.types.has('custom')) {
+    registerCustomMarkObserver()
   }
 
   if (options.types.has('console')) {
@@ -665,6 +672,22 @@ export function createRecordingStream(
     observers.push(
       createPerformanceObserver(entry => {
         addEvent(createPerformanceEvent(entry))
+      })
+    )
+  }
+
+  function createCustomMarkEvent(mark: CustomMark): Box<CustomMarkEvent> {
+    return new Box({
+      time: performance.now(),
+      type: SourceEventType.CustomMark,
+      data: mark,
+    })
+  }
+
+  function registerCustomMarkObserver() {
+    observers.push(
+      createCustomMarkObserver(mark => {
+        addEvent(createCustomMarkEvent(mark))
       })
     )
   }
