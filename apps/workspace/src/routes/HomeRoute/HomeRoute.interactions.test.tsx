@@ -193,6 +193,7 @@ describe('HomeRoute interactions', () => {
     await new Promise(resolve => setTimeout(resolve, 350))
 
     assert.ok(getTileTitles()[0]?.includes('Beta Recording'))
+    assert.equal(screen.getByText('2 hidden').textContent, '2 hidden')
     assert.equal(
       getTileTitles().some(text => text.includes('Alpha Recording')),
       false

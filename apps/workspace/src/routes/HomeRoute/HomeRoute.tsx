@@ -1,14 +1,6 @@
-import { Block, Col, Grid, Row } from '@jsxstyle/react'
+import { Col, Grid } from '@jsxstyle/react'
 import { ApiClient, useApiClient } from '@repro/api-client'
-import {
-  Button,
-  color,
-  EmptyState,
-  Input,
-  PageFrame,
-  spacing,
-  ToggleGroup,
-} from '@repro/design'
+import { Button, EmptyState, PageFrame, spacing } from '@repro/design'
 import type { RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/workspace-api'
@@ -17,26 +9,19 @@ import { PuzzleIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useProjectContext } from '~/ProjectContext'
 import { RecordingTile } from './RecordingTile'
+import { SessionListControlBar } from './SessionListControlBar'
 import {
   deriveVisibleSessionRecordings,
   getDefaultSessionListFilters,
   getSessionListFilters,
   isSessionListFilteringActive,
   readSessionListSortOrder,
-  SESSION_LIST_MODE_OPTIONS,
   SESSION_LIST_SORT_OPTIONS,
   setSessionListFilters,
   writeSessionListSortOrder,
   type SessionListFilters,
   type SessionListSortOrder,
 } from './sessionListControls'
-
-const SESSION_LIST_SORT_TOGGLE_OPTIONS = SESSION_LIST_SORT_OPTIONS.map(
-  (option, index) => ({
-    value: index,
-    label: option.label,
-  })
-)
 
 // The real Chrome Web Store listing for the Repro capture extension.
 const CHROME_WEB_STORE_URL =
@@ -190,17 +175,6 @@ export const HomeRoute = ({
 
   const hasActiveFilters = isSessionListFilteringActive(filters)
 
-  const modeIsSelected = useCallback(
-    (mode: SessionListFilters['selectedModes'][number]) =>
-      filters.selectedModes.includes(mode),
-    [filters.selectedModes]
-  )
-
-  const selectedSortIndex = Math.max(
-    0,
-    SESSION_LIST_SORT_OPTIONS.findIndex(option => option.value === sortOrder)
-  )
-
   const handleSortChange = useCallback((nextSortIndex: number) => {
     const nextSortOrder = SESSION_LIST_SORT_OPTIONS[nextSortIndex]?.value
 
@@ -226,19 +200,7 @@ export const HomeRoute = ({
     return (
       <PageFrame>
         <PageFrame.Header>
-          <Row
-            alignItems="center"
-            justifyContent="space-between"
-            gap={spacing.md}
-          >
-            <PageFrame.Title>Sessions</PageFrame.Title>
-
-            <ToggleGroup
-              options={SESSION_LIST_SORT_TOGGLE_OPTIONS}
-              selected={selectedSortIndex}
-              onChange={handleSortChange}
-            />
-          </Row>
+          <PageFrame.Title>Sessions</PageFrame.Title>
         </PageFrame.Header>
 
         <PageFrame.Body>
@@ -282,70 +244,20 @@ export const HomeRoute = ({
   return (
     <PageFrame>
       <PageFrame.Header>
-        <Row
-          alignItems="center"
-          justifyContent="space-between"
-          gap={spacing.md}
-          flexWrap="wrap"
-        >
-          <PageFrame.Title>Sessions ({visibleItems.length})</PageFrame.Title>
-
-          <ToggleGroup
-            options={SESSION_LIST_SORT_TOGGLE_OPTIONS}
-            selected={selectedSortIndex}
-            onChange={handleSortChange}
-          />
-        </Row>
+        <PageFrame.Title>Sessions ({visibleItems.length})</PageFrame.Title>
       </PageFrame.Header>
 
       <PageFrame.Body>
         <Col gap={spacing.lg}>
-          <Col gap={spacing.sm}>
-            <Input
-              aria-label="Search sessions"
-              placeholder="Search by title or URL"
-              value={filters.searchText}
-              onChange={handleSearchChange}
-            />
-
-            <Row gap={spacing.sm} flexWrap="wrap">
-              {SESSION_LIST_MODE_OPTIONS.map(option => {
-                const selected = modeIsSelected(option.value)
-
-                return (
-                  <Block
-                    key={option.value}
-                    component="button"
-                    type="button"
-                    paddingV={8}
-                    paddingH={12}
-                    borderWidth={1}
-                    borderStyle="solid"
-                    borderRadius={9999}
-                    fontSize={13}
-                    cursor="pointer"
-                    backgroundColor={
-                      selected ? color.primarySubtle : color.bg.hover
-                    }
-                    color={selected ? color.primary : color.text.secondary}
-                    borderColor={
-                      selected ? color.primary : color.border.default
-                    }
-                    hoverBackgroundColor={
-                      selected ? color.primarySubtle : color.bg.surface
-                    }
-                    props={{
-                      type: 'button',
-                      'aria-pressed': selected,
-                      onClick: () => toggleMode(option.value),
-                    }}
-                  >
-                    {option.label}
-                  </Block>
-                )
-              })}
-            </Row>
-          </Col>
+          <SessionListControlBar
+            searchText={filters.searchText}
+            selectedModes={filters.selectedModes}
+            sortOrder={sortOrder}
+            hiddenCount={items.length - visibleItems.length}
+            onSearchChange={handleSearchChange}
+            onToggleMode={toggleMode}
+            onSortChange={handleSortChange}
+          />
 
           {visibleItems.length === 0 ? (
             <EmptyState>

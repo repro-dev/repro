@@ -233,6 +233,16 @@ The `Snapshot` type (from `packages/domain`) is the shared state currency: mutat
 
 ---
 
+## Recording-Surface Search & Filter Bars
+
+- For recording/inspection pages, standardize on a dedicated control bar rather than scattering search and filter controls in the page header.
+- Keep the page title/identity in the header; render search, mode filters, sort controls, and hidden-count feedback together in the body.
+- Use the DevTools `ConsolePanel` control row as the behavioral reference, but implement app surfaces with `@repro/design` primitives and local extraction instead of copying panel styling.
+- Prefer pill-style toggle buttons with clear pressed state and focus-visible treatment for mode filters.
+- Show filtered-result feedback only when filtering hides items.
+
+---
+
 ## Key Files Quick Reference
 
 | File                                                         | Key exports                                                               |
