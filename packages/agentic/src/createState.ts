@@ -2,7 +2,13 @@ import { atom, createAtom } from "@repro/atom";
 import { observeFuture } from "@repro/future-utils";
 import { randomString } from "@repro/random-string";
 import { AGENTIC_DEFAULT_MODEL } from "@repro/domain";
-import { FutureInstance, map as mapFuture, parallel, resolve } from "fluture";
+import {
+  Future,
+  FutureInstance,
+  map as mapFuture,
+  parallel,
+  resolve,
+} from "fluture";
 import {
   catchError,
   distinctUntilChanged,
@@ -28,19 +34,24 @@ import {
 import { SYSTEM_CARD_MESSAGE } from "./model/system";
 import { estimateTokens } from "./model/token-optimization";
 import { executeTool, tools } from "./model/tools/index";
+import { createError } from "./model/tools/common";
 import {
   AgenticError,
+  AskUserRequest,
+  AskUserResult,
   AgenticState,
   AssistantMessage,
   ContentBlock,
   Context,
   Entry,
   Loading,
+  PendingAskUserInteraction,
   RecordingDataAccessor,
   StreamProvider,
   ToolCall,
   ToolDefinition,
   ToolMessage,
+  ToolExecutionContext,
 } from "./types";
 
 interface OrderedEntryMap {
@@ -179,7 +190,9 @@ export function executeToolCalls(
     recording: RecordingDataAccessor,
     name: string,
     args: Record<string, unknown>,
+    context?: ToolExecutionContext,
   ) => FutureInstance<unknown, unknown> = executeTool,
+  context?: ToolExecutionContext,
 ): FutureInstance<unknown, Array<ToolMessage>> {
   const denseToolCalls = toolCalls.filter(Boolean);
 
@@ -196,7 +209,10 @@ export function executeToolCalls(
       const args = toolCall.function.arguments
         ? (JSON.parse(toolCall.function.arguments) as Record<string, unknown>)
         : {};
-      toolFut = executeFn(recording, toolCall.function.name, args);
+      toolFut = executeFn(recording, toolCall.function.name, args, {
+        ...context,
+        toolCall,
+      });
     } catch (err) {
       toolFut = resolve({
         error: err instanceof Error ? err.message : "Tool execution failed",
@@ -416,6 +432,8 @@ export function createAgenticState(
   const [$loading, setLoading] = createAtom<Loading>("none");
   const [$error, setError] = createAtom<AgenticError | null>(null);
   const [$wasCancelled, setWasCancelled] = createAtom<boolean>(false);
+  const [$pendingInteraction, setPendingInteraction] =
+    createAtom<PendingAskUserInteraction | null>(null);
   const [$truncatedBefore, setTruncatedBefore] = createAtom<string | null>(
     null,
   );
@@ -425,6 +443,7 @@ export function createAgenticState(
   let cancelled = false;
   let retryAttempt = 0;
   let pendingRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingAskUserResolve: ((answer: AskUserResult) => void) | null = null;
 
   const subscription = new Subscription();
   const toolCallTrigger$ = new Subject<void>();
@@ -443,8 +462,64 @@ export function createAgenticState(
     }
   }
 
+  function clearPendingInteraction() {
+    pendingAskUserResolve = null;
+    setPendingInteraction(null);
+  }
+
+  function makeAskUserFuture(
+    request: AskUserRequest,
+    toolCallId: string,
+  ): FutureInstance<unknown, AskUserResult> {
+    if (pendingAskUserResolve !== null) {
+      return resolve(
+        createError(
+          "An askUser prompt is already pending",
+          "The runtime only supports one interactive prompt at a time",
+          "Wait for the current question to be answered or cancel the session before asking another one.",
+        ),
+      ) as unknown as FutureInstance<unknown, AskUserResult>;
+    }
+
+    const pendingInteraction: PendingAskUserInteraction = {
+      id: createEntryId(),
+      toolCallId,
+      request,
+      createdAt: new Date(),
+    };
+
+    setPendingInteraction(pendingInteraction);
+
+    return Future((_reject, resolveFuture) => {
+      pendingAskUserResolve = resolveFuture;
+
+      return () => {
+        if (pendingAskUserResolve === resolveFuture) {
+          pendingAskUserResolve = null;
+        }
+        if (
+          $pendingInteraction.getValue()?.id === pendingInteraction.id ||
+          pendingAskUserResolve === null
+        ) {
+          clearPendingInteraction();
+        }
+      };
+    });
+  }
+
+  function submitAskUserAnswer(answer: AskUserResult) {
+    if (pendingAskUserResolve === null) {
+      return;
+    }
+
+    const resolvePending = pendingAskUserResolve;
+    clearPendingInteraction();
+    resolvePending(answer);
+  }
+
   function destroy() {
     clearPendingRetry();
+    clearPendingInteraction();
     cancelled = true;
     if (currentAbortController) {
       currentAbortController.abort();
@@ -460,6 +535,7 @@ export function createAgenticState(
 
   function cancel() {
     clearPendingRetry();
+    clearPendingInteraction();
     cancelled = true;
     if (currentAbortController) {
       currentAbortController.abort();
@@ -479,6 +555,7 @@ export function createAgenticState(
 
   function reset() {
     clearPendingRetry();
+    clearPendingInteraction();
     cancelled = false;
     if (currentAbortController) {
       currentAbortController.abort();
@@ -689,6 +766,24 @@ export function createAgenticState(
     );
   }
 
+  function appendToolError(
+    toolCall: ToolCall,
+    error: string,
+    reason: string,
+    suggestion: string,
+  ) {
+    appendToolMessage({
+      id: createEntryId(),
+      timestamp: new Date(),
+      role: "tool",
+      tool_call_id: toolCall.id,
+      content: buildToolMessageContent(
+        toolCall.function.name,
+        createError(error, reason, suggestion),
+      ),
+    });
+  }
+
   const entries$ = $entryMap
     .asObservable()
     .pipe(
@@ -893,6 +988,50 @@ export function createAgenticState(
           ) {
             iterationCount += 1;
 
+            const askUserCalls = lastEntry.toolCalls.filter(
+              (toolCall) => toolCall.function.name === "askUser",
+            );
+
+            if (
+              askUserCalls.length > 1 ||
+              (askUserCalls.length > 0 &&
+                askUserCalls.length !== lastEntry.toolCalls.length)
+            ) {
+              for (const toolCall of lastEntry.toolCalls) {
+                appendToolError(
+                  toolCall,
+                  "Invalid interactive tool batch",
+                  "v1 only supports a single askUser prompt per assistant turn, and askUser cannot be mixed with other tools in the same batch.",
+                  "Retry with one askUser call in its own assistant turn and move any other tools into a separate turn.",
+                );
+              }
+
+              if (iterationCount >= MAX_TOOL_ITERATIONS) {
+                const limitMessage = buildIterationLimitMessage(
+                  createEntryId(),
+                );
+
+                setEntryMap((prev) => ({
+                  orderedIds: [...prev.orderedIds, limitMessage.id],
+                  entries: {
+                    ...prev.entries,
+                    [limitMessage.id]: limitMessage,
+                  },
+                }));
+
+                if (!cancelled) {
+                  setLoading("none");
+                }
+                break;
+              }
+
+              if (!cancelled) {
+                setLoading("reasoning");
+                toolCallTrigger$.next();
+              }
+              break;
+            }
+
             if (iterationCount >= MAX_TOOL_ITERATIONS) {
               const limitMessage = buildIterationLimitMessage(createEntryId());
 
@@ -915,7 +1054,15 @@ export function createAgenticState(
             }
 
             currentToolSubscription = observeFuture(
-              executeToolCalls(recording, lastEntry.toolCalls),
+              executeToolCalls(
+                recording,
+                lastEntry.toolCalls,
+                undefined,
+                executeTool,
+                {
+                  askUser: makeAskUserFuture,
+                },
+              ),
             ).subscribe((toolMessages) => {
               currentToolSubscription = null;
               if (!cancelled) {
@@ -944,10 +1091,12 @@ export function createAgenticState(
     $loading,
     $error,
     $wasCancelled,
+    $pendingInteraction,
     $truncatedBefore,
     cancel,
     destroy,
     query,
+    submitAskUserAnswer,
     reset,
   };
 }
