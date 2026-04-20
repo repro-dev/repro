@@ -233,6 +233,13 @@ export async function fetchIssues(team, variables) {
   return callBoundMethod(team, team.issues, variables);
 }
 
+export async function fetchIssueByNumber(team, number) {
+  return callBoundMethod(team, team.issues, {
+    filter: { number: { eq: number } },
+    first: 1,
+  });
+}
+
 export async function fetchProjectMilestones(receiver, source, variables) {
   return callBoundMethod(receiver, source, variables);
 }

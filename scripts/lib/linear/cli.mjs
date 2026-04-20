@@ -12,7 +12,7 @@ import {
   createIssueRelationWithFallback,
   createLinearClient,
   callBoundMethod,
-  fetchIssueLabel,
+  fetchIssueByNumber,
   fetchIssues,
   fetchProjectMilestones,
   normalizeText,
@@ -353,6 +353,28 @@ function selectLabelsById(labels, labelIds = []) {
     .filter(Boolean);
 }
 
+function collectLabelIds(items = []) {
+  const labelIds = new Set();
+  for (const item of items) {
+    for (const labelId of item?.labelIds ?? []) {
+      labelIds.add(labelId);
+    }
+  }
+  return [...labelIds];
+}
+
+function serializeIssueLabel(label) {
+  if (!label) return null;
+  return {
+    id: label.id ?? null,
+    name: label.name ?? null,
+  };
+}
+
+function serializeIssueLabels(issue, labels = []) {
+  return selectLabelsById(labels, issue?.labelIds ?? []).map(serializeIssueLabel);
+}
+
 function serializeStatus(status) {
   if (!status) return null;
   return {
@@ -377,28 +399,6 @@ function serializeComment(comment, issueId = null) {
     ...(issueId || comment.issueId || comment.issue?.id
       ? { issueId: issueId ?? comment.issueId ?? comment.issue?.id ?? null }
       : {}),
-  };
-}
-
-async function serializeIssueSummary(
-  issue,
-  relationId = null,
-  relationType = null,
-) {
-  const [status, assignee] = await Promise.all([
-    issue?.state ? issue.state : null,
-    issue?.assignee ? issue.assignee : null,
-  ]);
-
-  return {
-    relationId,
-    relationType,
-    id: issue.id ?? null,
-    identifier: issue.identifier ?? null,
-    title: issue.title ?? null,
-    url: issue.url ?? null,
-    status: serializeStatus(status),
-    assignee: serializeUser(assignee),
   };
 }
 
@@ -428,15 +428,33 @@ async function resolveIssueByIdentifier(context, issueId) {
       ? await resolveTeam(client, config.team)
       : await resolveTeam(client, teamKey);
 
-  const response = await fetchIssues(team, {
-    filter: { number: { eq: number } },
-    first: 1,
-  });
+  const response = await fetchIssueByNumber(team, number);
 
   const issue = response?.nodes?.[0];
   if (!issue) runtimeError(`Issue ${issueId} not found.`);
 
   return { config, client, team, issue };
+}
+
+async function resolveIssueByIdentifierOnTeam(context, team, issueId, cache) {
+  const cacheKey = normalizeText(issueId);
+  if (cache?.has(cacheKey)) return cache.get(cacheKey);
+
+  const { teamKey, number } = parseIssueIdentifier(issueId);
+  const activeTeamKey = normalizeText(team.key ?? team.name ?? "");
+
+  if (teamKey && activeTeamKey === normalizeText(teamKey)) {
+    const response = await fetchIssueByNumber(team, number);
+    const issue = response?.nodes?.[0];
+    if (!issue) runtimeError(`Issue ${issueId} not found.`);
+    const resolved = { team, issue };
+    if (cache) cache.set(cacheKey, resolved);
+    return resolved;
+  }
+
+  const resolved = await resolveIssueByIdentifier(context, issueId);
+  if (cache) cache.set(cacheKey, resolved);
+  return resolved;
 }
 
 function serializeProject(project) {
@@ -452,9 +470,27 @@ function serializeProject(project) {
   };
 }
 
-async function serializeMilestone(milestone) {
+function resolvedOwnDataValue(target, key) {
+  if (!target) return null;
+
+  const descriptor = Object.getOwnPropertyDescriptor(target, key);
+  if (!descriptor || !Object.prototype.hasOwnProperty.call(descriptor, "value")) {
+    return null;
+  }
+
+  const value = descriptor.value;
+  if (!value || typeof value.then === "function") return null;
+  return value;
+}
+
+async function serializeMilestoneProject(milestone, project = null) {
+  const sourceProject = project ?? (milestone?.project ? await milestone.project : null);
+  if (!sourceProject) return null;
+  return serializeProjectSummary(sourceProject);
+}
+
+async function serializeMilestone(milestone, project = null) {
   if (!milestone) return null;
-  const project = milestone.project ? await milestone.project : null;
   return {
     id: milestone.id ?? null,
     name: milestone.name ?? null,
@@ -463,21 +499,31 @@ async function serializeMilestone(milestone) {
       milestone.updatedAt instanceof Date
         ? milestone.updatedAt.toISOString()
         : milestone.updatedAt ?? null,
-    project: project ? serializeProject(project) : null,
+    project: await serializeMilestoneProject(milestone, project),
   };
 }
 
-async function serializeIssue(client, issue) {
-  const [project, milestone, assignee, status, labels] = await Promise.all([
+async function serializeMilestonePreview(milestone) {
+  if (!milestone) return null;
+  const project = resolvedOwnDataValue(milestone, "project");
+  return {
+    id: milestone.id ?? null,
+    name: milestone.name ?? null,
+    targetDate: milestone.targetDate ?? null,
+    updatedAt:
+      milestone.updatedAt instanceof Date
+        ? milestone.updatedAt.toISOString()
+        : milestone.updatedAt ?? null,
+    project: project ? await serializeProjectSummary(project) : null,
+  };
+}
+
+async function serializeIssue(client, issue, labels = []) {
+  const [project, milestone, assignee, status] = await Promise.all([
     issue.project ? issue.project : null,
     issue.projectMilestone ? issue.projectMilestone : null,
     issue.assignee ? issue.assignee : null,
     issue.state ? issue.state : null,
-    issue.labelIds?.length
-      ? Promise.all(
-          issue.labelIds.map((labelId) => fetchIssueLabel(client, labelId)),
-        )
-      : [],
   ]);
 
   return {
@@ -495,17 +541,79 @@ async function serializeIssue(client, issue) {
         }
       : null,
     project: serializeProject(project),
-    milestone: await serializeMilestone(milestone),
+    milestone: await serializeMilestone(milestone, project),
     assignee: serializeUser(assignee),
-    labels: labels.map((label) => ({
-      id: label.id ?? null,
-      name: label.name ?? null,
-    })),
+    labels: serializeIssueLabels(issue, labels),
     updatedAt:
       issue.updatedAt instanceof Date
         ? issue.updatedAt.toISOString()
         : issue.updatedAt ?? null,
     description: issue.description ?? null,
+  };
+}
+
+async function serializeIssueListItem(issue, labels = []) {
+  const project = resolvedOwnDataValue(issue, "project");
+  const milestone = resolvedOwnDataValue(issue, "projectMilestone");
+  const assignee = resolvedOwnDataValue(issue, "assignee");
+  const status = resolvedOwnDataValue(issue, "state");
+
+  return {
+    id: issue.id ?? null,
+    identifier: issue.identifier ?? null,
+    title: issue.title ?? null,
+    url: issue.url ?? null,
+    priority: issue.priority ?? null,
+    priorityLabel: issue.priorityLabel ?? null,
+    status: status ? serializeStatus(status) : null,
+    project: project ? await serializeProjectSummary(project) : null,
+    milestone: milestone ? await serializeMilestonePreview(milestone) : null,
+    assignee: serializeUser(assignee),
+    labels: serializeIssueLabels(issue, labels),
+    updatedAt:
+      issue.updatedAt instanceof Date
+        ? issue.updatedAt.toISOString()
+        : issue.updatedAt ?? null,
+    description: issue.description ?? null,
+  };
+}
+
+async function serializeIssueSummaryCore(issue) {
+  const [status, assignee] = await Promise.all([
+    issue?.state ? issue.state : null,
+    issue?.assignee ? issue.assignee : null,
+  ]);
+
+  return {
+    id: issue.id ?? null,
+    identifier: issue.identifier ?? null,
+    title: issue.title ?? null,
+    url: issue.url ?? null,
+    status: serializeStatus(status),
+    assignee: serializeUser(assignee),
+  };
+}
+
+async function serializeIssueSummary(
+  issue,
+  relationId = null,
+  relationType = null,
+  summaryCache = null,
+) {
+  const cacheKey = issue?.id ?? null;
+  if (!summaryCache || !cacheKey) {
+    const summary = await serializeIssueSummaryCore(issue);
+    return { ...summary, relationId, relationType };
+  }
+
+  if (!summaryCache.has(cacheKey)) {
+    summaryCache.set(cacheKey, serializeIssueSummaryCore(issue));
+  }
+
+  return {
+    ...(await summaryCache.get(cacheKey)),
+    relationId,
+    relationType,
   };
 }
 
@@ -523,59 +631,67 @@ async function serializeIssueDetails(issue) {
         : null,
     ]);
 
-  const relationEntries = async (response, relationType) => {
+  const summaryCache = new Map();
+  const relationState = {
+    blocks: [],
+    blockedBy: [],
+    related: [],
+    duplicateOf: [],
+    duplicates: [],
+  };
+  const relatedIssueIds = new Set();
+
+  const collectRelations = async (response, direction) => {
     const entries = await Promise.all(
       (response?.nodes ?? []).map(async (relation) => {
-        const sourceIssue = relation.issue ? await relation.issue : null;
-        const relatedIssue = relation.relatedIssue
-          ? await relation.relatedIssue
-          : null;
+        const sourceIssuePromise = relation.issue ?? null;
+        const relatedIssuePromise = relation.relatedIssue ?? null;
+        const [sourceIssue, relatedIssue] = await Promise.all([
+          sourceIssuePromise,
+          relatedIssuePromise,
+        ]);
         const otherIssue =
-          sourceIssue?.id === issue.id
-            ? relatedIssue
-            : sourceIssue ?? relatedIssue;
+          sourceIssue?.id === issue.id ? relatedIssue : sourceIssue ?? relatedIssue;
 
-        if (!otherIssue) return null;
+        if (!otherIssue) return;
 
-        return serializeIssueSummary(
+        const entry = await serializeIssueSummary(
           otherIssue,
           relation.id ?? null,
-          relation.type ?? relationType,
+          relation.type ?? null,
+          summaryCache,
         );
+
+        return { entry, relation };
       }),
     );
-    return entries.filter(Boolean);
+
+    for (const result of entries) {
+      if (!result) continue;
+      const { entry, relation } = result;
+
+      if (relation.type === "blocks") {
+        relationState[direction === "outgoing" ? "blocks" : "blockedBy"].push(
+          entry,
+        );
+      } else if (relation.type === "duplicate") {
+        relationState[
+          direction === "outgoing" ? "duplicateOf" : "duplicates"
+        ].push(entry);
+      } else if (relation.type === "related") {
+        const relatedKey = entry.id ?? entry.identifier ?? relation.id ?? null;
+        if (relatedKey && relatedIssueIds.has(relatedKey)) continue;
+        if (relatedKey) relatedIssueIds.add(relatedKey);
+        relationState.related.push(entry);
+      }
+    }
   };
 
-  const [
-    blocks,
-    blockedBy,
-    outgoingRelated,
-    incomingRelated,
-    duplicateOf,
-    duplicates,
-    comments,
-  ] = await Promise.all([
-    relationEntries(relationsResponse, "blocks").then((entries) =>
-      entries.filter((entry) => entry.relationType === "blocks"),
-    ),
-    relationEntries(inverseRelationsResponse, "blocks").then((entries) =>
-      entries.filter((entry) => entry.relationType === "blocks"),
-    ),
-    relationEntries(relationsResponse, "related").then((entries) =>
-      entries.filter((entry) => entry.relationType === "related"),
-    ),
-    relationEntries(inverseRelationsResponse, "related").then((entries) =>
-      entries.filter((entry) => entry.relationType === "related"),
-    ),
-    relationEntries(relationsResponse, "duplicate").then((entries) =>
-      entries.filter((entry) => entry.relationType === "duplicate"),
-    ),
-    relationEntries(inverseRelationsResponse, "duplicate").then((entries) =>
-      entries.filter((entry) => entry.relationType === "duplicate"),
-    ),
-    Promise.all(
-      (commentsResponse?.nodes ?? []).map(async (comment) => ({
+  const comments = await Promise.all(
+    (commentsResponse?.nodes ?? []).map(async (comment) => {
+      const user = comment.user ? await comment.user : null;
+      const author = comment.author ? await comment.author : user;
+      return {
         id: comment.id ?? null,
         body: comment.body ?? null,
         createdAt:
@@ -586,31 +702,23 @@ async function serializeIssueDetails(issue) {
           comment.updatedAt instanceof Date
             ? comment.updatedAt.toISOString()
             : comment.updatedAt ?? null,
-        author: serializeUser(
-          comment.author
-            ? await comment.author
-            : comment.user
-            ? await comment.user
-            : null,
-        ),
-        user: serializeUser(comment.user ? await comment.user : null),
-      })),
-    ),
-  ]);
+        author: serializeUser(author),
+        user: serializeUser(user),
+      };
+    }),
+  );
 
-  const related = new Map();
-  for (const entry of [...outgoingRelated, ...incomingRelated]) {
-    if (!related.has(entry.relationId)) related.set(entry.relationId, entry);
-  }
+  await collectRelations(relationsResponse, "outgoing");
+  await collectRelations(inverseRelationsResponse, "incoming");
 
   return {
     comments,
     relations: {
-      blocks,
-      blockedBy,
-      related: [...related.values()],
-      duplicates,
-      duplicateOf,
+      blocks: relationState.blocks,
+      blockedBy: relationState.blockedBy,
+      related: relationState.related,
+      duplicates: relationState.duplicates,
+      duplicateOf: relationState.duplicateOf,
     },
   };
 }
@@ -638,13 +746,13 @@ async function serializeProjectSummary(project) {
   };
 }
 
-async function serializeMilestoneSummary(milestone) {
-  const project = milestone.project ? await milestone.project : null;
+async function serializeMilestoneSummary(milestone, project = null) {
+  const projectSummary = await serializeMilestoneProject(milestone, project);
   return {
     id: milestone.id ?? null,
     name: milestone.name ?? null,
     targetDate: milestone.targetDate ?? null,
-    project: project ? await serializeProjectSummary(project) : null,
+    project: projectSummary,
     updatedAt:
       milestone.updatedAt instanceof Date
         ? milestone.updatedAt.toISOString()
@@ -799,10 +907,6 @@ async function issueListCommand(args, context) {
   }
 
   const team = await resolveTeam(client, config.team);
-  const states = await resolveStates(team);
-  const labels = await resolveLabels(team);
-  const viewer = await resolveViewer(client);
-
   const explicitFilters = [
     options.project,
     options.milestone,
@@ -815,6 +919,12 @@ async function issueListCommand(args, context) {
     options.leaf,
     options.open,
   ].some(normalizeBool);
+
+  const states = !explicitFilters || options.statuses?.length
+    ? await resolveStates(team)
+    : [];
+  const viewer = options.mine ? await resolveViewer(client) : null;
+  const labels = options.labels?.length ? await resolveLabels(team) : [];
 
   const project = options.project
     ? await resolveProject(team, options.project)
@@ -862,8 +972,16 @@ async function issueListCommand(args, context) {
     filter,
   });
 
+  const responseIssues = response?.nodes ?? [];
+  const issueLabelIds = collectLabelIds(responseIssues);
+  const issueLabels = labels.length
+    ? labels
+    : issueLabelIds.length
+    ? await resolveLabels(team)
+    : [];
+
   const items = await Promise.all(
-    (response?.nodes ?? []).map((issue) => serializeIssue(client, issue)),
+    responseIssues.map((issue) => serializeIssueListItem(issue, issueLabels)),
   );
   const pageInfo = {
     hasNextPage: Boolean(response?.pageInfo?.hasNextPage),
@@ -904,11 +1022,12 @@ async function issueShowCommand(args, context) {
     usageError("Usage: linear issue show <id>");
   }
 
-  const { client, issue } = await resolveIssueByIdentifier(context, issueId);
+  const { client, issue, team } = await resolveIssueByIdentifier(context, issueId);
+  const issueLabels = collectLabelIds([issue]).length ? await resolveLabels(team) : [];
 
-  const item = await serializeIssue(client, issue);
+  const item = await serializeIssue(client, issue, issueLabels);
+  const details = await serializeIssueDetails(issue);
   if (context.json) {
-    const details = await serializeIssueDetails(issue);
     return {
       code: 0,
       stdout: toJson({ item: { ...item, ...details } }),
@@ -916,7 +1035,6 @@ async function issueShowCommand(args, context) {
     };
   }
 
-  const details = await serializeIssueDetails(issue);
   const lines = [
     humanJoin([
       item.identifier,
@@ -989,10 +1107,13 @@ async function issueChildrenCommand(args, context) {
   const issueId = options._[0];
   if (!issueId) usageError("Missing issue identifier.");
 
-  const { client, issue } = await resolveIssueByIdentifier(context, issueId);
+  const { client, issue, team } = await resolveIssueByIdentifier(context, issueId);
   const response = await callBoundMethod(issue, issue.children, { first: 200 });
+  const childIssues = response?.nodes ?? [];
+  const childLabelIds = collectLabelIds(childIssues);
+  const childLabels = childLabelIds.length ? await resolveLabels(team) : [];
   const items = await Promise.all(
-    (response?.nodes ?? []).map((child) => serializeIssue(client, child)),
+    childIssues.map((child) => serializeIssueListItem(child, childLabels)),
   );
   const pageInfo = {
     hasNextPage: Boolean(response?.pageInfo?.hasNextPage),
@@ -1072,6 +1193,7 @@ async function issueCreateCommand(args, context) {
   });
 
   if (createdIssue?.id) {
+    const issueResolutionCache = new Map();
     const relationSpecs = [
       ...(options.related ?? []).map((issueId) => ({
         sourceIssueId: createdIssue.id,
@@ -1097,20 +1219,20 @@ async function issueCreateCommand(args, context) {
 
     for (const relationSpec of relationSpecs) {
       const sourceIssueId = relationSpec.sourceIssueIdentifier
-        ? (
-            await resolveIssueByIdentifier(
-              context,
-              relationSpec.sourceIssueIdentifier,
-            )
-          ).issue.id
+        ? (await resolveIssueByIdentifierOnTeam(
+            context,
+            team,
+            relationSpec.sourceIssueIdentifier,
+            issueResolutionCache,
+          )).issue.id
         : relationSpec.sourceIssueId;
       const targetIssueId = relationSpec.targetIssueIdentifier
-        ? (
-            await resolveIssueByIdentifier(
-              context,
-              relationSpec.targetIssueIdentifier,
-            )
-          ).issue.id
+        ? (await resolveIssueByIdentifierOnTeam(
+            context,
+            team,
+            relationSpec.targetIssueIdentifier,
+            issueResolutionCache,
+          )).issue.id
         : relationSpec.targetIssueId;
       await createIssueRelationWithFallback(client, {
         issueId: sourceIssueId,
@@ -1134,7 +1256,16 @@ async function issueCreateCommand(args, context) {
     assignee: Promise.resolve(null),
     state: Promise.resolve(null),
   };
-  const item = await serializeIssue(client, createdIssue ?? fallbackIssue);
+  const createdIssueLabels = resolvedLabels.length
+    ? resolvedLabels
+    : collectLabelIds([createdIssue ?? fallbackIssue]).length
+    ? await resolveLabels(team)
+    : [];
+  const item = await serializeIssue(
+    client,
+    createdIssue ?? fallbackIssue,
+    createdIssueLabels,
+  );
 
   if (context.json) return { code: 0, stdout: toJson({ item }), stderr: "" };
 
@@ -1278,6 +1409,11 @@ async function issueUpdateCommand(args, context) {
     issue.id,
     input,
   );
+  const updatedIssueLabels = teamLabels.length
+    ? teamLabels
+    : collectLabelIds([updatedIssue ?? issue]).length
+    ? await resolveLabels(team)
+    : [];
   const item = await serializeIssue(
     client,
     updatedIssue ?? {
@@ -1302,6 +1438,7 @@ async function issueUpdateCommand(args, context) {
           ? parsePriority(options.priority)
           : issue.priority,
     },
+    updatedIssueLabels,
   );
 
   if (context.json) return { code: 0, stdout: toJson({ item }), stderr: "" };
@@ -1349,6 +1486,9 @@ async function issueStartCommand(args, context) {
       stateId: inProgressState.id,
     },
   );
+  const startedIssueLabels = collectLabelIds([updatedIssue ?? issue]).length
+    ? await resolveLabels(team)
+    : [];
   const item = await serializeIssue(
     client,
     updatedIssue ?? {
@@ -1356,6 +1496,7 @@ async function issueStartCommand(args, context) {
       assignee: Promise.resolve(viewer),
       state: Promise.resolve(inProgressState),
     },
+    startedIssueLabels,
   );
 
   if (context.json) return { code: 0, stdout: toJson({ item }), stderr: "" };
@@ -1570,17 +1711,20 @@ async function projectShowCommand(args, context) {
   if (!config.team) runtimeError(missingTeamError());
   const team = await resolveTeam(client, config.team);
   const project = await resolveProject(team, name);
+  const projectSummary = await serializeProjectSummary(project);
   const milestonesResponse = await fetchProjectMilestones(
     project,
     project.projectMilestones,
     { first: 200 },
   );
   const milestones = await Promise.all(
-    (milestonesResponse?.nodes ?? []).map(serializeMilestoneSummary),
+    (milestonesResponse?.nodes ?? []).map((milestone) =>
+      serializeMilestoneSummary(milestone, projectSummary),
+    ),
   );
 
   const item = {
-    ...(await serializeProjectSummary(project)),
+    ...projectSummary,
     milestones,
   };
 
@@ -1617,8 +1761,10 @@ async function milestoneListCommand(args, context) {
 
   let source = client.projectMilestones;
   let project = null;
+  let projectSummary = null;
   if (options.project) {
     project = await resolveProject(team, options.project);
+    projectSummary = await serializeProjectSummary(project);
     source = project.projectMilestones;
   }
 
@@ -1626,7 +1772,11 @@ async function milestoneListCommand(args, context) {
     first: 200,
   });
   const items = await Promise.all(
-    (response?.nodes ?? []).map(serializeMilestoneSummary),
+    (response?.nodes ?? []).map((milestone) =>
+      projectSummary
+        ? serializeMilestoneSummary(milestone, projectSummary)
+        : serializeMilestoneSummary(milestone),
+    ),
   );
   const pageInfo = {
     hasNextPage: Boolean(response?.pageInfo?.hasNextPage),

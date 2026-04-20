@@ -40,6 +40,18 @@ function makeClient() {
 }
 
 function makeBoundMethodClient(records) {
+  records.milestoneProjectAccesses ??= [];
+  const makeMilestone = () => ({
+    id: "ms-1",
+    name: "Sprint 1",
+    targetDate: null,
+    updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+    get project() {
+      records.milestoneProjectAccesses.push(true);
+      return Promise.resolve(project);
+    },
+  });
+
   const project = {
     id: "project-1",
     name: "Workspace",
@@ -49,15 +61,7 @@ function makeBoundMethodClient(records) {
       if (!this._request) throw new Error("unbound projectMilestones method");
       records.projectMilestones.push(vars);
       return {
-        nodes: [
-          {
-            id: "ms-1",
-            name: "Sprint 1",
-            targetDate: null,
-            updatedAt: new Date("2026-04-18T00:00:00.000Z"),
-            project: Promise.resolve(project),
-          },
-        ],
+        nodes: [makeMilestone()],
         pageInfo: { hasNextPage: false, endCursor: null },
       };
     },
@@ -110,15 +114,7 @@ function makeBoundMethodClient(records) {
       if (!this._request) throw new Error("unbound projectMilestones method");
       records.projectMilestones.push(vars);
       return {
-        nodes: [
-          {
-            id: "ms-1",
-            name: "Sprint 1",
-            targetDate: null,
-            updatedAt: new Date("2026-04-18T00:00:00.000Z"),
-            project: Promise.resolve(project),
-          },
-        ],
+        nodes: [makeMilestone()],
         pageInfo: { hasNextPage: false, endCursor: null },
       };
     },
@@ -361,6 +357,27 @@ test("project list and milestone list keep SDK-style receivers bound", async () 
   assert.equal(bareMilestoneList.code, 0);
   const bareMilestones = JSON.parse(bareMilestoneList.stdout);
   assert.equal(bareMilestones.items[0].name, "Sprint 1");
+  assert.deepEqual(bareMilestones.items[0].project, {
+    id: "project-1",
+    key: null,
+    name: "Workspace",
+    url: "https://linear.app/acme/project/workspace",
+    updatedAt: null,
+  });
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(
+      bareMilestones.items[0].project,
+      "_request",
+    ),
+    false,
+  );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(
+      bareMilestones.items[0].project,
+      "projectMilestones",
+    ),
+    false,
+  );
 
   const projectMilestoneList = await execute(
     ["milestone", "list", "--project", "Workspace", "--json"],
@@ -372,6 +389,28 @@ test("project list and milestone list keep SDK-style receivers bound", async () 
   assert.equal(projectMilestoneList.code, 0);
   const projectMilestones = JSON.parse(projectMilestoneList.stdout);
   assert.equal(projectMilestones.items[0].name, "Sprint 1");
+  assert.deepEqual(projectMilestones.items[0].project, {
+    id: "project-1",
+    key: null,
+    name: "Workspace",
+    url: "https://linear.app/acme/project/workspace",
+    updatedAt: null,
+  });
+
+  const projectShow = await execute(["project", "show", "Workspace", "--json"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => client,
+  });
+  assert.equal(projectShow.code, 0);
+  const projectShowPayload = JSON.parse(projectShow.stdout);
+  assert.deepEqual(projectShowPayload.item.milestones[0].project, {
+    id: "project-1",
+    key: null,
+    name: "Workspace",
+    url: "https://linear.app/acme/project/workspace",
+    updatedAt: null,
+  });
+
   assert.deepEqual(records.projects[1], {
     filter: { name: { eqIgnoreCase: "Workspace" } },
     first: 20,
@@ -379,7 +418,9 @@ test("project list and milestone list keep SDK-style receivers bound", async () 
   assert.deepEqual(records.projectMilestones, [
     { first: 200 },
     { first: 200 },
+    { first: 200 },
   ]);
+  assert.equal(records.milestoneProjectAccesses.length, 2);
 });
 
 test("validation rejects invalid priority, invalid limit, and assignee conflicts", async () => {

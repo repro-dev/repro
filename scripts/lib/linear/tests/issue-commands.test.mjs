@@ -240,6 +240,153 @@ test("issue children returns child issues and pageInfo", async () => {
   assert.deepEqual(records.children, [{ first: 200 }]);
 });
 
+test("issue children does not hydrate every child relation field", async () => {
+  const records = {
+    children: [],
+    teams: [],
+    states: [],
+    labels: [],
+    projects: [],
+    issues: [],
+    users: [],
+    projectMilestones: [],
+    issueLabels: [],
+    comments: [],
+    relations: [],
+    inverseRelations: [],
+    accesses: {
+      project: 0,
+      milestone: 0,
+      assignee: 0,
+      state: 0,
+    },
+  };
+
+  const childIssue = {
+    id: "issue-2",
+    identifier: "REP-876",
+    title: "Child task",
+    url: "https://linear.app/acme/issue/REP-876",
+    priority: 2,
+    priorityLabel: "High",
+    updatedAt: new Date("2026-04-18T00:15:00.000Z"),
+    description: "",
+    labelIds: [],
+    get project() {
+      records.accesses.project += 1;
+      return Promise.resolve(null);
+    },
+    get projectMilestone() {
+      records.accesses.milestone += 1;
+      return Promise.resolve(null);
+    },
+    get assignee() {
+      records.accesses.assignee += 1;
+      return Promise.resolve(null);
+    },
+    get state() {
+      records.accesses.state += 1;
+      return Promise.resolve({
+        id: "state-review",
+        name: "In Review",
+        type: "started",
+      });
+    },
+  };
+
+  const issue = {
+    id: "issue-1",
+    identifier: "REP-875",
+    title: "Parent issue",
+    url: "https://linear.app/acme/issue/REP-875",
+    priority: 3,
+    priorityLabel: "Medium",
+    updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+    description: "desc",
+    labelIds: [],
+    get project() {
+      records.accesses.project += 1;
+      return Promise.resolve(null);
+    },
+    get projectMilestone() {
+      records.accesses.milestone += 1;
+      return Promise.resolve(null);
+    },
+    get assignee() {
+      records.accesses.assignee += 1;
+      return Promise.resolve(null);
+    },
+    get state() {
+      records.accesses.state += 1;
+      return Promise.resolve({
+        id: "state-todo",
+        name: "Todo",
+        type: "unstarted",
+      });
+    },
+    children: async function (vars) {
+      records.children.push(vars);
+      return {
+        nodes: [childIssue],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+    },
+  };
+
+  const team = {
+    id: "team-1",
+    key: "REP",
+    name: "Workspace",
+    states: async function (vars) {
+      records.states = [...(records.states ?? []), vars];
+      return {
+        nodes: [
+          { id: "state-todo", name: "Todo", type: "unstarted" },
+          { id: "state-review", name: "In Review", type: "started" },
+        ],
+      };
+    },
+    labels: async () => ({ nodes: [] }),
+    projects: async () => ({ nodes: [] }),
+    issues: async function (vars) {
+      records.issues = [...(records.issues ?? []), vars];
+      return {
+        nodes: [issue],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+    },
+  };
+
+  const client = {
+    viewer: async () => ({
+      id: "viewer-1",
+      name: "Test User",
+      email: "test@example.com",
+    }),
+    teams: async function (vars) {
+      records.teams = [...(records.teams ?? []), vars];
+      return { nodes: [team] };
+    },
+    users: async () => ({ nodes: [] }),
+    projectMilestones: async () => ({
+      nodes: [],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    }),
+    issueLabel: async () => null,
+  };
+
+  const result = await execute(["issue", "children", "REP-875", "--json"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => client,
+  });
+
+  assert.equal(result.code, 0);
+  assert.equal(records.accesses.project, 0);
+  assert.equal(records.accesses.milestone, 0);
+  assert.equal(records.accesses.assignee, 0);
+  assert.equal(records.accesses.state, 0);
+});
+
 test("issue update resolves statuses and calls updateIssue", async () => {
   const records = {};
 
@@ -503,6 +650,7 @@ test("issue create creates relations after the issue is created", async () => {
       type: "duplicate",
     },
   ]);
+  assert.equal(records.teams.length, 1);
 });
 
 test("issue create validates required title and project", async () => {
