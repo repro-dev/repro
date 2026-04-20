@@ -11,11 +11,12 @@ import {
 } from "@repro/domain";
 import { Box } from "@repro/tdl";
 import { FutureInstance } from "fluture";
-import { RecordingDataAccessor } from "../../types";
+import { RecordingDataAccessor, ToolExecutionContext } from "../../types";
 
 export type ToolHandler = (
   recording: RecordingDataAccessor,
   args: Record<string, unknown>,
+  context?: ToolExecutionContext,
 ) => FutureInstance<unknown, unknown>;
 
 export function createError(

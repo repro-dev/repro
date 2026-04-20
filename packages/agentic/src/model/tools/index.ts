@@ -1,7 +1,8 @@
 import { FutureInstance, resolve } from "fluture";
-import { RecordingDataAccessor } from "../../types";
+import { RecordingDataAccessor, ToolExecutionContext } from "../../types";
 import { createError } from "./common";
 export type { ToolHandler } from "./common";
+import { TOOL_DEFINITION as askUserDef, handler as askUser } from "./ask-user";
 import {
   TOOL_DEFINITION as captureScreenshotDef,
   handler as captureScreenshot,
@@ -81,6 +82,7 @@ export const tools = [
   getDOMDiffDef,
   getUserActionsDef,
   captureScreenshotDef,
+  askUserDef,
   getStateChangesDef,
   findUserFrustrationDef,
   searchEventsDef,
@@ -91,7 +93,9 @@ export const tools = [
 // excluded until it has been tested and refined in the extension context.
 export const extensionTools = tools.filter(
   (t) =>
-    (t as { function: { name: string } }).function.name !== "captureScreenshot",
+    (t as { function: { name: string } }).function.name !==
+      "captureScreenshot" &&
+    (t as { function: { name: string } }).function.name !== "askUser",
 );
 
 const toolHandlers: Record<string, ToolHandler> = {
@@ -107,6 +111,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   getDOMDiff,
   getUserActions,
   captureScreenshot,
+  askUser,
   getStateChanges,
   findUserFrustration,
   searchEvents,
@@ -117,6 +122,7 @@ export function executeTool(
   recording: RecordingDataAccessor,
   name: string,
   args: Record<string, unknown>,
+  context?: ToolExecutionContext,
 ): FutureInstance<unknown, unknown> {
   const handler = toolHandlers[name];
   if (!handler) {
@@ -128,5 +134,5 @@ export function executeTool(
       ),
     );
   }
-  return handler(recording, args);
+  return handler(recording, args, context);
 }

@@ -2,8 +2,11 @@ import { FastifyPluginAsync } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { go, map } from 'fluture'
 import z from 'zod'
+import { Env } from '~/config/createEnv'
+import { defaultEnv } from '~/config/env'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
+import { BillingService } from '~/services/billing'
 import { FeatureGateService } from '~/services/featureGate'
 import { toListResponse } from '~/utils/listResponse'
 import { createResponseUtils } from '~/utils/response'
@@ -35,6 +38,8 @@ const deleteFeatureGateSchema = {
 export function createFeatureGateRouter(
   featureGateService: FeatureGateService,
   accountService: AccountService,
+  billingService: BillingService,
+  env: Env = defaultEnv,
   config = defaultSystemConfig
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
@@ -42,11 +47,16 @@ export function createFeatureGateRouter(
   return async function (fastify) {
     const app = fastify.withTypeProvider<ZodTypeProvider>()
 
-    app.get('/enabled', (_, res) => {
+    app.get('/enabled', (req, res) => {
       respondWith(
         res,
         featureGateService
-          .listEnabledFeatureGates()
+          .listEnabledFeatureGatesForRequest(
+            req,
+            billingService,
+            accountService,
+            env
+          )
           .pipe(map(gates => gates.map(gate => gate.name)))
           .pipe(map(toListResponse))
       )

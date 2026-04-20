@@ -2,7 +2,7 @@
 description: Enrich thin or ambiguous Linear issues that are not yet ready for /deliver — generate grounded acceptance criteria and scope context, update issues in Linear, or flag them for human review
 ---
 
-Scan Linear backlog issues that are not yet ready for `/deliver`. For each failing issue, gather codebase context and generate concrete acceptance criteria, scope notes, and description expansions. Update issues in Linear (with user approval, or autonomously with `--apply`). Flag un-enrichable issues as `needs-spec`.
+Scan Linear backlog issues that are not yet ready for `/deliver`. For each failing issue, gather codebase context and generate concrete acceptance criteria, scope notes, and description expansions. Update issues in Linear (with user approval, or autonomously with `--apply`). Flag un-enrichable issues as `needs-spec`. Queue-state fixes and duplicate/supersession triage belong to `/groom`, not this command.
 
 Arguments (optional):
 
@@ -11,7 +11,7 @@ Arguments (optional):
 
 Parse `$ARGUMENTS` carefully: separate the positional project filter from the `--apply` flag. Both may appear together (e.g. `/enrich-issues Platform --apply`).
 
-<!-- Selection-readiness rubric — keep in sync with deliver.md Phase 1 -->
+<!-- Selection-readiness rubric — keep in sync with deliver.md Phase 1 and defer queue-normalization cases to /groom -->
 
 ---
 
@@ -43,7 +43,7 @@ This step is idempotent — if the label already exists, skip creation.
 
 ## Step 3: Apply the readiness rubric
 
-<!-- This rubric must stay in sync with deliver.md Phase 1 -->
+<!-- This rubric must stay in sync with deliver.md Phase 1; queue-health mismatches should be routed to /groom -->
 
 Evaluate each issue in this order:
 

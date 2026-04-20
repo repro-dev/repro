@@ -11,6 +11,7 @@ describe('Routers > FeatureGate', () => {
   let harness: Harness
   let featureGateService: FeatureGateService
   let app: FastifyInstance
+  let enforcedApp: FastifyInstance
 
   before(async () => {
     harness = await createTestHarness()
@@ -18,7 +19,17 @@ describe('Routers > FeatureGate', () => {
     app = harness.bootstrap(
       createFeatureGateRouter(
         featureGateService,
-        harness.services.accountService
+        harness.services.accountService,
+        harness.services.billingService,
+        harness.env
+      )
+    )
+    enforcedApp = harness.bootstrap(
+      createFeatureGateRouter(
+        featureGateService,
+        harness.services.accountService,
+        harness.services.billingService,
+        { ...harness.env, BILLING_STUBBED: false }
       )
     )
   })
@@ -58,6 +69,49 @@ describe('Routers > FeatureGate', () => {
     expect(response.statusCode).toBe(200)
     const body = response.json()
     expect(body).toEqual({ items: ['feature1', 'feature2'] })
+  })
+
+  it('should reevaluate enabled feature gates per request account', async () => {
+    const createdGate = await promise(
+      featureGateService.createFeatureGate('ai_credits', 'AI credits access')
+    )
+
+    await promise(
+      featureGateService.updateFeatureGate(createdGate.id, { enabled: true })
+    )
+
+    const [account, , session] = await harness.loadFixtures([
+      fixtures.account.AccountA,
+      fixtures.billing.AccountA_FreePlan_Checkout,
+      fixtures.account.UserA_Session,
+    ])
+
+    const before = await enforcedApp.inject({
+      method: 'GET',
+      url: '/enabled',
+      headers: {
+        authorization: `Bearer ${session.sessionToken}`,
+      },
+    })
+
+    expect(before.statusCode).toBe(200)
+    expect(before.json()).toEqual({ items: [] })
+
+    const [proPlan] = await harness.loadFixtures([fixtures.billing.ProPlan])
+    await promise(
+      harness.services.billingService.changePlan(account.id, proPlan.id)
+    )
+
+    const after = await enforcedApp.inject({
+      method: 'GET',
+      url: '/enabled',
+      headers: {
+        authorization: `Bearer ${session.sessionToken}`,
+      },
+    })
+
+    expect(after.statusCode).toBe(200)
+    expect(after.json()).toEqual({ items: ['ai_credits'] })
   })
 
   it('should return a list of all feature gates', async () => {

@@ -237,14 +237,23 @@ def register_service(service_name, svc, wt_slug, source_path, infra_dir, service
   else:
     portless_wt_name = portless_base + '.wt-' + dns
 
-  app_slug = service_slugs.get('workspace', '')
-  api_slug = service_slugs.get('api-server', '')
+  # Scope dependency URLs to the current worktree so identical service names in
+  # other worktrees cannot overwrite the URLs this service should use.
+  current_service_slugs = service_slugs.get(wt_slug, {})
+  app_slug = current_service_slugs.get('workspace', wt_slug)
+  api_slug = current_service_slugs.get('api-server', wt_slug)
+  admin_slug = current_service_slugs.get('admin', wt_slug)
+  marketing_slug = current_service_slugs.get('marketing', wt_slug)
   app_host = _service_host('app.repro', app_slug)
   api_host = _service_host('api.repro', api_slug)
+  admin_host = _service_host('admin.repro', admin_slug)
+  marketing_host = _service_host('marketing.repro', marketing_slug)
 
   serve_env = dict(svc.get('serve_env', {}))
   serve_env['REPRO_APP_URL'] = 'https://' + app_host
   serve_env['REPRO_API_URL'] = 'https://' + api_host
+  serve_env['REPRO_ADMIN_URL'] = 'https://' + admin_host
+  serve_env['REPRO_MARKETING_URL'] = 'https://' + marketing_host
 
   for env_key in svc.get('env_passthrough', []):
     serve_env[env_key] = os.getenv(env_key, '')
@@ -336,10 +345,15 @@ def register_local_service(service_name, svc, infra_dir, wt_slug=None, source_pa
   serve_env = dict(svc.get('serve_env', {}))
 
   if wt_slug:
-    app_slug = service_slugs.get('workspace', '')
-    api_slug = service_slugs.get('api-server', '')
+    current_service_slugs = service_slugs.get(wt_slug, {})
+    app_slug = current_service_slugs.get('workspace', wt_slug)
+    api_slug = current_service_slugs.get('api-server', wt_slug)
+    admin_slug = current_service_slugs.get('admin', wt_slug)
+    marketing_slug = current_service_slugs.get('marketing', wt_slug)
     serve_env['REPRO_APP_URL'] = 'https://' + _service_host('app.repro', app_slug)
     serve_env['REPRO_API_URL'] = 'https://' + _service_host('api.repro', api_slug)
+    serve_env['REPRO_ADMIN_URL'] = 'https://' + _service_host('admin.repro', admin_slug)
+    serve_env['REPRO_MARKETING_URL'] = 'https://' + _service_host('marketing.repro', marketing_slug)
 
   resource_deps = list(svc.get('resource_deps', []))
   if wt_slug and 'dependencies' in resource_deps:
@@ -379,10 +393,10 @@ def resolve_dependencies(service_config, services):
   """Expand transitive service dependencies in the config list.
 
   For each service in the config, look up its `deps` in the services
-  dict and inject any missing dependencies as main-checkout entries
-  (slug="", source="."). Only services that are NOT already present
-  get added — if the user explicitly listed a dependency it keeps its
-  original source/slug.
+  dict and inject any missing dependencies using the same source tree
+  and worktree slug as the service that depends on them. Only services
+  that are NOT already present get added — if the user explicitly
+  listed a dependency it keeps its original source/slug.
 
   Args:
     service_config: list of dicts [{name, source, slug}, ...]
@@ -410,19 +424,16 @@ def resolve_dependencies(service_config, services):
     deps = svc.get('deps', [])
 
     for dep_name in deps:
-      main_key = dep_name + ':'
-      has_any = False
-      for existing_key in present:
-        if existing_key.startswith(dep_name + ':'):
-          has_any = True
-          break
+      dep_key = dep_name + ':' + entry.get('slug', '')
 
-      if not has_any:
-        dep_entry = {'name': dep_name, 'source': '.', 'slug': ''}
+      if dep_key not in present:
+        dep_entry = {
+          'name': dep_name,
+          'source': entry.get('source', '.'),
+          'slug': entry.get('slug', ''),
+        }
         result.append(dep_entry)
-        present[main_key] = True
+        present[dep_key] = True
         queue.append(dep_entry)
 
   return result
-
-
