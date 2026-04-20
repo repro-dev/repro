@@ -1,3 +1,4 @@
+import { RecordingMode } from '@repro/domain'
 import { randomString } from '@repro/random-string'
 import expect from 'expect'
 import { chain, parallel, promise } from 'fluture'
@@ -12,6 +13,16 @@ import { ProjectService } from './project'
 
 function range(size: number) {
   return new Array(size).fill(undefined)
+}
+
+function decodeRequiredId(id: string): number {
+  const decoded = decodeId(id)
+
+  if (decoded == null) {
+    throw new Error(`Expected a valid encoded ID, got ${id}`)
+  }
+
+  return decoded
 }
 
 describe('Services > Account', () => {
@@ -101,6 +112,198 @@ describe('Services > Account', () => {
       ).resolves.toMatchObject({
         id: account.id,
         name: 'New Account',
+      })
+    })
+
+    it('should return null for accounts with no recorded activity', async () => {
+      const account = await promise(
+        accountService.createAccount('Inactive Account')
+      )
+
+      await expect(
+        promise(accountService.getAccountById(account.id))
+      ).resolves.toMatchObject({
+        id: account.id,
+        lastActiveAt: null,
+        name: 'Inactive Account',
+      })
+    })
+
+    it('should surface the newest persisted activity across recordings, sessions, and API keys', async () => {
+      const account = await promise(
+        accountService.createAccount('Active Account')
+      )
+      const user = await promise(
+        accountService.createUser(
+          account.id,
+          'Active User',
+          harness.generateRandomEmailAddress(),
+          'hunter2!'
+        )
+      )
+      const project = await promise(
+        harness.services.projectService.createProject(
+          account.id,
+          'Activity Project'
+        )
+      )
+      const recording = await promise(
+        harness.services.recordingService.writeInfo(
+          'Activity Recording',
+          'https://example.com/recording',
+          'Activity description',
+          RecordingMode.Replay,
+          30_000,
+          null,
+          null,
+          null
+        )
+      )
+      const session = await promise(
+        accountService.createSession(user.id, 'user')
+      )
+      const apiKey = await promise(
+        harness.services.oauthService.createApiKey(
+          decodeRequiredId(user.id),
+          'Activity API key',
+          []
+        )
+      )
+
+      await harness.db
+        .insertInto('project_recordings')
+        .values({
+          projectId: decodeRequiredId(project.id),
+          recordingId: decodeRequiredId(recording.id),
+          authorId: decodeRequiredId(user.id),
+        })
+        .execute()
+
+      const recordingAt = new Date('2026-01-01T00:00:00.000Z')
+      const sessionAt = new Date('2026-01-02T00:00:00.000Z')
+      const apiKeyAt = new Date('2026-01-03T00:00:00.000Z')
+
+      await sql`
+        UPDATE recordings
+        SET "createdAt" = ${recordingAt}
+        WHERE id = ${decodeRequiredId(recording.id)}
+      `.execute(harness.db)
+
+      await sql`
+        UPDATE sessions
+        SET "createdAt" = ${sessionAt}
+        WHERE id = ${decodeRequiredId(session.id)}
+      `.execute(harness.db)
+
+      await harness.db
+        .updateTable('api_keys')
+        .set({ lastUsedAt: apiKeyAt })
+        .where('id', '=', apiKey.id)
+        .execute()
+
+      await expect(
+        promise(accountService.getAccountById(account.id))
+      ).resolves.toMatchObject({
+        id: account.id,
+        lastActiveAt: apiKeyAt.toISOString(),
+        name: 'Active Account',
+      })
+
+      await expect(
+        promise(accountService.listAccounts())
+      ).resolves.toMatchObject({
+        items: [
+          expect.objectContaining({
+            id: account.id,
+            lastActiveAt: apiKeyAt.toISOString(),
+            name: 'Active Account',
+          }),
+        ],
+      })
+    })
+
+    it('should keep historical activity from inactive members and ignore activity from other accounts', async () => {
+      const account = await promise(
+        accountService.createAccount('Historical Account')
+      )
+      const activeUser = await promise(
+        accountService.createUser(
+          account.id,
+          'Active Member',
+          harness.generateRandomEmailAddress(),
+          'hunter2!'
+        )
+      )
+      const inactiveUser = await promise(
+        accountService.createUser(
+          account.id,
+          'Inactive Member',
+          harness.generateRandomEmailAddress(),
+          'hunter2!'
+        )
+      )
+      const otherAccount = await promise(
+        accountService.createAccount('Other Account')
+      )
+      const otherUser = await promise(
+        accountService.createUser(
+          otherAccount.id,
+          'Other Member',
+          harness.generateRandomEmailAddress(),
+          'hunter2!'
+        )
+      )
+
+      const activeSession = await promise(
+        accountService.createSession(activeUser.id, 'user')
+      )
+      const inactiveApiKey = await promise(
+        harness.services.oauthService.createApiKey(
+          decodeRequiredId(inactiveUser.id),
+          'Historical API key',
+          []
+        )
+      )
+      const otherSession = await promise(
+        accountService.createSession(otherUser.id, 'user')
+      )
+
+      await sql`
+        UPDATE sessions
+        SET "createdAt" = ${new Date('2026-02-01T00:00:00.000Z')}
+        WHERE id = ${decodeRequiredId(activeSession.id)}
+      `.execute(harness.db)
+
+      await harness.db
+        .updateTable('api_keys')
+        .set({ lastUsedAt: new Date('2026-02-02T00:00:00.000Z') })
+        .where('id', '=', inactiveApiKey.id)
+        .execute()
+
+      await sql`
+        UPDATE sessions
+        SET "createdAt" = ${new Date('2026-02-03T00:00:00.000Z')}
+        WHERE id = ${decodeRequiredId(otherSession.id)}
+      `.execute(harness.db)
+
+      await expect(
+        promise(accountService.deactivateUser(inactiveUser.id))
+      ).resolves.toBeUndefined()
+
+      await expect(
+        promise(accountService.getAccountById(account.id))
+      ).resolves.toMatchObject({
+        id: account.id,
+        lastActiveAt: '2026-02-02T00:00:00.000Z',
+        name: 'Historical Account',
+      })
+
+      await expect(
+        promise(accountService.getAccountById(otherAccount.id))
+      ).resolves.toMatchObject({
+        id: otherAccount.id,
+        lastActiveAt: '2026-02-03T00:00:00.000Z',
+        name: 'Other Account',
       })
     })
 

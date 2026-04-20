@@ -2,7 +2,9 @@ import { Account, Session, User } from '@repro/domain'
 import expect from 'expect'
 import { FastifyInstance } from 'fastify'
 import { promise } from 'fluture'
+import { sql } from 'kysely'
 import { after, before, beforeEach, describe, it } from 'node:test'
+import { decodeId } from '~/modules/database'
 import { AccountService } from '~/services/account'
 import { Harness, createTestHarness, fixtures } from '~/testing'
 import { createStaffRouter } from './staff'
@@ -37,6 +39,23 @@ describe('Routers > Staff', () => {
       const account = await promise(
         accountService.createAccount('Test Account')
       )
+      const user = await promise(
+        accountService.createUser(
+          account.id,
+          'Test User',
+          harness.generateRandomEmailAddress(),
+          'hunter2!'
+        )
+      )
+      const session = await promise(
+        accountService.createSession(user.id, 'user')
+      )
+
+      await sql`
+        UPDATE sessions
+        SET "createdAt" = ${new Date('2026-03-02T00:00:00.000Z')}
+        WHERE id = ${decodeId(session.id) as number}
+      `.execute(harness.db)
 
       const res = await app.inject({
         method: 'GET',
@@ -50,6 +69,7 @@ describe('Routers > Staff', () => {
       const body = res.json()
       expect(body).toMatchObject({
         id: account.id,
+        lastActiveAt: '2026-03-02T00:00:00.000Z',
         name: 'Test Account',
       })
     })

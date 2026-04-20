@@ -441,14 +441,20 @@ export function createAccountService(
       )
   }
 
-  function getAccountById(accountId: string): FutureInstance<Error, Account> {
+  function getAccountById(
+    accountId: string
+  ): FutureInstance<Error, StaffAccount> {
     return attemptQuery(() => {
       return database
         .selectFrom('accounts')
-        .select(['id', 'name'])
+        .select([
+          'id',
+          'name',
+          buildAccountLastActiveAtSelect().as('lastActiveAt'),
+        ])
         .where('id', '=', decodeId(accountId))
         .executeTakeFirstOrThrow(() => notFound())
-    }).pipe(map(withEncodedId))
+    }).pipe(map(asStaffAccount))
   }
 
   function getAccountForUser(userId: string): FutureInstance<Error, Account> {
@@ -571,6 +577,44 @@ export function createAccountService(
     )
   }
 
+  // Canonical account activity: the newest persisted recording, session, or API-key use.
+  function buildAccountLastActiveAtSelect() {
+    return sql<Date | null>`
+      (
+        select max(activity_at)
+        from (
+          select ${sql.ref('r.createdAt')} as activity_at
+          from recordings as r
+          inner join project_recordings as pr on ${sql.ref(
+            'pr.recordingId'
+          )} = ${sql.ref('r.id')}
+          inner join projects as p on ${sql.ref('p.id')} = ${sql.ref(
+            'pr.projectId'
+          )}
+          where ${sql.ref('p.accountId')} = ${sql.ref('accounts.id')}
+
+          union all
+
+          select ${sql.ref('s.createdAt')} as activity_at
+          from sessions as s
+          inner join users as u on ${sql.ref('u.id')} = ${sql.ref(
+            's.subjectId'
+          )}
+          where ${sql.ref('s.subjectType')} = 'user'
+            and ${sql.ref('u.accountId')} = ${sql.ref('accounts.id')}
+
+          union all
+
+          select ${sql.ref('ak.lastUsedAt')} as activity_at
+          from api_keys as ak
+          inner join users as u on ${sql.ref('u.id')} = ${sql.ref('ak.userId')}
+          where ${sql.ref('u.accountId')} = ${sql.ref('accounts.id')}
+            and ${sql.ref('ak.lastUsedAt')} is not null
+        ) as account_activity
+      )
+    `
+  }
+
   type AccountListQueryOptions = {
     cursor?: string
     limit?: number
@@ -585,6 +629,7 @@ export function createAccountService(
     name: string
     active: boolean
     createdAt: Date
+    lastActiveAt: Date | null
   }
 
   async function getPrimaryUserForAccount(
@@ -668,7 +713,7 @@ export function createAccountService(
       recordingCount: counts.recordingCount,
       userCount: counts.userCount,
       projectCount: counts.projectCount,
-      lastActiveAt: null,
+      lastActiveAt: account.lastActiveAt?.toISOString() ?? null,
     }
   }
 
@@ -695,7 +740,13 @@ export function createAccountService(
 
     let query = database
       .selectFrom('accounts')
-      .select(['id', 'name', 'active', 'createdAt'])
+      .select([
+        'id',
+        'name',
+        'active',
+        'createdAt',
+        buildAccountLastActiveAtSelect().as('lastActiveAt'),
+      ])
       .orderBy(`${sortColumn} ${sortOrder}`)
       .orderBy(`id ${sortOrder}`)
       .limit(limit + 1)
@@ -813,7 +864,13 @@ export function createAccountService(
     return attemptQuery(async () => {
       const account = await database
         .selectFrom('accounts')
-        .select(['id', 'name', 'active', 'createdAt'])
+        .select([
+          'id',
+          'name',
+          'active',
+          'createdAt',
+          buildAccountLastActiveAtSelect().as('lastActiveAt'),
+        ])
         .where('id', '=', decodedAccountId)
         .executeTakeFirstOrThrow(() => notFound())
 

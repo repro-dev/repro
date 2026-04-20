@@ -3,6 +3,12 @@ export interface Account {
   name: string
 }
 
+// Staff/admin account view — lastActiveAt is the canonical activity signal
+// and must never fall back to account creation timestamps.
+export interface StaffAccount extends Account {
+  lastActiveAt: string | null
+}
+
 export interface Invitation {
   id: string
   token: string
