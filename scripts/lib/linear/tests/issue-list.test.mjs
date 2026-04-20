@@ -3,7 +3,10 @@ import test from "node:test";
 
 import { execute } from "../cli.mjs";
 
-function makeClient(records) {
+export function makeClient(records) {
+  records.viewerCalls ??= [];
+  records.relationIssueAccesses ??= [];
+  records.relationRelatedIssueAccesses ??= [];
   const project = {
     id: "project-1",
     name: "Workspace",
@@ -73,57 +76,75 @@ function makeClient(records) {
           {
             id: "relation-blocks-1",
             type: "blocks",
-            issue: Promise.resolve(issue),
-            relatedIssue: Promise.resolve({
-              id: "issue-2",
-              identifier: "REP-876",
-              title: "Blocked issue",
-              url: "https://linear.app/acme/issue/REP-876",
-              state: Promise.resolve({
-                id: "state-todo",
-                name: "Todo",
-                type: "unstarted",
-              }),
-              assignee: Promise.resolve(null),
-            }),
+            get issue() {
+              records.relationIssueAccesses.push("relation-blocks-1");
+              return Promise.resolve(issue);
+            },
+            get relatedIssue() {
+              records.relationRelatedIssueAccesses.push("relation-blocks-1");
+              return Promise.resolve({
+                id: "issue-2",
+                identifier: "REP-876",
+                title: "Blocked issue",
+                url: "https://linear.app/acme/issue/REP-876",
+                state: Promise.resolve({
+                  id: "state-todo",
+                  name: "Todo",
+                  type: "unstarted",
+                }),
+                assignee: Promise.resolve(null),
+              });
+            },
           },
           {
             id: "relation-related-out-1",
             type: "related",
-            issue: Promise.resolve(issue),
-            relatedIssue: Promise.resolve({
-              id: "issue-3",
-              identifier: "REP-877",
-              title: "Related issue",
-              url: "https://linear.app/acme/issue/REP-877",
-              state: Promise.resolve({
-                id: "state-done",
-                name: "Done",
-                type: "completed",
-              }),
-              assignee: Promise.resolve({
-                id: "user-3",
-                name: "Build User",
-                email: "build@example.com",
-              }),
-            }),
+            get issue() {
+              records.relationIssueAccesses.push("relation-related-out-1");
+              return Promise.resolve(issue);
+            },
+            get relatedIssue() {
+              records.relationRelatedIssueAccesses.push("relation-related-out-1");
+              return Promise.resolve({
+                id: "issue-3",
+                identifier: "REP-877",
+                title: "Related issue",
+                url: "https://linear.app/acme/issue/REP-877",
+                state: Promise.resolve({
+                  id: "state-done",
+                  name: "Done",
+                  type: "completed",
+                }),
+                assignee: Promise.resolve({
+                  id: "user-3",
+                  name: "Build User",
+                  email: "build@example.com",
+                }),
+              });
+            },
           },
           {
             id: "relation-duplicate-of-1",
             type: "duplicate",
-            issue: Promise.resolve(issue),
-            relatedIssue: Promise.resolve({
-              id: "issue-4",
-              identifier: "REP-878",
-              title: "Original issue",
-              url: "https://linear.app/acme/issue/REP-878",
-              state: Promise.resolve({
-                id: "state-todo",
-                name: "Todo",
-                type: "unstarted",
-              }),
-              assignee: Promise.resolve(null),
-            }),
+            get issue() {
+              records.relationIssueAccesses.push("relation-duplicate-of-1");
+              return Promise.resolve(issue);
+            },
+            get relatedIssue() {
+              records.relationRelatedIssueAccesses.push("relation-duplicate-of-1");
+              return Promise.resolve({
+                id: "issue-4",
+                identifier: "REP-878",
+                title: "Original issue",
+                url: "https://linear.app/acme/issue/REP-878",
+                state: Promise.resolve({
+                  id: "state-todo",
+                  name: "Todo",
+                  type: "unstarted",
+                }),
+                assignee: Promise.resolve(null),
+              });
+            },
           },
         ],
         pageInfo: { hasNextPage: false, endCursor: null },
@@ -136,61 +157,79 @@ function makeClient(records) {
           {
             id: "relation-blocked-by-1",
             type: "blocks",
-            issue: Promise.resolve({
-              id: "issue-5",
-              identifier: "REP-879",
-              title: "Blocking issue",
-              url: "https://linear.app/acme/issue/REP-879",
-              state: Promise.resolve({
-                id: "state-todo",
-                name: "Todo",
-                type: "unstarted",
-              }),
-              assignee: Promise.resolve({
-                id: "user-4",
-                name: "Planner",
-                email: "planner@example.com",
-              }),
-            }),
-            relatedIssue: Promise.resolve(issue),
+            get issue() {
+              records.relationIssueAccesses.push("relation-blocked-by-1");
+              return Promise.resolve({
+                id: "issue-5",
+                identifier: "REP-879",
+                title: "Blocking issue",
+                url: "https://linear.app/acme/issue/REP-879",
+                state: Promise.resolve({
+                  id: "state-todo",
+                  name: "Todo",
+                  type: "unstarted",
+                }),
+                assignee: Promise.resolve({
+                  id: "user-4",
+                  name: "Planner",
+                  email: "planner@example.com",
+                }),
+              });
+            },
+            get relatedIssue() {
+              records.relationRelatedIssueAccesses.push("relation-blocked-by-1");
+              return Promise.resolve(issue);
+            },
           },
           {
             id: "relation-related-in-1",
             type: "related",
-            issue: Promise.resolve({
-              id: "issue-6",
-              identifier: "REP-880",
-              title: "Related incoming issue",
-              url: "https://linear.app/acme/issue/REP-880",
-              state: Promise.resolve({
-                id: "state-backlog",
-                name: "Backlog",
-                type: "backlog",
-              }),
-              assignee: Promise.resolve(null),
-            }),
-            relatedIssue: Promise.resolve(issue),
+            get issue() {
+              records.relationIssueAccesses.push("relation-related-in-1");
+              return Promise.resolve({
+                id: "issue-6",
+                identifier: "REP-880",
+                title: "Related incoming issue",
+                url: "https://linear.app/acme/issue/REP-880",
+                state: Promise.resolve({
+                  id: "state-backlog",
+                  name: "Backlog",
+                  type: "backlog",
+                }),
+                assignee: Promise.resolve(null),
+              });
+            },
+            get relatedIssue() {
+              records.relationRelatedIssueAccesses.push("relation-related-in-1");
+              return Promise.resolve(issue);
+            },
           },
           {
             id: "relation-duplicate-in-1",
             type: "duplicate",
-            issue: Promise.resolve({
-              id: "issue-7",
-              identifier: "REP-881",
-              title: "Duplicate issue",
-              url: "https://linear.app/acme/issue/REP-881",
-              state: Promise.resolve({
-                id: "state-done",
-                name: "Done",
-                type: "completed",
-              }),
-              assignee: Promise.resolve({
-                id: "user-5",
-                name: "Closer",
-                email: "closer@example.com",
-              }),
-            }),
-            relatedIssue: Promise.resolve(issue),
+            get issue() {
+              records.relationIssueAccesses.push("relation-duplicate-in-1");
+              return Promise.resolve({
+                id: "issue-7",
+                identifier: "REP-881",
+                title: "Duplicate issue",
+                url: "https://linear.app/acme/issue/REP-881",
+                state: Promise.resolve({
+                  id: "state-done",
+                  name: "Done",
+                  type: "completed",
+                }),
+                assignee: Promise.resolve({
+                  id: "user-5",
+                  name: "Closer",
+                  email: "closer@example.com",
+                }),
+              });
+            },
+            get relatedIssue() {
+              records.relationRelatedIssueAccesses.push("relation-duplicate-in-1");
+              return Promise.resolve(issue);
+            },
           },
         ],
         pageInfo: { hasNextPage: false, endCursor: null },
@@ -232,11 +271,14 @@ function makeClient(records) {
   };
 
   return {
-    viewer: async () => ({
-      id: "viewer-1",
-      name: "Test User",
-      email: "test@example.com",
-    }),
+    viewer: async () => {
+      records.viewerCalls.push(true);
+      return {
+        id: "viewer-1",
+        name: "Test User",
+        email: "test@example.com",
+      };
+    },
     teams: async (vars) => {
       records.teams.push(vars);
       return { nodes: [team] };
@@ -276,7 +318,7 @@ function makeClient(records) {
   };
 }
 
-function makeBoundMethodClient(records) {
+export function makeBoundMethodClient(records) {
   const team = {
     id: "team-1",
     key: "REP",
@@ -347,225 +389,3 @@ function makeBoundMethodClient(records) {
     },
   };
 }
-
-test("issue list constructs server-side filters and forwards pagination", async () => {
-  const records = {
-    teams: [],
-    states: [],
-    labels: [],
-    projects: [],
-    issues: [],
-    users: [],
-    projectMilestones: [],
-    issueLabels: [],
-    comments: [],
-    relations: [],
-    inverseRelations: [],
-  };
-
-  const result = await execute(
-    [
-      "issue",
-      "list",
-      "--project",
-      "Workspace",
-      "--status",
-      "backlog",
-      "--status",
-      "todo",
-      "--limit",
-      "250",
-      "--after",
-      "cursor-1",
-      "--json",
-    ],
-    {
-      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
-      clientFactory: async () => makeClient(records),
-    },
-  );
-
-  assert.equal(result.code, 0);
-  const payload = JSON.parse(result.stdout);
-  assert.equal(payload.items.length, 1);
-  assert.equal(payload.pageInfo.hasNextPage, true);
-  assert.equal(payload.pageInfo.endCursor, "abc123");
-  assert.equal(records.issues.length, 1);
-  assert.equal(records.issues[0].after, "cursor-1");
-  assert.equal(records.issues[0].first, 250);
-  assert.ok(records.issues[0].filter.and);
-  assert.equal(records.issues[0].filter.and[0].project.id.eq, "project-1");
-  assert.deepEqual(records.issues[0].filter.and[1].state.id.in, [
-    "state-backlog",
-    "state-todo",
-  ]);
-});
-
-test("issue list forwards leaf and unblocked filters together", async () => {
-  const records = {
-    teams: [],
-    states: [],
-    labels: [],
-    projects: [],
-    issues: [],
-    users: [],
-    projectMilestones: [],
-    issueLabels: [],
-    comments: [],
-    relations: [],
-    inverseRelations: [],
-  };
-
-  const result = await execute(
-    [
-      "issue",
-      "list",
-      "--project",
-      "Workspace",
-      "--status",
-      "todo",
-      "--unblocked",
-      "--leaf",
-      "--json",
-    ],
-    {
-      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
-      clientFactory: async () => makeClient(records),
-    },
-  );
-
-  assert.equal(result.code, 0);
-  assert.equal(records.issues.length, 1);
-  assert.deepEqual(records.issues[0].filter.and[0].project.id.eq, "project-1");
-  assert.deepEqual(records.issues[0].filter.and[1].state.id.in, ["state-todo"]);
-  assert.deepEqual(
-    records.issues[0].filter.and[2].hasBlockedByRelations.eq,
-    false,
-  );
-  assert.deepEqual(records.issues[0].filter.and[3].children.length.eq, 0);
-});
-
-test("issue list keeps SDK-style methods bound when invoking queries", async () => {
-  const records = {
-    teams: [],
-    states: [],
-    labels: [],
-    projects: [],
-    issues: [],
-    users: [],
-    projectMilestones: [],
-    issueLabels: [],
-    comments: [],
-    relations: [],
-    inverseRelations: [],
-  };
-
-  const result = await execute(["issue", "list", "--json"], {
-    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
-    clientFactory: async () => makeBoundMethodClient(records),
-  });
-
-  assert.equal(result.code, 0);
-});
-
-test("issue list defaults to backlog and todo when no filters are supplied", async () => {
-  const records = {
-    teams: [],
-    states: [],
-    labels: [],
-    projects: [],
-    issues: [],
-    users: [],
-    projectMilestones: [],
-    issueLabels: [],
-    comments: [],
-    relations: [],
-    inverseRelations: [],
-  };
-
-  await execute(["issue", "list", "--json"], {
-    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
-    clientFactory: async () => makeClient(records),
-  });
-
-  assert.equal(records.issues.length, 1);
-  assert.deepEqual(records.issues[0].filter.state.id.in, [
-    "state-backlog",
-    "state-todo",
-  ]);
-});
-
-test("issue show returns the shared serializer plus description, comments, and relations", async () => {
-  const records = {
-    teams: [],
-    states: [],
-    labels: [],
-    projects: [],
-    issues: [],
-    users: [],
-    projectMilestones: [],
-    issueLabels: [],
-    comments: [],
-    relations: [],
-    inverseRelations: [],
-  };
-
-  const result = await execute(["issue", "show", "REP-875", "--json"], {
-    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
-    clientFactory: async () => makeClient(records),
-  });
-
-  assert.equal(result.code, 0);
-  const payload = JSON.parse(result.stdout);
-  assert.equal(payload.item.identifier, "REP-875");
-  assert.equal(payload.item.description, "desc");
-  assert.equal(payload.item.milestone.name, "Sprint 1");
-  assert.equal(payload.item.comments.length, 1);
-  assert.equal(payload.item.comments[0].body, "Looks good to me.");
-  assert.equal(payload.item.comments[0].author.name, "Reviewer");
-  assert.equal(payload.item.relations.blocks.length, 1);
-  assert.equal(payload.item.relations.blocks[0].identifier, "REP-876");
-  assert.equal(payload.item.relations.blockedBy.length, 1);
-  assert.equal(payload.item.relations.blockedBy[0].identifier, "REP-879");
-  assert.equal(payload.item.relations.related.length, 2);
-  assert.deepEqual(
-    payload.item.relations.related.map((entry) => entry.identifier),
-    ["REP-877", "REP-880"],
-  );
-  assert.equal(payload.item.relations.duplicateOf.length, 1);
-  assert.equal(payload.item.relations.duplicateOf[0].identifier, "REP-878");
-  assert.equal(payload.item.relations.duplicates.length, 1);
-  assert.equal(payload.item.relations.duplicates[0].identifier, "REP-881");
-  assert.deepEqual(records.issueLabels, ["label-1"]);
-  assert.deepEqual(records.comments, [{ first: 50 }]);
-  assert.deepEqual(records.relations, [{ first: 50 }]);
-  assert.deepEqual(records.inverseRelations, [{ first: 50 }]);
-});
-
-test("issue show human output includes blockers and comments", async () => {
-  const records = {
-    teams: [],
-    states: [],
-    labels: [],
-    projects: [],
-    issues: [],
-    users: [],
-    projectMilestones: [],
-    issueLabels: [],
-    comments: [],
-    relations: [],
-    inverseRelations: [],
-  };
-
-  const result = await execute(["issue", "show", "REP-875"], {
-    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
-    clientFactory: async () => makeClient(records),
-  });
-
-  assert.equal(result.code, 0);
-  assert.match(result.stdout, /Blocks:/);
-  assert.match(result.stdout, /Blocked by:/);
-  assert.match(result.stdout, /Related:/);
-  assert.match(result.stdout, /Comments:/);
-  assert.match(result.stdout, /Looks good to me\./);
-});

@@ -3,6 +3,15 @@ import test from "node:test";
 
 import { execute } from "../cli.mjs";
 
+function makeTrackedRelation(records, key, value) {
+  return {
+    then(resolve) {
+      records.resolutions[key] += 1;
+      return resolve(value);
+    },
+  };
+}
+
 function makeClient(records) {
   records.children ??= [];
   records.updateIssue ??= [];
@@ -238,6 +247,171 @@ test("issue children returns child issues and pageInfo", async () => {
   assert.equal(payload.pageInfo.hasNextPage, false);
   assert.equal(payload.pageInfo.endCursor, null);
   assert.deepEqual(records.children, [{ first: 200 }]);
+});
+
+test("issue children preserves summary relations without expanding details", async () => {
+  const records = {
+    children: [],
+    teams: [],
+    states: [],
+    labels: [],
+    projects: [],
+    issues: [],
+    users: [],
+    projectMilestones: [],
+    issueLabels: [],
+    comments: [],
+    relations: [],
+    inverseRelations: [],
+    resolutions: {
+      project: 0,
+      milestone: 0,
+      assignee: 0,
+      state: 0,
+      milestoneProject: 0,
+    },
+  };
+
+  const project = {
+    id: "project-1",
+    name: "Workspace",
+    url: "https://linear.app/acme/project/workspace",
+  };
+
+  const milestone = {
+    id: "milestone-1",
+    name: "Sprint 1",
+    targetDate: null,
+    updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+    get project() {
+      return makeTrackedRelation(records, "milestoneProject", project);
+    },
+  };
+
+  const childIssue = {
+    id: "issue-2",
+    identifier: "REP-876",
+    title: "Child task",
+    url: "https://linear.app/acme/issue/REP-876",
+    priority: 2,
+    priorityLabel: "High",
+    updatedAt: new Date("2026-04-18T00:15:00.000Z"),
+    description: "",
+    labelIds: [],
+    get project() {
+      return makeTrackedRelation(records, "project", project);
+    },
+    get projectMilestone() {
+      return makeTrackedRelation(records, "milestone", milestone);
+    },
+    get assignee() {
+      return makeTrackedRelation(records, "assignee", null);
+    },
+    get state() {
+      return makeTrackedRelation(records, "state", {
+        id: "state-review",
+        name: "In Review",
+        type: "started",
+      });
+    },
+  };
+
+  const issue = {
+    id: "issue-1",
+    identifier: "REP-875",
+    title: "Parent issue",
+    url: "https://linear.app/acme/issue/REP-875",
+    priority: 3,
+    priorityLabel: "Medium",
+    updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+    description: "desc",
+    labelIds: [],
+    get project() {
+      return makeTrackedRelation(records, "project", null);
+    },
+    get projectMilestone() {
+      return makeTrackedRelation(records, "milestone", null);
+    },
+    get assignee() {
+      return makeTrackedRelation(records, "assignee", null);
+    },
+    get state() {
+      return makeTrackedRelation(records, "state", {
+        id: "state-todo",
+        name: "Todo",
+        type: "unstarted",
+      });
+    },
+    children: async function (vars) {
+      records.children.push(vars);
+      return {
+        nodes: [childIssue],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+    },
+  };
+
+  const team = {
+    id: "team-1",
+    key: "REP",
+    name: "Workspace",
+    states: async function (vars) {
+      records.states = [...(records.states ?? []), vars];
+      return {
+        nodes: [
+          { id: "state-todo", name: "Todo", type: "unstarted" },
+          { id: "state-review", name: "In Review", type: "started" },
+        ],
+      };
+    },
+    labels: async () => ({ nodes: [] }),
+    projects: async () => ({ nodes: [] }),
+    issues: async function (vars) {
+      records.issues = [...(records.issues ?? []), vars];
+      return {
+        nodes: [issue],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+    },
+  };
+
+  const client = {
+    viewer: async () => ({
+      id: "viewer-1",
+      name: "Test User",
+      email: "test@example.com",
+    }),
+    teams: async function (vars) {
+      records.teams = [...(records.teams ?? []), vars];
+      return { nodes: [team] };
+    },
+    users: async () => ({ nodes: [] }),
+    projectMilestones: async () => ({
+      nodes: [],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    }),
+    issueLabel: async () => null,
+  };
+
+  const result = await execute(["issue", "children", "REP-875", "--json"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => client,
+  });
+
+  assert.equal(result.code, 0);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.items[0].identifier, "REP-876");
+  assert.equal(payload.items[0].project.name, "Workspace");
+  assert.equal(payload.items[0].milestone.project.name, "Workspace");
+  assert.equal(payload.items[0].status.name, "In Review");
+  assert.equal(payload.items[0].assignee, null);
+  assert.deepEqual(records.resolutions, {
+    project: 1,
+    milestone: 1,
+    assignee: 1,
+    state: 1,
+    milestoneProject: 0,
+  });
 });
 
 test("issue update resolves statuses and calls updateIssue", async () => {
@@ -503,6 +677,7 @@ test("issue create creates relations after the issue is created", async () => {
       type: "duplicate",
     },
   ]);
+  assert.equal(records.teams.length, 1);
 });
 
 test("issue create validates required title and project", async () => {
