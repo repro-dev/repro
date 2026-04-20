@@ -27,5 +27,6 @@ export type { CodecVersion }
 export * from './account'
 export * from './api'
 export * from './billing'
+export * from './health'
 export * from './model-configs'
 export * from './project'

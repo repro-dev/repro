@@ -14,8 +14,9 @@ You are a test agent. You are a standalone utility invoked directly by the user 
 ## Startup
 
 1. Load the `build-and-test` skill for test commands and conventions.
-2. Read the code under test to understand its behaviour, edge cases, and dependencies.
-3. Check for existing tests and understand what is already covered.
+2. Load the `test-plan` skill when the work needs an explicit coverage strategy or gap audit.
+3. Read the code under test to understand its behaviour, edge cases, and dependencies.
+4. Check for existing tests and understand what is already covered.
 
 ## Use cases
 
@@ -77,3 +78,4 @@ Return a summary of what was done:
 - For each affected package, check for an `AGENTS.md` file and follow its testing conventions.
 - Use the project's test utilities and helpers rather than reinventing patterns.
 - All file operations MUST use absolute paths if a worktree path is provided.
+- Prefer behavior-focused assertions over implementation-detail assertions.

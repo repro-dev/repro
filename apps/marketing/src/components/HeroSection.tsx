@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 // jsxstyle requires a client boundary because it injects styles via React context.
 // When jsxstyle style extraction for SSR/SSG is solved (see Platform issue), this
 // boundary can be removed from leaf components.
@@ -13,9 +15,14 @@ import {
   textStyles,
   transition,
 } from '@repro/design'
-import { defaultEnv } from '~/config/env'
 
-export function HeroSection() {
+void React
+
+type HeroSectionProps = {
+  appUrl: string
+}
+
+export function HeroSection({ appUrl }: HeroSectionProps) {
   return (
     <Col
       minHeight="100vh"
@@ -52,7 +59,7 @@ export function HeroSection() {
           {/* Primary CTA — link to the workspace app */}
           <Block
             component="a"
-            props={{ href: defaultEnv.REPRO_APP_URL }}
+            props={{ href: appUrl }}
             backgroundColor={color.info}
             color={color.text.inverse}
             paddingV={spacing.sm}

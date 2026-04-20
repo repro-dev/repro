@@ -90,7 +90,7 @@ def test_local_service_url_uses_portless_host_for_worktree_slug(tmp_path):
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "http://marketing.wt-rep-745.repro.localhost:1355"
+    assert result.stdout.strip() == "https://marketing.wt-rep-745.repro.localhost:1355"
 
 
 def test_local_service_url_uses_port_offset_for_worktree_slug(tmp_path):

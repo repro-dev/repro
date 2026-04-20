@@ -46,6 +46,9 @@ importers:
       '@jsxstyle/core':
         specifier: ^3.0.1
         version: 3.0.1(patch_hash=f01c696c3290a899c0c02cf47a135a226b695495ba95d4ad82675e2e6136b9cd)
+      '@linear/sdk':
+        specifier: ^82.0.0
+        version: 82.0.0(graphql@16.13.2)
       '@playwright/test':
         specifier: ^1.58.2
         version: 1.58.2
@@ -4071,6 +4074,11 @@ packages:
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
 
+  '@graphql-typed-document-node/core@3.2.0':
+    resolution: {integrity: sha512-mB9oAsNCm9aM3/SOv4YtBMqZbYj10R7dkq8byBqxGY/ncFwhf2oQzMV+LCRlWoDSEBJ3COiR1yeDvMtsoOsuFQ==}
+    peerDependencies:
+      graphql: ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
+
   '@hookform/resolvers@2.9.10':
     resolution: {integrity: sha512-JIL1DgJIlH9yuxcNGtyhsWX/PgNltz+5Gr6+8SX9fhXc/hPbEIk6wPI82nhgvp3uUb6ZfAM5mqg/x7KR7NAb+A==}
     peerDependencies:
@@ -4343,6 +4351,10 @@ packages:
     peerDependencies:
       '@types/react': 18.3.10
       react: 18.3.1
+
+  '@linear/sdk@82.0.0':
+    resolution: {integrity: sha512-48Qe5eSay4ludtoc5Alo/VT7+O4JTURhTINg89FJZiRI258fIvUhwjO5AC5t3dgZw5Cwrz5zDZ8t/ktNSKshLQ==}
+    engines: {node: '>=18.x'}
 
   '@lukeed/ms@2.0.2':
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
@@ -6928,6 +6940,10 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  graphql@16.13.2:
+    resolution: {integrity: sha512-5bJ+nf/UCpAjHM8i06fl7eLyVC9iuNAjm9qzkiu2ZGhM0VscSvS6WDPfAwkdkBuoXGM9FJSbKl6wylMwP9Ktig==}
+    engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
 
   has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
@@ -11249,6 +11265,10 @@ snapshots:
 
   '@floating-ui/utils@0.2.11': {}
 
+  '@graphql-typed-document-node/core@3.2.0(graphql@16.13.2)':
+    dependencies:
+      graphql: 16.13.2
+
   '@hookform/resolvers@2.9.10(react-hook-form@7.53.0(react@18.3.1))':
     dependencies:
       react-hook-form: 7.53.0(react@18.3.1)
@@ -11534,6 +11554,12 @@ snapshots:
       '@jsxstyle/core': 3.0.1(patch_hash=f01c696c3290a899c0c02cf47a135a226b695495ba95d4ad82675e2e6136b9cd)
       '@types/react': 18.3.10
       react: 18.3.1
+
+  '@linear/sdk@82.0.0(graphql@16.13.2)':
+    dependencies:
+      '@graphql-typed-document-node/core': 3.2.0(graphql@16.13.2)
+    transitivePeerDependencies:
+      - graphql
 
   '@lukeed/ms@2.0.2': {}
 
@@ -14468,6 +14494,8 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
+
+  graphql@16.13.2: {}
 
   has-bigints@1.1.0: {}
 
