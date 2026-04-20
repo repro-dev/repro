@@ -71,19 +71,37 @@ local_service_url() {
   echo "$url"
 }
 
+auth_vault_bootstrap_entries() {
+  local workspace_url="$1"
+  local admin_url="$2"
+
+  python3 - "$REPO_ROOT/scripts/lib/data/auth-vault-bootstrap.json" "$workspace_url" "$admin_url" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text())
+workspace_url = sys.argv[2]
+admin_url = sys.argv[3]
+
+for login in data['logins']:
+  url = workspace_url if login['service'] == 'workspace' else admin_url
+  print(f"{login['profile']}\t{url}\t{login['username']}\t{data['password']}")
+PY
+}
+
 seed_agent_browser_auth_vault() {
-  local slug workspace_url admin_url
+  local slug workspace_url admin_url auth_vault_entries profile url username password
   slug="$(current_worktree_slug)"
   workspace_url="$(local_service_url workspace "$slug")" || return 1
   admin_url="$(local_service_url admin "$slug")" || return 1
 
-  agent-browser auth save "acme-admin" --url "$workspace_url" --username "admin@acme.repro.test" --password "password"
-  agent-browser auth save "acme-member" --url "$workspace_url" --username "member@acme.repro.test" --password "password"
-  agent-browser auth save "acme-viewer" --url "$workspace_url" --username "viewer@acme.repro.test" --password "password"
-  agent-browser auth save "beta-admin" --url "$workspace_url" --username "admin@beta.repro.test" --password "password"
-  agent-browser auth save "beta-unverified" --url "$workspace_url" --username "unverified@beta.repro.test" --password "password"
-  agent-browser auth save "staff" --url "$admin_url" --username "staff@repro.test" --password "password"
-  agent-browser auth save "staff-admin" --url "$admin_url" --username "staffadmin@repro.test" --password "password"
+  auth_vault_entries="$(auth_vault_bootstrap_entries "$workspace_url" "$admin_url")" || return 1
+
+  while IFS=$'\t' read -r profile url username password; do
+    [ -n "$profile" ] || continue
+    agent-browser auth save "$profile" --url "$url" --username "$username" --password "$password"
+  done <<< "$auth_vault_entries"
 }
 
 # ── Parse flags ─────────────────────────────────────────────────────

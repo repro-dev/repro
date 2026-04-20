@@ -11,6 +11,7 @@ BOOTSTRAP_SH="$REPO_ROOT/scripts/bootstrap.sh"
 COMMON_SH="$REPO_ROOT/scripts/lib/common.sh"
 SETUP_SH="$REPO_ROOT/scripts/lib/setup.sh"
 CLUSTER_SH="$REPO_ROOT/scripts/lib/cluster.sh"
+AUTH_VAULT_BOOTSTRAP_JSON="$REPO_ROOT/scripts/lib/data/auth-vault-bootstrap.json"
 
 PASS=0
 FAIL=0
@@ -22,6 +23,24 @@ _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); TESTS
 
 _make_tmpdir() {
   mktemp -d 2>/dev/null || mktemp -d -t test_setup
+}
+
+_auth_vault_bootstrap_expected_profiles() {
+  local workspace_url="$1" admin_url="$2"
+
+  python3 - "$AUTH_VAULT_BOOTSTRAP_JSON" "$workspace_url" "$admin_url" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text())
+workspace_url = sys.argv[2]
+admin_url = sys.argv[3]
+
+for login in data['logins']:
+    url = workspace_url if login['service'] == 'workspace' else admin_url
+    print(f"{login['profile']}|{url}|{login['username']}|{data['password']}")
+PY
 }
 
 _write_bootstrap_stubs() {
@@ -130,30 +149,19 @@ test_bootstrap_seeds_agent_browser_auth_vault_profiles_and_is_idempotent() {
   rm -f "$browser_install_state" "$auth_vault_state"
   _write_bootstrap_stubs "$tmpdir" "$browser_state" "$browser_install_state" available available "$auth_vault_state"
 
-  local output1 output2 expected_workspace_url expected_admin_url
+  local output1 output2 expected_workspace_url expected_admin_url expected_profile count
   output1="$(PATH="$tmpdir/bin:$SYSTEM_PATH" bash "$BOOTSTRAP_SH" --no-cluster 2>&1)" || rc1=$?
   output2="$(PATH="$tmpdir/bin:$SYSTEM_PATH" bash "$BOOTSTRAP_SH" --no-cluster 2>&1)" || rc2=$?
   expected_workspace_url="$(python3 "$REPO_ROOT/scripts/lib/py/local_service_url.py" workspace "$REPO_ROOT/infra/services.json")"
   expected_admin_url="$(python3 "$REPO_ROOT/scripts/lib/py/local_service_url.py" admin "$REPO_ROOT/infra/services.json")"
 
-  local expected_profiles=(
-    "acme-admin|$expected_workspace_url|admin@acme.repro.test|password"
-    "acme-member|$expected_workspace_url|member@acme.repro.test|password"
-    "acme-viewer|$expected_workspace_url|viewer@acme.repro.test|password"
-    "beta-admin|$expected_workspace_url|admin@beta.repro.test|password"
-    "beta-unverified|$expected_workspace_url|unverified@beta.repro.test|password"
-    "staff|$expected_admin_url|staff@repro.test|password"
-    "staff-admin|$expected_admin_url|staffadmin@repro.test|password"
-  )
-
-  local expected_profile count
-  for expected_profile in "${expected_profiles[@]}"; do
+  while IFS= read -r expected_profile; do
     if ! grep -Fxq "$expected_profile" "$auth_vault_state"; then
       rm -rf "$tmpdir"
       _fail "bootstrap seeds agent-browser auth vault profiles and is idempotent" "missing profile: $expected_profile; first run rc=$rc1; second run rc=$rc2; output1: $output1; output2: $output2"
       return
     fi
-  done
+  done < <(_auth_vault_bootstrap_expected_profiles "$expected_workspace_url" "$expected_admin_url")
 
   for expected_profile in acme-admin acme-member acme-viewer beta-admin beta-unverified staff staff-admin; do
     count="$(grep -c "^$expected_profile|" "$auth_vault_state" 2>/dev/null || true)"
