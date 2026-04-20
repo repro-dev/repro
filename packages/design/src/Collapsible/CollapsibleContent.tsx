@@ -1,5 +1,11 @@
 import { Block } from '@jsxstyle/react'
-import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react'
+import React, {
+  forwardRef,
+  PropsWithChildren,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { color } from '../tokens/colors'
 import { duration, easing } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
@@ -18,9 +24,14 @@ export interface CollapsibleContentProps {
   children: React.ReactNode
 }
 
-export function CollapsibleContent({
-  children,
-}: PropsWithChildren<CollapsibleContentProps>) {
+/**
+ * Collapsible content region. Keeps the panel mounted during close animation
+ * unless reduced motion is requested.
+ */
+export const CollapsibleContent = forwardRef<
+  HTMLDivElement,
+  PropsWithChildren<CollapsibleContentProps>
+>(({ children }, ref) => {
   const { open, triggerId, contentId } = useCollapsibleContext()
   const reducedMotion = useMemo(prefersReducedMotion, [])
   const [isMounted, setIsMounted] = useState(open)
@@ -52,6 +63,7 @@ export function CollapsibleContent({
           : `grid-template-rows ${duration[200]} ${easing.easeOut}, opacity ${duration[200]} ${easing.easeOut}`
       }
       props={{
+        ref,
         role: 'region',
         id: contentId,
         'aria-labelledby': triggerId,
@@ -75,6 +87,6 @@ export function CollapsibleContent({
       </Block>
     </Block>
   )
-}
+})
 
 CollapsibleContent.displayName = 'CollapsibleContent'

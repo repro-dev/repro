@@ -11,6 +11,10 @@ export interface CollapsibleTriggerProps {
   children: React.ReactNode
 }
 
+/**
+ * Trigger button for a single collapsible section. Toggles the linked content
+ * region and exposes the accordion-style ARIA wiring.
+ */
 export const CollapsibleTrigger = forwardRef<
   HTMLButtonElement,
   PropsWithChildren<CollapsibleTriggerProps>

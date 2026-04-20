@@ -15,6 +15,10 @@ export interface CollapsibleProps {
   children: React.ReactNode
 }
 
+/**
+ * Compound collapsible root for a single disclosure section. Compose with
+ * `Collapsible.Trigger` and `Collapsible.Content`.
+ */
 export const Collapsible: React.FC<PropsWithChildren<CollapsibleProps>> = ({
   defaultOpen = false,
   open,

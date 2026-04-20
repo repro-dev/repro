@@ -14,6 +14,10 @@ export interface AccordionTriggerProps {
   children: React.ReactNode
 }
 
+/**
+ * Accordion header trigger button. Toggles the associated item and exposes the
+ * correct ARIA wiring for assistive technologies.
+ */
 export const AccordionTrigger = forwardRef<
   HTMLButtonElement,
   PropsWithChildren<AccordionTriggerProps>

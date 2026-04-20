@@ -1,5 +1,11 @@
 import { Block } from '@jsxstyle/react'
-import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react'
+import React, {
+  forwardRef,
+  PropsWithChildren,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { color } from '../tokens/colors'
 import { duration, easing } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
@@ -18,9 +24,14 @@ export interface AccordionContentProps {
   children: React.ReactNode
 }
 
-export function AccordionContent({
-  children,
-}: PropsWithChildren<AccordionContentProps>) {
+/**
+ * Accordion panel region. Mounts deterministically and animates between open
+ * and closed states using motion tokens.
+ */
+export const AccordionContent = forwardRef<
+  HTMLDivElement,
+  PropsWithChildren<AccordionContentProps>
+>(({ children }, ref) => {
   const { open, triggerId, contentId } = useAccordionItemContext()
   const reducedMotion = useMemo(prefersReducedMotion, [])
   const [isMounted, setIsMounted] = useState(open)
@@ -52,6 +63,7 @@ export function AccordionContent({
           : `grid-template-rows ${duration[200]} ${easing.easeOut}, opacity ${duration[200]} ${easing.easeOut}`
       }
       props={{
+        ref,
         role: 'region',
         id: contentId,
         'aria-labelledby': triggerId,
@@ -75,6 +87,6 @@ export function AccordionContent({
       </Block>
     </Block>
   )
-}
+})
 
 AccordionContent.displayName = 'AccordionContent'

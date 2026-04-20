@@ -135,6 +135,59 @@ describe('Accordion', () => {
     )
   })
 
+  it('does not move focus when keyboard navigation starts inside panel content', () => {
+    render(
+      <Accordion defaultValue="first">
+        <Accordion.Item value="first">
+          <Accordion.Trigger>First</Accordion.Trigger>
+          <Accordion.Content>
+            <button type="button">Inner action</button>
+          </Accordion.Content>
+        </Accordion.Item>
+        <Accordion.Item value="second">
+          <Accordion.Trigger>Second</Accordion.Trigger>
+          <Accordion.Content>Second content</Accordion.Content>
+        </Accordion.Item>
+      </Accordion>
+    )
+
+    const innerAction = screen.getByRole('button', { name: 'Inner action' })
+    const first = screen.getByRole('button', { name: 'First' })
+    const second = screen.getByRole('button', { name: 'Second' })
+
+    for (const key of ['ArrowDown', 'Home', 'End']) {
+      innerAction.focus()
+      pressKey(key, innerAction)
+
+      expect(document.activeElement).toBe(innerAction)
+      expect(first.getAttribute('aria-expanded')).toBe('true')
+      expect(second.getAttribute('aria-expanded')).toBe('false')
+    }
+  })
+
+  it('keeps ids unique when item values sanitize to the same slug', () => {
+    render(
+      <Accordion defaultValue="foo bar">
+        <Accordion.Item value="foo bar">
+          <Accordion.Trigger>Space</Accordion.Trigger>
+          <Accordion.Content>Space content</Accordion.Content>
+        </Accordion.Item>
+        <Accordion.Item value="foo-bar">
+          <Accordion.Trigger>Hyphen</Accordion.Trigger>
+          <Accordion.Content>Hyphen content</Accordion.Content>
+        </Accordion.Item>
+      </Accordion>
+    )
+
+    const spaceTrigger = screen.getByRole('button', { name: 'Space' })
+    const hyphenTrigger = screen.getByRole('button', { name: 'Hyphen' })
+
+    expect(spaceTrigger.id).not.toBe(hyphenTrigger.id)
+    expect(spaceTrigger.getAttribute('aria-controls')).not.toBe(
+      hyphenTrigger.getAttribute('aria-controls')
+    )
+  })
+
   it('links each trigger to its content region', () => {
     render(
       <Accordion defaultValue="first">

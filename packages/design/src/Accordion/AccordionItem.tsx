@@ -1,7 +1,6 @@
 import { Block } from '@jsxstyle/react'
-import React, { PropsWithChildren, useMemo } from 'react'
+import React, { forwardRef, PropsWithChildren, useId, useMemo } from 'react'
 import { spacing } from '../tokens/spacing'
-import { sanitizeValue } from './Accordion'
 import { AccordionItemProvider, useAccordionContext } from './AccordionContext'
 
 export interface AccordionItemProps {
@@ -9,19 +8,24 @@ export interface AccordionItemProps {
   children: React.ReactNode
 }
 
-export function AccordionItem({
-  value,
-  children,
-}: PropsWithChildren<AccordionItemProps>) {
+/**
+ * Accordion item wrapper that links one trigger/content pair to a shared
+ * disclosure value.
+ */
+export const AccordionItem = forwardRef<
+  HTMLElement,
+  PropsWithChildren<AccordionItemProps>
+>(({ value, children }, ref) => {
   const { openValues, disabled, baseId } = useAccordionContext()
   const open = openValues.includes(value)
+  const itemId = useId()
 
   const ids = useMemo(
     () => ({
-      triggerId: `${baseId}-trigger-${sanitizeValue(value)}`,
-      contentId: `${baseId}-content-${sanitizeValue(value)}`,
+      triggerId: `${baseId}-trigger-${itemId}`,
+      contentId: `${baseId}-content-${itemId}`,
     }),
-    [baseId, value]
+    [baseId, itemId]
   )
 
   return (
@@ -34,11 +38,11 @@ export function AccordionItem({
         disabled,
       }}
     >
-      <Block component="section" paddingTop={spacing.md}>
+      <Block component="section" paddingTop={spacing.md} props={{ ref }}>
         {children}
       </Block>
     </AccordionItemProvider>
   )
-}
+})
 
 AccordionItem.displayName = 'AccordionItem'
