@@ -70,3 +70,5 @@ End with a compact table that lists:
 - blocked/in-flight issues
 
 Include the issue ID, title, action, and short rationale for each row.
+
+When apply mode writes to Linear, add a brief `Verification` subsection after the table that lists the re-read result for each mutated issue so the operator can see the read-after-write confirmation inline.
