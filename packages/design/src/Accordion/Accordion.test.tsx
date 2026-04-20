@@ -1,3 +1,4 @@
+import { Block } from '@jsxstyle/react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import expect from 'expect'
@@ -207,6 +208,39 @@ describe('Accordion', () => {
     )
   })
 
+  it('skips focusable buttons inside panel content when roving between triggers', () => {
+    render(
+      <Accordion defaultValue="first">
+        <Accordion.Item value="first">
+          <Accordion.Trigger>First</Accordion.Trigger>
+          <Accordion.Content>
+            <Block component="h3" margin={0}>
+              <button type="button">Inner action</button>
+            </Block>
+          </Accordion.Content>
+        </Accordion.Item>
+        <Accordion.Item value="second">
+          <Accordion.Trigger>Second</Accordion.Trigger>
+          <Accordion.Content>Second content</Accordion.Content>
+        </Accordion.Item>
+      </Accordion>
+    )
+
+    const first = screen.getByRole('button', { name: 'First' })
+    const innerAction = screen.getByRole('button', { name: 'Inner action' })
+    const second = screen.getByRole('button', { name: 'Second' })
+
+    first.focus()
+    pressKey('ArrowDown')
+
+    expect(document.activeElement).toBe(second)
+
+    innerAction.focus()
+    pressKey('ArrowDown', innerAction)
+
+    expect(document.activeElement).toBe(innerAction)
+  })
+
   it('does not move focus when keyboard navigation starts inside panel content', () => {
     render(
       <Accordion defaultValue="first">
@@ -275,6 +309,27 @@ describe('Accordion', () => {
 
     expect(trigger.getAttribute('aria-controls')).toBe(content.id)
     expect(content.getAttribute('aria-labelledby')).toBe(trigger.id)
+  })
+
+  it('forwards standard button attributes to triggers', () => {
+    render(
+      <Accordion defaultValue="first">
+        <Accordion.Item value="first">
+          <Accordion.Trigger
+            aria-label="Toggle first"
+            data-testid="first-trigger"
+          >
+            First
+          </Accordion.Trigger>
+          <Accordion.Content>First content</Accordion.Content>
+        </Accordion.Item>
+      </Accordion>
+    )
+
+    const trigger = screen.getByTestId('first-trigger')
+
+    expect(trigger.getAttribute('aria-label')).toBe('Toggle first')
+    expect(trigger.getAttribute('type')).toBe('button')
   })
 
   it('renders item headings for screen reader structure', () => {

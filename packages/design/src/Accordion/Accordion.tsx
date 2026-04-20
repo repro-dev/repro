@@ -107,7 +107,7 @@ export const Accordion = forwardRef<
 
         const triggers = Array.from(
           container.querySelectorAll<HTMLButtonElement>(
-            'h3 > button:not(:disabled)'
+            `button[aria-controls^="${baseId}-content-"]:not(:disabled)`
           )
         )
         if (triggers.length === 0) return
