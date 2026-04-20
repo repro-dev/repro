@@ -153,7 +153,8 @@ _parse_timeout() {
 
 _wait_for_healthy() {
   local timeout="$1"
-  shift
+  local full_stack_deps="${2:-false}"
+  shift 2
   local services=("$@")
 
   local target_names=()
@@ -167,7 +168,11 @@ _wait_for_healthy() {
   local dep_resource_names=()
   while IFS= read -r _line; do
     [ -z "$_line" ] && continue
-    dep_resource_names+=("$_line")
+    if [ "$full_stack_deps" = true ] && is_worktree "$REPO_ROOT" && _is_known_service "$_line"; then
+      dep_resource_names+=("$(resolve_worktree_resource_name "$_line")")
+    else
+      dep_resource_names+=("$_line")
+    fi
   done < <(printf '%s' "$dep_tree" | python3 -c '
 import json, sys
 data = json.load(sys.stdin)
@@ -399,9 +404,47 @@ except:
   done
 }
 
+_manifest_service_dependencies() {
+  local services_path="$1"
+  shift
+
+  python3 - "$services_path" "$@" <<'PY'
+import json
+import sys
+from collections import deque
+
+services_path = sys.argv[1]
+requested = list(sys.argv[2:])
+
+with open(services_path, encoding="utf-8") as file:
+    services = json.load(file)
+
+seen = set(requested)
+queue = deque(requested)
+ordered = []
+
+while queue:
+    svc = queue.popleft()
+    cfg = services.get(svc)
+    if not isinstance(cfg, dict):
+        continue
+
+    for dep in cfg.get("deps", []):
+        if dep not in seen:
+            seen.add(dep)
+            queue.append(dep)
+        if dep in services and dep not in ordered:
+            ordered.append(dep)
+
+for dep in ordered:
+    print(dep)
+PY
+}
+
 cmd_start() {
   local pick=false
   local wait=false
+  local full_stack=false
   local timeout_secs=0
   local args=()
 
@@ -409,6 +452,7 @@ cmd_start() {
     case "$1" in
       --pick|-p) pick=true; shift ;;
       --wait|-w) wait=true; shift ;;
+      --full-stack) full_stack=true; shift ;;
       --timeout|-t)
         [[ -n "${2:-}" ]] || die "Missing value for $1"
         timeout_secs="$(_parse_timeout "$2")" || die "Invalid timeout: $2\nExpected a duration like '120s' or '120'."
@@ -427,6 +471,9 @@ USAGE
 Options:
   --pick, -p               Interactively select services
   --wait, -w               Block until all services are healthy
+  --full-stack             Start worktree-local manifest dependencies in the
+                           same worktree context. Intended for correctness-
+                           sensitive verification flows.
   --timeout, -t <duration> How long to wait before giving up (no default;
                             waits indefinitely unless set)
                             Only meaningful with --wait
@@ -460,6 +507,28 @@ USAGE
 
   local started_services=("$@")
 
+  if [ "$full_stack" = true ] && is_worktree "$REPO_ROOT"; then
+    local manifest_deps=()
+    while IFS= read -r _line; do
+      [ -n "$_line" ] && manifest_deps+=("$_line")
+    done < <(_manifest_service_dependencies "$SERVICES_JSON" "${started_services[@]}")
+
+    local dep_name existing is_present
+    for dep_name in "${manifest_deps[@]}"; do
+      is_present=false
+      for existing in "${started_services[@]}"; do
+        if [ "$existing" = "$dep_name" ]; then
+          is_present=true
+          break
+        fi
+      done
+
+      if [ "$is_present" = false ]; then
+        started_services+=("$dep_name")
+      fi
+    done
+  fi
+
   mkdir -p "$TMP_DIR"
 
   if ! cluster_preflight; then
@@ -472,7 +541,7 @@ USAGE
   fi
 
   _step 1 "$total_steps" "Validating services.json..."
-  if ! python3 "$SCRIPTS_DIR/validate-services.py" "$SERVICES_JSON" "$REPO_ROOT/infra" "$@"; then
+  if ! python3 "$SCRIPTS_DIR/validate-services.py" "$SERVICES_JSON" "$REPO_ROOT/infra" "${started_services[@]}"; then
     die "services.json validation failed. Fix the errors above before starting."
   fi
 
@@ -483,11 +552,11 @@ USAGE
   if is_worktree "$REPO_ROOT"; then
     local wt_slug
     wt_slug="$(detect_worktree_slug)"
-    for svc in "$@"; do
+    for svc in "${started_services[@]}"; do
       entries+=("$wt_slug:$REPO_ROOT:$svc")
     done
   else
-    for svc in "$@"; do
+    for svc in "${started_services[@]}"; do
       entries+=(":.:$svc")
     done
   fi
@@ -515,7 +584,7 @@ USAGE
       wait_msg="$wait_msg (timeout: ${timeout_secs}s)"
     fi
     _step "$total_steps" "$total_steps" "$wait_msg..."
-    _wait_for_healthy "$timeout_secs" "${started_services[@]}"
+    _wait_for_healthy "$timeout_secs" "$full_stack" "${started_services[@]}"
   fi
 }
 
