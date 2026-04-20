@@ -156,6 +156,13 @@ describe('DevTools fullscreen', () => {
     assert.ok(container.querySelector('[data-testid="playback-navigation"]'))
     assert.ok(container.querySelector('[data-testid="toolbar-timeline"]'))
 
+    fullscreenElement = container.querySelector(
+      '[data-testid="playback-canvas"]'
+    )
+    document.dispatchEvent(new window.Event('fullscreenchange'))
+
+    assert.ok(container.querySelector('[title="Exit fullscreen"]'))
+
     const exitButton = container.querySelector('[title="Exit fullscreen"]')
     fireEvent.click(exitButton as Element)
 
