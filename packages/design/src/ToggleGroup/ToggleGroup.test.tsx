@@ -22,6 +22,11 @@ const options = [
   { value: 3, label: 'Three' },
 ]
 
+const stringOptions = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+] as const
+
 describe('ToggleGroup', () => {
   it('renders with radiogroup role', () => {
     render(<ToggleGroup options={options} selected={1} onChange={() => {}} />)
@@ -203,6 +208,26 @@ describe('ToggleGroup', () => {
     radios[2]!.click()
 
     expect(selected).toBe(3)
+  })
+
+  it('supports string option values', () => {
+    let selected: (typeof stringOptions)[number]['value'] = 'newest'
+    const onChange = (val: (typeof stringOptions)[number]['value']) => {
+      selected = val
+    }
+
+    render(
+      <ToggleGroup
+        options={stringOptions}
+        selected={selected}
+        onChange={onChange}
+      />
+    )
+
+    const radios = document.querySelectorAll<HTMLElement>('[role="radio"]')
+    radios[1]!.click()
+
+    expect(selected).toBe('oldest')
   })
 
   it('supports ArrowDown and ArrowUp as alternatives', () => {

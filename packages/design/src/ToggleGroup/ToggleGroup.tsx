@@ -8,13 +8,17 @@ import { transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
 import { fontSize, lineHeight } from '../tokens/typography'
 
-interface Props {
-  options: Array<{
-    value: number
-    label: string
-  }>
-  selected: number
-  onChange(selected: number): void
+type ToggleGroupValue = string | number
+
+interface Option<T extends ToggleGroupValue> {
+  value: T
+  label: string
+}
+
+interface Props<T extends ToggleGroupValue> {
+  options: ReadonlyArray<Option<T>>
+  selected: T
+  onChange(selected: T): void
 }
 
 /**
@@ -24,11 +28,11 @@ interface Props {
  * choices. Supports keyboard navigation (arrow keys, Home, End) with
  * roving tabindex. For a simple on/off toggle, use `Toggle` instead.
  */
-export const ToggleGroup: React.FC<Props> = ({
+export const ToggleGroup = <T extends ToggleGroupValue>({
   options,
   selected,
   onChange,
-}) => {
+}: Props<T>) => {
   const groupRef = useRef<HTMLDivElement>(null)
 
   const handleKeyDown = useCallback(
@@ -80,7 +84,7 @@ export const ToggleGroup: React.FC<Props> = ({
     >
       {options.map(({ value, label }) => (
         <Toggle
-          key={value}
+          key={String(value)}
           active={selected === value}
           label={label}
           onClick={() => onChange(value)}
