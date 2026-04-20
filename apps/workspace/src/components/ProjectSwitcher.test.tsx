@@ -10,7 +10,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { resolve } from 'fluture'
+import { FutureInstance, never, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import React from 'react'
@@ -185,6 +185,30 @@ describe('ProjectSwitcher', () => {
         '/projects/project-1/settings'
       )
     })
+  })
+
+  it('keeps the project settings action mounted while the selected project changes', async () => {
+    localStorageMock.setItem(STORAGE_KEY, 'project-1')
+
+    renderProjectSwitcher({
+      getMembers: (_client, projectId) => {
+        if (projectId === 'project-1') {
+          return resolve([adminMember])
+        }
+
+        return never as FutureInstance<Error, ProjectMember[]>
+      },
+    })
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: /switch project\. current: alpha/i,
+      })
+    )
+
+    fireEvent.click(await screen.findByRole('menuitem', { name: /beta/i }))
+
+    assert.ok(screen.getByRole('button', { name: /project settings/i }))
   })
 
   it('keeps the dropdown trigger and header actions separate in the multi-project state', async () => {

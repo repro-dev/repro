@@ -7,7 +7,7 @@ import {
   PlusIcon,
   SettingsIcon,
 } from 'lucide-react'
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjectContext } from '~/ProjectContext'
 import { CreateProjectDialog } from './CreateProjectDialog'
@@ -28,6 +28,17 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = ({
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const projectSettingsHrefRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (projectSettingsHref) {
+      projectSettingsHrefRef.current = projectSettingsHref
+    }
+  }, [projectSettingsHref])
+
+  const projectSettingsActionHref =
+    projectSettingsHref ??
+    (projectSettingsLoading ? projectSettingsHrefRef.current : null)
 
   if (loading) {
     return null
@@ -159,6 +170,8 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = ({
               type="button"
               alignItems="center"
               gap={spacing.sm}
+              padding={spacing.xs}
+              borderRadius={4}
               cursor="pointer"
               border="none"
               background="none"
@@ -207,7 +220,7 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = ({
         </DropdownMenu>
 
         <Row gap={spacing.xs} marginLeft="auto" alignItems="center">
-          {projectSettingsHref && !projectSettingsLoading ? (
+          {projectSettingsActionHref ? (
             <Row
               component="button"
               type="button"
@@ -221,9 +234,10 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = ({
               borderRadius={4}
               hoverColor={color.text.secondary}
               hoverBackgroundColor={color.bg.hover}
+              disabled={projectSettingsLoading}
               props={{
                 'aria-label': 'Project settings',
-                onClick: () => navigate(projectSettingsHref),
+                onClick: () => navigate(projectSettingsActionHref),
               }}
             >
               <SettingsIcon size={14} />
