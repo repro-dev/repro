@@ -196,7 +196,7 @@ Progress is tracked in `progressMap` (keyed by upload `ref`). The widget polls e
 
 ## The Binary Codec
 
-`SourceEventView` (generated in `packages/domain/src/generated/event.ts`) is the **single artifact** that flows through the entire pipeline — from observer callback to wire format to DOM renderer. It is a `@repro/tdl`-based binary codec.
+`SourceEventView` (generated in `packages/domain/generated/event.ts`) is the **single artifact** that flows through the entire pipeline — from observer callback to wire format to DOM renderer. It is a `@repro/tdl`-based binary codec.
 
 ```
 Observer callback
@@ -253,23 +253,23 @@ The `Snapshot` type (from `packages/domain`) is the shared state currency: mutat
 | `packages/playback/src/PlaybackCanvas/NativeDOMRenderer.tsx` | Full rebuild + incremental patch rendering                                |
 | `packages/source-utils/src/mutations/index.ts`               | `applyEventToSnapshot`                                                    |
 | `packages/recording-api/src/createUploadWorker.ts`           | `createUploadWorker`, `saveEvents`, `saveResources`                       |
-| `packages/domain/src/generated/event.ts`                     | `SourceEventView`, `SourceEventType`, all event types                     |
-| `packages/domain/src/generated/vdom.ts`                      | `DOMPatch`, `PatchType`, `VTree`, all VNode and patch codecs              |
+| `packages/domain/generated/event.ts`                         | `SourceEventView`, `SourceEventType`, all event types                     |
+| `packages/domain/generated/vdom.ts`                          | `DOMPatch`, `PatchType`, `VTree`, all VNode and patch codecs              |
 
 ---
 
 ## Domain Schema Warning
 
-All types in `packages/domain/src/generated/*.ts` are **auto-generated from `.tdls` files**. The pipeline is:
+All types in `packages/domain/generated/*.ts` are **auto-generated from `.tdls` files**. The pipeline is:
 
 ```
-packages/domain/src/*.tdls  →  tdlc  →  packages/domain/src/generated/*.ts
+packages/domain/src/*.tdls  →  tdlc  →  packages/domain/generated/*.ts
 ```
 
 **Never edit generated files directly.** Changes will be overwritten on the next `tdlc` run. Instead:
 
 1. Edit the corresponding `.tdls` schema file (e.g. `vdom.tdls` for patch types).
-2. Run `pnpm run build` in `packages/domain` (which runs `tdlc src --outdir src/generated`).
+2. Run `pnpm run build` in `packages/domain` (which runs `tdlc src --outdir generated`).
 3. The generated `.ts` files will be updated with correct codecs and type definitions.
 
 When adding a new **patch type** that should be part of an existing union (e.g. a new `DOMPatch` variant):

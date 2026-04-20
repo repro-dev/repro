@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "src/index.ts",
   "scripts": {
-    "build": "tdlc src --outdir src/generated",
-    "clean": "rimraf src/generated",
+    "build": "tdlc src --outdir generated",
+    "clean": "rimraf generated",
     "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
     "fmt": "prettier --write src",
     "typecheck": "tsc --noEmit"
