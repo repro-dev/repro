@@ -18,6 +18,16 @@ describe('repro SDK', () => {
       assert.equal(repro.mark('page_view'), undefined)
     })
 
+    it('mark is a no-op when the extension exists but mark is not callable', async () => {
+      ;(globalThis as Record<string, unknown>)['__REPRO__'] = {
+        mark: 'not-a-function',
+      }
+
+      const { mark } = await import('./index.js')
+
+      assert.equal(mark('page_view'), undefined)
+    })
+
     it('captureState is a no-op and returns undefined', async () => {
       const { repro } = await import('./index.js')
       const result = repro.captureState('MyComponent', { count: 1 })

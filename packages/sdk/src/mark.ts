@@ -1,7 +1,19 @@
 function getExtension(): ReproExtension | undefined {
-  return (globalThis as unknown as Window).__REPRO__
+  const extension = (globalThis as unknown as Window).__REPRO__
+
+  if (!extension || typeof extension !== 'object') {
+    return undefined
+  }
+
+  return extension
 }
 
 export function mark(name: string, data?: Record<string, unknown>): void {
-  getExtension()?.mark?.(name, data)
+  const extension = getExtension()
+
+  if (typeof extension?.mark !== 'function') {
+    return
+  }
+
+  extension.mark(name, data)
 }

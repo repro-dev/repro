@@ -35,11 +35,15 @@ export function createCustomMarkObserver(
         return
       }
 
-      const hadExtension = window.__REPRO__ !== undefined
-      const repro = (window.__REPRO__ ??= {})
+      const existing = window.__REPRO__
+      const hadExtension = existing !== undefined
+      const repro =
+        existing && typeof existing === 'object'
+          ? existing
+          : (window.__REPRO__ = {})
 
       createdExtension = !hadExtension
-      previousMark = repro.mark
+      previousMark = typeof repro.mark === 'function' ? repro.mark : undefined
 
       repro.mark = (name: string, data?: Record<string, unknown>) => {
         previousMark?.call(repro, name, data)

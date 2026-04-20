@@ -231,8 +231,13 @@ function installCustomMarkHook() {
     return
   }
 
-  const repro = (window.__REPRO__ ??= {})
-  const previousMark = repro.mark?.bind(repro)
+  const existing = window.__REPRO__
+  const repro =
+    existing && typeof existing === 'object'
+      ? existing
+      : (window.__REPRO__ = {})
+  const previousMark =
+    typeof repro.mark === 'function' ? repro.mark.bind(repro) : undefined
 
   repro.mark = (name: string, data?: Record<string, unknown>) => {
     previousMark?.call(repro, name, data)
