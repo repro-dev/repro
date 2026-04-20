@@ -100,8 +100,8 @@ export const Accordion = forwardRef<
       [openValues]
     )
 
-    const handleKeyDown = useCallback(
-      (evt: React.KeyboardEvent<HTMLDivElement>) => {
+    const handleTriggerKeyDown = useCallback(
+      (evt: React.KeyboardEvent<HTMLButtonElement>) => {
         const container = containerRef.current
         if (!container) return
 
@@ -111,15 +111,6 @@ export const Accordion = forwardRef<
           )
         )
         if (triggers.length === 0) return
-
-        const target = evt.target
-        if (!(target instanceof HTMLButtonElement)) {
-          return
-        }
-
-        if (!triggers.includes(target)) {
-          return
-        }
 
         const focusedEl = document.activeElement as HTMLElement
         const currentIndex = triggers.indexOf(focusedEl as HTMLButtonElement)
@@ -165,18 +156,23 @@ export const Accordion = forwardRef<
         baseId,
         toggleValue,
         isOpen,
+        handleTriggerKeyDown,
       }),
-      [baseId, disabled, isOpen, multiple, openValues, orientation, toggleValue]
+      [
+        baseId,
+        disabled,
+        handleTriggerKeyDown,
+        isOpen,
+        multiple,
+        openValues,
+        orientation,
+        toggleValue,
+      ]
     )
 
     return (
       <AccordionProvider value={ctx}>
-        <Block
-          props={{
-            ref: mergeRefs([ref, containerRef]),
-            onKeyDown: handleKeyDown,
-          }}
-        >
+        <Block props={{ ref: mergeRefs([ref, containerRef]) }}>
           {children}
         </Block>
       </AccordionProvider>

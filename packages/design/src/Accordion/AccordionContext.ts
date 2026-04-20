@@ -8,6 +8,7 @@ export interface AccordionContextValue {
   baseId: string
   toggleValue: (value: string) => void
   isOpen: (value: string) => boolean
+  handleTriggerKeyDown: React.KeyboardEventHandler<HTMLButtonElement>
 }
 
 const AccordionContext = createContext<AccordionContextValue | null>(null)

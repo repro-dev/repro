@@ -22,7 +22,7 @@ export const AccordionTrigger = forwardRef<
   HTMLButtonElement,
   PropsWithChildren<AccordionTriggerProps>
 >(({ children }, ref) => {
-  const { toggleValue } = useAccordionContext()
+  const { toggleValue, handleTriggerKeyDown } = useAccordionContext()
   const { value, open, triggerId, contentId, disabled } =
     useAccordionItemContext()
 
@@ -50,6 +50,7 @@ export const AccordionTrigger = forwardRef<
           id: triggerId,
           disabled,
           onClick: () => toggleValue(value),
+          onKeyDown: handleTriggerKeyDown,
           'aria-expanded': open,
           'aria-controls': contentId,
         }}
