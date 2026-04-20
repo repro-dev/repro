@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render } from '@testing-library/react'
+import { cleanup, render } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
@@ -9,37 +9,12 @@ describe('PlaybackCanvas fullscreen', () => {
     cleanup()
   })
 
-  it('enters and exits fullscreen', async t => {
+  it('does not own fullscreen controls', async t => {
     const playback = {
       $elapsed: new BehaviorSubject(0),
       $latestEventTime: new BehaviorSubject(0),
       getDuration: () => 10,
     }
-
-    let fullscreenElement: Element | null = null
-    const requestFullscreen = function (this: Element) {
-      fullscreenElement = this
-      document.dispatchEvent(new window.Event('fullscreenchange'))
-      return Promise.resolve()
-    }
-    const exitFullscreen = () => {
-      fullscreenElement = null
-      document.dispatchEvent(new window.Event('fullscreenchange'))
-      return Promise.resolve()
-    }
-
-    Object.defineProperty(document, 'fullscreenElement', {
-      configurable: true,
-      get: () => fullscreenElement,
-    })
-    Object.defineProperty(document, 'exitFullscreen', {
-      configurable: true,
-      value: exitFullscreen,
-    })
-    Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', {
-      configurable: true,
-      value: requestFullscreen,
-    })
 
     t.mock.module('@repro/design', {
       namedExports: {
@@ -64,12 +39,6 @@ describe('PlaybackCanvas fullscreen', () => {
       namedExports: {
         withPlaybackErrorBoundary: (component: React.ComponentType<any>) =>
           component,
-      },
-    })
-
-    t.mock.module('../PlaybackTimeline', {
-      namedExports: {
-        SimpleTimeline: () => <div data-testid="fullscreen-controls" />,
       },
     })
 
@@ -124,23 +93,7 @@ describe('PlaybackCanvas fullscreen', () => {
       />
     )
 
-    const enterButton = container.querySelector('[title="Enter fullscreen"]')
-    expect(enterButton).not.toBeNull()
-
-    fireEvent.click(enterButton as Element)
-
-    expect(document.fullscreenElement).not.toBeNull()
-    expect(
-      container.querySelector('[data-testid="fullscreen-controls"]')
-    ).not.toBeNull()
-    expect(container.querySelector('[title="Exit fullscreen"]')).not.toBeNull()
-
-    const exitButton = container.querySelector('[title="Exit fullscreen"]')
-    fireEvent.click(exitButton as Element)
-
-    expect(document.fullscreenElement).toBeNull()
-    expect(
-      container.querySelector('[data-testid="fullscreen-controls"]')
-    ).toBeNull()
+    expect(container.querySelector('[title="Enter fullscreen"]')).toBeNull()
+    expect(container.querySelector('[title="Exit fullscreen"]')).toBeNull()
   })
 })

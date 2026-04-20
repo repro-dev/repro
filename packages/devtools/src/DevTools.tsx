@@ -3,7 +3,13 @@ import { Analytics } from '@repro/analytics'
 import { ReferenceStyleProvider } from '@repro/css-utils'
 import { color } from '@repro/design'
 import { PlaybackCanvas } from '@repro/playback'
-import React, { Fragment, useEffect } from 'react'
+import React, {
+  Fragment,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { ConsolePanel } from './ConsolePanel'
 import { DragHandle } from './DragHandle'
 import { ElementsPanel } from './ElementsPanel'
@@ -31,12 +37,33 @@ interface Props {
 }
 
 export const DevTools = React.memo<Props>(props => {
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const [, setCurrentDocument] = useCurrentDocument()
   const [, setNodeMap] = useNodeMap()
   const [inspecting, setInspecting] = useInspecting()
   const [picker] = useElementPicker()
   const [mask] = useMask()
   const [view] = useDevToolsView()
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  const updateFullscreenState = useCallback(() => {
+    setIsFullscreen(document.fullscreenElement === containerRef.current)
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    const container = containerRef.current
+
+    if (!container) {
+      return
+    }
+
+    if (document.fullscreenElement === container) {
+      void document.exitFullscreen()
+      return
+    }
+
+    void container.requestFullscreen()
+  }, [])
 
   useEffect(() => {
     if (props.hideInspectorOnOpen) {
@@ -56,8 +83,18 @@ export const DevTools = React.memo<Props>(props => {
     }
   }, [picker])
 
+  useEffect(() => {
+    updateFullscreenState()
+
+    document.addEventListener('fullscreenchange', updateFullscreenState)
+
+    return () => {
+      document.removeEventListener('fullscreenchange', updateFullscreenState)
+    }
+  }, [updateFullscreenState])
+
   return (
-    <Container>
+    <Container containerRef={containerRef}>
       <ReferenceStyleProvider>
         <PlaybackRegion mask={mask}>
           <PlaybackCanvas
@@ -74,7 +111,11 @@ export const DevTools = React.memo<Props>(props => {
         </PlaybackRegion>
 
         <InspectorRegion>
-          <Toolbar timeline={props.timeline} />
+          <Toolbar
+            timeline={props.timeline}
+            fullscreen={isFullscreen}
+            onToggleFullscreen={toggleFullscreen}
+          />
 
           {inspecting && (
             <Fragment>
@@ -94,13 +135,17 @@ export const DevTools = React.memo<Props>(props => {
   )
 })
 
-const Container: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+const Container: React.FC<{
+  children?: React.ReactNode
+  containerRef: React.RefObject<HTMLDivElement>
+}> = ({ children, containerRef }) => (
   <Grid
     height="100%"
     gridTemplateRows="1fr auto"
     gridTemplateAreas={`"playback" "inspector"`}
     pointerEvents="auto"
     overflow="hidden"
+    props={{ ref: containerRef }}
   >
     {children}
   </Grid>
