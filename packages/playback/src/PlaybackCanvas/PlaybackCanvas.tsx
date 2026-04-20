@@ -104,8 +104,10 @@ export const PlaybackCanvas = withPlaybackErrorBoundary(
 
     return (
       <Block
+        position="relative"
         overflow="hidden"
         height="100%"
+        width="100%"
         userSelect={interactive ? 'all' : 'none'}
         background={`repeating-linear-gradient(
           45deg,

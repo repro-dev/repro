@@ -13,7 +13,10 @@ const meta: Meta = {
 export default meta
 
 export const Default: StoryObj = {
-  args: {},
+  args: {
+    fullscreen: false,
+    onToggleFullscreen: () => {},
+  },
   decorators: [
     Story => (
       <Block
