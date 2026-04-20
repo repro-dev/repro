@@ -21,6 +21,7 @@ import {
 } from '@repro/domain'
 import { Box } from '@repro/tdl'
 import { createSyntheticId, getNodeId } from '@repro/vdom-utils'
+import { isMaskedBySelector } from './utils'
 
 export function createVNode(node: Node): VNode | null {
   if (isDocumentNode(node)) {
@@ -72,6 +73,8 @@ export function createVElement(
       .filter(({ name }) => !isInlineEventAttribute(name))
       .reduce((attrs, { name, value }) => ({ ...attrs, [name]: value }), {})
 
+  const isMasked = isMaskedBySelector(element)
+
   const properties: VElement['properties'] = {
     checked: null,
     value: null,
@@ -83,8 +86,15 @@ export function createVElement(
     isTextAreaElement(element) ||
     isSelectElement(element)
   ) {
-    properties.value =
-      element.type === 'password' ? maskValue(element.value) : element.value
+    properties.value = isMasked
+      ? '[MASKED]'
+      : element.type === 'password'
+      ? maskValue(element.value)
+      : element.value
+
+    if ('value' in attributes) {
+      attributes.value = properties.value
+    }
   }
 
   if (
@@ -117,7 +127,7 @@ export function createVText(text: Text): VText {
     id: getNodeId(text),
     parentId: text.parentNode ? getNodeId(text.parentNode) : null,
     type: NodeType.Text,
-    value: text.data,
+    value: isMaskedBySelector(text) ? '[MASKED]' : text.data,
   }
 }
 

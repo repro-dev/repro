@@ -17,7 +17,12 @@ import { Box } from '@repro/tdl'
 import { Immutable } from '@repro/ts-utils'
 import { createSyntheticId, getNodeId, isElementVNode } from '@repro/vdom-utils'
 import { RecordingOptions } from '../types'
-import { DOMTreeWalker, isIgnoredByNode, isIgnoredBySelector } from './utils'
+import {
+  DOMTreeWalker,
+  isIgnoredByNode,
+  isIgnoredBySelector,
+  isMaskedBySelector,
+} from './utils'
 
 export function createDOMObserver(
   walkDOMTree: DOMTreeWalker,
@@ -64,12 +69,16 @@ function createInputObserver(
         ('defaultValue' in eventTarget ? eventTarget.defaultValue : '')
 
       let value = eventTarget.value
+      const isMasked = isMaskedBySelector(eventTarget)
 
       if (eventTarget.type === 'password') {
         maskedInputs.add(eventTarget)
       }
 
-      if (maskedInputs.has(eventTarget)) {
+      if (isMasked) {
+        oldValue = '[MASKED]'
+        value = '[MASKED]'
+      } else if (maskedInputs.has(eventTarget)) {
         oldValue = maskValue(oldValue)
         value = maskValue(value)
       }
@@ -246,6 +255,8 @@ export function internal__processMutationRecords(
         const attribute = (record.target as Element).attributes.getNamedItem(
           name
         )
+        const isMasked =
+          name === 'value' && isMaskedBySelector(record.target as Node)
 
         if (attribute?.value !== record.oldValue) {
           patches.push(
@@ -253,8 +264,12 @@ export function internal__processMutationRecords(
               type: PatchType.Attribute,
               targetId,
               name,
-              value: attribute ? attribute.value : null,
-              oldValue: record.oldValue,
+              value: attribute
+                ? isMasked
+                  ? '[MASKED]'
+                  : attribute.value
+                : null,
+              oldValue: isMasked ? '[MASKED]' : record.oldValue,
             })
           )
         }
@@ -272,8 +287,12 @@ export function internal__processMutationRecords(
           new Box({
             type: PatchType.Text,
             targetId: getNodeId(record.target),
-            value: (record.target as Text).data,
-            oldValue: record.oldValue || '',
+            value: isMaskedBySelector(record.target)
+              ? '[MASKED]'
+              : (record.target as Text).data,
+            oldValue: isMaskedBySelector(record.target)
+              ? '[MASKED]'
+              : record.oldValue || '',
             parentId: parentNode ? getNodeId(parentNode) : null,
           })
         )

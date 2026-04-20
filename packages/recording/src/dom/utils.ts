@@ -128,3 +128,22 @@ export function isIgnoredBySelector(
 
   return false
 }
+
+export function isMaskedBySelector(
+  node: Node,
+  maskedSelectors: Array<string> = ['.rr-mask']
+) {
+  if (isElementNode(node)) {
+    return maskedSelectors.some(selector => {
+      return node.closest(selector) !== null
+    })
+  }
+
+  if (isTextNode(node)) {
+    return maskedSelectors.some(selector => {
+      return node.parentElement?.closest(selector) != null
+    })
+  }
+
+  return false
+}

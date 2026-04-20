@@ -73,3 +73,53 @@ it('keeps live buffered events flowing after start in event order', () => {
 
   assert.equal(stream.slice().toArray().length, 2)
 })
+
+it('captures rr-mask snapshots and live input updates as masked content', () => {
+  const doc = document.implementation.createHTMLDocument('')
+  const root = doc.createElement('div')
+  root.className = 'rr-mask'
+
+  const maskedText = doc.createTextNode('secret text')
+  const maskedInput = doc.createElement('input')
+  maskedInput.value = 'secret value'
+  maskedInput.setAttribute('value', 'secret value')
+
+  root.append(maskedText, maskedInput)
+  doc.body.append(root)
+
+  const stream = createRecordingStream(doc, {
+    types: new Set(['dom']) as any,
+    ignoredNodes: [],
+    ignoredSelectors: ['.rr-ignore'],
+  })
+
+  stream.start()
+
+  const snapshot = stream.snapshot()
+  const dom = snapshot.dom
+
+  assert.ok(dom)
+  const nodeValues = Object.values(dom?.nodes ?? {}).map(node => {
+    return unwrapValue((node as any).value)
+  })
+  const inputNode = nodeValues.find(
+    node => node && typeof node === 'object' && node.tagName === 'input'
+  ) as any
+
+  assert.ok(nodeValues.includes('[MASKED]'))
+  assert.equal(inputNode.properties.value, '[MASKED]')
+  assert.equal(inputNode.attributes.value, '[MASKED]')
+
+  maskedInput.value = 'changed secret value'
+
+  const patches = stream
+    .slice()
+    .toArray()
+    .map(event => unwrapValue(event))
+    .filter(event => event.type === SourceEventType.DOMPatch)
+
+  assert.ok(patches.length > 0)
+  assert.equal((patches[patches.length - 1] as any).data.value, '[MASKED]')
+
+  doc.body.removeChild(root)
+})
