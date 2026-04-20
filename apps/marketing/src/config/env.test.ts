@@ -27,7 +27,7 @@ describe('createEnv', () => {
     assert.equal(env.BUILD_ENV, 'production')
   })
 
-  it('applies default REPRO_APP_URL when absent', () => {
+  it('keeps the production REPRO_APP_URL fallback when absent', () => {
     const env = createEnv({})
 
     assert.equal(env.REPRO_APP_URL, 'https://app.repro.dev')
