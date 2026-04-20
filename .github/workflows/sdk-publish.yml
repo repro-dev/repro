@@ -1,0 +1,53 @@
+name: Publish @repro/sdk
+
+on:
+  push:
+    tags:
+      - 'sdk-v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Moon toolchain
+        uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+
+      - name: Install dependencies
+        run: pnpm install --reporter=silent
+
+      - name: Build SDK
+        run: moon run repro/sdk:build
+
+      - name: Publish package
+        working-directory: packages/sdk
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          package_version=$(node -p "require('./package.json').version")
+          tag_version=${GITHUB_REF_NAME#sdk-v}
+
+          if [ "$tag_version" != "$package_version" ]; then
+            echo "Tag version $tag_version does not match package version $package_version" >&2
+            exit 1
+          fi
+
+          npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+
+          publish_tag=latest
+          case "$package_version" in
+            *-*) publish_tag=next ;;
+          esac
+
+          npm publish --tag "$publish_tag"
