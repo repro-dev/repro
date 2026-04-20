@@ -8,6 +8,7 @@ import {
 import { ObserverLike } from '@repro/observer-utils'
 import { randomString } from '@repro/random-string'
 import { Box } from '@repro/tdl'
+import { redactHeaders } from '../redaction'
 
 type Subscriber = (message: NetworkMessage) => void
 
@@ -34,18 +35,6 @@ export function createNetworkObserver(
       webSocketObserver.disconnect()
     },
   }
-}
-
-const EXCLUDED_HEADERS = ['authorization', 'cookie', 'set-cookie']
-
-function stripExcludedHeaders(
-  headers: Record<string, string>
-): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(headers).filter(
-      ([key]) => !EXCLUDED_HEADERS.includes(key.toLowerCase())
-    )
-  )
 }
 
 const textEncoder = new TextEncoder()
@@ -131,9 +120,7 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
           type: NetworkMessageType.FetchResponse,
           correlationId: params.correlationId,
           status: this.status,
-          headers: stripExcludedHeaders(
-            parseHeaders(this.getAllResponseHeaders())
-          ),
+          headers: redactHeaders(parseHeaders(this.getAllResponseHeaders())),
           body:
             body.byteLength > MAX_BODY_BYTE_LENGTH ? EMPTY_ARRAY_BUFFER : body,
         })
@@ -249,7 +236,7 @@ function createXHRObserver(subscriber: Subscriber): ObserverLike<Document> {
               requestType: RequestType.XHR,
               url: params.url,
               method: params.method,
-              headers: stripExcludedHeaders(params.headers),
+              headers: redactHeaders(params.headers),
               body:
                 body.byteLength > MAX_BODY_BYTE_LENGTH
                   ? EMPTY_ARRAY_BUFFER
@@ -291,7 +278,7 @@ function createFetchObserver(subscriber: Subscriber): ObserverLike<Document> {
       record[key] = value
     })
 
-    return stripExcludedHeaders(record)
+    return redactHeaders(record)
   }
 
   const _fetch = globalThis.fetch

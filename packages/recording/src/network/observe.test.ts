@@ -9,15 +9,61 @@ import {
   RequestType,
   VTree,
 } from '@repro/domain'
-import expect from 'expect'
-// @ts-ignore
-import nativeFetch from 'isomorphic-fetch'
-import { newMockXhr } from 'mock-xmlhttprequest'
-import { afterEach, describe, it } from 'node:test'
-// import fetch, { Request } from 'node-fetch'
 import { ObserverLike } from '@repro/observer-utils'
 import { Box } from '@repro/tdl'
+import expect from 'expect'
+import { afterEach, describe, it } from 'node:test'
 import { createNetworkObserver } from './observe'
+
+class MockXHR {
+  static DONE = 4
+
+  readyState = 0
+  status = 200
+  responseType = ''
+  responseText = 'response-body'
+  response = 'response-body'
+  method = ''
+  url = ''
+  requestHeaders: Record<string, string> = {}
+  responseHeaders = ''
+  private listeners = new Set<(this: MockXHR) => void>()
+
+  addEventListener(event: string, listener: (this: MockXHR) => void) {
+    if (event === 'readystatechange') {
+      this.listeners.add(listener)
+    }
+  }
+
+  removeEventListener(event: string, listener: (this: MockXHR) => void) {
+    if (event === 'readystatechange') {
+      this.listeners.delete(listener)
+    }
+  }
+
+  open(method: string, url: string) {
+    this.method = method
+    this.url = url
+  }
+
+  setRequestHeader(key: string, value: string) {
+    this.requestHeaders[key] = value
+  }
+
+  getAllResponseHeaders() {
+    return this.responseHeaders
+  }
+
+  send() {
+    this.readyState = MockXHR.DONE
+
+    queueMicrotask(() => {
+      for (const listener of this.listeners) {
+        listener.call(this)
+      }
+    })
+  }
+}
 
 describe('libs/record: network observers', () => {
   const vtree: VTree = {
@@ -33,104 +79,129 @@ describe('libs/record: network observers', () => {
   }
 
   let observer: ObserverLike | null = null
+  const originalXMLHttpRequest = global.XMLHttpRequest
+  const originalFetch = global.fetch
 
   afterEach(() => {
-    if (observer) {
-      observer.disconnect()
-    }
+    observer?.disconnect()
+    observer = null
+
+    global.XMLHttpRequest = originalXMLHttpRequest
+    global.fetch = originalFetch
   })
 
-  describe('XHR', () => {
-    it('should not record request credential headers', () => {
-      const MockXHR = newMockXhr()
-      global.XMLHttpRequest = MockXHR
+  function flush() {
+    return new Promise(resolve => setTimeout(resolve, 0))
+  }
 
-      // @ts-ignore
-      global.fetch = nativeFetch
+  it('masks credential headers on XHR requests and responses', async () => {
+    global.XMLHttpRequest = MockXHR as unknown as typeof XMLHttpRequest
 
-      const method = 'GET'
-      const url = 'https://example.text/xhr'
-      const body = new ArrayBuffer(0)
+    const messages: Array<NetworkMessage> = []
 
-      function subscriber(message: NetworkMessage) {
-        const correlationId = message
-          .map(message => message.correlationId)
-          .unwrap()
+    observer = createNetworkObserver(message => {
+      messages.push(message)
+    })
+    observer.observe(document, vtree)
 
-        expect(message).toEqual(
-          new Box({
-            type: NetworkMessageType.FetchRequest,
-            requestType: RequestType.XHR,
-            correlationId,
-            url,
-            method,
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Encoding': 'gzip',
-            },
-            body,
-          })
-        )
-      }
+    const xhr = new XMLHttpRequest() as unknown as MockXHR
+    xhr.responseHeaders = [
+      'Content-Type: text/plain',
+      'Authorization: bearer response-token',
+      'Cookie: response-cookie',
+      'Set-Cookie: response-set-cookie',
+    ].join('\r\n')
 
-      observer = createNetworkObserver(subscriber)
-      observer.observe(document, vtree)
+    xhr.open('POST', 'https://example.text/xhr')
+    xhr.setRequestHeader('Content-Type', 'application/json')
+    xhr.setRequestHeader('Content-Encoding', 'gzip')
+    xhr.setRequestHeader('Cookie', 'request-cookie')
+    xhr.setRequestHeader('Authorization', 'request-token')
+    xhr.send()
 
-      const xhr = new XMLHttpRequest()
-      xhr.open(method, url)
-      xhr.setRequestHeader('Content-Type', 'application/json')
-      xhr.setRequestHeader('Content-Encoding', 'gzip')
-      xhr.setRequestHeader('Cookie', 'super+secret+do+not+share')
-      xhr.setRequestHeader('Authorization', 'guard+with+your+life')
-      xhr.send(body)
+    await flush()
+
+    expect(messages).toHaveLength(2)
+
+    expect((messages[0] as any).value).toMatchObject({
+      type: NetworkMessageType.FetchRequest,
+      requestType: RequestType.XHR,
+      method: 'POST',
+      url: 'https://example.text/xhr',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Encoding': 'gzip',
+        Cookie: '[MASKED]',
+        Authorization: '[MASKED]',
+      },
+    })
+
+    expect((messages[1] as any).value).toMatchObject({
+      type: NetworkMessageType.FetchResponse,
+      status: 200,
+      headers: {
+        'content-type': 'text/plain',
+        authorization: '[MASKED]',
+        cookie: '[MASKED]',
+        'set-cookie': '[MASKED]',
+      },
     })
   })
 
-  // describe('fetch', () => {
-  //   it('should not record request credential headers', () => {
-  //     const MockXHR = newMockXhr()
-  //     global.XMLHttpRequest = MockXHR
+  it('masks credential headers on fetch requests and responses', async () => {
+    global.fetch = (async () =>
+      new Response('response-body', {
+        status: 201,
+        headers: {
+          'Content-Type': 'text/plain',
+          Authorization: 'response-token',
+          Cookie: 'response-cookie',
+          'Set-Cookie': 'response-set-cookie',
+        },
+      })) as typeof fetch
 
-  //     // @ts-ignore
-  //     global.fetch = fetch
+    const messages: Array<NetworkMessage> = []
 
-  //     // @ts-ignore
-  //     global.Request = Request
+    observer = createNetworkObserver(message => {
+      messages.push(message)
+    })
+    observer.observe(document, vtree)
 
-  //     const method = 'GET'
-  //     const url = 'https://example.text/xhr'
+    await fetch('https://example.text/fetch', {
+      method: 'POST',
+      body: JSON.stringify({ ok: true }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'request-token',
+        Cookie: 'request-cookie',
+      },
+    })
 
-  //     // TODO: find a way to support ArrayBuffer in node-fetch BodyInit
-  //     const body = Buffer.alloc(0)
+    await flush()
 
-  //     function subscriber(message: NetworkMessage) {
-  //       expect(message).toEqual<NetworkMessage>({
-  //         type: NetworkMessageType.FetchRequest,
-  //         requestType: RequestType.XHR,
-  //         correlationId: message.correlationId,
-  //         url,
-  //         method,
-  //         headers: {
-  //           'Content-Type': 'application/json',
-  //           'Content-Encoding': 'gzip',
-  //         },
-  //         body,
-  //       })
-  //     }
+    expect(messages).toHaveLength(2)
 
-  //     observer = createNetworkObserver(subscriber)
-  //     observer.observe(document, vtree)
+    expect((messages[0] as any).value).toMatchObject({
+      type: NetworkMessageType.FetchRequest,
+      requestType: RequestType.Fetch,
+      method: 'POST',
+      url: 'https://example.text/fetch',
+      headers: {
+        'content-type': 'application/json',
+        authorization: '[MASKED]',
+        cookie: '[MASKED]',
+      },
+    })
 
-  //     fetch(url, {
-  //       method,
-  //       body,
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         'Content-Encoding': 'gzip',
-  //         Cookie: 'super+secret+do+not+share',
-  //         Authorization: 'guard+with+your+life',
-  //       },
-  //     })
-  //   })
-  // })
+    expect((messages[1] as any).value).toMatchObject({
+      type: NetworkMessageType.FetchResponse,
+      status: 201,
+      headers: {
+        'content-type': 'text/plain',
+        authorization: '[MASKED]',
+        cookie: '[MASKED]',
+        'set-cookie': '[MASKED]',
+      },
+    })
+  })
 })
