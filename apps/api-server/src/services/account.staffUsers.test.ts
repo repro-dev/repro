@@ -53,6 +53,30 @@ describe('Services > Account', () => {
       ).rejects.toThrow(resourceConflict())
     })
 
+    it('should reject direct inserts that only differ by email case', async () => {
+      const email = harness.generateRandomEmailAddress()
+
+      await harness.db
+        .insertInto('staff_users')
+        .values({
+          name: 'John Jackson',
+          email: email.toUpperCase(),
+          password: 'hunter2!',
+        })
+        .execute()
+
+      await expect(
+        harness.db
+          .insertInto('staff_users')
+          .values({
+            name: 'Jack Johnson',
+            email,
+            password: 'hunter2!',
+          })
+          .execute()
+      ).rejects.toThrow(/staff_users_email_lower_idx/)
+    })
+
     it('should get a staff user by valid email and password', async () => {
       await promise(
         accountService.createStaffUser(
