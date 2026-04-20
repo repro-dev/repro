@@ -3,5 +3,12 @@
   "plugin": ["cc-safety-net"],
   "permission": {
     "doom_loop": "allow"
+  },
+  "mcp": {
+    "jcodemunch": {
+      "enabled": true,
+      "type": "local",
+      "command": ["uvx", "jcodemunch-mcp"]
+    }
   }
 }

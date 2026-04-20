@@ -10,6 +10,7 @@ import {
 import React from 'react'
 import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
 import { AdminHeader } from '~/components/AdminHeader'
+import { HealthStatusFooter } from '~/components/HealthStatusFooter'
 
 export const Layout: React.FC = () => {
   const session = useSession()
@@ -27,7 +28,10 @@ export const Layout: React.FC = () => {
         header={<AdminHeader />}
         footer={
           <IfSession>
-            <UserMenu />
+            <>
+              <HealthStatusFooter />
+              <UserMenu />
+            </>
           </IfSession>
         }
       >

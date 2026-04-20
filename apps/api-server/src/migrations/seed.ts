@@ -7,9 +7,11 @@ import { createPostgresDatabaseClient } from '~/modules/database/database-postgr
 import { Database } from '~/modules/database/types'
 import { Storage } from '~/modules/storage'
 import { createS3StorageClient } from '~/modules/storage-s3'
+import {
+  type AuthVaultBootstrapLogin,
+  loadAuthVaultBootstrap,
+} from './auth-vault-bootstrap'
 import { seedRecordings } from './seed-recordings'
-
-const PASSWORD = 'password'
 
 async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password)
@@ -47,13 +49,45 @@ async function seedAccounts(db: Database) {
   return { acme, beta }
 }
 
+function accountForLogin(
+  login: AuthVaultBootstrapLogin,
+  accounts: { acme: { id: number }; beta: { id: number } }
+) {
+  if (login.account === 'acme') {
+    return accounts.acme
+  }
+
+  if (login.account === 'beta') {
+    return accounts.beta
+  }
+
+  throw new Error(
+    `Auth vault bootstrap login ${login.profile} is missing an account`
+  )
+}
+
+function requireSeededUser(
+  usersByProfile: Map<string, { id: number }>,
+  profile: string
+) {
+  const user = usersByProfile.get(profile)
+
+  if (!user) {
+    throw new Error(`Auth vault bootstrap login ${profile} was not seeded`)
+  }
+
+  return user
+}
+
 async function seedUsers(
   db: Database,
-  accounts: { acme: { id: number }; beta: { id: number } }
+  accounts: { acme: { id: number }; beta: { id: number } },
+  logins: AuthVaultBootstrapLogin[],
+  password: string
 ) {
   console.log('Seeding users...')
 
-  const hashedPassword = await hashPassword(PASSWORD)
+  const hashedPassword = await hashPassword(password)
 
   async function upsertUser(values: {
     name: string
@@ -83,92 +117,65 @@ async function seedUsers(
       .executeTakeFirstOrThrow()
   }
 
-  const acmeAdmin = await upsertUser({
-    name: 'Acme Admin',
-    email: 'admin@acme.repro.test',
-    password: hashedPassword,
-    accountId: accounts.acme.id,
-    verificationToken: '',
-    verified: true,
-    active: true,
-    admin: true,
-  })
+  const seededUsers = new Map<string, { id: number }>()
 
-  const acmeMember = await upsertUser({
-    name: 'Acme Member',
-    email: 'member@acme.repro.test',
-    password: hashedPassword,
-    accountId: accounts.acme.id,
-    verificationToken: '',
-    verified: true,
-    active: true,
-    admin: false,
-  })
+  for (const login of logins) {
+    if (login.target !== 'users') {
+      continue
+    }
 
-  const acmeViewer = await upsertUser({
-    name: 'Acme Viewer',
-    email: 'viewer@acme.repro.test',
-    password: hashedPassword,
-    accountId: accounts.acme.id,
-    verificationToken: '',
-    verified: true,
-    active: true,
-    admin: false,
-  })
+    const account = accountForLogin(login, accounts)
 
-  const betaAdmin = await upsertUser({
-    name: 'Beta Admin',
-    email: 'admin@beta.repro.test',
-    password: hashedPassword,
-    accountId: accounts.beta.id,
-    verificationToken: '',
-    verified: true,
-    active: true,
-    admin: true,
-  })
+    seededUsers.set(
+      login.profile,
+      await upsertUser({
+        name: login.name,
+        email: login.username,
+        password: hashedPassword,
+        accountId: account.id,
+        verificationToken: login.verificationToken ?? '',
+        verified: login.verified ?? false,
+        active: login.active,
+        admin: login.admin,
+      })
+    )
+  }
 
-  const betaUnverified = await upsertUser({
-    name: 'Beta Unverified',
-    email: 'unverified@beta.repro.test',
-    password: hashedPassword,
-    accountId: accounts.beta.id,
-    verificationToken: 'dev_verification_token',
-    verified: false,
-    active: true,
-    admin: false,
-  })
-
-  return { acmeAdmin, acmeMember, acmeViewer, betaAdmin, betaUnverified }
+  return {
+    acmeAdmin: requireSeededUser(seededUsers, 'acme-admin'),
+    acmeMember: requireSeededUser(seededUsers, 'acme-member'),
+    acmeViewer: requireSeededUser(seededUsers, 'acme-viewer'),
+    betaAdmin: requireSeededUser(seededUsers, 'beta-admin'),
+    betaUnverified: requireSeededUser(seededUsers, 'beta-unverified'),
+  }
 }
 
-async function seedStaffUsers(db: Database) {
+async function seedStaffUsers(
+  db: Database,
+  logins: AuthVaultBootstrapLogin[],
+  password: string
+) {
   console.log('Seeding staff users...')
 
-  const hashedPassword = await hashPassword(PASSWORD)
+  const hashedPassword = await hashPassword(password)
 
-  await db
-    .insertInto('staff_users')
-    .values({
-      name: 'Staff User',
-      email: 'staff@repro.test',
-      password: hashedPassword,
-      active: true,
-      admin: false,
-    })
-    .onConflict(oc => oc.column('email').doNothing())
-    .execute()
+  for (const login of logins) {
+    if (login.target !== 'staff_users') {
+      continue
+    }
 
-  await db
-    .insertInto('staff_users')
-    .values({
-      name: 'Staff Admin',
-      email: 'staffadmin@repro.test',
-      password: hashedPassword,
-      active: true,
-      admin: true,
-    })
-    .onConflict(oc => oc.column('email').doNothing())
-    .execute()
+    await db
+      .insertInto('staff_users')
+      .values({
+        name: login.name,
+        email: login.username,
+        password: hashedPassword,
+        active: login.active,
+        admin: login.admin,
+      })
+      .onConflict(oc => oc.column('email').doNothing())
+      .execute()
+  }
 }
 
 async function seedProjects(
@@ -337,10 +344,12 @@ async function seedFeatureGates(db: Database) {
 }
 
 export async function seed(db: Database, storage: Storage) {
+  const { logins, password } = loadAuthVaultBootstrap()
+
   await doSeedBillingPlans(db)
   const accounts = await seedAccounts(db)
-  const users = await seedUsers(db, accounts)
-  await seedStaffUsers(db)
+  const users = await seedUsers(db, accounts, logins, password)
+  await seedStaffUsers(db, logins, password)
   await seedProjects(db, accounts, users)
   await seedBillingCustomers(db, accounts)
   await seedFeatureGates(db)

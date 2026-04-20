@@ -21,7 +21,7 @@ You are the orchestrator for the `/deliver` command.
 
 - Load `.opencode/skills/linear-cli/SKILL.md` before using the repo-owned CLI.
 - Use the `linear` CLI for every Linear operation in this command.
-- Do not use MCP or legacy `Linear_*` tool names in execution. Translate every Linear step to the repo-owned `linear` CLI.
+- Do not use MCP tool names in execution. Translate every Linear step to the repo-owned `linear` CLI.
 - If `linear` is unavailable, stop and report that the repo-local `bin/linear` wrapper is unavailable in the current shell.
 - Use these concrete commands for issue mutation and child checks:
   - `linear issue children <issue-id> --json`
@@ -69,7 +69,7 @@ Session-local exclusions:
 
 - Keep orchestration light. Do not recreate a long-lived control plane.
 - Plan files are the required durable handoff into implementation: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
-- Before implementation, require `<worktree>/tmp/context-<issue-id>.md` for non-trivial work and `<worktree>/tmp/test-plan-<issue-id>.md` for any new behavior, bug fix, or public contract change.
+- Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
 - Use issue selection notes plus explicit risk notes as the handoff from selection into sequencing.
 - Sequencing is provisional until planning finishes. Resequence once after planner output is available, then lock the ready wave.
 - Tactical implementation deviations are allowed if they preserve the plan's intent. Large strategic deviations mean planning failed — stop and escalate the issue instead of freelancing.
@@ -545,7 +545,7 @@ If the current ready wave becomes empty, stop and report why.
 
 Launch `develop` subagents for every issue still in the current ready wave in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
-Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts for its scope. If those artifacts are missing, stop and escalate instead of improvising the implementation path.
+Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts for its scope. If the context artifact is missing, stop and escalate instead of improvising the implementation path.
 
 For this phase:
 
