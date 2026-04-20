@@ -22,6 +22,9 @@ export {
   isValidMessageDelta,
 } from "./createState";
 export type {
+  AskUserChoice,
+  AskUserRequest,
+  AskUserResult,
   AgenticError,
   AgenticState,
   AssistantMessage,
@@ -31,8 +34,10 @@ export type {
   Entry,
   ImageUrlContentBlock,
   Loading,
+  PendingAskUserInteraction,
   RecordingDataAccessor,
   StreamProvider,
+  ToolExecutionContext,
   SystemMessage,
   SystemMessageContext,
   TextContentBlock,

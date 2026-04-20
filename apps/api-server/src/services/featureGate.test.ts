@@ -415,4 +415,41 @@ describe('Middleware > createFeatureGateMiddleware', () => {
 
     expect(res.statusCode).toEqual(401)
   })
+
+  it('should reevaluate feature access on each request', async () => {
+    const [account, , session] = await harness.loadFixtures([
+      fixtures.account.AccountA,
+      fixtures.billing.AccountA_FreePlan_Checkout,
+      fixtures.account.UserA_Session,
+    ])
+
+    const before = await enforcedApp.inject({
+      method: 'GET',
+      url: '/gated',
+      cookies: {
+        [harness.env.SESSION_COOKIE]: enforcedApp.signCookie(
+          session.sessionToken
+        ),
+      },
+    })
+
+    expect(before.statusCode).toEqual(403)
+
+    const [proPlan] = await harness.loadFixtures([fixtures.billing.ProPlan])
+    await promise(
+      harness.services.billingService.changePlan(account.id, proPlan.id)
+    )
+
+    const after = await enforcedApp.inject({
+      method: 'GET',
+      url: '/gated',
+      cookies: {
+        [harness.env.SESSION_COOKIE]: enforcedApp.signCookie(
+          session.sessionToken
+        ),
+      },
+    })
+
+    expect(after.statusCode).toEqual(200)
+  })
 })

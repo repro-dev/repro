@@ -1,6 +1,12 @@
 import { Block } from "@jsxstyle/react";
 import { atom } from "@repro/atom";
-import { AgenticError, AgenticState, Entry, Loading } from "@repro/agentic";
+import {
+  AgenticError,
+  AgenticState,
+  Entry,
+  Loading,
+  PendingAskUserInteraction,
+} from "@repro/agentic";
 import { Card } from "@repro/design";
 import type { Decorator, Meta, StoryObj } from "@storybook/react";
 import React from "react";
@@ -48,10 +54,12 @@ function makeState(
     $loading: atom<Loading>(loading),
     $error: atom<AgenticError | null>(error),
     $wasCancelled: atom<boolean>(false),
+    $pendingInteraction: atom<PendingAskUserInteraction | null>(null),
     $truncatedBefore: atom<string | null>(truncatedBeforeId),
     cancel: () => {},
     destroy: () => {},
     query: () => {},
+    submitAskUserAnswer: () => {},
     reset: () => {},
   };
 }

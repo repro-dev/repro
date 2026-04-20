@@ -170,6 +170,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: 4.7.0
         version: 4.7.0(vite@6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3))
+      global-jsdom:
+        specifier: 27.0.0
+        version: 27.0.0(jsdom@27.0.0(postcss@8.5.8))
       prettier:
         specifier: ^3.0.0
         version: 3.0.0
