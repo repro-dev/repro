@@ -1,5 +1,10 @@
 export type AgenticConversationRole = 'assistant' | 'system' | 'tool' | 'user'
 
+// Agentic conversations use repo-standard numeric IDs for now.
+// Keep this alias explicit so REP-757 / REP-758 can swap in a different
+// public identifier contract without changing downstream call sites.
+export type AgenticConversationId = number
+
 export interface AgenticTextContentBlock {
   type: 'text'
   text: string
@@ -21,6 +26,7 @@ export type AgenticConversationToolContent =
 export interface AgenticToolCall {
   id: string
   index: number
+  type: 'function'
   function: {
     name: string
     arguments: string
@@ -29,7 +35,7 @@ export interface AgenticToolCall {
 
 interface AgenticConversationMessageRecordBase {
   id: number
-  conversationId: number
+  conversationId: AgenticConversationId
   sequence: number
   createdAt: Date
 }
@@ -73,7 +79,7 @@ export type AgenticConversationMessageRecord =
   | AgenticConversationToolMessageRecord
 
 export interface AgenticConversationRecord {
-  id: number
+  id: AgenticConversationId
   userId: number
   recordingId: string | null
   createdAt: Date

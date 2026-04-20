@@ -1,4 +1,5 @@
 import type {
+  AgenticConversationId,
   AgenticConversationToolContent,
   AgenticToolCall,
 } from '@repro/domain'
@@ -15,8 +16,8 @@ type JsonbNullableColumn<SelectType> = ColumnType<
 >
 
 interface AgenticConversationMessageTableBase {
-  id: GeneratedAlways<number>
-  conversationId: number
+  id: GeneratedAlways<AgenticConversationId>
+  conversationId: AgenticConversationId
   sequence: number
   createdAt: Generated<Date>
 }

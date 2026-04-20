@@ -114,6 +114,7 @@ describe('agentic conversation migrations', () => {
           {
             id: 'call-1',
             index: 0,
+            type: 'function',
             function: {
               name: 'ask-user',
               arguments: '{"prompt":"Need more info"}',
@@ -216,17 +217,40 @@ describe('agentic conversation migrations', () => {
     `.execute(db)
 
     const messagesResult = (await sql`
-      SELECT role, sequence
+      SELECT role, sequence, "toolCalls"
       FROM agentic_conversation_messages
       WHERE "conversationId" = ${conversationId}
       ORDER BY sequence
     `.execute(db)) as unknown as {
-      rows: Array<{ role: string; sequence: number }>
+      rows: Array<{
+        role: string
+        sequence: number
+        toolCalls: Array<{
+          id: string
+          index: number
+          type: 'function'
+          function: { name: string; arguments: string }
+        }> | null
+      }>
     }
 
     assert.deepEqual(messagesResult.rows, [
-      { role: 'assistant', sequence: 1 },
-      { role: 'tool', sequence: 2 },
+      {
+        role: 'assistant',
+        sequence: 1,
+        toolCalls: [
+          {
+            id: 'call-1',
+            index: 0,
+            type: 'function',
+            function: {
+              name: 'ask-user',
+              arguments: '{"prompt":"Need more info"}',
+            },
+          },
+        ],
+      },
+      { role: 'tool', sequence: 2, toolCalls: null },
     ])
   })
 
