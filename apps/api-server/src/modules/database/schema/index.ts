@@ -1,4 +1,6 @@
 import { AccountTable } from './AccountTable'
+import { AgenticConversationMessageTable } from './AgenticConversationMessageTable'
+import { AgenticConversationTable } from './AgenticConversationTable'
 import { AgenticFeedbackTable } from './AgenticFeedbackTable'
 import { ApiKeyTable } from './ApiKeyTable'
 import { BillingCustomerTable } from './BillingCustomerTable'
@@ -25,6 +27,8 @@ import { UserTable, asStaffUserDetail, asUser } from './UserTable'
 export interface Schema {
   accounts: AccountTable
   agentic_feedback: AgenticFeedbackTable
+  agentic_conversation_messages: AgenticConversationMessageTable
+  agentic_conversations: AgenticConversationTable
   api_keys: ApiKeyTable
   billing_customers: BillingCustomerTable
   billing_events: BillingEventTable
