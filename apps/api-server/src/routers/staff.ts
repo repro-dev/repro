@@ -96,13 +96,12 @@ export function createStaffRouter(
     app.get<{
       Querystring: z.infer<typeof paginationSchema.querystring>
     }>('/accounts', { schema: paginationSchema }, (req, res) => {
-      const { cursor, limit } = req.query
       respondWith(
         res,
         go(function* () {
           const user = yield req.getCurrentUser()
           yield accountService.ensureStaffUser(user)
-          return yield accountService.listAccounts({ cursor, limit })
+          return yield accountService.listAccounts(req.query)
         })
       )
     })
