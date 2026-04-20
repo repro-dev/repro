@@ -470,17 +470,9 @@ function serializeProject(project) {
   };
 }
 
-function resolvedOwnDataValue(target, key) {
-  if (!target) return null;
-
-  const descriptor = Object.getOwnPropertyDescriptor(target, key);
-  if (!descriptor || !Object.prototype.hasOwnProperty.call(descriptor, "value")) {
-    return null;
-  }
-
-  const value = descriptor.value;
-  if (!value || typeof value.then === "function") return null;
-  return value;
+async function resolveRelationValue(value) {
+  if (!value) return null;
+  return typeof value.then === "function" ? await value : value;
 }
 
 async function serializeMilestoneProject(milestone, project = null) {
@@ -503,9 +495,9 @@ async function serializeMilestone(milestone, project = null) {
   };
 }
 
-async function serializeMilestonePreview(milestone) {
+async function serializeMilestonePreview(milestone, project = null) {
   if (!milestone) return null;
-  const project = resolvedOwnDataValue(milestone, "project");
+  const resolvedProject = await resolveRelationValue(project ?? milestone.project);
   return {
     id: milestone.id ?? null,
     name: milestone.name ?? null,
@@ -514,7 +506,7 @@ async function serializeMilestonePreview(milestone) {
       milestone.updatedAt instanceof Date
         ? milestone.updatedAt.toISOString()
         : milestone.updatedAt ?? null,
-    project: project ? await serializeProjectSummary(project) : null,
+    project: resolvedProject ? await serializeProjectSummary(resolvedProject) : null,
   };
 }
 
@@ -553,10 +545,13 @@ async function serializeIssue(client, issue, labels = []) {
 }
 
 async function serializeIssueListItem(issue, labels = []) {
-  const project = resolvedOwnDataValue(issue, "project");
-  const milestone = resolvedOwnDataValue(issue, "projectMilestone");
-  const assignee = resolvedOwnDataValue(issue, "assignee");
-  const status = resolvedOwnDataValue(issue, "state");
+  // List/children stay bounded by resolving only the summary relations we render.
+  const [project, milestone, assignee, status] = await Promise.all([
+    resolveRelationValue(issue?.project),
+    resolveRelationValue(issue?.projectMilestone),
+    resolveRelationValue(issue?.assignee),
+    resolveRelationValue(issue?.state),
+  ]);
 
   return {
     id: issue.id ?? null,
@@ -567,7 +562,7 @@ async function serializeIssueListItem(issue, labels = []) {
     priorityLabel: issue.priorityLabel ?? null,
     status: status ? serializeStatus(status) : null,
     project: project ? await serializeProjectSummary(project) : null,
-    milestone: milestone ? await serializeMilestonePreview(milestone) : null,
+    milestone: milestone ? await serializeMilestonePreview(milestone, project) : null,
     assignee: serializeUser(assignee),
     labels: serializeIssueLabels(issue, labels),
     updatedAt:

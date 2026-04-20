@@ -4,6 +4,15 @@ import test from "node:test";
 import { execute } from "../cli.mjs";
 import { makeBoundMethodClient, makeClient } from "./issue-list.test.mjs";
 
+function makeTrackedRelation(records, key, value) {
+  return {
+    then(resolve) {
+      records.resolutions[key] += 1;
+      return resolve(value);
+    },
+  };
+}
+
 test("issue list constructs server-side filters and forwards pagination", async () => {
   const records = {
     teams: [],
@@ -157,7 +166,7 @@ test("issue list defaults to backlog and todo when no filters are supplied", asy
   assert.deepEqual(records.issueLabels, []);
 });
 
-test("issue list does not hydrate issue relations per row", async () => {
+test("issue list preserves summary relations without expanding labels", async () => {
   const records = {
     teams: [],
     states: [],
@@ -170,11 +179,28 @@ test("issue list does not hydrate issue relations per row", async () => {
     comments: [],
     relations: [],
     inverseRelations: [],
-    accesses: {
+    resolutions: {
       project: 0,
       milestone: 0,
       assignee: 0,
       state: 0,
+      milestoneProject: 0,
+    },
+  };
+
+  const project = {
+    id: "project-1",
+    name: "Workspace",
+    url: "https://linear.app/acme/project/workspace",
+  };
+
+  const milestone = {
+    id: "milestone-1",
+    name: "Sprint 1",
+    targetDate: null,
+    updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+    get project() {
+      return makeTrackedRelation(records, "milestoneProject", project);
     },
   };
 
@@ -189,31 +215,20 @@ test("issue list does not hydrate issue relations per row", async () => {
     description: "desc",
     labelIds: ["label-1"],
     get project() {
-      records.accesses.project += 1;
-      return Promise.resolve({
-        id: "project-1",
-        name: "Workspace",
-        url: "https://linear.app/acme/project/workspace",
-      });
+      return makeTrackedRelation(records, "project", project);
     },
     get projectMilestone() {
-      records.accesses.milestone += 1;
-      return Promise.resolve({
-        id: "milestone-1",
-        name: "Sprint 1",
-      });
+      return makeTrackedRelation(records, "milestone", milestone);
     },
     get assignee() {
-      records.accesses.assignee += 1;
-      return Promise.resolve({
+      return makeTrackedRelation(records, "assignee", {
         id: "user-1",
         name: "Test User",
         email: "test@example.com",
       });
     },
     get state() {
-      records.accesses.state += 1;
-      return Promise.resolve({
+      return makeTrackedRelation(records, "state", {
         id: "state-backlog",
         name: "Backlog",
         type: "backlog",
@@ -281,9 +296,19 @@ test("issue list does not hydrate issue relations per row", async () => {
   });
 
   assert.equal(result.code, 0);
-  for (const [field, count] of Object.entries(records.accesses)) {
-    assert.equal(count, 0, field);
-  }
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.items[0].status.name, "Backlog");
+  assert.equal(payload.items[0].project.name, "Workspace");
+  assert.equal(payload.items[0].milestone.project.name, "Workspace");
+  assert.equal(payload.items[0].assignee.name, "Test User");
+  assert.deepEqual(records.resolutions, {
+    project: 1,
+    milestone: 1,
+    assignee: 1,
+    state: 1,
+    milestoneProject: 0,
+  });
+  assert.equal(records.labels.length, 1);
 });
 
 test("issue show returns the shared serializer plus description, comments, and relations", async () => {

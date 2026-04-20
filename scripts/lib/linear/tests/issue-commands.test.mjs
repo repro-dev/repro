@@ -3,6 +3,15 @@ import test from "node:test";
 
 import { execute } from "../cli.mjs";
 
+function makeTrackedRelation(records, key, value) {
+  return {
+    then(resolve) {
+      records.resolutions[key] += 1;
+      return resolve(value);
+    },
+  };
+}
+
 function makeClient(records) {
   records.children ??= [];
   records.updateIssue ??= [];
@@ -240,7 +249,7 @@ test("issue children returns child issues and pageInfo", async () => {
   assert.deepEqual(records.children, [{ first: 200 }]);
 });
 
-test("issue children does not hydrate every child relation field", async () => {
+test("issue children preserves summary relations without expanding details", async () => {
   const records = {
     children: [],
     teams: [],
@@ -254,11 +263,28 @@ test("issue children does not hydrate every child relation field", async () => {
     comments: [],
     relations: [],
     inverseRelations: [],
-    accesses: {
+    resolutions: {
       project: 0,
       milestone: 0,
       assignee: 0,
       state: 0,
+      milestoneProject: 0,
+    },
+  };
+
+  const project = {
+    id: "project-1",
+    name: "Workspace",
+    url: "https://linear.app/acme/project/workspace",
+  };
+
+  const milestone = {
+    id: "milestone-1",
+    name: "Sprint 1",
+    targetDate: null,
+    updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+    get project() {
+      return makeTrackedRelation(records, "milestoneProject", project);
     },
   };
 
@@ -273,20 +299,16 @@ test("issue children does not hydrate every child relation field", async () => {
     description: "",
     labelIds: [],
     get project() {
-      records.accesses.project += 1;
-      return Promise.resolve(null);
+      return makeTrackedRelation(records, "project", project);
     },
     get projectMilestone() {
-      records.accesses.milestone += 1;
-      return Promise.resolve(null);
+      return makeTrackedRelation(records, "milestone", milestone);
     },
     get assignee() {
-      records.accesses.assignee += 1;
-      return Promise.resolve(null);
+      return makeTrackedRelation(records, "assignee", null);
     },
     get state() {
-      records.accesses.state += 1;
-      return Promise.resolve({
+      return makeTrackedRelation(records, "state", {
         id: "state-review",
         name: "In Review",
         type: "started",
@@ -305,20 +327,16 @@ test("issue children does not hydrate every child relation field", async () => {
     description: "desc",
     labelIds: [],
     get project() {
-      records.accesses.project += 1;
-      return Promise.resolve(null);
+      return makeTrackedRelation(records, "project", null);
     },
     get projectMilestone() {
-      records.accesses.milestone += 1;
-      return Promise.resolve(null);
+      return makeTrackedRelation(records, "milestone", null);
     },
     get assignee() {
-      records.accesses.assignee += 1;
-      return Promise.resolve(null);
+      return makeTrackedRelation(records, "assignee", null);
     },
     get state() {
-      records.accesses.state += 1;
-      return Promise.resolve({
+      return makeTrackedRelation(records, "state", {
         id: "state-todo",
         name: "Todo",
         type: "unstarted",
@@ -381,10 +399,19 @@ test("issue children does not hydrate every child relation field", async () => {
   });
 
   assert.equal(result.code, 0);
-  assert.equal(records.accesses.project, 0);
-  assert.equal(records.accesses.milestone, 0);
-  assert.equal(records.accesses.assignee, 0);
-  assert.equal(records.accesses.state, 0);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.items[0].identifier, "REP-876");
+  assert.equal(payload.items[0].project.name, "Workspace");
+  assert.equal(payload.items[0].milestone.project.name, "Workspace");
+  assert.equal(payload.items[0].status.name, "In Review");
+  assert.equal(payload.items[0].assignee, null);
+  assert.deepEqual(records.resolutions, {
+    project: 1,
+    milestone: 1,
+    assignee: 1,
+    state: 1,
+    milestoneProject: 0,
+  });
 });
 
 test("issue update resolves statuses and calls updateIssue", async () => {
