@@ -96,13 +96,15 @@ import {
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `color`       | `color.primary`, `color.text.*`, `color.bg.*`, `color.border.*`, `color.danger`, `color.success`, `color.warning`, `color.info` | All colors — match token category to CSS property (`color.bg.*` for `backgroundColor`) |
 | `spacing`     | `spacing.none` (0) through `spacing['4xl']` (48)                                                                                | All spacing (padding, margin, gap)                                                     |
-| `textStyles`  | `textStyles.body`, `.heading1`–`.heading3`, `.caption`, `.label`, `.code`                                                       | Primary typography API — spread onto jsxstyle components                               |
+| `textStyles`  | `textStyles.body`, `.heading1`–`.heading3`, `.caption`, `.label`, `.code`                                                       | Primary typography API — use first for semantic content text and spread onto jsxstyle components |
 | `shadow`      | `shadow.sm`, `.md`, `.lg`                                                                                                       | Box shadows                                                                            |
 | `radius`      | `radius.sm` (4), `.md` (8), `.lg` (16), `.full` (9999)                                                                          | Border radius                                                                          |
 | `transition`  | `transition.default`, `.fast`, `.transform`, `.opacity`                                                                         | Transitions                                                                            |
 | `focusRing()` | `focusRing()`, `focusRing('danger')`, `focusWithinRing()`                                                                       | Focus-visible outlines on interactive elements                                         |
 
 **Token category discipline**: Always use tokens from the category matching the CSS property — `color.bg.*` for `backgroundColor`, `color.border.*` for `borderColor`, `color.text.*` for `color`. Even when two tokens resolve to the same raw value, using the wrong category is a semantic misuse.
+
+**Typography rule**: Prefer `textStyles.*` or `Text` for semantic content text. Use raw `fontSize`, `fontWeight`, and `lineHeight` only in tightly constrained component internals or one-off low-level composition where `textStyles.*` would be the wrong abstraction.
 
 For full token tables with every value, read `tokens.md`.
 
@@ -197,7 +199,7 @@ For full token tables with every value, read `tokens.md`.
 
 ```tsx
 <Block padding={16} backgroundColor="#ffffff" borderRadius={8}>
-  <Block fontSize={15} fontWeight={400} color="#0f172a">
+  <Block fontSize={15} fontWeight={400} lineHeight={1.2} color="#0f172a">
     Content
   </Block>
 </Block>
@@ -229,9 +231,9 @@ After you finish a non-trivial UI change, switch to `ui-verification` for the `r
 
 Before writing any code, audit the target component(s) across all eight normalisation dimensions:
 
-1. Spacing — hardcoded pixel values in padding/margin/gap props
+1. Spacing — hardcoded pixel values in padding/margin/gap props, or spacing rhythm that breaks into cramped or inconsistent vertical gaps
 2. Colour — hardcoded hex/rgb values in color/backgroundColor/borderColor props
-3. Typography — raw `<p>` / `<h*>` elements with inline style props
+3. Typography — raw `<p>` / `<h*>` elements with inline style props, collapsed/mismatched line-height, or weak text hierarchy from ad hoc `fontSize` / `fontWeight`
 4. Layout — `<div style={{display:'flex'}}>` or equivalent raw flex/grid divs
 5. Component substitution — hand-rolled controls that duplicate `@repro/design` components
 6. Prop hygiene — inline `style={{}}` props anywhere
@@ -264,7 +266,7 @@ import { color } from '@repro/design'
 <Block color={color.text.primary} backgroundColor={color.bg.surface}>
 ```
 
-**3. Typography** — use `<Text>` or spread `textStyles.*` instead of raw `<p>`/`<h*>` with style props.
+**3. Typography** — use `Text` or spread `textStyles.*` instead of raw `<p>`/`<h*>` with style props. Treat raw `fontSize`, `fontWeight`, and `lineHeight` as edge-case exceptions for constrained internals, not the default way to establish hierarchy.
 
 ```tsx
 // Before
