@@ -5,7 +5,9 @@ import * as ReactRouter from 'react-router'
 import { Route, Routes } from 'react-router-dom'
 
 globalThis.document = {
-  querySelector: () => null,
+  // Return the app root so the bootstrap path runs during module load.
+  querySelector: (selector: string) =>
+    selector === '#root' ? ({} as Element) : null,
 } as unknown as Document
 
 globalThis.window = {
@@ -123,7 +125,26 @@ mock.module('@repro/theme', {
 
 mock.module('react-dom/client', {
   namedExports: {
-    createRoot: () => ({ render: () => {} }),
+    createRoot: () => ({
+      render: (element: React.ReactElement) => {
+        const authProviderElement = findElementByName(element, 'AuthProvider')
+
+        authProviderProps = authProviderElement
+          ? {
+              basePath: (
+                authProviderElement.props as {
+                  basePath?: string
+                }
+              ).basePath,
+              loginPath: (
+                authProviderElement.props as {
+                  loginPath?: string
+                }
+              ).loginPath,
+            }
+          : null
+      },
+    }),
   },
 })
 
@@ -237,10 +258,30 @@ function findRoutePath(
   return null
 }
 
+function findElementByName(
+  node: React.ReactNode,
+  name: string
+): React.ReactElement<Record<string, unknown>> | null {
+  for (const child of toArray(node)) {
+    if (getComponentName(child) === name) {
+      return child
+    }
+
+    const match = findElementByName(
+      (child.props as { children?: React.ReactNode }).children,
+      name
+    )
+
+    if (match) {
+      return match
+    }
+  }
+
+  return null
+}
+
 describe('AppRoutes', () => {
   it('mounts AuthProvider with the admin base path and browser login path', () => {
-    require('./index')
-
     assert.deepEqual(authProviderProps, {
       basePath: '/staff',
       loginPath: '/login',
