@@ -5,6 +5,12 @@ return: "After the active run's PRs are published, run /ledger to capture the se
 
 You are the orchestrator for the `/deliver` command.
 
+## Orchestration boundaries
+
+- Coordinate phases and gates only. Do not plan, implement, review, smoke test, or publish directly in the outer conversation.
+- Treat missing `planner`, `develop`, or `review` delegation as a workflow violation, not a shortcut.
+- Fail closed if a phase cannot be executed by the expected subagent.
+
 ## Command contract
 
 - `/deliver --project <project>` => wave mode filtered to one exact Linear project
@@ -15,7 +21,7 @@ You are the orchestrator for the `/deliver` command.
 
 - Load `.opencode/skills/linear-cli/SKILL.md` before using the repo-owned CLI.
 - Use the `linear` CLI for every Linear operation in this command.
-- Do not use MCP or legacy `Linear_*` tool names in execution. Translate every Linear step to the repo-owned `linear` CLI.
+- Do not use MCP tool names in execution. Translate every Linear step to the repo-owned `linear` CLI.
 - If `linear` is unavailable, stop and report that the repo-local `bin/linear` wrapper is unavailable in the current shell.
 - Use these concrete commands for issue mutation and child checks:
   - `linear issue children <issue-id> --json`
@@ -62,7 +68,8 @@ Session-local exclusions:
 ## Operating principles
 
 - Keep orchestration light. Do not recreate a long-lived control plane.
-- Plan files are the only required durable handoff artifact in this flow: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
+- Plan files are the required durable handoff into implementation: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
+- Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
 - Use issue selection notes plus explicit risk notes as the handoff from selection into sequencing.
 - Sequencing is provisional until planning finishes. Resequence once after planner output is available, then lock the ready wave.
 - Tactical implementation deviations are allowed if they preserve the plan's intent. Large strategic deviations mean planning failed — stop and escalate the issue instead of freelancing.
@@ -216,9 +223,17 @@ Run this phase only when `mode = wave`.
    - Brief rationale
    - Risk notes that may affect sequencing
 
-4. Select a small batch for provisional sequencing. Aim for **3–6 issues total**, but prefer fewer if overlap risk is unclear.
+4. Write a durable selection note to `tmp/deliver-wave-selection.md` that records:
 
-5. For issues selected in step 4, apply two inline context enrichment checks:
+   - the chosen ready wave
+   - why each selected issue is the best ready candidate
+   - why each excluded issue was skipped or deferred
+
+   Treat this file as the authoritative rationale for wave selection and resequencing.
+
+5. Select a small batch for provisional sequencing. Aim for **3–6 issues total**, but prefer fewer if overlap risk is unclear.
+
+6. For issues selected in step 5, apply two inline context enrichment checks:
 
    **Check 1 — Prior investigation comments:**
 
@@ -529,6 +544,8 @@ If the current ready wave becomes empty, stop and report why.
 ## Phase 6: Implement in bounded batches
 
 Launch `develop` subagents for every issue still in the current ready wave in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
+
+Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts for its scope. If the context artifact is missing, stop and escalate instead of improvising the implementation path.
 
 For this phase:
 
@@ -848,6 +865,8 @@ For each issue, apply this iterative loop:
 
 This is the entire loop: **review → fix while agent-fixable → review again → stop cleanly at zero Blockers or pause at the 3-attempt safety gate**.
 
+Do not create a PR or set `In Review` until an issue has cleared review or hit the explicit 3-attempt pause path.
+
 Do **not** paste full AI review output back into Linear comments. Use Linear comments only for short phase-local blocker summaries when an issue is being kicked back.
 
 ---
@@ -892,7 +911,7 @@ For each publishable issue:
 
    Do **not** paste the full AI review output into the PR body, and do **not** duplicate that review output into Linear comments.
 
-4. Set the Linear issue to **In Review**.
+4. Set the Linear issue to **In Review** only after the PR exists.
 
 After all publishable issues in the active ready wave have been handled:
 
