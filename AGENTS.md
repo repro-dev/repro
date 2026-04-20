@@ -15,6 +15,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 | Build / test / typecheck | Load `build-and-test` skill        |
 | Context assembly         | Load `context-gather` skill        |
 | Test planning            | Load `test-plan` skill             |
+| Goal shaping / issue planning | Load `issue-shaping-workflow` skill |
 | UI / components          | Load `design-system` skill         |
 | UI verification          | Load `ui-verification` skill       |
 | UI audits / polish       | Load `audit-ui-quality` skill      |
