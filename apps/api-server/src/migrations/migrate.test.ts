@@ -125,6 +125,69 @@ describe('agentic conversation migrations', () => {
       )
     `.execute(db)
 
+    await assert.rejects(
+      () =>
+        sql`
+          INSERT INTO agentic_conversation_messages (
+            "conversationId",
+            "sequence",
+            "role",
+            "content",
+            "toolCalls",
+            "toolCallId",
+            "createdAt"
+          )
+          VALUES (
+            ${conversationId},
+            3,
+            'assistant',
+            CAST(${JSON.stringify([
+              { type: 'text', text: 'not allowed here' },
+            ])} AS jsonb),
+            NULL,
+            NULL,
+            CURRENT_TIMESTAMP
+          )
+        `.execute(db),
+      (error: unknown) =>
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === '23514'
+    )
+
+    await assert.rejects(
+      () =>
+        sql`
+          INSERT INTO agentic_conversation_messages (
+            "conversationId",
+            "sequence",
+            "role",
+            "content",
+            "toolCalls",
+            "toolCallId",
+            "createdAt"
+          )
+          VALUES (
+            ${conversationId},
+            4,
+            'tool',
+            CAST(${JSON.stringify({
+              type: 'text',
+              text: 'wrong shape',
+            })} AS jsonb),
+            NULL,
+            'call-2',
+            CURRENT_TIMESTAMP
+          )
+        `.execute(db),
+      (error: unknown) =>
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === '23514'
+    )
+
     await sql`
       INSERT INTO agentic_conversation_messages (
         "conversationId",

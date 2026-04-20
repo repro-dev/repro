@@ -14,7 +14,7 @@ export type AgenticConversationContentBlock =
   | AgenticTextContentBlock
   | AgenticImageUrlContentBlock
 
-export type AgenticConversationContent =
+export type AgenticConversationToolContent =
   | string
   | Array<AgenticConversationContentBlock>
 
@@ -27,20 +27,54 @@ export interface AgenticToolCall {
   }
 }
 
+interface AgenticConversationMessageRecordBase {
+  id: number
+  conversationId: number
+  sequence: number
+  createdAt: Date
+}
+
+export interface AgenticConversationSystemMessageRecord
+  extends AgenticConversationMessageRecordBase {
+  role: 'system'
+  content: string
+  toolCalls: null
+  toolCallId: null
+}
+
+export interface AgenticConversationUserMessageRecord
+  extends AgenticConversationMessageRecordBase {
+  role: 'user'
+  content: string
+  toolCalls: null
+  toolCallId: null
+}
+
+export interface AgenticConversationAssistantMessageRecord
+  extends AgenticConversationMessageRecordBase {
+  role: 'assistant'
+  content: string
+  toolCalls: Array<AgenticToolCall> | null
+  toolCallId: null
+}
+
+export interface AgenticConversationToolMessageRecord
+  extends AgenticConversationMessageRecordBase {
+  role: 'tool'
+  content: AgenticConversationToolContent
+  toolCalls: null
+  toolCallId: string
+}
+
+export type AgenticConversationMessageRecord =
+  | AgenticConversationSystemMessageRecord
+  | AgenticConversationUserMessageRecord
+  | AgenticConversationAssistantMessageRecord
+  | AgenticConversationToolMessageRecord
+
 export interface AgenticConversationRecord {
   id: number
   userId: number
   recordingId: string | null
-  createdAt: Date
-}
-
-export interface AgenticConversationMessageRecord {
-  id: number
-  conversationId: number
-  sequence: number
-  role: AgenticConversationRole
-  content: AgenticConversationContent
-  toolCalls: Array<AgenticToolCall> | null
-  toolCallId: string | null
   createdAt: Date
 }
