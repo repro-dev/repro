@@ -1,15 +1,12 @@
 import { Block, Col, Row } from '@jsxstyle/react'
 import {
+  Button,
+  Card,
   Input,
   ToggleGroup,
   color,
-  focusRing,
-  fontSize,
-  lineHeight,
-  radius,
-  shadow,
   spacing,
-  transition,
+  textStyles,
 } from '@repro/design'
 import React from 'react'
 import {
@@ -51,100 +48,59 @@ export const SessionListControlBar: React.FC<Props> = ({
   )
 
   return (
-    <Block
-      padding={spacing.md}
-      backgroundColor={color.bg.surface}
-      border={`1px solid ${color.border.default}`}
-      borderRadius={radius.sm}
-      boxShadow={shadow.sm}
-    >
-      <Row
-        alignItems="center"
-        gap={spacing.md}
-        justifyContent="space-between"
-        flexWrap="wrap"
-      >
-        <Col gap={spacing.sm} flex={1} minWidth={0}>
-          <Input
-            aria-label="Search sessions"
-            placeholder="Search by title or URL"
-            value={searchText}
-            onChange={onSearchChange}
-          />
-
-          <Row
-            gap={spacing.sm}
-            flexWrap="wrap"
-            props={{ role: 'group', 'aria-label': 'Recording modes' }}
-          >
-            {SESSION_LIST_MODE_OPTIONS.map(option => {
-              const selected = selectedModes.includes(option.value)
-
-              return (
-                <Row
-                  key={option.value}
-                  component="button"
-                  alignItems="center"
-                  cursor="pointer"
-                  fontFamily="inherit"
-                  paddingH={spacing.md}
-                  paddingV={spacing.sm}
-                  fontSize={fontSize.xs}
-                  backgroundColor={
-                    selected ? color.bg.emphasis : color.bg.hover
-                  }
-                  backgroundImage={
-                    selected
-                      ? `linear-gradient(to top right, ${color.neutral}, ${color.neutralHover})`
-                      : undefined
-                  }
-                  borderColor={selected ? color.bg.emphasis : 'transparent'}
-                  borderWidth={1}
-                  borderStyle="solid"
-                  borderRadius={radius.full}
-                  boxShadow={selected ? shadow.sm : undefined}
-                  hoverBackgroundColor={
-                    selected ? color.bg.emphasis : color.border.default
-                  }
-                  transition={transition.fast}
-                  props={{
-                    type: 'button',
-                    'aria-pressed': selected,
-                    onClick: () => onToggleMode(option.value),
-                  }}
-                  {...focusRing()}
-                >
-                  <Block
-                    lineHeight={lineHeight.tight}
-                    color={selected ? color.text.inverse : color.text.default}
-                  >
-                    {option.label}
-                  </Block>
-                </Row>
-              )
-            })}
-          </Row>
-        </Col>
-
+    <Card padding={spacing.md}>
+      <Col gap={spacing.md}>
         <Row
           alignItems="center"
           gap={spacing.md}
+          justifyContent="space-between"
           flexWrap="wrap"
-          justifyContent="flex-end"
         >
+          <Block flex={1} minWidth={0}>
+            <Input
+              aria-label="Search sessions"
+              placeholder="Search by title or URL"
+              value={searchText}
+              onChange={onSearchChange}
+            />
+          </Block>
+
           <ToggleGroup
             options={SESSION_LIST_SORT_TOGGLE_OPTIONS}
             selected={selectedSortIndex}
             onChange={onSortChange}
           />
+        </Row>
+
+        <Row
+          gap={spacing.md}
+          flexWrap="wrap"
+          props={{ role: 'group', 'aria-label': 'Recording modes' }}
+        >
+          {SESSION_LIST_MODE_OPTIONS.map(option => {
+            const selected = selectedModes.includes(option.value)
+
+            return (
+              <Button
+                key={option.value}
+                variant={selected ? 'contained' : 'outlined'}
+                context="neutral"
+                size="small"
+                rounded
+                onClick={() => onToggleMode(option.value)}
+              >
+                {option.label}
+              </Button>
+            )
+          })}
 
           {hiddenCount > 0 && (
-            <Block fontSize={fontSize.xs} color={color.text.muted}>
+            <Block {...textStyles.caption} color={color.text.secondary}>
               {hiddenCount} hidden
             </Block>
           )}
         </Row>
-      </Row>
-    </Block>
+      </Col>
+    </Card>
   )
 }
