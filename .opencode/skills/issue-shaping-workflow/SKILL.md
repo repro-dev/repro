@@ -58,6 +58,7 @@ Before any Linear mutation, present a reviewable proposal containing:
 
 - title
 - project
+- classification label (`tracking/parent`, `spec/needs-spec`, or `executable leaf`)
 - one type label
 - priority
 - short rationale
@@ -70,6 +71,7 @@ Keep the proposal grounded in the original goal and the context gathered so far.
 
 - If the user rejects or edits the proposal, revise it or stop with no writes.
 - If the user approves it, create the issue set in Linear via the repo-owned `linear` CLI only.
+- If the approved proposal is classified `spec/needs-spec`, apply the `needs-spec` label to that issue so spec work stays discoverable by the existing `/spec` and enrichment flows.
 - Create parent or tracking issues first, then executable children, then relation wiring.
 - Use `create-issue` conventions for project selection, type label, priority, and description structure.
 
