@@ -75,6 +75,10 @@ export function createVElement(
 
   const isMasked = isMaskedBySelector(element)
 
+  if (isMasked && 'value' in attributes) {
+    attributes.value = '[MASKED]'
+  }
+
   const properties: VElement['properties'] = {
     checked: null,
     value: null,

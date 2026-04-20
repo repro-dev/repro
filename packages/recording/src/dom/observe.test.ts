@@ -299,6 +299,12 @@ describe('libs/record: dom observers', () => {
     const maskedText = document.createTextNode('secret')
     maskedRoot.append(maskedText)
 
+    const maskedOption = document.createElement('option')
+    maskedOption.value = 'secret-option'
+    maskedOption.setAttribute('value', 'secret-option')
+    maskedOption.textContent = 'public label'
+    maskedRoot.append(maskedOption)
+
     const ignoredRoot = document.createElement('section')
     ignoredRoot.className = 'rr-ignore'
     ignoredRoot.append(document.createTextNode('ignored'))
@@ -317,6 +323,13 @@ describe('libs/record: dom observers', () => {
     })
 
     expect(values).toContain('[MASKED]')
+
+    const optionNode = Object.values(vtree?.nodes ?? {})
+      .map(node => unwrapValue((node as any).value))
+      .find(node => node?.tagName === 'option') as any
+
+    expect(optionNode?.attributes?.value).toBe('[MASKED]')
+
     expect(
       values.some(node => {
         return node?.attributes?.class === 'rr-ignore'

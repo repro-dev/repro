@@ -84,7 +84,12 @@ it('captures rr-mask snapshots and live input updates as masked content', () => 
   maskedInput.value = 'secret value'
   maskedInput.setAttribute('value', 'secret value')
 
-  root.append(maskedText, maskedInput)
+  const maskedOption = doc.createElement('option')
+  maskedOption.value = 'secret option'
+  maskedOption.setAttribute('value', 'secret option')
+  maskedOption.textContent = 'public label'
+
+  root.append(maskedText, maskedInput, maskedOption)
   doc.body.append(root)
 
   const stream = createRecordingStream(doc, {
@@ -105,10 +110,14 @@ it('captures rr-mask snapshots and live input updates as masked content', () => 
   const inputNode = nodeValues.find(
     node => node && typeof node === 'object' && node.tagName === 'input'
   ) as any
+  const optionNode = nodeValues.find(
+    node => node && typeof node === 'object' && node.tagName === 'option'
+  ) as any
 
   assert.ok(nodeValues.includes('[MASKED]'))
   assert.equal(inputNode.properties.value, '[MASKED]')
   assert.equal(inputNode.attributes.value, '[MASKED]')
+  assert.equal(optionNode.attributes.value, '[MASKED]')
 
   maskedInput.value = 'changed secret value'
 
