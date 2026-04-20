@@ -46,18 +46,10 @@ export const DevTools = React.memo<Props>(props => {
   const [view] = useDevToolsView()
   const [isFullscreen, setIsFullscreen] = useState(false)
 
-  const isShellFullscreen = useCallback(() => {
-    const container = containerRef.current
-    const fullscreenElement = document.fullscreenElement
-
-    if (!container || !fullscreenElement) {
-      return false
-    }
-
-    return (
-      container === fullscreenElement || container.contains(fullscreenElement)
-    )
-  }, [])
+  const isShellFullscreen = useCallback(
+    () => document.fullscreenElement !== null,
+    []
+  )
 
   const updateFullscreenState = useCallback(() => {
     setIsFullscreen(isShellFullscreen())
