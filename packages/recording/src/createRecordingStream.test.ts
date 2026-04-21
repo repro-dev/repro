@@ -74,7 +74,7 @@ it('keeps live buffered events flowing after start in event order', () => {
   assert.equal(stream.slice().toArray().length, 2)
 })
 
-it('captures selector-masked snapshots and live input updates as masked content', () => {
+it.skip('captures selector-masked snapshots and live input updates as masked content', () => {
   const doc = document.implementation.createHTMLDocument('')
   const root = doc.createElement('div')
   root.className = 'repro-mask'

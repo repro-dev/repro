@@ -1,4 +1,5 @@
 import { DOMPatch, NodeType, PatchType } from '@repro/domain'
+import { Box } from '@repro/tdl'
 import { deepUnbox, MockNodeList } from '@repro/testing-utils'
 import { getNodeId } from '@repro/vdom-utils'
 import expect from 'expect'
