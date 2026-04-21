@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render } from '@testing-library/react'
+import { dispatchAnimationEnd } from '@repro/testing-utils'
+import { cleanup, render } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React, { act } from 'react'
@@ -219,7 +220,7 @@ describe('Modal open prop and animation', () => {
     const backdrop = document.querySelector('[data-testid="modal-backdrop"]')
     if (backdrop) {
       await act(() => {
-        fireEvent.animationEnd(backdrop)
+        dispatchAnimationEnd(backdrop)
       })
     }
 
@@ -303,7 +304,7 @@ describe('Modal open prop and animation', () => {
     const backdrop = document.querySelector('[data-testid="modal-backdrop"]')
     if (backdrop) {
       await act(() => {
-        fireEvent.animationEnd(backdrop)
+        dispatchAnimationEnd(backdrop)
       })
     }
 
