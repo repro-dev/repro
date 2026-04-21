@@ -43,7 +43,7 @@ Work through all eight dimensions for each scoped file. Log every finding with f
 
 #### Scan Dimensions
 
-1. **Token compliance** — hardcoded hex/px/rem values in JSX props. Every visual value must use a token from `@repro/design` (`color.*`, `spacing.*`, `radius.*`, `textStyles.*`, etc.).
+1. **Token compliance** — hardcoded hex/px/rem values in JSX props. Every visual value must use a token from `@repro/design` (`color.*`, `spacing.*`, `radius.*`, `textStyles.*`, etc.). Flag ad hoc `fontSize` / `fontWeight` / `lineHeight` when they replace `textStyles.*` instead of supporting a constrained internal exception.
 
 2. **Component substitution** — hand-rolled controls that `@repro/design` already covers. Check for: custom buttons, inputs, toggles, modals, drawers, tooltips, spinners, error/loading states, avatars, cards.
 
@@ -76,7 +76,7 @@ Maximum total: **40** (8 dimensions × 5).
 Organise findings by severity:
 
 1. **Critical** — breaks interaction or accessibility (e.g. keyboard trap, missing focus management, unhandled crash path).
-2. **Major** — design system violation that ships visible inconsistency (e.g. hardcoded colour, missing loading state, hand-rolled component).
+2. **Major** — design system violation that ships visible inconsistency (e.g. hardcoded colour, cramped vertical spacing, inconsistent gap progression, collapsed line-height, weak text hierarchy, missing loading state, hand-rolled component).
 3. **Minor** — copy/polish issue that doesn't affect functionality (e.g. passive voice, placeholder copy, missing empty-state CTA).
 
 For each finding, include:
@@ -85,6 +85,8 @@ For each finding, include:
 - **Dimension** (from the eight above)
 - **Description** (one sentence: what is wrong)
 - **Fix hint** (one sentence: what to do)
+
+When the issue is spacing or typography, call out the design-system rule it violates: spacing should preserve rhythm, and semantic text should usually use `textStyles.*` rather than hand-tuned raw typography tokens.
 
 **Do not fix during the audit phase.** Mixing audit and fix produces an incomplete report.
 
