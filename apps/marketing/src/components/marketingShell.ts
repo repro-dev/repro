@@ -50,6 +50,45 @@ export const socialLinks = [
 
 export const signupHref = defaultEnv.REPRO_APP_URL
 
+export const homepageFeatureHighlights = [
+  {
+    title: 'Capture the full context',
+    body: 'Screenshots, console output, network activity, and device details stay attached to the report.',
+  },
+  {
+    title: 'Share one reproducible link',
+    body: 'Everyone opens the same session, so product, support, and engineering stay aligned.',
+  },
+  {
+    title: 'Move from bug to fix faster',
+    body: 'The problem, the evidence, and the conversation stay together in one place.',
+  },
+] as const
+
+export const homepageSocialProof = [
+  {
+    quote: 'Support, QA, and engineering can all work from the same session.',
+    name: 'One shared repro',
+    role: 'Less back-and-forth',
+  },
+  {
+    quote: 'A single link replaces screenshots and guesswork.',
+    name: 'Clearer handoff',
+    role: 'Faster triage',
+  },
+  {
+    quote: 'The evidence stays attached, so fixes move faster.',
+    name: 'Better bug reports',
+    role: 'Shared context',
+  },
+] as const
+
+export const homepageDemoChips = [
+  { label: 'Captured in', value: '30 s' },
+  { label: 'Attached evidence', value: 'Logs + network' },
+  { label: 'Shared with', value: 'The whole team' },
+] as const
+
 export const placeholderPageContent = {
   about: {
     title: 'About Repro',
