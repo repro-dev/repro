@@ -23,7 +23,10 @@ import { Box } from '@repro/tdl'
 import { createSyntheticId, getNodeId } from '@repro/vdom-utils'
 import { isMaskedBySelector } from './utils'
 
-export function createVNode(node: Node): VNode | null {
+export function createVNode(
+  node: Node,
+  maskedSelectors: Array<string> = []
+): VNode | null {
   if (isDocumentNode(node)) {
     return new Box(createVDocument(node))
   }
@@ -33,11 +36,11 @@ export function createVNode(node: Node): VNode | null {
   }
 
   if (isElementNode(node)) {
-    return new Box(createVElement(node))
+    return new Box(createVElement(node, undefined, maskedSelectors))
   }
 
   if (isTextNode(node)) {
-    return new Box(createVText(node))
+    return new Box(createVText(node, maskedSelectors))
   }
 
   return null
@@ -65,7 +68,8 @@ export function createVDocType(doctype: DocumentType): VDocType {
 
 export function createVElement(
   element: Element,
-  attributeOverrides?: Record<string, string>
+  attributeOverrides?: Record<string, string>,
+  maskedSelectors: Array<string> = []
 ): VElement {
   const attributes =
     attributeOverrides ??
@@ -73,7 +77,7 @@ export function createVElement(
       .filter(({ name }) => !isInlineEventAttribute(name))
       .reduce((attrs, { name, value }) => ({ ...attrs, [name]: value }), {})
 
-  const isMasked = isMaskedBySelector(element)
+  const isMasked = isMaskedBySelector(element, maskedSelectors)
 
   if (isMasked && 'value' in attributes) {
     attributes.value = '[MASKED]'
@@ -126,12 +130,15 @@ export function createVElement(
   }
 }
 
-export function createVText(text: Text): VText {
+export function createVText(
+  text: Text,
+  maskedSelectors: Array<string> = []
+): VText {
   return {
     id: getNodeId(text),
     parentId: text.parentNode ? getNodeId(text.parentNode) : null,
     type: NodeType.Text,
-    value: isMaskedBySelector(text) ? '[MASKED]' : text.data,
+    value: isMaskedBySelector(text, maskedSelectors) ? '[MASKED]' : text.data,
   }
 }
 

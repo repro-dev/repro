@@ -131,7 +131,7 @@ export function isIgnoredBySelector(
 
 export function isMaskedBySelector(
   node: Node,
-  maskedSelectors: Array<string> = ['.rr-mask']
+  maskedSelectors: Array<string> = []
 ) {
   if (isElementNode(node)) {
     return maskedSelectors.some(selector => {

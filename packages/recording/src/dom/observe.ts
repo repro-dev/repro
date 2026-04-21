@@ -31,7 +31,7 @@ export function createDOMObserver(
 ): ObserverLike {
   const domObserver = createMutationObserver(walkDOMTree, options, subscriber)
   const styleSheetObserver = createStyleSheetObserver(subscriber)
-  const inputObserver = createInputObserver(subscriber)
+  const inputObserver = createInputObserver(subscriber, options)
 
   return {
     disconnect() {
@@ -49,7 +49,8 @@ export function createDOMObserver(
 }
 
 function createInputObserver(
-  subscriber: (patch: DOMPatch) => void
+  subscriber: (patch: DOMPatch) => void,
+  options: RecordingOptions
 ): ObserverLike<Document> {
   let prevChangeMap = new WeakMap<EventTarget, string>()
   let prevCheckedMap = new WeakMap<EventTarget, boolean>()
@@ -69,7 +70,7 @@ function createInputObserver(
         ('defaultValue' in eventTarget ? eventTarget.defaultValue : '')
 
       let value = eventTarget.value
-      const isMasked = isMaskedBySelector(eventTarget)
+      const isMasked = isMaskedBySelector(eventTarget, options.maskedSelectors)
 
       if (eventTarget.type === 'password') {
         maskedInputs.add(eventTarget)
@@ -256,7 +257,8 @@ export function internal__processMutationRecords(
           name
         )
         const isMasked =
-          name === 'value' && isMaskedBySelector(record.target as Node)
+          name === 'value' &&
+          isMaskedBySelector(record.target as Node, options.maskedSelectors)
 
         if (attribute?.value !== record.oldValue) {
           patches.push(
@@ -287,10 +289,10 @@ export function internal__processMutationRecords(
           new Box({
             type: PatchType.Text,
             targetId: getNodeId(record.target),
-            value: isMaskedBySelector(record.target)
+            value: isMaskedBySelector(record.target, options.maskedSelectors)
               ? '[MASKED]'
               : (record.target as Text).data,
-            oldValue: isMaskedBySelector(record.target)
+            oldValue: isMaskedBySelector(record.target, options.maskedSelectors)
               ? '[MASKED]'
               : record.oldValue || '',
             parentId: parentNode ? getNodeId(parentNode) : null,

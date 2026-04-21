@@ -74,10 +74,10 @@ it('keeps live buffered events flowing after start in event order', () => {
   assert.equal(stream.slice().toArray().length, 2)
 })
 
-it('captures rr-mask snapshots and live input updates as masked content', () => {
+it('captures selector-masked snapshots and live input updates as masked content', () => {
   const doc = document.implementation.createHTMLDocument('')
   const root = doc.createElement('div')
-  root.className = 'rr-mask'
+  root.className = 'repro-mask'
 
   const maskedText = doc.createTextNode('secret text')
   const maskedInput = doc.createElement('input')
@@ -96,6 +96,7 @@ it('captures rr-mask snapshots and live input updates as masked content', () => 
     types: new Set(['dom']) as any,
     ignoredNodes: [],
     ignoredSelectors: ['.rr-ignore'],
+    maskedSelectors: ['.repro-mask'],
   })
 
   stream.start()

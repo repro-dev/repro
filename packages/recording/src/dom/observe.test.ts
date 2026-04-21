@@ -40,6 +40,7 @@ describe('libs/record: dom observers', () => {
       snapshotInterval: 10_000,
       ignoredNodes: [],
       ignoredSelectors: [],
+      maskedSelectors: [],
       eventSampling: {
         pointerMove: 50,
         resize: 250,
@@ -90,6 +91,7 @@ describe('libs/record: dom observers', () => {
       snapshotInterval: 10_000,
       ignoredNodes: [],
       ignoredSelectors: [],
+      maskedSelectors: [],
       eventSampling: {
         pointerMove: 50,
         resize: 250,
@@ -153,6 +155,7 @@ describe('libs/record: dom observers', () => {
       snapshotInterval: 10_000,
       ignoredNodes: [],
       ignoredSelectors: [],
+      maskedSelectors: [],
       eventSampling: {
         pointerMove: 50,
         resize: 250,
@@ -161,7 +164,7 @@ describe('libs/record: dom observers', () => {
     }
 
     const walkDOMTree = createDOMTreeWalker(options)
-    walkDOMTree.acceptDOMVisitor(createDOMVisitor())
+    walkDOMTree.acceptDOMVisitor(createDOMVisitor(options))
 
     const subscriber = (patch: DOMPatch) => {
       patches.push(patch)
@@ -227,12 +230,12 @@ describe('libs/record: dom observers', () => {
     ])
   })
 
-  it('masks text mutations inside rr-mask subtrees without ignoring them', () => {
+  it('masks text mutations inside selector-masked subtrees without ignoring them', () => {
     const patches: Array<DOMPatch> = []
 
     const target = document.createTextNode('secret')
     const maskedRoot = document.createElement('div')
-    maskedRoot.className = 'rr-mask'
+    maskedRoot.className = 'repro-mask'
     maskedRoot.append(target)
 
     const records: Array<MutationRecord> = [
@@ -254,6 +257,7 @@ describe('libs/record: dom observers', () => {
       snapshotInterval: 10_000,
       ignoredNodes: [],
       ignoredSelectors: ['.rr-ignore'],
+      maskedSelectors: ['.repro-mask'],
       eventSampling: {
         pointerMove: 50,
         resize: 250,
@@ -262,7 +266,7 @@ describe('libs/record: dom observers', () => {
     }
 
     const walkDOMTree = createDOMTreeWalker(options)
-    walkDOMTree.acceptDOMVisitor(createDOMVisitor())
+    walkDOMTree.acceptDOMVisitor(createDOMVisitor(options))
 
     const subscriber = (patch: DOMPatch) => {
       patches.push(patch)
@@ -281,12 +285,13 @@ describe('libs/record: dom observers', () => {
     ])
   })
 
-  it('preserves rr-mask structure while excluding rr-ignore subtrees in snapshots', () => {
+  it('preserves selector-masked structure while excluding rr-ignore subtrees in snapshots', () => {
     const options: RecordingOptions = {
       types: new Set(['dom']),
       snapshotInterval: 10_000,
       ignoredNodes: [],
       ignoredSelectors: ['.rr-ignore'],
+      maskedSelectors: ['.repro-mask'],
       eventSampling: {
         pointerMove: 50,
         resize: 250,
@@ -295,7 +300,7 @@ describe('libs/record: dom observers', () => {
     }
 
     const maskedRoot = document.createElement('section')
-    maskedRoot.className = 'rr-mask'
+    maskedRoot.className = 'repro-mask'
     const maskedText = document.createTextNode('secret')
     maskedRoot.append(maskedText)
 
@@ -312,7 +317,7 @@ describe('libs/record: dom observers', () => {
     document.body.append(maskedRoot, ignoredRoot)
 
     const walkDOMTree = createDOMTreeWalker(options)
-    const visitor = createDOMVisitor()
+    const visitor = createDOMVisitor(options)
     walkDOMTree.acceptDOMVisitor(visitor)
 
     const vtree = walkDOMTree(document)
