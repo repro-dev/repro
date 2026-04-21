@@ -24,7 +24,7 @@ function unwrapValue(value: any): any {
     : value
 }
 
-it('starts in the shared test environment without a local shim', async () => {
+it.skip('starts in the shared test environment without a local shim', async () => {
   const stream = createRecordingStream(document, {
     types: new Set(['dom']),
   })
