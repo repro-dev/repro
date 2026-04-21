@@ -9,8 +9,9 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildPromptGroups } from "./index";
+import { buildFixtureLogLines, buildPromptGroups } from "./index";
 import { findRegressions } from "./regressions";
+import type { EvalResult } from "./runner";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -46,6 +47,50 @@ function makeResult(
     averageIterationDepth: avgToolCalls,
     compositeQualityScore,
   };
+}
+
+function makeEvalResult(overrides: Partial<EvalResult> = {}): EvalResult {
+  return {
+    fixtureName: "fixture-a",
+    prompt: "prompt a",
+    correctnessRate: 1,
+    averageToolErrorRate: 0,
+    averageIterationDepth: 5,
+    anyHitIterationLimit: false,
+    majorityCorrect: true,
+    averageQualityScore: {
+      brevity: 2,
+      directness: 2,
+      signalNoise: 2,
+    },
+    runs: [
+      {
+        correct: true,
+        judgeReasoning: "ok",
+        iterationDepth: 5,
+        toolErrorRate: 0,
+        hitIterationLimit: false,
+        qualityScore: { brevity: 2, directness: 2, signalNoise: 2 },
+      },
+      {
+        correct: true,
+        judgeReasoning: "ok",
+        iterationDepth: 5,
+        toolErrorRate: 0,
+        hitIterationLimit: false,
+        qualityScore: { brevity: 2, directness: 2, signalNoise: 2 },
+      },
+      {
+        correct: true,
+        judgeReasoning: "ok",
+        iterationDepth: 5,
+        toolErrorRate: 0,
+        hitIterationLimit: false,
+        qualityScore: { brevity: 2, directness: 2, signalNoise: 2 },
+      },
+    ],
+    ...overrides,
+  } satisfies EvalResult;
 }
 
 // ---------------------------------------------------------------------------
@@ -256,5 +301,69 @@ describe("buildPromptGroups", () => {
       groups.get("EXTENSION_SYSTEM_CARD_MESSAGE")!.entries.length,
       2,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildFixtureLogLines — quiet mode trims per-run chatter
+// ---------------------------------------------------------------------------
+
+describe("buildFixtureLogLines", () => {
+  it("keeps only the fixture result line in quiet success mode", () => {
+    const lines = buildFixtureLogLines(makeEvalResult(), 3, true);
+
+    assert.deepEqual(lines, [
+      "  Result: PASS (3/3 correct, 100.0% rate) — avg 5.0 tool calls, avg 0.0% error rate",
+    ]);
+  });
+
+  it("still reports a failure summary in quiet mode", () => {
+    const lines = buildFixtureLogLines(
+      makeEvalResult({
+        majorityCorrect: false,
+        correctnessRate: 0.67,
+        averageToolErrorRate: 0.06666666666666667,
+        runs: [
+          {
+            correct: true,
+            judgeReasoning: "ok",
+            iterationDepth: 5,
+            toolErrorRate: 0,
+            hitIterationLimit: false,
+            qualityScore: { brevity: 2, directness: 2, signalNoise: 2 },
+          },
+          {
+            correct: true,
+            judgeReasoning: "ok",
+            iterationDepth: 5,
+            toolErrorRate: 0,
+            hitIterationLimit: false,
+            qualityScore: { brevity: 2, directness: 2, signalNoise: 2 },
+          },
+          {
+            correct: false,
+            judgeReasoning: "bad",
+            iterationDepth: 6,
+            toolErrorRate: 0.2,
+            hitIterationLimit: false,
+            qualityScore: { brevity: 2, directness: 2, signalNoise: 2 },
+          },
+        ],
+      }),
+      3,
+      true,
+    );
+
+    assert.equal(lines.length, 1);
+    assert.match(lines[0]!, /FAIL/);
+    assert.match(lines[0]!, /avg 5\.0 tool calls/);
+  });
+
+  it("includes per-run chatter in verbose mode", () => {
+    const lines = buildFixtureLogLines(makeEvalResult(), 3, false);
+
+    assert.equal(lines[0], "\nFixture: fixture-a");
+    assert.ok(lines.some((line) => line.includes("Run 1/3... ✓ correct")));
+    assert.ok(lines.some((line) => line.includes("Run 3/3... ✓ correct")));
   });
 });

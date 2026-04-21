@@ -4,6 +4,7 @@
  * How to run:
  *   OPENROUTER_API_KEY=<key> moon run repro/agentic:eval
  *   OPENROUTER_API_KEY=<key> moon run repro/agentic:eval -- --model google/gemini-2.5-flash
+ *   OPENROUTER_API_KEY=<key> moon run repro/agentic:eval -- --quiet
  *   OPENROUTER_API_KEY=<key> moon run repro/agentic:eval -- --test-set
  *   # or directly:
  *   OPENROUTER_API_KEY=<key> tsx packages/agentic/src/eval/index.ts
@@ -153,6 +154,39 @@ function pct(rate: number): string {
 
 function avg(n: number): string {
   return n.toFixed(1);
+}
+
+export function buildFixtureLogLines(
+  result: EvalResult,
+  runsPerCase: number,
+  quiet = false,
+): Array<string> {
+  const lines: Array<string> = [];
+
+  if (!quiet) {
+    lines.push(`\nFixture: ${result.fixtureName}`);
+
+    for (const [displayRunIndex, run] of result.runs.entries()) {
+      const status = run.correct ? "✓ correct" : "✗ incorrect";
+      lines.push(
+        `  Run ${displayRunIndex + 1}/${runsPerCase}... ${status} (${
+          run.iterationDepth
+        } tool calls, ${pct(run.toolErrorRate)} errors)`,
+      );
+    }
+  }
+
+  const correctCount = result.runs.filter((r) => r.correct).length;
+  const overallStatus = result.majorityCorrect ? "PASS" : "FAIL";
+  lines.push(
+    `  Result: ${overallStatus} (${correctCount}/${runsPerCase} correct, ${pct(
+      result.correctnessRate,
+    )} rate) — avg ${avg(result.averageIterationDepth)} tool calls, avg ${pct(
+      result.averageToolErrorRate,
+    )} error rate`,
+  );
+
+  return lines;
 }
 
 function printResults(results: Array<EvalResult>): void {
@@ -363,6 +397,7 @@ async function main(): Promise<void> {
     modelArgIndex !== -1
       ? process.argv[modelArgIndex + 1] ?? AGENTIC_DEFAULT_MODEL
       : AGENTIC_DEFAULT_MODEL;
+  const quiet = process.argv.includes("--quiet");
 
   console.log(`\nModel: ${modelId}`);
 
@@ -443,7 +478,7 @@ async function main(): Promise<void> {
   const results = await Promise.all(
     fixtures.map(async (fixture, fixtureIndex) => {
       // Buffer this fixture's output and flush atomically
-      const lines: Array<string> = [`\nFixture: ${fixture.name}`];
+      const lines: Array<string> = [];
 
       const fixtureRuns: Array<{
         runIndex: number;
@@ -469,9 +504,6 @@ async function main(): Promise<void> {
               correct: score.correct,
               critiques,
             });
-            if (critiques.length > 0) {
-              lines.push(`  Critique: ${critiques.length} item(s)`);
-            }
           }
         : undefined;
 
@@ -488,25 +520,7 @@ async function main(): Promise<void> {
         runs: fixtureRuns,
       };
 
-      let displayRunIndex = 0;
-      for (const run of result.runs) {
-        displayRunIndex++;
-        const status = run.correct ? "✓ correct" : "✗ incorrect";
-        lines.push(
-          `  Run ${displayRunIndex}/${runsPerCase}... ${status} (${
-            run.iterationDepth
-          } tool calls, ${pct(run.toolErrorRate)} errors)`,
-        );
-      }
-      const correctCount = result.runs.filter((r) => r.correct).length;
-      const overallStatus = result.majorityCorrect ? "PASS" : "FAIL";
-      lines.push(
-        `  Result: ${overallStatus} (${correctCount}/${runsPerCase} correct, ${pct(
-          result.correctnessRate,
-        )} rate) — avg ${avg(
-          result.averageIterationDepth,
-        )} tool calls, avg ${pct(result.averageToolErrorRate)} error rate`,
-      );
+      lines.push(...buildFixtureLogLines(result, runsPerCase, quiet));
       console.log(lines.join("\n"));
 
       return result;

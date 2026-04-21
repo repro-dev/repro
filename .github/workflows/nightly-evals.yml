@@ -2,7 +2,7 @@ name: Nightly agentic evals
 
 on:
   schedule:
-    - cron: '0 3 * * *'  # 3am UTC daily
+    - cron: "0 3 * * *" # 3am UTC daily
   workflow_dispatch:
 
 jobs:
@@ -20,14 +20,14 @@ jobs:
         with:
           auto-install: true
       - name: Set PNPM store directory
-        run: pnpm config set store-dir .pnpm-store
+        run: pnpm config set store-dir ~/.pnpm-store
       - uses: actions/cache@v3
         with:
-          path: .pnpm-store
+          path: ~/.pnpm-store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm install
+      - run: pnpm install --reporter=silent
       - name: Run evals
-        run: moon run repro/agentic:eval
+        run: moon run repro/agentic:eval -- --quiet
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       - name: Locate eval results
