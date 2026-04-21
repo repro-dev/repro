@@ -8,6 +8,8 @@ let currentSession: { type: 'staff'; isAdmin: boolean } | null = {
   isAdmin: true,
 }
 
+let loginPath = '/login'
+
 mock.module('@repro/auth', {
   namedExports: {
     IfSession: ({ children }: { children: React.ReactNode }) =>
@@ -15,6 +17,7 @@ mock.module('@repro/auth', {
     UnlessSession: ({ children }: { children: React.ReactNode }) =>
       currentSession ? null : <>{children}</>,
     UserMenu: () => <div>User menu</div>,
+    useLoginPath: () => loginPath,
     useSession: () => currentSession,
   },
 })
@@ -44,7 +47,13 @@ mock.module('@repro/design', {
         ),
       }
     ),
-    Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+    Link: ({
+      children,
+      props,
+    }: {
+      children: React.ReactNode
+      props?: { to?: string }
+    }) => <a data-to={props?.to}>{children}</a>,
     SideNav: Object.assign(
       ({ children }: { children: React.ReactNode }) => <nav>{children}</nav>,
       {
@@ -85,6 +94,7 @@ afterEach(() => {
     type: 'staff',
     isAdmin: true,
   }
+  loginPath = '/login'
 })
 
 describe('Layout', () => {
@@ -103,5 +113,14 @@ describe('Layout', () => {
 
     assert.doesNotMatch(html, /Health footer/)
     assert.doesNotMatch(html, /User menu/)
+  })
+
+  it('points the signed-out login link at the configured admin login path', () => {
+    currentSession = null
+    loginPath = '/admin-login'
+
+    const html = renderToStaticMarkup(<Layout />)
+
+    assert.match(html, /data-to="\/admin-login"/)
   })
 })

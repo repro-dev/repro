@@ -4,7 +4,7 @@ import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
-type Session = { id: string } | null
+type Session = { type: 'staff'; isAdmin: boolean } | { type: 'user' } | null
 
 let currentSession: Session = null
 let currentSessionLoading = false
@@ -21,8 +21,8 @@ mock.module('@repro/auth', {
 })
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { RequireAdminSession } =
-  require('./RequireAdminSession') as typeof import('./RequireAdminSession')
+const { RequireAdminStaffSession } =
+  require('./RequireAdminStaffSession') as typeof import('./RequireAdminStaffSession')
 
 afterEach(() => {
   cleanup()
@@ -44,17 +44,18 @@ function renderRoute({
   return render(
     <MemoryRouter initialEntries={['/admin']}>
       <Routes>
-        <Route path="/admin" element={<RequireAdminSession />}>
-          <Route index element={<div>Admin area</div>} />
+        <Route path="/admin" element={<RequireAdminStaffSession />}>
+          <Route index element={<div>Admin staff area</div>} />
         </Route>
         <Route path={loginPath} element={<div>Admin login</div>} />
+        <Route path="/" element={<div>Home</div>} />
       </Routes>
     </MemoryRouter>
   )
 }
 
-describe('RequireAdminSession', () => {
-  it('redirects anonymous visitors to the configured login path after mount', async () => {
+describe('RequireAdminStaffSession', () => {
+  it('redirects anonymous users to the configured login path', async () => {
     loginPath = '/admin-login'
 
     renderRoute()
@@ -63,6 +64,23 @@ describe('RequireAdminSession', () => {
       assert.ok(screen.getByText('Admin login'))
     })
 
-    assert.equal(screen.queryByText('Admin area'), null)
+    assert.equal(screen.queryByText('Admin staff area'), null)
+  })
+
+  it('redirects non-admin staff to /', async () => {
+    renderRoute({ session: { type: 'staff', isAdmin: false } })
+
+    await waitFor(() => {
+      assert.ok(screen.getByText('Home'))
+    })
+
+    assert.equal(screen.queryByText('Admin staff area'), null)
+  })
+
+  it('renders the outlet for admin staff', () => {
+    renderRoute({ session: { type: 'staff', isAdmin: true } })
+
+    assert.ok(screen.getByText('Admin staff area'))
+    assert.equal(screen.queryByText('Admin login'), null)
   })
 })
