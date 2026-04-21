@@ -29,8 +29,10 @@ You are the orchestrator for the `/deliver` command.
   - `linear issue children <issue-id> --json`
   - `linear issue comment <issue-id> "<body>" --json`
   - `linear issue update <issue-id> --status "Todo" --json`
+  - `linear issue update <issue-id> --add-label needs-spec --status "Todo" --json`
   - `linear issue update <issue-id> --status "In Progress" --json`
   - `linear issue update <issue-id> --status "In Review" --json`
+  - `linear label create --name needs-spec --description "Issue requires additional specification before autonomous implementation" --color "#F2994A"`
 
 ### Mode detection rules
 
@@ -70,6 +72,7 @@ Session-local exclusions:
 ## Operating principles
 
 - Keep orchestration light. Do not recreate a long-lived control plane.
+- Reuse the existing `needs-spec` label for issues escalated out of `/deliver` because they lack enough specification or clarity for autonomous planning.
 - The main checkout is the control plane for `/deliver`, not a mutation target. Never write implementation changes under the main checkout from this command.
 - Plan files are the required durable handoff into implementation: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
 - Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
@@ -82,6 +85,8 @@ Session-local exclusions:
 - Before any file write, make the target worktree root explicit in the reasoning and target path. Missing or ambiguous target worktree metadata is a hard stop for writes, not a cue to fall back to the main checkout.
 
 > Tip: Run `/groom` first when the queue itself needs normalization, then `/enrich-issues` for promising issues that are still under-specified before `/deliver`.
+
+Before backlog scanning or single-track gating, ensure the `needs-spec` label exists. If it is missing, create it with the repo-owned `linear` CLI and continue.
 
 ## Execution control
 
@@ -134,6 +139,7 @@ If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead
    - rerun `/deliver` with no issue ID for autonomous wave selection
    - rerun `/deliver REP-child` with a concrete child issue ID
 7. If any other stop condition is hit, report the reason clearly, add the issue ID to `escalated_issues`, and stop the run. Do not continue into planning.
+   - If the stop condition is missing specification or clarity, add the `needs-spec` label and include that reason in the comment so the issue is visibly marked for follow-up.
 8. Create a singleton `current_ready_wave` containing only `target_issue_id` and continue directly to Phase 3.
 
 In single-track mode, skip Phase 1 and Phase 2 entirely.
@@ -189,11 +195,12 @@ Run this phase only when `mode = wave`.
 
    - Has any `blockedBy` relation whose fetched blocker issue is not `Done` or `Canceled`
    - If a `blockedBy` relation still exists but every fetched blocker is `Done` or `Canceled`, treat the issue as not blocked and note the stale relation in the rationale instead of excluding it
-   - State is already **In Progress** or **In Review**
-   - Already has an active worktree (`reproctl wt list`)
-   - Issue ID appears in an open PR branch name
-   - Issue ID is already in this session's `escalated_issues` set
-   - The issue does not give the planner enough concrete information to produce a bounded implementation plan without asking for human clarification
+    - State is already **In Progress** or **In Review**
+    - Already has an active worktree (`reproctl wt list`)
+    - Issue ID appears in an open PR branch name
+    - Issue ID is already in this session's `escalated_issues` set
+    - Issue already has the `needs-spec` label; record the rationale as "exclude — needs-spec label (previously escalated for clarification)"
+    - The issue does not give the planner enough concrete information to produce a bounded implementation plan without asking for human clarification
 
    **Scope pre-filter (inline heuristic — no agent spawn):**
 
@@ -208,7 +215,7 @@ Run this phase only when `mode = wave`.
    | Vague noun-phrase title                            | Title is a bare noun phrase with no verb and no measurable change (e.g. "Performance improvements", "Auth cleanup")     |
    | No type label                                      | Issue carries none of the standard labels: Bug, Feature, Improvement, Tech Debt                                         |
 
-   - If **3 or more signals are present**: exclude the issue from the current run. In the candidate table, record the decision as "exclude — scope pre-filter". Post a concise comment with `linear issue comment <issue-id> "Excluded by scope pre-filter: no acceptance criteria, description under 80 words, no named files/packages." --json`. Do not create a worktree or spawn a planner for this issue.
+    - If **3 or more signals are present**: exclude the issue from the current run. In the candidate table, record the decision as "exclude — scope pre-filter / needs-spec". Post a concise comment with `linear issue comment <issue-id> "Excluded by scope pre-filter: no acceptance criteria, description under 80 words, no named files/packages. Added needs-spec so /deliver will skip this until clarified." --json`, then apply `linear issue update <issue-id> --add-label needs-spec --status "Todo" --json`. Do not create a worktree or spawn a planner for this issue.
    - If **fewer than 3 signals are present**: the issue passes the heuristic — proceed to evaluate supporting signals and the planner as normal.
 
    **Supporting signals (use as evidence, not fake-precise hard gates):**
@@ -483,8 +490,8 @@ After both QC checks pass (or produce advisory-only results):
 
 If the planner returns `not ready` or includes unresolved questions that prevent confident implementation:
 
-- Post a concise Linear comment describing the blocking questions with `linear issue comment <issue-id> "<blocking questions summary>" --json`
-- Set the issue state back to **Todo** with `linear issue update <issue-id> --status "Todo" --json`
+- Post a concise Linear comment describing the blocking questions with `linear issue comment <issue-id> "<blocking questions summary>. Added needs-spec so /deliver will skip this until clarified." --json`
+- Set the issue state back to **Todo** and add the `needs-spec` label with `linear issue update <issue-id> --add-label needs-spec --status "Todo" --json`
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
 - Exclude the issue from the current ready wave
