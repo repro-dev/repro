@@ -1,6 +1,5 @@
 import { DOMPatch, NodeType, PatchType } from '@repro/domain'
-import { Box } from '@repro/tdl'
-import { MockNodeList } from '@repro/testing-utils'
+import { deepUnbox, MockNodeList } from '@repro/testing-utils'
 import { getNodeId } from '@repro/vdom-utils'
 import expect from 'expect'
 import { describe, it } from 'node:test'
@@ -50,14 +49,14 @@ describe('libs/record: dom observers', () => {
 
     internal__processMutationRecords(records, walkDOMTree, options, subscriber)
 
-    expect(patches).toEqual([
-      new Box({
+    expect(deepUnbox(patches)).toEqual([
+      {
         type: PatchType.Attribute,
         targetId: getNodeId(target),
         name: 'class',
         value: 'foo',
         oldValue: null,
-      }),
+      },
     ])
   })
 
@@ -100,14 +99,14 @@ describe('libs/record: dom observers', () => {
 
     internal__processMutationRecords(records, walkDOMTree, options, subscriber)
 
-    expect(patches).toEqual([
-      new Box({
+    expect(deepUnbox(patches)).toEqual([
+      {
         type: PatchType.Text,
         targetId: getNodeId(target),
         value: 'bar',
         oldValue: 'foo',
         parentId: null,
-      }),
+      },
     ])
   })
 
@@ -164,8 +163,8 @@ describe('libs/record: dom observers', () => {
 
     internal__processMutationRecords(records, walkDOMTree, options, subscriber)
 
-    expect(patches).toEqual([
-      new Box({
+    expect(deepUnbox(patches)).toEqual([
+      {
         type: PatchType.RemoveNodes,
         parentId: getNodeId(target),
         previousSiblingId: null,
@@ -174,7 +173,7 @@ describe('libs/record: dom observers', () => {
           {
             rootId: getNodeId(removed),
             nodes: {
-              [getNodeId(removed)]: new Box({
+              [getNodeId(removed)]: {
                 id: getNodeId(removed),
                 parentId: null,
                 type: NodeType.Element,
@@ -187,12 +186,12 @@ describe('libs/record: dom observers', () => {
                 },
                 children: [],
                 shadowRoot: false,
-              }),
+              },
             },
           },
         ],
-      }),
-      new Box({
+      },
+      {
         type: PatchType.AddNodes,
         parentId: getNodeId(target),
         previousSiblingId: null,
@@ -201,7 +200,7 @@ describe('libs/record: dom observers', () => {
           {
             rootId: getNodeId(added),
             nodes: {
-              [getNodeId(added)]: new Box({
+              [getNodeId(added)]: {
                 id: getNodeId(added),
                 parentId: null,
                 type: NodeType.Element,
@@ -214,11 +213,11 @@ describe('libs/record: dom observers', () => {
                 },
                 children: [],
                 shadowRoot: false,
-              }),
+              },
             },
           },
         ],
-      }),
+      },
     ])
   })
 })

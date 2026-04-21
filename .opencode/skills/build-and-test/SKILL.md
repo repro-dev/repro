@@ -13,22 +13,26 @@ Moon v2 project IDs use the source-path format: `repro/<name>` (e.g. `repro/doma
 
 **Moon v2 glob restriction**: Brace expansion (`{,x}`) is not supported in glob patterns. Use separate entries instead (e.g. two globs `*.ts` and `*.tsx` rather than `*.ts{,x}`).
 
-| Task        | Command                                                                                        |
-| ----------- | ---------------------------------------------------------------------------------------------- |
-| Build       | `moon run repro/<name>:build` (builds dependencies first via `^:build`)                        |
-| Test        | `moon run repro/<name>:test` (preferred) or `pnpm test` if the package has no Moon target      |
-| Single test | `moon run repro/<name>:test` if possible; direct `tsx --test` only as a package-local fallback |
-| Typecheck   | `moon run repro/<name>:typecheck` or `pnpm typecheck`                                          |
+| Task        | Command                                                                                                          |
+| ----------- | ---------------------------------------------------------------------------------------------------------------- |
+| Build       | `moon run repro/<name>:build` (builds dependencies first via `^:build`)                                          |
+| Test        | `moon run repro/<name>:test` (default)                                                                            |
+| Single test | `moon run repro/<name>:test` if possible; direct `tsx --test` only as a package-local fallback when no target exists |
+| Typecheck   | `moon run repro/<name>:typecheck` (default)                                                                       |
 
-General form: `moon run repro/<name>:build|test|typecheck` or `cd <package> && pnpm <script>`.
+General form: `moon run repro/<name>:build|test|typecheck`.
 
 ## Test command preference
 
 Default to Moon for package tests. In agent sessions, `moon run repro/<name>:test` is the most reliable entrypoint because it picks up the package's configured test harness, required imports such as `global-jsdom/register`, and any workspace-specific flags.
 
+Default to Moon for typechecking as well: `moon run repro/<name>:typecheck`. Do not reach for raw `tsc`, `pnpm typecheck`, `pnpm exec`, or ad hoc `tsx` commands first when a package already exposes a Moon target.
+
 Use direct `tsx --test` commands only as a fallback when a package does not expose a usable Moon `test` target and you have confirmed the exact invocation from the package's existing scripts or docs.
 
 When `tsx` is not on your shell `PATH`, invoke it through pnpm in the target package (for example `pnpm --dir "packages/recording" exec tsx ...`). Match the package's own test script flags when needed — some browser-like tests require `-r global-jsdom/register` in addition to `--test`.
+
+For formatting, prefer a package-scoped command or Moon target when one exists. If no Moon format target exists, run the package-local formatter from the affected package rather than broad repo-level formatting from habit.
 
 ### Moon v2 config files
 

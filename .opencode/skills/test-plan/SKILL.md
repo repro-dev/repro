@@ -7,6 +7,8 @@ description: Create a focused test strategy before or during implementation. Loa
 
 Use this skill when the work needs more than ad hoc test selection.
 
+Pair this skill with `testing-workflow` when the challenge is not just what to cover, but also which repo-specific harness, helper, or verification path to use.
+
 Write the artifact to `tmp/test-plan-<issue-id>.md` whenever the work will be delegated to `develop` for a new behavior, bug fix, or public contract change. For non-Linear work, use `tmp/test-plan-<topic>.md` instead. Inline plans are only acceptable for small non-delegated changes handled directly in the outer conversation.
 
 ## Testing principles

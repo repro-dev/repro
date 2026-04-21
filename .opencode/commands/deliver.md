@@ -10,6 +10,8 @@ You are the orchestrator for the `/deliver` command.
 - Coordinate phases and gates only. Do not plan, implement, review, smoke test, or publish directly in the outer conversation.
 - Treat missing `planner`, `develop`, or `review` delegation as a workflow violation, not a shortcut.
 - Fail closed if a phase cannot be executed by the expected subagent.
+- Do not perform inline source edits from this command, even when the change looks small. If implementation is needed, delegate it.
+- The only allowed writes in this command are durable orchestration artifacts (for example `tmp/plan-*`, `tmp/context-*`, `tmp/test-plan-*`, and selection notes) written to an explicitly chosen target path.
 
 ## Command contract
 
@@ -71,13 +73,16 @@ Session-local exclusions:
 
 - Keep orchestration light. Do not recreate a long-lived control plane.
 - Reuse the existing `needs-spec` label for issues escalated out of `/deliver` because they lack enough specification or clarity for autonomous planning.
+- The main checkout is the control plane for `/deliver`, not a mutation target. Never write implementation changes under the main checkout from this command.
 - Plan files are the required durable handoff into implementation: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
 - Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
+- Missing required artifacts trigger an enforce-and-retry loop: create the missing `tmp/context-*` or `tmp/test-plan-*` file first, then retry the blocked delegation step.
 - Use issue selection notes plus explicit risk notes as the handoff from selection into sequencing.
 - Sequencing is provisional until planning finishes. Resequence once after planner output is available, then lock the ready wave.
 - Tactical implementation deviations are allowed if they preserve the plan's intent. Large strategic deviations mean planning failed — stop and escalate the issue instead of freelancing.
 - Use `fixable_by_agent: true | false` for blocking review findings.
 - Do not run a skill-audit preflight, do not maintain a run log, and do not run a visual regression phase here.
+- Before any file write, make the target worktree root explicit in the reasoning and target path. Missing or ambiguous target worktree metadata is a hard stop for writes, not a cue to fall back to the main checkout.
 
 > Tip: Run `/groom` first when the queue itself needs normalization, then `/enrich-issues` for promising issues that are still under-specified before `/deliver`.
 
@@ -553,7 +558,7 @@ If the current ready wave becomes empty, stop and report why.
 
 Launch `develop` subagents for every issue still in the current ready wave in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
-Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts for its scope. If the context artifact is missing, stop and escalate instead of improvising the implementation path.
+Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts for its scope. If a required artifact is missing, create it and retry the launch instead of improvising the implementation path.
 
 For this phase:
 
