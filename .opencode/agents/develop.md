@@ -32,7 +32,7 @@ For each requirement in the plan, follow this cycle strictly:
 6. Run all related tests — confirm nothing regressed.
 7. Move to the next requirement.
 
-Use the `build-and-test` skill for test commands. The standard runner is:
+Use the `build-and-test` skill for test commands. Prefer the package's Moon target first. The direct fallback runner is:
 
 ```
 tsx --experimental-test-module-mocks --test path/to/file.test.ts
@@ -66,8 +66,8 @@ If the re-read, diff, and compiler/typechecker disagree, stop stacking edits on 
 
 After all requirements are implemented and tests pass:
 
-1. Run typechecking: `moon run <package>:typecheck`
-2. Run formatting: `pnpm fmt`
+1. Run typechecking with the affected package target, for example `moon run repro/<package>:typecheck`
+2. Run package-scoped formatting. Use a Moon format target when one exists; otherwise run the package-local formatter from the affected package.
 3. **Skill freshness check**: For each domain skill loaded during this task, ask: did you encounter any file paths, function names, API shapes, or patterns that the skill described incorrectly or that were missing? If yes, update the relevant `.opencode/skills/<domain>/SKILL.md` now. Include those changes in this commit.
 4. Stage and commit with a Conventional Commit message referencing the issue:
    ```

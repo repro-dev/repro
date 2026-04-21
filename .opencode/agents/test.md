@@ -48,7 +48,7 @@ When asked to evaluate test sufficiency:
 
 ## Test runner
 
-The standard test runner is:
+Prefer the package's Moon test target first. The direct fallback runner is:
 
 ```
 tsx --experimental-test-module-mocks --test path/to/file.test.ts
