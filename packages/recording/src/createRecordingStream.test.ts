@@ -99,37 +99,40 @@ it('captures selector-masked snapshots and live input updates as masked content'
     maskedSelectors: ['.repro-mask'],
   })
 
-  stream.start()
+  try {
+    stream.start()
 
-  const snapshot = stream.snapshot()
-  const dom = snapshot.dom
+    const snapshot = stream.snapshot()
+    const dom = snapshot.dom
 
-  assert.ok(dom)
-  const nodeValues = Object.values(dom?.nodes ?? {}).map(node => {
-    return unwrapValue((node as any).value)
-  })
-  const inputNode = nodeValues.find(
-    node => node && typeof node === 'object' && node.tagName === 'input'
-  ) as any
-  const optionNode = nodeValues.find(
-    node => node && typeof node === 'object' && node.tagName === 'option'
-  ) as any
+    assert.ok(dom)
+    const nodeValues = Object.values(dom?.nodes ?? {}).map(node => {
+      return unwrapValue((node as any).value)
+    })
+    const inputNode = nodeValues.find(
+      node => node && typeof node === 'object' && node.tagName === 'input'
+    ) as any
+    const optionNode = nodeValues.find(
+      node => node && typeof node === 'object' && node.tagName === 'option'
+    ) as any
 
-  assert.ok(nodeValues.includes('[MASKED]'))
-  assert.equal(inputNode.properties.value, '[MASKED]')
-  assert.equal(inputNode.attributes.value, '[MASKED]')
-  assert.equal(optionNode.attributes.value, '[MASKED]')
+    assert.ok(nodeValues.includes('[MASKED]'))
+    assert.equal(inputNode.properties.value, '[MASKED]')
+    assert.equal(inputNode.attributes.value, '[MASKED]')
+    assert.equal(optionNode.attributes.value, '[MASKED]')
 
-  maskedInput.value = 'changed secret value'
+    maskedInput.value = 'changed secret value'
 
-  const patches = stream
-    .slice()
-    .toArray()
-    .map(event => unwrapValue(event))
-    .filter(event => event.type === SourceEventType.DOMPatch)
+    const patches = stream
+      .slice()
+      .toArray()
+      .map(event => unwrapValue(event))
+      .filter(event => event.type === SourceEventType.DOMPatch)
 
-  assert.ok(patches.length > 0)
-  assert.equal((patches[patches.length - 1] as any).data.value, '[MASKED]')
-
-  doc.body.removeChild(root)
+    assert.ok(patches.length > 0)
+    assert.equal((patches[patches.length - 1] as any).data.value, '[MASKED]')
+  } finally {
+    stream.stop()
+    doc.body.removeChild(root)
+  }
 })
