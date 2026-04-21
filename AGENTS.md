@@ -10,6 +10,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 | Bug fix / root-cause work | Load `bug-rigor` with `delivery-workflow` |
 | Worktree / parallel work | Load `worktree-workflow` skill     |
 | Implementation / testing | Load `implementation-rigor` skill  |
+| Repo-specific testing    | Load `testing-workflow` skill      |
 | Commit / PR              | Load `git-workflow` skill          |
 | Code review              | Load `review-standards` skill      |
 | Build / test / typecheck | Load `build-and-test` skill        |

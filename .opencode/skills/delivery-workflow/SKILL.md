@@ -12,6 +12,7 @@ Use this skill when you are starting a feature or fix. Keep it thin: it coordina
 - `worktree-workflow` — worktree isolation, lifecycle, and parallel worktree rules
 - `implementation-rigor` — red/green/refactor, verification, and test expectations
 - `build-and-test` — test runners, typecheck, and formatting commands
+- `testing-workflow` — repo-specific harness guidance, mock conventions, and test triage
 - `git-workflow` — commits, PR mechanics, and Linear status lifecycle
 - `bug-rigor` — root-cause-first bug workflow for genuine defects and regressions
 - `context-gather` — assemble issue, dependency, and prior-work context before planning
