@@ -20,10 +20,10 @@ For each requirement:
 
 ## Verification
 
-- Run targeted tests for the changed area first.
-- Run affected-package typechecks before committing.
-- Run `pnpm fmt` before finishing.
-- Use the standard test runner when a package does not define one: `tsx --experimental-test-module-mocks --test path/to/file.test.ts`.
+- Run targeted tests for the changed area first, preferring `moon run repro/<package>:test`.
+- Run affected-package typechecks before committing with `moon run repro/<package>:typecheck`.
+- Run package-scoped formatting before finishing. Use a Moon format target when one exists; otherwise run the package-local formatter from the affected package.
+- Use the standard direct test runner only when a package does not define a usable Moon target: `pnpm --dir "<package-dir>" exec tsx --experimental-test-module-mocks --test path/to/file.test.ts`.
 
 ## When tests are required
 
