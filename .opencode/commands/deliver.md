@@ -75,11 +75,11 @@ Session-local exclusions:
 - Reuse the existing `needs-spec` label for issues escalated out of `/deliver` because they lack enough specification or clarity for autonomous planning.
 - The main checkout is the control plane for `/deliver`, not a mutation target. Never write implementation changes under the main checkout from this command.
 - Plan files are the required durable handoff into implementation: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
-- Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For UI-bearing issues with unresolved visual direction, that same context artifact must already contain the `## Design Direction` and `## Handoff` blocks from `.opencode/skills/design-direction/SKILL.md`. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
+- Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For UI-bearing issues, that same worktree-local context artifact must carry the `## Design Direction` and `## Handoff` blocks from `.opencode/skills/design-direction/SKILL.md` before planner launch. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
 - Missing required artifacts trigger an enforce-and-retry loop: create the missing `tmp/context-*` or `tmp/test-plan-*` file first, then retry the blocked delegation step.
 - Use issue selection notes plus explicit risk notes as the handoff from selection into sequencing.
 - Sequencing is provisional until planning finishes. Resequence once after planner output is available, then lock the ready wave.
-- UI-bearing issues stay parked until their current `tmp/context-<issue-id>.md` includes a `## Design Direction` block. Treat the context artifact as the upstream design-intent source, not optional background.
+- Treat the context artifact as the upstream design-intent source, not optional background.
 - Tactical implementation deviations are allowed if they preserve the plan's intent. Large strategic deviations mean planning failed — stop and escalate the issue instead of freelancing.
 - Use `fixable_by_agent: true | false` for blocking review findings.
 - Do not run a skill-audit preflight, do not maintain a run log, and do not run a visual regression phase here.
@@ -136,7 +136,6 @@ If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead
    - the issue already has an active worktree (`reproctl wt list`)
    - the issue ID appears in an open PR branch name
    - the issue does not provide enough concrete information for a bounded implementation plan without human clarification
-   - the issue is UI-bearing and `tmp/context-<issue-id>.md` does not yet contain the `## Design Direction` and `## Handoff` blocks from `.opencode/skills/design-direction/SKILL.md`
 6. If the stop condition is that the target has child issues, report clearly that `/deliver REP-xxx` is single-track mode and does not expand tracking issues into a wave. Suggest these next steps:
    - rerun `/deliver` with no issue ID for autonomous wave selection
    - rerun `/deliver REP-child` with a concrete child issue ID
@@ -203,7 +202,6 @@ Run this phase only when `mode = wave`.
    - Issue ID appears in an open PR branch name
    - Issue ID is already in this session's `escalated_issues` set
    - Issue already has the `needs-spec` label; record the rationale as "exclude — needs-spec label (previously escalated for clarification)"
-   - Issue is UI-bearing and its current `tmp/context-<issue-id>.md` lacks the `## Design Direction` and `## Handoff` blocks; record the rationale as "exclude — needs design-direction context"
    - The issue does not give the planner enough concrete information to produce a bounded implementation plan without asking for human clarification
 
    **Scope pre-filter (inline heuristic — no agent spawn):**
@@ -331,6 +329,8 @@ Do not stop the whole run unless every issue in the active ready wave fails here
 ## Phase 4: Plan in bounded batches
 
 Launch `planner` subagents for every issue that has a worktree in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
+
+Before launching planners in this phase, if an issue is UI-bearing and its worktree-local `tmp/context-<issue-id>.md` does not yet contain the `## Design Direction` and `## Handoff` blocks from `.opencode/skills/design-direction/SKILL.md`, pause that issue, resolve design-direction first, and retry this phase after the context artifact is populated.
 
 For this phase:
 
