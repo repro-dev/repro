@@ -35,6 +35,18 @@ const localStorageMock = (() => {
   }
 })()
 
+const originalInnerWidth = window.innerWidth
+
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: width,
+    writable: true,
+  })
+}
+
+setViewportWidth(originalInnerWidth)
+
 Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,
   writable: true,
@@ -105,6 +117,7 @@ describe('HomeRoute interactions', () => {
     cleanup()
     localStorageMock.clear()
     resetSessionListControlsForTests()
+    setViewportWidth(originalInnerWidth)
   })
 
   it('sorts by newest first by default and supports keyboard changes', async () => {
@@ -193,6 +206,7 @@ describe('HomeRoute interactions', () => {
     await new Promise(resolve => setTimeout(resolve, 350))
 
     assert.ok(getTileTitles()[0]?.includes('Beta Recording'))
+    assert.equal(screen.getByText('2 hidden').textContent, '2 hidden')
     assert.equal(
       getTileTitles().some(text => text.includes('Alpha Recording')),
       false
@@ -247,12 +261,9 @@ describe('HomeRoute interactions', () => {
       screen.getByRole('button', { name: 'Replay' }).click()
     })
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Search sessions' }), {
-      target: { value: 'gamma' },
-    })
-
     await waitFor(() => {
       assert.ok(screen.getByText('Gamma Recording'))
+      assert.ok(screen.getByText('2 hidden'))
     })
 
     cleanup()
@@ -262,18 +273,10 @@ describe('HomeRoute interactions', () => {
     })
 
     await waitFor(() => {
-      assert.equal(
-        screen
-          .getByRole('textbox', { name: 'Search sessions' })
-          .getAttribute('value'),
-        'gamma'
-      )
-      assert.equal(
-        screen
-          .getByRole('button', { name: 'Replay' })
-          .getAttribute('aria-pressed'),
-        'true'
-      )
+      assert.ok(screen.getByText('Gamma Recording'))
+      assert.equal(screen.queryByText('Alpha Recording'), null)
+      assert.equal(screen.queryByText('Beta Recording'), null)
+      assert.equal(screen.getByText('2 hidden').textContent, '2 hidden')
     })
   })
 
@@ -316,6 +319,27 @@ describe('HomeRoute interactions', () => {
         'true'
       )
       assert.equal(getTileTitles()[0]?.includes('Gamma Recording'), true)
+    })
+  })
+
+  it('keeps the control bar usable on narrow viewports', async () => {
+    setViewportWidth(375)
+
+    const getProjectRecordings = (
+      _apiClient: ApiClient,
+      _projectId: string
+    ): FutureInstance<unknown, RecordingInfo[]> => resolve(mockRecordings)
+    const wrapper = makeWrapper()
+
+    render(<HomeRoute getProjectRecordings={getProjectRecordings} />, {
+      wrapper,
+    })
+
+    await waitFor(() => {
+      assert.ok(screen.getByText('Sessions (3)'))
+      assert.ok(screen.getByRole('textbox', { name: 'Search sessions' }))
+      assert.ok(screen.getByRole('radio', { name: 'Newest first' }))
+      assert.ok(screen.getByRole('button', { name: 'Replay' }))
     })
   })
 })
