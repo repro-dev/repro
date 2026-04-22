@@ -141,7 +141,7 @@ If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead
    - rerun `/deliver REP-child` with a concrete child issue ID
 7. If any other stop condition is hit, report the reason clearly, add the issue ID to `escalated_issues`, and stop the run. Do not continue into planning.
    - If the stop condition is missing specification or clarity, add the `needs-spec` label and include that reason in the comment so the issue is visibly marked for follow-up.
-   - If the stop condition is missing UI direction, say that the issue needs `design-direction` first and that the existing context artifact must carry the upstream design-intent block before planner launch.
+   - If the stop condition is missing specification or UI direction, say that the issue needs `design-direction` first and that the existing context artifact must carry the upstream design-intent block before planner launch.
 8. Create a singleton `current_ready_wave` containing only `target_issue_id` and continue directly to Phase 3.
 
 In single-track mode, skip Phase 1 and Phase 2 entirely.
