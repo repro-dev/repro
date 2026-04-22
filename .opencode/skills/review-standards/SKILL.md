@@ -72,6 +72,6 @@ Classify every finding using one of these four levels:
 
 If the PR touches UI code, verify the interactive states, motion, accessibility, copy, and token usage at a review level.
 
-For a deeper scored audit across tokens, components, layout, interaction states, accessibility, copy, type safety, and resilience, load the `audit-ui-quality` skill.
+For a deeper scored audit across tokens, components, layout, interaction states, accessibility, copy, type safety, resilience, and authored-vs-generic UI judgment, load the `audit-ui-quality` skill.
 
 If the PR touches only non-UI code (migrations, API routes, utilities, or skill files), skip this gate.
