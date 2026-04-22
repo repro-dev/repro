@@ -5,7 +5,7 @@ description: UI implementation with @repro/design — component selection, desig
 
 # Design System
 
-Comprehensive reference for building UI in the Repro codebase. Load this skill before implementing any UI work.
+Comprehensive reference for building UI in the Repro codebase. Load this skill before implementing any UI work; if the visual direction is still unresolved, load `design-direction` first and return here once intent is captured.
 
 For detailed sub-topics, read the reference files in this directory:
 
@@ -92,15 +92,15 @@ import {
 } from "@repro/design";
 ```
 
-| Category      | Key tokens                                                                                                                      | Use for                                                                                |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `color`       | `color.primary`, `color.text.*`, `color.bg.*`, `color.border.*`, `color.danger`, `color.success`, `color.warning`, `color.info` | All colors — match token category to CSS property (`color.bg.*` for `backgroundColor`) |
-| `spacing`     | `spacing.none` (0) through `spacing['4xl']` (48)                                                                                | All spacing (padding, margin, gap)                                                     |
+| Category      | Key tokens                                                                                                                      | Use for                                                                                          |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `color`       | `color.primary`, `color.text.*`, `color.bg.*`, `color.border.*`, `color.danger`, `color.success`, `color.warning`, `color.info` | All colors — match token category to CSS property (`color.bg.*` for `backgroundColor`)           |
+| `spacing`     | `spacing.none` (0) through `spacing['4xl']` (48)                                                                                | All spacing (padding, margin, gap)                                                               |
 | `textStyles`  | `textStyles.body`, `.heading1`–`.heading3`, `.caption`, `.label`, `.code`                                                       | Primary typography API — use first for semantic content text and spread onto jsxstyle components |
-| `shadow`      | `shadow.sm`, `.md`, `.lg`                                                                                                       | Box shadows                                                                            |
-| `radius`      | `radius.sm` (4), `.md` (8), `.lg` (16), `.full` (9999)                                                                          | Border radius                                                                          |
-| `transition`  | `transition.default`, `.fast`, `.transform`, `.opacity`                                                                         | Transitions                                                                            |
-| `focusRing()` | `focusRing()`, `focusRing('danger')`, `focusWithinRing()`                                                                       | Focus-visible outlines on interactive elements                                         |
+| `shadow`      | `shadow.sm`, `.md`, `.lg`                                                                                                       | Box shadows                                                                                      |
+| `radius`      | `radius.sm` (4), `.md` (8), `.lg` (16), `.full` (9999)                                                                          | Border radius                                                                                    |
+| `transition`  | `transition.default`, `.fast`, `.transform`, `.opacity`                                                                         | Transitions                                                                                      |
+| `focusRing()` | `focusRing()`, `focusRing('danger')`, `focusWithinRing()`                                                                       | Focus-visible outlines on interactive elements                                                   |
 
 **Token category discipline**: Always use tokens from the category matching the CSS property — `color.bg.*` for `backgroundColor`, `color.border.*` for `borderColor`, `color.text.*` for `color`. Even when two tokens resolve to the same raw value, using the wrong category is a semantic misuse.
 
@@ -225,7 +225,7 @@ For full token tables with every value, read `tokens.md`.
 
 Use this workflow when tasked with bringing existing UI into alignment with design system conventions. Consult the sub-reference files in this directory (`tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
 
-After you finish a non-trivial UI change, switch to `ui-verification` for the `reproctl start --wait` + `agent-browser` browser loop. Reserve `audit-ui-quality` for broader audits, scoring, and polish passes.
+After you finish a non-trivial UI change, switch to `audit-ui-quality` for broader audits, scoring, and polish passes, then `ui-verification` for the `reproctl start --wait` + `agent-browser` browser loop.
 
 ### Plan
 
@@ -431,15 +431,19 @@ Every list or grid surface must have an empty state. Use the five-part formula:
 ### Five-Part Formula
 
 1. **Icon** — communicates context at a glance.
+
    - Implementation: 48×48 icon from `lucide-react`; wrap in `<Block color={color.text.subtle}>`.
 
 2. **Heading** — names the empty state clearly (not "Nothing here").
+
    - Implementation: use `textStyles.heading3` spread; sentence case; max 5 words.
 
 3. **Body** — one sentence explaining why it's empty and what the user can do.
+
    - Implementation: `<Block component="p" {...textStyles.body} color={color.text.secondary}>`.
 
 4. **CTA** — primary action the user should take.
+
    - Implementation: `<Button variant="contained">` with a specific verb ("Start recording", "Invite a teammate").
 
 5. **Illustration** — optional; only if the surface warrants it (first-run, marketing-adjacent).
