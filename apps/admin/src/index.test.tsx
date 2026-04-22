@@ -5,7 +5,9 @@ import * as ReactRouter from 'react-router'
 import { Route, Routes } from 'react-router-dom'
 
 globalThis.document = {
-  querySelector: () => null,
+  // Return the app root so the bootstrap path runs during module load.
+  querySelector: (selector: string) =>
+    selector === '#root' ? ({} as Element) : null,
 } as unknown as Document
 
 globalThis.window = {
@@ -17,11 +19,24 @@ let currentSession: { type: 'staff'; isAdmin: boolean } | null = {
   isAdmin: false,
 }
 
+let authProviderProps: {
+  basePath?: string
+  loginPath?: string
+} | null = null
+
 mock.module('@repro/auth', {
   namedExports: {
-    AuthProvider: ({ children }: { children: React.ReactNode }) => (
-      <>{children}</>
-    ),
+    AuthProvider: ({
+      children,
+      ...props
+    }: React.PropsWithChildren<{
+      basePath?: string
+      loginPath?: string
+    }>) => {
+      authProviderProps = props
+
+      return <>{children}</>
+    },
     IfSession: ({ children }: { children: React.ReactNode }) =>
       currentSession ? <>{children}</> : null,
     UnlessSession: ({ children }: { children: React.ReactNode }) =>
@@ -110,7 +125,26 @@ mock.module('@repro/theme', {
 
 mock.module('react-dom/client', {
   namedExports: {
-    createRoot: () => ({ render: () => {} }),
+    createRoot: () => ({
+      render: (element: React.ReactElement) => {
+        const authProviderElement = findElementByName(element, 'AuthProvider')
+
+        authProviderProps = authProviderElement
+          ? {
+              basePath: (
+                authProviderElement.props as {
+                  basePath?: string
+                }
+              ).basePath,
+              loginPath: (
+                authProviderElement.props as {
+                  loginPath?: string
+                }
+              ).loginPath,
+            }
+          : null
+      },
+    }),
   },
 })
 
@@ -157,6 +191,7 @@ afterEach(() => {
     type: 'staff',
     isAdmin: false,
   }
+  authProviderProps = null
 })
 
 interface RouteNode {
@@ -223,7 +258,36 @@ function findRoutePath(
   return null
 }
 
+function findElementByName(
+  node: React.ReactNode,
+  name: string
+): React.ReactElement<Record<string, unknown>> | null {
+  for (const child of toArray(node)) {
+    if (getComponentName(child) === name) {
+      return child
+    }
+
+    const match = findElementByName(
+      (child.props as { children?: React.ReactNode }).children,
+      name
+    )
+
+    if (match) {
+      return match
+    }
+  }
+
+  return null
+}
+
 describe('AppRoutes', () => {
+  it('mounts AuthProvider with the admin base path and browser login path', () => {
+    assert.deepEqual(authProviderProps, {
+      basePath: '/staff',
+      loginPath: '/login',
+    })
+  })
+
   it('keeps the health route behind the staff auth boundary', () => {
     const routesElement = AppRoutes({})
     assert.ok(React.isValidElement(routesElement))

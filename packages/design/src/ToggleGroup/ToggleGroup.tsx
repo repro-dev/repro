@@ -28,11 +28,13 @@ interface Props<T extends ToggleGroupValue> {
  * choices. Supports keyboard navigation (arrow keys, Home, End) with
  * roving tabindex. For a simple on/off toggle, use `Toggle` instead.
  */
-export const ToggleGroup = <T extends ToggleGroupValue>({
+export function ToggleGroup(props: Props<number>): JSX.Element
+export function ToggleGroup(props: Props<string>): JSX.Element
+export function ToggleGroup({
   options,
   selected,
   onChange,
-}: Props<T>) => {
+}: Props<ToggleGroupValue>) {
   const groupRef = useRef<HTMLDivElement>(null)
 
   const handleKeyDown = useCallback(

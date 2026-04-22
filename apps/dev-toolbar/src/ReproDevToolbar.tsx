@@ -17,6 +17,7 @@ import { Controller } from './Controller'
 import { TOOLBAR_ROOT_ID } from './constants'
 import { StateProvider } from './context'
 import { createState } from './createState'
+import { createRecordingTypes } from './recordingTypes'
 
 const NODE_NAME = 'repro-dev-toolbar'
 
@@ -82,14 +83,7 @@ class ReproDevToolbar extends HTMLElement {
     }
 
     const stream = createRecordingStream(document, {
-      types: new Set([
-        'dom',
-        'interaction',
-        'network',
-        'console',
-        'performance',
-        'state',
-      ]),
+      types: createRecordingTypes(),
       ignoredNodes,
       ignoredSelectors,
     })

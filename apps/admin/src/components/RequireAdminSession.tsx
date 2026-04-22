@@ -1,4 +1,9 @@
-import { IfSession, useSession, useSessionLoading } from '@repro/auth'
+import {
+  IfSession,
+  useLoginPath,
+  useSession,
+  useSessionLoading,
+} from '@repro/auth'
 import React, { useEffect } from 'react'
 import { Outlet, useNavigate } from 'react-router'
 
@@ -9,14 +14,15 @@ import { Outlet, useNavigate } from 'react-router'
  */
 export const RequireAdminSession: React.FC = () => {
   const navigate = useNavigate()
+  const loginPath = useLoginPath()
   const session = useSession()
   const loading = useSessionLoading()
 
   useEffect(() => {
     if (!loading && !session) {
-      navigate('/login')
+      navigate(loginPath)
     }
-  }, [navigate, session, loading])
+  }, [loginPath, navigate, session, loading])
 
   return (
     <IfSession>

@@ -15,6 +15,10 @@ import React from 'react'
 import { Root, createRoot } from 'react-dom/client'
 import { Controller } from './components/Controller'
 import { REPRO_ROOT_ID } from './constants'
+import {
+  createRecordingTypes,
+  type RuntimeInstalledType,
+} from './recordingTypes'
 import { clearRuntimeBuffer } from './runtimeBuffer'
 import { StateProvider, createState } from './state'
 
@@ -24,8 +28,6 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 const NODE_NAME = 'repro-capture'
-
-type RuntimeInstalledType = 'console' | 'network' | 'performance'
 
 declare global {
   interface Window {
@@ -66,21 +68,6 @@ function waitForBody() {
       observer.disconnect()
     }
   })
-}
-
-function createRecordingTypes() {
-  const runtimeInstalledTypes =
-    window.__REPRO_RUNTIME_INSTALLED_TYPES__ ?? new Set<RuntimeInstalledType>()
-
-  const recordingTypes: Array<
-    'dom' | 'interaction' | 'network' | 'console' | 'performance' | 'state'
-  > = ['dom', 'interaction', 'network', 'console', 'performance', 'state']
-
-  return new Set(
-    recordingTypes.filter(
-      type => !runtimeInstalledTypes.has(type as RuntimeInstalledType)
-    )
-  )
 }
 
 function drainRuntimeBuffer(stream: {
@@ -174,7 +161,11 @@ class ReproCapture extends HTMLElement {
     }
 
     const stream = createRecordingStream(document, {
-      types: createRecordingTypes(),
+      types: createRecordingTypes({
+        runtimeInstalledTypes:
+          window.__REPRO_RUNTIME_INSTALLED_TYPES__ ??
+          new Set<RuntimeInstalledType>(),
+      }),
       ignoredNodes,
       ignoredSelectors,
     })
