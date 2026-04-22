@@ -235,7 +235,7 @@ The typical flow for a feature or fix:
 
 ### Artifact lifecycle
 
-- `tmp/context-<issue-id>.md`: required before planner delegation once work spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs. Use `tmp/context-<topic>.md` for non-Linear work.
+- `tmp/context-<issue-id>.md`: required before planner delegation once work spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs. For unresolved UI direction, this same artifact should carry the `## Design Direction` block from the `design-direction` workflow. Use `tmp/context-<topic>.md` for non-Linear work.
 - `tmp/test-plan-<issue-id>.md`: required before `develop` for new behavior, bug fixes, and public contract changes. Use `tmp/test-plan-<topic>.md` for non-Linear work.
 - Review and handoff workflows should explicitly note which `tmp/` artifacts were consumed and which still need updating.
 
