@@ -1,11 +1,11 @@
 ---
 name: audit-ui-quality
-description: Systematic UI quality audit workflow — Scope, Scan, Score, Report, Suggest. Load for audits, design-system compliance checks, scoring, and polish passes, not routine post-change verification.
+description: Systematic UI quality audit workflow — Scope, Scan, Score, Report, Suggest. Load for audits, design-system compliance checks, authored-vs-generic UI review, scoring, and polish passes, not routine post-change verification.
 ---
 
 # Audit
 
-A repeatable, exhaustive workflow for UI quality review. Consolidates checks from `design-system`, `git-workflow`, and `harden` into a single entry point.
+A repeatable, exhaustive workflow for UI quality review. Consolidates checks from `design-system`, `git-workflow`, and `harden` into a single entry point, and adds judgment for whether the UI feels intentionally authored versus generic.
 
 ## When to load this skill
 
@@ -17,8 +17,9 @@ Load when the task involves any of:
 - "Find token violations"
 - "Score the UI"
 - "Polish pass on [feature]"
+- "Does this UI feel generic or authored?"
 
-Do **not** use this as the routine verification entrypoint for a recently changed surface. If you need to confirm that a specific UI change behaves correctly, load `ui-verification` and follow the `reproctl start --wait` + `agent-browser` workflow instead.
+Do **not** use this as the routine verification entrypoint for a recently changed surface. If you need to confirm that a specific UI change behaves correctly, load `ui-verification` and follow the `reproctl start --wait` + `agent-browser` workflow instead. Keep audit judgment separate from browser validation.
 
 ---
 
@@ -37,9 +38,23 @@ Before scanning anything:
 
 ### Phase 2 — Scan
 
-Work through all eight dimensions for each scoped file. Log every finding with file path, line number, dimension, and a one-line description.
+Work through all eight compliance dimensions for each scoped file, then make one authored-quality pass. Log every finding with file path, line number, lens, and a one-line description.
 
 **Do not fix during this phase — report only.**
+
+#### Authored-quality pass
+
+After the compliance scan, ask whether the UI feels intentionally authored or like a default/generic composition. Use these as judgment prompts, not blanket bans:
+
+- Is the aesthetic direction clear, specific, and coherent?
+- Does the composition establish a strong focal point and visual dominance where needed?
+- Does the eye flow feel deliberate, or is it flat and evenly distributed by default?
+- Is the hierarchy strong enough to support the task, or does everything read at the same weight?
+- Does spacing support rhythm and hierarchy, or does it feel mechanically even?
+- Does the surface show AI-convergent or generic tells (stock layout, default-looking grouping, rote spacing, placeholder-feeling composition)?
+- Does the screen feel authored, or merely assembled from compliant parts?
+
+If a surface feels generic, explain why and what visual change would make it feel more authored.
 
 #### Scan Dimensions
 
@@ -61,13 +76,13 @@ Work through all eight dimensions for each scoped file. Log every finding with f
 
 ### Phase 3 — Score
 
-Rate each scoped file on a **1–5 scale** per dimension (5 = fully compliant, 1 = critical violations).
+Rate each scoped file on a **1–5 scale** per compliance dimension (5 = fully compliant, 1 = critical violations).
 
 Produce a summary table:
 
-| File | Tokens | Components | Layout | States | A11y | Copy | Types | Resilience | Total |
-| ---- | ------ | ---------- | ------ | ------ | ---- | ---- | ----- | ---------- | ----- |
-| ...  | 1–5    | 1–5        | 1–5    | 1–5    | 1–5  | 1–5  | 1–5   | 1–5        | /40   |
+| File | Tokens | Components | Layout | States | A11y | Copy | Types | Resilience | Total | Authored quality note |
+| ---- | ------ | ---------- | ------ | ------ | ---- | ---- | ----- | ---------- | ----- | --------------------- |
+| ...  | 1–5    | 1–5        | 1–5    | 1–5    | 1–5  | 1–5  | 1–5   | 1–5        | /40   | short verdict / note  |
 
 Maximum total: **40** (8 dimensions × 5).
 
@@ -83,10 +98,15 @@ For each finding, include:
 
 - **File path + line number**
 - **Dimension** (from the eight above)
+- **Lens**: either **Compliance/Correctness** or **Visual Direction / Authored Quality**
 - **Description** (one sentence: what is wrong)
 - **Fix hint** (one sentence: what to do)
 
 When the issue is spacing or typography, call out the design-system rule it violates: spacing should preserve rhythm, and semantic text should usually use `textStyles.*` rather than hand-tuned raw typography tokens.
+
+Hierarchy and composition problems can still be **Major** even when the tokens, components, and layout primitives are technically compliant.
+
+Treat AI-convergent or generic-looking patterns as critique signals, not blanket violations. Always explain why the surface feels generic and what specific visual change would improve authorship.
 
 **Do not fix during the audit phase.** Mixing audit and fix produces an incomplete report.
 
@@ -99,6 +119,8 @@ Recommend the next action based on the aggregate score across all scoped files:
 | **≥ 35 / 40**  | Ship as-is. Note Minor issues in a follow-up issue for the next polish pass.                  |
 | **25–34 / 40** | Fix all Critical and Major findings before shipping. Minor findings can go to next iteration. |
 | **< 25 / 40**  | Load the `design-system` skill and run the full Normalisation Workflow before shipping.       |
+
+If compliance is strong but authored-quality concerns remain, call those out separately instead of burying them inside the numeric total.
 
 ---
 
@@ -125,3 +147,4 @@ moon run repro/<package>:test
 | Report findings before fixing                               | Fix-as-you-go during audit (loses the report) |
 | Classify surfaces (new / existing / legacy) before scanning | Apply the same bar to all surfaces            |
 | Cross-reference `harden` skill for resilience               | Duplicate resilience checks in this skill     |
+| Treat generic-looking patterns as critique prompts          | Turn them into blanket bans or hard rules     |
