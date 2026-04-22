@@ -4,27 +4,28 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 
 **Task entry points:**
 
-| Task type                | Start here                         |
-| ------------------------ | ---------------------------------- |
-| Feature / fix            | Load `delivery-workflow` skill     |
-| Bug fix / root-cause work | Load `bug-rigor` with `delivery-workflow` |
-| Worktree / parallel work | Load `worktree-workflow` skill     |
-| Implementation / testing | Load `implementation-rigor` skill  |
-| Repo-specific testing    | Load `testing-workflow` skill      |
-| Commit / PR              | Load `git-workflow` skill          |
-| Code review              | Load `review-standards` skill      |
-| Build / test / typecheck | Load `build-and-test` skill        |
-| Context assembly         | Load `context-gather` skill        |
-| Test planning            | Load `test-plan` skill             |
-| Goal shaping / issue planning | Load `issue-shaping-workflow` skill |
-| UI / components          | Load `design-system` skill         |
-| UI verification          | Load `ui-verification` skill       |
-| UI audits / polish       | Load `audit-ui-quality` skill      |
-| Database / migrations    | Load `database` skill              |
-| File a Linear issue      | Load `create-issue` skill          |
-| Debug investigation      | Load `debug-workflow` skill        |
-| Command authoring        | Load `command-thin-shim` skill     |
-| Skill compliance review  | Load `skill-compliance` skill      |
+| Task type                     | Start here                                |
+| ----------------------------- | ----------------------------------------- |
+| Feature / fix                 | Load `delivery-workflow` skill            |
+| Bug fix / root-cause work     | Load `bug-rigor` with `delivery-workflow` |
+| Worktree / parallel work      | Load `worktree-workflow` skill            |
+| Implementation / testing      | Load `implementation-rigor` skill         |
+| Repo-specific testing         | Load `testing-workflow` skill             |
+| Commit / PR                   | Load `git-workflow` skill                 |
+| Code review                   | Load `review-standards` skill             |
+| Build / test / typecheck      | Load `build-and-test` skill               |
+| Context assembly              | Load `context-gather` skill               |
+| UI intent shaping             | Load `design-direction` skill             |
+| Test planning                 | Load `test-plan` skill                    |
+| Goal shaping / issue planning | Load `issue-shaping-workflow` skill       |
+| UI / components               | Load `design-system` skill                |
+| UI verification               | Load `ui-verification` skill              |
+| UI audits / polish            | Load `audit-ui-quality` skill             |
+| Database / migrations         | Load `database` skill                     |
+| File a Linear issue           | Load `create-issue` skill                 |
+| Debug investigation           | Load `debug-workflow` skill               |
+| Command authoring             | Load `command-thin-shim` skill            |
+| Skill compliance review       | Load `skill-compliance` skill             |
 
 ## Code Style & Conventions
 
@@ -234,7 +235,7 @@ The typical flow for a feature or fix:
 
 ### Artifact lifecycle
 
-- `tmp/context-<issue-id>.md`: required before planner delegation once work spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs. Use `tmp/context-<topic>.md` for non-Linear work.
+- `tmp/context-<issue-id>.md`: required before planner delegation once work spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs. For unresolved UI direction, this same artifact should carry the `## Design Direction` block from the `design-direction` workflow. Use `tmp/context-<topic>.md` for non-Linear work.
 - `tmp/test-plan-<issue-id>.md`: required before `develop` for new behavior, bug fixes, and public contract changes. Use `tmp/test-plan-<topic>.md` for non-Linear work.
 - Review and handoff workflows should explicitly note which `tmp/` artifacts were consumed and which still need updating.
 
