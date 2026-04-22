@@ -21,6 +21,8 @@ Load when the task involves any of:
 
 Do **not** use this as the routine verification entrypoint for a recently changed surface. If you need to confirm that a specific UI change behaves correctly, load `ui-verification` and follow the `reproctl start --wait` + `agent-browser` workflow instead. Keep audit judgment separate from browser validation.
 
+This skill assumes UI direction is already set and there is implementation to review. If the direction is still ambiguous, load `design-direction` first.
+
 ---
 
 ## Workflow: Five Phases

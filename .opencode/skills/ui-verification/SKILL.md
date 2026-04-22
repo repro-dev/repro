@@ -5,7 +5,7 @@ description: Practical post-change UI verification workflow — use after non-tr
 
 # UI Verification
 
-Use this skill after you have changed a UI surface and need to confirm it behaves correctly and still reads well in the browser.
+Use this skill after you have changed a UI surface and need to confirm it behaves correctly and still reads well in the browser. It is for validating implemented UI, not for shaping direction or running a broad audit.
 
 If the changed surface is a browser extension, stop here and follow the `extension-verification` workflow in `.opencode/skills/extension-verification/SKILL.md` instead.
 
@@ -111,6 +111,8 @@ If verification reveals brittle async behavior, teardown problems, race conditio
 
 ## ui-verification vs. extension-verification vs. audit-ui-quality
 
+- `design-direction` = upstream intent capture for ambiguous or net-new UI
+- `design-system` = implementation of the captured direction
+- `audit-ui-quality` = broader audit, polish, scoring, and reporting pass across scoped UI surfaces
 - `ui-verification` = routine post-change validation of a specific changed surface using `reproctl start --wait --full-stack` + `agent-browser`, including authenticated runs when needed, plus a lightweight browser check that intended hierarchy and visual cues still survive
 - `extension-verification` = browser-extension verification workflow with `agent-browser`, isolated profiles, and `tmp/extension-verification/...` artifacts
-- `audit-ui-quality` = broader audit, polish, scoring, and reporting pass across scoped UI surfaces
