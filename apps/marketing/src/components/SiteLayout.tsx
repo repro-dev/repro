@@ -1,16 +1,17 @@
 'use client'
 
-// jsxstyle requires a client boundary because it injects styles via React context.
-
 import { Block, Col } from '@jsxstyle/react'
 import { color, spacing, textStyles } from '@repro/design'
+import type { ReactNode } from 'react'
 import React from 'react'
 import { Footer } from './Footer'
 import { Header } from './Header'
 import { shellMaxWidth } from './marketingShell'
 
+void React
+
 interface SiteLayoutProps {
-  children: React.ReactNode
+  children: ReactNode
 }
 
 export function SiteLayout({ children }: SiteLayoutProps) {

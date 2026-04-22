@@ -13,6 +13,10 @@ import {
 } from '@repro/design'
 import { homepageDemoChips } from './marketingShell'
 
+import React from 'react'
+
+void React
+
 type HeroSectionProps = {
   appUrl: string
 }

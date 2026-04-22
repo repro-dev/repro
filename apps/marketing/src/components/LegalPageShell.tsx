@@ -1,10 +1,10 @@
 'use client'
 
-// jsxstyle requires a client boundary because it injects styles via React context.
-
 import { Block, Col } from '@jsxstyle/react'
 import { color, spacing, textStyles } from '@repro/design'
 import React from 'react'
+
+void React
 
 interface LegalPageShellProps {
   title: string

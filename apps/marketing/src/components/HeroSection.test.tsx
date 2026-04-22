@@ -35,7 +35,14 @@ describe('HeroSection', () => {
 })
 
 describe('HomePage', () => {
-  it('hydrates without changing the CTA href', async t => {
+  it('hydrates the home page route without changing the CTA href', async t => {
+    t.mock.module('next/navigation', {
+      namedExports: {
+        useServerInsertedHTML() {},
+      },
+    })
+
+    const { JsxstyleRegistry } = await import('../app/JsxstyleRegistry')
     const createEnv = t.mock.fn(() => ({
       REPRO_APP_URL: 'https://app.example.test',
     }))
@@ -50,8 +57,7 @@ describe('HomePage', () => {
     })
 
     const { default: HomePage } = await import('../app/page')
-    const { SiteLayout } = await import('./SiteLayout')
-    const element = React.createElement(SiteLayout, null, HomePage())
+    const element = <JsxstyleRegistry>{HomePage()}</JsxstyleRegistry>
     const markup = renderToString(element)
     const consoleError = t.mock.method(console, 'error', () => {})
 
