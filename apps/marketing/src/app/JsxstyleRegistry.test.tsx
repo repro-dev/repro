@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import type { ReactNode } from 'react'
+import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { SiteLayout } from '~/components/SiteLayout'
+
+void React
 
 describe('JsxstyleRegistry', () => {
   it('flushes shell styles and resets cleanly between renders', async t => {
