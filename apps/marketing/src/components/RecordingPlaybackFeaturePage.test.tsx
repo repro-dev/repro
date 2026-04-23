@@ -5,10 +5,13 @@ import assert from 'node:assert/strict'
 
 const require = createRequire(import.meta.url)
 
-require('../../../../../node_modules/.pnpm/node_modules/global-jsdom/commonjs/register.cjs')
+if (process.env.NODE_ENV !== 'production') {
+  require('../../../../node_modules/.pnpm/node_modules/global-jsdom/commonjs/register.cjs')
+}
 
 const React = require('react')
 const { cleanup, render, screen } = require('@testing-library/react')
+const { renderToString } = require('react-dom/server')
 
 globalThis.React = React
 
@@ -24,22 +27,22 @@ function setViewportWidth(width: number) {
   window.dispatchEvent(new Event('resize'))
 }
 
-function getSectionLayout(heading: string) {
+function getResponsiveGrid(heading: string) {
   const section = screen
     .getByRole('heading', { name: heading })
     .closest('section')
 
   assert.ok(section)
 
-  const grid = section.querySelector('[data-layout]')
+  const grid = section.querySelector('.recording-playback__responsive-grid')
 
   assert.ok(grid)
 
-  return grid.getAttribute('data-layout')
+  return grid
 }
 
 describe('recording playback feature route', () => {
-  it('exports route metadata', async t => {
+  it('renders the server markup without viewport-dependent branching', async t => {
     t.mock.module('~/config/env', {
       namedExports: {
         createEnv: t.mock.fn(() => ({
@@ -52,16 +55,29 @@ describe('recording playback feature route', () => {
       },
     })
 
-    const { metadata } = await import('./page')
+    const { JsxstyleRegistry } = await import('../app/JsxstyleRegistry')
+    const { default: RecordingPlaybackPage, metadata } = await import(
+      '../app/features/recording-playback/page'
+    )
+
+    const markup = renderToString(
+      React.createElement(JsxstyleRegistry, null, RecordingPlaybackPage())
+    )
 
     assert.equal(metadata.title, 'Recording and playback')
     assert.match(
       metadata.description ?? '',
       /DOM mutations, interactions, network activity, console output, and performance metrics/i
     )
+    assert.match(markup, /recording-playback__responsive-grid/)
+    assert.match(markup, /recording-playback__recording-grid/)
+    assert.match(markup, /recording-playback__playback-grid/)
+    assert.match(markup, /recording-playback__devtools-grid/)
+    assert.match(markup, /https:\/\/app\.example\.test/)
+    assert.doesNotMatch(markup, /data-layout=/)
   })
 
-  it('stacks its section grids at 375px while keeping the story intact', async t => {
+  it('keeps the story intact at mobile widths', async t => {
     setViewportWidth(375)
 
     t.mock.module('~/config/env', {
@@ -76,8 +92,10 @@ describe('recording playback feature route', () => {
       },
     })
 
-    const { default: RecordingPlaybackPage } = await import('./page')
-    const { SiteLayout } = await import('../../../components/SiteLayout')
+    const { default: RecordingPlaybackPage } = await import(
+      '../app/features/recording-playback/page'
+    )
+    const { SiteLayout } = await import('./SiteLayout')
 
     render(React.createElement(SiteLayout, null, RecordingPlaybackPage()))
 
@@ -110,9 +128,21 @@ describe('recording playback feature route', () => {
     assert.ok(screen.getByText(/Elements, Network, and Console/i))
     assert.ok(screen.getByText(/upcoming Performance panel/i))
 
-    assert.equal(getSectionLayout('Recording'), 'stacked')
-    assert.equal(getSectionLayout('Playback'), 'stacked')
-    assert.equal(getSectionLayout('DevTools integration'), 'stacked')
+    assert.ok(
+      getResponsiveGrid('Recording').classList.contains(
+        'recording-playback__recording-grid'
+      )
+    )
+    assert.ok(
+      getResponsiveGrid('Playback').classList.contains(
+        'recording-playback__playback-grid'
+      )
+    )
+    assert.ok(
+      getResponsiveGrid('DevTools integration').classList.contains(
+        'recording-playback__devtools-grid'
+      )
+    )
 
     assert.equal(
       screen.getByRole('link', { name: 'Try it free' }).getAttribute('href'),
@@ -126,7 +156,7 @@ describe('recording playback feature route', () => {
     )
   })
 
-  it('reflows its section grids at 768px', async t => {
+  it('reflows the section grids at 768px', async t => {
     setViewportWidth(768)
 
     t.mock.module('~/config/env', {
@@ -141,13 +171,27 @@ describe('recording playback feature route', () => {
       },
     })
 
-    const { default: RecordingPlaybackPage } = await import('./page')
-    const { SiteLayout } = await import('../../../components/SiteLayout')
+    const { default: RecordingPlaybackPage } = await import(
+      '../app/features/recording-playback/page'
+    )
+    const { SiteLayout } = await import('./SiteLayout')
 
     render(React.createElement(SiteLayout, null, RecordingPlaybackPage()))
 
-    assert.equal(getSectionLayout('Recording'), 'split')
-    assert.equal(getSectionLayout('Playback'), 'split')
-    assert.equal(getSectionLayout('DevTools integration'), 'split')
+    assert.ok(
+      getResponsiveGrid('Recording').classList.contains(
+        'recording-playback__recording-grid'
+      )
+    )
+    assert.ok(
+      getResponsiveGrid('Playback').classList.contains(
+        'recording-playback__playback-grid'
+      )
+    )
+    assert.ok(
+      getResponsiveGrid('DevTools integration').classList.contains(
+        'recording-playback__devtools-grid'
+      )
+    )
   })
 })

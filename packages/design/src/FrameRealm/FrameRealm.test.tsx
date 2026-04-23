@@ -46,4 +46,20 @@ describe('FrameRealm', () => {
     const iframe = document.querySelector('iframe')
     expect(iframe?.getAttribute('data-testid')).toBe('test-frame')
   })
+
+  it('can be imported when window is unavailable', async () => {
+    const originalWindow = globalThis.window
+
+    try {
+      delete (globalThis as typeof globalThis & { window?: Window }).window
+
+      const module = await import(
+        new URL('./FrameRealm.tsx?ssr-check=1', import.meta.url).href
+      )
+
+      expect(module.FrameRealm).toBeDefined()
+    } finally {
+      globalThis.window = originalWindow
+    }
+  })
 })

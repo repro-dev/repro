@@ -20,6 +20,16 @@ body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.recording-playback__responsive-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.recording-playback__recording-grid,
+.recording-playback__playback-grid,
+.recording-playback__devtools-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* Skip-to-content link — visually hidden until focused */
 .skip-link {
   position: absolute;
@@ -52,5 +62,19 @@ body {
 
   .marketing-shell__footer-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 768px) {
+  .recording-playback__recording-grid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  }
+
+  .recording-playback__playback-grid {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  }
+
+  .recording-playback__devtools-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
   }
 }

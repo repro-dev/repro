@@ -18,14 +18,13 @@ void React
 
 const CHROME_WEB_STORE_URL =
   'https://chrome.google.com/webstore/detail/repro/ecmbphfjfhnifmhbjhpejbpdnpanpice'
+const RESPONSIVE_GRID_CLASS = 'recording-playback__responsive-grid'
+const RECORDING_GRID_CLASS = `${RESPONSIVE_GRID_CLASS} recording-playback__recording-grid`
+const PLAYBACK_GRID_CLASS = `${RESPONSIVE_GRID_CLASS} recording-playback__playback-grid`
+const DEVTOOLS_GRID_CLASS = `${RESPONSIVE_GRID_CLASS} recording-playback__devtools-grid`
 
 const PANEL_BORDER = `1px solid ${color.border.default}`
 const PANEL_BORDER_STRONG = `1px solid ${color.border.strong}`
-const RESPONSIVE_GRID_BREAKPOINT = 768
-const STACKED_SECTION_GRID = 'minmax(0, 1fr)'
-const SPLIT_RECORDING_GRID = 'minmax(0, 1.05fr) minmax(0, 0.95fr)'
-const SPLIT_PLAYBACK_GRID = 'minmax(0, 0.95fr) minmax(0, 1.05fr)'
-const SPLIT_DEVTOOLS_GRID = 'minmax(0, 1.2fr) minmax(0, 0.8fr)'
 
 type RecordingPlaybackFeaturePageProps = {
   appUrl: string
@@ -151,43 +150,9 @@ function DevToolsPanel({
   )
 }
 
-function useResponsiveSectionGrid() {
-  const [isWideLayout, setIsWideLayout] = React.useState(() =>
-    typeof window !== 'undefined'
-      ? window.innerWidth >= RESPONSIVE_GRID_BREAKPOINT
-      : true
-  )
-
-  React.useEffect(() => {
-    const updateLayout = () => {
-      setIsWideLayout(window.innerWidth >= RESPONSIVE_GRID_BREAKPOINT)
-    }
-
-    updateLayout()
-    window.addEventListener('resize', updateLayout)
-
-    return () => {
-      window.removeEventListener('resize', updateLayout)
-    }
-  }, [])
-
-  return isWideLayout
-}
-
 export function RecordingPlaybackFeaturePage({
   appUrl,
 }: RecordingPlaybackFeaturePageProps) {
-  const isWideLayout = useResponsiveSectionGrid()
-  const sectionGridColumns = isWideLayout
-    ? SPLIT_RECORDING_GRID
-    : STACKED_SECTION_GRID
-  const playbackGridColumns = isWideLayout
-    ? SPLIT_PLAYBACK_GRID
-    : STACKED_SECTION_GRID
-  const devtoolsGridColumns = isWideLayout
-    ? SPLIT_DEVTOOLS_GRID
-    : STACKED_SECTION_GRID
-
   return (
     <Col gap={spacing['4xl']}>
       <Col component="section" gap={spacing.lg} maxWidth="48rem">
@@ -221,11 +186,7 @@ export function RecordingPlaybackFeaturePage({
           }
         />
 
-        <Grid
-          data-layout={isWideLayout ? 'split' : 'stacked'}
-          gap={spacing.lg}
-          gridTemplateColumns={sectionGridColumns}
-        >
+        <Grid className={RECORDING_GRID_CLASS} gap={spacing.lg}>
           <Col gap={spacing.md} maxWidth="42rem">
             <Block
               component="p"
@@ -415,11 +376,7 @@ export function RecordingPlaybackFeaturePage({
           }
         />
 
-        <Grid
-          data-layout={isWideLayout ? 'split' : 'stacked'}
-          gap={spacing.lg}
-          gridTemplateColumns={playbackGridColumns}
-        >
+        <Grid className={PLAYBACK_GRID_CLASS} gap={spacing.lg}>
           <Col
             gap={spacing.md}
             padding={spacing.lg}
@@ -582,11 +539,7 @@ export function RecordingPlaybackFeaturePage({
           }
         />
 
-        <Grid
-          data-layout={isWideLayout ? 'split' : 'stacked'}
-          gap={spacing.lg}
-          gridTemplateColumns={devtoolsGridColumns}
-        >
+        <Grid className={DEVTOOLS_GRID_CLASS} gap={spacing.lg}>
           <Col
             gap={spacing.md}
             padding={spacing.lg}
