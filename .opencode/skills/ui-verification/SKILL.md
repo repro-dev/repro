@@ -7,7 +7,7 @@ description: Practical post-change UI verification workflow — use after non-tr
 
 Use this skill after you have changed a UI surface and need to confirm it behaves correctly and still reads well in the browser. It is for validating implemented UI, not for shaping direction or running a broad audit.
 
-If the changed surface is a browser extension, stop here and follow the `extension-verification` workflow in `.opencode/skills/extension-verification/SKILL.md` instead.
+**Extension escape hatch:** if the changed surface is a browser extension, stop here and follow the `extension-verification` workflow in `.opencode/skills/extension-verification/SKILL.md` instead.
 
 For the current agent-browser command reference and skill content, load the CLI-served core skill with `agent-browser skills get core --full`.
 
@@ -25,11 +25,9 @@ Load `ui-verification` when the task is to validate a recent UI change, especial
 - lightweight visual checks for hierarchy, prominence, and responsive clarity
 - design-system or token changes that need real-browser confirmation
 
-For normal app pages, use `reproctl start --wait --full-stack <service>` to bring up the worktree-local app under test, then verify it with `agent-browser`.
+For normal app pages, bring up the worktree-local app under test with `reproctl start --wait --full-stack <service>`, then verify it with `agent-browser`.
 
-If the surface is a browser extension, use the `extension-verification` workflow instead of this workflow.
-
-Use `reproctl start --wait --full-stack <service>` to bring up the worktree-local app under test. Use `reproctl launch` only for one-off human preview; it opens the system browser and is not the standard `agent-browser` entrypoint.
+Use `reproctl launch` only for one-off human preview; it opens the system browser and is not the standard `agent-browser` entrypoint.
 
 Do **not** use this skill as the default audit/polish workflow. If you need a broad audit, scoring pass, or design-system compliance review, load `audit-ui-quality` instead.
 
@@ -51,7 +49,7 @@ Tiny copy tweaks or isolated token swaps are usually trivial unless they change 
 
 1. Start the worktree-local app under test.
    ```bash
-   reproctl start --wait <service>
+   reproctl start --wait --full-stack <service>
    ```
 2. If the surface is protected, authenticate first with `agent-browser auth login <profile>`.
 3. Open the changed surface in `agent-browser` using the worktree-local URL.
