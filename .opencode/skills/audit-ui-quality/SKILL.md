@@ -33,6 +33,7 @@ Before scanning anything:
 
 1. **Identify the surfaces** to audit: list specific file paths or component names.
 2. **Classify each surface**:
+   - Surface type: `marketing/editorial web`, `product/app UI`, `mobile-first or touch-heavy`, `platform-adaptive or native-like`, or `cross-surface`.
    - **New** — high bar; all eight dimensions must pass before shipping.
    - **Existing** — pragmatic bar; fix Critical and Major, note Minor for next iteration.
    - **Legacy** — document only; do not rewrite unless the issue is a Critical a11y or interaction break.
@@ -92,9 +93,9 @@ Maximum total: **40** (8 dimensions × 5).
 
 Organise findings by severity:
 
-1. **Critical** — breaks interaction or accessibility (e.g. keyboard trap, missing focus management, unhandled crash path).
-2. **Major** — design system violation that ships visible inconsistency (e.g. hardcoded colour, cramped vertical spacing, inconsistent gap progression, collapsed line-height, weak text hierarchy, missing loading state, hand-rolled component).
-3. **Minor** — copy/polish issue that doesn't affect functionality (e.g. passive voice, placeholder copy, missing empty-state CTA).
+1. **Critical** — breaks interaction or accessibility on the reviewed surface (e.g. keyboard trap, missing focus management, unhandled crash path).
+2. **Major** — design system violation on a matching surface that ships visible inconsistency (e.g. hardcoded colour, cramped vertical spacing, inconsistent gap progression, collapsed line-height, weak text hierarchy, missing loading state, hand-rolled component).
+3. **Minor** — copy/polish issue that doesn't affect functionality and may be acceptable off-surface (e.g. passive voice, placeholder copy, missing empty-state CTA).
 
 For each finding, include:
 
@@ -105,6 +106,8 @@ For each finding, include:
 - **Fix hint** (one sentence: what to do)
 
 When the issue is spacing or typography, call out the design-system rule it violates: spacing should preserve rhythm, and semantic text should usually use `textStyles.*` rather than hand-tuned raw typography tokens.
+
+If a rule is declared for a different surface, note it as out of scope instead of blocking unless the reviewed surface matches that scope.
 
 Hierarchy and composition problems can still be **Major** even when the tokens, components, and layout primitives are technically compliant.
 
