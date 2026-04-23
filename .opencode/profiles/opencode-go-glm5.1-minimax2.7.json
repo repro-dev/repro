@@ -3,8 +3,7 @@
   "model": "opencode-go/minimax-m2.7",
   "command": {
     "deliver": {
-      "model": "opencode-go/minimax-m2.7",
-      "template": ""
+      "model": "opencode-go/minimax-m2.7"
     },
     "groom": {
       "model": "opencode-go/minimax-m2.7",
