@@ -72,7 +72,7 @@ Do **not** use this skill for:
    - If the direction is typography- or readability-driven, capture body-size, line-length, line-height, hierarchy contrast, and any named readability anti-patterns so downstream design and audit can reuse the same language.
    - If the direction is about preserved preferences, storage hygiene, stale flags, or retired experiments, capture the intent using the shared vocabulary from `design-system/persistence-hygiene.md` (for example preference-preserving update, bounded storage, stale-flag cleanup, and compatibility migration).
    - If the direction is about forms, text entry, caret behavior, paste handling, or wizard persistence, capture the intent using the shared vocabulary from `design-system/forms-input-interference.md` (for example paste-friendly, caret-safe, semantic autofill, draft-persistent wizard, and hostile formatter).
-   - If the direction depends on feedback timing, hover/touch behavior, responsive reflow, mobile viewport constraints, layering/clipping, modal usage, accessibility-as-UX, or error recovery, use the companion `design-system/interaction-responsive.md`, `design-system/layering-and-overlays.md`, `design-system/accessibility-as-ux.md`, `design-system/error-recovery-containment.md`, and `design-system/mobile-touch-app-surface.md` catalogs alongside `design-system/anti-patterns.md`.
+   - If the direction depends on feedback timing, hover/touch behavior, responsive reflow, navigation/URL state, scroll recovery, session-expiry handling, mobile viewport constraints, layering/clipping, modal usage, accessibility-as-UX, or error recovery, use the companion `design-system/interaction-responsive.md`, `design-system/navigation-url-scroll-state.md`, `design-system/layering-and-overlays.md`, `design-system/accessibility-as-ux.md`, `design-system/error-recovery-containment.md`, and `design-system/mobile-touch-app-surface.md` catalogs alongside `design-system/anti-patterns.md`.
 
 9. **Write the durable context block**
    - Save the result in `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md`.
@@ -117,6 +117,7 @@ Use this shape in the context artifact:
 - `audit-ui-quality`: review authored output for generic drift, polish, consistency, and blocked error recovery, citing the same anti-pattern names where relevant
 - `design-system/persistence-hygiene.md`: carry forward the persistence vocabulary for preserved preferences, bounded storage, and stale-flag cleanup
 - `design-system/forms-input-interference.md`: carry forward the forms/editing vocabulary for paste handling, caret safety, and wizard-state persistence
+- `design-system/navigation-url-scroll-state.md`: carry the redirect-chain, URL-state, scroll-recovery, and session-expiry vocabulary into implementation details
 - `design-system/layering-and-overlays.md`: carry the same stacking, clipping, and portal-escape vocabulary into implementation details
 - `design-system/accessibility-as-ux.md`: carry the same focus-indicator, hover-only, color-only, contrast, and keyboard-trap vocabulary into implementation details
 - `design-system/error-recovery-containment.md`: carry the same blast-radius, retry, and fallback vocabulary into implementation details
