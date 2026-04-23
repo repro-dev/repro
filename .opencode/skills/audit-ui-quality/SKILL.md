@@ -47,7 +47,7 @@ Work through all eight compliance dimensions for each scoped file, then make one
 
 #### Authored-quality pass
 
-After the compliance scan, ask whether the UI feels intentionally authored or like a default/generic composition. Use these as judgment prompts, not blanket bans:
+After the compliance scan, ask whether the UI feels intentionally authored or like a default/generic composition. For typography-heavy surfaces, also lean on `design-system/typography-readability.md` so body-size, line-length, line-height, and hierarchy cues are judged with the same vocabulary. Use these as judgment prompts, not blanket bans:
 
 - Is the aesthetic direction clear, specific, and coherent?
 - Does the composition establish a strong focal point and visual dominance where needed?
@@ -57,7 +57,7 @@ After the compliance scan, ask whether the UI feels intentionally authored or li
 - Does the surface show AI-convergent or generic tells (stock layout, default-looking grouping, rote spacing, placeholder-feeling composition)?
 - Does the screen feel authored, or merely assembled from compliant parts?
 
-If a surface feels generic, explain why and what visual change would make it feel more authored. When possible, name the pattern using the shared guardrail catalogs in `design-system/anti-patterns.md` and `design-system/interaction-responsive.md` so downstream design, implementation, and audit work can reuse the same label. Treat those names as critique signals, not automatic violations.
+If a surface feels generic, explain why and what visual change would make it feel more authored. When possible, name the pattern using the shared guardrail catalogs in `design-system/anti-patterns.md`, `design-system/interaction-responsive.md`, and `design-system/typography-readability.md` so downstream design, implementation, and audit work can reuse the same label. Treat those names as critique signals, not automatic violations.
 
 #### Scan Dimensions
 
@@ -105,13 +105,13 @@ For each finding, include:
 - **Description** (one sentence: what is wrong)
 - **Fix hint** (one sentence: what to do)
 
-When the issue is spacing or typography, call out the design-system rule it violates: spacing should preserve rhythm, and semantic text should usually use `textStyles.*` rather than hand-tuned raw typography tokens. When the issue is feedback, responsiveness, or modality, name the matching interaction anti-pattern from `interaction-responsive.md` when one fits.
+When the issue is spacing or typography, call out the design-system rule it violates: spacing should preserve rhythm, and semantic text should usually use `textStyles.*` rather than hand-tuned raw typography tokens. If the finding is specifically about readability, name the matching anti-pattern from `typography-readability.md` when it fits (flat type hierarchy, tiny body text, all-caps body text, wide letter-spacing on body text, or one font treatment everywhere). When the issue is feedback, responsiveness, or modality, name the matching interaction anti-pattern from `interaction-responsive.md` when one fits.
 
 If a rule is declared for a different surface, note it as out of scope instead of blocking unless the reviewed surface matches that scope.
 
 Hierarchy and composition problems can still be **Major** even when the tokens, components, and layout primitives are technically compliant.
 
-Treat AI-convergent or generic-looking patterns as critique signals, not blanket violations. Always explain why the surface feels generic and what specific visual change would improve authorship.
+Treat AI-convergent or generic-looking patterns as critique signals, not blanket violations. Always explain why the surface feels generic and what specific visual change would improve authorship; if typography is the driver, use the shared readability vocabulary rather than vague labels like “better hierarchy.”
 
 **Do not fix during the audit phase.** Mixing audit and fix produces an incomplete report.
 
