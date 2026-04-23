@@ -57,7 +57,7 @@ After the compliance scan, ask whether the UI feels intentionally authored or li
 - Does the surface show AI-convergent or generic tells (stock layout, default-looking grouping, rote spacing, placeholder-feeling composition)?
 - Does the screen feel authored, or merely assembled from compliant parts?
 
-If a surface feels generic, explain why and what visual change would make it feel more authored. When possible, name the pattern using the shared guardrail catalog in `design-system/anti-patterns.md` so downstream design, implementation, and audit work can reuse the same label. For readability-specific notes, reuse the vocabulary from `design-system/typography-readability.md` rather than inventing new phrasing. Treat those names as critique signals, not automatic violations.
+If a surface feels generic, explain why and what visual change would make it feel more authored. When possible, name the pattern using the shared guardrail catalogs in `design-system/anti-patterns.md`, `design-system/interaction-responsive.md`, and `design-system/typography-readability.md` so downstream design, implementation, and audit work can reuse the same label. Treat those names as critique signals, not automatic violations.
 
 #### Scan Dimensions
 
@@ -67,7 +67,7 @@ If a surface feels generic, explain why and what visual change would make it fee
 
 3. **Layout primitives** — `<div style={{ display: 'flex' }}>` or equivalent raw flex/grid divs instead of jsxstyle `Row` / `Col` / `Grid`. Inline `style={{}}` props are also a violation.
 
-4. **Interaction states** — missing hover / focus / active / disabled / loading / error / empty states. Every interactive element needs at minimum a focus ring (`focusRing()` from `@repro/design`) and a disabled state.
+4. **Interaction states** — missing hover / focus / active / disabled / loading / error / empty states. Every interactive element needs at minimum a focus ring (`focusRing()` from `@repro/design`) and a disabled state. For feedback timing, hover/touch, and modal/reflex cues, cross-reference `design-system/interaction-responsive.md`.
 
 5. **Accessibility** — missing `aria-*` attributes, no keyboard navigation, no focus management in modals/overlays, missing `alt` text, missing semantic HTML (`role`, `aria-live` for dynamic regions).
 
@@ -93,8 +93,8 @@ Maximum total: **40** (8 dimensions × 5).
 
 Organise findings by severity:
 
-1. **Critical** — breaks interaction or accessibility on the reviewed surface (e.g. keyboard trap, missing focus management, unhandled crash path).
-2. **Major** — design system violation on a matching surface that ships visible inconsistency (e.g. hardcoded colour, cramped vertical spacing, inconsistent gap progression, collapsed line-height, weak text hierarchy, missing loading state, hand-rolled component).
+1. **Critical** — breaks interaction or accessibility on the reviewed surface (e.g. keyboard trap, missing focus management, unhandled crash path, double-submit causing duplicate side effects).
+2. **Major** — design system violation on a matching surface that ships visible inconsistency (e.g. hardcoded colour, cramped vertical spacing, inconsistent gap progression, collapsed line-height, weak text hierarchy, missing loading state, hand-rolled component, hover-only control on touch-heavy UI).
 3. **Minor** — copy/polish issue that doesn't affect functionality and may be acceptable off-surface (e.g. passive voice, placeholder copy, missing empty-state CTA).
 
 For each finding, include:
@@ -105,7 +105,7 @@ For each finding, include:
 - **Description** (one sentence: what is wrong)
 - **Fix hint** (one sentence: what to do)
 
-When the issue is spacing or typography, call out the design-system rule it violates: spacing should preserve rhythm, and semantic text should usually use `textStyles.*` rather than hand-tuned raw typography tokens. If the finding is specifically about readability, name the matching anti-pattern from `typography-readability.md` when it fits (flat type hierarchy, tiny body text, all-caps body text, wide letter-spacing on body text, or one font treatment everywhere).
+When the issue is spacing or typography, call out the design-system rule it violates: spacing should preserve rhythm, and semantic text should usually use `textStyles.*` rather than hand-tuned raw typography tokens. If the finding is specifically about readability, name the matching anti-pattern from `typography-readability.md` when it fits (flat type hierarchy, tiny body text, all-caps body text, wide letter-spacing on body text, or one font treatment everywhere). When the issue is feedback, responsiveness, or modality, name the matching interaction anti-pattern from `interaction-responsive.md` when one fits.
 
 If a rule is declared for a different surface, note it as out of scope instead of blocking unless the reviewed surface matches that scope.
 
