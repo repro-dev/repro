@@ -71,7 +71,7 @@ Do **not** use this skill for:
    - Treat nested cards, everything centered, monotonous spacing, and similar composition tells as first-class cues when they are driving the visual direction.
    - If the direction is typography- or readability-driven, capture body-size, line-length, line-height, hierarchy contrast, and any named readability anti-patterns so downstream design and audit can reuse the same language.
    - If the direction is about forms, text entry, caret behavior, paste handling, or wizard persistence, capture the intent using the shared vocabulary from `design-system/forms-input-interference.md` (for example paste-friendly, caret-safe, semantic autofill, draft-persistent wizard, and hostile formatter).
-   - If the direction depends on feedback timing, hover/touch behavior, responsive reflow, mobile viewport constraints, or modal usage, use the companion `design-system/interaction-responsive.md` and `design-system/mobile-touch-app-surface.md` catalogs alongside `design-system/anti-patterns.md`.
+   - If the direction depends on feedback timing, hover/touch behavior, responsive reflow, mobile viewport constraints, modal usage, or error recovery, use the companion `design-system/interaction-responsive.md`, `design-system/error-recovery-containment.md`, and `design-system/mobile-touch-app-surface.md` catalogs alongside `design-system/anti-patterns.md`.
 
 9. **Write the durable context block**
    - Save the result in `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md`.
@@ -104,16 +104,18 @@ Use this shape in the context artifact:
 ### Anti-Generic Heuristics
 
 - List the specific anti-generic cues to avoid, using the shared pattern names from `design-system/anti-patterns.md` and `design-system/palette-surface-spacing.md` when they fit.
-- For interaction, responsive, and mobile/app-surface cues, prefer the named labels in `design-system/interaction-responsive.md` and `design-system/mobile-touch-app-surface.md` so implementation and audit can reuse the same vocabulary.
+- For interaction, responsive, mobile/app-surface, and error-recovery cues, prefer the named labels in `design-system/interaction-responsive.md`, `design-system/mobile-touch-app-surface.md`, and `design-system/error-recovery-containment.md` so implementation and audit can reuse the same vocabulary.
 - Mention which cues are acceptable when deliberate so implementation and audit can make the same judgment later.
 - Call out whether the issue is really hierarchy, surface treatment, or spacing rhythm before proposing more decoration.
 - When typography is part of the direction, include the concrete readability guardrails from `design-system/typography-readability.md` instead of leaving them as a vague “improve hierarchy” note.
+- When the UI can fail, name the blast radius, retry path, and fallback shape explicitly instead of leaving recovery intent implied.
 
 ## Handoff
 
 - `design-system`: translate direction into components, layout, and tokens
-- `audit-ui-quality`: review authored output for generic drift, polish, and consistency, citing the same anti-pattern names where relevant
+- `audit-ui-quality`: review authored output for generic drift, polish, consistency, and blocked error recovery, citing the same anti-pattern names where relevant
 - `design-system/forms-input-interference.md`: carry forward the forms/editing vocabulary for paste handling, caret safety, and wizard-state persistence
+- `design-system/error-recovery-containment.md`: carry the same blast-radius, retry, and fallback vocabulary into implementation details
 - `design-system/pre-delivery-ui-checklist.md`: capture the final shipping pass when the direction needs a compact readiness summary
 - `ui-verification`: validate the finished UI in the browser after implementation
 ```

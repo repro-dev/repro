@@ -47,7 +47,7 @@ Work through all eight compliance dimensions for each scoped file, then make one
 
 #### Authored-quality pass
 
-After the compliance scan, ask whether the UI feels intentionally authored or like a default/generic composition. Use these as judgment prompts, not blanket bans. When the answer turns on surface hierarchy, composition, spacing rhythm, readable type, mobile/app-surface behavior, or forms/editing behavior, cross-check `design-system/palette-surface-spacing.md`, `design-system/typography-readability.md`, `design-system/mobile-touch-app-surface.md`, and `design-system/forms-input-interference.md` so the critique uses the same named failure modes everywhere:
+After the compliance scan, ask whether the UI feels intentionally authored or like a default/generic composition. Use these as judgment prompts, not blanket bans. When the answer turns on surface hierarchy, composition, spacing rhythm, readable type, forms/editing behavior, blocked error recovery, or mobile/app-surface behavior, cross-check `design-system/palette-surface-spacing.md`, `design-system/typography-readability.md`, `design-system/forms-input-interference.md`, `design-system/error-recovery-containment.md`, and `design-system/mobile-touch-app-surface.md` so the critique uses the same named failure modes everywhere:
 
 - Is the aesthetic direction clear, specific, and coherent?
 - Does the composition establish a strong focal point and visual dominance where needed?
@@ -57,7 +57,7 @@ After the compliance scan, ask whether the UI feels intentionally authored or li
 - Does the surface show AI-convergent or generic tells (stock layout, default-looking grouping, rote spacing, placeholder-feeling composition)?
 - Does the screen feel authored, or merely assembled from compliant parts?
 
-If a surface feels generic, explain why and what visual change would make it feel more authored. When possible, name the pattern using the shared guardrail catalogs in `design-system/anti-patterns.md`, `design-system/palette-surface-spacing.md`, `design-system/interaction-responsive.md`, `design-system/typography-readability.md`, and `design-system/mobile-touch-app-surface.md` so downstream design, implementation, and audit work can reuse the same label. Treat those names as critique signals, not automatic violations.
+If a surface feels generic, explain why and what visual change would make it feel more authored. When possible, name the pattern using the shared guardrail catalogs in `design-system/anti-patterns.md`, `design-system/palette-surface-spacing.md`, `design-system/interaction-responsive.md`, `design-system/error-recovery-containment.md`, `design-system/typography-readability.md`, and `design-system/mobile-touch-app-surface.md` so downstream design, implementation, and audit work can reuse the same label. Treat those names as critique signals, not automatic violations.
 
 #### Scan Dimensions
 
@@ -105,7 +105,7 @@ For each finding, include:
 - **Description** (one sentence: what is wrong)
 - **Fix hint** (one sentence: what to do)
 
-When the issue is spacing or typography, call out the design-system rule it violates: spacing should preserve rhythm, and semantic text should usually use `textStyles.*` rather than hand-tuned raw typography tokens. If the finding is specifically about readability, name the matching anti-pattern from `typography-readability.md` when it fits (flat type hierarchy, tiny body text, all-caps body text, wide letter-spacing on body text, or one font treatment everywhere). For composition/surface findings, prefer the named anti-patterns from `design-system/palette-surface-spacing.md` (for example nested cards, everything centered, monotonous spacing, and gray-on-color washout) over vague “looks generic” language. When the issue is feedback, responsiveness, or modality, name the matching interaction anti-pattern from `interaction-responsive.md` when one fits. When the issue is paste blocking, caret jumps, hostile formatting, or wizard-state loss, use the named patterns from `forms-input-interference.md` so the report can say exactly what the editing surface is doing wrong.
+When the issue is spacing or typography, call out the design-system rule it violates: spacing should preserve rhythm, and semantic text should usually use `textStyles.*` rather than hand-tuned raw typography tokens. If the finding is specifically about readability, name the matching anti-pattern from `typography-readability.md` when it fits (flat type hierarchy, tiny body text, all-caps body text, wide letter-spacing on body text, or one font treatment everywhere). For composition/surface findings, prefer the named anti-patterns from `design-system/palette-surface-spacing.md` (for example nested cards, everything centered, monotonous spacing, and gray-on-color washout) over vague “looks generic” language. When the issue is feedback, responsiveness, or modality, name the matching interaction anti-pattern from `interaction-responsive.md` when one fits. When the issue is paste blocking, caret jumps, hostile formatting, or wizard-state loss, use the named patterns from `forms-input-interference.md` so the report can say exactly what the editing surface is doing wrong. When the issue is blocked error recovery, use the named patterns from `error-recovery-containment.md` so the report can say exactly what the surface is failing to contain.
 
 If a rule is declared for a different surface, note it as out of scope instead of blocking unless the reviewed surface matches that scope.
 
@@ -127,7 +127,7 @@ Recommend the next action based on the aggregate score across all scoped files:
 
 If compliance is strong but authored-quality concerns remain, call those out separately instead of burying them inside the numeric total.
 
-When you write the final recommendation, treat `pre-delivery-ui-checklist.md` as the handoff summary: cite the checklist to show the surface is ready or why it still needs a shipping pass, but do not restate every scanned dimension or duplicate the browser-verification workflow. If the main risk is forms or editing friction, point the reader at `design-system/forms-input-interference.md` so the handoff keeps the shared vocabulary for paste handling, caret safety, and draft persistence.
+When you write the final recommendation, treat `pre-delivery-ui-checklist.md` as the handoff summary: cite the checklist to show the surface is ready or why it still needs a shipping pass, but do not restate every scanned dimension or duplicate the browser-verification workflow. If the main risk is forms or editing friction, point the reader at `design-system/forms-input-interference.md` so the handoff keeps the shared vocabulary for paste handling, caret safety, and draft persistence. If the issue is a generic or blocked error surface, use the recovery vocabulary from `design-system/error-recovery-containment.md` so the report names the blast radius, retry path, and fallback gap explicitly.
 
 ---
 
