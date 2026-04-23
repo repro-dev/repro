@@ -70,6 +70,7 @@ Do **not** use this skill for:
    - Call out any telltale patterns that would make the result feel generic or AI-made, and name them with the shared catalog when a known anti-pattern applies.
    - Treat nested cards, everything centered, monotonous spacing, and similar composition tells as first-class cues when they are driving the visual direction.
    - If the direction is typography- or readability-driven, capture body-size, line-length, line-height, hierarchy contrast, and any named readability anti-patterns so downstream design and audit can reuse the same language.
+   - If the direction is about preserved preferences, storage hygiene, stale flags, or retired experiments, capture the intent using the shared vocabulary from `design-system/persistence-hygiene.md` (for example preference-preserving update, bounded storage, stale-flag cleanup, and compatibility migration).
    - If the direction is about forms, text entry, caret behavior, paste handling, or wizard persistence, capture the intent using the shared vocabulary from `design-system/forms-input-interference.md` (for example paste-friendly, caret-safe, semantic autofill, draft-persistent wizard, and hostile formatter).
    - If the direction depends on feedback timing, hover/touch behavior, responsive reflow, mobile viewport constraints, modal usage, or error recovery, use the companion `design-system/interaction-responsive.md`, `design-system/error-recovery-containment.md`, and `design-system/mobile-touch-app-surface.md` catalogs alongside `design-system/anti-patterns.md`.
 
@@ -114,6 +115,7 @@ Use this shape in the context artifact:
 
 - `design-system`: translate direction into components, layout, and tokens
 - `audit-ui-quality`: review authored output for generic drift, polish, consistency, and blocked error recovery, citing the same anti-pattern names where relevant
+- `design-system/persistence-hygiene.md`: carry forward the persistence vocabulary for preserved preferences, bounded storage, and stale-flag cleanup
 - `design-system/forms-input-interference.md`: carry forward the forms/editing vocabulary for paste handling, caret safety, and wizard-state persistence
 - `design-system/error-recovery-containment.md`: carry the same blast-radius, retry, and fallback vocabulary into implementation details
 - `design-system/pre-delivery-ui-checklist.md`: capture the final shipping pass when the direction needs a compact readiness summary
