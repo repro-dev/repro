@@ -47,7 +47,7 @@ Work through all eight compliance dimensions for each scoped file, then make one
 
 #### Authored-quality pass
 
-After the compliance scan, ask whether the UI feels intentionally authored or like a default/generic composition. Use these as judgment prompts, not blanket bans. When the answer turns on surface hierarchy, composition, spacing rhythm, or readable type, cross-check `design-system/palette-surface-spacing.md` and `design-system/typography-readability.md` so the critique uses the same named failure modes everywhere:
+After the compliance scan, ask whether the UI feels intentionally authored or like a default/generic composition. Use these as judgment prompts, not blanket bans. When the answer turns on surface hierarchy, composition, spacing rhythm, readable type, or mobile/app-surface behavior, cross-check `design-system/palette-surface-spacing.md`, `design-system/typography-readability.md`, and `design-system/mobile-touch-app-surface.md` so the critique uses the same named failure modes everywhere:
 
 - Is the aesthetic direction clear, specific, and coherent?
 - Does the composition establish a strong focal point and visual dominance where needed?
@@ -57,7 +57,7 @@ After the compliance scan, ask whether the UI feels intentionally authored or li
 - Does the surface show AI-convergent or generic tells (stock layout, default-looking grouping, rote spacing, placeholder-feeling composition)?
 - Does the screen feel authored, or merely assembled from compliant parts?
 
-If a surface feels generic, explain why and what visual change would make it feel more authored. When possible, name the pattern using the shared guardrail catalogs in `design-system/anti-patterns.md`, `design-system/palette-surface-spacing.md`, `design-system/interaction-responsive.md`, and `design-system/typography-readability.md` so downstream design, implementation, and audit work can reuse the same label. Treat those names as critique signals, not automatic violations.
+If a surface feels generic, explain why and what visual change would make it feel more authored. When possible, name the pattern using the shared guardrail catalogs in `design-system/anti-patterns.md`, `design-system/palette-surface-spacing.md`, `design-system/interaction-responsive.md`, `design-system/typography-readability.md`, and `design-system/mobile-touch-app-surface.md` so downstream design, implementation, and audit work can reuse the same label. Treat those names as critique signals, not automatic violations.
 
 #### Scan Dimensions
 
@@ -67,7 +67,7 @@ If a surface feels generic, explain why and what visual change would make it fee
 
 3. **Layout primitives** — `<div style={{ display: 'flex' }}>` or equivalent raw flex/grid divs instead of jsxstyle `Row` / `Col` / `Grid`. Inline `style={{}}` props are also a violation.
 
-4. **Interaction states** — missing hover / focus / active / disabled / loading / error / empty states. Every interactive element needs at minimum a focus ring (`focusRing()` from `@repro/design`) and a disabled state. For feedback timing, hover/touch, and modal/reflex cues, cross-reference `design-system/interaction-responsive.md`.
+4. **Interaction states** — missing hover / focus / active / disabled / loading / error / empty states. Every interactive element needs at minimum a focus ring (`focusRing()` from `@repro/design`) and a disabled state. For feedback timing, hover/touch, modal/reflex cues, and mobile/app-surface behavior, cross-reference `design-system/interaction-responsive.md` and `design-system/mobile-touch-app-surface.md`.
 
 5. **Accessibility** — missing `aria-*` attributes, no keyboard navigation, no focus management in modals/overlays, missing `alt` text, missing semantic HTML (`role`, `aria-live` for dynamic regions).
 

@@ -11,6 +11,8 @@ When the task is about authoredness, generic drift, or naming a recurring UI tel
 
 When the task is specifically about readable type or paragraph hierarchy, also read `typography-readability.md` so the same heuristics and anti-pattern names travel across design, review, and audit.
 
+When the task is specifically about mobile touch, app surfaces, or constrained mobile viewport behavior, also read `mobile-touch-app-surface.md` so the same cues travel across design, review, and audit.
+
 ## Surface Scoping
 
 Use the shared scope labels when judging whether a rule applies: `marketing/editorial web`, `product/app UI`, `mobile-first or touch-heavy`, `platform-adaptive or native-like`, and `cross-surface`. Treat out-of-scope guidance as non-applicable rather than contradictory, and keep qualifiers concise.
@@ -23,6 +25,7 @@ For detailed sub-topics, read the reference files in this directory:
 | `palette-surface-spacing.md` | Need composition, surface, and spacing heuristics plus named anti-patterns like nested cards and everything centered |
 | `typography-readability.md` | Need concrete typography and readability heuristics, including body-size, line-length, and hierarchy guardrails |
 | `interaction-responsive.md`  | Need named guardrails for feedback timing, hover/touch, responsiveness, or modal/reflex behavior                     |
+| `mobile-touch-app-surface.md` | Need mobile-touch, safe-area, viewport, and app-surface guardrails                                                   |
 | `tokens.md`                  | Need full token tables (color, spacing, typography, elevation, motion, interaction)                                  |
 | `surface-scoping.md`         | Need the canonical scope labels and reviewer/author usage notes                                                      |
 | `component-contract.md`      | Creating or modifying `@repro/design` components (forwardRef, a11y, Storybook, known deviations)                     |
@@ -236,7 +239,7 @@ For full token tables with every value, read `tokens.md`.
 
 ## Normalisation Workflow
 
-Use this workflow when tasked with bringing existing UI into alignment with design system conventions. Consult the sub-reference files in this directory (`anti-patterns.md`, `palette-surface-spacing.md`, `typography-readability.md`, `interaction-responsive.md`, `tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
+Use this workflow when tasked with bringing existing UI into alignment with design system conventions. Consult the sub-reference files in this directory (`anti-patterns.md`, `palette-surface-spacing.md`, `typography-readability.md`, `interaction-responsive.md`, `mobile-touch-app-surface.md`, `tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
 
 After you finish a non-trivial UI change, switch to `audit-ui-quality` for broader audits, scoring, and polish passes, then `ui-verification` for the `reproctl start --wait` + `agent-browser` browser loop. If the issue was typography- or readability-driven, carry the same body-size, line-length, line-height, and anti-pattern vocabulary forward into those downstream checks.
 
