@@ -8,11 +8,13 @@ interface MockFiber {
   tag: number
   type?: { displayName?: string; name?: string } | null
   memoizedProps: Record<string, unknown> | null
+  memoizedState: unknown
   alternate: MockFiber | null
   child: MockFiber | null
   sibling: MockFiber | null
   return: MockFiber | null
   _debugID?: number
+  _debugHookTypes?: string[]
 }
 
 function makeFiber(overrides: Partial<MockFiber> = {}): MockFiber {
@@ -20,6 +22,7 @@ function makeFiber(overrides: Partial<MockFiber> = {}): MockFiber {
     tag: 0,
     type: { name: 'MyComponent' },
     memoizedProps: {},
+    memoizedState: null,
     alternate: null,
     child: null,
     sibling: null,
@@ -27,6 +30,13 @@ function makeFiber(overrides: Partial<MockFiber> = {}): MockFiber {
     _debugID: 0,
     ...overrides,
   }
+}
+
+function makeHookNode(
+  memoizedState: unknown,
+  next: { memoizedState: unknown; next: unknown } | null = null
+) {
+  return { memoizedState, next }
 }
 
 // Minimal FiberRoot-like object
@@ -472,6 +482,351 @@ describe('createReactObserver', () => {
 
     // After disconnect, tree is cleared (rootFiberId reset → returns null)
     assert.equal(observer.getComponentTree(), null)
+  })
+
+  it('dev build captures useState type and value', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    const prevHook = makeHookNode(0)
+    const nextHook = makeHookNode(1)
+
+    const alternate = makeFiber({
+      tag: 0,
+      type: { name: 'Counter' },
+      memoizedProps: { label: 'Count' },
+      memoizedState: prevHook,
+      _debugID: 100,
+      _debugHookTypes: ['useState'],
+    })
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'Counter' },
+      memoizedProps: { label: 'Count' },
+      memoizedState: nextHook,
+      alternate,
+      _debugID: 100,
+      _debugHookTypes: ['useState'],
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    assert.equal(events.length, 1)
+    const delta = JSON.parse(events[0]!.hooksDelta)
+    assert.ok(Array.isArray(delta))
+    assert.equal(delta.length, 1)
+    assert.equal(delta[0].index, 0)
+    assert.equal(delta[0].type, 'useState')
+    assert.equal(delta[0].state, 1)
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('dev build captures useEffect deps', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    const prevHook = makeHookNode({ deps: [1] })
+    const nextHook = makeHookNode({ deps: [1, 2] })
+
+    const alternate = makeFiber({
+      tag: 0,
+      type: { name: 'EffectComp' },
+      memoizedProps: {},
+      memoizedState: prevHook,
+      _debugID: 200,
+      _debugHookTypes: ['useEffect'],
+    })
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'EffectComp' },
+      memoizedProps: {},
+      memoizedState: nextHook,
+      alternate,
+      _debugID: 200,
+      _debugHookTypes: ['useEffect'],
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    assert.equal(events.length, 1)
+    const delta = JSON.parse(events[0]!.hooksDelta)
+    assert.equal(delta[0].type, 'useEffect')
+    assert.deepEqual(delta[0].deps, [1, 2])
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('dev build captures useMemo state and deps', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    const prevHook = makeHookNode(['cached', [1]])
+    const nextHook = makeHookNode(['newCached', [1, 2]])
+
+    const alternate = makeFiber({
+      tag: 0,
+      type: { name: 'MemoComp' },
+      memoizedProps: {},
+      memoizedState: prevHook,
+      _debugID: 300,
+      _debugHookTypes: ['useMemo'],
+    })
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'MemoComp' },
+      memoizedProps: {},
+      memoizedState: nextHook,
+      alternate,
+      _debugID: 300,
+      _debugHookTypes: ['useMemo'],
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    assert.equal(events.length, 1)
+    const delta = JSON.parse(events[0]!.hooksDelta)
+    assert.equal(delta[0].type, 'useMemo')
+    assert.equal(delta[0].state, 'newCached')
+    assert.deepEqual(delta[0].deps, [1, 2])
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('production degrades gracefully (no _debugHookTypes)', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    const prevHook = makeHookNode(0)
+    const nextHook = makeHookNode(1)
+
+    const alternate = makeFiber({
+      tag: 0,
+      type: { name: 'Counter' },
+      memoizedProps: {},
+      memoizedState: prevHook,
+      _debugID: 400,
+    })
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'Counter' },
+      memoizedProps: {},
+      memoizedState: nextHook,
+      alternate,
+      _debugID: 400,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    assert.equal(events.length, 1)
+    const delta = JSON.parse(events[0]!.hooksDelta)
+    assert.equal(delta[0].index, 0)
+    assert.ok(!('type' in delta[0]))
+    assert.equal(delta[0].state, 1)
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('emits event when hooks change but props are stable', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    const sharedProps = { label: 'Same' }
+
+    const prevHook = makeHookNode(0)
+    const nextHook = makeHookNode(1)
+
+    const alternate = makeFiber({
+      tag: 0,
+      type: { name: 'StableProps' },
+      memoizedProps: sharedProps,
+      memoizedState: prevHook,
+      _debugID: 500,
+    })
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'StableProps' },
+      memoizedProps: sharedProps,
+      memoizedState: nextHook,
+      alternate,
+      _debugID: 500,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    assert.equal(events.length, 1)
+    assert.notEqual(events[0]!.hooksDelta, '{}')
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('returns empty hooks delta when memoizedState is null', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'NoHooks' },
+      memoizedProps: { a: 1 },
+      memoizedState: null,
+      alternate: null,
+      _debugID: 600,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    assert.equal(events.length, 1)
+    assert.equal(events[0]!.hooksDelta, '{}')
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('guards against circular memoizedState chains', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    const node1 = makeHookNode(1)
+    const node2 = makeHookNode(2)
+    const node3 = makeHookNode(3)
+
+    ;(node1 as any).next = node2
+    ;(node2 as any).next = node3
+    ;(node3 as any).next = node1
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'Circular' },
+      memoizedProps: { a: 1 },
+      memoizedState: node1,
+      alternate: null,
+      _debugID: 700,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    assert.equal(events.length, 1)
+    const delta = JSON.parse(events[0]!.hooksDelta)
+    assert.equal(delta.length, 3)
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('skips event when hooksDelta exceeds size limit', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    const bigValue = 'x'.repeat(20_000)
+    const hook = makeHookNode(bigValue)
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'BigHooks' },
+      memoizedProps: {},
+      memoizedState: hook,
+      alternate: null,
+      _debugID: 800,
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    assert.equal(events.length, 0)
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+  })
+
+  it('preserves order and indices for multiple hooks', () => {
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
+
+    const events: ReactCommitEvent[] = []
+    const observer = createReactObserver(event => {
+      events.push(event)
+    })
+    observer.observe(null as any, null as any)
+
+    const hook3 = makeHookNode('memoized')
+    const hook2 = makeHookNode({ deps: [1] })
+    const hook1 = makeHookNode(42)
+
+    ;(hook1 as any).next = hook2
+    ;(hook2 as any).next = hook3
+
+    const fiber = makeFiber({
+      tag: 0,
+      type: { name: 'MultiHook' },
+      memoizedProps: {},
+      memoizedState: hook1,
+      alternate: null,
+      _debugID: 900,
+      _debugHookTypes: ['useState', 'useEffect', 'useMemo'],
+    })
+
+    simulateCommit(1, makeFiberRoot(fiber))
+
+    assert.equal(events.length, 1)
+    const delta = JSON.parse(events[0]!.hooksDelta)
+    assert.equal(delta.length, 3)
+    assert.equal(delta[0].index, 0)
+    assert.equal(delta[0].type, 'useState')
+    assert.equal(delta[1].index, 1)
+    assert.equal(delta[1].type, 'useEffect')
+    assert.equal(delta[2].index, 2)
+    assert.equal(delta[2].type, 'useMemo')
+
+    observer.disconnect()
+    delete (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__
   })
 })
 
