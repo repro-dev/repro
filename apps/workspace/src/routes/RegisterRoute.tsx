@@ -1,6 +1,5 @@
-import { Col } from '@jsxstyle/react'
 import { RegisterForm } from '@repro/auth'
-import { Card, spacing } from '@repro/design'
+import { Card } from '@repro/design'
 import { logger } from '@repro/logger'
 import React, { useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router'
@@ -23,11 +22,9 @@ const RegisterRoute: React.FC = () => {
   }, [])
 
   return (
-    <Col width={360} maxWidth="100%" alignItems="stretch" gap={spacing.md}>
-      <Card>
-        <RegisterForm onSuccess={onSuccess} onFailure={onFailure} />
-      </Card>
-    </Col>
+    <Card>
+      <RegisterForm onSuccess={onSuccess} onFailure={onFailure} />
+    </Card>
   )
 }
 

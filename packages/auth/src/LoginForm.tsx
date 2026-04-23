@@ -9,6 +9,7 @@ import {
   FormFieldError,
   Input,
   Label,
+  spacing,
   textStyles,
 } from '@repro/design'
 import { isValidationError } from '@repro/validation'
@@ -107,8 +108,8 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
   return (
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Col gap={16}>
-          <Col gap={12}>
+        <Col gap={spacing.xl}>
+          <Col gap={spacing.lg}>
             <Block
               component="h1"
               {...textStyles.heading2}
@@ -212,7 +213,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
 
           {!showResetFlow && (
             <>
-              <Row alignItems="center" gap={8}>
+              <Row alignItems="center" gap={spacing.md}>
                 <Divider spacing="none" />
                 <Block
                   {...textStyles.caption}

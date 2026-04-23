@@ -8,6 +8,7 @@ import {
   FormFieldError,
   Input,
   Label,
+  spacing,
   textStyles,
 } from '@repro/design'
 import { fork } from 'fluture'
@@ -76,8 +77,8 @@ export const ResetPasswordForm: React.FC<Props> = ({
   return (
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Col gap={16}>
-          <Col gap={12}>
+        <Col gap={spacing.xl}>
+          <Col gap={spacing.lg}>
             <Block
               component="h1"
               {...textStyles.heading2}

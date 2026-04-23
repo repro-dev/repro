@@ -100,174 +100,156 @@ const AcceptInvitationRoute: React.FC = () => {
 
   if (!sessionLoading && session !== null) {
     return (
-      <Col width={360} maxWidth="100%" alignItems="stretch" gap={spacing.md}>
-        <Card>
-          <Col gap={spacing.md}>
-            <Block
-              component="h1"
-              {...textStyles.heading2}
-              color={color.primary}
-            >
-              Already signed in
-            </Block>
+      <Card>
+        <Col gap={spacing.md}>
+          <Block component="h1" {...textStyles.heading2} color={color.primary}>
+            Already signed in
+          </Block>
 
-            <Alert type="info" icon={<InfoIcon size={16} />}>
-              You are already signed in. Go to your workspace, or log out first
-              to accept this invitation with a different account.
-            </Alert>
+          <Alert type="info" icon={<InfoIcon size={16} />}>
+            You are already signed in. Go to your workspace, or log out first to
+            accept this invitation with a different account.
+          </Alert>
 
-            <Button onClick={() => navigate('/')}>Go to workspace</Button>
-          </Col>
-        </Card>
-      </Col>
+          <Button onClick={() => navigate('/')}>Go to workspace</Button>
+        </Col>
+      </Card>
     )
   }
 
   if (!invitationToken || !email) {
     return (
-      <Col width={360} maxWidth="100%" alignItems="stretch" gap={spacing.md}>
-        <Card>
-          <Col gap={spacing.md}>
-            <Block
-              component="h1"
-              {...textStyles.heading2}
-              color={color.primary}
-            >
-              Invalid invitation link
-            </Block>
+      <Card>
+        <Col gap={spacing.md}>
+          <Block component="h1" {...textStyles.heading2} color={color.primary}>
+            Invalid invitation link
+          </Block>
 
-            <Alert type="danger" icon={<AlertCircleIcon size={16} />}>
-              This invitation link is missing required information. Please use
-              the link from your invitation email.
-            </Alert>
-          </Col>
-        </Card>
-      </Col>
+          <Alert type="danger" icon={<AlertCircleIcon size={16} />}>
+            This invitation link is missing required information. Please use the
+            link from your invitation email.
+          </Alert>
+        </Col>
+      </Card>
     )
   }
 
   return (
-    <Col width={360} maxWidth="100%" alignItems="stretch" gap={spacing.md}>
-      <Card>
-        <FormProvider {...methods}>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <Col gap={spacing.md}>
-              <Col gap={spacing.sm}>
-                <Block
-                  component="h1"
-                  {...textStyles.heading2}
-                  color={color.primary}
-                >
-                  Accept invitation
-                </Block>
+    <Card>
+      <FormProvider {...methods}>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <Col gap={spacing.md}>
+            <Col gap={spacing.sm}>
+              <Block
+                component="h1"
+                {...textStyles.heading2}
+                color={color.primary}
+              >
+                Accept invitation
+              </Block>
 
-                <Block
-                  component="p"
-                  {...textStyles.bodySmall}
-                  color={color.text.muted}
-                >
-                  Complete your registration to join your team.
-                </Block>
-              </Col>
-
-              {formState.errors.root && (
-                <Alert type="danger" icon={<AlertCircleIcon size={16} />}>
-                  {formState.errors.root.message}
-                </Alert>
-              )}
-
-              <FormField>
-                <Label htmlFor="invite-email">Email</Label>
-                {/* Email is pre-filled from the invitation link and not editable */}
-                <Input
-                  id="invite-email"
-                  readOnly={true}
-                  value={email}
-                  autoComplete="email"
-                  context="normal"
-                />
-              </FormField>
-
-              <FormField>
-                <Label htmlFor="invite-name">Your name</Label>
-                <Input
-                  id="invite-name"
-                  autoFocus={true}
-                  autoComplete="name"
-                  context={formState.errors.name != null ? 'error' : 'normal'}
-                  aria-describedby={
-                    formState.errors.name ? 'invite-name-error' : undefined
-                  }
-                  {...register('name', { required: true })}
-                />
-                {formState.errors.name && (
-                  <FormFieldError
-                    id="invite-name-error"
-                    error={formState.errors.name}
-                  />
-                )}
-              </FormField>
-
-              <FormField>
-                <Label htmlFor="invite-password">Password</Label>
-                <Input
-                  id="invite-password"
-                  type="password"
-                  autoComplete="new-password"
-                  context={
-                    formState.errors.password != null ? 'error' : 'normal'
-                  }
-                  aria-describedby={
-                    formState.errors.password
-                      ? 'invite-password-error'
-                      : undefined
-                  }
-                  {...register('password', { required: true })}
-                />
-                {formState.errors.password && (
-                  <FormFieldError
-                    id="invite-password-error"
-                    error={formState.errors.password}
-                  />
-                )}
-              </FormField>
-
-              <FormField>
-                <Label htmlFor="invite-confirm-password">
-                  Confirm password
-                </Label>
-                <Input
-                  id="invite-confirm-password"
-                  type="password"
-                  autoComplete="new-password"
-                  context={
-                    formState.errors.confirmedPassword != null
-                      ? 'error'
-                      : 'normal'
-                  }
-                  aria-describedby={
-                    formState.errors.confirmedPassword
-                      ? 'invite-confirm-password-error'
-                      : undefined
-                  }
-                  {...register('confirmedPassword', { required: true })}
-                />
-                {formState.errors.confirmedPassword && (
-                  <FormFieldError
-                    id="invite-confirm-password-error"
-                    error={formState.errors.confirmedPassword}
-                  />
-                )}
-              </FormField>
-
-              <Button disabled={!formState.isValid || submitting} type="submit">
-                Create account
-              </Button>
+              <Block
+                component="p"
+                {...textStyles.bodySmall}
+                color={color.text.muted}
+              >
+                Complete your registration to join your team.
+              </Block>
             </Col>
-          </form>
-        </FormProvider>
-      </Card>
-    </Col>
+
+            {formState.errors.root && (
+              <Alert type="danger" icon={<AlertCircleIcon size={16} />}>
+                {formState.errors.root.message}
+              </Alert>
+            )}
+
+            <FormField>
+              <Label htmlFor="invite-email">Email</Label>
+              {/* Email is pre-filled from the invitation link and not editable */}
+              <Input
+                id="invite-email"
+                readOnly={true}
+                value={email}
+                autoComplete="email"
+                context="normal"
+              />
+            </FormField>
+
+            <FormField>
+              <Label htmlFor="invite-name">Your name</Label>
+              <Input
+                id="invite-name"
+                autoFocus={true}
+                autoComplete="name"
+                context={formState.errors.name != null ? 'error' : 'normal'}
+                aria-describedby={
+                  formState.errors.name ? 'invite-name-error' : undefined
+                }
+                {...register('name', { required: true })}
+              />
+              {formState.errors.name && (
+                <FormFieldError
+                  id="invite-name-error"
+                  error={formState.errors.name}
+                />
+              )}
+            </FormField>
+
+            <FormField>
+              <Label htmlFor="invite-password">Password</Label>
+              <Input
+                id="invite-password"
+                type="password"
+                autoComplete="new-password"
+                context={formState.errors.password != null ? 'error' : 'normal'}
+                aria-describedby={
+                  formState.errors.password
+                    ? 'invite-password-error'
+                    : undefined
+                }
+                {...register('password', { required: true })}
+              />
+              {formState.errors.password && (
+                <FormFieldError
+                  id="invite-password-error"
+                  error={formState.errors.password}
+                />
+              )}
+            </FormField>
+
+            <FormField>
+              <Label htmlFor="invite-confirm-password">Confirm password</Label>
+              <Input
+                id="invite-confirm-password"
+                type="password"
+                autoComplete="new-password"
+                context={
+                  formState.errors.confirmedPassword != null
+                    ? 'error'
+                    : 'normal'
+                }
+                aria-describedby={
+                  formState.errors.confirmedPassword
+                    ? 'invite-confirm-password-error'
+                    : undefined
+                }
+                {...register('confirmedPassword', { required: true })}
+              />
+              {formState.errors.confirmedPassword && (
+                <FormFieldError
+                  id="invite-confirm-password-error"
+                  error={formState.errors.confirmedPassword}
+                />
+              )}
+            </FormField>
+
+            <Button disabled={!formState.isValid || submitting} type="submit">
+              Create account
+            </Button>
+          </Col>
+        </form>
+      </FormProvider>
+    </Card>
   )
 }
 
