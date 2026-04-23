@@ -126,6 +126,20 @@ function isHookList(head: unknown): boolean {
   return next === null || (typeof next === 'object' && next !== null)
 }
 
+function areHookDepsEqual(prevDeps: unknown, nextDeps: unknown): boolean {
+  if (!Array.isArray(prevDeps) || !Array.isArray(nextDeps)) return false
+  if (prevDeps.length !== nextDeps.length) return false
+
+  return prevDeps.every((dep, index) => Object.is(dep, nextDeps[index]))
+}
+
+function getEffectDeps(memoizedState: unknown): unknown[] | null {
+  if (memoizedState === null || typeof memoizedState !== 'object') return null
+
+  const deps = (memoizedState as { deps?: unknown[] }).deps
+  return Array.isArray(deps) ? deps : null
+}
+
 // Walk fiber.memoizedState as a singly-linked list and build a delta of
 // hooks whose memoizedState changed vs. the alternate fiber.
 function getHooksDelta(fiber: Fiber): string {
@@ -146,25 +160,31 @@ function getHooksDelta(fiber: Fiber): string {
       prevNode && isHookList(prevNode)
         ? (prevNode as { memoizedState: unknown; next: unknown })
         : null
+    const type = fiber._debugHookTypes?.[index]
+    const isEffectHook =
+      type === 'useEffect' ||
+      type === 'useLayoutEffect' ||
+      type === 'useInsertionEffect'
+    const currentDeps = isEffectHook
+      ? getEffectDeps(hookNode.memoizedState)
+      : null
+    const previousDeps =
+      prevHookNode && isEffectHook
+        ? getEffectDeps(prevHookNode.memoizedState)
+        : null
 
     const changed =
       prevHookNode === null ||
-      !Object.is(hookNode.memoizedState, prevHookNode.memoizedState)
+      (isEffectHook
+        ? !areHookDepsEqual(previousDeps, currentDeps)
+        : !Object.is(hookNode.memoizedState, prevHookNode.memoizedState))
 
     if (changed) {
-      const type = fiber._debugHookTypes?.[index]
       const entry: Record<string, unknown> = { index }
       if (type !== undefined) entry.type = type
 
-      if (
-        type === 'useEffect' ||
-        type === 'useLayoutEffect' ||
-        type === 'useInsertionEffect'
-      ) {
-        const effect = hookNode.memoizedState as { deps?: unknown[] } | null
-        if (effect && typeof effect === 'object' && 'deps' in effect) {
-          entry.deps = effect.deps
-        }
+      if (isEffectHook) {
+        if (currentDeps !== null) entry.deps = currentDeps
       } else if (type === 'useMemo' || type === 'useCallback') {
         const arr = hookNode.memoizedState as [unknown, unknown[]] | null
         if (Array.isArray(arr) && arr.length >= 2) {
@@ -277,14 +297,13 @@ export function createReactObserver(
 
       const fiberNodeId = fiber._debugID ?? 0
       const parentFiberId = getParentFiberId(fiber)
+      const existing =
+        fiberNodeId !== 0 ? componentTree.get(fiberNodeId) : undefined
 
       // Always record every tracked fiber in the tree so the snapshot is
       // complete even for components whose props haven't changed this commit.
       // Skip sentinel ID 0 (fiber without _debugID).
       if (fiberNodeId !== 0) {
-        // Preserve existing props if this fiber had no changes in this commit;
-        // only overwrite when changedProps are available below.
-        const existing = componentTree.get(fiberNodeId)
         componentTree.set(fiberNodeId, {
           fiberNodeId,
           parentFiberId,
@@ -323,7 +342,7 @@ export function createReactObserver(
           fiberNodeId,
           parentFiberId,
           componentName: name,
-          props: propsDelta,
+          props: changedProps ? propsDelta : existing?.props ?? '',
         })
       }
     })
