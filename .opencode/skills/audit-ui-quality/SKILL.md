@@ -57,7 +57,7 @@ After the compliance scan, ask whether the UI feels intentionally authored or li
 - Does the surface show AI-convergent or generic tells (stock layout, default-looking grouping, rote spacing, placeholder-feeling composition)?
 - Does the screen feel authored, or merely assembled from compliant parts?
 
-If a surface feels generic, explain why and what visual change would make it feel more authored.
+If a surface feels generic, explain why and what visual change would make it feel more authored. When possible, name the pattern using the shared guardrail catalog in `design-system/anti-patterns.md` so downstream design, implementation, and audit work can reuse the same label. Treat those names as critique signals, not automatic violations.
 
 #### Scan Dimensions
 

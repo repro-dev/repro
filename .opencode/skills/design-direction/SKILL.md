@@ -66,7 +66,7 @@ Do **not** use this skill for:
 8. **Check for anti-generic cues**
 
    - Note the specific details that keep the UI from feeling templated or interchangeable.
-   - Call out any telltale patterns that would make the result feel generic or AI-made.
+   - Call out any telltale patterns that would make the result feel generic or AI-made, and name them with the shared catalog when a known anti-pattern applies.
 
 9. **Write the durable context block**
    - Save the result in `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md`.
@@ -97,10 +97,13 @@ Use this shape in the context artifact:
 
 ### Anti-Generic Heuristics
 
+- List the specific anti-generic cues to avoid, using the shared pattern names from `design-system/anti-patterns.md` when they fit.
+- Mention which cues are acceptable when deliberate so implementation and audit can make the same judgment later.
+
 ## Handoff
 
 - `design-system`: translate direction into components, layout, and tokens
-- `audit-ui-quality`: review authored output for generic drift, polish, and consistency
+- `audit-ui-quality`: review authored output for generic drift, polish, and consistency, citing the same anti-pattern names where relevant
 - `ui-verification`: validate the finished UI in the browser after implementation
 ```
 
