@@ -60,10 +60,6 @@ Each Task prompt should include:
 | `reproctl wt list` | Show active worktrees |
 | `reproctl wt prune` | Remove merged worktrees |
 
-## Command execution in worktrees
-
-When running shell commands (build, test, format, `rm`, etc.) from a worktree, always execute them **from the worktree root** — either by changing into the worktree directory first or by using the tool's `workdir` parameter. Running commands from the main checkout when the target files live in a worktree will operate on the wrong directory and produce confusing failures (e.g. `moon run` resolving the package from the main checkout, or `rm` deleting files from the main checkout instead of the worktree).
-
 ## Troubleshooting
 
 - Use `git worktree prune` only as a fallback when `reproctl wt remove` cannot clean up a broken directory.
