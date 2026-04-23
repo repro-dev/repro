@@ -16,6 +16,14 @@ You are generating a handoff prompt for session continuation. The output is a st
    - Print: `No ledger found in tmp/. Run /ledger first to capture session state, then re-run /handoff.`
    - Stop. Do not generate a handoff prompt from memory alone.
 
+## Step 1a: Identify related artifacts
+
+Using the ledger and current branch context, identify any relevant `tmp/context-*.md`, `tmp/test-plan-*.md`, or `tmp/debug-*.md` artifacts that the next session should consume or update.
+
+- Prefer artifacts that match the active issue ID or branch topic.
+- When multiple artifacts match, prefer exact issue ID match first, then exact branch-topic match, then the most recently modified artifact.
+- If none are relevant, carry that forward explicitly instead of inventing one.
+
 ## Step 2: Generate the handoff prompt
 
 Using the ledger content as the authoritative source of truth (supplemented by your current context where the ledger is silent), print the handoff prompt inline (do not write it to a file). Target ~300 tokens — dense and actionable, not a transcript.
@@ -34,6 +42,12 @@ Format the handoff prompt as follows:
 **Remaining:**
 {bullet list of next steps not yet done}
 
+**Artifacts consumed:**
+{list relevant `tmp/` artifacts already used in this work, or "None"}
+
+**Artifacts to update next:**
+{list relevant `tmp/` artifacts that should be refreshed next session, or "None"}
+
 **Key files touched:**
 {list of files created/modified, one line each}
 
@@ -44,9 +58,9 @@ Format the handoff prompt as follows:
 {any issues blocking progress, or "None"}
 
 **Linear issues:**
-{list open issue IDs and titles, e.g. REP-123 — Add auth flow}
+{list open issue IDs and titles, or "None" for non-Linear work}
 
-**To resume:** Fetch {issue ID} via Linear_get_issue, read the files listed above, and continue from: {single most important next step}
+**To resume:** {if there is an issue ID: `Fetch {issue ID} via `linear issue show {issue ID} --json`, then read the files and artifacts listed above`; otherwise: `Read the files and artifacts listed above`} and continue from: {single most important next step}
 
 ---
 

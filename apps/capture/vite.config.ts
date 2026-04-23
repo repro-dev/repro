@@ -24,6 +24,7 @@ const entries: Record<string, string> = {
   background: path.resolve(__dirname, 'src/extension/background.ts'),
   content: path.resolve(__dirname, 'src/extension/content.ts'),
   bridgeHost: path.resolve(__dirname, 'src/extension/bridgeHost.ts'),
+  runtime: path.resolve(__dirname, 'src/runtime.ts'),
   capture: path.resolve(__dirname, 'src/index.tsx'),
 }
 

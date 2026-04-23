@@ -229,11 +229,13 @@ export function createAccountService(
     email: string,
     password: string
   ): FutureInstance<Error, StaffUser> {
+    const normalizedEmail = email.toLowerCase()
+
     const existingStaffUser = attemptQuery(async () => {
       return database
         .selectFrom('staff_users')
         .select('id')
-        .where('email', '=', email)
+        .where('email', '=', normalizedEmail)
         .executeTakeFirstOrThrow()
     })
       .pipe(map(() => resourceConflict()))
@@ -246,10 +248,10 @@ export function createAccountService(
             .insertInto('staff_users')
             .values({
               name,
-              email,
+              email: normalizedEmail,
               password: await argon2.hash(password),
             })
-            .returning(['id', 'name', 'email', 'admin'])
+            .returning(['id', 'name', 'email', 'admin', 'active'])
             .executeTakeFirstOrThrow()
         }).pipe(map(asStaffUser))
       )
@@ -272,10 +274,14 @@ export function createAccountService(
     email: string,
     password: string
   ): FutureInstance<Error, StaffUser> {
+    if (password.length === 0) {
+      return reject(notFound())
+    }
+
     return attemptQuery(async () => {
       const row = await database
         .selectFrom('staff_users')
-        .select(['id', 'name', 'email', 'admin', 'password'])
+        .select(['id', 'name', 'email', 'admin', 'password', 'active'])
         .where('email', '=', email.toLowerCase())
         .where('active', '=', true)
         .executeTakeFirst()
@@ -301,9 +307,22 @@ export function createAccountService(
     return attemptQuery(() =>
       database
         .selectFrom('staff_users')
-        .select(['id', 'name', 'email', 'admin'])
+        .select(['id', 'name', 'email', 'admin', 'active'])
         .where('id', '=', decodeId(staffUserId))
         .where('active', '=', true)
+        .executeTakeFirstOrThrow(() => notFound())
+    ).pipe(map(asStaffUser))
+  }
+
+  // Admin-facing: returns a staff user by ID including deactivated users.
+  function getStaffUserByIdIncludingInactive(
+    staffUserId: string
+  ): FutureInstance<Error, StaffUser> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('staff_users')
+        .select(['id', 'name', 'email', 'admin', 'active'])
+        .where('id', '=', decodeId(staffUserId))
         .executeTakeFirstOrThrow(() => notFound())
     ).pipe(map(asStaffUser))
   }
@@ -314,7 +333,7 @@ export function createAccountService(
     return attemptQuery(() =>
       database
         .selectFrom('staff_users')
-        .select(['id', 'name', 'email', 'admin'])
+        .select(['id', 'name', 'email', 'admin', 'active'])
         .where('email', '=', email.toLowerCase())
         .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
@@ -351,6 +370,39 @@ export function createAccountService(
             .execute()
         })
       )
+    )
+  }
+
+  function setStaffUserIsAdmin(
+    staffUserId: string,
+    admin: boolean
+  ): FutureInstance<Error, void> {
+    return getStaffUserById(staffUserId).pipe(
+      chain(() =>
+        attemptQuery(async () => {
+          await database
+            .updateTable('staff_users')
+            .set('admin', admin)
+            .where('id', '=', decodeId(staffUserId))
+            .execute()
+        })
+      )
+    )
+  }
+
+  function listStaffUsers(
+    order: 'asc' | 'desc' = 'asc'
+  ): FutureInstance<Error, { items: Array<StaffUser> }> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('staff_users')
+        .select(['id', 'name', 'email', 'admin', 'active'])
+        .orderBy(`id ${order}`)
+        .execute()
+    ).pipe(
+      map(rows => ({
+        items: rows.map(asStaffUser),
+      }))
     )
   }
 
@@ -410,31 +462,41 @@ export function createAccountService(
     }).pipe(map(withEncodedId))
   }
 
+  type AccountListQueryOptions = {
+    cursor?: string
+    limit?: number
+    order?: 'asc' | 'desc'
+  }
+
+  function buildAccountListQuery({
+    cursor,
+    limit = 50,
+    order = 'asc',
+  }: AccountListQueryOptions = {}) {
+    let query = database
+      .selectFrom('accounts')
+      .select(['id', 'name'])
+      .orderBy(`id ${order}`)
+      .limit(limit + 1)
+
+    if (cursor != null) {
+      query = query.where('id', order === 'asc' ? '>' : '<', decodeId(cursor))
+    }
+
+    return query
+  }
+
   function listAccounts({
     cursor,
     limit = 50,
     order = 'asc',
-  }: {
-    cursor?: string
-    limit?: number
-    order?: 'asc' | 'desc'
-  } = {}): FutureInstance<
+  }: AccountListQueryOptions = {}): FutureInstance<
     Error,
     { items: Array<Account>; nextCursor?: string }
   > {
-    return attemptQuery(() => {
-      let query = database
-        .selectFrom('accounts')
-        .select(['id', 'name'])
-        .orderBy(`id ${order}`)
-        .limit(limit + 1)
-
-      if (cursor != null) {
-        query = query.where('id', order === 'asc' ? '>' : '<', decodeId(cursor))
-      }
-
-      return query.execute()
-    }).pipe(
+    return attemptQuery(() =>
+      buildAccountListQuery({ cursor, limit, order }).execute()
+    ).pipe(
       map(rows => {
         const hasMore = rows.length > limit
         const pageRows = hasMore ? rows.slice(0, limit) : rows
@@ -1154,8 +1216,11 @@ export function createAccountService(
     createStaffUser,
     deactivateStaffUser,
     updateStaffUserName,
+    setStaffUserIsAdmin,
+    listStaffUsers,
     getStaffUserByEmailAndPassword,
     getStaffUserById,
+    getStaffUserByIdIncludingInactive,
     getStaffUserByEmail,
     getStaffUserIsAdmin,
 

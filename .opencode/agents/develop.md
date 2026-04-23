@@ -13,10 +13,12 @@ You are a development agent. You receive a structured plan document, a worktree 
 
 ## Startup
 
-1. Load the `feature-dev` skill and follow Phases 3-5 (Implementation, Verification, Commit).
+1. Load the `delivery-workflow`, `worktree-workflow`, and `implementation-rigor` skills. If the task is a genuine bug fix or regression, also load `bug-rigor` and follow its root-cause workflow before the generic TDD loop.
 2. Load domain skills as needed: `build-and-test`, `design-system`, `database`, `recording-playback`, `api-server`, `authentication`, `billing`, `dev-toolbar`, `agentic`.
-3. Fetch the Linear issue via `Linear_get_issue` to read the full requirements.
-4. For each affected package, check for an `AGENTS.md` file and follow its conventions.
+3. Fetch the Linear issue via `linear issue show REP-123 --json` to read the full requirements. For non-Linear work, rely on the outer conversation prompt plus any supplied planning artifacts instead.
+4. Read any supplied `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md` artifact before implementation when the outer conversation or planner provided one.
+5. For each affected package, check for an `AGENTS.md` file and follow its conventions.
+6. For any new behavior, bug fix, or public contract change, load `test-plan` and require a supplied `tmp/test-plan-<issue-id>.md` artifact before the first implementation edit. For non-Linear work, accept `tmp/test-plan-<topic>.md` instead. If the required artifact is missing, stop and report the missing precondition instead of inventing an inline substitute.
 
 ## TDD discipline
 
@@ -30,7 +32,7 @@ For each requirement in the plan, follow this cycle strictly:
 6. Run all related tests — confirm nothing regressed.
 7. Move to the next requirement.
 
-Use the `build-and-test` skill for test commands. The standard runner is:
+Use the `build-and-test` skill for test commands. Prefer the package's Moon target first. The direct fallback runner is:
 
 ```
 tsx --experimental-test-module-mocks --test path/to/file.test.ts
@@ -64,8 +66,8 @@ If the re-read, diff, and compiler/typechecker disagree, stop stacking edits on 
 
 After all requirements are implemented and tests pass:
 
-1. Run typechecking: `moon run <package>:typecheck`
-2. Run formatting: `pnpm fmt`
+1. Run typechecking with the affected package target, for example `moon run repro/<package>:typecheck`
+2. Run package-scoped formatting. Use a Moon format target when one exists; otherwise run the package-local formatter from the affected package.
 3. **Skill freshness check**: For each domain skill loaded during this task, ask: did you encounter any file paths, function names, API shapes, or patterns that the skill described incorrectly or that were missing? If yes, update the relevant `.opencode/skills/<domain>/SKILL.md` now. Include those changes in this commit.
 4. Stage and commit with a Conventional Commit message referencing the issue:
    ```
@@ -81,6 +83,9 @@ If you receive review feedback alongside the plan, address only the specific iss
 Return a summary of what was implemented:
 
 ```
+## Artifacts
+<which `tmp/context-*`, `tmp/test-plan-*`, or `tmp/debug-*` artifacts were consumed or updated>
+
 ## Changes
 <list of files modified/created with brief description>
 

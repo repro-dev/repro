@@ -1,16 +1,44 @@
 import { Block, Row } from '@jsxstyle/react'
-import { Button, color, DropdownMenu, spacing } from '@repro/design'
-import { ChevronDownIcon, FolderIcon, PlusIcon } from 'lucide-react'
-import React, { useState } from 'react'
+import { Button, color, DropdownMenu, spacing, textStyles } from '@repro/design'
+import { getProjectMembers as defaultGetProjectMembers } from '@repro/workspace-api'
+import {
+  ChevronDownIcon,
+  FolderIcon,
+  PlusIcon,
+  SettingsIcon,
+} from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useProjectContext } from '~/ProjectContext'
 import { CreateProjectDialog } from './CreateProjectDialog'
+import { useProjectSettingsAccess } from './ProjectSettingsNavItem'
 
-export const ProjectSwitcher: React.FC = () => {
+export interface ProjectSwitcherProps {
+  getMembers?: typeof defaultGetProjectMembers
+}
+
+export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = ({
+  getMembers = defaultGetProjectMembers,
+}) => {
   const { projects, selectedProject, loading, selectProject } =
     useProjectContext()
+  const navigate = useNavigate()
+  const { href: projectSettingsHref, loading: projectSettingsLoading } =
+    useProjectSettingsAccess({ getMembers })
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const projectSettingsHrefRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (projectSettingsHref) {
+      projectSettingsHrefRef.current = projectSettingsHref
+    }
+  }, [projectSettingsHref])
+
+  const projectSettingsActionHref =
+    projectSettingsHref ??
+    (projectSettingsLoading ? projectSettingsHrefRef.current : null)
 
   if (loading) {
     return null
@@ -23,23 +51,17 @@ export const ProjectSwitcher: React.FC = () => {
           alignItems="center"
           gap={spacing.sm}
           padding={spacing.lg}
-          color={color.text.muted}
-          fontSize={13}
+          justifyContent="flex-end"
         >
-          <FolderIcon size={14} />
-          <Block
-            component="button"
-            type="button"
-            background="none"
-            border="none"
-            padding={0}
-            cursor="pointer"
-            color={color.text.secondary}
-            fontSize={13}
-            props={{ onClick: () => setShowCreateDialog(true) }}
+          <Button
+            variant="text"
+            context="neutral"
+            size="medium"
+            onClick={() => setShowCreateDialog(true)}
           >
-            Create project
-          </Block>
+            <PlusIcon size={14} />
+            <Block {...textStyles.label}>Create project</Block>
+          </Button>
         </Row>
 
         <CreateProjectDialog
@@ -54,35 +76,34 @@ export const ProjectSwitcher: React.FC = () => {
   if (projects.length === 1 || !selectedProject) {
     return (
       <>
-        <Row
-          alignItems="center"
-          gap={spacing.sm}
-          padding={spacing.lg}
-          color={color.text.secondary}
-          fontSize={13}
-          fontWeight={500}
-        >
+        <Row alignItems="center" gap={spacing.sm} padding={spacing.lg}>
           <FolderIcon size={14} />
-          <Block flexGrow={1}>
+          <Block {...textStyles.label} color={color.text.default} flexGrow={1}>
             {selectedProject?.name ?? projects[0]?.name}
           </Block>
-          <Row
-            component="button"
-            type="button"
-            alignItems="center"
-            justifyContent="center"
-            background="none"
-            border="none"
-            cursor="pointer"
-            color={color.text.muted}
-            padding={0}
-            hoverColor={color.text.secondary}
-            props={{
-              'aria-label': 'Create project',
-              onClick: () => setShowCreateDialog(true),
-            }}
-          >
-            <PlusIcon size={14} />
+          <Row gap={spacing.xs} alignItems="center">
+            {projectSettingsActionHref ? (
+              <Button
+                variant="text"
+                context="neutral"
+                size="medium"
+                disabled={projectSettingsLoading}
+                onClick={() => navigate(projectSettingsActionHref)}
+              >
+                <SettingsIcon size={14} />
+                <Block {...textStyles.label}>Project settings</Block>
+              </Button>
+            ) : null}
+
+            <Button
+              variant="text"
+              context="neutral"
+              size="medium"
+              onClick={() => setShowCreateDialog(true)}
+            >
+              <PlusIcon size={14} />
+              <Block {...textStyles.label}>Create project</Block>
+            </Button>
           </Row>
         </Row>
 
@@ -96,61 +117,69 @@ export const ProjectSwitcher: React.FC = () => {
 
   return (
     <>
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenu.Trigger fullWidth>
-          <Row
-            component="button"
-            type="button"
-            width="100%"
-            alignItems="center"
-            gap={spacing.sm}
-            padding={spacing.lg}
-            cursor="pointer"
-            border="none"
-            background="none"
-            color={color.text.secondary}
-            fontSize={13}
-            fontWeight={500}
-            hoverBackgroundColor={color.bg.hover}
-            props={{
-              'aria-label': `Switch project. Current: ${selectedProject.name}`,
-            }}
-          >
-            <FolderIcon size={14} />
-            <Block flexGrow={1} textAlign="left">
-              {selectedProject.name}
-            </Block>
-            <ChevronDownIcon size={12} color={color.text.muted} />
-          </Row>
-        </DropdownMenu.Trigger>
+      <Row alignItems="center" gap={spacing.sm} padding={spacing.lg}>
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenu.Trigger>
+            <Button variant="outlined" context="neutral" size="medium">
+              <FolderIcon size={14} />
+              <Block {...textStyles.label}>{selectedProject.name}</Block>
+              <ChevronDownIcon size={12} color={color.text.muted} />
+            </Button>
+          </DropdownMenu.Trigger>
 
-        <DropdownMenu.Content side="bottom" align="start">
-          {projects.map(project => (
-            <DropdownMenu.Item
-              key={project.id}
-              onSelect={() => selectProject(project.id)}
-            >
-              {project.name}
-            </DropdownMenu.Item>
-          ))}
-          <DropdownMenu.Separator />
-          <Row padding={spacing.xs} justifyContent="flex-start">
+          <DropdownMenu.Content side="bottom" align="start">
+            {projects.map(project => (
+              <DropdownMenu.Item
+                key={project.id}
+                onSelect={() => selectProject(project.id)}
+              >
+                {project.name}
+              </DropdownMenu.Item>
+            ))}
+            <DropdownMenu.Separator />
+            <Row padding={spacing.xs} justifyContent="flex-start">
+              <Button
+                variant="outlined"
+                context="neutral"
+                size="medium"
+                rounded
+                onClick={() => {
+                  setMenuOpen(false)
+                  setShowCreateDialog(true)
+                }}
+              >
+                <PlusIcon size={14} />
+                Create project
+              </Button>
+            </Row>
+          </DropdownMenu.Content>
+        </DropdownMenu>
+
+        <Row gap={spacing.xs} marginLeft="auto" alignItems="center">
+          {projectSettingsActionHref ? (
             <Button
-              variant="outlined"
+              variant="text"
               context="neutral"
               size="medium"
-              rounded
-              onClick={() => {
-                setMenuOpen(false)
-                setShowCreateDialog(true)
-              }}
+              disabled={projectSettingsLoading}
+              onClick={() => navigate(projectSettingsActionHref)}
             >
-              <PlusIcon size={14} />
-              Create project
+              <SettingsIcon size={14} />
+              <Block {...textStyles.label}>Project settings</Block>
             </Button>
-          </Row>
-        </DropdownMenu.Content>
-      </DropdownMenu>
+          ) : null}
+
+          <Button
+            variant="text"
+            context="neutral"
+            size="medium"
+            onClick={() => setShowCreateDialog(true)}
+          >
+            <PlusIcon size={14} />
+            <Block {...textStyles.label}>Create project</Block>
+          </Button>
+        </Row>
+      </Row>
 
       <CreateProjectDialog
         open={showCreateDialog}

@@ -17,16 +17,17 @@ export interface ProjectSettingsNavItemProps {
   getMembers?: typeof defaultGetProjectMembers
 }
 
-export function ProjectSettingsNavItem({
+export interface ProjectSettingsAccess {
+  href: string | null
+  loading: boolean
+}
+
+export function useProjectSettingsAccess({
   getMembers = defaultGetProjectMembers,
-}: ProjectSettingsNavItemProps) {
+}: ProjectSettingsNavItemProps = {}): ProjectSettingsAccess {
   const apiClient = useApiClient()
   const session = useSession()
   const { selectedProject, loading: projectsLoading } = useProjectContext()
-  const projectSettingsActive = useMatch({
-    path: '/projects/:projectId/settings',
-    end: true,
-  })
 
   const {
     loading: membersLoading,
@@ -47,7 +48,7 @@ export function ProjectSettingsNavItem({
     membersLoading ||
     error
   ) {
-    return null
+    return { href: null, loading: true }
   }
 
   const currentMember = members.find(
@@ -55,6 +56,25 @@ export function ProjectSettingsNavItem({
   )
 
   if (currentMember?.role !== ProjectRole.Admin) {
+    return { href: null, loading: false }
+  }
+
+  return {
+    href: `/projects/${selectedProject.id}/settings`,
+    loading: false,
+  }
+}
+
+export function ProjectSettingsNavItem({
+  getMembers = defaultGetProjectMembers,
+}: ProjectSettingsNavItemProps) {
+  const { href, loading } = useProjectSettingsAccess({ getMembers })
+  const projectSettingsActive = useMatch({
+    path: '/projects/:projectId/settings',
+    end: true,
+  })
+
+  if (loading || !href) {
     return null
   }
 
@@ -64,7 +84,7 @@ export function ProjectSettingsNavItem({
       label="Project Settings"
       active={!!projectSettingsActive}
       component={RouterNavLink}
-      props={{ to: `/projects/${selectedProject.id}/settings` }}
+      props={{ to: href }}
     />
   )
 }

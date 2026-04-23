@@ -9,7 +9,8 @@ context
 \f[I]branch\f[R]]
 .SH DESCRIPTION
 Open a service URL in the browser, or launch the capture Chrome
-extension in a dedicated Playwright Chromium instance.
+extension in a dedicated Playwright Chromium instance for transitional
+manual preview.
 .PP
 For web services, the URL is resolved from \f[B]infra/services.json\f[R]
 for the current worktree context and opened with \f[B]open\f[R](1).
@@ -21,10 +22,13 @@ For \f[B]capture\f[R], a pinned Playwright Chromium browser is launched
 with \f[B]\-\-load\-extension\f[R] pointing at the worktree\(aqs
 \f[B]apps/capture/dist/\f[R] directory.
 A persistent per\-worktree user\-data\-dir is used at
-\f[B]\(ti/.repro/browser\-profiles//\f[R] so browser state (cookies,
-DevTools settings) is preserved between launches.
+\f[CR]/Users/gary/Projects/repro\-dev/repro/tmp/agent\-browser/profiles/<slug>/\f[R]
+so browser state (cookies, DevTools settings) is preserved between
+launches.
 The workspace URL is also opened automatically in the same browser
 instance.
+Treat this as a transitional preview path, not the normative
+extension\-verification workflow.
 .SH OPTIONS
 .TP
 \f[B]\-\-worktree\f[R] \f[I]branch\f[R], \f[B]\-w\f[R] \f[I]branch\f[R]
@@ -44,10 +48,12 @@ reproctl launch workspace
 Open the workspace in the default browser.
 .TP
 reproctl launch capture
-Launch Chromium with the capture extension from the current worktree.
+Launch Chromium with the capture extension from the current worktree as
+a transitional manual preview path.
 .TP
 reproctl launch capture \-\-worktree feat/my\-feature
-Launch Chromium with the capture extension from a specific worktree.
+Launch Chromium with the capture extension from a specific worktree as a
+transitional manual preview path.
 .TP
 reproctl launch api\-server \-\-worktree feat/my\-feature
 Open the API for a specific worktree.

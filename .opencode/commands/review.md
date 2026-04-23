@@ -17,9 +17,9 @@ Parse `$ARGUMENTS`:
 
 - If `$ARGUMENTS` is a number (digits only), treat it as a PR number:
   ```sh
-  gh pr view <number> --json headRefName --jq '.headRefName'
+  gh pr view <number> --json headRefName,title,body
   ```
-  Use the returned branch name as the target.
+  Use the returned `headRefName` as the target branch, and keep the PR title/body for issue ID extraction.
 - If `$ARGUMENTS` is a non-empty string that is not a number, treat it as a branch name directly.
 - If `$ARGUMENTS` is empty, use the current branch:
   ```sh
@@ -42,68 +42,52 @@ git log main...<target-branch> --oneline
 
 ## Step 2: Extract Linear issue IDs
 
-Scan the target branch name and each commit subject line for patterns matching `REP-\d+`.
+Scan all available review context for patterns matching `REP-\d+`:
 
-For each unique issue ID found, call `Linear_get_issue` with `includeRelations: true`. Read the full description, acceptance criteria, decisions, and considerations. If a parent project or milestone is referenced, fetch that too.
+- the target branch name
+- each commit subject line in `git log main...<target-branch> --oneline`
+- the PR title and PR body when reviewing by PR number
+
+For each unique issue ID found, run `linear issue show <issue-id> --json`. Read the full description, acceptance criteria, decisions, comments, and relations. If a parent project or milestone is referenced, fetch that too using the repo-owned `linear` CLI.
 
 If no issue IDs are found, note this in the output and proceed with convention-only review.
+
+If issue-scoped artifacts such as `tmp/context-<issue-id>.md`, `tmp/test-plan-<issue-id>.md`, or recent `tmp/debug-*.md` files exist for the work under review, read them and use them as supplemental context. For non-Linear work, use the matching `tmp/context-<topic>.md` and `tmp/test-plan-<topic>.md` artifacts instead.
+
+If the diff touches UI, also inspect the matching durable context artifact for a `## Design Direction` / `## Handoff` block, or a dedicated design-direction artifact, and carry that intent into the review instead of reconstructing it from the code alone.
 
 ---
 
 ## Step 3: Load the review checklist
 
-Load the `git-workflow` skill. This is the authoritative source for:
+Load the `review-standards` skill. This is the authoritative source for:
 
-- The four-step review process (Gather Context → Review Diff → Classify → Structure)
+- The review contract and output structure
 - Severity definitions (Blocker / Major / Minor / Nit)
 - Merge-readiness criteria
 
-Do **not** duplicate the checklist inline — follow it from the skill.
+Load the `skill-compliance` skill as a second pass when the diff is governed by specific repository skills or package-level guidance.
+
+Do **not** duplicate the checklists inline — follow them from the skills.
 
 ---
 
 ## Step 4: Run the review
 
-Apply the full `git-workflow` checklist to the diff. Evaluate:
+Apply the full correctness checklist from `review-standards`.
 
-- **Requirements coverage**: does the diff satisfy every acceptance criterion in the fetched Linear issues?
-- **Code correctness**: logical gaps, unhandled edge cases, async conventions (`FutureInstance` not Promises), error paths
-- **Test coverage**: each requirement has at least one test; happy path and error path covered
-- **Style and conventions**: matches `AGENTS.md` conventions (Prettier style, naming, no magic values, no bare arrays from list endpoints)
-- **Architecture**: consistent with existing patterns; no unintended side effects
+Then run the separate compliance pass from `skill-compliance` when repository or package guidance materially governs the diff.
 
-Classify every finding using the severity table from the `git-workflow` skill before writing the output.
+Classify every finding using the severity table from `review-standards` before writing the output.
+
+For UI changes, make sure the review explicitly states whether design-direction context was consulted and which artifact supplied it.
 
 ---
 
-## Step 5: Output findings grouped by severity
+## Step 5: Write the output
 
-```
-## Review: <branch-name> (<REP-xxx>, <REP-yyy> — or "no Linear issues found")
+Use the output structure from `review-standards`.
 
-### Blockers
-<!-- must fix before merge -->
-- [path/to/file.ts:42] Description of the blocking issue
+If a compliance pass ran, keep its material findings in a separate section rather than mixing them into correctness findings.
 
-### Major
-<!-- fix preferred; if deferred, track in a Linear issue -->
-- [path/to/file.ts:17] Description
-
-### Minor
-<!-- fix preferred, not required -->
-- [path/to/file.ts:9] Description
-
-### Nits
-<!-- style preference; never blocks merge -->
-- [path/to/file.ts:3] Description
-
-### Merge-readiness
-<explicit statement: zero Blockers? any Majors — fixed or tracked?>
-
-### Verdict
-approve | request changes | discuss
-```
-
-If a section has no findings, write `(none)` rather than omitting the section.
-
-Include a `## Requirements checklist` section at the end mapping each acceptance criterion from the fetched Linear issues to `met` / `partially met` / `not met` with brief evidence.
+Include the requirements checklist from the fetched Linear issues, note which `tmp/` artifacts were consulted, note which still need updating before the next implementation or handoff step, and write `(none)` for any empty findings section instead of omitting it.

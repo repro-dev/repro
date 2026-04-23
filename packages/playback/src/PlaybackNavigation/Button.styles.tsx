@@ -5,6 +5,7 @@ import React from 'react'
 interface ButtonProps {
   active?: boolean
   disabled?: boolean
+  title?: string
   onClick: () => void
 }
 
@@ -12,6 +13,7 @@ export const Button: React.FC<ButtonProps & { children?: React.ReactNode }> = ({
   children,
   active,
   disabled,
+  title,
   onClick,
 }) => (
   <Row
@@ -34,6 +36,7 @@ export const Button: React.FC<ButtonProps & { children?: React.ReactNode }> = ({
     hoverBackgroundColor={disabled || active ? null : color.infoTint}
     cursor="pointer"
     pointerEvents={disabled ? 'none' : 'auto'}
+    title={title}
     props={{ disabled, onClick }}
   >
     {children}

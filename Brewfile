@@ -1,5 +1,7 @@
+brew "agent-browser"
 brew "direnv"
 brew "fzf"
+brew "jq"
 brew "kind"
 brew "pandoc"
 brew "portless"

@@ -1,4 +1,4 @@
-import { SourceEventType } from '../generated/event'
+import { SourceEventType } from '../../generated/event'
 import { Migration } from './types'
 
 const migration: Migration = {

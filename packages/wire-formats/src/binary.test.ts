@@ -1,12 +1,12 @@
 import { ReadableStream } from '@repro/stream-utils'
 import expect from 'expect'
 import { describe, it } from 'node:test'
+import { Entity, EntityView } from '../generated/binary-test-schema'
 import {
   fromBinaryWireFormat,
   fromBinaryWireFormatStream,
   toBinaryWireFormat,
 } from './binary'
-import { Entity, EntityView } from './generated/binary-test-schema'
 
 describe('wire-formats: binary', () => {
   it('should convert any array of buffers to and from a binary wire format', () => {

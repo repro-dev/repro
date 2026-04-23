@@ -18,6 +18,7 @@ import { AccountService } from '~/services/account'
 import { BillingEntitlement, BillingService } from '~/services/billing'
 import { FeatureGate } from '~/types/featureGate'
 import {
+  isNotAuthenticated,
   isNotFound,
   notFound,
   permissionDenied,
@@ -99,6 +100,37 @@ export function createFeatureGateService(database: Database) {
     }).pipe(map(rows => rows.map(asFeatureGate)))
   }
 
+  function listEnabledFeatureGatesForRequest(
+    req: FastifyRequest,
+    billingService: BillingService,
+    accountService: AccountService,
+    env: Env
+  ): FutureInstance<Error, Array<FeatureGate>> {
+    if (env.BILLING_STUBBED) {
+      return listEnabledFeatureGates()
+    }
+
+    return getCurrentUserAccount(req, accountService).pipe(
+      bichain((error: Error) =>
+        isNotAuthenticated(error) ? listEnabledFeatureGates() : reject(error)
+      )(({ account }) =>
+        go(function* () {
+          const entitlements: Array<BillingEntitlement> =
+            yield billingService.getEntitlements(account.id)
+          const entitledFeatures = new Set(
+            entitlements
+              .filter((entitlement: BillingEntitlement) => entitlement.enabled)
+              .map((entitlement: BillingEntitlement) => entitlement.feature)
+          )
+
+          const gates: Array<FeatureGate> = yield listEnabledFeatureGates()
+
+          return gates.filter(gate => entitledFeatures.has(gate.name))
+        })
+      )
+    )
+  }
+
   function updateFeatureGate(
     id: string,
     updates: {
@@ -160,6 +192,7 @@ export function createFeatureGateService(database: Database) {
     getFeatureGateById,
     listFeatureGates,
     listEnabledFeatureGates,
+    listEnabledFeatureGatesForRequest,
     updateFeatureGate,
     removeFeatureGate,
   }

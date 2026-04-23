@@ -16,7 +16,7 @@ export interface StaffUserTable {
 
 type DomainObject = Pick<
   Selectable<StaffUserTable>,
-  'id' | 'name' | 'email' | 'admin'
+  'id' | 'name' | 'email' | 'admin' | 'active'
 >
 
 export function asStaffUser<T extends DomainObject>(values: T): StaffUser {
@@ -26,5 +26,6 @@ export function asStaffUser<T extends DomainObject>(values: T): StaffUser {
     name: values.name,
     email: values.email,
     isAdmin: values.admin,
+    isActive: values.active,
   }
 }

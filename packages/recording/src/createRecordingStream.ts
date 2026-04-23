@@ -91,6 +91,7 @@ export function createEmptyInteractionSnapshot(): InteractionSnapshot {
 export interface RecordingStream {
   start(): void
   stop(): void
+  injectBufferedEvents(events: Array<DataView>): void
   $started: Atom<boolean>
   isStarted(): boolean
   peek(nodeId: SyntheticId): VNode | null
@@ -107,6 +108,7 @@ interface BufferSubscriptions {
 export const EMPTY_RECORDING_STREAM: RecordingStream = {
   start: () => undefined,
   stop: () => undefined,
+  injectBufferedEvents: () => undefined,
   $started: createAtom(false)[0],
   isStarted: () => false,
   peek: () => null,
@@ -254,6 +256,12 @@ export function createRecordingStream(
     eventBuffer.clear()
 
     setStarted(false)
+  }
+
+  function injectBufferedEvents(events: Array<DataView>) {
+    for (const event of events) {
+      eventBuffer.push(copyDataView(event))
+    }
   }
 
   function slice(start?: number, end?: number): List<SourceEventView> {
@@ -719,6 +727,7 @@ export function createRecordingStream(
   return {
     start,
     stop,
+    injectBufferedEvents,
     $started,
     isStarted,
     peek,

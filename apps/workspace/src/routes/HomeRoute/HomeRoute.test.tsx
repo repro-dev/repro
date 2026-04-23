@@ -8,6 +8,7 @@ import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { ProjectProvider, useProjectContext } from '~/ProjectContext'
 import { HomeRoute } from './HomeRoute'
+import { resetSessionListControlsForTests } from './sessionListControls'
 
 // Minimal API client for ApiProvider
 const mockApiClient = createApiClient({
@@ -41,8 +42,8 @@ Object.defineProperty(global, 'localStorage', {
 const mockRecordings: Array<RecordingInfo> = [
   {
     id: 'rec-1',
-    title: 'First Recording',
-    url: 'https://example.com',
+    title: 'Alpha Recording',
+    url: 'https://example.com/alpha',
     description: '',
     mode: RecordingMode.Live,
     duration: 120,
@@ -54,14 +55,27 @@ const mockRecordings: Array<RecordingInfo> = [
   },
   {
     id: 'rec-2',
-    title: 'Second Recording',
-    url: 'https://example.com/2',
+    title: 'Beta Recording',
+    url: 'https://example.com/beta',
     description: '',
     mode: RecordingMode.Snapshot,
     duration: 0,
-    createdAt: '2026-01-02T00:00:00.000Z',
+    createdAt: '2026-01-03T00:00:00.000Z',
     browserName: null,
     browserVersion: null,
+    operatingSystem: null,
+    codecVersion: '1.0.0',
+  },
+  {
+    id: 'rec-3',
+    title: 'Gamma Recording',
+    url: 'https://example.com/gamma',
+    description: '',
+    mode: RecordingMode.Replay,
+    duration: 300,
+    createdAt: '2026-01-02T00:00:00.000Z',
+    browserName: 'Chrome',
+    browserVersion: '120',
     operatingSystem: null,
     codecVersion: '1.0.0',
   },
@@ -119,6 +133,7 @@ describe('HomeRoute', () => {
   afterEach(() => {
     cleanup()
     localStorageMock.clear()
+    resetSessionListControlsForTests()
   })
 
   describe('loading state', () => {
@@ -154,6 +169,10 @@ describe('HomeRoute', () => {
 
       await waitFor(() => {
         assert.ok(screen.getByText('Install the Repro extension'))
+        assert.equal(
+          screen.queryByRole('radio', { name: 'Newest first' }),
+          null
+        )
       })
     })
   })
@@ -171,8 +190,9 @@ describe('HomeRoute', () => {
       })
 
       await waitFor(() => {
-        assert.ok(screen.getByText('First Recording'))
-        assert.ok(screen.getByText('Second Recording'))
+        assert.ok(screen.getByText('Alpha Recording'))
+        assert.ok(screen.getByText('Beta Recording'))
+        assert.ok(screen.getByText('Gamma Recording'))
       })
     })
 
@@ -188,7 +208,7 @@ describe('HomeRoute', () => {
       })
 
       await waitFor(() => {
-        assert.ok(screen.getByText('Sessions (2)'))
+        assert.ok(screen.getByText('Sessions (3)'))
       })
     })
 

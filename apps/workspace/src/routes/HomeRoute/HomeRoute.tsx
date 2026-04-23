@@ -6,9 +6,22 @@ import { useFuture } from '@repro/future-utils'
 import { getProjectRecordings as defaultGetProjectRecordings } from '@repro/workspace-api'
 import { FutureInstance, resolve } from 'fluture'
 import { PuzzleIcon } from 'lucide-react'
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useProjectContext } from '~/ProjectContext'
 import { RecordingTile } from './RecordingTile'
+import { SessionListControlBar } from './SessionListControlBar'
+import {
+  deriveVisibleSessionRecordings,
+  getDefaultSessionListFilters,
+  getSessionListFilters,
+  isSessionListFilteringActive,
+  readSessionListSortOrder,
+  SESSION_LIST_SORT_OPTIONS,
+  setSessionListFilters,
+  writeSessionListSortOrder,
+  type SessionListFilters,
+  type SessionListSortOrder,
+} from './sessionListControls'
 
 // The real Chrome Web Store listing for the Repro capture extension.
 const CHROME_WEB_STORE_URL =
@@ -34,6 +47,18 @@ export const HomeRoute = ({
   const { selectedProject } = useProjectContext()
 
   const projectId = selectedProject?.id ?? null
+
+  const [sortOrder, setSortOrder] = useState<SessionListSortOrder>(() =>
+    readSessionListSortOrder(globalThis.localStorage)
+  )
+  const [filters, setFilters] = useState<SessionListFilters>(() =>
+    projectId == null
+      ? getDefaultSessionListFilters()
+      : getSessionListFilters(projectId)
+  )
+  const [debouncedSearchText, setDebouncedSearchText] = useState(
+    filters.searchText
+  )
 
   // Re-fetch whenever the selected project changes.
   const { loading, data: recordings } = useFuture<
@@ -64,6 +89,102 @@ export const HomeRoute = ({
 
   const currentProjectId = isDataCurrent ? confirmedProjectId : null
   const items: RecordingInfo[] = isDataCurrent ? recordings ?? [] : []
+
+  useEffect(() => {
+    const nextFilters =
+      projectId == null
+        ? getDefaultSessionListFilters()
+        : getSessionListFilters(projectId)
+
+    setFilters(nextFilters)
+    setDebouncedSearchText(nextFilters.searchText)
+  }, [projectId])
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedSearchText(filters.searchText)
+    }, 250)
+
+    return () => {
+      window.clearTimeout(handle)
+    }
+  }, [filters.searchText])
+
+  const updateFilters = useCallback(
+    (updater: (current: SessionListFilters) => SessionListFilters) => {
+      if (!projectId) {
+        return
+      }
+
+      setFilters(current => {
+        const next = updater(current)
+        setSessionListFilters(projectId, next)
+        return next
+      })
+    },
+    [projectId]
+  )
+
+  const handleSearchChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const nextSearchText = event.target.value
+
+      updateFilters(current => ({
+        ...current,
+        searchText: nextSearchText,
+      }))
+    },
+    [updateFilters]
+  )
+
+  const toggleMode = useCallback(
+    (mode: SessionListFilters['selectedModes'][number]) => {
+      updateFilters(current => {
+        const selectedModes = current.selectedModes.includes(mode)
+          ? current.selectedModes.filter(selectedMode => selectedMode !== mode)
+          : [...current.selectedModes, mode]
+
+        return {
+          ...current,
+          selectedModes,
+        }
+      })
+    },
+    [updateFilters]
+  )
+
+  const clearFilters = useCallback(() => {
+    if (!projectId) {
+      return
+    }
+
+    const nextFilters = getDefaultSessionListFilters()
+    setFilters(nextFilters)
+    setDebouncedSearchText(nextFilters.searchText)
+    setSessionListFilters(projectId, nextFilters)
+  }, [projectId])
+
+  const visibleItems = useMemo(
+    () =>
+      deriveVisibleSessionRecordings(items, sortOrder, {
+        searchText: debouncedSearchText,
+        selectedModes: filters.selectedModes,
+      }),
+    [debouncedSearchText, filters.selectedModes, items, sortOrder]
+  )
+
+  const hasActiveFilters = isSessionListFilteringActive(filters)
+
+  const handleSortChange = useCallback((nextSortIndex: number) => {
+    const nextSortOrder = SESSION_LIST_SORT_OPTIONS[nextSortIndex]?.value
+
+    if (!nextSortOrder) {
+      return
+    }
+
+    setSortOrder(nextSortOrder)
+    writeSessionListSortOrder(globalThis.localStorage, nextSortOrder)
+  }, [])
 
   if (effectiveLoading) {
     return (
@@ -123,22 +244,58 @@ export const HomeRoute = ({
   return (
     <PageFrame>
       <PageFrame.Header>
-        <PageFrame.Title>Sessions ({items.length})</PageFrame.Title>
+        <PageFrame.Title>Sessions ({visibleItems.length})</PageFrame.Title>
       </PageFrame.Header>
 
       <PageFrame.Body>
-        <Grid
-          gridTemplateColumns="repeat(auto-fill, minmax(320px, 1fr))"
-          gap={spacing.md}
-        >
-          {items.map(recording => (
-            <RecordingTile
-              key={recording.id}
-              recording={recording}
-              projectId={currentProjectId}
-            />
-          ))}
-        </Grid>
+        <Col gap={spacing.lg}>
+          <SessionListControlBar
+            searchText={filters.searchText}
+            selectedModes={filters.selectedModes}
+            sortOrder={sortOrder}
+            hiddenCount={items.length - visibleItems.length}
+            onSearchChange={handleSearchChange}
+            onToggleMode={toggleMode}
+            onSortChange={handleSortChange}
+          />
+
+          {visibleItems.length === 0 ? (
+            <EmptyState>
+              <EmptyState.Title>
+                No sessions match your filters
+              </EmptyState.Title>
+
+              <EmptyState.Description>
+                Try a different search term or recording mode.
+              </EmptyState.Description>
+
+              {hasActiveFilters && (
+                <EmptyState.Action>
+                  <Button
+                    variant="outlined"
+                    context="neutral"
+                    onClick={clearFilters}
+                  >
+                    Clear filters
+                  </Button>
+                </EmptyState.Action>
+              )}
+            </EmptyState>
+          ) : (
+            <Grid
+              gridTemplateColumns="repeat(auto-fill, minmax(320px, 1fr))"
+              gap={spacing.md}
+            >
+              {visibleItems.map(recording => (
+                <RecordingTile
+                  key={recording.id}
+                  recording={recording}
+                  projectId={currentProjectId}
+                />
+              ))}
+            </Grid>
+          )}
+        </Col>
       </PageFrame.Body>
     </PageFrame>
   )

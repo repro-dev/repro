@@ -114,3 +114,21 @@ export const StaffUserA_Session: Fixture<Session> = {
   load: ({ accountService }, user: StaffUser) =>
     accountService.createSession(user.id, 'staff'),
 }
+
+export const StaffUserAdminA: Fixture<StaffUser> = {
+  dependencies: [],
+  load: ({ accountService }) =>
+    accountService
+      .createStaffUser(
+        'Admin Staff User',
+        'admin-staff-user@repro.test',
+        'admin-staff-password'
+      )
+      .pipe(tapF(user => accountService.setStaffUserIsAdmin(user.id, true))),
+}
+
+export const StaffUserAdminA_Session: Fixture<Session> = {
+  dependencies: [StaffUserAdminA],
+  load: ({ accountService }, user: StaffUser) =>
+    accountService.createSession(user.id, 'staff'),
+}

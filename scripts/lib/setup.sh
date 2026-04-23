@@ -142,7 +142,7 @@ cmd_doctor() {
     has_failures=true
   fi
 
-  local brew_deps=("direnv" "kind" "pandoc" "postgresql@17")
+  local brew_deps=("agent-browser" "direnv" "kind" "pandoc" "postgresql@17")
   for dep in "${brew_deps[@]}"; do
     if command -v brew > /dev/null 2>&1 && brew list "$dep" > /dev/null 2>&1; then
       local dep_version
@@ -155,6 +155,23 @@ cmd_doctor() {
       has_failures=true
     fi
   done
+
+  if command -v agent-browser > /dev/null 2>&1; then
+    local agent_browser_version
+    agent_browser_version="$(agent-browser --version 2>/dev/null | awk '{print $NF}')"
+    if agent-browser doctor --offline --quick > /dev/null 2>&1; then
+      [ "$json_mode" != true ] && _doctor_row "ok" "agent-browser runtime" "v${agent_browser_version:-unknown}, healthy"
+      _doctor_add "agent-browser runtime" "ok" --actual "${agent_browser_version:-unknown}"
+    else
+      [ "$json_mode" != true ] && _doctor_row "error" "agent-browser runtime" "v${agent_browser_version:-unknown} — runtime unhealthy; run 'agent-browser install'; use 'agent-browser doctor' or 'agent-browser doctor --fix' to repair"
+      _doctor_add "agent-browser runtime" "fail" --actual "${agent_browser_version:-unknown}" --message "runtime unhealthy — run 'agent-browser install'; use 'agent-browser doctor' or 'agent-browser doctor --fix' to repair"
+      has_failures=true
+    fi
+  else
+    [ "$json_mode" != true ] && _doctor_row "error" "agent-browser runtime" "not installed — run 'reproctl setup'"
+    _doctor_add "agent-browser runtime" "fail" --message "not installed — run 'reproctl setup'"
+    has_failures=true
+  fi
 
   if command -v proto > /dev/null 2>&1; then
     local proto_version
@@ -206,6 +223,15 @@ cmd_doctor() {
       _doctor_add "$tool" "ok" --actual "${actual:-unknown}"
     fi
   done
+
+  if command -v pnpm > /dev/null 2>&1 && pnpm exec linear --version > /dev/null 2>&1 && pnpm exec node --input-type=module -e "await import('@linear/sdk')" > /dev/null 2>&1; then
+    [ "$json_mode" != true ] && _doctor_row "ok" "linear" "repo-local CLI wrapper can execute and resolve @linear/sdk"
+    _doctor_add "linear" "ok" --actual "repo-local CLI wrapper can execute and resolve @linear/sdk"
+  else
+    [ "$json_mode" != true ] && _doctor_row "error" "linear" "repo-local CLI wrapper cannot execute or resolve @linear/sdk — run 'pnpm install' or 'reproctl setup'"
+    _doctor_add "linear" "fail" --message "repo-local CLI wrapper cannot execute or resolve @linear/sdk — run 'pnpm install' or 'reproctl setup'"
+    has_failures=true
+  fi
 
   if command -v docker > /dev/null 2>&1; then
     if docker info > /dev/null 2>&1; then

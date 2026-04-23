@@ -3,7 +3,7 @@ name: Update eval baseline
 on:
   schedule:
     # Every Monday at 4am UTC — runs after the week's nightly runs have accumulated
-    - cron: '0 4 * * 1'
+    - cron: "0 4 * * 1"
   workflow_dispatch:
 
 jobs:
@@ -21,12 +21,12 @@ jobs:
         with:
           auto-install: true
       - name: Set PNPM store directory
-        run: pnpm config set store-dir .pnpm-store
+        run: pnpm config set store-dir ~/.pnpm-store
       - uses: actions/cache@v3
         with:
-          path: .pnpm-store
+          path: ~/.pnpm-store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm install
+      - run: pnpm install --reporter=silent
 
       - name: Compute rolling baseline
         id: compute

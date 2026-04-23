@@ -1,10 +1,16 @@
 import type { Metadata } from 'next'
-import { HeroSection } from '~/components/HeroSection'
+import React from 'react'
+import { HomePageContent } from '~/components/HomePageContent'
+import { createEnv } from '~/config/env'
+
+void React
 
 export const metadata: Metadata = {
   title: 'Bug reporting that captures every detail',
 }
 
 export default function HomePage() {
-  return <HeroSection />
+  const { REPRO_APP_URL: appUrl } = createEnv(process.env)
+
+  return <HomePageContent appUrl={appUrl} />
 }

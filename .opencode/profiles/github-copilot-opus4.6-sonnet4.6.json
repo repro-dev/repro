@@ -2,7 +2,11 @@
   "$schema": "https://opencode.ai/config.json",
   "model": "github-copilot/claude-sonnet-4.6",
   "command": {
-    "lightspeed": {
+    "deliver": {
+      "model": "github-copilot/claude-sonnet-4.6",
+      "template": ""
+    },
+    "groom": {
       "model": "github-copilot/claude-sonnet-4.6",
       "template": ""
     },

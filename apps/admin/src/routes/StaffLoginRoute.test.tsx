@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { afterEach, describe, it, mock } from 'node:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { createDefaultEnv } from '../testing/env'
 
 globalThis.window = {
   location: {
@@ -26,7 +27,7 @@ mock.module('@repro/auth', {
 
 mock.module('../config/env', {
   namedExports: {
-    defaultEnv: { REPRO_API_URL: 'http://admin.test' },
+    defaultEnv: { ...createDefaultEnv(), REPRO_API_URL: 'http://admin.test' },
   },
 })
 

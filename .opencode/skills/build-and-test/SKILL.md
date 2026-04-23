@@ -13,22 +13,26 @@ Moon v2 project IDs use the source-path format: `repro/<name>` (e.g. `repro/doma
 
 **Moon v2 glob restriction**: Brace expansion (`{,x}`) is not supported in glob patterns. Use separate entries instead (e.g. two globs `*.ts` and `*.tsx` rather than `*.ts{,x}`).
 
-| Task        | Command                                                                                        |
-| ----------- | ---------------------------------------------------------------------------------------------- |
-| Build       | `moon run repro/<name>:build` (builds dependencies first via `^:build`)                        |
-| Test        | `moon run repro/<name>:test` (preferred) or `pnpm test` if the package has no Moon target      |
-| Single test | `moon run repro/<name>:test` if possible; direct `tsx --test` only as a package-local fallback |
-| Typecheck   | `moon run repro/<name>:typecheck` or `pnpm typecheck`                                          |
+| Task        | Command                                                                                                          |
+| ----------- | ---------------------------------------------------------------------------------------------------------------- |
+| Build       | `moon run repro/<name>:build` (builds dependencies first via `^:build`)                                          |
+| Test        | `moon run repro/<name>:test` (default)                                                                            |
+| Single test | `moon run repro/<name>:test` if possible; direct `tsx --test` only as a package-local fallback when no target exists |
+| Typecheck   | `moon run repro/<name>:typecheck` (default)                                                                       |
 
-General form: `moon run repro/<name>:build|test|typecheck` or `cd <package> && pnpm <script>`.
+General form: `moon run repro/<name>:build|test|typecheck`.
 
 ## Test command preference
 
 Default to Moon for package tests. In agent sessions, `moon run repro/<name>:test` is the most reliable entrypoint because it picks up the package's configured test harness, required imports such as `global-jsdom/register`, and any workspace-specific flags.
 
+Default to Moon for typechecking as well: `moon run repro/<name>:typecheck`. Do not reach for raw `tsc`, `pnpm typecheck`, `pnpm exec`, or ad hoc `tsx` commands first when a package already exposes a Moon target.
+
 Use direct `tsx --test` commands only as a fallback when a package does not expose a usable Moon `test` target and you have confirmed the exact invocation from the package's existing scripts or docs.
 
 When `tsx` is not on your shell `PATH`, invoke it through pnpm in the target package (for example `pnpm --dir "packages/recording" exec tsx ...`). Match the package's own test script flags when needed — some browser-like tests require `-r global-jsdom/register` in addition to `--test`.
+
+For formatting, prefer a package-scoped command or Moon target when one exists. If no Moon format target exists, run the package-local formatter from the affected package rather than broad repo-level formatting from habit.
 
 ### Moon v2 config files
 
@@ -115,7 +119,7 @@ When passing output paths to tools (e.g. Playwright `outputDir`, Storybook scree
 
 Git worktrees created by `reproctl wt create` live as sibling directories of the main checkout (e.g. `../repro-wt-<name>`). When running OpenCode from the main checkout and accessing files in a worktree (or vice-versa), OpenCode will prompt for permission because the path is outside the working directory.
 
-This cannot be configured in the project-level `opencode.json` because the checkout path varies per developer. Instead, add the following to your **user-level** config at `~/.config/opencode/config.json`:
+This cannot be configured in the tracked project config at `.opencode/opencode.json` because the checkout path varies per developer. Instead, add the following to your **user-level** config at `~/.config/opencode/config.json`:
 
 ```json
 {
@@ -132,7 +136,7 @@ Replace `~/path/to/parent-of-checkouts` with the directory that contains your ma
 
 ## Visual Regression Tooling
 
-The repo includes standalone visual regression tooling in `scripts/`. It is useful for manual UI checks and for refreshing local baselines, but it is not an active `/lightspeed` pipeline phase. The tooling consists of two scripts:
+The repo includes standalone visual regression tooling in `scripts/`. It is useful for manual UI checks and for refreshing local baselines, but it is not an active `/deliver` pipeline phase. The tooling consists of two scripts:
 
 | Script                                 | Purpose                                                        |
 | -------------------------------------- | -------------------------------------------------------------- |
@@ -184,6 +188,8 @@ After starting Storybook, query `http://localhost:6099/index.json` to get canoni
 ### Threshold configuration
 
 Default threshold: `0.001` (0.1% of pixels changed). To override for a specific package, create a `.visual-threshold` file in the package root containing just the threshold value (e.g. `0.005`).
+
+For test-file-size guardrails, CI only scans changed `.test.ts` / `.test.tsx` files from the PR diff; local manual runs still scan the whole repo when no CI context is present. Current thresholds are 400 lines for warnings and 500 lines for errors.
 
 ### Storybook port
 
@@ -269,3 +275,45 @@ Reserve space for dynamic content with `aspect-ratio` or explicit dimensions:
 - Profile in development mode — always profile production builds (`NODE_ENV=production`).
 - Save Lighthouse reports to `/tmp/` — use `tmp/lighthouse/` at the repo root.
 - Add `memo` / `useMemo` / `useCallback` without a profiler-confirmed bottleneck.
+
+---
+
+## Test File Size Limits
+
+### Problem
+
+`node:test` + `tsx` (v4.19.3) + `--experimental-test-module-mocks` hangs indefinitely when a test file exceeds ~500–800 lines. The process never completes — no output, no timeout. This was discovered during the REP-436 workstream when `tools.test.ts` reached 847 lines.
+
+**Environment where hang was observed**: tsx 4.19.3, Node 22.19.0, `--experimental-test-module-mocks`.
+
+**Likely contributing factors**: The `--experimental-test-module-mocks` flag is experimental; this is a known risk area for tsx/node:test interop.
+
+### Version testing status
+
+Testing tsx v4.20+ and Node v23.x against the hang is **blocked**: the workaround (splitting files to <300 lines each) has already been applied, so no file large enough to trigger the hang reliably exists in the codebase. Creating a deliberately oversized file would itself violate the CI lint rule below.
+
+### Enforced limits
+
+CI runs `scripts/check-test-file-size.sh` after the migration duplicate check step:
+
+| Threshold   | Action                 |
+| ----------- | ---------------------- |
+| > 400 lines | Warning (non-blocking) |
+| > 500 lines | Error (blocks CI)      |
+
+Run locally with:
+
+```sh
+pnpm check:test-file-size
+# or
+bash scripts/check-test-file-size.sh
+```
+
+### Workaround
+
+Split large test files into per-feature files under `src/<module>/__tests__/`. Each file should stay under ~300 lines for a comfortable safety margin. The established pattern is in `packages/agentic/src/model/tools/__tests__/` — one file per tool.
+
+### NEVER
+
+- Write a test file that exceeds 500 lines. CI will reject it.
+- Merge files that were previously split to work around the hang.

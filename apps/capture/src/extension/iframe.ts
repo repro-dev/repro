@@ -18,8 +18,7 @@ export function createIframe(
     iframe.onerror = () => {
       reject(new Error('Could not create IFrame element'))
     }
-
-    document.body.appendChild(iframe)
+    ;(document.body ?? document.documentElement).appendChild(iframe)
 
     return () => {
       iframe.remove()

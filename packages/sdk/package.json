@@ -1,14 +1,17 @@
 {
   "name": "@repro/sdk",
   "version": "0.0.1",
-  "description": "Repro SDK — identify users, mark events, and capture component state",
-  "main": "src/index.ts",
+  "description": "Repro SDK — mark events and capture component state",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     "dist"

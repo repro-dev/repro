@@ -90,6 +90,31 @@ export interface ToolMessageContext {
   tool_call_id: string;
 }
 
+export interface AskUserChoice {
+  label: string;
+  value: string;
+  description?: string;
+}
+
+export interface AskUserRequest {
+  prompt: string;
+  choices?: Array<AskUserChoice>;
+  multiple?: boolean;
+  allowFreeform?: boolean;
+}
+
+export interface AskUserResult {
+  answer: string | Array<string>;
+  freeformAnswer?: string;
+}
+
+export interface PendingAskUserInteraction {
+  id: string;
+  toolCallId: string;
+  request: AskUserRequest;
+  createdAt: Date;
+}
+
 export interface SystemMessage {
   id: string;
   timestamp: Date;
@@ -130,13 +155,23 @@ export interface AgenticState {
   $loading: Atom<Loading>;
   $error: Atom<AgenticError | null>;
   $wasCancelled: Atom<boolean>;
+  $pendingInteraction: Atom<PendingAskUserInteraction | null>;
   // ID of the first surviving entry after context-window truncation, or null if
   // no messages were dropped on the last inference call.
   $truncatedBefore: Atom<string | null>;
   cancel(): void;
   destroy(): void;
+  submitAskUserAnswer(answer: AskUserResult): void;
   query(input: string): void;
   reset(): void;
+}
+
+export interface ToolExecutionContext {
+  toolCall?: ToolCall;
+  askUser?: (
+    request: AskUserRequest,
+    toolCallId: string,
+  ) => FutureInstance<unknown, AskUserResult>;
 }
 
 export interface ToolDefinition {

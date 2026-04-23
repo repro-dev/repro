@@ -1,4 +1,10 @@
-import { IfSession, UnlessSession, UserMenu, useSession } from '@repro/auth'
+import {
+  IfSession,
+  UnlessSession,
+  UserMenu,
+  useLoginPath,
+  useSession,
+} from '@repro/auth'
 import { AppShell, Link, SideNav } from '@repro/design'
 import {
   ActivityIcon,
@@ -10,9 +16,11 @@ import {
 import React from 'react'
 import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
 import { AdminHeader } from '~/components/AdminHeader'
+import { HealthStatusFooter } from '~/components/HealthStatusFooter'
 
 export const Layout: React.FC = () => {
   const session = useSession()
+  const loginPath = useLoginPath()
   const isAdminStaff = session?.type === 'staff' && session.isAdmin
 
   const recordingsActive = useMatch({ path: '/recordings', end: false })
@@ -27,7 +35,10 @@ export const Layout: React.FC = () => {
         header={<AdminHeader />}
         footer={
           <IfSession>
-            <UserMenu />
+            <>
+              <HealthStatusFooter />
+              <UserMenu />
+            </>
           </IfSession>
         }
       >
@@ -85,7 +96,7 @@ export const Layout: React.FC = () => {
         </IfSession>
 
         <UnlessSession>
-          <Link component={RouterNavLink} props={{ to: '/account/login' }}>
+          <Link component={RouterNavLink} props={{ to: loginPath }}>
             Log In
           </Link>
         </UnlessSession>

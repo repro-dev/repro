@@ -104,7 +104,11 @@ if service_config:
 
   service_slugs = {}
   for entry in service_config:
-    service_slugs[entry.get('name', '')] = entry.get('slug', '')
+    slug = entry.get('slug', '')
+    name = entry.get('name', '')
+    if slug not in service_slugs:
+      service_slugs[slug] = {}
+    service_slugs[slug][name] = slug
 
   wt_sources_seen = {}
 

@@ -1,4 +1,3 @@
-import { Col } from '@jsxstyle/react'
 import { RegisterForm } from '@repro/auth'
 import { Card } from '@repro/design'
 import { logger } from '@repro/logger'
@@ -23,11 +22,9 @@ const RegisterRoute: React.FC = () => {
   }, [])
 
   return (
-    <Col width={320} alignItems="stretch" gap={10}>
-      <Card>
-        <RegisterForm onSuccess={onSuccess} onFailure={onFailure} />
-      </Card>
-    </Col>
+    <Card>
+      <RegisterForm onSuccess={onSuccess} onFailure={onFailure} />
+    </Card>
   )
 }
 

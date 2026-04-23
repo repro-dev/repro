@@ -5,17 +5,51 @@ description: UI implementation with @repro/design — component selection, desig
 
 # Design System
 
-Comprehensive reference for building UI in the Repro codebase. Load this skill before implementing any UI work.
+Comprehensive reference for building UI in the Repro codebase. Load this skill before implementing any UI work; if the visual direction is still unresolved, load `design-direction` first and return here once intent is captured.
+
+## Core implementation rules
+
+- Use `@repro/design` for appearance, semantics, and shared interaction patterns.
+- Use `@jsxstyle/react` in app code for structure and layout only.
+- When a screen is near shipping, read `pre-delivery-ui-checklist.md` for the final shared pass.
+
+## Companion guides by concern
+
+When the task is about authoredness, generic drift, naming a recurring UI tell, forms/editing behavior, navigation/URL state, scroll recovery, session-expiry handling, layering/overlay behavior, preserving preferences across updates, accessibility-as-UX, storage hygiene, or recovering from a broken surface, read `anti-patterns.md`, `palette-surface-spacing.md`, `interaction-responsive.md`, `navigation-url-scroll-state.md`, `layering-and-overlays.md`, `accessibility-as-ux.md`, `forms-input-interference.md`, `persistence-hygiene.md`, and `error-recovery-containment.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
+
+When the task is specifically about readable type or paragraph hierarchy, also read `typography-readability.md` so the same heuristics and anti-pattern names travel across design, review, and audit.
+
+When the task is specifically about mobile touch, app surfaces, or constrained mobile viewport behavior, also read `mobile-touch-app-surface.md` so the same cues travel across design, review, and audit.
+
+## When companions are required
+
+Read the companion docs when the concern is specific enough that shared vocabulary matters. Keep the core skill focused on implementation decisions; let the companion guides carry the topic-specific guardrails.
+
+## Surface Scoping
+
+Use the shared scope labels when judging whether a rule applies: `marketing/editorial web`, `product/app UI`, `mobile-first or touch-heavy`, `platform-adaptive or native-like`, and `cross-surface`. Treat out-of-scope guidance as non-applicable rather than contradictory, and keep qualifiers concise.
 
 For detailed sub-topics, read the reference files in this directory:
 
-| File                    | When to read                                                                                              |
-| ----------------------- | --------------------------------------------------------------------------------------------------------- |
-| `tokens.md`             | Need full token tables (color, spacing, typography, elevation, motion, interaction)                       |
-| `component-contract.md` | Creating or modifying `@repro/design` components (forwardRef, a11y, Storybook, known deviations)          |
-| `layouts.md`            | Building page layouts (3-tier hierarchy: AppShell/ToolView/auth-flow shells, PageFrame, page conventions) |
-| `forms-and-state.md`    | Building forms (react-hook-form + zod), state management (@repro/atom), loading/empty/error patterns      |
-| `design-package.md`     | Working inside `packages/design/` (directory structure, inventory, add/modify checklists, pitfalls)       |
+| File                             | When to read                                                                                                         |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `anti-patterns.md`               | Need named UI guardrails for authored-vs-generic review, design direction, or audit cross-references                 |
+| `palette-surface-spacing.md`     | Need composition, surface, and spacing heuristics plus named anti-patterns like nested cards and everything centered |
+| `typography-readability.md`      | Need concrete typography and readability heuristics, including body-size, line-length, and hierarchy guardrails      |
+| `interaction-responsive.md`      | Need named guardrails for feedback timing, hover/touch, responsiveness, or modal/reflex behavior                     |
+| `forms-input-interference.md`    | Need named guardrails for forms, input semantics, caret safety, paste handling, or wizard-state persistence          |
+| `navigation-url-scroll-state.md` | Need named guardrails for redirect chains, URL-backed state, scroll recovery, or session-expiry handling             |
+| `layering-and-overlays.md`       | Need named guardrails for z-index chaos, clipping, sticky overlap, or portal / escape-hatch behavior                 |
+| `accessibility-as-ux.md`         | Need named guardrails for visible focus, hover-only affordances, color-only state, contrast, or keyboard traps       |
+| `persistence-hygiene.md`         | Need named guardrails for preserved preferences, storage hygiene/bloat, stale flags, or retired experiments          |
+| `mobile-touch-app-surface.md`    | Need mobile-touch, safe-area, viewport, and app-surface guardrails                                                   |
+| `tokens.md`                      | Need full token tables (color, spacing, typography, elevation, motion, interaction)                                  |
+| `surface-scoping.md`             | Need the canonical scope labels and reviewer/author usage notes                                                      |
+| `component-contract.md`          | Creating or modifying `@repro/design` components (forwardRef, a11y, Storybook, known deviations)                     |
+| `layouts.md`                     | Building page layouts (3-tier hierarchy: AppShell/ToolView/auth-flow shells, PageFrame, page conventions)            |
+| `forms-and-state.md`             | Building forms (react-hook-form + zod), state management (@repro/atom), loading/empty/error patterns                 |
+| `design-package.md`              | Working inside `packages/design/` (directory structure, inventory, add/modify checklists, pitfalls)                  |
+| `pre-delivery-ui-checklist.md`   | Final shared shipping pass: confirm the UI is directionally correct, complete, and ready to hand off                 |
 
 ---
 
@@ -31,7 +65,7 @@ For detailed sub-topics, read the reference files in this directory:
 ### Layout/structural layer (jsxstyle primitives)
 
 - `Row`, `Col`, `Grid`, `Block`, `Inline` from `@jsxstyle/react` are used for structural layout in app code.
-- **Appearance vs structure**: Colors, typography, borders, shadows, radii are encapsulated inside design system components. Flex direction, grid templates, gaps, alignment are open for app code via jsxstyle.
+- **Structure vs appearance**: In app code, jsxstyle is for placement, spacing, direction, alignment, and sizing. Appearance details such as color, typography, borders, shadows, radii, and component state styling belong in `@repro/design` components or their internals.
 
 ---
 
@@ -60,9 +94,10 @@ For detailed sub-topics, read the reference files in this directory:
 
 **Prop rules:**
 
-- Top-level props = CSS style properties: `<Row alignItems="center" gap={spacing.md}>`
+- Top-level props = CSS layout properties: `<Row alignItems="center" gap={spacing.md}>`
 - `props` bag = HTML attributes and event handlers: `props={{ onClick, disabled, type: 'button' }}`
 - **Never split the same attribute across both** — use the `props` bag for HTML attributes. Top-level props overwrite `props` bag values.
+- Do not use raw jsxstyle appearance props in app code to recreate design-system styling; keep appearance decisions inside `@repro/design` component internals.
 - `component` prop for semantic HTML: `<Row component="button">`, `<Block component="label">`
 - Pseudo-classes via prefix props: `hoverBackgroundColor={color.bg.hover}`
 - Shorthand props: `paddingH` (left + right), `paddingV` (vertical)
@@ -92,17 +127,19 @@ import {
 } from "@repro/design";
 ```
 
-| Category      | Key tokens                                                                                                                      | Use for                                                                                |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `color`       | `color.primary`, `color.text.*`, `color.bg.*`, `color.border.*`, `color.danger`, `color.success`, `color.warning`, `color.info` | All colors — match token category to CSS property (`color.bg.*` for `backgroundColor`) |
-| `spacing`     | `spacing.none` (0) through `spacing['4xl']` (48)                                                                                | All spacing (padding, margin, gap)                                                     |
-| `textStyles`  | `textStyles.body`, `.heading1`–`.heading3`, `.caption`, `.label`, `.code`                                                       | Primary typography API — spread onto jsxstyle components                               |
-| `shadow`      | `shadow.sm`, `.md`, `.lg`                                                                                                       | Box shadows                                                                            |
-| `radius`      | `radius.sm` (4), `.md` (8), `.lg` (16), `.full` (9999)                                                                          | Border radius                                                                          |
-| `transition`  | `transition.default`, `.fast`, `.transform`, `.opacity`                                                                         | Transitions                                                                            |
-| `focusRing()` | `focusRing()`, `focusRing('danger')`, `focusWithinRing()`                                                                       | Focus-visible outlines on interactive elements                                         |
+| Category      | Key tokens                                                                                                                      | Use for                                                                                          |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `color`       | `color.primary`, `color.text.*`, `color.bg.*`, `color.border.*`, `color.danger`, `color.success`, `color.warning`, `color.info` | All colors — match token category to CSS property (`color.bg.*` for `backgroundColor`)           |
+| `spacing`     | `spacing.none` (0) through `spacing['4xl']` (48)                                                                                | All spacing (padding, margin, gap)                                                               |
+| `textStyles`  | `textStyles.body`, `.heading1`–`.heading3`, `.caption`, `.label`, `.code`                                                       | Primary typography API — use first for semantic content text and spread onto jsxstyle components |
+| `shadow`      | `shadow.sm`, `.md`, `.lg`                                                                                                       | Box shadows                                                                                      |
+| `radius`      | `radius.sm` (4), `.md` (8), `.lg` (16), `.full` (9999)                                                                          | Border radius                                                                                    |
+| `transition`  | `transition.default`, `.fast`, `.transform`, `.opacity`                                                                         | Transitions                                                                                      |
+| `focusRing()` | `focusRing()`, `focusRing('danger')`, `focusWithinRing()`                                                                       | Focus-visible outlines on interactive elements                                                   |
 
 **Token category discipline**: Always use tokens from the category matching the CSS property — `color.bg.*` for `backgroundColor`, `color.border.*` for `borderColor`, `color.text.*` for `color`. Even when two tokens resolve to the same raw value, using the wrong category is a semantic misuse.
+
+**Typography rule**: Prefer `textStyles.*` for semantic content text. Use raw `fontSize`, `fontWeight`, and `lineHeight` only in tightly constrained component internals or one-off low-level composition where `textStyles.*` would be the wrong abstraction.
 
 For full token tables with every value, read `tokens.md`.
 
@@ -197,7 +234,7 @@ For full token tables with every value, read `tokens.md`.
 
 ```tsx
 <Block padding={16} backgroundColor="#ffffff" borderRadius={8}>
-  <Block fontSize={15} fontWeight={400} color="#0f172a">
+  <Block fontSize={15} fontWeight={400} lineHeight={1.2} color="#0f172a">
     Content
   </Block>
 </Block>
@@ -221,19 +258,21 @@ For full token tables with every value, read `tokens.md`.
 
 ## Normalisation Workflow
 
-Use this workflow when tasked with bringing existing UI into alignment with design system conventions. Consult the sub-reference files in this directory (`tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
+Use this workflow when bringing existing UI back toward design-system conventions. Consult the sub-reference files in this directory (`anti-patterns.md`, `palette-surface-spacing.md`, `typography-readability.md`, `interaction-responsive.md`, `layering-and-overlays.md`, `accessibility-as-ux.md`, `forms-input-interference.md`, `persistence-hygiene.md`, `error-recovery-containment.md`, `mobile-touch-app-surface.md`, `tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
+
+After the implementation pass, hand off broader scoring/polish to `audit-ui-quality`, then use `ui-verification` for the `reproctl start --wait --full-stack` + `agent-browser` browser loop. Use `pre-delivery-ui-checklist.md` to record final shipping readiness.
 
 ### Plan
 
 Before writing any code, audit the target component(s) across all eight normalisation dimensions:
 
-1. Spacing — hardcoded pixel values in padding/margin/gap props
+1. Spacing — hardcoded pixel values in padding/margin/gap props, or spacing rhythm that breaks into cramped or inconsistent vertical gaps
 2. Colour — hardcoded hex/rgb values in color/backgroundColor/borderColor props
-3. Typography — raw `<p>` / `<h*>` elements with inline style props
+3. Typography — raw `<p>` / `<h*>` elements with inline style props, collapsed/mismatched line-height, weak text hierarchy from ad hoc `fontSize` / `fontWeight`, or readable-paragraph issues covered by `typography-readability.md`
 4. Layout — `<div style={{display:'flex'}}>` or equivalent raw flex/grid divs
 5. Component substitution — hand-rolled controls that duplicate `@repro/design` components
 6. Prop hygiene — inline `style={{}}` props anywhere
-7. Accessibility — missing `aria-*` attributes or keyboard handlers
+7. Accessibility — missing `aria-*` attributes or keyboard handlers, plus accessibility-as-UX failures like missing focus indicators, hover-only affordances, color-only state, weak contrast, or keyboard traps
 8. Type safety — `any` usages or `noUncheckedIndexedAccess` violations
 
 ### Execute
@@ -262,7 +301,7 @@ import { color } from '@repro/design'
 <Block color={color.text.primary} backgroundColor={color.bg.surface}>
 ```
 
-**3. Typography** — use `<Text>` or spread `textStyles.*` instead of raw `<p>`/`<h*>` with style props.
+**3. Typography** — spread `textStyles.*` instead of raw `<p>`/`<h*>` with style props. Treat raw `fontSize`, `fontWeight`, and `lineHeight` as edge-case exceptions for constrained internals, not the default way to establish hierarchy.
 
 ```tsx
 // Before
@@ -295,7 +334,7 @@ import { textStyles } from "@repro/design";
 <Button variant="contained" onClick={handleSubmit}>Save</Button>
 ```
 
-**6. Prop hygiene** — remove all inline `style={{}}` props; use jsxstyle appearance props or design tokens.
+**6. Prop hygiene** — remove all inline `style={{}}` props; use design tokens for values and jsxstyle layout props only for structure, not for recreating component appearance in app code.
 
 ```tsx
 // Before
@@ -351,6 +390,8 @@ Structure: **[What failed]** + **[Why it likely failed]** + **[What to do next]*
 
 This mirrors the agentic tool error requirement in AGENTS.md — the same three-part formula applies to user-facing errors.
 
+If the error surface is generic, blocked, or broad enough to threaten unrelated UI, read `error-recovery-containment.md` for the companion recovery and containment vocabulary before writing copy.
+
 > "Recording failed to upload. Your connection may have dropped. Check your network and try again."
 
 - For field errors: wrap in `<FormFieldError>`.
@@ -384,7 +425,7 @@ This mirrors the agentic tool error requirement in AGENTS.md — the same three-
 
 ### Empty States
 
-See the `## Empty State Pattern` section below for the full five-part formula.
+See the `## Empty State Pattern` section below for the full five-part formula. The pattern is a `product/app UI` rule; marketing/editorial pages can use different composition if their surface scope says so.
 
 ### Loading States
 
@@ -422,7 +463,7 @@ See the `## Empty State Pattern` section below for the full five-part formula.
 
 ## Empty State Pattern
 
-Every list or grid surface must have an empty state. Use the five-part formula:
+Every list or grid `product/app UI` surface must have an empty state. Use the five-part formula:
 
 ### Five-Part Formula
 
@@ -479,3 +520,58 @@ import { Button } from "@repro/design";
 ### Component Promotion
 
 If the same five-part structure is used in 3 or more places, standardize on the existing `<EmptyState>` compound component from `@repro/design` rather than reimplementing the pattern ad hoc. If the current API does not support the needed use case, read `design-package.md` for component-authoring conventions before extending it.
+
+---
+
+## Component Testing
+
+### Root cause: `@jsxstyle/core` requires a DOM at import time
+
+`@jsxstyle/core` calls `document.createElement('style')` at module load time to inject CSS. In a Node.js test environment without a DOM shim loaded first, this throws. The fix is to preload `global-jsdom/register` before any module that imports `@repro/design`:
+
+```sh
+tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/**/*.test.ts
+```
+
+**This flag is already present** in `packages/agentic-ui/moon.yml` and the `package.json` test script. Any new package that renders `@repro/design` components in tests must include it.
+
+### Strategy: real DOM render, no mocks
+
+`@repro/design` is fully testable in Node/jsdom. The chosen strategy is to use real `@testing-library/react` rendering — not component mocks. This gives higher-fidelity tests and avoids brittle prop-capture patterns.
+
+Do not add `react-dom` to `packages/agentic-ui` unless it was already required — `@testing-library/react` brings its own `react-dom` peer. Check whether `react-dom` is already present in devDependencies before adding it.
+
+### Assertion pattern
+
+Assert on DOM output, not on captured props.
+
+```ts
+// CORRECT — assert what the user sees
+expect(screen.getByText(PLACEHOLDER_COPY[0]!)).toBeDefined();
+
+// WRONG — prop-capture anti-pattern
+const capturedProps = { placeholders: undefined };
+mock.module("@repro/design", () => ({
+  AgenticInput: (props: any) => {
+    capturedProps.placeholders = props.placeholders;
+    return null;
+  },
+}));
+expect(capturedProps.placeholders).toEqual(PLACEHOLDER_COPY);
+```
+
+Note: `AgenticInput` renders placeholder text as animated `div` elements (via `@react-spring/web`), NOT as `<textarea placeholder="...">`. Use `screen.getByText(PLACEHOLDER_COPY[0]!)` — synchronous, no `findByText` needed for the first placeholder.
+
+### No shared mock factory
+
+A shared `renderWithDesign` helper was considered but is not needed. Import `render` and `screen` from `@testing-library/react` directly in each test file.
+
+### NEVER
+
+- Use `mock.module('@repro/design', ...)` in consumer package tests. This hides real render behavior and creates a brittle prop-capture anti-pattern.
+- Write tests that assert on internal prop values of design system components.
+- Omit `--import=global-jsdom/register` from test scripts in packages that render React components using `@repro/design`.
+
+### Workspace audit findings (as of REP-740)
+
+Only `packages/agentic-ui` had a broken test due to the prop-capture anti-pattern. After the fix, all packages with React component tests render correctly under Node/jsdom. No other package requires remediation.

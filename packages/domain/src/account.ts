@@ -35,6 +35,7 @@ export interface StaffUser {
   name: string
   email: string
   isAdmin: boolean
+  isActive: boolean
 }
 
 export interface Session {

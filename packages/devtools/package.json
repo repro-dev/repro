@@ -43,6 +43,7 @@
     "@types/react-virtualized-auto-sizer": "^1.0.1",
     "@types/react-window": "^1.8.5",
     "@types/repro-shared-types": "workspace:*",
+    "global-jsdom": "overridden",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
     "ts-eager": "^2.0.2",
