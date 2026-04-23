@@ -1,4 +1,4 @@
-const MAX_RUNTIME_BUFFER_SIZE = 5_000
+const MAX_RUNTIME_BUFFER_SIZE = 10_000
 
 export function appendRuntimeBuffer(event: DataView) {
   window.__REPRO_RUNTIME_BUFFER__ ??= []
