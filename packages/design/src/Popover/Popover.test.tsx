@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
+import { Button } from '../Button'
 import { PortalRootProvider } from '../Portal'
 import { Popover } from './index'
 
@@ -85,6 +86,32 @@ describe('Popover', () => {
     await user.click(trigger)
 
     expect(screen.getByRole('dialog', { name: 'Filters' })).toBeDefined()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('preserves popup semantics when the trigger is a Button', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <PortalRootProvider>
+        <Popover>
+          <Popover.Trigger>
+            <Button>Trigger</Button>
+          </Popover.Trigger>
+          <Popover.Content role="menu" aria-label="Actions">
+            <div>Popover content</div>
+          </Popover.Content>
+        </Popover>
+      </PortalRootProvider>
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Trigger' })
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+
+    await user.click(trigger)
+
+    expect(screen.getByRole('menu', { name: 'Actions' })).toBeDefined()
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
   })
 

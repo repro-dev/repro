@@ -1,6 +1,7 @@
 import { InlineBlock } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
 import mergeRefs from 'react-merge-refs'
+import { Button } from '../Button'
 import { usePopoverContext } from './PopoverContext'
 
 export interface PopoverTriggerProps
@@ -24,18 +25,10 @@ export const PopoverTrigger = forwardRef<HTMLElement, PopoverTriggerProps>(
           'aria-haspopup'?: React.AriaAttributes['aria-haspopup']
           'aria-expanded'?: boolean
           ref?: React.Ref<HTMLElement>
+          props?: Record<string, unknown>
         }
       >
       const childProps = triggerChild.props
-      const referenceProps = getReferenceProps({
-        ...childProps,
-        ...triggerProps,
-        'aria-haspopup':
-          triggerProps['aria-haspopup'] ??
-          childProps['aria-haspopup'] ??
-          'menu',
-        'aria-expanded': open,
-      })
       const childRef = (
         triggerChild as unknown as {
           ref?: React.Ref<HTMLElement>
@@ -46,6 +39,31 @@ export const PopoverTrigger = forwardRef<HTMLElement, PopoverTriggerProps>(
           Boolean
         ) as React.Ref<HTMLElement>[]
       )
+
+      const referenceProps = getReferenceProps({
+        ...triggerProps,
+        'aria-haspopup':
+          triggerProps['aria-haspopup'] ??
+          childProps['aria-haspopup'] ??
+          'menu',
+        'aria-expanded': open,
+      })
+
+      const isButtonTrigger =
+        triggerChild.type === Button ||
+        (typeof triggerChild.type !== 'string' &&
+          (triggerChild.type as { displayName?: string }).displayName ===
+            Button.displayName)
+
+      if (isButtonTrigger) {
+        return React.cloneElement(triggerChild, {
+          props: {
+            ...childProps.props,
+            ...referenceProps,
+          },
+          ref: mergedRef,
+        })
+      }
 
       return React.cloneElement(triggerChild, {
         ...referenceProps,
