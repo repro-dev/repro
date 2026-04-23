@@ -9,12 +9,17 @@ Comprehensive reference for building UI in the Repro codebase. Load this skill b
 
 When the task is about authoredness, generic drift, or naming a recurring UI tell, read `anti-patterns.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
 
+## Surface Scoping
+
+Use the shared scope labels when judging whether a rule applies: `marketing/editorial web`, `product/app UI`, `mobile-first or touch-heavy`, `platform-adaptive or native-like`, and `cross-surface`. Treat out-of-scope guidance as non-applicable rather than contradictory, and keep qualifiers concise.
+
 For detailed sub-topics, read the reference files in this directory:
 
 | File                    | When to read                                                                                              |
 | ----------------------- | --------------------------------------------------------------------------------------------------------- |
 | `anti-patterns.md`      | Need named UI guardrails for authored-vs-generic review, design direction, or audit cross-references      |
 | `tokens.md`             | Need full token tables (color, spacing, typography, elevation, motion, interaction)                       |
+| `surface-scoping.md`    | Need the canonical scope labels and reviewer/author usage notes                                           |
 | `component-contract.md` | Creating or modifying `@repro/design` components (forwardRef, a11y, Storybook, known deviations)          |
 | `layouts.md`            | Building page layouts (3-tier hierarchy: AppShell/ToolView/auth-flow shells, PageFrame, page conventions) |
 | `forms-and-state.md`    | Building forms (react-hook-form + zod), state management (@repro/atom), loading/empty/error patterns      |
@@ -391,7 +396,7 @@ This mirrors the agentic tool error requirement in AGENTS.md — the same three-
 
 ### Empty States
 
-See the `## Empty State Pattern` section below for the full five-part formula.
+See the `## Empty State Pattern` section below for the full five-part formula. The pattern is a `product/app UI` rule; marketing/editorial pages can use different composition if their surface scope says so.
 
 ### Loading States
 
@@ -429,7 +434,7 @@ See the `## Empty State Pattern` section below for the full five-part formula.
 
 ## Empty State Pattern
 
-Every list or grid surface must have an empty state. Use the five-part formula:
+Every list or grid `product/app UI` surface must have an empty state. Use the five-part formula:
 
 ### Five-Part Formula
 

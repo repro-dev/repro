@@ -36,34 +36,39 @@ Do **not** use this skill for:
    - Describe who will use or see the UI.
    - Note any user expertise, context, or constraints that materially affect the design.
 
-3. **Set the aesthetic direction**
+3. **Name the surface scope**
+
+   - Identify whether the work is `marketing/editorial web`, `product/app UI`, `mobile-first or touch-heavy`, `platform-adaptive or native-like`, or `cross-surface`.
+   - Keep the label narrow and reusable; do not invent a new taxonomy if an existing one fits.
+
+4. **Set the aesthetic direction**
 
    - Describe the intended feel in concrete terms.
    - Prefer observable qualities over abstract mood words.
    - Keep the direction flexible; avoid rigid style dogma.
 
-4. **Capture references and anti-references**
+5. **Capture references and anti-references**
 
    - List examples worth borrowing from and what specifically to borrow.
    - List examples to avoid and explain what should not be repeated.
    - Adapt useful “design-for-ai” style principles without copying them literally.
 
-5. **Define hierarchy and emphasis**
+6. **Define hierarchy and emphasis**
 
    - State what should dominate visually.
    - Identify what should recede, stay quiet, or appear secondary.
 
-6. **Describe composition and rhythm**
+7. **Describe composition and rhythm**
 
    - Call out spacing, density, alignment, grouping, and motion intent.
    - Explain how the layout should feel across the primary states.
 
-7. **Check for anti-generic cues**
+8. **Check for anti-generic cues**
 
    - Note the specific details that keep the UI from feeling templated or interchangeable.
    - Call out any telltale patterns that would make the result feel generic or AI-made, and name them with the shared catalog when a known anti-pattern applies.
 
-8. **Write the durable context block**
+9. **Write the durable context block**
    - Save the result in `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md`.
    - Keep the artifact short enough to reuse, but explicit enough to guide downstream work.
 
@@ -77,6 +82,8 @@ Use this shape in the context artifact:
 ### Purpose
 
 ### Audience
+
+### Surface Scope
 
 ### Aesthetic Direction
 
