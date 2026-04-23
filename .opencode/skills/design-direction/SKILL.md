@@ -75,6 +75,7 @@ Do **not** use this skill for:
 9. **Write the durable context block**
    - Save the result in `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md`.
    - Keep the artifact short enough to reuse, but explicit enough to guide downstream work.
+   - If the direction will need a final shipping pass, note that the downstream handoff should also include `design-system/pre-delivery-ui-checklist.md` so implementation and audit can cite one compact readiness layer.
 
 ## Output template
 
@@ -111,6 +112,7 @@ Use this shape in the context artifact:
 
 - `design-system`: translate direction into components, layout, and tokens
 - `audit-ui-quality`: review authored output for generic drift, polish, and consistency, citing the same anti-pattern names where relevant
+- `design-system/pre-delivery-ui-checklist.md`: capture the final shipping pass when the direction needs a compact readiness summary
 - `ui-verification`: validate the finished UI in the browser after implementation
 ```
 
