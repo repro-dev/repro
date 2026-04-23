@@ -3,9 +3,52 @@ import { cleanup, render } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React, { act } from 'react'
+import { zIndex } from '../tokens/elevation'
 import { Modal } from './Modal'
 
 afterEach(cleanup)
+
+type ElementCSSRule = {
+  selectorText: string
+  cssText: string
+}
+
+function getElementCSSRules(el: Element): ElementCSSRule[] {
+  const classNames = new Set(Array.from(el.classList))
+  const matchingRules: ElementCSSRule[] = []
+
+  for (let i = 0; i < document.styleSheets.length; i++) {
+    const sheet = document.styleSheets[i]
+    if (!sheet) continue
+
+    try {
+      for (const rule of Array.from(sheet.cssRules || [])) {
+        if (
+          !('selectorText' in rule) ||
+          typeof rule.selectorText !== 'string'
+        ) {
+          continue
+        }
+
+        const selectorClassNames = Array.from(
+          rule.selectorText.matchAll(/\.([\w-]+)/g),
+          ([, className]) => className
+        )
+
+        if (selectorClassNames.some(className => classNames.has(className))) {
+          matchingRules.push({
+            selectorText: rule.selectorText,
+            cssText: rule.cssText,
+          })
+        }
+      }
+    } catch {
+      // cross-origin sheets; ignore
+    }
+  }
+
+  return matchingRules
+}
 
 describe('Modal', () => {
   it('renders with role="dialog"', () => {
@@ -17,6 +60,23 @@ describe('Modal', () => {
 
     const dialog = document.querySelector('[role="dialog"]')
     expect(dialog).not.toBeNull()
+  })
+
+  it('renders the backdrop at portal z-index', () => {
+    render(
+      <Modal width={400} height={300} aria-label="Test modal">
+        <p>Content</p>
+      </Modal>
+    )
+
+    const backdrop = document.querySelector('[data-testid="modal-backdrop"]')
+    const cssRules = backdrop ? getElementCSSRules(backdrop) : []
+
+    expect(
+      cssRules.some(({ cssText }) =>
+        cssText.includes(`z-index: ${zIndex.portal}`)
+      )
+    ).toBe(true)
   })
 
   it('sets aria-modal="true"', () => {
