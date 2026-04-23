@@ -4,7 +4,6 @@ import { createUploadWorker } from "@repro/recording-api";
 import { fromByteString } from "@repro/wire-formats";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { Page } from "playwright";
 
 declare global {
   interface Window {
@@ -32,12 +31,34 @@ export interface RecordingResult {
   recordingUrl: string;
 }
 
+export interface RecorderBrowserLike {
+  version(): string;
+  browserType?(): {
+    name(): string;
+  };
+}
+
+export interface RecorderContextLike {
+  browser?(): RecorderBrowserLike | null;
+}
+
+export interface RecorderPage {
+  addScriptTag(options: { path: string }): Promise<unknown>;
+  evaluate<R>(
+    pageFunction: (...args: Array<unknown>) => R | Promise<R>,
+    ...args: Array<unknown>
+  ): Promise<R>;
+  url(): string;
+  context?(): RecorderContextLike;
+  browser?(): RecorderBrowserLike | null;
+}
+
 export interface Recorder {
-  startRecording(page: Page): Promise<void>;
-  stopRecording(
-    page: Page,
-    metadata?: { title?: string; description?: string },
-  ): Promise<RecordingResult>;
+  startRecording(page: RecorderPage): Promise<void>;
+  stopRecording(metadata?: {
+    title?: string;
+    description?: string;
+  }): Promise<RecordingResult>;
 }
 
 export function createRecorder(options: RecorderOptions): Recorder {
@@ -49,21 +70,69 @@ export function createRecorder(options: RecorderOptions): Recorder {
     authStorage: "memory",
   });
 
-  const uploadWorker = createUploadWorker(apiClient, {
-    withEncryptionScheme: "none",
+  const anonymousApiClient = createApiClient({
+    baseUrl,
+    authStorage: "memory",
   });
 
-  async function startRecording(page: Page): Promise<void> {
-    await apiClient.wrapP(apiClient.authStore.setSessionToken(options.apiKey));
+  const uploadWorker = createUploadWorker(
+    {
+      ...apiClient,
+      fetch<R = any>(
+        url: string,
+        options?: Parameters<typeof apiClient.fetch>[1],
+        requestType?: Parameters<typeof apiClient.fetch>[2],
+        responseType?: Parameters<typeof apiClient.fetch>[3],
+      ) {
+        if (isExternalResourceUrl(url, baseUrl)) {
+          return anonymousApiClient.fetch<R>(
+            url,
+            options,
+            requestType,
+            responseType,
+          );
+        }
 
-    await page.addScriptTag({ path: INJECT_SCRIPT_PATH });
-    await page.evaluate(() => window.__REPRO_RECORDER__.start());
+        return apiClient.fetch<R>(url, options, requestType, responseType);
+      },
+    },
+    {
+      withEncryptionScheme: "none",
+    },
+  );
+
+  let activePage: RecorderPage | null = null;
+
+  async function startRecording(page: RecorderPage): Promise<void> {
+    activePage = page;
+
+    try {
+      await apiClient.wrapP(
+        apiClient.authStore.setSessionToken(options.apiKey),
+      );
+
+      await page.addScriptTag({ path: INJECT_SCRIPT_PATH });
+      await page.evaluate(() => window.__REPRO_RECORDER__.start());
+    } catch (error) {
+      activePage = null;
+      throw error;
+    }
   }
 
-  async function stopRecording(
-    page: Page,
-    metadata?: { title?: string; description?: string },
-  ): Promise<RecordingResult> {
+  async function stopRecording(metadata?: {
+    title?: string;
+    description?: string;
+  }): Promise<RecordingResult> {
+    const page = activePage;
+
+    if (!page) {
+      throw new Error("No active recording to stop");
+    }
+
+    activePage = null;
+
+    await page.evaluate(() => window.__REPRO_RECORDER__.stop());
+
     const eventStrings = await page.evaluate(() =>
       window.__REPRO_RECORDER__.getEvents(),
     );
@@ -77,10 +146,7 @@ export function createRecorder(options: RecorderOptions): Recorder {
       return time > max ? time : max;
     }, 0);
 
-    const browser = page.context().browser();
-    const browserName = browser?.browserType().name() ?? null;
-    const browserVersion = browser?.version() ?? null;
-
+    const { browserName, browserVersion } = getBrowserInfo(page);
     const url = page.url();
 
     const ref = uploadWorker.enqueue({
@@ -131,4 +197,20 @@ export function createRecorder(options: RecorderOptions): Recorder {
     startRecording,
     stopRecording,
   };
+}
+
+function getBrowserInfo(page: RecorderPage) {
+  const browser = page.context?.().browser?.() ?? page.browser?.() ?? null;
+
+  return {
+    browserName: browser?.browserType?.().name() ?? null,
+    browserVersion: browser?.version() ?? null,
+  };
+}
+
+function isExternalResourceUrl(url: string, originBaseUrl: string) {
+  const requestUrl = new URL(url, originBaseUrl);
+  const baseOrigin = new URL(originBaseUrl).origin;
+
+  return requestUrl.origin !== baseOrigin;
 }

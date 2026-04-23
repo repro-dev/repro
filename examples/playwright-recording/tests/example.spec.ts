@@ -17,7 +17,7 @@ test("records a session", async ({ page }) => {
 
   await page.click("text=More information");
 
-  const result = await recorder.stopRecording(page, {
+  const result = await recorder.stopRecording({
     title: "Example recording",
     description: "Recorded during CI",
   });

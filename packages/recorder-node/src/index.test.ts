@@ -1,8 +1,8 @@
-import { describe, it } from "node:test";
 import assert from "node:assert";
-import { chromium } from "playwright";
 import { createServer } from "node:http";
-import { createRecorder } from "./index";
+import { describe, it } from "node:test";
+import { chromium } from "playwright";
+import { createRecorder, type RecorderPage } from "./index";
 
 function createMockApiServer(): Promise<{
   server: ReturnType<typeof createServer>;
@@ -84,9 +84,154 @@ function createMockApiServer(): Promise<{
   });
 }
 
+function createResourceServer(): Promise<{
+  server: ReturnType<typeof createServer>;
+  port: number;
+  requests: Array<{ authorization: string | null }>;
+}> {
+  return new Promise((resolve, reject) => {
+    const requests: Array<{ authorization: string | null }> = [];
+
+    const server = createServer((req, res) => {
+      requests.push({ authorization: req.headers.authorization ?? null });
+
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "*");
+      res.setHeader("Connection", "close");
+
+      if (req.method === "OPTIONS") {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("ok");
+    });
+
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (address && typeof address === "object") {
+        resolve({ server, port: address.port, requests });
+      } else {
+        reject(new Error("Could not get resource server port"));
+      }
+    });
+  });
+}
+
+function createPageServer(): Promise<{
+  server: ReturnType<typeof createServer>;
+  port: number;
+}> {
+  return new Promise((resolve, reject) => {
+    const server = createServer((_req, res) => {
+      res.setHeader("Content-Type", "text/html");
+      res.setHeader("Connection", "close");
+      res.writeHead(200);
+      res.end("<html><body><div id='app'>Hello</div></body></html>");
+    });
+
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (address && typeof address === "object") {
+        resolve({ server, port: address.port });
+      } else {
+        reject(new Error("Could not get page server port"));
+      }
+    });
+  });
+}
+
+function createMockRecorderPage(): RecorderPage & {
+  started: number;
+  stopped: number;
+} {
+  const state = {
+    active: false,
+    started: 0,
+    stopped: 0,
+  };
+
+  const recorder = {
+    start() {
+      if (state.active) {
+        throw new Error("Recorder already started");
+      }
+
+      state.active = true;
+      state.started += 1;
+    },
+    stop() {
+      state.active = false;
+      state.stopped += 1;
+    },
+    getEvents() {
+      return [];
+    },
+  };
+
+  type RecorderWindowShim = {
+    __REPRO_RECORDER__: typeof recorder;
+  };
+
+  const recorderWindow: RecorderWindowShim = {
+    __REPRO_RECORDER__: recorder,
+  };
+
+  const globalWindow = globalThis as unknown as {
+    window?: RecorderWindowShim;
+  };
+
+  return {
+    get started() {
+      return state.started;
+    },
+    get stopped() {
+      return state.stopped;
+    },
+    addScriptTag: async () => {
+      globalWindow.window = recorderWindow;
+    },
+    evaluate: async <R>(
+      pageFunction: (...args: Array<unknown>) => R | Promise<R>,
+      ...args: Array<unknown>
+    ): Promise<R> => {
+      const previousWindow = globalWindow.window;
+      globalWindow.window = recorderWindow;
+
+      try {
+        return await pageFunction(...args);
+      } finally {
+        if (previousWindow === undefined) {
+          delete globalWindow.window;
+        } else {
+          globalWindow.window = previousWindow;
+        }
+      }
+    },
+    url: () => "https://example.com/mock",
+    context: () => ({
+      browser: () => ({
+        version: () => "120.0.0",
+        browserType: () => ({
+          name: () => "chromium",
+        }),
+      }),
+    }),
+  } satisfies RecorderPage & { started: number; stopped: number };
+}
+
 describe("recorder-node", () => {
-  it("captures events and returns a recording result", async () => {
+  it("captures events and uploads without leaking the API key to resource fetches", async () => {
     const { server, port } = await createMockApiServer();
+    const { server: pageServer, port: pagePort } = await createPageServer();
+    const {
+      server: resourceServer,
+      port: resourcePort,
+      requests,
+    } = await createResourceServer();
     let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
 
     try {
@@ -94,9 +239,7 @@ describe("recorder-node", () => {
       const context = await browser.newContext();
       const page = await context.newPage();
 
-      await page.goto(
-        `data:text/html,<html><body><div id="app">Hello</div></body></html>`,
-      );
+      await page.goto(`http://127.0.0.1:${pagePort}`);
 
       const recorder = createRecorder({
         apiKey: "mock-api-key",
@@ -107,17 +250,17 @@ describe("recorder-node", () => {
 
       await recorder.startRecording(page);
 
-      await page.evaluate(() => {
+      await page.evaluate(async (resourceUrl: string) => {
+        const response = await fetch(resourceUrl);
+        await response.text();
         const div = document.getElementById("app");
         if (div) {
           div.textContent = "World";
         }
         console.log("test log");
-      });
+      }, `http://127.0.0.1:${resourcePort}/asset.txt`);
 
-      await page.waitForTimeout(200);
-
-      const result = await recorder.stopRecording(page, {
+      const result = await recorder.stopRecording({
         title: "Test recording",
         description: "Recorded during test",
       });
@@ -130,13 +273,55 @@ describe("recorder-node", () => {
         result.recordingUrl.includes("/recordings/"),
         "recordingUrl should include /recordings/",
       );
-
-      await browser.close();
-      browser = null;
+      assert.ok(
+        requests.length > 0,
+        "resource server should receive at least one fetch",
+      );
+      assert.ok(
+        requests.every((request) => request.authorization === null),
+        "third-party resource fetches should not include the Repro API key",
+      );
     } finally {
       if (browser) {
         await browser.close().catch(() => undefined);
       }
+      pageServer.closeAllConnections?.();
+      pageServer.close();
+      resourceServer.closeAllConnections?.();
+      resourceServer.close();
+      server.closeAllConnections?.();
+      server.close();
+    }
+  });
+
+  it("stops the injected recorder so the same page can start again", async () => {
+    const { server, port } = await createMockApiServer();
+    const page = createMockRecorderPage();
+
+    try {
+      const recorder = createRecorder({
+        apiKey: "mock-api-key",
+        projectId: "mock-project-id",
+        baseUrl: `http://127.0.0.1:${port}`,
+        appUrl: "https://app.repro.localhost",
+      });
+
+      await recorder.startRecording(page);
+      const first = await recorder.stopRecording({
+        title: "First recording",
+      });
+      await recorder.startRecording(page);
+      const second = await recorder.stopRecording({
+        title: "Second recording",
+      });
+
+      assert.ok(first.recordingId.length > 0, "first recording should upload");
+      assert.ok(
+        second.recordingId.length > 0,
+        "second recording should upload",
+      );
+      assert.equal(page.stopped, 2, "stop should be called for each lifecycle");
+    } finally {
       server.closeAllConnections?.();
       server.close();
     }
