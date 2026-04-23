@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { describe, it } from "node:test";
 import { chromium } from "playwright";
 import { createRecorder, type RecorderPage } from "./index";
+import { createRecorderFetchRouter } from "./internal";
 
 function createMockApiServer(): Promise<{
   server: ReturnType<typeof createServer>;
@@ -250,15 +251,28 @@ describe("recorder-node", () => {
 
       await recorder.startRecording(page);
 
-      await page.evaluate(async (resourceUrl: string) => {
-        const response = await fetch(resourceUrl);
-        await response.text();
+      const resourceUrl = `http://127.0.0.1:${resourcePort}/asset.png`;
+      const resourceResponse = page.waitForResponse(
+        (response) =>
+          response.url() === resourceUrl && response.status() === 200,
+      );
+
+      await page.evaluate((resourceUrl: string) => {
         const div = document.getElementById("app");
         if (div) {
           div.textContent = "World";
         }
+
+        const img = document.createElement("img");
+        img.id = "asset";
+        document.body.appendChild(img);
+
+        img.src = resourceUrl;
         console.log("test log");
-      }, `http://127.0.0.1:${resourcePort}/asset.txt`);
+      }, resourceUrl);
+
+      await resourceResponse;
+      await page.waitForTimeout(200);
 
       const result = await recorder.stopRecording({
         title: "Test recording",
@@ -325,5 +339,46 @@ describe("recorder-node", () => {
       server.closeAllConnections?.();
       server.close();
     }
+  });
+
+  it("routes recording API requests through the authenticated client only", () => {
+    const calls: Array<{ client: string; url: string }> = [];
+
+    const authClient = {
+      fetch: ((url: string) => {
+        calls.push({ client: "auth", url });
+        return "auth" as never;
+      }) as never,
+    };
+
+    const anonymousClient = {
+      fetch: ((url: string) => {
+        calls.push({ client: "anon", url });
+        return "anon" as never;
+      }) as never,
+    };
+
+    const fetch = createRecorderFetchRouter(
+      authClient,
+      anonymousClient,
+      "https://api.repro.localhost",
+    );
+
+    assert.equal(
+      fetch("https://api.repro.localhost/projects/proj-1/recordings"),
+      "auth",
+    );
+    assert.equal(fetch("https://third-party.example/resource.png"), "anon");
+
+    assert.deepEqual(calls, [
+      {
+        client: "auth",
+        url: "https://api.repro.localhost/projects/proj-1/recordings",
+      },
+      {
+        client: "anon",
+        url: "https://third-party.example/resource.png",
+      },
+    ]);
   });
 });

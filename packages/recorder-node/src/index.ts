@@ -4,6 +4,7 @@ import { createUploadWorker } from "@repro/recording-api";
 import { fromByteString } from "@repro/wire-formats";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { createRecorderFetchRouter } from "./internal";
 
 declare global {
   interface Window {
@@ -78,23 +79,7 @@ export function createRecorder(options: RecorderOptions): Recorder {
   const uploadWorker = createUploadWorker(
     {
       ...apiClient,
-      fetch<R = any>(
-        url: string,
-        options?: Parameters<typeof apiClient.fetch>[1],
-        requestType?: Parameters<typeof apiClient.fetch>[2],
-        responseType?: Parameters<typeof apiClient.fetch>[3],
-      ) {
-        if (isExternalResourceUrl(url, baseUrl)) {
-          return anonymousApiClient.fetch<R>(
-            url,
-            options,
-            requestType,
-            responseType,
-          );
-        }
-
-        return apiClient.fetch<R>(url, options, requestType, responseType);
-      },
+      fetch: createRecorderFetchRouter(apiClient, anonymousApiClient, baseUrl),
     },
     {
       withEncryptionScheme: "none",
@@ -206,11 +191,4 @@ function getBrowserInfo(page: RecorderPage) {
     browserName: browser?.browserType?.().name() ?? null,
     browserVersion: browser?.version() ?? null,
   };
-}
-
-function isExternalResourceUrl(url: string, originBaseUrl: string) {
-  const requestUrl = new URL(url, originBaseUrl);
-  const baseOrigin = new URL(originBaseUrl).origin;
-
-  return requestUrl.origin !== baseOrigin;
 }

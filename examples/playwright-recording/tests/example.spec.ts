@@ -12,10 +12,18 @@ const recorder = createRecorder({
 });
 
 test("records a session", async ({ page }) => {
-  await page.goto("https://example.com");
+  await page.goto(
+    'data:text/html,<html><body><main id="app">Initial</main></body></html>',
+  );
   await recorder.startRecording(page);
 
-  await page.click("text=More information");
+  await page.evaluate(() => {
+    const app = document.getElementById("app");
+    if (app) {
+      app.textContent = "Updated";
+    }
+    console.log("example log");
+  });
 
   const result = await recorder.stopRecording({
     title: "Example recording",

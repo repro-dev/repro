@@ -29,4 +29,4 @@ REPRO_API_KEY=your-key REPRO_PROJECT_ID=your-project-id pnpm test:e2e
 ## Notes
 
 - Start recording **after** navigation. The library captures the current page state and all subsequent mutations.
-- Page navigation after `startRecording()` will destroy the injected recorder state. Record a single page transition per session, or stop and restart recording after each navigation.
+- Avoid navigating after `startRecording()` unless you intentionally stop and restart the recorder on the new page.
