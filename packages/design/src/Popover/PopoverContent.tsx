@@ -13,7 +13,8 @@ import {
   type PopoverSide,
 } from './PopoverContext'
 
-export interface PopoverContentProps {
+export interface PopoverContentProps
+  extends React.ComponentPropsWithoutRef<'div'> {
   children: React.ReactNode
   side?: PopoverSide
   align?: PopoverAlign
@@ -30,9 +31,8 @@ function buildPlacement(side: PopoverSide, align: PopoverAlign) {
  * contextual panels that dismiss on Escape or outside click.
  */
 export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
-  ({ children, side = 'bottom', align = 'start' }, ref) => {
+  ({ children, side = 'bottom', align = 'start', ...contentProps }, ref) => {
     const {
-      open,
       refs,
       setPlacement,
       floatingStyles,
@@ -46,13 +46,10 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
       setPlacement(buildPlacement(side, align))
     }, [side, align, setPlacement])
 
-    useEffect(() => {
-      if (!open) {
-        return
-      }
-
-      refs.floating.current?.focus()
-    }, [open, refs])
+    const floatingProps = getFloatingProps(
+      contentProps
+    ) as React.HTMLProps<HTMLDivElement>
+    const { style: floatingStyle, ...restFloatingProps } = floatingProps
 
     const mergedStyles = useMemo(
       () => ({
@@ -73,9 +70,9 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
             zIndex={zIndex.portal}
             props={{
               ref: mergeRefs([ref, refs.setFloating]),
-              style: mergedStyles,
-              ...getFloatingProps(),
-              tabIndex: -1,
+              style: { ...floatingStyle, ...mergedStyles },
+              ...restFloatingProps,
+              tabIndex: contentProps.tabIndex ?? -1,
             }}
           >
             <Col

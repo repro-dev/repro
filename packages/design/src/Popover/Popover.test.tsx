@@ -38,6 +38,58 @@ describe('Popover', () => {
     })
   })
 
+  it('lets the popover content manage its own initial focus', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <PortalRootProvider>
+        <Popover>
+          <Popover.Trigger>
+            <button type="button">Trigger</button>
+          </Popover.Trigger>
+          <Popover.Content role="menu" aria-label="Actions">
+            <button type="button" autoFocus>
+              Inner action
+            </button>
+          </Popover.Content>
+        </Popover>
+      </PortalRootProvider>
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Trigger' }))
+
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Inner action' })
+    )
+    expect(screen.getByRole('menu', { name: 'Actions' })).toBeDefined()
+  })
+
+  it('passes popup semantics through to the trigger and content surfaces', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <PortalRootProvider>
+        <Popover>
+          <Popover.Trigger aria-haspopup="grid">
+            <button type="button">Trigger</button>
+          </Popover.Trigger>
+          <Popover.Content role="dialog" aria-label="Filters">
+            <div>Popover content</div>
+          </Popover.Content>
+        </Popover>
+      </PortalRootProvider>
+    )
+
+    const triggerLabel = screen.getByText('Trigger')
+    expect(triggerLabel.parentElement?.getAttribute('aria-haspopup')).toBe(
+      'grid'
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Trigger' }))
+
+    expect(screen.getByRole('dialog', { name: 'Filters' })).toBeDefined()
+  })
+
   it('emits onOpenChange in controlled mode without mutating parent state', async () => {
     const user = userEvent.setup()
     const changes: boolean[] = []
@@ -77,13 +129,29 @@ describe('Popover', () => {
 
   it('dismisses on Escape and restores focus to the trigger', async () => {
     const user = userEvent.setup()
-    renderPopover()
+
+    render(
+      <PortalRootProvider>
+        <Popover>
+          <Popover.Trigger>
+            <button type="button">Trigger</button>
+          </Popover.Trigger>
+          <Popover.Content role="menu" aria-label="Actions">
+            <button type="button" autoFocus>
+              Inner action
+            </button>
+          </Popover.Content>
+        </Popover>
+        <button type="button">Outside</button>
+      </PortalRootProvider>
+    )
 
     const trigger = screen.getByRole('button', { name: 'Trigger' })
     await user.click(trigger)
 
-    const content = screen.getByText('Popover content')
-    expect(document.activeElement).toBe(content.closest('[tabindex="-1"]'))
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Inner action' })
+    )
 
     await user.keyboard('{Escape}')
 

@@ -3,7 +3,8 @@ import React, { forwardRef } from 'react'
 import mergeRefs from 'react-merge-refs'
 import { usePopoverContext } from './PopoverContext'
 
-export interface PopoverTriggerProps {
+export interface PopoverTriggerProps
+  extends React.ComponentPropsWithoutRef<'div'> {
   children: React.ReactNode
 }
 
@@ -15,16 +16,20 @@ export interface PopoverTriggerProps {
  * trigger child does not forward refs.
  */
 export const PopoverTrigger = forwardRef<HTMLDivElement, PopoverTriggerProps>(
-  ({ children }, ref) => {
+  ({ children, ...triggerProps }, ref) => {
     const { refs, getReferenceProps, open } = usePopoverContext()
+
+    const referenceProps = getReferenceProps({
+      'aria-haspopup': triggerProps['aria-haspopup'] ?? 'menu',
+      'aria-expanded': open,
+      ...triggerProps,
+    })
 
     return (
       <InlineBlock
         props={{
           ref: mergeRefs([ref, refs.setReference]),
-          'aria-haspopup': 'dialog' as const,
-          'aria-expanded': open,
-          ...getReferenceProps(),
+          ...referenceProps,
         }}
       >
         {children}

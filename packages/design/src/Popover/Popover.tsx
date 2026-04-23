@@ -11,7 +11,7 @@ import {
   useTransitionStyles,
   type Placement,
 } from '@floating-ui/react'
-import React, { useCallback, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { spacing } from '../tokens/spacing'
 import { PopoverProvider, type PopoverContextValue } from './PopoverContext'
 
@@ -57,6 +57,13 @@ export const Popover: React.FC<PopoverProps> = ({
 
   const setOpen = useCallback(
     (next: boolean) => {
+      if (next) {
+        returnFocusRef.current =
+          document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null
+      }
+
       if (!isControlled) {
         setInternalOpen(next)
       }
@@ -67,6 +74,15 @@ export const Popover: React.FC<PopoverProps> = ({
 
   const [placement, setPlacement] = useState<Placement>('bottom-start')
   const arrowRef = useRef<SVGSVGElement | null>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      return
+    }
+
+    returnFocusRef.current?.isConnected && returnFocusRef.current.focus()
+  }, [open])
 
   const { refs, floatingStyles, context } = useFloating({
     open,
