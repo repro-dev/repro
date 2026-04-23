@@ -259,10 +259,22 @@ test("issue help lists the new issue subcommands", async () => {
   assert.match(result.stdout, /--related <issue-id>/);
   assert.match(result.stdout, /--blocks <issue-id>/);
   assert.match(result.stdout, /--blocked-by <issue-id>/);
+  assert.match(result.stdout, /--parent <issue-id>/);
+  assert.match(result.stdout, /--remove-parent/);
   assert.match(result.stdout, /children <id>/);
   assert.match(result.stdout, /start <id> \[--json\]/);
   assert.match(result.stdout, /update <id> \[options\]/);
   assert.match(result.stdout, /comment <id> <body>/);
+});
+
+test("issue create help advertises the parent flag", async () => {
+  const result = await execute(["help", "issue", "create"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => makeClient(),
+  });
+
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /--parent <issue-id>/);
 });
 
 test("issue start help describes the self-start shortcut", async () => {
@@ -296,6 +308,9 @@ test("issue update help advertises label merge and mine flags", async () => {
   assert.equal(result.code, 0);
   assert.match(result.stdout, /--add-label <name>/);
   assert.match(result.stdout, /--remove-label <name>/);
+  assert.match(result.stdout, /--title <title>/);
+  assert.match(result.stdout, /--parent <issue-id>/);
+  assert.match(result.stdout, /--remove-parent/);
   assert.match(result.stdout, /--mine/);
 });
 
@@ -397,10 +412,13 @@ test("project list and milestone list keep SDK-style receivers bound", async () 
     updatedAt: null,
   });
 
-  const projectShow = await execute(["project", "show", "Workspace", "--json"], {
-    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
-    clientFactory: async () => client,
-  });
+  const projectShow = await execute(
+    ["project", "show", "Workspace", "--json"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => client,
+    },
+  );
   assert.equal(projectShow.code, 0);
   const projectShowPayload = JSON.parse(projectShow.stdout);
   assert.deepEqual(projectShowPayload.item.milestones[0].project, {

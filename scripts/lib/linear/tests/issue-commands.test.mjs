@@ -60,6 +60,7 @@ function makeClient(records) {
     priorityLabel: "Medium",
     updatedAt: new Date("2026-04-18T00:00:00.000Z"),
     description: "desc",
+    parentId: null,
     labelIds: currentLabelIds,
     project: Promise.resolve(null),
     projectMilestone: Promise.resolve(null),
@@ -297,6 +298,7 @@ test("issue children preserves summary relations without expanding details", asy
     priorityLabel: "High",
     updatedAt: new Date("2026-04-18T00:15:00.000Z"),
     description: "",
+    parentId: "issue-1",
     labelIds: [],
     get project() {
       return makeTrackedRelation(records, "project", project);
@@ -466,6 +468,97 @@ test("issue update resolves statuses and calls updateIssue", async () => {
   assert.equal(records.updateIssue[0].input.projectMilestoneId, "milestone-1");
   assert.equal(records.updateIssue[0].input.priority, 2);
   assert.equal(records.updateIssue[0].input.assigneeId, "user-1");
+});
+
+test("issue update forwards title changes to updateIssue", async () => {
+  const records = {};
+
+  const result = await execute(
+    ["issue", "update", "REP-875", "--title", "Retitled", "--json"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(records.updateIssue[0].input.title, "Retitled");
+});
+
+test("issue create forwards a parent issue to createIssue", async () => {
+  const records = {
+    issueLookups: new Map([[875, { id: "issue-1", identifier: "REP-875" }]]),
+  };
+
+  const result = await execute(
+    [
+      "issue",
+      "create",
+      "--title",
+      "Child task",
+      "--project",
+      "Workspace",
+      "--parent",
+      "REP-875",
+      "--json",
+    ],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(records.createIssue[0].parentId, "issue-1");
+  assert.deepEqual(records.issues, [
+    { filter: { number: { eq: 875 } }, first: 1 },
+  ]);
+});
+
+test("issue update can reparent and remove a parent relationship", async () => {
+  const assignRecords = {
+    issueLookups: new Map([[875, { id: "issue-1", identifier: "REP-875" }]]),
+  };
+
+  const assignResult = await execute(
+    ["issue", "update", "REP-876", "--parent", "REP-875", "--json"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(assignRecords),
+    },
+  );
+
+  assert.equal(assignResult.code, 0);
+  assert.equal(assignRecords.updateIssue[0].input.parentId, "issue-1");
+  assert.deepEqual(assignRecords.issues, [
+    { filter: { number: { eq: 876 } }, first: 1 },
+    { filter: { number: { eq: 875 } }, first: 1 },
+  ]);
+
+  const removeRecords = {};
+  const removeResult = await execute(
+    ["issue", "update", "REP-876", "--remove-parent", "--json"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(removeRecords),
+    },
+  );
+
+  assert.equal(removeResult.code, 0);
+  assert.equal(removeRecords.updateIssue[0].input.parentId, null);
+});
+
+test("issue update rejects conflicting parent set and remove flags", async () => {
+  const result = await execute(
+    ["issue", "update", "REP-876", "--parent", "REP-875", "--remove-parent"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient({}),
+    },
+  );
+
+  assert.equal(result.code, 2);
+  assert.match(result.stderr, /cannot be combined/i);
 });
 
 test("issue update human output keeps the original identifier when updateIssue is sparse", async () => {
