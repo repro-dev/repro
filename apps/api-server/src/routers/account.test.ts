@@ -689,6 +689,132 @@ describe('Routers > Account', () => {
     })
   })
 
+  describe('GET /me/profile', () => {
+    it('should return 200 with profile for authenticated user', async () => {
+      const [user, session] = await harness.loadFixtures([
+        fixtures.account.UserA,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/me/profile',
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      const json = res.json()
+      expect(json).toMatchObject({
+        type: 'user',
+        id: user.id,
+        name: user.name,
+        email: 'user-a@example.com',
+        verified: user.verified,
+        createdAt: expect.any(String),
+        account: {
+          id: expect.any(String),
+          name: expect.any(String),
+        },
+      })
+    })
+
+    it('should return 401 without session', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/me/profile',
+      })
+
+      expect(res.statusCode).toEqual(401)
+    })
+  })
+
+  describe('PUT /me/name', () => {
+    it('should update name and return 204 for authenticated user', async () => {
+      const [user, session] = await harness.loadFixtures([
+        fixtures.account.UserA,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/me/name',
+        body: {
+          name: 'Updated Name',
+        },
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(204)
+
+      const updatedUser = await promise(accountService.getUserById(user.id))
+      expect(updatedUser.name).toEqual('Updated Name')
+    })
+
+    it('should return 400 for empty name', async () => {
+      const [, session] = await harness.loadFixtures([
+        fixtures.account.UserA,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/me/name',
+        body: {
+          name: '',
+        },
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+    })
+
+    it('should return 401 without session', async () => {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/me/name',
+        body: {
+          name: 'Updated Name',
+        },
+      })
+
+      expect(res.statusCode).toEqual(401)
+    })
+  })
+
+  describe('POST /me/send-verification', () => {
+    it('should return 204 for authenticated user', async () => {
+      const [, session] = await harness.loadFixtures([
+        fixtures.account.UserA,
+        fixtures.account.UserA_Session,
+      ])
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/me/send-verification',
+        cookies: {
+          [harness.env.SESSION_COOKIE]: app.signCookie(session.sessionToken),
+        },
+      })
+
+      expect(res.statusCode).toEqual(204)
+    })
+
+    it('should return 401 without session', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/me/send-verification',
+      })
+
+      expect(res.statusCode).toEqual(401)
+    })
+  })
+
   describe('Password reset', () => {
     it('should accept a valid email and return 204', async () => {
       const [account] = await harness.loadFixtures([fixtures.account.AccountA])

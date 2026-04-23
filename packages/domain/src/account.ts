@@ -34,6 +34,16 @@ export interface StaffUser {
   isActive: boolean
 }
 
+export interface UserProfile {
+  type: 'user'
+  id: string
+  name: string
+  email: string
+  verified: boolean
+  createdAt: string
+  account: Account
+}
+
 export interface Session {
   id: string
   sessionToken: string
