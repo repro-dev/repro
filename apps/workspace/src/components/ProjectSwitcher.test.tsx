@@ -146,6 +146,35 @@ describe('ProjectSwitcher', () => {
     )
   })
 
+  it('renders the single project state with accessible actions', async () => {
+    localStorageMock.setItem(STORAGE_KEY, 'project-1')
+
+    renderProjectSwitcher({
+      projects: [{ id: 'project-1', name: 'Alpha' }],
+      getMembers: () => resolve([adminMember]),
+    })
+
+    assert.ok(await screen.findByText('Alpha'))
+
+    const settingsButton = await screen.findByRole('button', {
+      name: /project settings/i,
+    })
+    const createButton = await screen.findByRole('button', {
+      name: /create project/i,
+    })
+
+    assert.equal(
+      screen.queryByRole('button', { name: /switch project/i }),
+      null
+    )
+
+    settingsButton.focus()
+    assert.equal(document.activeElement, settingsButton)
+
+    createButton.focus()
+    assert.equal(document.activeElement, createButton)
+  })
+
   it('opens the create project dialog from the header button', async () => {
     renderProjectSwitcher({ projects: [] })
 
@@ -187,7 +216,7 @@ describe('ProjectSwitcher', () => {
     })
   })
 
-  it('keeps the project settings action mounted while the selected project changes', async () => {
+  it('keeps the project settings action mounted and disabled while the selected project changes', async () => {
     localStorageMock.setItem(STORAGE_KEY, 'project-1')
 
     renderProjectSwitcher({
@@ -200,15 +229,15 @@ describe('ProjectSwitcher', () => {
       },
     })
 
-    fireEvent.click(
-      await screen.findByRole('button', {
-        name: /switch project\. current: alpha/i,
-      })
-    )
+    fireEvent.click(await screen.findByRole('button', { name: /alpha/i }))
 
     fireEvent.click(await screen.findByRole('menuitem', { name: /beta/i }))
 
-    assert.ok(screen.getByRole('button', { name: /project settings/i }))
+    const projectSettingsButton = screen.getByRole('button', {
+      name: /project settings/i,
+    })
+
+    assert.equal(projectSettingsButton.matches(':disabled'), true)
   })
 
   it('keeps the dropdown trigger and header actions separate in the multi-project state', async () => {
@@ -216,17 +245,11 @@ describe('ProjectSwitcher', () => {
 
     renderProjectSwitcher({ getMembers: () => resolve([adminMember]) })
 
-    assert.ok(
-      await screen.findByRole('button', {
-        name: /switch project\. current: alpha/i,
-      })
-    )
+    assert.ok(await screen.findByRole('button', { name: /alpha/i }))
     assert.ok(await screen.findByRole('button', { name: /project settings/i }))
     assert.ok(await screen.findByRole('button', { name: /create project/i }))
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /switch project\. current: alpha/i })
-    )
+    fireEvent.click(screen.getByRole('button', { name: /alpha/i }))
 
     assert.ok(await screen.findByRole('menuitem', { name: /beta/i }))
     assert.ok(

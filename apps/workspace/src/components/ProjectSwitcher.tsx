@@ -1,5 +1,5 @@
 import { Block, Row } from '@jsxstyle/react'
-import { Button, color, DropdownMenu, spacing } from '@repro/design'
+import { Button, color, DropdownMenu, spacing, textStyles } from '@repro/design'
 import { getProjectMembers as defaultGetProjectMembers } from '@repro/workspace-api'
 import {
   ChevronDownIcon,
@@ -52,26 +52,16 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = ({
           gap={spacing.sm}
           padding={spacing.lg}
           justifyContent="flex-end"
-          fontSize={13}
         >
-          <Row
-            component="button"
-            type="button"
-            background="none"
-            border="none"
-            padding={spacing.xs}
-            borderRadius={4}
-            cursor="pointer"
-            color={color.text.muted}
-            hoverColor={color.text.secondary}
-            hoverBackgroundColor={color.bg.hover}
-            props={{
-              'aria-label': 'Create project',
-              onClick: () => setShowCreateDialog(true),
-            }}
+          <Button
+            variant="text"
+            context="neutral"
+            size="medium"
+            onClick={() => setShowCreateDialog(true)}
           >
             <PlusIcon size={14} />
-          </Row>
+            <Block {...textStyles.label}>Create project</Block>
+          </Button>
         </Row>
 
         <CreateProjectDialog
@@ -86,62 +76,34 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = ({
   if (projects.length === 1 || !selectedProject) {
     return (
       <>
-        <Row
-          alignItems="center"
-          gap={spacing.sm}
-          padding={spacing.lg}
-          color={color.text.secondary}
-          fontSize={13}
-          fontWeight={500}
-        >
+        <Row alignItems="center" gap={spacing.sm} padding={spacing.lg}>
           <FolderIcon size={14} />
-          <Block flexGrow={1}>
+          <Block {...textStyles.label} color={color.text.default} flexGrow={1}>
             {selectedProject?.name ?? projects[0]?.name}
           </Block>
           <Row gap={spacing.xs} alignItems="center">
-            {projectSettingsHref && !projectSettingsLoading ? (
-              <Row
-                component="button"
-                type="button"
-                alignItems="center"
-                justifyContent="center"
-                background="none"
-                border="none"
-                cursor="pointer"
-                color={color.text.muted}
-                padding={spacing.xs}
-                borderRadius={4}
-                hoverColor={color.text.secondary}
-                hoverBackgroundColor={color.bg.hover}
-                props={{
-                  'aria-label': 'Project settings',
-                  onClick: () => navigate(projectSettingsHref),
-                }}
+            {projectSettingsActionHref ? (
+              <Button
+                variant="text"
+                context="neutral"
+                size="medium"
+                disabled={projectSettingsLoading}
+                onClick={() => navigate(projectSettingsActionHref)}
               >
                 <SettingsIcon size={14} />
-              </Row>
+                <Block {...textStyles.label}>Project settings</Block>
+              </Button>
             ) : null}
 
-            <Row
-              component="button"
-              type="button"
-              alignItems="center"
-              justifyContent="center"
-              background="none"
-              border="none"
-              cursor="pointer"
-              color={color.text.muted}
-              padding={spacing.xs}
-              borderRadius={4}
-              hoverColor={color.text.secondary}
-              hoverBackgroundColor={color.bg.hover}
-              props={{
-                'aria-label': 'Create project',
-                onClick: () => setShowCreateDialog(true),
-              }}
+            <Button
+              variant="text"
+              context="neutral"
+              size="medium"
+              onClick={() => setShowCreateDialog(true)}
             >
               <PlusIcon size={14} />
-            </Row>
+              <Block {...textStyles.label}>Create project</Block>
+            </Button>
           </Row>
         </Row>
 
@@ -155,40 +117,14 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = ({
 
   return (
     <>
-      <Row
-        alignItems="center"
-        gap={spacing.sm}
-        padding={spacing.lg}
-        color={color.text.secondary}
-        fontSize={13}
-        fontWeight={500}
-      >
+      <Row alignItems="center" gap={spacing.sm} padding={spacing.lg}>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenu.Trigger>
-            <Row
-              component="button"
-              type="button"
-              alignItems="center"
-              gap={spacing.sm}
-              padding={spacing.xs}
-              borderRadius={4}
-              cursor="pointer"
-              border="none"
-              background="none"
-              color={color.text.secondary}
-              fontSize={13}
-              fontWeight={500}
-              hoverBackgroundColor={color.bg.hover}
-              props={{
-                'aria-label': `Switch project. Current: ${selectedProject.name}`,
-              }}
-            >
+            <Button variant="outlined" context="neutral" size="medium">
               <FolderIcon size={14} />
-              <Block flexGrow={1} textAlign="left">
-                {selectedProject.name}
-              </Block>
+              <Block {...textStyles.label}>{selectedProject.name}</Block>
               <ChevronDownIcon size={12} color={color.text.muted} />
-            </Row>
+            </Button>
           </DropdownMenu.Trigger>
 
           <DropdownMenu.Content side="bottom" align="start">
@@ -221,49 +157,27 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = ({
 
         <Row gap={spacing.xs} marginLeft="auto" alignItems="center">
           {projectSettingsActionHref ? (
-            <Row
-              component="button"
-              type="button"
-              alignItems="center"
-              justifyContent="center"
-              background="none"
-              border="none"
-              cursor="pointer"
-              color={color.text.muted}
-              padding={spacing.xs}
-              borderRadius={4}
-              hoverColor={color.text.secondary}
-              hoverBackgroundColor={color.bg.hover}
+            <Button
+              variant="text"
+              context="neutral"
+              size="medium"
               disabled={projectSettingsLoading}
-              props={{
-                'aria-label': 'Project settings',
-                onClick: () => navigate(projectSettingsActionHref),
-              }}
+              onClick={() => navigate(projectSettingsActionHref)}
             >
               <SettingsIcon size={14} />
-            </Row>
+              <Block {...textStyles.label}>Project settings</Block>
+            </Button>
           ) : null}
 
-          <Row
-            component="button"
-            type="button"
-            alignItems="center"
-            justifyContent="center"
-            background="none"
-            border="none"
-            cursor="pointer"
-            color={color.text.muted}
-            padding={spacing.xs}
-            borderRadius={4}
-            hoverColor={color.text.secondary}
-            hoverBackgroundColor={color.bg.hover}
-            props={{
-              'aria-label': 'Create project',
-              onClick: () => setShowCreateDialog(true),
-            }}
+          <Button
+            variant="text"
+            context="neutral"
+            size="medium"
+            onClick={() => setShowCreateDialog(true)}
           >
             <PlusIcon size={14} />
-          </Row>
+            <Block {...textStyles.label}>Create project</Block>
+          </Button>
         </Row>
       </Row>
 
