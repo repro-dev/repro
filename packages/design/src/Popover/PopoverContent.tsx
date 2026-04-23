@@ -1,6 +1,6 @@
 import type { Placement } from '@floating-ui/react'
 import { FloatingFocusManager } from '@floating-ui/react'
-import { Block, Col } from '@jsxstyle/react'
+import { Col } from '@jsxstyle/react'
 import React, { forwardRef, useCallback, useEffect, useMemo } from 'react'
 import mergeRefs from 'react-merge-refs'
 import { Portal } from '../Portal'
@@ -85,8 +85,18 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
           initialFocus={refs.floating}
           returnFocus={false}
         >
-          <Block
+          <Col
             zIndex={zIndex.portal}
+            minWidth={160}
+            padding={spacing.sm}
+            gap={spacing.sm}
+            backgroundColor={color.bg.surface}
+            color={color.text.default}
+            borderWidth={1}
+            borderStyle="solid"
+            borderColor={color.border.strong}
+            borderRadius={radius.md}
+            boxShadow={shadow.md}
             props={{
               ref: mergeRefs([ref, refs.setFloating]),
               style: { ...floatingStyle, ...mergedStyles },
@@ -94,19 +104,8 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
               tabIndex: contentProps.tabIndex ?? -1,
             }}
           >
-            <Col
-              minWidth={160}
-              padding={spacing.sm}
-              gap={spacing.sm}
-              backgroundColor={color.bg.surface}
-              color={color.text.default}
-              border={`1px solid ${color.border.strong}`}
-              borderRadius={radius.md}
-              boxShadow={shadow.md}
-            >
-              {children}
-            </Col>
-          </Block>
+            {children}
+          </Col>
         </FloatingFocusManager>
       </Portal>
     )

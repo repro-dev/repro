@@ -15,6 +15,8 @@ export const PopoverArrow = forwardRef<SVGSVGElement, PopoverArrowProps>(
 
     return (
       <FloatingArrow
+        aria-hidden="true"
+        focusable={false}
         ref={mergeRefs([ref, arrowRef])}
         context={context}
         width={12}

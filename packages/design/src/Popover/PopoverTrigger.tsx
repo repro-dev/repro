@@ -1,7 +1,6 @@
 import { InlineBlock } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
 import mergeRefs from 'react-merge-refs'
-import { Button } from '../Button'
 import { usePopoverContext } from './PopoverContext'
 
 export interface PopoverTriggerProps
@@ -40,30 +39,20 @@ export const PopoverTrigger = forwardRef<HTMLElement, PopoverTriggerProps>(
         ) as React.Ref<HTMLElement>[]
       )
 
+      const childAriaHasPopup = childProps.props?.['aria-haspopup'] as
+        | React.AriaAttributes['aria-haspopup']
+        | undefined
+      const ariaHasPopup: React.AriaAttributes['aria-haspopup'] | undefined =
+        triggerProps['aria-haspopup'] ??
+        childProps['aria-haspopup'] ??
+        childAriaHasPopup
+
       const referenceProps = getReferenceProps({
         ...triggerProps,
-        'aria-haspopup':
-          triggerProps['aria-haspopup'] ??
-          childProps['aria-haspopup'] ??
-          'menu',
+        ...childProps,
+        ...(ariaHasPopup != null ? { 'aria-haspopup': ariaHasPopup } : {}),
         'aria-expanded': open,
       })
-
-      const isButtonTrigger =
-        triggerChild.type === Button ||
-        (typeof triggerChild.type !== 'string' &&
-          (triggerChild.type as { displayName?: string }).displayName ===
-            Button.displayName)
-
-      if (isButtonTrigger) {
-        return React.cloneElement(triggerChild, {
-          props: {
-            ...childProps.props,
-            ...referenceProps,
-          },
-          ref: mergedRef,
-        })
-      }
 
       return React.cloneElement(triggerChild, {
         ...referenceProps,
@@ -71,17 +60,18 @@ export const PopoverTrigger = forwardRef<HTMLElement, PopoverTriggerProps>(
       })
     }
 
+    const ariaHasPopup = triggerProps['aria-haspopup']
     const referenceProps = getReferenceProps({
-      'aria-haspopup': triggerProps['aria-haspopup'] ?? 'menu',
-      'aria-expanded': open,
       ...triggerProps,
+      ...(ariaHasPopup != null ? { 'aria-haspopup': ariaHasPopup } : {}),
+      'aria-expanded': open,
     })
 
     return (
       <InlineBlock
         props={{
-          ref: mergeRefs([ref, refs.setReference]),
           ...referenceProps,
+          ref: mergeRefs([ref, refs.setReference]),
         }}
       >
         {children}

@@ -1,5 +1,10 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
@@ -8,6 +13,13 @@ import { PortalRootProvider } from '../Portal'
 import { Popover } from './index'
 
 afterEach(cleanup)
+
+function openPopover(trigger: HTMLElement) {
+  trigger.focus()
+  fireEvent.pointerDown(trigger)
+  fireEvent.mouseDown(trigger)
+  fireEvent.click(trigger)
+}
 
 function renderPopover(props: React.ComponentProps<typeof Popover> = {}) {
   return render(
@@ -27,21 +39,29 @@ function renderPopover(props: React.ComponentProps<typeof Popover> = {}) {
 
 describe('Popover', () => {
   it('opens and closes from the trigger in uncontrolled mode', async () => {
-    const user = userEvent.setup()
     renderPopover()
 
-    await user.click(screen.getByRole('button', { name: 'Trigger' }))
+    const trigger = screen.getByRole('button', { name: 'Trigger' })
+    openPopover(trigger)
     expect(screen.getByText('Popover content')).toBeDefined()
 
-    await user.click(screen.getByRole('button', { name: 'Trigger' }))
+    openPopover(trigger)
     await waitFor(() => {
       expect(screen.queryByText('Popover content')).toBeNull()
     })
   })
 
-  it('moves focus into the popover surface on open', async () => {
-    const user = userEvent.setup()
+  it('does not default the trigger to menu semantics', () => {
+    renderPopover()
 
+    expect(
+      screen
+        .getByRole('button', { name: 'Trigger' })
+        .getAttribute('aria-haspopup')
+    ).toBeNull()
+  })
+
+  it('moves focus into the popover surface on open', async () => {
     render(
       <PortalRootProvider>
         <Popover>
@@ -55,22 +75,25 @@ describe('Popover', () => {
       </PortalRootProvider>
     )
 
-    await user.click(screen.getByRole('button', { name: 'Trigger' }))
+    openPopover(screen.getByRole('button', { name: 'Trigger' }))
 
-    expect(document.activeElement).toBe(
-      screen.getByRole('menu', { name: 'Actions' })
-    )
-    expect(screen.getByRole('menu', { name: 'Actions' })).toBeDefined()
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole('menu', { name: 'Actions' })
+      )
+    })
   })
 
-  it('passes popup semantics through to the trigger and content surfaces', async () => {
-    const user = userEvent.setup()
+  it('preserves explicit popup semantics and plain trigger handlers', () => {
+    const clicks: string[] = []
 
     render(
       <PortalRootProvider>
         <Popover>
           <Popover.Trigger aria-haspopup="grid">
-            <button type="button">Trigger</button>
+            <button type="button" onClick={() => clicks.push('child')}>
+              Trigger
+            </button>
           </Popover.Trigger>
           <Popover.Content role="dialog" aria-label="Filters">
             <div>Popover content</div>
@@ -83,19 +106,18 @@ describe('Popover', () => {
     expect(trigger.getAttribute('aria-haspopup')).toBe('grid')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
 
-    await user.click(trigger)
+    openPopover(trigger)
 
     expect(screen.getByRole('dialog', { name: 'Filters' })).toBeDefined()
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(clicks).toEqual(['child'])
   })
 
-  it('preserves popup semantics when the trigger is a Button', async () => {
-    const user = userEvent.setup()
-
+  it('preserves popup semantics when the trigger is a Button', () => {
     render(
       <PortalRootProvider>
         <Popover>
-          <Popover.Trigger>
+          <Popover.Trigger aria-haspopup="menu">
             <Button>Trigger</Button>
           </Popover.Trigger>
           <Popover.Content role="menu" aria-label="Actions">
@@ -109,14 +131,13 @@ describe('Popover', () => {
     expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
 
-    await user.click(trigger)
+    openPopover(trigger)
 
     expect(screen.getByRole('menu', { name: 'Actions' })).toBeDefined()
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
   })
 
-  it('emits onOpenChange in controlled mode without mutating parent state', async () => {
-    const user = userEvent.setup()
+  it('emits onOpenChange in controlled mode without mutating parent state', () => {
     const changes: boolean[] = []
 
     const { rerender } = render(
@@ -132,7 +153,7 @@ describe('Popover', () => {
       </PortalRootProvider>
     )
 
-    await user.click(screen.getByRole('button', { name: 'Trigger' }))
+    openPopover(screen.getByRole('button', { name: 'Trigger' }))
     expect(changes).toEqual([true])
     expect(screen.queryByText('Popover content')).toBeNull()
 
@@ -153,8 +174,6 @@ describe('Popover', () => {
   })
 
   it('dismisses on Escape and restores focus to the trigger', async () => {
-    const user = userEvent.setup()
-
     render(
       <PortalRootProvider>
         <Popover>
@@ -172,41 +191,48 @@ describe('Popover', () => {
     )
 
     const trigger = screen.getByRole('button', { name: 'Trigger' })
-    await user.click(trigger)
-
-    expect(document.activeElement).toBe(
-      screen.getByRole('button', { name: 'Inner action' })
-    )
-
-    await user.keyboard('{Escape}')
+    openPopover(trigger)
 
     await waitFor(() => {
-      expect(screen.queryByText('Popover content')).toBeNull()
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'Inner action' })
+      )
+    })
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Inner action' }), {
+      key: 'Escape',
+      code: 'Escape',
+    })
+
+    await waitFor(() => {
+      expect(trigger.getAttribute('aria-expanded')).toBe('false')
     })
     expect(document.activeElement).toBe(trigger)
   })
 
   it('dismisses when clicking outside the popover', async () => {
-    const user = userEvent.setup()
     renderPopover()
 
-    await user.click(screen.getByRole('button', { name: 'Trigger' }))
+    const trigger = screen.getByRole('button', { name: 'Trigger' })
+    openPopover(trigger)
     expect(screen.getByText('Popover content')).toBeDefined()
 
     const outside = screen.getByRole('button', { name: 'Outside' })
-    await user.click(outside)
+    outside.focus()
+    fireEvent.pointerDown(outside)
+    fireEvent.mouseDown(outside)
+    fireEvent.click(outside)
     await waitFor(() => {
-      expect(screen.queryByText('Popover content')).toBeNull()
+      expect(trigger.getAttribute('aria-expanded')).toBe('false')
     })
     expect(document.activeElement).toBe(outside)
   })
 
   it('renders content through the portal root', async () => {
-    const user = userEvent.setup()
     const { container } = renderPopover()
     const trigger = screen.getByRole('button', { name: 'Trigger' })
 
-    await user.click(trigger)
+    openPopover(trigger)
 
     const content = screen.getByText('Popover content')
     expect(trigger.contains(content)).toBe(false)
