@@ -67,6 +67,12 @@ Session-local exclusions:
 
 - Maintain an in-memory `escalated_issues` set for this run only. Start empty and append issue IDs that are escalated.
 
+Run-scoped artifacts:
+
+- Create a unique run directory for each invocation under `tmp/deliver-runs/<run-id>/` before writing any mutable orchestration artifacts; a timestamp plus pid/nonce plus a short random suffix is sufficient.
+- If `DELIVER_RUN_DIR` is set, use it as the run-scoped directory for the current invocation.
+- Write selection notes and any command-scoped scratch state into that run directory, not into the shared main-checkout artifact path.
+
 ---
 
 ## Operating principles
@@ -238,13 +244,13 @@ Run this phase only when `mode = wave`.
    - Brief rationale
    - Risk notes that may affect sequencing
 
-4. Write a durable selection note to `tmp/deliver-wave-selection.md` that records:
+4. Write a durable selection note to `tmp/deliver-runs/<run-id>/selection.md` (or the directory provided by `DELIVER_RUN_DIR`) that records:
 
    - the chosen ready wave
    - why each selected issue is the best ready candidate
    - why each excluded issue was skipped or deferred
 
-   Treat this file as the authoritative rationale for wave selection and resequencing.
+   Treat this file as the authoritative rationale for wave selection and resequencing for the current run.
 
 5. Select a small batch for provisional sequencing. Aim for **3–6 issues total**, but prefer fewer if overlap risk is unclear.
 
