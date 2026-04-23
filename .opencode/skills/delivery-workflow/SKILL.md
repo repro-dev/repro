@@ -20,7 +20,7 @@ Use this skill when you are starting a feature or fix. Keep it thin: it coordina
 - `design-direction` — upstream UI intent capture for ambiguous or net-new visual direction
 - Domain skills — only when the changed code lives in that domain
 
-For non-trivial UI changes, resolve ambiguous visual direction with `design-direction` first, then use `design-system` for implementation, `audit-ui-quality` for broader audit/polish, and `ui-verification` for post-change browser validation.
+For non-trivial UI changes, use `design-direction` only when the direction is still unresolved. Otherwise, use `design-system` for implementation, `ui-verification` for post-change browser validation, and `audit-ui-quality` only for broader audits, scoring, or polish passes.
 
 ## 1. Pre-flight
 
