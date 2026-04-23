@@ -45,6 +45,8 @@ Work through all eight compliance dimensions for each scoped file, then make one
 
 **Do not fix during this phase — report only.**
 
+**Important weighting rule:** visual authorship and aesthetic polish are not tie-breakers. A surface that is token-compliant but visually flat, generic, awkwardly composed, weakly art-directed, or otherwise unpleasant to use must not receive a strong overall verdict just because it follows primitives or tokens. Treat aesthetic quality as a first-class shipping criterion.
+
 #### Authored-quality pass
 
 After the compliance scan, ask whether the UI feels intentionally authored or like a default/generic composition. Use these as judgment prompts, not blanket bans. When the answer turns on surface hierarchy, composition, spacing rhythm, navigation/URL state, scroll recovery, layering/overlay behavior, readable type, forms/editing behavior, preserved preferences, blocked error recovery, or mobile/app-surface behavior, cross-check `design-system/palette-surface-spacing.md`, `design-system/navigation-url-scroll-state.md`, `design-system/layering-and-overlays.md`, `design-system/typography-readability.md`, `design-system/forms-input-interference.md`, `design-system/persistence-hygiene.md`, `design-system/error-recovery-containment.md`, and `design-system/mobile-touch-app-surface.md` so the critique uses the same named failure modes everywhere:
@@ -81,11 +83,15 @@ If a surface feels generic, explain why and what visual change would make it fee
 
 Rate each scoped file on a **1–5 scale** per compliance dimension (5 = fully compliant, 1 = critical violations).
 
+Then assign a separate **Authored Polish** score from **1–5**. This score is not derived from token compliance. It reflects whether the surface feels intentionally designed: composition, hierarchy, spacing rhythm, visual confidence, originality, tone, and overall finish.
+
+Do not let a high compliance total mask a low-polish surface. If Authored Polish is **1** or **2**, the file cannot receive a "ship as-is" recommendation even when the compliance subtotal is strong.
+
 Produce a summary table:
 
-| File | Tokens | Components | Layout | States | A11y | Copy | Types | Resilience | Total | Authored quality note |
-| ---- | ------ | ---------- | ------ | ------ | ---- | ---- | ----- | ---------- | ----- | --------------------- |
-| ...  | 1–5    | 1–5        | 1–5    | 1–5    | 1–5  | 1–5  | 1–5   | 1–5        | /40   | short verdict / note  |
+| File | Tokens | Components | Layout | States | A11y | Copy | Types | Resilience | Total | Authored Polish | Authored quality note |
+| ---- | ------ | ---------- | ------ | ------ | ---- | ---- | ----- | ---------- | ----- | --------------- | --------------------- |
+| ...  | 1–5    | 1–5        | 1–5    | 1–5    | 1–5  | 1–5  | 1–5   | 1–5        | /40   | 1–5             | short verdict / note  |
 
 Maximum total: **40** (8 dimensions × 5).
 
@@ -125,7 +131,7 @@ Recommend the next action based on the aggregate score across all scoped files:
 | **25–34 / 40** | Fix all Critical and Major findings before shipping. Minor findings can go to next iteration. |
 | **< 25 / 40**  | Load the `design-system` skill and run the full Normalisation Workflow before shipping.       |
 
-If compliance is strong but authored-quality concerns remain, call those out separately instead of burying them inside the numeric total.
+If compliance is strong but authored-quality concerns remain, call those out separately and prominently instead of burying them inside the numeric total. A surface may be compliant yet still be one of the weakest surfaces in the product if the visual direction is poor.
 
 When you write the final recommendation, treat `pre-delivery-ui-checklist.md` as the handoff summary: cite the checklist to show the surface is ready or why it still needs a shipping pass, but do not restate every scanned dimension or duplicate the browser-verification workflow. If the main risk is forms or editing friction, point the reader at `design-system/forms-input-interference.md` so the handoff keeps the shared vocabulary for paste handling, caret safety, and draft persistence. If the main risk is layering or overlays, point the reader at `design-system/layering-and-overlays.md` so the handoff keeps the shared vocabulary for stacking tiers, clipping, and portal escape hatches. If the issue is a generic or blocked error surface, use the recovery vocabulary from `design-system/error-recovery-containment.md` so the report names the blast radius, retry path, and fallback gap explicitly.
 
