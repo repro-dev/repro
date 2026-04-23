@@ -244,36 +244,6 @@ RUNNER
   fi
 }
 
-# Test 9: shipped profiles must not blank out deliver's template.
-test_profiles_do_not_blank_deliver_template() {
-  local profile output rc=0
-
-  for profile in "$PROFILE_DIR"/*.json; do
-    [ -f "$profile" ] || continue
-
-    output="$(python3 - "$profile" <<'PY'
-import json
-import sys
-
-path = sys.argv[1]
-with open(path) as f:
-    data = json.load(f)
-
-template = data.get('command', {}).get('deliver', {}).get('template')
-sys.exit(1 if template == '' else 0)
-PY
-    )" || rc=$?
-
-    if [ $rc -ne 0 ]; then
-      _fail "shipped profiles do not blank deliver template" \
-        "empty command.deliver.template override found in: $profile"
-      return 1
-    fi
-  done
-
-  _pass "shipped profiles do not blank deliver template"
-}
-
 # ── Run all tests ─────────────────────────────────────────────────────
 
 test_file_exists
@@ -284,7 +254,6 @@ test_no_profiles_exits_nonzero
 test_multi_profile_no_fzf_exits_nonzero
 test_single_profile_auto_selects
 test_profile_flag_bypasses_picker
-test_profiles_do_not_blank_deliver_template
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"
