@@ -7,6 +7,7 @@ import {
   Card,
   FullPageLoading,
   Input,
+  Label,
   PageFrame,
   Stack,
   Text,
@@ -51,11 +52,16 @@ export function ProfileSettingsRoute({
 }: ProfileSettingsRouteProps) {
   const apiClient = useApiClient()
 
+  const [refreshKey, setRefreshKey] = useState(0)
+
   const {
     loading,
     data: profile,
     error,
-  } = useFuture(() => getProfile(apiClient), [apiClient, getProfile])
+  } = useFuture(
+    () => getProfile(apiClient),
+    [apiClient, getProfile, refreshKey]
+  )
 
   const [isEditingName, setIsEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
@@ -64,6 +70,9 @@ export function ProfileSettingsRoute({
 
   const [verificationLoading, setVerificationLoading] = useState(false)
   const [verificationError, setVerificationError] = useState<string | null>(
+    null
+  )
+  const [verificationSuccess, setVerificationSuccess] = useState<string | null>(
     null
   )
 
@@ -95,12 +104,14 @@ export function ProfileSettingsRoute({
       })(() => {
         setIsEditingName(false)
         setUpdateLoading(false)
+        setRefreshKey(k => k + 1)
       })
     )
   }, [apiClient, nameValue, updateName])
 
   const handleSendVerification = useCallback(() => {
     setVerificationError(null)
+    setVerificationSuccess(null)
     setVerificationLoading(true)
 
     sendVerification(apiClient).pipe(
@@ -110,6 +121,7 @@ export function ProfileSettingsRoute({
         )
         setVerificationLoading(false)
       })(() => {
+        setVerificationSuccess('Verification email sent.')
         setVerificationLoading(false)
       })
     )
@@ -155,7 +167,9 @@ export function ProfileSettingsRoute({
 
               {isEditingName ? (
                 <Col gap={spacing.md}>
+                  <Label htmlFor="profile-name">Name</Label>
                   <Input
+                    id="profile-name"
                     value={nameValue}
                     onChange={e => setNameValue(e.target.value)}
                     placeholder="Your name"
@@ -197,6 +211,9 @@ export function ProfileSettingsRoute({
                 <Col gap={spacing.md}>
                   {verificationError && (
                     <Alert type="danger">{verificationError}</Alert>
+                  )}
+                  {verificationSuccess && (
+                    <Alert type="success">{verificationSuccess}</Alert>
                   )}
                   <Button
                     variant="outlined"

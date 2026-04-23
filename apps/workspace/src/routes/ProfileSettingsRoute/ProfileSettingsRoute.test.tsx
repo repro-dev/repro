@@ -226,4 +226,49 @@ describe('ProfileSettingsRoute', () => {
       assert.ok(screen.getByText(/failed to update name/i))
     })
   })
+
+  it('refreshes profile data after a successful name update', async () => {
+    let callCount = 0
+    const updatedProfile = { ...verifiedProfile, name: 'Jane Doe' }
+    const getProfile = () => {
+      callCount++
+      return callCount === 1
+        ? resolve(verifiedProfile)
+        : resolve(updatedProfile)
+    }
+    const updateName = (_apiClient: typeof apiClient, _name: string) =>
+      resolve(undefined)
+
+    renderRoute({ getProfile, updateName })
+    await waitFor(() => screen.getByText('John Smith'))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    })
+    await act(async () => {
+      fireEvent.change(screen.getByDisplayValue('John Smith'), {
+        target: { value: 'Jane Doe' },
+      })
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    })
+    await waitFor(() => {
+      assert.ok(screen.getByText('Jane Doe'))
+    })
+  })
+
+  it('shows success message after resending verification email', async () => {
+    renderRoute({ getProfile: () => resolve(unverifiedProfile) })
+    await waitFor(() =>
+      screen.getByRole('button', { name: /resend verification/i })
+    )
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /resend verification/i })
+      )
+    })
+    await waitFor(() => {
+      assert.ok(screen.getByText(/verification email sent/i))
+    })
+  })
 })
