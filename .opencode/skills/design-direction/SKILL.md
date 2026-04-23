@@ -67,6 +67,7 @@ Do **not** use this skill for:
 
    - Note the specific details that keep the UI from feeling templated or interchangeable.
    - Call out any telltale patterns that would make the result feel generic or AI-made, and name them with the shared catalog when a known anti-pattern applies.
+   - If the direction is typography- or readability-driven, capture body-size, line-length, line-height, hierarchy contrast, and any named readability anti-patterns so downstream design and audit can reuse the same language.
 
 9. **Write the durable context block**
    - Save the result in `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md`.
@@ -99,6 +100,7 @@ Use this shape in the context artifact:
 
 - List the specific anti-generic cues to avoid, using the shared pattern names from `design-system/anti-patterns.md` when they fit.
 - Mention which cues are acceptable when deliberate so implementation and audit can make the same judgment later.
+- When typography is part of the direction, include the concrete readability guardrails from `design-system/typography-readability.md` instead of leaving them as a vague “improve hierarchy” note.
 
 ## Handoff
 
