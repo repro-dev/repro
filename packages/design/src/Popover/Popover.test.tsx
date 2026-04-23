@@ -38,7 +38,7 @@ describe('Popover', () => {
     })
   })
 
-  it('lets the popover content manage its own initial focus', async () => {
+  it('moves focus into the popover surface on open', async () => {
     const user = userEvent.setup()
 
     render(
@@ -48,9 +48,7 @@ describe('Popover', () => {
             <button type="button">Trigger</button>
           </Popover.Trigger>
           <Popover.Content role="menu" aria-label="Actions">
-            <button type="button" autoFocus>
-              Inner action
-            </button>
+            <div>Popover content</div>
           </Popover.Content>
         </Popover>
       </PortalRootProvider>
@@ -59,7 +57,7 @@ describe('Popover', () => {
     await user.click(screen.getByRole('button', { name: 'Trigger' }))
 
     expect(document.activeElement).toBe(
-      screen.getByRole('button', { name: 'Inner action' })
+      screen.getByRole('menu', { name: 'Actions' })
     )
     expect(screen.getByRole('menu', { name: 'Actions' })).toBeDefined()
   })

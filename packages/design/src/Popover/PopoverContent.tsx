@@ -81,7 +81,8 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
         <FloatingFocusManager
           context={context}
           modal={false}
-          initialFocus={-1}
+          // Non-modal popovers should land keyboard focus on the surface.
+          initialFocus={refs.floating}
           returnFocus={false}
         >
           <Block
