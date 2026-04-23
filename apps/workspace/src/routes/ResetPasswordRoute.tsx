@@ -1,4 +1,3 @@
-import { Col } from '@jsxstyle/react'
 import { ResetPasswordForm } from '@repro/auth'
 import { Card } from '@repro/design'
 import { logger } from '@repro/logger'
@@ -23,15 +22,13 @@ const ResetPasswordRoute: React.FC = () => {
   }
 
   return (
-    <Col width={320} alignItems="stretch" gap={10}>
-      <Card>
-        <ResetPasswordForm
-          token={token}
-          onSuccess={onSuccess}
-          onFailure={onFailure}
-        />
-      </Card>
-    </Col>
+    <Card>
+      <ResetPasswordForm
+        token={token}
+        onSuccess={onSuccess}
+        onFailure={onFailure}
+      />
+    </Card>
   )
 }
 
