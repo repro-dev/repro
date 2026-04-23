@@ -7,7 +7,7 @@ description: UI implementation with @repro/design — component selection, desig
 
 Comprehensive reference for building UI in the Repro codebase. Load this skill before implementing any UI work; if the visual direction is still unresolved, load `design-direction` first and return here once intent is captured. When a screen is near shipping, read `pre-delivery-ui-checklist.md` for the final shared pass.
 
-When the task is about authoredness, generic drift, or naming a recurring UI tell, read `anti-patterns.md`, `palette-surface-spacing.md`, and `interaction-responsive.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
+When the task is about authoredness, generic drift, naming a recurring UI tell, or forms/editing behavior, read `anti-patterns.md`, `palette-surface-spacing.md`, `interaction-responsive.md`, and `forms-input-interference.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
 
 When the task is specifically about readable type or paragraph hierarchy, also read `typography-readability.md` so the same heuristics and anti-pattern names travel across design, review, and audit.
 
@@ -25,6 +25,7 @@ For detailed sub-topics, read the reference files in this directory:
 | `palette-surface-spacing.md`   | Need composition, surface, and spacing heuristics plus named anti-patterns like nested cards and everything centered |
 | `typography-readability.md`    | Need concrete typography and readability heuristics, including body-size, line-length, and hierarchy guardrails      |
 | `interaction-responsive.md`    | Need named guardrails for feedback timing, hover/touch, responsiveness, or modal/reflex behavior                     |
+| `forms-input-interference.md`  | Need named guardrails for forms, input semantics, caret safety, paste handling, or wizard-state persistence          |
 | `mobile-touch-app-surface.md`  | Need mobile-touch, safe-area, viewport, and app-surface guardrails                                                   |
 | `tokens.md`                    | Need full token tables (color, spacing, typography, elevation, motion, interaction)                                  |
 | `surface-scoping.md`           | Need the canonical scope labels and reviewer/author usage notes                                                      |
@@ -240,7 +241,7 @@ For full token tables with every value, read `tokens.md`.
 
 ## Normalisation Workflow
 
-Use this workflow when tasked with bringing existing UI into alignment with design system conventions. Consult the sub-reference files in this directory (`anti-patterns.md`, `palette-surface-spacing.md`, `typography-readability.md`, `interaction-responsive.md`, `mobile-touch-app-surface.md`, `tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions. When the work is close to shipping, use `pre-delivery-ui-checklist.md` as the compact handoff summary for readiness instead of re-explaining the whole normalisation pass.
+Use this workflow when tasked with bringing existing UI into alignment with design system conventions. Consult the sub-reference files in this directory (`anti-patterns.md`, `palette-surface-spacing.md`, `typography-readability.md`, `interaction-responsive.md`, `forms-input-interference.md`, `mobile-touch-app-surface.md`, `tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions. When the work is about forms, text entry, or wizard flows, use `forms-input-interference.md` to keep the same language for paste handling, caret safety, and draft persistence. When the work is close to shipping, use `pre-delivery-ui-checklist.md` as the compact handoff summary for readiness instead of re-explaining the whole normalisation pass.
 
 After you finish a non-trivial UI change, switch to `audit-ui-quality` for broader audits, scoring, and polish passes, then `ui-verification` for the `reproctl start --wait` + `agent-browser` browser loop. Use `pre-delivery-ui-checklist.md` to summarise the final shipping posture across those steps; if the issue was typography- or readability-driven, carry the same body-size, line-length, line-height, and anti-pattern vocabulary forward into those downstream checks.
 

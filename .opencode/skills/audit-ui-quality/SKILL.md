@@ -47,7 +47,7 @@ Work through all eight compliance dimensions for each scoped file, then make one
 
 #### Authored-quality pass
 
-After the compliance scan, ask whether the UI feels intentionally authored or like a default/generic composition. Use these as judgment prompts, not blanket bans. When the answer turns on surface hierarchy, composition, spacing rhythm, readable type, or mobile/app-surface behavior, cross-check `design-system/palette-surface-spacing.md`, `design-system/typography-readability.md`, and `design-system/mobile-touch-app-surface.md` so the critique uses the same named failure modes everywhere:
+After the compliance scan, ask whether the UI feels intentionally authored or like a default/generic composition. Use these as judgment prompts, not blanket bans. When the answer turns on surface hierarchy, composition, spacing rhythm, readable type, mobile/app-surface behavior, or forms/editing behavior, cross-check `design-system/palette-surface-spacing.md`, `design-system/typography-readability.md`, `design-system/mobile-touch-app-surface.md`, and `design-system/forms-input-interference.md` so the critique uses the same named failure modes everywhere:
 
 - Is the aesthetic direction clear, specific, and coherent?
 - Does the composition establish a strong focal point and visual dominance where needed?
@@ -94,7 +94,7 @@ Maximum total: **40** (8 dimensions × 5).
 Organise findings by severity:
 
 1. **Critical** — breaks interaction or accessibility on the reviewed surface (e.g. keyboard trap, missing focus management, unhandled crash path, double-submit causing duplicate side effects).
-2. **Major** — design system violation on a matching surface that ships visible inconsistency (e.g. hardcoded colour, cramped vertical spacing, inconsistent gap progression, collapsed line-height, weak text hierarchy, missing loading state, hand-rolled component, hover-only control on touch-heavy UI).
+2. **Major** — design system violation on a matching surface that ships visible inconsistency (e.g. hardcoded colour, cramped vertical spacing, inconsistent gap progression, collapsed line-height, weak text hierarchy, missing loading state, hand-rolled component, hover-only control on touch-heavy UI, paste trap, caret jump, hostile formatter).
 3. **Minor** — copy/polish issue that doesn't affect functionality and may be acceptable off-surface (e.g. passive voice, placeholder copy, missing empty-state CTA).
 
 For each finding, include:
@@ -105,7 +105,7 @@ For each finding, include:
 - **Description** (one sentence: what is wrong)
 - **Fix hint** (one sentence: what to do)
 
-When the issue is spacing or typography, call out the design-system rule it violates: spacing should preserve rhythm, and semantic text should usually use `textStyles.*` rather than hand-tuned raw typography tokens. If the finding is specifically about readability, name the matching anti-pattern from `typography-readability.md` when it fits (flat type hierarchy, tiny body text, all-caps body text, wide letter-spacing on body text, or one font treatment everywhere). For composition/surface findings, prefer the named anti-patterns from `design-system/palette-surface-spacing.md` (for example nested cards, everything centered, monotonous spacing, and gray-on-color washout) over vague “looks generic” language. When the issue is feedback, responsiveness, or modality, name the matching interaction anti-pattern from `interaction-responsive.md` when one fits.
+When the issue is spacing or typography, call out the design-system rule it violates: spacing should preserve rhythm, and semantic text should usually use `textStyles.*` rather than hand-tuned raw typography tokens. If the finding is specifically about readability, name the matching anti-pattern from `typography-readability.md` when it fits (flat type hierarchy, tiny body text, all-caps body text, wide letter-spacing on body text, or one font treatment everywhere). For composition/surface findings, prefer the named anti-patterns from `design-system/palette-surface-spacing.md` (for example nested cards, everything centered, monotonous spacing, and gray-on-color washout) over vague “looks generic” language. When the issue is feedback, responsiveness, or modality, name the matching interaction anti-pattern from `interaction-responsive.md` when one fits. When the issue is paste blocking, caret jumps, hostile formatting, or wizard-state loss, use the named patterns from `forms-input-interference.md` so the report can say exactly what the editing surface is doing wrong.
 
 If a rule is declared for a different surface, note it as out of scope instead of blocking unless the reviewed surface matches that scope.
 
@@ -127,7 +127,7 @@ Recommend the next action based on the aggregate score across all scoped files:
 
 If compliance is strong but authored-quality concerns remain, call those out separately instead of burying them inside the numeric total.
 
-When you write the final recommendation, treat `pre-delivery-ui-checklist.md` as the handoff summary: cite the checklist to show the surface is ready or why it still needs a shipping pass, but do not restate every scanned dimension or duplicate the browser-verification workflow.
+When you write the final recommendation, treat `pre-delivery-ui-checklist.md` as the handoff summary: cite the checklist to show the surface is ready or why it still needs a shipping pass, but do not restate every scanned dimension or duplicate the browser-verification workflow. If the main risk is forms or editing friction, point the reader at `design-system/forms-input-interference.md` so the handoff keeps the shared vocabulary for paste handling, caret safety, and draft persistence.
 
 ---
 
