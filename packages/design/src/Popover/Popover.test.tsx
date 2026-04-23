@@ -80,14 +80,14 @@ describe('Popover', () => {
       </PortalRootProvider>
     )
 
-    const triggerLabel = screen.getByText('Trigger')
-    expect(triggerLabel.parentElement?.getAttribute('aria-haspopup')).toBe(
-      'grid'
-    )
+    const trigger = screen.getByRole('button', { name: 'Trigger' })
+    expect(trigger.getAttribute('aria-haspopup')).toBe('grid')
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
 
-    await user.click(screen.getByRole('button', { name: 'Trigger' }))
+    await user.click(trigger)
 
     expect(screen.getByRole('dialog', { name: 'Filters' })).toBeDefined()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
   })
 
   it('emits onOpenChange in controlled mode without mutating parent state', async () => {
@@ -168,10 +168,12 @@ describe('Popover', () => {
     await user.click(screen.getByRole('button', { name: 'Trigger' }))
     expect(screen.getByText('Popover content')).toBeDefined()
 
-    await user.click(screen.getByRole('button', { name: 'Outside' }))
+    const outside = screen.getByRole('button', { name: 'Outside' })
+    await user.click(outside)
     await waitFor(() => {
       expect(screen.queryByText('Popover content')).toBeNull()
     })
+    expect(document.activeElement).toBe(outside)
   })
 
   it('renders content through the portal root', async () => {
@@ -182,7 +184,7 @@ describe('Popover', () => {
     await user.click(trigger)
 
     const content = screen.getByText('Popover content')
-    expect(trigger.parentElement?.contains(content)).toBe(false)
+    expect(trigger.contains(content)).toBe(false)
     expect(container.contains(content)).toBe(true)
   })
 })

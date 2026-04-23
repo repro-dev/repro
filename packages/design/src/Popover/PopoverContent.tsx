@@ -1,7 +1,7 @@
 import type { Placement } from '@floating-ui/react'
 import { FloatingFocusManager } from '@floating-ui/react'
 import { Block, Col } from '@jsxstyle/react'
-import React, { forwardRef, useEffect, useMemo } from 'react'
+import React, { forwardRef, useCallback, useEffect, useMemo } from 'react'
 import mergeRefs from 'react-merge-refs'
 import { Portal } from '../Portal'
 import { color } from '../tokens/colors'
@@ -35,6 +35,7 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
     const {
       refs,
       setPlacement,
+      requestRestoreFocus,
       floatingStyles,
       getFloatingProps,
       isMounted,
@@ -46,9 +47,21 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
       setPlacement(buildPlacement(side, align))
     }, [side, align, setPlacement])
 
-    const floatingProps = getFloatingProps(
-      contentProps
-    ) as React.HTMLProps<HTMLDivElement>
+    const handleKeyDown = useCallback(
+      (event: React.KeyboardEvent<HTMLDivElement>) => {
+        contentProps.onKeyDown?.(event)
+
+        if (!event.defaultPrevented && event.key === 'Escape') {
+          requestRestoreFocus()
+        }
+      },
+      [contentProps, requestRestoreFocus]
+    )
+
+    const floatingProps = getFloatingProps({
+      ...contentProps,
+      onKeyDown: handleKeyDown,
+    }) as React.HTMLProps<HTMLDivElement>
     const { style: floatingStyle, ...restFloatingProps } = floatingProps
 
     const mergedStyles = useMemo(
@@ -65,7 +78,12 @@ export const PopoverContent = forwardRef<HTMLDivElement, PopoverContentProps>(
 
     return (
       <Portal>
-        <FloatingFocusManager context={context} modal={false} initialFocus={-1}>
+        <FloatingFocusManager
+          context={context}
+          modal={false}
+          initialFocus={-1}
+          returnFocus={false}
+        >
           <Block
             zIndex={zIndex.portal}
             props={{

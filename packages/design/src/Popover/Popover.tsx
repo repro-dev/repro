@@ -75,12 +75,24 @@ export const Popover: React.FC<PopoverProps> = ({
   const [placement, setPlacement] = useState<Placement>('bottom-start')
   const arrowRef = useRef<SVGSVGElement | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
+  const shouldRestoreFocusRef = useRef(false)
+
+  const requestRestoreFocus = useCallback(() => {
+    shouldRestoreFocusRef.current = true
+  }, [])
 
   useEffect(() => {
     if (open) {
+      shouldRestoreFocusRef.current = false
       return
     }
 
+    if (!shouldRestoreFocusRef.current) {
+      returnFocusRef.current = null
+      return
+    }
+
+    shouldRestoreFocusRef.current = false
     returnFocusRef.current?.isConnected && returnFocusRef.current.focus()
   }, [open])
 
@@ -123,6 +135,7 @@ export const Popover: React.FC<PopoverProps> = ({
       setOpen,
       placement,
       setPlacement,
+      requestRestoreFocus,
       refs,
       floatingStyles,
       context,
@@ -136,6 +149,7 @@ export const Popover: React.FC<PopoverProps> = ({
       open,
       setOpen,
       placement,
+      requestRestoreFocus,
       refs,
       floatingStyles,
       context,

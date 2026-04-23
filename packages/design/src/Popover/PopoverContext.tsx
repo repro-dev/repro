@@ -8,6 +8,7 @@ export type PopoverAlign = 'start' | 'center' | 'end'
 export interface PopoverContextValue {
   open: boolean
   setOpen: (open: boolean) => void
+  requestRestoreFocus: () => void
   placement: Placement
   setPlacement: (placement: Placement) => void
   refs: UseFloatingReturn['refs']
