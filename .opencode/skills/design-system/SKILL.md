@@ -7,7 +7,7 @@ description: UI implementation with @repro/design — component selection, desig
 
 Comprehensive reference for building UI in the Repro codebase. Load this skill before implementing any UI work; if the visual direction is still unresolved, load `design-direction` first and return here once intent is captured.
 
-When the task is about authoredness, generic drift, or naming a recurring UI tell, read `anti-patterns.md` and `interaction-responsive.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
+When the task is about authoredness, generic drift, or naming a recurring UI tell, read `anti-patterns.md`, `palette-surface-spacing.md`, and `interaction-responsive.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
 
 When the task is specifically about readable type or paragraph hierarchy, also read `typography-readability.md` so the same heuristics and anti-pattern names travel across design, review, and audit.
 
@@ -17,17 +17,18 @@ Use the shared scope labels when judging whether a rule applies: `marketing/edit
 
 For detailed sub-topics, read the reference files in this directory:
 
-| File                        | When to read                                                                                                    |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `anti-patterns.md`          | Need named UI guardrails for authored-vs-generic review, design direction, or audit cross-references            |
+| File                         | When to read                                                                                                         |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `anti-patterns.md`           | Need named UI guardrails for authored-vs-generic review, design direction, or audit cross-references                 |
+| `palette-surface-spacing.md` | Need composition, surface, and spacing heuristics plus named anti-patterns like nested cards and everything centered |
 | `typography-readability.md` | Need concrete typography and readability heuristics, including body-size, line-length, and hierarchy guardrails |
-| `interaction-responsive.md` | Need named guardrails for feedback timing, hover/touch, responsiveness, or modal/reflex behavior                |
-| `tokens.md`                 | Need full token tables (color, spacing, typography, elevation, motion, interaction)                             |
-| `surface-scoping.md`        | Need the canonical scope labels and reviewer/author usage notes                                                 |
-| `component-contract.md`     | Creating or modifying `@repro/design` components (forwardRef, a11y, Storybook, known deviations)                |
-| `layouts.md`                | Building page layouts (3-tier hierarchy: AppShell/ToolView/auth-flow shells, PageFrame, page conventions)       |
-| `forms-and-state.md`        | Building forms (react-hook-form + zod), state management (@repro/atom), loading/empty/error patterns            |
-| `design-package.md`         | Working inside `packages/design/` (directory structure, inventory, add/modify checklists, pitfalls)             |
+| `interaction-responsive.md`  | Need named guardrails for feedback timing, hover/touch, responsiveness, or modal/reflex behavior                     |
+| `tokens.md`                  | Need full token tables (color, spacing, typography, elevation, motion, interaction)                                  |
+| `surface-scoping.md`         | Need the canonical scope labels and reviewer/author usage notes                                                      |
+| `component-contract.md`      | Creating or modifying `@repro/design` components (forwardRef, a11y, Storybook, known deviations)                     |
+| `layouts.md`                 | Building page layouts (3-tier hierarchy: AppShell/ToolView/auth-flow shells, PageFrame, page conventions)            |
+| `forms-and-state.md`         | Building forms (react-hook-form + zod), state management (@repro/atom), loading/empty/error patterns                 |
+| `design-package.md`          | Working inside `packages/design/` (directory structure, inventory, add/modify checklists, pitfalls)                  |
 
 ---
 
@@ -235,7 +236,7 @@ For full token tables with every value, read `tokens.md`.
 
 ## Normalisation Workflow
 
-Use this workflow when tasked with bringing existing UI into alignment with design system conventions. Consult the sub-reference files in this directory (`anti-patterns.md`, `typography-readability.md`, `interaction-responsive.md`, `tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
+Use this workflow when tasked with bringing existing UI into alignment with design system conventions. Consult the sub-reference files in this directory (`anti-patterns.md`, `palette-surface-spacing.md`, `typography-readability.md`, `interaction-responsive.md`, `tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
 
 After you finish a non-trivial UI change, switch to `audit-ui-quality` for broader audits, scoring, and polish passes, then `ui-verification` for the `reproctl start --wait` + `agent-browser` browser loop. If the issue was typography- or readability-driven, carry the same body-size, line-length, line-height, and anti-pattern vocabulary forward into those downstream checks.
 
