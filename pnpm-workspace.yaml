@@ -1,6 +1,7 @@
 packages:
   - apps/*
   - packages/*
+  - examples/*
 
 # When on a non-default branch, write a branch-specific lockfile
 # (pnpm-lock.<branch>.yaml) instead of modifying pnpm-lock.yaml.
