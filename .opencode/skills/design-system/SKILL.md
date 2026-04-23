@@ -7,10 +7,13 @@ description: UI implementation with @repro/design — component selection, desig
 
 Comprehensive reference for building UI in the Repro codebase. Load this skill before implementing any UI work; if the visual direction is still unresolved, load `design-direction` first and return here once intent is captured.
 
+When the task is about authoredness, generic drift, or naming a recurring UI tell, read `anti-patterns.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
+
 For detailed sub-topics, read the reference files in this directory:
 
 | File                    | When to read                                                                                              |
 | ----------------------- | --------------------------------------------------------------------------------------------------------- |
+| `anti-patterns.md`      | Need named UI guardrails for authored-vs-generic review, design direction, or audit cross-references      |
 | `tokens.md`             | Need full token tables (color, spacing, typography, elevation, motion, interaction)                       |
 | `component-contract.md` | Creating or modifying `@repro/design` components (forwardRef, a11y, Storybook, known deviations)          |
 | `layouts.md`            | Building page layouts (3-tier hierarchy: AppShell/ToolView/auth-flow shells, PageFrame, page conventions) |
@@ -223,7 +226,7 @@ For full token tables with every value, read `tokens.md`.
 
 ## Normalisation Workflow
 
-Use this workflow when tasked with bringing existing UI into alignment with design system conventions. Consult the sub-reference files in this directory (`tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
+Use this workflow when tasked with bringing existing UI into alignment with design system conventions. Consult the sub-reference files in this directory (`anti-patterns.md`, `tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
 
 After you finish a non-trivial UI change, switch to `audit-ui-quality` for broader audits, scoring, and polish passes, then `ui-verification` for the `reproctl start --wait` + `agent-browser` browser loop.
 
