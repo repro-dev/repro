@@ -14,6 +14,30 @@ globalThis.React = React
 
 afterEach(cleanup)
 
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: width,
+    writable: true,
+  })
+
+  window.dispatchEvent(new Event('resize'))
+}
+
+function getSectionLayout(heading: string) {
+  const section = screen
+    .getByRole('heading', { name: heading })
+    .closest('section')
+
+  assert.ok(section)
+
+  const grid = section.querySelector('[data-layout]')
+
+  assert.ok(grid)
+
+  return grid.getAttribute('data-layout')
+}
+
 describe('recording playback feature route', () => {
   it('exports route metadata', async t => {
     t.mock.module('~/config/env', {
@@ -37,7 +61,9 @@ describe('recording playback feature route', () => {
     )
   })
 
-  it('renders the feature page with the core story and CTAs', async t => {
+  it('stacks its section grids at 375px while keeping the story intact', async t => {
+    setViewportWidth(375)
+
     t.mock.module('~/config/env', {
       namedExports: {
         createEnv: t.mock.fn(() => ({
@@ -84,6 +110,10 @@ describe('recording playback feature route', () => {
     assert.ok(screen.getByText(/Elements, Network, and Console/i))
     assert.ok(screen.getByText(/upcoming Performance panel/i))
 
+    assert.equal(getSectionLayout('Recording'), 'stacked')
+    assert.equal(getSectionLayout('Playback'), 'stacked')
+    assert.equal(getSectionLayout('DevTools integration'), 'stacked')
+
     assert.equal(
       screen.getByRole('link', { name: 'Try it free' }).getAttribute('href'),
       'https://app.example.test'
@@ -94,5 +124,30 @@ describe('recording playback feature route', () => {
         .getAttribute('href'),
       'https://chrome.google.com/webstore/detail/repro/ecmbphfjfhnifmhbjhpejbpdnpanpice'
     )
+  })
+
+  it('reflows its section grids at 768px', async t => {
+    setViewportWidth(768)
+
+    t.mock.module('~/config/env', {
+      namedExports: {
+        createEnv: t.mock.fn(() => ({
+          REPRO_APP_URL: 'https://app.example.test',
+        })),
+        defaultEnv: {
+          REPRO_APP_URL: 'https://app.example.test',
+          REPRO_MARKETING_URL: 'https://repro.dev',
+        },
+      },
+    })
+
+    const { default: RecordingPlaybackPage } = await import('./page')
+    const { SiteLayout } = await import('../../../components/SiteLayout')
+
+    render(React.createElement(SiteLayout, null, RecordingPlaybackPage()))
+
+    assert.equal(getSectionLayout('Recording'), 'split')
+    assert.equal(getSectionLayout('Playback'), 'split')
+    assert.equal(getSectionLayout('DevTools integration'), 'split')
   })
 })
