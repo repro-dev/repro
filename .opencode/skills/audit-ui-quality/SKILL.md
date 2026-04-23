@@ -19,7 +19,7 @@ Load when the task involves any of:
 - "Polish pass on [feature]"
 - "Does this UI feel generic or authored?"
 
-Do **not** use this as the routine verification entrypoint for a recently changed surface. If you need to confirm that a specific UI change behaves correctly, load `ui-verification` and follow the `reproctl start --wait` + `agent-browser` workflow instead. Keep audit judgment separate from browser validation.
+Do **not** use this as the routine verification entrypoint for a recently changed surface. If you need to confirm that a specific UI change behaves correctly, load `ui-verification` and follow the `reproctl start --wait` + `agent-browser` workflow instead. Keep audit judgment separate from browser validation. When you need a compact readiness summary after the full audit, cite `design-system/pre-delivery-ui-checklist.md` rather than repeating the audit logic in a second pass.
 
 This skill assumes UI direction is already set and there is implementation to review. If the direction is still ambiguous, load `design-direction` first.
 
@@ -126,6 +126,8 @@ Recommend the next action based on the aggregate score across all scoped files:
 | **< 25 / 40**  | Load the `design-system` skill and run the full Normalisation Workflow before shipping.       |
 
 If compliance is strong but authored-quality concerns remain, call those out separately instead of burying them inside the numeric total.
+
+When you write the final recommendation, treat `pre-delivery-ui-checklist.md` as the handoff summary: cite the checklist to show the surface is ready or why it still needs a shipping pass, but do not restate every scanned dimension or duplicate the browser-verification workflow.
 
 ---
 
