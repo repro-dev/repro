@@ -2,17 +2,20 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Block, Col } from '@jsxstyle/react'
 import { useAcceptInvitation, useSession, useSessionLoading } from '@repro/auth'
 import {
+  Alert,
   Button,
   Card,
   color,
-  colors,
   FormField,
   FormFieldError,
   Input,
   Label,
+  spacing,
+  textStyles,
 } from '@repro/design'
 import { logger } from '@repro/logger'
 import { fork } from 'fluture'
+import { AlertCircleIcon, InfoIcon } from 'lucide-react'
 import React, { useCallback, useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
@@ -95,42 +98,48 @@ const AcceptInvitationRoute: React.FC = () => {
     [acceptInvitation, invitationToken, email, navigate, setError]
   )
 
-  // If already logged in, show a message with option to go home
   if (!sessionLoading && session !== null) {
     return (
-      <Col width={320} alignItems="stretch" gap={10}>
+      <Col width={360} maxWidth="100%" alignItems="stretch" gap={spacing.md}>
         <Card>
-          <Col gap={16}>
-            <Block fontSize={15} fontWeight={700} color={color.primary}>
-              Already Signed In
+          <Col gap={spacing.md}>
+            <Block
+              component="h1"
+              {...textStyles.heading2}
+              color={color.primary}
+            >
+              Already signed in
             </Block>
 
-            <Block fontSize={13} lineHeight="1.5em" color={color.text.muted}>
-              You are already signed in. You can go to your workspace or log out
-              first to accept this invitation with a different account.
-            </Block>
+            <Alert type="info" icon={<InfoIcon size={16} />}>
+              You are already signed in. Go to your workspace, or log out first
+              to accept this invitation with a different account.
+            </Alert>
 
-            <Button onClick={() => navigate('/')}>Go to Workspace</Button>
+            <Button onClick={() => navigate('/')}>Go to workspace</Button>
           </Col>
         </Card>
       </Col>
     )
   }
 
-  // Missing required query params — show an error state
   if (!invitationToken || !email) {
     return (
-      <Col width={320} alignItems="stretch" gap={10}>
+      <Col width={360} maxWidth="100%" alignItems="stretch" gap={spacing.md}>
         <Card>
-          <Col gap={16}>
-            <Block fontSize={15} fontWeight={700} color={color.primary}>
-              Invalid Invitation Link
+          <Col gap={spacing.md}>
+            <Block
+              component="h1"
+              {...textStyles.heading2}
+              color={color.primary}
+            >
+              Invalid invitation link
             </Block>
 
-            <Block fontSize={13} lineHeight="1.5em" color={color.text.muted}>
+            <Alert type="danger" icon={<AlertCircleIcon size={16} />}>
               This invitation link is missing required information. Please use
               the link from your invitation email.
-            </Block>
+            </Alert>
           </Col>
         </Card>
       </Col>
@@ -138,42 +147,33 @@ const AcceptInvitationRoute: React.FC = () => {
   }
 
   return (
-    <Col width={320} alignItems="stretch" gap={10}>
+    <Col width={360} maxWidth="100%" alignItems="stretch" gap={spacing.md}>
       <Card>
         <FormProvider {...methods}>
           <form onSubmit={handleSubmit(onSubmit)}>
-            <Col gap={16}>
-              <Col gap={12}>
-                <Block fontSize={15} fontWeight={700} color={color.primary}>
-                  Accept Invitation
+            <Col gap={spacing.md}>
+              <Col gap={spacing.sm}>
+                <Block
+                  component="h1"
+                  {...textStyles.heading2}
+                  color={color.primary}
+                >
+                  Accept invitation
                 </Block>
 
                 <Block
-                  paddingBottom={10}
-                  fontSize={13}
-                  lineHeight="1.5em"
-                  borderBottom={`1px solid ${color.border.default}`}
+                  component="p"
+                  {...textStyles.bodySmall}
                   color={color.text.muted}
                 >
-                  Complete your registration to join your team
+                  Complete your registration to join your team.
                 </Block>
               </Col>
 
               {formState.errors.root && (
-                <Block
-                  alignSelf="stretch"
-                  padding={10}
-                  fontSize={13}
-                  lineHeight={1.5}
-                  backgroundColor={colors.rose['100']}
-                  color={color.danger}
-                  borderRadius={4}
-                  borderColor={colors.rose['300']}
-                  borderStyle="solid"
-                  borderWidth={1}
-                >
+                <Alert type="danger" icon={<AlertCircleIcon size={16} />}>
                   {formState.errors.root.message}
-                </Block>
+                </Alert>
               )}
 
               <FormField>
@@ -261,7 +261,7 @@ const AcceptInvitationRoute: React.FC = () => {
               </FormField>
 
               <Button disabled={!formState.isValid || submitting} type="submit">
-                Create Account
+                Create account
               </Button>
             </Col>
           </form>

@@ -1,6 +1,6 @@
 import { Col } from '@jsxstyle/react'
 import { ResetPasswordForm } from '@repro/auth'
-import { Card } from '@repro/design'
+import { Card, spacing } from '@repro/design'
 import { logger } from '@repro/logger'
 import React, { useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -23,7 +23,7 @@ const ResetPasswordRoute: React.FC = () => {
   }
 
   return (
-    <Col width={320} alignItems="stretch" gap={10}>
+    <Col width={360} maxWidth="100%" alignItems="stretch" gap={spacing.md}>
       <Card>
         <ResetPasswordForm
           token={token}

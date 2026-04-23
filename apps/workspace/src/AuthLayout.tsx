@@ -1,5 +1,5 @@
 import { Col, Grid, Row } from '@jsxstyle/react'
-import { color, Logo } from '@repro/design'
+import { color, Logo, spacing } from '@repro/design'
 import React from 'react'
 import { Outlet } from 'react-router'
 
@@ -9,11 +9,12 @@ export const AuthLayout: React.FC = () => (
     alignItems="center"
     justifyContent="center"
     gridAutoRows="auto"
+    padding={spacing['4xl']}
     backgroundColor={color.border.default}
     backgroundImage={`linear-gradient(to top right, ${color.border.default}, ${color.bg.subtle})`}
   >
-    <Col alignItems="flex-start" gap={20}>
-      <Row paddingH={10} alignItems="center" gap={5}>
+    <Col alignItems="stretch" width={360} maxWidth="100%" gap={spacing['3xl']}>
+      <Row paddingH={spacing.md} alignItems="center" gap={spacing.xs}>
         <Logo size={24} />
       </Row>
 

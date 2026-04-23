@@ -1,18 +1,19 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Block, Col, Row } from '@jsxstyle/react'
 import {
+  Alert,
   Button,
   color,
-  colors,
   Divider,
   FormField,
   FormFieldError,
   Input,
   Label,
-  Link,
+  textStyles,
 } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { fork } from 'fluture'
+import { AlertCircleIcon, InfoIcon } from 'lucide-react'
 import React, { useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
@@ -61,9 +62,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
 
   function onResetRequest(data: ResetFormState) {
     return fork(() => {
-      setErrorMessage(
-        'Unable to complete password reset request. Please try again'
-      )
+      setErrorMessage('Unable to send password reset email. Please try again.')
     })(() => {
       setShowPostResetMessage(true)
       setShowResetFlow(false)
@@ -86,7 +85,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
       ) {
         setErrorMessage('Incorrect email or password')
       } else {
-        setErrorMessage('Unable to log in. Please try again')
+        setErrorMessage('Unable to log in. Please try again.')
       }
 
       setLoading(false)
@@ -110,55 +109,35 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
       <form onSubmit={handleSubmit(onSubmit)}>
         <Col gap={16}>
           <Col gap={12}>
-            <Block fontSize={15} fontWeight={700} color={color.primary}>
-              {showResetFlow ? 'Reset Your Password' : 'Log In'}
+            <Block
+              component="h1"
+              {...textStyles.heading2}
+              color={color.primary}
+            >
+              {showResetFlow ? 'Reset password' : 'Log in'}
             </Block>
 
             <Block
-              paddingBottom={10}
-              fontSize={13}
-              lineHeight="1.5em"
-              borderBottom={`1px solid ${color.border.default}`}
+              component="p"
+              {...textStyles.bodySmall}
               color={color.text.muted}
             >
               {showResetFlow
-                ? 'Enter your email for password reset instructions'
-                : null}
+                ? 'Enter your email address to receive password reset instructions.'
+                : 'Use your email and password to continue.'}
             </Block>
           </Col>
 
           {showPostResetMessage && (
-            <Block
-              alignSelf="stretch"
-              padding={10}
-              fontSize={13}
-              lineHeight={1.5}
-              backgroundColor={color.primarySubtle}
-              color={color.primary}
-              borderRadius={4}
-              borderColor={colors.blue['300']}
-              borderStyle="solid"
-              borderWidth={1}
-            >
-              Please check your email for instructions to reset your password.
-            </Block>
+            <Alert type="info" icon={<InfoIcon size={16} />}>
+              Check your email for password reset instructions.
+            </Alert>
           )}
 
           {errorMessage && (
-            <Block
-              alignSelf="stretch"
-              padding={10}
-              fontSize={13}
-              lineHeight={1.5}
-              backgroundColor={colors.rose['100']}
-              color={colors.rose['700']}
-              borderRadius={4}
-              borderColor={colors.rose['300']}
-              borderStyle="solid"
-              borderWidth={1}
-            >
+            <Alert type="danger" icon={<AlertCircleIcon size={16} />}>
               {errorMessage}
-            </Block>
+            </Alert>
           )}
 
           <FormField>
@@ -194,41 +173,32 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
           )}
 
           {!showResetFlow && (
-            <Block>
-              <Link
-                component="button"
-                props={{
-                  type: 'button',
-                  // Reset native browser button styles so the link renders as
-                  // inline text with no button chrome (background, border, padding).
-                  style: {
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    font: 'inherit',
-                    cursor: 'pointer',
-                  },
-                  onClick: () => {
-                    setShowResetFlow(true)
-                    setShowPostResetMessage(false)
-                    setErrorMessage('')
-                  },
+            <Block alignSelf="flex-start">
+              <Button
+                size="small"
+                type="button"
+                variant="text"
+                onClick={() => {
+                  setShowResetFlow(true)
+                  setShowPostResetMessage(false)
+                  setErrorMessage('')
                 }}
               >
                 Forgot password?
-              </Link>
+              </Button>
             </Block>
           )}
 
           <Button disabled={formState.isSubmitting} type="submit">
-            {showResetFlow ? 'Send Reset Email' : 'Log In'}
+            {showResetFlow ? 'Send reset email' : 'Log in'}
           </Button>
 
           {showResetFlow && (
             <Block alignSelf="center">
               <Button
-                variant="text"
                 size="small"
+                type="button"
+                variant="text"
                 onClick={() => {
                   setShowResetFlow(false)
                   setShowPostResetMessage(false)
@@ -244,7 +214,11 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             <>
               <Row alignItems="center" gap={8}>
                 <Divider spacing="none" />
-                <Block flexShrink={0} fontSize={12} color={colors.slate['400']}>
+                <Block
+                  {...textStyles.caption}
+                  flexShrink={0}
+                  color={color.text.muted}
+                >
                   or
                 </Block>
                 <Divider spacing="none" />

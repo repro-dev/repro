@@ -1,16 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Block, Col, Row } from '@jsxstyle/react'
 import {
+  Alert,
   Button,
   color,
-  colors,
   Divider,
   FormField,
   Input,
   Label,
+  textStyles,
 } from '@repro/design'
 import { isValidationError } from '@repro/validation'
 import { done } from 'fluture'
+import { AlertCircleIcon } from 'lucide-react'
 import React, { useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import z from 'zod'
@@ -80,7 +82,7 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
           } else if (isValidationError(error)) {
             setErrorMessage(`Form invalid: ${error.message}`)
           } else if (error.name === 'ResourceConflictError') {
-            setErrorMessage('User already exists for this email address')
+            setErrorMessage('User already exists for this email address.')
           } else {
             setErrorMessage('Unable to register account. Please try again.')
           }
@@ -98,36 +100,27 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
       <form onSubmit={handleSubmit(onSubmit)}>
         <Col gap={16}>
           <Col gap={12}>
-            <Block fontSize={15} fontWeight={700} color={color.primary}>
-              Create New Account
+            <Block
+              component="h1"
+              {...textStyles.heading2}
+              color={color.primary}
+            >
+              Create account
             </Block>
 
             <Block
-              paddingBottom={10}
-              fontSize={13}
-              lineHeight="1.5em"
-              borderBottom={`1px solid ${color.border.default}`}
+              component="p"
+              {...textStyles.bodySmall}
               color={color.text.muted}
             >
-              Register a new Repro account
+              Create a new Repro account.
             </Block>
           </Col>
 
           {errorMessage && (
-            <Block
-              alignSelf="stretch"
-              padding={10}
-              fontSize={13}
-              lineHeight={1.5}
-              backgroundColor={colors.rose['100']}
-              color={colors.rose['700']}
-              borderRadius={4}
-              borderColor={colors.rose['300']}
-              borderStyle="solid"
-              borderWidth={1}
-            >
+            <Alert type="danger" icon={<AlertCircleIcon size={16} />}>
               {errorMessage}
-            </Block>
+            </Alert>
           )}
 
           <FormField>
@@ -185,12 +178,16 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             disabled={!formState.isValid || formState.isSubmitting}
             type="submit"
           >
-            Create Account
+            Create account
           </Button>
 
           <Row alignItems="center" gap={8}>
             <Divider spacing="none" />
-            <Block flexShrink={0} fontSize={12} color={colors.slate['400']}>
+            <Block
+              {...textStyles.caption}
+              flexShrink={0}
+              color={color.text.muted}
+            >
               or
             </Block>
             <Divider spacing="none" />
