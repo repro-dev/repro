@@ -4,6 +4,8 @@ import { useApiClient } from '@repro/api-client'
 import { useSession } from '@repro/auth'
 import {
   Alert,
+  Avatar,
+  Badge,
   Button,
   Card,
   FormField,
@@ -15,6 +17,7 @@ import {
   Stack,
   Text,
   color,
+  radius,
   spacing,
   useConfirm,
 } from '@repro/design'
@@ -221,6 +224,68 @@ export function ProjectSettingsRoute({
                   </Row>
                 </Stack>
               </form>
+            </Col>
+          </Card>
+
+          {/* Team Members section */}
+          <Card>
+            <Col padding={spacing.xl} gap={spacing.lg}>
+              <Row alignItems="center" justifyContent="space-between">
+                <Text variant="heading3">Team Members</Text>
+                <Badge context="neutral" rounded>
+                  {members.length} member{members.length !== 1 ? 's' : ''}
+                </Badge>
+              </Row>
+
+              {members.length === 0 ? (
+                <Text variant="body" color={color.text.muted}>
+                  No members found.
+                </Text>
+              ) : (
+                <Col gap={spacing.sm}>
+                  {members.map((member: ProjectMember) => {
+                    const isCurrentUser = member.user.id === currentUserId
+                    return (
+                      <Row
+                        key={member.user.id}
+                        alignItems="center"
+                        gap={spacing.md}
+                        padding={spacing.md}
+                        borderRadius={radius.sm}
+                        backgroundColor={
+                          isCurrentUser ? color.bg.hover : undefined
+                        }
+                      >
+                        <Avatar
+                          email={member.user.email}
+                          name={member.user.name}
+                          size={36}
+                          mode="image-only"
+                        />
+                        <Col flex={1} gap={spacing.xs}>
+                          <Row alignItems="center" gap={spacing.sm}>
+                            <Text variant="body" weight="semibold">
+                              {member.user.name}
+                            </Text>
+                            {isCurrentUser && (
+                              <Badge context="info" size="small" rounded>
+                                You
+                              </Badge>
+                            )}
+                          </Row>
+                          <Text variant="bodySmall" color={color.text.muted}>
+                            {member.user.email}
+                          </Text>
+                        </Col>
+                        <Badge context="neutral">
+                          {member.role.charAt(0).toUpperCase() +
+                            member.role.slice(1)}
+                        </Badge>
+                      </Row>
+                    )
+                  })}
+                </Col>
+              )}
             </Col>
           </Card>
 

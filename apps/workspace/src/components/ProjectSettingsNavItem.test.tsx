@@ -56,6 +56,7 @@ const currentUser: User = {
   type: 'user' as const,
   id: 'user-1',
   name: 'Admin User',
+  email: 'admin@example.com',
   verified: true,
 }
 

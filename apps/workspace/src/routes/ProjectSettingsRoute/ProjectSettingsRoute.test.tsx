@@ -47,6 +47,7 @@ const adminMember: ProjectMember = {
     type: 'user',
     id: CURRENT_USER_ID,
     name: 'Admin User',
+    email: 'admin@example.com',
     verified: true,
   },
   role: ProjectRole.Admin,
@@ -55,11 +56,23 @@ const adminMember: ProjectMember = {
 const viewerMember: ProjectMember = {
   user: {
     type: 'user',
-    id: CURRENT_USER_ID,
+    id: 'user-viewer',
     name: 'Viewer User',
+    email: 'viewer@example.com',
     verified: true,
   },
   role: ProjectRole.Viewer,
+}
+
+const contributorMember: ProjectMember = {
+  user: {
+    type: 'user',
+    id: 'user-2',
+    name: 'Contributor User',
+    email: 'contributor@example.com',
+    verified: true,
+  },
+  role: ProjectRole.Contributor,
 }
 
 // --- Injectable dependency types ---
@@ -694,6 +707,64 @@ describe('ProjectSettingsRoute', () => {
       await waitFor(() => {
         assert.ok(screen.getByText(/failed to load project membership/i))
       })
+    })
+
+    it('renders the team members section with member count', async () => {
+      renderRoute({
+        getMembers: () =>
+          resolve([adminMember, viewerMember, contributorMember]),
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('Team Members'))
+        assert.ok(screen.getByText('3 members'))
+      })
+    })
+
+    it('renders each member with name, email, and role', async () => {
+      renderRoute({
+        getMembers: () =>
+          resolve([adminMember, viewerMember, contributorMember]),
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('Admin User'))
+        assert.ok(screen.getByText('admin@example.com'))
+        assert.ok(screen.getByText('Viewer User'))
+        assert.ok(screen.getByText('viewer@example.com'))
+        assert.ok(screen.getByText('Contributor User'))
+        assert.ok(screen.getByText('contributor@example.com'))
+        assert.ok(screen.getByText('Admin'))
+        assert.ok(screen.getByText('Viewer'))
+        assert.ok(screen.getByText('Contributor'))
+      })
+    })
+
+    it('marks the current user with a You badge', async () => {
+      renderRoute({
+        getMembers: () => resolve([adminMember, viewerMember]),
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('You'))
+      })
+    })
+
+    it('does not show a You badge for other members', async () => {
+      renderRoute({
+        currentUserId: 'user-viewer',
+        getMembers: () => resolve([adminMember, viewerMember]),
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('Admin User'))
+        assert.ok(screen.getByText('Viewer User'))
+      })
+
+      // There should be no "You" badge because current user is viewer,
+      // and both badges should be neutral role badges only
+      const youBadges = screen.queryAllByText('You')
+      assert.equal(youBadges.length, 0)
     })
   })
 })
