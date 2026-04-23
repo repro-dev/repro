@@ -1,6 +1,6 @@
-import { Block } from '@jsxstyle/react'
+import { Col, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
-import { Link, Logo, textStyles, ToolView } from '@repro/design'
+import { color, Link, spacing, Text } from '@repro/design'
 import { DevTools } from '@repro/devtools'
 import type { Project, RecordingInfo } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
@@ -73,8 +73,15 @@ export const RecordingRoute: React.FC = () => {
   const isLoading = loading
 
   return (
-    <ToolView>
-      <ToolView.Header>
+    <Col height="100%">
+      <Row
+        component="header"
+        alignItems="center"
+        gap={spacing.md}
+        paddingH={spacing['2xl']}
+        paddingV={spacing.xl}
+        borderBottom={`1px solid ${color.border.default}`}
+      >
         {info ? (
           <RecordingHeader
             projectId={projectId}
@@ -83,18 +90,14 @@ export const RecordingRoute: React.FC = () => {
           />
         ) : (
           <>
-            <Logo size={24} />
-            <Link
-              component={RouterLink}
-              props={{ to: '/', style: textStyles.body }}
-            >
+            <Link component={RouterLink} props={{ to: '/' }}>
               &larr; Sessions
             </Link>
-            <Block {...textStyles.body}>Loading recording</Block>
+            <Text variant="body">Loading recording</Text>
           </>
         )}
-      </ToolView.Header>
-      <ToolView.Content>
+      </Row>
+      <Col flex={1} overflow="hidden" component="main">
         {isLoading ? (
           <Loading />
         ) : error ? (
@@ -104,7 +107,7 @@ export const RecordingRoute: React.FC = () => {
             <DevTools resourceBaseURL={resourceBaseURL} />
           </PlaybackFromSourceProvider>
         )}
-      </ToolView.Content>
-    </ToolView>
+      </Col>
+    </Col>
   )
 }

@@ -126,18 +126,10 @@ if (rootElem) {
                               path="settings/*"
                               element={<SettingsRoute />}
                             />
-                          </Route>
-                        </Route>
-
-                        <Route element={<SessionRouteBoundary />}>
-                          <Route
-                            path="projects/:projectId/recordings/:recordingId"
-                            element={<RecordingRoute />}
-                          />
-                        </Route>
-
-                        <Route element={<Layout />}>
-                          <Route element={<SessionRouteBoundary />}>
+                            <Route
+                              path="projects/:projectId/recordings/:recordingId"
+                              element={<RecordingRoute />}
+                            />
                             <Route
                               path="projects/:projectId/settings"
                               element={<ProjectSettingsRoute />}
