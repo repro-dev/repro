@@ -1,130 +1,68 @@
-import { Block, Row } from '@jsxstyle/react'
-import { Button, color, DropdownMenu, spacing, textStyles } from '@repro/design'
-import { getProjectMembers as defaultGetProjectMembers } from '@repro/workspace-api'
-import {
-  ChevronDownIcon,
-  FolderIcon,
-  PlusIcon,
-  SettingsIcon,
-} from 'lucide-react'
-import React, { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Block, Grid, Row } from '@jsxstyle/react'
+import { color, DropdownMenu, spacing } from '@repro/design'
+import { ChevronDownIcon, FolderIcon, PlusIcon } from 'lucide-react'
+import React, { useState } from 'react'
 import { useProjectContext } from '~/ProjectContext'
 import { CreateProjectDialog } from './CreateProjectDialog'
-import { useProjectSettingsAccess } from './ProjectSettingsNavItem'
 
-export interface ProjectSwitcherProps {
-  getMembers?: typeof defaultGetProjectMembers
-}
+export interface ProjectSwitcherProps {}
 
-export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = ({
-  getMembers = defaultGetProjectMembers,
-}) => {
+export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = () => {
   const { projects, selectedProject, loading, selectProject } =
     useProjectContext()
-  const navigate = useNavigate()
-  const { href: projectSettingsHref, loading: projectSettingsLoading } =
-    useProjectSettingsAccess({ getMembers })
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const projectSettingsHrefRef = useRef<string | null>(null)
 
-  useEffect(() => {
-    if (projectSettingsHref) {
-      projectSettingsHrefRef.current = projectSettingsHref
-    }
-  }, [projectSettingsHref])
-
-  const projectSettingsActionHref =
-    projectSettingsHref ??
-    (projectSettingsLoading ? projectSettingsHrefRef.current : null)
-
-  if (loading) {
+  if (loading || !selectedProject) {
     return null
-  }
-
-  if (projects.length === 0) {
-    return (
-      <>
-        <Row
-          alignItems="center"
-          gap={spacing.sm}
-          padding={spacing.lg}
-          justifyContent="flex-end"
-        >
-          <Button
-            variant="text"
-            context="neutral"
-            size="medium"
-            onClick={() => setShowCreateDialog(true)}
-          >
-            <PlusIcon size={14} />
-            <Block {...textStyles.label}>Create project</Block>
-          </Button>
-        </Row>
-
-        <CreateProjectDialog
-          open={showCreateDialog}
-          onClose={() => setShowCreateDialog(false)}
-        />
-      </>
-    )
-  }
-
-  // Single project: show the name with a create button.
-  if (projects.length === 1 || !selectedProject) {
-    return (
-      <>
-        <Row alignItems="center" gap={spacing.sm} padding={spacing.lg}>
-          <FolderIcon size={14} />
-          <Block {...textStyles.label} color={color.text.default} flexGrow={1}>
-            {selectedProject?.name ?? projects[0]?.name}
-          </Block>
-          <Row gap={spacing.xs} alignItems="center">
-            {projectSettingsActionHref ? (
-              <Button
-                variant="text"
-                context="neutral"
-                size="medium"
-                disabled={projectSettingsLoading}
-                onClick={() => navigate(projectSettingsActionHref)}
-              >
-                <SettingsIcon size={14} />
-                <Block {...textStyles.label}>Project settings</Block>
-              </Button>
-            ) : null}
-
-            <Button
-              variant="text"
-              context="neutral"
-              size="medium"
-              onClick={() => setShowCreateDialog(true)}
-            >
-              <PlusIcon size={14} />
-              <Block {...textStyles.label}>Create project</Block>
-            </Button>
-          </Row>
-        </Row>
-
-        <CreateProjectDialog
-          open={showCreateDialog}
-          onClose={() => setShowCreateDialog(false)}
-        />
-      </>
-    )
   }
 
   return (
     <>
-      <Row alignItems="center" gap={spacing.sm} padding={spacing.lg}>
+      <Grid
+        padding={spacing.sm}
+        gridTemplateColumns="5fr 1fr"
+        gap={spacing.sm}
+        color={color.text.secondary}
+        fontSize={13}
+        fontWeight={500}
+        hoverBackgroundColor={color.bg.hover}
+      >
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-          <DropdownMenu.Trigger>
-            <Button variant="outlined" context="neutral" size="medium">
+          <DropdownMenu.Trigger fullWidth>
+            <Grid
+              gridTemplateColumns="auto 1fr auto"
+              inlineSize="100%"
+              component="button"
+              type="button"
+              alignItems="center"
+              gap={spacing.md}
+              padding={spacing.lg}
+              borderRadius={4}
+              cursor="pointer"
+              border="none"
+              background="none"
+              color={color.text.secondary}
+              fontSize={13}
+              fontWeight={500}
+              hoverBackgroundColor={color.bg.muted}
+              props={{
+                'aria-label': `Switch project. Current: ${selectedProject.name}`,
+              }}
+            >
               <FolderIcon size={14} />
-              <Block {...textStyles.label}>{selectedProject.name}</Block>
+              <Block
+                flexGrow={1}
+                textAlign="left"
+                whiteSpace="nowrap"
+                textOverflow="ellipsis"
+                overflow="hidden"
+              >
+                {selectedProject.name}
+              </Block>
               <ChevronDownIcon size={12} color={color.text.muted} />
-            </Button>
+            </Grid>
           </DropdownMenu.Trigger>
 
           <DropdownMenu.Content side="bottom" align="start">
@@ -136,50 +74,30 @@ export const ProjectSwitcher: React.FC<ProjectSwitcherProps> = ({
                 {project.name}
               </DropdownMenu.Item>
             ))}
-            <DropdownMenu.Separator />
-            <Row padding={spacing.xs} justifyContent="flex-start">
-              <Button
-                variant="outlined"
-                context="neutral"
-                size="medium"
-                rounded
-                onClick={() => {
-                  setMenuOpen(false)
-                  setShowCreateDialog(true)
-                }}
-              >
-                <PlusIcon size={14} />
-                Create project
-              </Button>
-            </Row>
           </DropdownMenu.Content>
         </DropdownMenu>
 
-        <Row gap={spacing.xs} marginLeft="auto" alignItems="center">
-          {projectSettingsActionHref ? (
-            <Button
-              variant="text"
-              context="neutral"
-              size="medium"
-              disabled={projectSettingsLoading}
-              onClick={() => navigate(projectSettingsActionHref)}
-            >
-              <SettingsIcon size={14} />
-              <Block {...textStyles.label}>Project settings</Block>
-            </Button>
-          ) : null}
-
-          <Button
-            variant="text"
-            context="neutral"
-            size="medium"
-            onClick={() => setShowCreateDialog(true)}
-          >
-            <PlusIcon size={14} />
-            <Block {...textStyles.label}>Create project</Block>
-          </Button>
+        <Row
+          component="button"
+          type="button"
+          alignItems="center"
+          justifyContent="center"
+          background="none"
+          border="none"
+          cursor="pointer"
+          color={color.text.muted}
+          padding={spacing.xs}
+          borderRadius={4}
+          hoverColor={color.text.secondary}
+          hoverBackgroundColor={color.bg.muted}
+          props={{
+            'aria-label': 'Create project',
+            onClick: () => setShowCreateDialog(true),
+          }}
+        >
+          <PlusIcon size={14} />
         </Row>
-      </Row>
+      </Grid>
 
       <CreateProjectDialog
         open={showCreateDialog}

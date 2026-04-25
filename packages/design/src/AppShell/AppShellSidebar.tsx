@@ -20,7 +20,6 @@ export const AppShellSidebar = forwardRef<HTMLElement, AppShellSidebarProps>(
         height="100%"
         overflowY="auto"
         backgroundColor={color.bg.surface}
-        borderRight={`1px solid ${color.border.default}`}
         props={{ ref, 'aria-label': ariaLabel }}
       >
         {hasSlots ? (
