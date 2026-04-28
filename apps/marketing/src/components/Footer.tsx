@@ -1,33 +1,44 @@
+import footerStyles from './Footer.module.css'
 import { footerGroups, socialLinks } from './marketingShell'
+import sharedStyles from './MarketingShell.module.css'
+
+const cx = (...classes: Array<string | undefined>) =>
+  classes.filter(Boolean).join(' ')
 
 export function Footer() {
   const year = new Date().getFullYear()
 
   return (
-    <footer className="marketing-shell__site-footer">
-      <div className="marketing-shell__site-footer-inner">
-        <div className="marketing-shell__grid-4">
+    <footer className={footerStyles.siteFooter}>
+      <div className={footerStyles.siteFooterInner}>
+        <div className={cx(sharedStyles.grid4, footerStyles.siteFooterGrid)}>
           {footerGroups.map(group => (
             <section
               key={group.title}
-              className="marketing-shell__site-footer-group"
+              className={footerStyles.siteFooterGroup}
               aria-labelledby={`footer-${group.title.toLowerCase()}`}
             >
               <h2
                 id={`footer-${group.title.toLowerCase()}`}
-                className="marketing-shell__footer-title"
+                className={cx(
+                  sharedStyles.footerTitle,
+                  footerStyles.footerTitle
+                )}
               >
                 {group.title}
               </h2>
 
               <nav
                 aria-label={group.title}
-                className="marketing-shell__site-footer-nav"
+                className={footerStyles.siteFooterNav}
               >
                 {group.links.map(link => (
                   <a
                     key={link.href}
-                    className="marketing-shell__footer-link"
+                    className={cx(
+                      sharedStyles.footerLink,
+                      footerStyles.footerLink
+                    )}
                     href={link.href}
                   >
                     {link.label}
@@ -38,17 +49,20 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="marketing-shell__site-footer-meta">
+        <div className={footerStyles.siteFooterMeta}>
           <p>© {year} Repro</p>
 
           <nav
             aria-label="Social links"
-            className="marketing-shell__site-footer-social"
+            className={footerStyles.siteFooterSocial}
           >
             {socialLinks.map(link => (
               <a
                 key={link.href}
-                className="marketing-shell__footer-social-link"
+                className={cx(
+                  sharedStyles.button,
+                  sharedStyles.footerSocialLink
+                )}
                 href={link.href}
               >
                 {link.label}

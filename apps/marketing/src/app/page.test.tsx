@@ -16,6 +16,25 @@ afterEach(cleanup)
 
 describe('marketing homepage route', () => {
   it('renders the homepage inside the site layout', async t => {
+    t.mock.module('../components/SiteLayout.module.css', {
+      defaultExport: {},
+    })
+    t.mock.module('../components/Header.module.css', {
+      defaultExport: {},
+    })
+    t.mock.module('../components/Footer.module.css', {
+      defaultExport: {},
+    })
+    t.mock.module('../components/MarketingShell.module.css', {
+      defaultExport: {},
+    })
+    t.mock.module('../components/HomePageContent.module.css', {
+      defaultExport: {},
+    })
+    t.mock.module('../components/HeroSection.module.css', {
+      defaultExport: {},
+    })
+
     const createEnv = t.mock.fn(() => ({
       REPRO_APP_URL: 'https://app.example.test',
     }))
@@ -35,24 +54,19 @@ describe('marketing homepage route', () => {
     render(React.createElement(SiteLayout, null, HomePage()))
 
     const header = screen.getByRole('banner')
-    const headerRow = header.querySelector(
-      '.marketing-shell__site-header-row'
-    ) as HTMLElement | null
+    const logo = header.querySelector('svg') as SVGSVGElement | null
     const heroHeading = screen.getByRole('heading', {
       name: 'Capture the bug. Let AI find the fix.',
       level: 1,
     })
-    const homeContent = document.querySelector('.marketing-shell__home-content')
-    const proofStrip = document.querySelector('.marketing-shell__proof-strip')
 
     assert.equal(
       window.getComputedStyle(header).backgroundColor,
       'rgba(0, 0, 0, 0)'
     )
-    assert.ok(headerRow)
-    assert.ok(homeContent)
-    assert.ok(heroHeading.classList.contains('marketing-shell__hero-title'))
-    assert.ok(proofStrip?.classList.contains('marketing-shell__grid-12'))
+    assert.ok(logo)
+    assert.equal(logo?.getAttribute('height'), '30')
+    assert.ok(heroHeading)
 
     assert.ok(
       screen.getByText(

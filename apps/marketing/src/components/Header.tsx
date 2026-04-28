@@ -1,8 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import headerStyles from './Header.module.css'
 import { MarketingLogo } from './MarketingLogo'
 import { primaryNavLinks, signupHref } from './marketingShell'
+import sharedStyles from './MarketingShell.module.css'
+
+const cx = (...classes: Array<string | undefined>) =>
+  classes.filter(Boolean).join(' ')
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -62,27 +67,27 @@ export function Header() {
   }
 
   return (
-    <header className="marketing-shell__site-header">
-      <div className="marketing-shell__site-header-row">
-        <a
-          href="/"
-          aria-label="Repro home"
-          className="marketing-shell__logo-link"
-        >
-          <MarketingLogo className="marketing-shell__logo" />
+    <header className={headerStyles.siteHeader}>
+      <div className={headerStyles.siteHeaderRow}>
+        <a href="/" aria-label="Repro home" className={headerStyles.logoLink}>
+          <MarketingLogo className={headerStyles.logo} />
         </a>
 
-        <nav className="marketing-shell__desktop-nav" aria-label="Primary">
+        <nav className={headerStyles.desktopNav} aria-label="Primary">
           {primaryNavLinks.map(({ href, label }) => (
-            <a key={href} className="marketing-shell__header-link" href={href}>
+            <a key={href} className={headerStyles.headerLink} href={href}>
               {label}
             </a>
           ))}
         </nav>
 
-        <div className="marketing-shell__header-actions">
+        <div className={headerStyles.headerActions}>
           <a
-            className="marketing-shell__button marketing-shell__header-cta"
+            className={cx(
+              sharedStyles.button,
+              sharedStyles.primaryCta,
+              headerStyles.headerCta
+            )}
             href={signupHref}
           >
             Start free
@@ -91,7 +96,7 @@ export function Header() {
           <button
             ref={mobileToggleRef}
             type="button"
-            className="marketing-shell__button marketing-shell__mobile-toggle"
+            className={cx(sharedStyles.button, headerStyles.mobileToggle)}
             aria-expanded={mobileMenuOpen}
             aria-controls="marketing-mobile-menu"
             onClick={() => setMobileMenuOpen(true)}
@@ -106,7 +111,7 @@ export function Header() {
         <div
           ref={mobileMenuRef}
           id="marketing-mobile-menu"
-          className="marketing-shell__mobile-menu"
+          className={headerStyles.mobileMenu}
           role="dialog"
           aria-modal="true"
           aria-labelledby="marketing-menu-title"
@@ -114,13 +119,13 @@ export function Header() {
           onKeyDown={handleMobileMenuKeyDown}
         >
           <div
-            className="marketing-shell__mobile-menu-panel"
+            className={headerStyles.mobileMenuPanel}
             onClick={event => event.stopPropagation()}
           >
-            <div className="marketing-shell__mobile-menu-header">
+            <div className={headerStyles.mobileMenuHeader}>
               <h2
                 id="marketing-menu-title"
-                className="marketing-shell__mobile-menu-title"
+                className={headerStyles.mobileMenuTitle}
               >
                 Site navigation
               </h2>
@@ -128,7 +133,7 @@ export function Header() {
               <button
                 ref={closeButtonRef}
                 type="button"
-                className="marketing-shell__mobile-menu-close"
+                className={headerStyles.mobileMenuClose}
                 aria-label="Close site navigation"
                 onClick={() => closeMobileMenu()}
               >
@@ -136,11 +141,11 @@ export function Header() {
               </button>
             </div>
 
-            <nav className="marketing-shell__mobile-nav" aria-label="Primary">
+            <nav className={headerStyles.mobileNav} aria-label="Primary">
               {primaryNavLinks.map(({ href, label }) => (
                 <a
                   key={href}
-                  className="marketing-shell__header-link"
+                  className={headerStyles.headerLink}
                   href={href}
                   onClick={() => closeMobileMenu(false)}
                 >
@@ -151,7 +156,12 @@ export function Header() {
 
             <a
               href={signupHref}
-              className="marketing-shell__button marketing-shell__header-cta marketing-shell__mobile-menu-cta"
+              className={cx(
+                sharedStyles.button,
+                sharedStyles.primaryCta,
+                headerStyles.headerCta,
+                headerStyles.mobileMenuCta
+              )}
               onClick={() => closeMobileMenu(false)}
             >
               Start free

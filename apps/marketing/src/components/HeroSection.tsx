@@ -1,4 +1,9 @@
+import heroStyles from './HeroSection.module.css'
 import { homepageHeroMock } from './marketingShell'
+import sharedStyles from './MarketingShell.module.css'
+
+const cx = (...classes: Array<string | undefined>) =>
+  classes.filter(Boolean).join(' ')
 
 type HeroSectionProps = {
   appUrl: string
@@ -8,60 +13,85 @@ export function HeroSection({ appUrl }: HeroSectionProps) {
   return (
     <section
       id="hero"
-      className="marketing-shell__grid-12 marketing-shell__shell-row marketing-shell__hero-surface"
+      className={cx(
+        sharedStyles.grid12,
+        sharedStyles.shellRow,
+        heroStyles.heroSurface
+      )}
     >
-      <div className="marketing-shell__cell marketing-shell__span-6 marketing-shell__hero-copy">
-        <div className="marketing-shell__hero-copy-inner">
-          <p className="marketing-shell__hero-eyebrow">
+      <div
+        className={cx(
+          sharedStyles.cell,
+          sharedStyles.span6,
+          heroStyles.heroCopy
+        )}
+      >
+        <div className={heroStyles.heroCopyInner}>
+          <p className={cx(sharedStyles.heroEyebrow, heroStyles.heroEyebrow)}>
             {homepageHeroMock.eyebrow}
           </p>
 
-          <h1 className="marketing-shell__hero-title">
+          <h1 className={sharedStyles.heroTitle}>
             {homepageHeroMock.headline}
           </h1>
 
-          <p className="marketing-shell__hero-lede">{homepageHeroMock.lede}</p>
+          <p className={sharedStyles.heroLede}>{homepageHeroMock.lede}</p>
         </div>
 
-        <div className="marketing-shell__hero-cta-row">
-          <a className="marketing-shell__primary-cta" href={appUrl}>
+        <div className={heroStyles.heroCtaRow}>
+          <a
+            className={cx(sharedStyles.button, sharedStyles.primaryCta)}
+            href={appUrl}
+          >
             {homepageHeroMock.primaryCta}
           </a>
 
-          <a className="marketing-shell__secondary-cta" href="#features">
+          <a
+            className={cx(sharedStyles.button, sharedStyles.secondaryCta)}
+            href="#features"
+          >
             {homepageHeroMock.secondaryCta}
           </a>
         </div>
       </div>
 
-      <div className="marketing-shell__cell marketing-shell__span-6 marketing-shell__hero-mock">
-        <div className="marketing-shell__hero-shot-float">
-          <div className="marketing-shell__hero-shot-screen">
-            <div className="marketing-shell__hero-shot-head">
-              <span className="marketing-shell__hero-panel-label">
+      <div
+        className={cx(
+          sharedStyles.cell,
+          sharedStyles.span6,
+          heroStyles.heroMock
+        )}
+      >
+        <div className={heroStyles.heroShotFloat}>
+          <div className={heroStyles.heroShotScreen}>
+            <div className={heroStyles.heroShotHead}>
+              <span className={sharedStyles.heroPanelLabel}>
                 {homepageHeroMock.labelRow.left}
               </span>
 
-              <span className="marketing-shell__hero-panel-kicker">
+              <span className={sharedStyles.heroPanelKicker}>
                 {homepageHeroMock.labelRow.right}
               </span>
             </div>
 
-            <div className="marketing-shell__grid-4 marketing-shell__hero-shot-grid">
-              <article className="marketing-shell__hero-shot-panel marketing-shell__hero-shot-transcript marketing-shell__span-2">
-                <span className="marketing-shell__panel-title">Evidence</span>
+            <div className={cx(sharedStyles.grid4, heroStyles.heroShotGrid)}>
+              <article
+                className={cx(
+                  heroStyles.heroShotPanel,
+                  sharedStyles.span2,
+                  heroStyles.heroShotTranscript
+                )}
+              >
+                <span className={sharedStyles.panelTitle}>Evidence</span>
 
-                <div className="marketing-shell__hero-shot-transcript-rows">
+                <div className={heroStyles.heroShotTranscriptRows}>
                   {homepageHeroMock.transcriptRows.map(row => (
-                    <div
-                      key={row.label}
-                      className="marketing-shell__hero-shot-row"
-                    >
-                      <b className="marketing-shell__hero-transcript-label">
+                    <div key={row.label} className={heroStyles.heroShotRow}>
+                      <b className={sharedStyles.heroTranscriptLabel}>
                         {row.label}
                       </b>
 
-                      <p className="marketing-shell__hero-transcript-copy">
+                      <p className={sharedStyles.heroTranscriptCopy}>
                         {row.body}
                       </p>
                     </div>
@@ -72,13 +102,14 @@ export function HeroSection({ appUrl }: HeroSectionProps) {
               {homepageHeroMock.cards.map(card => (
                 <article
                   key={card.title}
-                  className="marketing-shell__hero-shot-panel marketing-shell__hero-shot-card"
+                  className={cx(
+                    heroStyles.heroShotPanel,
+                    heroStyles.heroShotCard
+                  )}
                 >
-                  <span className="marketing-shell__panel-title">
-                    {card.title}
-                  </span>
+                  <span className={sharedStyles.panelTitle}>{card.title}</span>
 
-                  <p className="marketing-shell__hero-card-copy">{card.body}</p>
+                  <p className={sharedStyles.heroCardCopy}>{card.body}</p>
                 </article>
               ))}
             </div>

@@ -1,5 +1,17 @@
 import { HeroSection } from './HeroSection'
+import homeStyles from './HomePageContent.module.css'
 import { homepageNarrativeCards, homepageProofCards } from './marketingShell'
+import sharedStyles from './MarketingShell.module.css'
+
+const cx = (...classes: Array<string | undefined>) =>
+  classes.filter(Boolean).join(' ')
+
+const proofMarkerStyles = {
+  danger: homeStyles.proofMarkerDanger,
+  info: homeStyles.proofMarkerInfo,
+  success: homeStyles.proofMarkerSuccess,
+  warning: homeStyles.proofMarkerWarning,
+} as const
 
 type HomePageContentProps = {
   appUrl: string
@@ -7,61 +19,86 @@ type HomePageContentProps = {
 
 export function HomePageContent({ appUrl }: HomePageContentProps) {
   return (
-    <div className="marketing-shell__home-content">
+    <div className={homeStyles.homeContent}>
       <HeroSection appUrl={appUrl} />
 
-      <section className="marketing-shell__grid-12 marketing-shell__shell-row marketing-shell__proof-strip">
+      <section
+        className={cx(
+          sharedStyles.grid12,
+          sharedStyles.shellRow,
+          homeStyles.proofStrip
+        )}
+      >
         {homepageProofCards.map(card => (
           <article
             key={card.body}
-            className="marketing-shell__cell marketing-shell__span-3 marketing-shell__proof-card"
+            className={cx(
+              sharedStyles.cell,
+              sharedStyles.span3,
+              homeStyles.proofCard
+            )}
           >
             <span
-              className={`marketing-shell__proof-marker marketing-shell__proof-marker--${card.tone}`}
+              className={cx(
+                homeStyles.proofMarker,
+                proofMarkerStyles[card.tone]
+              )}
             />
 
-            <p className="marketing-shell__proof-copy">{card.body}</p>
+            <p className={sharedStyles.proofCopy}>{card.body}</p>
           </article>
         ))}
       </section>
 
       <section
         id="features"
-        className="marketing-shell__grid-12 marketing-shell__shell-row"
+        className={cx(sharedStyles.grid12, sharedStyles.shellRow)}
       >
         {homepageNarrativeCards.map(card => (
           <article
             key={card.title}
-            className="marketing-shell__cell marketing-shell__span-4 marketing-shell__section marketing-shell__story-card"
+            className={cx(
+              sharedStyles.cell,
+              sharedStyles.span4,
+              homeStyles.storyCard
+            )}
           >
-            <p className="marketing-shell__section-kicker">{card.kicker}</p>
+            <p className={sharedStyles.sectionKicker}>{card.kicker}</p>
 
-            <h2 className="marketing-shell__section-title marketing-shell__story-title">
-              {card.title}
-            </h2>
+            <h2 className={sharedStyles.sectionTitle}>{card.title}</h2>
 
-            <p className="marketing-shell__section-copy">{card.body}</p>
+            <p className={sharedStyles.sectionCopy}>{card.body}</p>
           </article>
         ))}
       </section>
 
       <section
         id="signup"
-        className="marketing-shell__cell marketing-shell__shell-row marketing-shell__closing-cta"
+        className={cx(
+          sharedStyles.cell,
+          sharedStyles.shellRow,
+          homeStyles.closingCta
+        )}
       >
-        <div className="marketing-shell__closing-inner">
-          <p className="marketing-shell__section-kicker">Closing CTA</p>
+        <div className={homeStyles.closingInner}>
+          <p className={sharedStyles.sectionKicker}>Closing CTA</p>
 
-          <h2 className="marketing-shell__section-title marketing-shell__closing-title">
+          <h2 className={sharedStyles.sectionTitle}>
             Capture the bug. Let AI find the fix.
           </h2>
 
-          <div className="marketing-shell__closing-actions">
-            <a className="marketing-shell__primary-cta" href={appUrl}>
+          <div className={homeStyles.closingActions}>
+            <a
+              className={cx(sharedStyles.button, sharedStyles.primaryCta)}
+              href={appUrl}
+            >
               Start free
             </a>
 
-            <a className="marketing-shell__secondary-cta" href="#features">
+            <a
+              className={cx(sharedStyles.button, sharedStyles.secondaryCta)}
+              href="#features"
+            >
               See how it works
             </a>
           </div>

@@ -1,17 +1,41 @@
 import { cleanup, render, screen } from '@testing-library/react'
+import { createRequire } from 'module'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
-import TermsPage, { metadata } from './page'
+
+const require = createRequire(import.meta.url)
+
+require('../../../../node_modules/.pnpm/node_modules/global-jsdom/commonjs/register.cjs')
+
+globalThis.React = React
+
+afterEach(cleanup)
 
 describe('TermsPage', () => {
-  afterEach(cleanup)
+  it('exports untemplated metadata for the route title', async t => {
+    t.mock.module('../components/LegalPageShell.module.css', {
+      defaultExport: {},
+    })
+    t.mock.module('../components/MarketingShell.module.css', {
+      defaultExport: {},
+    })
 
-  it('exports untemplated metadata for the route title', () => {
+    const { metadata } = await import('./page')
+
     assert.equal(metadata.title, 'Terms of Service')
   })
 
-  it('renders the terms route with summaries, policy links, and last-updated text', () => {
+  it('renders the terms route with summaries, policy links, and last-updated text', async t => {
+    t.mock.module('../components/LegalPageShell.module.css', {
+      defaultExport: {},
+    })
+    t.mock.module('../components/MarketingShell.module.css', {
+      defaultExport: {},
+    })
+
+    const { default: TermsPage } = await import('./page')
+
     render(React.createElement(TermsPage))
 
     assert.ok(screen.getByRole('region', { name: /terms of service/i }))

@@ -1,4 +1,6 @@
 import React from 'react'
+import legalStyles from './LegalPageShell.module.css'
+import sharedStyles from './MarketingShell.module.css'
 
 interface LegalPageShellProps {
   title: string
@@ -14,19 +16,19 @@ export default function LegalPageShell({
   const titleId = React.useId()
 
   return (
-    <section aria-labelledby={titleId} className="marketing-shell__legal-shell">
-      <div className="marketing-shell__legal-inner">
-        <div className="marketing-shell__legal-card">
-          <header className="marketing-shell__legal-header">
-            <h1 id={titleId} className="marketing-shell__legal-title">
+    <section aria-labelledby={titleId} className={legalStyles.legalShell}>
+      <div className={legalStyles.legalInner}>
+        <div className={legalStyles.legalCard}>
+          <header className={legalStyles.legalHeader}>
+            <h1 id={titleId} className={sharedStyles.legalTitle}>
               {title}
             </h1>
-            <p className="marketing-shell__legal-updated">
+            <p className={legalStyles.legalUpdated}>
               Last updated: {lastUpdated}
             </p>
           </header>
 
-          <div className="marketing-shell__legal-content">{children}</div>
+          <div className={legalStyles.legalContent}>{children}</div>
         </div>
       </div>
     </section>
@@ -40,9 +42,9 @@ interface LegalSectionProps {
 
 export function LegalSection({ heading, children }: LegalSectionProps) {
   return (
-    <section className="marketing-shell__legal-section">
-      <h2 className="marketing-shell__legal-heading">{heading}</h2>
-      <div className="marketing-shell__legal-section-body">{children}</div>
+    <section className={legalStyles.legalSection}>
+      <h2 className={legalStyles.legalHeading}>{heading}</h2>
+      <div className={legalStyles.legalSectionBody}>{children}</div>
     </section>
   )
 }
@@ -52,5 +54,5 @@ interface LegalParagraphProps {
 }
 
 export function LegalParagraph({ children }: LegalParagraphProps) {
-  return <p className="marketing-shell__legal-copy">{children}</p>
+  return <p className={sharedStyles.legalCopy}>{children}</p>
 }

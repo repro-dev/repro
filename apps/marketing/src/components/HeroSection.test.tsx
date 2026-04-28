@@ -15,7 +15,14 @@ globalThis.React = React
 afterEach(cleanup)
 
 describe('HeroSection', () => {
-  it('renders the hero CTA and replay evidence content', async () => {
+  it('renders the hero CTA and replay evidence content', async t => {
+    t.mock.module('./MarketingShell.module.css', {
+      defaultExport: {},
+    })
+    t.mock.module('./HeroSection.module.css', {
+      defaultExport: {},
+    })
+
     const { HeroSection } = await import('./HeroSection')
 
     const { container } = render(
@@ -38,7 +45,6 @@ describe('HeroSection', () => {
     assert.ok(screen.getByText('Brief'))
     assert.equal(screen.queryByText('capture-analyze-handoff'), null)
     assert.equal(screen.queryByText('Session-Replay-Brief'), null)
-    assert.ok(container.querySelector('.marketing-shell__hero-shot-float'))
-    assert.ok(container.querySelector('.marketing-shell__hero-shot-screen'))
+    assert.ok(container.querySelector('section'))
   })
 })

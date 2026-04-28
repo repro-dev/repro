@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react'
 import { Footer } from './Footer'
 import { Header } from './Header'
+import layoutStyles from './SiteLayout.module.css'
+
+const cx = (...classes: Array<string | undefined>) =>
+  classes.filter(Boolean).join(' ')
 
 interface SiteLayoutProps {
   children: ReactNode
@@ -8,14 +12,14 @@ interface SiteLayoutProps {
 
 export function SiteLayout({ children }: SiteLayoutProps) {
   return (
-    <div className="marketing-shell__page-shell">
-      <a href="#main-content" className="skip-link">
+    <div className={layoutStyles.pageShell}>
+      <a href="#main-content" className={layoutStyles.skipLink}>
         Skip to main content
       </a>
 
       <Header />
 
-      <main id="main-content" className="marketing-shell__page-main">
+      <main id="main-content" className={cx(layoutStyles.pageMain)}>
         {children}
       </main>
 

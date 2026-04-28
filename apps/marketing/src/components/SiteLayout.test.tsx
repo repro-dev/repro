@@ -15,13 +15,27 @@ const {
   screen,
   within,
 } = require('@testing-library/react')
-const { SiteLayout } = require('./SiteLayout')
 
 globalThis.React = React
 
 afterEach(cleanup)
 
-function renderLayout() {
+async function renderLayout(t: any) {
+  t.mock.module('./SiteLayout.module.css', {
+    defaultExport: {},
+  })
+  t.mock.module('./Header.module.css', {
+    defaultExport: {},
+  })
+  t.mock.module('./Footer.module.css', {
+    defaultExport: {},
+  })
+  t.mock.module('./MarketingShell.module.css', {
+    defaultExport: {},
+  })
+
+  const { SiteLayout } = await import('./SiteLayout')
+
   return render(
     <SiteLayout>
       <div>Page content</div>
@@ -30,12 +44,12 @@ function renderLayout() {
 }
 
 describe('site layout', () => {
-  it('renders the primary header navigation and cta', () => {
-    renderLayout()
+  it('renders the primary header navigation and cta', async t => {
+    await renderLayout(t)
 
     const header = screen.getByRole('banner')
     const headerLinks = within(header)
-    const logo = header.querySelector('.marketing-shell__logo')
+    const logo = header.querySelector('svg')
 
     assert.equal(
       window.getComputedStyle(header).backgroundColor,
@@ -51,8 +65,8 @@ describe('site layout', () => {
     assert.ok(headerLinks.getByRole('link', { name: 'Start free' }))
   })
 
-  it('opens the mobile navigation from the hamburger button', () => {
-    renderLayout()
+  it('opens the mobile navigation from the hamburger button', async t => {
+    await renderLayout(t)
 
     const header = screen.getByRole('banner')
     const headerButtons = within(header)
@@ -70,8 +84,8 @@ describe('site layout', () => {
     assert.equal(screen.queryByRole('dialog'), null)
   })
 
-  it('renders grouped footer links and social links', () => {
-    renderLayout()
+  it('renders grouped footer links and social links', async t => {
+    await renderLayout(t)
 
     const footer = screen.getByRole('contentinfo')
     const footerLinks = within(footer)
@@ -84,8 +98,8 @@ describe('site layout', () => {
     assert.ok(footerLinks.getByRole('link', { name: 'X' }))
   })
 
-  it('keeps the skip link and main content container', () => {
-    renderLayout()
+  it('keeps the skip link and main content container', async t => {
+    await renderLayout(t)
 
     const main = screen.getByRole('main') as HTMLElement
 
