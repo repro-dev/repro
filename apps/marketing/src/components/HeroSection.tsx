@@ -1,21 +1,4 @@
-'use client'
-
-// jsxstyle requires a client boundary because it injects styles via React context.
-
-import { Block, Col, Row } from '@jsxstyle/react'
-import {
-  color,
-  focusRing,
-  radius,
-  spacing,
-  textStyles,
-  transition,
-} from '@repro/design'
-import { homepageDemoChips } from './marketingShell'
-
-import React from 'react'
-
-void React
+import { homepageHeroMock } from './marketingShell'
 
 type HeroSectionProps = {
   appUrl: string
@@ -23,209 +6,85 @@ type HeroSectionProps = {
 
 export function HeroSection({ appUrl }: HeroSectionProps) {
   return (
-    <Row
-      component="section"
-      alignItems="center"
-      gap={spacing['3xl']}
-      flexWrap="wrap"
+    <section
+      id="hero"
+      className="marketing-shell__grid-12 marketing-shell__shell-row marketing-shell__hero-surface"
     >
-      <Col gap={spacing.xl} flex="1 1 360px" minWidth={0}>
-        <Col gap={spacing.md}>
-          <Block component="p" {...textStyles.label} color={color.info}>
-            Capture bugs with context
-          </Block>
+      <div className="marketing-shell__cell marketing-shell__span-6 marketing-shell__hero-copy">
+        <div className="marketing-shell__hero-copy-inner">
+          <p className="marketing-shell__hero-eyebrow">
+            {homepageHeroMock.eyebrow}
+          </p>
 
-          <Block
-            component="h1"
-            {...textStyles.heading1}
-            color={color.text.default}
-            maxWidth="11ch"
-          >
-            Bug reporting that captures every detail
-          </Block>
+          <h1 className="marketing-shell__hero-title">
+            {homepageHeroMock.headline}
+          </h1>
 
-          <Block
-            component="p"
-            {...textStyles.body}
-            color={color.text.secondary}
-          >
-            Repro automatically captures sessions so your team can reproduce and
-            fix bugs faster — without the back-and-forth.
-          </Block>
-        </Col>
+          <p className="marketing-shell__hero-lede">{homepageHeroMock.lede}</p>
+        </div>
 
-        <Row gap={spacing.md} flexWrap="wrap">
-          <Block
-            component="a"
-            props={{ href: appUrl }}
-            {...textStyles.label}
-            color={color.text.inverse}
-            textDecoration="none"
-            backgroundColor={color.info}
-            paddingTop={spacing.sm}
-            paddingBottom={spacing.sm}
-            paddingLeft={spacing.lg}
-            paddingRight={spacing.lg}
-            borderRadius={radius.md}
-            transition={transition.default}
-            hoverBackgroundColor={color.primaryHover}
-            {...focusRing()}
-          >
-            Get started free
-          </Block>
+        <div className="marketing-shell__hero-cta-row">
+          <a className="marketing-shell__primary-cta" href={appUrl}>
+            {homepageHeroMock.primaryCta}
+          </a>
 
-          <Block
-            component="a"
-            props={{ href: '#features' }}
-            {...textStyles.label}
-            color={color.text.default}
-            textDecoration="none"
-            border={`1px solid ${color.border.default}`}
-            paddingTop={spacing.sm}
-            paddingBottom={spacing.sm}
-            paddingLeft={spacing.lg}
-            paddingRight={spacing.lg}
-            borderRadius={radius.md}
-            transition={transition.default}
-            hoverBorderColor={color.border.strong}
-            hoverColor={color.text.default}
-            {...focusRing()}
-          >
-            See how it works
-          </Block>
-        </Row>
+          <a className="marketing-shell__secondary-cta" href="#features">
+            {homepageHeroMock.secondaryCta}
+          </a>
+        </div>
+      </div>
 
-        <Row gap={spacing.sm} flexWrap="wrap">
-          {homepageDemoChips.map(chip => (
-            <Col
-              key={chip.label}
-              gap={spacing.xs}
-              border={`1px solid ${color.border.default}`}
-              backgroundColor={color.bg.surface}
-              borderRadius={radius.full}
-              paddingTop={spacing.sm}
-              paddingBottom={spacing.sm}
-              paddingLeft={spacing.md}
-              paddingRight={spacing.md}
-            >
-              <Block
-                component="span"
-                {...textStyles.caption}
-                color={color.text.secondary}
-              >
-                {chip.label}
-              </Block>
+      <div className="marketing-shell__cell marketing-shell__span-6 marketing-shell__hero-mock">
+        <div className="marketing-shell__hero-shot-float">
+          <div className="marketing-shell__hero-shot-screen">
+            <div className="marketing-shell__hero-shot-head">
+              <span className="marketing-shell__hero-panel-label">
+                {homepageHeroMock.labelRow.left}
+              </span>
 
-              <Block
-                component="span"
-                {...textStyles.label}
-                color={color.text.default}
-              >
-                {chip.value}
-              </Block>
-            </Col>
-          ))}
-        </Row>
-      </Col>
+              <span className="marketing-shell__hero-panel-kicker">
+                {homepageHeroMock.labelRow.right}
+              </span>
+            </div>
 
-      <Col
-        flex="1 1 360px"
-        minWidth={0}
-        gap={spacing.md}
-        border={`1px solid ${color.border.default}`}
-        backgroundColor={color.bg.surface}
-        borderRadius={radius.lg}
-        padding={spacing.lg}
-      >
-        <Row
-          justifyContent="space-between"
-          alignItems="center"
-          gap={spacing.sm}
-        >
-          <Block component="p" {...textStyles.label} color={color.text.default}>
-            Session preview
-          </Block>
+            <div className="marketing-shell__grid-4 marketing-shell__hero-shot-grid">
+              <article className="marketing-shell__hero-shot-panel marketing-shell__hero-shot-transcript marketing-shell__span-2">
+                <span className="marketing-shell__panel-title">Evidence</span>
 
-          <Block
-            component="span"
-            {...textStyles.caption}
-            color={color.text.secondary}
-          >
-            Live capture
-          </Block>
-        </Row>
+                <div className="marketing-shell__hero-shot-transcript-rows">
+                  {homepageHeroMock.transcriptRows.map(row => (
+                    <div
+                      key={row.label}
+                      className="marketing-shell__hero-shot-row"
+                    >
+                      <b className="marketing-shell__hero-transcript-label">
+                        {row.label}
+                      </b>
 
-        <Col
-          gap={spacing.md}
-          border={`1px solid ${color.border.default}`}
-          borderRadius={radius.md}
-          padding={spacing.md}
-          backgroundColor={color.bg.subtle}
-        >
-          <Row
-            justifyContent="space-between"
-            alignItems="center"
-            gap={spacing.sm}
-          >
-            <Block
-              component="span"
-              {...textStyles.code}
-              color={color.text.secondary}
-            >
-              repro.dev/session/417
-            </Block>
+                      <p className="marketing-shell__hero-transcript-copy">
+                        {row.body}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </article>
 
-            <Block
-              component="span"
-              {...textStyles.caption}
-              color={color.text.default}
-            >
-              12 events captured
-            </Block>
-          </Row>
+              {homepageHeroMock.cards.map(card => (
+                <article
+                  key={card.title}
+                  className="marketing-shell__hero-shot-panel marketing-shell__hero-shot-card"
+                >
+                  <span className="marketing-shell__panel-title">
+                    {card.title}
+                  </span>
 
-          <Col gap={spacing.sm}>
-            <Row gap={spacing.sm} flexWrap="wrap">
-              <Block
-                component="span"
-                {...textStyles.caption}
-                color={color.text.inverse}
-                backgroundColor={color.info}
-                borderRadius={radius.full}
-                paddingTop={spacing.xs}
-                paddingBottom={spacing.xs}
-                paddingLeft={spacing.sm}
-                paddingRight={spacing.sm}
-              >
-                Console warning
-              </Block>
-
-              <Block
-                component="span"
-                {...textStyles.caption}
-                color={color.text.default}
-                border={`1px solid ${color.border.default}`}
-                borderRadius={radius.full}
-                paddingTop={spacing.xs}
-                paddingBottom={spacing.xs}
-                paddingLeft={spacing.sm}
-                paddingRight={spacing.sm}
-              >
-                Network request
-              </Block>
-            </Row>
-
-            <Block
-              component="p"
-              {...textStyles.bodySmall}
-              color={color.text.secondary}
-            >
-              Automatic screenshots, console logs, and network activity stay
-              attached to the repro so the next person sees the same context.
-            </Block>
-          </Col>
-        </Col>
-      </Col>
-    </Row>
+                  <p className="marketing-shell__hero-card-copy">{card.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }

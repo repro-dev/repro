@@ -1,218 +1,164 @@
 'use client'
 
-// This component stays client-side because it owns the mobile menu state.
-// jsxstyle itself is server-compatible once the app root uses the registry.
-
-import { Block, Col, Row } from '@jsxstyle/react'
-import {
-  Logo,
-  color,
-  focusRing,
-  radius,
-  spacing,
-  textStyles,
-} from '@repro/design'
-import React, { useState } from 'react'
-import { primaryNavLinks, shellMaxWidth, signupHref } from './marketingShell'
-
-void React
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { MarketingLogo } from './MarketingLogo'
+import { primaryNavLinks, signupHref } from './marketingShell'
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const mobileToggleRef = useRef<HTMLButtonElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return
+    }
+
+    closeButtonRef.current?.focus()
+  }, [mobileMenuOpen])
+
+  const closeMobileMenu = (restoreFocus = true) => {
+    setMobileMenuOpen(false)
+
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => mobileToggleRef.current?.focus())
+    }
+  }
+
+  const handleMobileMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      closeMobileMenu()
+      return
+    }
+
+    if (event.key !== 'Tab') {
+      return
+    }
+
+    const focusableElements = Array.from(
+      mobileMenuRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled])'
+      ) ?? []
+    )
+    const firstFocusable = focusableElements[0]
+    const lastFocusable = focusableElements[focusableElements.length - 1]
+
+    if (!firstFocusable || !lastFocusable) {
+      return
+    }
+
+    if (event.shiftKey && document.activeElement === firstFocusable) {
+      event.preventDefault()
+      lastFocusable.focus()
+      return
+    }
+
+    if (!event.shiftKey && document.activeElement === lastFocusable) {
+      event.preventDefault()
+      firstFocusable.focus()
+    }
+  }
 
   return (
-    <Block
-      component="header"
-      position="sticky"
-      top="0"
-      zIndex="100"
-      backgroundColor={color.bg.surface}
-      borderBottom={`1px solid ${color.border.default}`}
-    >
-      <Row
-        maxWidth={shellMaxWidth}
-        marginH="auto"
-        paddingH={spacing.lg}
-        paddingV={spacing.lg}
-        alignItems="center"
-        justifyContent="space-between"
-        gap={spacing.md}
-      >
-        <Block
-          component="a"
-          props={{ href: '/', 'aria-label': 'Repro home' }}
-          display="inline-flex"
+    <header className="marketing-shell__site-header">
+      <div className="marketing-shell__site-header-row">
+        <a
+          href="/"
+          aria-label="Repro home"
+          className="marketing-shell__logo-link"
         >
-          <Logo size={36} />
-        </Block>
+          <MarketingLogo className="marketing-shell__logo" />
+        </a>
 
-        <Row
-          component="nav"
-          className="marketing-shell__desktop-nav"
-          alignItems="center"
-          gap={spacing.xl}
-        >
+        <nav className="marketing-shell__desktop-nav" aria-label="Primary">
           {primaryNavLinks.map(({ href, label }) => (
-            <Block
-              key={href}
-              component="a"
-              props={{ href }}
-              {...textStyles.label}
-              color={color.text.secondary}
-              textDecoration="none"
-              {...focusRing()}
-            >
+            <a key={href} className="marketing-shell__header-link" href={href}>
               {label}
-            </Block>
+            </a>
           ))}
-        </Row>
+        </nav>
 
-        <Row alignItems="center" gap={spacing.sm}>
-          <Block
-            component="a"
-            props={{ href: signupHref }}
-            {...textStyles.label}
-            color={color.text.inverse}
-            textDecoration="none"
-            backgroundColor={color.info}
-            paddingTop={spacing.sm}
-            paddingBottom={spacing.sm}
-            paddingLeft={spacing.lg}
-            paddingRight={spacing.lg}
-            borderRadius={radius.md}
-            {...focusRing()}
+        <div className="marketing-shell__header-actions">
+          <a
+            className="marketing-shell__button marketing-shell__header-cta"
+            href={signupHref}
           >
-            Get Started
-          </Block>
+            Start free
+          </a>
 
-          <Row
-            component="button"
-            className="marketing-shell__mobile-toggle"
-            alignItems="center"
-            gap={spacing.xs}
-            border={`1px solid ${color.border.default}`}
-            borderRadius={radius.md}
-            paddingH={spacing.md}
-            paddingV={spacing.sm}
-            backgroundColor="transparent"
-            color={color.text.default}
-            cursor="pointer"
-            {...textStyles.label}
-            {...focusRing()}
-            props={{ type: 'button', onClick: () => setMobileMenuOpen(true) }}
+          <button
+            ref={mobileToggleRef}
+            type="button"
+            className="marketing-shell__button marketing-shell__mobile-toggle"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="marketing-mobile-menu"
+            onClick={() => setMobileMenuOpen(true)}
           >
-            <Block component="span" lineHeight={1}>
-              ☰
-            </Block>
+            <span aria-hidden="true">☰</span>
             Menu
-          </Row>
-        </Row>
-      </Row>
+          </button>
+        </div>
+      </div>
 
       {mobileMenuOpen ? (
-        <Block
-          position="fixed"
-          top={0}
-          left={0}
-          right={0}
-          bottom={0}
-          zIndex="200"
-          backgroundColor={color.bg.subtle}
-          props={{
-            role: 'dialog',
-            'aria-modal': 'true',
-            'aria-labelledby': 'marketing-menu-title',
-            onClick: () => setMobileMenuOpen(false),
-          }}
+        <div
+          ref={mobileMenuRef}
+          id="marketing-mobile-menu"
+          className="marketing-shell__mobile-menu"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="marketing-menu-title"
+          onClick={() => closeMobileMenu()}
+          onKeyDown={handleMobileMenuKeyDown}
         >
-          <Block
-            position="absolute"
-            top={0}
-            right={0}
-            bottom={0}
-            width="100%"
-            maxWidth={360}
-            backgroundColor={color.bg.surface}
-            padding={spacing['2xl']}
-            props={{ onClick: event => event.stopPropagation() }}
+          <div
+            className="marketing-shell__mobile-menu-panel"
+            onClick={event => event.stopPropagation()}
           >
-            <Col gap={spacing.xl}>
-              <Row
-                alignItems="center"
-                justifyContent="space-between"
-                gap={spacing.md}
+            <div className="marketing-shell__mobile-menu-header">
+              <h2
+                id="marketing-menu-title"
+                className="marketing-shell__mobile-menu-title"
               >
-                <Block
-                  component="h2"
-                  id="marketing-menu-title"
-                  {...textStyles.heading3}
-                >
-                  Site navigation
-                </Block>
+                Site navigation
+              </h2>
 
-                <Row
-                  component="button"
-                  alignItems="center"
-                  justifyContent="center"
-                  width={spacing['3xl']}
-                  height={spacing['3xl']}
-                  border={`1px solid ${color.border.default}`}
-                  borderRadius={radius.full}
-                  backgroundColor="transparent"
-                  cursor="pointer"
-                  props={{
-                    type: 'button',
-                    onClick: () => setMobileMenuOpen(false),
-                  }}
-                  {...focusRing()}
-                >
-                  <Block component="span" lineHeight={1}>
-                    ×
-                  </Block>
-                </Row>
-              </Row>
-
-              <Col component="nav" gap={spacing.md}>
-                {primaryNavLinks.map(({ href, label }) => (
-                  <Block
-                    key={href}
-                    component="a"
-                    props={{ href, onClick: () => setMobileMenuOpen(false) }}
-                    {...textStyles.label}
-                    color={color.text.secondary}
-                    textDecoration="none"
-                    {...focusRing()}
-                  >
-                    {label}
-                  </Block>
-                ))}
-              </Col>
-
-              <Block
-                component="a"
-                props={{
-                  href: signupHref,
-                  onClick: () => setMobileMenuOpen(false),
-                }}
-                display="inline-flex"
-                alignSelf="flex-start"
-                {...textStyles.label}
-                color={color.text.inverse}
-                textDecoration="none"
-                backgroundColor={color.info}
-                paddingTop={spacing.sm}
-                paddingBottom={spacing.sm}
-                paddingLeft={spacing.lg}
-                paddingRight={spacing.lg}
-                borderRadius={radius.md}
-                {...focusRing()}
+              <button
+                ref={closeButtonRef}
+                type="button"
+                className="marketing-shell__mobile-menu-close"
+                aria-label="Close site navigation"
+                onClick={() => closeMobileMenu()}
               >
-                Get Started
-              </Block>
-            </Col>
-          </Block>
-        </Block>
+                ×
+              </button>
+            </div>
+
+            <nav className="marketing-shell__mobile-nav" aria-label="Primary">
+              {primaryNavLinks.map(({ href, label }) => (
+                <a
+                  key={href}
+                  className="marketing-shell__header-link"
+                  href={href}
+                  onClick={() => closeMobileMenu(false)}
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
+
+            <a
+              href={signupHref}
+              className="marketing-shell__button marketing-shell__header-cta marketing-shell__mobile-menu-cta"
+              onClick={() => closeMobileMenu(false)}
+            >
+              Start free
+            </a>
+          </div>
+        </div>
       ) : null}
-    </Block>
+    </header>
   )
 }

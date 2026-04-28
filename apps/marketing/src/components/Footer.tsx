@@ -1,98 +1,62 @@
-'use client'
-
-import { Block, Col, Grid, Row } from '@jsxstyle/react'
-import { color, focusRing, radius, spacing, textStyles } from '@repro/design'
-import React from 'react'
-import { footerGroups, shellMaxWidth, socialLinks } from './marketingShell'
-
-void React
+import { footerGroups, socialLinks } from './marketingShell'
 
 export function Footer() {
   const year = new Date().getFullYear()
 
   return (
-    <Block
-      component="footer"
-      borderTop={`1px solid ${color.border.default}`}
-      backgroundColor={color.bg.surface}
-    >
-      <Col
-        maxWidth={shellMaxWidth}
-        marginH="auto"
-        padding={spacing.lg}
-        gap={spacing.xl}
-      >
-        <Grid
-          className="marketing-shell__footer-grid"
-          gap={spacing.xl}
-          gridTemplateColumns="repeat(4, minmax(0, 1fr))"
-        >
+    <footer className="marketing-shell__site-footer">
+      <div className="marketing-shell__site-footer-inner">
+        <div className="marketing-shell__grid-4">
           {footerGroups.map(group => (
-            <Col key={group.title} gap={spacing.md}>
-              <Block
-                component="h2"
-                {...textStyles.label}
-                color={color.text.default}
+            <section
+              key={group.title}
+              className="marketing-shell__site-footer-group"
+              aria-labelledby={`footer-${group.title.toLowerCase()}`}
+            >
+              <h2
+                id={`footer-${group.title.toLowerCase()}`}
+                className="marketing-shell__footer-title"
               >
                 {group.title}
-              </Block>
+              </h2>
 
-              <Col component="nav" gap={spacing.sm}>
+              <nav
+                aria-label={group.title}
+                className="marketing-shell__site-footer-nav"
+              >
                 {group.links.map(link => (
-                  <Block
+                  <a
                     key={link.href}
-                    component="a"
-                    props={{ href: link.href }}
-                    {...textStyles.bodySmall}
-                    color={color.text.secondary}
-                    textDecoration="none"
-                    {...focusRing()}
+                    className="marketing-shell__footer-link"
+                    href={link.href}
                   >
                     {link.label}
-                  </Block>
+                  </a>
                 ))}
-              </Col>
-            </Col>
+              </nav>
+            </section>
           ))}
-        </Grid>
+        </div>
 
-        <Row
-          alignItems="center"
-          justifyContent="space-between"
-          gap={spacing.md}
-          flexWrap="wrap"
-        >
-          <Block {...textStyles.bodySmall} color={color.text.secondary}>
-            © {year} Repro
-          </Block>
+        <div className="marketing-shell__site-footer-meta">
+          <p>© {year} Repro</p>
 
-          <Row
-            component="nav"
+          <nav
             aria-label="Social links"
-            gap={spacing.md}
-            flexWrap="wrap"
+            className="marketing-shell__site-footer-social"
           >
             {socialLinks.map(link => (
-              <Block
+              <a
                 key={link.href}
-                component="a"
-                props={{ href: link.href, target: '_blank', rel: 'noreferrer' }}
-                {...textStyles.bodySmall}
-                color={color.text.secondary}
-                textDecoration="none"
-                paddingTop={spacing.xs}
-                paddingBottom={spacing.xs}
-                paddingLeft={spacing.sm}
-                paddingRight={spacing.sm}
-                borderRadius={radius.md}
-                {...focusRing()}
+                className="marketing-shell__footer-social-link"
+                href={link.href}
               >
                 {link.label}
-              </Block>
+              </a>
             ))}
-          </Row>
-        </Row>
-      </Col>
-    </Block>
+          </nav>
+        </div>
+      </div>
+    </footer>
   )
 }

@@ -14,7 +14,7 @@ describe('TermsPage', () => {
   it('renders the terms route with summaries, policy links, and last-updated text', () => {
     render(React.createElement(TermsPage))
 
-    assert.ok(screen.getByRole('main', { name: /terms of service/i }))
+    assert.ok(screen.getByRole('region', { name: /terms of service/i }))
 
     const summaries = screen.getAllByText(/plain-language summary:/i)
     assert.ok(summaries.length >= 3)

@@ -1,14 +1,5 @@
-'use client'
-
-// jsxstyle requires a client boundary because it injects styles via React context.
-
-import { Block, Col, Grid } from '@jsxstyle/react'
-import { color, radius, spacing, textStyles } from '@repro/design'
 import { HeroSection } from './HeroSection'
-import {
-  homepageFeatureHighlights,
-  homepageSocialProof,
-} from './marketingShell'
+import { homepageNarrativeCards, homepageProofCards } from './marketingShell'
 
 type HomePageContentProps = {
   appUrl: string
@@ -16,123 +7,66 @@ type HomePageContentProps = {
 
 export function HomePageContent({ appUrl }: HomePageContentProps) {
   return (
-    <Col gap={spacing['4xl']}>
+    <div className="marketing-shell__home-content">
       <HeroSection appUrl={appUrl} />
 
-      <Col component="section" id="features" gap={spacing.lg}>
-        <Col gap={spacing.sm} maxWidth="44rem">
-          <Block
-            component="h2"
-            {...textStyles.heading2}
-            color={color.text.default}
+      <section className="marketing-shell__grid-12 marketing-shell__shell-row marketing-shell__proof-strip">
+        {homepageProofCards.map(card => (
+          <article
+            key={card.body}
+            className="marketing-shell__cell marketing-shell__span-3 marketing-shell__proof-card"
           >
-            Everything you need to move from report to fix
-          </Block>
+            <span
+              className={`marketing-shell__proof-marker marketing-shell__proof-marker--${card.tone}`}
+            />
 
-          <Block
-            component="p"
-            {...textStyles.body}
-            color={color.text.secondary}
+            <p className="marketing-shell__proof-copy">{card.body}</p>
+          </article>
+        ))}
+      </section>
+
+      <section
+        id="features"
+        className="marketing-shell__grid-12 marketing-shell__shell-row"
+      >
+        {homepageNarrativeCards.map(card => (
+          <article
+            key={card.title}
+            className="marketing-shell__cell marketing-shell__span-4 marketing-shell__section marketing-shell__story-card"
           >
-            Repro keeps the bug, the context, and the conversation together so
-            the team can focus on the fix.
-          </Block>
-        </Col>
+            <p className="marketing-shell__section-kicker">{card.kicker}</p>
 
-        <Grid
-          gap={spacing.lg}
-          gridTemplateColumns="repeat(auto-fit, minmax(220px, 1fr))"
-        >
-          {homepageFeatureHighlights.map(feature => (
-            <Col
-              key={feature.title}
-              gap={spacing.sm}
-              padding={spacing.lg}
-              border={`1px solid ${color.border.default}`}
-              backgroundColor={color.bg.surface}
-              borderRadius={radius.lg}
-            >
-              <Block
-                component="h3"
-                {...textStyles.heading3}
-                color={color.text.default}
-              >
-                {feature.title}
-              </Block>
+            <h2 className="marketing-shell__section-title marketing-shell__story-title">
+              {card.title}
+            </h2>
 
-              <Block
-                component="p"
-                {...textStyles.bodySmall}
-                color={color.text.secondary}
-              >
-                {feature.body}
-              </Block>
-            </Col>
-          ))}
-        </Grid>
-      </Col>
+            <p className="marketing-shell__section-copy">{card.body}</p>
+          </article>
+        ))}
+      </section>
 
-      <Col component="section" gap={spacing.lg}>
-        <Col gap={spacing.sm} maxWidth="44rem">
-          <Block
-            component="h2"
-            {...textStyles.heading2}
-            color={color.text.default}
-          >
-            Teams keep shipping with the same source of truth
-          </Block>
+      <section
+        id="signup"
+        className="marketing-shell__cell marketing-shell__shell-row marketing-shell__closing-cta"
+      >
+        <div className="marketing-shell__closing-inner">
+          <p className="marketing-shell__section-kicker">Closing CTA</p>
 
-          <Block
-            component="p"
-            {...textStyles.body}
-            color={color.text.secondary}
-          >
-            A single repro keeps support, QA, and engineering aligned.
-          </Block>
-        </Col>
+          <h2 className="marketing-shell__section-title marketing-shell__closing-title">
+            Capture the bug. Let AI find the fix.
+          </h2>
 
-        <Grid
-          gap={spacing.lg}
-          gridTemplateColumns="repeat(auto-fit, minmax(220px, 1fr))"
-        >
-          {homepageSocialProof.map(proof => (
-            <Col
-              key={proof.name}
-              gap={spacing.md}
-              padding={spacing.lg}
-              border={`1px solid ${color.border.default}`}
-              backgroundColor={color.bg.surface}
-              borderRadius={radius.lg}
-            >
-              <Block
-                component="p"
-                {...textStyles.body}
-                color={color.text.default}
-              >
-                “{proof.quote}”
-              </Block>
+          <div className="marketing-shell__closing-actions">
+            <a className="marketing-shell__primary-cta" href={appUrl}>
+              Start free
+            </a>
 
-              <Col gap={spacing.xs}>
-                <Block
-                  component="span"
-                  {...textStyles.label}
-                  color={color.text.default}
-                >
-                  {proof.name}
-                </Block>
-
-                <Block
-                  component="span"
-                  {...textStyles.caption}
-                  color={color.text.secondary}
-                >
-                  {proof.role}
-                </Block>
-              </Col>
-            </Col>
-          ))}
-        </Grid>
-      </Col>
-    </Col>
+            <a className="marketing-shell__secondary-cta" href="#features">
+              See how it works
+            </a>
+          </div>
+        </div>
+      </section>
+    </div>
   )
 }

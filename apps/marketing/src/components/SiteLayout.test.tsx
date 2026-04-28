@@ -1,6 +1,7 @@
 import { createRequire } from 'module'
 import { afterEach, describe, it } from 'node:test'
-import type { ReactNode } from 'react'
+
+import assert from 'node:assert/strict'
 
 const require = createRequire(import.meta.url)
 
@@ -15,8 +16,6 @@ const {
   within,
 } = require('@testing-library/react')
 const { SiteLayout } = require('./SiteLayout')
-const assert = require('node:assert/strict')
-const { renderToStaticMarkup } = require('react-dom/server')
 
 globalThis.React = React
 
@@ -30,22 +29,29 @@ function renderLayout() {
   )
 }
 
-describe('marketing shell', () => {
+describe('site layout', () => {
   it('renders the primary header navigation and cta', () => {
     renderLayout()
 
     const header = screen.getByRole('banner')
     const headerLinks = within(header)
+    const logo = header.querySelector('.marketing-shell__logo')
+
+    assert.equal(
+      window.getComputedStyle(header).backgroundColor,
+      'rgba(0, 0, 0, 0)'
+    )
+    assert.ok(logo)
+    assert.equal(logo?.getAttribute('height'), '30')
 
     assert.ok(headerLinks.getByRole('link', { name: /repro home/i }))
     assert.ok(headerLinks.getByRole('link', { name: 'Features' }))
     assert.ok(headerLinks.getByRole('link', { name: 'Pricing' }))
-    assert.ok(headerLinks.getByRole('link', { name: 'Install Extension' }))
-    assert.ok(headerLinks.getByRole('link', { name: 'Blog' }))
-    assert.ok(headerLinks.getByRole('link', { name: /get started/i }))
+    assert.ok(headerLinks.getByRole('link', { name: 'Sign up' }))
+    assert.ok(headerLinks.getByRole('link', { name: 'Start free' }))
   })
 
-  it('opens the mobile navigation from the hamburger button', async () => {
+  it('opens the mobile navigation from the hamburger button', () => {
     renderLayout()
 
     const header = screen.getByRole('banner')
@@ -56,7 +62,12 @@ describe('marketing shell', () => {
     fireEvent.click(headerButtons.getByRole('button', { name: /menu/i }))
 
     assert.ok(screen.getByRole('dialog'))
-    assert.ok(screen.getAllByRole('link', { name: 'Features' }).length > 1)
+
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('link', { name: 'Sign up' })
+    )
+
+    assert.equal(screen.queryByRole('dialog'), null)
   })
 
   it('renders grouped footer links and social links', () => {
@@ -66,7 +77,7 @@ describe('marketing shell', () => {
     const footerLinks = within(footer)
 
     assert.ok(footerLinks.getByText('Product'))
-    assert.ok(footerLinks.getByText('Resources'))
+    assert.ok(footerLinks.getByText('Workflow'))
     assert.ok(footerLinks.getByText('Company'))
     assert.ok(footerLinks.getByText('Legal'))
     assert.ok(footerLinks.getByRole('link', { name: 'GitHub' }))
@@ -76,46 +87,11 @@ describe('marketing shell', () => {
   it('keeps the skip link and main content container', () => {
     renderLayout()
 
+    const main = screen.getByRole('main') as HTMLElement
+
     assert.ok(screen.getByRole('link', { name: /skip to main content/i }))
-    assert.ok(screen.getByRole('main'))
-    assert.ok(window.getComputedStyle(screen.getByRole('main')).maxWidth)
+    assert.doesNotMatch(main.getAttribute('style') ?? '', /padding-left:/)
+    assert.doesNotMatch(main.getAttribute('style') ?? '', /padding-top:/)
     assert.ok(screen.getByText('Page content'))
-  })
-
-  it('flushes shell styles during server rendering', async t => {
-    const insertedHtmlCallbacks: Array<() => ReactNode> = []
-
-    t.mock.module('next/navigation', {
-      namedExports: {
-        useServerInsertedHTML(callback: () => ReactNode) {
-          insertedHtmlCallbacks.push(callback)
-        },
-      },
-    })
-
-    const { JsxstyleRegistry } = await import('../app/JsxstyleRegistry')
-
-    renderToStaticMarkup(
-      React.createElement(
-        JsxstyleRegistry,
-        null,
-        React.createElement(
-          SiteLayout,
-          null,
-          React.createElement('div', null, 'Page content')
-        )
-      )
-    )
-
-    const callback = insertedHtmlCallbacks[insertedHtmlCallbacks.length - 1]
-
-    assert.ok(callback)
-
-    const styleMarkup = renderToStaticMarkup(
-      React.createElement(React.Fragment, null, callback!())
-    )
-
-    assert.match(styleMarkup, /background-color:/i)
-    assert.match(styleMarkup, /padding-top:/i)
   })
 })

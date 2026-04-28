@@ -1,9 +1,9 @@
 # apps/marketing
 
-This app mixes server-rendered shells with client-only UI primitives.
+This app mixes server-rendered shells with a small amount of client-only UI.
 
 ## Client boundary conventions
 
-- Keep `JsxstyleRegistry` client-side.
-- Marketing shell components that depend on client-only styling or runtime DOM behavior should keep an explicit client boundary instead of being opportunistically moved server-side.
-- When changing rendering boundaries, verify the current app pattern first; seemingly safe server conversions can reintroduce FOUC or hydration regressions here.
+- Keep `Header` client-side because it owns the mobile menu state.
+- Prefer server components for the rest of the marketing surface unless a browser API or local state is required.
+- Styling now lives in `apps/marketing/src/app/globals.css`; avoid reintroducing jsxstyle or registry-based style injection.
