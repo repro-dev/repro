@@ -112,7 +112,7 @@ export function createConsoleObserver(
               if (value instanceof Node) {
                 return new Box({
                   type: MessagePartType.Node,
-                  node: createVNode(value, maskedSelectors),
+                  node: createVNode(value, { maskedSelectors }),
                 })
               }
 

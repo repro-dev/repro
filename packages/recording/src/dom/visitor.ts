@@ -128,7 +128,9 @@ export function createDOMVisitor(
     },
 
     textNode(node) {
-      const vNode = new Box(createVText(node, options.maskedSelectors))
+      const vNode = new Box(
+        createVText(node, { maskedSelectors: options.maskedSelectors })
+      )
       createOrUpdateVTree(vNode, node.parentNode && getNodeId(node.parentNode))
     },
 

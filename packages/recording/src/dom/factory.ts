@@ -23,9 +23,17 @@ import { Box } from '@repro/tdl'
 import { createSyntheticId, getNodeId } from '@repro/vdom-utils'
 import { isMaskedBySelector } from './utils'
 
+type MaskedSelectorOptions = {
+  maskedSelectors?: Array<string>
+}
+
+type VElementOptions = MaskedSelectorOptions & {
+  attributeOverrides?: Record<string, string>
+}
+
 export function createVNode(
   node: Node,
-  maskedSelectors: Array<string> = []
+  options: MaskedSelectorOptions = {}
 ): VNode | null {
   if (isDocumentNode(node)) {
     return new Box(createVDocument(node))
@@ -36,11 +44,11 @@ export function createVNode(
   }
 
   if (isElementNode(node)) {
-    return new Box(createVElement(node, { maskedSelectors }))
+    return new Box(createVElement(node, options))
   }
 
   if (isTextNode(node)) {
-    return new Box(createVText(node, maskedSelectors))
+    return new Box(createVText(node, options))
   }
 
   return null
@@ -68,10 +76,7 @@ export function createVDocType(doctype: DocumentType): VDocType {
 
 export function createVElement(
   element: Element,
-  options: {
-    attributeOverrides?: Record<string, string>
-    maskedSelectors?: Array<string>
-  } = {}
+  options: VElementOptions = {}
 ): VElement {
   const { attributeOverrides, maskedSelectors = [] } = options
   const attributes =
@@ -135,8 +140,10 @@ export function createVElement(
 
 export function createVText(
   text: Text,
-  maskedSelectors: Array<string> = []
+  options: MaskedSelectorOptions = {}
 ): VText {
+  const { maskedSelectors = [] } = options
+
   return {
     id: getNodeId(text),
     parentId: text.parentNode ? getNodeId(text.parentNode) : null,
