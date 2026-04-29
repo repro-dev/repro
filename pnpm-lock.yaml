@@ -58,6 +58,9 @@ importers:
       '@types/trusted-types':
         specifier: ^2.0.7
         version: 2.0.7
+      global-jsdom:
+        specifier: 27.0.0
+        version: 27.0.0(jsdom@27.0.0(postcss@8.5.8))
       husky:
         specifier: ^9.1.7
         version: 9.1.7

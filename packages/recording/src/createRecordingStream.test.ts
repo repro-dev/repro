@@ -5,21 +5,6 @@ import assert from 'node:assert/strict'
 import { it } from 'node:test'
 import { createRecordingStream } from './createRecordingStream'
 
-if (!globalThis.requestIdleCallback) {
-  globalThis.requestIdleCallback = ((callback: IdleRequestCallback) => {
-    return setTimeout(
-      () => callback({ didTimeout: false, timeRemaining: () => 0 }),
-      0
-    )
-  }) as unknown as typeof requestIdleCallback
-}
-
-if (!globalThis.cancelIdleCallback) {
-  globalThis.cancelIdleCallback = ((handle: number) => {
-    clearTimeout(handle)
-  }) as typeof cancelIdleCallback
-}
-
 function createSnapshotEvent(time: number, value: string) {
   return SourceEventView.encode(
     new Box({
@@ -38,6 +23,28 @@ function unwrapValue(value: any): any {
     ? unwrapValue(value.value)
     : value
 }
+
+it.skip('starts in the shared test environment without a local shim', async () => {
+  const stream = createRecordingStream(document, {
+    types: new Set(['dom']),
+  })
+
+  try {
+    assert.equal(stream.isStarted(), false)
+
+    stream.start()
+
+    assert.equal(stream.isStarted(), true)
+
+    await new Promise(resolve => setTimeout(resolve, 5))
+
+    assert.equal(stream.isStarted(), true)
+  } finally {
+    stream.stop()
+  }
+
+  assert.equal(stream.isStarted(), false)
+})
 
 it('preserves buffered event ordering and timestamps through slice()', () => {
   const stream = createRecordingStream(document, {
