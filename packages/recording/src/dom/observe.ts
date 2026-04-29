@@ -3,7 +3,6 @@ import {
   isInputElement,
   isSelectElement,
   isTextAreaElement,
-  maskValue,
 } from '@repro/dom-utils'
 import {
   DOMPatch,
@@ -16,6 +15,7 @@ import { ObserverLike, createEventObserver } from '@repro/observer-utils'
 import { Box } from '@repro/tdl'
 import { Immutable } from '@repro/ts-utils'
 import { createSyntheticId, getNodeId, isElementVNode } from '@repro/vdom-utils'
+import { redactStringPreservingWhitespace } from '../redaction'
 import { RecordingOptions } from '../types'
 import {
   DOMTreeWalker,
@@ -77,11 +77,11 @@ function createInputObserver(
       }
 
       if (isMasked) {
-        oldValue = '[MASKED]'
-        value = '[MASKED]'
+        oldValue = redactStringPreservingWhitespace(oldValue)
+        value = redactStringPreservingWhitespace(value)
       } else if (maskedInputs.has(eventTarget)) {
-        oldValue = maskValue(oldValue)
-        value = maskValue(value)
+        oldValue = redactStringPreservingWhitespace(oldValue)
+        value = redactStringPreservingWhitespace(value)
       }
 
       if (eventTarget.value !== oldValue) {
@@ -268,10 +268,14 @@ export function internal__processMutationRecords(
               name,
               value: attribute
                 ? isMasked
-                  ? '[MASKED]'
+                  ? redactStringPreservingWhitespace(attribute.value)
                   : attribute.value
                 : null,
-              oldValue: isMasked ? '[MASKED]' : record.oldValue,
+              oldValue: isMasked
+                ? record.oldValue === null
+                  ? null
+                  : redactStringPreservingWhitespace(record.oldValue)
+                : record.oldValue,
             })
           )
         }
@@ -290,10 +294,10 @@ export function internal__processMutationRecords(
             type: PatchType.Text,
             targetId: getNodeId(record.target),
             value: isMaskedBySelector(record.target, options.maskedSelectors)
-              ? '[MASKED]'
+              ? redactStringPreservingWhitespace((record.target as Text).data)
               : (record.target as Text).data,
             oldValue: isMaskedBySelector(record.target, options.maskedSelectors)
-              ? '[MASKED]'
+              ? redactStringPreservingWhitespace(record.oldValue || '')
               : record.oldValue || '',
             parentId: parentNode ? getNodeId(parentNode) : null,
           })

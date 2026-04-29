@@ -9,7 +9,12 @@ import { ObserverLike, createEventObserver } from '@repro/observer-utils'
 import { Box } from '@repro/tdl'
 import { getNodeId } from '@repro/vdom-utils'
 import { createVElement } from '../dom/factory'
-import { isIgnoredByNode, isIgnoredBySelector } from '../dom/utils'
+import {
+  isIgnoredByNode,
+  isIgnoredBySelector,
+  isMaskedBySelector,
+} from '../dom/utils'
+import { MASKED_VALUE } from '../redaction'
 import { RecordingOptions } from '../types'
 import { sampleEventsByKey } from './sample'
 
@@ -300,7 +305,11 @@ function createClickObserver(
     const targets = doc.elementsFromPoint(x, y).map(elem => getNodeId(elem))
     const tagName = target.nodeName.toLowerCase()
     const humanReadableLabel =
-      tagName === 'a' || tagName === 'button' ? target.textContent : null
+      tagName === 'a' || tagName === 'button'
+        ? isMaskedBySelector(target, options.maskedSelectors)
+          ? MASKED_VALUE
+          : target.textContent
+        : null
 
     callback(
       new Box({

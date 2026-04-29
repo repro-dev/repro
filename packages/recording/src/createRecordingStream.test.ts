@@ -4,6 +4,7 @@ import { Box } from '@repro/tdl'
 import assert from 'node:assert/strict'
 import { it } from 'node:test'
 import { createRecordingStream } from './createRecordingStream'
+import { redactStringPreservingWhitespace } from './redaction'
 
 if (!globalThis.requestIdleCallback) {
   globalThis.requestIdleCallback = ((callback: IdleRequestCallback) => {
@@ -74,12 +75,12 @@ it('keeps live buffered events flowing after start in event order', () => {
   assert.equal(stream.slice().toArray().length, 2)
 })
 
-it.skip('captures selector-masked snapshots and live input updates as masked content', () => {
+it('captures selector-masked snapshots and live input updates as layout-preserving masked content', () => {
   const doc = document.implementation.createHTMLDocument('')
   const root = doc.createElement('div')
   root.className = 'repro-mask'
 
-  const maskedText = doc.createTextNode('secret text')
+  const maskedText = doc.createTextNode('secret text\nmore secret')
   const maskedInput = doc.createElement('input')
   maskedInput.value = 'secret value'
   maskedInput.setAttribute('value', 'secret value')
@@ -115,13 +116,27 @@ it.skip('captures selector-masked snapshots and live input updates as masked con
     const optionNode = nodeValues.find(
       node => node && typeof node === 'object' && node.tagName === 'option'
     ) as any
+    const maskedTextValue = nodeValues.find(
+      node => typeof node === 'string' && node.includes('\n')
+    ) as string
 
-    assert.ok(nodeValues.includes('[MASKED]'))
-    assert.equal(inputNode.properties.value, '[MASKED]')
-    assert.equal(inputNode.attributes.value, '[MASKED]')
-    assert.equal(optionNode.attributes.value, '[MASKED]')
+    assert.equal(maskedTextValue.length, 'secret text\nmore secret'.length)
+    assert.equal(maskedTextValue.includes('\n'), true)
+    assert.equal(
+      inputNode.properties.value,
+      redactStringPreservingWhitespace('secret value')
+    )
+    assert.equal(
+      inputNode.attributes.value,
+      redactStringPreservingWhitespace('secret value')
+    )
+    assert.equal(
+      optionNode.attributes.value,
+      redactStringPreservingWhitespace('secret option')
+    )
 
     maskedInput.value = 'changed secret value'
+    maskedInput.dispatchEvent(new Event('input', { bubbles: true }))
 
     const patches = stream
       .slice()
@@ -130,7 +145,10 @@ it.skip('captures selector-masked snapshots and live input updates as masked con
       .filter(event => event.type === SourceEventType.DOMPatch)
 
     assert.ok(patches.length > 0)
-    assert.equal((patches[patches.length - 1] as any).data.value, '[MASKED]')
+    assert.equal(
+      (patches[patches.length - 1] as any).data.value,
+      redactStringPreservingWhitespace('changed secret value')
+    )
   } finally {
     stream.stop()
     doc.body.removeChild(root)

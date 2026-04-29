@@ -4,6 +4,7 @@ import { deepUnbox, MockNodeList } from '@repro/testing-utils'
 import { getNodeId } from '@repro/vdom-utils'
 import expect from 'expect'
 import { describe, it } from 'node:test'
+import { redactStringPreservingWhitespace } from '../redaction'
 import { RecordingOptions } from '../types'
 import { internal__processMutationRecords } from './observe'
 import { createDOMTreeWalker } from './utils'
@@ -279,8 +280,8 @@ describe('libs/record: dom observers', () => {
       new Box({
         type: PatchType.Text,
         targetId: getNodeId(target),
-        value: '[MASKED]',
-        oldValue: '[MASKED]',
+        value: '******',
+        oldValue: '*** ******',
         parentId: getNodeId(maskedRoot),
       }),
     ])
@@ -328,13 +329,20 @@ describe('libs/record: dom observers', () => {
       return unwrapValue((node as any).value)
     })
 
-    expect(values).toContain('[MASKED]')
+    expect(values).toContain(redactStringPreservingWhitespace('secret'))
+
+    const maskedTextValue = values.find(
+      value => typeof value === 'string'
+    ) as string
+    expect(maskedTextValue).toBe(redactStringPreservingWhitespace('secret'))
 
     const optionNode = Object.values(vtree?.nodes ?? {})
       .map(node => unwrapValue((node as any).value))
       .find(node => node?.tagName === 'option') as any
 
-    expect(optionNode?.attributes?.value).toBe('[MASKED]')
+    expect(optionNode?.attributes?.value).toBe(
+      redactStringPreservingWhitespace('secret-option')
+    )
 
     expect(
       values.some(node => {

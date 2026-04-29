@@ -7,7 +7,6 @@ import {
   isSelectElement,
   isTextAreaElement,
   isTextNode,
-  maskValue,
 } from '@repro/dom-utils'
 import {
   NodeType,
@@ -21,6 +20,7 @@ import {
 } from '@repro/domain'
 import { Box } from '@repro/tdl'
 import { createSyntheticId, getNodeId } from '@repro/vdom-utils'
+import { redactStringPreservingWhitespace } from '../redaction'
 import { isMaskedBySelector } from './utils'
 
 type MaskedSelectorOptions = {
@@ -88,7 +88,9 @@ export function createVElement(
   const isMasked = isMaskedBySelector(element, maskedSelectors)
 
   if (isMasked && 'value' in attributes) {
-    attributes.value = '[MASKED]'
+    attributes.value = redactStringPreservingWhitespace(
+      String(attributes.value ?? '')
+    )
   }
 
   const properties: VElement['properties'] = {
@@ -103,9 +105,9 @@ export function createVElement(
     isSelectElement(element)
   ) {
     properties.value = isMasked
-      ? '[MASKED]'
+      ? redactStringPreservingWhitespace(element.value)
       : element.type === 'password'
-      ? maskValue(element.value)
+      ? redactStringPreservingWhitespace(element.value)
       : element.value
 
     if ('value' in attributes) {
@@ -148,7 +150,9 @@ export function createVText(
     id: getNodeId(text),
     parentId: text.parentNode ? getNodeId(text.parentNode) : null,
     type: NodeType.Text,
-    value: isMaskedBySelector(text, maskedSelectors) ? '[MASKED]' : text.data,
+    value: isMaskedBySelector(text, maskedSelectors)
+      ? redactStringPreservingWhitespace(text.data)
+      : text.data,
   }
 }
 

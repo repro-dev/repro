@@ -2,8 +2,14 @@
  * @jest-environment jsdom
  */
 
-import { ConsoleMessage, LogLevel, MessagePartType } from '@repro/domain'
+import {
+  ConsoleMessage,
+  LogLevel,
+  MessagePartType,
+  NodeType,
+} from '@repro/domain'
 import { ObserverLike } from '@repro/observer-utils'
+import { deepUnbox } from '@repro/testing-utils'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import { createConsoleObserver } from './observe'
@@ -40,6 +46,16 @@ describe('libs/record: console observers', () => {
 
   function flush() {
     return new Promise(resolve => setTimeout(resolve, 25))
+  }
+
+  function expectLayoutPreservingMask(value: string, original: string) {
+    expect(value).not.toBe('[MASKED]')
+    expect(value).toHaveLength(original.length)
+
+    const maskedChars = Array.from(value)
+    Array.from(original).forEach((char, index) => {
+      expect(maskedChars[index]).toBe(/\s/u.test(char) ? char : '*')
+    })
   }
 
   it('scrubs secret-like object properties before serialization', async () => {
@@ -108,5 +124,42 @@ describe('libs/record: console observers', () => {
       type: MessagePartType.String,
       value: JSON.stringify('plain text message'),
     })
+  })
+
+  it('redacts masked DOM nodes without collapsing whitespace', async () => {
+    silenceConsole()
+
+    const messages: Array<ConsoleMessage> = []
+    const maskedRoot = document.createElement('div')
+    maskedRoot.className = 'repro-mask'
+    const maskedText = document.createTextNode('secret text\nmore secret')
+    maskedRoot.append(maskedText)
+    document.body.append(maskedRoot)
+
+    observer = createConsoleObserver(
+      message => {
+        messages.push(message)
+      },
+      ['.repro-mask']
+    )
+    observer.observe(document, { rootId: 'foo', nodes: {} } as any)
+
+    console.log(maskedText)
+
+    await flush()
+
+    expect(messages).toHaveLength(1)
+    const firstMessage = messages[0] as any
+    const nodePart = deepUnbox(firstMessage.parts[0]) as any
+
+    expect(nodePart).toMatchObject({
+      type: MessagePartType.Node,
+      node: {
+        type: NodeType.Text,
+      },
+    })
+    expectLayoutPreservingMask(nodePart.node.value, 'secret text\nmore secret')
+
+    document.body.removeChild(maskedRoot)
   })
 })
