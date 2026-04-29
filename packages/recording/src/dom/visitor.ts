@@ -122,7 +122,7 @@ export function createDOMVisitor(
       }
 
       const vNode = new Box(
-        createVElement(node, undefined, options.maskedSelectors)
+        createVElement(node, { maskedSelectors: options.maskedSelectors })
       )
       createOrUpdateVTree(vNode, node.parentNode && getNodeId(node.parentNode))
     },

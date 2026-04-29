@@ -36,7 +36,7 @@ export function createVNode(
   }
 
   if (isElementNode(node)) {
-    return new Box(createVElement(node, undefined, maskedSelectors))
+    return new Box(createVElement(node, { maskedSelectors }))
   }
 
   if (isTextNode(node)) {
@@ -68,9 +68,12 @@ export function createVDocType(doctype: DocumentType): VDocType {
 
 export function createVElement(
   element: Element,
-  attributeOverrides?: Record<string, string>,
-  maskedSelectors: Array<string> = []
+  options: {
+    attributeOverrides?: Record<string, string>
+    maskedSelectors?: Array<string>
+  } = {}
 ): VElement {
+  const { attributeOverrides, maskedSelectors = [] } = options
   const attributes =
     attributeOverrides ??
     Array.from(element.attributes)

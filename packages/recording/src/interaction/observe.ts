@@ -309,7 +309,9 @@ function createClickObserver(
         targets,
         at: [x, y],
         meta: {
-          node: createVElement(target, undefined, options.maskedSelectors),
+          node: createVElement(target, {
+            maskedSelectors: options.maskedSelectors,
+          }),
           humanReadableLabel,
         },
       })
@@ -352,7 +354,9 @@ function createDoubleClickObserver(
         targets,
         at: [x, y],
         meta: {
-          node: createVElement(target, undefined, options.maskedSelectors),
+          node: createVElement(target, {
+            maskedSelectors: options.maskedSelectors,
+          }),
           humanReadableLabel: null,
         },
       })
