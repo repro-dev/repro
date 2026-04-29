@@ -170,9 +170,9 @@ export function createRecordingStream(
 
   // TODO: investigate on-the-fly snapshotting
   registerSnapshotObserver()
+  registerDOMVisitor()
 
   if (options.types.has('dom')) {
-    registerDOMVisitor()
     registerIFrameVisitor()
     registerDOMObserver()
   }

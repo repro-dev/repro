@@ -9,9 +9,8 @@ import {
   createPerformanceObserver,
 } from '@repro/recording'
 import { Box } from '@repro/tdl'
+import { type RuntimeInstalledType } from './recordingTypes'
 import { appendRuntimeBuffer } from './runtimeBuffer'
-
-type RuntimeInstalledType = 'console' | 'custom' | 'network' | 'performance'
 
 type RuntimeReproExtension = {
   mark?: (name: string, data?: Record<string, unknown>) => void

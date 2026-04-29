@@ -101,13 +101,10 @@ it('captures custom marks and restores the previous hook on stop', () => {
   repro.mark?.('user_action', { nested: true })
 
   const events = stream.slice().toArray()
-  const customMark = SourceEventView.over(events[events.length - 1])
+  const customMark = unwrapValue(events[events.length - 1])
 
-  assert.equal(
-    customMark.map(event => event.type).orElse(null),
-    SourceEventType.CustomMark
-  )
-  assert.deepEqual(customMark.map(event => event.data).orElse(null), {
+  assert.equal(customMark.type, SourceEventType.CustomMark)
+  assert.deepEqual(customMark.data, {
     name: 'user_action',
     data: '{"nested":true}',
     frameId: 0,

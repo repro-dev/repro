@@ -29,7 +29,6 @@ if (process.env.NODE_ENV === 'development') {
 
 const NODE_NAME = 'repro-capture'
 
-type RuntimeInstalledType = 'console' | 'custom' | 'network' | 'performance'
 declare global {
   interface Window {
     __REPRO_RUNTIME_BUFFER__?: Array<DataView>
@@ -71,34 +70,6 @@ function waitForBody() {
   })
 }
 
-function createRecordingTypes() {
-  const runtimeInstalledTypes =
-    window.__REPRO_RUNTIME_INSTALLED_TYPES__ ?? new Set<RuntimeInstalledType>()
-
-  const recordingTypes: Array<
-    | 'dom'
-    | 'interaction'
-    | 'network'
-    | 'console'
-    | 'performance'
-    | 'state'
-    | 'custom'
-  > = [
-    'dom',
-    'interaction',
-    'network',
-    'console',
-    'performance',
-    'state',
-    'custom',
-  ]
-
-  return new Set(
-    recordingTypes.filter(
-      type => !runtimeInstalledTypes.has(type as RuntimeInstalledType)
-    )
-  )
-}
 function drainRuntimeBuffer(stream: {
   injectBufferedEvents(events: Array<DataView>): void
 }) {
