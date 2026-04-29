@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation'
-import { MarketingPlaceholderPage } from '~/components/MarketingPlaceholderPage'
+import { MarketingRoutePage as MarketingRoutePageContent } from '~/components/MarketingRoutePage'
 import {
   isMarketingRouteSlug,
-  placeholderPageContent,
+  routePageContent,
 } from '~/components/marketingShell'
 
 export function generateStaticParams() {
-  return Object.keys(placeholderPageContent).map(slug => ({ slug }))
+  return Object.keys(routePageContent).map(slug => ({ slug }))
 }
 
 export default async function MarketingRoutePage({ params }: any) {
@@ -16,5 +16,5 @@ export default async function MarketingRoutePage({ params }: any) {
     notFound()
   }
 
-  return <MarketingPlaceholderPage slug={slug} />
+  return <MarketingRoutePageContent slug={slug} />
 }

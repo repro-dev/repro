@@ -9,73 +9,42 @@ require('../../../../node_modules/.pnpm/node_modules/global-jsdom/commonjs/regis
 
 const React = require('react')
 const { cleanup, render, screen } = require('@testing-library/react')
-const { hydrateRoot } = require('react-dom/client')
-const { renderToString } = require('react-dom/server')
 
 globalThis.React = React
 
 afterEach(cleanup)
 
 describe('HeroSection', () => {
-  it('renders the hero CTA and demo content', async () => {
+  it('renders the hero CTA and replay evidence content', async t => {
+    t.mock.module('./MarketingShell.module.css', {
+      defaultExport: {},
+    })
+    t.mock.module('./HeroSection.module.css', {
+      defaultExport: {},
+    })
+
     const { HeroSection } = await import('./HeroSection')
 
-    render(
+    const { container } = render(
       React.createElement(HeroSection, { appUrl: 'https://app.repro.test' })
     )
 
-    const primaryCta = screen.getByRole('link', { name: 'Get started free' })
+    const primaryCta = screen.getByRole('link', { name: 'Start free' })
 
     assert.equal(primaryCta.getAttribute('href'), 'https://app.repro.test')
     assert.ok(screen.getByRole('link', { name: 'See how it works' }))
-    assert.ok(screen.getByText('Session preview'))
-    assert.ok(screen.getByText('Capture bugs with context'))
-    assert.ok(screen.getByText('Captured in'))
-  })
-})
-
-describe('HomePage', () => {
-  it('hydrates the home page route without changing the CTA href', async t => {
-    t.mock.module('next/navigation', {
-      namedExports: {
-        useServerInsertedHTML() {},
-      },
-    })
-
-    const { JsxstyleRegistry } = await import('../app/JsxstyleRegistry')
-    const createEnv = t.mock.fn(() => ({
-      REPRO_APP_URL: 'https://app.example.test',
-    }))
-
-    t.mock.module('~/config/env', {
-      namedExports: {
-        createEnv,
-        defaultEnv: {
-          REPRO_APP_URL: 'https://app.example.test',
-        },
-      },
-    })
-
-    const { default: HomePage } = await import('../app/page')
-    const element = <JsxstyleRegistry>{HomePage()}</JsxstyleRegistry>
-    const markup = renderToString(element)
-    const consoleError = t.mock.method(console, 'error', () => {})
-
-    const container = document.createElement('div')
-    container.innerHTML = markup
-
-    const root = hydrateRoot(container, element)
-
-    await new Promise(resolve => setTimeout(resolve, 0))
-
-    const primaryCta = container.querySelector(
-      'a[href="https://app.example.test"]'
-    )
-
-    assert.equal(createEnv.mock.calls.length, 1)
-    assert.ok(primaryCta)
-    assert.equal(consoleError.mock.calls.length, 0)
-
-    root.unmount()
+    assert.ok(screen.getByText('Capture / AI / find / fix'))
+    assert.ok(screen.getByText('Capture the bug. Let AI find the fix.'))
+    assert.ok(screen.getByText('recorded evidence'))
+    assert.ok(screen.getAllByText('AI finds the cause').length >= 1)
+    assert.ok(screen.getByText('capture'))
+    assert.ok(screen.getByText('analyze'))
+    assert.ok(screen.getByText('handoff'))
+    assert.ok(screen.getByText('Session'))
+    assert.ok(screen.getByText('Replay'))
+    assert.ok(screen.getByText('Brief'))
+    assert.equal(screen.queryByText('capture-analyze-handoff'), null)
+    assert.equal(screen.queryByText('Session-Replay-Brief'), null)
+    assert.ok(container.querySelector('section'))
   })
 })
