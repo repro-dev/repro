@@ -1,13 +1,13 @@
 ---
 name: ui-verification
-description: Practical post-change UI verification workflow — use after non-trivial UI changes to validate behavior, interactions, accessibility, evidence capture, and authenticated browser sessions.
+description: Practical post-change UI verification workflow — use after non-trivial UI changes to validate behavior, interactions, accessibility, lightweight visual quality, evidence capture, and authenticated browser sessions.
 ---
 
 # UI Verification
 
-Use this skill after you have changed a UI surface and need to confirm it behaves correctly in the browser.
+Use this skill after you have changed a UI surface and need to confirm it behaves correctly and still reads well in the browser. It is for validating implemented UI, not for shaping direction or running a broad audit.
 
-If the changed surface is a browser extension, stop here and follow the `extension-verification` workflow in `.opencode/skills/extension-verification/SKILL.md` instead.
+**Extension escape hatch:** if the changed surface is a browser extension, stop here and follow the `extension-verification` workflow in `.opencode/skills/extension-verification/SKILL.md` instead.
 
 For the current agent-browser command reference and skill content, load the CLI-served core skill with `agent-browser skills get core --full`.
 
@@ -22,13 +22,12 @@ Load `ui-verification` when the task is to validate a recent UI change, especial
 - responsive/layout changes that affect visible behavior
 - accessibility, focus, keyboard, or form handling changes
 - loading, empty, error, or success state updates
+- lightweight visual checks for hierarchy, prominence, and responsive clarity
 - design-system or token changes that need real-browser confirmation
 
-For normal app pages, use `reproctl start --wait --full-stack <service>` to bring up the worktree-local app under test, then verify it with `agent-browser`.
+For normal app pages, bring up the worktree-local app under test with `reproctl start --wait --full-stack <service>`, then verify it with `agent-browser`.
 
-If the surface is a browser extension, use the `extension-verification` workflow instead of this workflow.
-
-Use `reproctl start --wait --full-stack <service>` to bring up the worktree-local app under test. Use `reproctl launch` only for one-off human preview; it opens the system browser and is not the standard `agent-browser` entrypoint.
+Use `reproctl launch` only for one-off human preview; it opens the system browser and is not the standard `agent-browser` entrypoint.
 
 Do **not** use this skill as the default audit/polish workflow. If you need a broad audit, scoring pass, or design-system compliance review, load `audit-ui-quality` instead.
 
@@ -50,7 +49,7 @@ Tiny copy tweaks or isolated token swaps are usually trivial unless they change 
 
 1. Start the worktree-local app under test.
    ```bash
-   reproctl start --wait <service>
+   reproctl start --wait --full-stack <service>
    ```
 2. If the surface is protected, authenticate first with `agent-browser auth login <profile>`.
 3. Open the changed surface in `agent-browser` using the worktree-local URL.
@@ -62,12 +61,17 @@ Tiny copy tweaks or isolated token swaps are usually trivial unless they change 
    - hover, focus, active, disabled, loading
    - empty, error, success, and retry states
    - keyboard-only navigation, tab order, escape/close behavior
-6. Re-snapshot after each meaningful navigation or state change.
-7. Capture evidence when the behavior is confirmed.
+6. Run a lightweight visual-quality pass in the browser:
+   - is the primary action visually obvious?
+   - does the dominant element stay dominant on desktop and mobile?
+   - does hierarchy survive responsive changes?
+   - do empty/loading/error/success states still feel visually coherent?
+7. Re-snapshot after each meaningful navigation, state change, or viewport resize.
+8. Capture evidence when the behavior is confirmed.
    ```bash
    agent-browser screenshot tmp/ui-verification/<issue-or-surface>/after/<scenario>.png
    ```
-8. Close the browser session when done.
+9. Close the browser session when done.
 
 If the surface is reusable, verify it in the smallest realistic host and once in a real consuming screen.
 
@@ -97,7 +101,7 @@ Suggested layout:
 - `tmp/ui-verification/<issue-or-surface>/after/`
 - `tmp/ui-verification/<issue-or-surface>/notes.md`
 
-Keep filenames descriptive and short. Include the scenario name, browser target, and date if helpful. Keep throwaway browser artifacts inside this tree so routine verification stays easy to clean up.
+Keep filenames descriptive and short. Include the scenario name, browser target, and date if helpful. Keep throwaway browser artifacts inside this tree so routine verification stays easy to clean up. Use scenario names like `desktop-primary-action`, `mobile-hierarchy`, or `empty-state-contrast` rather than introducing a new directory structure.
 
 ## When to load `harden`
 
@@ -105,6 +109,8 @@ If verification reveals brittle async behavior, teardown problems, race conditio
 
 ## ui-verification vs. extension-verification vs. audit-ui-quality
 
-- `ui-verification` = routine post-change validation of a specific changed surface using `reproctl start --wait --full-stack` + `agent-browser`, including authenticated runs when needed
-- `extension-verification` = browser-extension verification workflow with `agent-browser`, isolated profiles, and `tmp/extension-verification/...` artifacts
+- `design-direction` = upstream intent capture for ambiguous or net-new UI
+- `design-system` = implementation of the captured direction
 - `audit-ui-quality` = broader audit, polish, scoring, and reporting pass across scoped UI surfaces
+- `ui-verification` = routine post-change validation of a specific changed surface using `reproctl start --wait --full-stack` + `agent-browser`, including authenticated runs when needed, plus a lightweight browser check that intended hierarchy and visual cues still survive
+- `extension-verification` = browser-extension verification workflow with `agent-browser`, isolated profiles, and `tmp/extension-verification/...` artifacts

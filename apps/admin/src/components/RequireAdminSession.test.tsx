@@ -8,11 +8,13 @@ type Session = { id: string } | null
 
 let currentSession: Session = null
 let currentSessionLoading = false
+let loginPath = '/login'
 
 mock.module('@repro/auth', {
   namedExports: {
     IfSession: ({ children }: React.PropsWithChildren) =>
       currentSessionLoading || !currentSession ? <></> : <>{children}</>,
+    useLoginPath: () => loginPath,
     useSession: () => currentSession,
     useSessionLoading: () => currentSessionLoading,
   },
@@ -26,6 +28,7 @@ afterEach(() => {
   cleanup()
   currentSession = null
   currentSessionLoading = false
+  loginPath = '/login'
 })
 
 function renderRoute({
@@ -44,14 +47,16 @@ function renderRoute({
         <Route path="/admin" element={<RequireAdminSession />}>
           <Route index element={<div>Admin area</div>} />
         </Route>
-        <Route path="/login" element={<div>Admin login</div>} />
+        <Route path={loginPath} element={<div>Admin login</div>} />
       </Routes>
     </MemoryRouter>
   )
 }
 
 describe('RequireAdminSession', () => {
-  it('redirects anonymous visitors to /login after mount', async () => {
+  it('redirects anonymous visitors to the configured login path after mount', async () => {
+    loginPath = '/admin-login'
+
     renderRoute()
 
     await waitFor(() => {

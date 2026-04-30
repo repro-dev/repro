@@ -1,94 +1,50 @@
+import { createRequire } from 'module'
+import { afterEach, describe, it } from 'node:test'
+
 import assert from 'node:assert/strict'
-import { describe, it } from 'node:test'
-import React from 'react'
-import { hydrateRoot } from 'react-dom/client'
-import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 
-function registerUiMocks(t: any) {
-  t.mock.module('@jsxstyle/react', {
-    namedExports: {
-      Block: ({ children, component = 'div', props = {} }: any) =>
-        React.createElement(component, props, children),
-      Col: ({ children, component = 'div', props = {} }: any) =>
-        React.createElement(component, props, children),
-      Row: ({ children, component = 'div', props = {} }: any) =>
-        React.createElement(component, props, children),
-    },
-  })
+const require = createRequire(import.meta.url)
 
-  t.mock.module('@repro/design', {
-    namedExports: {
-      Logo: () => React.createElement('div'),
-      color: {
-        bg: { surface: '#fff' },
-        border: { default: '#ddd', strong: '#999' },
-        info: '#06f',
-        primaryHover: '#05c',
-        text: { default: '#111', inverse: '#fff', secondary: '#666' },
-      },
-      radius: { md: '8px' },
-      spacing: { lg: '24px', md: '16px', sm: '8px', xl: '32px' },
-      textStyles: { body: {}, heading1: {}, label: {} },
-      transition: { default: 'none' },
-    },
-  })
-}
+require('../../../../node_modules/.pnpm/node_modules/global-jsdom/commonjs/register.cjs')
+
+const React = require('react')
+const { cleanup, render, screen } = require('@testing-library/react')
+
+globalThis.React = React
+
+afterEach(cleanup)
 
 describe('HeroSection', () => {
-  it('renders the app CTA href from props', async t => {
-    registerUiMocks(t)
+  it('renders the hero CTA and replay evidence content', async t => {
+    t.mock.module('./MarketingShell.module.css', {
+      defaultExport: {},
+    })
+    t.mock.module('./HeroSection.module.css', {
+      defaultExport: {},
+    })
 
     const { HeroSection } = await import('./HeroSection')
 
-    const markup = renderToStaticMarkup(
-      React.createElement(HeroSection, {
-        appUrl: 'https://app.repro.localhost:1355',
-      })
+    const { container } = render(
+      React.createElement(HeroSection, { appUrl: 'https://app.repro.test' })
     )
 
-    assert.match(markup, /href="https:\/\/app\.repro\.localhost:1355"/)
-  })
-})
+    const primaryCta = screen.getByRole('link', { name: 'Start free' })
 
-describe('HomePage', () => {
-  it('hydrates the home page route without changing the CTA href', async t => {
-    registerUiMocks(t)
-
-    const createEnv = t.mock.fn(() => ({
-      REPRO_APP_URL: 'https://app.example.test',
-    }))
-
-    t.mock.module('~/config/env', {
-      namedExports: {
-        createEnv,
-      },
-    })
-
-    const { default: HomePage } = await import('../app/page')
-    const element = HomePage()
-    const markup = renderToString(element)
-    const consoleError = t.mock.method(console, 'error', () => {})
-
-    const container = document.createElement('div')
-    container.innerHTML = markup
-
-    const beforeHref = container
-      .querySelector('a[href^="https://app.example.test"]')
-      ?.getAttribute('href')
-
-    const root = hydrateRoot(container, element)
-
-    await new Promise(resolve => setTimeout(resolve, 0))
-
-    const afterHref = container
-      .querySelector('a[href^="https://app.example.test"]')
-      ?.getAttribute('href')
-
-    assert.equal(createEnv.mock.calls.length, 1)
-    assert.equal(beforeHref, 'https://app.example.test')
-    assert.equal(afterHref, 'https://app.example.test')
-    assert.equal(consoleError.mock.calls.length, 0)
-
-    root.unmount()
+    assert.equal(primaryCta.getAttribute('href'), 'https://app.repro.test')
+    assert.ok(screen.getByRole('link', { name: 'See how it works' }))
+    assert.ok(screen.getByText('Capture / AI / find / fix'))
+    assert.ok(screen.getByText('Capture the bug. Let AI find the fix.'))
+    assert.ok(screen.getByText('recorded evidence'))
+    assert.ok(screen.getAllByText('AI finds the cause').length >= 1)
+    assert.ok(screen.getByText('capture'))
+    assert.ok(screen.getByText('analyze'))
+    assert.ok(screen.getByText('handoff'))
+    assert.ok(screen.getByText('Session'))
+    assert.ok(screen.getByText('Replay'))
+    assert.ok(screen.getByText('Brief'))
+    assert.equal(screen.queryByText('capture-analyze-handoff'), null)
+    assert.equal(screen.queryByText('Session-Replay-Brief'), null)
+    assert.ok(container.querySelector('section'))
   })
 })

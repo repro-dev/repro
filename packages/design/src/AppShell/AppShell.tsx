@@ -34,7 +34,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     <Grid
       height="100dvh"
       gridTemplateColumns={`${SIDEBAR_WIDTH}px 1fr`}
-      backgroundColor={color.bg.subtle}
+      backgroundColor={color.bg.surface}
     >
       {children}
     </Grid>

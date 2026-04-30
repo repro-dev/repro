@@ -87,6 +87,10 @@ import {
 import { BaselineEntry, RegressionEntry, findRegressions } from "./regressions";
 import type { EvalScore } from "./scorer";
 import { EvalFixture, EvalResult, runEval } from "./runner";
+import {
+  PROMPT_SUGGESTIONS_JSON_PATH,
+  PROMPT_SUGGESTIONS_MARKDOWN_PATH,
+} from "./applyPromptSuggestions";
 import { createOpenRouterStreamProvider } from "./streamProvider";
 
 // Resolve the workspace root so we can write into tmp/ (gitignored, shared
@@ -385,6 +389,8 @@ async function main(): Promise<void> {
   fs.mkdirSync(RUN_OUTPUT_DIR, { recursive: true });
   const RESULTS_PATH = path.join(RUN_OUTPUT_DIR, "results.json");
   const ANALYSIS_PATH = path.join(RUN_OUTPUT_DIR, "prompt-suggestions.md");
+  const ANALYSIS_JSON_PATH = PROMPT_SUGGESTIONS_JSON_PATH;
+  const ANALYSIS_MARKDOWN_PATH = PROMPT_SUGGESTIONS_MARKDOWN_PATH;
   const BASELINE_PATH = path.join(
     __dirname,
     useTestSet ? "baseline-test.json" : "baseline.json",
@@ -557,6 +563,11 @@ async function main(): Promise<void> {
     }
 
     const markdown = formatSuggestionsMarkdown(allSuggestions, results.length);
+    fs.writeFileSync(
+      ANALYSIS_JSON_PATH,
+      JSON.stringify(allSuggestions, null, 2),
+    );
+    fs.writeFileSync(ANALYSIS_MARKDOWN_PATH, markdown);
     fs.writeFileSync(ANALYSIS_PATH, markdown);
     printSuggestions(allSuggestions);
     console.log(

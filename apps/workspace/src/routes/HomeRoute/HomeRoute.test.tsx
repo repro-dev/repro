@@ -169,6 +169,10 @@ describe('HomeRoute', () => {
 
       await waitFor(() => {
         assert.ok(screen.getByText('Install the Repro extension'))
+        assert.equal(
+          screen.queryByRole('radio', { name: 'Newest first' }),
+          null
+        )
       })
     })
   })

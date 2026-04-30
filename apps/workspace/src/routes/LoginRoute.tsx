@@ -1,4 +1,3 @@
-import { Col } from '@jsxstyle/react'
 import { LoginForm } from '@repro/auth'
 import { Card } from '@repro/design'
 import { logger } from '@repro/logger'
@@ -23,11 +22,9 @@ const LoginRoute: React.FC = () => {
   }, [])
 
   return (
-    <Col width={320} alignItems="stretch" gap={10}>
-      <Card>
-        <LoginForm onSuccess={onSuccess} onFailure={onFailure} />
-      </Card>
-    </Col>
+    <Card>
+      <LoginForm onSuccess={onSuccess} onFailure={onFailure} />
+    </Card>
   )
 }
 

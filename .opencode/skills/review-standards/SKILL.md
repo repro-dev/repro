@@ -21,6 +21,7 @@ description: Review contract for branch and PR reviews — changed-code focus, s
 - Fetch every referenced Linear issue and read the full description, decisions, requirements, and considerations.
 - Fetch the parent project and milestone when they help explain the intended outcome.
 - When issue-scoped artifacts exist in `tmp/` (for example `tmp/context-REP-123.md` or `tmp/test-plan-REP-123.md`), use them as supplemental review context rather than ignoring the documented plan/history.
+- For UI diffs, also consult the matching durable context artifact's `## Design Direction` section (or the dedicated design-direction artifact when one exists) so review reflects captured intent instead of inventing it.
 - For non-Linear work, use the matching topic-scoped artifacts (for example `tmp/context-foo.md` or `tmp/test-plan-foo.md`) when they exist.
 
 ## Severity classification
@@ -56,6 +57,7 @@ Classify every finding using one of these four levels:
 - Lead with context: briefly note which Linear issues were reviewed and any decisions that affected the review.
 - Note which `tmp/` artifacts were consulted, or state that none were present.
 - Note which `tmp/` artifacts still need updating before the next implementation or handoff step, or state that none do.
+- For UI diffs, state whether the `## Design Direction` context was consulted and which artifact supplied it.
 - Classify every finding using the severity levels above.
 - State merge-readiness explicitly.
 - Reference issue requirements by ID when noting gaps.
@@ -72,6 +74,8 @@ Classify every finding using one of these four levels:
 
 If the PR touches UI code, verify the interactive states, motion, accessibility, copy, and token usage at a review level.
 
-For a deeper scored audit across tokens, components, layout, interaction states, accessibility, copy, type safety, and resilience, load the `audit-ui-quality` skill.
+If a captured design-direction artifact or `## Design Direction` section exists, use it as supplemental context for UI review; if it does not, note the absence rather than inferring direction retroactively.
+
+For a deeper scored audit across tokens, components, layout, interaction states, accessibility, copy, type safety, resilience, and authored-vs-generic UI judgment, load the `audit-ui-quality` skill.
 
 If the PR touches only non-UI code (migrations, API routes, utilities, or skill files), skip this gate.
