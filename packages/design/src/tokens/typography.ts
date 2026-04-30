@@ -154,8 +154,6 @@ export const textStyles = {
     fontWeight: fontWeight.semibold,
     lineHeight: lineHeight.tight,
     fontFamily: fontFamily.sans,
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
   },
 } as const
 

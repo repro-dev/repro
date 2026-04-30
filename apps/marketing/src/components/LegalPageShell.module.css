@@ -1,0 +1,59 @@
+.legalShell {
+  min-height: 100vh;
+  background: rgba(5, 8, 22, 0.4);
+  padding: 48px 24px;
+  position: relative;
+}
+
+.legalInner {
+  width: min(1160px, calc(100% - 48px));
+  margin: 0 auto;
+}
+
+.legalCard {
+  display: grid;
+  gap: 32px;
+  padding: 32px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(11, 18, 32, 0.92);
+  border-radius: 0;
+}
+
+.legalHeader {
+  display: grid;
+  gap: 8px;
+}
+
+.legalContent {
+  display: grid;
+  gap: 28px;
+}
+
+.legalSection {
+  display: grid;
+  gap: 16px;
+}
+
+.legalHeading {
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  color: #edf4ff;
+  font-size: 1.375rem;
+  line-height: 1.15;
+}
+
+.legalSectionBody {
+  display: grid;
+  gap: 14px;
+}
+
+.legalUpdated {
+  margin: 0;
+  color: #9fb2d0;
+}
+
+@media (max-width: 960px) {
+  .legalInner {
+    width: min(100%, calc(100% - 32px));
+  }
+}
