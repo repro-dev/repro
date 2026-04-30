@@ -5,8 +5,6 @@ import assert from 'node:assert/strict'
 
 const require = createRequire(import.meta.url)
 
-require('../../../../node_modules/.pnpm/node_modules/global-jsdom/commonjs/register.cjs')
-
 const React = require('react')
 const { cleanup, render, screen } = require('@testing-library/react')
 

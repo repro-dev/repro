@@ -6,8 +6,6 @@ import React from 'react'
 
 const require = createRequire(import.meta.url)
 
-require('../../../../node_modules/.pnpm/node_modules/global-jsdom/commonjs/register.cjs')
-
 globalThis.React = React
 
 afterEach(cleanup)
