@@ -16,7 +16,7 @@ import {
   color,
   spacing,
 } from '@repro/design'
-import { BillingPlanWithEntitlements, ListResponse } from '@repro/domain'
+import { BillingPlanWithEntitlements } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
 import { fork } from 'fluture'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
@@ -191,7 +191,7 @@ export const PricingRoute: React.FC = () => {
         <PageFrame.Title>Plans</PageFrame.Title>
       </PageFrame.Header>
       <PageFrame.Body>
-        {checkoutError && <Alert type="error">{checkoutError}</Alert>}
+        {checkoutError && <Alert type="danger">{checkoutError}</Alert>}
         <Grid
           gridTemplateColumns={`repeat(${plans.length}, 1fr)`}
           gap={spacing['2xl']}
