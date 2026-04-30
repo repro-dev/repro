@@ -4,11 +4,15 @@ import { createDOMVisitor } from './visitor'
 
 export function html2VTree(
   html: string,
-  options: DOMOptions = { ignoredNodes: [], ignoredSelectors: [] }
+  options: DOMOptions = {
+    ignoredNodes: [],
+    ignoredSelectors: [],
+    maskedSelectors: [],
+  }
 ) {
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
   const walkDOMTree = createDOMTreeWalker(options)
-  walkDOMTree.acceptDOMVisitor(createDOMVisitor())
+  walkDOMTree.acceptDOMVisitor(createDOMVisitor(options))
   return walkDOMTree(doc as unknown as Node)
 }

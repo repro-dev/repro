@@ -1,6 +1,6 @@
 import expect from 'expect'
 import { afterEach, describe, it, mock } from 'node:test'
-import { createBillingClientFromConfig } from './index'
+const { createBillingClientFromConfig } = require('./index')
 
 function setupPaddleMock() {
   const calls: Record<string, unknown[][]> = {
@@ -29,8 +29,11 @@ function setupPaddleMock() {
     },
   }
 
-  ;(globalThis as Record<string, unknown>).window = { Paddle: paddle }
-  return { paddle, calls }
+  return {
+    paddle,
+    calls,
+    browserGlobals: { window: { Paddle: paddle } },
+  }
 }
 
 function clearPaddleMock() {
@@ -44,13 +47,17 @@ describe('billing', () => {
 
   describe('createBillingClientFromConfig', () => {
     describe('init', () => {
-      it('calls Paddle.Initialize with the provided token', () => {
-        const { calls } = setupPaddleMock()
-        const client = createBillingClientFromConfig({
-          token: 'test_token_123',
-        })
+      it('calls Paddle.Initialize with the provided token', async () => {
+        const { calls, browserGlobals } = setupPaddleMock()
+        const client = createBillingClientFromConfig(
+          {
+            token: 'test_token_123',
+          },
+          browserGlobals
+        )
 
         client.init()
+        await Promise.resolve()
 
         expect(calls['Initialize']).toHaveLength(1)
         expect(calls['Initialize']![0]![0]).toEqual({
@@ -59,16 +66,12 @@ describe('billing', () => {
         })
       })
 
-      it('sets sandbox environment before initializing', () => {
-        setupPaddleMock()
+      it('sets sandbox environment before initializing', async () => {
+        const { browserGlobals } = setupPaddleMock()
         const callOrder: string[] = []
 
-        const paddle = (
-          (globalThis as Record<string, unknown>).window as Record<
-            string,
-            unknown
-          >
-        ).Paddle as Record<string, Record<string, unknown>>
+        const paddle = (browserGlobals.window as Record<string, unknown>)
+          .Paddle as Record<string, Record<string, unknown>>
         paddle['Environment']!.set = mock.fn(() => {
           callOrder.push('Environment.set')
         })
@@ -76,71 +79,94 @@ describe('billing', () => {
           callOrder.push('Initialize')
         }) as unknown as Record<string, unknown>
 
-        const client = createBillingClientFromConfig({
-          token: 'test_token_123',
-          environment: 'sandbox',
-        })
+        const client = createBillingClientFromConfig(
+          {
+            token: 'test_token_123',
+            environment: 'sandbox',
+          },
+          browserGlobals
+        )
 
         client.init()
+        await Promise.resolve()
 
         expect(callOrder).toEqual(['Environment.set', 'Initialize'])
       })
 
-      it('does not set environment for production', () => {
-        const { paddle } = setupPaddleMock()
-        const client = createBillingClientFromConfig({
-          token: 'live_token_456',
-          environment: 'production',
-        })
+      it('does not set environment for production', async () => {
+        const { paddle, browserGlobals } = setupPaddleMock()
+        const client = createBillingClientFromConfig(
+          {
+            token: 'live_token_456',
+            environment: 'production',
+          },
+          browserGlobals
+        )
 
         client.init()
+        await Promise.resolve()
 
         expect(paddle.Environment.set.mock.callCount()).toBe(0)
       })
 
-      it('does not set environment when not specified', () => {
-        const { paddle } = setupPaddleMock()
-        const client = createBillingClientFromConfig({
-          token: 'live_token_456',
-        })
+      it('does not set environment when not specified', async () => {
+        const { paddle, browserGlobals } = setupPaddleMock()
+        const client = createBillingClientFromConfig(
+          {
+            token: 'live_token_456',
+          },
+          browserGlobals
+        )
 
         client.init()
+        await Promise.resolve()
 
         expect(paddle.Environment.set.mock.callCount()).toBe(0)
       })
 
-      it('passes eventCallback to Paddle.Initialize', () => {
-        const { calls } = setupPaddleMock()
+      it('passes eventCallback to Paddle.Initialize', async () => {
+        const { calls, browserGlobals } = setupPaddleMock()
         const callback = () => {}
-        const client = createBillingClientFromConfig({
-          token: 'test_token_123',
-          eventCallback: callback,
-        })
+        const client = createBillingClientFromConfig(
+          {
+            token: 'test_token_123',
+            eventCallback: callback,
+          },
+          browserGlobals
+        )
 
         client.init()
+        await Promise.resolve()
 
         expect(
           (calls['Initialize']![0]![0] as Record<string, unknown>).eventCallback
         ).toBe(callback)
       })
 
-      it('only initializes once', () => {
-        const { calls } = setupPaddleMock()
-        const client = createBillingClientFromConfig({
-          token: 'test_token_123',
-        })
+      it('only initializes once', async () => {
+        const { calls, browserGlobals } = setupPaddleMock()
+        const client = createBillingClientFromConfig(
+          {
+            token: 'test_token_123',
+          },
+          browserGlobals
+        )
 
         client.init()
         client.init()
+        await Promise.resolve()
 
         expect(calls['Initialize']).toHaveLength(1)
       })
 
       it('does nothing when Paddle is not loaded', () => {
-        ;(globalThis as Record<string, unknown>).window = {}
-        const client = createBillingClientFromConfig({
-          token: 'test_token_123',
-        })
+        const browserGlobals = { window: {} }
+        const client = createBillingClientFromConfig(
+          {
+            token: 'test_token_123',
+          },
+          browserGlobals
+        )
 
         expect(() => client.init()).not.toThrow()
       })
@@ -148,10 +174,13 @@ describe('billing', () => {
 
     describe('openCheckout', () => {
       it('calls Paddle.Checkout.open with options', () => {
-        const { calls } = setupPaddleMock()
-        const client = createBillingClientFromConfig({
-          token: 'test_token_123',
-        })
+        const { calls, browserGlobals } = setupPaddleMock()
+        const client = createBillingClientFromConfig(
+          {
+            token: 'test_token_123',
+          },
+          browserGlobals
+        )
         const options = { items: [{ priceId: 'pri_123' }] }
 
         client.openCheckout(options)
@@ -161,10 +190,13 @@ describe('billing', () => {
       })
 
       it('does nothing when Paddle is not loaded', () => {
-        ;(globalThis as Record<string, unknown>).window = {}
-        const client = createBillingClientFromConfig({
-          token: 'test_token_123',
-        })
+        const browserGlobals = { window: {} }
+        const client = createBillingClientFromConfig(
+          {
+            token: 'test_token_123',
+          },
+          browserGlobals
+        )
 
         expect(() => client.openCheckout({})).not.toThrow()
       })
@@ -172,10 +204,13 @@ describe('billing', () => {
 
     describe('closeCheckout', () => {
       it('calls Paddle.Checkout.close', () => {
-        const { calls } = setupPaddleMock()
-        const client = createBillingClientFromConfig({
-          token: 'test_token_123',
-        })
+        const { calls, browserGlobals } = setupPaddleMock()
+        const client = createBillingClientFromConfig(
+          {
+            token: 'test_token_123',
+          },
+          browserGlobals
+        )
 
         client.closeCheckout()
 
@@ -183,10 +218,13 @@ describe('billing', () => {
       })
 
       it('does nothing when Paddle is not loaded', () => {
-        ;(globalThis as Record<string, unknown>).window = {}
-        const client = createBillingClientFromConfig({
-          token: 'test_token_123',
-        })
+        const browserGlobals = { window: {} }
+        const client = createBillingClientFromConfig(
+          {
+            token: 'test_token_123',
+          },
+          browserGlobals
+        )
 
         expect(() => client.closeCheckout()).not.toThrow()
       })

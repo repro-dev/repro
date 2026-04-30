@@ -3,7 +3,6 @@ import {
   isInputElement,
   isSelectElement,
   isTextAreaElement,
-  maskValue,
 } from '@repro/dom-utils'
 import {
   DOMPatch,
@@ -16,8 +15,14 @@ import { ObserverLike, createEventObserver } from '@repro/observer-utils'
 import { Box } from '@repro/tdl'
 import { Immutable } from '@repro/ts-utils'
 import { createSyntheticId, getNodeId, isElementVNode } from '@repro/vdom-utils'
+import { redactStringPreservingWhitespace } from '../redaction'
 import { RecordingOptions } from '../types'
-import { DOMTreeWalker, isIgnoredByNode, isIgnoredBySelector } from './utils'
+import {
+  DOMTreeWalker,
+  isIgnoredByNode,
+  isIgnoredBySelector,
+  isMaskedBySelector,
+} from './utils'
 
 export function createDOMObserver(
   walkDOMTree: DOMTreeWalker,
@@ -26,7 +31,7 @@ export function createDOMObserver(
 ): ObserverLike {
   const domObserver = createMutationObserver(walkDOMTree, options, subscriber)
   const styleSheetObserver = createStyleSheetObserver(subscriber)
-  const inputObserver = createInputObserver(subscriber)
+  const inputObserver = createInputObserver(subscriber, options)
 
   return {
     disconnect() {
@@ -44,7 +49,8 @@ export function createDOMObserver(
 }
 
 function createInputObserver(
-  subscriber: (patch: DOMPatch) => void
+  subscriber: (patch: DOMPatch) => void,
+  options: RecordingOptions
 ): ObserverLike<Document> {
   let prevChangeMap = new WeakMap<EventTarget, string>()
   let prevCheckedMap = new WeakMap<EventTarget, boolean>()
@@ -64,14 +70,18 @@ function createInputObserver(
         ('defaultValue' in eventTarget ? eventTarget.defaultValue : '')
 
       let value = eventTarget.value
+      const isMasked = isMaskedBySelector(eventTarget, options.maskedSelectors)
 
       if (eventTarget.type === 'password') {
         maskedInputs.add(eventTarget)
       }
 
-      if (maskedInputs.has(eventTarget)) {
-        oldValue = maskValue(oldValue)
-        value = maskValue(value)
+      if (isMasked) {
+        oldValue = redactStringPreservingWhitespace(oldValue)
+        value = redactStringPreservingWhitespace(value)
+      } else if (maskedInputs.has(eventTarget)) {
+        oldValue = redactStringPreservingWhitespace(oldValue)
+        value = redactStringPreservingWhitespace(value)
       }
 
       if (eventTarget.value !== oldValue) {
@@ -246,6 +256,9 @@ export function internal__processMutationRecords(
         const attribute = (record.target as Element).attributes.getNamedItem(
           name
         )
+        const isMasked =
+          name === 'value' &&
+          isMaskedBySelector(record.target as Node, options.maskedSelectors)
 
         if (attribute?.value !== record.oldValue) {
           patches.push(
@@ -253,8 +266,16 @@ export function internal__processMutationRecords(
               type: PatchType.Attribute,
               targetId,
               name,
-              value: attribute ? attribute.value : null,
-              oldValue: record.oldValue,
+              value: attribute
+                ? isMasked
+                  ? redactStringPreservingWhitespace(attribute.value)
+                  : attribute.value
+                : null,
+              oldValue: isMasked
+                ? record.oldValue === null
+                  ? null
+                  : redactStringPreservingWhitespace(record.oldValue)
+                : record.oldValue,
             })
           )
         }
@@ -272,8 +293,12 @@ export function internal__processMutationRecords(
           new Box({
             type: PatchType.Text,
             targetId: getNodeId(record.target),
-            value: (record.target as Text).data,
-            oldValue: record.oldValue || '',
+            value: isMaskedBySelector(record.target, options.maskedSelectors)
+              ? redactStringPreservingWhitespace((record.target as Text).data)
+              : (record.target as Text).data,
+            oldValue: isMaskedBySelector(record.target, options.maskedSelectors)
+              ? redactStringPreservingWhitespace(record.oldValue || '')
+              : record.oldValue || '',
             parentId: parentNode ? getNodeId(parentNode) : null,
           })
         )
