@@ -10,7 +10,7 @@ toolchains:
     version: "22.19.0"
 tasks:
   test:
-    command: tsx --experimental-test-module-mocks --import=global-jsdom/register --test --test-timeout=30000 --test-force-exit src/**/*.test.ts src/**/*.test.tsx
+    command: tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/**/*.test.ts src/**/*.test.tsx
     inputs:
       - "src/**/*.test.ts"
       - "src/**/*.test.tsx"

@@ -12,7 +12,7 @@
     "reset-db": "tsx src/migrations/reset.ts",
     "seed": "tsx src/migrations/seed.ts",
     "seed-recordings": "tsx src/migrations/seed-recordings.ts",
-    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
+    "test": "tsx --experimental-test-module-mocks --test --test-timeout=30000 --test-force-exit src/**/*.test.ts{,x}",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",
