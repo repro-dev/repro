@@ -82,6 +82,50 @@ it('keeps live buffered events flowing after start in event order', () => {
   assert.equal(stream.slice().toArray().length, 2)
 })
 
+it('captures custom marks and restores the previous hook on stop', () => {
+  const previousMarkCalls: Array<{
+    name: string
+    data?: Record<string, unknown>
+  }> = []
+
+  window.__REPRO__ = {
+    mark(name: string, data?: Record<string, unknown>) {
+      previousMarkCalls.push({ name, data })
+    },
+    captureState() {
+      return undefined
+    },
+  }
+
+  const repro = window.__REPRO__!
+  const originalMark = repro.mark
+  const stream = createRecordingStream(document, {
+    types: new Set(['custom']) as any,
+    ignoredNodes: [],
+    ignoredSelectors: [],
+  })
+
+  stream.start()
+  repro.mark?.('user_action', { nested: true })
+
+  const events = stream.slice().toArray()
+  const customMark = unwrapValue(events[events.length - 1])
+
+  assert.equal(customMark.type, SourceEventType.CustomMark)
+  assert.deepEqual(customMark.data, {
+    name: 'user_action',
+    data: '{"nested":true}',
+    frameId: 0,
+  })
+  assert.equal(previousMarkCalls.length, 1)
+  assert.notEqual(repro.mark, originalMark)
+
+  stream.stop()
+
+  assert.equal(repro.mark, originalMark)
+  delete window.__REPRO__
+})
+
 // This integration case currently leaves the raw tsx/node:test runner stuck.
 // Lower-level masking coverage lives in the DOM, console, and interaction observer tests.
 it.skip('captures selector-masked snapshots and live input updates as layout-preserving masked content', () => {
