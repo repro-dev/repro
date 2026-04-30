@@ -13,7 +13,7 @@ import {
   insertSubTreesAtNode,
   isElementVNode,
 } from '@repro/vdom-utils'
-import { Subscribable, Subscriber, Visitor } from '../types'
+import { DOMOptions, Subscribable, Subscriber, Visitor } from '../types'
 import {
   createStyleSheetVTree,
   createVDocType,
@@ -22,7 +22,9 @@ import {
   createVText,
 } from './factory'
 
-export function createDOMVisitor() {
+export function createDOMVisitor(
+  options: Pick<DOMOptions, 'maskedSelectors'> = { maskedSelectors: [] }
+) {
   /**
    * TODO
    * [x] Flatten DocumentFragment nodes
@@ -119,12 +121,16 @@ export function createDOMVisitor() {
         return
       }
 
-      const vNode = new Box(createVElement(node))
+      const vNode = new Box(
+        createVElement(node, { maskedSelectors: options.maskedSelectors })
+      )
       createOrUpdateVTree(vNode, node.parentNode && getNodeId(node.parentNode))
     },
 
     textNode(node) {
-      const vNode = new Box(createVText(node))
+      const vNode = new Box(
+        createVText(node, { maskedSelectors: options.maskedSelectors })
+      )
       createOrUpdateVTree(vNode, node.parentNode && getNodeId(node.parentNode))
     },
 

@@ -1,5 +1,10 @@
 import React, { useContext, useEffect, useRef } from 'react'
 
+type BrowserGlobals = {
+  window?: Window
+  document?: Document
+}
+
 declare global {
   interface Window {
     Paddle?: {
@@ -24,21 +29,33 @@ export interface BillingConfig {
   eventCallback?: (data: any) => void
 }
 
-function loadPaddleScript(): Promise<void> {
+function loadPaddleScript(browserGlobals: BrowserGlobals): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    if (window.Paddle) {
+    const browserWindow = browserGlobals.window
+    const browserDocument = browserGlobals.document
+
+    if (browserWindow?.Paddle) {
       resolve()
       return
     }
-    const script = document.createElement('script')
+
+    if (!browserDocument) {
+      reject(new Error('Billing: document is not available'))
+      return
+    }
+
+    const script = browserDocument.createElement('script')
     script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js'
     script.onload = () => resolve()
     script.onerror = () => reject(new Error('Failed to load Paddle.js'))
-    document.head.appendChild(script)
+    browserDocument.head.appendChild(script)
   })
 }
 
-function createBillingClient(config: BillingConfig) {
+function createBillingClient(
+  config: BillingConfig,
+  browserGlobals: BrowserGlobals = globalThis as BrowserGlobals
+) {
   let initialized = false
 
   function init() {
@@ -46,16 +63,17 @@ function createBillingClient(config: BillingConfig) {
       return
     }
 
-    loadPaddleScript()
+    loadPaddleScript(browserGlobals)
       .then(() => {
         // Guard against concurrent calls resolving after first init completes
-        if (!window.Paddle || initialized) return
+        const browserWindow = browserGlobals.window
+        if (!browserWindow?.Paddle || initialized) return
 
         if (config.environment === 'sandbox') {
-          window.Paddle.Environment.set('sandbox')
+          browserWindow.Paddle.Environment.set('sandbox')
         }
 
-        window.Paddle.Initialize({
+        browserWindow.Paddle.Initialize({
           token: config.token,
           eventCallback: config.eventCallback,
         })
@@ -68,21 +86,23 @@ function createBillingClient(config: BillingConfig) {
   }
 
   function openCheckout(options: any) {
-    if (!window.Paddle) {
+    const browserWindow = browserGlobals.window
+    if (!browserWindow?.Paddle) {
       console.warn('Billing: Paddle not available, cannot open checkout')
       return
     }
 
-    window.Paddle.Checkout.open(options)
+    browserWindow.Paddle.Checkout.open(options)
   }
 
   function closeCheckout() {
-    if (!window.Paddle) {
+    const browserWindow = browserGlobals.window
+    if (!browserWindow?.Paddle) {
       console.warn('Billing: Paddle not available, cannot close checkout')
       return
     }
 
-    window.Paddle.Checkout.close()
+    browserWindow.Paddle.Checkout.close()
   }
 
   return {
@@ -101,8 +121,11 @@ interface Props {
   client?: BillingClient
 }
 
-export function createBillingClientFromConfig(config: BillingConfig) {
-  return createBillingClient(config)
+export function createBillingClientFromConfig(
+  config: BillingConfig,
+  browserGlobals?: BrowserGlobals
+) {
+  return createBillingClient(config, browserGlobals)
 }
 
 export const BillingProvider: React.FC<
@@ -112,7 +135,8 @@ export const BillingProvider: React.FC<
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      if (!window.Paddle) {
+      const browserWindow = (globalThis as BrowserGlobals).window
+      if (!browserWindow?.Paddle) {
         console.warn(
           'Billing: Paddle.js not available after initialization. ' +
             'Ensure the Paddle script tag is present in the host page.'

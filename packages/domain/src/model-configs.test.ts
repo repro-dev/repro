@@ -68,8 +68,8 @@ describe('MODEL_CONFIGS', () => {
 })
 
 describe('exported model constants', () => {
-  it('AGENTIC_DEFAULT_MODEL is gemini-2.5-flash', () => {
-    assert.equal(AGENTIC_DEFAULT_MODEL, 'google/gemini-2.5-flash')
+  it('AGENTIC_DEFAULT_MODEL is minimax-m2.7', () => {
+    assert.equal(AGENTIC_DEFAULT_MODEL, 'minimax/minimax-m2.7')
   })
 
   it('EVAL_JUDGE_MODEL is gemini-2.5-flash', () => {

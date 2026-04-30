@@ -1,0 +1,40 @@
+.pageShell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.pageMain {
+  flex: 1;
+  width: min(1160px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 0;
+}
+
+.skipLink {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.skipLink:focus-visible {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  z-index: 9999;
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: #edf4ff;
+}
+
+@media (max-width: 960px) {
+  .pageMain {
+    width: min(100%, calc(100% - 32px));
+  }
+}

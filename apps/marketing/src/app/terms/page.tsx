@@ -10,7 +10,7 @@ import LegalPageShell, {
 export const metadata: Metadata = {
   title: 'Terms of Service',
   description:
-    'Read the Terms of Service for Repro — the bug reporting platform that automatically captures sessions so your team can reproduce and fix bugs faster.',
+    'Read the Terms of Service for Repro — the capture, replay, and fix-handoff workflow for your team.',
 }
 
 function LegalSummary({ children }: { children: ReactNode }) {

@@ -8,7 +8,7 @@
     "dev-serve": "vite",
     "serve": "serve -s dist",
     "fmt": "prettier --write src",
-    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
+    "test": "tsx --experimental-test-module-mocks --test --test-timeout=30000 --test-force-exit src/**/*.test.ts{,x}",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",

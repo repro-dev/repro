@@ -18,7 +18,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig-build.json",
-    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts",
+    "test": "tsx --experimental-test-module-mocks --test --test-timeout=30000 --test-force-exit src/**/*.test.ts",
     "fmt": "prettier --write src",
     "typecheck": "tsc --noEmit"
   },

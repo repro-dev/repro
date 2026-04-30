@@ -1,0 +1,70 @@
+.homeContent {
+  gap: 0 !important;
+  display: grid;
+}
+
+.proofStrip {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.proofCard {
+  display: grid;
+  gap: 12px;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  padding: 26px 28px 28px;
+}
+
+.proofMarker {
+  display: block;
+  width: 18px;
+  height: 2px;
+  margin-top: 8px;
+}
+
+.proofMarkerInfo {
+  background: #3b82f6;
+}
+
+.proofMarkerSuccess {
+  background: #22c55e;
+}
+
+.proofMarkerWarning {
+  background: #f59e0b;
+}
+
+.proofMarkerDanger {
+  background: #ef4444;
+}
+
+.storyCard {
+  display: grid;
+  gap: 10px;
+  grid-template-rows: auto auto 1fr;
+  min-height: 220px;
+  padding: 26px 28px 28px;
+}
+
+.closingCta {
+  display: grid;
+  gap: 10px;
+  padding: 26px 28px 28px;
+}
+
+.closingInner {
+  display: grid;
+  gap: 10px;
+}
+
+.closingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 960px) {
+  .proofStrip {
+    grid-template-columns: 1fr;
+  }
+}
