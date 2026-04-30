@@ -11,6 +11,7 @@ Use this workflow when a user starts from a goal rather than an existing issue. 
 
 - `product-planning` — goal framing, sequencing, and proposal structure
 - `context-gather` — when the discovery thread is scattered or needs a durable `tmp/` artifact
+- `design-direction` — when UI work is ambiguous or net-new and needs upstream intent capture
 - `linear-cli` — all Linear reads and writes
 - `create-issue` — project, label, priority, and description conventions
 
@@ -20,12 +21,14 @@ Use this workflow when a user starts from a goal rather than an existing issue. 
 - Do not accept an existing issue ID as the primary input; that belongs to `/deliver` or `/spec`.
 - Capture the goal, constraints, audience, and success signal.
 - If the discovery thread is getting broad or fragmented, write a small durable note in `tmp/context-<topic>.md` before going deeper.
+- If the work is UI-heavy, net-new, or visually ambiguous, also capture a `## Design Direction` / `## Handoff` block in the same durable context artifact so downstream review and delivery can reuse the same intent.
 
 ## 2. Discovery
 
 - Use the repo-owned `linear` CLI to look for related open or recently completed issues that might overlap.
 - Use jcodemunch to ground the goal in the codebase when the target area is known or discoverable.
 - Reuse existing planning or refinement patterns only when they help clarify the goal; do not turn this into backlog grooming.
+- When design direction is needed, capture purpose, audience, aesthetic direction, references, anti-references, hierarchy, composition, and anti-generic cues in the durable context artifact instead of inventing a separate shape.
 
 ## 3. Refinement questions
 
@@ -64,6 +67,7 @@ Before any Linear mutation, present a reviewable proposal containing:
 - short rationale
 - acceptance criteria or requirements
 - relation notes (`related`, `blocks`, `blocked-by`, parent/child intent)
+- for UI-heavy work, the path to the durable context artifact that carries `## Design Direction` and `## Handoff`
 
 Keep the proposal grounded in the original goal and the context gathered so far.
 
@@ -74,6 +78,7 @@ Keep the proposal grounded in the original goal and the context gathered so far.
 - If the approved proposal is classified `spec/needs-spec`, apply the `needs-spec` label to that issue so spec work stays discoverable by the existing `/spec` and enrichment flows.
 - Create parent or tracking issues first, then executable children, then relation wiring.
 - Use `create-issue` conventions for project selection, type label, priority, and description structure.
+- Keep `/plan` upstream of implementation: it seeds intent and issue shape, but does not become a design audit, component implementation, or browser verification workflow.
 
 ## 7. Write and stop
 

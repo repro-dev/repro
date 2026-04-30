@@ -8,6 +8,7 @@ set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 OPENCODE_SH="$TESTS_DIR/../opencode.sh"
+PROFILE_DIR="$TESTS_DIR/../../../.opencode/profiles"
 
 # ── Harness ──────────────────────────────────────────────────────────
 

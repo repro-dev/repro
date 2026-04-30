@@ -16,6 +16,7 @@ export interface Subscribable<T> {
 export interface DOMOptions {
   ignoredNodes: Array<Node>
   ignoredSelectors: Array<string>
+  maskedSelectors: Array<string>
 }
 
 export interface RecordingOptions extends DOMOptions {

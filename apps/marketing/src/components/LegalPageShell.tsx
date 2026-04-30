@@ -1,10 +1,6 @@
-'use client'
-
-// jsxstyle requires a client boundary because it injects styles via React context.
-
-import { Block, Col } from '@jsxstyle/react'
-import { color, spacing, textStyles } from '@repro/design'
 import React from 'react'
+import legalStyles from './LegalPageShell.module.css'
+import sharedStyles from './MarketingShell.module.css'
 
 interface LegalPageShellProps {
   title: string
@@ -20,40 +16,22 @@ export default function LegalPageShell({
   const titleId = React.useId()
 
   return (
-    <Col
-      component="main"
-      props={{ 'aria-labelledby': titleId }}
-      minHeight="100vh"
-      backgroundColor={color.bg.subtle}
-      paddingV={spacing['4xl']}
-      paddingH={spacing.xl}
-    >
-      <Col maxWidth="720px" width="100%" margin="0 auto" gap={spacing['3xl']}>
-        {/* Page header */}
-        <Col gap={spacing.md}>
-          <Block
-            component="h1"
-            id={titleId}
-            {...textStyles.display}
-            color={color.text.default}
-            margin="0"
-          >
-            {title}
-          </Block>
-          <Block
-            component="p"
-            {...textStyles.bodySmall}
-            color={color.text.muted}
-            margin="0"
-          >
-            Last updated: {lastUpdated}
-          </Block>
-        </Col>
+    <section aria-labelledby={titleId} className={legalStyles.legalShell}>
+      <div className={legalStyles.legalInner}>
+        <div className={legalStyles.legalCard}>
+          <header className={legalStyles.legalHeader}>
+            <h1 id={titleId} className={sharedStyles.legalTitle}>
+              {title}
+            </h1>
+            <p className={legalStyles.legalUpdated}>
+              Last updated: {lastUpdated}
+            </p>
+          </header>
 
-        {/* Section content */}
-        <Col gap={spacing['2xl']}>{children}</Col>
-      </Col>
-    </Col>
+          <div className={legalStyles.legalContent}>{children}</div>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -64,19 +42,10 @@ interface LegalSectionProps {
 
 export function LegalSection({ heading, children }: LegalSectionProps) {
   return (
-    <Col component="section" gap={spacing.xl}>
-      <Block
-        component="h2"
-        {...textStyles.heading2}
-        color={color.text.default}
-        margin="0"
-        paddingBottom={spacing.md}
-        borderBottom={`1px solid ${color.border.default}`}
-      >
-        {heading}
-      </Block>
-      <Col gap={spacing.lg}>{children}</Col>
-    </Col>
+    <section className={legalStyles.legalSection}>
+      <h2 className={legalStyles.legalHeading}>{heading}</h2>
+      <div className={legalStyles.legalSectionBody}>{children}</div>
+    </section>
   )
 }
 
@@ -85,14 +54,5 @@ interface LegalParagraphProps {
 }
 
 export function LegalParagraph({ children }: LegalParagraphProps) {
-  return (
-    <Block
-      component="p"
-      {...textStyles.body}
-      color={color.text.secondary}
-      margin="0"
-    >
-      {children}
-    </Block>
-  )
+  return <p className={sharedStyles.legalCopy}>{children}</p>
 }

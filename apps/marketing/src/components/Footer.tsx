@@ -1,97 +1,76 @@
-'use client'
+import footerStyles from './Footer.module.css'
+import { footerGroups, socialLinks } from './marketingShell'
+import sharedStyles from './MarketingShell.module.css'
 
-// jsxstyle requires a client boundary because it injects styles via React context.
-
-import { Block, Col, Grid, Row } from '@jsxstyle/react'
-import { color, focusRing, radius, spacing, textStyles } from '@repro/design'
-import { footerGroups, shellMaxWidth, socialLinks } from './marketingShell'
+const cx = (...classes: Array<string | undefined>) =>
+  classes.filter(Boolean).join(' ')
 
 export function Footer() {
   const year = new Date().getFullYear()
 
   return (
-    <Block
-      component="footer"
-      borderTop={`1px solid ${color.border.default}`}
-      backgroundColor={color.bg.surface}
-    >
-      <Col
-        maxWidth={shellMaxWidth}
-        marginH="auto"
-        padding={spacing.lg}
-        gap={spacing.xl}
-      >
-        <Grid
-          className="marketing-shell__footer-grid"
-          gap={spacing.xl}
-          gridTemplateColumns="repeat(4, minmax(0, 1fr))"
-        >
+    <footer className={footerStyles.siteFooter}>
+      <div className={footerStyles.siteFooterInner}>
+        <div className={cx(sharedStyles.grid4, footerStyles.siteFooterGrid)}>
           {footerGroups.map(group => (
-            <Col key={group.title} gap={spacing.md}>
-              <Block
-                component="h2"
-                {...textStyles.label}
-                color={color.text.default}
+            <section
+              key={group.title}
+              className={footerStyles.siteFooterGroup}
+              aria-labelledby={`footer-${group.title.toLowerCase()}`}
+            >
+              <h2
+                id={`footer-${group.title.toLowerCase()}`}
+                className={cx(
+                  sharedStyles.footerTitle,
+                  footerStyles.footerTitle
+                )}
               >
                 {group.title}
-              </Block>
+              </h2>
 
-              <Col component="nav" gap={spacing.sm}>
+              <nav
+                aria-label={group.title}
+                className={footerStyles.siteFooterNav}
+              >
                 {group.links.map(link => (
-                  <Block
+                  <a
                     key={link.href}
-                    component="a"
-                    props={{ href: link.href }}
-                    {...textStyles.bodySmall}
-                    color={color.text.secondary}
-                    textDecoration="none"
-                    {...focusRing()}
+                    className={cx(
+                      sharedStyles.footerLink,
+                      footerStyles.footerLink
+                    )}
+                    href={link.href}
                   >
                     {link.label}
-                  </Block>
+                  </a>
                 ))}
-              </Col>
-            </Col>
+              </nav>
+            </section>
           ))}
-        </Grid>
+        </div>
 
-        <Row
-          alignItems="center"
-          justifyContent="space-between"
-          gap={spacing.md}
-          flexWrap="wrap"
-        >
-          <Block {...textStyles.bodySmall} color={color.text.secondary}>
-            © {year} Repro
-          </Block>
+        <div className={footerStyles.siteFooterMeta}>
+          <p>© {year} Repro</p>
 
-          <Row
-            component="nav"
+          <nav
             aria-label="Social links"
-            gap={spacing.md}
-            flexWrap="wrap"
+            className={footerStyles.siteFooterSocial}
           >
             {socialLinks.map(link => (
-              <Block
+              <a
                 key={link.href}
-                component="a"
-                props={{ href: link.href, target: '_blank', rel: 'noreferrer' }}
-                {...textStyles.bodySmall}
-                color={color.text.secondary}
-                textDecoration="none"
-                paddingTop={spacing.xs}
-                paddingBottom={spacing.xs}
-                paddingLeft={spacing.sm}
-                paddingRight={spacing.sm}
-                borderRadius={radius.md}
-                {...focusRing()}
+                className={cx(
+                  sharedStyles.button,
+                  sharedStyles.footerSocialLink
+                )}
+                href={link.href}
               >
                 {link.label}
-              </Block>
+              </a>
             ))}
-          </Row>
-        </Row>
-      </Col>
-    </Block>
+          </nav>
+        </div>
+      </div>
+    </footer>
   )
 }

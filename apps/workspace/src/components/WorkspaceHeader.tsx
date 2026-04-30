@@ -9,7 +9,7 @@ export const WorkspaceHeader: React.FC = () => {
       component={Link}
       alignItems="center"
       gap={spacing.md}
-      padding={spacing.lg}
+      paddingV={spacing.lg}
       props={{ to: '/', style: { textDecoration: 'none' } }}
     >
       <Logo size={24} />

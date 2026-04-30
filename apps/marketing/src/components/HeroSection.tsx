@@ -1,22 +1,9 @@
-'use client'
+import heroStyles from './HeroSection.module.css'
+import { homepageHeroMock } from './marketingShell'
+import sharedStyles from './MarketingShell.module.css'
 
-import React from 'react'
-
-// jsxstyle requires a client boundary because it injects styles via React context.
-// When jsxstyle style extraction for SSR/SSG is solved (see Platform issue), this
-// boundary can be removed from leaf components.
-
-import { Block, Col, Row } from '@jsxstyle/react'
-import {
-  Logo,
-  color,
-  radius,
-  spacing,
-  textStyles,
-  transition,
-} from '@repro/design'
-
-void React
+const cx = (...classes: Array<string | undefined>) =>
+  classes.filter(Boolean).join(' ')
 
 type HeroSectionProps = {
   appUrl: string
@@ -24,76 +11,111 @@ type HeroSectionProps = {
 
 export function HeroSection({ appUrl }: HeroSectionProps) {
   return (
-    <Col
-      minHeight="100vh"
-      alignItems="center"
-      justifyContent="center"
-      padding={spacing.xl}
-      backgroundColor={color.bg.surface}
+    <section
+      id="hero"
+      className={cx(
+        sharedStyles.grid12,
+        sharedStyles.shellRow,
+        heroStyles.heroSurface
+      )}
     >
-      <Col alignItems="center" gap={spacing.xl} maxWidth="640px" width="100%">
-        <Logo size={48} />
+      <div
+        className={cx(
+          sharedStyles.cell,
+          sharedStyles.span6,
+          heroStyles.heroCopy
+        )}
+      >
+        <div className={heroStyles.heroCopyInner}>
+          <p className={cx(sharedStyles.heroEyebrow, heroStyles.heroEyebrow)}>
+            {homepageHeroMock.eyebrow}
+          </p>
 
-        <Col alignItems="center" gap={spacing.md}>
-          <Block
-            component="h1"
-            {...textStyles.heading1}
-            color={color.text.default}
-            textAlign="center"
-          >
-            Bug reporting that captures every detail
-          </Block>
+          <h1 className={sharedStyles.heroTitle}>
+            {homepageHeroMock.headline}
+          </h1>
 
-          <Block
-            component="p"
-            {...textStyles.body}
-            color={color.text.secondary}
-            textAlign="center"
-          >
-            Repro automatically captures sessions so your team can reproduce and
-            fix bugs faster — without the back-and-forth.
-          </Block>
-        </Col>
+          <p className={sharedStyles.heroLede}>{homepageHeroMock.lede}</p>
+        </div>
 
-        <Row gap={spacing.md} flexWrap="wrap" justifyContent="center">
-          {/* Primary CTA — link to the workspace app */}
-          <Block
-            component="a"
-            props={{ href: appUrl }}
-            backgroundColor={color.info}
-            color={color.text.inverse}
-            paddingV={spacing.sm}
-            paddingH={spacing.lg}
-            borderRadius={radius.md}
-            {...textStyles.label}
-            fontWeight="600"
-            textDecoration="none"
-            transition={transition.default}
-            hoverBackgroundColor={color.primaryHover}
+        <div className={heroStyles.heroCtaRow}>
+          <a
+            className={cx(sharedStyles.button, sharedStyles.primaryCta)}
+            href={appUrl}
           >
-            Get started free
-          </Block>
+            {homepageHeroMock.primaryCta}
+          </a>
 
-          {/* Secondary CTA — anchor to features section */}
-          <Block
-            component="a"
-            props={{ href: '#features' }}
-            border={`1px solid ${color.border.default}`}
-            color={color.text.default}
-            paddingV={spacing.sm}
-            paddingH={spacing.lg}
-            borderRadius={radius.md}
-            {...textStyles.label}
-            fontWeight="600"
-            textDecoration="none"
-            transition={transition.default}
-            hoverBorderColor={color.border.strong}
-            hoverColor={color.text.default}
+          <a
+            className={cx(sharedStyles.button, sharedStyles.secondaryCta)}
+            href="#features"
           >
-            See how it works
-          </Block>
-        </Row>
-      </Col>
-    </Col>
+            {homepageHeroMock.secondaryCta}
+          </a>
+        </div>
+      </div>
+
+      <div
+        className={cx(
+          sharedStyles.cell,
+          sharedStyles.span6,
+          heroStyles.heroMock
+        )}
+      >
+        <div className={heroStyles.heroShotFloat}>
+          <div className={heroStyles.heroShotScreen}>
+            <div className={heroStyles.heroShotHead}>
+              <span className={sharedStyles.heroPanelLabel}>
+                {homepageHeroMock.labelRow.left}
+              </span>
+
+              <span className={sharedStyles.heroPanelKicker}>
+                {homepageHeroMock.labelRow.right}
+              </span>
+            </div>
+
+            <div className={cx(sharedStyles.grid4, heroStyles.heroShotGrid)}>
+              <article
+                className={cx(
+                  heroStyles.heroShotPanel,
+                  sharedStyles.span2,
+                  heroStyles.heroShotTranscript
+                )}
+              >
+                <span className={sharedStyles.panelTitle}>Evidence</span>
+
+                <div className={heroStyles.heroShotTranscriptRows}>
+                  {homepageHeroMock.transcriptRows.map(row => (
+                    <div key={row.label} className={heroStyles.heroShotRow}>
+                      <b className={sharedStyles.heroTranscriptLabel}>
+                        {row.label}
+                      </b>
+
+                      <p className={sharedStyles.heroTranscriptCopy}>
+                        {row.body}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              {homepageHeroMock.cards.map(card => (
+                <article
+                  key={card.title}
+                  className={cx(
+                    heroStyles.heroShotPanel,
+                    heroStyles.heroShotCard
+                  )}
+                >
+                  <span className={sharedStyles.panelTitle}>{card.title}</span>
+
+                  <p className={sharedStyles.heroCardCopy}>{card.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }

@@ -159,6 +159,11 @@ function parseOptions(args, allowed) {
       continue;
     }
 
+    if (arg === "--remove-parent") {
+      out.removeParent = true;
+      continue;
+    }
+
     const next = args[index + 1];
     if (!notEmpty(next)) {
       usageError(`Missing value for ${arg}`);
@@ -184,6 +189,7 @@ function parseOptions(args, allowed) {
       out.blockedBy = [...(out.blockedBy ?? []), next];
     else if (arg === "--duplicate-of")
       out.duplicateOf = [...(out.duplicateOf ?? []), next];
+    else if (arg === "--parent") out.parent = next;
     else if (arg === "--priority") out.priority = next;
     else if (arg === "--assignee") out.assignee = next;
     else if (arg === "--limit") out.limit = next;
@@ -270,6 +276,7 @@ function issueHelp() {
     "  create --title <title> --project <name>",
     "    --description <markdown>",
     "    --label <name> (repeatable)",
+    "    --parent <issue-id>",
     "    --related <issue-id> (repeatable)",
     "    --blocks <issue-id> (repeatable)",
     "    --blocked-by <issue-id> (repeatable)",
@@ -279,10 +286,13 @@ function issueHelp() {
     "  start <id> [--json]",
     "  update <id> [options]",
     "    --status <name>",
+    "    --title <title>",
     "    --description <markdown>",
     "    --label <name> (repeatable)",
     "    --add-label <name> (repeatable)",
     "    --remove-label <name> (repeatable)",
+    "    --parent <issue-id>",
+    "    --remove-parent",
     "    --assignee <name|email>",
     "    --mine",
     "  comment <id> <body>",
@@ -1191,6 +1201,7 @@ async function issueCreateCommand(args, context) {
     "--description",
     "--label",
     "--priority",
+    "--parent",
     "--related",
     "--blocks",
     "--blocked-by",
@@ -1205,6 +1216,7 @@ async function issueCreateCommand(args, context) {
           "Create an issue in the active team.",
           "  --description <markdown>",
           "  --label <name> (repeatable)",
+          "  --parent <issue-id>",
           "  --related <issue-id> (repeatable)",
           "  --blocks <issue-id> (repeatable)",
           "  --blocked-by <issue-id> (repeatable)",
@@ -1230,6 +1242,15 @@ async function issueCreateCommand(args, context) {
     options.priority !== undefined
       ? parsePriority(options.priority)
       : undefined;
+  const issueResolutionCache = new Map();
+  const resolvedParent = options.parent
+    ? await resolveIssueByIdentifierOnTeam(
+        context,
+        team,
+        options.parent,
+        issueResolutionCache,
+      )
+    : null;
 
   const createdIssue = await createIssueWithFallback(client, {
     teamId: team.id,
@@ -1238,10 +1259,10 @@ async function issueCreateCommand(args, context) {
     projectId: project.id,
     labelIds: resolvedLabels.map((label) => label.id),
     priority,
+    parentId: resolvedParent?.issue.id ?? undefined,
   });
 
   if (createdIssue?.id) {
-    const issueResolutionCache = new Map();
     const relationSpecs = [
       ...(options.related ?? []).map((issueId) => ({
         sourceIssueId: createdIssue.id,
@@ -1331,6 +1352,7 @@ async function issueCreateCommand(args, context) {
 async function issueUpdateCommand(args, context) {
   const options = parseOptions(args, [
     "--status",
+    "--title",
     "--description",
     "--label",
     "--add-label",
@@ -1338,6 +1360,8 @@ async function issueUpdateCommand(args, context) {
     "--project",
     "--milestone",
     "--priority",
+    "--parent",
+    "--remove-parent",
     "--assignee",
     "--mine",
   ]);
@@ -1347,6 +1371,7 @@ async function issueUpdateCommand(args, context) {
       stdout: `${simpleHelp("Usage: linear issue update <id> [options]", [
         "Update issue fields.",
         "  --status <name>",
+        "  --title <title>",
         "  --description <markdown>",
         "  --label <name> (repeatable)",
         "  --add-label <name> (repeatable)",
@@ -1354,6 +1379,8 @@ async function issueUpdateCommand(args, context) {
         "  --project <name>",
         "  --milestone <name>",
         "  --priority <urgent|high|medium|low|none>",
+        "  --parent <issue-id>",
+        "  --remove-parent",
         "  --assignee <name|email>",
         "  --mine",
         "  --json",
@@ -1370,6 +1397,7 @@ async function issueUpdateCommand(args, context) {
   const statusNames = options.statuses ?? [];
   const hasUpdateFields =
     statusNames.length > 0 ||
+    options.title !== undefined ||
     options.description !== undefined ||
     options.labels?.length ||
     options.addLabels?.length ||
@@ -1377,6 +1405,8 @@ async function issueUpdateCommand(args, context) {
     options.project !== undefined ||
     options.milestone !== undefined ||
     options.priority !== undefined ||
+    options.parent !== undefined ||
+    options.removeParent ||
     options.assignee !== undefined ||
     options.mine;
 
@@ -1392,6 +1422,9 @@ async function issueUpdateCommand(args, context) {
   }
   if (options.mine && options.assignee !== undefined) {
     usageError("--mine cannot be combined with --assignee.");
+  }
+  if (options.parent !== undefined && options.removeParent) {
+    usageError("--parent cannot be combined with --remove-parent.");
   }
 
   const { client, issue, team } = await resolveIssueByIdentifier(
@@ -1418,6 +1451,15 @@ async function issueUpdateCommand(args, context) {
     : options.assignee
     ? await resolveUser(client, options.assignee)
     : null;
+  const issueResolutionCache = new Map();
+  const resolvedParent = options.parent
+    ? await resolveIssueByIdentifierOnTeam(
+        context,
+        team,
+        options.parent,
+        issueResolutionCache,
+      )
+    : null;
   const teamLabels =
     options.labels?.length ||
     options.addLabels?.length ||
@@ -1437,6 +1479,7 @@ async function issueUpdateCommand(args, context) {
 
   const input = {};
   if (targetState) input.stateId = targetState.id;
+  if (options.title !== undefined) input.title = options.title;
   if (options.description !== undefined)
     input.description = options.description;
   if (resolvedLabels) {
@@ -1452,6 +1495,8 @@ async function issueUpdateCommand(args, context) {
   if (options.priority !== undefined)
     input.priority = parsePriority(options.priority);
   if (resolvedAssignee) input.assigneeId = resolvedAssignee.id;
+  if (resolvedParent) input.parentId = resolvedParent.issue.id;
+  else if (options.removeParent) input.parentId = null;
 
   if (!Object.keys(input).length) usageError("Missing update fields.");
 
@@ -1864,6 +1909,7 @@ async function helpCommand(args) {
           "Create an issue in the active team.",
           "  --description <markdown>",
           "  --label <name> (repeatable)",
+          "  --parent <issue-id>",
           "  --related <issue-id> (repeatable)",
           "  --blocks <issue-id> (repeatable)",
           "  --blocked-by <issue-id> (repeatable)",
@@ -1898,6 +1944,7 @@ async function helpCommand(args) {
       stdout: `${simpleHelp("Usage: linear issue update <id> [options]", [
         "Update issue fields.",
         "  --status <name>",
+        "  --title <title>",
         "  --description <markdown>",
         "  --label <name> (repeatable)",
         "  --add-label <name> (repeatable)",
@@ -1905,6 +1952,8 @@ async function helpCommand(args) {
         "  --project <name>",
         "  --milestone <name>",
         "  --priority <urgent|high|medium|low|none>",
+        "  --parent <issue-id>",
+        "  --remove-parent",
         "  --assignee <name|email>",
         "  --mine",
         "  --json",

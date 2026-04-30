@@ -71,6 +71,7 @@ const defaultOptions: RecordingOptions = {
   types: new Set(['dom', 'interaction']),
   ignoredNodes: [],
   ignoredSelectors: [],
+  maskedSelectors: [],
   snapshotInterval: 10000,
   eventSampling: {
     pointerMove: 50,
@@ -166,6 +167,7 @@ export function createRecordingStream(
   const domTreeWalker = createDOMTreeWalker({
     ignoredNodes: options.ignoredNodes,
     ignoredSelectors: options.ignoredSelectors,
+    maskedSelectors: options.maskedSelectors,
   })
 
   // TODO: investigate on-the-fly snapshotting
@@ -504,7 +506,7 @@ export function createRecordingStream(
 
   function registerDOMVisitor() {
     const rootId = getNodeId(rootDocument)
-    const domVisitor = createDOMVisitor()
+    const domVisitor = createDOMVisitor(options)
 
     domVisitor.subscribe(vtree => {
       if (vtree.rootId === rootId) {
@@ -654,7 +656,7 @@ export function createRecordingStream(
     observers.push(
       createConsoleObserver(message => {
         addEvent(createConsoleEvent(message))
-      })
+      }, options.maskedSelectors)
     )
   }
 

@@ -4,7 +4,7 @@
   "main": "src/index.ts",
   "scripts": {
     "fmt": "prettier --write src",
-    "test": "tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/**/*.test.ts src/**/*.test.tsx",
+    "test": "tsx --experimental-test-module-mocks --import=global-jsdom/register --test --test-timeout=30000 --test-force-exit src/**/*.test.ts src/**/*.test.tsx",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",

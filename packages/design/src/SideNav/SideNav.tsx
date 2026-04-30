@@ -30,7 +30,6 @@ const SideNavBase = forwardRef<HTMLElement, SideNavProps>(
       <Col
         component="nav"
         gap={spacing.sm}
-        padding={spacing.md}
         props={{ ref, 'aria-label': ariaLabel }}
       >
         {children}

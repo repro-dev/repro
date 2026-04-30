@@ -1,9 +1,9 @@
 import { IfSession, UnlessSession, UserMenu } from '@repro/auth'
-import { AppShell, Link, SideNav } from '@repro/design'
+import { AppShell, Divider, Link, SideNav } from '@repro/design'
 import {
+  BoltIcon,
   CreditCardIcon,
-  FolderIcon,
-  PlayIcon,
+  ListVideoIcon,
   SettingsIcon,
 } from 'lucide-react'
 import React from 'react'
@@ -42,26 +42,24 @@ export const Layout: React.FC = () => {
         >
           <IfSession>
             <SideNav aria-label="Main navigation">
-              <SideNav.Section title="Project">
-                <ProjectSwitcher />
-              </SideNav.Section>
+              <ProjectSwitcher />
 
-              <SideNav.Section title="Main">
-                <SideNav.Item
-                  icon={PlayIcon}
-                  label="Sessions"
-                  active={!!sessionsActive}
-                  component={RouterNavLink}
-                  props={{ to: '/' }}
-                />
-                <SideNav.Item
-                  icon={FolderIcon}
-                  label="Projects"
-                  active={!!projectsActive && !projectSettingsSubtreeActive}
-                  component={RouterLink}
-                  props={{ to: '/projects' }}
-                />
-              </SideNav.Section>
+              <SideNav.Item
+                icon={ListVideoIcon}
+                label="Sessions"
+                active={!!sessionsActive}
+                component={RouterNavLink}
+                props={{ to: '/' }}
+              />
+              <SideNav.Item
+                icon={BoltIcon}
+                label="Settings"
+                active={!!projectsActive && !projectSettingsSubtreeActive}
+                component={RouterLink}
+                props={{ to: '/projects' }}
+              />
+
+              <Divider />
 
               <SideNav.Section title="Account">
                 <SideNav.Item

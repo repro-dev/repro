@@ -172,7 +172,7 @@ if (rootElem) {
     <GlobalErrorBoundary>
       <BrowserRouter basename={basename}>
         <ApiProvider client={apiClient}>
-          <AuthProvider basePath="/staff">
+          <AuthProvider basePath="/staff" loginPath="/login">
             <ThemeProvider theme={adminTheme}>
               <PortalRootProvider>
                 <Suspense fallback={<Loading />}>

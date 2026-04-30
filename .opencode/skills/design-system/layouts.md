@@ -1,6 +1,6 @@
 # Layout Conventions
 
-Every page maps to exactly one layout convention. The system has three tiers:
+Most product/app pages map to exactly one layout convention. Marketing/editorial pages are outside this 3-tier contract and can use their own composition.
 
 ```
 Tier 1: Application Shell (app-shell / tool-view / auth-flow)
@@ -13,27 +13,27 @@ Tier 3: Content Layout (varies per page)
   └── Composition inside PageFrame.Body — list, detail, dashboard, settings, etc.
 ```
 
-Use the decision tree below to select the correct Tier 1 shell, then select the page convention that describes what goes inside it.
+Use the decision tree below for product/app UI, auth flows, and tools. Select the correct Tier 1 shell, then select the page convention that describes what goes inside it.
 
 ## Decision Tree
 
 Evaluate these conditions **in order**. Use the first match.
 
-| # | Condition | Shell (Tier 1) | Page convention (Tier 3) |
-|---|-----------|---------------|-------------------------|
-| 1 | Unauthenticated flow (login, register, password reset, invite accept) | `auth-flow` | — (standalone) |
-| 2 | Immersive full-screen tool (session replay, capture widget) | `tool-view` | — (tool manages own layout) |
-| 3 | Main authenticated pages with sidebar navigation | `app-shell` | Select from page conventions below |
+| #   | Condition                                                             | Shell (Tier 1) | Page convention (Tier 3)           |
+| --- | --------------------------------------------------------------------- | -------------- | ---------------------------------- |
+| 1   | Unauthenticated flow (login, register, password reset, invite accept) | `auth-flow`    | — (standalone)                     |
+| 2   | Immersive full-screen tool (session replay, capture widget)           | `tool-view`    | — (tool manages own layout)        |
+| 3   | Main authenticated pages with sidebar navigation                      | `app-shell`    | Select from page conventions below |
 
 ### Page conventions (inside `app-shell` > `PageFrame`)
 
-| # | Condition | Convention |
-|---|-----------|------------|
-| 1 | Filterable collection of records with empty/populated states | `page-list` |
-| 2 | Single-record detail view with metadata | `page-detail` |
-| 3 | Grid of summary cards, metrics, or KPI tiles | `page-dashboard` |
-| 4 | Settings with secondary sidebar navigation | `page-settings` |
-| 5 | Otherwise (standalone forms, about pages, single-column content) | `page-single` |
+| #   | Condition                                                        | Convention       |
+| --- | ---------------------------------------------------------------- | ---------------- |
+| 1   | Filterable collection of records with empty/populated states     | `page-list`      |
+| 2   | Single-record detail view with metadata                          | `page-detail`    |
+| 3   | Grid of summary cards, metrics, or KPI tiles                     | `page-dashboard` |
+| 4   | Settings with secondary sidebar navigation                       | `page-settings`  |
+| 5   | Otherwise (standalone forms, about pages, single-column content) | `page-single`    |
 
 ---
 
@@ -43,21 +43,21 @@ Evaluate these conditions **in order**. Use the first match.
 
 Sidebar + content area grid shell. Primary authenticated layout.
 
-| Sub-component | Purpose | Key props |
-|---------------|---------|-----------|
-| `AppShell` | Root grid shell, `100vh`, `gridTemplateColumns="220px 1fr"` | — |
-| `AppShell.Sidebar` | Flex column with header/footer slots | `header`, `footer`, `ariaLabel` |
-| `AppShell.Content` | Scrollable content area for `<Outlet />` | — |
+| Sub-component      | Purpose                                                     | Key props                       |
+| ------------------ | ----------------------------------------------------------- | ------------------------------- |
+| `AppShell`         | Root grid shell, `100vh`, `gridTemplateColumns="220px 1fr"` | —                               |
+| `AppShell.Sidebar` | Flex column with header/footer slots                        | `header`, `footer`, `ariaLabel` |
+| `AppShell.Content` | Scrollable content area for `<Outlet />`                    | —                               |
 
 **Sidebar slots:**
 
 `AppShell.Sidebar` uses named slot props to enforce the standard 3-part sidebar layout (header → nav → footer). The component owns the vertical flex distribution, spacing, and border — apps provide content for each slot.
 
-| Prop | Slot | Typical content |
-|------|------|----------------|
-| `header` | Top, with `padding={spacing.lg}` | Logo or workspace switcher |
-| `children` | Middle, `flex: 1` | `SideNav` with route-aware items |
-| `footer` | Bottom, with `border-top` | `UserMenu` from `@repro/auth` |
+| Prop       | Slot                             | Typical content                  |
+| ---------- | -------------------------------- | -------------------------------- |
+| `header`   | Top, with `padding={spacing.lg}` | Logo or workspace switcher       |
+| `children` | Middle, `flex: 1`                | `SideNav` with route-aware items |
+| `footer`   | Bottom, with `border-top`        | `UserMenu` from `@repro/auth`    |
 
 When neither `header` nor `footer` is provided, children fill the entire sidebar for full layout control (backward compatible).
 
@@ -85,17 +85,17 @@ import { AppShell, SideNav } from '@repro/design'
 
 Full-screen tool shell. Sidebar is hidden; compact header bar with back link + tool controls.
 
-| Sub-component | Purpose | Key props |
-|---------------|---------|-----------|
-| `ToolView` | Root grid shell, `100vh`, `gridTemplateRows="auto 1fr"` | — |
-| `ToolView.Header` | Compact bar (40–48px), back link + title + actions | — |
-| `ToolView.Content` | Full-bleed content area (`overflow: hidden`) | — |
+| Sub-component      | Purpose                                                 | Key props |
+| ------------------ | ------------------------------------------------------- | --------- |
+| `ToolView`         | Root grid shell, `100vh`, `gridTemplateRows="auto 1fr"` | —         |
+| `ToolView.Header`  | Compact bar (40–48px), back link + title + actions      | —         |
+| `ToolView.Content` | Full-bleed content area (`overflow: hidden`)            | —         |
 
 **Structure:**
 
 ```tsx
-import { ToolView } from '@repro/design'
-import { DevTools } from '@repro/devtools'
+import { ToolView } from "@repro/design";
+import { DevTools } from "@repro/devtools";
 
 <ToolView>
   <ToolView.Header>
@@ -106,7 +106,7 @@ import { DevTools } from '@repro/devtools'
   <ToolView.Content>
     <DevTools resourceBaseURL={resourceBaseURL} />
   </ToolView.Content>
-</ToolView>
+</ToolView>;
 ```
 
 ### `auth-flow` (standalone layout)
@@ -116,30 +116,31 @@ Unauthenticated flow with a centered content card on a subtle background. Auth l
 **Structure:**
 
 ```tsx
-import { Center, color, spacing, radius, shadow } from '@repro/design'
-import { Block, Col } from '@jsxstyle/react'
+import { Center, color, spacing, radius, shadow } from "@repro/design";
+import { Block, Col } from "@jsxstyle/react";
 
 <Block height="100vh" backgroundColor={color.bg.subtle}>
   <Center>
-    <Col alignItems="flex-start" gap={spacing['2xl']}>
+    <Col alignItems="flex-start" gap={spacing["2xl"]}>
       {/* Logo */}
       <Block
         backgroundColor={color.bg.surface}
         borderRadius={radius.md}
         boxShadow={shadow.md}
-        padding={spacing['3xl']}
+        padding={spacing["3xl"]}
         width={400}
       >
         {/* Form content */}
       </Block>
     </Col>
   </Center>
-</Block>
+</Block>;
 ```
 
 **Storybook:** `Patterns/Shells` > `auth-flow`
 
 **Legacy implementations:**
+
 - `apps/workspace/src/AuthLayout.tsx` — workspace login/register
 - `apps/admin/src/AuthLayout.tsx` — admin login with Admin badge
 
@@ -149,18 +150,18 @@ import { Block, Col } from '@jsxstyle/react'
 
 Page-level header (title, breadcrumbs, actions) above a scrollable body. Rendered inside `AppShell.Content`. Does not own the viewport.
 
-| Sub-component | Purpose | Key props |
-|---------------|---------|-----------|
-| `PageFrame` | Flex column, `height: 100%` (fills parent) | — |
-| `PageFrame.Header` | Flex row: title left, actions right | — |
-| `PageFrame.Title` | `<h1>` with heading typography | — |
-| `PageFrame.Actions` | Right-aligned action buttons | — |
-| `PageFrame.Body` | `flex: 1`, `overflow-y: auto`, scrollable | `maxWidth` |
+| Sub-component       | Purpose                                    | Key props  |
+| ------------------- | ------------------------------------------ | ---------- |
+| `PageFrame`         | Flex column, `height: 100%` (fills parent) | —          |
+| `PageFrame.Header`  | Flex row: title left, actions right        | —          |
+| `PageFrame.Title`   | `<h1>` with heading typography             | —          |
+| `PageFrame.Actions` | Right-aligned action buttons               | —          |
+| `PageFrame.Body`    | `flex: 1`, `overflow-y: auto`, scrollable  | `maxWidth` |
 
 **Structure:**
 
 ```tsx
-import { PageFrame, Button } from '@repro/design'
+import { PageFrame, Button } from "@repro/design";
 
 <PageFrame>
   <PageFrame.Header>
@@ -169,10 +170,8 @@ import { PageFrame, Button } from '@repro/design'
       <Button>New Recording</Button>
     </PageFrame.Actions>
   </PageFrame.Header>
-  <PageFrame.Body>
-    {/* Page content — see Tier 3 conventions */}
-  </PageFrame.Body>
-</PageFrame>
+  <PageFrame.Body>{/* Page content — see Tier 3 conventions */}</PageFrame.Body>
+</PageFrame>;
 ```
 
 ---
@@ -190,9 +189,9 @@ Filterable collection of records with empty and populated states.
 **Structure:**
 
 ```tsx
-import { PageFrame, Card, EmptyState, Button } from '@repro/design'
-import { Col, Grid } from '@jsxstyle/react'
-import { spacing } from '@repro/design'
+import { PageFrame, Card, EmptyState, Button } from "@repro/design";
+import { Col, Grid } from "@jsxstyle/react";
+import { spacing } from "@repro/design";
 
 <PageFrame>
   <PageFrame.Header>
@@ -215,13 +214,13 @@ import { spacing } from '@repro/design'
       </EmptyState>
     ) : (
       <Col gap={spacing.md}>
-        {items.map(item => (
+        {items.map((item) => (
           <Card key={item.id}>{/* Item row */}</Card>
         ))}
       </Col>
     )}
   </PageFrame.Body>
-</PageFrame>
+</PageFrame>;
 ```
 
 ### Convention: `page-detail`
@@ -233,28 +232,26 @@ Single-record detail view with metadata.
 **Structure:**
 
 ```tsx
-import { PageFrame, Breadcrumbs, Card } from '@repro/design'
-import { Col, Grid } from '@jsxstyle/react'
-import { spacing } from '@repro/design'
+import { PageFrame, Breadcrumbs, Card } from "@repro/design";
+import { Col, Grid } from "@jsxstyle/react";
+import { spacing } from "@repro/design";
 
 <PageFrame>
   <PageFrame.Header>
     <Breadcrumbs>
-      <Breadcrumbs.Item component={Link} to="/accounts">Accounts</Breadcrumbs.Item>
+      <Breadcrumbs.Item component={Link} to="/accounts">
+        Accounts
+      </Breadcrumbs.Item>
       <Breadcrumbs.Item current>{account.name}</Breadcrumbs.Item>
     </Breadcrumbs>
   </PageFrame.Header>
   <PageFrame.Body maxWidth={960}>
     <Grid gridTemplateColumns="1fr 320px" gap={spacing.xl}>
-      <Col gap={spacing.lg}>
-        {/* Primary content sections */}
-      </Col>
-      <Card>
-        {/* Metadata sidebar */}
-      </Card>
+      <Col gap={spacing.lg}>{/* Primary content sections */}</Col>
+      <Card>{/* Metadata sidebar */}</Card>
     </Grid>
   </PageFrame.Body>
-</PageFrame>
+</PageFrame>;
 ```
 
 ### Convention: `page-dashboard`
@@ -266,16 +263,16 @@ Grid of summary cards, metrics, or KPI tiles.
 **Structure:**
 
 ```tsx
-import { PageFrame, Card } from '@repro/design'
-import { Col, Grid } from '@jsxstyle/react'
-import { spacing } from '@repro/design'
+import { PageFrame, Card } from "@repro/design";
+import { Col, Grid } from "@jsxstyle/react";
+import { spacing } from "@repro/design";
 
 <PageFrame>
   <PageFrame.Header>
     <PageFrame.Title>Dashboard</PageFrame.Title>
   </PageFrame.Header>
   <PageFrame.Body>
-    <Col gap={spacing['2xl']}>
+    <Col gap={spacing["2xl"]}>
       <Grid
         gridTemplateColumns="repeat(auto-fill, minmax(240px, 1fr))"
         gap={spacing.xl}
@@ -285,7 +282,7 @@ import { spacing } from '@repro/design'
       {/* Charts, tables */}
     </Col>
   </PageFrame.Body>
-</PageFrame>
+</PageFrame>;
 ```
 
 ### Convention: `page-settings`
@@ -297,9 +294,9 @@ Settings with a secondary sidebar navigation for sections.
 **Structure:**
 
 ```tsx
-import { PageFrame, SideNav } from '@repro/design'
-import { Grid } from '@jsxstyle/react'
-import { spacing } from '@repro/design'
+import { PageFrame, SideNav } from "@repro/design";
+import { Grid } from "@jsxstyle/react";
+import { spacing } from "@repro/design";
 
 <PageFrame>
   <PageFrame.Header>
@@ -308,16 +305,22 @@ import { spacing } from '@repro/design'
   <PageFrame.Body>
     <Grid gridTemplateColumns="200px 1fr" gap={spacing.xl} height="100%">
       <SideNav aria-label="Settings navigation">
-        <SideNav.Item component={NavLink} to="/settings" active>General</SideNav.Item>
-        <SideNav.Item component={NavLink} to="/settings/team">Team</SideNav.Item>
-        <SideNav.Item component={NavLink} to="/settings/api-keys">API Keys</SideNav.Item>
+        <SideNav.Item component={NavLink} to="/settings" active>
+          General
+        </SideNav.Item>
+        <SideNav.Item component={NavLink} to="/settings/team">
+          Team
+        </SideNav.Item>
+        <SideNav.Item component={NavLink} to="/settings/api-keys">
+          API Keys
+        </SideNav.Item>
       </SideNav>
-      <Col gap={spacing['2xl']} maxWidth={720}>
+      <Col gap={spacing["2xl"]} maxWidth={720}>
         <Outlet />
       </Col>
     </Grid>
   </PageFrame.Body>
-</PageFrame>
+</PageFrame>;
 ```
 
 ### Convention: `page-single`
@@ -329,20 +332,18 @@ Single-column content with width-constrained body.
 **Structure:**
 
 ```tsx
-import { PageFrame } from '@repro/design'
-import { Col } from '@jsxstyle/react'
-import { spacing } from '@repro/design'
+import { PageFrame } from "@repro/design";
+import { Col } from "@jsxstyle/react";
+import { spacing } from "@repro/design";
 
 <PageFrame>
   <PageFrame.Header>
     <PageFrame.Title>Create Team</PageFrame.Title>
   </PageFrame.Header>
   <PageFrame.Body maxWidth={720}>
-    <Col gap={spacing['2xl']}>
-      {/* Content sections */}
-    </Col>
+    <Col gap={spacing["2xl"]}>{/* Content sections */}</Col>
   </PageFrame.Body>
-</PageFrame>
+</PageFrame>;
 ```
 
 ---
@@ -351,69 +352,70 @@ import { spacing } from '@repro/design'
 
 ### Layout Primitives
 
-| Component | Purpose | Key props |
-|-----------|---------|-----------|
-| `Stack` | Vertical flex layout with token-constrained gap | `gap` (spacing token key, e.g. `"xl"`), `component` |
-| `Center` | Horizontal + vertical centering via CSS Grid | `maxWidth` |
+| Component | Purpose                                         | Key props                                           |
+| --------- | ----------------------------------------------- | --------------------------------------------------- |
+| `Stack`   | Vertical flex layout with token-constrained gap | `gap` (spacing token key, e.g. `"xl"`), `component` |
+| `Center`  | Horizontal + vertical centering via CSS Grid    | `maxWidth`                                          |
 
 ### Navigation Primitives
 
-| Component | Purpose | Key props |
-|-----------|---------|-----------|
-| `SideNav` | Vertical sidebar navigation (`<nav>`) | `aria-label` |
-| `SideNav.Section` | Grouped nav items with optional title | `title` |
-| `SideNav.Item` | Nav link with icon, active state, router integration | `icon`, `active`, `component` |
-| `Breadcrumbs` | Hierarchical page location (`<nav>`) | — |
-| `Breadcrumbs.Item` | Breadcrumb link with router integration | `component`, `current` |
-| `DropdownMenu` | Trigger-activated action menu | — |
+| Component          | Purpose                                              | Key props                     |
+| ------------------ | ---------------------------------------------------- | ----------------------------- |
+| `SideNav`          | Vertical sidebar navigation (`<nav>`)                | `aria-label`                  |
+| `SideNav.Section`  | Grouped nav items with optional title                | `title`                       |
+| `SideNav.Item`     | Nav link with icon, active state, router integration | `icon`, `active`, `component` |
+| `Breadcrumbs`      | Hierarchical page location (`<nav>`)                 | —                             |
+| `Breadcrumbs.Item` | Breadcrumb link with router integration              | `component`, `current`        |
+| `DropdownMenu`     | Trigger-activated action menu                        | —                             |
 
 ---
 
 ## Route-to-Convention Mapping
 
-Every route in both apps is mapped to a Tier 1 shell and a Tier 3 page convention. Use this as a lookup when building or migrating any route.
+Every product/app route in both apps is mapped to a Tier 1 shell and a Tier 3 page convention. Marketing/editorial routes are intentionally excluded from this lookup.
 
 **Status key:**
+
 - **Existing** — route already uses the target shell/convention
 - **Migration** — route exists but needs migration to the target architecture
 - **Planned** — route does not exist yet; convention is pre-assigned for when it is built
 
 ### Workspace App (`apps/workspace`)
 
-| Route | Shell | Page Convention | Status |
-|-------|-------|-----------------|--------|
-| `/account/login` | `auth-flow` | — | Existing |
-| `/account/register` | `auth-flow` | — | Existing |
-| `/account/verify` | `auth-flow` | — | Existing |
-| `/` | `app-shell` | redirect → `/sessions` | Migration |
-| `/sessions` | `app-shell` | `page-list` | Migration |
-| `/recordings/:recordingId` | `tool-view` | — | Migration |
-| `/settings` | `app-shell` | `page-settings` | Planned |
-| `/settings/team` | `app-shell` | `page-settings` | Planned |
-| `/settings/api-keys` | `app-shell` | `page-settings` | Planned |
-| `/share/:recordingId` | standalone | — | Existing |
-| `/accept-invitation` | `auth-flow` | — | Existing |
+| Route                      | Shell       | Page Convention        | Status    |
+| -------------------------- | ----------- | ---------------------- | --------- |
+| `/account/login`           | `auth-flow` | —                      | Existing  |
+| `/account/register`        | `auth-flow` | —                      | Existing  |
+| `/account/verify`          | `auth-flow` | —                      | Existing  |
+| `/`                        | `app-shell` | redirect → `/sessions` | Migration |
+| `/sessions`                | `app-shell` | `page-list`            | Migration |
+| `/recordings/:recordingId` | `tool-view` | —                      | Migration |
+| `/settings`                | `app-shell` | `page-settings`        | Planned   |
+| `/settings/team`           | `app-shell` | `page-settings`        | Planned   |
+| `/settings/api-keys`       | `app-shell` | `page-settings`        | Planned   |
+| `/share/:recordingId`      | standalone  | —                      | Existing  |
+| `/accept-invitation`       | `auth-flow` | —                      | Existing  |
 
 ### Admin App (`apps/admin`)
 
-| Route | Shell | Page Convention | Status |
-|-------|-------|-----------------|--------|
-| `/account/login` | `auth-flow` | — | Existing |
-| `/` | `app-shell` | `page-list` | Migration |
-| `/recordings/:recordingId` | `tool-view` | — | Migration |
+| Route                      | Shell       | Page Convention | Status    |
+| -------------------------- | ----------- | --------------- | --------- |
+| `/account/login`           | `auth-flow` | —               | Existing  |
+| `/`                        | `app-shell` | `page-list`     | Migration |
+| `/recordings/:recordingId` | `tool-view` | —               | Migration |
 
 ### Convention Reference
 
-| Convention | Storybook Location |
-|------------|--------------------|
-| `app-shell` | `Patterns/Shells` > `app-shell` |
-| `tool-view` | `Patterns/Shells` > `tool-view` |
-| `auth-flow` | `Patterns/Shells` > `auth-flow` |
-| `page-list` | `Patterns/Pages` > `page-list` |
-| `page-detail` | `Patterns/Pages` > `page-detail` |
+| Convention       | Storybook Location                  |
+| ---------------- | ----------------------------------- |
+| `app-shell`      | `Patterns/Shells` > `app-shell`     |
+| `tool-view`      | `Patterns/Shells` > `tool-view`     |
+| `auth-flow`      | `Patterns/Shells` > `auth-flow`     |
+| `page-list`      | `Patterns/Pages` > `page-list`      |
+| `page-detail`    | `Patterns/Pages` > `page-detail`    |
 | `page-dashboard` | `Patterns/Pages` > `page-dashboard` |
-| `page-settings` | `Patterns/Pages` > `page-settings` |
-| `page-single` | `Patterns/Pages` > `page-single` |
+| `page-settings`  | `Patterns/Pages` > `page-settings`  |
+| `page-single`    | `Patterns/Pages` > `page-single`    |
 
 ---
 
@@ -433,7 +435,13 @@ React Router v6 layout routes scope each shell:
   </Route>
 
   {/* App shell — sidebar nav */}
-  <Route element={<RequireSession><AppShellLayout /></RequireSession>}>
+  <Route
+    element={
+      <RequireSession>
+        <AppShellLayout />
+      </RequireSession>
+    }
+  >
     <Route index element={<Navigate to="/sessions" />} />
     <Route path="sessions" element={<SessionsList />} />
     <Route path="settings" element={<SettingsLayout />}>
@@ -444,7 +452,13 @@ React Router v6 layout routes scope each shell:
   </Route>
 
   {/* Tool view — full-screen playback */}
-  <Route element={<RequireSession><ToolViewLayout /></RequireSession>}>
+  <Route
+    element={
+      <RequireSession>
+        <ToolViewLayout />
+      </RequireSession>
+    }
+  >
     <Route path="recordings/:recordingId" element={<RecordingRoute />} />
   </Route>
 
@@ -464,12 +478,24 @@ React Router v6 layout routes scope each shell:
   </Route>
 
   {/* App shell */}
-  <Route element={<RequireSession><AppShellLayout /></RequireSession>}>
+  <Route
+    element={
+      <RequireSession>
+        <AppShellLayout />
+      </RequireSession>
+    }
+  >
     <Route index element={<HomeRoute />} />
   </Route>
 
   {/* Tool view */}
-  <Route element={<RequireSession><ToolViewLayout /></RequireSession>}>
+  <Route
+    element={
+      <RequireSession>
+        <ToolViewLayout />
+      </RequireSession>
+    }
+  >
     <Route path="recordings/:recordingId" element={<RecordingRoute />} />
   </Route>
 </Routes>
@@ -481,23 +507,30 @@ React Router v6 layout routes scope each shell:
 
 ```tsx
 // Tier 1 shells
-import { AppShell, ToolView } from '@repro/design'
+import { AppShell, ToolView } from "@repro/design";
 
 // Auth components (session-aware UI)
-import { IfSession, UnlessSession, UserMenu } from '@repro/auth'
+import { IfSession, UnlessSession, UserMenu } from "@repro/auth";
 
 // Tier 2 page frame
-import { PageFrame } from '@repro/design'
+import { PageFrame } from "@repro/design";
 
 // Navigation primitives
-import { SideNav, Breadcrumbs, DropdownMenu } from '@repro/design'
+import { SideNav, Breadcrumbs, DropdownMenu } from "@repro/design";
 
 // Content components
-import { Card, EmptyState, Button, Stack, Center } from '@repro/design'
+import { Card, EmptyState, Button, Stack, Center } from "@repro/design";
 
 // Tokens
-import { color, colors, spacing, radius, shadow, textStyles } from '@repro/design'
+import {
+  color,
+  colors,
+  spacing,
+  radius,
+  shadow,
+  textStyles,
+} from "@repro/design";
 
 // Layout primitives
-import { Block, Col, Row, Grid } from '@jsxstyle/react'
+import { Block, Col, Row, Grid } from "@jsxstyle/react";
 ```

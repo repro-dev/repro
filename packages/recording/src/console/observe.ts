@@ -17,7 +17,8 @@ import { redactConsoleValue } from '../redaction'
 const MAX_SERIALIZATION_DEPTH = 20
 
 export function createConsoleObserver(
-  subscriber: (message: ConsoleMessage) => void
+  subscriber: (message: ConsoleMessage) => void,
+  maskedSelectors: Array<string> = []
 ): ObserverLike {
   const bind = Function.prototype.bind
   const log = bind.call(console.log, console)
@@ -111,7 +112,7 @@ export function createConsoleObserver(
               if (value instanceof Node) {
                 return new Box({
                   type: MessagePartType.Node,
-                  node: createVNode(value),
+                  node: createVNode(value, { maskedSelectors }),
                 })
               }
 
