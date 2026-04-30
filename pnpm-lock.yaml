@@ -11,7 +11,7 @@ overrides:
   '@types/react-dom': 18.3.0
   expect: 29.7.0
   global-jsdom: 27.0.0
-  lucide-react: 0.542.0
+  lucide-react: 1.9.0
   react: 18.3.1
   react-dom: 18.3.1
   react-hook-form: 7.53.0
@@ -58,6 +58,9 @@ importers:
       '@types/trusted-types':
         specifier: ^2.0.7
         version: 2.0.7
+      global-jsdom:
+        specifier: 27.0.0
+        version: 27.0.0(jsdom@27.0.0(postcss@8.5.8))
       husky:
         specifier: ^9.1.7
         version: 9.1.7
@@ -128,8 +131,8 @@ importers:
         specifier: ^14.0.0
         version: 14.0.0
       lucide-react:
-        specifier: 0.542.0
-        version: 0.542.0(react@18.3.1)
+        specifier: 1.9.0
+        version: 1.9.0(react@18.3.1)
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -511,8 +514,8 @@ importers:
         specifier: ^14.0.0
         version: 14.0.0
       lucide-react:
-        specifier: 0.542.0
-        version: 0.542.0(react@18.3.1)
+        specifier: 1.9.0
+        version: 1.9.0(react@18.3.1)
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -635,8 +638,8 @@ importers:
         specifier: ^14.0.0
         version: 14.0.0
       lucide-react:
-        specifier: 0.542.0
-        version: 0.542.0(react@18.3.1)
+        specifier: 1.9.0
+        version: 1.9.0(react@18.3.1)
       pretty-bytes:
         specifier: ^6.0.0
         version: 6.0.0
@@ -741,8 +744,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/wire-formats
       lucide-react:
-        specifier: 0.542.0
-        version: 0.542.0(react@18.3.1)
+        specifier: 1.9.0
+        version: 1.9.0(react@18.3.1)
       prop-types:
         specifier: ^15.8.1
         version: 15.8.1
@@ -801,15 +804,9 @@ importers:
       '@jsxstyle/react':
         specifier: ^3.0.1
         version: 3.0.1(@types/react@18.3.10)(react@18.3.1)
-      '@repro/analytics':
-        specifier: workspace:*
-        version: link:../../packages/analytics
       '@repro/design':
         specifier: workspace:*
         version: link:../../packages/design
-      '@repro/domain':
-        specifier: workspace:*
-        version: link:../../packages/domain
       next:
         specifier: ^15.3.1
         version: 15.5.14(@playwright/test@1.58.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -990,8 +987,8 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0
       lucide-react:
-        specifier: 0.542.0
-        version: 0.542.0(react@18.3.1)
+        specifier: 1.9.0
+        version: 1.9.0(react@18.3.1)
       pretty-bytes:
         specifier: ^6.0.0
         version: 6.0.0
@@ -1212,8 +1209,8 @@ importers:
         specifier: workspace:*
         version: link:../design
       lucide-react:
-        specifier: 0.542.0
-        version: 0.542.0(react@18.3.1)
+        specifier: 1.9.0
+        version: 1.9.0(react@18.3.1)
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -1487,8 +1484,8 @@ importers:
         specifier: ^14.0.0
         version: 14.0.0
       lucide-react:
-        specifier: 0.542.0
-        version: 0.542.0(react@18.3.1)
+        specifier: 1.9.0
+        version: 1.9.0(react@18.3.1)
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -1692,8 +1689,8 @@ importers:
         specifier: workspace:*
         version: link:../vdom-utils
       lucide-react:
-        specifier: 0.542.0
-        version: 0.542.0(react@18.3.1)
+        specifier: 1.9.0
+        version: 1.9.0(react@18.3.1)
       md5:
         specifier: ^2.3.0
         version: 2.3.0
@@ -1837,8 +1834,8 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0
       lucide-react:
-        specifier: 0.542.0
-        version: 0.542.0(react@18.3.1)
+        specifier: 1.9.0
+        version: 1.9.0(react@18.3.1)
       pretty-bytes:
         specifier: ^6.0.0
         version: 6.0.0
@@ -2305,8 +2302,8 @@ importers:
         specifier: ^14.0.0
         version: 14.0.0
       lucide-react:
-        specifier: 0.542.0
-        version: 0.542.0(react@18.3.1)
+        specifier: 1.9.0
+        version: 1.9.0(react@18.3.1)
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -7547,8 +7544,8 @@ packages:
   lru_map@0.3.3:
     resolution: {integrity: sha512-Pn9cox5CsMYngeDbmChANltQl+5pi6XmTrraMSzhPmMBbmgcxmqWry0U3PGapCU1yB4/LqCcom7qhHZiF/jGfQ==}
 
-  lucide-react@0.542.0:
-    resolution: {integrity: sha512-w3hD8/SQB7+lzU2r4VdFyzzOzKnUjTZIF/MQJGSSvni7Llewni4vuViRppfRAa2guOsY5k4jZyxw/i9DQHv+dw==}
+  lucide-react@1.9.0:
+    resolution: {integrity: sha512-6qVAmbgCjcJz7sAGSPSSJ++RAwjlK2XCbRrZKv63Ciko1KT8jX0//CXxgI3jg2HlJu8tADqdYlNDebmYjeoruA==}
     peerDependencies:
       react: 18.3.1
 
@@ -15149,7 +15146,7 @@ snapshots:
 
   lru_map@0.3.3: {}
 
-  lucide-react@0.542.0(react@18.3.1):
+  lucide-react@1.9.0(react@18.3.1):
     dependencies:
       react: 18.3.1
 

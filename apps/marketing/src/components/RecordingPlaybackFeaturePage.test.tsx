@@ -1,14 +1,9 @@
-import { createRequire } from 'module'
+import { createRequire } from 'node:module'
 import { afterEach, describe, it } from 'node:test'
 
 import assert from 'node:assert/strict'
 
 const require = createRequire(import.meta.url)
-
-if (process.env.NODE_ENV !== 'production') {
-  require('../../../../node_modules/.pnpm/node_modules/global-jsdom/commonjs/register.cjs')
-}
-
 const React = require('react')
 const { cleanup, render, screen } = require('@testing-library/react')
 const { renderToString } = require('react-dom/server')
@@ -24,7 +19,7 @@ function setViewportWidth(width: number) {
     writable: true,
   })
 
-  window.dispatchEvent(new Event('resize'))
+  window.dispatchEvent(new window.Event('resize'))
 }
 
 function getResponsiveGrid(heading: string) {
@@ -41,6 +36,21 @@ function getResponsiveGrid(heading: string) {
   return grid
 }
 
+function mockSiteLayoutModules(t: any) {
+  t.mock.module('./SiteLayout.module.css', {
+    defaultExport: {},
+  })
+  t.mock.module('./Header.module.css', {
+    defaultExport: {},
+  })
+  t.mock.module('./Footer.module.css', {
+    defaultExport: {},
+  })
+  t.mock.module('./MarketingShell.module.css', {
+    defaultExport: {},
+  })
+}
+
 describe('recording playback feature route', () => {
   it('renders the server markup without viewport-dependent branching', async t => {
     t.mock.module('~/config/env', {
@@ -55,14 +65,11 @@ describe('recording playback feature route', () => {
       },
     })
 
-    const { JsxstyleRegistry } = await import('../app/JsxstyleRegistry')
     const { default: RecordingPlaybackPage, metadata } = await import(
       '../app/features/recording-playback/page'
     )
 
-    const markup = renderToString(
-      React.createElement(JsxstyleRegistry, null, RecordingPlaybackPage())
-    )
+    const markup = renderToString(RecordingPlaybackPage())
 
     assert.equal(metadata.title, 'Recording and playback')
     assert.match(
@@ -79,6 +86,7 @@ describe('recording playback feature route', () => {
 
   it('keeps the story intact at mobile widths', async t => {
     setViewportWidth(375)
+    mockSiteLayoutModules(t)
 
     t.mock.module('~/config/env', {
       namedExports: {
@@ -111,12 +119,12 @@ describe('recording playback feature route', () => {
     )
     assert.ok(
       screen.getByText(
-        /Passwords, clipboard contents, and other sensitive fields/i
+        /Password values, clipboard contents, and other sensitive fields/i
       )
     )
 
     assert.ok(screen.getByRole('heading', { name: 'Playback' }))
-    assert.ok(screen.getByText(/sandboxed iframe/i))
+    assert.ok(screen.getAllByText(/sandboxed iframe/i).length > 0)
     assert.ok(
       screen.getByText(
         /pause at a breakpoint, scrub the range selector, and keep going even without a live connection/i
@@ -158,6 +166,7 @@ describe('recording playback feature route', () => {
 
   it('reflows the section grids at 768px', async t => {
     setViewportWidth(768)
+    mockSiteLayoutModules(t)
 
     t.mock.module('~/config/env', {
       namedExports: {

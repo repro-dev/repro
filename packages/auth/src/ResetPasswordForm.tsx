@@ -1,15 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Block, Col } from '@jsxstyle/react'
 import {
+  Alert,
   Button,
   color,
-  colors,
   FormField,
   FormFieldError,
   Input,
   Label,
+  spacing,
+  textStyles,
 } from '@repro/design'
 import { fork } from 'fluture'
+import { AlertCircleIcon } from 'lucide-react'
 import React, { useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import z from 'zod'
@@ -74,38 +77,29 @@ export const ResetPasswordForm: React.FC<Props> = ({
   return (
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Col gap={16}>
-          <Col gap={12}>
-            <Block fontSize={15} fontWeight={700} color={color.primary}>
-              Set New Password
+        <Col gap={spacing.xl}>
+          <Col gap={spacing.lg}>
+            <Block
+              component="h1"
+              {...textStyles.heading2}
+              color={color.primary}
+            >
+              Set new password
             </Block>
 
             <Block
-              paddingBottom={10}
-              fontSize={13}
-              lineHeight="1.5em"
-              borderBottom={`1px solid ${color.border.default}`}
+              component="p"
+              {...textStyles.bodySmall}
               color={color.text.muted}
             >
-              Enter a new password for your account
+              Enter a new password for your account.
             </Block>
           </Col>
 
           {errorMessage && (
-            <Block
-              alignSelf="stretch"
-              padding={10}
-              fontSize={13}
-              lineHeight={1.5}
-              backgroundColor={colors.rose['100']}
-              color={colors.rose['700']}
-              borderRadius={4}
-              borderColor={colors.rose['300']}
-              borderStyle="solid"
-              borderWidth={1}
-            >
+            <Alert type="danger" icon={<AlertCircleIcon size={16} />}>
               {errorMessage}
-            </Block>
+            </Alert>
           )}
 
           <FormField>
@@ -161,7 +155,7 @@ export const ResetPasswordForm: React.FC<Props> = ({
             disabled={!formState.isValid || formState.isSubmitting}
             type="submit"
           >
-            Set New Password
+            Set new password
           </Button>
         </Col>
       </form>

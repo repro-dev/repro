@@ -1,5 +1,9 @@
 export const MASKED_VALUE = '[MASKED]'
 
+export function redactStringPreservingWhitespace(value: string): string {
+  return Array.from(value, char => (/\s/u.test(char) ? char : '*')).join('')
+}
+
 const SENSITIVE_HEADER_NAMES = new Set([
   'authorization',
   'cookie',

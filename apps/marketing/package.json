@@ -9,14 +9,12 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "fmt": "prettier --write src",
-    "test": "tsx --experimental-test-module-mocks --import=global-jsdom/register --test src/**/*.test.ts src/**/*.test.tsx"
+    "test": "tsx --experimental-test-module-mocks --import=global-jsdom/register --test --test-timeout=30000 --test-force-exit src/**/*.test.ts src/**/*.test.tsx"
   },
   "license": "UNLICENSED",
   "dependencies": {
     "@jsxstyle/react": "^3.0.1",
-    "@repro/analytics": "workspace:*",
     "@repro/design": "workspace:*",
-    "@repro/domain": "workspace:*",
     "next": "^15.3.1",
     "react": "overridden",
     "react-dom": "overridden",

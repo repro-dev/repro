@@ -1,12 +1,20 @@
 import { DOMPatch, NodeType, PatchType } from '@repro/domain'
+import { Box } from '@repro/tdl'
 import { deepUnbox, MockNodeList } from '@repro/testing-utils'
 import { getNodeId } from '@repro/vdom-utils'
 import expect from 'expect'
 import { describe, it } from 'node:test'
+import { redactStringPreservingWhitespace } from '../redaction'
 import { RecordingOptions } from '../types'
 import { internal__processMutationRecords } from './observe'
 import { createDOMTreeWalker } from './utils'
 import { createDOMVisitor } from './visitor'
+
+function unwrapValue(value: any): any {
+  return value && typeof value === 'object' && 'value' in value
+    ? unwrapValue(value.value)
+    : value
+}
 
 describe('libs/record: dom observers', () => {
   it('should correctly process an attribute mutation record', () => {
@@ -34,6 +42,7 @@ describe('libs/record: dom observers', () => {
       snapshotInterval: 10_000,
       ignoredNodes: [],
       ignoredSelectors: [],
+      maskedSelectors: [],
       eventSampling: {
         pointerMove: 50,
         resize: 250,
@@ -84,6 +93,7 @@ describe('libs/record: dom observers', () => {
       snapshotInterval: 10_000,
       ignoredNodes: [],
       ignoredSelectors: [],
+      maskedSelectors: [],
       eventSampling: {
         pointerMove: 50,
         resize: 250,
@@ -147,6 +157,7 @@ describe('libs/record: dom observers', () => {
       snapshotInterval: 10_000,
       ignoredNodes: [],
       ignoredSelectors: [],
+      maskedSelectors: [],
       eventSampling: {
         pointerMove: 50,
         resize: 250,
@@ -155,7 +166,7 @@ describe('libs/record: dom observers', () => {
     }
 
     const walkDOMTree = createDOMTreeWalker(options)
-    walkDOMTree.acceptDOMVisitor(createDOMVisitor())
+    walkDOMTree.acceptDOMVisitor(createDOMVisitor(options))
 
     const subscriber = (patch: DOMPatch) => {
       patches.push(patch)
@@ -219,5 +230,127 @@ describe('libs/record: dom observers', () => {
         ],
       },
     ])
+  })
+
+  it('masks text mutations inside selector-masked subtrees without ignoring them', () => {
+    const patches: Array<DOMPatch> = []
+
+    const target = document.createTextNode('secret')
+    const maskedRoot = document.createElement('div')
+    maskedRoot.className = 'repro-mask'
+    maskedRoot.append(target)
+
+    const records: Array<MutationRecord> = [
+      {
+        type: 'characterData',
+        attributeName: null,
+        attributeNamespace: null,
+        oldValue: 'old secret',
+        addedNodes: MockNodeList.empty(),
+        removedNodes: MockNodeList.empty(),
+        target,
+        nextSibling: null,
+        previousSibling: null,
+      },
+    ]
+
+    const options: RecordingOptions = {
+      types: new Set(['dom']),
+      snapshotInterval: 10_000,
+      ignoredNodes: [],
+      ignoredSelectors: ['.rr-ignore'],
+      maskedSelectors: ['.repro-mask'],
+      eventSampling: {
+        pointerMove: 50,
+        resize: 250,
+        scroll: 100,
+      },
+    }
+
+    const walkDOMTree = createDOMTreeWalker(options)
+    walkDOMTree.acceptDOMVisitor(createDOMVisitor(options))
+
+    const subscriber = (patch: DOMPatch) => {
+      patches.push(patch)
+    }
+
+    internal__processMutationRecords(records, walkDOMTree, options, subscriber)
+
+    expect(patches).toEqual([
+      new Box({
+        type: PatchType.Text,
+        targetId: getNodeId(target),
+        value: '******',
+        oldValue: '*** ******',
+        parentId: getNodeId(maskedRoot),
+      }),
+    ])
+  })
+
+  it('preserves selector-masked structure while excluding rr-ignore subtrees in snapshots', () => {
+    const options: RecordingOptions = {
+      types: new Set(['dom']),
+      snapshotInterval: 10_000,
+      ignoredNodes: [],
+      ignoredSelectors: ['.rr-ignore'],
+      maskedSelectors: ['.repro-mask'],
+      eventSampling: {
+        pointerMove: 50,
+        resize: 250,
+        scroll: 100,
+      },
+    }
+
+    const maskedRoot = document.createElement('section')
+    maskedRoot.className = 'repro-mask'
+    const maskedText = document.createTextNode('secret')
+    maskedRoot.append(maskedText)
+
+    const maskedOption = document.createElement('option')
+    maskedOption.value = 'secret-option'
+    maskedOption.setAttribute('value', 'secret-option')
+    maskedOption.textContent = 'public label'
+    maskedRoot.append(maskedOption)
+
+    const ignoredRoot = document.createElement('section')
+    ignoredRoot.className = 'rr-ignore'
+    ignoredRoot.append(document.createTextNode('ignored'))
+
+    document.body.append(maskedRoot, ignoredRoot)
+
+    const walkDOMTree = createDOMTreeWalker(options)
+    const visitor = createDOMVisitor(options)
+    walkDOMTree.acceptDOMVisitor(visitor)
+
+    const vtree = walkDOMTree(document)
+
+    expect(vtree).not.toBeNull()
+    const values = Object.values(vtree?.nodes ?? {}).map(node => {
+      return unwrapValue((node as any).value)
+    })
+
+    expect(values).toContain(redactStringPreservingWhitespace('secret'))
+
+    const maskedTextValue = values.find(
+      value => typeof value === 'string'
+    ) as string
+    expect(maskedTextValue).toBe(redactStringPreservingWhitespace('secret'))
+
+    const optionNode = Object.values(vtree?.nodes ?? {})
+      .map(node => unwrapValue((node as any).value))
+      .find(node => node?.tagName === 'option') as any
+
+    expect(optionNode?.attributes?.value).toBe(
+      redactStringPreservingWhitespace('secret-option')
+    )
+
+    expect(
+      values.some(node => {
+        return node?.attributes?.class === 'rr-ignore'
+      })
+    ).toBe(false)
+
+    document.body.removeChild(maskedRoot)
+    document.body.removeChild(ignoredRoot)
   })
 })
