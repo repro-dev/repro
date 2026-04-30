@@ -44,8 +44,16 @@ describe('libs/record: console observers', () => {
     console.debug = noop
   }
 
-  function flush() {
-    return new Promise(resolve => setTimeout(resolve, 25))
+  async function waitForMessages(
+    messages: Array<ConsoleMessage>,
+    expectedCount: number,
+    timeoutMs = 250
+  ) {
+    const deadline = Date.now() + timeoutMs
+
+    while (messages.length < expectedCount && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
   }
 
   function expectLayoutPreservingMask(value: string, original: string) {
@@ -77,7 +85,7 @@ describe('libs/record: console observers', () => {
       count: 2,
     })
 
-    await flush()
+    await waitForMessages(messages, 1)
 
     expect(messages).toHaveLength(1)
     const firstMessage = messages[0] as any
@@ -108,7 +116,7 @@ describe('libs/record: console observers', () => {
     console.log('Authorization: Bearer super-secret-token')
     console.log('plain text message')
 
-    await flush()
+    await waitForMessages(messages, 2)
 
     expect(messages).toHaveLength(2)
     const firstMessage = messages[0] as any
@@ -146,7 +154,7 @@ describe('libs/record: console observers', () => {
 
     console.log(maskedText)
 
-    await flush()
+    await waitForMessages(messages, 1)
 
     expect(messages).toHaveLength(1)
     const firstMessage = messages[0] as any
