@@ -1,14 +1,17 @@
-'use client'
-
-// jsxstyle requires a client boundary because it injects styles via React context.
-
-import { Block, Col, Grid } from '@jsxstyle/react'
-import { color, radius, spacing, textStyles } from '@repro/design'
 import { HeroSection } from './HeroSection'
-import {
-  homepageFeatureHighlights,
-  homepageSocialProof,
-} from './marketingShell'
+import homeStyles from './HomePageContent.module.css'
+import { homepageNarrativeCards, homepageProofCards } from './marketingShell'
+import sharedStyles from './MarketingShell.module.css'
+
+const cx = (...classes: Array<string | undefined>) =>
+  classes.filter(Boolean).join(' ')
+
+const proofMarkerStyles = {
+  danger: homeStyles.proofMarkerDanger,
+  info: homeStyles.proofMarkerInfo,
+  success: homeStyles.proofMarkerSuccess,
+  warning: homeStyles.proofMarkerWarning,
+} as const
 
 type HomePageContentProps = {
   appUrl: string
@@ -16,123 +19,91 @@ type HomePageContentProps = {
 
 export function HomePageContent({ appUrl }: HomePageContentProps) {
   return (
-    <Col gap={spacing['4xl']}>
+    <div className={homeStyles.homeContent}>
       <HeroSection appUrl={appUrl} />
 
-      <Col component="section" id="features" gap={spacing.lg}>
-        <Col gap={spacing.sm} maxWidth="44rem">
-          <Block
-            component="h2"
-            {...textStyles.heading2}
-            color={color.text.default}
+      <section
+        className={cx(
+          sharedStyles.grid12,
+          sharedStyles.shellRow,
+          homeStyles.proofStrip
+        )}
+      >
+        {homepageProofCards.map(card => (
+          <article
+            key={card.body}
+            className={cx(
+              sharedStyles.cell,
+              sharedStyles.span3,
+              homeStyles.proofCard
+            )}
           >
-            Everything you need to move from report to fix
-          </Block>
+            <span
+              className={cx(
+                homeStyles.proofMarker,
+                proofMarkerStyles[card.tone]
+              )}
+            />
 
-          <Block
-            component="p"
-            {...textStyles.body}
-            color={color.text.secondary}
+            <p className={sharedStyles.proofCopy}>{card.body}</p>
+          </article>
+        ))}
+      </section>
+
+      <section
+        id="features"
+        className={cx(sharedStyles.grid12, sharedStyles.shellRow)}
+      >
+        {homepageNarrativeCards.map(card => (
+          <article
+            key={card.title}
+            className={cx(
+              sharedStyles.cell,
+              sharedStyles.span4,
+              homeStyles.storyCard
+            )}
           >
-            Repro keeps the bug, the context, and the conversation together so
-            the team can focus on the fix.
-          </Block>
-        </Col>
+            <p className={sharedStyles.sectionKicker}>{card.kicker}</p>
 
-        <Grid
-          gap={spacing.lg}
-          gridTemplateColumns="repeat(auto-fit, minmax(220px, 1fr))"
-        >
-          {homepageFeatureHighlights.map(feature => (
-            <Col
-              key={feature.title}
-              gap={spacing.sm}
-              padding={spacing.lg}
-              border={`1px solid ${color.border.default}`}
-              backgroundColor={color.bg.surface}
-              borderRadius={radius.lg}
+            <h2 className={sharedStyles.sectionTitle}>{card.title}</h2>
+
+            <p className={sharedStyles.sectionCopy}>{card.body}</p>
+          </article>
+        ))}
+      </section>
+
+      <section
+        id="signup"
+        className={cx(
+          sharedStyles.cell,
+          sharedStyles.shellRow,
+          homeStyles.closingCta
+        )}
+      >
+        <div className={homeStyles.closingInner}>
+          <p className={sharedStyles.sectionKicker}>Closing CTA</p>
+
+          <h2 className={sharedStyles.sectionTitle}>
+            Capture the bug. Let AI find the fix.
+          </h2>
+
+          <div className={homeStyles.closingActions}>
+            <a
+              className={cx(sharedStyles.button, sharedStyles.primaryCta)}
+              href={appUrl}
             >
-              <Block
-                component="h3"
-                {...textStyles.heading3}
-                color={color.text.default}
-              >
-                {feature.title}
-              </Block>
+              Start free
+            </a>
 
-              <Block
-                component="p"
-                {...textStyles.bodySmall}
-                color={color.text.secondary}
-              >
-                {feature.body}
-              </Block>
-            </Col>
-          ))}
-        </Grid>
-      </Col>
-
-      <Col component="section" gap={spacing.lg}>
-        <Col gap={spacing.sm} maxWidth="44rem">
-          <Block
-            component="h2"
-            {...textStyles.heading2}
-            color={color.text.default}
-          >
-            Teams keep shipping with the same source of truth
-          </Block>
-
-          <Block
-            component="p"
-            {...textStyles.body}
-            color={color.text.secondary}
-          >
-            A single repro keeps support, QA, and engineering aligned.
-          </Block>
-        </Col>
-
-        <Grid
-          gap={spacing.lg}
-          gridTemplateColumns="repeat(auto-fit, minmax(220px, 1fr))"
-        >
-          {homepageSocialProof.map(proof => (
-            <Col
-              key={proof.name}
-              gap={spacing.md}
-              padding={spacing.lg}
-              border={`1px solid ${color.border.default}`}
-              backgroundColor={color.bg.surface}
-              borderRadius={radius.lg}
+            <a
+              className={cx(sharedStyles.button, sharedStyles.secondaryCta)}
+              href="#features"
             >
-              <Block
-                component="p"
-                {...textStyles.body}
-                color={color.text.default}
-              >
-                “{proof.quote}”
-              </Block>
-
-              <Col gap={spacing.xs}>
-                <Block
-                  component="span"
-                  {...textStyles.label}
-                  color={color.text.default}
-                >
-                  {proof.name}
-                </Block>
-
-                <Block
-                  component="span"
-                  {...textStyles.caption}
-                  color={color.text.secondary}
-                >
-                  {proof.role}
-                </Block>
-              </Col>
-            </Col>
-          ))}
-        </Grid>
-      </Col>
-    </Col>
+              See how it works
+            </a>
+          </div>
+        </div>
+      </section>
+    </div>
   )
 }

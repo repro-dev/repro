@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "src/index.tsx",
   "scripts": {
-    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
+    "test": "tsx --test --test-timeout=30000 --test-force-exit src/**/*.test.ts{,x}",
     "fmt": "prettier --write src",
     "typecheck": "tsc --noEmit"
   },

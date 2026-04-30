@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tdlc src --outdir generated",
     "clean": "rimraf generated",
-    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
+    "test": "tsx --experimental-test-module-mocks --test --test-timeout=30000 --test-force-exit src/**/*.test.ts{,x}",
     "fmt": "prettier --write src",
     "typecheck": "tsc --noEmit"
   },

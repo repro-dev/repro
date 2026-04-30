@@ -1,11 +1,9 @@
 import { Row } from '@jsxstyle/react'
 import React, { forwardRef } from 'react'
 import { color } from '../tokens/colors'
-import { radius } from '../tokens/elevation'
 import { focusRing } from '../tokens/interaction'
-import { transition } from '../tokens/motion'
 import { spacing } from '../tokens/spacing'
-import { fontSize, fontWeight } from '../tokens/typography'
+import { fontSize } from '../tokens/typography'
 
 export interface SideNavItemProps {
   icon?: React.ComponentType<{ size?: number | string; color?: string }>
@@ -28,7 +26,6 @@ export const SideNavItem = forwardRef<HTMLElement, SideNavItemProps>(
     },
     ref
   ) => {
-    const iconColor = active ? color.primary : color.text.secondary
     const resolvedComponent = component ?? 'button'
     const isButton = resolvedComponent === 'button'
 
@@ -37,27 +34,23 @@ export const SideNavItem = forwardRef<HTMLElement, SideNavItemProps>(
         component={resolvedComponent as 'button'}
         alignItems="center"
         gap={spacing.md}
-        paddingH={spacing.md}
-        paddingV={spacing.md}
-        borderRadius={radius.md}
-        border="none"
-        backgroundColor={active ? color.primarySubtle : 'transparent'}
-        color={active ? color.primary : color.text.default}
+        paddingH={spacing.lg}
+        blockSize={spacing['3xl']}
+        backgroundColor={active ? color.bg.muted : 'transparent'}
+        borderInlineStartWidth={4}
+        borderInlineStartStyle="solid"
+        borderColor="transparent"
+        borderInlineStartColor={active ? color.primary : 'transparent'}
+        color={color.text.default}
         fontSize={fontSize.sm}
-        fontWeight={active ? fontWeight.semibold : fontWeight.normal}
         cursor={disabled ? 'default' : 'pointer'}
         pointerEvents={disabled ? 'none' : undefined}
         opacity={disabled ? 0.5 : undefined}
         textDecoration="none"
         textAlign="left"
         width="100%"
-        transition={transition.fast}
         hoverBackgroundColor={
-          disabled
-            ? undefined
-            : active
-            ? color.primarySubtleHover
-            : color.bg.hover
+          disabled ? undefined : active ? color.bg.muted : color.bg.hover
         }
         {...focusRing()}
         props={{
@@ -67,7 +60,7 @@ export const SideNavItem = forwardRef<HTMLElement, SideNavItemProps>(
           ...componentProps,
         }}
       >
-        {Icon && <Icon size={16} color={iconColor} />}
+        {Icon && <Icon size={16} color={color.text.secondary} />}
         {label}
       </Row>
     )

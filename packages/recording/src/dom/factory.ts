@@ -7,7 +7,6 @@ import {
   isSelectElement,
   isTextAreaElement,
   isTextNode,
-  maskValue,
 } from '@repro/dom-utils'
 import {
   NodeType,
@@ -21,8 +20,21 @@ import {
 } from '@repro/domain'
 import { Box } from '@repro/tdl'
 import { createSyntheticId, getNodeId } from '@repro/vdom-utils'
+import { redactStringPreservingWhitespace } from '../redaction'
+import { isMaskedBySelector } from './utils'
 
-export function createVNode(node: Node): VNode | null {
+type MaskedSelectorOptions = {
+  maskedSelectors?: Array<string>
+}
+
+type VElementOptions = MaskedSelectorOptions & {
+  attributeOverrides?: Record<string, string>
+}
+
+export function createVNode(
+  node: Node,
+  options: MaskedSelectorOptions = {}
+): VNode | null {
   if (isDocumentNode(node)) {
     return new Box(createVDocument(node))
   }
@@ -32,11 +44,11 @@ export function createVNode(node: Node): VNode | null {
   }
 
   if (isElementNode(node)) {
-    return new Box(createVElement(node))
+    return new Box(createVElement(node, options))
   }
 
   if (isTextNode(node)) {
-    return new Box(createVText(node))
+    return new Box(createVText(node, options))
   }
 
   return null
@@ -64,13 +76,22 @@ export function createVDocType(doctype: DocumentType): VDocType {
 
 export function createVElement(
   element: Element,
-  attributeOverrides?: Record<string, string>
+  options: VElementOptions = {}
 ): VElement {
+  const { attributeOverrides, maskedSelectors = [] } = options
   const attributes =
     attributeOverrides ??
     Array.from(element.attributes)
       .filter(({ name }) => !isInlineEventAttribute(name))
       .reduce((attrs, { name, value }) => ({ ...attrs, [name]: value }), {})
+
+  const isMasked = isMaskedBySelector(element, maskedSelectors)
+
+  if (isMasked && 'value' in attributes) {
+    attributes.value = redactStringPreservingWhitespace(
+      String(attributes.value ?? '')
+    )
+  }
 
   const properties: VElement['properties'] = {
     checked: null,
@@ -83,8 +104,15 @@ export function createVElement(
     isTextAreaElement(element) ||
     isSelectElement(element)
   ) {
-    properties.value =
-      element.type === 'password' ? maskValue(element.value) : element.value
+    properties.value = isMasked
+      ? redactStringPreservingWhitespace(element.value)
+      : element.type === 'password'
+      ? redactStringPreservingWhitespace(element.value)
+      : element.value
+
+    if ('value' in attributes) {
+      attributes.value = properties.value
+    }
   }
 
   if (
@@ -112,12 +140,19 @@ export function createVElement(
   }
 }
 
-export function createVText(text: Text): VText {
+export function createVText(
+  text: Text,
+  options: MaskedSelectorOptions = {}
+): VText {
+  const { maskedSelectors = [] } = options
+
   return {
     id: getNodeId(text),
     parentId: text.parentNode ? getNodeId(text.parentNode) : null,
     type: NodeType.Text,
-    value: text.data,
+    value: isMaskedBySelector(text, maskedSelectors)
+      ? redactStringPreservingWhitespace(text.data)
+      : text.data,
   }
 }
 
