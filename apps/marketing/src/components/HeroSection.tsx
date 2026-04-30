@@ -1,21 +1,9 @@
-'use client'
+import heroStyles from './HeroSection.module.css'
+import { homepageHeroMock } from './marketingShell'
+import sharedStyles from './MarketingShell.module.css'
 
-// jsxstyle requires a client boundary because it injects styles via React context.
-
-import { Block, Col, Row } from '@jsxstyle/react'
-import {
-  color,
-  focusRing,
-  radius,
-  spacing,
-  textStyles,
-  transition,
-} from '@repro/design'
-import { homepageDemoChips } from './marketingShell'
-
-import React from 'react'
-
-void React
+const cx = (...classes: Array<string | undefined>) =>
+  classes.filter(Boolean).join(' ')
 
 type HeroSectionProps = {
   appUrl: string
@@ -23,209 +11,111 @@ type HeroSectionProps = {
 
 export function HeroSection({ appUrl }: HeroSectionProps) {
   return (
-    <Row
-      component="section"
-      alignItems="center"
-      gap={spacing['3xl']}
-      flexWrap="wrap"
+    <section
+      id="hero"
+      className={cx(
+        sharedStyles.grid12,
+        sharedStyles.shellRow,
+        heroStyles.heroSurface
+      )}
     >
-      <Col gap={spacing.xl} flex="1 1 360px" minWidth={0}>
-        <Col gap={spacing.md}>
-          <Block component="p" {...textStyles.label} color={color.info}>
-            Capture bugs with context
-          </Block>
-
-          <Block
-            component="h1"
-            {...textStyles.heading1}
-            color={color.text.default}
-            maxWidth="11ch"
-          >
-            Bug reporting that captures every detail
-          </Block>
-
-          <Block
-            component="p"
-            {...textStyles.body}
-            color={color.text.secondary}
-          >
-            Repro automatically captures sessions so your team can reproduce and
-            fix bugs faster — without the back-and-forth.
-          </Block>
-        </Col>
-
-        <Row gap={spacing.md} flexWrap="wrap">
-          <Block
-            component="a"
-            props={{ href: appUrl }}
-            {...textStyles.label}
-            color={color.text.inverse}
-            textDecoration="none"
-            backgroundColor={color.info}
-            paddingTop={spacing.sm}
-            paddingBottom={spacing.sm}
-            paddingLeft={spacing.lg}
-            paddingRight={spacing.lg}
-            borderRadius={radius.md}
-            transition={transition.default}
-            hoverBackgroundColor={color.primaryHover}
-            {...focusRing()}
-          >
-            Get started free
-          </Block>
-
-          <Block
-            component="a"
-            props={{ href: '#features' }}
-            {...textStyles.label}
-            color={color.text.default}
-            textDecoration="none"
-            border={`1px solid ${color.border.default}`}
-            paddingTop={spacing.sm}
-            paddingBottom={spacing.sm}
-            paddingLeft={spacing.lg}
-            paddingRight={spacing.lg}
-            borderRadius={radius.md}
-            transition={transition.default}
-            hoverBorderColor={color.border.strong}
-            hoverColor={color.text.default}
-            {...focusRing()}
-          >
-            See how it works
-          </Block>
-        </Row>
-
-        <Row gap={spacing.sm} flexWrap="wrap">
-          {homepageDemoChips.map(chip => (
-            <Col
-              key={chip.label}
-              gap={spacing.xs}
-              border={`1px solid ${color.border.default}`}
-              backgroundColor={color.bg.surface}
-              borderRadius={radius.full}
-              paddingTop={spacing.sm}
-              paddingBottom={spacing.sm}
-              paddingLeft={spacing.md}
-              paddingRight={spacing.md}
-            >
-              <Block
-                component="span"
-                {...textStyles.caption}
-                color={color.text.secondary}
-              >
-                {chip.label}
-              </Block>
-
-              <Block
-                component="span"
-                {...textStyles.label}
-                color={color.text.default}
-              >
-                {chip.value}
-              </Block>
-            </Col>
-          ))}
-        </Row>
-      </Col>
-
-      <Col
-        flex="1 1 360px"
-        minWidth={0}
-        gap={spacing.md}
-        border={`1px solid ${color.border.default}`}
-        backgroundColor={color.bg.surface}
-        borderRadius={radius.lg}
-        padding={spacing.lg}
+      <div
+        className={cx(
+          sharedStyles.cell,
+          sharedStyles.span6,
+          heroStyles.heroCopy
+        )}
       >
-        <Row
-          justifyContent="space-between"
-          alignItems="center"
-          gap={spacing.sm}
-        >
-          <Block component="p" {...textStyles.label} color={color.text.default}>
-            Session preview
-          </Block>
+        <div className={heroStyles.heroCopyInner}>
+          <p className={cx(sharedStyles.heroEyebrow, heroStyles.heroEyebrow)}>
+            {homepageHeroMock.eyebrow}
+          </p>
 
-          <Block
-            component="span"
-            {...textStyles.caption}
-            color={color.text.secondary}
+          <h1 className={sharedStyles.heroTitle}>
+            {homepageHeroMock.headline}
+          </h1>
+
+          <p className={sharedStyles.heroLede}>{homepageHeroMock.lede}</p>
+        </div>
+
+        <div className={heroStyles.heroCtaRow}>
+          <a
+            className={cx(sharedStyles.button, sharedStyles.primaryCta)}
+            href={appUrl}
           >
-            Live capture
-          </Block>
-        </Row>
+            {homepageHeroMock.primaryCta}
+          </a>
 
-        <Col
-          gap={spacing.md}
-          border={`1px solid ${color.border.default}`}
-          borderRadius={radius.md}
-          padding={spacing.md}
-          backgroundColor={color.bg.subtle}
-        >
-          <Row
-            justifyContent="space-between"
-            alignItems="center"
-            gap={spacing.sm}
+          <a
+            className={cx(sharedStyles.button, sharedStyles.secondaryCta)}
+            href="#features"
           >
-            <Block
-              component="span"
-              {...textStyles.code}
-              color={color.text.secondary}
-            >
-              repro.dev/session/417
-            </Block>
+            {homepageHeroMock.secondaryCta}
+          </a>
+        </div>
+      </div>
 
-            <Block
-              component="span"
-              {...textStyles.caption}
-              color={color.text.default}
-            >
-              12 events captured
-            </Block>
-          </Row>
+      <div
+        className={cx(
+          sharedStyles.cell,
+          sharedStyles.span6,
+          heroStyles.heroMock
+        )}
+      >
+        <div className={heroStyles.heroShotFloat}>
+          <div className={heroStyles.heroShotScreen}>
+            <div className={heroStyles.heroShotHead}>
+              <span className={sharedStyles.heroPanelLabel}>
+                {homepageHeroMock.labelRow.left}
+              </span>
 
-          <Col gap={spacing.sm}>
-            <Row gap={spacing.sm} flexWrap="wrap">
-              <Block
-                component="span"
-                {...textStyles.caption}
-                color={color.text.inverse}
-                backgroundColor={color.info}
-                borderRadius={radius.full}
-                paddingTop={spacing.xs}
-                paddingBottom={spacing.xs}
-                paddingLeft={spacing.sm}
-                paddingRight={spacing.sm}
+              <span className={sharedStyles.heroPanelKicker}>
+                {homepageHeroMock.labelRow.right}
+              </span>
+            </div>
+
+            <div className={cx(sharedStyles.grid4, heroStyles.heroShotGrid)}>
+              <article
+                className={cx(
+                  heroStyles.heroShotPanel,
+                  sharedStyles.span2,
+                  heroStyles.heroShotTranscript
+                )}
               >
-                Console warning
-              </Block>
+                <span className={sharedStyles.panelTitle}>Evidence</span>
 
-              <Block
-                component="span"
-                {...textStyles.caption}
-                color={color.text.default}
-                border={`1px solid ${color.border.default}`}
-                borderRadius={radius.full}
-                paddingTop={spacing.xs}
-                paddingBottom={spacing.xs}
-                paddingLeft={spacing.sm}
-                paddingRight={spacing.sm}
-              >
-                Network request
-              </Block>
-            </Row>
+                <div className={heroStyles.heroShotTranscriptRows}>
+                  {homepageHeroMock.transcriptRows.map(row => (
+                    <div key={row.label} className={heroStyles.heroShotRow}>
+                      <b className={sharedStyles.heroTranscriptLabel}>
+                        {row.label}
+                      </b>
 
-            <Block
-              component="p"
-              {...textStyles.bodySmall}
-              color={color.text.secondary}
-            >
-              Automatic screenshots, console logs, and network activity stay
-              attached to the repro so the next person sees the same context.
-            </Block>
-          </Col>
-        </Col>
-      </Col>
-    </Row>
+                      <p className={sharedStyles.heroTranscriptCopy}>
+                        {row.body}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              {homepageHeroMock.cards.map(card => (
+                <article
+                  key={card.title}
+                  className={cx(
+                    heroStyles.heroShotPanel,
+                    heroStyles.heroShotCard
+                  )}
+                >
+                  <span className={sharedStyles.panelTitle}>{card.title}</span>
+
+                  <p className={sharedStyles.heroCardCopy}>{card.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }

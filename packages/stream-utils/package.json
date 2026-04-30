@@ -4,7 +4,7 @@
   "main": "src/index.node.ts",
   "browser": "src/index.browser.ts",
   "scripts": {
-    "test": "tsx --experimental-test-module-mocks --test src/**/*.test.ts{,x}",
+    "test": "tsx --experimental-test-module-mocks --test --test-timeout=30000 --test-force-exit src/**/*.test.ts{,x}",
     "fmt": "prettier --write src",
     "typecheck": "tsc --noEmit"
   },

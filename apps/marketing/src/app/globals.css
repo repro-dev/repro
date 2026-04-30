@@ -4,53 +4,76 @@
   box-sizing: border-box;
 }
 
+:root {
+  color-scheme: dark;
+  --marketing-font-sans-fallback: ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --marketing-font-mono-fallback: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
+  color: #edf4ff;
+  background: linear-gradient(180deg, #050816 0%, #07101d 100%), #050816;
+  font:
+    400 15px/1.5 var(--marketing-font-sans),
+    var(--marketing-font-sans-fallback);
+  overflow-x: hidden;
+  position: relative;
 }
 
-.marketing-shell__desktop-nav {
-  display: flex;
-}
-
-.marketing-shell__mobile-toggle {
-  display: none;
-}
-
-.marketing-shell__footer-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-/* Skip-to-content link — visually hidden until focused */
-.skip-link {
-  position: absolute;
-  left: -9999px;
-  top: auto;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-
-.skip-link:focus {
+body::before,
+body::after {
+  content: '';
   position: fixed;
-  top: 0;
-  left: 0;
-  width: auto;
-  height: auto;
-  overflow: visible;
-  z-index: 9999;
-  padding: 8px 16px;
+  inset: 0;
+  pointer-events: none;
 }
 
-@media (max-width: 767px) {
-  .marketing-shell__desktop-nav {
-    display: none;
-  }
+body::before {
+  background: repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent 59px,
+      rgba(148, 163, 184, 0.11) 60px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 59px,
+      rgba(148, 163, 184, 0.08) 60px
+    );
+  opacity: 0.26;
+}
 
-  .marketing-shell__mobile-toggle {
-    display: inline-flex;
-  }
+body::after {
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.05) 0 1px,
+    transparent 1px 9px
+  );
+  opacity: 0.72;
+}
 
-  .marketing-shell__footer-grid {
-    grid-template-columns: 1fr;
-  }
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 3px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
 }

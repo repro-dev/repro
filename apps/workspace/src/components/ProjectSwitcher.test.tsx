@@ -1,8 +1,4 @@
-import { ApiProvider, createApiClient } from '@repro/api-client'
-import { createAtom } from '@repro/atom'
 import { PortalRootProvider } from '@repro/design'
-import { ProjectRole, User } from '@repro/domain'
-import { ProjectMember } from '@repro/workspace-api'
 import {
   cleanup,
   fireEvent,
@@ -10,15 +6,13 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { FutureInstance, never, resolve } from 'fluture'
+import { resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import React from 'react'
-import { MemoryRouter, useLocation } from 'react-router-dom'
+import { MemoryRouter } from 'react-router-dom'
 import { ProjectProvider } from '~/ProjectContext'
-import { AuthContext } from '../../../../packages/auth/src/AuthProvider'
-import { createState } from '../../../../packages/auth/src/createState'
-import { ProjectSwitcher, ProjectSwitcherProps } from './ProjectSwitcher'
+import { ProjectSwitcher } from './ProjectSwitcher'
 
 afterEach(cleanup)
 
@@ -47,82 +41,23 @@ Object.defineProperty(global, 'localStorage', {
 
 const STORAGE_KEY = 'repro:selectedProjectId'
 
-const apiClient = createApiClient({
-  baseUrl: 'http://test',
-  authStorage: 'memory',
-})
-
-const currentUser: User = {
-  type: 'user' as const,
-  id: 'user-1',
-  name: 'Admin User',
-  verified: true,
-}
-
-const adminMember: ProjectMember = {
-  user: currentUser,
-  role: ProjectRole.Admin,
-}
-
-const viewerMember: ProjectMember = {
-  user: currentUser,
-  role: ProjectRole.Viewer,
-}
-
 const defaultProjects = [
   { id: 'project-1', name: 'Alpha' },
   { id: 'project-2', name: 'Beta' },
 ]
 
-function TestAuthProvider({ children }: React.PropsWithChildren) {
-  const state = createState({ apiClient })
-  const [$session] = createAtom(currentUser) as unknown as [
-    typeof state.$session,
-    unknown,
-    unknown,
-  ]
-  const [$sessionLoading] = createAtom(false)
-
-  return (
-    <AuthContext.Provider
-      value={{
-        ...state,
-        $session: $session as typeof state.$session,
-        $sessionLoading,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  )
-}
-
-function LocationProbe() {
-  const location = useLocation()
-
-  return <output data-testid="location">{location.pathname}</output>
-}
-
 function renderProjectSwitcher({
   projects = defaultProjects,
-  getMembers = () => resolve([adminMember]),
-  initialEntries = ['/'],
 }: {
   projects?: { id: string; name: string }[]
-  getMembers?: NonNullable<ProjectSwitcherProps['getMembers']>
-  initialEntries?: string[]
 } = {}) {
   render(
-    <MemoryRouter initialEntries={initialEntries}>
-      <ApiProvider client={apiClient}>
-        <TestAuthProvider>
-          <PortalRootProvider>
-            <ProjectProvider getProjects={() => resolve(projects)}>
-              <ProjectSwitcher getMembers={getMembers} />
-              <LocationProbe />
-            </ProjectProvider>
-          </PortalRootProvider>
-        </TestAuthProvider>
-      </ApiProvider>
+    <MemoryRouter>
+      <PortalRootProvider>
+        <ProjectProvider getProjects={() => resolve(projects)}>
+          <ProjectSwitcher />
+        </ProjectProvider>
+      </PortalRootProvider>
     </MemoryRouter>
   )
 }
@@ -132,51 +67,37 @@ describe('ProjectSwitcher', () => {
     localStorageMock.clear()
   })
 
-  it('renders only the create project action when there are no projects', async () => {
+  it('renders no switcher controls when there are no projects', async () => {
     renderProjectSwitcher({ projects: [] })
 
-    assert.ok(await screen.findByRole('button', { name: /create project/i }))
-    assert.equal(
-      screen.queryByRole('button', { name: /project settings/i }),
-      null
-    )
-    assert.equal(
-      screen.queryByRole('button', { name: /switch project/i }),
-      null
-    )
+    await waitFor(() => {
+      assert.equal(screen.queryByRole('button'), null)
+    })
   })
 
-  it('renders the single project state with accessible actions', async () => {
+  it('renders the selected single project with a separate create action', async () => {
     localStorageMock.setItem(STORAGE_KEY, 'project-1')
 
     renderProjectSwitcher({
       projects: [{ id: 'project-1', name: 'Alpha' }],
-      getMembers: () => resolve([adminMember]),
     })
 
-    assert.ok(await screen.findByText('Alpha'))
-
-    const settingsButton = await screen.findByRole('button', {
-      name: /project settings/i,
-    })
-    const createButton = await screen.findByRole('button', {
-      name: /create project/i,
-    })
-
+    assert.ok(
+      await screen.findByRole('button', {
+        name: /switch project\. current: alpha/i,
+      })
+    )
+    assert.ok(screen.getByRole('button', { name: /create project/i }))
     assert.equal(
-      screen.queryByRole('button', { name: /switch project/i }),
+      screen.queryByRole('button', { name: /project settings/i }),
       null
     )
-
-    settingsButton.focus()
-    assert.equal(document.activeElement, settingsButton)
-
-    createButton.focus()
-    assert.equal(document.activeElement, createButton)
   })
 
-  it('opens the create project dialog from the header button', async () => {
-    renderProjectSwitcher({ projects: [] })
+  it('opens the create project dialog from the side action', async () => {
+    localStorageMock.setItem(STORAGE_KEY, 'project-1')
+
+    renderProjectSwitcher()
 
     fireEvent.click(
       await screen.findByRole('button', { name: /create project/i })
@@ -187,86 +108,21 @@ describe('ProjectSwitcher', () => {
     })
   })
 
-  it('renders the project settings action for admins', async () => {
+  it('opens the project menu from the selected project trigger', async () => {
     localStorageMock.setItem(STORAGE_KEY, 'project-1')
 
-    renderProjectSwitcher({ getMembers: () => resolve([adminMember]) })
-
-    assert.ok(await screen.findByRole('button', { name: /project settings/i }))
-    assert.ok(await screen.findByRole('button', { name: /create project/i }))
-  })
-
-  it('navigates to the selected project settings route from the header action', async () => {
-    localStorageMock.setItem(STORAGE_KEY, 'project-1')
-
-    renderProjectSwitcher({
-      getMembers: () => resolve([adminMember]),
-      initialEntries: ['/projects'],
-    })
+    renderProjectSwitcher()
 
     fireEvent.click(
-      await screen.findByRole('button', { name: /project settings/i })
+      await screen.findByRole('button', {
+        name: /switch project\. current: alpha/i,
+      })
     )
-
-    await waitFor(() => {
-      assert.equal(
-        screen.getByTestId('location').textContent,
-        '/projects/project-1/settings'
-      )
-    })
-  })
-
-  it('keeps the project settings action mounted and disabled while the selected project changes', async () => {
-    localStorageMock.setItem(STORAGE_KEY, 'project-1')
-
-    renderProjectSwitcher({
-      getMembers: (_client, projectId) => {
-        if (projectId === 'project-1') {
-          return resolve([adminMember])
-        }
-
-        return never as FutureInstance<Error, ProjectMember[]>
-      },
-    })
-
-    fireEvent.click(await screen.findByRole('button', { name: /alpha/i }))
-
-    fireEvent.click(await screen.findByRole('menuitem', { name: /beta/i }))
-
-    const projectSettingsButton = screen.getByRole('button', {
-      name: /project settings/i,
-    })
-
-    assert.equal(projectSettingsButton.matches(':disabled'), true)
-  })
-
-  it('keeps the dropdown trigger and header actions separate in the multi-project state', async () => {
-    localStorageMock.setItem(STORAGE_KEY, 'project-1')
-
-    renderProjectSwitcher({ getMembers: () => resolve([adminMember]) })
-
-    assert.ok(await screen.findByRole('button', { name: /alpha/i }))
-    assert.ok(await screen.findByRole('button', { name: /project settings/i }))
-    assert.ok(await screen.findByRole('button', { name: /create project/i }))
-
-    fireEvent.click(screen.getByRole('button', { name: /alpha/i }))
 
     assert.ok(await screen.findByRole('menuitem', { name: /beta/i }))
-    assert.ok(
-      screen.getAllByRole('button', { name: /create project/i }).length >= 2
+    assert.equal(
+      screen.getAllByRole('button', { name: /create project/i }).length,
+      1
     )
-  })
-
-  it('does not render the project settings action for non-admins', async () => {
-    localStorageMock.setItem(STORAGE_KEY, 'project-1')
-
-    renderProjectSwitcher({ getMembers: () => resolve([viewerMember]) })
-
-    await waitFor(() => {
-      assert.equal(
-        screen.queryByRole('button', { name: /project settings/i }),
-        null
-      )
-    })
   })
 })

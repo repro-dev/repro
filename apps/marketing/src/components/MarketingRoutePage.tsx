@@ -1,0 +1,44 @@
+import routeStyles from './MarketingRoutePage.module.css'
+import {
+  routePageContent,
+  signupHref,
+  type MarketingRouteSlug,
+} from './marketingShell'
+import sharedStyles from './MarketingShell.module.css'
+
+const cx = (...classes: Array<string | undefined>) =>
+  classes.filter(Boolean).join(' ')
+
+interface MarketingRoutePageProps {
+  slug: MarketingRouteSlug
+}
+
+export function MarketingRoutePage({ slug }: MarketingRoutePageProps) {
+  const page = routePageContent[slug]
+
+  return (
+    <section className={routeStyles.routePage}>
+      <p className={sharedStyles.routeKicker}>Capture / replay / fix</p>
+
+      <h1 className={sharedStyles.routeTitle}>{page.title}</h1>
+
+      <p className={sharedStyles.routeCopy}>{page.body}</p>
+
+      <div className={routeStyles.routeActions}>
+        <a
+          className={cx(sharedStyles.button, sharedStyles.primaryCta)}
+          href={signupHref}
+        >
+          Start free
+        </a>
+
+        <a
+          className={cx(sharedStyles.button, sharedStyles.secondaryCta)}
+          href="/"
+        >
+          Back home
+        </a>
+      </div>
+    </section>
+  )
+}

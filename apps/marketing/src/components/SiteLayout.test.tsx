@@ -1,10 +1,9 @@
 import { createRequire } from 'module'
 import { afterEach, describe, it } from 'node:test'
-import type { ReactNode } from 'react'
+
+import assert from 'node:assert/strict'
 
 const require = createRequire(import.meta.url)
-
-require('../../../../node_modules/.pnpm/node_modules/global-jsdom/commonjs/register.cjs')
 
 const React = require('react')
 const {
@@ -14,15 +13,27 @@ const {
   screen,
   within,
 } = require('@testing-library/react')
-const { SiteLayout } = require('./SiteLayout')
-const assert = require('node:assert/strict')
-const { renderToStaticMarkup } = require('react-dom/server')
 
 globalThis.React = React
 
 afterEach(cleanup)
 
-function renderLayout() {
+async function renderLayout(t: any) {
+  t.mock.module('./SiteLayout.module.css', {
+    defaultExport: {},
+  })
+  t.mock.module('./Header.module.css', {
+    defaultExport: {},
+  })
+  t.mock.module('./Footer.module.css', {
+    defaultExport: {},
+  })
+  t.mock.module('./MarketingShell.module.css', {
+    defaultExport: {},
+  })
+
+  const { SiteLayout } = await import('./SiteLayout')
+
   return render(
     <SiteLayout>
       <div>Page content</div>
@@ -30,23 +41,30 @@ function renderLayout() {
   )
 }
 
-describe('marketing shell', () => {
-  it('renders the primary header navigation and cta', () => {
-    renderLayout()
+describe('site layout', () => {
+  it('renders the primary header navigation and cta', async t => {
+    await renderLayout(t)
 
     const header = screen.getByRole('banner')
     const headerLinks = within(header)
+    const logo = header.querySelector('svg')
+
+    assert.equal(
+      window.getComputedStyle(header).backgroundColor,
+      'rgba(0, 0, 0, 0)'
+    )
+    assert.ok(logo)
+    assert.equal(logo?.getAttribute('height'), '30')
 
     assert.ok(headerLinks.getByRole('link', { name: /repro home/i }))
     assert.ok(headerLinks.getByRole('link', { name: 'Features' }))
     assert.ok(headerLinks.getByRole('link', { name: 'Pricing' }))
-    assert.ok(headerLinks.getByRole('link', { name: 'Install Extension' }))
-    assert.ok(headerLinks.getByRole('link', { name: 'Blog' }))
-    assert.ok(headerLinks.getByRole('link', { name: /get started/i }))
+    assert.ok(headerLinks.getByRole('link', { name: 'Sign up' }))
+    assert.ok(headerLinks.getByRole('link', { name: 'Start free' }))
   })
 
-  it('opens the mobile navigation from the hamburger button', async () => {
-    renderLayout()
+  it('opens the mobile navigation from the hamburger button', async t => {
+    await renderLayout(t)
 
     const header = screen.getByRole('banner')
     const headerButtons = within(header)
@@ -56,66 +74,36 @@ describe('marketing shell', () => {
     fireEvent.click(headerButtons.getByRole('button', { name: /menu/i }))
 
     assert.ok(screen.getByRole('dialog'))
-    assert.ok(screen.getAllByRole('link', { name: 'Features' }).length > 1)
+
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('link', { name: 'Sign up' })
+    )
+
+    assert.equal(screen.queryByRole('dialog'), null)
   })
 
-  it('renders grouped footer links and social links', () => {
-    renderLayout()
+  it('renders grouped footer links and social links', async t => {
+    await renderLayout(t)
 
     const footer = screen.getByRole('contentinfo')
     const footerLinks = within(footer)
 
     assert.ok(footerLinks.getByText('Product'))
-    assert.ok(footerLinks.getByText('Resources'))
+    assert.ok(footerLinks.getByText('Workflow'))
     assert.ok(footerLinks.getByText('Company'))
     assert.ok(footerLinks.getByText('Legal'))
     assert.ok(footerLinks.getByRole('link', { name: 'GitHub' }))
     assert.ok(footerLinks.getByRole('link', { name: 'X' }))
   })
 
-  it('keeps the skip link and main content container', () => {
-    renderLayout()
+  it('keeps the skip link and main content container', async t => {
+    await renderLayout(t)
+
+    const main = screen.getByRole('main') as HTMLElement
 
     assert.ok(screen.getByRole('link', { name: /skip to main content/i }))
-    assert.ok(screen.getByRole('main'))
-    assert.ok(window.getComputedStyle(screen.getByRole('main')).maxWidth)
+    assert.doesNotMatch(main.getAttribute('style') ?? '', /padding-left:/)
+    assert.doesNotMatch(main.getAttribute('style') ?? '', /padding-top:/)
     assert.ok(screen.getByText('Page content'))
-  })
-
-  it('flushes shell styles during server rendering', async t => {
-    const insertedHtmlCallbacks: Array<() => ReactNode> = []
-
-    t.mock.module('next/navigation', {
-      namedExports: {
-        useServerInsertedHTML(callback: () => ReactNode) {
-          insertedHtmlCallbacks.push(callback)
-        },
-      },
-    })
-
-    const { JsxstyleRegistry } = await import('../app/JsxstyleRegistry')
-
-    renderToStaticMarkup(
-      React.createElement(
-        JsxstyleRegistry,
-        null,
-        React.createElement(
-          SiteLayout,
-          null,
-          React.createElement('div', null, 'Page content')
-        )
-      )
-    )
-
-    const callback = insertedHtmlCallbacks[insertedHtmlCallbacks.length - 1]
-
-    assert.ok(callback)
-
-    const styleMarkup = renderToStaticMarkup(
-      React.createElement(React.Fragment, null, callback!())
-    )
-
-    assert.match(styleMarkup, /background-color:/i)
-    assert.match(styleMarkup, /padding-top:/i)
   })
 })
