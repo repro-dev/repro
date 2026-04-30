@@ -12,6 +12,7 @@ tasks:
       cache: true
       outputStyle: buffer-only-failure
   test:
+    command: pnpm run test -- --test-timeout=30000 --test-force-exit
     deps:
     - ^:build
     - build
