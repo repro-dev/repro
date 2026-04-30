@@ -1,10 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
-import { createRequire } from 'module'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
-
-const require = createRequire(import.meta.url)
 
 globalThis.React = React
 
