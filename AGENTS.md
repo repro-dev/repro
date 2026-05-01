@@ -24,6 +24,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 | Database / migrations                 | Load `database` skill                      |
 | File a Linear issue                   | Load `create-issue` skill                  |
 | Debug investigation                   | Load `debug-workflow` skill                |
+| Strict / stalled debugging            | Load `debugger-escalation` after `debug-workflow` stalls |
 | Instruction artifact authoring/review | Load `instruction-artifact-workflow` skill |
 | Command authoring                     | Load `command-thin-shim` skill             |
 | Skill compliance review               | Load `skill-compliance` skill              |

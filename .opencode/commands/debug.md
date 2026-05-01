@@ -12,6 +12,7 @@ Arguments (required): `$ARGUMENTS`
 2. Load the `debug-workflow` skill.
 3. If the argument matches `REP-\d+`, fetch the issue context before starting the debug notes.
 4. Create or update `tmp/debug-<topic>.md` with the sections required by `debug-workflow`.
-5. Stop once the repro, evidence, assumptions, and root-cause hypothesis are captured.
+5. Keep `/debug` lightweight: stop once the repro, evidence, assumptions, and root-cause hypothesis are captured.
+6. If the investigation starts looping, the repro stays flaky, or the evidence needs a stricter ledger, hand off to `/debugger <topic>` and load `debugger-escalation`.
 
 Keep the command thin. The debugging method lives in `debug-workflow`; this file only defines the entrypoint.
