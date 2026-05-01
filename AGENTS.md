@@ -4,28 +4,29 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 
 **Task entry points:**
 
-| Task type                     | Start here                                |
-| ----------------------------- | ----------------------------------------- |
-| Feature / fix                 | Load `delivery-workflow` skill            |
-| Bug fix / root-cause work     | Load `bug-rigor` with `delivery-workflow` |
-| Worktree / parallel work      | Load `worktree-workflow` skill            |
-| Implementation / testing      | Load `implementation-rigor` skill         |
-| Repo-specific testing         | Load `testing-workflow` skill             |
-| Commit / PR                   | Load `git-workflow` skill                 |
-| Code review                   | Load `review-standards` skill             |
-| Build / test / typecheck      | Load `build-and-test` skill               |
-| Context assembly              | Load `context-gather` skill               |
-| Test planning                 | Load `test-plan` skill                    |
-| Goal shaping / issue planning | Load `issue-shaping-workflow` skill       |
-| UI direction / intent         | Load `design-direction` skill             |
-| UI / components               | Load `design-system` skill                |
-| UI audits / polish            | Load `audit-ui-quality` skill             |
-| UI verification               | Load `ui-verification` skill              |
-| Database / migrations         | Load `database` skill                     |
-| File a Linear issue           | Load `create-issue` skill                 |
-| Debug investigation           | Load `debug-workflow` skill               |
-| Command authoring             | Load `command-thin-shim` skill            |
-| Skill compliance review       | Load `skill-compliance` skill             |
+| Task type                             | Start here                                 |
+| ------------------------------------- | ------------------------------------------ |
+| Feature / fix                         | Load `delivery-workflow` skill             |
+| Bug fix / root-cause work             | Load `bug-rigor` with `delivery-workflow`  |
+| Worktree / parallel work              | Load `worktree-workflow` skill             |
+| Implementation / testing              | Load `implementation-rigor` skill          |
+| Repo-specific testing                 | Load `testing-workflow` skill              |
+| Commit / PR                           | Load `git-workflow` skill                  |
+| Code review                           | Load `review-standards` skill              |
+| Build / test / typecheck              | Load `build-and-test` skill                |
+| Context assembly                      | Load `context-gather` skill                |
+| Test planning                         | Load `test-plan` skill                     |
+| Goal shaping / issue planning         | Load `issue-shaping-workflow` skill        |
+| UI direction / intent                 | Load `design-direction` skill              |
+| UI / components                       | Load `design-system` skill                 |
+| UI audits / polish                    | Load `audit-ui-quality` skill              |
+| UI verification                       | Load `ui-verification` skill               |
+| Database / migrations                 | Load `database` skill                      |
+| File a Linear issue                   | Load `create-issue` skill                  |
+| Debug investigation                   | Load `debug-workflow` skill                |
+| Instruction artifact authoring/review | Load `instruction-artifact-workflow` skill |
+| Command authoring                     | Load `command-thin-shim` skill             |
+| Skill compliance review               | Load `skill-compliance` skill              |
 
 ## Code Style & Conventions
 
@@ -151,6 +152,7 @@ Update a skill proactively when any of these stronger triggers occur:
 - `.opencode/skills/<domain>/SKILL.md` for cross-cutting domain knowledge.
 - A package-level `AGENTS.md` for conventions too specific for a shared skill.
 - If no skill file exists for the domain and the knowledge is reusable, create one following the structure of existing skill files.
+- Use `instruction-artifact-workflow` when creating or materially changing OpenCode skills, agents, commands, or `AGENTS.md` guidance so placement stays lean and reviewable.
 - For command-specific workflow glue, keep `.opencode/commands/*.md` thin and move reusable operating logic into skills.
 - New skill files are discovered on session startup. In the same session that creates a skill, read the new `SKILL.md` directly instead of assuming the `skill` tool can load it by name immediately.
 
