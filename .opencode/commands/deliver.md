@@ -385,9 +385,12 @@ General-purpose skills (`delivery-workflow`, `worktree-workflow`, `implementatio
 4. If more than 3 match, keep the 3 most specific (prefer full package-path matches
    over keyword-only matches; prefer longer path segments over shorter ones).
 5. If 0 rows match, skip injection — use the prompt template below unchanged.
-6. If the issue is UI-bearing and the current `tmp/context-<issue-id>.md` lacks a
-   `## Design Direction` block, inject `.opencode/skills/design-direction/SKILL.md`
-   even when no path-pattern row matched; that workflow owns the upstream intent capture.
+6. If the issue is UI-bearing with unresolved visual direction and the current
+   `tmp/context-<issue-id>.md` lacks a `## Design Direction` block, inject
+   `.opencode/skills/design-direction/SKILL.md` even when no path-pattern row
+   matched; that workflow owns upstream intent capture. If direction is already
+   settled and only needs preservation, inject `.opencode/skills/design-handoff/SKILL.md`
+   when the context artifact lacks `## Design Handoff Context`.
 
 Prompt template per issue:
 
@@ -396,10 +399,10 @@ When 1–3 skills matched in the inline skill matching step above, include the
 `[END INJECT]`) immediately after the `Worktree:` line. Omit the block entirely
 when 0 skills matched.
 
-If the UI-direction gate applies, also tell the planner to treat the current
-`tmp/context-<issue-id>.md` as authoritative upstream intent and to read its
-`## Design Direction` block, plus any `## Design Handoff Context` block, before planning unless the plan
-explicitly calls out a strategic mismatch.
+If the UI-direction or design-handoff gate applies, also tell the planner to
+treat the current `tmp/context-<issue-id>.md` as authoritative UI context and to
+read its `## Design Direction` block, plus any `## Design Handoff Context` block,
+before planning unless the plan explicitly calls out a strategic mismatch.
 
 When `prior_agent_context` or `resolved_blocker_prs` is non-empty for the issue,
 include the `## Prior context` block (shown below between `[INJECT IF ENRICHED]`

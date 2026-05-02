@@ -142,5 +142,6 @@ Use this shape in the context artifact:
 | Downstream skill   | Use it for                                                                  |
 | ------------------ | --------------------------------------------------------------------------- |
 | `design-system`    | Turning the captured direction into components, layout, tokens, and UI code |
+| `design-handoff`   | Preserving settled direction across downstream agents without re-opening it |
 | `audit-ui-quality` | Checking authored UI for polish, consistency, and generic drift             |
 | `ui-verification`  | Verifying the implemented UI behaves correctly in the browser               |

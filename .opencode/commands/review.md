@@ -80,7 +80,7 @@ Then run the separate compliance pass from `skill-compliance` when repository or
 
 Classify every finding using the severity table from `review-standards` before writing the output.
 
-For UI changes, make sure the review explicitly states whether design-direction context was consulted and which artifact supplied it.
+For UI changes, make sure the review explicitly states whether `## Design Direction` and any `## Design Handoff Context` were consulted and which artifact supplied them.
 
 ---
 
