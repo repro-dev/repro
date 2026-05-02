@@ -4,29 +4,30 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 
 **Task entry points:**
 
-| Task type                             | Start here                                 |
-| ------------------------------------- | ------------------------------------------ |
-| Feature / fix                         | Load `delivery-workflow` skill             |
-| Bug fix / root-cause work             | Load `bug-rigor` with `delivery-workflow`  |
-| Worktree / parallel work              | Load `worktree-workflow` skill             |
-| Implementation / testing              | Load `implementation-rigor` skill          |
-| Repo-specific testing                 | Load `testing-workflow` skill              |
-| Commit / PR                           | Load `git-workflow` skill                  |
-| Code review                           | Load `review-standards` skill              |
-| Build / test / typecheck              | Load `build-and-test` skill                |
-| Context assembly                      | Load `context-gather` skill                |
-| Test planning                         | Load `test-plan` skill                     |
-| Goal shaping / issue planning         | Load `issue-shaping-workflow` skill        |
-| UI direction / intent                 | Load `design-direction` skill              |
-| UI / components                       | Load `design-system` skill                 |
-| UI audits / polish                    | Load `audit-ui-quality` skill              |
-| UI verification                       | Load `ui-verification` skill               |
-| Database / migrations                 | Load `database` skill                      |
-| File a Linear issue                   | Load `create-issue` skill                  |
-| Debug investigation                   | Load `debug-workflow` skill                |
-| Instruction artifact authoring/review | Load `instruction-artifact-workflow` skill |
-| Command authoring                     | Load `command-thin-shim` skill             |
-| Skill compliance review               | Load `skill-compliance` skill              |
+| Task type                             | Start here                                                                   |
+| ------------------------------------- | ---------------------------------------------------------------------------- |
+| Feature / fix                         | Load `delivery-workflow` skill                                               |
+| Bug fix / root-cause work             | Load `bug-rigor` with `delivery-workflow`                                    |
+| Worktree / parallel work              | Load `worktree-workflow` skill                                               |
+| Implementation / testing              | Load `implementation-rigor` skill                                            |
+| Repo-specific testing                 | Load `testing-workflow` skill                                                |
+| Commit / PR                           | Load `git-workflow` skill                                                    |
+| Code review                           | Load `review-standards` skill                                                |
+| Build / test / typecheck              | Load `build-and-test` skill                                                  |
+| Context assembly                      | Load `context-gather` skill                                                  |
+| Test planning                         | Load `test-plan` skill                                                       |
+| Goal shaping / issue planning         | Load `issue-shaping-workflow` skill                                          |
+| UI direction / intent                 | Load `design-direction` skill                                                |
+| UI / components                       | Load `design-system` skill                                                   |
+| UI audits / polish                    | Load `audit-ui-quality` skill                                                |
+| UI verification                       | Load `ui-verification` skill                                                 |
+| Database / migrations                 | Load `database` skill                                                        |
+| File a Linear issue                   | Load `create-issue` skill                                                    |
+| Debug investigation                   | Load `debug-workflow` skill                                                  |
+| Stalled debugging / evidence ledger   | Keep using `/debug`; load `debugger-escalation` when `debug-workflow` stalls |
+| Instruction artifact authoring/review | Load `instruction-artifact-workflow` skill                                   |
+| Command authoring                     | Load `command-thin-shim` skill                                               |
+| Skill compliance review               | Load `skill-compliance` skill                                                |
 
 ## Code Style & Conventions
 
