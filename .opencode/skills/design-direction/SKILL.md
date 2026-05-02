@@ -114,21 +114,7 @@ Use this shape in the context artifact:
 - When typography is part of the direction, include the concrete readability guardrails from `design-system/references/typography-readability.md` instead of leaving them as a vague “improve hierarchy” note.
 - When the UI can fail, name the blast radius, retry path, and fallback shape explicitly instead of leaving recovery intent implied.
 
-<!-- Optional: include only when settled direction must survive downstream work unchanged. -->
-
-## Design Handoff Context
-
-- `design-system`: translate direction into components, layout, and tokens
-- `audit-ui-quality`: review authored output for generic drift, polish, consistency, and blocked error recovery, citing the same anti-pattern names where relevant
-- `design-handoff`: preserve the settled direction itself when later agents should not reinterpret it
-- `design-system/references/persistence-hygiene.md`: carry forward the persistence vocabulary for preserved preferences, bounded storage, and stale-flag cleanup
-- `design-system/references/forms-input-interference.md`: carry forward the forms/editing vocabulary for paste handling, caret safety, and wizard-state persistence
-- `design-system/references/navigation-url-scroll-state.md`: carry the redirect-chain, URL-state, scroll-recovery, and session-expiry vocabulary into implementation details
-- `design-system/references/layering-and-overlays.md`: carry the same stacking, clipping, and portal-escape vocabulary into implementation details
-- `design-system/references/accessibility-as-ux.md`: carry the same focus-indicator, hover-only, color-only, contrast, and keyboard-trap vocabulary into implementation details
-- `design-system/references/error-recovery-containment.md`: carry the same blast-radius, retry, and fallback vocabulary into implementation details
-- `design-system/references/pre-delivery-ui-checklist.md`: capture the final shipping pass when the direction needs a compact readiness summary
-- `ui-verification`: validate the finished UI in the browser after implementation
+<!-- For settled direction that must survive downstream work unchanged, load `design-handoff` and use its canonical `## Design Handoff Context` template. -->
 ```
 
 ## Guardrails
