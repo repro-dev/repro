@@ -21,7 +21,7 @@ Write the working notes to `tmp/debug-<topic>.md` when the investigation is non-
 
 ## Escalation path
 
-`debug-workflow` is the default lightweight path. If the investigation loops, assumptions outnumber confirmed facts, hypotheses fail without convergence, the repro is flaky or non-deterministic, or the evidence conflicts, keep the same `tmp/debug-<topic>.md` notes and escalate to `debugger-escalation` instead of restarting from scratch.
+`debug-workflow` is the default lightweight path. If the investigation loops, assumptions outnumber confirmed facts, hypotheses fail without convergence, the repro is flaky or non-deterministic, or the evidence conflicts, keep the same `tmp/debug-<topic>.md` notes and escalate via `/debug strict <topic | REP-123>` into `debugger-escalation` instead of restarting from scratch.
 
 ## Debug note format
 

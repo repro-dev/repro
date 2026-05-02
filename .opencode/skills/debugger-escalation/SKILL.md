@@ -7,6 +7,8 @@ description: Strict debugger escalation workflow with a durable evidence ledger 
 
 Use this skill when normal debugging is no longer converging and the investigation needs a stricter evidence ledger.
 
+Invoke it through `/debug strict <topic | REP-123>`.
+
 ## When to use
 
 - repeated failed fixes or looping hypotheses
