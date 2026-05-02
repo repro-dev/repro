@@ -7,7 +7,7 @@ description: Practical post-change UI verification workflow — use after non-tr
 
 Use this skill after you have changed a UI surface and need to confirm it behaves correctly and still reads well in the browser. It is for validating implemented UI, not for shaping direction or running a broad audit. If a `## Design Handoff Context` block exists, treat it as the browser brief and do not invent new direction.
 
-**Extension escape hatch:** if the changed surface is a browser extension, stop here and follow the `extension-verification` workflow in `.opencode/skills/extension-verification/SKILL.md` instead.
+**Extension escape hatch:** if the changed surface is a browser extension, stop here and load `extension-verification` instead.
 
 For the current agent-browser command reference and skill content, load the CLI-served core skill with `agent-browser skills get core --full`.
 

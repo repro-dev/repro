@@ -80,7 +80,7 @@ Do **not** use this skill for:
    - Save the result in `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md`.
    - Keep the artifact short enough to reuse, but explicit enough to guide downstream work.
    - If the direction will need a final shipping pass, note that the downstream handoff should also include `design-system/references/pre-delivery-ui-checklist.md` so implementation and audit can cite one compact readiness layer.
-   - If the direction is already settled and must survive downstream work, append a `## Design Handoff Context` block so later agents can preserve the decision without re-opening it.
+   - If the direction is already settled and must survive downstream work, load `design-handoff` and use its canonical `## Design Handoff Context` template instead of extending this block.
 
 ## Output template
 
@@ -115,6 +115,7 @@ Use this shape in the context artifact:
 - When the UI can fail, name the blast radius, retry path, and fallback shape explicitly instead of leaving recovery intent implied.
 
 <!-- Optional: include only when settled direction must survive downstream work unchanged. -->
+
 ## Design Handoff Context
 
 - `design-system`: translate direction into components, layout, and tokens

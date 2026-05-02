@@ -9,7 +9,7 @@ Arguments (required): `$ARGUMENTS`
 ## Command contract
 
 1. If `$ARGUMENTS` is empty or whitespace, stop and print `Usage: /design-direction <topic | REP-123>`.
-2. Load the `design-direction` skill. If the user is asking to preserve already settled UI direction across downstream work, stop and tell them to use `design-handoff` instead.
+2. Load the `design-direction` skill. If the user is asking to preserve already settled UI direction across downstream work, stop and tell them to run `/design-handoff <topic | REP-123>` instead.
 3. If the argument matches `REP-\d+`, fetch the issue context before writing notes.
 4. Create or update `tmp/context-<topic>.md` or `tmp/context-<issue-id>.md` with the skill-defined `## Design Direction` artifact shape for unresolved or upstream visual intent.
 5. Stop once the design-direction context is captured and ready for downstream handoff.

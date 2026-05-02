@@ -29,6 +29,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 - `design-system` — UI implementation, components, tokens, and reference files
 - `audit-ui-quality` — scored authored-vs-generic UI audit
 - `ui-verification` — browser evidence after a UI change
+- `extension-verification` — browser-extension verification
 
 ### Lifecycle / tooling skills
 

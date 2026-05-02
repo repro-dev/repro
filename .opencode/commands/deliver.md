@@ -81,7 +81,7 @@ Run-scoped artifacts:
 - Reuse the existing `needs-spec` label for issues escalated out of `/deliver` because they lack enough specification or clarity for autonomous planning.
 - The main checkout is the control plane for `/deliver`, not a mutation target. Never write implementation changes under the main checkout from this command.
 - Plan files are the required durable handoff into implementation: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
-- Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For UI-bearing issues with unresolved visual direction, that same worktree-local context artifact must carry the `## Design Direction` block from `.opencode/skills/design-direction/SKILL.md` before planner launch. When settled UI decisions must survive downstream work unchanged, also include `## Design Handoff Context`. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
+- Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For UI-bearing issues with unresolved visual direction, that same worktree-local context artifact must carry the `## Design Direction` block from `.opencode/skills/design-direction/SKILL.md` before planner launch. When settled UI decisions must survive downstream work unchanged, read and preserve any `## Design Handoff Context` block too. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
 - Missing required artifacts trigger an enforce-and-retry loop: create the missing `tmp/context-*` or `tmp/test-plan-*` file first, then retry the blocked delegation step.
 - Use issue selection notes plus explicit risk notes as the handoff from selection into sequencing.
 - Sequencing is provisional until planning finishes. Resequence once after planner output is available, then lock the ready wave.
@@ -659,7 +659,7 @@ Plan: <worktree>/tmp/plan-REP-xxx.md
 Read the plan first and follow it. The plan file is authoritative.
 Do not re-explore the codebase from scratch unless the plan clearly points you there.
 Do not push or create a PR.
-Read the plan, the current context artifact, and the test plan before coding. For UI-bearing issues, the context artifact's `## Design Direction` block is authoritative upstream intent unless the plan calls out a strategic mismatch.
+Read the plan, the current context artifact, and the test plan before coding. For UI-bearing issues, the context artifact's `## Design Direction` block is authoritative upstream intent unless the plan calls out a strategic mismatch. Preserve any `## Design Handoff Context` block too, especially for settled decisions that must not drift.
 
 Tactical implementation-level deviations are allowed if they still satisfy the plan and issue.
 If you discover a strategic mismatch that invalidates the plan, stop and report it instead of improvising a larger redesign.

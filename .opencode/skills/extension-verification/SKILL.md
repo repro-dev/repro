@@ -1,3 +1,8 @@
+---
+name: extension-verification
+description: Browser-extension verification workflow with isolated profiles and worktree-scoped evidence.
+---
+
 # Extension Verification Skill
 
 Use this skill when the changed surface is a browser extension rather than a normal app page. The normative workflow is `agent-browser`-centered; Playwright may remain only as a temporary migration detail if a specific setup still depends on it.
@@ -29,9 +34,9 @@ The common pattern is to use `reproctl start --wait <service>` so the extension 
 
 Keep browser state that should survive across worktrees in the main checkout `tmp/` tree:
 
-- profiles: `/Users/gary/Projects/repro-dev/repro/tmp/agent-browser/profiles/`
-- auth: `/Users/gary/Projects/repro-dev/repro/tmp/agent-browser/auth/`
-- cache/downloads: `/Users/gary/Projects/repro-dev/repro/tmp/agent-browser/cache/`
+- profiles: `<main-checkout>/tmp/agent-browser/profiles/`
+- auth: `<main-checkout>/tmp/agent-browser/auth/`
+- cache/downloads: `<main-checkout>/tmp/agent-browser/cache/`
 
 Use these paths for reusable `agent-browser` profiles, shared auth vault data, and optional cached downloads that multiple extension runs may reuse.
 
