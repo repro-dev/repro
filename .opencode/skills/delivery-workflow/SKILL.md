@@ -18,17 +18,18 @@ Use this skill when you are starting a feature or fix. Keep it thin: it coordina
 - `context-gather` — assemble issue, dependency, and prior-work context before planning
 - `test-plan` — write the test strategy explicitly when coverage needs coordination
 - `design-direction` — upstream UI intent capture for ambiguous or net-new visual direction
+- `agentic-design` — agentic UI workflow and durable design-context contract for harnessed surfaces
 - Domain skills — only when the changed code lives in that domain
 
-For non-trivial UI changes, use `design-direction` only when the direction is still unresolved. Otherwise, use `design-system` for implementation, `ui-verification` for post-change browser validation, and `audit-ui-quality` only for broader audits, scoring, or polish passes.
+For non-trivial UI changes, use `design-direction` only when the direction is still unresolved. If the surface also needs the broader harness contract, load `agentic-design` and keep that contract in the same tmp artifact. Otherwise, use `design-system` for implementation, `ui-verification` for post-change browser validation, and `audit-ui-quality` only for broader audits, scoring, or polish passes.
 
 ## 1. Pre-flight
 
 1. Fetch the Linear issue via the repo-owned `linear` CLI (`linear issue show REP-123 --json`) and read the full description, decisions, and considerations. For non-Linear work, establish a stable topic label that can be used in `tmp/context-<topic>.md` artifacts.
-2. Load the support skills you need for this change. If the work is a genuine bug fix or regression, load `bug-rigor` before implementation begins. If non-trivial UI work still needs visual direction, load `design-direction` before planning starts.
+2. Load the support skills you need for this change. If the work is a genuine bug fix or regression, load `bug-rigor` before implementation begins. If non-trivial UI work still needs visual direction, load `design-direction` before planning starts. If the surface also needs the broader agentic harness contract, load `agentic-design` before planning starts.
 3. Create or confirm the worktree for the issue.
 4. Set the issue to **In Progress**.
-5. If the issue spans 3+ packages, depends on prior investigation threads, or the relevant scope is scattered across related issues/comments/docs, run `context-gather` and write `tmp/context-<issue-id>.md` before planning. For UI work with unresolved visual direction, extend that same context artifact with the design-direction block instead of creating a second mandatory file. For non-Linear work, write `tmp/context-<topic>.md`.
+5. If the issue spans 3+ packages, depends on prior investigation threads, or the relevant scope is scattered across related issues/comments/docs, run `context-gather` and write `tmp/context-<issue-id>.md` before planning. For UI work with unresolved visual direction, extend that same context artifact with the design-direction block instead of creating a second mandatory file. If the surface also needs the broader agentic harness contract, include the `agentic-design` block in that same artifact instead of splitting out another required file. For non-Linear work, write `tmp/context-<topic>.md`.
 6. Treat missing required artifacts as a pre-flight failure. Create the missing artifact first, then retry the blocked step instead of continuing with degraded context.
 
 ## 2. Planning
@@ -45,7 +46,7 @@ For non-trivial UI changes, use `design-direction` only when the direction is st
 ## 3. Delegation
 
 - Use `develop` for implementation that touches 2+ files.
-- Give `develop` the current `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md` when one exists. For UI work with unresolved direction, that artifact is authoritative upstream input.
+- Give `develop` the current `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md` when one exists. For UI work with unresolved direction, that artifact is authoritative upstream input. If the surface also needs the broader harness contract, make sure the artifact includes the `agentic-design` block.
 - Give `develop` a `tmp/test-plan-<issue-id>.md` artifact for any new behavior, bug fix, or public contract change. For non-Linear work, use `tmp/test-plan-<topic>.md`.
 - If a required artifact is missing at delegation time, stop to create it and retry the same delegation step. Do not weaken the precondition or invent an inline substitute mid-flight.
 - Use `test` after implementation to audit coverage and add regressions.

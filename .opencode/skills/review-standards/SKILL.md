@@ -22,6 +22,7 @@ description: Review contract for branch and PR reviews — changed-code focus, s
 - Fetch the parent project and milestone when they help explain the intended outcome.
 - When issue-scoped artifacts exist in `tmp/` (for example `tmp/context-REP-123.md` or `tmp/test-plan-REP-123.md`), use them as supplemental review context rather than ignoring the documented plan/history.
 - For UI diffs, also consult the matching durable context artifact's `## Design Direction` section (or the dedicated design-direction artifact when one exists) so review reflects captured intent instead of inventing it.
+- When the UI work also has a captured agentic harness contract, consult the matching `## Agentic Design Context` section (or the dedicated agentic-design artifact when one exists) so review covers surface scope, evidence, and downstream handoff expectations.
 - For non-Linear work, use the matching topic-scoped artifacts (for example `tmp/context-foo.md` or `tmp/test-plan-foo.md`) when they exist.
 
 ## Severity classification
@@ -75,6 +76,8 @@ Classify every finding using one of these four levels:
 If the PR touches UI code, verify the interactive states, motion, accessibility, copy, and token usage at a review level.
 
 If a captured design-direction artifact or `## Design Direction` section exists, use it as supplemental context for UI review; if it does not, note the absence rather than inferring direction retroactively.
+
+If an agentic-design artifact or `## Agentic Design Context` section exists, use it as supplemental context for harnessed UI review; if it does not, note the absence rather than inventing a broader contract.
 
 For a deeper scored audit across tokens, components, layout, interaction states, accessibility, copy, type safety, resilience, and authored-vs-generic UI judgment, load the `audit-ui-quality` skill.
 
