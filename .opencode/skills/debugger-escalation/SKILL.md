@@ -5,9 +5,9 @@ description: Strict debugger escalation workflow with a durable evidence ledger 
 
 # Debugger Escalation
 
-Use this skill when normal debugging is no longer converging and the investigation needs a stricter evidence ledger.
+Use this skill when the normal `/debug` flow is no longer converging and the investigation needs a stricter evidence ledger.
 
-Invoke it through `/debug strict <topic | REP-123>`.
+Continue the same `/debug <topic | REP-123>` investigation and load this skill internally when escalation triggers fire; do not expose a separate command surface.
 
 ## When to use
 
