@@ -77,7 +77,7 @@ If the PR touches UI code, verify the interactive states, motion, accessibility,
 
 If a captured design-direction artifact or `## Design Direction` section exists, use it as supplemental context for UI review; if it does not, note the absence rather than inferring direction retroactively.
 
-If an agentic-design artifact or `## Agentic Design Context` section exists, use it as supplemental context for reviewing agent-authored UI work; if it does not, note the absence rather than inventing a broader contract.
+If an agentic-design artifact or `## Agentic Design Context` section exists, use it as supplemental context for reviewing agent-authored UI work; if it does not, note the absence rather than inventing a multi-agent design handoff requirement.
 
 For a deeper scored audit across tokens, components, layout, interaction states, accessibility, copy, type safety, resilience, and authored-vs-generic UI judgment, load the `audit-ui-quality` skill.
 

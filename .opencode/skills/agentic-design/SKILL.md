@@ -9,13 +9,30 @@ Use this skill for design by an agent: UI work where OpenCode needs to preserve 
 
 This is not a skill for designing agentic product surfaces. If the work is about the agentic debugger's backend, tool runtime, or API routes, load `agentic` instead. If the work is UI implementation without a special agent-authored design handoff, use `design-system`, `audit-ui-quality`, and `ui-verification` as usual.
 
-It stays intentionally small: `design-direction` captures visual intent, while this skill captures the broader design-by-agent contract that downstream planning, implementation, review, audit, and browser verification can all reuse.
+It stays intentionally small: `design-direction` captures what the UI should feel like and why; this skill captures how that agent-authored direction is handed through implementation, critique, browser evidence, and review without being diluted or reinterpreted.
+
+## Why this is separate from `design-direction`
+
+`design-direction` is enough when the output is a durable statement of visual intent: purpose, audience, aesthetic direction, hierarchy, composition, references, and anti-generic cues.
+
+Load `agentic-design` only when the next risk is operational rather than purely visual: the design will be carried through multiple agents, review gates, or verification steps and needs an explicit contract for constraints, critique, evidence, and downstream consumers.
 
 ## When to load
 
-- agent-authored UI or visual workflow work that needs one context block for planner, develop, test, review, audit, and `ui-verification`
-- ambiguous or high-visibility UI briefs where OpenCode needs to preserve why the agent chose a direction before implementation starts
-- any UI surface where `design-direction` alone is too narrow because downstream agents need critique, evidence, and handoff constraints
+Load this skill when UI design work is being done by OpenCode and at least one of these is true:
+
+- the design artifact will be consumed by multiple roles or agents, such as `planner`, `develop`, `review`, `audit-ui-quality`, or `ui-verification`
+- the work needs explicit non-visual constraints in the same handoff, such as component/token boundaries, interaction-state expectations, critique gates, or browser-evidence requirements
+- the brief is high-visibility, ambiguous, or likely to be implemented later, so the agent's design choices need to be preserved beyond the current turn
+- the task is about improving the OpenCode workflow for agent-authored UI design itself, such as preflight, presets, critique gates, evidence handoff, or targeted edit loops
+
+## When not to load
+
+- the task only needs visual direction; use `design-direction`
+- the task is routine UI implementation with clear requirements; use `design-system`
+- the task is a post-change browser check; use `ui-verification`
+- the task is a broad UI quality audit or polish pass; use `audit-ui-quality`
+- the task is agentic debugger backend, runtime, tools, evals, or API routes; use `agentic`
 
 ## Workflow
 

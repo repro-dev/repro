@@ -77,7 +77,7 @@ Do **not** use this skill for:
 9. **Write the durable context block**
    - Save the result in `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md`.
    - Keep the artifact short enough to reuse, but explicit enough to guide downstream work.
-   - If the UI work also needs a durable contract for agent-authored design choices, include a `## Agentic Design Context` block from `.opencode/skills/agentic-design/SKILL.md` in the same tmp artifact or keep a standalone artifact only when the scope is too large to combine cleanly.
+   - If the direction will be carried through multiple agents, review gates, or browser-evidence handoff, load `agentic-design` and include its `## Agentic Design Context` block in the same tmp artifact.
    - If the direction will need a final shipping pass, note that the downstream handoff should also include `design-system/pre-delivery-ui-checklist.md` so implementation and audit can cite one compact readiness layer.
 
 ## Output template
@@ -115,7 +115,7 @@ Use this shape in the context artifact:
 ## Handoff
 
 - `design-system`: translate direction into components, layout, and tokens
-- `agentic-design`: carry the design-by-agent contract, browser-evidence notes, and downstream consumer guidance when the work needs agent-authored design handoff details
+- `agentic-design`: add implementation, critique, browser-evidence, and downstream-consumer constraints when the direction must survive a multi-agent handoff
 - `audit-ui-quality`: review authored output for generic drift, polish, consistency, and blocked error recovery, citing the same anti-pattern names where relevant
 - `design-system/persistence-hygiene.md`: carry forward the persistence vocabulary for preserved preferences, bounded storage, and stale-flag cleanup
 - `design-system/forms-input-interference.md`: carry forward the forms/editing vocabulary for paste handling, caret safety, and wizard-state persistence
@@ -139,6 +139,6 @@ Use this shape in the context artifact:
 | Downstream skill   | Use it for                                                                  |
 | ------------------ | --------------------------------------------------------------------------- |
 | `design-system`    | Turning the captured direction into components, layout, tokens, and UI code |
-| `agentic-design`   | Carrying the design-by-agent contract, browser evidence, and handoff notes  |
+| `agentic-design`   | Carrying multi-agent design handoff, browser evidence, and critique notes   |
 | `audit-ui-quality` | Checking authored UI for polish, consistency, and generic drift             |
 | `ui-verification`  | Verifying the implemented UI behaves correctly in the browser               |
