@@ -4,30 +4,47 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 
 **Task entry points:**
 
-| Task type                             | Start here                                                                   |
-| ------------------------------------- | ---------------------------------------------------------------------------- |
-| Feature / fix                         | Load `delivery-workflow` skill                                               |
-| Bug fix / root-cause work             | Load `bug-rigor` with `delivery-workflow`                                    |
-| Worktree / parallel work              | Load `worktree-workflow` skill                                               |
-| Implementation / testing              | Load `implementation-rigor` skill                                            |
-| Repo-specific testing                 | Load `testing-workflow` skill                                                |
-| Commit / PR                           | Load `git-workflow` skill                                                    |
-| Code review                           | Load `review-standards` skill                                                |
-| Build / test / typecheck              | Load `build-and-test` skill                                                  |
-| Context assembly                      | Load `context-gather` skill                                                  |
-| Test planning                         | Load `test-plan` skill                                                       |
-| Goal shaping / issue planning         | Load `issue-shaping-workflow` skill                                          |
-| UI direction / intent                 | Load `design-direction` skill                                                |
-| UI / components                       | Load `design-system` skill                                                   |
-| UI audits / polish                    | Load `audit-ui-quality` skill                                                |
-| UI verification                       | Load `ui-verification` skill                                                 |
-| Database / migrations                 | Load `database` skill                                                        |
-| File a Linear issue                   | Load `create-issue` skill                                                    |
-| Debug investigation                   | Load `debug-workflow` skill                                                  |
-| Stalled debugging / evidence ledger   | Keep using `/debug`; load `debugger-escalation` when `debug-workflow` stalls |
-| Instruction artifact authoring/review | Load `instruction-artifact-workflow` skill                                   |
-| Command authoring                     | Load `command-thin-shim` skill                                               |
-| Skill compliance review               | Load `skill-compliance` skill                                                |
+### Workflow skills
+
+- `delivery-workflow` — feature/fix orchestration
+- `bug-rigor` — root-cause-first bug fixing
+- `implementation-rigor` — red/green/refactor and verification order
+- `review-standards` — branch/PR review contract
+- `context-gather` — compact planning context
+- `test-plan` — explicit test strategy before implementation
+- `issue-shaping-workflow` — goal-to-issue planning
+- `debug-workflow` — evidence-first debugging
+
+### Discipline skills
+
+- `database` — PostgreSQL, Kysely, migrations
+- `recording-playback` — capture/playback subsystem work
+- `agentic` — agentic debugger runtime, tools, UI, and API routes/services
+- `authentication`, `billing`, `dev-toolbar`, `api-server` — product/domain surfaces
+
+### UI-specific skills
+
+- `design-direction` — upstream visual intent
+- `design-handoff` — preserve settled UI decisions across handoffs
+- `design-system` — UI implementation, components, tokens, and reference files
+- `audit-ui-quality` — scored authored-vs-generic UI audit
+- `ui-verification` — browser evidence after a UI change
+
+### Lifecycle / tooling skills
+
+- `worktree-workflow` — isolated worktrees
+- `build-and-test` — moon, typecheck, formatter, and verification commands
+- `testing-workflow` — repo-specific harness guidance
+- `git-workflow` — commits, PRs, and Linear lifecycle
+- `create-issue` and `linear-cli` — issue creation and Linear lookups
+
+### Meta skills
+
+- `skill-architecture` — skill taxonomy and migration boundaries
+- `skill-compliance` — verify skill/AGENTS adherence
+- `instruction-artifact-workflow` — author and review instruction artifacts
+- `command-thin-shim` — command-file structure
+- `harden` — resilience follow-up when needed
 
 ## Code Style & Conventions
 

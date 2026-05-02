@@ -11,15 +11,16 @@ Comprehensive reference for building UI in the Repro codebase. Load this skill b
 
 - Use `@repro/design` for appearance, semantics, and shared interaction patterns.
 - Use `@jsxstyle/react` in app code for structure and layout only.
-- When a screen is near shipping, read `pre-delivery-ui-checklist.md` for the final shared pass.
+- When a screen is near shipping, read `references/pre-delivery-ui-checklist.md` for the final shared pass.
+- When a brief needs a concrete visual scaffold rather than a taxonomy, read `references/visual-direction-presets.md`.
 
 ## Companion guides by concern
 
-When the task is about authoredness, generic drift, naming a recurring UI tell, forms/editing behavior, navigation/URL state, scroll recovery, session-expiry handling, layering/overlay behavior, preserving preferences across updates, accessibility-as-UX, storage hygiene, or recovering from a broken surface, read `anti-patterns.md`, `palette-surface-spacing.md`, `interaction-responsive.md`, `navigation-url-scroll-state.md`, `layering-and-overlays.md`, `accessibility-as-ux.md`, `forms-input-interference.md`, `persistence-hygiene.md`, and `error-recovery-containment.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
+When the task is about authoredness, generic drift, naming a recurring UI tell, forms/editing behavior, navigation/URL state, scroll recovery, session-expiry handling, layering/overlay behavior, preserving preferences across updates, accessibility-as-UX, storage hygiene, or recovering from a broken surface, read `references/anti-patterns.md`, `references/palette-surface-spacing.md`, `references/interaction-responsive.md`, `references/navigation-url-scroll-state.md`, `references/layering-and-overlays.md`, `references/accessibility-as-ux.md`, `references/forms-input-interference.md`, `references/persistence-hygiene.md`, and `references/error-recovery-containment.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
 
-When the task is specifically about readable type or paragraph hierarchy, also read `typography-readability.md` so the same heuristics and anti-pattern names travel across design, review, and audit.
+When the task is specifically about readable type or paragraph hierarchy, also read `references/typography-readability.md` so the same heuristics and anti-pattern names travel across design, review, and audit.
 
-When the task is specifically about mobile touch, app surfaces, or constrained mobile viewport behavior, also read `mobile-touch-app-surface.md` so the same cues travel across design, review, and audit.
+When the task is specifically about mobile touch, app surfaces, or constrained mobile viewport behavior, also read `references/mobile-touch-app-surface.md` so the same cues travel across design, review, and audit.
 
 ## When companions are required
 
@@ -29,27 +30,28 @@ Read the companion docs when the concern is specific enough that shared vocabula
 
 Use the shared scope labels when judging whether a rule applies: `marketing/editorial web`, `product/app UI`, `mobile-first or touch-heavy`, `platform-adaptive or native-like`, and `cross-surface`. Treat out-of-scope guidance as non-applicable rather than contradictory, and keep qualifiers concise.
 
-For detailed sub-topics, read the reference files in this directory:
+For detailed sub-topics, read the reference files in `references/`:
 
-| File                             | When to read                                                                                                         |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `anti-patterns.md`               | Need named UI guardrails for authored-vs-generic review, design direction, or audit cross-references                 |
-| `palette-surface-spacing.md`     | Need composition, surface, and spacing heuristics plus named anti-patterns like nested cards and everything centered |
-| `typography-readability.md`      | Need concrete typography and readability heuristics, including body-size, line-length, and hierarchy guardrails      |
-| `interaction-responsive.md`      | Need named guardrails for feedback timing, hover/touch, responsiveness, or modal/reflex behavior                     |
-| `forms-input-interference.md`    | Need named guardrails for forms, input semantics, caret safety, paste handling, or wizard-state persistence          |
-| `navigation-url-scroll-state.md` | Need named guardrails for redirect chains, URL-backed state, scroll recovery, or session-expiry handling             |
-| `layering-and-overlays.md`       | Need named guardrails for z-index chaos, clipping, sticky overlap, or portal / escape-hatch behavior                 |
-| `accessibility-as-ux.md`         | Need named guardrails for visible focus, hover-only affordances, color-only state, contrast, or keyboard traps       |
-| `persistence-hygiene.md`         | Need named guardrails for preserved preferences, storage hygiene/bloat, stale flags, or retired experiments          |
-| `mobile-touch-app-surface.md`    | Need mobile-touch, safe-area, viewport, and app-surface guardrails                                                   |
-| `tokens.md`                      | Need full token tables (color, spacing, typography, elevation, motion, interaction)                                  |
-| `surface-scoping.md`             | Need the canonical scope labels and reviewer/author usage notes                                                      |
-| `component-contract.md`          | Creating or modifying `@repro/design` components (forwardRef, a11y, Storybook, known deviations)                     |
-| `layouts.md`                     | Building page layouts (3-tier hierarchy: AppShell/ToolView/auth-flow shells, PageFrame, page conventions)            |
-| `forms-and-state.md`             | Building forms (react-hook-form + zod), state management (@repro/atom), loading/empty/error patterns                 |
-| `design-package.md`              | Working inside `packages/design/` (directory structure, inventory, add/modify checklists, pitfalls)                  |
-| `pre-delivery-ui-checklist.md`   | Final shared shipping pass: confirm the UI is directionally correct, complete, and ready to hand off                 |
+| File                                         | When to read                                                                                                         |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `references/anti-patterns.md`                | Need named UI guardrails for authored-vs-generic review, design direction, or audit cross-references                 |
+| `references/palette-surface-spacing.md`      | Need composition, surface, and spacing heuristics plus named anti-patterns like nested cards and everything centered |
+| `references/typography-readability.md`       | Need concrete typography and readability heuristics, including body-size, line-length, and hierarchy guardrails      |
+| `references/interaction-responsive.md`       | Need named guardrails for feedback timing, hover/touch, responsiveness, or modal/reflex behavior                     |
+| `references/forms-input-interference.md`     | Need named guardrails for forms, input semantics, caret safety, paste handling, or wizard-state persistence          |
+| `references/navigation-url-scroll-state.md`  | Need named guardrails for redirect chains, URL-backed state, scroll recovery, or session-expiry handling             |
+| `references/layering-and-overlays.md`        | Need named guardrails for z-index chaos, clipping, sticky overlap, or portal / escape-hatch behavior                 |
+| `references/accessibility-as-ux.md`          | Need named guardrails for visible focus, hover-only affordances, color-only state, contrast, or keyboard traps       |
+| `references/persistence-hygiene.md`          | Need named guardrails for preserved preferences, storage hygiene/bloat, stale flags, or retired experiments          |
+| `references/mobile-touch-app-surface.md`     | Need mobile-touch, safe-area, viewport, and app-surface guardrails                                                   |
+| `references/visual-direction-presets.md`     | Need a concrete direction scaffold that stays grounded in Repro UI patterns                                           |
+| `references/tokens.md`                       | Need full token tables (color, spacing, typography, elevation, motion, interaction)                                  |
+| `references/surface-scoping.md`              | Need the canonical scope labels and reviewer/author usage notes                                                      |
+| `references/component-contract.md`           | Creating or modifying `@repro/design` components (forwardRef, a11y, Storybook, known deviations)                     |
+| `references/layouts.md`                      | Building page layouts (3-tier hierarchy: AppShell/ToolView/auth-flow shells, PageFrame, page conventions)            |
+| `references/forms-and-state.md`              | Building forms (react-hook-form + zod), state management (@repro/atom), loading/empty/error patterns                 |
+| `references/design-package.md`               | Working inside `packages/design/` (directory structure, inventory, add/modify checklists, pitfalls)                  |
+| `references/pre-delivery-ui-checklist.md`    | Final shared shipping pass: confirm the UI is directionally correct, complete, and ready to hand off                 |
 
 ---
 
@@ -141,7 +143,7 @@ import {
 
 **Typography rule**: Prefer `textStyles.*` for semantic content text. Use raw `fontSize`, `fontWeight`, and `lineHeight` only in tightly constrained component internals or one-off low-level composition where `textStyles.*` would be the wrong abstraction.
 
-For full token tables with every value, read `tokens.md`.
+For full token tables with every value, read `references/tokens.md`.
 
 ---
 
@@ -258,9 +260,9 @@ For full token tables with every value, read `tokens.md`.
 
 ## Normalisation Workflow
 
-Use this workflow when bringing existing UI back toward design-system conventions. Consult the sub-reference files in this directory (`anti-patterns.md`, `palette-surface-spacing.md`, `typography-readability.md`, `interaction-responsive.md`, `layering-and-overlays.md`, `accessibility-as-ux.md`, `forms-input-interference.md`, `persistence-hygiene.md`, `error-recovery-containment.md`, `mobile-touch-app-surface.md`, `tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
+Use this workflow when bringing existing UI back toward design-system conventions. Consult the sub-reference files in `references/` (`anti-patterns.md`, `palette-surface-spacing.md`, `typography-readability.md`, `interaction-responsive.md`, `layering-and-overlays.md`, `accessibility-as-ux.md`, `forms-input-interference.md`, `persistence-hygiene.md`, `error-recovery-containment.md`, `mobile-touch-app-surface.md`, `tokens.md`, `component-contract.md`, `layouts.md`, `forms-and-state.md`) rather than searching the codebase for conventions.
 
-After the implementation pass, hand off broader scoring/polish to `audit-ui-quality`, then use `ui-verification` for the `reproctl start --wait --full-stack` + `agent-browser` browser loop. Use `pre-delivery-ui-checklist.md` to record final shipping readiness.
+After the implementation pass, hand off broader scoring/polish to `audit-ui-quality`, then use `ui-verification` for the `reproctl start --wait --full-stack` + `agent-browser` browser loop. Use `references/pre-delivery-ui-checklist.md` to record final shipping readiness.
 
 ### Plan
 

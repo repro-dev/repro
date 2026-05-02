@@ -21,7 +21,7 @@ description: Review contract for branch and PR reviews — changed-code focus, s
 - Fetch every referenced Linear issue and read the full description, decisions, requirements, and considerations.
 - Fetch the parent project and milestone when they help explain the intended outcome.
 - When issue-scoped artifacts exist in `tmp/` (for example `tmp/context-REP-123.md` or `tmp/test-plan-REP-123.md`), use them as supplemental review context rather than ignoring the documented plan/history.
-- For UI diffs, also consult the matching durable context artifact's `## Design Direction` section (or the dedicated design-direction artifact when one exists) so review reflects captured intent instead of inventing it.
+- For UI diffs, also consult the matching durable context artifact's `## Design Direction` section and any `## Design Handoff Context` block (or the dedicated artifacts when they exist) so review reflects captured intent instead of inventing it.
 - For non-Linear work, use the matching topic-scoped artifacts (for example `tmp/context-foo.md` or `tmp/test-plan-foo.md`) when they exist.
 
 ## Severity classification

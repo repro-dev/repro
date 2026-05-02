@@ -81,7 +81,7 @@ Run-scoped artifacts:
 - Reuse the existing `needs-spec` label for issues escalated out of `/deliver` because they lack enough specification or clarity for autonomous planning.
 - The main checkout is the control plane for `/deliver`, not a mutation target. Never write implementation changes under the main checkout from this command.
 - Plan files are the required durable handoff into implementation: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
-- Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For UI-bearing issues, that same worktree-local context artifact must carry the `## Design Direction` and `## Handoff` blocks from `.opencode/skills/design-direction/SKILL.md` before planner launch. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
+- Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For UI-bearing issues, that same worktree-local context artifact must carry the `## Design Direction` and `## Design Handoff Context` blocks from `.opencode/skills/design-direction/SKILL.md` before planner launch. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
 - Missing required artifacts trigger an enforce-and-retry loop: create the missing `tmp/context-*` or `tmp/test-plan-*` file first, then retry the blocked delegation step.
 - Use issue selection notes plus explicit risk notes as the handoff from selection into sequencing.
 - Sequencing is provisional until planning finishes. Resequence once after planner output is available, then lock the ready wave.
@@ -336,7 +336,7 @@ Do not stop the whole run unless every issue in the active ready wave fails here
 
 Launch `planner` subagents for every issue that has a worktree in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
-Before launching planners in this phase, if an issue is UI-bearing and its worktree-local `tmp/context-<issue-id>.md` does not yet contain the `## Design Direction` and `## Handoff` blocks from `.opencode/skills/design-direction/SKILL.md`, pause that issue, resolve design-direction first, and retry this phase after the context artifact is populated.
+Before launching planners in this phase, if an issue is UI-bearing and its worktree-local `tmp/context-<issue-id>.md` does not yet contain the `## Design Direction` and `## Design Handoff Context` blocks from `.opencode/skills/design-direction/SKILL.md`, pause that issue, resolve design-direction first, and retry this phase after the context artifact is populated.
 
 For this phase:
 
@@ -398,7 +398,7 @@ when 0 skills matched.
 
 If the UI-direction gate applies, also tell the planner to treat the current
 `tmp/context-<issue-id>.md` as authoritative upstream intent and to read its
-`## Design Direction` and `## Handoff` blocks before planning unless the plan
+`## Design Direction` and `## Design Handoff Context` blocks before planning unless the plan
 explicitly calls out a strategic mismatch.
 
 When `prior_agent_context` or `resolved_blocker_prs` is non-empty for the issue,
@@ -577,7 +577,7 @@ If the current ready wave becomes empty, stop and report why.
 
 Launch `develop` subagents for every issue still in the current ready wave in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
-Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts for its scope. If the issue is UI-bearing, the context artifact must already carry the `## Design Direction` and `## Handoff` blocks from `.opencode/skills/design-direction/SKILL.md`. If a required artifact is missing, create it and retry the launch instead of improvising the implementation path.
+Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts for its scope. If the issue is UI-bearing, the context artifact must already carry the `## Design Direction` and `## Design Handoff Context` blocks from `.opencode/skills/design-direction/SKILL.md`. If a required artifact is missing, create it and retry the launch instead of improvising the implementation path.
 
 For this phase:
 
