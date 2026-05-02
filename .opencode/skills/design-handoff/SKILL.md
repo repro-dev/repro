@@ -19,7 +19,9 @@ Use this skill when a UI direction is already chosen and needs to survive downst
 - implementing UI with components, tokens, and layout — use `design-system`
 - auditing UI quality or authoredness — use `audit-ui-quality`
 - verifying behavior in the browser — use `ui-verification`
-- working on agentic debugger runtime, tool, API, or frontend code — use `agentic`
+- working on agentic debugger runtime, tool, or API behavior with no UI handoff concern — use `agentic`
+
+Co-load `agentic` and `design-handoff` when settled agentic UI direction must survive downstream work unchanged.
 
 ## Design Handoff Context
 

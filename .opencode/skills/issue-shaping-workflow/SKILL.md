@@ -21,7 +21,7 @@ Use this workflow when a user starts from a goal rather than an existing issue. 
 - Do not accept an existing issue ID as the primary input; that belongs to `/deliver` or `/spec`.
 - Capture the goal, constraints, audience, and success signal.
 - If the discovery thread is getting broad or fragmented, write a small durable note in `tmp/context-<topic>.md` before going deeper.
-- If the work is UI-heavy, net-new, or visually ambiguous, also capture a `## Design Direction` / `## Design Handoff Context` block in the same durable context artifact so downstream review and delivery can reuse the same intent.
+- If the work is UI-heavy, net-new, or visually ambiguous, also capture a `## Design Direction` block in the same durable context artifact so downstream review and delivery can reuse the same intent. Add `## Design Handoff Context` only when settled decisions must survive later handoffs unchanged.
 
 ## 2. Discovery
 
@@ -67,7 +67,7 @@ Before any Linear mutation, present a reviewable proposal containing:
 - short rationale
 - acceptance criteria or requirements
 - relation notes (`related`, `blocks`, `blocked-by`, parent/child intent)
-- for UI-heavy work, the path to the durable context artifact that carries `## Design Direction` and `## Design Handoff Context`
+- for UI-heavy work, the path to the durable context artifact that carries `## Design Direction`, plus `## Design Handoff Context` when settled decisions must be preserved
 
 Keep the proposal grounded in the original goal and the context gathered so far.
 

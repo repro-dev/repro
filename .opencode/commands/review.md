@@ -54,7 +54,7 @@ If no issue IDs are found, note this in the output and proceed with convention-o
 
 If issue-scoped artifacts such as `tmp/context-<issue-id>.md`, `tmp/test-plan-<issue-id>.md`, or recent `tmp/debug-*.md` files exist for the work under review, read them and use them as supplemental context. For non-Linear work, use the matching `tmp/context-<topic>.md` and `tmp/test-plan-<topic>.md` artifacts instead.
 
-If the diff touches UI, also inspect the matching durable context artifact for a `## Design Direction` / `## Design Handoff Context` block, or a dedicated design-direction artifact, and carry that intent into the review instead of reconstructing it from the code alone.
+If the diff touches UI, also inspect the matching durable context artifact for a `## Design Direction` block and any `## Design Handoff Context` block, or a dedicated design-direction artifact, and carry that intent into the review instead of reconstructing it from the code alone.
 
 ---
 

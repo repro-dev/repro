@@ -12,7 +12,7 @@ Comprehensive reference for building UI in the Repro codebase. Load this skill b
 - Use `@repro/design` for appearance, semantics, and shared interaction patterns.
 - Use `@jsxstyle/react` in app code for structure and layout only.
 - When a screen is near shipping, read `references/pre-delivery-ui-checklist.md` for the final shared pass.
-- When a brief needs a concrete visual scaffold rather than a taxonomy, read `references/visual-direction-presets.md`.
+- When implementing an already chosen visual scaffold, read `references/visual-direction-presets.md` to keep the UI grounded in Repro patterns.
 
 ## Companion guides by concern
 
@@ -44,7 +44,7 @@ For detailed sub-topics, read the reference files in `references/`:
 | `references/accessibility-as-ux.md`          | Need named guardrails for visible focus, hover-only affordances, color-only state, contrast, or keyboard traps       |
 | `references/persistence-hygiene.md`          | Need named guardrails for preserved preferences, storage hygiene/bloat, stale flags, or retired experiments          |
 | `references/mobile-touch-app-surface.md`     | Need mobile-touch, safe-area, viewport, and app-surface guardrails                                                   |
-| `references/visual-direction-presets.md`     | Need a concrete direction scaffold that stays grounded in Repro UI patterns                                           |
+| `references/visual-direction-presets.md`     | Implementing an already chosen visual scaffold while staying grounded in Repro UI patterns                            |
 | `references/tokens.md`                       | Need full token tables (color, spacing, typography, elevation, motion, interaction)                                  |
 | `references/surface-scoping.md`              | Need the canonical scope labels and reviewer/author usage notes                                                      |
 | `references/component-contract.md`           | Creating or modifying `@repro/design` components (forwardRef, a11y, Storybook, known deviations)                     |

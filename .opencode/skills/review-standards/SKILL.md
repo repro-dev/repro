@@ -57,7 +57,7 @@ Classify every finding using one of these four levels:
 - Lead with context: briefly note which Linear issues were reviewed and any decisions that affected the review.
 - Note which `tmp/` artifacts were consulted, or state that none were present.
 - Note which `tmp/` artifacts still need updating before the next implementation or handoff step, or state that none do.
-- For UI diffs, state whether the `## Design Direction` context was consulted and which artifact supplied it.
+- For UI diffs, state whether `## Design Direction` and any `## Design Handoff Context` were consulted and which artifact supplied them.
 - Classify every finding using the severity levels above.
 - State merge-readiness explicitly.
 - Reference issue requirements by ID when noting gaps.

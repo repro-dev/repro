@@ -76,10 +76,11 @@ Do **not** use this skill for:
    - If the direction depends on feedback timing, hover/touch behavior, responsive reflow, navigation/URL state, scroll recovery, session-expiry handling, mobile viewport constraints, layering/clipping, modal usage, accessibility-as-UX, or error recovery, use the companion `design-system/references/interaction-responsive.md`, `design-system/references/navigation-url-scroll-state.md`, `design-system/references/layering-and-overlays.md`, `design-system/references/accessibility-as-ux.md`, `design-system/references/error-recovery-containment.md`, and `design-system/references/mobile-touch-app-surface.md` catalogs alongside `design-system/references/anti-patterns.md`.
 
 9. **Write the durable context block**
+
    - Save the result in `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md`.
    - Keep the artifact short enough to reuse, but explicit enough to guide downstream work.
-    - If the direction will need a final shipping pass, note that the downstream handoff should also include `design-system/references/pre-delivery-ui-checklist.md` so implementation and audit can cite one compact readiness layer.
-    - If the direction is already settled and must survive downstream work, append a `## Design Handoff Context` block so later agents can preserve the decision without re-opening it.
+   - If the direction will need a final shipping pass, note that the downstream handoff should also include `design-system/references/pre-delivery-ui-checklist.md` so implementation and audit can cite one compact readiness layer.
+   - If the direction is already settled and must survive downstream work, append a `## Design Handoff Context` block so later agents can preserve the decision without re-opening it.
 
 ## Output template
 
@@ -113,6 +114,7 @@ Use this shape in the context artifact:
 - When typography is part of the direction, include the concrete readability guardrails from `design-system/references/typography-readability.md` instead of leaving them as a vague “improve hierarchy” note.
 - When the UI can fail, name the blast radius, retry path, and fallback shape explicitly instead of leaving recovery intent implied.
 
+<!-- Optional: include only when settled direction must survive downstream work unchanged. -->
 ## Design Handoff Context
 
 - `design-system`: translate direction into components, layout, and tokens

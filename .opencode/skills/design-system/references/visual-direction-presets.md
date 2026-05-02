@@ -1,6 +1,6 @@
 # Visual Direction Presets
 
-Use these as scaffolds when a brief needs a concrete starting shape, not as a theme pack or public-brand clone.
+Use these after visual direction is settled to translate the chosen shape into concrete implementation cues. They are not a substitute for `design-direction` when intent is still unresolved.
 
 ## Product calm
 
@@ -34,6 +34,6 @@ Use these as scaffolds when a brief needs a concrete starting shape, not as a th
 
 ## Use notes
 
-- Pick one preset as a scaffold, then adapt it to the actual task.
+- Start from the preset already chosen in the brief or `## Design Direction` artifact, then adapt it to the actual task.
 - Do not combine presets just because they exist.
-- If the brief is already settled, capture the chosen preset in `design-handoff`.
+- If the chosen preset must survive downstream work unchanged, capture it in `## Design Handoff Context` with `design-handoff`.
