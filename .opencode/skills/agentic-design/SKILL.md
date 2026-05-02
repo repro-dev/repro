@@ -1,31 +1,33 @@
 ---
 name: agentic-design
-description: Reusable workflow for agentic UI work and the durable design-context artifact contract. Use when harnessed UI surfaces need shared intent, constraints, critique gates, and browser-evidence handoff.
+description: Reusable workflow for UI design work performed by agents and the durable design-context artifact contract. Use when agent-authored UI work needs shared intent, constraints, critique gates, and browser-evidence handoff.
 ---
 
 # Agentic Design
 
-Use this skill for agentic UI work that needs a durable context artifact before implementation or review.
+Use this skill for design by an agent: UI work where OpenCode needs to preserve the agent's design intent, constraints, critique gates, and verification handoff before implementation or review.
 
-It stays intentionally small: `design-direction` captures visual intent, while this skill captures the broader harness contract that downstream planning, implementation, review, audit, and browser verification can all reuse.
+This is not a skill for designing agentic product surfaces. If the work is about the agentic debugger's backend, tool runtime, or API routes, load `agentic` instead. If the work is UI implementation without a special agent-authored design handoff, use `design-system`, `audit-ui-quality`, and `ui-verification` as usual.
+
+It stays intentionally small: `design-direction` captures visual intent, while this skill captures the broader design-by-agent contract that downstream planning, implementation, review, audit, and browser verification can all reuse.
 
 ## When to load
 
-- agentic UI surfaces in `packages/agentic-ui`, `apps/capture`, `apps/api-server`, or adjacent harnessed flows
-- new UI work that needs one context block for planner, develop, test, review, audit, and `ui-verification`
-- any case where `design-direction` alone is too narrow because the UI depends on a broader agentic harness contract
+- agent-authored UI or visual workflow work that needs one context block for planner, develop, test, review, audit, and `ui-verification`
+- ambiguous or high-visibility UI briefs where OpenCode needs to preserve why the agent chose a direction before implementation starts
+- any UI surface where `design-direction` alone is too narrow because downstream agents need critique, evidence, and handoff constraints
 
 ## Workflow
 
 1. **Name the surface**
 
    - Identify the exact UI surface, entry point, and environment.
-   - Say whether the work is single-surface, cross-surface, or shared-harness.
+   - Say whether the work is single-surface, cross-surface, or shared design guidance.
 
 2. **Capture the durable context artifact**
 
    - Save the context in `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md`.
-   - Prefer one durable tmp artifact with both `## Design Direction` and `## Agentic Design Context` blocks when the work needs intent plus harness detail.
+   - Prefer one durable tmp artifact with both `## Design Direction` and `## Agentic Design Context` blocks when the work needs visual intent plus agent-authored handoff detail.
    - Split into a standalone artifact only when the scope is too broad for one reusable tmp file.
 
 3. **Hand off the contract**
@@ -41,7 +43,7 @@ The `## Agentic Design Context` block should include these sections:
 ### Surface Scope
 
 - Name the surface, its entry point, and the environment it runs in.
-- Note whether the work is product/app UI, cross-surface, or harness-adjacent.
+- Note whether the work is product/app UI, marketing/editorial UI, component guidance, or cross-surface design guidance.
 
 ### Audience
 
@@ -94,10 +96,11 @@ The `## Agentic Design Context` block should include these sections:
 ## Relationship to Other Issues
 
 - REP-1078, REP-1079, REP-1080, REP-1081, and REP-1082 build on this contract.
-- Use `design-direction` for the upstream intent layer; use this skill when the agentic harness contract also matters.
+- Use `design-direction` for the upstream intent layer; use this skill when the agent-authored design handoff also matters.
 
 ## Guardrails
 
 - Keep the artifact durable, reusable, and short enough to revisit quickly.
 - Do not duplicate full skill content inside the tmp file; capture the contract, not the whole playbook.
 - Do not copy external brand systems or defaults; keep the vocabulary grounded in Repro.
+- Do not use this skill just because a changed package is named `agentic`; non-UI agentic runtime, API, or tool work belongs to the `agentic` skill.

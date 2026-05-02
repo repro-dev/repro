@@ -18,7 +18,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 | Test planning                         | Load `test-plan` skill                                                       |
 | Goal shaping / issue planning         | Load `issue-shaping-workflow` skill                                          |
 | UI direction / intent                 | Load `design-direction` skill                                                |
-| Agentic UI / design harness           | Load `agentic-design` skill                                                  |
+| Agent-authored UI design              | Load `agentic-design` skill                                                  |
 | UI / components                       | Load `design-system` skill                                                   |
 | UI audits / polish                    | Load `audit-ui-quality` skill                                                |
 | UI verification                       | Load `ui-verification` skill                                                 |
