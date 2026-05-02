@@ -15,7 +15,9 @@ Comprehensive reference for building UI in the Repro codebase. Load this skill b
 
 ## Companion guides by concern
 
-When the task is about authoredness, generic drift, naming a recurring UI tell, forms/editing behavior, navigation/URL state, scroll recovery, session-expiry handling, layering/overlay behavior, preserving preferences across updates, accessibility-as-UX, storage hygiene, or recovering from a broken surface, read `anti-patterns.md`, `palette-surface-spacing.md`, `interaction-responsive.md`, `navigation-url-scroll-state.md`, `layering-and-overlays.md`, `accessibility-as-ux.md`, `forms-input-interference.md`, `persistence-hygiene.md`, and `error-recovery-containment.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
+When the task is about authoredness, generic drift, naming a recurring UI tell, or choosing a starting scaffold for a no-brand brief, read `anti-patterns.md`, `visual-direction-presets.md`, and `palette-surface-spacing.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
+
+When the task is about forms/editing behavior, navigation/URL state, scroll recovery, session-expiry handling, layering/overlay behavior, preserving preferences across updates, accessibility-as-UX, storage hygiene, or recovering from a broken surface, read `interaction-responsive.md`, `navigation-url-scroll-state.md`, `layering-and-overlays.md`, `accessibility-as-ux.md`, `forms-input-interference.md`, `persistence-hygiene.md`, and `error-recovery-containment.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
 
 When the task is specifically about readable type or paragraph hierarchy, also read `typography-readability.md` so the same heuristics and anti-pattern names travel across design, review, and audit.
 
@@ -34,6 +36,7 @@ For detailed sub-topics, read the reference files in this directory:
 | File                             | When to read                                                                                                         |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `anti-patterns.md`               | Need named UI guardrails for authored-vs-generic review, design direction, or audit cross-references                 |
+| `visual-direction-presets.md`     | Need a compact Repro-grounded starting scaffold for a no-brand or no-direction brief                                |
 | `palette-surface-spacing.md`     | Need composition, surface, and spacing heuristics plus named anti-patterns like nested cards and everything centered |
 | `typography-readability.md`      | Need concrete typography and readability heuristics, including body-size, line-length, and hierarchy guardrails      |
 | `interaction-responsive.md`      | Need named guardrails for feedback timing, hover/touch, responsiveness, or modal/reflex behavior                     |

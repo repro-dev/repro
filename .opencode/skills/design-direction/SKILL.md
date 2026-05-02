@@ -46,6 +46,7 @@ Do **not** use this skill for:
    - Describe the intended feel in concrete terms.
    - Prefer observable qualities over abstract mood words.
    - Keep the direction flexible; avoid rigid style dogma.
+   - If the brief has no brand language or the direction is still vague, choose one preset from `design-system/visual-direction-presets.md` before refining the rest of the aesthetic language.
 
 5. **Capture references and anti-references**
 
@@ -69,6 +70,7 @@ Do **not** use this skill for:
    - Note the specific details that keep the UI from feeling templated or interchangeable.
    - Call out any telltale patterns that would make the result feel generic or AI-made, and name them with the shared catalog when a known anti-pattern applies.
    - Treat nested cards, everything centered, monotonous spacing, and similar composition tells as first-class cues when they are driving the visual direction.
+   - Record the chosen visual direction preset, why it fits the surface, and any deliberate deviations in the durable context artifact so downstream work does not have to rediscover the choice.
    - If the direction is typography- or readability-driven, capture body-size, line-length, line-height, hierarchy contrast, and any named readability anti-patterns so downstream design and audit can reuse the same language.
    - If the direction is about preserved preferences, storage hygiene, stale flags, or retired experiments, capture the intent using the shared vocabulary from `design-system/persistence-hygiene.md` (for example preference-preserving update, bounded storage, stale-flag cleanup, and compatibility migration).
    - If the direction is about forms, text entry, caret behavior, paste handling, or wizard persistence, capture the intent using the shared vocabulary from `design-system/forms-input-interference.md` (for example paste-friendly, caret-safe, semantic autofill, draft-persistent wizard, and hostile formatter).
@@ -93,6 +95,8 @@ Use this shape in the context artifact:
 ### Surface Scope
 
 ### Aesthetic Direction
+
+- If a `design-system/visual-direction-presets.md` preset was used, name it here with why it fits, deliberate deviations, and companion docs consulted.
 
 ### References
 
