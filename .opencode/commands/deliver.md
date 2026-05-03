@@ -711,11 +711,12 @@ Spawn reviewers based on the risk level computed in Phase 5:
 
 **Standard-risk issues**: launch a single `review` agent using the standard prompt template below.
 
-**High-risk issues**: spawn 2–3 focused `review` agents in parallel, each with a scoped prompt:
+**High-risk issues**: spawn 3–4 focused `review` agents in parallel, each with a scoped prompt:
 
 1. **Correctness + Security reviewer** — always spawned for high-risk issues
 2. **Architecture + Conventions reviewer** — always spawned for high-risk issues
 3. **Performance reviewer** — only spawned when data-heavy changes are detected (e.g. data model changes signal, large batch operations, streaming or pipeline patterns in Sequence Notes)
+4. **UI quality reviewer** — always spawned for UI-bearing issues; required for high-risk UI changes so authored-polish critique can gate publishability
 
 All reviewers for a single issue launch within the same batch. A batch may have more concurrent review agents than `--wave-concurrency`, but is gated by **issue count**, not agent count.
 
