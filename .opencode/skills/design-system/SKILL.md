@@ -37,7 +37,7 @@ For detailed sub-topics, read the reference files in `references/`:
 | File                                        | When to read                                                                                                         |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `references/anti-patterns.md`               | Need named UI guardrails for authored-vs-generic review, design direction, or audit cross-references                 |
-| `references/visual-direction-presets.md`    | Need a compact Repro-grounded starting scaffold for a no-brand or no-direction brief                                |
+| `references/visual-direction-presets.md`    | Need a Repro-grounded scaffold for a no-brand/no-direction brief or implementation cues for an already chosen scaffold |
 | `references/palette-surface-spacing.md`     | Need composition, surface, and spacing heuristics plus named anti-patterns like nested cards and everything centered |
 | `references/typography-readability.md`      | Need concrete typography and readability heuristics, including body-size, line-length, and hierarchy guardrails      |
 | `references/interaction-responsive.md`      | Need named guardrails for feedback timing, hover/touch, responsiveness, or modal/reflex behavior                     |
@@ -47,7 +47,6 @@ For detailed sub-topics, read the reference files in `references/`:
 | `references/accessibility-as-ux.md`         | Need named guardrails for visible focus, hover-only affordances, color-only state, contrast, or keyboard traps       |
 | `references/persistence-hygiene.md`         | Need named guardrails for preserved preferences, storage hygiene/bloat, stale flags, or retired experiments          |
 | `references/mobile-touch-app-surface.md`    | Need mobile-touch, safe-area, viewport, and app-surface guardrails                                                   |
-| `references/visual-direction-presets.md`    | Implementing an already chosen visual scaffold while staying grounded in Repro UI patterns                           |
 | `references/tokens.md`                      | Need full token tables (color, spacing, typography, elevation, motion, interaction)                                  |
 | `references/surface-scoping.md`             | Need the canonical scope labels and reviewer/author usage notes                                                      |
 | `references/component-contract.md`          | Creating or modifying `@repro/design` components (forwardRef, a11y, Storybook, known deviations)                     |
