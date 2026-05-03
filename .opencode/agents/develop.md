@@ -14,11 +14,12 @@ You are a development agent. You receive a structured plan document, a worktree 
 ## Startup
 
 1. Load the `delivery-workflow`, `worktree-workflow`, and `implementation-rigor` skills. If the task is a genuine bug fix or regression, also load `bug-rigor` and follow its root-cause workflow before the generic TDD loop.
-2. Load domain skills as needed: `build-and-test`, `design-system`, `database`, `recording-playback`, `api-server`, `authentication`, `billing`, `dev-toolbar`, `agentic`.
+2. Load domain skills as needed: `build-and-test`, `design-system`, `audit-ui-quality`, `database`, `recording-playback`, `api-server`, `authentication`, `billing`, `dev-toolbar`, `agentic`.
 3. Fetch the Linear issue via `linear issue show REP-123 --json` to read the full requirements. For non-Linear work, rely on the outer conversation prompt plus any supplied planning artifacts instead.
 4. Read any supplied `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md` artifact before implementation when the outer conversation or planner provided one.
 5. For each affected package, check for an `AGENTS.md` file and follow its conventions.
 6. For any new behavior, bug fix, or public contract change, load `test-plan` and require a supplied `tmp/test-plan-<issue-id>.md` artifact before the first implementation edit. For non-Linear work, accept `tmp/test-plan-<topic>.md` instead. If the required artifact is missing, stop and report the missing precondition instead of inventing an inline substitute.
+7. If the work is UI-bearing, run `audit-ui-quality` before handoff and keep authored polish separate from design-system compliance. Do not present low-polish UI output as ship-ready; name any drift with the audit's anti-pattern vocabulary and include concrete fix directions in the return summary.
 
 ## TDD discipline
 
@@ -68,8 +69,9 @@ After all requirements are implemented and tests pass:
 
 1. Run typechecking with the affected package target, for example `moon run repro/<package>:typecheck`
 2. Run package-scoped formatting. Use a Moon format target when one exists; otherwise run the package-local formatter from the affected package.
-3. **Skill freshness check**: For each domain skill loaded during this task, ask: did you encounter any file paths, function names, API shapes, or patterns that the skill described incorrectly or that were missing? If yes, update the relevant `.opencode/skills/<domain>/SKILL.md` now. Include those changes in this commit.
-4. Stage and commit with a Conventional Commit message referencing the issue:
+3. If the work was UI-bearing, include the `audit-ui-quality` self-critique result in the handoff summary: separate authored-polish judgment, named anti-patterns (if any), concrete fixes, and whether ship-as-is is blocked.
+4. **Skill freshness check**: For each domain skill loaded during this task, ask: did you encounter any file paths, function names, API shapes, or patterns that the skill described incorrectly or that were missing? If yes, update the relevant `.opencode/skills/<domain>/SKILL.md` now. Include those changes in this commit.
+5. Stage and commit with a Conventional Commit message referencing the issue:
    ```
    feat(scope): description of change (REP-123)
    ```

@@ -78,6 +78,8 @@ Apply the full correctness checklist from `review-standards`.
 
 Then run the separate compliance pass from `skill-compliance` when repository or package guidance materially governs the diff.
 
+If the diff touches UI or agentic UI surfaces, also apply `audit-ui-quality`, read the matching `## Design Direction` and `## Design Handoff Context` blocks from the relevant `tmp/` artifact, and treat low-authored-polish findings as ordinary blockers or majors with concrete fix paths rather than a separate rubric.
+
 Classify every finding using the severity table from `review-standards` before writing the output.
 
 For UI changes, make sure the review explicitly states whether `## Design Direction` and any `## Design Handoff Context` were consulted and which artifact supplied them.
@@ -89,5 +91,7 @@ For UI changes, make sure the review explicitly states whether `## Design Direct
 Use the output structure from `review-standards`.
 
 If a compliance pass ran, keep its material findings in a separate section rather than mixing them into correctness findings.
+
+For UI changes, make the ship-as-is decision explicit in `## Merge-readiness` and note which upstream design artifact supplied the intent.
 
 Include the requirements checklist from the fetched Linear issues, note which `tmp/` artifacts were consulted, note which still need updating before the next implementation or handoff step, and write `(none)` for any empty findings section instead of omitting it.

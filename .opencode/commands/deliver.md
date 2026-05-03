@@ -589,6 +589,7 @@ For this phase:
 3. Wait for the full batch to finish before launching the next batch.
 4. Do not stop mid-batch. If a develop launch is throttled, use the shared subagent launch retry policy and keep the batch visible in status output.
 5. Make publishability and stop/continue decisions only at the normal phase or wave boundaries.
+6. If an issue is UI-bearing, make sure the develop prompt explicitly asks for an `audit-ui-quality` self-critique before handoff and for a separate authored-polish judgment.
 
 ### Smoke tests after each batch
 
@@ -660,6 +661,7 @@ Read the plan first and follow it. The plan file is authoritative.
 Do not re-explore the codebase from scratch unless the plan clearly points you there.
 Do not push or create a PR.
 Read the plan, the current context artifact, and the test plan before coding. For UI-bearing issues, the context artifact's `## Design Direction` block is authoritative upstream intent unless the plan calls out a strategic mismatch. Preserve any `## Design Handoff Context` block too, especially for settled decisions that must not drift.
+For UI-bearing issues, run `audit-ui-quality` on the implementation before returning and keep authored polish separate from design-system compliance; if the audit finds low-polish output, return concrete fixes rather than a ship-as-is handoff.
 
 Tactical implementation-level deviations are allowed if they still satisfy the plan and issue.
 If you discover a strategic mismatch that invalidates the plan, stop and report it instead of improvising a larger redesign.
@@ -810,6 +812,36 @@ The following packages had test failures after implementation. For each failure,
 <structured failure summary from Phase 6 smoke tests>
 ```
 
+**UI quality reviewer** (spawned for UI-bearing issues; always include on high-risk UI changes):
+
+```
+Review the implementation for REP-xxx in worktree <absolute-worktree-path>.
+
+Focus exclusively on authored polish and generic-drift risk:
+1. Load the `audit-ui-quality` skill for the critique rubric and named anti-pattern vocabulary.
+2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
+3. Review the committed branch diff with: `git diff main...HEAD`.
+4. Read the matching `tmp/context-<issue-id>.md` artifact, including `## Design Direction` and `## Design Handoff Context` when present.
+5. Evaluate authored polish separately from compliance, require concrete fix hints for any drift, and treat low-authored-polish output as a blocker or major rather than a vague note.
+6. Return the structured output required by .opencode/agents/review.md — but only report findings in the conventions category. Assign each finding `role: ui-quality` in the structured output.
+
+Friction logging: if you encounter friction during review (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
+  [Brief description]
+  - Phase: review
+  - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
+Do not stop or change your approach — log and continue.
+
+[If smoke_test_result is fail for this issue, also include:]
+
+## Smoke test failures
+
+The following packages had test failures after implementation. For each failure, classify it as **caused-by-this-change** or **pre-existing**:
+- **caused-by-this-change**: add as a blocking finding (`category: correctness`, `fixable_by_agent: true`) in your structured output.
+- **pre-existing**: add as a non-blocking suggestion only.
+
+<structured failure summary from Phase 6 smoke tests>
+```
+
 ### Finding merge and deduplication
 
 Each finding in the structured output includes a `category` field (correctness, security, architecture, conventions, or performance). Because combined reviewer roles (Correctness+Security, Architecture+Conventions) produce findings with multiple category values, deduplication uses the reviewer's role rather than category.
@@ -817,6 +849,7 @@ Each finding in the structured output includes a `category` field (correctness, 
 - Correctness + Security reviewer → findings tagged `role: correctness-security`
 - Architecture + Conventions reviewer → findings tagged `role: architecture-conventions`
 - Performance reviewer → findings tagged `role: performance`
+- UI quality reviewer → findings tagged `role: ui-quality`
 
 For deduplication across reviewers, use the merge key: `<file-path>:<line-number>:<role>`
 
@@ -825,6 +858,7 @@ Role vocabulary:
 - `correctness-security` — logic errors, off-by-one, unhandled edge cases, broken error paths, injection, auth bypass, data exposure, unsafe deserialization
 - `architecture-conventions` — side effects, pattern inconsistency, approach misalignment, import/naming/style violations, missing design tokens, package AGENTS.md violations
 - `performance` — algorithmic regressions, unnecessary iteration, missing pagination, large in-memory collections
+- `ui-quality` — weak authored polish, generic drift, missing anti-pattern vocabulary, ship-as-is blocked by critique gate
 
 ### Batched launch
 
