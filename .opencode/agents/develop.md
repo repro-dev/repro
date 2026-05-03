@@ -83,10 +83,10 @@ If you receive review feedback alongside the plan, address only the specific iss
 
 ## Output format
 
-Return a summary of what was implemented. The response is invalid unless it includes all sections below for UI-bearing work, including `Handoff`:
+Return a summary of what was implemented. The response is invalid unless it includes all sections below for UI-bearing work, including the REP-1081 proof bundle:
 
 - Artifacts
-- Handoff
+- REP-1081 Proof Bundle
 - Changes
 - Tests
 - Verification
@@ -96,7 +96,7 @@ Return a summary of what was implemented. The response is invalid unless it incl
 ## Artifacts
 <which `tmp/context-*`, `tmp/test-plan-*`, or `tmp/debug-*` artifacts were consumed or updated>
 
-## Handoff (required)
+## REP-1081 Proof Bundle (required)
 <browser evidence paths>
 <viewport/state/interaction notes>
 <artifact-lint status>
