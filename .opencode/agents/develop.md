@@ -83,7 +83,7 @@ If you receive review feedback alongside the plan, address only the specific iss
 
 ## Output format
 
-Return a summary of what was implemented. All sections below are required for UI-bearing work, including `Handoff`:
+Return a summary of what was implemented. The response is invalid unless it includes all sections below for UI-bearing work, including `Handoff`:
 
 - Artifacts
 - Handoff
