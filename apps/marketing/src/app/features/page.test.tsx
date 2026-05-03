@@ -45,7 +45,7 @@ describe('FeaturesPage', () => {
         level: 1,
       })
     )
-    assert.ok(screen.getByText(/recorded evidence/i))
+    assert.ok(screen.getByText(/recorded evidence/i, { selector: 'p' }))
     assert.ok(screen.getByText(/replay inspection/i))
     assert.ok(screen.getByText(/grounded ai diagnosis/i))
     assert.ok(screen.getByText('Capture the bug. Let AI find the fix.'))
