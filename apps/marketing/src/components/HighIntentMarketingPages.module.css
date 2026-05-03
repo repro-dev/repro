@@ -1,0 +1,88 @@
+.page {
+  display: grid;
+  gap: 0;
+}
+
+.section {
+  display: grid;
+  gap: 16px;
+  padding: 28px;
+}
+
+.intro {
+  display: grid;
+  gap: 12px;
+  padding: 32px 28px;
+}
+
+.grid {
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.card {
+  display: grid;
+  gap: 12px;
+  padding: 26px 28px 28px;
+}
+
+.cardHeading {
+  display: grid;
+  gap: 6px;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.cardList {
+  display: grid;
+  gap: 10px;
+  padding-left: 18px;
+  margin: 0;
+}
+
+.cardList li {
+  color: #9fb2d0;
+  line-height: 1.7;
+}
+
+.callout {
+  display: grid;
+  gap: 14px;
+  padding: 26px 28px 28px;
+}
+
+.calloutActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.planPrice {
+  color: #edf4ff;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.supportGrid {
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.supportCard {
+  display: grid;
+  gap: 12px;
+  padding: 24px 26px 26px;
+}
+
+@media (max-width: 960px) {
+  .supportGrid {
+    grid-template-columns: 1fr;
+  }
+}
