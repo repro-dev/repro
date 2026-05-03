@@ -23,6 +23,7 @@ description: Review contract for branch and PR reviews — changed-code focus, s
 - When issue-scoped artifacts exist in `tmp/` (for example `tmp/context-REP-123.md` or `tmp/test-plan-REP-123.md`), use them as supplemental review context rather than ignoring the documented plan/history.
 - For UI diffs, also consult the matching durable context artifact's `## Design Direction` section and any `## Design Handoff Context` block (or the dedicated artifacts when they exist) so review reflects captured intent instead of inventing it.
 - For non-Linear work, use the matching topic-scoped artifacts (for example `tmp/context-foo.md` or `tmp/test-plan-foo.md`) when they exist.
+- Treat missing browser evidence, missing viewport/state/interaction notes, or stale handoff artifacts as ordinary requirement gaps rather than mere polish issues.
 
 ## Severity classification
 
@@ -61,6 +62,7 @@ Classify every finding using one of these four levels:
 - Classify every finding using the severity levels above.
 - State merge-readiness explicitly.
 - Reference issue requirements by ID when noting gaps.
+- Distinguish authored-polish critique from compliance: a UI can satisfy the explicit requirements while still earning a separate authored-polish note.
 - End with a clear verdict: approve, request changes, or discuss.
 - If there are no findings, say that explicitly.
 
