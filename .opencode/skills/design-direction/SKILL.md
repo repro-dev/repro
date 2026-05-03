@@ -39,6 +39,10 @@ Do **not** use this skill for:
    - Identify the user need or product outcome in one or two sentences.
    - Use `askUser` from `packages/agentic/src/model/tools/ask-user.ts` for the intake, one prompt at a time.
    - Do not mix the intake with unrelated tool batches; the current agentic runtime only supports one interactive prompt per assistant turn.
+   - Ask the canonical grouped prompts in this order:
+     - task / surface / audience
+     - tone / brand context
+     - fidelity / constraints / success signal
    - Prefer grouped questions with `choices`, `multiple`, or `allowFreeform` so the answers stay compact and comparable.
 
 3. **Name the audience**
