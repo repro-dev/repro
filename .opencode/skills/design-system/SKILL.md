@@ -16,7 +16,7 @@ Comprehensive reference for building UI in the Repro codebase. Load this skill b
 
 ## Companion guides by concern
 
-When the task is about authoredness, generic drift, naming a recurring UI tell, or choosing a starting scaffold for a no-brand brief, read `references/anti-patterns.md`, `references/visual-direction-presets.md`, and `references/palette-surface-spacing.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
+When the task is about authoredness, generic drift, naming a recurring UI tell, or implementing an already chosen visual scaffold, read `references/anti-patterns.md`, `references/visual-direction-presets.md`, and `references/palette-surface-spacing.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
 
 When the task is about forms/editing behavior, navigation/URL state, scroll recovery, session-expiry handling, layering/overlay behavior, preserving preferences across updates, accessibility-as-UX, storage hygiene, or recovering from a broken surface, read `references/interaction-responsive.md`, `references/navigation-url-scroll-state.md`, `references/layering-and-overlays.md`, `references/accessibility-as-ux.md`, `references/forms-input-interference.md`, `references/persistence-hygiene.md`, and `references/error-recovery-containment.md` alongside the normal design-system references so the critique vocabulary stays shared across design, implementation, and audit.
 
@@ -37,7 +37,7 @@ For detailed sub-topics, read the reference files in `references/`:
 | File                                        | When to read                                                                                                         |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `references/anti-patterns.md`               | Need named UI guardrails for authored-vs-generic review, design direction, or audit cross-references                 |
-| `references/visual-direction-presets.md`    | Need a Repro-grounded scaffold for a no-brand/no-direction brief or implementation cues for an already chosen scaffold |
+| `references/visual-direction-presets.md`    | Need implementation cues for an already chosen visual scaffold while staying grounded in Repro UI patterns            |
 | `references/palette-surface-spacing.md`     | Need composition, surface, and spacing heuristics plus named anti-patterns like nested cards and everything centered |
 | `references/typography-readability.md`      | Need concrete typography and readability heuristics, including body-size, line-length, and hierarchy guardrails      |
 | `references/interaction-responsive.md`      | Need named guardrails for feedback timing, hover/touch, responsiveness, or modal/reflex behavior                     |
