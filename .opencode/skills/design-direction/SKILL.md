@@ -37,8 +37,7 @@ Do **not** use this skill for:
 
    - State what the UI should accomplish and why it exists.
    - Identify the user need or product outcome in one or two sentences.
-   - Use `askUser` from `packages/agentic/src/model/tools/ask-user.ts` for the intake, one prompt at a time.
-   - Do not mix the intake with unrelated tool batches; the current agentic runtime only supports one interactive prompt per assistant turn.
+   - Use the OpenCode-provided question mechanism to collect only the missing intake, keeping it bounded and upstream of implementation.
    - Ask the canonical grouped prompts in this order:
      - task / surface / audience
      - tone / brand context
@@ -145,7 +144,7 @@ Use this shape in the context artifact:
 - Prefer concrete observations over inspirational language.
 - Do not turn the skill into a style manifesto; capture direction, not doctrine.
 - Keep the artifact durable and reusable so later work can follow it without restating the brief.
-- Reuse `askUser` instead of inventing a second interaction primitive or parallel prompt path.
+- Use the OpenCode question mechanism for bounded clarification instead of inventing a second interaction primitive or parallel prompt path.
 - Shorten the intake whenever the brief already answers a prompt group; only collect the gaps.
 - Preserve the existing `## Design Direction` block shape so downstream handoffs keep working.
 
