@@ -1,3 +1,8 @@
+---
+name: api-server
+description: Fastify API-server workflows for routes, services, and middleware.
+---
+
 # API Server Skill
 
 Load this skill when working in `apps/api-server` — adding routes, services, decorators, or middleware.

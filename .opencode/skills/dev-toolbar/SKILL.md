@@ -1,3 +1,8 @@
+---
+name: dev-toolbar
+description: Browser-extension and standalone-toolbar workflows for the Dev Toolbar.
+---
+
 # Dev Toolbar Skill
 
 Load this skill when working in `apps/dev-toolbar` — the browser extension and standalone toolbar that provides in-page recording controls and the DevTools panel.

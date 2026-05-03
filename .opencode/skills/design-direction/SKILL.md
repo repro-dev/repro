@@ -23,6 +23,7 @@ Do **not** use this skill for:
 - component implementation — use `design-system`
 - broad polish/audit passes — use `audit-ui-quality`
 - post-change browser verification — use `ui-verification`
+- settled multi-agent UI handoffs — use `design-handoff`
 
 ## Workflow
 
@@ -62,7 +63,7 @@ Do **not** use this skill for:
 
    - Call out spacing, density, alignment, grouping, and motion intent.
    - Explain how the layout should feel across the primary states.
-   - If the brief is about palette, surface, or spacing judgment, borrow the shared heuristics and named anti-pattern vocabulary from `design-system/palette-surface-spacing.md` so downstream implementation and audit use the same labels.
+   - If the brief is about palette, surface, or spacing judgment, borrow the shared heuristics and named anti-pattern vocabulary from `design-system/references/palette-surface-spacing.md` so downstream implementation and audit use the same labels.
 
 8. **Check for anti-generic cues**
 
@@ -70,14 +71,16 @@ Do **not** use this skill for:
    - Call out any telltale patterns that would make the result feel generic or AI-made, and name them with the shared catalog when a known anti-pattern applies.
    - Treat nested cards, everything centered, monotonous spacing, and similar composition tells as first-class cues when they are driving the visual direction.
    - If the direction is typography- or readability-driven, capture body-size, line-length, line-height, hierarchy contrast, and any named readability anti-patterns so downstream design and audit can reuse the same language.
-   - If the direction is about preserved preferences, storage hygiene, stale flags, or retired experiments, capture the intent using the shared vocabulary from `design-system/persistence-hygiene.md` (for example preference-preserving update, bounded storage, stale-flag cleanup, and compatibility migration).
-   - If the direction is about forms, text entry, caret behavior, paste handling, or wizard persistence, capture the intent using the shared vocabulary from `design-system/forms-input-interference.md` (for example paste-friendly, caret-safe, semantic autofill, draft-persistent wizard, and hostile formatter).
-   - If the direction depends on feedback timing, hover/touch behavior, responsive reflow, navigation/URL state, scroll recovery, session-expiry handling, mobile viewport constraints, layering/clipping, modal usage, accessibility-as-UX, or error recovery, use the companion `design-system/interaction-responsive.md`, `design-system/navigation-url-scroll-state.md`, `design-system/layering-and-overlays.md`, `design-system/accessibility-as-ux.md`, `design-system/error-recovery-containment.md`, and `design-system/mobile-touch-app-surface.md` catalogs alongside `design-system/anti-patterns.md`.
+   - If the direction is about preserved preferences, storage hygiene, stale flags, or retired experiments, capture the intent using the shared vocabulary from `design-system/references/persistence-hygiene.md` (for example preference-preserving update, bounded storage, stale-flag cleanup, and compatibility migration).
+   - If the direction is about forms, text entry, caret behavior, paste handling, or wizard persistence, capture the intent using the shared vocabulary from `design-system/references/forms-input-interference.md` (for example paste-friendly, caret-safe, semantic autofill, draft-persistent wizard, and hostile formatter).
+   - If the direction depends on feedback timing, hover/touch behavior, responsive reflow, navigation/URL state, scroll recovery, session-expiry handling, mobile viewport constraints, layering/clipping, modal usage, accessibility-as-UX, or error recovery, use the companion `design-system/references/interaction-responsive.md`, `design-system/references/navigation-url-scroll-state.md`, `design-system/references/layering-and-overlays.md`, `design-system/references/accessibility-as-ux.md`, `design-system/references/error-recovery-containment.md`, and `design-system/references/mobile-touch-app-surface.md` catalogs alongside `design-system/references/anti-patterns.md`.
 
 9. **Write the durable context block**
+
    - Save the result in `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md`.
    - Keep the artifact short enough to reuse, but explicit enough to guide downstream work.
-   - If the direction will need a final shipping pass, note that the downstream handoff should also include `design-system/pre-delivery-ui-checklist.md` so implementation and audit can cite one compact readiness layer.
+   - If the direction will need a final shipping pass, note that the downstream handoff should also include `design-system/references/pre-delivery-ui-checklist.md` so implementation and audit can cite one compact readiness layer.
+   - If the direction is already settled and must survive downstream work, load `design-handoff` and use its canonical `## Design Handoff Context` template instead of extending this block.
 
 ## Output template
 
@@ -104,25 +107,14 @@ Use this shape in the context artifact:
 
 ### Anti-Generic Heuristics
 
-- List the specific anti-generic cues to avoid, using the shared pattern names from `design-system/anti-patterns.md` and `design-system/palette-surface-spacing.md` when they fit.
-- For interaction, responsive, mobile/app-surface, layering/overlay, and error-recovery cues, prefer the named labels in `design-system/interaction-responsive.md`, `design-system/layering-and-overlays.md`, `design-system/mobile-touch-app-surface.md`, and `design-system/error-recovery-containment.md` so implementation and audit can reuse the same vocabulary.
+- List the specific anti-generic cues to avoid, using the shared pattern names from `design-system/references/anti-patterns.md` and `design-system/references/palette-surface-spacing.md` when they fit.
+- For interaction, responsive, mobile/app-surface, layering/overlay, and error-recovery cues, prefer the named labels in `design-system/references/interaction-responsive.md`, `design-system/references/layering-and-overlays.md`, `design-system/references/mobile-touch-app-surface.md`, and `design-system/references/error-recovery-containment.md` so implementation and audit can reuse the same vocabulary.
 - Mention which cues are acceptable when deliberate so implementation and audit can make the same judgment later.
 - Call out whether the issue is really hierarchy, surface treatment, or spacing rhythm before proposing more decoration.
-- When typography is part of the direction, include the concrete readability guardrails from `design-system/typography-readability.md` instead of leaving them as a vague “improve hierarchy” note.
+- When typography is part of the direction, include the concrete readability guardrails from `design-system/references/typography-readability.md` instead of leaving them as a vague “improve hierarchy” note.
 - When the UI can fail, name the blast radius, retry path, and fallback shape explicitly instead of leaving recovery intent implied.
 
-## Handoff
-
-- `design-system`: translate direction into components, layout, and tokens
-- `audit-ui-quality`: review authored output for generic drift, polish, consistency, and blocked error recovery, citing the same anti-pattern names where relevant
-- `design-system/persistence-hygiene.md`: carry forward the persistence vocabulary for preserved preferences, bounded storage, and stale-flag cleanup
-- `design-system/forms-input-interference.md`: carry forward the forms/editing vocabulary for paste handling, caret safety, and wizard-state persistence
-- `design-system/navigation-url-scroll-state.md`: carry the redirect-chain, URL-state, scroll-recovery, and session-expiry vocabulary into implementation details
-- `design-system/layering-and-overlays.md`: carry the same stacking, clipping, and portal-escape vocabulary into implementation details
-- `design-system/accessibility-as-ux.md`: carry the same focus-indicator, hover-only, color-only, contrast, and keyboard-trap vocabulary into implementation details
-- `design-system/error-recovery-containment.md`: carry the same blast-radius, retry, and fallback vocabulary into implementation details
-- `design-system/pre-delivery-ui-checklist.md`: capture the final shipping pass when the direction needs a compact readiness summary
-- `ui-verification`: validate the finished UI in the browser after implementation
+<!-- For settled direction that must survive downstream work unchanged, load `design-handoff` and use its canonical `## Design Handoff Context` template. -->
 ```
 
 ## Guardrails
@@ -137,5 +129,6 @@ Use this shape in the context artifact:
 | Downstream skill   | Use it for                                                                  |
 | ------------------ | --------------------------------------------------------------------------- |
 | `design-system`    | Turning the captured direction into components, layout, tokens, and UI code |
+| `design-handoff`   | Preserving settled direction across downstream agents without re-opening it |
 | `audit-ui-quality` | Checking authored UI for polish, consistency, and generic drift             |
 | `ui-verification`  | Verifying the implemented UI behaves correctly in the browser               |

@@ -18,9 +18,10 @@ Use this skill when you are starting a feature or fix. Keep it thin: it coordina
 - `context-gather` — assemble issue, dependency, and prior-work context before planning
 - `test-plan` — write the test strategy explicitly when coverage needs coordination
 - `design-direction` — upstream UI intent capture for ambiguous or net-new visual direction
+- `design-handoff` — preserve settled UI direction across planning, implementation, review, audit, and browser verification
 - Domain skills — only when the changed code lives in that domain
 
-For non-trivial UI changes, use `design-direction` only when the direction is still unresolved. Otherwise, use `design-system` for implementation, `ui-verification` for post-change browser validation, and `audit-ui-quality` only for broader audits, scoring, or polish passes.
+For non-trivial UI changes, use `design-direction` only when the direction is still unresolved. Use `design-handoff` when the direction is already settled and needs to survive downstream handoffs. Otherwise, use `design-system` for implementation, `ui-verification` for post-change browser validation, and `audit-ui-quality` only for broader audits, scoring, or polish passes.
 
 ## 1. Pre-flight
 
@@ -28,7 +29,7 @@ For non-trivial UI changes, use `design-direction` only when the direction is st
 2. Load the support skills you need for this change. If the work is a genuine bug fix or regression, load `bug-rigor` before implementation begins. If non-trivial UI work still needs visual direction, load `design-direction` before planning starts.
 3. Create or confirm the worktree for the issue.
 4. Set the issue to **In Progress**.
-5. If the issue spans 3+ packages, depends on prior investigation threads, or the relevant scope is scattered across related issues/comments/docs, run `context-gather` and write `tmp/context-<issue-id>.md` before planning. For UI work with unresolved visual direction, extend that same context artifact with the design-direction block instead of creating a second mandatory file. For non-Linear work, write `tmp/context-<topic>.md`.
+5. If the issue spans 3+ packages, depends on prior investigation threads, or the relevant scope is scattered across related issues/comments/docs, run `context-gather` and write `tmp/context-<issue-id>.md` before planning. For UI work with unresolved visual direction, extend that same context artifact with the design-direction block instead of creating a second mandatory file. If the direction is already settled and only needs to persist across handoffs, add a `## Design Handoff Context` block instead of re-litigating the direction. For non-Linear work, write `tmp/context-<topic>.md`.
 6. Treat missing required artifacts as a pre-flight failure. Create the missing artifact first, then retry the blocked step instead of continuing with degraded context.
 
 ## 2. Planning
