@@ -89,6 +89,9 @@ Return a summary of what was implemented:
 ## Artifacts
 <which `tmp/context-*`, `tmp/test-plan-*`, or `tmp/debug-*` artifacts were consumed or updated>
 
+## Handoff
+<browser evidence paths, viewport/state/interaction notes, artifact-lint status, authored-critique result, and context-linked ship-readiness>
+
 ## Changes
 <list of files modified/created with brief description>
 
