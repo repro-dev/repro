@@ -83,13 +83,13 @@ If you receive review feedback alongside the plan, address only the specific iss
 
 ## Output format
 
-Return a summary of what was implemented:
+Return a summary of what was implemented. The `Handoff` section is required for UI-bearing work:
 
 ```
 ## Artifacts
 <which `tmp/context-*`, `tmp/test-plan-*`, or `tmp/debug-*` artifacts were consumed or updated>
 
-## Handoff
+## Handoff (required)
 <browser evidence paths>
 <viewport/state/interaction notes>
 <artifact-lint status>

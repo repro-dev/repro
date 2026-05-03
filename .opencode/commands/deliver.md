@@ -674,7 +674,7 @@ Friction logging: if you encounter friction during implementation (unclear patte
   - Root cause: <one of: missing-docs, unclear-pattern, tooling-gap, stale-code>
 Do not stop or change your approach — log and continue.
 
-Return: files changed, verification run, whether the plan was followed without strategic deviation, and the REP-1081 proof bundle with these required fields: browser evidence paths, viewport/state/interaction notes, artifact-lint status, authored-critique result, and context-linked ship-readiness.
+Return the REP-1081 proof bundle with these required fields: browser evidence paths, viewport/state/interaction notes, artifact-lint status, authored-critique result, and context-linked ship-readiness. Include files changed, verification run, and whether the plan was followed without strategic deviation in the same final response.
 ```
 
 ### Phase-local implementation failure handling
