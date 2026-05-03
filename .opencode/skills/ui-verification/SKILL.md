@@ -73,6 +73,8 @@ Tiny copy tweaks or isolated token swaps are usually trivial unless they change 
    ```
 9. Close the browser session when done.
 
+Keep the evidence bundle under `tmp/ui-verification/<issue-or-surface>/` and include a short `notes.md` or equivalent note file that records the viewport, the UI state, and the interaction path for each captured scenario.
+
 If the surface is reusable, verify it in the smallest realistic host and once in a real consuming screen.
 
 ## Authenticated sessions
@@ -113,5 +115,5 @@ If verification reveals brittle async behavior, teardown problems, race conditio
 - `design-handoff` = preserved UI direction that must survive planning, implementation, review, audit, and browser verification
 - `design-system` = implementation of the captured direction
 - `audit-ui-quality` = broader audit, polish, scoring, and reporting pass across scoped UI surfaces
-- `ui-verification` = routine post-change validation of a specific changed surface using `reproctl start --wait --full-stack` + `agent-browser`, including authenticated runs when needed, plus a lightweight browser check that intended hierarchy and visual cues still survive
+- `ui-verification` = routine post-change validation of a specific changed surface using `reproctl start --wait --full-stack` + `agent-browser`, including authenticated runs when needed, plus a lightweight browser check that intended hierarchy and visual cues still survive; store browser evidence and notes under `tmp/ui-verification/<issue-or-surface>/`
 - `extension-verification` = browser-extension verification workflow with `agent-browser`, isolated profiles, and `tmp/extension-verification/...` artifacts

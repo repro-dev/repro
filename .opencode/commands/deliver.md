@@ -589,7 +589,7 @@ For this phase:
 3. Wait for the full batch to finish before launching the next batch.
 4. Do not stop mid-batch. If a develop launch is throttled, use the shared subagent launch retry policy and keep the batch visible in status output.
 5. Make publishability and stop/continue decisions only at the normal phase or wave boundaries.
-6. If an issue is UI-bearing, make sure the develop prompt explicitly asks for an `audit-ui-quality` self-critique before handoff and for a separate authored-polish judgment.
+6. If an issue is UI-bearing, make sure the develop prompt explicitly asks for an `audit-ui-quality` self-critique before handoff and for a separate authored-polish judgment, plus browser evidence paths, viewport/state/interaction notes, and artifact-lint status in the final summary.
 
 ### Smoke tests after each batch
 
@@ -661,7 +661,7 @@ Read the plan first and follow it. The plan file is authoritative.
 Do not re-explore the codebase from scratch unless the plan clearly points you there.
 Do not push or create a PR.
 Read the plan, the current context artifact, and the test plan before coding. For UI-bearing issues, the context artifact's `## Design Direction` block is authoritative upstream intent unless the plan calls out a strategic mismatch. Preserve any `## Design Handoff Context` block too, especially for settled decisions that must not drift.
-For UI-bearing issues, run `audit-ui-quality` on the implementation before returning and keep authored polish separate from design-system compliance; if the audit finds low-polish output, return concrete fixes rather than a ship-as-is handoff.
+For UI-bearing issues, run `audit-ui-quality` on the implementation before returning and keep authored polish separate from design-system compliance; if the audit finds low-polish output, return concrete fixes rather than a ship-as-is handoff. The final handoff must include browser evidence paths, the viewport/state/interaction notes, artifact-lint status, and a ship-readiness summary tied back to the consumed context artifact.
 
 Tactical implementation-level deviations are allowed if they still satisfy the plan and issue.
 If you discover a strategic mismatch that invalidates the plan, stop and report it instead of improvising a larger redesign.
