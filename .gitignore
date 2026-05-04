@@ -5,6 +5,7 @@ node_modules
 # BUILD
 dist
 .next/
+tsconfig.tsbuildinfo
 
 # ENVIRONMENT
 .env*

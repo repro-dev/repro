@@ -6,6 +6,8 @@
 
 :root {
   color-scheme: dark;
+  --marketing-font-display-fallback: ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --marketing-font-sans-fallback: ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --marketing-font-mono-fallback: ui-monospace, SFMono-Regular, Menlo, monospace;
