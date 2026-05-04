@@ -136,7 +136,7 @@ Candidate selection should prefer issues that are:
 - not marked `needs-spec`
 - sufficiently described for planner consumption
 
-Selection must be deterministic so repeated ticks pick the same issue set. Priority should dominate, then recency, then identifier as a stable tie-breaker.
+Selection must be deterministic so repeated ticks pick the same issue set. Sort by priority urgency ascending (`1` before `2` before `3` before `4`), then by most recently updated first, then by issue identifier ascending as a stable tie-breaker.
 
 ## Blocker handling
 
