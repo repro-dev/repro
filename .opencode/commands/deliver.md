@@ -336,7 +336,7 @@ Do not stop the whole run unless every issue in the active ready wave fails here
 
 Launch `planner` subagents for every issue that has a worktree in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
-Before launching planners in this phase, if an issue is UI-bearing with unresolved visual direction and its worktree-local `tmp/context-<issue-id>.md` does not yet contain the `## Design Direction` block from `.opencode/skills/design-direction/SKILL.md`, pause that issue, resolve design-direction first, and retry this phase after the context artifact is populated. If settled UI decisions must not be reinterpreted, require the context artifact to carry `## Design Handoff Context` as well.
+Before launching planners in this phase, if an issue is UI-bearing with unresolved visual direction and its worktree-local `tmp/context-<issue-id>.md` does not yet contain the `## Design Direction` block from `.opencode/skills/design-direction/SKILL.md`, pause that issue, resolve design-direction first, and retry this phase after the context artifact is populated. If the issue is a bounded UI follow-up and the context artifact does not yet contain `## Targeted Design Edit` from `.opencode/skills/design-edit/SKILL.md`, pause that issue, resolve design-edit first, and retry this phase after the context artifact is populated. If settled UI decisions must not be reinterpreted, require the context artifact to carry `## Design Handoff Context` as well.
 
 For this phase:
 

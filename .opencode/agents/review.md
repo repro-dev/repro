@@ -66,7 +66,7 @@ Evaluate the changes against each of these categories:
 - Are there changes that might have unintended side effects on other parts of the system?
 - Is the approach consistent with existing patterns in the codebase?
 - Are there concerns that might require re-planning?
-- For UI diffs, did the review consult the matching `## Design Direction` and `## Design Handoff Context` blocks and make ship-as-is status explicit in `## Merge-readiness`?
+- For UI diffs, did the review consult the matching `## Targeted Design Edit`, `## Design Direction`, and `## Design Handoff Context` blocks and make ship-as-is status explicit in `## Merge-readiness`?
 
 ## Output format
 
