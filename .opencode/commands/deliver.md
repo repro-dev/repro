@@ -82,7 +82,7 @@ Run-scoped artifacts:
 - The main checkout is the control plane for `/deliver`, not a mutation target. Never write implementation changes under the main checkout from this command.
 - Plan files are the required durable handoff into implementation: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
 - Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For UI-bearing issues that are bounded follow-up edits, that same worktree-local context artifact must carry the `## Targeted Design Edit` block from `.opencode/skills/design-edit/SKILL.md` before planner launch. For UI-bearing issues with unresolved visual direction, use the `## Design Direction` block instead. When settled UI decisions must survive downstream work unchanged, read and preserve any `## Design Handoff Context` block too. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
-- Missing required artifacts trigger an enforce-and-retry loop: create the missing `tmp/context-*` or `tmp/test-plan-*` file first, then retry the blocked delegation step.
+- Missing required artifacts trigger an enforce-and-retry loop: create the missing `tmp/context-*` or `tmp/test-plan-*` file first, then retry the blocked delegation step. If the issue is already concrete enough to shape, treat missing design-direction / design-edit / design-handoff context as recoverable and do not escalate to `needs-spec` until the retry path still leaves the issue too broad.
 - Use issue selection notes plus explicit risk notes as the handoff from selection into sequencing.
 - Sequencing is provisional until planning finishes. Resequence once after planner output is available, then lock the ready wave.
 - Treat the context artifact as the upstream design-intent source, not optional background.
@@ -134,7 +134,8 @@ If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead
 2. Fetch `target_issue_id` via `linear issue show <issue-id> --json`.
 3. Fetch child issues with `linear issue children <issue-id> --json`.
 4. Fetch each blocker issue referenced in `relations.blockedBy` so blocker status is known before proceeding.
-5. Fail fast and stop cleanly if any of the following are true:
+5. If the issue is UI-bearing and the only missing prerequisite is recoverable context (`## Design Direction`, `## Targeted Design Edit`, or `## Design Handoff Context` in `tmp/context-<issue-id>.md`), run the matching design artifact workflow, re-read the context artifact, and retry this readiness check before considering the issue not ready.
+6. Fail fast and stop cleanly if any of the following are true:
    - the child-issue query returns one or more issues; treat the target as a tracking issue rather than a bounded implementation issue
    - any blocker issue is not `Done` or `Canceled`
    - the issue is already `Done` or `Canceled`
@@ -142,13 +143,14 @@ If `mode = single-track`, do **not** run backlog scanning or sequencing. Instead
    - the issue already has an active worktree (`reproctl wt list`)
    - the issue ID appears in an open PR branch name
    - the issue does not provide enough concrete information for a bounded implementation plan without human clarification
-6. If the stop condition is that the target has child issues, report clearly that `/deliver REP-xxx` is single-track mode and does not expand tracking issues into a wave. Suggest these next steps:
+7. If the stop condition is that the target has child issues, report clearly that `/deliver REP-xxx` is single-track mode and does not expand tracking issues into a wave. Suggest these next steps:
    - rerun `/deliver` with no issue ID for autonomous wave selection
    - rerun `/deliver REP-child` with a concrete child issue ID
-7. If any other stop condition is hit, report the reason clearly, add the issue ID to `escalated_issues`, and stop the run. Do not continue into planning.
-   - If the stop condition is missing specification or clarity, add the `needs-spec` label and include that reason in the comment so the issue is visibly marked for follow-up.
-   - If the stop condition is missing specification or UI direction, say that the issue needs `design-direction` first and that the existing context artifact must carry the upstream design-intent block before planner launch.
-8. Create a singleton `current_ready_wave` containing only `target_issue_id` and continue directly to Phase 3.
+8. If any other stop condition is hit, report the reason clearly, add the issue ID to `escalated_issues`, and stop the run. Do not continue into planning.
+   - If the stop condition is recoverable missing UI context, do not add `needs-spec`; run the matching design workflow, refresh the context artifact, and re-evaluate boundedness first.
+   - If the stop condition is still missing specification or clarity after context capture, add the `needs-spec` label and include that reason in the comment so the issue is visibly marked for follow-up.
+   - If the stop condition is missing specification or UI direction after the retry path, say that the issue needs `design-direction` first and that the existing context artifact must carry the upstream design-intent block before planner launch.
+9. Create a singleton `current_ready_wave` containing only `target_issue_id` and continue directly to Phase 3.
 
 In single-track mode, skip Phase 1 and Phase 2 entirely.
 
@@ -336,7 +338,7 @@ Do not stop the whole run unless every issue in the active ready wave fails here
 
 Launch `planner` subagents for every issue that has a worktree in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
-Before launching planners in this phase, if an issue is UI-bearing with unresolved visual direction and its worktree-local `tmp/context-<issue-id>.md` does not yet contain the `## Design Direction` block from `.opencode/skills/design-direction/SKILL.md`, pause that issue, resolve design-direction first, and retry this phase after the context artifact is populated. If the issue is a bounded UI follow-up and the context artifact does not yet contain `## Targeted Design Edit` from `.opencode/skills/design-edit/SKILL.md`, pause that issue, resolve design-edit first, and retry this phase after the context artifact is populated. If settled UI decisions must not be reinterpreted, require the context artifact to carry `## Design Handoff Context` as well.
+Before launching planners in this phase, if an issue is UI-bearing with unresolved visual direction and its worktree-local `tmp/context-<issue-id>.md` does not yet contain the `## Design Direction` block from `.opencode/skills/design-direction/SKILL.md`, pause that issue, resolve design-direction first, and retry this phase after the context artifact is populated. If the issue is a bounded UI follow-up and the context artifact does not yet contain `## Targeted Design Edit` from `.opencode/skills/design-edit/SKILL.md`, pause that issue, resolve design-edit first, and retry this phase after the context artifact is populated. If settled UI decisions must not be reinterpreted, require the context artifact to carry `## Design Handoff Context` as well. Missing UI context here is recoverable: create the artifact, re-read `tmp/context-<issue-id>.md`, and retry planner launch before considering the issue not ready.
 
 For this phase:
 
@@ -504,7 +506,8 @@ After both QC checks pass (or produce advisory-only results):
 
 If the planner returns `not ready` or includes unresolved questions that prevent confident implementation:
 
-- Post a concise Linear comment describing the blocking questions with `linear issue comment <issue-id> "<blocking questions summary>. Added needs-spec so /deliver will skip this until clarified." --json`
+- First check whether the blocker is recoverable missing UI context (`## Design Direction`, `## Targeted Design Edit`, or `## Design Handoff Context`). If so, run the matching design workflow, re-read the context artifact, and retry planner launch before escalating. Do **not** add `needs-spec` for this recoverable path.
+- If the issue is still not ready after context capture, post a concise Linear comment describing the blocking questions and the next action: tighten the issue scope, create child issues if needed, remove `needs-spec` when the issue is bounded, and rerun `/deliver` on the refined issue.
 - Set the issue state back to **Todo** and add the `needs-spec` label with `linear issue update <issue-id> --add-label needs-spec --status "Todo" --json`
 - Remove the worktree
 - Add the issue ID to `escalated_issues`
