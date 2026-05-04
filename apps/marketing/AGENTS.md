@@ -7,3 +7,10 @@ This app mixes server-rendered shells with a small amount of client-only UI.
 - Keep `Header` client-side because it owns the mobile menu state.
 - Prefer server components for the rest of the marketing surface unless a browser API or local state is required.
 - Keep only true global base styles in `apps/marketing/src/app/globals.css`; use component-adjacent CSS Modules for route and component styling. Avoid reintroducing jsxstyle or registry-based style injection.
+
+## Marketing page layout and typography
+
+- Restrict the compact grid-track body layout to the home page. Secondary routes should keep the shared header/footer frame, but body content needs wider spacing, clearer section breaks, and more room to breathe.
+- Do not clone the home page's dense ruled-grid rhythm across `/features`, `/install-extension`, `/pricing`, `/about`, or `/contact`; use route-specific layouts that support the page's job.
+- The current primary header type treatment can remain for top-level page headers, but secondary headings and body copy need lighter, more readable font choices. Investigate alternatives before expanding route copy rather than defaulting every text layer to the same slab-like stack.
+- Secondary routes should signal customer understanding through focused copy and visual hierarchy, not by repeating the homepage's conceptual slogans.
