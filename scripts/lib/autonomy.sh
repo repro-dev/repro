@@ -34,6 +34,17 @@ _autonomy_py() {
   fi
 }
 
+_autonomy_issue_id() {
+  local issue_identifier="${1:-}"
+  [[ -n "$issue_identifier" ]] || die "Missing issue identifier"
+
+  local issue_json issue_id
+  issue_json="$(linear issue show "$issue_identifier" --json)" || die "Failed to resolve Linear issue: $issue_identifier"
+  issue_id="$(python3 -c 'import json, sys; item = json.loads(sys.argv[1]).get("item", {}); issue_id = item.get("id", "") if isinstance(item, dict) else ""; assert issue_id; print(issue_id)' "$issue_json")" || die "Failed to resolve Linear issue UUID for $issue_identifier"
+
+  printf '%s\n' "$issue_id"
+}
+
 cmd_autonomy_help() {
   cat <<'EOF'
 Usage: reproctl autonomy <subcommand>
@@ -42,7 +53,7 @@ Durable local state for autonomous orchestration.
 
 Subcommands:
   status [--all]                 Show current claims and run attempts
-  claim <issue> --issue-id <id> --workspace <path> --phase <phase> --issue-state <name>
+  claim <issue> --workspace <path> --phase <phase> --issue-state <name> [--issue-state-type <type>] [--claimed-by <user>]
   release <issue> [--reason <text>]
   reconcile [<issue> | --all]
   run start <issue> --phase <phase> --workspace <path>
@@ -50,7 +61,7 @@ Subcommands:
 
 Examples:
   reproctl autonomy status --json
-  reproctl autonomy claim REP-1094 --issue-id uuid --workspace /path/to/repro-wt-rep-1094 --phase observe --issue-state In-Progress
+  reproctl autonomy claim REP-1094 --workspace /path/to/repro-wt-rep-1094 --phase observe --issue-state In-Progress
   reproctl autonomy run start REP-1094 --phase observe --workspace /path/to/repro-wt-rep-1094
 EOF
 }
@@ -93,7 +104,6 @@ cmd_autonomy() {
       while [[ $# -gt 0 ]]; do
         case "$1" in
           --json) shift ;;
-          --issue-id) [[ -n "${2:-}" ]] || die "Missing value for $1"; issue_id="$2"; shift 2 ;;
           --workspace) [[ -n "${2:-}" ]] || die "Missing value for $1"; workspace="$2"; shift 2 ;;
           --phase) [[ -n "${2:-}" ]] || die "Missing value for $1"; phase="$2"; shift 2 ;;
           --issue-state) [[ -n "${2:-}" ]] || die "Missing value for $1"; issue_state="$2"; shift 2 ;;
@@ -107,10 +117,10 @@ cmd_autonomy() {
         esac
       done
       [[ -n "$issue_identifier" ]] || die "Missing issue identifier"
-      [[ -n "$issue_id" ]] || die "Missing --issue-id"
       [[ -n "$workspace" ]] || die "Missing --workspace"
       [[ -n "$phase" ]] || die "Missing --phase"
       [[ -n "$issue_state" ]] || die "Missing --issue-state"
+      issue_id="$(_autonomy_issue_id "$issue_identifier")"
       local args=(claim "$issue_identifier" --issue-id "$issue_id" --workspace "$workspace" --phase "$phase" --issue-state "$issue_state" --issue-state-type "${issue_state_type:-started}")
       [[ -n "$claimed_by" ]] && args+=(--claimed-by "$claimed_by")
       _autonomy_py "${args[@]}"
