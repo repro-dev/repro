@@ -486,8 +486,52 @@ test("issue update forwards title changes to updateIssue", async () => {
 });
 
 test("issue create forwards a parent issue to createIssue", async () => {
+  const parentIssue = {
+    id: "issue-1",
+    identifier: "REP-875",
+    title: "Parent issue",
+    url: "https://linear.app/acme/issue/REP-875",
+    priority: 3,
+    priorityLabel: "Medium",
+    updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+    description: "desc",
+    parentId: null,
+    labelIds: [],
+    project: Promise.resolve(null),
+    projectMilestone: Promise.resolve(null),
+    assignee: Promise.resolve(null),
+    state: Promise.resolve({
+      id: "state-todo",
+      name: "Todo",
+      type: "unstarted",
+    }),
+  };
+  const createdIssue = {
+    id: "issue-900",
+    identifier: "REP-900",
+    title: "Child task",
+    url: "https://linear.app/acme/issue/REP-900",
+    priority: 3,
+    priorityLabel: "Medium",
+    updatedAt: new Date("2026-04-18T00:15:00.000Z"),
+    description: "",
+    parentId: "issue-1",
+    labelIds: [],
+    project: Promise.resolve(null),
+    projectMilestone: Promise.resolve(null),
+    assignee: Promise.resolve(null),
+    state: Promise.resolve({
+      id: "state-todo",
+      name: "Todo",
+      type: "unstarted",
+    }),
+    parent: Promise.resolve(parentIssue),
+  };
   const records = {
-    issueLookups: new Map([[875, { id: "issue-1", identifier: "REP-875" }]]),
+    issueLookups: new Map([
+      [875, parentIssue],
+      [900, createdIssue],
+    ]),
   };
 
   const result = await execute(
@@ -504,7 +548,17 @@ test("issue create forwards a parent issue to createIssue", async () => {
     ],
     {
       env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
-      clientFactory: async () => makeClient(records),
+      clientFactory: async () => {
+        const client = makeClient(records);
+        client.createIssue = async function (input) {
+          records.createIssue.push(input);
+          return {
+            issue: createdIssue,
+            issueId: createdIssue.id,
+          };
+        };
+        return client;
+      },
     },
   );
 
@@ -512,39 +566,144 @@ test("issue create forwards a parent issue to createIssue", async () => {
   assert.equal(records.createIssue[0].parentId, "issue-1");
   assert.deepEqual(records.issues, [
     { filter: { number: { eq: 875 } }, first: 1 },
+    { filter: { number: { eq: 900 } }, first: 1 },
   ]);
 });
 
 test("issue update can reparent and remove a parent relationship", async () => {
+  const parentIssue = {
+    id: "issue-1",
+    identifier: "REP-875",
+    title: "Parent issue",
+    url: "https://linear.app/acme/issue/REP-875",
+    priority: 3,
+    priorityLabel: "Medium",
+    updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+    description: "desc",
+    parentId: null,
+    labelIds: [],
+    project: Promise.resolve(null),
+    projectMilestone: Promise.resolve(null),
+    assignee: Promise.resolve(null),
+    state: Promise.resolve({
+      id: "state-todo",
+      name: "Todo",
+      type: "unstarted",
+    }),
+  };
+  const reparentedIssue = {
+    id: "issue-2",
+    identifier: "REP-876",
+    title: "Child task",
+    url: "https://linear.app/acme/issue/REP-876",
+    priority: 3,
+    priorityLabel: "Medium",
+    updatedAt: new Date("2026-04-18T00:15:00.000Z"),
+    description: "",
+    parentId: "issue-1",
+    labelIds: [],
+    project: Promise.resolve(null),
+    projectMilestone: Promise.resolve(null),
+    assignee: Promise.resolve(null),
+    state: Promise.resolve({
+      id: "state-todo",
+      name: "Todo",
+      type: "unstarted",
+    }),
+    parent: Promise.resolve(parentIssue),
+  };
   const assignRecords = {
-    issueLookups: new Map([[875, { id: "issue-1", identifier: "REP-875" }]]),
+    issueLookups: new Map([
+      [875, parentIssue],
+      [876, reparentedIssue],
+    ]),
   };
 
   const assignResult = await execute(
     ["issue", "update", "REP-876", "--parent", "REP-875", "--json"],
     {
       env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
-      clientFactory: async () => makeClient(assignRecords),
+      clientFactory: async () => {
+        const client = makeClient(assignRecords);
+        client.updateIssue = async function (id, input) {
+          assignRecords.updateIssue.push({ id, input });
+          return {
+            issue: {
+              ...reparentedIssue,
+              parentId: input.parentId,
+              parent: Promise.resolve(parentIssue),
+            },
+            issueId: reparentedIssue.id,
+          };
+        };
+        return client;
+      },
     },
   );
 
   assert.equal(assignResult.code, 0);
   assert.equal(assignRecords.updateIssue[0].input.parentId, "issue-1");
+  const assignPayload = JSON.parse(assignResult.stdout);
+  assert.equal(assignPayload.item.identifier, "REP-876");
+  assert.equal(assignPayload.item.parent.identifier, "REP-875");
   assert.deepEqual(assignRecords.issues, [
     { filter: { number: { eq: 876 } }, first: 1 },
     { filter: { number: { eq: 875 } }, first: 1 },
+    { filter: { number: { eq: 876 } }, first: 1 },
   ]);
 
-  const removeRecords = {};
+  const removeIssue = {
+    id: "issue-2",
+    identifier: "REP-876",
+    title: "Child task",
+    url: "https://linear.app/acme/issue/REP-876",
+    priority: 3,
+    priorityLabel: "Medium",
+    updatedAt: new Date("2026-04-18T00:15:00.000Z"),
+    description: "",
+    parentId: null,
+    labelIds: [],
+    project: Promise.resolve(null),
+    projectMilestone: Promise.resolve(null),
+    assignee: Promise.resolve(null),
+    state: Promise.resolve({
+      id: "state-todo",
+      name: "Todo",
+      type: "unstarted",
+    }),
+    parent: Promise.resolve(null),
+  };
+  const removeRecords = {
+    issueLookups: new Map([[876, removeIssue]]),
+  };
   const removeResult = await execute(
     ["issue", "update", "REP-876", "--remove-parent", "--json"],
     {
       env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
-      clientFactory: async () => makeClient(removeRecords),
+      clientFactory: async () => {
+        const client = makeClient(removeRecords);
+        client.updateIssue = async function (id, input) {
+          removeRecords.updateIssue = [
+            ...(removeRecords.updateIssue ?? []),
+            { id, input },
+          ];
+          return {
+            issue: {
+              ...removeIssue,
+              parentId: input.parentId,
+              parent: Promise.resolve(null),
+            },
+            issueId: removeIssue.id,
+          };
+        };
+        return client;
+      },
     },
   );
 
   assert.equal(removeResult.code, 0);
+  const removePayload = JSON.parse(removeResult.stdout);
+  assert.equal(removePayload.item.identifier, "REP-876");
   assert.equal(removeRecords.updateIssue[0].input.parentId, null);
 });
 
