@@ -21,6 +21,7 @@ Load for:
 Do **not** use this skill for:
 
 - component implementation — use `design-system`
+- localized follow-up edits on an existing surface — use `design-edit`
 - broad polish/audit passes — use `audit-ui-quality`
 - post-change browser verification — use `ui-verification`
 - settled multi-agent UI handoffs — use `design-handoff`
@@ -153,6 +154,7 @@ Use this shape in the context artifact:
 | Downstream skill   | Use it for                                                                  |
 | ------------------ | --------------------------------------------------------------------------- |
 | `design-system`    | Turning the captured direction into components, layout, tokens, and UI code |
+| `design-edit`      | Turning localized feedback into a bounded follow-up task                    |
 | `design-handoff`   | Preserving settled direction across downstream agents without re-opening it |
 | `audit-ui-quality` | Checking authored UI for polish, consistency, and generic drift             |
 | `ui-verification`  | Verifying the implemented UI behaves correctly in the browser               |
