@@ -469,6 +469,67 @@ async function resolveIssueByIdentifierOnTeam(context, team, issueId, cache) {
   return resolved;
 }
 
+function getIssueIdentifierForRefetch(issue) {
+  if (notEmpty(issue?.identifier)) return issue.identifier;
+  if (!notEmpty(issue?.url)) return null;
+
+  try {
+    const pathname = new URL(issue.url).pathname;
+    const segments = pathname.split("/").filter(Boolean);
+    return segments[segments.length - 1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveIssueParentId(issue) {
+  const parent = await resolveRelationValue(issue?.parent);
+  return issue?.parentId ?? parent?.id ?? null;
+}
+
+function formatIssueIdentity(issue) {
+  return issue?.identifier ?? issue?.id ?? "unknown issue";
+}
+
+function formatParentIdentity(issue) {
+  return issue?.identifier ?? issue?.id ?? "null";
+}
+
+async function verifyIssueParentMutation(context, issue, expectedParentIssue) {
+  const issueIdentifier = getIssueIdentifierForRefetch(issue);
+  if (!issueIdentifier) {
+    runtimeError(
+      `Unable to verify parent mutation: missing issue identifier for ${formatIssueIdentity(
+        issue,
+      )}.`,
+    );
+  }
+
+  const freshIssue = await resolveIssueByIdentifier(context, issueIdentifier);
+  const actualParentId = await resolveIssueParentId(freshIssue.issue);
+  const expectedParentId = expectedParentIssue?.id ?? null;
+
+  if (actualParentId !== expectedParentId) {
+    const expectedParentText = expectedParentIssue
+      ? `${formatParentIdentity(expectedParentIssue)} (${
+          expectedParentIssue.id ?? "unknown id"
+        })`
+      : "null";
+    const actualParentText = actualParentId ?? "null";
+    const recoveryCommands = expectedParentIssue
+      ? `Run \`linear issue show ${issueIdentifier} --json\` and \`linear issue children ${formatParentIdentity(
+          expectedParentIssue,
+        )} --json\` to inspect the hierarchy.`
+      : `Run \`linear issue show ${issueIdentifier} --json\` to inspect the hierarchy.`;
+
+    runtimeError(
+      `Parent mutation did not persist for ${issueIdentifier}: expected parent ${expectedParentText}, read back ${actualParentText}. ${recoveryCommands}`,
+    );
+  }
+
+  return freshIssue.issue;
+}
+
 function serializeProject(project) {
   if (!project) return null;
   return {
@@ -528,11 +589,12 @@ async function serializeMilestonePreview(milestone, project = null) {
 }
 
 async function serializeIssue(client, issue, labels = []) {
-  const [project, milestone, assignee, status] = await Promise.all([
+  const [project, milestone, assignee, status, parent] = await Promise.all([
     issue.project ? issue.project : null,
     issue.projectMilestone ? issue.projectMilestone : null,
     issue.assignee ? issue.assignee : null,
     issue.state ? issue.state : null,
+    issue.parent ? issue.parent : null,
   ]);
 
   return {
@@ -552,6 +614,8 @@ async function serializeIssue(client, issue, labels = []) {
     project: serializeProject(project),
     milestone: await serializeMilestone(milestone, project),
     assignee: serializeUser(assignee),
+    parentId: issue.parentId ?? parent?.id ?? null,
+    parent: parent ? await serializeIssueSummaryCore(parent) : null,
     labels: serializeIssueLabels(issue, labels),
     updatedAt:
       issue.updatedAt instanceof Date
@@ -1262,6 +1326,20 @@ async function issueCreateCommand(args, context) {
     parentId: resolvedParent?.issue.id ?? undefined,
   });
 
+  let verifiedCreatedIssue = createdIssue;
+  if (options.parent) {
+    if (!createdIssue) {
+      runtimeError(
+        "Unable to verify parent mutation: Linear did not return the created issue.",
+      );
+    }
+    verifiedCreatedIssue = await verifyIssueParentMutation(
+      context,
+      createdIssue,
+      resolvedParent?.issue ?? null,
+    );
+  }
+
   if (createdIssue?.id) {
     const relationSpecs = [
       ...(options.related ?? []).map((issueId) => ({
@@ -1336,7 +1414,7 @@ async function issueCreateCommand(args, context) {
     : [];
   const item = await serializeIssue(
     client,
-    createdIssue ?? fallbackIssue,
+    verifiedCreatedIssue ?? createdIssue ?? fallbackIssue,
     createdIssueLabels,
   );
 
@@ -1506,14 +1584,22 @@ async function issueUpdateCommand(args, context) {
     issue.id,
     input,
   );
+  const verifiedUpdatedIssue =
+    options.parent !== undefined || options.removeParent
+      ? await verifyIssueParentMutation(
+          context,
+          updatedIssue ?? issue,
+          resolvedParent?.issue ?? null,
+        )
+      : updatedIssue;
   const updatedIssueLabels = teamLabels.length
     ? teamLabels
-    : collectLabelIds([updatedIssue ?? issue]).length
+    : collectLabelIds([verifiedUpdatedIssue ?? issue]).length
     ? await resolveLabels(team)
     : [];
   const item = await serializeIssue(
     client,
-    updatedIssue ?? {
+    verifiedUpdatedIssue ?? {
       ...issue,
       state: targetState ? Promise.resolve(targetState) : issue.state,
       project: resolvedProject
