@@ -31,6 +31,8 @@ source "$SCRIPT_DIR/lib/version.sh"
 source "$SCRIPT_DIR/lib/code-index.sh"
 # shellcheck source=scripts/lib/opencode.sh
 source "$SCRIPT_DIR/lib/opencode.sh"
+# shellcheck source=scripts/lib/autonomy.sh
+source "$SCRIPT_DIR/lib/autonomy.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -80,6 +82,11 @@ ${CLR_BOLD}GENERAL${CLR_RESET}
                                   Topics: environment, exit-codes, json
   opencode [--profile <name>]     Launch OpenCode with optional model profile
 
+${CLR_BOLD}ORCHESTRATION${CLR_RESET}
+  autonomy                        Durable local claim/run orchestration state
+  autonomy status                 Show durable claims and runs
+  autonomy claim/release/...      Manage local orchestration claims
+
 Examples:
   reproctl setup                              # bootstrap entire environment
   reproctl doctor                             # check installed tools and versions
@@ -97,6 +104,7 @@ Examples:
   reproctl wt create --from-issue REP-123     # create worktree from Linear issue
   reproctl wt list                            # list all worktrees
   reproctl context                            # show current worktree/branch context
+  reproctl autonomy status --json             # show durable orchestration state
 EOF
 }
 
@@ -169,6 +177,7 @@ USAGE
   logs)    cmd_logs "$@" ;;
   ui)      cmd_ui "$@" ;;
   launch)  cmd_launch "$@" ;;
+  autonomy) cmd_autonomy "$@" ;;
   context) cmd_context "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
   completion)  cmd_completion "$@" ;;
@@ -195,13 +204,18 @@ USAGE
     elif [ -f "$manfile" ]; then
       cat "$manfile"
     else
-      die "No manual entry for $topic.\nRun 'reproctl --help' for a command list."
+      helper="cmd_${topic}_help"
+      if declare -f "$helper" >/dev/null 2>&1; then
+        "$helper"
+      else
+        die "No manual entry for $topic.\nRun 'reproctl --help' for a command list."
+      fi
     fi
     ;;
   -h|--help)      usage ;;
   --version|-V)    cmd_version "$@" ;;
   *)
-    KNOWN_COMMANDS="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help opencode"
+    KNOWN_COMMANDS="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch autonomy context worktree wt completion version help opencode"
     suggestions=$(python3 "$SCRIPT_DIR/lib/py/suggest_command.py" "$COMMAND" $KNOWN_COMMANDS 2>/dev/null) || true
     if [ -n "$suggestions" ]; then
       printf 'Error: Unknown command: %s\n' "$COMMAND" >&2
