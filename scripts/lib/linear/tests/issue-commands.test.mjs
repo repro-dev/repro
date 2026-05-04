@@ -548,7 +548,17 @@ test("issue create forwards a parent issue to createIssue", async () => {
     ],
     {
       env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
-      clientFactory: async () => makeClient(records),
+      clientFactory: async () => {
+        const client = makeClient(records);
+        client.createIssue = async function (input) {
+          records.createIssue.push(input);
+          return {
+            issue: createdIssue,
+            issueId: createdIssue.id,
+          };
+        };
+        return client;
+      },
     },
   );
 
@@ -618,9 +628,12 @@ test("issue update can reparent and remove a parent relationship", async () => {
         client.updateIssue = async function (id, input) {
           assignRecords.updateIssue.push({ id, input });
           return {
-            ...reparentedIssue,
-            parentId: input.parentId,
-            parent: Promise.resolve(parentIssue),
+            issue: {
+              ...reparentedIssue,
+              parentId: input.parentId,
+              parent: Promise.resolve(parentIssue),
+            },
+            issueId: reparentedIssue.id,
           };
         };
         return client;
@@ -675,9 +688,12 @@ test("issue update can reparent and remove a parent relationship", async () => {
             { id, input },
           ];
           return {
-            ...removeIssue,
-            parentId: input.parentId,
-            parent: Promise.resolve(null),
+            issue: {
+              ...removeIssue,
+              parentId: input.parentId,
+              parent: Promise.resolve(null),
+            },
+            issueId: removeIssue.id,
           };
         };
         return client;

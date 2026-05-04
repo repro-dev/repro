@@ -487,6 +487,10 @@ async function resolveIssueParentId(issue) {
   return issue?.parentId ?? parent?.id ?? null;
 }
 
+function unwrapIssueMutationResult(result) {
+  return result?.issue ?? result ?? null;
+}
+
 function formatIssueIdentity(issue) {
   return issue?.identifier ?? issue?.id ?? "unknown issue";
 }
@@ -495,7 +499,12 @@ function formatParentIdentity(issue) {
   return issue?.identifier ?? issue?.id ?? "null";
 }
 
-async function verifyIssueParentMutation(context, issue, expectedParentIssue) {
+async function verifyIssueParentMutation(
+  context,
+  issueResult,
+  expectedParentIssue,
+) {
+  const issue = unwrapIssueMutationResult(issueResult);
   const issueIdentifier = getIssueIdentifierForRefetch(issue);
   if (!issueIdentifier) {
     runtimeError(
@@ -1316,7 +1325,7 @@ async function issueCreateCommand(args, context) {
       )
     : null;
 
-  const createdIssue = await createIssueWithFallback(client, {
+  const createdIssueResult = await createIssueWithFallback(client, {
     teamId: team.id,
     title: options.title,
     description: options.description ?? undefined,
@@ -1325,6 +1334,7 @@ async function issueCreateCommand(args, context) {
     priority,
     parentId: resolvedParent?.issue.id ?? undefined,
   });
+  const createdIssue = unwrapIssueMutationResult(createdIssueResult);
 
   let verifiedCreatedIssue = createdIssue;
   if (options.parent) {
@@ -1578,12 +1588,13 @@ async function issueUpdateCommand(args, context) {
 
   if (!Object.keys(input).length) usageError("Missing update fields.");
 
-  const updatedIssue = await callBoundMethod(
+  const updatedIssueResult = await callBoundMethod(
     client,
     client.updateIssue,
     issue.id,
     input,
   );
+  const updatedIssue = unwrapIssueMutationResult(updatedIssueResult);
   const verifiedUpdatedIssue =
     options.parent !== undefined || options.removeParent
       ? await verifyIssueParentMutation(
