@@ -198,21 +198,21 @@ A useful mental shorthand is the **Explorer / Oracle / Fixer** model: Explorers 
 
 ### Agent roster
 
-| Agent     | Archetype | Primary role                                                                                            | Tool access                                         |
-| --------- | --------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `develop` | Fixer     | Executes implementation plans using red/green/refactor TDD                                              | Full read/write/bash                                |
-| `test`    | Fixer     | Adds test coverage, writes regression tests, and audits test sufficiency as a standalone utility        | Full read/write/bash                                |
-| `planner` | Oracle    | Explores the codebase and produces a structured implementation plan for `develop` to consume            | Read-only; restricted bash (git log/diff/show only) |
-| `review`  | Oracle    | Reviews a branch diff against Linear requirements and project conventions; never fixes, only reports    | Read-only; restricted bash (git log/diff/show only) |
-| `explore` | Explorer  | Answers fast read-only questions about architecture, patterns, and existing code without making changes | Read-only                                           |
-| `general` | —         | Handles tasks that don't fit another agent's scope (writing docs, analyzing logs, answering questions)  | Varies by task                                      |
+| Agent     | Archetype | Primary role                                                                                            | Tool access                                                            |
+| --------- | --------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `develop` | Fixer     | Executes implementation plans using red/green/refactor TDD                                              | Full read/write/bash                                                   |
+| `test`    | Fixer     | Adds test coverage, writes regression tests, and audits test sufficiency as a standalone utility        | Full read/write/bash                                                   |
+| `planner` | Oracle    | Explores the codebase and produces a structured implementation plan for `develop` to consume            | Read-only; restricted bash (git log/diff/show only)                    |
+| `review`  | Oracle    | Reviews a branch diff against Linear requirements and project conventions; never fixes, only reports    | Read-only; restricted bash (git log/diff/show and linear issue show\*) |
+| `explore` | Explorer  | Answers fast read-only questions about architecture, patterns, and existing code without making changes | Read-only                                                              |
+| `general` | —         | Handles tasks that don't fit another agent's scope (writing docs, analyzing logs, answering questions)  | Varies by task                                                         |
 
 **When to use each agent:**
 
 - **`develop`**: any implementation touching 2+ files. Preferred over writing code in the outer conversation.
 - **`test`**: after implementation to audit coverage or write targeted regression tests. Not part of the automated pipeline — invoke directly when needed.
 - **`planner`**: when a task involves 3+ packages or requires significant codebase exploration before implementation. For simpler single-package changes, plan inline in the outer conversation.
-- **`review`**: any time you want structured findings against Linear requirements and conventions before publishing a PR. Can also be invoked via `/review` for ad-hoc branch review.
+- **`review`**: any time you want structured findings against Linear requirements and conventions before publishing a PR. Can also be invoked via `/review` for ad-hoc branch review; restricted bash includes `git log/diff/show` and `linear issue show*`.
 - **`explore`**: when you need fast orientation or impact assessment without a full plan. Cheaper than `planner` for pure recon — use it first, then escalate to `planner` if planning is warranted.
 - **`general`**: when no more-specific agent applies — e.g. writing a design doc, summarizing a log dump, or answering a question with no code change required.
 
