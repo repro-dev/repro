@@ -487,8 +487,8 @@ async function resolveIssueParentId(issue) {
   return issue?.parentId ?? parent?.id ?? null;
 }
 
-function unwrapIssueMutationResult(result) {
-  return result?.issue ?? result ?? null;
+async function unwrapIssueMutationResult(result) {
+  return resolveRelationValue(result?.issue ?? result ?? null);
 }
 
 function formatIssueIdentity(issue) {
@@ -504,7 +504,7 @@ async function verifyIssueParentMutation(
   issueResult,
   expectedParentIssue,
 ) {
-  const issue = unwrapIssueMutationResult(issueResult);
+  const issue = await unwrapIssueMutationResult(issueResult);
   const issueIdentifier = getIssueIdentifierForRefetch(issue);
   if (!issueIdentifier) {
     runtimeError(
@@ -1334,7 +1334,7 @@ async function issueCreateCommand(args, context) {
     priority,
     parentId: resolvedParent?.issue.id ?? undefined,
   });
-  const createdIssue = unwrapIssueMutationResult(createdIssueResult);
+  const createdIssue = await unwrapIssueMutationResult(createdIssueResult);
 
   let verifiedCreatedIssue = createdIssue;
   if (options.parent) {
@@ -1594,7 +1594,7 @@ async function issueUpdateCommand(args, context) {
     issue.id,
     input,
   );
-  const updatedIssue = unwrapIssueMutationResult(updatedIssueResult);
+  const updatedIssue = await unwrapIssueMutationResult(updatedIssueResult);
   const verifiedUpdatedIssue =
     options.parent !== undefined || options.removeParent
       ? await verifyIssueParentMutation(
