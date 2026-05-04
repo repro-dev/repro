@@ -1,9 +1,9 @@
 # Autonomous Delivery Workflow Contract
 
-**Issue:** REP-1093  
-**Parent:** REP-1092  
-**Scope:** local-first observe-and-prepare MVP  
-**Non-goal:** launching implementation, test, review, or release sessions automatically
+- **Issue:** REP-1093
+- **Parent:** REP-1092
+- **Scope:** local-first observe-and-prepare MVP
+- **Non-goal:** launching implementation, test, review, or release sessions automatically
 
 This document is the repo-owned contract for future autonomous delivery work. It defines the workflow shape implementation issues must consume without re-planning the policy surface.
 
