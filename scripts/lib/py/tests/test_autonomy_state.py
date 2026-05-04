@@ -2,12 +2,14 @@
 
 import os
 import sys
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from autonomy_state import ActiveClaimError, AutonomyStore
+from autonomy_state import ActiveClaimError, AutonomyStore, main
 
 
 def _store(tmp_path: Path) -> AutonomyStore:
@@ -146,3 +148,63 @@ def test_reconcile_marks_missing_workspace_stale(tmp_path: Path):
 
     assert status["items"][0]["claim_state"] == "stale"
     assert status["items"][0]["retry_reason"] == "missing-workspace"
+
+
+def test_reconcile_updates_observed_state_when_still_active(tmp_path: Path):
+    store = _store(tmp_path)
+    workspace = _workspace(tmp_path)
+
+    store.claim(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        phase="observe",
+        issue_state_name="In Progress",
+        issue_state_type="started",
+    )
+
+    store.reconcile(
+        "REP-1094",
+        issue_state_name="Ready for Review",
+        issue_state_type="started",
+    )
+
+    status = store.status()
+
+    assert status["items"][0]["claim_state"] == "claimed"
+    assert status["items"][0]["last_observed_issue_state_name"] == "Ready for Review"
+    assert status["items"][0]["last_observed_issue_state_type"] == "started"
+
+
+def test_status_human_output_includes_runs(tmp_path: Path):
+    store = _store(tmp_path)
+    workspace = _workspace(tmp_path)
+
+    store.claim(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        phase="observe",
+        issue_state_name="In Progress",
+        issue_state_type="started",
+    )
+    store.run_start("REP-1094", phase="observe", workspace_path=str(workspace))
+
+    stdout = StringIO()
+    with redirect_stdout(stdout):
+        exit_code = main(
+            [
+                "--db",
+                str(tmp_path / "state.sqlite"),
+                "--main-checkout",
+                str(tmp_path / "checkout"),
+                "status",
+            ]
+        )
+
+    output = stdout.getvalue()
+    assert exit_code == 0
+    assert "CLAIMS" in output
+    assert "RUNS" in output
+    assert "REP-1094" in output
+    assert "running" in output

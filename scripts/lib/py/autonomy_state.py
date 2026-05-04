@@ -325,11 +325,21 @@ class AutonomyStore:
                     retry_state = "stale"
                     retry_reason = f"terminal-issue-state:{issue_state_type}"
 
-                if should_stale and claim_state not in TERMINAL_STATES:
+                should_update_observed = issue_state_name is not None or issue_state_type is not None
+
+                if (should_stale or should_update_observed) and claim_state not in TERMINAL_STATES:
+                    next_state = claim_state
+                    next_retry_state = retry_state
+                    next_retry_reason = retry_reason
+                    if should_stale:
+                        next_state = 'stale'
+                        next_retry_state = 'stale'
+                        next_retry_reason = retry_reason
+
                     conn.execute(
                         """
                         UPDATE claims SET
-                            claim_state = 'stale',
+                            claim_state = ?,
                             retry_state = ?,
                             retry_reason = ?,
                             last_observed_issue_state_name = COALESCE(?, last_observed_issue_state_name),
@@ -338,8 +348,9 @@ class AutonomyStore:
                         WHERE issue_identifier = ?
                         """,
                         (
-                            retry_state,
-                            retry_reason,
+                            next_state,
+                            next_retry_state,
+                            next_retry_reason,
                             issue_state_name,
                             issue_state_type,
                             now,
@@ -387,54 +398,52 @@ def _json_dump(data: Any) -> None:
     print(json.dumps(data))
 
 
-def _status_table(items: list[dict[str, Any]]) -> str:
-    if not items:
+def _render_table(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> str:
+    if not rows:
         return "  (none)"
 
-    rows = []
-    for item in items:
-        rows.append(
-            (
-                item.get("issue_identifier", ""),
-                item.get("claim_state", ""),
-                item.get("phase", ""),
-                str(item.get("attempt_count", 0)),
-                item.get("workspace_path", ""),
-                item.get("retry_reason") or item.get("retry_state") or "",
-            )
-        )
-
-    widths = [max(len(row[idx]) for row in rows + [("ISSUE", "STATE", "PHASE", "ATTEMPT", "WORKSPACE", "REASON")]) for idx in range(6)]
-    header = (
+    widths = [max(len(row[idx]) for row in rows + [headers]) for idx in range(len(headers))]
+    lines = [
         "  "
-        + "ISSUE".ljust(widths[0])
-        + "  "
-        + "STATE".ljust(widths[1])
-        + "  "
-        + "PHASE".ljust(widths[2])
-        + "  "
-        + "ATTEMPT".ljust(widths[3])
-        + "  "
-        + "WORKSPACE".ljust(widths[4])
-        + "  "
-        + "REASON".ljust(widths[5])
-    )
-    lines = [header]
+        + "  ".join(headers[idx].ljust(widths[idx]) for idx in range(len(headers)))
+    ]
     for row in rows:
         lines.append(
             "  "
-            + row[0].ljust(widths[0])
-            + "  "
-            + row[1].ljust(widths[1])
-            + "  "
-            + row[2].ljust(widths[2])
-            + "  "
-            + row[3].ljust(widths[3])
-            + "  "
-            + row[4].ljust(widths[4])
-            + "  "
-            + row[5].ljust(widths[5])
+            + "  ".join(row[idx].ljust(widths[idx]) for idx in range(len(headers)))
         )
+    return "\n".join(lines)
+
+
+def _status_table(items: list[dict[str, Any]], runs: list[dict[str, Any]]) -> str:
+    claim_rows = [
+        (
+            item.get("issue_identifier", ""),
+            item.get("claim_state", ""),
+            item.get("phase", ""),
+            str(item.get("attempt_count", 0)),
+            item.get("workspace_path", ""),
+            item.get("retry_reason") or item.get("retry_state") or "",
+        )
+        for item in items
+    ]
+    run_rows = [
+        (
+            run.get("issue_identifier", ""),
+            str(run.get("attempt", "")),
+            run.get("phase", ""),
+            run.get("state", ""),
+            run.get("workspace_path", ""),
+        )
+        for run in runs
+    ]
+
+    lines = ["CLAIMS", _render_table(("ISSUE", "STATE", "PHASE", "ATTEMPT", "WORKSPACE", "REASON"), claim_rows)]
+    lines.extend([
+        "",
+        "RUNS",
+        _render_table(("ISSUE", "ATTEMPT", "PHASE", "STATE", "WORKSPACE"), run_rows),
+    ])
     return "\n".join(lines)
 
 
@@ -498,7 +507,7 @@ def main(argv: list[str] | None = None) -> int:
             if args.json:
                 _json_dump(result)
             else:
-                print(_status_table(result["items"]))
+                print(_status_table(result["items"], result["runs"]))
             return 0
 
         if args.command == "claim":
