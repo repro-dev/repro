@@ -25,6 +25,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 ### UI-specific skills
 
 - `design-direction` — upstream visual intent
+- `design-edit` — localized follow-up edits on an existing UI surface
 - `design-handoff` — preserve settled UI decisions across handoffs
 - `design-system` — UI implementation, components, tokens, and reference files
 - `audit-ui-quality` — scored authored-vs-generic UI audit
@@ -256,7 +257,7 @@ The typical flow for a feature or fix:
 
 ### Artifact lifecycle
 
-- `tmp/context-<issue-id>.md`: required before planner delegation once work spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs. For unresolved UI direction, this same artifact should carry the `## Design Direction` block from the `design-direction` workflow. Use `tmp/context-<topic>.md` for non-Linear work.
+- `tmp/context-<issue-id>.md`: required before planner delegation once work spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs. For unresolved UI direction, this same artifact should carry the `## Design Direction` block from the `design-direction` workflow. For bounded follow-up UI edits, it may also carry a `## Targeted Design Edit` block from the `design-edit` workflow. Use `tmp/context-<topic>.md` for non-Linear work.
 - `tmp/test-plan-<issue-id>.md`: required before `develop` for new behavior, bug fixes, and public contract changes. Use `tmp/test-plan-<topic>.md` for non-Linear work.
 - Review and handoff workflows should explicitly note which `tmp/` artifacts were consumed and which still need updating.
 

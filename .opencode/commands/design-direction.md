@@ -9,7 +9,7 @@ Arguments (required): `$ARGUMENTS`
 ## Command contract
 
 1. If `$ARGUMENTS` is empty or whitespace, stop and print `Usage: /design-direction <topic | REP-123>`.
-2. Load the `design-direction` skill. If the user is asking to preserve already settled UI direction across downstream work, stop and tell them to run `/design-handoff <topic | REP-123>` instead.
+2. Load the `design-direction` skill. If the user is asking for a localized follow-up edit on an existing surface, stop and tell them to run `/design-edit <topic | REP-123>` instead. If they are asking to preserve already settled UI direction across downstream work, stop and tell them to run `/design-handoff <topic | REP-123>` instead.
 3. If the argument matches `REP-\d+`, fetch the issue context before writing notes so the preflight can reuse any already-specified direction.
 4. Create or update `tmp/context-<topic>.md` or `tmp/context-<issue-id>.md` with the skill-defined `## Design Direction` artifact shape for the bounded pre-implementation intake.
 5. Keep the command thin: it only points to the skill-defined bounded preflight, records already supplied direction instead of re-asking it, and writes the durable context artifact.

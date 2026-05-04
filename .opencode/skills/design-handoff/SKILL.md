@@ -16,6 +16,7 @@ Use this skill when the UI direction is already settled and needs to survive dow
 
 - if upstream intent is still missing or ambiguous, stop and return to `design-direction` first
 - shaping new or ambiguous visual direction — use `design-direction`
+- localized follow-up edits on an existing surface — use `design-edit`
 - implementing UI with components, tokens, and layout — use `design-system`
 - auditing UI quality or authoredness — use `audit-ui-quality`
 - verifying behavior in the browser — use `ui-verification`
@@ -26,7 +27,7 @@ Use this skill when the UI direction is already settled and needs to survive dow
 1. Capture the settled decision or direction.
 2. Record why it was chosen.
 3. List the constraints that must not drift.
-4. Name the downstream consumers or skills that will rely on it.
+4. Name the downstream consumers or skills that will rely on it, including `design-edit` when a later bounded follow-up must keep the same constraints.
 5. Note any deferred or open questions.
 6. Save the result in `tmp/context-<issue-id>.md` or `tmp/context-<topic>.md`.
 

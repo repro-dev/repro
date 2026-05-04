@@ -5,7 +5,7 @@ description: Practical post-change UI verification workflow — use after non-tr
 
 # UI Verification
 
-Use this skill after you have changed a UI surface and need to confirm it behaves correctly and still reads well in the browser. It is for validating implemented UI, not for shaping direction or running a broad audit. If a `## Design Handoff Context` block exists, treat it as the browser brief and do not invent new direction.
+Use this skill after you have changed a UI surface and need to confirm it behaves correctly and still reads well in the browser. It is for validating implemented UI, not for shaping direction or running a broad audit. If a `## Targeted Design Edit` block exists, treat its `Verification Evidence` section as the browser brief. If a `## Design Handoff Context` block exists, treat it as the browser brief and do not invent new direction.
 
 **Extension escape hatch:** if the changed surface is a browser extension, stop here and load `extension-verification` instead.
 
@@ -57,6 +57,7 @@ Tiny copy tweaks or isolated token swaps are usually trivial unless they change 
    agent-browser open <url>
    ```
 4. Snapshot the initial state before interacting.
+   - If a `## Targeted Design Edit` block exists, use its `Verification Evidence` section to choose the scenarios, states, and screenshots to capture.
 5. Exercise relevant interaction states:
    - hover, focus, active, disabled, loading
    - empty, error, success, and retry states
@@ -75,7 +76,7 @@ Tiny copy tweaks or isolated token swaps are usually trivial unless they change 
 
 Keep the evidence bundle under `tmp/ui-verification/<issue-or-surface>/` and include a short `notes.md` or equivalent note file that records the viewport, the UI state, and the interaction path for each captured scenario.
 
-If the surface is reusable, verify it in the smallest realistic host and once in a real consuming screen.
+If the surface is reusable, verify it in the smallest realistic host and once in a real consuming screen. For targeted design edits, make sure the captured evidence corresponds to the block's requested before/after states rather than a generic happy path.
 
 ## Authenticated sessions
 

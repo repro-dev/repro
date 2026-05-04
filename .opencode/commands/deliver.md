@@ -81,7 +81,7 @@ Run-scoped artifacts:
 - Reuse the existing `needs-spec` label for issues escalated out of `/deliver` because they lack enough specification or clarity for autonomous planning.
 - The main checkout is the control plane for `/deliver`, not a mutation target. Never write implementation changes under the main checkout from this command.
 - Plan files are the required durable handoff into implementation: write each approved planner result to `<worktree>/tmp/plan-REP-xxx.md` and treat that file as the authoritative input for `develop`.
-- Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For UI-bearing issues with unresolved visual direction, that same worktree-local context artifact must carry the `## Design Direction` block from `.opencode/skills/design-direction/SKILL.md` before planner launch. When settled UI decisions must survive downstream work unchanged, read and preserve any `## Design Handoff Context` block too. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
+- Before planning, require `<worktree>/tmp/context-<issue-id>.md` for every issue. For UI-bearing issues that are bounded follow-up edits, that same worktree-local context artifact must carry the `## Targeted Design Edit` block from `.opencode/skills/design-edit/SKILL.md` before planner launch. For UI-bearing issues with unresolved visual direction, use the `## Design Direction` block instead. When settled UI decisions must survive downstream work unchanged, read and preserve any `## Design Handoff Context` block too. For any new behavior, bug fix, or public contract change, also require `<worktree>/tmp/test-plan-<issue-id>.md` before implementation.
 - Missing required artifacts trigger an enforce-and-retry loop: create the missing `tmp/context-*` or `tmp/test-plan-*` file first, then retry the blocked delegation step.
 - Use issue selection notes plus explicit risk notes as the handoff from selection into sequencing.
 - Sequencing is provisional until planning finishes. Resequence once after planner output is available, then lock the ready wave.
@@ -336,7 +336,7 @@ Do not stop the whole run unless every issue in the active ready wave fails here
 
 Launch `planner` subagents for every issue that has a worktree in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
-Before launching planners in this phase, if an issue is UI-bearing with unresolved visual direction and its worktree-local `tmp/context-<issue-id>.md` does not yet contain the `## Design Direction` block from `.opencode/skills/design-direction/SKILL.md`, pause that issue, resolve design-direction first, and retry this phase after the context artifact is populated. If settled UI decisions must not be reinterpreted, require the context artifact to carry `## Design Handoff Context` as well.
+Before launching planners in this phase, if an issue is UI-bearing with unresolved visual direction and its worktree-local `tmp/context-<issue-id>.md` does not yet contain the `## Design Direction` block from `.opencode/skills/design-direction/SKILL.md`, pause that issue, resolve design-direction first, and retry this phase after the context artifact is populated. If the issue is a bounded UI follow-up and the context artifact does not yet contain `## Targeted Design Edit` from `.opencode/skills/design-edit/SKILL.md`, pause that issue, resolve design-edit first, and retry this phase after the context artifact is populated. If settled UI decisions must not be reinterpreted, require the context artifact to carry `## Design Handoff Context` as well.
 
 For this phase:
 
@@ -385,12 +385,7 @@ General-purpose skills (`delivery-workflow`, `worktree-workflow`, `implementatio
 4. If more than 3 match, keep the 3 most specific (prefer full package-path matches
    over keyword-only matches; prefer longer path segments over shorter ones).
 5. If 0 rows match, skip injection — use the prompt template below unchanged.
-6. If the issue is UI-bearing with unresolved visual direction and the current
-   `tmp/context-<issue-id>.md` lacks a `## Design Direction` block, inject
-   `.opencode/skills/design-direction/SKILL.md` even when no path-pattern row
-   matched; that workflow owns upstream intent capture. If direction is already
-   settled and only needs preservation, inject `.opencode/skills/design-handoff/SKILL.md`
-   when the context artifact lacks `## Design Handoff Context`.
+6. If the issue is a bounded UI follow-up and the current `tmp/context-<issue-id>.md` lacks a `## Targeted Design Edit` block, inject `.opencode/skills/design-edit/SKILL.md` even when no path-pattern row matched; that workflow owns localized edit intake. If the issue is UI-bearing with unresolved visual direction and the current `tmp/context-<issue-id>.md` lacks a `## Design Direction` block, inject `.opencode/skills/design-direction/SKILL.md` even when no path-pattern row matched; that workflow owns upstream intent capture. If direction is already settled and only needs preservation, inject `.opencode/skills/design-handoff/SKILL.md` when the context artifact lacks `## Design Handoff Context`.
 
 Prompt template per issue:
 
@@ -399,10 +394,7 @@ When 1–3 skills matched in the inline skill matching step above, include the
 `[END INJECT]`) immediately after the `Worktree:` line. Omit the block entirely
 when 0 skills matched.
 
-If the UI-direction or design-handoff gate applies, also tell the planner to
-treat the current `tmp/context-<issue-id>.md` as authoritative UI context and to
-read its `## Design Direction` block, plus any `## Design Handoff Context` block,
-before planning unless the plan explicitly calls out a strategic mismatch.
+If the targeted-edit, UI-direction, or design-handoff gate applies, also tell the planner to treat the current `tmp/context-<issue-id>.md` as authoritative UI context and to read its `## Targeted Design Edit` block when present, plus any `## Design Direction` and `## Design Handoff Context` blocks, before planning unless the plan explicitly calls out a strategic mismatch.
 
 When `prior_agent_context` or `resolved_blocker_prs` is non-empty for the issue,
 include the `## Prior context` block (shown below between `[INJECT IF ENRICHED]`
@@ -580,7 +572,7 @@ If the current ready wave becomes empty, stop and report why.
 
 Launch `develop` subagents for every issue still in the current ready wave in batches of up to `--wave-concurrency` within the current phase. In single-track mode, this phase runs once for the singleton ready wave.
 
-Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts for its scope. If the issue is UI-bearing with unresolved visual direction, the context artifact must already carry the `## Design Direction` block from `.opencode/skills/design-direction/SKILL.md`; if settled UI decisions must not be reinterpreted, it must also carry `## Design Handoff Context`. If a required artifact is missing, create it and retry the launch instead of improvising the implementation path.
+Do not launch `develop` until the issue has a completed planner result plus the required context and test-plan artifacts for its scope. If the issue is UI-bearing and the work is a bounded follow-up edit, the context artifact must already carry the `## Targeted Design Edit` block from `.opencode/skills/design-edit/SKILL.md`; if the issue is UI-bearing with unresolved visual direction, it must carry the `## Design Direction` block from `.opencode/skills/design-direction/SKILL.md`; if settled UI decisions must not be reinterpreted, it must also carry `## Design Handoff Context`. If a required artifact is missing, create it and retry the launch instead of improvising the implementation path.
 
 For this phase:
 
@@ -589,7 +581,7 @@ For this phase:
 3. Wait for the full batch to finish before launching the next batch.
 4. Do not stop mid-batch. If a develop launch is throttled, use the shared subagent launch retry policy and keep the batch visible in status output.
 5. Make publishability and stop/continue decisions only at the normal phase or wave boundaries.
-6. If an issue is UI-bearing, make sure the develop prompt explicitly asks for an `audit-ui-quality` self-critique before handoff and for a separate authored-polish judgment, plus browser evidence paths, viewport/state/interaction notes, and artifact-lint status in the final summary.
+6. If an issue is UI-bearing, make sure the develop prompt explicitly asks for an `audit-ui-quality` self-critique before handoff and for a separate authored-polish judgment, plus browser evidence paths, viewport/state/interaction notes, and artifact-lint status in the final summary. For bounded follow-up edits, the prompt must also preserve the `## Targeted Design Edit` scope boundary and verification evidence expectations.
 
 ### Smoke tests after each batch
 
@@ -660,8 +652,8 @@ Plan: <worktree>/tmp/plan-REP-xxx.md
 Read the plan first and follow it. The plan file is authoritative.
 Do not re-explore the codebase from scratch unless the plan clearly points you there.
 Do not push or create a PR.
-Read the plan, the current context artifact, and the test plan before coding. For UI-bearing issues, the context artifact's `## Design Direction` block is authoritative upstream intent unless the plan calls out a strategic mismatch. Preserve any `## Design Handoff Context` block too, especially for settled decisions that must not drift.
-For UI-bearing issues, run `audit-ui-quality` on the implementation before returning and keep authored polish separate from design-system compliance; if the audit finds low-polish output, return concrete fixes rather than a ship-as-is handoff. The final handoff must include browser evidence paths, the viewport/state/interaction notes, artifact-lint status, and a ship-readiness summary tied back to the consumed context artifact.
+Read the plan, the current context artifact, and the test plan before coding. For UI-bearing issues, a `## Targeted Design Edit` block is authoritative for localized follow-up scope, a `## Design Direction` block is authoritative upstream intent unless the plan calls out a strategic mismatch, and any `## Design Handoff Context` block must be preserved for settled decisions that must not drift.
+For UI-bearing issues, run `audit-ui-quality` on the implementation before returning and keep authored polish separate from design-system compliance; if the audit finds low-polish output, return concrete fixes rather than a ship-as-is handoff. When a `## Targeted Design Edit` block is present, the final handoff must tie back to its scope boundary and verification evidence expectations. The final handoff must include browser evidence paths, the viewport/state/interaction notes, artifact-lint status, and a ship-readiness summary tied back to the consumed context artifact.
 
 Tactical implementation-level deviations are allowed if they still satisfy the plan and issue.
 If you discover a strategic mismatch that invalidates the plan, stop and report it instead of improvising a larger redesign.
@@ -822,9 +814,10 @@ Focus exclusively on authored polish and generic-drift risk:
 1. Load the `audit-ui-quality` skill for the critique rubric and named anti-pattern vocabulary.
 2. Fetch Linear issue REP-xxx via `linear issue show REP-xxx --json`.
 3. Review the committed branch diff with: `git diff main...HEAD`.
-4. Read the matching `tmp/context-<issue-id>.md` artifact, including `## Design Direction` and `## Design Handoff Context` when present.
-5. Evaluate authored polish separately from compliance, require concrete fix hints for any drift, and treat low-authored-polish output as a blocker or major rather than a vague note.
-6. Return the structured output required by .opencode/agents/review.md — but only report findings in the conventions category. Assign each finding `role: ui-quality` in the structured output.
+4. Read the matching `tmp/context-<issue-id>.md` artifact, including `## Targeted Design Edit`, `## Design Direction`, and `## Design Handoff Context` when present.
+5. If `## Targeted Design Edit` is present, use its scope boundary, intended delta, and verification evidence as the review brief.
+6. Evaluate authored polish separately from compliance, require concrete fix hints for any drift, and treat low-authored-polish output as a blocker or major rather than a vague note.
+7. Return the structured output required by .opencode/agents/review.md — but only report findings in the conventions category. Assign each finding `role: ui-quality` in the structured output.
 
 Friction logging: if you encounter friction during review (unclear patterns, missing documentation, ambiguous conventions, surprising codebase state), append an entry to `<absolute-worktree-path>/tmp/friction.md` in this format:
   [Brief description]
