@@ -47,8 +47,15 @@ def _issue_state(issue: dict[str, Any]) -> dict[str, Any]:
     state = issue.get("state")
     if isinstance(state, dict):
         return state
+    status = issue.get("status")
+    if isinstance(status, dict):
+        return status
     state_name = issue.get("state_name")
     state_type = issue.get("state_type")
+    if state_name is None:
+        state_name = issue.get("status_name")
+    if state_type is None:
+        state_type = issue.get("status_type")
     if state_name is None and state_type is None:
         return {}
     return {"name": state_name, "type": state_type}

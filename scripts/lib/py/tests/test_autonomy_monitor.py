@@ -127,6 +127,32 @@ def test_evaluate_monitor_candidates_marks_active_claim_and_terminal_blocker_not
     assert "terminal-blockers-ignored" in by_id["REP-3"]["notes"]
 
 
+def test_evaluate_monitor_candidates_accepts_projected_status_payload():
+    result = evaluate_monitor_candidates(
+        {
+            "issues": [
+                {
+                    "identifier": "REP-1",
+                    "priority": 1,
+                    "project": {"name": "Engineering"},
+                    "status": {"name": "Todo", "type": "todo"},
+                    "relations": {
+                        "blockedBy": [
+                            {"identifier": "REP-8", "status": {"type": "closed"}},
+                        ]
+                    },
+                }
+            ],
+            "claims": _claims(),
+        }
+    )
+
+    item = result["items"][0]
+    assert item["eligible"] is True
+    assert item["state_type"] == "todo"
+    assert "terminal-blockers-ignored" in item["notes"]
+
+
 def test_main_emits_json_and_limits_results(tmp_path: Path):
     payload = {
         "issues": [

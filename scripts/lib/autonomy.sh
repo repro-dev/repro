@@ -95,6 +95,8 @@ import sys
 
 
 def extract_items(payload):
+    if isinstance(payload, list):
+        return payload
     if isinstance(payload, dict):
         items = payload.get("items")
         if isinstance(items, list):
@@ -127,8 +129,8 @@ PY
 
 _autonomy_monitor_payload() {
   local backlog_json todo_json claims_json issue_ids
-  backlog_json="$(linear issue list --status backlog --json)" || die "Failed to list backlog issues"
-  todo_json="$(linear issue list --status todo --json)" || die "Failed to list todo issues"
+  backlog_json="$(linear issue list --status backlog --json identifier,priority,project,status,relations)" || die "Failed to list backlog issues"
+  todo_json="$(linear issue list --status todo --json identifier,priority,project,status,relations)" || die "Failed to list todo issues"
   issue_ids="$(_autonomy_monitor_candidate_ids "$backlog_json" "$todo_json")" || die "Failed to derive monitor candidates"
   claims_json="$(REPROCTL_JSON=true _autonomy_py status --all)" || die "Failed to load autonomy claims"
 
@@ -137,13 +139,42 @@ _autonomy_monitor_payload() {
   monitor_payload_file="$monitor_tmpdir/issues.jsonl"
   : > "$monitor_payload_file"
 
-  while IFS= read -r issue_identifier; do
-    [[ -n "$issue_identifier" ]] || continue
-    issue_json="$(linear issue show "$issue_identifier" --json)" || die "Failed to enrich issue: $issue_identifier"
-    printf '%s\n' "$issue_json" >> "$monitor_payload_file"
-  done <<EOF
-$issue_ids
-EOF
+  python3 - "$backlog_json" "$todo_json" "$issue_ids" <<'PY' > "$monitor_payload_file"
+import json
+import sys
+
+
+def extract_items(payload):
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        items = payload.get("items")
+        if isinstance(items, list):
+            return items
+        data = payload.get("data")
+        if isinstance(data, dict):
+            issues = data.get("issues")
+            if isinstance(issues, dict):
+                nodes = issues.get("nodes")
+                if isinstance(nodes, list):
+                    return nodes
+    return []
+
+
+selected = {issue_identifier.strip() for issue_identifier in sys.argv[3].splitlines() if issue_identifier.strip()}
+
+for raw in sys.argv[1:3]:
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        continue
+    for issue in extract_items(payload):
+        if not isinstance(issue, dict):
+            continue
+        identifier = str(issue.get("identifier") or issue.get("issue_identifier") or "")
+        if identifier and identifier in selected:
+            print(json.dumps(issue))
+PY
 
   evaluation_json="$(python3 - "$claims_json" "$monitor_payload_file" <<'PY'
 import json
@@ -170,6 +201,9 @@ with open(sys.argv[2], encoding="utf-8") as fh:
                 for entry in items:
                     if isinstance(entry, dict):
                         issues.append(entry)
+                continue
+            if payload.get("identifier") or payload.get("issue_identifier"):
+                issues.append(payload)
                 continue
             issues.append(payload)
 

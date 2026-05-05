@@ -88,34 +88,19 @@ test_monitor_reports_eligibility_and_reasons() {
   _write_runner "$tmpdir" '
 linear() {
   case "$*" in
-    "issue list --status backlog --json")
+    "issue list --status backlog --json identifier,priority,project,status,relations")
       cat <<'"'"'JSON'"'"'
-{"items":[{"identifier":"REP-2"},{"identifier":"REP-3"},{"identifier":"REP-4"}]}
+[{"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"backlog"}},{"identifier":"REP-3","priority":3,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"backlog"},"relations":{"blockedBy":[{"identifier":"REP-9","status":{"type":"started"}}]}},{"identifier":"REP-4","priority":4,"project":{"name":"Marketing"},"status":{"name":"Todo","type":"backlog"}}]
 JSON
       ;;
-    "issue list --status todo --json")
+    "issue list --status todo --json identifier,priority,project,status,relations")
       cat <<'"'"'JSON'"'"'
-{"items":[{"identifier":"REP-1"}]}
+[{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[{"identifier":"REP-8","status":{"type":"closed"}}]}}]
 JSON
       ;;
     "issue show REP-1 --json")
       cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[{"identifier":"REP-8","status":{"type":"closed"}}]}}}
-JSON
-      ;;
-    "issue show REP-2 --json")
-      cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}}}
-JSON
-      ;;
-    "issue show REP-3 --json")
-      cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-3","priority":3,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"},"relations":{"blockedBy":[{"identifier":"REP-9","status":{"type":"started"}}]}}}
-JSON
-      ;;
-    "issue show REP-4 --json")
-      cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-4","priority":4,"project":{"name":"Marketing"},"state":{"name":"Todo","type":"backlog"}}}
+{"item":{"identifier":"REP-1"}}
 JSON
       ;;
     *)
@@ -160,34 +145,14 @@ test_monitor_orders_zero_and_missing_priority_last() {
   _write_runner "$tmpdir" '
 linear() {
   case "$*" in
-    "issue list --status backlog --json")
+    "issue list --status backlog --json identifier,priority,project,status,relations")
       cat <<'"'"'JSON'"'"'
-{"items":[{"identifier":"REP-0"},{"identifier":"REP-1"},{"identifier":"REP-2"},{"identifier":"REP-3"}]}
+[{"identifier":"REP-0","priority":0,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"backlog"}},{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"backlog"}},{"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"backlog"}},{"identifier":"REP-3","project":{"name":"Engineering"},"status":{"name":"Todo","type":"backlog"}}]
 JSON
       ;;
-    "issue list --status todo --json")
+    "issue list --status todo --json identifier,priority,project,status,relations")
       cat <<'"'"'JSON'"'"'
-{"items":[]}
-JSON
-      ;;
-    "issue show REP-0 --json")
-      cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-0","priority":0,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}}}
-JSON
-      ;;
-    "issue show REP-1 --json")
-      cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}}}
-JSON
-      ;;
-    "issue show REP-2 --json")
-      cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}}}
-JSON
-      ;;
-    "issue show REP-3 --json")
-      cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-3","project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}}}
+[]
 JSON
       ;;
     *)
@@ -221,29 +186,14 @@ test_monitor_prepare_calls_prepare_for_eligible_issues() {
   _write_runner "$tmpdir" '
 linear() {
   case "$*" in
-    "issue list --status backlog --json")
+    "issue list --status backlog --json identifier,priority,project,status,relations")
       cat <<'"'"'JSON'"'"'
-{"items":[{"identifier":"REP-2"},{"identifier":"REP-3"}]}
+[{"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"backlog"}},{"identifier":"REP-3","priority":3,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"backlog"},"relations":{"blockedBy":[{"identifier":"REP-9","status":{"type":"started"}}]}}]
 JSON
       ;;
-    "issue list --status todo --json")
+    "issue list --status todo --json identifier,priority,project,status,relations")
       cat <<'"'"'JSON'"'"'
-{"items":[{"identifier":"REP-1"}]}
-JSON
-      ;;
-    "issue show REP-1 --json")
-      cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"todo"}}}
-JSON
-      ;;
-    "issue show REP-2 --json")
-      cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}}}
-JSON
-      ;;
-    "issue show REP-3 --json")
-      cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-3","priority":3,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"},"relations":{"blockedBy":[{"identifier":"REP-9","status":{"type":"started"}}]}}}
+[{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"}}]
 JSON
       ;;
     *)
