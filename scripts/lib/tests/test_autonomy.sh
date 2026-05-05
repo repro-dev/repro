@@ -222,6 +222,78 @@ PY
   fi
 }
 
+test_prepare_json_emits_pure_stdout() {
+  local tmpdir stdout_file stderr_file rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+PATH="$tmpdir/fake-bin:$PATH"
+mkdir -p "$tmpdir/fake-bin" "$tmpdir/workspaces"
+printf "#!/bin/bash\nexit 0\n" > "$tmpdir/fake-bin/pnpm"
+printf "#!/bin/bash\nexit 0\n" > "$tmpdir/fake-bin/moon"
+chmod +x "$tmpdir/fake-bin/pnpm" "$tmpdir/fake-bin/moon"
+
+git init --bare "$tmpdir/origin.git" >/dev/null 2>&1
+git clone "$tmpdir/origin.git" "$tmpdir/repro" >/dev/null 2>&1
+git -C "$tmpdir/repro" config user.email "test@test.com"
+git -C "$tmpdir/repro" config user.name "Test"
+git -C "$tmpdir/repro" switch -c main >/dev/null 2>&1
+printf "init\n" > "$tmpdir/repro/README.md"
+git -C "$tmpdir/repro" add README.md
+git -C "$tmpdir/repro" commit -m "init" >/dev/null 2>&1
+git -C "$tmpdir/repro" push -u origin main >/dev/null 2>&1
+issue_branch="rep-1095-prepare-isolated-workspaces"
+git -C "$tmpdir/repro" branch "$issue_branch"
+git -C "$tmpdir/repro" push origin "$issue_branch" >/dev/null 2>&1
+
+WORKSPACE_ROOT="$tmpdir/workspaces"
+_linear_api() {
+  case "$1" in
+    *"issues(filter:"*)
+      cat <<'JSON'
+{"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1095","title":"Prepare isolated workspaces","branchName":"rep-1095-prepare-isolated-workspaces","state":{"name":"In Progress","type":"started"},"team":{"states":{"nodes":[{"id":"state-in-progress","name":"In Progress","type":"started"}]}}}]}}}
+JSON
+      ;;
+    *)
+      cat <<'JSON'
+{"data":{"issueUpdate":{"issue":{"id":"issue-uuid-1","identifier":"REP-1095"}}}}
+JSON
+      ;;
+  esac
+}
+
+_resolve_issue_worktree_names() {
+  printf "%s\n%s\n" "${issue_branch}-fresh1" "rep-1095-fresh1"
+}
+
+cmd_wt_create() {
+  echo "WORKTREE PROGRESS"
+  mkdir -p "$WT_ISSUE_WORKTREE_PATH"
+}
+
+REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fresh1 REPROCTL_JSON=true cmd_autonomy prepare REP-1095 --phase observe --claimed-by autopilot
+'
+  stdout_file="$tmpdir/stdout"
+  stderr_file="$tmpdir/stderr"
+  bash "$tmpdir/run_test.sh" >"$stdout_file" 2>"$stderr_file"
+  rc=$?
+  if [ $rc -eq 0 ] && python3 - "$stdout_file" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding='utf-8') as fh:
+    data = json.load(fh)
+
+assert data["prepare"]["issue_identifier"] == "REP-1095"
+assert data["prepare"]["workspace_path"].endswith("/repro-wt-rep-1095-fresh1")
+PY
+  then
+    _pass 'cmd_autonomy prepare --json emits pure JSON on stdout'
+  else
+    _fail 'cmd_autonomy prepare --json emits pure JSON on stdout' "rc=$rc; stdout=$(cat \"$stdout_file\" 2>/dev/null); stderr=$(cat \"$stderr_file\" 2>/dev/null)"
+  fi
+  rm -rf "$tmpdir"
+}
+
 test_prepare_rejects_duplicate_active_claim_before_create() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -312,8 +384,13 @@ cmd_wt_create() {
 REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fresh1 cmd_autonomy prepare REP-1095 --phase observe --claimed-by autopilot
 '
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  created_marker="$tmpdir/workspaces/should-not-be-created"
+  marker_created=false
+  if [ -e "$created_marker" ]; then
+    marker_created=true
+  fi
   rm -rf "$tmpdir"
-  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -qi 'existing claim' && ! [ -d "$tmpdir/workspaces/repro-wt-rep-1095-fresh1" ]; then
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -qi 'existing claim' && [ "$marker_created" = false ]; then
     _pass 'cmd_autonomy prepare rejects duplicate active claim before worktree creation'
   else
     _fail 'cmd_autonomy prepare rejects duplicate active claim before worktree creation' "rc=$rc; output=$output"
@@ -325,6 +402,7 @@ test_status_json
 test_duplicate_claim_fails
 test_claim_resolves_linear_issue_id
 test_prepare_records_workspace_path
+test_prepare_json_emits_pure_stdout
 test_prepare_rejects_duplicate_active_claim_before_create
 
 echo ""

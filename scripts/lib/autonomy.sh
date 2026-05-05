@@ -205,7 +205,11 @@ PY
       fi
 
       _populate_issue_worktree_names
-      _create_issue_worktree_from_metadata
+      if [[ "${REPROCTL_JSON:-false}" == true ]]; then
+        _create_issue_worktree_from_metadata >&2
+      else
+        _create_issue_worktree_from_metadata
+      fi
 
       local claim_args=(claim "$WT_ISSUE_IDENTIFIER" --issue-id "$WT_ISSUE_UUID" --workspace "$WT_ISSUE_WORKTREE_PATH" --phase "$phase" --issue-state "$WT_ISSUE_STATE_NAME" --issue-state-type "${WT_ISSUE_STATE_TYPE:-started}")
       [[ -n "$claimed_by" ]] && claim_args+=(--claimed-by "$claimed_by")
