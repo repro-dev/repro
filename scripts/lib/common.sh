@@ -102,6 +102,7 @@ else
 fi
 
 PARENT_DIR="$(dirname "$MAIN_CHECKOUT")"
+WORKSPACE_ROOT="$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve(strict=False))' "${REPRO_WORKSPACE_ROOT:-$PARENT_DIR}")"
 INFRA_DIR="$MAIN_CHECKOUT/infra"
 SCRIPTS_DIR="$REPO_ROOT/scripts"
 SERVICES_JSON="$REPO_ROOT/infra/services.json"
@@ -126,7 +127,7 @@ detect_worktree_slug() {
 }
 
 worktree_path() {
-  echo "$PARENT_DIR/repro-wt-$1"
+  echo "$WORKSPACE_ROOT/repro-wt-$1"
 }
 
 # ── Worktree-aware resource resolution ──────────────────────────────

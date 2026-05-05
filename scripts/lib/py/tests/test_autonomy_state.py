@@ -12,10 +12,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from autonomy_state import ActiveClaimError, AutonomyStore, main
 
 
-def _store(tmp_path: Path) -> AutonomyStore:
+def _store(tmp_path: Path, workspace_root: Path | None = None) -> AutonomyStore:
     checkout = tmp_path / "checkout"
     checkout.mkdir(exist_ok=True)
-    return AutonomyStore(db_path=tmp_path / "state.sqlite", main_checkout=checkout)
+    return AutonomyStore(
+        db_path=tmp_path / "state.sqlite",
+        main_checkout=checkout,
+        workspace_root=workspace_root,
+    )
 
 
 def _workspace(tmp_path: Path, name: str = "repro-wt-rep-1094") -> Path:
@@ -73,6 +77,56 @@ def test_duplicate_active_claim_is_rejected(tmp_path: Path):
         )
 
     assert excinfo.value.existing_claim["workspace_path"] == str(first_workspace)
+
+
+def test_workspace_root_can_be_configured(tmp_path: Path):
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    store = _store(tmp_path, workspace_root=workspace_root)
+    workspace = workspace_root / "repro-wt-rep-1094"
+    workspace.mkdir()
+
+    claim = store.claim(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        phase="observe",
+        issue_state_name="In Progress",
+        issue_state_type="started",
+    )
+
+    assert claim["workspace_path"] == str(workspace)
+
+
+def test_workspace_path_outside_workspace_root_is_rejected(tmp_path: Path):
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    store = _store(tmp_path, workspace_root=workspace_root)
+    outside_workspace = _workspace(tmp_path)
+
+    with pytest.raises(ValueError, match="workspace root"):
+        store.claim(
+            issue_identifier="REP-1094",
+            issue_id="issue-uuid-1",
+            workspace_path=str(outside_workspace),
+            phase="observe",
+            issue_state_name="In Progress",
+            issue_state_type="started",
+        )
+
+
+def test_relative_workspace_path_is_rejected(tmp_path: Path):
+    store = _store(tmp_path)
+
+    with pytest.raises(ValueError, match="absolute"):
+        store.claim(
+            issue_identifier="REP-1094",
+            issue_id="issue-uuid-1",
+            workspace_path="repro-wt-rep-1094",
+            phase="observe",
+            issue_state_name="In Progress",
+            issue_state_type="started",
+        )
 
 
 def test_release_permits_later_claim(tmp_path: Path):
