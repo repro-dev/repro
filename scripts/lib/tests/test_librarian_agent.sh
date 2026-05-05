@@ -11,6 +11,13 @@ LIBRARIAN_AGENT_MD="$TESTS_DIR/../../../.opencode/agents/librarian.md"
 PLANNER_AGENT_MD="$TESTS_DIR/../../../.opencode/agents/planner.md"
 DEVELOP_AGENT_MD="$TESTS_DIR/../../../.opencode/agents/develop.md"
 ROOT_AGENTS_MD="$TESTS_DIR/../../../AGENTS.md"
+OPENAI_GPT55_PROFILE="$TESTS_DIR/../../../.opencode/profiles/openai-gpt5.5.json"
+OPENAI_GPT54_PROFILE="$TESTS_DIR/../../../.opencode/profiles/openai-gpt5.4.json"
+GITHUB_COPILOT_SONNET46_PROFILE="$TESTS_DIR/../../../.opencode/profiles/github-copilot-sonnet4.6.json"
+GITHUB_COPILOT_OPUS46_SONNET46_PROFILE="$TESTS_DIR/../../../.opencode/profiles/github-copilot-opus4.6-sonnet4.6.json"
+OPENCODE_GO_GLM51_MINIMAX27_PROFILE="$TESTS_DIR/../../../.opencode/profiles/opencode-go-glm5.1-minimax2.7.json"
+OPENROUTER_MINIMAX27_PROFILE="$TESTS_DIR/../../../.opencode/profiles/openrouter-minimax2.7.json"
+OPENROUTER_GLM51_MINIMAX27_PROFILE="$TESTS_DIR/../../../.opencode/profiles/openrouter-glm5.1-minimax2.7.json"
 
 # ── Harness ──────────────────────────────────────────────────────────
 
@@ -36,6 +43,25 @@ _assert_not_contains() {
     _fail "$desc" "unexpectedly found: $needle in $file"
   else
     _pass "$desc"
+  fi
+}
+
+_assert_profile_librarian_model() {
+  local file="$1" expected="$2" desc="$3"
+  if python3 - "$file" "$expected" <<'PY'
+import json
+import sys
+
+path, expected = sys.argv[1:3]
+with open(path, encoding='utf-8') as fh:
+    config = json.load(fh)
+
+sys.exit(0 if config.get('agent', {}).get('librarian', {}).get('model') == expected else 1)
+PY
+  then
+    _pass "$desc"
+  else
+    _fail "$desc" "librarian model mismatch in $file (expected $expected)"
   fi
 }
 
@@ -80,6 +106,16 @@ test_planner_and_develop_reference_librarian() {
   _assert_contains "$DEVELOP_AGENT_MD" 'consult `librarian`' 'develop guidance references librarian'
 }
 
+test_profile_agent_maps_include_librarian() {
+  _assert_profile_librarian_model "$OPENAI_GPT55_PROFILE" 'openai/gpt-5.4-mini' 'openai gpt5.5 profile maps librarian to gpt-5.4-mini'
+  _assert_profile_librarian_model "$OPENAI_GPT54_PROFILE" 'openai/gpt-5.4-mini' 'openai gpt5.4 profile maps librarian to gpt-5.4-mini'
+  _assert_profile_librarian_model "$GITHUB_COPILOT_SONNET46_PROFILE" 'github-copilot/claude-sonnet-4.6' 'github copilot sonnet4.6 profile maps librarian to claude-sonnet-4.6'
+  _assert_profile_librarian_model "$GITHUB_COPILOT_OPUS46_SONNET46_PROFILE" 'github-copilot/claude-sonnet-4.6' 'github copilot opus4.6/sonnet4.6 profile maps librarian to claude-sonnet-4.6'
+  _assert_profile_librarian_model "$OPENCODE_GO_GLM51_MINIMAX27_PROFILE" 'opencode-go/minimax-m2.7' 'opencode-go profile maps librarian to minimax-m2.7'
+  _assert_profile_librarian_model "$OPENROUTER_MINIMAX27_PROFILE" 'openrouter/minimax/minimax-m2.7' 'openrouter minimax profile maps librarian to minimax-m2.7'
+  _assert_profile_librarian_model "$OPENROUTER_GLM51_MINIMAX27_PROFILE" 'openrouter/minimax/minimax-m2.7' 'openrouter glm5.1/minimax profile maps librarian to minimax-m2.7'
+}
+
 # ── Run all tests ─────────────────────────────────────────────────────
 
 test_librarian_agent_exists
@@ -87,6 +123,7 @@ test_librarian_agent_is_read_only_and_source_backed
 test_librarian_agent_documents_research_workflow_and_boundaries
 test_root_agents_document_librarian_access
 test_planner_and_develop_reference_librarian
+test_profile_agent_maps_include_librarian
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

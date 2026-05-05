@@ -39,6 +39,9 @@
     "develop": {
       "model": "github-copilot/claude-sonnet-4.6"
     },
+    "librarian": {
+      "model": "github-copilot/claude-sonnet-4.6"
+    },
     "planner": {
       "model": "github-copilot/claude-sonnet-4.6"
     },
