@@ -52,7 +52,11 @@ test_librarian_agent_exists() {
 test_librarian_agent_is_read_only_and_source_backed() {
   _assert_contains "$LIBRARIAN_AGENT_MD" 'read-only external research agent' 'librarian agent is described as read-only'
   _assert_contains "$LIBRARIAN_AGENT_MD" 'official docs, upstream source, and examples' 'librarian agent is source-backed'
+  _assert_contains "$LIBRARIAN_AGENT_MD" 'cited sources' 'librarian agent requires cited sources'
   _assert_contains "$LIBRARIAN_AGENT_MD" 'permission:' 'librarian agent declares permissions'
+  _assert_contains "$LIBRARIAN_AGENT_MD" 'tools:' 'librarian agent disables mutation-capable tools'
+  _assert_contains "$LIBRARIAN_AGENT_MD" 'write: false' 'librarian agent disables write'
+  _assert_contains "$LIBRARIAN_AGENT_MD" 'edit: false' 'librarian agent disables edit'
   _assert_contains "$LIBRARIAN_AGENT_MD" '"*": "deny"' 'librarian agent denies bash by default'
 }
 
@@ -60,6 +64,7 @@ test_librarian_agent_documents_research_workflow_and_boundaries() {
   _assert_contains "$LIBRARIAN_AGENT_MD" 'official documentation first, then upstream source, then examples or secondary sources' 'librarian agent documents research priority'
   _assert_contains "$LIBRARIAN_AGENT_MD" 'Do not invent undocumented behavior.' 'librarian agent forbids speculation'
   _assert_contains "$LIBRARIAN_AGENT_MD" 'Do not propose registry sync, install-command generation, or third-party ingestion pipelines.' 'librarian agent forbids v1 out-of-scope behaviors'
+  _assert_contains "$LIBRARIAN_AGENT_MD" 'Do not replace repo-local code exploration' 'librarian agent remains external-research only'
   _assert_contains "$LIBRARIAN_AGENT_MD" 'Question' 'librarian agent output format includes Question'
   _assert_contains "$LIBRARIAN_AGENT_MD" 'Open uncertainties' 'librarian agent output format includes open uncertainties'
 }

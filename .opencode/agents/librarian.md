@@ -2,6 +2,9 @@
 description: Read-only external research agent — answers questions about third-party libraries, frameworks, and public APIs using official docs, upstream source, and examples. Never edits repo files.
 mode: subagent
 reasoningEffort: high
+tools:
+  write: false
+  edit: false
 permission:
   bash:
     "*": "deny"
