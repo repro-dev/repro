@@ -86,6 +86,142 @@ raise SystemExit(1)
 PY
 }
 
+_autonomy_monitor_payload() {
+  local backlog_json todo_json claims_json
+  backlog_json="$(linear issue list --status backlog --json)" || die "Failed to list backlog issues"
+  todo_json="$(linear issue list --status todo --json)" || die "Failed to list todo issues"
+  claims_json="$(REPROCTL_JSON=true _autonomy_py status --all)" || die "Failed to load autonomy claims"
+
+  python3 - "$backlog_json" "$todo_json" "$claims_json" <<'PY'
+import json
+import sys
+
+
+def extract_items(payload):
+    if isinstance(payload, dict):
+        items = payload.get("items")
+        if isinstance(items, list):
+            return items
+        data = payload.get("data")
+        if isinstance(data, dict):
+            issues = data.get("issues")
+            if isinstance(issues, dict):
+                nodes = issues.get("nodes")
+                if isinstance(nodes, list):
+                    return nodes
+    return []
+
+
+issues = []
+for raw in sys.argv[1:3]:
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        continue
+    issues.extend(extract_items(payload))
+
+claims_payload = json.loads(sys.argv[3])
+claims = claims_payload.get("items", []) if isinstance(claims_payload, dict) else []
+if not isinstance(claims, list):
+    claims = []
+
+print(json.dumps({"issues": issues, "claims": claims}))
+PY
+}
+
+_autonomy_monitor_issue_ids() {
+  local evaluation_json="$1"
+
+  python3 - "$evaluation_json" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+for item in payload.get("items", []):
+    if isinstance(item, dict) and item.get("eligible"):
+        print(item.get("issue_identifier", ""))
+PY
+}
+
+_autonomy_monitor_render() {
+  local evaluation_json="$1"
+
+  python3 - "$evaluation_json" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+items = payload.get("items", []) if isinstance(payload, dict) else []
+print("MONITOR")
+if not items:
+    print("  (none)")
+    raise SystemExit(0)
+
+for item in items:
+    if not isinstance(item, dict):
+        continue
+    parts = ["eligible" if item.get("eligible") else "blocked"]
+    parts.append(f"action={item.get('action', '')}")
+    if item.get("reasons"):
+        parts.append(f"reasons={','.join(item['reasons'])}")
+    if item.get("notes"):
+        parts.append(f"notes={','.join(item['notes'])}")
+    print(f"  {item.get('issue_identifier', '')}  priority={item.get('priority', '')}  " + "  ".join(parts))
+PY
+}
+
+_autonomy_monitor_tick() {
+  local once="$1" prepare="$2" json_output="$3" limit="$4" interval="$5" claimed_by="$6"
+  local payload evaluation_json
+
+  while :; do
+    payload="$(_autonomy_monitor_payload)" || return 1
+    local monitor_args=(--json --limit "$limit")
+    if [[ "$prepare" == true ]]; then
+      monitor_args+=(--prepare)
+    fi
+    if [[ -n "$claimed_by" ]]; then
+      monitor_args+=(--claimed-by "$claimed_by")
+    fi
+
+    if [[ "$prepare" == true ]]; then
+      evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" "${monitor_args[@]}")" || return 1
+    else
+      evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" "${monitor_args[@]}")" || return 1
+    fi
+
+    if [[ "$prepare" == true ]]; then
+      while IFS= read -r issue_identifier; do
+        [[ -n "$issue_identifier" ]] || continue
+        _autonomy_monitor_prepare_issue "$issue_identifier" "$claimed_by" >&2
+      done < <(_autonomy_monitor_issue_ids "$evaluation_json")
+    fi
+
+    if [[ "$json_output" == true ]]; then
+      printf '%s\n' "$evaluation_json"
+    else
+      _autonomy_monitor_render "$evaluation_json"
+    fi
+
+    if [[ "$once" == true ]]; then
+      break
+    fi
+
+    sleep "$interval"
+  done
+}
+
+_autonomy_monitor_prepare_issue() {
+  local issue_identifier="$1"
+  local claimed_by="${2:-}"
+
+  if [[ -n "$claimed_by" ]]; then
+    cmd_autonomy prepare "$issue_identifier" --phase observe --claimed-by "$claimed_by"
+  else
+    cmd_autonomy prepare "$issue_identifier" --phase observe
+  fi
+}
+
 cmd_autonomy_help() {
   cat <<'EOF'
 Usage: reproctl autonomy <subcommand>
@@ -98,6 +234,7 @@ Subcommands:
   prepare <issue> [--phase observe] [--claimed-by <name>]
   release <issue> [--reason <text>]
   reconcile [<issue> | --all]
+  monitor [--once] [--prepare] [--interval <seconds>] [--limit <count>] [--claimed-by <name>] [--json]
   run start <issue> --phase <phase> --workspace <path>
   run finish <issue> --attempt <n> --state <state> [--error <text>]
 
@@ -105,6 +242,7 @@ Examples:
   reproctl autonomy status --json
   reproctl autonomy claim REP-1094 --workspace /path/to/repro-wt-rep-1094 --phase observe --issue-state In-Progress
   reproctl autonomy prepare REP-1095 --phase observe --claimed-by autopilot
+  reproctl autonomy monitor --once --json
   reproctl autonomy run start REP-1094 --phase observe --workspace /path/to/repro-wt-rep-1094
 EOF
 }
@@ -314,6 +452,30 @@ PY
       else
         _autonomy_py reconcile
       fi
+      ;;
+
+    monitor)
+      local once=false prepare=false json_output=false limit=10 interval=60 claimed_by=""
+      if [[ "${REPROCTL_JSON:-false}" == true ]]; then
+        json_output=true
+      fi
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --json) json_output=true; shift ;;
+          --once) once=true; shift ;;
+          --prepare) prepare=true; shift ;;
+          --limit) [[ -n "${2:-}" ]] || die "Missing value for $1"; limit="$2"; shift 2 ;;
+          --interval) [[ -n "${2:-}" ]] || die "Missing value for $1"; interval="$2"; shift 2 ;;
+          --claimed-by) [[ -n "${2:-}" ]] || die "Missing value for $1"; claimed_by="$2"; shift 2 ;;
+          -h|--help)
+            cmd_autonomy_help
+            return 0
+            ;;
+          *) die "Unknown option: $1\nRun 'reproctl autonomy --help' for usage." ;;
+        esac
+      done
+
+      _autonomy_monitor_tick "$once" "$prepare" "$json_output" "$limit" "$interval" "$claimed_by"
       ;;
 
     run)
