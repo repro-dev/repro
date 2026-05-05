@@ -1234,6 +1234,9 @@ async function issueChildrenCommand(args, context) {
 
   const issueId = options._[0];
   if (!issueId) usageError("Missing issue identifier.");
+  if (options._.length !== 1) {
+    usageError("Usage: linear issue children <id>");
+  }
 
   const { client, issue, team } = await resolveIssueByIdentifier(
     context,
