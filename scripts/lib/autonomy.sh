@@ -58,7 +58,7 @@ _autonomy_issue_id() {
 
   local issue_json issue_id
   issue_json="$(linear issue show "$issue_identifier" --json)" || die "Failed to resolve Linear issue: $issue_identifier"
-  issue_id="$(python3 -c 'import json, sys; item = json.loads(sys.argv[1]).get("item", {}); issue_id = item.get("id", "") if isinstance(item, dict) else ""; assert issue_id; print(issue_id)' "$issue_json")" || die "Failed to resolve Linear issue UUID for $issue_identifier"
+  issue_id="$(python3 -c 'import json, sys; item = json.loads(sys.argv[1]).get("item", {}); issue_id = item.get("id") or item.get("identifier") or item.get("issue_identifier") or ""; assert issue_id; print(issue_id)' "$issue_json")" || die "Failed to resolve Linear issue UUID for $issue_identifier"
 
   printf '%s\n' "$issue_id"
 }
@@ -86,13 +86,10 @@ raise SystemExit(1)
 PY
 }
 
-_autonomy_monitor_payload() {
-  local backlog_json todo_json claims_json
-  backlog_json="$(linear issue list --status backlog --json)" || die "Failed to list backlog issues"
-  todo_json="$(linear issue list --status todo --json)" || die "Failed to list todo issues"
-  claims_json="$(REPROCTL_JSON=true _autonomy_py status --all)" || die "Failed to load autonomy claims"
+_autonomy_monitor_candidate_ids() {
+  local backlog_json="$1" todo_json="$2"
 
-  python3 - "$backlog_json" "$todo_json" "$claims_json" <<'PY'
+  python3 - "$backlog_json" "$todo_json" <<'PY'
 import json
 import sys
 
@@ -112,21 +109,76 @@ def extract_items(payload):
     return []
 
 
-issues = []
+seen = set()
 for raw in sys.argv[1:3]:
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError:
         continue
-    issues.extend(extract_items(payload))
+    for issue in extract_items(payload):
+        if not isinstance(issue, dict):
+            continue
+        identifier = str(issue.get("identifier") or issue.get("issue_identifier") or "")
+        if identifier and identifier not in seen:
+            seen.add(identifier)
+            print(identifier)
+PY
+}
 
-claims_payload = json.loads(sys.argv[3])
+_autonomy_monitor_payload() {
+  local backlog_json todo_json claims_json issue_ids
+  backlog_json="$(linear issue list --status backlog --json)" || die "Failed to list backlog issues"
+  todo_json="$(linear issue list --status todo --json)" || die "Failed to list todo issues"
+  issue_ids="$(_autonomy_monitor_candidate_ids "$backlog_json" "$todo_json")" || die "Failed to derive monitor candidates"
+  claims_json="$(REPROCTL_JSON=true _autonomy_py status --all)" || die "Failed to load autonomy claims"
+
+  local monitor_tmpdir monitor_payload_file
+  monitor_tmpdir="$(mktemp -d "$TMP_DIR/autonomy-monitor.XXXXXX")" || die "Failed to create monitor temp dir"
+  monitor_payload_file="$monitor_tmpdir/issues.jsonl"
+  : > "$monitor_payload_file"
+
+  while IFS= read -r issue_identifier; do
+    [[ -n "$issue_identifier" ]] || continue
+    issue_json="$(linear issue show "$issue_identifier" --json)" || die "Failed to enrich issue: $issue_identifier"
+    printf '%s\n' "$issue_json" >> "$monitor_payload_file"
+  done <<EOF
+$issue_ids
+EOF
+
+  evaluation_json="$(python3 - "$claims_json" "$monitor_payload_file" <<'PY'
+import json
+import sys
+
+claims_payload = json.loads(sys.argv[1])
 claims = claims_payload.get("items", []) if isinstance(claims_payload, dict) else []
 if not isinstance(claims, list):
     claims = []
 
+issues = []
+with open(sys.argv[2], encoding="utf-8") as fh:
+    for raw in fh:
+        if not raw.strip():
+            continue
+        payload = json.loads(raw)
+        if isinstance(payload, dict):
+            item = payload.get("item")
+            if isinstance(item, dict):
+                issues.append(item)
+                continue
+            items = payload.get("items")
+            if isinstance(items, list):
+                for entry in items:
+                    if isinstance(entry, dict):
+                        issues.append(entry)
+                continue
+            issues.append(payload)
+
 print(json.dumps({"issues": issues, "claims": claims}))
 PY
+  )" || { rm -rf "$monitor_tmpdir"; die "Failed to enrich monitor issues"; }
+
+  printf '%s\n' "$evaluation_json"
+  rm -rf "$monitor_tmpdir"
 }
 
 _autonomy_monitor_issue_ids() {

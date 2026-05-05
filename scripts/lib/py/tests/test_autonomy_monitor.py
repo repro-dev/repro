@@ -16,7 +16,7 @@ from autonomy_monitor import evaluate_monitor_candidates, main
 def _issue(
     identifier: str,
     *,
-    priority: int,
+    priority: int | None = None,
     project: str = "Engineering",
     state_name: str = "Todo",
     state_type: str = "backlog",
@@ -24,10 +24,11 @@ def _issue(
 ) -> dict[str, object]:
     issue: dict[str, object] = {
         "identifier": identifier,
-        "priority": priority,
         "project": {"name": project},
         "state": {"name": state_name, "type": state_type},
     }
+    if priority is not None:
+        issue["priority"] = priority
     if blockers is not None:
         issue["blockers"] = blockers
     return issue
@@ -56,6 +57,28 @@ def test_evaluate_monitor_candidates_orders_by_priority_then_identifier():
     ]
     assert result["items"][0]["eligible"] is True
     assert result["summary"]["eligible_count"] == 3
+
+
+def test_evaluate_monitor_candidates_sorts_missing_and_zero_priority_last():
+    result = evaluate_monitor_candidates(
+        {
+            "issues": [
+                _issue("REP-3", priority=3),
+                _issue("REP-1", priority=1),
+                _issue("REP-0", priority=0),
+                _issue("REP-MISSING"),
+            ],
+            "claims": _claims(),
+        }
+    )
+
+    assert [item["issue_identifier"] for item in result["items"]] == [
+        "REP-1",
+        "REP-3",
+        "REP-0",
+        "REP-MISSING",
+    ]
+    assert result["items"][2]["priority"] == result["items"][3]["priority"]
 
 
 def test_evaluate_monitor_candidates_marks_active_claim_and_terminal_blocker_notes():

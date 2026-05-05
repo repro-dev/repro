@@ -15,6 +15,7 @@ TERMINAL_ISSUE_STATE_TYPES = {"completed", "canceled", "closed", "done"}
 ENGINEERING_PROJECT_NAME = "Engineering"
 OPEN_STATE_NAMES = {"backlog", "todo"}
 OPEN_STATE_TYPES = {"backlog", "todo"}
+LOW_PRIORITY_SENTINEL = 1_000_000
 
 
 def _as_mapping(value: Any) -> dict[str, Any]:
@@ -29,12 +30,17 @@ def _issue_identifier(issue: dict[str, Any]) -> str:
 def _issue_priority(issue: dict[str, Any]) -> int:
     priority = issue.get("priority")
     if isinstance(priority, bool):
-        return 99
+        return LOW_PRIORITY_SENTINEL
     if isinstance(priority, int):
+        if priority <= 0:
+            return LOW_PRIORITY_SENTINEL
         return priority
     if isinstance(priority, str) and priority.isdigit():
-        return int(priority)
-    return 99
+        value = int(priority)
+        if value <= 0:
+            return LOW_PRIORITY_SENTINEL
+        return value
+    return LOW_PRIORITY_SENTINEL
 
 
 def _issue_state(issue: dict[str, Any]) -> dict[str, Any]:

@@ -63,31 +63,59 @@ test_help_mentions_monitor() {
   fi
 }
 
+test_monitor_reports_list_failure() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+linear() {
+  return 1
+}
+
+REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPROCTL_JSON=true cmd_autonomy monitor --once --json
+'
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q 'Failed to list backlog issues'; then
+    _pass 'cmd_autonomy monitor fails clearly when Linear list lookup fails'
+  else
+    _fail 'cmd_autonomy monitor fails clearly when Linear list lookup fails' "rc=$rc; output=$output"
+  fi
+}
+
 test_monitor_reports_eligibility_and_reasons() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
   _write_runner "$tmpdir" '
 linear() {
   case "$*" in
-    "issue show REP-1 --json")
-      cat <<'"'"'JSON'"'"'
-{"item":{"id":"issue-uuid-1"}}
-JSON
-      ;;
     "issue list --status backlog --json")
       cat <<'"'"'JSON'"'"'
-{"items":[
-  {"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}},
-  {"identifier":"REP-3","priority":1,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"},"blockers":[{"identifier":"REP-9","state":{"type":"started"}}]},
-  {"identifier":"REP-4","priority":3,"project":{"name":"Marketing"},"state":{"name":"Todo","type":"backlog"}}
-]}
+{"items":[{"identifier":"REP-2"},{"identifier":"REP-3"},{"identifier":"REP-4"}]}
 JSON
       ;;
     "issue list --status todo --json")
       cat <<'"'"'JSON'"'"'
-{"items":[
-  {"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"todo"},"blockers":[{"identifier":"REP-8","state":{"type":"closed"}}]}
-]}
+{"items":[{"identifier":"REP-1"}]}
+JSON
+      ;;
+    "issue show REP-1 --json")
+      cat <<'"'"'JSON'"'"'
+{"item":{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"todo"},"blockers":[{"identifier":"REP-8","state":{"type":"closed"}}]}}
+JSON
+      ;;
+    "issue show REP-2 --json")
+      cat <<'"'"'JSON'"'"'
+{"item":{"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}}}
+JSON
+      ;;
+    "issue show REP-3 --json")
+      cat <<'"'"'JSON'"'"'
+{"item":{"identifier":"REP-3","priority":3,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"},"blockers":[{"identifier":"REP-9","state":{"type":"started"}}]}}
+JSON
+      ;;
+    "issue show REP-4 --json")
+      cat <<'"'"'JSON'"'"'
+{"item":{"identifier":"REP-4","priority":4,"project":{"name":"Marketing"},"state":{"name":"Todo","type":"backlog"}}}
 JSON
       ;;
     *)
@@ -109,12 +137,12 @@ import sys
 
 data = json.loads(sys.argv[1])
 items = data["items"]
-assert [item["issue_identifier"] for item in items] == ["REP-1", "REP-3", "REP-2", "REP-4"]
+assert [item["issue_identifier"] for item in items] == ["REP-1", "REP-2", "REP-3", "REP-4"]
 assert items[0]["eligible"] is False
 assert "active-claim" in items[0]["reasons"]
-assert items[1]["eligible"] is False
-assert "blocked-by:REP-9" in items[1]["reasons"]
-assert items[2]["eligible"] is True
+assert items[1]["eligible"] is True
+assert items[2]["eligible"] is False
+assert "blocked-by:REP-9" in items[2]["reasons"]
 assert "terminal-blockers-ignored" in items[0]["notes"]
 assert items[3]["eligible"] is False
 assert "scope:project:Marketing" in items[3]["reasons"]
@@ -126,6 +154,67 @@ PY
   fi
 }
 
+test_monitor_orders_zero_and_missing_priority_last() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+linear() {
+  case "$*" in
+    "issue list --status backlog --json")
+      cat <<'"'"'JSON'"'"'
+{"items":[{"identifier":"REP-0"},{"identifier":"REP-1"},{"identifier":"REP-2"},{"identifier":"REP-3"}]}
+JSON
+      ;;
+    "issue list --status todo --json")
+      cat <<'"'"'JSON'"'"'
+{"items":[]}
+JSON
+      ;;
+    "issue show REP-0 --json")
+      cat <<'"'"'JSON'"'"'
+{"item":{"identifier":"REP-0","priority":0,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}}}
+JSON
+      ;;
+    "issue show REP-1 --json")
+      cat <<'"'"'JSON'"'"'
+{"item":{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}}}
+JSON
+      ;;
+    "issue show REP-2 --json")
+      cat <<'"'"'JSON'"'"'
+{"item":{"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}}}
+JSON
+      ;;
+    "issue show REP-3 --json")
+      cat <<'"'"'JSON'"'"'
+{"item":{"identifier":"REP-3","project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}}}
+JSON
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPROCTL_JSON=true cmd_autonomy monitor --once --json
+'
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && python3 - "$output" <<'PY'
+import json
+import sys
+
+items = json.loads(sys.argv[1])["items"]
+assert [item["issue_identifier"] for item in items] == ["REP-1", "REP-2", "REP-0", "REP-3"], items
+assert items[2]["priority"] == items[3]["priority"]
+PY
+  then
+    _pass 'cmd_autonomy monitor sorts missing and zero priority last'
+  else
+    _fail 'cmd_autonomy monitor sorts missing and zero priority last' "rc=$rc; output=$output"
+  fi
+}
+
 test_monitor_prepare_calls_prepare_for_eligible_issues() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -134,15 +223,27 @@ linear() {
   case "$*" in
     "issue list --status backlog --json")
       cat <<'"'"'JSON'"'"'
-{"items":[
-  {"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}},
-  {"identifier":"REP-3","priority":1,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"},"blockers":[{"identifier":"REP-9","state":{"type":"started"}}]}
-]}
+{"items":[{"identifier":"REP-2"},{"identifier":"REP-3"}]}
 JSON
       ;;
     "issue list --status todo --json")
       cat <<'"'"'JSON'"'"'
-{"items":[{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"todo"}}]}
+{"items":[{"identifier":"REP-1"}]}
+JSON
+      ;;
+    "issue show REP-1 --json")
+      cat <<'"'"'JSON'"'"'
+{"item":{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"todo"}}}
+JSON
+      ;;
+    "issue show REP-2 --json")
+      cat <<'"'"'JSON'"'"'
+{"item":{"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"}}}
+JSON
+      ;;
+    "issue show REP-3 --json")
+      cat <<'"'"'JSON'"'"'
+{"item":{"identifier":"REP-3","priority":3,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"},"blockers":[{"identifier":"REP-9","state":{"type":"started"}}]}}
 JSON
       ;;
     *)
@@ -178,7 +279,9 @@ PY
 }
 
 test_help_mentions_monitor
+test_monitor_reports_list_failure
 test_monitor_reports_eligibility_and_reasons
+test_monitor_orders_zero_and_missing_priority_last
 test_monitor_prepare_calls_prepare_for_eligible_issues
 
 echo ""
