@@ -98,7 +98,7 @@ _latest_main_ref() {
   die "Could not resolve main branch for issue-based worktree creation."
 }
 
-cmd_wt_create_from_issue() {
+_resolve_issue_worktree_metadata() {
   local issue_id="$1"
 
   if [[ ! "$issue_id" =~ ^[A-Z]+-[0-9]+$ ]]; then
@@ -116,7 +116,7 @@ cmd_wt_create_from_issue() {
   issue_number="${issue_id##*-}"
 
   local query
-  query="{ issues(filter: { number: { eq: ${issue_number} }, team: { key: { eq: \"${team_key}\" } } }, first: 1) { nodes { id identifier title branchName team { states { nodes { id name type } } } } } }"
+  query="{ issues(filter: { number: { eq: ${issue_number} }, team: { key: { eq: \"${team_key}\" } } }, first: 1) { nodes { id identifier title branchName state { name type } team { states { nodes { id name type } } } } } }"
 
   local response
   response="$(_linear_api "$query")"
@@ -138,35 +138,64 @@ cmd_wt_create_from_issue() {
   issue_title="$(sed -n '3p' <<< "$issue_data")"
   branch_name="$(sed -n '4p' <<< "$issue_data")"
   in_progress_state_id="$(sed -n '5p' <<< "$issue_data")"
+  local issue_state_name issue_state_type
+  issue_state_name="$(sed -n '6p' <<< "$issue_data")"
+  issue_state_type="$(sed -n '7p' <<< "$issue_data")"
 
   if [[ -z "$branch_name" ]]; then
     die "No branch name returned by Linear for ${issue_identifier}."
   fi
 
   local issue_names fresh_branch fresh_slug start_ref
-  issue_names="$(_resolve_issue_worktree_names "$issue_identifier" "$branch_name")"
+  WT_ISSUE_UUID="$issue_uuid"
+  WT_ISSUE_IDENTIFIER="$issue_identifier"
+  WT_ISSUE_TITLE="$issue_title"
+  WT_ISSUE_BRANCH_NAME="$branch_name"
+  WT_ISSUE_STATE_NAME="$issue_state_name"
+  WT_ISSUE_STATE_TYPE="$issue_state_type"
+  WT_ISSUE_IN_PROGRESS_STATE_ID="$in_progress_state_id"
+}
+
+_populate_issue_worktree_names() {
+  local issue_names fresh_branch fresh_slug start_ref
+  issue_names="$(_resolve_issue_worktree_names "$WT_ISSUE_IDENTIFIER" "$WT_ISSUE_BRANCH_NAME")"
   fresh_branch="$(sed -n '1p' <<< "$issue_names")"
   fresh_slug="$(sed -n '2p' <<< "$issue_names")"
   start_ref="$(_latest_main_ref)"
 
-  _ok "Found: ${issue_identifier} — ${issue_title}"
-  echo "  Branch: ${fresh_branch}"
-  echo "  Slug:   ${fresh_slug}"
+  WT_ISSUE_WORKTREE_BRANCH="$fresh_branch"
+  WT_ISSUE_WORKTREE_SLUG="$fresh_slug"
+  WT_ISSUE_WORKTREE_PATH="$(worktree_path "$fresh_slug")"
+  WT_ISSUE_START_REF="$start_ref"
+}
+
+_create_issue_worktree_from_metadata() {
+  _ok "Found: ${WT_ISSUE_IDENTIFIER} — ${WT_ISSUE_TITLE}"
+  echo "  Branch: ${WT_ISSUE_WORKTREE_BRANCH}"
+  echo "  Slug:   ${WT_ISSUE_WORKTREE_SLUG}"
   echo ""
 
-  cmd_wt_create "$fresh_branch" "$fresh_slug" "$start_ref"
+  cmd_wt_create "$WT_ISSUE_WORKTREE_BRANCH" "$WT_ISSUE_WORKTREE_SLUG" "$WT_ISSUE_START_REF"
 
   if [[ "$WT_NO_STATUS_UPDATE" != true ]]; then
-    if [[ -n "$in_progress_state_id" ]]; then
-      _step 3 3 "Updating ${issue_identifier} status to In Progress..."
+    if [[ -n "$WT_ISSUE_IN_PROGRESS_STATE_ID" ]]; then
+      _step 3 3 "Updating ${WT_ISSUE_IDENTIFIER} status to In Progress..."
       local mutation
-      mutation="mutation { issueUpdate(id: \"${issue_uuid}\", input: { stateId: \"${in_progress_state_id}\" }) { issue { id identifier } } }"
+      mutation="mutation { issueUpdate(id: \"${WT_ISSUE_UUID}\", input: { stateId: \"${WT_ISSUE_IN_PROGRESS_STATE_ID}\" }) { issue { id identifier } } }"
       _linear_api "$mutation" > /dev/null
-      _ok "Issue ${issue_identifier} marked In Progress"
+      _ok "Issue ${WT_ISSUE_IDENTIFIER} marked In Progress"
     else
       echo "  ${CLR_DIM}Could not find 'In Progress' state — skipping status update${CLR_RESET}"
     fi
   fi
+}
+
+cmd_wt_create_from_issue() {
+  local issue_id="$1"
+
+  _resolve_issue_worktree_metadata "$issue_id"
+  _populate_issue_worktree_names
+  _create_issue_worktree_from_metadata
 } >&2
 
 cmd_wt_create() {

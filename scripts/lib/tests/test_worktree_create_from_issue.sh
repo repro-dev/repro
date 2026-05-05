@@ -68,6 +68,7 @@ _src_wt() {
   export REPO_ROOT="$_main"
   export MAIN_CHECKOUT="$_main"
   export PARENT_DIR="$(dirname "$_main")"
+  export WORKSPACE_ROOT="${WORKSPACE_ROOT:-$PARENT_DIR}"
   export CONFIG_FILE="$_main/tmp/reproctl_services.json"
   export SCRIPTS_DIR="'"$SCRIPTS_DIR_REAL"'"
   export TMP_DIR="$_main/tmp"
@@ -81,7 +82,7 @@ _src_wt() {
   _err()          { printf "x %s\n" "$1" >&2; }
   _warn()         { :; }
   slugify()       { printf "%s\n" "$1" | sed "s|/|-|g" | tr "[:upper:]" "[:lower:]"; }
-  worktree_path() { echo "$PARENT_DIR/repro-wt-$1"; }
+  worktree_path() { echo "${WORKSPACE_ROOT}/repro-wt-$1"; }
   # shellcheck source=../worktree.sh
   source '"\"$WORKTREE_SH\""'
   issue_worktree_suffix() { printf "%s\n" "${REPRO_ISSUE_WORKTREE_SUFFIX:-fallback}"; }
@@ -142,6 +143,27 @@ elif ! git -C \"\$_main\" rev-parse --verify --quiet \"refs/heads/\$issue_branch
   echo \"FAIL:first unique branch missing\"
 elif ! git -C \"\$_main\" rev-parse --verify --quiet \"refs/heads/\$issue_branch-second2\" >/dev/null 2>&1; then
   echo \"FAIL:second unique branch missing\"
+else
+  echo PASS
+fi
+"
+
+run_git_test "cmd_wt_create_from_issue: honors configured workspace root" "
+$COMMON_SETUP
+_src_wt
+WT_NO_STATUS_UPDATE=true
+WORKSPACE_ROOT=\"\$_TDIR/isolated\"
+mkdir -p \"\$WORKSPACE_ROOT\"
+REPRO_ISSUE_WORKTREE_SUFFIX=rooted1
+output=\"\$(cmd_wt_create_from_issue REP-812 2>&1)\" || {
+  echo \"FAIL:create failed: \$output\"
+  exit 0
+}
+new_wt=\"\$WORKSPACE_ROOT/repro-wt-rep-812-rooted1\"
+if [[ ! -d \"\$new_wt\" ]]; then
+  echo \"FAIL:missing worktree path \$new_wt\"
+elif ! printf '%s\n' \"\$output\" | grep -q \"\$new_wt\"; then
+  echo \"FAIL:output did not mention configured workspace path\"
 else
   echo PASS
 fi

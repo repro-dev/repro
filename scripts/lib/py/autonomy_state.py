@@ -38,11 +38,19 @@ class ActiveClaimError(RuntimeError):
     def __init__(self, existing_claim: dict[str, Any]):
         super().__init__("existing claim")
         self.existing_claim = existing_claim
+
+
 class AutonomyStore:
-    def __init__(self, db_path: str | Path, main_checkout: str | Path):
+    def __init__(
+        self,
+        db_path: str | Path,
+        main_checkout: str | Path,
+        workspace_root: str | Path | None = None,
+    ):
         self.db_path = Path(db_path)
         self.main_checkout = Path(main_checkout).resolve()
-        self.allowed_root = self.main_checkout.parent.resolve()
+        self.workspace_root = Path(workspace_root or self.main_checkout.parent).resolve()
+        self.allowed_root = self.workspace_root
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
@@ -101,7 +109,7 @@ class AutonomyStore:
 
         resolved = path.resolve(strict=False)
         if _commonpath(resolved, self.allowed_root) != self.allowed_root:
-            raise ValueError("workspace path must stay under the checkout parent")
+            raise ValueError("workspace path must stay under the workspace root")
 
         return str(resolved)
 
@@ -394,6 +402,14 @@ def _resolve_main_checkout(args: argparse.Namespace) -> Path:
     return Path(os.environ.get("MAIN_CHECKOUT", os.getcwd()))
 
 
+def _resolve_workspace_root(args: argparse.Namespace, main_checkout: Path) -> Path:
+    if args.workspace_root:
+        return Path(args.workspace_root)
+    if os.environ.get("REPRO_WORKSPACE_ROOT"):
+        return Path(os.environ["REPRO_WORKSPACE_ROOT"])
+    return main_checkout.parent
+
+
 def _json_dump(data: Any) -> None:
     print(json.dumps(data))
 
@@ -451,6 +467,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="autonomy_state.py")
     parser.add_argument("--db")
     parser.add_argument("--main-checkout")
+    parser.add_argument("--workspace-root")
     parser.add_argument("--json", action="store_true")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -499,7 +516,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     db_path = _resolve_db_path(args)
     main_checkout = _resolve_main_checkout(args)
-    store = AutonomyStore(db_path=db_path, main_checkout=main_checkout)
+    workspace_root = _resolve_workspace_root(args, main_checkout)
+    store = AutonomyStore(
+        db_path=db_path,
+        main_checkout=main_checkout,
+        workspace_root=workspace_root,
+    )
 
     try:
         if args.command == "status":
