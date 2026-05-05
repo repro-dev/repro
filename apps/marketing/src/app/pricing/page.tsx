@@ -28,10 +28,10 @@ const tiers = [
     name: 'Repro++',
     price: '$49/user/month',
     audience:
-      'For teams that need shared projects, handoff support, and collaboration.',
+      'For teams that need shared projects, SDK/reporting flow support, retention controls, handoff support, and collaboration.',
     points: [
       'Coordinate across the people who file and fix the issue.',
-      'Use the shared workflow when the team needs a broader operating lane.',
+      'Use the shared workflow when the team needs a broader operating lane with SDK/reporting flow support and retention controls.',
     ],
   },
 ] as const

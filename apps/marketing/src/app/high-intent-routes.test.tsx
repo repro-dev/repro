@@ -80,6 +80,16 @@ describe('high-intent marketing routes', () => {
     assert.ok(screen.getByText('$19/user/month'))
     assert.ok(screen.getByText('$49/user/month'))
     assert.ok(
+      screen.getByText(
+        'For teams that need shared projects, SDK/reporting flow support, retention controls, handoff support, and collaboration.'
+      )
+    )
+    assert.ok(
+      screen.getByText(
+        'Use the shared workflow when the team needs a broader operating lane with SDK/reporting flow support and retention controls.'
+      )
+    )
+    assert.ok(
       screen.getByText(/AI usage details are not expressed as fixed quotas/i)
     )
     assert.ok(screen.getByRole('link', { name: 'Get started free' }))
