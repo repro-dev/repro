@@ -39,6 +39,9 @@
     "develop": {
       "model": "openrouter/minimax/minimax-m2.7"
     },
+    "librarian": {
+      "model": "openrouter/minimax/minimax-m2.7"
+    },
     "planner": {
       "model": "openrouter/minimax/minimax-m2.7"
     },

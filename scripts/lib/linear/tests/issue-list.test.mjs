@@ -104,7 +104,9 @@ export function makeClient(records) {
               return Promise.resolve(issue);
             },
             get relatedIssue() {
-              records.relationRelatedIssueAccesses.push("relation-related-out-1");
+              records.relationRelatedIssueAccesses.push(
+                "relation-related-out-1",
+              );
               return Promise.resolve({
                 id: "issue-3",
                 identifier: "REP-877",
@@ -131,7 +133,9 @@ export function makeClient(records) {
               return Promise.resolve(issue);
             },
             get relatedIssue() {
-              records.relationRelatedIssueAccesses.push("relation-duplicate-of-1");
+              records.relationRelatedIssueAccesses.push(
+                "relation-duplicate-of-1",
+              );
               return Promise.resolve({
                 id: "issue-4",
                 identifier: "REP-878",
@@ -177,7 +181,9 @@ export function makeClient(records) {
               });
             },
             get relatedIssue() {
-              records.relationRelatedIssueAccesses.push("relation-blocked-by-1");
+              records.relationRelatedIssueAccesses.push(
+                "relation-blocked-by-1",
+              );
               return Promise.resolve(issue);
             },
           },
@@ -200,7 +206,9 @@ export function makeClient(records) {
               });
             },
             get relatedIssue() {
-              records.relationRelatedIssueAccesses.push("relation-related-in-1");
+              records.relationRelatedIssueAccesses.push(
+                "relation-related-in-1",
+              );
               return Promise.resolve(issue);
             },
           },
@@ -227,7 +235,9 @@ export function makeClient(records) {
               });
             },
             get relatedIssue() {
-              records.relationRelatedIssueAccesses.push("relation-duplicate-in-1");
+              records.relationRelatedIssueAccesses.push(
+                "relation-duplicate-in-1",
+              );
               return Promise.resolve(issue);
             },
           },

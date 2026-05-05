@@ -398,6 +398,43 @@ test("issue list preserves summary relations without expanding labels", async ()
   assert.equal(records.labels.length, 1);
 });
 
+test("issue list can project comments and relations for autonomy workflows", async () => {
+  const records = {
+    teams: [],
+    states: [],
+    labels: [],
+    projects: [],
+    issues: [],
+    users: [],
+    projectMilestones: [],
+    issueLabels: [],
+    comments: [],
+    relations: [],
+    inverseRelations: [],
+  };
+
+  const result = await execute(
+    ["issue", "list", "--json", "comments,relations"],
+    {
+      env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+      clientFactory: async () => makeClient(records),
+    },
+  );
+
+  assert.equal(result.code, 0);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload[0].comments.length, 1);
+  assert.equal(payload[0].comments[0].body, "Looks good to me.");
+  assert.equal(payload[0].relations.blocks.length, 1);
+  assert.equal(payload[0].relations.blockedBy.length, 1);
+  assert.equal(payload[0].relations.related.length, 2);
+  assert.equal(payload[0].relations.duplicateOf.length, 1);
+  assert.equal(payload[0].relations.duplicates.length, 1);
+  assert.deepEqual(records.comments, [{ first: 50 }]);
+  assert.deepEqual(records.relations, [{ first: 50 }]);
+  assert.deepEqual(records.inverseRelations, [{ first: 50 }]);
+});
+
 test("issue show returns the shared serializer plus description, comments, and relations", async () => {
   const records = {
     teams: [],
