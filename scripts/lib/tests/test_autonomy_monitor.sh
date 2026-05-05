@@ -100,7 +100,7 @@ JSON
       ;;
     "issue show REP-1 --json")
       cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"todo"},"blockers":[{"identifier":"REP-8","state":{"type":"closed"}}]}}
+{"item":{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[{"identifier":"REP-8","status":{"type":"closed"}}]}}}
 JSON
       ;;
     "issue show REP-2 --json")
@@ -110,7 +110,7 @@ JSON
       ;;
     "issue show REP-3 --json")
       cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-3","priority":3,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"},"blockers":[{"identifier":"REP-9","state":{"type":"started"}}]}}
+{"item":{"identifier":"REP-3","priority":3,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"},"relations":{"blockedBy":[{"identifier":"REP-9","status":{"type":"started"}}]}}}
 JSON
       ;;
     "issue show REP-4 --json")
@@ -243,7 +243,7 @@ JSON
       ;;
     "issue show REP-3 --json")
       cat <<'"'"'JSON'"'"'
-{"item":{"identifier":"REP-3","priority":3,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"},"blockers":[{"identifier":"REP-9","state":{"type":"started"}}]}}
+{"item":{"identifier":"REP-3","priority":3,"project":{"name":"Engineering"},"state":{"name":"Todo","type":"backlog"},"relations":{"blockedBy":[{"identifier":"REP-9","status":{"type":"started"}}]}}}
 JSON
       ;;
     *)

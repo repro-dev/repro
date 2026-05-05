@@ -65,16 +65,27 @@ def _collect_blockers(issue: dict[str, Any]) -> list[dict[str, Any]]:
     blockers: list[dict[str, Any]] = []
     candidates: Iterable[Any] = ()
 
-    for key in ("blockers", "blockingIssues", "blockedBy", "blocked_by"):
-        value = issue.get(key)
-        if isinstance(value, list):
-            candidates = value
-            break
-        if isinstance(value, dict):
-            nodes = value.get("nodes")
+    relations = issue.get("relations")
+    if isinstance(relations, dict):
+        blocked_by = relations.get("blockedBy")
+        if isinstance(blocked_by, list):
+            candidates = blocked_by
+        elif isinstance(blocked_by, dict):
+            nodes = blocked_by.get("nodes")
             if isinstance(nodes, list):
                 candidates = nodes
+
+    if not candidates:
+        for key in ("blockers", "blockingIssues", "blockedBy", "blocked_by"):
+            value = issue.get(key)
+            if isinstance(value, list):
+                candidates = value
                 break
+            if isinstance(value, dict):
+                nodes = value.get("nodes")
+                if isinstance(nodes, list):
+                    candidates = nodes
+                    break
 
     for candidate in candidates:
         if isinstance(candidate, dict):
@@ -86,6 +97,11 @@ def _blocker_state_type(blocker: dict[str, Any]) -> str:
     state = blocker.get("state")
     if isinstance(state, dict):
         state_type = state.get("type")
+        if state_type:
+            return str(state_type)
+    status = blocker.get("status")
+    if isinstance(status, dict):
+        state_type = status.get("type")
         if state_type:
             return str(state_type)
     state_type = blocker.get("state_type") or blocker.get("stateType")

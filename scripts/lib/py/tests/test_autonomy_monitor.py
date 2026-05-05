@@ -21,6 +21,7 @@ def _issue(
     state_name: str = "Todo",
     state_type: str = "backlog",
     blockers: list[dict[str, object]] | None = None,
+    relations: dict[str, object] | None = None,
 ) -> dict[str, object]:
     issue: dict[str, object] = {
         "identifier": identifier,
@@ -31,6 +32,8 @@ def _issue(
         issue["priority"] = priority
     if blockers is not None:
         issue["blockers"] = blockers
+    if relations is not None:
+        issue["relations"] = relations
     return issue
 
 
@@ -89,16 +92,20 @@ def test_evaluate_monitor_candidates_marks_active_claim_and_terminal_blocker_not
                 _issue(
                     "REP-2",
                     priority=2,
-                    blockers=[
-                        {"identifier": "REP-9", "state": {"type": "started"}},
-                    ],
+                    relations={
+                        "blockedBy": [
+                            {"identifier": "REP-9", "status": {"type": "started"}},
+                        ]
+                    },
                 ),
                 _issue(
                     "REP-3",
                     priority=1,
-                    blockers=[
-                        {"identifier": "REP-8", "state": {"type": "closed"}},
-                    ],
+                    relations={
+                        "blockedBy": [
+                            {"identifier": "REP-8", "status": {"type": "closed"}},
+                        ]
+                    },
                 ),
             ],
             "claims": _claims(
