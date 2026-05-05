@@ -200,6 +200,61 @@ function parseOptions(args, allowed) {
   return out;
 }
 
+const ISSUE_LIST_JSON_FIELDS = [
+  "id",
+  "identifier",
+  "title",
+  "url",
+  "priority",
+  "priorityLabel",
+  "status",
+  "project",
+  "milestone",
+  "assignee",
+  "labels",
+  "updatedAt",
+  "description",
+];
+
+const ISSUE_LIST_JSON_FIELD_SET = new Set(ISSUE_LIST_JSON_FIELDS);
+
+function parseIssueListJsonProjection(args) {
+  if (!args.length) return null;
+  if (args.length > 1) {
+    usageError("Usage: linear issue list [options]");
+  }
+
+  const fields = args[0]
+    .split(",")
+    .map((field) => field.trim())
+    .filter(Boolean);
+
+  if (!fields.length) {
+    usageError(
+      "Invalid --json projection. Expected a comma-separated list of fields.",
+    );
+  }
+
+  const invalidField = fields.find(
+    (field) => !ISSUE_LIST_JSON_FIELD_SET.has(field),
+  );
+  if (invalidField) {
+    usageError(
+      `Unknown issue list --json field: ${invalidField}. Supported fields: ${ISSUE_LIST_JSON_FIELDS.join(
+        ", ",
+      )}.`,
+    );
+  }
+
+  return [...new Set(fields)];
+}
+
+function projectJsonFields(item, fields) {
+  return Object.fromEntries(
+    fields.map((field) => [field, item?.[field] ?? null]),
+  );
+}
+
 function topLevelHelp() {
   return [
     "Usage: linear <command> [options]",
@@ -248,7 +303,8 @@ function issueListHelp() {
     "  --open",
     "  --limit <n> (max 250)",
     "  --after <cursor>",
-    "  --json",
+    "  --json [<fields>]",
+    "    Flat projection only; e.g. --json id,identifier,title,priority",
     "",
     "Default:",
     "  backlog + todo when no filters are supplied.",
@@ -1024,6 +1080,13 @@ async function issueListCommand(args, context) {
   if (options.help)
     return { code: 0, stdout: `${issueListHelp()}\n`, stderr: "" };
 
+  const jsonProjection = context.json
+    ? parseIssueListJsonProjection(options._)
+    : null;
+  if (!context.json && options._.length > 0) {
+    usageError("Usage: linear issue list [options]");
+  }
+
   const limit = options.limit ? parseLimit(options.limit) : 50;
   const { config, client } = await resolveLinearContext(context);
   if (options.mine && options.assignee) {
@@ -1112,6 +1175,16 @@ async function issueListCommand(args, context) {
   );
 
   if (context.json) {
+    if (jsonProjection) {
+      return {
+        code: 0,
+        stdout: toJson(
+          items.map((item) => projectJsonFields(item, jsonProjection)),
+        ),
+        stderr: "",
+      };
+    }
+
     return {
       code: 0,
       stdout: toJson(buildJsonEnvelope(items, pageInfo)),
