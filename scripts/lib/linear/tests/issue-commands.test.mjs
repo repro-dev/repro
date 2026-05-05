@@ -250,6 +250,27 @@ test("issue children returns child issues and pageInfo", async () => {
   assert.deepEqual(records.children, [{ first: 200 }]);
 });
 
+test("issue children rejects extra positional arguments", async () => {
+  const result = await execute(["issue", "children", "REP-875", "extra"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => makeClient({}),
+  });
+
+  assert.equal(result.code, 2);
+  assert.match(result.stderr, /Usage: linear issue children <id>/);
+});
+
+test("issue children help prints usage and json hint", async () => {
+  const result = await execute(["issue", "children", "--help"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => makeClient({}),
+  });
+
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /Usage: linear issue children <id>/);
+  assert.match(result.stdout, /--json/);
+});
+
 test("issue children preserves summary relations without expanding details", async () => {
   const records = {
     children: [],
