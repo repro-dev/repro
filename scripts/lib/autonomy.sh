@@ -58,7 +58,7 @@ _autonomy_issue_id() {
 
   local issue_json issue_id
   issue_json="$(linear issue show "$issue_identifier" --json)" || die "Failed to resolve Linear issue: $issue_identifier"
-  issue_id="$(python3 -c 'import json, sys; item = json.loads(sys.argv[1]).get("item", {}); issue_id = item.get("id", "") if isinstance(item, dict) else ""; assert issue_id; print(issue_id)' "$issue_json")" || die "Failed to resolve Linear issue UUID for $issue_identifier"
+  issue_id="$(python3 "$SCRIPTS_DIR/lib/py/autonomy_issue_id.py" "$issue_json")" || die "Failed to resolve Linear issue UUID for $issue_identifier"
 
   printf '%s\n' "$issue_id"
 }
@@ -69,21 +69,80 @@ _autonomy_active_claim() {
   local status_json
   status_json="$(REPROCTL_JSON=true _autonomy_py status)"
 
-  python3 - "$issue_identifier" "$status_json" <<'PY'
-import json
-import sys
+  python3 "$SCRIPTS_DIR/lib/py/autonomy_active_claim.py" "$issue_identifier" <<<"$status_json"
+}
 
-target = sys.argv[1]
-active_states = {"claimed", "running", "reconciling"}
-data = json.loads(sys.argv[2])
+_autonomy_monitor_payload() {
+  local backlog_json todo_json claims_json
+  backlog_json="$(linear issue list --status backlog --json identifier,priority,project,status,relations)" || die "Failed to list backlog issues"
+  todo_json="$(linear issue list --status todo --json identifier,priority,project,status,relations)" || die "Failed to list todo issues"
+  claims_json="$(REPROCTL_JSON=true _autonomy_py status --all)" || die "Failed to load autonomy claims"
 
-for item in data.get("items", []):
-    if item.get("issue_identifier") == target and item.get("claim_state") in active_states:
-        print(json.dumps(item))
-        raise SystemExit(0)
+  python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor_payload.py" "$backlog_json" "$todo_json" "$claims_json" || die "Failed to enrich monitor issues"
+}
 
-raise SystemExit(1)
-PY
+_autonomy_monitor_issue_ids() {
+  local evaluation_json="$1"
+
+  python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor_issue_ids.py" "$evaluation_json"
+}
+
+_autonomy_monitor_render() {
+  local evaluation_json="$1"
+
+  python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor_render.py" "$evaluation_json"
+}
+
+_autonomy_monitor_tick() {
+  local once="$1" prepare="$2" json_output="$3" limit="$4" interval="$5" claimed_by="$6"
+  local payload evaluation_json
+
+  while :; do
+    payload="$(_autonomy_monitor_payload)" || return 1
+    local monitor_args=(--json --limit "$limit")
+    if [[ "$prepare" == true ]]; then
+      monitor_args+=(--prepare)
+    fi
+    if [[ -n "$claimed_by" ]]; then
+      monitor_args+=(--claimed-by "$claimed_by")
+    fi
+
+    if [[ "$prepare" == true ]]; then
+      evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" "${monitor_args[@]}")" || return 1
+    else
+      evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" "${monitor_args[@]}")" || return 1
+    fi
+
+    if [[ "$prepare" == true ]]; then
+      while IFS= read -r issue_identifier; do
+        [[ -n "$issue_identifier" ]] || continue
+        _autonomy_monitor_prepare_issue "$issue_identifier" "$claimed_by" >&2
+      done < <(_autonomy_monitor_issue_ids "$evaluation_json")
+    fi
+
+    if [[ "$json_output" == true ]]; then
+      printf '%s\n' "$evaluation_json"
+    else
+      _autonomy_monitor_render "$evaluation_json"
+    fi
+
+    if [[ "$once" == true ]]; then
+      break
+    fi
+
+    sleep "$interval"
+  done
+}
+
+_autonomy_monitor_prepare_issue() {
+  local issue_identifier="$1"
+  local claimed_by="${2:-}"
+
+  if [[ -n "$claimed_by" ]]; then
+    cmd_autonomy prepare "$issue_identifier" --phase observe --claimed-by "$claimed_by"
+  else
+    cmd_autonomy prepare "$issue_identifier" --phase observe
+  fi
 }
 
 cmd_autonomy_help() {
@@ -98,6 +157,7 @@ Subcommands:
   prepare <issue> [--phase observe] [--claimed-by <name>]
   release <issue> [--reason <text>]
   reconcile [<issue> | --all]
+  monitor [--once] [--prepare] [--interval <seconds>] [--limit <count>] [--claimed-by <name>] [--json]
   run start <issue> --phase <phase> --workspace <path>
   run finish <issue> --attempt <n> --state <state> [--error <text>]
 
@@ -105,6 +165,7 @@ Examples:
   reproctl autonomy status --json
   reproctl autonomy claim REP-1094 --workspace /path/to/repro-wt-rep-1094 --phase observe --issue-state In-Progress
   reproctl autonomy prepare REP-1095 --phase observe --claimed-by autopilot
+  reproctl autonomy monitor --once --json
   reproctl autonomy run start REP-1094 --phase observe --workspace /path/to/repro-wt-rep-1094
 EOF
 }
@@ -192,12 +253,7 @@ cmd_autonomy() {
       local active_claim
       if active_claim="$(_autonomy_active_claim "$WT_ISSUE_IDENTIFIER")"; then
         if [[ "${REPROCTL_JSON:-false}" == true ]]; then
-          python3 - "$active_claim" <<'PY'
-import json
-import sys
-
-print(json.dumps({"error": "existing claim", "claim": json.loads(sys.argv[1])}))
-PY
+          python3 "$SCRIPTS_DIR/lib/py/autonomy_prepare_json.py" existing-claim "$active_claim"
         else
           die "existing claim for ${WT_ISSUE_IDENTIFIER}"
         fi
@@ -218,26 +274,7 @@ PY
       claim_json="$(REPROCTL_JSON=true _autonomy_py "${claim_args[@]}")" || return 1
 
       if [[ "${REPROCTL_JSON:-false}" == true ]]; then
-        python3 - "$claim_json" "$phase" "$claimed_by" "$WT_ISSUE_UUID" "$WT_ISSUE_IDENTIFIER" "$WT_ISSUE_WORKTREE_PATH" "$WT_ISSUE_WORKTREE_BRANCH" "$WT_ISSUE_WORKTREE_SLUG" "$WT_ISSUE_STATE_NAME" "$WT_ISSUE_STATE_TYPE" <<'PY'
-import json
-import sys
-
-claim = json.loads(sys.argv[1])["claim"]
-print(json.dumps({
-    "prepare": {
-        "issue_id": sys.argv[4],
-        "issue_identifier": sys.argv[5],
-        "workspace_path": sys.argv[6],
-        "branch": sys.argv[7],
-        "slug": sys.argv[8],
-        "phase": sys.argv[2],
-        "claimed_by": sys.argv[3] or None,
-        "issue_state_name": sys.argv[9],
-        "issue_state_type": sys.argv[10],
-        "claim": claim,
-    }
-}))
-PY
+        python3 "$SCRIPTS_DIR/lib/py/autonomy_prepare_json.py" prepare "$phase" "$claimed_by" "$WT_ISSUE_UUID" "$WT_ISSUE_IDENTIFIER" "$WT_ISSUE_WORKTREE_PATH" "$WT_ISSUE_WORKTREE_BRANCH" "$WT_ISSUE_WORKTREE_SLUG" "$WT_ISSUE_STATE_NAME" "$WT_ISSUE_STATE_TYPE" "$claim_json"
       else
         echo "Prepared workspace for ${WT_ISSUE_IDENTIFIER}"
         echo "  Branch: ${WT_ISSUE_WORKTREE_BRANCH}"
@@ -314,6 +351,30 @@ PY
       else
         _autonomy_py reconcile
       fi
+      ;;
+
+    monitor)
+      local once=false prepare=false json_output=false limit=10 interval=60 claimed_by=""
+      if [[ "${REPROCTL_JSON:-false}" == true ]]; then
+        json_output=true
+      fi
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --json) json_output=true; shift ;;
+          --once) once=true; shift ;;
+          --prepare) prepare=true; shift ;;
+          --limit) [[ -n "${2:-}" ]] || die "Missing value for $1"; limit="$2"; shift 2 ;;
+          --interval) [[ -n "${2:-}" ]] || die "Missing value for $1"; interval="$2"; shift 2 ;;
+          --claimed-by) [[ -n "${2:-}" ]] || die "Missing value for $1"; claimed_by="$2"; shift 2 ;;
+          -h|--help)
+            cmd_autonomy_help
+            return 0
+            ;;
+          *) die "Unknown option: $1\nRun 'reproctl autonomy --help' for usage." ;;
+        esac
+      done
+
+      _autonomy_monitor_tick "$once" "$prepare" "$json_output" "$limit" "$interval" "$claimed_by"
       ;;
 
     run)

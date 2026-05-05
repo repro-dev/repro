@@ -230,6 +230,32 @@ def test_reconcile_updates_observed_state_when_still_active(tmp_path: Path):
     assert status["items"][0]["last_observed_issue_state_type"] == "started"
 
 
+def test_reconcile_marks_terminal_issue_state_stale(tmp_path: Path):
+    store = _store(tmp_path)
+    workspace = _workspace(tmp_path)
+
+    store.claim(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        phase="observe",
+        issue_state_name="In Progress",
+        issue_state_type="started",
+    )
+
+    store.reconcile(
+        "REP-1094",
+        issue_state_name="Done",
+        issue_state_type="closed",
+    )
+
+    status = store.status()
+
+    assert status["items"][0]["claim_state"] == "stale"
+    assert status["items"][0]["retry_state"] == "stale"
+    assert status["items"][0]["retry_reason"] == "terminal-issue-state:closed"
+
+
 def test_status_human_output_includes_runs(tmp_path: Path):
     store = _store(tmp_path)
     workspace = _workspace(tmp_path)
