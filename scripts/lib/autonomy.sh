@@ -58,7 +58,7 @@ _autonomy_issue_id() {
 
   local issue_json issue_id
   issue_json="$(linear issue show "$issue_identifier" --json)" || die "Failed to resolve Linear issue: $issue_identifier"
-  issue_id="$(python3 -c 'import json, sys; item = json.loads(sys.argv[1]).get("item", {}); issue_id = item.get("id") or item.get("identifier") or item.get("issue_identifier") or ""; assert issue_id; print(issue_id)' "$issue_json")" || die "Failed to resolve Linear issue UUID for $issue_identifier"
+  issue_id="$(python3 "$SCRIPTS_DIR/lib/py/autonomy_issue_id.py" "$issue_json")" || die "Failed to resolve Linear issue UUID for $issue_identifier"
 
   printf '%s\n' "$issue_id"
 }
@@ -69,191 +69,28 @@ _autonomy_active_claim() {
   local status_json
   status_json="$(REPROCTL_JSON=true _autonomy_py status)"
 
-  python3 - "$issue_identifier" "$status_json" <<'PY'
-import json
-import sys
-
-target = sys.argv[1]
-active_states = {"claimed", "running", "reconciling"}
-data = json.loads(sys.argv[2])
-
-for item in data.get("items", []):
-    if item.get("issue_identifier") == target and item.get("claim_state") in active_states:
-        print(json.dumps(item))
-        raise SystemExit(0)
-
-raise SystemExit(1)
-PY
-}
-
-_autonomy_monitor_candidate_ids() {
-  local backlog_json="$1" todo_json="$2"
-
-  python3 - "$backlog_json" "$todo_json" <<'PY'
-import json
-import sys
-
-
-def extract_items(payload):
-    if isinstance(payload, list):
-        return payload
-    if isinstance(payload, dict):
-        items = payload.get("items")
-        if isinstance(items, list):
-            return items
-        data = payload.get("data")
-        if isinstance(data, dict):
-            issues = data.get("issues")
-            if isinstance(issues, dict):
-                nodes = issues.get("nodes")
-                if isinstance(nodes, list):
-                    return nodes
-    return []
-
-
-seen = set()
-for raw in sys.argv[1:3]:
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError:
-        continue
-    for issue in extract_items(payload):
-        if not isinstance(issue, dict):
-            continue
-        identifier = str(issue.get("identifier") or issue.get("issue_identifier") or "")
-        if identifier and identifier not in seen:
-            seen.add(identifier)
-            print(identifier)
-PY
+  python3 "$SCRIPTS_DIR/lib/py/autonomy_active_claim.py" "$issue_identifier" <<<"$status_json"
 }
 
 _autonomy_monitor_payload() {
-  local backlog_json todo_json claims_json issue_ids
+  local backlog_json todo_json claims_json
   backlog_json="$(linear issue list --status backlog --json identifier,priority,project,status,relations)" || die "Failed to list backlog issues"
   todo_json="$(linear issue list --status todo --json identifier,priority,project,status,relations)" || die "Failed to list todo issues"
-  issue_ids="$(_autonomy_monitor_candidate_ids "$backlog_json" "$todo_json")" || die "Failed to derive monitor candidates"
   claims_json="$(REPROCTL_JSON=true _autonomy_py status --all)" || die "Failed to load autonomy claims"
 
-  local monitor_tmpdir monitor_payload_file
-  monitor_tmpdir="$(mktemp -d "$TMP_DIR/autonomy-monitor.XXXXXX")" || die "Failed to create monitor temp dir"
-  monitor_payload_file="$monitor_tmpdir/issues.jsonl"
-  : > "$monitor_payload_file"
-
-  python3 - "$backlog_json" "$todo_json" "$issue_ids" <<'PY' > "$monitor_payload_file"
-import json
-import sys
-
-
-def extract_items(payload):
-    if isinstance(payload, list):
-        return payload
-    if isinstance(payload, dict):
-        items = payload.get("items")
-        if isinstance(items, list):
-            return items
-        data = payload.get("data")
-        if isinstance(data, dict):
-            issues = data.get("issues")
-            if isinstance(issues, dict):
-                nodes = issues.get("nodes")
-                if isinstance(nodes, list):
-                    return nodes
-    return []
-
-
-selected = {issue_identifier.strip() for issue_identifier in sys.argv[3].splitlines() if issue_identifier.strip()}
-
-for raw in sys.argv[1:3]:
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError:
-        continue
-    for issue in extract_items(payload):
-        if not isinstance(issue, dict):
-            continue
-        identifier = str(issue.get("identifier") or issue.get("issue_identifier") or "")
-        if identifier and identifier in selected:
-            print(json.dumps(issue))
-PY
-
-  evaluation_json="$(python3 - "$claims_json" "$monitor_payload_file" <<'PY'
-import json
-import sys
-
-claims_payload = json.loads(sys.argv[1])
-claims = claims_payload.get("items", []) if isinstance(claims_payload, dict) else []
-if not isinstance(claims, list):
-    claims = []
-
-issues = []
-with open(sys.argv[2], encoding="utf-8") as fh:
-    for raw in fh:
-        if not raw.strip():
-            continue
-        payload = json.loads(raw)
-        if isinstance(payload, dict):
-            item = payload.get("item")
-            if isinstance(item, dict):
-                issues.append(item)
-                continue
-            items = payload.get("items")
-            if isinstance(items, list):
-                for entry in items:
-                    if isinstance(entry, dict):
-                        issues.append(entry)
-                continue
-            if payload.get("identifier") or payload.get("issue_identifier"):
-                issues.append(payload)
-                continue
-            issues.append(payload)
-
-print(json.dumps({"issues": issues, "claims": claims}))
-PY
-  )" || { rm -rf "$monitor_tmpdir"; die "Failed to enrich monitor issues"; }
-
-  printf '%s\n' "$evaluation_json"
-  rm -rf "$monitor_tmpdir"
+  python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor_payload.py" "$backlog_json" "$todo_json" "$claims_json" || die "Failed to enrich monitor issues"
 }
 
 _autonomy_monitor_issue_ids() {
   local evaluation_json="$1"
 
-  python3 - "$evaluation_json" <<'PY'
-import json
-import sys
-
-payload = json.loads(sys.argv[1])
-for item in payload.get("items", []):
-    if isinstance(item, dict) and item.get("eligible"):
-        print(item.get("issue_identifier", ""))
-PY
+  python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor_issue_ids.py" "$evaluation_json"
 }
 
 _autonomy_monitor_render() {
   local evaluation_json="$1"
 
-  python3 - "$evaluation_json" <<'PY'
-import json
-import sys
-
-payload = json.loads(sys.argv[1])
-items = payload.get("items", []) if isinstance(payload, dict) else []
-print("MONITOR")
-if not items:
-    print("  (none)")
-    raise SystemExit(0)
-
-for item in items:
-    if not isinstance(item, dict):
-        continue
-    parts = ["eligible" if item.get("eligible") else "blocked"]
-    parts.append(f"action={item.get('action', '')}")
-    if item.get("reasons"):
-        parts.append(f"reasons={','.join(item['reasons'])}")
-    if item.get("notes"):
-        parts.append(f"notes={','.join(item['notes'])}")
-    print(f"  {item.get('issue_identifier', '')}  priority={item.get('priority', '')}  " + "  ".join(parts))
-PY
+  python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor_render.py" "$evaluation_json"
 }
 
 _autonomy_monitor_tick() {
@@ -416,12 +253,7 @@ cmd_autonomy() {
       local active_claim
       if active_claim="$(_autonomy_active_claim "$WT_ISSUE_IDENTIFIER")"; then
         if [[ "${REPROCTL_JSON:-false}" == true ]]; then
-          python3 - "$active_claim" <<'PY'
-import json
-import sys
-
-print(json.dumps({"error": "existing claim", "claim": json.loads(sys.argv[1])}))
-PY
+          python3 "$SCRIPTS_DIR/lib/py/autonomy_prepare_json.py" existing-claim "$active_claim"
         else
           die "existing claim for ${WT_ISSUE_IDENTIFIER}"
         fi
@@ -442,26 +274,7 @@ PY
       claim_json="$(REPROCTL_JSON=true _autonomy_py "${claim_args[@]}")" || return 1
 
       if [[ "${REPROCTL_JSON:-false}" == true ]]; then
-        python3 - "$claim_json" "$phase" "$claimed_by" "$WT_ISSUE_UUID" "$WT_ISSUE_IDENTIFIER" "$WT_ISSUE_WORKTREE_PATH" "$WT_ISSUE_WORKTREE_BRANCH" "$WT_ISSUE_WORKTREE_SLUG" "$WT_ISSUE_STATE_NAME" "$WT_ISSUE_STATE_TYPE" <<'PY'
-import json
-import sys
-
-claim = json.loads(sys.argv[1])["claim"]
-print(json.dumps({
-    "prepare": {
-        "issue_id": sys.argv[4],
-        "issue_identifier": sys.argv[5],
-        "workspace_path": sys.argv[6],
-        "branch": sys.argv[7],
-        "slug": sys.argv[8],
-        "phase": sys.argv[2],
-        "claimed_by": sys.argv[3] or None,
-        "issue_state_name": sys.argv[9],
-        "issue_state_type": sys.argv[10],
-        "claim": claim,
-    }
-}))
-PY
+        python3 "$SCRIPTS_DIR/lib/py/autonomy_prepare_json.py" prepare "$phase" "$claimed_by" "$WT_ISSUE_UUID" "$WT_ISSUE_IDENTIFIER" "$WT_ISSUE_WORKTREE_PATH" "$WT_ISSUE_WORKTREE_BRANCH" "$WT_ISSUE_WORKTREE_SLUG" "$WT_ISSUE_STATE_NAME" "$WT_ISSUE_STATE_TYPE" "$claim_json"
       else
         echo "Prepared workspace for ${WT_ISSUE_IDENTIFIER}"
         echo "  Branch: ${WT_ISSUE_WORKTREE_BRANCH}"
