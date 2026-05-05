@@ -1,0 +1,104 @@
+.routePage {
+  display: grid;
+  gap: 32px;
+  padding: 40px 0 28px;
+}
+
+.intro {
+  display: grid;
+  gap: 18px;
+  max-width: 68rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.body {
+  display: grid;
+  gap: 24px;
+}
+
+.band {
+  display: grid;
+  gap: 16px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.bandGrid {
+  display: grid;
+  gap: 16px;
+}
+
+.bandGridTwo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.bandGridThree {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stepList,
+.detailList {
+  display: grid;
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stepCard,
+.detailCard,
+.pricingCard {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(11, 18, 32, 0.92);
+  box-shadow: 0 22px 64px rgba(0, 0, 0, 0.28);
+  padding: 24px;
+}
+
+.pricingCard {
+  display: grid;
+  gap: 14px;
+}
+
+.pricingValue {
+  color: #edf4ff;
+  font-family: var(--marketing-font-display),
+    var(--marketing-font-display-fallback);
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.supportNote {
+  color: #9fb2d0;
+  max-width: 64ch;
+  line-height: 1.8;
+}
+
+.pricingPillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pricingPill {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  color: #dbeafe;
+  font:
+    700 11px/1 var(--marketing-font-mono),
+    var(--marketing-font-mono-fallback);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 8px 10px;
+}
+
+@media (max-width: 960px) {
+  .bandGridTwo,
+  .bandGridThree {
+    grid-template-columns: 1fr;
+  }
+}

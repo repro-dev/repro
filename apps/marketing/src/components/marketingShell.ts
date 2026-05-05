@@ -132,18 +132,6 @@ export const routePageContent = {
     title: 'Contact',
     body: 'Reach out about product questions, support, or partnerships.',
   },
-  'install-extension': {
-    title: 'Install extension',
-    body: 'Add Repro to the browser and capture a session in a click.',
-  },
-  features: {
-    title: 'Features',
-    body: 'Explore the capture, replay, and handoff tools behind the fix path.',
-  },
-  pricing: {
-    title: 'Pricing',
-    body: 'Choose a plan that matches how your team captures and ships fixes.',
-  },
   privacy: {
     title: 'Privacy policy',
     body: 'Read how Repro handles customer data and recording privacy.',
