@@ -93,6 +93,22 @@ _autonomy_monitor_render() {
   python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor_render.py" "$evaluation_json"
 }
 
+_autonomy_sequence_render_prompt() {
+  local template_file="$1"
+  local evaluation_json="$2"
+
+  python3 "$SCRIPTS_DIR/lib/py/autonomy_sequence.py" render --template-file "$template_file" --evaluation-json "$evaluation_json"
+}
+
+_autonomy_sequence_finalize() {
+  local template_file="$1"
+  local evaluation_json="$2"
+  local raw_response="$3"
+  local output_dir="$4"
+
+  python3 "$SCRIPTS_DIR/lib/py/autonomy_sequence.py" finalize --template-file "$template_file" --evaluation-json "$evaluation_json" --raw-response "$raw_response" --output-dir "$output_dir"
+}
+
 _autonomy_monitor_tick() {
   local once="$1" prepare="$2" json_output="$3" limit="$4" interval="$5" claimed_by="$6"
   local payload evaluation_json
@@ -158,6 +174,7 @@ Subcommands:
   release <issue> [--reason <text>]
   reconcile [<issue> | --all]
   monitor [--once] [--prepare] [--interval <seconds>] [--limit <count>] [--claimed-by <name>] [--json]
+  sequence [--limit <count>] [--profile <name>] [--prompt-file <path>] [--output-dir <path>] [--claimed-by <name>] [--json]
   run start <issue> --phase <phase> --workspace <path>
   run finish <issue> --attempt <n> --state <state> [--error <text>]
 
@@ -166,6 +183,7 @@ Examples:
   reproctl autonomy claim REP-1094 --workspace /path/to/repro-wt-rep-1094 --phase observe --issue-state In-Progress
   reproctl autonomy prepare REP-1095 --phase observe --claimed-by autopilot
   reproctl autonomy monitor --once --json
+  reproctl autonomy sequence --limit 2 --profile github-copilot-sonnet --output-dir tmp/autonomy/sequences --json
   reproctl autonomy run start REP-1094 --phase observe --workspace /path/to/repro-wt-rep-1094
 EOF
 }
@@ -375,6 +393,53 @@ cmd_autonomy() {
       done
 
       _autonomy_monitor_tick "$once" "$prepare" "$json_output" "$limit" "$interval" "$claimed_by"
+      ;;
+
+    sequence)
+      local limit=10 profile="" prompt_file="$SCRIPTS_DIR/lib/prompts/autonomy-sequence.md" output_dir="$REPO_ROOT/tmp/autonomy/sequences" claimed_by="" json_output=false
+      if [[ "${REPROCTL_JSON:-false}" == true ]]; then
+        json_output=true
+      fi
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --json) json_output=true; shift ;;
+          --limit) [[ -n "${2:-}" ]] || die "Missing value for $1"; limit="$2"; shift 2 ;;
+          --profile) [[ -n "${2:-}" ]] || die "Missing value for $1"; profile="$2"; shift 2 ;;
+          --prompt-file) [[ -n "${2:-}" ]] || die "Missing value for $1"; prompt_file="$2"; shift 2 ;;
+          --output-dir) [[ -n "${2:-}" ]] || die "Missing value for $1"; output_dir="$2"; shift 2 ;;
+          --claimed-by) [[ -n "${2:-}" ]] || die "Missing value for $1"; claimed_by="$2"; shift 2 ;;
+          -h|--help)
+            cmd_autonomy_help
+            return 0
+            ;;
+          *) die "Unknown option: $1\nRun 'reproctl autonomy --help' for usage." ;;
+        esac
+      done
+
+      local payload evaluation_json prompt_text raw_response canonical_json canonical_path
+      payload="$(_autonomy_monitor_payload)" || return 1
+      if [[ -n "$claimed_by" ]]; then
+        evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" --json --limit "$limit" --claimed-by "$claimed_by")" || return 1
+      else
+        evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" --json --limit "$limit")" || return 1
+      fi
+
+      prompt_text="$(_autonomy_sequence_render_prompt "$prompt_file" "$evaluation_json")" || return 1
+
+      if [[ -n "$profile" ]]; then
+        raw_response="$(cmd_opencode --profile "$profile" run "$prompt_text")" || return 1
+      else
+        raw_response="$(cmd_opencode run "$prompt_text")" || return 1
+      fi
+
+      canonical_json="$(_autonomy_sequence_finalize "$prompt_file" "$evaluation_json" "$raw_response" "$output_dir")" || return 1
+
+      if [[ "$json_output" == true ]]; then
+        printf '%s\n' "$canonical_json"
+      else
+        canonical_path="$(printf '%s' "$canonical_json" | python3 -c 'import json, sys; print(json.load(sys.stdin)["artifacts"]["canonical_path"])')"
+        printf 'Sequencing artifacts written to %s\n' "$canonical_path"
+      fi
       ;;
 
     run)
