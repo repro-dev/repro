@@ -214,6 +214,8 @@ const ISSUE_LIST_JSON_FIELDS = [
   "labels",
   "updatedAt",
   "description",
+  "comments",
+  "relations",
 ];
 
 const ISSUE_LIST_JSON_FIELD_SET = new Set(ISSUE_LIST_JSON_FIELDS);
@@ -305,6 +307,7 @@ function issueListHelp() {
     "  --after <cursor>",
     "  --json [<fields>]",
     "    Flat projection only; e.g. --json id,identifier,title,priority",
+    "    Supported detail fields: comments, relations",
     "",
     "Default:",
     "  backlog + todo when no filters are supplied.",
@@ -690,7 +693,7 @@ async function serializeIssue(client, issue, labels = []) {
   };
 }
 
-async function serializeIssueListItem(issue, labels = []) {
+async function serializeIssueListItem(issue, labels = [], detailFields = []) {
   // List/children stay bounded by resolving only the summary relations we render.
   const [project, milestone, assignee, status] = await Promise.all([
     resolveRelationValue(issue?.project),
@@ -699,7 +702,7 @@ async function serializeIssueListItem(issue, labels = []) {
     resolveRelationValue(issue?.state),
   ]);
 
-  return {
+  const item = {
     id: issue.id ?? null,
     identifier: issue.identifier ?? null,
     title: issue.title ?? null,
@@ -719,6 +722,14 @@ async function serializeIssueListItem(issue, labels = []) {
         : issue.updatedAt ?? null,
     description: issue.description ?? null,
   };
+
+  if (detailFields.length) {
+    const details = await serializeIssueDetails(issue);
+    if (detailFields.includes("comments")) item.comments = details.comments;
+    if (detailFields.includes("relations")) item.relations = details.relations;
+  }
+
+  return item;
 }
 
 async function serializeIssueSummaryCore(issue) {
@@ -1169,9 +1180,16 @@ async function issueListCommand(args, context) {
     : issueLabelIds.length
     ? await resolveLabels(team)
     : [];
+  const issueListDetailFields = jsonProjection
+    ? jsonProjection.filter(
+        (field) => field === "comments" || field === "relations",
+      )
+    : [];
 
   const items = await Promise.all(
-    responseIssues.map((issue) => serializeIssueListItem(issue, issueLabels)),
+    responseIssues.map((issue) =>
+      serializeIssueListItem(issue, issueLabels, issueListDetailFields),
+    ),
   );
 
   if (context.json) {

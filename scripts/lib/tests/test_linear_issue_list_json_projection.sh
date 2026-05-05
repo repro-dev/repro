@@ -120,6 +120,53 @@ NODE
   fi
 }
 
+test_json_projection_can_carry_monitor_detail_payload() {
+  if node --input-type=module - "$REPO_ROOT" <<'NODE'
+import assert from 'node:assert/strict'
+import { pathToFileURL } from 'node:url'
+
+const repoRoot = process.argv[2]
+const cli = await import(pathToFileURL(`${repoRoot}/scripts/lib/linear/cli.mjs`))
+const helpers = await import(
+  pathToFileURL(`${repoRoot}/scripts/lib/linear/tests/issue-list.test.mjs`)
+)
+
+const records = {
+  teams: [],
+  states: [],
+  labels: [],
+  projects: [],
+  issues: [],
+  users: [],
+  projectMilestones: [],
+  issueLabels: [],
+  comments: [],
+  relations: [],
+  inverseRelations: [],
+}
+
+const result = await cli.execute(
+  ['issue', 'list', '--json', 'comments,relations'],
+  {
+    env: { LINEAR_API_KEY: 'api', LINEAR_TEAM: 'REP' },
+    clientFactory: async () => helpers.makeClient(records),
+  },
+)
+
+assert.equal(result.code, 0)
+const payload = JSON.parse(result.stdout)
+assert.equal(payload.length, 1)
+assert.equal(payload[0].comments[0].body, 'Looks good to me.')
+assert.equal(payload[0].relations.blocks[0].identifier, 'REP-876')
+assert.equal(payload[0].relations.blockedBy[0].identifier, 'REP-879')
+NODE
+  then
+    _pass 'issue list projects monitor detail payload fields through JSON projection'
+  else
+    _fail 'issue list projects monitor detail payload fields through JSON projection' 'node assertion failed'
+  fi
+}
+
 test_issue_list_help_mentions_json_projection_syntax() {
   if node --input-type=module - "$REPO_ROOT" <<'NODE'
 import assert from 'node:assert/strict'
@@ -135,6 +182,7 @@ const result = await cli.execute(['help', 'issue', 'list'], {
 assert.equal(result.code, 0)
 assert.match(result.stdout, /--json \[<fields>\]/)
 assert.match(result.stdout, /Flat projection only/)
+assert.match(result.stdout, /Supported detail fields: comments, relations/)
 assert.match(result.stdout, /--json id,identifier,title,priority/)
 NODE
   then
@@ -146,6 +194,7 @@ NODE
 
 test_default_json_envelope_is_preserved
 test_flat_json_projection_returns_requested_fields_only
+test_json_projection_can_carry_monitor_detail_payload
 test_issue_list_help_mentions_json_projection_syntax
 
 echo ""
