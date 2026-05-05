@@ -198,14 +198,15 @@ A useful mental shorthand is the **Explorer / Oracle / Fixer** model: Explorers 
 
 ### Agent roster
 
-| Agent     | Archetype | Primary role                                                                                            | Tool access                                                            |
-| --------- | --------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `develop` | Fixer     | Executes implementation plans using red/green/refactor TDD                                              | Full read/write/bash                                                   |
-| `test`    | Fixer     | Adds test coverage, writes regression tests, and audits test sufficiency as a standalone utility        | Full read/write/bash                                                   |
-| `planner` | Oracle    | Explores the codebase and produces a structured implementation plan for `develop` to consume            | Read-only; restricted bash (git log/diff/show only)                    |
-| `review`  | Oracle    | Reviews a branch diff against Linear requirements and project conventions; never fixes, only reports    | Read-only; restricted bash (git log/diff/show and linear issue show\*) |
-| `explore` | Explorer  | Answers fast read-only questions about architecture, patterns, and existing code without making changes | Read-only                                                              |
-| `general` | —         | Handles tasks that don't fit another agent's scope (writing docs, analyzing logs, answering questions)  | Varies by task                                                         |
+| Agent       | Archetype | Primary role                                                                                            | Tool access                                                            |
+| ----------- | --------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `develop`   | Fixer     | Executes implementation plans using red/green/refactor TDD                                              | Full read/write/bash                                                   |
+| `test`      | Fixer     | Adds test coverage, writes regression tests, and audits test sufficiency as a standalone utility        | Full read/write/bash                                                   |
+| `planner`   | Oracle    | Explores the codebase and produces a structured implementation plan for `develop` to consume            | Read-only; restricted bash (git log/diff/show only)                    |
+| `review`    | Oracle    | Reviews a branch diff against Linear requirements and project conventions; never fixes, only reports    | Read-only; restricted bash (git log/diff/show and linear issue show\*) |
+| `explore`   | Explorer  | Answers fast read-only questions about architecture, patterns, and existing code without making changes | Read-only                                                              |
+| `librarian` | Explorer  | Researches external libraries, frameworks, and public APIs from official docs and upstream source       | Read-only                                                              |
+| `general`   | —         | Handles tasks that don't fit another agent's scope (writing docs, analyzing logs, answering questions)  | Varies by task                                                         |
 
 **When to use each agent:**
 
@@ -214,6 +215,7 @@ A useful mental shorthand is the **Explorer / Oracle / Fixer** model: Explorers 
 - **`planner`**: when a task involves 3+ packages or requires significant codebase exploration before implementation. For simpler single-package changes, plan inline in the outer conversation.
 - **`review`**: any time you want structured findings against Linear requirements and conventions before publishing a PR. Can also be invoked via `/review` for ad-hoc branch review; restricted bash includes `git log/diff/show` and `linear issue show*`.
 - **`explore`**: when you need fast orientation or impact assessment without a full plan. Cheaper than `planner` for pure recon — use it first, then escalate to `planner` if planning is warranted.
+- **`librarian`**: when external dependency behavior is unclear and you need evidence-backed research from official docs, upstream source, or trustworthy examples before planning or implementing.
 - **`general`**: when no more-specific agent applies — e.g. writing a design doc, summarizing a log dump, or answering a question with no code change required.
 
 ### Agent permission boundaries
@@ -227,6 +229,7 @@ This table is normative — agents must treat it as a constraint, not a suggesti
 | `planner`            | No         | No       | No             | No                       | No                                 | No                       |
 | `review`             | No         | No       | No             | No                       | No                                 | No                       |
 | `explore`            | No         | No       | No             | No                       | No                                 | No                       |
+| `librarian`          | No         | No       | No             | No                       | No                                 | No                       |
 | `general`            | No         | No       | No             | No                       | No                                 | No                       |
 | `outer conversation` | Yes        | Yes      | Yes            | Yes                      | Yes                                | Yes                      |
 
@@ -234,6 +237,7 @@ This table is normative — agents must treat it as a constraint, not a suggesti
 
 - **`develop` agent**: Use for ALL implementation work that touches 2+ files. Do NOT write code directly in the outer conversation except for trivial single-file edits (e.g. fixing a typo, updating a config value). Provide the develop agent with: (1) the worktree path, (2) the exact file paths and line ranges to modify, (3) the specific changes to make, (4) how to verify (test commands), and (5) the Linear issue ID for commit messages.
 - Before delegating to `planner` for work that spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs, create `tmp/context-<issue-id>.md` first and pass it in as planning input. For non-Linear work, use `tmp/context-<topic>.md`.
+- Use `librarian` before planning or coding when the behavior of an external dependency is unclear and the answer needs official docs or upstream source instead of repo-local investigation.
 - Before delegating to `develop` for a new behavior, bug fix, or public contract change, create or confirm `tmp/test-plan-<issue-id>.md` and pass it in with the task. For non-Linear work, use `tmp/test-plan-<topic>.md`.
 - **`test` agent**: Use after implementation to audit test coverage and write additional tests. Do NOT write tests in the outer conversation. Provide the test agent with: (1) the worktree path, (2) which files were changed, (3) the relevant test commands.
 
