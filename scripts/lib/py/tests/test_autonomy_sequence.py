@@ -77,6 +77,39 @@ def test_normalize_sequence_response_accepts_fenced_json():
     assert canonical["risk_notes"] == ["dependency first"]
 
 
+def test_normalize_sequence_response_rejects_ineligible_issue_in_wave():
+    from autonomy_sequence import SequenceValidationError, normalize_sequence_response
+
+    evaluation = {
+        "items": [
+            {"issue_identifier": "REP-1", "eligible": True},
+            {"issue_identifier": "REP-2", "eligible": False},
+        ],
+        "summary": {"eligible_count": 1},
+    }
+
+    raw_response = json.dumps(
+        {
+            "schema_version": 1,
+            "waves": [
+                {
+                    "name": "wave-1",
+                    "issues": [
+                        {"issue_identifier": "REP-2", "rationale": "should stay deferred"},
+                    ],
+                }
+            ],
+            "deferred": [
+                {"issue_identifier": "REP-1", "reason": "eligible work is deferred"},
+            ],
+            "risk_notes": [],
+        }
+    )
+
+    with pytest.raises(SequenceValidationError, match="must remain deferred"):
+        normalize_sequence_response(raw_response, evaluation, schema_version=1)
+
+
 def test_normalize_sequence_response_rejects_missing_waves():
     from autonomy_sequence import SequenceValidationError, normalize_sequence_response
 
@@ -142,3 +175,75 @@ def test_write_sequence_artifacts_persists_latest_pointer(tmp_path: Path):
     assert latest["artifacts"]["canonical_path"] == result["artifacts"]["canonical_path"]
     assert json.loads(Path(result["artifacts"]["canonical_path"]).read_text()) == latest
     assert Path(result["artifacts"]["prompt_path"]).read_text() == "prompt text"
+
+
+def test_main_preserves_prompt_raw_and_error_artifacts_on_validation_failure(tmp_path: Path, capsys):
+    from autonomy_sequence import main
+
+    template_path = tmp_path / "autonomy-sequence.md"
+    template_path.write_text(
+        """Sequencing policy
+Schema version: {{SCHEMA_VERSION}}
+
+Candidate evaluation:
+{{CANDIDATE_EVALUATION_JSON}}
+""",
+        encoding="utf-8",
+    )
+
+    evaluation_json = json.dumps(
+        {
+            "items": [
+                {"issue_identifier": "REP-1", "eligible": True},
+                {"issue_identifier": "REP-2", "eligible": False},
+            ],
+            "summary": {"eligible_count": 1},
+        }
+    )
+    raw_response = json.dumps(
+        {
+            "schema_version": 1,
+            "waves": [
+                {"name": "wave-1", "issues": [{"issue_identifier": "REP-2"}]}
+            ],
+            "deferred": [{"issue_identifier": "REP-1"}],
+            "risk_notes": [],
+        }
+    )
+    output_dir = tmp_path / "sequences"
+
+    exit_code = main(
+        [
+            "finalize",
+            "--template-file",
+            str(template_path),
+            "--evaluation-json",
+            evaluation_json,
+            "--raw-response",
+            raw_response,
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "Sequencing validation failed:" in captured.err
+    assert "Traceback" not in captured.err
+
+    latest_path = output_dir / "latest.json"
+    latest = json.loads(latest_path.read_text())
+    assert latest["status"] == "error"
+    assert "must remain deferred" in latest["error"]["message"]
+
+    prompt_path = Path(latest["artifacts"]["prompt_path"])
+    raw_path = Path(latest["artifacts"]["raw_response_path"])
+    error_path = Path(latest["artifacts"]["error_path"])
+
+    assert prompt_path.exists()
+    assert raw_path.exists()
+    assert error_path.exists()
+    assert "canonical_path" not in latest["artifacts"]
+    assert "REP-2" in prompt_path.read_text()
+    assert raw_path.read_text().strip() == raw_response

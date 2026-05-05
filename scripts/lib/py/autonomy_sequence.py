@@ -70,6 +70,15 @@ def _evaluation_items(evaluation: dict[str, Any]) -> list[dict[str, Any]]:
     return [item for item in items if isinstance(item, dict)]
 
 
+def _evaluation_lookup(evaluation: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    lookup: dict[str, dict[str, Any]] = {}
+    for item in _evaluation_items(evaluation):
+        issue_id = str(item.get("issue_identifier") or item.get("identifier") or "").strip()
+        if issue_id and issue_id not in lookup:
+            lookup[issue_id] = item
+    return lookup
+
+
 def _evaluation_issue_ids(evaluation: dict[str, Any]) -> list[str]:
     issue_ids: list[str] = []
     seen: set[str] = set()
@@ -127,6 +136,7 @@ def normalize_sequence_response(
     schema_version: int = SCHEMA_VERSION,
 ) -> dict[str, Any]:
     evaluation_map = _as_mapping(evaluation)
+    evaluation_lookup = _evaluation_lookup(evaluation_map)
     evaluation_ids = _evaluation_issue_ids(evaluation_map)
     allowed_issue_ids = set(evaluation_ids)
 
@@ -173,6 +183,10 @@ def normalize_sequence_response(
                 raise SequenceValidationError(
                     f"wave {wave_index} references {issue_identifier}, which was not present in the candidate evaluation"
                 )
+            if evaluation_lookup.get(issue_identifier, {}).get("eligible") is not True:
+                raise SequenceValidationError(
+                    f"wave {wave_index} references {issue_identifier}, which is ineligible in the candidate evaluation and must remain deferred"
+                )
             if issue_identifier in seen_issue_ids:
                 raise SequenceValidationError(f"issue {issue_identifier} appears in more than one wave or deferred entry")
             seen_issue_ids.add(issue_identifier)
@@ -212,6 +226,18 @@ def normalize_sequence_response(
     }
 
 
+def _sequence_artifact_paths(output_dir: Path | str) -> dict[str, Path]:
+    output_path = Path(output_dir)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return {
+        "prompt_path": output_path / f"{timestamp}-prompt.md",
+        "raw_response_path": output_path / f"{timestamp}-raw.txt",
+        "canonical_path": output_path / f"{timestamp}-canonical.json",
+        "error_path": output_path / f"{timestamp}-error.json",
+        "latest_path": output_path / "latest.json",
+    }
+
+
 def write_sequence_artifacts(
     output_dir: Path | str,
     *,
@@ -219,33 +245,64 @@ def write_sequence_artifacts(
     raw_response_text: str,
     canonical: dict[str, Any],
 ) -> dict[str, Any]:
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    prompt_path = output_path / f"{timestamp}-prompt.md"
-    raw_response_path = output_path / f"{timestamp}-raw.txt"
-    canonical_path = output_path / f"{timestamp}-canonical.json"
-    latest_path = output_path / "latest.json"
+    paths = _sequence_artifact_paths(output_dir)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     artifacts = {
-        "prompt_path": str(prompt_path),
-        "raw_response_path": str(raw_response_path),
-        "canonical_path": str(canonical_path),
-        "latest_path": str(latest_path),
+        "prompt_path": str(paths["prompt_path"]),
+        "raw_response_path": str(paths["raw_response_path"]),
+        "canonical_path": str(paths["canonical_path"]),
+        "latest_path": str(paths["latest_path"]),
     }
 
     canonical_with_artifacts = dict(canonical)
     canonical_with_artifacts["artifacts"] = artifacts
 
-    prompt_path.write_text(prompt_text, encoding="utf-8")
-    raw_response_path.write_text(raw_response_text.rstrip() + "\n", encoding="utf-8")
+    paths["prompt_path"].write_text(prompt_text, encoding="utf-8")
+    paths["raw_response_path"].write_text(raw_response_text.rstrip() + "\n", encoding="utf-8")
 
     rendered = json.dumps(canonical_with_artifacts, indent=2, sort_keys=True)
-    canonical_path.write_text(rendered + "\n", encoding="utf-8")
-    latest_path.write_text(rendered + "\n", encoding="utf-8")
+    paths["canonical_path"].write_text(rendered + "\n", encoding="utf-8")
+    paths["latest_path"].write_text(rendered + "\n", encoding="utf-8")
 
     return canonical_with_artifacts
+
+
+def write_sequence_error_artifacts(
+    output_dir: Path | str,
+    *,
+    prompt_text: str,
+    raw_response_text: str,
+    error: SequenceValidationError,
+) -> dict[str, Any]:
+    paths = _sequence_artifact_paths(output_dir)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    artifacts = {
+        "prompt_path": str(paths["prompt_path"]),
+        "raw_response_path": str(paths["raw_response_path"]),
+        "error_path": str(paths["error_path"]),
+        "latest_path": str(paths["latest_path"]),
+    }
+
+    error_payload = {
+        "schema_version": SCHEMA_VERSION,
+        "status": "error",
+        "error": {
+            "type": type(error).__name__,
+            "message": str(error),
+        },
+        "artifacts": artifacts,
+    }
+
+    paths["prompt_path"].write_text(prompt_text, encoding="utf-8")
+    paths["raw_response_path"].write_text(raw_response_text.rstrip() + "\n", encoding="utf-8")
+
+    rendered = json.dumps(error_payload, indent=2, sort_keys=True)
+    paths["error_path"].write_text(rendered + "\n", encoding="utf-8")
+    paths["latest_path"].write_text(rendered + "\n", encoding="utf-8")
+
+    return error_payload
 
 
 def _parse_json_argument(value: str, *, label: str) -> dict[str, Any]:
@@ -280,7 +337,19 @@ def main(argv: list[str] | None = None) -> int:
         template_text = load_prompt_template(args.template_file)
         evaluation = _parse_json_argument(args.evaluation_json, label="candidate evaluation")
         prompt_text = render_sequence_prompt(template_text, evaluation, schema_version=args.schema_version)
-        canonical = normalize_sequence_response(args.raw_response, evaluation, schema_version=args.schema_version)
+        try:
+            canonical = normalize_sequence_response(args.raw_response, evaluation, schema_version=args.schema_version)
+        except SequenceValidationError as exc:
+            written = write_sequence_error_artifacts(
+                args.output_dir,
+                prompt_text=prompt_text,
+                raw_response_text=args.raw_response,
+                error=exc,
+            )
+            print(f"Sequencing validation failed: {exc}", file=sys.stderr)
+            print(json.dumps(written, indent=2, sort_keys=True), file=sys.stderr)
+            return 1
+
         written = write_sequence_artifacts(
             args.output_dir,
             prompt_text=prompt_text,
