@@ -21,6 +21,19 @@ FAILED_RUN_STATES = {"failed", "error", "canceled"}
 SYNC_ERROR_STATES = {"released", "stale", "canceled", "failed", "error"}
 
 
+def _claim_sync_error(item: dict[str, Any]) -> str | None:
+    state_error = item.get("linear_state_sync_error")
+    assignment_error = item.get("linear_assignment_sync_error")
+    sync_error = item.get("linear_sync_error")
+    if state_error:
+        return str(state_error)
+    if assignment_error:
+        return str(assignment_error)
+    if sync_error:
+        return str(sync_error)
+    return None
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace(
         "+00:00", "Z"
@@ -79,7 +92,7 @@ def _status_recent_errors(
 
     for item in items:
         retry_reason = item.get("retry_reason")
-        sync_error = item.get("linear_sync_error")
+        sync_error = _claim_sync_error(item)
         last_error = item.get("last_error")
         if sync_error:
             errors.append(
@@ -188,6 +201,9 @@ class AutonomyStore:
                     "last_error": "TEXT",
                     "last_error_at": "TEXT",
                     "linear_synced_at": "TEXT",
+                    "linear_assignment_owned": "INTEGER NOT NULL DEFAULT 0",
+                    "linear_state_sync_error": "TEXT",
+                    "linear_assignment_sync_error": "TEXT",
                     "linear_sync_error": "TEXT",
                 },
             )
@@ -247,6 +263,9 @@ class AutonomyStore:
                 "last_error": None,
                 "last_error_at": None,
                 "linear_synced_at": None,
+                "linear_assignment_owned": 0,
+                "linear_state_sync_error": None,
+                "linear_assignment_sync_error": None,
                 "linear_sync_error": None,
                 "last_observed_issue_state_name": issue_state_name,
                 "last_observed_issue_state_type": issue_state_type,
@@ -262,13 +281,17 @@ class AutonomyStore:
                     INSERT INTO claims (
                         issue_id, issue_identifier, claim_state, workspace_path, phase,
                         attempt_count, retry_state, retry_after, retry_reason, canceled_at,
-                        last_error, last_error_at, linear_synced_at, linear_sync_error,
+                        last_error, last_error_at, linear_synced_at,
+                        linear_assignment_owned, linear_state_sync_error,
+                        linear_assignment_sync_error, linear_sync_error,
                         last_observed_issue_state_name, last_observed_issue_state_type,
                         claimed_by, claimed_at, updated_at, released_at
                     ) VALUES (
                         :issue_id, :issue_identifier, :claim_state, :workspace_path, :phase,
                         :attempt_count, :retry_state, :retry_after, :retry_reason, :canceled_at,
-                        :last_error, :last_error_at, :linear_synced_at, :linear_sync_error,
+                        :last_error, :last_error_at, :linear_synced_at,
+                        :linear_assignment_owned, :linear_state_sync_error,
+                        :linear_assignment_sync_error, :linear_sync_error,
                         :last_observed_issue_state_name, :last_observed_issue_state_type,
                         :claimed_by, :claimed_at, :updated_at, :released_at
                     )
@@ -291,6 +314,9 @@ class AutonomyStore:
                         last_error = :last_error,
                         last_error_at = :last_error_at,
                         linear_synced_at = :linear_synced_at,
+                        linear_assignment_owned = :linear_assignment_owned,
+                        linear_state_sync_error = :linear_state_sync_error,
+                        linear_assignment_sync_error = :linear_assignment_sync_error,
                         linear_sync_error = :linear_sync_error,
                         last_observed_issue_state_name = :last_observed_issue_state_name,
                         last_observed_issue_state_type = :last_observed_issue_state_type,
@@ -371,6 +397,9 @@ class AutonomyStore:
                     last_error = NULL,
                     last_error_at = NULL,
                     canceled_at = NULL,
+                    linear_assignment_owned = 0,
+                    linear_state_sync_error = NULL,
+                    linear_assignment_sync_error = NULL,
                     linear_sync_error = NULL,
                     linear_synced_at = NULL,
                     released_at = ?,
@@ -392,8 +421,10 @@ class AutonomyStore:
         self,
         issue_identifier: str,
         *,
+        kind: str = "state",
         ok: bool,
         error: str | None = None,
+        assignment_owned: bool | None = None,
     ) -> dict[str, Any]:
         now = _now()
         with self._connect() as conn:
@@ -401,15 +432,40 @@ class AutonomyStore:
             existing = self._claim_row(conn, issue_identifier)
             if existing is None:
                 raise ValueError(f"unknown claim: {issue_identifier}")
+            state_error = existing["linear_state_sync_error"]
+            assignment_error = existing["linear_assignment_sync_error"]
+            owned = int(existing["linear_assignment_owned"] or 0)
+
+            if kind == "state":
+                state_error = None if ok else (error or "sync failed")
+            elif kind == "assignment":
+                assignment_error = None if ok else (error or "sync failed")
+                if assignment_owned is not None and ok:
+                    owned = 1 if assignment_owned else 0
+            else:
+                raise ValueError(f"unknown sync kind: {kind}")
+
+            sync_error = state_error or assignment_error
             conn.execute(
                 """
                 UPDATE claims SET
                     linear_synced_at = ?,
+                    linear_assignment_owned = ?,
+                    linear_state_sync_error = ?,
+                    linear_assignment_sync_error = ?,
                     linear_sync_error = ?,
                     updated_at = ?
                 WHERE issue_identifier = ?
                 """,
-                (now, None if ok else error or "sync failed", now, issue_identifier),
+                (
+                    now,
+                    owned,
+                    state_error,
+                    assignment_error,
+                    sync_error,
+                    now,
+                    issue_identifier,
+                ),
             )
             claim = self._claim_dict(conn, issue_identifier)
             assert claim is not None
@@ -600,21 +656,22 @@ class AutonomyStore:
                     item
                     for item in all_items_dict
                     if item.get("claim_state") not in {"released", "canceled"}
+                    or _claim_sync_error(item)
                 ]
             )
-            visible_items = all_items_dict if all_claims else items_dict
             runs_dict = [dict(row) for row in runs]
+            summary_items = all_items_dict
             return {
                 "items": items_dict,
                 "runs": runs_dict,
                 "summary": {
-                    "claim_states": _count_by_state(visible_items),
+                    "claim_states": _count_by_state(summary_items),
                     "active_runs": sum(1 for run in runs_dict if run.get("state") == "running"),
-                    "stale_claims": sum(1 for item in visible_items if item.get("claim_state") == "stale"),
+                    "stale_claims": sum(1 for item in summary_items if item.get("claim_state") == "stale"),
                     "failed_runs": sum(1 for run in runs_dict if run.get("state") in FAILED_RUN_STATES),
-                    "sync_errors": sum(1 for item in visible_items if item.get("linear_sync_error")),
+                    "sync_errors": sum(1 for item in summary_items if item.get("linear_sync_error")),
                 },
-                "recent_errors": _status_recent_errors(visible_items, runs_dict),
+                "recent_errors": _status_recent_errors(summary_items, runs_dict),
                 "generated_at": _now(),
             }
 
@@ -759,8 +816,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sync = subparsers.add_parser("sync")
     sync.add_argument("issue_identifier")
+    sync.add_argument("--kind", default="state")
     sync.add_argument("--ok", action="store_true")
     sync.add_argument("--error")
+    sync.add_argument("--assignment-owned")
 
     reconcile = subparsers.add_parser("reconcile")
     reconcile.add_argument("issue_identifier", nargs="?")
@@ -849,8 +908,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "sync":
             result = store.record_sync(
                 args.issue_identifier,
+                kind=args.kind,
                 ok=args.ok,
                 error=args.error,
+                assignment_owned=None if args.assignment_owned is None else args.assignment_owned == "true",
             )
             if args.json:
                 _json_dump({"claim": result})

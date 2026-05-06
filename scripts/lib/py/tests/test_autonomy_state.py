@@ -237,7 +237,16 @@ def test_legacy_claim_schema_is_migrated_in_place(tmp_path: Path):
     with sqlite3.connect(db_path) as conn:
         columns = {row[1] for row in conn.execute("PRAGMA table_info(claims)")}
 
-    assert {"canceled_at", "last_error", "last_error_at", "linear_synced_at", "linear_sync_error"} <= columns
+    assert {
+        "canceled_at",
+        "last_error",
+        "last_error_at",
+        "linear_assignment_owned",
+        "linear_assignment_sync_error",
+        "linear_state_sync_error",
+        "linear_synced_at",
+        "linear_sync_error",
+    } <= columns
     assert status["items"][0]["issue_identifier"] == "REP-1094"
     assert status["summary"]["claim_states"]["claimed"] == 1
     assert status["generated_at"]
@@ -268,6 +277,91 @@ def test_status_summary_and_recent_errors_include_failures(tmp_path: Path):
     assert status["items"][0]["claim_state"] == "failed"
     assert status["items"][0]["last_error"] == "boom"
     assert status["items"][0]["linear_sync_error"] == "linear sync failed"
+
+
+def test_record_sync_preserves_other_kind_errors(tmp_path: Path):
+    store = _store(tmp_path)
+    workspace = _workspace(tmp_path)
+
+    store.claim(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        phase="observe",
+        issue_state_name="In Progress",
+        issue_state_type="started",
+    )
+
+    store.record_sync("REP-1094", kind="state", ok=False, error="state sync failed")
+    store.record_sync(
+        "REP-1094",
+        kind="assignment",
+        ok=True,
+        assignment_owned=True,
+    )
+
+    status = store.status()
+
+    assert status["items"][0]["linear_state_sync_error"] == "state sync failed"
+    assert status["items"][0]["linear_assignment_sync_error"] is None
+    assert status["items"][0]["linear_assignment_owned"] == 1
+    assert status["items"][0]["linear_sync_error"] == "state sync failed"
+
+    store.record_sync("REP-1094", kind="assignment", ok=False, error="assignment sync failed")
+    store.record_sync("REP-1094", kind="state", ok=True)
+
+    status = store.status()
+
+    assert status["items"][0]["linear_state_sync_error"] is None
+    assert status["items"][0]["linear_assignment_sync_error"] == "assignment sync failed"
+    assert status["items"][0]["linear_sync_error"] == "assignment sync failed"
+
+
+def test_terminal_sync_failure_remains_visible_in_default_status(tmp_path: Path):
+    store = _store(tmp_path)
+    workspace = _workspace(tmp_path)
+
+    store.claim(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        phase="observe",
+        issue_state_name="In Progress",
+        issue_state_type="started",
+    )
+    store.release("REP-1094", reason="manual stop")
+    store.record_sync("REP-1094", kind="assignment", ok=False, error="clear failed")
+
+    status = store.status()
+
+    assert status["items"]
+    assert status["items"][0]["claim_state"] == "released"
+    assert status["items"][0]["linear_sync_error"] == "clear failed"
+    assert any(error["kind"] == "sync" for error in status["recent_errors"])
+
+
+def test_terminal_claim_sync_errors_remain_visible(tmp_path: Path):
+    store = _store(tmp_path)
+    workspace = _workspace(tmp_path)
+
+    store.claim(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        phase="observe",
+        issue_state_name="In Progress",
+        issue_state_type="started",
+    )
+    store.cancel("REP-1094", reason="manual stop")
+    store.record_sync("REP-1094", ok=False, error="linear sync failed")
+
+    status = store.status()
+
+    assert status["items"]
+    assert status["items"][0]["claim_state"] == "canceled"
+    assert status["items"][0]["linear_sync_error"] == "linear sync failed"
+    assert status["summary"]["sync_errors"] == 1
+    assert any(error["kind"] == "sync" for error in status["recent_errors"])
 
 
 def test_cancel_and_retry_update_claim_state(tmp_path: Path):

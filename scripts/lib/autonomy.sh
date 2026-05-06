@@ -213,14 +213,40 @@ PY
 
 _autonomy_record_sync() {
   local issue_identifier="$1"
-  local ok="$2"
-  local error_text="${3:-}"
+  local kind="$2"
+  local ok="$3"
+  local error_text="${4:-}"
+  local assignment_owned="${5:-}"
 
   if [[ "$ok" == true ]]; then
-    REPROCTL_JSON=true _autonomy_py sync "$issue_identifier" --ok >/dev/null
+    if [[ "$kind" == assignment ]]; then
+      REPROCTL_JSON=true _autonomy_py sync "$issue_identifier" --kind "$kind" --ok --assignment-owned "${assignment_owned:-false}" >/dev/null
+    else
+      REPROCTL_JSON=true _autonomy_py sync "$issue_identifier" --kind "$kind" --ok >/dev/null
+    fi
   else
-    REPROCTL_JSON=true _autonomy_py sync "$issue_identifier" --error "$error_text" >/dev/null
+    REPROCTL_JSON=true _autonomy_py sync "$issue_identifier" --kind "$kind" --error "$error_text" >/dev/null
   fi
+}
+
+_autonomy_claim_assignment_owned() {
+  local issue_identifier="$1"
+  local active_claim owned
+
+  if ! active_claim="$(_autonomy_active_claim "$issue_identifier")"; then
+    printf 'false\n'
+    return 0
+  fi
+
+  owned="$(python3 - <<'PY' "$active_claim"
+import json
+import sys
+
+claim = json.loads(sys.argv[1])
+print(str(bool(claim.get('linear_assignment_owned'))).lower())
+PY
+)"
+  printf '%s\n' "$owned"
 }
 
 _autonomy_validate_issue_identifier() {
@@ -250,7 +276,7 @@ _autonomy_linear_set_state() {
 
   local state_info issue_uuid current_state_name current_state_type target_state_id
   state_info="$(_autonomy_linear_issue_state_info "$issue_identifier" "$target_state_name")" || {
-    _autonomy_record_sync "$issue_identifier" false "failed to resolve Linear metadata"
+    _autonomy_record_sync "$issue_identifier" state false "failed to resolve Linear metadata"
     return 1
   }
 
@@ -262,27 +288,27 @@ _autonomy_linear_set_state() {
   case "$current_state_type" in
     completed|canceled|closed|done)
       if [[ "$allow_terminal" != true ]]; then
-        _autonomy_record_sync "$issue_identifier" false "Linear issue is terminal: $current_state_name"
+        _autonomy_record_sync "$issue_identifier" state false "Linear issue is terminal: $current_state_name"
         return 1
       fi
-      _autonomy_record_sync "$issue_identifier" true
+      _autonomy_record_sync "$issue_identifier" state true
       return 0
       ;;
   esac
 
   if [[ -z "$target_state_id" ]]; then
-    _autonomy_record_sync "$issue_identifier" false "missing Linear state: $target_state_name"
+    _autonomy_record_sync "$issue_identifier" state false "missing Linear state: $target_state_name"
     return 1
   fi
 
   local mutation
   mutation="mutation { issueUpdate(id: \"$issue_uuid\", input: { stateId: \"$target_state_id\" }) { issue { id identifier } } }"
   if _linear_api "$mutation" >/dev/null; then
-    _autonomy_record_sync "$issue_identifier" true
+    _autonomy_record_sync "$issue_identifier" state true
     return 0
   fi
 
-  _autonomy_record_sync "$issue_identifier" false "failed to update Linear state to $target_state_name"
+  _autonomy_record_sync "$issue_identifier" state false "failed to update Linear state to $target_state_name"
 }
 
 _autonomy_linear_sync_assignment() {
@@ -296,7 +322,7 @@ _autonomy_linear_sync_assignment() {
   issue_number="${issue_identifier##*-}"
   query="{ issues(filter: { number: { eq: ${issue_number} }, team: { key: { eq: \"${team_key}\" } } }, first: 1) { nodes { id identifier state { name type } assignee { id } } } }"
   response="$(_linear_api "$query")" || {
-    _autonomy_record_sync "$issue_identifier" false "failed to resolve Linear metadata"
+    _autonomy_record_sync "$issue_identifier" assignment false "failed to resolve Linear metadata"
     return 1
   }
 
@@ -312,7 +338,8 @@ if not nodes:
 
 node = nodes[0]
 print(node.get('id', ''))
-print(node.get('assignee', {}).get('id', ''))
+assignee = node.get('assignee') or {}
+print(assignee.get('id', ''))
 PY
 )"
   assignee_id="$(sed -n '2p' <<< "$issue_uuid")"
@@ -321,7 +348,7 @@ PY
   case "$action" in
     assign)
       viewer_id="$(_autonomy_linear_viewer_id)" || {
-        _autonomy_record_sync "$issue_identifier" false "failed to resolve automation viewer"
+        _autonomy_record_sync "$issue_identifier" assignment false "failed to resolve automation viewer"
         return 1
       }
       if [[ -n "$assignee_id" && "$assignee_id" != "$viewer_id" ]]; then
@@ -331,25 +358,25 @@ PY
         return 0
       fi
       if _linear_api "mutation { issueUpdate(id: \"$issue_uuid\", input: { assigneeId: \"$viewer_id\" }) { issue { id identifier } } }" >/dev/null; then
-        _autonomy_record_sync "$issue_identifier" true
+        _autonomy_record_sync "$issue_identifier" assignment true "" true
         return 0
       fi
-      _autonomy_record_sync "$issue_identifier" false "failed to assign automation viewer"
+      _autonomy_record_sync "$issue_identifier" assignment false "failed to assign automation viewer"
       return 1
       ;;
     clear)
       viewer_id="$(_autonomy_linear_viewer_id)" || {
-        _autonomy_record_sync "$issue_identifier" false "failed to resolve automation viewer"
+        _autonomy_record_sync "$issue_identifier" assignment false "failed to resolve automation viewer"
         return 1
       }
       if [[ -n "$assignee_id" && "$assignee_id" != "$viewer_id" ]]; then
         return 0
       fi
       if _linear_api "mutation { issueUpdate(id: \"$issue_uuid\", input: { assigneeId: null }) { issue { id identifier } } }" >/dev/null; then
-        _autonomy_record_sync "$issue_identifier" true
+        _autonomy_record_sync "$issue_identifier" assignment true "" false
         return 0
       fi
-      _autonomy_record_sync "$issue_identifier" false "failed to clear Linear assignee"
+      _autonomy_record_sync "$issue_identifier" assignment false "failed to clear Linear assignee"
       return 1
       ;;
     *)
@@ -490,9 +517,9 @@ cmd_autonomy() {
       claim_json="$(REPROCTL_JSON=true _autonomy_py "${claim_args[@]}")" || return 1
 
       if [[ "$WT_ISSUE_LINEAR_SYNCED" == true ]]; then
-        _autonomy_record_sync "$WT_ISSUE_IDENTIFIER" true
+        _autonomy_record_sync "$WT_ISSUE_IDENTIFIER" state true
       elif [[ -n "$WT_ISSUE_LINEAR_SYNC_ERROR" ]]; then
-        _autonomy_record_sync "$WT_ISSUE_IDENTIFIER" false "$WT_ISSUE_LINEAR_SYNC_ERROR"
+        _autonomy_record_sync "$WT_ISSUE_IDENTIFIER" state false "$WT_ISSUE_LINEAR_SYNC_ERROR"
       fi
 
       _autonomy_linear_sync_assignment "$WT_ISSUE_IDENTIFIER" assign || true
@@ -524,13 +551,17 @@ cmd_autonomy() {
         esac
       done
       [[ -n "$issue_identifier" ]] || die "Missing issue identifier"
+      local assignment_owned
+      assignment_owned="$(_autonomy_claim_assignment_owned "$issue_identifier")"
       if [[ -n "$reason" ]]; then
         _autonomy_py release "$issue_identifier" --reason "$reason"
       else
         _autonomy_py release "$issue_identifier"
       fi
       _autonomy_linear_set_state "$issue_identifier" "Todo"
-      _autonomy_linear_sync_assignment "$issue_identifier" clear || true
+      if [[ "$assignment_owned" == true ]]; then
+        _autonomy_linear_sync_assignment "$issue_identifier" clear || true
+      fi
       ;;
 
     cancel)
@@ -549,13 +580,17 @@ cmd_autonomy() {
         esac
       done
       [[ -n "$issue_identifier" ]] || die "Missing issue identifier"
+      local assignment_owned
+      assignment_owned="$(_autonomy_claim_assignment_owned "$issue_identifier")"
       if [[ -n "$reason" ]]; then
         _autonomy_py cancel "$issue_identifier" --reason "$reason"
       else
         _autonomy_py cancel "$issue_identifier"
       fi
       _autonomy_linear_set_state "$issue_identifier" "Todo"
-      _autonomy_linear_sync_assignment "$issue_identifier" clear || true
+      if [[ "$assignment_owned" == true ]]; then
+        _autonomy_linear_sync_assignment "$issue_identifier" clear || true
+      fi
       ;;
 
     retry)
@@ -579,7 +614,7 @@ cmd_autonomy() {
 
       local state_info current_state_name current_state_type
       state_info="$(_autonomy_linear_issue_state_info "$issue_identifier" "In Progress")" || {
-        _autonomy_record_sync "$issue_identifier" false "failed to resolve Linear metadata"
+        _autonomy_record_sync "$issue_identifier" state false "failed to resolve Linear metadata"
         return 1
       }
       current_state_name="$(sed -n '2p' <<< "$state_info")"
@@ -588,7 +623,7 @@ cmd_autonomy() {
       case "$current_state_type" in
         completed|canceled|closed|done)
           _autonomy_py reconcile "$issue_identifier" --issue-state-type "$current_state_type"
-          _autonomy_record_sync "$issue_identifier" false "Linear issue is terminal: $current_state_name"
+          _autonomy_record_sync "$issue_identifier" state false "Linear issue is terminal: $current_state_name"
           return 1
           ;;
       esac
