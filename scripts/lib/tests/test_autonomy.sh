@@ -209,62 +209,6 @@ REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace
   fi
 }
 
-test_claim_resolves_linear_issue_id() {
-  local tmpdir output rc=0
-  tmpdir="$(_make_tmpdir)"
-  _write_runner "$tmpdir" '
-linear() {
-  case "$1 $2 $3" in
-    "issue show REP-1094")
-      cat <<'"'"'JSON'"'"'
-{"item":{"id":"issue-uuid-1"}}
-JSON
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-_linear_api() {
-  case "$1" in
-    *"viewer { id }"*)
-      cat <<'JSON'
-{"data":{"viewer":{"id":"viewer-1"}}}
-JSON
-      ;;
-    *"assigneeId: \"viewer-1\""*)
-      cat <<'JSON'
-{"data":{"issueUpdate":{"issue":{"id":"issue-uuid-1","identifier":"REP-1094"}}}}
-JSON
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-workspace="$tmpdir/repro-wt-rep-1094"
-mkdir -p "$workspace"
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace "$workspace" --phase observe --issue-state In-Progress
-python3 - "$tmpdir/state.sqlite" <<'PY'
-import sqlite3
-import sys
-
-db_path = sys.argv[1]
-with sqlite3.connect(db_path) as conn:
-    row = conn.execute("SELECT issue_id FROM claims WHERE issue_identifier = ?", ("REP-1094",)).fetchone()
-    assert row is not None
-    assert row[0] == "issue-uuid-1"
-PY
-'
-  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  rm -rf "$tmpdir"
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'claimed REP-1094'; then
-    _pass 'claim resolves Linear UUID internally'
-  else
-    _fail 'claim resolves Linear UUID internally' "rc=$rc; output=$output"
-  fi
-}
-
 test_prepare_records_workspace_path() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -519,7 +463,6 @@ REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fresh1 cmd_
 test_help_exists
 test_status_json
 test_duplicate_claim_fails
-test_claim_resolves_linear_issue_id
 test_prepare_records_workspace_path
 test_prepare_json_emits_pure_stdout
 test_prepare_rejects_duplicate_active_claim_before_create

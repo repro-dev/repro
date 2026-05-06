@@ -303,7 +303,7 @@ _autonomy_linear_set_state() {
 
   local mutation
   mutation="mutation { issueUpdate(id: \"$issue_uuid\", input: { stateId: \"$target_state_id\" }) { issue { id identifier } } }"
-  if _linear_api "$mutation" >/dev/null; then
+  if _linear_api_try "$mutation" >/dev/null; then
     _autonomy_record_sync "$issue_identifier" state true
     return 0
   fi
@@ -357,7 +357,7 @@ PY
       if [[ "$assignee_id" == "$viewer_id" ]]; then
         return 0
       fi
-      if _linear_api "mutation { issueUpdate(id: \"$issue_uuid\", input: { assigneeId: \"$viewer_id\" }) { issue { id identifier } } }" >/dev/null; then
+      if _linear_api_try "mutation { issueUpdate(id: \"$issue_uuid\", input: { assigneeId: \"$viewer_id\" }) { issue { id identifier } } }" >/dev/null; then
         _autonomy_record_sync "$issue_identifier" assignment true "" true
         return 0
       fi
@@ -372,7 +372,7 @@ PY
       if [[ -n "$assignee_id" && "$assignee_id" != "$viewer_id" ]]; then
         return 0
       fi
-      if _linear_api "mutation { issueUpdate(id: \"$issue_uuid\", input: { assigneeId: null }) { issue { id identifier } } }" >/dev/null; then
+      if _linear_api_try "mutation { issueUpdate(id: \"$issue_uuid\", input: { assigneeId: null }) { issue { id identifier } } }" >/dev/null; then
         _autonomy_record_sync "$issue_identifier" assignment true "" false
         return 0
       fi
@@ -638,7 +638,10 @@ cmd_autonomy() {
       _autonomy_linear_sync_assignment "$issue_identifier" assign || true
       local prepare_args=(prepare "$issue_identifier" --phase "$phase")
       [[ -n "$claimed_by" ]] && prepare_args+=(--claimed-by "$claimed_by")
-      cmd_autonomy "${prepare_args[@]}"
+      if ! cmd_autonomy "${prepare_args[@]}"; then
+        _autonomy_record_sync "$issue_identifier" state false "failed to prepare retry workspace"
+        return 1
+      fi
       ;;
 
     reconcile)

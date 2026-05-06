@@ -117,6 +117,82 @@ REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy release REP-1094 --reason 
   _fail 'cmd_autonomy claim/release sync assignment ownership' "rc=$rc; output=$output"
 }
 
+test_release_records_state_mutation_failure_without_exiting() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+mkdir -p "$tmpdir/workspace"
+linear() {
+  case "$1 $2 $3" in
+    "issue show REP-1094")
+      cat <<'"'"'JSON'"'"'
+{"item":{"id":"issue-uuid-1"}}
+JSON
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+_linear_api() {
+  case "$1" in
+    *"viewer { id }"*)
+      cat <<'JSON'
+{"data":{"viewer":{"id":"viewer-1"}}}
+JSON
+      ;;
+    *"issues(filter:"*)
+      cat <<'JSON'
+{"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1094","state":{"name":"In Progress","type":"started"},"team":{"states":{"nodes":[{"id":"todo-state-id-fail","name":"Todo","type":"todo"},{"id":"in-progress-state-id","name":"In Progress","type":"started"}]}}}]}}}
+JSON
+      ;;
+    *"stateId:"*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+_linear_api_try() {
+  case "$1" in
+    *"todo-state-id-fail"*)
+      return 1
+      ;;
+    *)
+      _linear_api "$1"
+      ;;
+  esac
+}
+
+REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace "$tmpdir/workspace" --phase observe --issue-state In-Progress >/dev/null
+REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy release REP-1094 --reason done
+'
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && python3 - "$tmpdir/state.sqlite" <<'PY'
+import sqlite3
+import sys
+
+db_path = sys.argv[1]
+with sqlite3.connect(db_path) as conn:
+    row = conn.execute(
+        'SELECT linear_state_sync_error, linear_sync_error FROM claims WHERE issue_identifier = ?',
+        ('REP-1094',),
+    ).fetchone()
+
+assert row is not None and row[0] == 'failed to update Linear state to Todo' and row[1] == 'failed to update Linear state to Todo', row
+PY
+  then
+    rm -rf "$tmpdir"
+    _pass 'cmd_autonomy release records state mutation failure without exiting'
+  else
+    rm -rf "$tmpdir"
+    _fail 'cmd_autonomy release records state mutation failure without exiting' "rc=$rc; output=$output"
+  fi
+}
+
 test_invalid_issue_identifier_fails_before_linear_lookup() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -176,6 +252,7 @@ printf "retry:%s\n" "${COMPREPLY[*]}"
 }
 
 test_claim_and_release_sync_assignment_visibility
+test_release_records_state_mutation_failure_without_exiting
 test_invalid_issue_identifier_fails_before_linear_lookup
 test_completions_show_json_for_control_subcommands
 

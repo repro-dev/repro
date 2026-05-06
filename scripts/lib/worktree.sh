@@ -47,6 +47,27 @@ _linear_api() {
   printf '%s' "$body"
 }
 
+_linear_api_try() {
+  local query="$1"
+  local stdout_file stderr_file rc=0
+
+  stdout_file="$(mktemp)"
+  stderr_file="$(mktemp)"
+
+  if ( _linear_api "$query" ) >"$stdout_file" 2>"$stderr_file"; then
+    cat "$stdout_file"
+    rm -f "$stdout_file" "$stderr_file"
+    return 0
+  fi
+
+  rc=$?
+  if [ -s "$stderr_file" ]; then
+    cat "$stderr_file" >&2
+  fi
+  rm -f "$stdout_file" "$stderr_file"
+  return "$rc"
+}
+
 issue_worktree_suffix() {
   if [[ -n "${REPRO_ISSUE_WORKTREE_SUFFIX:-}" ]]; then
     printf '%s\n' "$REPRO_ISSUE_WORKTREE_SUFFIX"
@@ -204,7 +225,7 @@ _create_issue_worktree_from_metadata() {
       _step 3 3 "Updating ${WT_ISSUE_IDENTIFIER} status to In Progress..."
       local mutation
       mutation="mutation { issueUpdate(id: \"${WT_ISSUE_UUID}\", input: { stateId: \"${WT_ISSUE_IN_PROGRESS_STATE_ID}\" }) { issue { id identifier } } }"
-      if _linear_api "$mutation" > /dev/null; then
+      if _linear_api_try "$mutation" > /dev/null; then
         WT_ISSUE_LINEAR_SYNCED=true
         _ok "Issue ${WT_ISSUE_IDENTIFIER} marked In Progress"
       else
