@@ -51,6 +51,9 @@
     "test": {
       "model": "openai/gpt-5.4-mini"
     },
+    "sequencer": {
+      "model": "openai/gpt-5.4-mini"
+    },
     "release": {
       "model": "openai/gpt-5.4-nano"
     }

@@ -11,6 +11,10 @@ Launch OpenCode, optionally activating a model profile that overrides
 the \f[B]model\f[R] field for each agent without editing the agent
 definition files in \f[B].opencode/agents/\f[R].
 .PP
+If \f[B]REPRO_OPENCODE_PROFILE\f[R] is set, it provides the
+non\-interactive default profile when \f[B]\-\-profile\f[R] is omitted.
+Otherwise, OpenCode falls back to the interactive profile picker.
+.PP
 When \f[B]\-\-profile\f[R] is given, the matching
 \f[B].opencode/profiles/\f[R]_name_\f[B].json\f[R] file is layered on
 top of the tracked project config in \f[B].opencode/opencode.json\f[R]
@@ -18,6 +22,7 @@ and passed to OpenCode via the \f[B]OPENCODE_CONFIG\f[R] environment
 variable.
 OpenCode merges this config with its own defaults, so only the fields
 present in the profile file are overridden.
+The same validation path is used for \f[B]REPRO_OPENCODE_PROFILE\f[R].
 .PP
 On macOS, the launch is wrapped in \f[B]caffeinate \-dims\f[R] to
 prevent display sleep, idle sleep, and disk sleep during long agent
@@ -36,6 +41,11 @@ GLM\-5.1 and MiniMax M2.7 via OpenRouter.
 Activate the profile at
 \f[B].opencode/profiles/\f[R]_name_\f[B].json\f[R].
 Exits with an error if the profile file does not exist.
+.TP
+\f[B]REPRO_OPENCODE_PROFILE\f[R]
+Default profile name used when \f[B]\-\-profile\f[R] is omitted.
+If the selected profile does not exist, OpenCode exits with an error
+listing the available profiles.
 .TP
 \f[B]\-h\f[R], \f[B]\-\-help\f[R]
 Show usage.

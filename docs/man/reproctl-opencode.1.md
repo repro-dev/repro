@@ -16,11 +16,16 @@ Launch OpenCode, optionally activating a model profile that overrides the
 **model** field for each agent without editing the agent definition files in
 **.opencode/agents/**.
 
+If **REPRO_OPENCODE_PROFILE** is set, it provides the non-interactive default
+profile when **--profile** is omitted. Otherwise, OpenCode falls back to the
+interactive profile picker.
+
 When **--profile** is given, the matching **.opencode/profiles/**_name_**.json**
 file is layered on top of the tracked project config in
 **.opencode/opencode.json** and passed to OpenCode via the
 **OPENCODE_CONFIG** environment variable. OpenCode merges this config with its
 own defaults, so only the fields present in the profile file are overridden.
+The same validation path is used for **REPRO_OPENCODE_PROFILE**.
 
 On macOS, the launch is wrapped in **caffeinate -dims** to prevent display
 sleep, idle sleep, and disk sleep during long agent sessions. On other
@@ -35,6 +40,11 @@ The **github-copilot-sonnet** profile documents the canonical model configuratio
 **--profile** _name_
 : Activate the profile at **.opencode/profiles/**_name_**.json**. Exits with an
 error if the profile file does not exist.
+
+**REPRO_OPENCODE_PROFILE**
+: Default profile name used when **--profile** is omitted. If the selected
+profile does not exist, OpenCode exits with an error listing the available
+profiles.
 
 **-h**, **--help**
 : Show usage.
