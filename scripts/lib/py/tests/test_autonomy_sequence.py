@@ -137,7 +137,7 @@ def test_apply_sequence_result_limit_caps_ready_issues_after_sequencing():
     assert [issue["issue_identifier"] for issue in limited["waves"][0]["issues"]] == ["REP-1", "REP-2"]
     assert [issue["issue_identifier"] for issue in limited["waves"][1]["issues"]] == ["REP-3"]
     assert [item["issue_identifier"] for item in limited["deferred"]] == ["REP-5", "REP-4"]
-    assert limited["deferred"][1]["reason"] == "post-sequencing-cap:3"
+    assert limited["deferred"][1]["reason"] == "outside-cap"
 
 
 def test_normalize_sequence_response_accepts_fenced_json():
@@ -176,6 +176,42 @@ def test_normalize_sequence_response_accepts_fenced_json():
     assert canonical["waves"][0]["issues"][0]["issue_identifier"] == "REP-1"
     assert canonical["deferred"][0]["issue_identifier"] == "REP-2"
     assert canonical["risk_notes"] == ["dependency first"]
+
+
+def test_normalize_sequence_response_canonicalizes_cap_reason_variants():
+    from autonomy_sequence import normalize_sequence_response
+
+    evaluation = {
+        "items": [
+            {"issue_identifier": "REP-1", "eligible": True},
+            {"issue_identifier": "REP-2", "eligible": False},
+            {"issue_identifier": "REP-3", "eligible": False},
+        ],
+        "summary": {"eligible_count": 1},
+    }
+
+    raw_response = json.dumps(
+        {
+            "schema_version": 1,
+            "waves": [
+                {
+                    "name": "wave-1",
+                    "issues": [{"issue_identifier": "REP-1", "rationale": "start here"}],
+                    "rationale": "eligible first",
+                }
+            ],
+            "deferred": [
+                {"issue_identifier": "REP-2", "reason": "beyond-cap", "rationale": "held for later"},
+                {"issue_identifier": "REP-3", "reason": "exceeds-cap:5", "rationale": "held for later"},
+            ],
+            "risk_notes": [],
+        }
+    )
+
+    canonical = normalize_sequence_response(raw_response, evaluation, schema_version=1)
+
+    assert [item["reason"] for item in canonical["deferred"]] == ["outside-cap", "outside-cap"]
+    assert [item["rationale"] for item in canonical["deferred"]] == ["held for later", "held for later"]
 
 
 def test_normalize_sequence_response_rejects_ineligible_issue_in_wave():

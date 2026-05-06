@@ -106,7 +106,7 @@ assert canonical['schema_version'] == 1, canonical
 assert canonical['artifacts']['latest_path'] == str(latest), canonical['artifacts']
 assert [issue['issue_identifier'] for issue in canonical['waves'][0]['issues']] == ['REP-1', 'REP-2', 'REP-3', 'REP-4', 'REP-5'], canonical['waves']
 assert canonical['deferred'][0]['issue_identifier'] == 'REP-6', canonical['deferred']
-assert canonical['deferred'][0]['reason'] == 'post-sequencing-cap:5', canonical['deferred']
+assert canonical['deferred'][0]['reason'] == 'outside-cap', canonical['deferred']
 
 args = (tmpdir / 'opencode-args.txt').read_text().strip()
 assert '--agent sequencer' in args, args

@@ -24,6 +24,7 @@ Policy:
 - delegate to `librarian` for external docs or API behavior questions, and delegate to `context-gather` when the issue context is too thin to discover safely.
 - Sequence only eligible issues from the provided candidate evaluation into waves.
 - Keep blocked or deferred issues in the deferred list with a reason and a brief rationale.
+- Use stable canonical reason codes for machine-facing deferred reasons; cap-based deferrals must use `outside-cap`.
 - Keep only the first ready issues up to the requested cap after discovery and sequencing.
 - Use dependency order, file/package overlap, blocker notes, and wave composition.
 - Do not launch agents.
