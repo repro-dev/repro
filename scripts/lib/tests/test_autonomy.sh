@@ -235,6 +235,11 @@ git -C "$tmpdir/repro" push origin "$issue_branch" >/dev/null 2>&1
 WORKSPACE_ROOT="$tmpdir/workspaces"
 _linear_api() {
   case "$1" in
+    *"viewer { id }"*)
+      cat <<'JSON'
+{"data":{"viewer":{"id":"viewer-1"}}}
+JSON
+      ;;
     *"issues(filter:"*)
       cat <<'JSON'
 {"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1095","title":"Prepare isolated workspaces","branchName":"rep-1095-prepare-isolated-workspaces","state":{"name":"In Progress","type":"started"},"team":{"states":{"nodes":[{"id":"state-in-progress","name":"In Progress","type":"started"}]}}}]}}}
@@ -311,6 +316,11 @@ git -C "$tmpdir/repro" push origin "$issue_branch" >/dev/null 2>&1
 WORKSPACE_ROOT="$tmpdir/workspaces"
 _linear_api() {
   case "$1" in
+    *"viewer { id }"*)
+      cat <<'JSON'
+{"data":{"viewer":{"id":"viewer-1"}}}
+JSON
+      ;;
     *"issues(filter:"*)
       cat <<'JSON'
 {"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1095","title":"Prepare isolated workspaces","branchName":"rep-1095-prepare-isolated-workspaces","state":{"name":"In Progress","type":"started"},"team":{"states":{"nodes":[{"id":"state-in-progress","name":"In Progress","type":"started"}]}}}]}}}

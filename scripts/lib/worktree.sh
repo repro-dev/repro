@@ -15,7 +15,8 @@ WT_ISSUE_LINEAR_SYNC_ERROR=""
 _linear_api() {
   local query="$1"
   local _tmpfile http_code body
-  _tmpfile="$(mktemp)"
+  mkdir -p "$MAIN_CHECKOUT/tmp"
+  _tmpfile="$(mktemp "$MAIN_CHECKOUT/tmp/linear-api.XXXXXX")"
 
   http_code="$(curl -sS -o "$_tmpfile" -w '%{http_code}' -X POST \
     -H "Content-Type: application/json" \
@@ -51,8 +52,9 @@ _linear_api_try() {
   local query="$1"
   local stdout_file stderr_file rc=0
 
-  stdout_file="$(mktemp)"
-  stderr_file="$(mktemp)"
+  mkdir -p "$MAIN_CHECKOUT/tmp"
+  stdout_file="$(mktemp "$MAIN_CHECKOUT/tmp/linear-api-stdout.XXXXXX")"
+  stderr_file="$(mktemp "$MAIN_CHECKOUT/tmp/linear-api-stderr.XXXXXX")"
 
   if ( _linear_api "$query" ) >"$stdout_file" 2>"$stderr_file"; then
     cat "$stdout_file"
@@ -362,7 +364,8 @@ _cleanup_worktree_services() {
   current_config="$(cat "$CONFIG_FILE")"
 
   local svc_names svc_err
-  svc_err="$(mktemp)"
+  mkdir -p "$MAIN_CHECKOUT/tmp"
+  svc_err="$(mktemp "$MAIN_CHECKOUT/tmp/worktree-services.XXXXXX")"
   svc_names="$(python3 "$SCRIPTS_DIR/lib/py/worktree_services.py" "$current_config" "$slug" 2>"$svc_err")" || {
     local err_msg
     err_msg="$(cat "$svc_err")"

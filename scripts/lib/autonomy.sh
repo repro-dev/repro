@@ -231,19 +231,25 @@ _autonomy_record_sync() {
 
 _autonomy_claim_assignment_owned() {
   local issue_identifier="$1"
-  local active_claim owned
+  local status_json owned
 
-  if ! active_claim="$(_autonomy_active_claim "$issue_identifier")"; then
+  if ! status_json="$(REPROCTL_JSON=true _autonomy_py status --all)"; then
     printf 'false\n'
     return 0
   fi
 
-  owned="$(python3 - <<'PY' "$active_claim"
+  owned="$(python3 - <<'PY' "$status_json" "$issue_identifier"
 import json
 import sys
 
-claim = json.loads(sys.argv[1])
-print(str(bool(claim.get('linear_assignment_owned'))).lower())
+status = json.loads(sys.argv[1])
+issue_identifier = sys.argv[2]
+for claim in status.get('items', []):
+    if claim.get('issue_identifier') == issue_identifier:
+        print(str(bool(claim.get('linear_assignment_owned'))).lower())
+        break
+else:
+    print('false')
 PY
 )"
   printf '%s\n' "$owned"
@@ -352,9 +358,11 @@ PY
         return 1
       }
       if [[ -n "$assignee_id" && "$assignee_id" != "$viewer_id" ]]; then
-        return 0
+        _autonomy_record_sync "$issue_identifier" assignment false "Linear issue already assigned to another owner"
+        return 1
       fi
       if [[ "$assignee_id" == "$viewer_id" ]]; then
+        _autonomy_record_sync "$issue_identifier" assignment true "" true
         return 0
       fi
       if _linear_api_try "mutation { issueUpdate(id: \"$issue_uuid\", input: { assigneeId: \"$viewer_id\" }) { issue { id identifier } } }" >/dev/null; then
@@ -558,7 +566,9 @@ cmd_autonomy() {
       else
         _autonomy_py release "$issue_identifier"
       fi
-      _autonomy_linear_set_state "$issue_identifier" "Todo"
+      if ! _autonomy_linear_set_state "$issue_identifier" "Todo"; then
+        :
+      fi
       if [[ "$assignment_owned" == true ]]; then
         _autonomy_linear_sync_assignment "$issue_identifier" clear || true
       fi
@@ -587,7 +597,9 @@ cmd_autonomy() {
       else
         _autonomy_py cancel "$issue_identifier"
       fi
-      _autonomy_linear_set_state "$issue_identifier" "Todo"
+      if ! _autonomy_linear_set_state "$issue_identifier" "Todo"; then
+        :
+      fi
       if [[ "$assignment_owned" == true ]]; then
         _autonomy_linear_sync_assignment "$issue_identifier" clear || true
       fi
@@ -635,7 +647,9 @@ cmd_autonomy() {
       fi
 
       _autonomy_linear_set_state "$issue_identifier" "In Progress" false
-      _autonomy_linear_sync_assignment "$issue_identifier" assign || true
+      if ! _autonomy_linear_sync_assignment "$issue_identifier" assign; then
+        _autonomy_record_sync "$issue_identifier" assignment false "failed to assign automation viewer"
+      fi
       local prepare_args=(prepare "$issue_identifier" --phase "$phase")
       [[ -n "$claimed_by" ]] && prepare_args+=(--claimed-by "$claimed_by")
       if ! cmd_autonomy "${prepare_args[@]}"; then
