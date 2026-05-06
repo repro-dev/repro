@@ -98,6 +98,24 @@ _latest_main_ref() {
   die "Could not resolve main branch for issue-based worktree creation."
 }
 
+_require_worktree_bootstrap_config_sources() {
+  if [ ! -f "$MAIN_CHECKOUT/.linear" ] || [ ! -r "$MAIN_CHECKOUT/.linear" ]; then
+    die "Missing required worktree bootstrap config at $MAIN_CHECKOUT/.linear. Copy the main checkout's .linear config before creating a new worktree."
+  fi
+}
+
+_copy_worktree_bootstrap_local_files() {
+  local wt_path="$1"
+
+  cp -p "$MAIN_CHECKOUT/.linear" "$wt_path/.linear" ||
+    die "Failed to copy $MAIN_CHECKOUT/.linear into $wt_path/.linear"
+
+  if [ -f "$MAIN_CHECKOUT/.envrc.local" ]; then
+    cp -p "$MAIN_CHECKOUT/.envrc.local" "$wt_path/.envrc.local" ||
+      die "Failed to copy $MAIN_CHECKOUT/.envrc.local into $wt_path/.envrc.local"
+  fi
+}
+
 _resolve_issue_worktree_metadata() {
   local issue_id="$1"
 
@@ -175,7 +193,7 @@ _create_issue_worktree_from_metadata() {
   echo "  Slug:   ${WT_ISSUE_WORKTREE_SLUG}"
   echo ""
 
-  cmd_wt_create "$WT_ISSUE_WORKTREE_BRANCH" "$WT_ISSUE_WORKTREE_SLUG" "$WT_ISSUE_START_REF"
+  cmd_wt_create "$WT_ISSUE_WORKTREE_BRANCH" "$WT_ISSUE_WORKTREE_SLUG" "$WT_ISSUE_START_REF" || return $?
 
   if [[ "$WT_NO_STATUS_UPDATE" != true ]]; then
     if [[ -n "$WT_ISSUE_IN_PROGRESS_STATE_ID" ]]; then
@@ -208,9 +226,17 @@ cmd_wt_create() {
   echo "${CLR_BOLD}Creating worktree for branch:${CLR_RESET} $branch"
   echo "  Path: $wt_path"
 
+  if ! _require_worktree_bootstrap_config_sources; then
+    return 1
+  fi
+
   if [ "$WT_DRY_RUN" = true ]; then
     echo ""
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: git worktree add ... \"$wt_path\" \"$branch\""
+    echo "${CLR_DIM}[dry-run]${CLR_RESET} Would copy: $MAIN_CHECKOUT/.linear -> $wt_path/.linear"
+    if [ -f "$MAIN_CHECKOUT/.envrc.local" ]; then
+      echo "${CLR_DIM}[dry-run]${CLR_RESET} Would copy: $MAIN_CHECKOUT/.envrc.local -> $wt_path/.envrc.local"
+    fi
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: pnpm install (in $wt_path)"
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: moon run :build (in $wt_path)"
 
@@ -233,9 +259,9 @@ cmd_wt_create() {
     has_direnv=true
   fi
 
-  local total_steps=3
+  local total_steps=4
   if [ "$has_direnv" = true ]; then
-    total_steps=4
+    total_steps=5
   fi
 
   local step=1
@@ -250,6 +276,12 @@ cmd_wt_create() {
   else
     echo "  Branch '$branch' does not exist locally or on remote, creating from HEAD..."
     git worktree add -b "$branch" "$wt_path"
+  fi
+
+  step=$((step + 1))
+  _step "$step" "$total_steps" "Copying local worktree config..."
+  if ! _copy_worktree_bootstrap_local_files "$wt_path"; then
+    return 1
   fi
 
   step=$((step + 1))
