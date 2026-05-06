@@ -204,9 +204,16 @@ _create_issue_worktree_from_metadata() {
       _step 3 3 "Updating ${WT_ISSUE_IDENTIFIER} status to In Progress..."
       local mutation
       mutation="mutation { issueUpdate(id: \"${WT_ISSUE_UUID}\", input: { stateId: \"${WT_ISSUE_IN_PROGRESS_STATE_ID}\" }) { issue { id identifier } } }"
-      _linear_api "$mutation" > /dev/null
-      WT_ISSUE_LINEAR_SYNCED=true
-      _ok "Issue ${WT_ISSUE_IDENTIFIER} marked In Progress"
+      if _linear_api "$mutation" > /dev/null; then
+        if _autonomy_linear_assign_issue "$WT_ISSUE_UUID" assign; then
+          WT_ISSUE_LINEAR_SYNCED=true
+          _ok "Issue ${WT_ISSUE_IDENTIFIER} marked In Progress"
+        else
+          WT_ISSUE_LINEAR_SYNC_ERROR="Could not assign automation viewer"
+        fi
+      else
+        WT_ISSUE_LINEAR_SYNC_ERROR="Failed to update Linear state to In Progress"
+      fi
     else
       WT_ISSUE_LINEAR_SYNC_ERROR="Could not find 'In Progress' state"
       echo "  ${CLR_DIM}Could not find 'In Progress' state — skipping status update${CLR_RESET}"

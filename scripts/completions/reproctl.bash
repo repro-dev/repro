@@ -173,7 +173,7 @@ _reproctl() {
       else
         case "$subcmd" in
           status)
-            COMPREPLY=($(compgen -W "--all -h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "--all --json -h --help" -- "$cur"))
             ;;
           claim)
             case "$prev" in
@@ -191,19 +191,19 @@ _reproctl() {
             case "$prev" in
               --reason) return ;;
             esac
-            COMPREPLY=($(compgen -W "--reason -h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "--reason --json -h --help" -- "$cur"))
             ;;
           cancel)
             case "$prev" in
               --reason) return ;;
             esac
-            COMPREPLY=($(compgen -W "--reason -h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "--reason --json -h --help" -- "$cur"))
             ;;
           retry)
             case "$prev" in
               --phase|--claimed-by|--reason) return ;;
             esac
-            COMPREPLY=($(compgen -W "--phase --claimed-by --reason -h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "--phase --claimed-by --reason --json -h --help" -- "$cur"))
             ;;
           reconcile)
             case "$prev" in

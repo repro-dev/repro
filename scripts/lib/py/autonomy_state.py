@@ -14,7 +14,7 @@ from typing import Any
 
 
 ACTIVE_STATES = {"claimed", "running", "reconciling"}
-TERMINAL_STATES = {"released", "stale"}
+TERMINAL_STATES = {"released", "stale", "canceled"}
 TERMINAL_ISSUE_STATE_TYPES = {"completed", "canceled", "closed", "done"}
 RETRYABLE_STATES = {"released", "stale", "canceled", "failed", "error"}
 FAILED_RUN_STATES = {"failed", "error", "canceled"}
@@ -534,6 +534,9 @@ class AutonomyStore:
                 retry_reason: str | None = row["retry_reason"]
                 retry_state: str | None = row["retry_state"]
 
+                if claim_state == "canceled" and not all_claims:
+                    continue
+
                 should_stale = False
                 if not workspace.exists():
                     should_stale = True
@@ -599,18 +602,19 @@ class AutonomyStore:
                     if item.get("claim_state") not in {"released", "canceled"}
                 ]
             )
+            visible_items = all_items_dict if all_claims else items_dict
             runs_dict = [dict(row) for row in runs]
             return {
                 "items": items_dict,
                 "runs": runs_dict,
                 "summary": {
-                    "claim_states": _count_by_state(all_items_dict),
+                    "claim_states": _count_by_state(visible_items),
                     "active_runs": sum(1 for run in runs_dict if run.get("state") == "running"),
-                    "stale_claims": sum(1 for item in all_items_dict if item.get("claim_state") == "stale"),
+                    "stale_claims": sum(1 for item in visible_items if item.get("claim_state") == "stale"),
                     "failed_runs": sum(1 for run in runs_dict if run.get("state") in FAILED_RUN_STATES),
-                    "sync_errors": sum(1 for item in all_items_dict if item.get("linear_sync_error")),
+                    "sync_errors": sum(1 for item in visible_items if item.get("linear_sync_error")),
                 },
-                "recent_errors": _status_recent_errors(all_items_dict, runs_dict),
+                "recent_errors": _status_recent_errors(visible_items, runs_dict),
                 "generated_at": _now(),
             }
 

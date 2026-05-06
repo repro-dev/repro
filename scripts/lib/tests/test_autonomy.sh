@@ -58,7 +58,11 @@ test_help_exists() {
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
   if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -qi 'Usage: reproctl autonomy' && printf '%s\n' "$output" | grep -q 'prepare' && ! printf '%s\n' "$output" | grep -q -- '--issue-id'; then
-    _pass 'cmd_autonomy_help exists and prints usage'
+    if printf '%s\n' "$output" | grep -q 'status \[--all\] \[--json\]' && printf '%s\n' "$output" | grep -q 'release <issue> \[--reason <text>\] \[--json\]' && printf '%s\n' "$output" | grep -q 'cancel <issue> \[--reason <text>\] \[--json\]' && printf '%s\n' "$output" | grep -q 'retry <issue> \[--phase observe\] \[--claimed-by <name>\] \[--reason <text>\] \[--json\]'; then
+      _pass 'cmd_autonomy_help exists and prints usage'
+    else
+      _fail 'cmd_autonomy_help exists and prints usage' "rc=$rc; output=$output"
+    fi
   else
     _fail 'cmd_autonomy_help exists and prints usage' "rc=$rc; output=$output"
   fi
@@ -174,6 +178,23 @@ JSON
       ;;
   esac
 }
+_linear_api() {
+  case "$1" in
+    *"viewer { id }"*)
+      cat <<'JSON'
+{"data":{"viewer":{"id":"viewer-1"}}}
+JSON
+      ;;
+    *"assigneeId: \"viewer-1\""*)
+      cat <<'JSON'
+{"data":{"issueUpdate":{"issue":{"id":"issue-uuid-1","identifier":"REP-1094"}}}}
+JSON
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
 workspace="$tmpdir/repro-wt-rep-1094"
 mkdir -p "$workspace"
 REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace "$workspace" --phase observe --issue-state In-Progress
@@ -197,6 +218,23 @@ linear() {
     "issue show REP-1094")
       cat <<'"'"'JSON'"'"'
 {"item":{"id":"issue-uuid-1"}}
+JSON
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+_linear_api() {
+  case "$1" in
+    *"viewer { id }"*)
+      cat <<'JSON'
+{"data":{"viewer":{"id":"viewer-1"}}}
+JSON
+      ;;
+    *"assigneeId: \"viewer-1\""*)
+      cat <<'JSON'
+{"data":{"issueUpdate":{"issue":{"id":"issue-uuid-1","identifier":"REP-1094"}}}}
 JSON
       ;;
     *)

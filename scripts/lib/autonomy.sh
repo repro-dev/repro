@@ -220,6 +220,48 @@ _autonomy_record_sync() {
   fi
 }
 
+_autonomy_linear_viewer_id() {
+  local response viewer_id
+  response="$(_linear_api '{ viewer { id } }')" || return 1
+  viewer_id="$(python3 - <<'PY' "$response"
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+print(data.get('data', {}).get('viewer', {}).get('id', ''))
+PY
+)"
+  [[ -n "$viewer_id" ]] || return 1
+  printf '%s\n' "$viewer_id"
+}
+
+_autonomy_linear_assign_issue() {
+  local issue_uuid="$1"
+  local action="$2"
+  local assignee_id=""
+
+  case "$action" in
+    assign)
+      assignee_id="$(_autonomy_linear_viewer_id)" || return 1
+      ;;
+    clear)
+      assignee_id=""
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  local mutation
+  if [[ -n "$assignee_id" ]]; then
+    mutation="mutation { issueUpdate(id: \"$issue_uuid\", input: { assigneeId: \"$assignee_id\" }) { issue { id identifier } } }"
+  else
+    mutation="mutation { issueUpdate(id: \"$issue_uuid\", input: { assigneeId: null }) { issue { id identifier } } }"
+  fi
+
+  _linear_api "$mutation" >/dev/null
+}
+
 _autonomy_linear_set_state() {
   local issue_identifier="$1"
   local target_state_name="$2"
@@ -269,12 +311,12 @@ Usage: reproctl autonomy <subcommand>
 Durable local state for autonomous orchestration.
 
 Subcommands:
-  status [--all]                 Show current claims and run attempts
+  status [--all] [--json]        Show current claims and run attempts
   claim <issue> --workspace <path> --phase <phase> --issue-state <name> [--issue-state-type <type>] [--claimed-by <user>]
   prepare <issue> [--phase observe] [--claimed-by <name>]
-  release <issue> [--reason <text>]
-  cancel <issue> [--reason <text>]
-  retry <issue> [--phase observe] [--claimed-by <name>] [--reason <text>]
+  release <issue> [--reason <text>] [--json]
+  cancel <issue> [--reason <text>] [--json]
+  retry <issue> [--phase observe] [--claimed-by <name>] [--reason <text>] [--json]
   reconcile [<issue> | --all]
   discover [--limit <count>] [--profile <name>] [--prompt-file <path>] [--output-dir <path>] [--claimed-by <name>] [--project <name>] [--json]
   run start <issue> --phase <phase> --workspace <path>
@@ -347,6 +389,11 @@ cmd_autonomy() {
       local args=(claim "$issue_identifier" --issue-id "$issue_id" --workspace "$workspace" --phase "$phase" --issue-state "$issue_state" --issue-state-type "${issue_state_type:-started}")
       [[ -n "$claimed_by" ]] && args+=(--claimed-by "$claimed_by")
       _autonomy_py "${args[@]}"
+      if _autonomy_linear_assign_issue "$issue_id" assign; then
+        _autonomy_record_sync "$issue_identifier" true
+      else
+        _autonomy_record_sync "$issue_identifier" false "failed to assign automation viewer"
+      fi
       ;;
 
     prepare)
@@ -431,6 +478,11 @@ cmd_autonomy() {
         _autonomy_py release "$issue_identifier"
       fi
       _autonomy_linear_set_state "$issue_identifier" "Todo"
+      local release_issue_id
+      release_issue_id="$(_autonomy_issue_id "$issue_identifier")" || return 1
+      if ! _autonomy_linear_assign_issue "$release_issue_id" clear; then
+        _autonomy_record_sync "$issue_identifier" false "failed to clear Linear assignee"
+      fi
       ;;
 
     cancel)
@@ -455,6 +507,11 @@ cmd_autonomy() {
         _autonomy_py cancel "$issue_identifier"
       fi
       _autonomy_linear_set_state "$issue_identifier" "Todo"
+      local cancel_issue_id
+      cancel_issue_id="$(_autonomy_issue_id "$issue_identifier")" || return 1
+      if ! _autonomy_linear_assign_issue "$cancel_issue_id" clear; then
+        _autonomy_record_sync "$issue_identifier" false "failed to clear Linear assignee"
+      fi
       ;;
 
     retry)

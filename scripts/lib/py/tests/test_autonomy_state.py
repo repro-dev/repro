@@ -295,6 +295,31 @@ def test_cancel_and_retry_update_claim_state(tmp_path: Path):
     assert store.status(all_claims=True)["items"][0]["claim_state"] == "released"
 
 
+def test_canceled_claim_stays_terminal_through_reconcile(tmp_path: Path):
+    store = _store(tmp_path)
+    workspace = _workspace(tmp_path)
+
+    store.claim(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        phase="observe",
+        issue_state_name="In Progress",
+        issue_state_type="started",
+    )
+
+    store.cancel("REP-1094", reason="manual stop")
+    updated = store.reconcile(
+        "REP-1094",
+        issue_state_name="Done",
+        issue_state_type="closed",
+    )
+
+    assert updated == []
+    assert store.status()["items"] == []
+    assert store.status(all_claims=True)["items"][0]["claim_state"] == "canceled"
+
+
 def test_run_start_finish_persists_attempt_state(tmp_path: Path):
     store = _store(tmp_path)
     workspace = _workspace(tmp_path)
