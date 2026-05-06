@@ -56,6 +56,9 @@ git -C "$_main" add latest-from-main.txt
 git -C "$_main" commit -m "advance main" >/dev/null 2>&1
 git -C "$_main" push origin main >/dev/null 2>&1
 
+printf "linear-config\n" > "$_main/.linear"
+printf "envrc-local-config\n" > "$_main/.envrc.local"
+
 _FAKE_BIN="$_TDIR/fake-bin"
 mkdir -p "$_FAKE_BIN"
 printf "#!/bin/bash\nexit 0\n" > "$_FAKE_BIN/pnpm"
@@ -116,6 +119,54 @@ elif git -C \"\$_main\" show \"\$issue_branch:latest-from-main.txt\" >/dev/null 
   echo \"FAIL:stale issue branch unexpectedly contains latest-from-main.txt\"
 elif ! git -C \"\$new_wt\" show HEAD:latest-from-main.txt >/dev/null 2>&1; then
   echo \"FAIL:new worktree HEAD does not include latest-from-main.txt\"
+elif [[ ! -f \"\$new_wt/.linear\" ]] || [[ ! -f \"\$new_wt/.envrc.local\" ]]; then
+  echo \"FAIL:missing propagated local config in worktree\"
+elif ! cmp -s \"\$_main/.linear\" \"\$new_wt/.linear\"; then
+  echo \"FAIL:propagated .linear contents do not match\"
+elif ! cmp -s \"\$_main/.envrc.local\" \"\$new_wt/.envrc.local\"; then
+  echo \"FAIL:propagated .envrc.local contents do not match\"
+elif [[ ! -f \"\$_main/.linear\" ]] || [[ ! -f \"\$_main/.envrc.local\" ]]; then
+  echo \"FAIL:source local config missing from main checkout\"
+else
+  echo PASS
+fi
+"
+
+run_git_test "cmd_wt_create: copies local worktree config for branch-based creation" "
+$COMMON_SETUP
+_src_wt
+REPRO_ISSUE_WORKTREE_SUFFIX=branchcfg1
+output=\"\$(cmd_wt_create feature/branch-config-copy 2>&1)\" || {
+  echo \"FAIL:create failed: \$output\"
+  exit 0
+}
+new_wt=\"\$_TDIR/repro-wt-feature-branch-config-copy\"
+if [[ ! -f \"\$new_wt/.linear\" ]] || [[ ! -f \"\$new_wt/.envrc.local\" ]]; then
+  echo \"FAIL:missing propagated config in branch worktree\"
+elif ! cmp -s \"\$_main/.linear\" \"\$new_wt/.linear\"; then
+  echo \"FAIL:branch worktree .linear contents do not match\"
+elif ! cmp -s \"\$_main/.envrc.local\" \"\$new_wt/.envrc.local\"; then
+  echo \"FAIL:branch worktree .envrc.local contents do not match\"
+else
+  echo PASS
+fi
+"
+
+run_git_test "cmd_wt_create_from_issue: fails clearly when .linear source is missing" "
+$COMMON_SETUP
+_src_wt
+rm -f \"\$_main/.linear\"
+REPRO_ISSUE_WORKTREE_SUFFIX=missinglinear1
+output=\"\$(cmd_wt_create_from_issue REP-812 2>&1)\" && {
+  echo \"FAIL:expected failure but command succeeded\"
+  exit 0
+}
+if [[ -d \"\$_TDIR/repro-wt-rep-812-missinglinear1\" ]]; then
+  echo \"FAIL:worktree directory was created despite missing source config\"
+elif ! printf '%s\n' \"\$output\" | grep -q '\\.linear'; then
+  echo \"FAIL:error output did not mention .linear\"
+elif ! printf '%s\n' \"\$output\" | grep -q 'main checkout'; then
+  echo \"FAIL:error output did not mention main checkout\"
 else
   echo PASS
 fi
