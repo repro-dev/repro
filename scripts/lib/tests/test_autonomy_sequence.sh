@@ -50,7 +50,7 @@ RUNNER
   chmod +x "$tmpdir/run_test.sh"
 }
 
-test_sequence_writes_artifacts_and_keeps_blocked_context() {
+test_sequence_writes_artifacts_and_keeps_project_scoped_context() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
   _write_runner "$tmpdir" '
@@ -63,7 +63,7 @@ JSON
       ;;
     "issue list --status todo")
       cat <<'"'"'JSON'"'"'
-{"items":[{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[]}},{"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[]}},{"identifier":"REP-3","priority":3,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[]}},{"identifier":"REP-4","priority":4,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[]}},{"identifier":"REP-5","priority":5,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[]}},{"identifier":"REP-6","priority":6,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[]}},{"identifier":"REP-7","priority":7,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[{"identifier":"REP-1","status":{"type":"started"}}]}}]}
+{"items":[{"identifier":"REP-1","priority":1,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[]}},{"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[]}},{"identifier":"REP-3","priority":3,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[]}},{"identifier":"REP-4","priority":4,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[]}},{"identifier":"REP-5","priority":5,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[]}},{"identifier":"REP-6","priority":6,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[]}},{"identifier":"REP-7","priority":7,"project":{"name":"Marketing"},"status":{"name":"Todo","type":"todo"},"relations":{"blockedBy":[{"identifier":"REP-1","status":{"type":"started"}}]}}]}
 JSON
       ;;
     *)
@@ -75,11 +75,11 @@ JSON
 cmd_opencode() {
   printf '%s\n' "$*" > "$tmpdir/opencode-args.txt"
   cat <<'JSON'
-{"schema_version":1,"waves":[{"name":"wave-1","issues":[{"issue_identifier":"REP-1","rationale":"eligible first"},{"issue_identifier":"REP-2","rationale":"eligible second"},{"issue_identifier":"REP-3","rationale":"eligible third"},{"issue_identifier":"REP-4","rationale":"eligible fourth"},{"issue_identifier":"REP-5","rationale":"eligible fifth"},{"issue_identifier":"REP-6","rationale":"eligible sixth"}],"rationale":"start with the ready issues"}],"deferred":[{"issue_identifier":"REP-7","reason":"blocked-by:REP-1","rationale":"retain blocker context"}],"risk_notes":["blocked issue stays in the downstream handoff"]}
+{"schema_version":1,"waves":[{"name":"wave-1","issues":[{"issue_identifier":"REP-1","rationale":"eligible first"},{"issue_identifier":"REP-2","rationale":"eligible second"},{"issue_identifier":"REP-3","rationale":"eligible third"},{"issue_identifier":"REP-4","rationale":"eligible fourth"},{"issue_identifier":"REP-5","rationale":"eligible fifth"},{"issue_identifier":"REP-6","rationale":"eligible sixth"}],"rationale":"start with the ready issues"}],"deferred":[],"risk_notes":["ready issues stay ahead of blocked work"]}
 JSON
 }
 
-REPRO_OPENCODE_PROFILE=alpha cmd_autonomy sequence --limit 5 --output-dir "$tmpdir/sequences" --profile alpha --json
+REPRO_OPENCODE_PROFILE=alpha cmd_autonomy sequence --limit 5 --project Engineering --output-dir "$tmpdir/sequences" --profile alpha --json
 '
 
   bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.json" 2>"$tmpdir/stderr.txt" || rc=$?
@@ -105,10 +105,8 @@ assert stdout == canonical, (stdout, canonical)
 assert canonical['schema_version'] == 1, canonical
 assert canonical['artifacts']['latest_path'] == str(latest), canonical['artifacts']
 assert [issue['issue_identifier'] for issue in canonical['waves'][0]['issues']] == ['REP-1', 'REP-2', 'REP-3', 'REP-4', 'REP-5'], canonical['waves']
-assert canonical['deferred'][0]['issue_identifier'] == 'REP-7', canonical['deferred']
-assert canonical['deferred'][0]['reason'] == 'blocked-by:REP-1', canonical['deferred']
-assert canonical['deferred'][1]['issue_identifier'] == 'REP-6', canonical['deferred']
-assert canonical['deferred'][1]['reason'] == 'post-sequencing-cap:5', canonical['deferred']
+assert canonical['deferred'][0]['issue_identifier'] == 'REP-6', canonical['deferred']
+assert canonical['deferred'][0]['reason'] == 'post-sequencing-cap:5', canonical['deferred']
 
 args = (tmpdir / 'opencode-args.txt').read_text().strip()
 assert '--agent sequencer' in args, args
@@ -122,7 +120,7 @@ assert raw_path.exists(), raw_path
 assert canonical_path.exists(), canonical_path
 prompt_text = prompt_path.read_text()
 raw_text = raw_path.read_text()
-assert 'candidate evaluation json (full candidate pool from the backlog/todo scan)' in prompt_text.lower(), prompt_text
+assert 'candidate evaluation json (full candidate pool after optional caller-driven project scope)' in prompt_text.lower(), prompt_text
 assert 'requested ready-issue cap after sequencing' in prompt_text.lower(), prompt_text
 assert '5' in prompt_text, prompt_text
 assert 'discover only' in prompt_text.lower(), prompt_text
@@ -135,8 +133,9 @@ assert 'related issues' in prompt_text.lower(), prompt_text
 assert 'delegate to `librarian`' in prompt_text, prompt_text
 assert 'delegate to `context-gather`' in prompt_text, prompt_text
 assert 'REP-6' in prompt_text, prompt_text
-assert 'REP-7' in prompt_text, prompt_text
-assert 'retain blocker context' in raw_text, raw_text
+assert 'REP-7' not in prompt_text, prompt_text
+assert 'Marketing' not in prompt_text, prompt_text
+assert 'ready issues stay ahead of blocked work' in raw_text, raw_text
 assert json.loads(canonical_path.read_text()) == canonical, canonical_path.read_text()
 PY
   then
@@ -149,7 +148,7 @@ PY
   _pass 'cmd_autonomy sequence runs and writes artifacts'
 }
 
-test_sequence_writes_artifacts_and_keeps_blocked_context
+test_sequence_writes_artifacts_and_keeps_project_scoped_context
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

@@ -113,6 +113,8 @@ _autonomy_sequence_finalize() {
 
 _autonomy_monitor_tick() {
   local once="$1" prepare="$2" json_output="$3" limit="$4" interval="$5" claimed_by="$6"
+  shift 6 || true
+  local project_scopes=("$@")
   local payload evaluation_json
 
   while :; do
@@ -124,6 +126,11 @@ _autonomy_monitor_tick() {
     if [[ -n "$claimed_by" ]]; then
       monitor_args+=(--claimed-by "$claimed_by")
     fi
+    local project_scope
+    for project_scope in "${project_scopes[@]}"; do
+      [[ -n "$project_scope" ]] || continue
+      monitor_args+=(--project "$project_scope")
+    done
 
     if [[ "$prepare" == true ]]; then
       evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" "${monitor_args[@]}")" || return 1
@@ -175,8 +182,8 @@ Subcommands:
   prepare <issue> [--phase observe] [--claimed-by <name>]
   release <issue> [--reason <text>]
   reconcile [<issue> | --all]
-  monitor [--once] [--prepare] [--interval <seconds>] [--limit <count>] [--claimed-by <name>] [--json]
-  sequence [--limit <count>] [--profile <name>] [--prompt-file <path>] [--output-dir <path>] [--claimed-by <name>] [--json]
+  monitor [--once] [--prepare] [--interval <seconds>] [--limit <count>] [--claimed-by <name>] [--project <name>] [--json]
+  sequence [--limit <count>] [--profile <name>] [--prompt-file <path>] [--output-dir <path>] [--claimed-by <name>] [--project <name>] [--json]
   run start <issue> --phase <phase> --workspace <path>
   run finish <issue> --attempt <n> --state <state> [--error <text>]
 
@@ -375,6 +382,7 @@ cmd_autonomy() {
 
     monitor)
       local once=false prepare=false json_output=false limit=10 interval=60 claimed_by=""
+      local project_scope=()
       if [[ "${REPROCTL_JSON:-false}" == true ]]; then
         json_output=true
       fi
@@ -386,6 +394,7 @@ cmd_autonomy() {
           --limit) [[ -n "${2:-}" ]] || die "Missing value for $1"; limit="$2"; shift 2 ;;
           --interval) [[ -n "${2:-}" ]] || die "Missing value for $1"; interval="$2"; shift 2 ;;
           --claimed-by) [[ -n "${2:-}" ]] || die "Missing value for $1"; claimed_by="$2"; shift 2 ;;
+          --project) [[ -n "${2:-}" ]] || die "Missing value for $1"; project_scope+=("$2"); shift 2 ;;
           -h|--help)
             cmd_autonomy_help
             return 0
@@ -394,11 +403,12 @@ cmd_autonomy() {
         esac
       done
 
-      _autonomy_monitor_tick "$once" "$prepare" "$json_output" "$limit" "$interval" "$claimed_by"
+      _autonomy_monitor_tick "$once" "$prepare" "$json_output" "$limit" "$interval" "$claimed_by" "${project_scope[@]}"
       ;;
 
     sequence)
       local limit=10 profile="" prompt_file="$SCRIPTS_DIR/lib/prompts/autonomy-sequence.md" output_dir="$REPO_ROOT/tmp/autonomy/sequences" claimed_by="" json_output=false
+      local project_scope=()
       if [[ "${REPROCTL_JSON:-false}" == true ]]; then
         json_output=true
       fi
@@ -410,6 +420,7 @@ cmd_autonomy() {
           --prompt-file) [[ -n "${2:-}" ]] || die "Missing value for $1"; prompt_file="$2"; shift 2 ;;
           --output-dir) [[ -n "${2:-}" ]] || die "Missing value for $1"; output_dir="$2"; shift 2 ;;
           --claimed-by) [[ -n "${2:-}" ]] || die "Missing value for $1"; claimed_by="$2"; shift 2 ;;
+          --project) [[ -n "${2:-}" ]] || die "Missing value for $1"; project_scope+=("$2"); shift 2 ;;
           -h|--help)
             cmd_autonomy_help
             return 0
@@ -420,11 +431,18 @@ cmd_autonomy() {
 
       local payload evaluation_json prompt_text raw_response canonical_json canonical_path
       payload="$(_autonomy_monitor_payload)" || return 1
+      local monitor_args=(--json)
+      local project_value
+      for project_value in "${project_scope[@]}"; do
+        [[ -n "$project_value" ]] || continue
+        monitor_args+=(--project "$project_value")
+      done
       if [[ -n "$claimed_by" ]]; then
-        evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" --json --claimed-by "$claimed_by")" || return 1
+        monitor_args+=(--claimed-by "$claimed_by")
       else
-        evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" --json)" || return 1
+        :
       fi
+      evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" "${monitor_args[@]}")" || return 1
 
       prompt_text="$(_autonomy_sequence_render_prompt "$prompt_file" "$evaluation_json" "$limit")" || return 1
 

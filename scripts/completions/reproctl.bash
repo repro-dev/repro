@@ -201,15 +201,15 @@ _reproctl() {
             ;;
           monitor)
             case "$prev" in
-              --limit|--interval|--claimed-by) return ;;
+              --limit|--interval|--claimed-by|--project) return ;;
             esac
-            COMPREPLY=($(compgen -W "--once --prepare --interval --limit --claimed-by --json -h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "--once --prepare --interval --limit --claimed-by --project --json -h --help" -- "$cur"))
             ;;
           sequence)
             case "$prev" in
-              --limit|--profile|--prompt-file|--output-dir|--claimed-by) return ;;
+              --limit|--profile|--prompt-file|--output-dir|--claimed-by|--project) return ;;
             esac
-            COMPREPLY=($(compgen -W "--limit --profile --prompt-file --output-dir --claimed-by --json -h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "--limit --profile --prompt-file --output-dir --claimed-by --project --json -h --help" -- "$cur"))
             ;;
           run)
             case "$prev" in

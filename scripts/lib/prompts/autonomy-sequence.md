@@ -2,7 +2,7 @@
 
 You are sequencing candidate issues for the autonomous orchestration stream.
 
-Candidate evaluation JSON (full candidate pool from the backlog/todo scan):
+Candidate evaluation JSON (full candidate pool after optional caller-driven project scope):
 
 {{CANDIDATE_EVALUATION_JSON}}
 
@@ -12,7 +12,7 @@ Requested ready-issue cap after sequencing:
 
 Policy:
 
-- Treat the candidate evaluation as the full pool to inspect for discovery and sequencing.
+- Treat the candidate evaluation as the full pool to inspect for discovery and sequencing after any caller-driven project scope has been applied.
 - Internal modes:
   - **discover only**: expand context and the candidate pool, but do not finalize wave ordering.
   - **sequence only**: keep the provided pool fixed and only order what is already present.
@@ -22,7 +22,7 @@ Policy:
 - Inspect relevant repo files and paths named in the issue text so wave selection reflects implementation reality.
 - When overlap or dependency order is unclear, widen beyond the initial candidate slice and inspect nearby repo patterns.
 - delegate to `librarian` for external docs or API behavior questions, and delegate to `context-gather` when the issue context is too thin to sequence safely.
-- Sequence only eligible issues into waves.
+- Sequence only eligible issues from the provided candidate evaluation into waves.
 - Keep blocked or deferred issues in the deferred list with a reason and a brief rationale.
 - Keep only the first ready issues up to the requested cap after sequencing.
 - Use dependency order, file/package overlap, blocker notes, and wave composition.

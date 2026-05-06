@@ -12,7 +12,6 @@ from typing import Any
 
 ACTIVE_CLAIM_STATES = {"claimed", "running", "reconciling"}
 TERMINAL_ISSUE_STATE_TYPES = {"completed", "canceled", "closed", "done"}
-ENGINEERING_PROJECT_NAME = "Engineering"
 OPEN_STATE_NAMES = {"backlog", "todo"}
 OPEN_STATE_TYPES = {"backlog", "todo"}
 LOW_PRIORITY_SENTINEL = 1_000_000
@@ -145,12 +144,7 @@ def _claims_by_identifier(claim_payload: Any) -> dict[str, dict[str, Any]]:
     return result
 
 
-def _is_open_scope(issue: dict[str, Any]) -> tuple[bool, str | None]:
-    project_name = _project_name(issue)
-    if project_name != ENGINEERING_PROJECT_NAME:
-        descriptor = project_name or "unknown"
-        return False, f"scope:project:{descriptor}"
-
+def _is_open_state(issue: dict[str, Any]) -> tuple[bool, str | None]:
     state = _issue_state(issue)
     state_name = str(state.get("name") or "")
     state_type = str(state.get("type") or "")
@@ -161,17 +155,38 @@ def _is_open_scope(issue: dict[str, Any]) -> tuple[bool, str | None]:
     return True, None
 
 
+def _normalize_project_scope(project_scope: Iterable[str] | None) -> list[str] | None:
+    if project_scope is None:
+        return None
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for project_name in project_scope:
+        cleaned = str(project_name).strip()
+        if cleaned and cleaned not in seen:
+            seen.add(cleaned)
+            normalized.append(cleaned)
+
+    if not normalized:
+        return None
+
+    return sorted(normalized)
+
+
 def evaluate_monitor_candidates(
     payload: dict[str, Any],
     *,
     limit: int | None = None,
     claimed_by: str | None = None,
     prepare: bool = False,
+    project_scope: list[str] | None = None,
 ) -> dict[str, Any]:
     issues = payload.get("issues")
     if not isinstance(issues, list):
         issues = payload.get("items") if isinstance(payload.get("items"), list) else []
     claim_map = _claims_by_identifier(payload.get("claims", {}))
+    normalized_project_scope = _normalize_project_scope(project_scope)
+    project_scope_set = set(normalized_project_scope or [])
 
     items: list[dict[str, Any]] = []
     for raw_issue in issues:
@@ -179,6 +194,11 @@ def evaluate_monitor_candidates(
             continue
 
         identifier = _issue_identifier(raw_issue)
+        project_name = _project_name(raw_issue)
+
+        if project_scope_set and project_name not in project_scope_set:
+            continue
+
         state = _issue_state(raw_issue)
         blockers = _collect_blockers(raw_issue)
         claim = claim_map.get(identifier)
@@ -189,8 +209,8 @@ def evaluate_monitor_candidates(
         if not identifier:
             reasons.append("missing-identifier")
 
-        open_scope, scope_reason = _is_open_scope(raw_issue)
-        if not open_scope and scope_reason is not None:
+        open_state, scope_reason = _is_open_state(raw_issue)
+        if not open_state and scope_reason is not None:
             reasons.append(scope_reason)
 
         if claim is not None and _claim_is_active(claim):
@@ -221,7 +241,7 @@ def evaluate_monitor_candidates(
             {
                 "issue_identifier": identifier,
                 "priority": _issue_priority(raw_issue),
-                "project_name": _project_name(raw_issue),
+                "project_name": project_name,
                 "state_name": str(state.get("name") or ""),
                 "state_type": str(state.get("type") or ""),
                 "claim_state": claim.get("claim_state") if isinstance(claim, dict) else None,
@@ -247,6 +267,7 @@ def evaluate_monitor_candidates(
             "blocked_count": len(items) - eligible_count,
             "limit": limit,
             "prepare": prepare,
+            "project_scope": normalized_project_scope,
         },
     }
 
@@ -286,6 +307,7 @@ def main(argv: list[str] | None = None, *, input_text: str | None = None) -> int
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--claimed-by")
+    parser.add_argument("--project", action="append")
     parser.add_argument("--prepare", action="store_true")
     args = parser.parse_args(argv)
 
@@ -295,6 +317,7 @@ def main(argv: list[str] | None = None, *, input_text: str | None = None) -> int
         limit=args.limit,
         claimed_by=args.claimed_by,
         prepare=args.prepare,
+        project_scope=args.project,
     )
 
     if args.json:

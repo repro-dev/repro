@@ -23,7 +23,7 @@ Candidate evaluation:
 Requested ready-issue cap after sequencing:
 {{RESULT_LIMIT}}
 
-Treat the candidate evaluation as the full pool to inspect for discovery and sequencing.
+    Treat the candidate evaluation as the full candidate pool after optional caller-driven project scope.
 Internal modes:
 - discover only: expand context and the candidate pool, but do not finalize wave ordering.
 - sequence only: keep the provided pool fixed and only order what is already present.
@@ -52,7 +52,7 @@ Return strict JSON only.
     assert 'Requested ready-issue cap after sequencing:' in prompt
     assert '5' in prompt
     assert 'strict JSON' in prompt
-    assert 'full pool to inspect for discovery and sequencing' in prompt.lower()
+    assert 'full candidate pool after optional caller-driven project scope' in prompt.lower()
     assert 'discover only' in prompt.lower()
     assert 'sequence only' in prompt.lower()
     assert 'discover+sequence' in prompt.lower()

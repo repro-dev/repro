@@ -56,7 +56,7 @@ test_help_mentions_monitor() {
   _write_runner "$tmpdir" 'cmd_autonomy_help'
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'monitor' && printf '%s\n' "$output" | grep -q -- '--once' && printf '%s\n' "$output" | grep -q -- '--prepare'; then
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'monitor' && printf '%s\n' "$output" | grep -q -- '--once' && printf '%s\n' "$output" | grep -q -- '--prepare' && printf '%s\n' "$output" | grep -q -- '--project'; then
     _pass 'cmd_autonomy_help documents monitor flags'
   else
     _fail 'cmd_autonomy_help documents monitor flags' "rc=$rc; output=$output"
@@ -129,13 +129,54 @@ assert items[1]["eligible"] is True
 assert items[2]["eligible"] is False
 assert "blocked-by:REP-9" in items[2]["reasons"]
 assert "terminal-blockers-ignored" in items[0]["notes"]
-assert items[3]["eligible"] is False
-assert "scope:project:Marketing" in items[3]["reasons"]
+assert items[3]["eligible"] is True
+assert items[3]["reasons"] == []
 PY
   then
-    _pass 'cmd_autonomy monitor emits deterministic eligibility reasons'
+    _pass 'cmd_autonomy monitor allows non-engineering projects by default'
   else
-    _fail 'cmd_autonomy monitor emits deterministic eligibility reasons' "rc=$rc; output=$output"
+    _fail 'cmd_autonomy monitor allows non-engineering projects by default' "rc=$rc; output=$output"
+  fi
+}
+
+test_monitor_project_scope_filters_candidates() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+linear() {
+  case "$*" in
+    "issue list --status backlog --json identifier,priority,project,status,relations")
+      cat <<'"'"'JSON'"'"'
+[{"identifier":"REP-2","priority":2,"project":{"name":"Engineering"},"status":{"name":"Todo","type":"backlog"}},{"identifier":"REP-4","priority":4,"project":{"name":"Marketing"},"status":{"name":"Todo","type":"backlog"}}]
+JSON
+      ;;
+    "issue list --status todo --json identifier,priority,project,status,relations")
+      cat <<'"'"'JSON'"'"'
+[{"identifier":"REP-1","priority":1,"project":{"name":"Marketing"},"status":{"name":"Todo","type":"todo"}}]
+JSON
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPROCTL_JSON=true cmd_autonomy monitor --once --json --project Engineering
+'
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && python3 - "$output" <<'PY'
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+assert [item["issue_identifier"] for item in data["items"]] == ["REP-2"]
+assert data["summary"]["project_scope"] == ["Engineering"]
+PY
+  then
+    _pass 'cmd_autonomy monitor --project filters the candidate set'
+  else
+    _fail 'cmd_autonomy monitor --project filters the candidate set' "rc=$rc; output=$output"
   fi
 }
 
@@ -231,6 +272,7 @@ PY
 test_help_mentions_monitor
 test_monitor_reports_list_failure
 test_monitor_reports_eligibility_and_reasons
+test_monitor_project_scope_filters_candidates
 test_monitor_orders_zero_and_missing_priority_last
 test_monitor_prepare_calls_prepare_for_eligible_issues
 
