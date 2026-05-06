@@ -151,6 +151,11 @@ test_sequencer_agent_definition_is_primary() {
     && grep -q '^    "linear issue children\*": "allow"$' "$SEQ_AGENT_FILE" \
     && grep -q '^    "linear issue comments\*": "allow"$' "$SEQ_AGENT_FILE" \
     && grep -q '^    "linear issue search\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -qi 'discover only' "$SEQ_AGENT_FILE" \
+    && grep -qi 'sequence only' "$SEQ_AGENT_FILE" \
+    && grep -qi 'discover+sequence' "$SEQ_AGENT_FILE" \
+    && grep -qi 'read-only' "$SEQ_AGENT_FILE" \
+    && grep -qi 'self-contained' "$SEQ_AGENT_FILE" \
     && grep -qi 'live context' "$SEQ_AGENT_FILE"; then
     _pass "sequencer agent file exists and is primary"
   else

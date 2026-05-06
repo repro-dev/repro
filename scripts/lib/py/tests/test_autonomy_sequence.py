@@ -21,7 +21,11 @@ Candidate evaluation:
 {{CANDIDATE_EVALUATION_JSON}}
 
 Treat the candidate evaluation as a seed, not the full universe.
-If the seed is sparse, ambiguous, or low-confidence, expand context before finalizing waves.
+Internal modes:
+- discover only: expand context and the candidate pool, but do not finalize wave ordering.
+- sequence only: keep the provided pool fixed and only order what is already present.
+- discover+sequence: the default; discover first when the seed is too narrow, then finalize waves.
+If the seed is sparse, ambiguous, or low-confidence, perform an initial discovery pass before finalizing waves.
 For promising candidates, fetch live Linear issue details and inspect blockers, child issues, comments, and related issues.
 delegate to `librarian` for external docs or API behavior questions, and delegate to `context-gather` when the issue context is too thin to sequence safely.
 
@@ -43,12 +47,50 @@ Return strict JSON only.
     assert 'Schema version: 1' in prompt
     assert 'strict JSON' in prompt
     assert 'candidate evaluation as a seed' in prompt.lower()
-    assert 'expand context before finalizing waves' in prompt.lower()
+    assert 'discover only' in prompt.lower()
+    assert 'sequence only' in prompt.lower()
+    assert 'discover+sequence' in prompt.lower()
+    assert 'initial discovery pass before finalizing waves' in prompt.lower()
     assert 'fetch live linear issue details' in prompt.lower()
     assert 'child issues' in prompt.lower()
     assert 'related issues' in prompt.lower()
     assert 'delegate to `librarian`' in prompt
     assert 'delegate to `context-gather`' in prompt
+
+
+def test_render_sequence_prompt_allows_discovery_pass_before_final_sequencing():
+    from autonomy_sequence import render_sequence_prompt
+
+    template = """Autonomy sequencing
+Schema version: {{SCHEMA_VERSION}}
+
+Candidate evaluation:
+{{CANDIDATE_EVALUATION_JSON}}
+
+Policy:
+- discover only: expand context and the candidate pool, but do not finalize wave ordering.
+- sequence only: keep the provided pool fixed and only order what is already present.
+- discover+sequence: the default; discover first when the seed is too narrow, then finalize waves.
+- If the seed is sparse, ambiguous, or low-confidence, perform an initial discovery pass before finalizing waves.
+
+Return strict JSON only.
+"""
+
+    prompt = render_sequence_prompt(
+        template,
+        {
+            "items": [
+                {"issue_identifier": "REP-1", "eligible": True, "reasons": [], "notes": []},
+            ],
+            "summary": {"eligible_count": 1},
+        },
+        schema_version=1,
+    )
+
+    assert 'discover only' in prompt.lower()
+    assert 'sequence only' in prompt.lower()
+    assert 'discover+sequence' in prompt.lower()
+    assert 'initial discovery pass before finalizing waves' in prompt.lower()
 
 
 def test_normalize_sequence_response_accepts_fenced_json():

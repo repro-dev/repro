@@ -9,7 +9,11 @@ Candidate evaluation JSON:
 Policy:
 
 - Treat the candidate evaluation as a seed, not the full universe.
-- If the seed is sparse, ambiguous, or low-confidence, expand context before finalizing waves.
+- Internal modes:
+  - **discover only**: expand context and the candidate pool, but do not finalize wave ordering.
+  - **sequence only**: keep the provided pool fixed and only order what is already present.
+  - **discover+sequence**: the default; discover first when the seed is too narrow, then finalize waves.
+- If the seed is sparse, ambiguous, or low-confidence, perform an initial discovery pass before finalizing waves.
 - For promising candidates, fetch live Linear issue details and inspect blockers, child issues, comments, and related issues.
 - Inspect relevant repo files and paths named in the issue text so wave selection reflects implementation reality.
 - When overlap or dependency order is unclear, widen beyond the initial candidate slice and inspect nearby repo patterns.

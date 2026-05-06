@@ -122,7 +122,10 @@ prompt_text = prompt_path.read_text()
 raw_text = raw_path.read_text()
 assert 'candidate evaluation json' in prompt_text.lower(), prompt_text
 assert 'candidate evaluation as a seed' in prompt_text.lower(), prompt_text
-assert 'expand context before finalizing waves' in prompt_text.lower(), prompt_text
+assert 'discover only' in prompt_text.lower(), prompt_text
+assert 'sequence only' in prompt_text.lower(), prompt_text
+assert 'discover+sequence' in prompt_text.lower(), prompt_text
+assert 'initial discovery pass before finalizing waves' in prompt_text.lower(), prompt_text
 assert 'fetch live linear issue details' in prompt_text.lower(), prompt_text
 assert 'child issues' in prompt_text.lower(), prompt_text
 assert 'related issues' in prompt_text.lower(), prompt_text
