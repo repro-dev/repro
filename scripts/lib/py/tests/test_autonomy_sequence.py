@@ -21,7 +21,9 @@ Candidate evaluation:
 {{CANDIDATE_EVALUATION_JSON}}
 
 Treat the candidate evaluation as a seed, not the full universe.
-If the input is sparse, ambiguous, or low-confidence, gather more Linear and repo context before choosing waves.
+If the seed is sparse, ambiguous, or low-confidence, expand context before finalizing waves.
+For promising candidates, fetch live Linear issue details and inspect blockers, child issues, comments, and related issues.
+delegate to `librarian` for external docs or API behavior questions, and delegate to `context-gather` when the issue context is too thin to sequence safely.
 
 Return strict JSON only.
 """
@@ -41,7 +43,12 @@ Return strict JSON only.
     assert 'Schema version: 1' in prompt
     assert 'strict JSON' in prompt
     assert 'candidate evaluation as a seed' in prompt.lower()
-    assert 'gather more linear and repo context' in prompt.lower()
+    assert 'expand context before finalizing waves' in prompt.lower()
+    assert 'fetch live linear issue details' in prompt.lower()
+    assert 'child issues' in prompt.lower()
+    assert 'related issues' in prompt.lower()
+    assert 'delegate to `librarian`' in prompt
+    assert 'delegate to `context-gather`' in prompt
 
 
 def test_normalize_sequence_response_accepts_fenced_json():

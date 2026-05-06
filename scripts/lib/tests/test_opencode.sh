@@ -137,7 +137,21 @@ test_help_mentions_env_default_profile() {
 
 # Test 5: sequencer agent is a primary agent with sequencing guidance
 test_sequencer_agent_definition_is_primary() {
-  if [ -f "$SEQ_AGENT_FILE" ] && grep -q '^mode: primary$' "$SEQ_AGENT_FILE" && grep -qi 'sequencing agent' "$SEQ_AGENT_FILE"; then
+  if [ -f "$SEQ_AGENT_FILE" ] \
+    && grep -q '^mode: primary$' "$SEQ_AGENT_FILE" \
+    && grep -q '^  write: false$' "$SEQ_AGENT_FILE" \
+    && grep -q '^  edit: false$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "\*": "deny"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "rg\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "sed\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "cat\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "ls\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "linear issue show\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "linear issue list\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "linear issue children\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "linear issue comments\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "linear issue search\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -qi 'live context' "$SEQ_AGENT_FILE"; then
     _pass "sequencer agent file exists and is primary"
   else
     _fail "sequencer agent file exists and is primary" "file missing or frontmatter/body did not match: $SEQ_AGENT_FILE"

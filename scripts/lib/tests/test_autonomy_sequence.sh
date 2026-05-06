@@ -122,7 +122,12 @@ prompt_text = prompt_path.read_text()
 raw_text = raw_path.read_text()
 assert 'candidate evaluation json' in prompt_text.lower(), prompt_text
 assert 'candidate evaluation as a seed' in prompt_text.lower(), prompt_text
-assert 'gather more linear and repo context' in prompt_text.lower(), prompt_text
+assert 'expand context before finalizing waves' in prompt_text.lower(), prompt_text
+assert 'fetch live linear issue details' in prompt_text.lower(), prompt_text
+assert 'child issues' in prompt_text.lower(), prompt_text
+assert 'related issues' in prompt_text.lower(), prompt_text
+assert 'delegate to `librarian`' in prompt_text, prompt_text
+assert 'delegate to `context-gather`' in prompt_text, prompt_text
 assert 'REP-2' in prompt_text, prompt_text
 assert 'REP-3' in prompt_text, prompt_text
 assert 'retain blocker context' in raw_text, raw_text
