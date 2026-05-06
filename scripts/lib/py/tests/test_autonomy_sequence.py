@@ -20,6 +20,9 @@ Schema version: {{SCHEMA_VERSION}}
 Candidate evaluation:
 {{CANDIDATE_EVALUATION_JSON}}
 
+Treat the candidate evaluation as a seed, not the full universe.
+If the input is sparse, ambiguous, or low-confidence, gather more Linear and repo context before choosing waves.
+
 Return strict JSON only.
 """
 
@@ -37,6 +40,8 @@ Return strict JSON only.
     assert '"issue_identifier": "REP-1"' in prompt
     assert 'Schema version: 1' in prompt
     assert 'strict JSON' in prompt
+    assert 'candidate evaluation as a seed' in prompt.lower()
+    assert 'gather more linear and repo context' in prompt.lower()
 
 
 def test_normalize_sequence_response_accepts_fenced_json():
@@ -119,6 +124,16 @@ def test_normalize_sequence_response_rejects_missing_waves():
             {"items": [{"issue_identifier": "REP-1", "eligible": True}]},
             schema_version=1,
         )
+
+
+@pytest.mark.parametrize("missing_key", ["deferred", "risk_notes"])
+def test_normalize_sequence_response_rejects_missing_contract_keys(missing_key: str):
+    from autonomy_sequence import SequenceValidationError, normalize_sequence_response
+
+    payload = {"schema_version": 1, "waves": [], "deferred": [], "risk_notes": []}
+    payload.pop(missing_key)
+    with pytest.raises(SequenceValidationError, match=missing_key):
+        normalize_sequence_response(json.dumps(payload), {"items": []}, schema_version=1)
 
 
 def test_normalize_sequence_response_rejects_malformed_issue_entries():

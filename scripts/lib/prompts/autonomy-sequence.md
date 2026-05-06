@@ -8,6 +8,11 @@ Candidate evaluation JSON:
 
 Policy:
 
+- Treat the candidate evaluation as a seed, not the full universe.
+- If the input is sparse, ambiguous, or low-confidence, gather more Linear and repo context before choosing waves.
+- For promising candidates, read the live Linear issue details, including blockers, children, and substantive comments.
+- Inspect relevant repo files and paths named in the issue text so wave selection reflects implementation reality.
+- Widen beyond the initial candidate slice when necessary to find implementation-ready work.
 - Sequence only eligible issues into waves.
 - Keep blocked or deferred issues in the deferred list with a reason and a brief rationale.
 - Use dependency order, file/package overlap, blocker notes, and wave composition.
