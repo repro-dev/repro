@@ -86,7 +86,7 @@ ${CLR_BOLD}ORCHESTRATION${CLR_RESET}
   autonomy                        Durable local claim/run orchestration state
   autonomy status                 Show durable claims and runs
   autonomy claim/release/...      Manage local orchestration claims
-  autonomy sequence               Rank issues and write sequencing artifacts
+  autonomy discover               Find what should be worked next and write discovery artifacts
 
 Examples:
   reproctl setup                              # bootstrap entire environment
@@ -106,7 +106,7 @@ Examples:
   reproctl wt list                            # list all worktrees
   reproctl context                            # show current worktree/branch context
   reproctl autonomy status --json             # show durable orchestration state
-  reproctl autonomy sequence --limit 2 --json  # generate sequencing artifacts
+  reproctl autonomy discover --limit 2 --json  # generate discovery artifacts
 EOF
 }
 

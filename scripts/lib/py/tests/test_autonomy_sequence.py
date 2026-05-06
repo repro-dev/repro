@@ -1,4 +1,4 @@
-"""Tests for autonomy_sequence.py."""
+"""Tests for autonomy discovery prompt helpers."""
 
 from __future__ import annotations
 
@@ -11,19 +11,19 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
-def test_render_sequence_prompt_includes_candidate_json_and_schema_instructions():
+def test_render_discover_prompt_includes_candidate_json_and_schema_instructions():
     from autonomy_sequence import render_sequence_prompt
 
-    template = """Sequencing policy
+    template = """Discovery policy
 Schema version: {{SCHEMA_VERSION}}
 
 Candidate evaluation:
 {{CANDIDATE_EVALUATION_JSON}}
 
-Requested ready-issue cap after sequencing:
+Requested ready-issue cap after discovery and sequencing:
 {{RESULT_LIMIT}}
 
-Treat the candidate evaluation as the full pool to inspect for discovery and sequencing.
+    Treat the candidate evaluation as the full candidate pool after optional caller-driven project scope.
 Internal modes:
 - discover only: expand context and the candidate pool, but do not finalize wave ordering.
 - sequence only: keep the provided pool fixed and only order what is already present.
@@ -49,10 +49,10 @@ Return strict JSON only.
 
     assert '"issue_identifier": "REP-1"' in prompt
     assert 'Schema version: 1' in prompt
-    assert 'Requested ready-issue cap after sequencing:' in prompt
+    assert 'Requested ready-issue cap after discovery and sequencing:' in prompt
     assert '5' in prompt
     assert 'strict JSON' in prompt
-    assert 'full pool to inspect for discovery and sequencing' in prompt.lower()
+    assert 'full candidate pool after optional caller-driven project scope' in prompt.lower()
     assert 'discover only' in prompt.lower()
     assert 'sequence only' in prompt.lower()
     assert 'discover+sequence' in prompt.lower()
@@ -64,16 +64,16 @@ Return strict JSON only.
     assert 'delegate to `context-gather`' in prompt
 
 
-def test_render_sequence_prompt_allows_discovery_pass_before_final_sequencing():
+def test_render_discover_prompt_allows_discovery_pass_before_final_sequencing():
     from autonomy_sequence import render_sequence_prompt
 
-    template = """Autonomy sequencing
+    template = """Autonomy discovery
 Schema version: {{SCHEMA_VERSION}}
 
 Candidate evaluation:
 {{CANDIDATE_EVALUATION_JSON}}
 
-Requested ready-issue cap after sequencing:
+Requested ready-issue cap after discovery and sequencing:
 {{RESULT_LIMIT}}
 
 Policy:
@@ -137,7 +137,7 @@ def test_apply_sequence_result_limit_caps_ready_issues_after_sequencing():
     assert [issue["issue_identifier"] for issue in limited["waves"][0]["issues"]] == ["REP-1", "REP-2"]
     assert [issue["issue_identifier"] for issue in limited["waves"][1]["issues"]] == ["REP-3"]
     assert [item["issue_identifier"] for item in limited["deferred"]] == ["REP-5", "REP-4"]
-    assert limited["deferred"][1]["reason"] == "post-sequencing-cap:3"
+    assert limited["deferred"][1]["reason"] == "outside-cap"
 
 
 def test_normalize_sequence_response_accepts_fenced_json():
@@ -176,6 +176,51 @@ def test_normalize_sequence_response_accepts_fenced_json():
     assert canonical["waves"][0]["issues"][0]["issue_identifier"] == "REP-1"
     assert canonical["deferred"][0]["issue_identifier"] == "REP-2"
     assert canonical["risk_notes"] == ["dependency first"]
+
+
+@pytest.mark.parametrize(
+    "reason_variant",
+    [
+        "outside-cap",
+        "beyond-cap",
+        "exceeds-cap:5",
+        "deferred-by-cap",
+        "deferred:cap-5",
+        "post-sequencing-cap:5",
+    ],
+)
+def test_normalize_sequence_response_canonicalizes_cap_reason_variants(reason_variant: str):
+    from autonomy_sequence import normalize_sequence_response
+
+    evaluation = {
+        "items": [
+            {"issue_identifier": "REP-1", "eligible": True},
+            {"issue_identifier": "REP-2", "eligible": False},
+        ],
+        "summary": {"eligible_count": 1},
+    }
+
+    raw_response = json.dumps(
+        {
+            "schema_version": 1,
+            "waves": [
+                {
+                    "name": "wave-1",
+                    "issues": [{"issue_identifier": "REP-1", "rationale": "start here"}],
+                    "rationale": "eligible first",
+                }
+            ],
+            "deferred": [
+                {"issue_identifier": "REP-2", "reason": reason_variant, "rationale": "held for later"},
+            ],
+            "risk_notes": [],
+        }
+    )
+
+    canonical = normalize_sequence_response(raw_response, evaluation, schema_version=1)
+
+    assert [item["reason"] for item in canonical["deferred"]] == ["outside-cap"]
+    assert [item["rationale"] for item in canonical["deferred"]] == ["held for later"]
 
 
 def test_normalize_sequence_response_rejects_ineligible_issue_in_wave():
@@ -293,7 +338,7 @@ def test_main_preserves_prompt_raw_and_error_artifacts_on_validation_failure(tmp
 
     template_path = tmp_path / "autonomy-sequence.md"
     template_path.write_text(
-        """Sequencing policy
+        """Discovery policy
 Schema version: {{SCHEMA_VERSION}}
 
 Candidate evaluation:

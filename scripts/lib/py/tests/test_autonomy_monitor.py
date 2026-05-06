@@ -153,11 +153,43 @@ def test_evaluate_monitor_candidates_accepts_projected_status_payload():
     assert "terminal-blockers-ignored" in item["notes"]
 
 
+def test_evaluate_monitor_candidates_allows_non_engineering_projects_by_default_and_filters_by_project_scope():
+    result = evaluate_monitor_candidates(
+        {
+            "issues": [
+                _issue("REP-1", priority=1, project="Engineering"),
+                _issue("REP-2", priority=2, project="Marketing"),
+            ],
+            "claims": _claims(),
+        }
+    )
+
+    by_id = {item["issue_identifier"]: item for item in result["items"]}
+
+    assert by_id["REP-1"]["eligible"] is True
+    assert by_id["REP-2"]["eligible"] is True
+    assert result["summary"]["project_scope"] is None
+
+    scoped = evaluate_monitor_candidates(
+        {
+            "issues": [
+                _issue("REP-1", priority=1, project="Engineering"),
+                _issue("REP-2", priority=2, project="Marketing"),
+            ],
+            "claims": _claims(),
+        },
+        project_scope=["Engineering"],
+    )
+
+    assert [item["issue_identifier"] for item in scoped["items"]] == ["REP-1"]
+    assert scoped["summary"]["project_scope"] == ["Engineering"]
+
+
 def test_main_emits_json_and_limits_results(tmp_path: Path):
     payload = {
         "issues": [
-            _issue("REP-5", priority=5),
-            _issue("REP-1", priority=1),
+            _issue("REP-5", priority=5, project="Engineering"),
+            _issue("REP-1", priority=1, project="Marketing"),
         ],
         "claims": _claims(),
     }
@@ -165,7 +197,7 @@ def test_main_emits_json_and_limits_results(tmp_path: Path):
     stdout = StringIO()
     with redirect_stdout(stdout):
         exit_code = main(
-            ["--json", "--limit", "1"],
+            ["--json", "--limit", "1", "--project", "Marketing"],
             input_text=json.dumps(payload),
         )
 
@@ -173,3 +205,4 @@ def test_main_emits_json_and_limits_results(tmp_path: Path):
     assert exit_code == 0
     assert [item["issue_identifier"] for item in result["items"]] == ["REP-1"]
     assert result["summary"]["limit"] == 1
+    assert result["summary"]["project_scope"] == ["Marketing"]

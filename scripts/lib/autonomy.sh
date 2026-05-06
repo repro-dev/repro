@@ -113,6 +113,11 @@ _autonomy_sequence_finalize() {
 
 _autonomy_monitor_tick() {
   local once="$1" prepare="$2" json_output="$3" limit="$4" interval="$5" claimed_by="$6"
+  shift 6 || true
+  local project_scopes=()
+  if (($# > 0)); then
+    project_scopes=("$@")
+  fi
   local payload evaluation_json
 
   while :; do
@@ -123,6 +128,13 @@ _autonomy_monitor_tick() {
     fi
     if [[ -n "$claimed_by" ]]; then
       monitor_args+=(--claimed-by "$claimed_by")
+    fi
+    local project_scope
+    if ((${#project_scopes[@]} > 0)); then
+      for project_scope in "${project_scopes[@]}"; do
+        [[ -n "$project_scope" ]] || continue
+        monitor_args+=(--project "$project_scope")
+      done
     fi
 
     if [[ "$prepare" == true ]]; then
@@ -175,8 +187,7 @@ Subcommands:
   prepare <issue> [--phase observe] [--claimed-by <name>]
   release <issue> [--reason <text>]
   reconcile [<issue> | --all]
-  monitor [--once] [--prepare] [--interval <seconds>] [--limit <count>] [--claimed-by <name>] [--json]
-  sequence [--limit <count>] [--profile <name>] [--prompt-file <path>] [--output-dir <path>] [--claimed-by <name>] [--json]
+  discover [--limit <count>] [--profile <name>] [--prompt-file <path>] [--output-dir <path>] [--claimed-by <name>] [--project <name>] [--json]
   run start <issue> --phase <phase> --workspace <path>
   run finish <issue> --attempt <n> --state <state> [--error <text>]
 
@@ -184,8 +195,7 @@ Examples:
   reproctl autonomy status --json
   reproctl autonomy claim REP-1094 --workspace /path/to/repro-wt-rep-1094 --phase observe --issue-state In-Progress
   reproctl autonomy prepare REP-1095 --phase observe --claimed-by autopilot
-  reproctl autonomy monitor --once --json
-  reproctl autonomy sequence --limit 2 --profile github-copilot-sonnet --output-dir tmp/autonomy/sequences --json
+  reproctl autonomy discover --limit 2 --profile github-copilot-sonnet --output-dir tmp/autonomy/discoveries --json
   reproctl autonomy run start REP-1094 --phase observe --workspace /path/to/repro-wt-rep-1094
 EOF
 }
@@ -373,32 +383,9 @@ cmd_autonomy() {
       fi
       ;;
 
-    monitor)
-      local once=false prepare=false json_output=false limit=10 interval=60 claimed_by=""
-      if [[ "${REPROCTL_JSON:-false}" == true ]]; then
-        json_output=true
-      fi
-      while [[ $# -gt 0 ]]; do
-        case "$1" in
-          --json) json_output=true; shift ;;
-          --once) once=true; shift ;;
-          --prepare) prepare=true; shift ;;
-          --limit) [[ -n "${2:-}" ]] || die "Missing value for $1"; limit="$2"; shift 2 ;;
-          --interval) [[ -n "${2:-}" ]] || die "Missing value for $1"; interval="$2"; shift 2 ;;
-          --claimed-by) [[ -n "${2:-}" ]] || die "Missing value for $1"; claimed_by="$2"; shift 2 ;;
-          -h|--help)
-            cmd_autonomy_help
-            return 0
-            ;;
-          *) die "Unknown option: $1\nRun 'reproctl autonomy --help' for usage." ;;
-        esac
-      done
-
-      _autonomy_monitor_tick "$once" "$prepare" "$json_output" "$limit" "$interval" "$claimed_by"
-      ;;
-
-    sequence)
-      local limit=10 profile="" prompt_file="$SCRIPTS_DIR/lib/prompts/autonomy-sequence.md" output_dir="$REPO_ROOT/tmp/autonomy/sequences" claimed_by="" json_output=false
+    discover)
+      local limit=10 profile="" prompt_file="$SCRIPTS_DIR/lib/prompts/autonomy-sequence.md" output_dir="$REPO_ROOT/tmp/autonomy/discoveries" claimed_by="" json_output=false
+      local project_scope=()
       if [[ "${REPROCTL_JSON:-false}" == true ]]; then
         json_output=true
       fi
@@ -410,6 +397,7 @@ cmd_autonomy() {
           --prompt-file) [[ -n "${2:-}" ]] || die "Missing value for $1"; prompt_file="$2"; shift 2 ;;
           --output-dir) [[ -n "${2:-}" ]] || die "Missing value for $1"; output_dir="$2"; shift 2 ;;
           --claimed-by) [[ -n "${2:-}" ]] || die "Missing value for $1"; claimed_by="$2"; shift 2 ;;
+          --project) [[ -n "${2:-}" ]] || die "Missing value for $1"; project_scope+=("$2"); shift 2 ;;
           -h|--help)
             cmd_autonomy_help
             return 0
@@ -420,11 +408,20 @@ cmd_autonomy() {
 
       local payload evaluation_json prompt_text raw_response canonical_json canonical_path
       payload="$(_autonomy_monitor_payload)" || return 1
-      if [[ -n "$claimed_by" ]]; then
-        evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" --json --claimed-by "$claimed_by")" || return 1
-      else
-        evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" --json)" || return 1
+      local monitor_args=(--json)
+      local project_value
+      if ((${#project_scope[@]} > 0)); then
+        for project_value in "${project_scope[@]}"; do
+          [[ -n "$project_value" ]] || continue
+          monitor_args+=(--project "$project_value")
+        done
       fi
+      if [[ -n "$claimed_by" ]]; then
+        monitor_args+=(--claimed-by "$claimed_by")
+      else
+        :
+      fi
+      evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" "${monitor_args[@]}")" || return 1
 
       prompt_text="$(_autonomy_sequence_render_prompt "$prompt_file" "$evaluation_json" "$limit")" || return 1
 
@@ -440,7 +437,7 @@ cmd_autonomy() {
         printf '%s\n' "$canonical_json"
       else
         canonical_path="$(printf '%s' "$canonical_json" | python3 -c 'import json, sys; print(json.load(sys.stdin)["artifacts"]["canonical_path"])')"
-        printf 'Sequencing artifacts written to %s\n' "$canonical_path"
+        printf 'Discovery artifacts written to %s\n' "$canonical_path"
       fi
       ;;
 

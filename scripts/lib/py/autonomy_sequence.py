@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pure helpers for autonomous sequencing."""
+"""Pure helpers for autonomous discovery and sequencing."""
 
 from __future__ import annotations
 
@@ -15,6 +15,9 @@ from typing import Any
 SCHEMA_VERSION = 1
 ISSUE_IDENTIFIER_PATTERN = re.compile(r"^REP-\d+$")
 FENCED_JSON_PATTERN = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.IGNORECASE | re.DOTALL)
+CAP_REASON_PATTERN = re.compile(r"^(?:outside-cap|beyond-cap|deferred-by-cap|post-sequencing-cap)(?::\d+)?$")
+ALT_CAP_REASON_PATTERN = re.compile(r"^(?:exceeds-cap:\d+|deferred:cap-\d+)$")
+CANONICAL_CAP_REASON = "outside-cap"
 
 EVALUATION_PLACEHOLDER = "{{CANDIDATE_EVALUATION_JSON}}"
 RESULT_LIMIT_PLACEHOLDER = "{{RESULT_LIMIT}}"
@@ -42,6 +45,17 @@ def _coerce_result_limit(value: Any) -> int | None:
         parsed = int(value)
         return parsed if parsed > 0 else None
     return None
+
+
+def _normalize_deferred_reason(value: Any) -> str:
+    reason = str(value or "").strip()
+    if not reason:
+        return ""
+
+    if CAP_REASON_PATTERN.fullmatch(reason) or ALT_CAP_REASON_PATTERN.fullmatch(reason):
+        return CANONICAL_CAP_REASON
+
+    return reason
 
 
 def _coerce_json_text(raw_response_text: str) -> str:
@@ -152,7 +166,7 @@ def apply_sequence_result_limit(canonical: dict[str, Any], result_limit: int | N
             overflow_deferred.append(
                 {
                     "issue_identifier": str(issue_entry.get("issue_identifier") or issue_entry.get("identifier") or ""),
-                    "reason": f"post-sequencing-cap:{limit}",
+                    "reason": CANONICAL_CAP_REASON,
                     "rationale": str(issue_entry.get("rationale") or issue_entry.get("reason") or ""),
                 }
             )
@@ -188,7 +202,7 @@ def _coerce_issue_entry(entry: Any, *, context: str) -> dict[str, str]:
 def _coerce_deferred_entry(entry: Any, *, context: str) -> dict[str, str]:
     deferred = _coerce_issue_entry(entry, context=context)
     if isinstance(entry, dict):
-        deferred["reason"] = str(entry.get("reason") or entry.get("rationale") or "")
+        deferred["reason"] = _normalize_deferred_reason(entry.get("reason") or entry.get("rationale") or "")
     else:
         deferred["reason"] = ""
     return deferred
