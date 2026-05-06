@@ -126,6 +126,11 @@ PY
 
 _linear_api() {
   case "$1" in
+    *"viewer { id }"*)
+      cat <<'JSON'
+{"data":{"viewer":{"id":"viewer-1"}}}
+JSON
+      ;;
     *"issues(filter:"*)
       cat <<'JSON'
 {"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1095","state":{"name":"In Progress","type":"started"},"team":{"states":{"nodes":[{"id":"todo-state-id","name":"Todo","type":"todo"},{"id":"in-progress-state-id","name":"In Progress","type":"started"}]}}}]}}}
@@ -529,11 +534,34 @@ printf "retry:%s\n" "${COMPREPLY[*]}"
   fi
 }
 
+test_invalid_issue_identifier_fails_before_linear_lookup() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+linear() {
+  printf "%s\n" "$*" >> "$tmpdir/linear-calls.log"
+  return 0
+}
+
+mkdir -p "$tmpdir/workspace"
+REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim invalid-id --workspace "$tmpdir/workspace" --phase observe --issue-state In-Progress
+'
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q 'Invalid issue identifier' && [ ! -s "$tmpdir/linear-calls.log" ]; then
+    rm -rf "$tmpdir"
+    _pass 'invalid issue identifiers fail before Linear lookup'
+  else
+    rm -rf "$tmpdir"
+    _fail 'invalid issue identifiers fail before Linear lookup' "rc=$rc; output=$output"
+  fi
+}
+
 test_cancel_emits_json_and_records_linear_sync
 test_retry_rejects_active_claims
 test_retry_rehydrates_released_claim_through_prepare_path
 test_completions_show_json_for_control_subcommands
 test_claim_and_release_sync_assignment_visibility
+test_invalid_issue_identifier_fails_before_linear_lookup
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

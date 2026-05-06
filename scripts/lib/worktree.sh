@@ -205,12 +205,8 @@ _create_issue_worktree_from_metadata() {
       local mutation
       mutation="mutation { issueUpdate(id: \"${WT_ISSUE_UUID}\", input: { stateId: \"${WT_ISSUE_IN_PROGRESS_STATE_ID}\" }) { issue { id identifier } } }"
       if _linear_api "$mutation" > /dev/null; then
-        if _autonomy_linear_assign_issue "$WT_ISSUE_UUID" assign; then
-          WT_ISSUE_LINEAR_SYNCED=true
-          _ok "Issue ${WT_ISSUE_IDENTIFIER} marked In Progress"
-        else
-          WT_ISSUE_LINEAR_SYNC_ERROR="Could not assign automation viewer"
-        fi
+        WT_ISSUE_LINEAR_SYNCED=true
+        _ok "Issue ${WT_ISSUE_IDENTIFIER} marked In Progress"
       else
         WT_ISSUE_LINEAR_SYNC_ERROR="Failed to update Linear state to In Progress"
       fi
