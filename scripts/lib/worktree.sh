@@ -9,6 +9,8 @@
 WT_DRY_RUN=false
 WT_FROM_ISSUE=""
 WT_NO_STATUS_UPDATE=false
+WT_ISSUE_LINEAR_SYNCED=false
+WT_ISSUE_LINEAR_SYNC_ERROR=""
 
 _linear_api() {
   local query="$1"
@@ -188,6 +190,8 @@ _populate_issue_worktree_names() {
 }
 
 _create_issue_worktree_from_metadata() {
+  WT_ISSUE_LINEAR_SYNCED=false
+  WT_ISSUE_LINEAR_SYNC_ERROR=""
   _ok "Found: ${WT_ISSUE_IDENTIFIER} — ${WT_ISSUE_TITLE}"
   echo "  Branch: ${WT_ISSUE_WORKTREE_BRANCH}"
   echo "  Slug:   ${WT_ISSUE_WORKTREE_SLUG}"
@@ -201,8 +205,10 @@ _create_issue_worktree_from_metadata() {
       local mutation
       mutation="mutation { issueUpdate(id: \"${WT_ISSUE_UUID}\", input: { stateId: \"${WT_ISSUE_IN_PROGRESS_STATE_ID}\" }) { issue { id identifier } } }"
       _linear_api "$mutation" > /dev/null
+      WT_ISSUE_LINEAR_SYNCED=true
       _ok "Issue ${WT_ISSUE_IDENTIFIER} marked In Progress"
     else
+      WT_ISSUE_LINEAR_SYNC_ERROR="Could not find 'In Progress' state"
       echo "  ${CLR_DIM}Could not find 'In Progress' state — skipping status update${CLR_RESET}"
     fi
   fi

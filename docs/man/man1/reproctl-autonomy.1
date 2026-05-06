@@ -2,51 +2,77 @@
 .\"
 .TH "REPROCTL\-AUTONOMY" "1" "2026" "reproctl" "Repro Development Tools"
 .SH NAME
-reproctl\-autonomy \- durable local claim, monitor, and sequencing state
+reproctl\-autonomy \- durable local claim, status, and control state
 .SH SYNOPSIS
 \f[B]reproctl autonomy\f[R] \f[I]subcommand\f[R] [\f[I]options\f[R]]
 .SH DESCRIPTION
 Manage durable local state for autonomous orchestration.
 .PP
-The \f[B]sequence\f[R] subcommand asks OpenCode to rank candidate issues
-before planning and execution.
-It uses monitor eligibility as the baseline, then writes a durable
-prompt, raw response, and canonical JSON artifact set under
-\f[B]tmp/autonomy/sequences/\f[R].
-.PP
-The sequencing stage is intentionally narrower than the autonomous
-runner.
-It does not launch agents, mutate Linear, or create worktrees.
+The autonomy surface records local claims, active runs, retry metadata,
+and Linear sync state for operator workflows.
+It does not provide a web UI.
 .SH SUBCOMMANDS
 .TP
-\f[B]sequence\f[R] [\f[B]\-\-limit\f[R] \f[I]count\f[R]] [\f[B]\-\-profile\f[R] \f[I]name\f[R]] [\f[B]\-\-prompt\-file\f[R] \f[I]path\f[R]] [\f[B]\-\-output\-dir\f[R] \f[I]path\f[R]] [\f[B]\-\-claimed\-by\f[R] \f[I]name\f[R]] [\f[B]\-\-json\f[R]]
-Build a candidate evaluation from the current backlog/todo issues,
-render a prompt, run OpenCode, and write durable sequencing artifacts.
-The default prompt lives at
-\f[B]scripts/lib/prompts/autonomy\-sequence.md\f[R].
+\f[B]status\f[R] [\f[B]\-\-all\f[R]] [\f[B]\-\-json\f[R]]
+Show current claims and runs.
+With \f[B]\-\-json\f[R], emits a machine\-readable status object.
+.TP
+\f[B]release\f[R] \f[I]issue\f[R] [\f[B]\-\-reason\f[R] \f[I]text\f[R]] [\f[B]\-\-json\f[R]]
+Release a local claim so it can be picked up again.
+.TP
+\f[B]cancel\f[R] \f[I]issue\f[R] [\f[B]\-\-reason\f[R] \f[I]text\f[R]] [\f[B]\-\-json\f[R]]
+Mark a claim canceled locally and sync the issue out of active work.
+.TP
+\f[B]retry\f[R] \f[I]issue\f[R] [\f[B]\-\-phase\f[R] \f[I]observe\f[R]] [\f[B]\-\-claimed\-by\f[R] \f[I]name\f[R]] [\f[B]\-\-reason\f[R] \f[I]text\f[R]] [\f[B]\-\-json\f[R]]
+Reset retryable local state and re\-prepare the issue.
+.TP
+\f[B]reconcile\f[R] [\f[I]issue\f[R] | \f[B]\-\-all\f[R]]
+Refresh local claims from Linear issue state.
+.TP
+\f[B]discover\f[R] [\f[B]\-\-limit\f[R] \f[I]count\f[R]] [\f[B]\-\-profile\f[R] \f[I]name\f[R]] [\f[B]\-\-prompt\-file\f[R] \f[I]path\f[R]] [\f[B]\-\-output\-dir\f[R] \f[I]path\f[R]] [\f[B]\-\-claimed\-by\f[R] \f[I]name\f[R]] [\f[B]\-\-project\f[R] \f[I]name\f[R]] [\f[B]\-\-json\f[R]]
+Build a discovery wave, run OpenCode, and write durable discovery
+artifacts.
+.TP
+\f[B]run start\f[R] \f[I]issue\f[R] \f[B]\-\-phase\f[R] \f[I]phase\f[R] \f[B]\-\-workspace\f[R] \f[I]path\f[R]
+Start a durable run attempt.
+.TP
+\f[B]run finish\f[R] \f[I]issue\f[R] \f[B]\-\-attempt\f[R] \f[I]n\f[R] \f[B]\-\-state\f[R] \f[I]state\f[R] [\f[B]\-\-error\f[R] \f[I]text\f[R]]
+Finish a run attempt and capture any failure message.
 .SH OPTIONS
 .TP
-\f[B]\-\-limit\f[R] \f[I]count\f[R]
-Limit the candidate evaluation passed into sequencing.
+\f[B]\-\-all\f[R]
+Include released and canceled claims in status output.
+.TP
+\f[B]\-\-reason\f[R] \f[I]text\f[R]
+Explain why a claim was released, canceled, or retried.
+.TP
+\f[B]\-\-phase\f[R] \f[I]phase\f[R]
+Set the preparation phase for retry and run commands.
+.TP
+\f[B]\-\-claimed\-by\f[R] \f[I]name\f[R]
+Tag local claim ownership with an operator name.
 .TP
 \f[B]\-\-profile\f[R] \f[I]name\f[R]
 Pass a specific OpenCode profile to the launcher.
 .TP
 \f[B]\-\-prompt\-file\f[R] \f[I]path\f[R]
-Use an alternate sequencing prompt template.
+Use an alternate discovery prompt template.
 .TP
 \f[B]\-\-output\-dir\f[R] \f[I]path\f[R]
-Override the sequencing artifact directory.
+Override the discovery artifact directory.
 .TP
-\f[B]\-\-claimed\-by\f[R] \f[I]name\f[R]
-Tag the candidate evaluation with the active operator name.
+\f[B]\-\-project\f[R] \f[I]name\f[R]
+Restrict discovery to a Linear project.
 .TP
 \f[B]\-\-json\f[R]
-Emit the canonical sequencing JSON instead of a short text summary.
+Emit machine\-readable JSON instead of a short text summary.
 .SH EXAMPLES
 .TP
-reproctl autonomy sequence \-\-limit 2 \-\-profile github\-copilot\-sonnet \-\-output\-dir tmp/autonomy/sequences \-\-json
-Generate a durable sequencing artifact set for the next planning wave.
+reproctl autonomy status \-\-json
+Inspect claims, runs, retry state, and recent sync errors.
+.TP
+reproctl autonomy retry REP\-123 \-\-phase observe \-\-claimed\-by autopilot
+Rebuild a stale claim and resume work.
 .SH SEE ALSO
 \f[B]reproctl\f[R](1), \f[B]reproctl\-opencode\f[R](1)
 .SH AUTHORS

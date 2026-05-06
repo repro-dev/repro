@@ -85,7 +85,7 @@ ${CLR_BOLD}GENERAL${CLR_RESET}
 ${CLR_BOLD}ORCHESTRATION${CLR_RESET}
   autonomy                        Durable local claim/run orchestration state
   autonomy status                 Show durable claims and runs
-  autonomy claim/release/...      Manage local orchestration claims
+  autonomy claim/release/cancel/retry  Manage local orchestration claims
   autonomy discover               Find what should be worked next and write discovery artifacts
 
 Examples:
@@ -106,6 +106,8 @@ Examples:
   reproctl wt list                            # list all worktrees
   reproctl context                            # show current worktree/branch context
   reproctl autonomy status --json             # show durable orchestration state
+  reproctl autonomy release REP-123           # release a local claim
+  reproctl autonomy retry REP-123             # retry a failed or stale claim
   reproctl autonomy discover --limit 2 --json  # generate discovery artifacts
 EOF
 }

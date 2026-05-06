@@ -16,6 +16,9 @@ from typing import Any
 ACTIVE_STATES = {"claimed", "running", "reconciling"}
 TERMINAL_STATES = {"released", "stale"}
 TERMINAL_ISSUE_STATE_TYPES = {"completed", "canceled", "closed", "done"}
+RETRYABLE_STATES = {"released", "stale", "canceled", "failed", "error"}
+FAILED_RUN_STATES = {"failed", "error", "canceled"}
+SYNC_ERROR_STATES = {"released", "stale", "canceled", "failed", "error"}
 
 
 def _now() -> str:
@@ -32,6 +35,82 @@ def _row_to_dict(row: sqlite3.Row | None) -> dict[str, Any] | None:
 
 def _commonpath(a: Path, b: Path) -> Path:
     return Path(os.path.commonpath([str(a), str(b)]))
+
+
+def _table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return {row["name"] for row in rows}
+
+
+def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
+    existing = _table_columns(conn, table)
+    for column, definition in columns.items():
+        if column in existing:
+            continue
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def _count_by_state(items: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        state = str(item.get("claim_state", ""))
+        counts[state] = counts.get(state, 0) + 1
+    return counts
+
+
+def _status_recent_errors(
+    items: list[dict[str, Any]], runs: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+
+    for run in runs:
+        last_error = run.get("last_error")
+        if not last_error:
+            continue
+        errors.append(
+            {
+                "kind": "run",
+                "issue_identifier": run.get("issue_identifier", ""),
+                "attempt": run.get("attempt"),
+                "message": last_error,
+                "occurred_at": run.get("finished_at") or run.get("started_at") or "",
+            }
+        )
+
+    for item in items:
+        retry_reason = item.get("retry_reason")
+        sync_error = item.get("linear_sync_error")
+        last_error = item.get("last_error")
+        if sync_error:
+            errors.append(
+                {
+                    "kind": "sync",
+                    "issue_identifier": item.get("issue_identifier", ""),
+                    "message": sync_error,
+                    "occurred_at": item.get("linear_synced_at") or item.get("updated_at") or "",
+                }
+            )
+        elif last_error:
+            errors.append(
+                {
+                    "kind": "claim",
+                    "issue_identifier": item.get("issue_identifier", ""),
+                    "message": last_error,
+                    "occurred_at": item.get("last_error_at") or item.get("updated_at") or "",
+                }
+            )
+        elif retry_reason and item.get("claim_state") in SYNC_ERROR_STATES:
+            errors.append(
+                {
+                    "kind": "reconcile",
+                    "issue_identifier": item.get("issue_identifier", ""),
+                    "message": retry_reason,
+                    "occurred_at": item.get("updated_at") or "",
+                }
+            )
+
+    errors.sort(key=lambda item: item.get("occurred_at", ""), reverse=True)
+    return errors[:10]
 
 
 class ActiveClaimError(RuntimeError):
@@ -101,6 +180,17 @@ class AutonomyStore:
                     ON claims(claim_state);
                 """
             )
+            _ensure_columns(
+                conn,
+                "claims",
+                {
+                    "canceled_at": "TEXT",
+                    "last_error": "TEXT",
+                    "last_error_at": "TEXT",
+                    "linear_synced_at": "TEXT",
+                    "linear_sync_error": "TEXT",
+                },
+            )
 
     def _validate_workspace_path(self, workspace_path: str) -> str:
         path = Path(workspace_path)
@@ -153,6 +243,11 @@ class AutonomyStore:
                 "retry_state": None,
                 "retry_after": None,
                 "retry_reason": None,
+                "canceled_at": None,
+                "last_error": None,
+                "last_error_at": None,
+                "linear_synced_at": None,
+                "linear_sync_error": None,
                 "last_observed_issue_state_name": issue_state_name,
                 "last_observed_issue_state_type": issue_state_type,
                 "claimed_by": claimed_by,
@@ -166,12 +261,14 @@ class AutonomyStore:
                     """
                     INSERT INTO claims (
                         issue_id, issue_identifier, claim_state, workspace_path, phase,
-                        attempt_count, retry_state, retry_after, retry_reason,
+                        attempt_count, retry_state, retry_after, retry_reason, canceled_at,
+                        last_error, last_error_at, linear_synced_at, linear_sync_error,
                         last_observed_issue_state_name, last_observed_issue_state_type,
                         claimed_by, claimed_at, updated_at, released_at
                     ) VALUES (
                         :issue_id, :issue_identifier, :claim_state, :workspace_path, :phase,
-                        :attempt_count, :retry_state, :retry_after, :retry_reason,
+                        :attempt_count, :retry_state, :retry_after, :retry_reason, :canceled_at,
+                        :last_error, :last_error_at, :linear_synced_at, :linear_sync_error,
                         :last_observed_issue_state_name, :last_observed_issue_state_type,
                         :claimed_by, :claimed_at, :updated_at, :released_at
                     )
@@ -190,6 +287,11 @@ class AutonomyStore:
                         retry_state = :retry_state,
                         retry_after = :retry_after,
                         retry_reason = :retry_reason,
+                        canceled_at = :canceled_at,
+                        last_error = :last_error,
+                        last_error_at = :last_error_at,
+                        linear_synced_at = :linear_synced_at,
+                        linear_sync_error = :linear_sync_error,
                         last_observed_issue_state_name = :last_observed_issue_state_name,
                         last_observed_issue_state_type = :last_observed_issue_state_type,
                         claimed_by = :claimed_by,
@@ -223,6 +325,91 @@ class AutonomyStore:
                 WHERE issue_identifier = ?
                 """,
                 (reason, now, now, issue_identifier),
+            )
+            claim = self._claim_dict(conn, issue_identifier)
+            assert claim is not None
+            return claim
+
+    def cancel(self, issue_identifier: str, reason: str = "") -> dict[str, Any]:
+        now = _now()
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            existing = self._claim_row(conn, issue_identifier)
+            if existing is None:
+                raise ValueError(f"unknown claim: {issue_identifier}")
+            conn.execute(
+                """
+                UPDATE claims SET
+                    claim_state = 'canceled',
+                    retry_state = 'canceled',
+                    retry_reason = ?,
+                    canceled_at = ?,
+                    updated_at = ?
+                WHERE issue_identifier = ?
+                """,
+                (reason, now, now, issue_identifier),
+            )
+            claim = self._claim_dict(conn, issue_identifier)
+            assert claim is not None
+            return claim
+
+    def retry(self, issue_identifier: str, reason: str = "") -> dict[str, Any]:
+        now = _now()
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            existing = self._claim_row(conn, issue_identifier)
+            if existing is None:
+                raise ValueError(f"unknown claim: {issue_identifier}")
+            if str(existing["claim_state"]) not in RETRYABLE_STATES:
+                raise ValueError(f"claim is not retryable: {issue_identifier}")
+            conn.execute(
+                """
+                UPDATE claims SET
+                    claim_state = 'released',
+                    retry_state = NULL,
+                    retry_reason = NULL,
+                    last_error = NULL,
+                    last_error_at = NULL,
+                    canceled_at = NULL,
+                    linear_sync_error = NULL,
+                    linear_synced_at = NULL,
+                    released_at = ?,
+                    updated_at = ?
+                WHERE issue_identifier = ?
+                """,
+                (now, now, issue_identifier),
+            )
+            if reason:
+                conn.execute(
+                    "UPDATE claims SET retry_reason = ? WHERE issue_identifier = ?",
+                    (reason, issue_identifier),
+                )
+            claim = self._claim_dict(conn, issue_identifier)
+            assert claim is not None
+            return claim
+
+    def record_sync(
+        self,
+        issue_identifier: str,
+        *,
+        ok: bool,
+        error: str | None = None,
+    ) -> dict[str, Any]:
+        now = _now()
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            existing = self._claim_row(conn, issue_identifier)
+            if existing is None:
+                raise ValueError(f"unknown claim: {issue_identifier}")
+            conn.execute(
+                """
+                UPDATE claims SET
+                    linear_synced_at = ?,
+                    linear_sync_error = ?,
+                    updated_at = ?
+                WHERE issue_identifier = ?
+                """,
+                (now, None if ok else error or "sync failed", now, issue_identifier),
             )
             claim = self._claim_dict(conn, issue_identifier)
             assert claim is not None
@@ -292,6 +479,30 @@ class AutonomyStore:
             ).fetchone()
             if run is None:
                 raise ValueError(f"unknown run: {issue_identifier}#{attempt}")
+
+            if state in FAILED_RUN_STATES:
+                conn.execute(
+                    """
+                    UPDATE claims SET
+                        claim_state = ?,
+                        retry_state = ?,
+                        retry_reason = ?,
+                        last_error = ?,
+                        last_error_at = ?,
+                        updated_at = ?
+                    WHERE issue_identifier = ?
+                    """,
+                    (
+                        state,
+                        state,
+                        last_error or state,
+                        last_error or state,
+                        now,
+                        now,
+                        issue_identifier,
+                    ),
+                )
+
             return _row_to_dict(run) or {}
 
     def reconcile(
@@ -374,16 +585,33 @@ class AutonomyStore:
 
     def status(self, *, all_claims: bool = False) -> dict[str, Any]:
         with self._connect() as conn:
-            where = "" if all_claims else "WHERE claim_state NOT IN ('released')"
-            items = conn.execute(
-                f"SELECT * FROM claims {where} ORDER BY claimed_at ASC"
-            ).fetchall()
+            all_items = conn.execute("SELECT * FROM claims ORDER BY claimed_at ASC").fetchall()
             runs = conn.execute(
                 "SELECT * FROM runs ORDER BY started_at ASC, id ASC"
             ).fetchall()
+            all_items_dict = [dict(row) for row in all_items]
+            items_dict = (
+                all_items_dict
+                if all_claims
+                else [
+                    item
+                    for item in all_items_dict
+                    if item.get("claim_state") not in {"released", "canceled"}
+                ]
+            )
+            runs_dict = [dict(row) for row in runs]
             return {
-                "items": [dict(row) for row in items],
-                "runs": [dict(row) for row in runs],
+                "items": items_dict,
+                "runs": runs_dict,
+                "summary": {
+                    "claim_states": _count_by_state(all_items_dict),
+                    "active_runs": sum(1 for run in runs_dict if run.get("state") == "running"),
+                    "stale_claims": sum(1 for item in all_items_dict if item.get("claim_state") == "stale"),
+                    "failed_runs": sum(1 for run in runs_dict if run.get("state") in FAILED_RUN_STATES),
+                    "sync_errors": sum(1 for item in all_items_dict if item.get("linear_sync_error")),
+                },
+                "recent_errors": _status_recent_errors(all_items_dict, runs_dict),
+                "generated_at": _now(),
             }
 
 
@@ -434,31 +662,60 @@ def _render_table(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> str:
 def _status_table(items: list[dict[str, Any]], runs: list[dict[str, Any]]) -> str:
     claim_rows = [
         (
-            item.get("issue_identifier", ""),
-            item.get("claim_state", ""),
-            item.get("phase", ""),
+            str(item.get("issue_identifier", "")),
+            str(item.get("claim_state", "")),
+            str(item.get("phase", "")),
             str(item.get("attempt_count", 0)),
-            item.get("workspace_path", ""),
-            item.get("retry_reason") or item.get("retry_state") or "",
+            str(item.get("claimed_by", "")),
+            str(item.get("updated_at", "")),
+            str(item.get("workspace_path", "")),
+            str(
+                item.get("retry_reason")
+                or item.get("last_error")
+                or item.get("linear_sync_error")
+                or item.get("retry_state")
+                or ""
+            ),
         )
         for item in items
     ]
     run_rows = [
         (
-            run.get("issue_identifier", ""),
+            str(run.get("issue_identifier", "")),
             str(run.get("attempt", "")),
-            run.get("phase", ""),
-            run.get("state", ""),
-            run.get("workspace_path", ""),
+            str(run.get("phase", "")),
+            str(run.get("state", "")),
+            str(run.get("started_at", "")),
+            str(run.get("finished_at", "")),
+            str(run.get("workspace_path", "")),
+            str(run.get("last_error") or ""),
         )
         for run in runs
     ]
 
-    lines = ["CLAIMS", _render_table(("ISSUE", "STATE", "PHASE", "ATTEMPT", "WORKSPACE", "REASON"), claim_rows)]
+    lines = [
+        "CLAIMS",
+        _render_table(
+            (
+                "ISSUE",
+                "STATE",
+                "PHASE",
+                "ATTEMPT",
+                "CLAIMED BY",
+                "UPDATED",
+                "WORKSPACE",
+                "REASON",
+            ),
+            claim_rows,
+        ),
+    ]
     lines.extend([
         "",
         "RUNS",
-        _render_table(("ISSUE", "ATTEMPT", "PHASE", "STATE", "WORKSPACE"), run_rows),
+        _render_table(
+            ("ISSUE", "ATTEMPT", "PHASE", "STATE", "STARTED", "FINISHED", "WORKSPACE", "ERROR"),
+            run_rows,
+        ),
     ])
     return "\n".join(lines)
 
@@ -487,6 +744,19 @@ def _build_parser() -> argparse.ArgumentParser:
     release = subparsers.add_parser("release")
     release.add_argument("issue_identifier")
     release.add_argument("--reason", default="")
+
+    cancel = subparsers.add_parser("cancel")
+    cancel.add_argument("issue_identifier")
+    cancel.add_argument("--reason", default="")
+
+    retry = subparsers.add_parser("retry")
+    retry.add_argument("issue_identifier")
+    retry.add_argument("--reason", default="")
+
+    sync = subparsers.add_parser("sync")
+    sync.add_argument("issue_identifier")
+    sync.add_argument("--ok", action="store_true")
+    sync.add_argument("--error")
 
     reconcile = subparsers.add_parser("reconcile")
     reconcile.add_argument("issue_identifier", nargs="?")
@@ -554,6 +824,34 @@ def main(argv: list[str] | None = None) -> int:
                 _json_dump({"claim": result})
             else:
                 print(f"released {result['issue_identifier']}")
+            return 0
+
+        if args.command == "cancel":
+            result = store.cancel(args.issue_identifier, reason=args.reason)
+            if args.json:
+                _json_dump({"claim": result})
+            else:
+                print(f"canceled {result['issue_identifier']}")
+            return 0
+
+        if args.command == "retry":
+            result = store.retry(args.issue_identifier, reason=args.reason)
+            if args.json:
+                _json_dump({"claim": result})
+            else:
+                print(f"retryable {result['issue_identifier']}")
+            return 0
+
+        if args.command == "sync":
+            result = store.record_sync(
+                args.issue_identifier,
+                ok=args.ok,
+                error=args.error,
+            )
+            if args.json:
+                _json_dump({"claim": result})
+            else:
+                print(f"synced {result['issue_identifier']}")
             return 0
 
         if args.command == "reconcile":

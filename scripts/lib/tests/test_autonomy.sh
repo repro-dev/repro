@@ -67,10 +67,91 @@ test_help_exists() {
 test_status_json() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
-  _write_runner "$tmpdir" 'REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPROCTL_JSON=true cmd_autonomy status --json'
+  _write_runner "$tmpdir" '
+now="2026-05-06T19:00:00Z"
+python3 - "$tmpdir/state.sqlite" "$now" <<'PY'
+import sqlite3
+import sys
+
+db_path, now = sys.argv[1:3]
+with sqlite3.connect(db_path) as conn:
+    conn.executescript(
+        """
+        CREATE TABLE claims (
+            issue_id TEXT NOT NULL,
+            issue_identifier TEXT PRIMARY KEY,
+            claim_state TEXT NOT NULL,
+            workspace_path TEXT NOT NULL,
+            phase TEXT NOT NULL,
+            attempt_count INTEGER NOT NULL DEFAULT 0,
+            retry_state TEXT,
+            retry_after TEXT,
+            retry_reason TEXT,
+            last_observed_issue_state_name TEXT,
+            last_observed_issue_state_type TEXT,
+            claimed_by TEXT,
+            claimed_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            released_at TEXT
+        );
+        CREATE TABLE runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            issue_identifier TEXT NOT NULL,
+            attempt INTEGER NOT NULL,
+            phase TEXT NOT NULL,
+            state TEXT NOT NULL,
+            workspace_path TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            finished_at TEXT,
+            last_error TEXT
+        );
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO claims (
+            issue_id, issue_identifier, claim_state, workspace_path, phase,
+            attempt_count, retry_state, retry_after, retry_reason,
+            last_observed_issue_state_name, last_observed_issue_state_type,
+            claimed_by, claimed_at, updated_at, released_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+        """,
+        (
+            "issue-uuid-1",
+            "REP-1094",
+            "claimed",
+            "$tmpdir/workspace",
+            "observe",
+            0,
+            None,
+            None,
+            None,
+            "In Progress",
+            "started",
+            "autopilot",
+            now,
+            now,
+        ),
+    )
+    conn.commit()
+PY
+
+REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPROCTL_JSON=true cmd_autonomy status --json
+'
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q '"items"'; then
+  if [ $rc -eq 0 ] && python3 - "$output" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+assert 'items' in payload, payload
+assert 'runs' in payload, payload
+assert 'summary' in payload, payload
+assert 'recent_errors' in payload, payload
+assert 'generated_at' in payload, payload
+PY
+  then
     _pass 'cmd_autonomy status --json emits JSON'
   else
     _fail 'cmd_autonomy status --json emits JSON' "rc=$rc; output=$output"
@@ -126,7 +207,7 @@ JSON
 workspace="$tmpdir/repro-wt-rep-1094"
 mkdir -p "$workspace"
 REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace "$workspace" --phase observe --issue-state In-Progress
-python3 - <<'PY' "$tmpdir/state.sqlite"
+python3 - "$tmpdir/state.sqlite" <<'PY'
 import sqlite3
 import sys
 
@@ -195,7 +276,7 @@ cmd_wt_create() {
 
 REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fresh1 cmd_autonomy prepare REP-1095 --phase observe --claimed-by autopilot
 
-python3 - <<'PY' "$tmpdir/state.sqlite" "$tmpdir/workspaces/repro-wt-rep-1095-fresh1"
+python3 - "$tmpdir/state.sqlite" "$tmpdir/workspaces/repro-wt-rep-1095-fresh1" <<'PY'
 import sqlite3
 import sys
 from pathlib import Path
@@ -319,7 +400,7 @@ git -C "$tmpdir/repro" push origin "$issue_branch" >/dev/null 2>&1
 
 WORKSPACE_ROOT="$tmpdir/workspaces"
 REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy status --json >/dev/null
-python3 - <<'PY' "$tmpdir/state.sqlite" "$tmpdir/workspaces/existing"
+python3 - "$tmpdir/state.sqlite" "$tmpdir/workspaces/existing" <<'PY'
 import sqlite3
 import sys
 from datetime import datetime, timezone
