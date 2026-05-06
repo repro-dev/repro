@@ -169,7 +169,7 @@ _reproctl() {
 
     autonomy)
       if [[ -z "$subcmd" ]]; then
-        COMPREPLY=($(compgen -W "status claim prepare release reconcile monitor sequence run help -h --help" -- "$cur"))
+        COMPREPLY=($(compgen -W "status claim prepare release reconcile discover run help -h --help" -- "$cur"))
       else
         case "$subcmd" in
           status)
@@ -199,13 +199,7 @@ _reproctl() {
             esac
             COMPREPLY=($(compgen -W "--all --issue-state-name --issue-state-type -h --help" -- "$cur"))
             ;;
-          monitor)
-            case "$prev" in
-              --limit|--interval|--claimed-by|--project) return ;;
-            esac
-            COMPREPLY=($(compgen -W "--once --prepare --interval --limit --claimed-by --project --json -h --help" -- "$cur"))
-            ;;
-          sequence)
+          discover)
             case "$prev" in
               --limit|--profile|--prompt-file|--output-dir|--claimed-by|--project) return ;;
             esac

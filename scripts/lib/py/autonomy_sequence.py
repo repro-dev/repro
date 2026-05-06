@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pure helpers for autonomous sequencing."""
+"""Pure helpers for autonomous discovery and sequencing."""
 
 from __future__ import annotations
 

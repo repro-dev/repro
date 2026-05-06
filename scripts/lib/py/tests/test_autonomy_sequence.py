@@ -1,4 +1,4 @@
-"""Tests for autonomy_sequence.py."""
+"""Tests for autonomy discovery prompt helpers."""
 
 from __future__ import annotations
 
@@ -11,16 +11,16 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
-def test_render_sequence_prompt_includes_candidate_json_and_schema_instructions():
+def test_render_discover_prompt_includes_candidate_json_and_schema_instructions():
     from autonomy_sequence import render_sequence_prompt
 
-    template = """Sequencing policy
+    template = """Discovery policy
 Schema version: {{SCHEMA_VERSION}}
 
 Candidate evaluation:
 {{CANDIDATE_EVALUATION_JSON}}
 
-Requested ready-issue cap after sequencing:
+Requested ready-issue cap after discovery and sequencing:
 {{RESULT_LIMIT}}
 
     Treat the candidate evaluation as the full candidate pool after optional caller-driven project scope.
@@ -49,7 +49,7 @@ Return strict JSON only.
 
     assert '"issue_identifier": "REP-1"' in prompt
     assert 'Schema version: 1' in prompt
-    assert 'Requested ready-issue cap after sequencing:' in prompt
+    assert 'Requested ready-issue cap after discovery and sequencing:' in prompt
     assert '5' in prompt
     assert 'strict JSON' in prompt
     assert 'full candidate pool after optional caller-driven project scope' in prompt.lower()
@@ -64,16 +64,16 @@ Return strict JSON only.
     assert 'delegate to `context-gather`' in prompt
 
 
-def test_render_sequence_prompt_allows_discovery_pass_before_final_sequencing():
+def test_render_discover_prompt_allows_discovery_pass_before_final_sequencing():
     from autonomy_sequence import render_sequence_prompt
 
-    template = """Autonomy sequencing
+    template = """Autonomy discovery
 Schema version: {{SCHEMA_VERSION}}
 
 Candidate evaluation:
 {{CANDIDATE_EVALUATION_JSON}}
 
-Requested ready-issue cap after sequencing:
+Requested ready-issue cap after discovery and sequencing:
 {{RESULT_LIMIT}}
 
 Policy:
@@ -293,7 +293,7 @@ def test_main_preserves_prompt_raw_and_error_artifacts_on_validation_failure(tmp
 
     template_path = tmp_path / "autonomy-sequence.md"
     template_path.write_text(
-        """Sequencing policy
+        """Discovery policy
 Schema version: {{SCHEMA_VERSION}}
 
 Candidate evaluation:

@@ -1,7 +1,7 @@
 #!/bin/bash
 # scripts/lib/tests/test_autonomy_sequence.sh
 #
-# Regression tests for autonomous sequencing orchestration.
+# Regression tests for autonomous discovery orchestration.
 
 set -euo pipefail
 
@@ -50,7 +50,7 @@ RUNNER
   chmod +x "$tmpdir/run_test.sh"
 }
 
-test_sequence_writes_artifacts_and_keeps_project_scoped_context() {
+test_discover_writes_artifacts_and_keeps_project_scoped_context() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
   _write_runner "$tmpdir" '
@@ -79,7 +79,7 @@ cmd_opencode() {
 JSON
 }
 
-REPRO_OPENCODE_PROFILE=alpha cmd_autonomy sequence --limit 5 --project Engineering --output-dir "$tmpdir/sequences" --profile alpha --json
+REPRO_OPENCODE_PROFILE=alpha cmd_autonomy discover --limit 5 --project Engineering --output-dir "$tmpdir/discoveries" --profile alpha --json
 '
 
   bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.json" 2>"$tmpdir/stderr.txt" || rc=$?
@@ -87,7 +87,7 @@ REPRO_OPENCODE_PROFILE=alpha cmd_autonomy sequence --limit 5 --project Engineeri
 
   if [ $rc -ne 0 ]; then
     rm -rf "$tmpdir"
-    _fail 'cmd_autonomy sequence runs and writes artifacts' "rc=$rc; output=$output"
+    _fail 'cmd_autonomy discover runs and writes artifacts' "rc=$rc; output=$output"
     return 0
   fi
 
@@ -99,7 +99,7 @@ from pathlib import Path
 tmpdir = Path(sys.argv[1])
 stdout = json.loads((tmpdir / 'stdout.json').read_text())
 
-latest = tmpdir / 'sequences' / 'latest.json'
+latest = tmpdir / 'discoveries' / 'latest.json'
 canonical = json.loads(latest.read_text())
 assert stdout == canonical, (stdout, canonical)
 assert canonical['schema_version'] == 1, canonical
@@ -121,7 +121,7 @@ assert canonical_path.exists(), canonical_path
 prompt_text = prompt_path.read_text()
 raw_text = raw_path.read_text()
 assert 'candidate evaluation json (full candidate pool after optional caller-driven project scope)' in prompt_text.lower(), prompt_text
-assert 'requested ready-issue cap after sequencing' in prompt_text.lower(), prompt_text
+assert 'requested ready-issue cap after discovery and sequencing' in prompt_text.lower(), prompt_text
 assert '5' in prompt_text, prompt_text
 assert 'discover only' in prompt_text.lower(), prompt_text
 assert 'sequence only' in prompt_text.lower(), prompt_text
@@ -140,15 +140,15 @@ assert json.loads(canonical_path.read_text()) == canonical, canonical_path.read_
 PY
   then
     rm -rf "$tmpdir"
-    _fail 'cmd_autonomy sequence runs and writes artifacts' 'sequence artifacts were not written as expected'
+    _fail 'cmd_autonomy discover runs and writes artifacts' 'discover artifacts were not written as expected'
     return 0
   fi
 
   rm -rf "$tmpdir"
-  _pass 'cmd_autonomy sequence runs and writes artifacts'
+  _pass 'cmd_autonomy discover runs and writes artifacts'
 }
 
-test_sequence_writes_artifacts_and_keeps_project_scoped_context
+test_discover_writes_artifacts_and_keeps_project_scoped_context
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

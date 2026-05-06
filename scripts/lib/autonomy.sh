@@ -187,8 +187,7 @@ Subcommands:
   prepare <issue> [--phase observe] [--claimed-by <name>]
   release <issue> [--reason <text>]
   reconcile [<issue> | --all]
-  monitor [--once] [--prepare] [--interval <seconds>] [--limit <count>] [--claimed-by <name>] [--project <name>] [--json]
-  sequence [--limit <count>] [--profile <name>] [--prompt-file <path>] [--output-dir <path>] [--claimed-by <name>] [--project <name>] [--json]
+  discover [--limit <count>] [--profile <name>] [--prompt-file <path>] [--output-dir <path>] [--claimed-by <name>] [--project <name>] [--json]
   run start <issue> --phase <phase> --workspace <path>
   run finish <issue> --attempt <n> --state <state> [--error <text>]
 
@@ -196,8 +195,7 @@ Examples:
   reproctl autonomy status --json
   reproctl autonomy claim REP-1094 --workspace /path/to/repro-wt-rep-1094 --phase observe --issue-state In-Progress
   reproctl autonomy prepare REP-1095 --phase observe --claimed-by autopilot
-  reproctl autonomy monitor --once --json
-  reproctl autonomy sequence --limit 2 --profile github-copilot-sonnet --output-dir tmp/autonomy/sequences --json
+  reproctl autonomy discover --limit 2 --profile github-copilot-sonnet --output-dir tmp/autonomy/discoveries --json
   reproctl autonomy run start REP-1094 --phase observe --workspace /path/to/repro-wt-rep-1094
 EOF
 }
@@ -385,38 +383,8 @@ cmd_autonomy() {
       fi
       ;;
 
-    monitor)
-      local once=false prepare=false json_output=false limit=10 interval=60 claimed_by=""
-      local project_scope=()
-      if [[ "${REPROCTL_JSON:-false}" == true ]]; then
-        json_output=true
-      fi
-      while [[ $# -gt 0 ]]; do
-        case "$1" in
-          --json) json_output=true; shift ;;
-          --once) once=true; shift ;;
-          --prepare) prepare=true; shift ;;
-          --limit) [[ -n "${2:-}" ]] || die "Missing value for $1"; limit="$2"; shift 2 ;;
-          --interval) [[ -n "${2:-}" ]] || die "Missing value for $1"; interval="$2"; shift 2 ;;
-          --claimed-by) [[ -n "${2:-}" ]] || die "Missing value for $1"; claimed_by="$2"; shift 2 ;;
-          --project) [[ -n "${2:-}" ]] || die "Missing value for $1"; project_scope+=("$2"); shift 2 ;;
-          -h|--help)
-            cmd_autonomy_help
-            return 0
-            ;;
-          *) die "Unknown option: $1\nRun 'reproctl autonomy --help' for usage." ;;
-        esac
-      done
-
-      if ((${#project_scope[@]} > 0)); then
-        _autonomy_monitor_tick "$once" "$prepare" "$json_output" "$limit" "$interval" "$claimed_by" "${project_scope[@]}"
-      else
-        _autonomy_monitor_tick "$once" "$prepare" "$json_output" "$limit" "$interval" "$claimed_by"
-      fi
-      ;;
-
-    sequence)
-      local limit=10 profile="" prompt_file="$SCRIPTS_DIR/lib/prompts/autonomy-sequence.md" output_dir="$REPO_ROOT/tmp/autonomy/sequences" claimed_by="" json_output=false
+    discover)
+      local limit=10 profile="" prompt_file="$SCRIPTS_DIR/lib/prompts/autonomy-sequence.md" output_dir="$REPO_ROOT/tmp/autonomy/discoveries" claimed_by="" json_output=false
       local project_scope=()
       if [[ "${REPROCTL_JSON:-false}" == true ]]; then
         json_output=true
@@ -469,7 +437,7 @@ cmd_autonomy() {
         printf '%s\n' "$canonical_json"
       else
         canonical_path="$(printf '%s' "$canonical_json" | python3 -c 'import json, sys; print(json.load(sys.stdin)["artifacts"]["canonical_path"])')"
-        printf 'Sequencing artifacts written to %s\n' "$canonical_path"
+        printf 'Discovery artifacts written to %s\n' "$canonical_path"
       fi
       ;;
 
