@@ -17,6 +17,7 @@ ISSUE_IDENTIFIER_PATTERN = re.compile(r"^REP-\d+$")
 FENCED_JSON_PATTERN = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.IGNORECASE | re.DOTALL)
 
 EVALUATION_PLACEHOLDER = "{{CANDIDATE_EVALUATION_JSON}}"
+RESULT_LIMIT_PLACEHOLDER = "{{RESULT_LIMIT}}"
 SCHEMA_PLACEHOLDER = "{{SCHEMA_VERSION}}"
 
 
@@ -30,6 +31,17 @@ def _as_mapping(value: Any) -> dict[str, Any]:
 
 def _as_list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
+
+
+def _coerce_result_limit(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value > 0 else None
+    if isinstance(value, str) and value.isdigit():
+        parsed = int(value)
+        return parsed if parsed > 0 else None
+    return None
 
 
 def _coerce_json_text(raw_response_text: str) -> str:
@@ -94,13 +106,66 @@ def render_sequence_prompt(
     template_text: str,
     evaluation: dict[str, Any],
     *,
+    result_limit: int | None = None,
     schema_version: int = SCHEMA_VERSION,
 ) -> str:
     if not isinstance(template_text, str):
         raise SequenceValidationError("prompt template must be text")
 
     evaluation_json = json.dumps(evaluation, indent=2, sort_keys=True)
-    return template_text.replace(EVALUATION_PLACEHOLDER, evaluation_json).replace(SCHEMA_PLACEHOLDER, str(schema_version))
+    result_limit_text = str(result_limit) if result_limit is not None else "unbounded"
+    return (
+        template_text.replace(EVALUATION_PLACEHOLDER, evaluation_json)
+        .replace(RESULT_LIMIT_PLACEHOLDER, result_limit_text)
+        .replace(SCHEMA_PLACEHOLDER, str(schema_version))
+    )
+
+
+def apply_sequence_result_limit(canonical: dict[str, Any], result_limit: int | None) -> dict[str, Any]:
+    limit = _coerce_result_limit(result_limit)
+    if limit is None:
+        return canonical
+
+    waves: list[dict[str, Any]] = []
+    deferred = [item for item in _as_list(canonical.get("deferred")) if isinstance(item, dict)]
+    overflow_deferred: list[dict[str, str]] = []
+    kept_ready_count = 0
+
+    for wave in _as_list(canonical.get("waves")):
+        if not isinstance(wave, dict):
+            continue
+
+        issue_entries = wave.get("issues")
+        if not isinstance(issue_entries, list):
+            issue_entries = []
+
+        kept_issue_entries: list[dict[str, Any]] = []
+        for issue_entry in issue_entries:
+            if not isinstance(issue_entry, dict):
+                continue
+
+            if kept_ready_count < limit:
+                kept_issue_entries.append(issue_entry)
+                kept_ready_count += 1
+                continue
+
+            overflow_deferred.append(
+                {
+                    "issue_identifier": str(issue_entry.get("issue_identifier") or issue_entry.get("identifier") or ""),
+                    "reason": f"post-sequencing-cap:{limit}",
+                    "rationale": str(issue_entry.get("rationale") or issue_entry.get("reason") or ""),
+                }
+            )
+
+        if kept_issue_entries:
+            limited_wave = dict(wave)
+            limited_wave["issues"] = kept_issue_entries
+            waves.append(limited_wave)
+
+    capped = dict(canonical)
+    capped["waves"] = waves
+    capped["deferred"] = deferred + overflow_deferred
+    return capped
 
 
 def load_prompt_template(template_file: Path | str) -> str:
@@ -316,6 +381,7 @@ def main(argv: list[str] | None = None) -> int:
     render_parser = subparsers.add_parser("render")
     render_parser.add_argument("--template-file", required=True)
     render_parser.add_argument("--evaluation-json", required=True)
+    render_parser.add_argument("--result-limit", type=int)
     render_parser.add_argument("--schema-version", type=int, default=SCHEMA_VERSION)
 
     finalize_parser = subparsers.add_parser("finalize")
@@ -323,6 +389,7 @@ def main(argv: list[str] | None = None) -> int:
     finalize_parser.add_argument("--evaluation-json", required=True)
     finalize_parser.add_argument("--raw-response", required=True)
     finalize_parser.add_argument("--output-dir", required=True)
+    finalize_parser.add_argument("--result-limit", type=int)
     finalize_parser.add_argument("--schema-version", type=int, default=SCHEMA_VERSION)
 
     args = parser.parse_args(argv)
@@ -330,13 +397,25 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "render":
         template_text = load_prompt_template(args.template_file)
         evaluation = _parse_json_argument(args.evaluation_json, label="candidate evaluation")
-        print(render_sequence_prompt(template_text, evaluation, schema_version=args.schema_version))
+        print(
+            render_sequence_prompt(
+                template_text,
+                evaluation,
+                result_limit=args.result_limit,
+                schema_version=args.schema_version,
+            )
+        )
         return 0
 
     if args.command == "finalize":
         template_text = load_prompt_template(args.template_file)
         evaluation = _parse_json_argument(args.evaluation_json, label="candidate evaluation")
-        prompt_text = render_sequence_prompt(template_text, evaluation, schema_version=args.schema_version)
+        prompt_text = render_sequence_prompt(
+            template_text,
+            evaluation,
+            result_limit=args.result_limit,
+            schema_version=args.schema_version,
+        )
         try:
             canonical = normalize_sequence_response(args.raw_response, evaluation, schema_version=args.schema_version)
         except SequenceValidationError as exc:
@@ -350,6 +429,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(written, indent=2, sort_keys=True), file=sys.stderr)
             return 1
 
+        canonical = apply_sequence_result_limit(canonical, args.result_limit)
         written = write_sequence_artifacts(
             args.output_dir,
             prompt_text=prompt_text,

@@ -20,12 +20,15 @@ Schema version: {{SCHEMA_VERSION}}
 Candidate evaluation:
 {{CANDIDATE_EVALUATION_JSON}}
 
-Treat the candidate evaluation as a seed, not the full universe.
+Requested ready-issue cap after sequencing:
+{{RESULT_LIMIT}}
+
+Treat the candidate evaluation as the full pool to inspect for discovery and sequencing.
 Internal modes:
 - discover only: expand context and the candidate pool, but do not finalize wave ordering.
 - sequence only: keep the provided pool fixed and only order what is already present.
-- discover+sequence: the default; discover first when the seed is too narrow, then finalize waves.
-If the seed is sparse, ambiguous, or low-confidence, perform an initial discovery pass before finalizing waves.
+- discover+sequence: the default; discover first when the pool is too narrow, then finalize waves.
+If the pool is sparse, ambiguous, or low-confidence, perform an initial discovery pass before finalizing waves.
 For promising candidates, fetch live Linear issue details and inspect blockers, child issues, comments, and related issues.
 delegate to `librarian` for external docs or API behavior questions, and delegate to `context-gather` when the issue context is too thin to sequence safely.
 
@@ -40,13 +43,16 @@ Return strict JSON only.
             ],
             "summary": {"eligible_count": 1},
         },
+        result_limit=5,
         schema_version=1,
     )
 
     assert '"issue_identifier": "REP-1"' in prompt
     assert 'Schema version: 1' in prompt
+    assert 'Requested ready-issue cap after sequencing:' in prompt
+    assert '5' in prompt
     assert 'strict JSON' in prompt
-    assert 'candidate evaluation as a seed' in prompt.lower()
+    assert 'full pool to inspect for discovery and sequencing' in prompt.lower()
     assert 'discover only' in prompt.lower()
     assert 'sequence only' in prompt.lower()
     assert 'discover+sequence' in prompt.lower()
@@ -67,11 +73,14 @@ Schema version: {{SCHEMA_VERSION}}
 Candidate evaluation:
 {{CANDIDATE_EVALUATION_JSON}}
 
+Requested ready-issue cap after sequencing:
+{{RESULT_LIMIT}}
+
 Policy:
 - discover only: expand context and the candidate pool, but do not finalize wave ordering.
 - sequence only: keep the provided pool fixed and only order what is already present.
-- discover+sequence: the default; discover first when the seed is too narrow, then finalize waves.
-- If the seed is sparse, ambiguous, or low-confidence, perform an initial discovery pass before finalizing waves.
+- discover+sequence: the default; discover first when the pool is too narrow, then finalize waves.
+- If the pool is sparse, ambiguous, or low-confidence, perform an initial discovery pass before finalizing waves.
 
 Return strict JSON only.
 """
@@ -84,6 +93,7 @@ Return strict JSON only.
             ],
             "summary": {"eligible_count": 1},
         },
+        result_limit=5,
         schema_version=1,
     )
 
@@ -91,6 +101,43 @@ Return strict JSON only.
     assert 'sequence only' in prompt.lower()
     assert 'discover+sequence' in prompt.lower()
     assert 'initial discovery pass before finalizing waves' in prompt.lower()
+
+
+def test_apply_sequence_result_limit_caps_ready_issues_after_sequencing():
+    from autonomy_sequence import apply_sequence_result_limit
+
+    canonical = {
+        "schema_version": 1,
+        "waves": [
+            {
+                "name": "wave-1",
+                "issues": [
+                    {"issue_identifier": "REP-1", "rationale": "start here"},
+                    {"issue_identifier": "REP-2", "rationale": "next"},
+                ],
+                "rationale": "first pair",
+            },
+            {
+                "name": "wave-2",
+                "issues": [
+                    {"issue_identifier": "REP-3", "rationale": "third"},
+                    {"issue_identifier": "REP-4", "rationale": "overflow"},
+                ],
+                "rationale": "second pair",
+            },
+        ],
+        "deferred": [
+            {"issue_identifier": "REP-5", "reason": "blocked-by:REP-1", "rationale": "stay deferred"},
+        ],
+        "risk_notes": [],
+    }
+
+    limited = apply_sequence_result_limit(canonical, 3)
+
+    assert [issue["issue_identifier"] for issue in limited["waves"][0]["issues"]] == ["REP-1", "REP-2"]
+    assert [issue["issue_identifier"] for issue in limited["waves"][1]["issues"]] == ["REP-3"]
+    assert [item["issue_identifier"] for item in limited["deferred"]] == ["REP-5", "REP-4"]
+    assert limited["deferred"][1]["reason"] == "post-sequencing-cap:3"
 
 
 def test_normalize_sequence_response_accepts_fenced_json():

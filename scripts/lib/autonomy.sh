@@ -96,8 +96,9 @@ _autonomy_monitor_render() {
 _autonomy_sequence_render_prompt() {
   local template_file="$1"
   local evaluation_json="$2"
+  local result_limit="$3"
 
-  python3 "$SCRIPTS_DIR/lib/py/autonomy_sequence.py" render --template-file "$template_file" --evaluation-json "$evaluation_json"
+  python3 "$SCRIPTS_DIR/lib/py/autonomy_sequence.py" render --template-file "$template_file" --evaluation-json "$evaluation_json" --result-limit "$result_limit"
 }
 
 _autonomy_sequence_finalize() {
@@ -105,8 +106,9 @@ _autonomy_sequence_finalize() {
   local evaluation_json="$2"
   local raw_response="$3"
   local output_dir="$4"
+  local result_limit="$5"
 
-  python3 "$SCRIPTS_DIR/lib/py/autonomy_sequence.py" finalize --template-file "$template_file" --evaluation-json "$evaluation_json" --raw-response "$raw_response" --output-dir "$output_dir"
+  python3 "$SCRIPTS_DIR/lib/py/autonomy_sequence.py" finalize --template-file "$template_file" --evaluation-json "$evaluation_json" --raw-response "$raw_response" --output-dir "$output_dir" --result-limit "$result_limit"
 }
 
 _autonomy_monitor_tick() {
@@ -419,12 +421,12 @@ cmd_autonomy() {
       local payload evaluation_json prompt_text raw_response canonical_json canonical_path
       payload="$(_autonomy_monitor_payload)" || return 1
       if [[ -n "$claimed_by" ]]; then
-        evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" --json --limit "$limit" --claimed-by "$claimed_by")" || return 1
+        evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" --json --claimed-by "$claimed_by")" || return 1
       else
-        evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" --json --limit "$limit")" || return 1
+        evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" --json)" || return 1
       fi
 
-      prompt_text="$(_autonomy_sequence_render_prompt "$prompt_file" "$evaluation_json")" || return 1
+      prompt_text="$(_autonomy_sequence_render_prompt "$prompt_file" "$evaluation_json" "$limit")" || return 1
 
       if [[ -n "$profile" ]]; then
         raw_response="$(cmd_opencode --profile "$profile" --agent sequencer run "$prompt_text")" || return 1
@@ -432,7 +434,7 @@ cmd_autonomy() {
         raw_response="$(cmd_opencode --agent sequencer run "$prompt_text")" || return 1
       fi
 
-      canonical_json="$(_autonomy_sequence_finalize "$prompt_file" "$evaluation_json" "$raw_response" "$output_dir")" || return 1
+      canonical_json="$(_autonomy_sequence_finalize "$prompt_file" "$evaluation_json" "$raw_response" "$output_dir" "$limit")" || return 1
 
       if [[ "$json_output" == true ]]; then
         printf '%s\n' "$canonical_json"
