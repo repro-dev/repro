@@ -9,6 +9,7 @@ set -euo pipefail
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 OPENCODE_SH="$TESTS_DIR/../opencode.sh"
 PROFILE_DIR="$TESTS_DIR/../../../.opencode/profiles"
+SEQ_AGENT_FILE="$TESTS_DIR/../../../.opencode/agents/sequencer.md"
 
 # ── Harness ──────────────────────────────────────────────────────────
 
@@ -134,7 +135,29 @@ test_help_mentions_env_default_profile() {
   fi
 }
 
-# Test 5: env default profile is selected without invoking _pick
+# Test 5: sequencer agent is a primary agent with sequencing guidance
+test_sequencer_agent_definition_is_primary() {
+  if [ -f "$SEQ_AGENT_FILE" ] && grep -q '^mode: primary$' "$SEQ_AGENT_FILE" && grep -qi 'sequencing agent' "$SEQ_AGENT_FILE"; then
+    _pass "sequencer agent file exists and is primary"
+  else
+    _fail "sequencer agent file exists and is primary" "file missing or frontmatter/body did not match: $SEQ_AGENT_FILE"
+  fi
+}
+
+# Test 6: sequencer profile mapping uses the cheaper model in both profiles
+test_sequencer_profile_maps_to_cheaper_model() {
+  local profile_file
+  for profile_file in "$PROFILE_DIR/openai-gpt5.4.json" "$PROFILE_DIR/openai-gpt5.5.json"; do
+    if ! grep -q '"sequencer"' "$profile_file" || ! grep -q '"model": "openai/gpt-5.4-mini"' "$profile_file"; then
+      _fail "sequencer agent maps to the cheaper model" "missing sequencer mapping in $profile_file"
+      return 0
+    fi
+  done
+
+  _pass "sequencer agent maps to the cheaper model in both OpenAI profiles"
+}
+
+# Test 7: env default profile is selected without invoking _pick
 test_env_default_profile_selects_without_picker() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -159,7 +182,7 @@ cmd_opencode
   fi
 }
 
-# Test 6: explicit --profile overrides the env default
+# Test 8: explicit --profile overrides the env default
 test_profile_flag_overrides_env_default() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -182,7 +205,7 @@ REPRO_OPENCODE_PROFILE=alpha cmd_opencode --profile beta
   fi
 }
 
-# Test 7: invalid env default fails with available profiles
+# Test 9: invalid env default fails with available profiles
 test_invalid_env_default_exits_nonzero() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -207,7 +230,7 @@ cmd_opencode
   fi
 }
 
-# Test 8: no profiles in directory → die with helpful message
+# Test 10: no profiles in directory → die with helpful message
 test_no_profiles_exits_nonzero() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -227,7 +250,7 @@ test_no_profiles_exits_nonzero() {
   fi
 }
 
-# Test 9: no --profile + 2 profiles + fzf absent → die with install instructions
+# Test 11: no --profile + 2 profiles + fzf absent → die with install instructions
 test_multi_profile_no_fzf_exits_nonzero() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"

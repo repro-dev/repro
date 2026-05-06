@@ -73,6 +73,7 @@ JSON
 }
 
 cmd_opencode() {
+  printf '%s\n' "$*" > "$tmpdir/opencode-args.txt"
   cat <<'JSON'
 {"schema_version":1,"waves":[{"name":"wave-1","issues":[{"issue_identifier":"REP-2","rationale":"eligible first"}],"rationale":"start with the unblocked issue"}],"deferred":[{"issue_identifier":"REP-3","reason":"blocked-by:REP-2","rationale":"retain blocker context"}],"risk_notes":["blocked issue stays in the downstream handoff"]}
 JSON
@@ -106,6 +107,10 @@ assert canonical['artifacts']['latest_path'] == str(latest), canonical['artifact
 assert canonical['waves'][0]['issues'][0]['issue_identifier'] == 'REP-2', canonical['waves']
 assert canonical['deferred'][0]['issue_identifier'] == 'REP-3', canonical['deferred']
 assert canonical['deferred'][0]['reason'] == 'blocked-by:REP-2', canonical['deferred']
+
+args = (tmpdir / 'opencode-args.txt').read_text().strip()
+assert '--agent sequencer' in args, args
+assert '--profile alpha' in args, args
 
 prompt_path = Path(canonical['artifacts']['prompt_path'])
 raw_path = Path(canonical['artifacts']['raw_response_path'])

@@ -427,9 +427,9 @@ cmd_autonomy() {
       prompt_text="$(_autonomy_sequence_render_prompt "$prompt_file" "$evaluation_json")" || return 1
 
       if [[ -n "$profile" ]]; then
-        raw_response="$(cmd_opencode --profile "$profile" run "$prompt_text")" || return 1
+        raw_response="$(cmd_opencode --profile "$profile" --agent sequencer run "$prompt_text")" || return 1
       else
-        raw_response="$(cmd_opencode run "$prompt_text")" || return 1
+        raw_response="$(cmd_opencode --agent sequencer run "$prompt_text")" || return 1
       fi
 
       canonical_json="$(_autonomy_sequence_finalize "$prompt_file" "$evaluation_json" "$raw_response" "$output_dir")" || return 1
