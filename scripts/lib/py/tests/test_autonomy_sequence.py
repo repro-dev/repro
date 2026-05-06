@@ -178,14 +178,24 @@ def test_normalize_sequence_response_accepts_fenced_json():
     assert canonical["risk_notes"] == ["dependency first"]
 
 
-def test_normalize_sequence_response_canonicalizes_cap_reason_variants():
+@pytest.mark.parametrize(
+    "reason_variant",
+    [
+        "outside-cap",
+        "beyond-cap",
+        "exceeds-cap:5",
+        "deferred-by-cap",
+        "deferred:cap-5",
+        "post-sequencing-cap:5",
+    ],
+)
+def test_normalize_sequence_response_canonicalizes_cap_reason_variants(reason_variant: str):
     from autonomy_sequence import normalize_sequence_response
 
     evaluation = {
         "items": [
             {"issue_identifier": "REP-1", "eligible": True},
             {"issue_identifier": "REP-2", "eligible": False},
-            {"issue_identifier": "REP-3", "eligible": False},
         ],
         "summary": {"eligible_count": 1},
     }
@@ -201,8 +211,7 @@ def test_normalize_sequence_response_canonicalizes_cap_reason_variants():
                 }
             ],
             "deferred": [
-                {"issue_identifier": "REP-2", "reason": "beyond-cap", "rationale": "held for later"},
-                {"issue_identifier": "REP-3", "reason": "exceeds-cap:5", "rationale": "held for later"},
+                {"issue_identifier": "REP-2", "reason": reason_variant, "rationale": "held for later"},
             ],
             "risk_notes": [],
         }
@@ -210,8 +219,8 @@ def test_normalize_sequence_response_canonicalizes_cap_reason_variants():
 
     canonical = normalize_sequence_response(raw_response, evaluation, schema_version=1)
 
-    assert [item["reason"] for item in canonical["deferred"]] == ["outside-cap", "outside-cap"]
-    assert [item["rationale"] for item in canonical["deferred"]] == ["held for later", "held for later"]
+    assert [item["reason"] for item in canonical["deferred"]] == ["outside-cap"]
+    assert [item["rationale"] for item in canonical["deferred"]] == ["held for later"]
 
 
 def test_normalize_sequence_response_rejects_ineligible_issue_in_wave():
