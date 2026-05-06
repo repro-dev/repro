@@ -193,6 +193,74 @@ PY
   fi
 }
 
+test_prepare_records_assignment_sync_error_when_assignment_is_owned_by_another_viewer() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+linear() {
+  case "$1 $2 $3" in
+    "issue show REP-1094")
+      cat <<'"'"'JSON'"'"'
+{"item":{"id":"issue-uuid-1"}}
+JSON
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+_linear_api() {
+  case "$1" in
+    *"viewer { id }"*)
+      cat <<'JSON'
+{"data":{"viewer":{"id":"viewer-1"}}}
+JSON
+      ;;
+    *"issues(filter:"*)
+      cat <<'JSON'
+{"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1094","title":"Assignment conflict","branchName":"rep-1094-assignment-conflict","state":{"name":"In Progress","type":"started"},"assignee":{"id":"viewer-2"},"team":{"states":{"nodes":[{"id":"todo-state-id","name":"Todo","type":"todo"},{"id":"in-progress-state-id","name":"In Progress","type":"started"}]}}}]}}}
+JSON
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+_resolve_issue_worktree_names() {
+  printf "%s\n%s\n" "rep-1094-assignment-conflict-fresh1" "rep-1094-fresh1"
+}
+
+cmd_wt_create() {
+  mkdir -p "$WT_ISSUE_WORKTREE_PATH"
+}
+
+REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fresh1 cmd_autonomy prepare REP-1094 --phase observe --claimed-by autopilot
+'
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'Prepared workspace for REP-1094' && python3 - "$tmpdir/state.sqlite" <<'PY'
+import sqlite3
+import sys
+
+db_path = sys.argv[1]
+with sqlite3.connect(db_path) as conn:
+    row = conn.execute(
+        'SELECT linear_assignment_sync_error, linear_sync_error FROM claims WHERE issue_identifier = ?',
+        ('REP-1094',),
+    ).fetchone()
+
+assert row is not None and row[0] == 'Linear issue already assigned to another owner' and row[1] == 'Linear issue already assigned to another owner', row
+PY
+  then
+    rm -rf "$tmpdir"
+    _pass 'cmd_autonomy prepare records assignment sync error and continues'
+  else
+    rm -rf "$tmpdir"
+    _fail 'cmd_autonomy prepare records assignment sync error and continues' "rc=$rc; output=$output"
+  fi
+}
+
 test_invalid_issue_identifier_fails_before_linear_lookup() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -255,6 +323,7 @@ test_claim_and_release_sync_assignment_visibility
 test_release_records_state_mutation_failure_without_exiting
 test_invalid_issue_identifier_fails_before_linear_lookup
 test_completions_show_json_for_control_subcommands
+test_prepare_records_assignment_sync_error_when_assignment_is_owned_by_another_viewer
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"
