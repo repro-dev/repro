@@ -114,7 +114,10 @@ _autonomy_sequence_finalize() {
 _autonomy_monitor_tick() {
   local once="$1" prepare="$2" json_output="$3" limit="$4" interval="$5" claimed_by="$6"
   shift 6 || true
-  local project_scopes=("$@")
+  local project_scopes=()
+  if (($# > 0)); then
+    project_scopes=("$@")
+  fi
   local payload evaluation_json
 
   while :; do
@@ -127,10 +130,12 @@ _autonomy_monitor_tick() {
       monitor_args+=(--claimed-by "$claimed_by")
     fi
     local project_scope
-    for project_scope in "${project_scopes[@]}"; do
-      [[ -n "$project_scope" ]] || continue
-      monitor_args+=(--project "$project_scope")
-    done
+    if ((${#project_scopes[@]} > 0)); then
+      for project_scope in "${project_scopes[@]}"; do
+        [[ -n "$project_scope" ]] || continue
+        monitor_args+=(--project "$project_scope")
+      done
+    fi
 
     if [[ "$prepare" == true ]]; then
       evaluation_json="$(printf '%s' "$payload" | python3 "$SCRIPTS_DIR/lib/py/autonomy_monitor.py" "${monitor_args[@]}")" || return 1
@@ -403,7 +408,11 @@ cmd_autonomy() {
         esac
       done
 
-      _autonomy_monitor_tick "$once" "$prepare" "$json_output" "$limit" "$interval" "$claimed_by" "${project_scope[@]}"
+      if ((${#project_scope[@]} > 0)); then
+        _autonomy_monitor_tick "$once" "$prepare" "$json_output" "$limit" "$interval" "$claimed_by" "${project_scope[@]}"
+      else
+        _autonomy_monitor_tick "$once" "$prepare" "$json_output" "$limit" "$interval" "$claimed_by"
+      fi
       ;;
 
     sequence)
@@ -433,10 +442,12 @@ cmd_autonomy() {
       payload="$(_autonomy_monitor_payload)" || return 1
       local monitor_args=(--json)
       local project_value
-      for project_value in "${project_scope[@]}"; do
-        [[ -n "$project_value" ]] || continue
-        monitor_args+=(--project "$project_value")
-      done
+      if ((${#project_scope[@]} > 0)); then
+        for project_value in "${project_scope[@]}"; do
+          [[ -n "$project_value" ]] || continue
+          monitor_args+=(--project "$project_value")
+        done
+      fi
       if [[ -n "$claimed_by" ]]; then
         monitor_args+=(--claimed-by "$claimed_by")
       else

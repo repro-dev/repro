@@ -82,6 +82,50 @@ REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPROCTL_JSON=true cmd_autonomy monitor
   fi
 }
 
+test_monitor_runs_without_project_scope_through_wrapper() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+mkdir -p "$tmpdir/bin"
+cat > "$tmpdir/bin/linear" <<'"'"'EOF'"'"'
+#!/bin/bash
+case "$*" in
+  "issue list --status backlog --json identifier,priority,project,status,relations")
+    cat <<'"'"'JSON'"'"'
+[]
+JSON
+    ;;
+  "issue list --status todo --json identifier,priority,project,status,relations")
+    cat <<'"'"'JSON'"'"'
+[]
+JSON
+    ;;
+  *)
+    return 1
+    ;;
+esac
+EOF
+chmod +x "$tmpdir/bin/linear"
+
+PATH="$tmpdir/bin:$PATH" REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" "$SCRIPTS_DIR/../bin/reproctl" autonomy monitor --once --json
+'
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && python3 - "$output" <<'PY'
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+assert data["summary"]["project_scope"] is None
+assert data["items"] == []
+PY
+  then
+    _pass 'bin/reproctl autonomy monitor runs without --project'
+  else
+    _fail 'bin/reproctl autonomy monitor runs without --project' "rc=$rc; output=$output"
+  fi
+}
+
 test_monitor_reports_eligibility_and_reasons() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -271,6 +315,7 @@ PY
 
 test_help_mentions_monitor
 test_monitor_reports_list_failure
+test_monitor_runs_without_project_scope_through_wrapper
 test_monitor_reports_eligibility_and_reasons
 test_monitor_project_scope_filters_candidates
 test_monitor_orders_zero_and_missing_priority_last
