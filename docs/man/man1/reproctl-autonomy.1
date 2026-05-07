@@ -11,33 +11,56 @@ Manage durable local state for autonomous orchestration.
 The autonomy surface records local claims, active runs, retry metadata,
 and Linear sync state for operator workflows.
 It does not provide a web UI.
+.SS Actor model
+The claim queue is shared by three actors:
+.IP \(bu 2
+\f[B]User/operator\f[R] \(em inspects state, discovers work, and
+overrides lifecycle state when needed.
+.IP \(bu 2
+\f[B]Bot\-mode intake\f[R] \(em discovers and claims work up to policy
+and concurrency limits.
+.IP \(bu 2
+\f[B]Delivery daemon\f[R] \(em operates only on already\-claimed work
+and shepherds it through prepare, run, retry, reconcile, release, and
+cancel.
+.PP
+Commands are owned by the actor that mutates the relevant part of the
+contract.
+Discovery and claim are intake primitives; prepare and run are daemon
+lifecycle primitives; release, cancel, retry, and reconcile are daemon
+recovery or terminal controls with operator override use.
 .SH SUBCOMMANDS
 .TP
 \f[B]status\f[R] [\f[B]\-\-all\f[R]] [\f[B]\-\-json\f[R]]
-Show current claims and runs.
+Inspect claim and run state.
 With \f[B]\-\-json\f[R], emits a machine\-readable status object.
 .TP
+\f[B]discover\f[R] [\f[B]\-\-limit\f[R] \f[I]count\f[R]] [\f[B]\-\-profile\f[R] \f[I]name\f[R]] [\f[B]\-\-prompt\-file\f[R] \f[I]path\f[R]] [\f[B]\-\-output\-dir\f[R] \f[I]path\f[R]] [\f[B]\-\-claimed\-by\f[R] \f[I]name\f[R]] [\f[B]\-\-project\f[R] \f[I]name\f[R]] [\f[B]\-\-json\f[R]]
+Intake discovery for user/operator and bot\-mode.
+.TP
+\f[B]claim\f[R] \f[I]issue\f[R] \f[B]\-\-workspace\f[R] \f[I]path\f[R] \f[B]\-\-phase\f[R] \f[I]phase\f[R] \f[B]\-\-issue\-state\f[R] \f[I]name\f[R] [\f[B]\-\-issue\-state\-type\f[R] \f[I]type\f[R]] [\f[B]\-\-claimed\-by\f[R] \f[I]user\f[R]]
+Intake claim primitive for user/operator and bot\-mode.
+.TP
+\f[B]prepare\f[R] \f[I]issue\f[R] [\f[B]\-\-phase\f[R] \f[I]observe\f[R]] [\f[B]\-\-claimed\-by\f[R] \f[I]name\f[R]]
+Delivery daemon lifecycle primitive.
+.TP
 \f[B]release\f[R] \f[I]issue\f[R] [\f[B]\-\-reason\f[R] \f[I]text\f[R]] [\f[B]\-\-json\f[R]]
-Release a local claim so it can be picked up again.
+Delivery daemon recovery/terminal control; operator override use.
 .TP
 \f[B]cancel\f[R] \f[I]issue\f[R] [\f[B]\-\-reason\f[R] \f[I]text\f[R]] [\f[B]\-\-json\f[R]]
-Mark a claim canceled locally and sync the issue out of active work.
+Delivery daemon recovery/terminal control; operator override use.
 .TP
 \f[B]retry\f[R] \f[I]issue\f[R] [\f[B]\-\-phase\f[R] \f[I]observe\f[R]] [\f[B]\-\-claimed\-by\f[R] \f[I]name\f[R]] [\f[B]\-\-reason\f[R] \f[I]text\f[R]] [\f[B]\-\-json\f[R]]
-Reset retryable local state and re\-prepare the issue.
+Delivery daemon recovery/terminal control; operator override use.
 .TP
 \f[B]reconcile\f[R] [\f[I]issue\f[R] | \f[B]\-\-all\f[R]]
-Refresh local claims from Linear issue state.
-.TP
-\f[B]discover\f[R] [\f[B]\-\-limit\f[R] \f[I]count\f[R]] [\f[B]\-\-profile\f[R] \f[I]name\f[R]] [\f[B]\-\-prompt\-file\f[R] \f[I]path\f[R]] [\f[B]\-\-output\-dir\f[R] \f[I]path\f[R]] [\f[B]\-\-claimed\-by\f[R] \f[I]name\f[R]] [\f[B]\-\-project\f[R] \f[I]name\f[R]] [\f[B]\-\-json\f[R]]
-Build a discovery wave, run OpenCode, and write durable discovery
-artifacts.
+Delivery daemon recovery/terminal control; operator override use.
 .TP
 \f[B]run start\f[R] \f[I]issue\f[R] \f[B]\-\-phase\f[R] \f[I]phase\f[R] \f[B]\-\-workspace\f[R] \f[I]path\f[R]
-Start a durable run attempt.
+Delivery daemon lifecycle primitive.
 .TP
 \f[B]run finish\f[R] \f[I]issue\f[R] \f[B]\-\-attempt\f[R] \f[I]n\f[R] \f[B]\-\-state\f[R] \f[I]state\f[R] [\f[B]\-\-error\f[R] \f[I]text\f[R]]
-Finish a run attempt and capture any failure message.
+Delivery daemon lifecycle primitive.
 .SH OPTIONS
 .TP
 \f[B]\-\-all\f[R]

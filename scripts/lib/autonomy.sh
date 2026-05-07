@@ -370,17 +370,31 @@ Usage: reproctl autonomy <subcommand>
 
 Durable local state for autonomous orchestration.
 
+Actor model:
+  user/operator    Inspect claims, discover work, and override lifecycle state.
+  bot-mode intake  Discover and claim work up to policy/concurrency limits.
+  delivery daemon  Operate on already-claimed work; do not select new work.
+
 Subcommands:
-  status [--all] [--json]        Show current claims and run attempts
-  claim <issue> --workspace <path> --phase <phase> --issue-state <name> [--issue-state-type <type>] [--claimed-by <user>]
-  prepare <issue> [--phase observe] [--claimed-by <name>]
-  release <issue> [--reason <text>] [--json]
-  cancel <issue> [--reason <text>] [--json]
-  retry <issue> [--phase observe] [--claimed-by <name>] [--reason <text>] [--json]
-  reconcile [<issue> | --all]
+  status [--all] [--json]        Inspect claim and run state
   discover [--limit <count>] [--profile <name>] [--prompt-file <path>] [--output-dir <path>] [--claimed-by <name>] [--project <name>] [--json]
+                                 Intake discovery for user/operator and bot-mode
+  claim <issue> --workspace <path> --phase <phase> --issue-state <name> [--issue-state-type <type>] [--claimed-by <user>]
+                                 Intake claim primitive for user/operator and bot-mode
+  prepare <issue> [--phase observe] [--claimed-by <name>]
+                                 Delivery daemon lifecycle primitive
   run start <issue> --phase <phase> --workspace <path>
+                                 Delivery daemon lifecycle primitive
   run finish <issue> --attempt <n> --state <state> [--error <text>]
+                                 Delivery daemon lifecycle primitive
+  release <issue> [--reason <text>] [--json]
+                                 Delivery daemon recovery/terminal control; operator override use
+  cancel <issue> [--reason <text>] [--json]
+                                 Delivery daemon recovery/terminal control; operator override use
+  retry <issue> [--phase observe] [--claimed-by <name>] [--reason <text>] [--json]
+                                 Delivery daemon recovery/terminal control; operator override use
+  reconcile [<issue> | --all]
+                                 Delivery daemon recovery/terminal control; operator override use
 
 Examples:
   reproctl autonomy status --json

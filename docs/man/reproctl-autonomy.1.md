@@ -8,7 +8,7 @@ reproctl-autonomy - durable local claim, status, and control state
 
 # SYNOPSIS
 
-**reproctl autonomy** *subcommand* [*options*]
+**reproctl autonomy** _subcommand_ [*options*]
 
 # DESCRIPTION
 
@@ -17,56 +17,78 @@ Manage durable local state for autonomous orchestration.
 The autonomy surface records local claims, active runs, retry metadata, and
 Linear sync state for operator workflows. It does not provide a web UI.
 
+## Actor model
+
+The claim queue is shared by three actors:
+
+- **User/operator** — inspects state, discovers work, and overrides lifecycle
+  state when needed.
+- **Bot-mode intake** — discovers and claims work up to policy and concurrency
+  limits.
+- **Delivery daemon** — operates only on already-claimed work and shepherds it
+  through prepare, run, retry, reconcile, release, and cancel.
+
+Commands are owned by the actor that mutates the relevant part of the contract.
+Discovery and claim are intake primitives; prepare and run are daemon lifecycle
+primitives; release, cancel, retry, and reconcile are daemon recovery or
+terminal controls with operator override use.
+
 # SUBCOMMANDS
 
 **status** [**--all**] [**--json**]
-: Show current claims and runs. With **--json**, emits a machine-readable status object.
-
-**release** *issue* [**--reason** *text*] [**--json**]
-: Release a local claim so it can be picked up again.
-
-**cancel** *issue* [**--reason** *text*] [**--json**]
-: Mark a claim canceled locally and sync the issue out of active work.
-
-**retry** *issue* [**--phase** *observe*] [**--claimed-by** *name*] [**--reason** *text*] [**--json**]
-: Reset retryable local state and re-prepare the issue.
-
-**reconcile** [*issue* | **--all**]
-: Refresh local claims from Linear issue state.
+: Inspect claim and run state. With **--json**, emits a machine-readable status object.
 
 **discover** [**--limit** *count*] [**--profile** *name*] [**--prompt-file** *path*] [**--output-dir** *path*] [**--claimed-by** *name*] [**--project** *name*] [**--json**]
-: Build a discovery wave, run OpenCode, and write durable discovery artifacts.
+: Intake discovery for user/operator and bot-mode.
 
-**run start** *issue* **--phase** *phase* **--workspace** *path*
-: Start a durable run attempt.
+**claim** _issue_ **--workspace** _path_ **--phase** _phase_ **--issue-state** _name_ [**--issue-state-type** *type*] [**--claimed-by** *user*]
+: Intake claim primitive for user/operator and bot-mode.
 
-**run finish** *issue* **--attempt** *n* **--state** *state* [**--error** *text*]
-: Finish a run attempt and capture any failure message.
+**prepare** _issue_ [**--phase** *observe*] [**--claimed-by** *name*]
+: Delivery daemon lifecycle primitive.
+
+**release** _issue_ [**--reason** *text*] [**--json**]
+: Delivery daemon recovery/terminal control; operator override use.
+
+**cancel** _issue_ [**--reason** *text*] [**--json**]
+: Delivery daemon recovery/terminal control; operator override use.
+
+**retry** _issue_ [**--phase** *observe*] [**--claimed-by** *name*] [**--reason** *text*] [**--json**]
+: Delivery daemon recovery/terminal control; operator override use.
+
+**reconcile** [*issue* | **--all**]
+: Delivery daemon recovery/terminal control; operator override use.
+
+**run start** _issue_ **--phase** _phase_ **--workspace** _path_
+: Delivery daemon lifecycle primitive.
+
+**run finish** _issue_ **--attempt** _n_ **--state** _state_ [**--error** *text*]
+: Delivery daemon lifecycle primitive.
 
 # OPTIONS
 
 **--all**
 : Include released and canceled claims in status output.
 
-**--reason** *text*
+**--reason** _text_
 : Explain why a claim was released, canceled, or retried.
 
-**--phase** *phase*
+**--phase** _phase_
 : Set the preparation phase for retry and run commands.
 
-**--claimed-by** *name*
+**--claimed-by** _name_
 : Tag local claim ownership with an operator name.
 
-**--profile** *name*
+**--profile** _name_
 : Pass a specific OpenCode profile to the launcher.
 
-**--prompt-file** *path*
+**--prompt-file** _path_
 : Use an alternate discovery prompt template.
 
-**--output-dir** *path*
+**--output-dir** _path_
 : Override the discovery artifact directory.
 
-**--project** *name*
+**--project** _name_
 : Restrict discovery to a Linear project.
 
 **--json**

@@ -57,8 +57,8 @@ test_help_exists() {
   _write_runner "$tmpdir" 'cmd_autonomy_help'
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -qi 'Usage: reproctl autonomy' && printf '%s\n' "$output" | grep -q 'prepare' && ! printf '%s\n' "$output" | grep -q -- '--issue-id'; then
-    if printf '%s\n' "$output" | grep -q 'status \[--all\] \[--json\]' && printf '%s\n' "$output" | grep -q 'release <issue> \[--reason <text>\] \[--json\]' && printf '%s\n' "$output" | grep -q 'cancel <issue> \[--reason <text>\] \[--json\]' && printf '%s\n' "$output" | grep -q 'retry <issue> \[--phase observe\] \[--claimed-by <name>\] \[--reason <text>\] \[--json\]'; then
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -qi 'Usage: reproctl autonomy' && printf '%s\n' "$output" | grep -q 'Actor model:' && ! printf '%s\n' "$output" | grep -q -- '--issue-id'; then
+    if printf '%s\n' "$output" | grep -q 'status \[--all\] \[--json\]' && printf '%s\n' "$output" | grep -q 'Inspect claim and run state' && printf '%s\n' "$output" | grep -q 'discover \[--limit <count>\]' && printf '%s\n' "$output" | grep -q 'Intake discovery for user/operator and bot-mode' && printf '%s\n' "$output" | grep -q 'claim <issue> --workspace <path> --phase <phase> --issue-state <name>' && printf '%s\n' "$output" | grep -q 'Intake claim primitive for user/operator and bot-mode' && printf '%s\n' "$output" | grep -q 'prepare <issue> \[--phase observe\] \[--claimed-by <name>\]' && printf '%s\n' "$output" | grep -q 'Delivery daemon lifecycle primitive' && printf '%s\n' "$output" | grep -q 'release <issue> \[--reason <text>\] \[--json\]' && printf '%s\n' "$output" | grep -q 'Delivery daemon recovery/terminal control; operator override use' && printf '%s\n' "$output" | grep -q 'reconcile \[<issue> \| --all\]'; then
       _pass 'cmd_autonomy_help exists and prints usage'
     else
       _fail 'cmd_autonomy_help exists and prints usage' "rc=$rc; output=$output"
