@@ -315,6 +315,7 @@ _autonomy_linear_set_state() {
   fi
 
   _autonomy_record_sync "$issue_identifier" state false "failed to update Linear state to $target_state_name"
+  return 1
 }
 
 _autonomy_linear_sync_assignment() {
@@ -378,6 +379,7 @@ PY
         return 1
       }
       if [[ -n "$assignee_id" && "$assignee_id" != "$viewer_id" ]]; then
+        _autonomy_record_sync "$issue_identifier" assignment true "" false
         return 0
       fi
       if _linear_api_try "mutation { issueUpdate(id: \"$issue_uuid\", input: { assigneeId: null }) { issue { id identifier } } }" >/dev/null; then
@@ -559,19 +561,19 @@ cmd_autonomy() {
         esac
       done
       [[ -n "$issue_identifier" ]] || die "Missing issue identifier"
-      local assignment_owned
-      assignment_owned="$(_autonomy_claim_assignment_owned "$issue_identifier")"
       if [[ -n "$reason" ]]; then
         _autonomy_py release "$issue_identifier" --reason "$reason"
       else
         _autonomy_py release "$issue_identifier"
       fi
+      local rc=0
       if ! _autonomy_linear_set_state "$issue_identifier" "Todo"; then
-        :
+        rc=1
       fi
-      if [[ "$assignment_owned" == true ]]; then
-        _autonomy_linear_sync_assignment "$issue_identifier" clear || true
+      if ! _autonomy_linear_sync_assignment "$issue_identifier" clear; then
+        rc=1
       fi
+      return "$rc"
       ;;
 
     cancel)
@@ -590,19 +592,19 @@ cmd_autonomy() {
         esac
       done
       [[ -n "$issue_identifier" ]] || die "Missing issue identifier"
-      local assignment_owned
-      assignment_owned="$(_autonomy_claim_assignment_owned "$issue_identifier")"
       if [[ -n "$reason" ]]; then
         _autonomy_py cancel "$issue_identifier" --reason "$reason"
       else
         _autonomy_py cancel "$issue_identifier"
       fi
+      local rc=0
       if ! _autonomy_linear_set_state "$issue_identifier" "Todo"; then
-        :
+        rc=1
       fi
-      if [[ "$assignment_owned" == true ]]; then
-        _autonomy_linear_sync_assignment "$issue_identifier" clear || true
+      if ! _autonomy_linear_sync_assignment "$issue_identifier" clear; then
+        rc=1
       fi
+      return "$rc"
       ;;
 
     retry)

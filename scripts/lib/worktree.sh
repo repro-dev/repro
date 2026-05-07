@@ -246,6 +246,11 @@ cmd_wt_create_from_issue() {
   _resolve_issue_worktree_metadata "$issue_id"
   _populate_issue_worktree_names
   _create_issue_worktree_from_metadata
+
+  if [[ -n "$WT_ISSUE_LINEAR_SYNC_ERROR" ]]; then
+    _warn "Linear sync failed for ${WT_ISSUE_IDENTIFIER}: ${WT_ISSUE_LINEAR_SYNC_ERROR}"
+    return 1
+  fi
 } >&2
 
 cmd_wt_create() {

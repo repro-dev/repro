@@ -8,6 +8,7 @@ set -euo pipefail
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 AUTONOMY_SH="$TESTS_DIR/../autonomy.sh"
 WORKTREE_SH="$TESTS_DIR/../worktree.sh"
+REPO_ROOT="$(cd "$TESTS_DIR/../../.." && pwd -P)"
 
 PASS=0
 FAIL=0
@@ -17,7 +18,8 @@ _pass() { printf '  ✔ %s\n' "$1"; PASS=$((PASS + 1)); TESTS_RUN=$((TESTS_RUN +
 _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); TESTS_RUN=$((TESTS_RUN + 1)); }
 
 _make_tmpdir() {
-  mktemp -d 2>/dev/null || mktemp -d -t test_autonomy_lifecycle
+  mkdir -p "$REPO_ROOT/tmp"
+  mktemp -d "$REPO_ROOT/tmp/test_autonomy_lifecycle.XXXXXX"
 }
 
 _write_runner() {
@@ -136,6 +138,7 @@ with sqlite3.connect(db_path) as conn:
 PY
 
 _linear_api() {
+  printf '%s\n' "$1" >> "$tmpdir/linear-calls.log"
   case "$1" in
     *"viewer { id }"*)
       cat <<'JSON'
@@ -144,7 +147,7 @@ JSON
       ;;
     *"issues(filter:"*)
       cat <<'JSON'
-{"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1095","state":{"name":"In Progress","type":"started"},"team":{"states":{"nodes":[{"id":"todo-state-id","name":"Todo","type":"todo"},{"id":"in-progress-state-id","name":"In Progress","type":"started"}]}}}]}}}
+{"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1095","state":{"name":"In Progress","type":"started"},"assignee":{"id":"viewer-1"},"team":{"states":{"nodes":[{"id":"todo-state-id","name":"Todo","type":"todo"},{"id":"in-progress-state-id","name":"In Progress","type":"started"}]}}}]}}}
 JSON
       ;;
     *)
@@ -155,6 +158,7 @@ JSON
   esac
 }
 
+python3 -c "import sqlite3,sys; db_path=sys.argv[1]; conn=sqlite3.connect(db_path); conn.execute(\"UPDATE claims SET linear_assignment_owned = 0 WHERE issue_identifier = ?\", [\"REP-1095\"]); conn.commit()" "$tmpdir/state.sqlite"
 REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPROCTL_JSON=true cmd_autonomy cancel REP-1095 --reason "manual stop"
 '
   stdout_file="$tmpdir/stdout.json"
@@ -180,10 +184,24 @@ with sqlite3.connect(db_path) as conn:
 assert row[0] == 'canceled', row
 assert row[1], row
 assert row[2] is None, row
+
+with sqlite3.connect(db_path) as conn:
+    row = conn.execute(
+        'SELECT linear_assignment_owned, linear_assignment_sync_error FROM claims WHERE issue_identifier = ?',
+        ('REP-1095',),
+    ).fetchone()
+
+assert row == (0, None), row
 PY
   then
-    rm -rf "$tmpdir"
-    _pass 'cmd_autonomy cancel emits JSON and records Linear sync'
+    if grep -q 'assigneeId: null' "$tmpdir/linear-calls.log"; then
+      rm -rf "$tmpdir"
+      _pass 'cmd_autonomy cancel emits JSON and records Linear sync'
+    else
+      output="$(cat "$stderr_file" 2>/dev/null)"
+      rm -rf "$tmpdir"
+      _fail 'cmd_autonomy cancel emits JSON and records Linear sync' "rc=$rc; output=$output"
+    fi
   else
     output="$(cat "$stderr_file" 2>/dev/null)"
     rm -rf "$tmpdir"

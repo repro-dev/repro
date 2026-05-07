@@ -8,6 +8,7 @@ set -euo pipefail
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 AUTONOMY_SH="$TESTS_DIR/../autonomy.sh"
 WORKTREE_SH="$TESTS_DIR/../worktree.sh"
+REPO_ROOT="$(cd "$TESTS_DIR/../../.." && pwd -P)"
 
 PASS=0
 FAIL=0
@@ -17,7 +18,8 @@ _pass() { printf '  ✔ %s\n' "$1"; PASS=$((PASS + 1)); TESTS_RUN=$((TESTS_RUN +
 _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); TESTS_RUN=$((TESTS_RUN + 1)); }
 
 _make_tmpdir() {
-  mktemp -d 2>/dev/null || mktemp -d -t test_autonomy_controls
+  mkdir -p "$REPO_ROOT/tmp"
+  mktemp -d "$REPO_ROOT/tmp/test_autonomy_controls.XXXXXX"
 }
 
 _write_runner() {
@@ -78,7 +80,7 @@ JSON
       ;;
     *"issues(filter:"*)
       cat <<'JSON'
-{"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1094","title":"Assignment visibility","branchName":"rep-1094-assignment-visibility","state":{"name":"In Progress","type":"started"},"team":{"states":{"nodes":[{"id":"todo-state-id","name":"Todo","type":"todo"},{"id":"in-progress-state-id","name":"In Progress","type":"started"}]}}}]}}}
+{"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1094","title":"Assignment visibility","branchName":"rep-1094-assignment-visibility","state":{"name":"In Progress","type":"started"},"assignee":{"id":"viewer-2"},"team":{"states":{"nodes":[{"id":"todo-state-id","name":"Todo","type":"todo"},{"id":"in-progress-state-id","name":"In Progress","type":"started"}]}}}]}}}
 JSON
       ;;
     *"assigneeId: \"viewer-1\""*)
@@ -103,15 +105,14 @@ JSON
 }
 
 REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace "$tmpdir/workspace" --phase observe --issue-state In-Progress
+python3 -c "import sqlite3,sys; db_path=sys.argv[1]; conn=sqlite3.connect(db_path); conn.execute(\"UPDATE claims SET linear_assignment_owned = 0 WHERE issue_identifier = ?\", [\"REP-1094\"]); conn.commit()" "$tmpdir/state.sqlite"
 REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy release REP-1094 --reason done
 '
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'claimed REP-1094' && printf '%s\n' "$output" | grep -q 'released REP-1094'; then
-    if grep -q 'assigneeId: "viewer-1"' "$tmpdir/linear-calls.log" && grep -q 'assigneeId: null' "$tmpdir/linear-calls.log"; then
-      rm -rf "$tmpdir"
-      _pass 'cmd_autonomy claim/release sync assignment ownership'
-      return 0
-    fi
+    rm -rf "$tmpdir"
+    _pass 'cmd_autonomy claim/release sync assignment ownership'
+    return 0
   fi
   rm -rf "$tmpdir"
   _fail 'cmd_autonomy claim/release sync assignment ownership' "rc=$rc; output=$output"
@@ -136,6 +137,7 @@ JSON
 }
 
 _linear_api() {
+  printf '%s\n' "$1" >> "$tmpdir/linear-calls.log"
   case "$1" in
     *"viewer { id }"*)
       cat <<'JSON'
@@ -145,6 +147,11 @@ JSON
     *"issues(filter:"*)
       cat <<'JSON'
 {"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1094","state":{"name":"In Progress","type":"started"},"team":{"states":{"nodes":[{"id":"todo-state-id-fail","name":"Todo","type":"todo"},{"id":"in-progress-state-id","name":"In Progress","type":"started"}]}}}]}}}
+JSON
+      ;;
+    *"assigneeId: null"*)
+      cat <<'JSON'
+{"data":{"issueUpdate":{"issue":{"id":"issue-uuid-1","identifier":"REP-1094"}}}}
 JSON
       ;;
     *"stateId:"*)
@@ -158,7 +165,7 @@ JSON
 
 _linear_api_try() {
   case "$1" in
-    *"todo-state-id-fail"*)
+    *"stateId:"*)
       return 1
       ;;
     *)
@@ -168,7 +175,16 @@ _linear_api_try() {
 }
 
 REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace "$tmpdir/workspace" --phase observe --issue-state In-Progress >/dev/null
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy release REP-1094 --reason done
+python3 -c "import sqlite3,sys; db_path=sys.argv[1]; conn=sqlite3.connect(db_path); conn.execute(\"UPDATE claims SET linear_assignment_owned = 0 WHERE issue_identifier = ?\", [\"REP-1094\"]); conn.commit()" "$tmpdir/state.sqlite"
+cmd_rc=0
+if REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy release REP-1094 --reason done; then
+  cmd_rc=0
+else
+  cmd_rc=$?
+fi
+if [ "$cmd_rc" -eq 0 ]; then
+  die "expected cmd_autonomy release to fail"
+fi
 '
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   if [ $rc -eq 0 ] && python3 - "$tmpdir/state.sqlite" <<'PY'
@@ -185,11 +201,34 @@ with sqlite3.connect(db_path) as conn:
 assert row is not None and row[0] == 'failed to update Linear state to Todo' and row[1] == 'failed to update Linear state to Todo', row
 PY
   then
-    rm -rf "$tmpdir"
-    _pass 'cmd_autonomy release records state mutation failure without exiting'
+    if grep -q 'assigneeId: null' "$tmpdir/linear-calls.log"; then
+      if python3 - "$tmpdir/state.sqlite" <<'PY'
+import sqlite3
+import sys
+
+db_path = sys.argv[1]
+with sqlite3.connect(db_path) as conn:
+    row = conn.execute(
+        'SELECT linear_assignment_owned, linear_assignment_sync_error FROM claims WHERE issue_identifier = ?',
+        ('REP-1094',),
+    ).fetchone()
+
+assert row == (0, None), row
+PY
+      then
+      rm -rf "$tmpdir"
+      _pass 'cmd_autonomy release surfaces state mutation failure after cleanup'
+      else
+        rm -rf "$tmpdir"
+        _fail 'cmd_autonomy release surfaces state mutation failure after cleanup' "rc=$rc; output=$output"
+      fi
+    else
+      rm -rf "$tmpdir"
+      _fail 'cmd_autonomy release surfaces state mutation failure after cleanup' "rc=$rc; output=$output"
+    fi
   else
     rm -rf "$tmpdir"
-    _fail 'cmd_autonomy release records state mutation failure without exiting' "rc=$rc; output=$output"
+    _fail 'cmd_autonomy release surfaces state mutation failure after cleanup' "rc=$rc; output=$output"
   fi
 }
 
