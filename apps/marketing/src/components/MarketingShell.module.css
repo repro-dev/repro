@@ -158,8 +158,8 @@
 
 .heroTitle {
   color: #edf4ff;
-  font-family:
-    var(--marketing-font-display), var(--marketing-font-display-fallback);
+  font-family: var(--marketing-font-display),
+    var(--marketing-font-display-fallback);
   font-size: clamp(2.5rem, 5vw, 4.25rem);
   line-height: 0.96;
   font-weight: 700;
@@ -169,8 +169,8 @@
 
 .routeTitle {
   color: #edf4ff;
-  font-family:
-    var(--marketing-font-display), var(--marketing-font-display-fallback);
+  font-family: var(--marketing-font-display),
+    var(--marketing-font-display-fallback);
   font-size: clamp(2.25rem, 4.5vw, 4rem);
   line-height: 0.98;
   font-weight: 700;
@@ -184,8 +184,8 @@
 
 .legalTitle {
   color: #edf4ff;
-  font-family:
-    var(--marketing-font-display), var(--marketing-font-display-fallback);
+  font-family: var(--marketing-font-display),
+    var(--marketing-font-display-fallback);
   font-size: clamp(2.4rem, 4vw, 4rem);
   line-height: 0.98;
   letter-spacing: -0.05em;
