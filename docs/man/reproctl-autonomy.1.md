@@ -12,14 +12,16 @@ reproctl-autonomy - durable local claim, status, and control state
 
 # DESCRIPTION
 
-Manage durable local state for autonomous orchestration.
+Provisional repo-internal lifecycle plumbing for autonomous orchestration.
 
 The autonomy surface records local claims, active runs, retry metadata, and
-Linear sync state for operator workflows. It does not provide a web UI.
+Linear sync state for operator workflows. It is not the final public
+user-facing interface; that surface will move to standalone autobot and
+autobot-engine follow-ups REP-1107 through REP-1110.
 
 ## Actor model
 
-The claim queue is shared by three actors:
+The claim queue is shared by three provisional actors:
 
 - **User/operator** — inspects state, discovers work, and overrides lifecycle
   state when needed.
@@ -28,10 +30,10 @@ The claim queue is shared by three actors:
 - **Delivery daemon** — operates only on already-claimed work and shepherds it
   through prepare, run, retry, reconcile, release, and cancel.
 
-Commands are owned by the actor that mutates the relevant part of the contract.
-Discovery and claim are intake primitives; prepare and run are daemon lifecycle
-primitives; release, cancel, retry, and reconcile are daemon recovery or
-terminal controls with operator override use.
+Commands are owned by the actor that mutates the relevant part of the
+provisional contract. Discovery and claim are intake primitives; prepare and
+run are daemon lifecycle primitives; release, cancel, retry, and reconcile are
+daemon recovery or terminal controls with operator override use.
 
 # SUBCOMMANDS
 

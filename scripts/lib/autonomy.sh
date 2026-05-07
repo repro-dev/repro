@@ -368,7 +368,10 @@ cmd_autonomy_help() {
   cat <<'EOF'
 Usage: reproctl autonomy <subcommand>
 
-Durable local state for autonomous orchestration.
+Provisional repo-internal lifecycle plumbing for autonomous orchestration.
+
+The final public user-facing surface will move to autobot and autobot-engine
+in REP-1107 through REP-1110.
 
 Actor model:
   user/operator    Inspect claims, discover work, and override lifecycle state.
