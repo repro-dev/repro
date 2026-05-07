@@ -238,20 +238,7 @@ _autonomy_claim_assignment_owned() {
     return 0
   fi
 
-  owned="$(python3 - <<'PY' "$status_json" "$issue_identifier"
-import json
-import sys
-
-status = json.loads(sys.argv[1])
-issue_identifier = sys.argv[2]
-for claim in status.get('items', []):
-    if claim.get('issue_identifier') == issue_identifier:
-        print(str(bool(claim.get('linear_assignment_owned'))).lower())
-        break
-else:
-    print('false')
-PY
-)"
+  owned="$(printf '%s' "$status_json" | python3 "$SCRIPTS_DIR/lib/py/autonomy_claim_assignment_owned.py" "$issue_identifier")"
   printf '%s\n' "$owned"
 }
 
@@ -263,14 +250,7 @@ _autonomy_validate_issue_identifier() {
 _autonomy_linear_viewer_id() {
   local response viewer_id
   response="$(_linear_api '{ viewer { id } }')" || return 1
-  viewer_id="$(python3 - <<'PY' "$response"
-import json
-import sys
-
-data = json.loads(sys.argv[1])
-print(data.get('data', {}).get('viewer', {}).get('id', ''))
-PY
-)"
+  viewer_id="$(printf '%s' "$response" | python3 "$SCRIPTS_DIR/lib/py/linear_viewer_id.py")" || return 1
   [[ -n "$viewer_id" ]] || return 1
   printf '%s\n' "$viewer_id"
 }
@@ -334,21 +314,10 @@ _autonomy_linear_sync_assignment() {
   }
 
   local issue_uuid assignee_id
-  issue_uuid="$(python3 - <<'PY' "$response"
-import json
-import sys
-
-data = json.loads(sys.argv[1])
-nodes = data.get('data', {}).get('issues', {}).get('nodes', [])
-if not nodes:
-    raise SystemExit(1)
-
-node = nodes[0]
-print(node.get('id', ''))
-assignee = node.get('assignee') or {}
-print(assignee.get('id', ''))
-PY
-)"
+  issue_uuid="$(printf '%s' "$response" | python3 "$SCRIPTS_DIR/lib/py/linear_issue_assignment.py")" || {
+    _autonomy_record_sync "$issue_identifier" assignment false "failed to resolve Linear metadata"
+    return 1
+  }
   assignee_id="$(sed -n '2p' <<< "$issue_uuid")"
   issue_uuid="$(sed -n '1p' <<< "$issue_uuid")"
 
