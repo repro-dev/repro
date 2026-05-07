@@ -9,11 +9,14 @@
 WT_DRY_RUN=false
 WT_FROM_ISSUE=""
 WT_NO_STATUS_UPDATE=false
+WT_ISSUE_LINEAR_SYNCED=false
+WT_ISSUE_LINEAR_SYNC_ERROR=""
 
 _linear_api() {
   local query="$1"
   local _tmpfile http_code body
-  _tmpfile="$(mktemp)"
+  mkdir -p "$MAIN_CHECKOUT/tmp"
+  _tmpfile="$(mktemp "$MAIN_CHECKOUT/tmp/linear-api.XXXXXX")"
 
   http_code="$(curl -sS -o "$_tmpfile" -w '%{http_code}' -X POST \
     -H "Content-Type: application/json" \
@@ -43,6 +46,28 @@ _linear_api() {
   fi
 
   printf '%s' "$body"
+}
+
+_linear_api_try() {
+  local query="$1"
+  local stdout_file stderr_file rc=0
+
+  mkdir -p "$MAIN_CHECKOUT/tmp"
+  stdout_file="$(mktemp "$MAIN_CHECKOUT/tmp/linear-api-stdout.XXXXXX")"
+  stderr_file="$(mktemp "$MAIN_CHECKOUT/tmp/linear-api-stderr.XXXXXX")"
+
+  if ( _linear_api "$query" ) >"$stdout_file" 2>"$stderr_file"; then
+    cat "$stdout_file"
+    rm -f "$stdout_file" "$stderr_file"
+    return 0
+  fi
+
+  rc=$?
+  if [ -s "$stderr_file" ]; then
+    cat "$stderr_file" >&2
+  fi
+  rm -f "$stdout_file" "$stderr_file"
+  return "$rc"
 }
 
 issue_worktree_suffix() {
@@ -188,6 +213,8 @@ _populate_issue_worktree_names() {
 }
 
 _create_issue_worktree_from_metadata() {
+  WT_ISSUE_LINEAR_SYNCED=false
+  WT_ISSUE_LINEAR_SYNC_ERROR=""
   _ok "Found: ${WT_ISSUE_IDENTIFIER} — ${WT_ISSUE_TITLE}"
   echo "  Branch: ${WT_ISSUE_WORKTREE_BRANCH}"
   echo "  Slug:   ${WT_ISSUE_WORKTREE_SLUG}"
@@ -200,9 +227,14 @@ _create_issue_worktree_from_metadata() {
       _step 3 3 "Updating ${WT_ISSUE_IDENTIFIER} status to In Progress..."
       local mutation
       mutation="mutation { issueUpdate(id: \"${WT_ISSUE_UUID}\", input: { stateId: \"${WT_ISSUE_IN_PROGRESS_STATE_ID}\" }) { issue { id identifier } } }"
-      _linear_api "$mutation" > /dev/null
-      _ok "Issue ${WT_ISSUE_IDENTIFIER} marked In Progress"
+      if _linear_api_try "$mutation" > /dev/null; then
+        WT_ISSUE_LINEAR_SYNCED=true
+        _ok "Issue ${WT_ISSUE_IDENTIFIER} marked In Progress"
+      else
+        WT_ISSUE_LINEAR_SYNC_ERROR="Failed to update Linear state to In Progress"
+      fi
     else
+      WT_ISSUE_LINEAR_SYNC_ERROR="Could not find 'In Progress' state"
       echo "  ${CLR_DIM}Could not find 'In Progress' state — skipping status update${CLR_RESET}"
     fi
   fi
@@ -214,6 +246,11 @@ cmd_wt_create_from_issue() {
   _resolve_issue_worktree_metadata "$issue_id"
   _populate_issue_worktree_names
   _create_issue_worktree_from_metadata
+
+  if [[ -n "$WT_ISSUE_LINEAR_SYNC_ERROR" ]]; then
+    _warn "Linear sync failed for ${WT_ISSUE_IDENTIFIER}: ${WT_ISSUE_LINEAR_SYNC_ERROR}"
+    return 1
+  fi
 } >&2
 
 cmd_wt_create() {
@@ -332,7 +369,8 @@ _cleanup_worktree_services() {
   current_config="$(cat "$CONFIG_FILE")"
 
   local svc_names svc_err
-  svc_err="$(mktemp)"
+  mkdir -p "$MAIN_CHECKOUT/tmp"
+  svc_err="$(mktemp "$MAIN_CHECKOUT/tmp/worktree-services.XXXXXX")"
   svc_names="$(python3 "$SCRIPTS_DIR/lib/py/worktree_services.py" "$current_config" "$slug" 2>"$svc_err")" || {
     local err_msg
     err_msg="$(cat "$svc_err")"

@@ -4,53 +4,105 @@
 
 # NAME
 
-reproctl-autonomy - durable local claim, monitor, and sequencing state
+reproctl-autonomy - durable local claim, status, and control state
 
 # SYNOPSIS
 
-**reproctl autonomy** *subcommand* [*options*]
+**reproctl autonomy** _subcommand_ [*options*]
 
 # DESCRIPTION
 
-Manage durable local state for autonomous orchestration.
+Provisional repo-internal lifecycle plumbing for autonomous orchestration.
 
-The **sequence** subcommand asks OpenCode to rank candidate issues before
-planning and execution. It uses monitor eligibility as the baseline, then
-writes a durable prompt, raw response, and canonical JSON artifact set under
-**tmp/autonomy/sequences/**.
+The autonomy surface records local claims, active runs, retry metadata, and
+Linear sync state for operator workflows. It is not the final public
+user-facing interface; that surface will move to standalone autobot and
+autobot-engine follow-ups REP-1107 through REP-1110.
 
-The sequencing stage is intentionally narrower than the autonomous runner. It
-does not launch agents, mutate Linear, or create worktrees.
+## Actor model
+
+The claim queue is shared by three provisional actors:
+
+- **User/operator** — inspects state, discovers work, and overrides lifecycle
+  state when needed.
+- **Bot-mode intake** — discovers and claims work up to policy and concurrency
+  limits.
+- **Delivery daemon** — operates only on already-claimed work and shepherds it
+  through prepare, run, retry, reconcile, release, and cancel.
+
+Commands are owned by the actor that mutates the relevant part of the
+provisional contract. Discovery and claim are intake primitives; prepare and
+run are daemon lifecycle primitives; release, cancel, retry, and reconcile are
+daemon recovery or terminal controls with operator override use.
 
 # SUBCOMMANDS
 
-**sequence** [**--limit** *count*] [**--profile** *name*] [**--prompt-file** *path*] [**--output-dir** *path*] [**--claimed-by** *name*] [**--json**]
-: Build a candidate evaluation from the current backlog/todo issues, render a prompt, run OpenCode, and write durable sequencing artifacts. The default prompt lives at **scripts/lib/prompts/autonomy-sequence.md**.
+**status** [**--all**] [**--json**]
+: Inspect claim and run state. With **--json**, emits a machine-readable status object.
+
+**discover** [**--limit** *count*] [**--profile** *name*] [**--prompt-file** *path*] [**--output-dir** *path*] [**--claimed-by** *name*] [**--project** *name*] [**--json**]
+: Intake discovery for user/operator and bot-mode.
+
+**claim** _issue_ **--workspace** _path_ **--phase** _phase_ **--issue-state** _name_ [**--issue-state-type** *type*] [**--claimed-by** *user*]
+: Intake claim primitive for user/operator and bot-mode.
+
+**prepare** _issue_ [**--phase** *observe*] [**--claimed-by** *name*]
+: Delivery daemon lifecycle primitive.
+
+**release** _issue_ [**--reason** *text*] [**--json**]
+: Delivery daemon recovery/terminal control; operator override use.
+
+**cancel** _issue_ [**--reason** *text*] [**--json**]
+: Delivery daemon recovery/terminal control; operator override use.
+
+**retry** _issue_ [**--phase** *observe*] [**--claimed-by** *name*] [**--reason** *text*] [**--json**]
+: Delivery daemon recovery/terminal control; operator override use.
+
+**reconcile** [*issue* | **--all**]
+: Delivery daemon recovery/terminal control; operator override use.
+
+**run start** _issue_ **--phase** _phase_ **--workspace** _path_
+: Delivery daemon lifecycle primitive.
+
+**run finish** _issue_ **--attempt** _n_ **--state** _state_ [**--error** *text*]
+: Delivery daemon lifecycle primitive.
 
 # OPTIONS
 
-**--limit** *count*
-: Limit the candidate evaluation passed into sequencing.
+**--all**
+: Include released and canceled claims in status output.
 
-**--profile** *name*
+**--reason** _text_
+: Explain why a claim was released, canceled, or retried.
+
+**--phase** _phase_
+: Set the preparation phase for retry and run commands.
+
+**--claimed-by** _name_
+: Tag local claim ownership with an operator name.
+
+**--profile** _name_
 : Pass a specific OpenCode profile to the launcher.
 
-**--prompt-file** *path*
-: Use an alternate sequencing prompt template.
+**--prompt-file** _path_
+: Use an alternate discovery prompt template.
 
-**--output-dir** *path*
-: Override the sequencing artifact directory.
+**--output-dir** _path_
+: Override the discovery artifact directory.
 
-**--claimed-by** *name*
-: Tag the candidate evaluation with the active operator name.
+**--project** _name_
+: Restrict discovery to a Linear project.
 
 **--json**
-: Emit the canonical sequencing JSON instead of a short text summary.
+: Emit machine-readable JSON instead of a short text summary.
 
 # EXAMPLES
 
-reproctl autonomy sequence --limit 2 --profile github-copilot-sonnet --output-dir tmp/autonomy/sequences --json
-: Generate a durable sequencing artifact set for the next planning wave.
+reproctl autonomy status --json
+: Inspect claims, runs, retry state, and recent sync errors.
+
+reproctl autonomy retry REP-123 --phase observe --claimed-by autopilot
+: Rebuild a stale claim and resume work.
 
 # SEE ALSO
 

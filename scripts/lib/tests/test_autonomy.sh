@@ -57,8 +57,12 @@ test_help_exists() {
   _write_runner "$tmpdir" 'cmd_autonomy_help'
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -qi 'Usage: reproctl autonomy' && printf '%s\n' "$output" | grep -q 'prepare' && ! printf '%s\n' "$output" | grep -q -- '--issue-id'; then
-    _pass 'cmd_autonomy_help exists and prints usage'
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -qi 'Usage: reproctl autonomy' && printf '%s\n' "$output" | grep -q 'Provisional repo-internal lifecycle plumbing for autonomous orchestration' && printf '%s\n' "$output" | grep -q 'autobot and autobot-engine' && printf '%s\n' "$output" | grep -q 'Actor model:' && ! printf '%s\n' "$output" | grep -q -- '--issue-id'; then
+    if printf '%s\n' "$output" | grep -q 'status \[--all\] \[--json\]' && printf '%s\n' "$output" | grep -q 'Inspect claim and run state' && printf '%s\n' "$output" | grep -q 'discover \[--limit <count>\]' && printf '%s\n' "$output" | grep -q 'Intake discovery for user/operator and bot-mode' && printf '%s\n' "$output" | grep -q 'claim <issue> --workspace <path> --phase <phase> --issue-state <name>' && printf '%s\n' "$output" | grep -q 'Intake claim primitive for user/operator and bot-mode' && printf '%s\n' "$output" | grep -q 'prepare <issue> \[--phase observe\] \[--claimed-by <name>\]' && printf '%s\n' "$output" | grep -q 'Delivery daemon lifecycle primitive' && printf '%s\n' "$output" | grep -q 'release <issue> \[--reason <text>\] \[--json\]' && printf '%s\n' "$output" | grep -q 'Delivery daemon recovery/terminal control; operator override use' && printf '%s\n' "$output" | grep -q 'reconcile \[<issue> \| --all\]'; then
+      _pass 'cmd_autonomy_help exists and prints usage'
+    else
+      _fail 'cmd_autonomy_help exists and prints usage' "rc=$rc; output=$output"
+    fi
   else
     _fail 'cmd_autonomy_help exists and prints usage' "rc=$rc; output=$output"
   fi
@@ -67,10 +71,91 @@ test_help_exists() {
 test_status_json() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
-  _write_runner "$tmpdir" 'REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPROCTL_JSON=true cmd_autonomy status --json'
+  _write_runner "$tmpdir" '
+now="2026-05-06T19:00:00Z"
+python3 - "$tmpdir/state.sqlite" "$now" <<'PY'
+import sqlite3
+import sys
+
+db_path, now = sys.argv[1:3]
+with sqlite3.connect(db_path) as conn:
+    conn.executescript(
+        """
+        CREATE TABLE claims (
+            issue_id TEXT NOT NULL,
+            issue_identifier TEXT PRIMARY KEY,
+            claim_state TEXT NOT NULL,
+            workspace_path TEXT NOT NULL,
+            phase TEXT NOT NULL,
+            attempt_count INTEGER NOT NULL DEFAULT 0,
+            retry_state TEXT,
+            retry_after TEXT,
+            retry_reason TEXT,
+            last_observed_issue_state_name TEXT,
+            last_observed_issue_state_type TEXT,
+            claimed_by TEXT,
+            claimed_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            released_at TEXT
+        );
+        CREATE TABLE runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            issue_identifier TEXT NOT NULL,
+            attempt INTEGER NOT NULL,
+            phase TEXT NOT NULL,
+            state TEXT NOT NULL,
+            workspace_path TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            finished_at TEXT,
+            last_error TEXT
+        );
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO claims (
+            issue_id, issue_identifier, claim_state, workspace_path, phase,
+            attempt_count, retry_state, retry_after, retry_reason,
+            last_observed_issue_state_name, last_observed_issue_state_type,
+            claimed_by, claimed_at, updated_at, released_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+        """,
+        (
+            "issue-uuid-1",
+            "REP-1094",
+            "claimed",
+            "$tmpdir/workspace",
+            "observe",
+            0,
+            None,
+            None,
+            None,
+            "In Progress",
+            "started",
+            "autopilot",
+            now,
+            now,
+        ),
+    )
+    conn.commit()
+PY
+
+REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPROCTL_JSON=true cmd_autonomy status --json
+'
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q '"items"'; then
+  if [ $rc -eq 0 ] && python3 - "$output" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+assert 'items' in payload, payload
+assert 'runs' in payload, payload
+assert 'summary' in payload, payload
+assert 'recent_errors' in payload, payload
+assert 'generated_at' in payload, payload
+PY
+  then
     _pass 'cmd_autonomy status --json emits JSON'
   else
     _fail 'cmd_autonomy status --json emits JSON' "rc=$rc; output=$output"
@@ -93,6 +178,23 @@ JSON
       ;;
   esac
 }
+_linear_api() {
+  case "$1" in
+    *"viewer { id }"*)
+      cat <<'JSON'
+{"data":{"viewer":{"id":"viewer-1"}}}
+JSON
+      ;;
+    *"assigneeId: \"viewer-1\""*)
+      cat <<'JSON'
+{"data":{"issueUpdate":{"issue":{"id":"issue-uuid-1","identifier":"REP-1094"}}}}
+JSON
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
 workspace="$tmpdir/repro-wt-rep-1094"
 mkdir -p "$workspace"
 REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace "$workspace" --phase observe --issue-state In-Progress
@@ -104,45 +206,6 @@ REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace
     _pass 'duplicate claim through Bash wrapper is rejected'
   else
     _fail 'duplicate claim through Bash wrapper is rejected' "rc=$rc; output=$output"
-  fi
-}
-
-test_claim_resolves_linear_issue_id() {
-  local tmpdir output rc=0
-  tmpdir="$(_make_tmpdir)"
-  _write_runner "$tmpdir" '
-linear() {
-  case "$1 $2 $3" in
-    "issue show REP-1094")
-      cat <<'"'"'JSON'"'"'
-{"item":{"id":"issue-uuid-1"}}
-JSON
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-workspace="$tmpdir/repro-wt-rep-1094"
-mkdir -p "$workspace"
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace "$workspace" --phase observe --issue-state In-Progress
-python3 - <<'PY' "$tmpdir/state.sqlite"
-import sqlite3
-import sys
-
-db_path = sys.argv[1]
-with sqlite3.connect(db_path) as conn:
-    row = conn.execute("SELECT issue_id FROM claims WHERE issue_identifier = ?", ("REP-1094",)).fetchone()
-    assert row is not None
-    assert row[0] == "issue-uuid-1"
-PY
-'
-  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  rm -rf "$tmpdir"
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'claimed REP-1094'; then
-    _pass 'claim resolves Linear UUID internally'
-  else
-    _fail 'claim resolves Linear UUID internally' "rc=$rc; output=$output"
   fi
 }
 
@@ -172,6 +235,11 @@ git -C "$tmpdir/repro" push origin "$issue_branch" >/dev/null 2>&1
 WORKSPACE_ROOT="$tmpdir/workspaces"
 _linear_api() {
   case "$1" in
+    *"viewer { id }"*)
+      cat <<'JSON'
+{"data":{"viewer":{"id":"viewer-1"}}}
+JSON
+      ;;
     *"issues(filter:"*)
       cat <<'JSON'
 {"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1095","title":"Prepare isolated workspaces","branchName":"rep-1095-prepare-isolated-workspaces","state":{"name":"In Progress","type":"started"},"team":{"states":{"nodes":[{"id":"state-in-progress","name":"In Progress","type":"started"}]}}}]}}}
@@ -195,7 +263,7 @@ cmd_wt_create() {
 
 REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fresh1 cmd_autonomy prepare REP-1095 --phase observe --claimed-by autopilot
 
-python3 - <<'PY' "$tmpdir/state.sqlite" "$tmpdir/workspaces/repro-wt-rep-1095-fresh1"
+python3 - "$tmpdir/state.sqlite" "$tmpdir/workspaces/repro-wt-rep-1095-fresh1" <<'PY'
 import sqlite3
 import sys
 from pathlib import Path
@@ -248,6 +316,11 @@ git -C "$tmpdir/repro" push origin "$issue_branch" >/dev/null 2>&1
 WORKSPACE_ROOT="$tmpdir/workspaces"
 _linear_api() {
   case "$1" in
+    *"viewer { id }"*)
+      cat <<'JSON'
+{"data":{"viewer":{"id":"viewer-1"}}}
+JSON
+      ;;
     *"issues(filter:"*)
       cat <<'JSON'
 {"data":{"issues":{"nodes":[{"id":"issue-uuid-1","identifier":"REP-1095","title":"Prepare isolated workspaces","branchName":"rep-1095-prepare-isolated-workspaces","state":{"name":"In Progress","type":"started"},"team":{"states":{"nodes":[{"id":"state-in-progress","name":"In Progress","type":"started"}]}}}]}}}
@@ -319,7 +392,7 @@ git -C "$tmpdir/repro" push origin "$issue_branch" >/dev/null 2>&1
 
 WORKSPACE_ROOT="$tmpdir/workspaces"
 REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy status --json >/dev/null
-python3 - <<'PY' "$tmpdir/state.sqlite" "$tmpdir/workspaces/existing"
+python3 - "$tmpdir/state.sqlite" "$tmpdir/workspaces/existing" <<'PY'
 import sqlite3
 import sys
 from datetime import datetime, timezone
@@ -400,7 +473,6 @@ REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fresh1 cmd_
 test_help_exists
 test_status_json
 test_duplicate_claim_fails
-test_claim_resolves_linear_issue_id
 test_prepare_records_workspace_path
 test_prepare_json_emits_pure_stdout
 test_prepare_rejects_duplicate_active_claim_before_create

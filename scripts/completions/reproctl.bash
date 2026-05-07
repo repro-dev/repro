@@ -169,11 +169,11 @@ _reproctl() {
 
     autonomy)
       if [[ -z "$subcmd" ]]; then
-        COMPREPLY=($(compgen -W "status claim prepare release reconcile discover run help -h --help" -- "$cur"))
+        COMPREPLY=($(compgen -W "status claim prepare release cancel retry reconcile discover run help -h --help" -- "$cur"))
       else
         case "$subcmd" in
           status)
-            COMPREPLY=($(compgen -W "--all -h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "--all --json -h --help" -- "$cur"))
             ;;
           claim)
             case "$prev" in
@@ -191,7 +191,19 @@ _reproctl() {
             case "$prev" in
               --reason) return ;;
             esac
-            COMPREPLY=($(compgen -W "--reason -h --help" -- "$cur"))
+            COMPREPLY=($(compgen -W "--reason --json -h --help" -- "$cur"))
+            ;;
+          cancel)
+            case "$prev" in
+              --reason) return ;;
+            esac
+            COMPREPLY=($(compgen -W "--reason --json -h --help" -- "$cur"))
+            ;;
+          retry)
+            case "$prev" in
+              --phase|--claimed-by|--reason) return ;;
+            esac
+            COMPREPLY=($(compgen -W "--phase --claimed-by --reason --json -h --help" -- "$cur"))
             ;;
           reconcile)
             case "$prev" in

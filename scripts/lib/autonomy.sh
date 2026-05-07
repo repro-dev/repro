@@ -55,6 +55,7 @@ _autonomy_py() {
 _autonomy_issue_id() {
   local issue_identifier="${1:-}"
   [[ -n "$issue_identifier" ]] || die "Missing issue identifier"
+  _autonomy_validate_issue_identifier "$issue_identifier" || die "Invalid issue identifier: '$issue_identifier'. Expected format: REP-123"
 
   local issue_json issue_id
   issue_json="$(linear issue show "$issue_identifier" --json)" || die "Failed to resolve Linear issue: $issue_identifier"
@@ -175,21 +176,228 @@ _autonomy_monitor_prepare_issue() {
   fi
 }
 
+_autonomy_linear_issue_state_info() {
+  local issue_identifier="$1"
+  local target_state_name="$2"
+
+  _autonomy_validate_issue_identifier "$issue_identifier" || return 1
+
+  local team_key issue_number query response
+  team_key="${issue_identifier%%-*}"
+  issue_number="${issue_identifier##*-}"
+  query="{ issues(filter: { number: { eq: ${issue_number} }, team: { key: { eq: \"${team_key}\" } } }, first: 1) { nodes { id identifier state { name type } team { states { nodes { id name type } } } } } }"
+  response="$(_linear_api "$query")" || return 1
+
+  python3 - "$target_state_name" "$response" <<'PY'
+import json
+import sys
+
+wanted = sys.argv[1]
+data = json.loads(sys.argv[2])
+nodes = data.get('data', {}).get('issues', {}).get('nodes', [])
+if not nodes:
+    raise SystemExit(1)
+
+node = nodes[0]
+print(node.get('id', ''))
+print(node.get('state', {}).get('name', ''))
+print(node.get('state', {}).get('type', ''))
+state_id = ''
+for state in node.get('team', {}).get('states', {}).get('nodes', []):
+    if state.get('name') == wanted:
+        state_id = state.get('id', '')
+        break
+print(state_id)
+PY
+}
+
+_autonomy_record_sync() {
+  local issue_identifier="$1"
+  local kind="$2"
+  local ok="$3"
+  local error_text="${4:-}"
+  local assignment_owned="${5:-}"
+
+  if [[ "$ok" == true ]]; then
+    if [[ "$kind" == assignment ]]; then
+      REPROCTL_JSON=true _autonomy_py sync "$issue_identifier" --kind "$kind" --ok --assignment-owned "${assignment_owned:-false}" >/dev/null
+    else
+      REPROCTL_JSON=true _autonomy_py sync "$issue_identifier" --kind "$kind" --ok >/dev/null
+    fi
+  else
+    REPROCTL_JSON=true _autonomy_py sync "$issue_identifier" --kind "$kind" --error "$error_text" >/dev/null
+  fi
+}
+
+_autonomy_claim_assignment_owned() {
+  local issue_identifier="$1"
+  local status_json owned
+
+  if ! status_json="$(REPROCTL_JSON=true _autonomy_py status --all)"; then
+    printf 'false\n'
+    return 0
+  fi
+
+  owned="$(printf '%s' "$status_json" | python3 "$SCRIPTS_DIR/lib/py/autonomy_claim_assignment_owned.py" "$issue_identifier")"
+  printf '%s\n' "$owned"
+}
+
+_autonomy_validate_issue_identifier() {
+  local issue_identifier="$1"
+  [[ "$issue_identifier" =~ ^[A-Z]+-[0-9]+$ ]]
+}
+
+_autonomy_linear_viewer_id() {
+  local response viewer_id
+  response="$(_linear_api '{ viewer { id } }')" || return 1
+  viewer_id="$(printf '%s' "$response" | python3 "$SCRIPTS_DIR/lib/py/linear_viewer_id.py")" || return 1
+  [[ -n "$viewer_id" ]] || return 1
+  printf '%s\n' "$viewer_id"
+}
+
+_autonomy_linear_set_state() {
+  local issue_identifier="$1"
+  local target_state_name="$2"
+  local allow_terminal="${3:-true}"
+
+  local state_info issue_uuid current_state_name current_state_type target_state_id
+  state_info="$(_autonomy_linear_issue_state_info "$issue_identifier" "$target_state_name")" || {
+    _autonomy_record_sync "$issue_identifier" state false "failed to resolve Linear metadata"
+    return 1
+  }
+
+  issue_uuid="$(sed -n '1p' <<< "$state_info")"
+  current_state_name="$(sed -n '2p' <<< "$state_info")"
+  current_state_type="$(sed -n '3p' <<< "$state_info")"
+  target_state_id="$(sed -n '4p' <<< "$state_info")"
+
+  case "$current_state_type" in
+    completed|canceled|closed|done)
+      if [[ "$allow_terminal" != true ]]; then
+        _autonomy_record_sync "$issue_identifier" state false "Linear issue is terminal: $current_state_name"
+        return 1
+      fi
+      _autonomy_record_sync "$issue_identifier" state true
+      return 0
+      ;;
+  esac
+
+  if [[ -z "$target_state_id" ]]; then
+    _autonomy_record_sync "$issue_identifier" state false "missing Linear state: $target_state_name"
+    return 1
+  fi
+
+  local mutation
+  mutation="mutation { issueUpdate(id: \"$issue_uuid\", input: { stateId: \"$target_state_id\" }) { issue { id identifier } } }"
+  if _linear_api_try "$mutation" >/dev/null; then
+    _autonomy_record_sync "$issue_identifier" state true
+    return 0
+  fi
+
+  _autonomy_record_sync "$issue_identifier" state false "failed to update Linear state to $target_state_name"
+  return 1
+}
+
+_autonomy_linear_sync_assignment() {
+  local issue_identifier="$1"
+  local action="$2"
+
+  _autonomy_validate_issue_identifier "$issue_identifier" || return 1
+
+  local team_key issue_number query response viewer_id
+  team_key="${issue_identifier%%-*}"
+  issue_number="${issue_identifier##*-}"
+  query="{ issues(filter: { number: { eq: ${issue_number} }, team: { key: { eq: \"${team_key}\" } } }, first: 1) { nodes { id identifier state { name type } assignee { id } } } }"
+  response="$(_linear_api "$query")" || {
+    _autonomy_record_sync "$issue_identifier" assignment false "failed to resolve Linear metadata"
+    return 1
+  }
+
+  local issue_uuid assignee_id
+  issue_uuid="$(printf '%s' "$response" | python3 "$SCRIPTS_DIR/lib/py/linear_issue_assignment.py")" || {
+    _autonomy_record_sync "$issue_identifier" assignment false "failed to resolve Linear metadata"
+    return 1
+  }
+  assignee_id="$(sed -n '2p' <<< "$issue_uuid")"
+  issue_uuid="$(sed -n '1p' <<< "$issue_uuid")"
+
+  case "$action" in
+    assign)
+      viewer_id="$(_autonomy_linear_viewer_id)" || {
+        _autonomy_record_sync "$issue_identifier" assignment false "failed to resolve automation viewer"
+        return 1
+      }
+      if [[ -n "$assignee_id" && "$assignee_id" != "$viewer_id" ]]; then
+        _autonomy_record_sync "$issue_identifier" assignment false "Linear issue already assigned to another owner"
+        return 1
+      fi
+      if [[ "$assignee_id" == "$viewer_id" ]]; then
+        _autonomy_record_sync "$issue_identifier" assignment true "" true
+        return 0
+      fi
+      if _linear_api_try "mutation { issueUpdate(id: \"$issue_uuid\", input: { assigneeId: \"$viewer_id\" }) { issue { id identifier } } }" >/dev/null; then
+        _autonomy_record_sync "$issue_identifier" assignment true "" true
+        return 0
+      fi
+      _autonomy_record_sync "$issue_identifier" assignment false "failed to assign automation viewer"
+      return 1
+      ;;
+    clear)
+      viewer_id="$(_autonomy_linear_viewer_id)" || {
+        _autonomy_record_sync "$issue_identifier" assignment false "failed to resolve automation viewer"
+        return 1
+      }
+      if [[ -n "$assignee_id" && "$assignee_id" != "$viewer_id" ]]; then
+        _autonomy_record_sync "$issue_identifier" assignment true "" false
+        return 0
+      fi
+      if _linear_api_try "mutation { issueUpdate(id: \"$issue_uuid\", input: { assigneeId: null }) { issue { id identifier } } }" >/dev/null; then
+        _autonomy_record_sync "$issue_identifier" assignment true "" false
+        return 0
+      fi
+      _autonomy_record_sync "$issue_identifier" assignment false "failed to clear Linear assignee"
+      return 1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 cmd_autonomy_help() {
   cat <<'EOF'
 Usage: reproctl autonomy <subcommand>
 
-Durable local state for autonomous orchestration.
+Provisional repo-internal lifecycle plumbing for autonomous orchestration.
+
+The final public user-facing surface will move to autobot and autobot-engine
+in REP-1107 through REP-1110.
+
+Actor model:
+  user/operator    Inspect claims, discover work, and override lifecycle state.
+  bot-mode intake  Discover and claim work up to policy/concurrency limits.
+  delivery daemon  Operate on already-claimed work; do not select new work.
 
 Subcommands:
-  status [--all]                 Show current claims and run attempts
-  claim <issue> --workspace <path> --phase <phase> --issue-state <name> [--issue-state-type <type>] [--claimed-by <user>]
-  prepare <issue> [--phase observe] [--claimed-by <name>]
-  release <issue> [--reason <text>]
-  reconcile [<issue> | --all]
+  status [--all] [--json]        Inspect claim and run state
   discover [--limit <count>] [--profile <name>] [--prompt-file <path>] [--output-dir <path>] [--claimed-by <name>] [--project <name>] [--json]
+                                 Intake discovery for user/operator and bot-mode
+  claim <issue> --workspace <path> --phase <phase> --issue-state <name> [--issue-state-type <type>] [--claimed-by <user>]
+                                 Intake claim primitive for user/operator and bot-mode
+  prepare <issue> [--phase observe] [--claimed-by <name>]
+                                 Delivery daemon lifecycle primitive
   run start <issue> --phase <phase> --workspace <path>
+                                 Delivery daemon lifecycle primitive
   run finish <issue> --attempt <n> --state <state> [--error <text>]
+                                 Delivery daemon lifecycle primitive
+  release <issue> [--reason <text>] [--json]
+                                 Delivery daemon recovery/terminal control; operator override use
+  cancel <issue> [--reason <text>] [--json]
+                                 Delivery daemon recovery/terminal control; operator override use
+  retry <issue> [--phase observe] [--claimed-by <name>] [--reason <text>] [--json]
+                                 Delivery daemon recovery/terminal control; operator override use
+  reconcile [<issue> | --all]
+                                 Delivery daemon recovery/terminal control; operator override use
 
 Examples:
   reproctl autonomy status --json
@@ -258,6 +466,7 @@ cmd_autonomy() {
       local args=(claim "$issue_identifier" --issue-id "$issue_id" --workspace "$workspace" --phase "$phase" --issue-state "$issue_state" --issue-state-type "${issue_state_type:-started}")
       [[ -n "$claimed_by" ]] && args+=(--claimed-by "$claimed_by")
       _autonomy_py "${args[@]}"
+      _autonomy_linear_sync_assignment "$issue_identifier" assign || true
       ;;
 
     prepare)
@@ -303,6 +512,14 @@ cmd_autonomy() {
       local claim_json
       claim_json="$(REPROCTL_JSON=true _autonomy_py "${claim_args[@]}")" || return 1
 
+      if [[ "$WT_ISSUE_LINEAR_SYNCED" == true ]]; then
+        _autonomy_record_sync "$WT_ISSUE_IDENTIFIER" state true
+      elif [[ -n "$WT_ISSUE_LINEAR_SYNC_ERROR" ]]; then
+        _autonomy_record_sync "$WT_ISSUE_IDENTIFIER" state false "$WT_ISSUE_LINEAR_SYNC_ERROR"
+      fi
+
+      _autonomy_linear_sync_assignment "$WT_ISSUE_IDENTIFIER" assign || true
+
       if [[ "${REPROCTL_JSON:-false}" == true ]]; then
         python3 "$SCRIPTS_DIR/lib/py/autonomy_prepare_json.py" prepare "$phase" "$claimed_by" "$WT_ISSUE_UUID" "$WT_ISSUE_IDENTIFIER" "$WT_ISSUE_WORKTREE_PATH" "$WT_ISSUE_WORKTREE_BRANCH" "$WT_ISSUE_WORKTREE_SLUG" "$WT_ISSUE_STATE_NAME" "$WT_ISSUE_STATE_TYPE" "$claim_json"
       else
@@ -334,6 +551,98 @@ cmd_autonomy() {
         _autonomy_py release "$issue_identifier" --reason "$reason"
       else
         _autonomy_py release "$issue_identifier"
+      fi
+      local rc=0
+      if ! _autonomy_linear_set_state "$issue_identifier" "Todo"; then
+        rc=1
+      fi
+      if ! _autonomy_linear_sync_assignment "$issue_identifier" clear; then
+        rc=1
+      fi
+      return "$rc"
+      ;;
+
+    cancel)
+      local issue_identifier="${1:-}"
+      shift || true
+      local reason=""
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --json) shift ;;
+          --reason) [[ -n "${2:-}" ]] || die "Missing value for $1"; reason="$2"; shift 2 ;;
+          -h|--help)
+            cmd_autonomy_help
+            return 0
+            ;;
+          *) die "Unknown option: $1\nRun 'reproctl autonomy --help' for usage." ;;
+        esac
+      done
+      [[ -n "$issue_identifier" ]] || die "Missing issue identifier"
+      if [[ -n "$reason" ]]; then
+        _autonomy_py cancel "$issue_identifier" --reason "$reason"
+      else
+        _autonomy_py cancel "$issue_identifier"
+      fi
+      local rc=0
+      if ! _autonomy_linear_set_state "$issue_identifier" "Todo"; then
+        rc=1
+      fi
+      if ! _autonomy_linear_sync_assignment "$issue_identifier" clear; then
+        rc=1
+      fi
+      return "$rc"
+      ;;
+
+    retry)
+      local issue_identifier="${1:-}"
+      shift || true
+      local phase="observe" claimed_by="" reason=""
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --json) shift ;;
+          --phase) [[ -n "${2:-}" ]] || die "Missing value for $1"; phase="$2"; shift 2 ;;
+          --claimed-by) [[ -n "${2:-}" ]] || die "Missing value for $1"; claimed_by="$2"; shift 2 ;;
+          --reason) [[ -n "${2:-}" ]] || die "Missing value for $1"; reason="$2"; shift 2 ;;
+          -h|--help)
+            cmd_autonomy_help
+            return 0
+            ;;
+          *) die "Unknown option: $1\nRun 'reproctl autonomy --help' for usage." ;;
+        esac
+      done
+      [[ -n "$issue_identifier" ]] || die "Missing issue identifier"
+
+      local state_info current_state_name current_state_type
+      state_info="$(_autonomy_linear_issue_state_info "$issue_identifier" "In Progress")" || {
+        _autonomy_record_sync "$issue_identifier" state false "failed to resolve Linear metadata"
+        return 1
+      }
+      current_state_name="$(sed -n '2p' <<< "$state_info")"
+      current_state_type="$(sed -n '3p' <<< "$state_info")"
+
+      case "$current_state_type" in
+        completed|canceled|closed|done)
+          _autonomy_py reconcile "$issue_identifier" --issue-state-type "$current_state_type"
+          _autonomy_record_sync "$issue_identifier" state false "Linear issue is terminal: $current_state_name"
+          return 1
+          ;;
+      esac
+
+      if [[ -n "$reason" ]]; then
+        _autonomy_py retry "$issue_identifier" --reason "$reason" >/dev/null
+      else
+        _autonomy_py retry "$issue_identifier" >/dev/null
+      fi
+
+      _autonomy_linear_set_state "$issue_identifier" "In Progress" false
+      if ! _autonomy_linear_sync_assignment "$issue_identifier" assign; then
+        _autonomy_record_sync "$issue_identifier" assignment false "failed to assign automation viewer"
+      fi
+      local prepare_args=(prepare "$issue_identifier" --phase "$phase")
+      [[ -n "$claimed_by" ]] && prepare_args+=(--claimed-by "$claimed_by")
+      if ! cmd_autonomy "${prepare_args[@]}"; then
+        _autonomy_record_sync "$issue_identifier" state false "failed to prepare retry workspace"
+        return 1
       fi
       ;;
 
