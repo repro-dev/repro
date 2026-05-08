@@ -64,7 +64,6 @@ for item in payload.get('items') or []:
     public_item = {
         'issue_identifier': identifier,
         'state': state,
-        'phase': str(item.get('phase') or ''),
         'workspace_path': str(item.get('workspace_path') or ''),
         'queued_by': str(item.get('claimed_by') or ''),
         'updated_at': str(item.get('updated_at') or ''),

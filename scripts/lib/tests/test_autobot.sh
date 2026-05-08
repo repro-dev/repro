@@ -163,8 +163,26 @@ fi
   rm -rf "$tmpdir"
   if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'already queued' && ! printf '%s\n' "$output" | grep -q 'queue-called'; then
     _pass 'autobot add is idempotent for existing queue items'
+else
+  _fail 'autobot add is idempotent for existing queue items' "rc=$rc; output=$output"
+fi
+}
+
+test_add_json_for_existing_queue_item_hides_internal_phase() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+_autobot_public_status_json() {
+  printf "%s\n" "{\"items\":[{\"issue_identifier\":\"REP-1\",\"claim_state\":\"queued\",\"phase\":\"queue\",\"claimed_by\":\"autobot\"}],\"summary\":{\"total\":1}}"
+}
+cmd_autobot add REP-1 --json
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q '"already_queued": true' && ! printf '%s\n' "$output" | grep -q '"phase"'; then
+    _pass 'autobot add --json hides internal phase for existing queue items'
   else
-    _fail 'autobot add is idempotent for existing queue items' "rc=$rc; output=$output"
+    _fail 'autobot add --json hides internal phase for existing queue items' "rc=$rc; output=$output"
   fi
 }
 
@@ -347,6 +365,7 @@ test_worktree_guard_rejects_non_main_checkout
 test_discover_q_emits_issue_ids_only
 test_add_dry_run_does_not_queue_or_sync
 test_add_is_idempotent_for_existing_queue_item
+test_add_json_for_existing_queue_item_hides_internal_phase
 test_add_in_progress_requires_confirmation_and_defaults_no
 test_remove_help_does_not_crash_under_set_u
 test_remove_requires_issue_identifier_without_crashing_under_set_u
