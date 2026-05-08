@@ -553,14 +553,14 @@ _autobot_engine_process_queue() {
 
   selected_item="$selected_json"
 
-  snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$selected_item")"
-  if _autobot_engine_apply_recovery_decision "$snapshot_json"; then
-    return 0
-  fi
-
   if [[ "$selected_state" == queued ]]; then
     REPROCTL_JSON=true cmd_autonomy prepare "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
     _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
+    return 0
+  fi
+
+  snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$selected_item")"
+  if _autobot_engine_apply_recovery_decision "$snapshot_json"; then
     return 0
   fi
 
