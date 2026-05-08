@@ -376,14 +376,15 @@ _autobot_engine_process_item() {
 
   if ! _autobot_engine_run_delivery_attempt "$issue_identifier" "$workspace_path" "$attempt" "$run_dir" "$events_file"; then
     REPROCTL_JSON=true cmd_autonomy run finish "$issue_identifier" --attempt "$attempt" --state failed --error "delivery phase failed" >/dev/null 2>&1 || true
-    _autobot_engine_write_status "$queue_json"
+    _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true
     return 1
   fi
 
   REPROCTL_JSON=true cmd_autonomy run finish "$issue_identifier" --attempt "$attempt" --state finished >/dev/null 2>&1 || true
   REPROCTL_JSON=true cmd_autonomy release "$issue_identifier" --reason "autobot-engine completed" >/dev/null 2>&1 || true
+  git -C "$MAIN_CHECKOUT" fetch --prune origin main >/dev/null 2>&1 || true
   _autobot_engine_write_cleanup_record "$issue_identifier" "merged-or-released"
-  _autobot_engine_write_status "$queue_json"
+  _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true
   return 0
 }
 
@@ -476,6 +477,7 @@ _autobot_engine_run_foreground() {
 _autobot_engine_run_daemon() {
   local once="${1:-false}"
   local log_file pid_file child_pid attempts=0
+  local daemon_args=(_daemon)
   local launcher_script="${SCRIPT_DIR:-$SCRIPTS_DIR}/autobot-engine.sh"
 
   if [[ "$REPO_ROOT" != "$MAIN_CHECKOUT" ]]; then
@@ -491,7 +493,9 @@ _autobot_engine_run_daemon() {
     die "engine is already running (pid $child_pid); lock: $(_autobot_engine_lock_path)"
   fi
 
-  nohup "$launcher_script" _daemon ${once:+--once} >>"$log_file" 2>&1 &
+  [[ "$once" = true ]] && daemon_args+=(--once)
+
+  nohup "$launcher_script" "${daemon_args[@]}" >>"$log_file" 2>&1 &
   child_pid=$!
 
   while [ "$attempts" -lt 20 ]; do

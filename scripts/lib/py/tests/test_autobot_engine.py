@@ -37,8 +37,22 @@ def test_select_work_skips_recovery_when_disabled():
 
     result = select_work(payload, allow_recovery=False)
 
-    assert result["selected"] is None
-    assert result["summary"]["selected_state"] == ""
+    assert result["selected"]["issue_identifier"] == "REP-2"
+    assert result["summary"]["selected_state"] == "running"
+
+
+def test_select_work_polls_reconciling_items_before_recovery():
+    payload = {
+        "items": [
+            {"issue_identifier": "REP-1", "claim_state": "reconciling"},
+            {"issue_identifier": "REP-2", "claim_state": "failed"},
+        ]
+    }
+
+    result = select_work(payload)
+
+    assert result["selected"]["issue_identifier"] == "REP-1"
+    assert result["summary"]["selected_state"] == "reconciling"
 
 
 def test_render_status_uses_expected_shape():

@@ -74,6 +74,13 @@ git -C "$TEST_TMPDIR/workspaces/repro-wt-rep-1094" init >/dev/null 2>&1
 slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
 worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
 source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+git() {
+  if [[ "$*" == *"$MAIN_CHECKOUT"*"fetch --prune origin main"* ]]; then
+    printf '%s\n' "$*" >> "$TEST_TMPDIR/git.log"
+    return 0
+  fi
+  command git "$@"
+}
 opencode() { printf 'OPENCODE %s\n' "$*"; }
 cmd_autonomy() {
   case "$*" in
@@ -98,10 +105,23 @@ cmd_autobot_engine start --once
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ -f "$tmpdir/repro/.autobot/status.json" ] && [ -f "$tmpdir/repro/.autobot/runs/REP-1094-attempt-1/plan.md" ] && [ -f "$tmpdir/repro/.autobot/runs/REP-1094-attempt-1/release.md" ]; then
-    _pass 'foreground start --once writes metadata and phase outputs'
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/repro/.autobot/status.json" ] && [ -f "$tmpdir/repro/.autobot/runs/REP-1094-attempt-1/plan.md" ] && [ -f "$tmpdir/repro/.autobot/runs/REP-1094-attempt-1/release.md" ] && [ -f "$tmpdir/git.log" ] && grep -q 'fetch --prune origin main' "$tmpdir/git.log"; then
+    if python3 - "$tmpdir/repro/.autobot/status.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+status = json.loads(Path(sys.argv[1]).read_text())
+assert "engine" in status and "queue" in status
+assert status["engine"]["running"] is True
+PY
+    then
+      _pass 'foreground start --once writes metadata, status shape, and fetches main checkout'
+    else
+      _fail 'foreground start --once writes metadata, status shape, and fetches main checkout' "status.json shape invalid; output=$output"
+    fi
   else
-    _fail 'foreground start --once writes metadata and phase outputs' "rc=$rc; output=$output"
+    _fail 'foreground start --once writes metadata, status shape, and fetches main checkout' "rc=$rc; output=$output"
   fi
   rm -rf "$tmpdir"
 }
@@ -168,6 +188,21 @@ SCRIPTS_DIR="$SCRIPT_DIR"
 slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
 worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
 source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+SCRIPT_DIR="$TEST_TMPDIR/fake-bin"
+mkdir -p "$SCRIPT_DIR"
+cat > "$SCRIPT_DIR/autobot-engine.sh" <<'DAEMON'
+#!/bin/bash
+set -euo pipefail
+printf '%s\n' "$*" > "$TEST_TMPDIR/daemon.args"
+mkdir -p "$TEST_TMPDIR/repro/.autobot"
+printf '%s\n' "$$" > "$TEST_TMPDIR/repro/.autobot/engine.pid"
+cat > "$TEST_TMPDIR/repro/.autobot/status.json" <<'JSON'
+{"engine":{"pid":1234,"running":true,"current_issue":"","current_phase":"","current_attempt":null,"last_tick_at":"2026-05-08T12:00:00Z"},"paths":{"lock":"$TEST_TMPDIR/repro/.autobot/engine.lock","pid":"$TEST_TMPDIR/repro/.autobot/engine.pid","log":"$TEST_TMPDIR/repro/.autobot/engine.log","status":"$TEST_TMPDIR/repro/.autobot/status.json"},"queue":{"items":[],"selected_work":null,"summary":{"total":0,"claimed":0,"running":0,"reconciling":0,"recovery":0,"terminal":0,"by_state":{}}},"generated_at":"2026-05-08T12:00:00Z"}
+JSON
+trap 'exit 0' INT TERM
+while :; do sleep 1; done
+DAEMON
+chmod +x "$SCRIPT_DIR/autobot-engine.sh"
 opencode() { printf 'OPENCODE %s\n' "$*"; }
 cmd_autonomy() {
   case "$*" in
@@ -195,12 +230,12 @@ cmd_autobot_engine stop
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  rm -rf "$tmpdir"
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'started autobot-engine' && printf '%s\n' "$output" | grep -q 'engine: running' && (printf '%s\n' "$output" | grep -q 'engine is not running' || printf '%s\n' "$output" | grep -q 'stopped autobot-engine'); then
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'started autobot-engine' && printf '%s\n' "$output" | grep -q 'engine: running' && [ -f "$tmpdir/daemon.args" ] && ! grep -q -- '--once' "$tmpdir/daemon.args" && (printf '%s\n' "$output" | grep -q 'engine is not running' || printf '%s\n' "$output" | grep -q 'stopped autobot-engine'); then
     _pass 'daemon start, status, and stop manage the same engine instance'
   else
     _fail 'daemon start, status, and stop manage the same engine instance' "rc=$rc; output=$output"
   fi
+  rm -rf "$tmpdir"
 }
 
 test_auto_discover_invokes_external_autobot() {

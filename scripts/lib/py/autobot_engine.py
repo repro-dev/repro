@@ -69,7 +69,7 @@ def select_work(payload: dict[str, Any], *, allow_recovery: bool = True) -> dict
     items = _items(payload)
     selected: dict[str, Any] | None = None
 
-    for state in ("claimed",):
+    for state in ("claimed", "running", "reconciling"):
         for item in items:
             if _claim_state(item) == state:
                 selected = item
