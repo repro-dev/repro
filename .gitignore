@@ -66,3 +66,6 @@ packages/tdl/src/cli/*.ohm-bundle.*
 # Machine-local direnv overrides written by `reproctl setup` (e.g. OPENCODE_CONFIG_CONTENT)
 .envrc.local
 .linear
+
+# AUTOBOT
+/.autobot/
