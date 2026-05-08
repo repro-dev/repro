@@ -554,7 +554,13 @@ _autobot_engine_process_queue() {
   selected_item="$selected_json"
 
   if [[ "$selected_state" == queued ]]; then
-    REPROCTL_JSON=true cmd_autonomy prepare "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
+    if ! REPROCTL_JSON=true cmd_autonomy prepare "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1; then
+      _warn "Failed to prepare queued item $selected_issue"
+      _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
+      return 0
+    fi
+
+    queue_json="$(_autobot_engine_queue_json)"
     _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
     return 0
   fi

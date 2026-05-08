@@ -14,7 +14,8 @@ _pass() { printf '  ✔ %s\n' "$1"; PASS=$((PASS + 1)); TESTS_RUN=$((TESTS_RUN +
 _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); TESTS_RUN=$((TESTS_RUN + 1)); }
 
 _make_tmpdir() {
-  mktemp -d 2>/dev/null || mktemp -d -t test_autobot
+  mkdir -p "$SCRIPTS_DIR/../tmp"
+  mktemp -d "$SCRIPTS_DIR/../tmp/test_autobot.XXXXXX"
 }
 
 _write_runner() {
@@ -35,16 +36,28 @@ MAIN_CHECKOUT="$tmpdir/repro"
 PARENT_DIR="$tmpdir"
 WORKSPACE_ROOT="$tmpdir/workspaces"
 SCRIPTS_DIR="$SCRIPTS_DIR"
-TMP_DIR="$tmpdir/tmp"
-mkdir -p "$tmpdir/repro" "$tmpdir/workspaces" "$tmpdir/tmp"
+TMP_DIR="$tmpdir/repro/tmp"
+CONFIG_FILE="$tmpdir/repro/tmp/reproctl_services.json"
+TILT_PID_FILE="$tmpdir/repro/tmp/tilt.pid"
+TILT_LOG_FILE="$tmpdir/repro/tmp/tilt.log"
+mkdir -p "$tmpdir/repro" "$tmpdir/workspaces" "$tmpdir/repro/tmp"
+ln -s "$SCRIPTS_DIR" "$tmpdir/repro/scripts"
 slugify() { printf '%s\n' "\$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
 worktree_path() { echo "\${WORKSPACE_ROOT:-\$PARENT_DIR}/repro-wt-\$1"; }
 source "$SCRIPTS_DIR/lib/common.sh"
+REPO_ROOT="$tmpdir/repro"
+MAIN_CHECKOUT="$tmpdir/repro"
+PARENT_DIR="$tmpdir"
+WORKSPACE_ROOT="$tmpdir/workspaces"
+TMP_DIR="$tmpdir/repro/tmp"
+CONFIG_FILE="$tmpdir/repro/tmp/reproctl_services.json"
+TILT_PID_FILE="$tmpdir/repro/tmp/tilt.pid"
+TILT_LOG_FILE="$tmpdir/repro/tmp/tilt.log"
+SCRIPTS_DIR="$tmpdir/repro/scripts"
 source "$SCRIPTS_DIR/lib/worktree.sh"
 source "$SCRIPTS_DIR/lib/opencode.sh"
 source "$SCRIPTS_DIR/lib/autonomy.sh"
 source "$SCRIPTS_DIR/lib/autobot.sh"
-SCRIPTS_DIR="$SCRIPTS_DIR"
 $extra
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
@@ -341,6 +354,23 @@ printf '%s\n' "$item_json"
   fi
 }
 
+test_logs_without_issue_prints_engine_log_contents() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+_write_runner "$tmpdir" '
+mkdir -p "$MAIN_CHECKOUT/.autobot"
+printf "engine log line one\nengine log line two\n" > "$MAIN_CHECKOUT/.autobot/engine.log"
+cmd_autobot_logs
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'engine log line one' && ! printf '%s\n' "$output" | grep -q 'engine log:'; then
+    _pass 'autobot logs without issue prints engine log contents'
+  else
+    _fail 'autobot logs without issue prints engine log contents' "rc=$rc; output=$output"
+  fi
+}
+
 test_add_accepts_multiple_issue_identifiers() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -374,6 +404,7 @@ test_remove_force_cancels_in_flight_item
 test_remove_in_flight_requires_confirmation_and_defaults_no
 test_entrypoints_are_executable
 test_public_item_json_uses_queue_language
+test_logs_without_issue_prints_engine_log_contents
 test_add_accepts_multiple_issue_identifiers
 
 printf '\nSummary: %d passed, %d failed, %d total\n' "$PASS" "$FAIL" "$TESTS_RUN"

@@ -471,7 +471,9 @@ cmd_autobot_logs() {
   fi
 
   if [[ -f "$engine_log" ]]; then
-    printf 'engine log: %s\n' "$engine_log"
+    cat "$engine_log"
+  elif [[ -z "$issue_identifier" ]]; then
+    printf 'no logs yet\n'
   fi
   if [[ -n "$issue_identifier" && ${#issue_logs[@]} -gt 0 ]]; then
     printf 'issue logs:\n'
@@ -521,7 +523,7 @@ cmd_autobot_discover() {
   if [[ "$quiet" == true ]]; then
     printf '%s\n' "$issue_ids"
   else
-    printf 'Queued candidates:\n'
+    printf 'Candidate items:\n'
     while IFS= read -r issue_identifier; do
       [[ -n "$issue_identifier" ]] || continue
       printf '  %s\n' "$issue_identifier"
