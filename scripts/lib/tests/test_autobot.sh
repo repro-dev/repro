@@ -87,19 +87,7 @@ test_discover_q_emits_issue_ids_only() {
 cmd_autonomy() {
   case "$*" in
     discover\ --limit\ 2\ --project\ Demo\ --json)
-      printf '%s\n' '{"waves":[{"issues":[{"issue_identifier":"REP-1"},{"issue_identifier":"REP-2"}]}],"deferred":[{"issue_identifier":"REP-3"}]}'
-      ;;
-    *) return 1 ;;
-  esac
-}
-_autobot_queue_helper() {
-  case "$*" in
-    discover-ids)
-      cat <<'EOF'
-REP-1
-REP-2
-REP-3
-EOF
+      printf "%s\n" "{\"waves\":[{\"issues\":[{\"issue_identifier\":\"REP-1\"},{\"issue_identifier\":\"REP-2\"}]}],\"deferred\":[{\"issue_identifier\":\"REP-3\"}],\"out_of_limit\":[{\"issue_identifier\":\"REP-4\"}]}"
       ;;
     *) return 1 ;;
   esac
@@ -108,10 +96,204 @@ cmd_autobot discover --limit 2 --project Demo -q
 '
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
-  if [ $rc -eq 0 ] && [ "$(printf '%s\n' "$output" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 3 ] && printf '%s\n' "$output" | grep -qx 'REP-1' && printf '%s\n' "$output" | grep -qx 'REP-2' && printf '%s\n' "$output" | grep -qx 'REP-3'; then
+  if [ $rc -eq 0 ] && [ "$(printf '%s\n' "$output" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 2 ] && printf '%s\n' "$output" | grep -qx 'REP-1' && printf '%s\n' "$output" | grep -qx 'REP-2' && ! printf '%s\n' "$output" | grep -qx 'REP-3' && ! printf '%s\n' "$output" | grep -qx 'REP-4'; then
     _pass 'autobot discover -q emits issue identifiers only'
   else
     _fail 'autobot discover -q emits issue identifiers only' "rc=$rc; output=$output"
+  fi
+}
+
+test_add_dry_run_does_not_queue_or_sync() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+queue_marker="$MAIN_CHECKOUT/tmp/queue-called"
+sync_marker="$MAIN_CHECKOUT/tmp/sync-called"
+_autobot_public_status_json() {
+  printf "%s\n" "{\"items\":[],\"summary\":{\"total\":0}}"
+}
+_resolve_issue_worktree_metadata() {
+  WT_ISSUE_WORKTREE_PATH="$MAIN_CHECKOUT/workspaces/repro-wt-REP-1"
+  WT_ISSUE_UUID="uuid-rep-1"
+  WT_ISSUE_STATE_NAME="Todo"
+  WT_ISSUE_STATE_TYPE="unstarted"
+}
+_populate_issue_worktree_names() { :; }
+_autonomy_py() {
+  printf "%s\n" "queue invoked" > "$queue_marker"
+  return 1
+}
+_autonomy_linear_sync_assignment() {
+  printf "%s\n" "sync invoked" > "$sync_marker"
+  return 1
+}
+cmd_autobot add REP-1 --dry-run
+[ ! -e "$queue_marker" ]
+[ ! -e "$sync_marker" ]
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'Would queue item REP-1'; then
+    _pass 'autobot add --dry-run skips queue mutation'
+  else
+    _fail 'autobot add --dry-run skips queue mutation' "rc=$rc; output=$output"
+  fi
+}
+
+test_add_is_idempotent_for_existing_queue_item() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+_write_runner "$tmpdir" '
+queue_invocations=0
+queue_marker="$MAIN_CHECKOUT/tmp/queue-called"
+_autobot_public_status_json() {
+  printf "%s\n" "{\"items\":[{\"issue_identifier\":\"REP-1\",\"claim_state\":\"queued\",\"claimed_by\":\"autobot\"}],\"summary\":{\"total\":1}}"
+}
+_autonomy_py() {
+  queue_invocations=$((queue_invocations + 1))
+  printf "%s\n" "queue invoked" > "$queue_marker"
+  return 1
+}
+cmd_autobot add REP-1
+if [ -e "$queue_marker" ]; then
+  printf "%s\n" "queue-called"
+fi
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'already queued' && ! printf '%s\n' "$output" | grep -q 'queue-called'; then
+    _pass 'autobot add is idempotent for existing queue items'
+  else
+    _fail 'autobot add is idempotent for existing queue items' "rc=$rc; output=$output"
+  fi
+}
+
+test_add_in_progress_requires_confirmation_and_defaults_no() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+_write_runner "$tmpdir" '
+queue_marker="$MAIN_CHECKOUT/tmp/queue-called"
+_autobot_public_status_json() {
+  printf "%s\n" "{\"items\":[],\"summary\":{\"total\":0}}"
+}
+_resolve_issue_worktree_metadata() {
+  WT_ISSUE_WORKTREE_PATH="$MAIN_CHECKOUT/workspaces/repro-wt-REP-1"
+  WT_ISSUE_UUID="uuid-rep-1"
+  WT_ISSUE_STATE_NAME="In Progress"
+  WT_ISSUE_STATE_TYPE="started"
+}
+_populate_issue_worktree_names() { :; }
+_autonomy_py() {
+  printf "%s\n" "queue invoked" > "$queue_marker"
+  return 1
+}
+cmd_autobot add REP-1
+if [ ! -e "$queue_marker" ]; then
+  printf "%s\n" "no-queue"
+fi
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q 'refusing to queue REP-1 without confirmation while Linear is already In Progress'; then
+    _pass 'autobot add defaults to no for in-progress issues'
+  else
+    _fail 'autobot add defaults to no for in-progress issues' "rc=$rc; output=$output"
+  fi
+}
+
+test_remove_help_does_not_crash_under_set_u() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" 'cmd_autobot remove --help'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'remove <issue> \[-f\] \[--json\] \[--dry-run\]'; then
+    _pass 'autobot remove --help does not crash under set -u'
+  else
+    _fail 'autobot remove --help does not crash under set -u' "rc=$rc; output=$output"
+  fi
+}
+
+test_remove_requires_issue_identifier_without_crashing_under_set_u() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" 'cmd_autobot remove'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q 'Missing issue identifier'; then
+    _pass 'autobot remove reports missing issue identifier cleanly'
+  else
+    _fail 'autobot remove reports missing issue identifier cleanly' "rc=$rc; output=$output"
+  fi
+}
+
+test_remove_dry_run_does_not_cancel() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+cancel_marker="$MAIN_CHECKOUT/tmp/cancel-called"
+_autobot_public_status_json() {
+  printf "%s\n" "{\"items\":[{\"issue_identifier\":\"REP-1\",\"claim_state\":\"running\",\"workspace_path\":\"/workspaces/repro-wt-rep-1\"}],\"summary\":{\"total\":1}}"
+}
+cmd_autonomy() {
+  printf "%s\n" "cancel invoked" > "$cancel_marker"
+  return 1
+}
+cmd_autobot remove REP-1 --dry-run
+[ ! -e "$cancel_marker" ]
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if printf '%s\n' "$output" | grep -q 'Would remove queued item REP-1'; then
+    _pass 'autobot remove --dry-run skips cancellation'
+  else
+    _fail 'autobot remove --dry-run skips cancellation' "rc=$rc; output=$output"
+  fi
+}
+
+test_remove_force_cancels_in_flight_item() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+cancel_invocations=0
+_autobot_public_status_json() {
+  printf "%s\n" "{\"items\":[{\"issue_identifier\":\"REP-1\",\"claim_state\":\"running\",\"workspace_path\":\"/workspaces/repro-wt-rep-1\"}],\"summary\":{\"total\":1}}"
+}
+cmd_autonomy() {
+  cancel_invocations=$((cancel_invocations + 1))
+  printf "%s\n" "cancel invoked" > "$MAIN_CHECKOUT/tmp/cancel-called"
+  return 0
+}
+cmd_autobot remove REP-1 -f
+if [ -e "$MAIN_CHECKOUT/tmp/cancel-called" ]; then
+  printf "%s\n" "cancel-called"
+fi
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'removed queued item REP-1' && printf '%s\n' "$output" | grep -q 'cancel-called'; then
+    _pass 'autobot remove -f cancels in-flight work'
+  else
+    _fail 'autobot remove -f cancels in-flight work' "rc=$rc; output=$output"
+  fi
+}
+
+test_remove_in_flight_requires_confirmation_and_defaults_no() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+_autobot_public_status_json() {
+  printf "%s\n" "{\"items\":[{\"issue_identifier\":\"REP-1\",\"claim_state\":\"running\",\"workspace_path\":\"/workspaces/repro-wt-rep-1\"}],\"summary\":{\"total\":1}}"
+}
+cmd_autonomy() { return 0; }
+cmd_autobot remove REP-1
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q 'refusing to remove REP-1 without confirmation while work is in flight'; then
+    _pass 'autobot remove defaults to no for in-flight work'
+  else
+    _fail 'autobot remove defaults to no for in-flight work' "rc=$rc; output=$output"
   fi
 }
 
@@ -163,6 +345,14 @@ cmd_autobot add REP-1 REP-2
 test_help_lists_public_commands
 test_worktree_guard_rejects_non_main_checkout
 test_discover_q_emits_issue_ids_only
+test_add_dry_run_does_not_queue_or_sync
+test_add_is_idempotent_for_existing_queue_item
+test_add_in_progress_requires_confirmation_and_defaults_no
+test_remove_help_does_not_crash_under_set_u
+test_remove_requires_issue_identifier_without_crashing_under_set_u
+test_remove_dry_run_does_not_cancel
+test_remove_force_cancels_in_flight_item
+test_remove_in_flight_requires_confirmation_and_defaults_no
 test_entrypoints_are_executable
 test_public_item_json_uses_queue_language
 test_add_accepts_multiple_issue_identifiers

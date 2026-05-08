@@ -246,8 +246,7 @@ cmd_autobot_add() {
 }
 
 cmd_autobot_remove() {
-  local issue_identifier="$1"
-  shift || true
+  local issue_identifier=""
   local force=false dry_run=false json_output="${REPROCTL_JSON:-false}"
 
   while [[ $# -gt 0 ]]; do
@@ -259,7 +258,22 @@ cmd_autobot_remove() {
         _autobot_help
         return 0
         ;;
-      *) die "Unknown option: $1\nRun 'autobot --help' for usage." ;;
+      --)
+        shift
+        if [[ $# -gt 0 ]]; then
+          issue_identifier="$1"
+          shift
+        fi
+        break
+        ;;
+      -*) die "Unknown option: $1\nRun 'autobot --help' for usage." ;;
+      *)
+        if [[ -z "$issue_identifier" ]]; then
+          issue_identifier="$1"
+        else
+          die "Unexpected argument: $1\nRun 'autobot --help' for usage."
+        fi
+        ;;
     esac
     shift
   done
@@ -291,18 +305,6 @@ cmd_autobot_remove() {
     return 0
   fi
 
-  if [[ "$public_state" == running || "$public_state" == needs_attention ]]; then
-    if [[ "$force" != true ]]; then
-      if [[ -t 0 ]]; then
-        if ! _autobot_prompt_yes_no "Remove in-flight item ${issue_identifier}?"; then
-          die "aborted by user"
-        fi
-      else
-        die "refusing to remove ${issue_identifier} without confirmation while work is in flight"
-      fi
-    fi
-  fi
-
   if [[ "$dry_run" == true ]]; then
     if [[ "$json_output" == true ]]; then
       python3 - "$issue_identifier" "$workspace_path" <<'PY'
@@ -321,6 +323,18 @@ PY
       printf 'Would remove queued item %s\n' "$issue_identifier"
     fi
     return 0
+  fi
+
+  if [[ "$public_state" == running || "$public_state" == needs_attention ]]; then
+    if [[ "$force" != true ]]; then
+      if [[ -t 0 ]]; then
+        if ! _autobot_prompt_yes_no "Remove in-flight item ${issue_identifier}?"; then
+          die "aborted by user"
+        fi
+      else
+        die "refusing to remove ${issue_identifier} without confirmation while work is in flight"
+      fi
+    fi
   fi
 
   REPROCTL_JSON=true cmd_autonomy cancel "$issue_identifier" --reason "removed by autobot" >/dev/null || return 1
@@ -354,8 +368,7 @@ cmd_autobot_list() {
 }
 
 cmd_autobot_status() {
-  local issue_identifier="${1:-}"
-  shift || true
+  local issue_identifier=""
   local json_output="${REPROCTL_JSON:-false}"
 
   while [[ $# -gt 0 ]]; do
@@ -365,7 +378,22 @@ cmd_autobot_status() {
         _autobot_help
         return 0
         ;;
-      *) die "Unknown option: $1\nRun 'autobot --help' for usage." ;;
+      --)
+        shift
+        if [[ $# -gt 0 ]]; then
+          issue_identifier="$1"
+          shift
+        fi
+        break
+        ;;
+      -*) die "Unknown option: $1\nRun 'autobot --help' for usage." ;;
+      *)
+        if [[ -z "$issue_identifier" ]]; then
+          issue_identifier="$1"
+        else
+          die "Unexpected argument: $1\nRun 'autobot --help' for usage."
+        fi
+        ;;
     esac
     shift
   done

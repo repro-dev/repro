@@ -43,7 +43,6 @@ def test_shape_status_filters_terminal_items_for_list_but_keeps_them_for_single_
                 "workspace_path": "/tmp/workspaces/repro-wt-rep-2",
             },
         ],
-        "runs": [],
         "summary": {"claim_states": {"queued": 1, "released": 1}},
         "generated_at": "2026-05-08T12:00:00Z",
     }
@@ -55,6 +54,8 @@ def test_shape_status_filters_terminal_items_for_list_but_keeps_them_for_single_
     assert detailed["items"][0]["state"] == "released"
     assert listed["summary"]["queued"] == 1
     assert listed["summary"]["released"] == 1
+    assert "phase" not in listed["items"][0]
+    assert "runs" not in listed
 
 
 def test_public_item_keeps_public_fields_only():
@@ -74,6 +75,7 @@ def test_public_item_keeps_public_fields_only():
     assert item["queued_by"] == "autobot"
     assert "claim_state" not in item
     assert "claimed_by" not in item
+    assert "phase" not in item
 
 
 def test_public_summary_counts_public_states():
@@ -105,11 +107,12 @@ def test_discover_issue_ids_deduplicates_nested_canonical_results():
                 {"issues": [{"issue_identifier": "REP-1"}]},
             ],
             "deferred": [{"issue_identifier": "REP-3"}],
-            "items": [{"issue_identifier": "REP-4"}],
+            "out_of_limit": [{"issue_identifier": "REP-4"}],
+            "items": [{"issue_identifier": "REP-5"}],
         }
     )
 
-    assert ids == ["REP-1", "REP-2", "REP-3", "REP-4"]
+    assert ids == ["REP-1", "REP-2"]
 
 
 def test_parse_log_bundle_reads_engine_and_issue_events(tmp_path: Path):

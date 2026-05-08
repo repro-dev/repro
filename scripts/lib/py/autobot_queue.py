@@ -45,7 +45,6 @@ def public_item(item: dict[str, Any]) -> dict[str, Any]:
     public: dict[str, Any] = {
         "issue_identifier": str(item.get("issue_identifier") or item.get("identifier") or ""),
         "state": state,
-        "phase": str(item.get("phase") or ""),
         "workspace_path": str(item.get("workspace_path") or ""),
         "queued_by": str(item.get("claimed_by") or ""),
         "updated_at": str(item.get("updated_at") or ""),
@@ -89,9 +88,7 @@ def shape_status(payload: dict[str, Any], issue_identifier: str | None = None) -
     return {
         "items": items,
         "summary": public_summary(summary_items),
-        "runs": payload.get("runs") if isinstance(payload.get("runs"), list) else [],
         "generated_at": payload.get("generated_at") or "",
-        "query_issue_identifier": issue_identifier or "",
     }
 
 
@@ -99,19 +96,24 @@ def discover_issue_ids(payload: dict[str, Any]) -> list[str]:
     ids: list[str] = []
     seen: set[str] = set()
 
-    def visit(value: Any) -> None:
-        if isinstance(value, dict):
-            identifier = str(value.get("issue_identifier") or value.get("identifier") or "").strip()
+    waves = payload.get("waves")
+    if not isinstance(waves, list):
+        return ids
+
+    for wave in waves:
+        if not isinstance(wave, dict):
+            continue
+        issues = wave.get("issues")
+        if not isinstance(issues, list):
+            continue
+        for issue in issues:
+            if not isinstance(issue, dict):
+                continue
+            identifier = str(issue.get("issue_identifier") or issue.get("identifier") or "").strip()
             if identifier and identifier not in seen:
                 seen.add(identifier)
                 ids.append(identifier)
-            for child in value.values():
-                visit(child)
-        elif isinstance(value, list):
-            for child in value:
-                visit(child)
 
-    visit(payload)
     return ids
 
 
