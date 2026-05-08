@@ -115,9 +115,57 @@ cmd_autobot discover --limit 2 --project Demo -q
   fi
 }
 
+test_entrypoints_are_executable() {
+  if [ -x "$SCRIPTS_DIR/../bin/autobot" ] && [ -x "$SCRIPTS_DIR/autobot.sh" ]; then
+    _pass 'autobot entrypoints are executable'
+  else
+    _fail 'autobot entrypoints are executable' "bin/autobot or scripts/autobot.sh is not executable"
+  fi
+}
+
+test_public_item_json_uses_queue_language() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+mkdir -p "$MAIN_CHECKOUT/tmp"
+status_json='"'"'{"items":[{"issue_identifier":"REP-1","claim_state":"queued","claimed_by":"autobot"}]}'"'"'
+item_json="$(_autobot_public_item_json "$status_json" REP-1)"
+printf '%s\n' "$item_json"
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q '"queued_by": "autobot"' && ! printf '%s\n' "$output" | grep -q 'claimed_by'; then
+    _pass 'autobot public item JSON uses queue language'
+  else
+    _fail 'autobot public item JSON uses queue language' "rc=$rc; output=$output"
+  fi
+}
+
+test_add_accepts_multiple_issue_identifiers() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+_write_runner "$tmpdir" '
+_autobot_add_issue() {
+  printf "queued item %s\n" "$1"
+}
+
+cmd_autobot add REP-1 REP-2
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'queued item REP-1' && printf '%s\n' "$output" | grep -q 'queued item REP-2'; then
+    _pass 'autobot add accepts multiple issue identifiers'
+  else
+    _fail 'autobot add accepts multiple issue identifiers' "rc=$rc; output=$output"
+  fi
+}
+
 test_help_lists_public_commands
 test_worktree_guard_rejects_non_main_checkout
 test_discover_q_emits_issue_ids_only
+test_entrypoints_are_executable
+test_public_item_json_uses_queue_language
+test_add_accepts_multiple_issue_identifiers
 
 printf '\nSummary: %d passed, %d failed, %d total\n' "$PASS" "$FAIL" "$TESTS_RUN"
 if [ "$FAIL" -ne 0 ]; then

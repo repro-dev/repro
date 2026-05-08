@@ -65,12 +65,15 @@ def test_public_item_keeps_public_fields_only():
             "phase": "queue",
             "workspace_path": "/tmp/workspaces/repro-wt-rep-1",
             "attempt_count": 0,
+            "claimed_by": "autobot",
         }
     )
 
     assert item["issue_identifier"] == "REP-1"
     assert item["state"] == "queued"
+    assert item["queued_by"] == "autobot"
     assert "claim_state" not in item
+    assert "claimed_by" not in item
 
 
 def test_public_summary_counts_public_states():

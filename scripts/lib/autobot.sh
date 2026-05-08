@@ -66,7 +66,7 @@ for item in payload.get('items') or []:
         'state': state,
         'phase': str(item.get('phase') or ''),
         'workspace_path': str(item.get('workspace_path') or ''),
-        'claimed_by': str(item.get('claimed_by') or ''),
+        'queued_by': str(item.get('claimed_by') or ''),
         'updated_at': str(item.get('updated_at') or ''),
         'attempt_count': int(item.get('attempt_count') or 0),
         'last_observed_issue_state_name': str(item.get('last_observed_issue_state_name') or ''),
@@ -134,37 +134,18 @@ cmd_autobot_help() {
   _autobot_help
 }
 
-cmd_autobot_add() {
+_autobot_add_issue() {
   local issue_identifier="$1"
-  shift || true
-  local dry_run=false json_output="${REPROCTL_JSON:-false}" already_queued=false
+  local dry_run="$2"
+  local json_output="$3"
 
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --json) json_output=true ;;
-      --dry-run) dry_run=true ;;
-      -h|--help)
-        _autobot_help
-        return 0
-        ;;
-      *) die "Unknown option: $1\nRun 'autobot --help' for usage." ;;
-    esac
-    shift
-  done
-
-  [[ -n "$issue_identifier" ]] || die "Missing issue identifier"
-  _autonomy_validate_issue_identifier "$issue_identifier" || die "Invalid issue identifier: '$issue_identifier'. Expected format: REP-123"
-
-  local status_json item_json planned_workspace state_info state_name state_type issue_id
+  local status_json item_json planned_workspace state_name state_type issue_id public_state
   status_json="$(_autobot_public_status_json)" || return 1
   item_json="$(_autobot_public_item_json "$status_json" "$issue_identifier")"
-  if [[ -n "$(printf '%s' "$item_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print((payload.get("items") or [None])[0].get("state") if payload.get("items") else "")')" ]]; then
-    local public_state
-    public_state="$(printf '%s' "$item_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); items=payload.get("items") or []; print(items[0].get("state") if items else "")')"
-    if [[ "$public_state" == queued || "$public_state" == running || "$public_state" == needs_attention ]]; then
-      already_queued=true
-      if [[ "$json_output" == true ]]; then
-        python3 - "$item_json" <<'PY'
+  public_state="$(printf '%s' "$item_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); items=payload.get("items") or []; print(items[0].get("state") if items else "")')"
+  if [[ "$public_state" == queued || "$public_state" == running || "$public_state" == needs_attention ]]; then
+    if [[ "$json_output" == true ]]; then
+      python3 - "$item_json" <<'PY'
 import json
 import sys
 
@@ -172,11 +153,10 @@ payload = json.loads(sys.argv[1])
 payload['already_queued'] = True
 print(json.dumps(payload))
 PY
-      else
-        printf 'queued item %s is already %s\n' "$issue_identifier" "$public_state"
-      fi
-      return 0
+    else
+      printf 'queued item %s is already %s\n' "$issue_identifier" "$public_state"
     fi
+    return 0
   fi
 
   _resolve_issue_worktree_metadata "$issue_identifier"
@@ -228,6 +208,41 @@ PY
   else
     printf 'queued item %s\n' "$issue_identifier"
   fi
+}
+
+cmd_autobot_add() {
+  local dry_run=false json_output="${REPROCTL_JSON:-false}"
+  local issue_identifiers=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --json) json_output=true ;;
+      --dry-run) dry_run=true ;;
+      --)
+        shift
+        while [[ $# -gt 0 ]]; do
+          issue_identifiers+=("$1")
+          shift
+        done
+        break
+        ;;
+      -h|--help)
+        _autobot_help
+        return 0
+        ;;
+      -*) die "Unknown option: $1\nRun 'autobot --help' for usage." ;;
+      *) issue_identifiers+=("$1") ;;
+    esac
+    shift
+  done
+
+  [[ ${#issue_identifiers[@]} -gt 0 ]] || die "Missing issue identifier"
+
+  local issue_identifier
+  for issue_identifier in "${issue_identifiers[@]}"; do
+    _autonomy_validate_issue_identifier "$issue_identifier" || die "Invalid issue identifier: '$issue_identifier'. Expected format: REP-123"
+    _autobot_add_issue "$issue_identifier" "$dry_run" "$json_output" || return 1
+  done
 }
 
 cmd_autobot_remove() {

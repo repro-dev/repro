@@ -47,7 +47,7 @@ def public_item(item: dict[str, Any]) -> dict[str, Any]:
         "state": state,
         "phase": str(item.get("phase") or ""),
         "workspace_path": str(item.get("workspace_path") or ""),
-        "claimed_by": str(item.get("claimed_by") or ""),
+        "queued_by": str(item.get("claimed_by") or ""),
         "updated_at": str(item.get("updated_at") or ""),
         "attempt_count": int(item.get("attempt_count") or 0),
         "last_observed_issue_state_name": str(item.get("last_observed_issue_state_name") or ""),
