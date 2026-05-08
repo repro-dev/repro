@@ -160,22 +160,25 @@ def decide_recovery(payload: dict[str, Any]) -> dict[str, Any]:
     claim_state = str(payload.get("claim_state") or "")
 
     linear = _as_mapping(payload.get("linear"))
+    linear_item = _as_mapping(linear.get("item"))
+    linear_status = _as_mapping(linear.get("status") or linear_item.get("status"))
+    linear_issue = _as_mapping(linear.get("issue") or linear_item.get("issue"))
     pr = _as_mapping(payload.get("pr"))
 
     linear_state_type = str(
         linear.get("state_type")
         or linear.get("type")
-        or _as_mapping(linear.get("status")).get("type")
-        or _as_mapping(linear.get("issue")).get("state_type")
-        or _as_mapping(linear.get("issue")).get("stateType")
+        or linear_status.get("type")
+        or linear_issue.get("state_type")
+        or linear_issue.get("stateType")
         or ""
     ).lower()
     linear_state_name = str(
         linear.get("state_name")
         or linear.get("name")
-        or _as_mapping(linear.get("status")).get("name")
-        or _as_mapping(linear.get("issue")).get("state_name")
-        or _as_mapping(linear.get("issue")).get("stateName")
+        or linear_status.get("name")
+        or linear_issue.get("state_name")
+        or linear_issue.get("stateName")
         or ""
     ).lower()
 

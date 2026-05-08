@@ -74,6 +74,26 @@ git -C "$TEST_TMPDIR/workspaces/repro-wt-rep-1094" init >/dev/null 2>&1
 slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
 worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
   source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+  linear() {
+    case "$*" in
+      issue\ show\ REP-1094\ --json)
+        printf '%s\n' '{"item":{"status":{"type":"in_progress"}}}'
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+  }
+  gh() {
+    case "$*" in
+      pr\ view\ --head\ *\ --json\ *)
+        printf '%s\n' '{}'
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+  }
   git() {
     if [[ "$*" == *"$MAIN_CHECKOUT"*"fetch --prune origin main"* ]]; then
       printf '%s\n' "$*" >> "$TEST_TMPDIR/git.log"
@@ -108,7 +128,7 @@ cmd_autobot_engine start --once
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ -f "$tmpdir/repro/.autobot/status.json" ] && [ -f "$tmpdir/repro/.autobot/runs/REP-1094-attempt-1/plan.md" ] && [ -f "$tmpdir/repro/.autobot/runs/REP-1094-attempt-1/release.md" ] && [ -f "$tmpdir/git.log" ] && grep -q 'fetch --prune origin main' "$tmpdir/git.log" && [ -f "$tmpdir/opencode.log" ] && grep -q 'Issue: REP-1094' "$tmpdir/opencode.log" && ! grep -q -- '--issue' "$tmpdir/opencode.log"; then
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/repro/.autobot/status.json" ] && [ -f "$tmpdir/repro/.autobot/runs/REP-1094-attempt-1/plan.md" ] && [ -f "$tmpdir/repro/.autobot/runs/REP-1094-attempt-1/release.md" ] && [ ! -f "$tmpdir/git.log" ] && [ -f "$tmpdir/opencode.log" ] && grep -q 'Issue: REP-1094' "$tmpdir/opencode.log" && ! grep -q -- '--issue' "$tmpdir/opencode.log"; then
     if python3 - "$tmpdir/repro/.autobot/status.json" <<'PY'
 import json
 import sys
@@ -119,12 +139,12 @@ assert "engine" in status and "queue" in status
 assert status["engine"]["running"] is True
 PY
     then
-      _pass 'foreground start --once writes metadata, status shape, and fetches main checkout'
+      _pass 'foreground start --once writes metadata, status shape, and keeps release deferred'
     else
-      _fail 'foreground start --once writes metadata, status shape, and fetches main checkout' "status.json shape invalid; output=$output"
+      _fail 'foreground start --once writes metadata, status shape, and keeps release deferred' "status.json shape invalid; output=$output"
     fi
   else
-    _fail 'foreground start --once writes metadata, status shape, and fetches main checkout' "rc=$rc; output=$output"
+    _fail 'foreground start --once writes metadata, status shape, and keeps release deferred' "rc=$rc; output=$output"
   fi
   rm -rf "$tmpdir"
 }

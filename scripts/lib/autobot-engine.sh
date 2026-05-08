@@ -529,9 +529,10 @@ _autobot_engine_process_item() {
   fi
 
   REPROCTL_JSON=true cmd_autonomy run finish "$issue_identifier" --attempt "$attempt" --state finished >/dev/null 2>&1 || true
-  REPROCTL_JSON=true cmd_autonomy release "$issue_identifier" --reason "autobot-engine completed" >/dev/null 2>&1 || true
-  git -C "$MAIN_CHECKOUT" fetch --prune origin main >/dev/null 2>&1 || true
-  _autobot_engine_write_cleanup_record "$issue_identifier" "merged-or-released"
+  snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$selected_item")"
+  if _autobot_engine_apply_recovery_decision "$snapshot_json"; then
+    return 0
+  fi
   _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt"
   return 0
 }

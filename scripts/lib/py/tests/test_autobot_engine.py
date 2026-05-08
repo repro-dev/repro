@@ -87,7 +87,7 @@ def test_decide_recovery_releases_on_merged_pr_or_done_linear():
             "attempt_count": 1,
             "max_attempts": 3,
             "workspace_exists": True,
-            "linear": {"state_type": "done"},
+            "linear": {"item": {"status": {"type": "done"}}},
             "pr": {"state": "OPEN"},
         }
     )
@@ -116,11 +116,25 @@ def test_decide_recovery_cancels_terminal_linear_states():
             "attempt_count": 1,
             "max_attempts": 3,
             "workspace_exists": True,
-            "linear": {"status": {"type": "canceled"}},
+            "linear": {"item": {"status": {"type": "canceled"}}},
         }
     )
 
     assert decision["action"] == "cancel"
+
+
+def test_decide_recovery_keeps_in_progress_linear_work_unreleased():
+    decision = decide_recovery(
+        {
+            "attempt_count": 1,
+            "max_attempts": 3,
+            "workspace_exists": True,
+            "linear": {"item": {"status": {"type": "in_progress"}}},
+            "pr": {"state": "OPEN"},
+        }
+    )
+
+    assert decision["action"] == "continue"
 
 
 def test_decide_recovery_retries_missing_workspace_until_attempts_are_exhausted():
