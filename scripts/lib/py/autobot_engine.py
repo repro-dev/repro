@@ -52,6 +52,35 @@ def _state_rank(state: str) -> int:
     return STATE_PRIORITY.get(state, 99)
 
 
+def _rollup_status_state(value: Any) -> str:
+    if isinstance(value, dict):
+        items: list[dict[str, Any]] = [value]
+    elif isinstance(value, list):
+        items = [item for item in value if isinstance(item, dict)]
+    else:
+        items = []
+
+    seen_pending = False
+    for item in items:
+        check_run = _as_mapping(item.get("checkRun") or item.get("check_run"))
+        state = str(
+            item.get("state")
+            or item.get("conclusion")
+            or item.get("status")
+            or check_run.get("state")
+            or check_run.get("conclusion")
+            or ""
+        ).upper()
+
+        if state in {"FAILURE", "FAILED", "ERROR", "CANCELLED", "CANCELED"}:
+            return "FAILURE" if state in {"FAILURE", "FAILED"} else "ERROR"
+
+        if state in {"PENDING", "IN_PROGRESS", "QUEUED"}:
+            seen_pending = True
+
+    return "PENDING" if seen_pending else ""
+
+
 def _queue_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
     counts: dict[str, int] = {}
     for item in items:
@@ -185,9 +214,7 @@ def decide_recovery(payload: dict[str, Any]) -> dict[str, Any]:
     pr_state = str(pr.get("state") or pr.get("State") or "").upper()
     merge_state_status = str(pr.get("merge_state_status") or pr.get("mergeStateStatus") or "").upper()
     review_decision = str(pr.get("review_decision") or pr.get("reviewDecision") or "").upper()
-    status_state = str(
-        _as_mapping(pr.get("status_check_rollup") or pr.get("statusCheckRollup")).get("state") or ""
-    ).upper()
+    status_state = _rollup_status_state(pr.get("status_check_rollup") or pr.get("statusCheckRollup"))
 
     merge_conflict_count = int(payload.get("merge_conflict_count") or 0)
     workspace_dirty = bool(payload.get("workspace_dirty"))

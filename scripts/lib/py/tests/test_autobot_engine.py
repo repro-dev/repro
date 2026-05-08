@@ -110,6 +110,19 @@ def test_decide_recovery_reconciles_on_ci_review_or_conflicts():
     assert decision["action"] == "reconcile"
 
 
+def test_decide_recovery_reconciles_on_failed_status_check_rollup_list():
+    decision = decide_recovery(
+        {
+            "attempt_count": 1,
+            "max_attempts": 3,
+            "workspace_exists": True,
+            "pr": {"statusCheckRollup": [{"name": "ci", "state": "FAILURE"}]},
+        }
+    )
+
+    assert decision["action"] == "reconcile"
+
+
 def test_decide_recovery_cancels_terminal_linear_states():
     decision = decide_recovery(
         {
