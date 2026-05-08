@@ -545,3 +545,75 @@ def test_status_human_output_includes_runs(tmp_path: Path):
     assert "RUNS" in output
     assert "REP-1094" in output
     assert "running" in output
+
+
+def test_queue_creates_and_reuses_queue_state(tmp_path: Path):
+    store = _store(tmp_path)
+    workspace = _workspace(tmp_path)
+
+    queued = store.queue(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        issue_state_name="Todo",
+        issue_state_type="unstarted",
+        claimed_by="autobot",
+    )
+
+    assert queued["claim_state"] == "queued"
+    assert queued["phase"] == "queue"
+    assert queued["workspace_path"] == str(workspace)
+    assert queued["claimed_by"] == "autobot"
+
+    queued_again = store.queue(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        issue_state_name="Todo",
+        issue_state_type="unstarted",
+        claimed_by="autobot",
+    )
+
+    assert queued_again["claim_state"] == "queued"
+    assert store.status()["items"][0]["claim_state"] == "queued"
+
+
+def test_queue_requeues_after_release_and_cancel(tmp_path: Path):
+    store = _store(tmp_path)
+    workspace = _workspace(tmp_path)
+
+    store.claim(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        phase="observe",
+        issue_state_name="In Progress",
+        issue_state_type="started",
+    )
+    store.release("REP-1094", reason="done")
+
+    release_requeue = store.queue(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        issue_state_name="Todo",
+        issue_state_type="unstarted",
+        claimed_by="autobot",
+    )
+
+    assert release_requeue["claim_state"] == "queued"
+    assert release_requeue["attempt_count"] == 0
+    assert release_requeue["retry_reason"] is None
+
+    store.cancel("REP-1094", reason="manual stop")
+    cancel_requeue = store.queue(
+        issue_identifier="REP-1094",
+        issue_id="issue-uuid-1",
+        workspace_path=str(workspace),
+        issue_state_name="Todo",
+        issue_state_type="unstarted",
+        claimed_by="autobot",
+    )
+
+    assert cancel_requeue["claim_state"] == "queued"
+    assert store.status(all_claims=True)["items"][0]["claim_state"] == "queued"

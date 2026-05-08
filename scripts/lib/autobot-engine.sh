@@ -558,6 +558,12 @@ _autobot_engine_process_queue() {
     return 0
   fi
 
+  if [[ "$selected_state" == queued ]]; then
+    REPROCTL_JSON=true cmd_autonomy prepare "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
+    _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
+    return 0
+  fi
+
   if [[ "$selected_state" == running || "$selected_state" == reconciling ]]; then
     _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
     return 0
