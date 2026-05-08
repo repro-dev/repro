@@ -9,6 +9,7 @@
 AUTOBOT_ENGINE_DIR="${MAIN_CHECKOUT}/.autobot"
 AUTOBOT_ENGINE_PID_FILE="$AUTOBOT_ENGINE_DIR/engine.pid"
 AUTOBOT_ENGINE_LOCK_DIR="$AUTOBOT_ENGINE_DIR/engine.lock"
+AUTOBOT_ENGINE_MODE_FILE="$AUTOBOT_ENGINE_DIR/engine.mode"
 AUTOBOT_ENGINE_LOG_FILE="$AUTOBOT_ENGINE_DIR/engine.log"
 AUTOBOT_ENGINE_STATUS_FILE="$AUTOBOT_ENGINE_DIR/status.json"
 AUTOBOT_ENGINE_CLEANUP_FILE="$AUTOBOT_ENGINE_DIR/cleanup.jsonl"
@@ -32,6 +33,7 @@ EOF
 _autobot_engine_dir() { printf '%s\n' "$AUTOBOT_ENGINE_DIR"; }
 _autobot_engine_pid_path() { printf '%s\n' "$AUTOBOT_ENGINE_PID_FILE"; }
 _autobot_engine_lock_path() { printf '%s\n' "$AUTOBOT_ENGINE_LOCK_DIR"; }
+_autobot_engine_mode_path() { printf '%s\n' "$AUTOBOT_ENGINE_MODE_FILE"; }
 _autobot_engine_log_path() { printf '%s\n' "$AUTOBOT_ENGINE_LOG_FILE"; }
 _autobot_engine_status_path() { printf '%s\n' "$AUTOBOT_ENGINE_STATUS_FILE"; }
 _autobot_engine_runs_root() { printf '%s\n' "$AUTOBOT_ENGINE_RUNS_DIR"; }
@@ -66,6 +68,22 @@ _autobot_engine_write_pid() {
   pid="${1:-$$}"
   _autobot_engine_ensure_dirs
   printf '%s\n' "$pid" > "$pid_file"
+}
+
+_autobot_engine_write_mode() {
+  local mode_file mode
+  mode_file="$(_autobot_engine_mode_path)"
+  mode="${1:-foreground}"
+  _autobot_engine_ensure_dirs
+  printf '%s\n' "$mode" > "$mode_file"
+}
+
+_autobot_engine_read_mode() {
+  local mode_file
+  mode_file="$(_autobot_engine_mode_path)"
+  if [[ -f "$mode_file" ]]; then
+    sed -n '1p' "$mode_file"
+  fi
 }
 
 _autobot_engine_write_status() {
@@ -106,7 +124,7 @@ _autobot_engine_append_event() {
 }
 
 _autobot_engine_run_opencode() {
-  opencode "$@"
+  cmd_opencode "$@"
 }
 
 _autobot_engine_queue_json() {
@@ -129,10 +147,11 @@ _autobot_engine_build_status_json() {
   local queue_json="$1"
   local pid="${2:-}"
   local running="${3:-false}"
-  local current_issue="${4:-}"
-  local current_phase="${5:-}"
-  local current_attempt="${6:-}"
-  local last_tick_at="${7:-}"
+  local current_mode="${4:-}"
+  local current_issue="${5:-}"
+  local current_phase="${6:-}"
+  local current_attempt="${7:-}"
+  local last_tick_at="${8:-}"
   local args=()
 
   [[ "$running" == true ]] && args+=(--running)
@@ -145,6 +164,7 @@ _autobot_engine_build_status_json() {
     --pid-path "$(_autobot_engine_pid_path)" \
     --log-path "$(_autobot_engine_log_path)" \
     --status-path "$(_autobot_engine_status_path)" \
+    --current-mode "$current_mode" \
     --current-issue "$current_issue" \
     --current-phase "$current_phase" \
     "${args[@]}"
@@ -154,14 +174,15 @@ _autobot_engine_update_status() {
   local queue_json="$1"
   local pid="${2:-}"
   local running="${3:-false}"
-  local current_issue="${4:-}"
-  local current_phase="${5:-}"
-  local current_attempt="${6:-}"
+  local current_mode="${4:-}"
+  local current_issue="${5:-}"
+  local current_phase="${6:-}"
+  local current_attempt="${7:-}"
   local last_tick_at
   local status_json
 
   last_tick_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-  status_json="$(_autobot_engine_build_status_json "$queue_json" "$pid" "$running" "$current_issue" "$current_phase" "$current_attempt" "$last_tick_at")"
+  status_json="$(_autobot_engine_build_status_json "$queue_json" "$pid" "$running" "$current_mode" "$current_issue" "$current_phase" "$current_attempt" "$last_tick_at")"
   _autobot_engine_write_status "$status_json"
   if [[ "${REPROCTL_JSON:-false}" = true ]]; then
     printf '%s\n' "$status_json"
@@ -239,6 +260,111 @@ _autobot_engine_discover_candidates() {
   printf '%s' "$discover_json" | python3 "$SCRIPTS_DIR/lib/py/autobot_engine.py" discover-ids
 }
 
+_autobot_engine_collect_monitor_snapshot() {
+  local item_json="$1"
+  local issue_identifier workspace_path attempt_count workspace_exists workspace_dirty merge_conflicts linear_json pr_json
+
+  issue_identifier="$(printf '%s' "$item_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("issue_identifier") or payload.get("identifier") or "")')"
+  workspace_path="$(printf '%s' "$item_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("workspace_path") or "")')"
+  attempt_count="$(printf '%s' "$item_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(int(payload.get("attempt_count") or 0))')"
+
+  workspace_exists=false
+  workspace_dirty=false
+  merge_conflicts=""
+  if [[ -n "$workspace_path" && -d "$workspace_path" ]]; then
+    workspace_exists=true
+    merge_conflicts="$(git -C "$workspace_path" diff --name-only --diff-filter=U 2>/dev/null || true)"
+    if [[ -n "$(git -C "$workspace_path" status --porcelain 2>/dev/null || true)" ]]; then
+      workspace_dirty=true
+    fi
+  fi
+
+  linear_json="$(linear issue show "$issue_identifier" --json 2>/dev/null || printf '{}')"
+  local pr_branch
+  pr_branch="$(git -C "$workspace_path" branch --show-current 2>/dev/null || true)"
+  if [[ -n "$pr_branch" && "$pr_branch" != HEAD ]]; then
+    pr_json="$(gh pr view --head "$pr_branch" --json state,mergeStateStatus,statusCheckRollup,reviewDecision,url 2>/dev/null || printf '{}')"
+  else
+    pr_json="{}"
+  fi
+
+  python3 - "$item_json" "$linear_json" "$pr_json" "$workspace_exists" "$workspace_dirty" "$merge_conflicts" "$attempt_count" "$AUTOBOT_ENGINE_MAX_ATTEMPTS" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+item = json.loads(sys.argv[1] or '{}')
+linear = json.loads(sys.argv[2] or '{}')
+pr = json.loads(sys.argv[3] or '{}')
+workspace_exists = sys.argv[4] == 'true'
+workspace_dirty = sys.argv[5] == 'true'
+merge_conflict_count = len([line for line in sys.argv[6].splitlines() if line.strip()])
+attempt_count = int(sys.argv[7] or 0)
+max_attempts = int(sys.argv[8] or 0)
+
+payload = {
+    'issue_identifier': item.get('issue_identifier') or item.get('identifier') or '',
+    'workspace_path': item.get('workspace_path') or '',
+    'claim_state': item.get('claim_state') or '',
+    'attempt_count': attempt_count,
+    'max_attempts': max_attempts,
+    'workspace_exists': workspace_exists,
+    'workspace_dirty': workspace_dirty,
+    'merge_conflict_count': merge_conflict_count,
+    'linear': linear,
+    'pr': pr,
+}
+
+print(json.dumps(payload))
+PY
+}
+
+_autobot_engine_apply_recovery_decision() {
+  local snapshot_json="$1"
+  local decision_json action reason fetch_main cleanup_eligible issue_identifier current_attempt
+
+  decision_json="$(printf '%s' "$snapshot_json" | python3 "$SCRIPTS_DIR/lib/py/autobot_engine.py" decide-recovery)" || return 1
+  action="$(printf '%s' "$decision_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("action") or "")')"
+  reason="$(printf '%s' "$decision_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("reason") or "")')"
+  fetch_main="$(printf '%s' "$decision_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print("true" if payload.get("fetch_main") else "false")')"
+  cleanup_eligible="$(printf '%s' "$decision_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print("true" if payload.get("cleanup_eligible") else "false")')"
+  issue_identifier="$(printf '%s' "$snapshot_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("issue_identifier") or "")')"
+  current_attempt="$(printf '%s' "$snapshot_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("attempt_count") or 0)')"
+
+  case "$action" in
+    release)
+      REPROCTL_JSON=true cmd_autonomy release "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
+      if [[ "$fetch_main" = true ]]; then
+        git -C "$MAIN_CHECKOUT" fetch --prune origin main >/dev/null 2>&1 || true
+      fi
+      if [[ "$cleanup_eligible" = true ]]; then
+        _autobot_engine_write_cleanup_record "$issue_identifier" "merged-or-released"
+      fi
+      ;;
+    reconcile)
+      REPROCTL_JSON=true cmd_autonomy reconcile "$issue_identifier" >/dev/null 2>&1 || true
+      ;;
+    cancel)
+      REPROCTL_JSON=true cmd_autonomy cancel "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
+      ;;
+    retry)
+      REPROCTL_JSON=true cmd_autonomy retry "$issue_identifier" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
+      ;;
+    stop)
+      _warn "Stopping work for $issue_identifier: $reason"
+      ;;
+    continue)
+      return 1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$current_attempt"
+  return 0
+}
+
 _autobot_engine_run_delivery_attempt() {
   local issue_identifier="$1"
   local workspace_path="$2"
@@ -255,6 +381,28 @@ _autobot_engine_run_delivery_attempt() {
     phase="${phases[$i]}"
     agent="${agents[$i]}"
     phase_file="$run_dir/${phase}.md"
+
+    local phase_goal=""
+    case "$phase" in
+      plan) phase_goal="Draft the implementation plan and test strategy for this issue." ;;
+      deliver) phase_goal="Implement the smallest safe change required for this phase." ;;
+      review) phase_goal="Review the changed code against the issue requirements and note any blockers." ;;
+      test) phase_goal="Audit the test coverage and add any missing regressions." ;;
+      release) phase_goal="Prepare the release summary, commit, and PR handoff details." ;;
+    esac
+
+    local prompt_text
+    prompt_text="$(cat <<EOF
+Issue: $issue_identifier
+Workspace: $workspace_path
+Phase: $phase
+Attempt: $attempt
+
+$phase_goal
+
+Follow the repository delivery contract for this phase. Keep the response concise and focused on the requested work.
+EOF
+)"
 
     event_json="$(python3 - "$issue_identifier" "$phase" "$attempt" <<'PY'
 import json
@@ -274,7 +422,7 @@ PY
 )"
     _autobot_engine_append_event "$events_file" "$event_json"
 
-    if ! phase_output="$(_autobot_engine_run_opencode --agent "$agent" run --issue "$issue_identifier" --workspace "$workspace_path" --phase "$phase" 2>&1)"; then
+    if ! phase_output="$(_autobot_engine_run_opencode --agent "$agent" run "$prompt_text" 2>&1)"; then
       printf '%s\n' "$phase_output" > "$phase_file"
       event_json="$(python3 - "$issue_identifier" "$phase" "$attempt" "$phase_output" <<'PY'
 import json
@@ -376,7 +524,7 @@ _autobot_engine_process_item() {
 
   if ! _autobot_engine_run_delivery_attempt "$issue_identifier" "$workspace_path" "$attempt" "$run_dir" "$events_file"; then
     REPROCTL_JSON=true cmd_autonomy run finish "$issue_identifier" --attempt "$attempt" --state failed --error "delivery phase failed" >/dev/null 2>&1 || true
-    _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true
+    _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt"
     return 1
   fi
 
@@ -384,13 +532,13 @@ _autobot_engine_process_item() {
   REPROCTL_JSON=true cmd_autonomy release "$issue_identifier" --reason "autobot-engine completed" >/dev/null 2>&1 || true
   git -C "$MAIN_CHECKOUT" fetch --prune origin main >/dev/null 2>&1 || true
   _autobot_engine_write_cleanup_record "$issue_identifier" "merged-or-released"
-  _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true
+  _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt"
   return 0
 }
 
 _autobot_engine_process_queue() {
   local queue_json="$1"
-  local selection_json selected_json selected_issue selected_state selected_attempt selected_item
+  local selection_json selected_json selected_issue selected_state selected_attempt selected_item snapshot_json
 
   selection_json="$(_autobot_engine_select_work "$queue_json")"
   selected_json="$(printf '%s' "$selection_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); selected=payload.get("selected"); print(json.dumps(selected or {}))')"
@@ -404,23 +552,28 @@ _autobot_engine_process_queue() {
 
   selected_item="$selected_json"
 
+  snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$selected_item")"
+  if _autobot_engine_apply_recovery_decision "$snapshot_json"; then
+    return 0
+  fi
+
   if [[ "$selected_state" == running || "$selected_state" == reconciling ]]; then
-    _autobot_engine_update_status "$queue_json" "$$" true "$selected_issue" delivery "$selected_attempt"
+    _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
     return 0
   fi
 
   if [[ "$selected_state" == failed || "$selected_state" == error || "$selected_state" == stale ]]; then
     if [[ "$selected_attempt" -ge "$AUTOBOT_ENGINE_MAX_ATTEMPTS" ]]; then
       _warn "Skipping $selected_issue after $selected_attempt attempts"
-      _autobot_engine_update_status "$queue_json" "$$" true "$selected_issue" delivery "$selected_attempt"
+      _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
       return 0
     fi
     REPROCTL_JSON=true cmd_autonomy retry "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
-    _autobot_engine_update_status "$queue_json" "$$" true "$selected_issue" delivery "$selected_attempt"
+    _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
     return 0
   fi
 
-  _autobot_engine_update_status "$queue_json" "$$" true "$selected_issue" delivery "$selected_attempt"
+  _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
   _autobot_engine_process_item "$selected_item" "$queue_json"
 }
 
@@ -442,7 +595,7 @@ _autobot_engine_run_once() {
     return 0
   fi
 
-  _autobot_engine_update_status "$queue_json" "$$" true
+  _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)"
   return 0
 }
 
@@ -460,6 +613,7 @@ _autobot_engine_run_foreground() {
 
   trap '_autobot_engine_release_lock; rm -f "$(_autobot_engine_pid_path)"; exit 0' INT TERM EXIT
   _autobot_engine_write_pid "$$"
+  _autobot_engine_write_mode foreground
 
   while :; do
     _autobot_engine_run_once
@@ -494,6 +648,7 @@ _autobot_engine_run_daemon() {
   fi
 
   [[ "$once" = true ]] && daemon_args+=(--once)
+  _autobot_engine_write_mode daemon
 
   nohup "$launcher_script" "${daemon_args[@]}" >>"$log_file" 2>&1 &
   child_pid=$!
@@ -557,7 +712,7 @@ cmd_autobot_engine_stop() {
   if [[ -z "$pid" ]]; then
     _autobot_engine_release_lock
     rm -f "$(_autobot_engine_pid_path)"
-    _autobot_engine_update_status "{\"items\":[],\"claims\":[]}" "" false
+    _autobot_engine_update_status "{\"items\":[],\"claims\":[]}" "" false "$(_autobot_engine_read_mode)"
     _ok "engine is not running"
     return 0
   fi
@@ -573,7 +728,7 @@ cmd_autobot_engine_stop() {
 
   rm -f "$(_autobot_engine_pid_path)"
   _autobot_engine_release_lock
-  _autobot_engine_update_status "{\"items\":[],\"claims\":[]}" "" false
+  _autobot_engine_update_status "{\"items\":[],\"claims\":[]}" "" false "$(_autobot_engine_read_mode)"
   _ok "stopped autobot-engine"
 }
 
@@ -585,13 +740,15 @@ cmd_autobot_engine_status() {
   else
     queue_json="$(_autobot_engine_queue_json)"
     pid="$(_autobot_engine_read_pid)"
+    local current_mode
+    current_mode="$(_autobot_engine_read_mode)"
     if _autobot_engine_pid_running "$pid"; then
       running=true
     else
       running=false
       pid=""
     fi
-    status_json="$(_autobot_engine_build_status_json "$queue_json" "$pid" "$running")"
+    status_json="$(_autobot_engine_build_status_json "$queue_json" "$pid" "$running" "$current_mode")"
   fi
 
   if [[ "${REPROCTL_JSON:-false}" = true ]]; then
@@ -602,7 +759,7 @@ cmd_autobot_engine_status() {
 }
 
 cmd_autobot_engine_restart() {
-  local daemon=false
+  local daemon="" mode
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -626,6 +783,13 @@ cmd_autobot_engine_restart() {
   cmd_autobot_engine_stop >/dev/null 2>&1 || true
   if [[ "$daemon" = true ]]; then
     _autobot_engine_run_daemon
+  elif [[ "$daemon" = "" ]]; then
+    mode="$(_autobot_engine_read_mode)"
+    if [[ "$mode" = daemon ]]; then
+      _autobot_engine_run_daemon
+    else
+      _autobot_engine_run_foreground false
+    fi
   else
     _autobot_engine_run_foreground false
   fi

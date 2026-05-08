@@ -73,20 +73,23 @@ mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TEST_TMPDIR/workspaces/repro-wt-rep-109
 git -C "$TEST_TMPDIR/workspaces/repro-wt-rep-1094" init >/dev/null 2>&1
 slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
 worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
-source "$SCRIPTS_DIR/lib/autobot-engine.sh"
-git() {
-  if [[ "$*" == *"$MAIN_CHECKOUT"*"fetch --prune origin main"* ]]; then
-    printf '%s\n' "$*" >> "$TEST_TMPDIR/git.log"
-    return 0
-  fi
-  command git "$@"
-}
-opencode() { printf 'OPENCODE %s\n' "$*"; }
-cmd_autonomy() {
-  case "$*" in
-    status\ --all\ --json)
-      printf '%s\n' "{\"items\":[{\"issue_identifier\":\"REP-1094\",\"claim_state\":\"claimed\",\"workspace_path\":\"$TEST_TMPDIR/workspaces/repro-wt-rep-1094\",\"attempt_count\":0}],\"runs\":[],\"summary\":{\"claim_states\":{\"claimed\":1},\"active_runs\":0,\"stale_claims\":0,\"failed_runs\":0,\"sync_errors\":0},\"recent_errors\":[],\"generated_at\":\"2026-05-08T12:00:00Z\"}"
-      ;;
+  source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+  git() {
+    if [[ "$*" == *"$MAIN_CHECKOUT"*"fetch --prune origin main"* ]]; then
+      printf '%s\n' "$*" >> "$TEST_TMPDIR/git.log"
+      return 0
+    fi
+    command git "$@"
+  }
+  cmd_opencode() {
+    printf '%s\n' "$*" >> "$TEST_TMPDIR/opencode.log"
+    printf 'phase output: %s\n' "$*"
+  }
+  cmd_autonomy() {
+    case "$*" in
+      status\ --all\ --json)
+        printf '%s\n' "{\"items\":[{\"issue_identifier\":\"REP-1094\",\"claim_state\":\"claimed\",\"workspace_path\":\"$TEST_TMPDIR/workspaces/repro-wt-rep-1094\",\"attempt_count\":0}],\"runs\":[],\"summary\":{\"claim_states\":{\"claimed\":1},\"active_runs\":0,\"stale_claims\":0,\"failed_runs\":0,\"sync_errors\":0},\"recent_errors\":[],\"generated_at\":\"2026-05-08T12:00:00Z\"}"
+        ;;
     run\ start\ REP-1094\ --phase\ delivery\ --workspace\ *)
       printf '%s\n' '{"run":{"attempt":1}}'
       ;;
@@ -105,7 +108,7 @@ cmd_autobot_engine start --once
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ -f "$tmpdir/repro/.autobot/status.json" ] && [ -f "$tmpdir/repro/.autobot/runs/REP-1094-attempt-1/plan.md" ] && [ -f "$tmpdir/repro/.autobot/runs/REP-1094-attempt-1/release.md" ] && [ -f "$tmpdir/git.log" ] && grep -q 'fetch --prune origin main' "$tmpdir/git.log"; then
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/repro/.autobot/status.json" ] && [ -f "$tmpdir/repro/.autobot/runs/REP-1094-attempt-1/plan.md" ] && [ -f "$tmpdir/repro/.autobot/runs/REP-1094-attempt-1/release.md" ] && [ -f "$tmpdir/git.log" ] && grep -q 'fetch --prune origin main' "$tmpdir/git.log" && [ -f "$tmpdir/opencode.log" ] && grep -q 'Issue: REP-1094' "$tmpdir/opencode.log" && ! grep -q -- '--issue' "$tmpdir/opencode.log"; then
     if python3 - "$tmpdir/repro/.autobot/status.json" <<'PY'
 import json
 import sys
@@ -124,6 +127,42 @@ PY
     _fail 'foreground start --once writes metadata, status shape, and fetches main checkout' "rc=$rc; output=$output"
   fi
   rm -rf "$tmpdir"
+}
+
+test_second_start_is_rejected_by_lock() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TMP_DIR"
+printf '%s\n' "$$" > "$TEST_TMPDIR/repro/.autobot/engine.pid"
+mkdir -p "$TEST_TMPDIR/repro/.autobot/engine.lock"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+cmd_autobot_engine start --once
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q 'already running'; then
+    _pass 'second engine start is rejected when the lock is held'
+  else
+    _fail 'second engine start is rejected when the lock is held' "rc=$rc; output=$output"
+  fi
 }
 
 test_worktree_guard_rejects_non_main_checkout() {
@@ -203,7 +242,7 @@ trap 'exit 0' INT TERM
 while :; do sleep 1; done
 DAEMON
 chmod +x "$SCRIPT_DIR/autobot-engine.sh"
-opencode() { printf 'OPENCODE %s\n' "$*"; }
+cmd_opencode() { printf 'OPENCODE %s\n' "$*"; }
 cmd_autonomy() {
   case "$*" in
     status\ --all\ --json)
@@ -223,7 +262,7 @@ cmd_autonomy() {
       ;;
   esac
 }
-export -f opencode cmd_autonomy
+export -f cmd_opencode cmd_autonomy
 cmd_autobot_engine start -d
 cmd_autobot_engine status --json
 cmd_autobot_engine stop
@@ -234,6 +273,43 @@ RUNNER
     _pass 'daemon start, status, and stop manage the same engine instance'
   else
     _fail 'daemon start, status, and stop manage the same engine instance' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_restart_preserves_daemon_mode() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TMP_DIR"
+printf 'daemon\n' > "$TEST_TMPDIR/repro/.autobot/engine.mode"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+_autobot_engine_run_daemon() { printf 'daemon\n' > "$TEST_TMPDIR/mode.log"; }
+_autobot_engine_run_foreground() { printf 'foreground\n' > "$TEST_TMPDIR/mode.log"; }
+cmd_autobot_engine_restart
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/mode.log" ] && grep -q '^daemon$' "$tmpdir/mode.log"; then
+    _pass 'restart preserves daemon mode when the prior engine was daemonized'
+  else
+    _fail 'restart preserves daemon mode when the prior engine was daemonized' "rc=$rc; output=$output"
   fi
   rm -rf "$tmpdir"
 }
@@ -300,8 +376,10 @@ RUNNER
 }
 
 test_help_mentions_commands
+test_second_start_is_rejected_by_lock
 test_foreground_start_once_writes_metadata
 test_worktree_guard_rejects_non_main_checkout
+test_restart_preserves_daemon_mode
 test_daemon_start_status_and_stop
 test_auto_discover_invokes_external_autobot
 

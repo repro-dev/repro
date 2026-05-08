@@ -23,6 +23,10 @@ STATE_PRIORITY = {
     "stale": 3,
 }
 
+TERMINAL_LINEAR_STATE_TYPES = {"canceled", "closed"}
+SUCCESS_LINEAR_STATE_TYPES = {"completed", "done"}
+RECONCILE_PR_STATES = {"OPEN"}
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -111,6 +115,7 @@ def render_status(
     *,
     pid: int | None,
     running: bool,
+    engine_mode: str,
     lock_path: str,
     pid_path: str,
     log_path: str,
@@ -127,6 +132,7 @@ def render_status(
         "engine": {
             "pid": pid,
             "running": running,
+            "mode": engine_mode,
             "current_issue": current_issue,
             "current_phase": current_phase,
             "current_attempt": current_attempt,
@@ -145,6 +151,70 @@ def render_status(
         },
         "generated_at": _now(),
     }
+
+
+def decide_recovery(payload: dict[str, Any]) -> dict[str, Any]:
+    attempt_count = int(payload.get("attempt_count") or 0)
+    max_attempts = int(payload.get("max_attempts") or 0)
+    workspace_exists = bool(payload.get("workspace_exists"))
+    claim_state = str(payload.get("claim_state") or "")
+
+    linear = _as_mapping(payload.get("linear"))
+    pr = _as_mapping(payload.get("pr"))
+
+    linear_state_type = str(
+        linear.get("state_type")
+        or linear.get("type")
+        or _as_mapping(linear.get("status")).get("type")
+        or _as_mapping(linear.get("issue")).get("state_type")
+        or _as_mapping(linear.get("issue")).get("stateType")
+        or ""
+    ).lower()
+    linear_state_name = str(
+        linear.get("state_name")
+        or linear.get("name")
+        or _as_mapping(linear.get("status")).get("name")
+        or _as_mapping(linear.get("issue")).get("state_name")
+        or _as_mapping(linear.get("issue")).get("stateName")
+        or ""
+    ).lower()
+
+    pr_state = str(pr.get("state") or pr.get("State") or "").upper()
+    merge_state_status = str(pr.get("merge_state_status") or pr.get("mergeStateStatus") or "").upper()
+    review_decision = str(pr.get("review_decision") or pr.get("reviewDecision") or "").upper()
+    status_state = str(
+        _as_mapping(pr.get("status_check_rollup") or pr.get("statusCheckRollup")).get("state") or ""
+    ).upper()
+
+    merge_conflict_count = int(payload.get("merge_conflict_count") or 0)
+    workspace_dirty = bool(payload.get("workspace_dirty"))
+
+    if linear_state_type in TERMINAL_LINEAR_STATE_TYPES or linear_state_name in TERMINAL_LINEAR_STATE_TYPES:
+        return {"action": "cancel", "reason": f"linear-{linear_state_type or linear_state_name}"}
+
+    if linear_state_type in SUCCESS_LINEAR_STATE_TYPES or linear_state_name in SUCCESS_LINEAR_STATE_TYPES:
+        return {"action": "release", "reason": f"linear-{linear_state_type or linear_state_name}", "fetch_main": True, "cleanup_eligible": True}
+
+    if pr_state == "MERGED" or merge_state_status == "MERGED":
+        return {"action": "release", "reason": f"pr-{pr_state or merge_state_status}", "fetch_main": True, "cleanup_eligible": True}
+
+    if merge_conflict_count > 0 or review_decision == "CHANGES_REQUESTED" or status_state in {"FAILURE", "ERROR"}:
+        return {"action": "reconcile", "reason": "pr-ci-review-conflict"}
+
+    if not workspace_exists:
+        if max_attempts <= 0 or attempt_count < max_attempts:
+            return {"action": "retry", "reason": "missing-workspace", "phase": "delivery"}
+        return {"action": "stop", "reason": "missing-workspace-exhausted"}
+
+    if claim_state in RECOVERY_STATES:
+        if max_attempts <= 0 or attempt_count < max_attempts:
+            return {"action": "retry", "reason": f"claim-{claim_state}", "phase": "delivery"}
+        return {"action": "stop", "reason": f"claim-{claim_state}-exhausted"}
+
+    if workspace_dirty and claim_state in ACTIVE_STATES:
+        return {"action": "reconcile", "reason": "workspace-dirty"}
+
+    return {"action": "continue", "reason": "no-recovery-needed"}
 
 
 def append_event(path: str | Path, event: dict[str, Any]) -> None:
@@ -173,6 +243,7 @@ def main(argv: list[str] | None = None) -> int:
     render = subparsers.add_parser("render-status")
     render.add_argument("--pid")
     render.add_argument("--running", action="store_true")
+    render.add_argument("--current-mode", default="")
     render.add_argument("--lock-path", required=True)
     render.add_argument("--pid-path", required=True)
     render.add_argument("--log-path", required=True)
@@ -187,6 +258,8 @@ def main(argv: list[str] | None = None) -> int:
     event.add_argument("--event-json", required=True)
 
     discover = subparsers.add_parser("discover-ids")
+
+    recovery = subparsers.add_parser("decide-recovery")
 
     args = parser.parse_args(argv)
     payload = _load_json_argument(sys.stdin.read() or "{}", label="input payload")
@@ -204,6 +277,7 @@ def main(argv: list[str] | None = None) -> int:
                 render_status(
                     pid=pid,
                     running=args.running,
+                    engine_mode=args.current_mode,
                     lock_path=args.lock_path,
                     pid_path=args.pid_path,
                     log_path=args.log_path,
@@ -225,6 +299,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "discover-ids":
         print("\n".join(discover_issue_ids(payload)))
+        return 0
+
+    if args.command == "decide-recovery":
+        print(json.dumps(decide_recovery(payload)))
         return 0
 
     return 1

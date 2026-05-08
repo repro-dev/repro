@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from autobot_engine import discover_issue_ids, render_status, select_work
+from autobot_engine import decide_recovery, discover_issue_ids, render_status, select_work
 
 
 def test_select_work_prefers_claimed_and_skips_terminal_states():
@@ -61,6 +61,7 @@ def test_render_status_uses_expected_shape():
     status = render_status(
         pid=1234,
         running=True,
+        engine_mode="daemon",
         lock_path="/repo/.autobot/engine.lock",
         pid_path="/repo/.autobot/engine.pid",
         log_path="/repo/.autobot/engine.log",
@@ -75,8 +76,73 @@ def test_render_status_uses_expected_shape():
     assert set(status) == {"engine", "paths", "queue", "generated_at"}
     assert status["engine"]["pid"] == 1234
     assert status["engine"]["running"] is True
+    assert status["engine"]["mode"] == "daemon"
     assert status["queue"]["selected_work"]["issue_identifier"] == "REP-1"
     assert status["paths"]["log"] == "/repo/.autobot/engine.log"
+
+
+def test_decide_recovery_releases_on_merged_pr_or_done_linear():
+    decision = decide_recovery(
+        {
+            "attempt_count": 1,
+            "max_attempts": 3,
+            "workspace_exists": True,
+            "linear": {"state_type": "done"},
+            "pr": {"state": "OPEN"},
+        }
+    )
+
+    assert decision["action"] == "release"
+    assert decision["fetch_main"] is True
+
+
+def test_decide_recovery_reconciles_on_ci_review_or_conflicts():
+    decision = decide_recovery(
+        {
+            "attempt_count": 1,
+            "max_attempts": 3,
+            "workspace_exists": True,
+            "merge_conflict_count": 1,
+            "pr": {"reviewDecision": "CHANGES_REQUESTED"},
+        }
+    )
+
+    assert decision["action"] == "reconcile"
+
+
+def test_decide_recovery_cancels_terminal_linear_states():
+    decision = decide_recovery(
+        {
+            "attempt_count": 1,
+            "max_attempts": 3,
+            "workspace_exists": True,
+            "linear": {"status": {"type": "canceled"}},
+        }
+    )
+
+    assert decision["action"] == "cancel"
+
+
+def test_decide_recovery_retries_missing_workspace_until_attempts_are_exhausted():
+    retry_decision = decide_recovery(
+        {
+            "attempt_count": 1,
+            "max_attempts": 3,
+            "workspace_exists": False,
+            "claim_state": "failed",
+        }
+    )
+    stop_decision = decide_recovery(
+        {
+            "attempt_count": 3,
+            "max_attempts": 3,
+            "workspace_exists": False,
+            "claim_state": "failed",
+        }
+    )
+
+    assert retry_decision["action"] == "retry"
+    assert stop_decision["action"] == "stop"
 
 
 def test_discover_issue_ids_deduplicates_items():
