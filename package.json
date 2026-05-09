@@ -59,6 +59,7 @@
     "prepare": "husky",
     "lint": "oxlint .",
     "fmt:check": "prettier --check \"**/*.{ts,tsx}\" --ignore-path .gitignore",
+    "test:tooling-config": "node --test scripts/tooling-config.test.ts",
     "check:test-file-size": "bash scripts/check-test-file-size.sh"
   },
   "lint-staged": {

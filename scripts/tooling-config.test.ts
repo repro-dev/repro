@@ -68,12 +68,27 @@ describe("REP-642 tooling wiring", () => {
 
   it("runs oxlint before the Prettier check in CI", () => {
     const ci = readText(".github/workflows/ci.yml");
+    const toolingTestStep = ci.indexOf(
+      "- name: Run tooling config regression test",
+    );
     const lintStep = ci.indexOf("- name: Run workspace lint (Oxlint)");
     const fmtStep = ci.indexOf("- name: Check formatting (Prettier)");
 
+    assert.ok(
+      toolingTestStep >= 0,
+      "expected tooling config test step to exist",
+    );
     assert.ok(lintStep >= 0, "expected CI lint step to exist");
     assert.ok(fmtStep >= 0, "expected CI format step to exist");
+    assert.ok(
+      toolingTestStep < lintStep,
+      "expected tooling config test to run before lint",
+    );
     assert.ok(lintStep < fmtStep, "expected lint to run before formatting");
+    assert.match(
+      ci.slice(toolingTestStep, lintStep),
+      /run: pnpm run test:tooling-config/,
+    );
     assert.match(ci.slice(lintStep, fmtStep), /run: pnpm run lint/);
     assert.match(ci.slice(fmtStep), /run: pnpm run fmt:check/);
   });

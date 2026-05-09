@@ -92,6 +92,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --reporter=silent
 
+      - name: Run tooling config regression test
+        run: pnpm run test:tooling-config
+
       - name: Get Moon cache
         uses: actions/cache@v3
         with:
