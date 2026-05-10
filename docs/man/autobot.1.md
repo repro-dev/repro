@@ -81,6 +81,9 @@ autobot discover -q | xargs autobot add
 autobot config set engine.auto-discover on
 : Enable engine-driven intake for the current repository.
 
+autobot config list --json
+: Inspect the repo-scoped config surface as JSON.
+
 # SEE ALSO
 
 **reproctl-autonomy**(1), **reproctl**(1)

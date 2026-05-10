@@ -104,6 +104,7 @@ Subcommands:
   config get <key> [--json]
   config set <key> <value> [--json]
   config unset <key> [--json]
+  config list [--json]
 EOF
 }
 
@@ -528,7 +529,7 @@ cmd_autobot_config() {
   shift || true
 
   case "$subcmd" in
-    get|set|unset) ;;
+    get|set|unset|list) ;;
     -h|--help|help|"")
       _autobot_help
       return 0
@@ -543,26 +544,41 @@ cmd_autobot_config() {
   local key="" value=""
   config_file="$(_autobot_config_path)"
 
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --json) json_output=true ;;
-      -h|--help)
-        _autobot_help
-        return 0
-        ;;
-      -*) die "Unknown option: $1\nRun 'autobot --help' for usage." ;;
-      *)
-        if [[ -z "$key" ]]; then
-          key="$1"
-        elif [[ -z "$value" ]]; then
-          value="$1"
-        else
-          die "Unexpected argument: $1\nRun 'autobot --help' for usage."
-        fi
-        ;;
-    esac
-    shift
-  done
+  if [[ "$subcmd" == list ]]; then
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --json) json_output=true ;;
+        -h|--help)
+          _autobot_help
+          return 0
+          ;;
+        -*) die "Unknown option: $1\nRun 'autobot --help' for usage." ;;
+        *) die "Unexpected argument: $1\nRun 'autobot --help' for usage." ;;
+      esac
+      shift
+    done
+  else
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --json) json_output=true ;;
+        -h|--help)
+          _autobot_help
+          return 0
+          ;;
+        -*) die "Unknown option: $1\nRun 'autobot --help' for usage." ;;
+        *)
+          if [[ -z "$key" ]]; then
+            key="$1"
+          elif [[ -z "$value" ]]; then
+            value="$1"
+          else
+            die "Unexpected argument: $1\nRun 'autobot --help' for usage."
+          fi
+          ;;
+      esac
+      shift
+    done
+  fi
 
   case "$subcmd" in
     get)
@@ -590,6 +606,13 @@ cmd_autobot_config() {
       local helper_args=(unset --config-file "$config_file")
       [[ "$json_output" == true ]] && helper_args+=(--json)
       helper_args+=("$key")
+      result="$(_autobot_config_helper "${helper_args[@]}")" || return 1
+      printf '%s\n' "$result"
+      ;;
+    list)
+      local result
+      local helper_args=(list --config-file "$config_file")
+      [[ "$json_output" == true ]] && helper_args+=(--json)
       result="$(_autobot_config_helper "${helper_args[@]}")" || return 1
       printf '%s\n' "$result"
       ;;

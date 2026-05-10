@@ -62,6 +62,65 @@ def test_unset_falls_back_to_default(tmp_path: Path):
     assert dump["values"]["engine.max-concurrency"] == 1
 
 
+def test_list_returns_human_readable_config_surface(tmp_path: Path):
+    config_path = tmp_path / ".autobot" / "config.json"
+
+    result = run_script(
+        "autobot_config.py",
+        args=["list", "--config-file", str(config_path)],
+    )
+
+    assert result.returncode == 0
+    assert "Autobot config:" in result.stdout
+    assert "engine.auto-discover = off (default)" in result.stdout
+    assert "Enable engine-driven intake." in result.stdout
+    assert "engine.queue-depth = 10 (default)" in result.stdout
+    assert "engine.max-concurrency = 1 (default)" in result.stdout
+
+
+def test_list_returns_machine_readable_config_surface(tmp_path: Path):
+    config_path = tmp_path / ".autobot" / "config.json"
+
+    run_script_json(
+        "autobot_config.py",
+        args=["set", "--config-file", str(config_path), "--json", "engine.auto-discover", "on"],
+    )
+    run_script_json(
+        "autobot_config.py",
+        args=["set", "--config-file", str(config_path), "--json", "engine.queue-depth", "13"],
+    )
+
+    result = run_script_json(
+        "autobot_config.py",
+        args=["list", "--config-file", str(config_path), "--json"],
+    )
+
+    assert result == {
+        "schema_version": 1,
+        "config_path": str(config_path),
+        "items": [
+            {
+                "key": "engine.auto-discover",
+                "value": "on",
+                "source": "repo",
+                "description": "Enable engine-driven intake.",
+            },
+            {
+                "key": "engine.queue-depth",
+                "value": 13,
+                "source": "repo",
+                "description": "Limit queued items for intake.",
+            },
+            {
+                "key": "engine.max-concurrency",
+                "value": 1,
+                "source": "default",
+                "description": "Limit concurrent intake work.",
+            },
+        ],
+    }
+
+
 def test_invalid_keys_and_values_fail_cleanly(tmp_path: Path):
     config_path = tmp_path / ".autobot" / "config.json"
 

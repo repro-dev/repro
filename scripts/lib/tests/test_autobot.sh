@@ -69,7 +69,7 @@ test_help_lists_public_commands() {
   _write_runner "$tmpdir" 'cmd_autobot_help'
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'Usage: autobot <subcommand>' && printf '%s\n' "$output" | grep -q 'discover \[--limit N\] \[--project NAME\] \[-q\] \[--json\]' && printf '%s\n' "$output" | grep -q 'config get <key> \[--json\]' && ! printf '%s\n' "$output" | grep -q 'prepare <issue>'; then
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'Usage: autobot <subcommand>' && printf '%s\n' "$output" | grep -q 'discover \[--limit N\] \[--project NAME\] \[-q\] \[--json\]' && printf '%s\n' "$output" | grep -q 'config get <key> \[--json\]' && printf '%s\n' "$output" | grep -q 'config list \[--json\]' && ! printf '%s\n' "$output" | grep -q 'prepare <issue>'; then
     _pass 'cmd_autobot_help shows only public commands'
   else
     _fail 'cmd_autobot_help shows only public commands' "rc=$rc; output=$output"
@@ -107,6 +107,8 @@ _autonomy_py() {
 }
 cmd_autobot config get engine.auto-discover --json
 cmd_autobot config set engine.auto-discover on --json
+cmd_autobot config list --json
+cmd_autobot config list
 cmd_autobot status --json
 cmd_autobot status REP-1 --json
 python3 - "$MAIN_CHECKOUT/.autobot/config.json" <<'PY'
@@ -124,7 +126,7 @@ cmd_autobot config get engine.auto-discover --json
 '
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q '"value": "off"' && printf '%s\n' "$output" | grep -q 'engine.auto-discover = on (repo)' && printf '%s\n' "$output" | grep -q '"schema_version": 1' && printf '%s\n' "$output" | grep -q '"conditions":'; then
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q '"value": "off"' && printf '%s\n' "$output" | grep -q 'engine.auto-discover = on (repo)' && printf '%s\n' "$output" | grep -q '"schema_version": 1' && printf '%s\n' "$output" | grep -q '"items":' && printf '%s\n' "$output" | grep -q 'engine.queue-depth = 10 (default)' && printf '%s\n' "$output" | grep -q '"conditions":'; then
     _pass 'autobot config get/set/unset persists repo-scoped config'
   else
     _fail 'autobot config get/set/unset persists repo-scoped config' "rc=$rc; output=$output"

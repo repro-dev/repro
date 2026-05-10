@@ -16,6 +16,11 @@ DEFAULT_VALUES: dict[str, Any] = {
     "engine.queue-depth": 10,
     "engine.max-concurrency": 1,
 }
+CONFIG_DESCRIPTIONS: dict[str, str] = {
+    "engine.auto-discover": "Enable engine-driven intake.",
+    "engine.queue-depth": "Limit queued items for intake.",
+    "engine.max-concurrency": "Limit concurrent intake work.",
+}
 VALID_KEYS = set(DEFAULT_VALUES)
 ON_OFF_KEYS = {"engine.auto-discover"}
 POSITIVE_INT_KEYS = {"engine.queue-depth", "engine.max-concurrency"}
@@ -113,6 +118,28 @@ def dump_config(config_path: str | Path) -> dict[str, Any]:
     }
 
 
+def list_config(config_path: str | Path) -> dict[str, Any]:
+    path = _config_path(config_path)
+    raw = _load_raw_values(path)
+    values = effective_values(path)
+    items: list[dict[str, Any]] = []
+    for key in DEFAULT_VALUES:
+        items.append(
+            {
+                "key": key,
+                "value": values[key],
+                "source": "repo" if key in raw else "default",
+                "description": CONFIG_DESCRIPTIONS[key],
+            }
+        )
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "config_path": str(path),
+        "items": items,
+    }
+
+
 def set_value(config_path: str | Path, key: str, raw_value: str) -> dict[str, Any]:
     path = _config_path(config_path)
     value = _parse_value(key, raw_value)
@@ -146,6 +173,15 @@ def _render_human(result: dict[str, Any], *, action: str) -> str:
     return json.dumps(result)
 
 
+def _render_list_human(result: dict[str, Any]) -> str:
+    lines = [f"Autobot config: {result.get('config_path', '')}".rstrip()]
+    for item in result.get("items") or []:
+        lines.append(
+            f"- {item['key']} = {item['value']} ({item['source']}) — {item['description']}"
+        )
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="autobot_config.py")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -171,6 +207,9 @@ def main(argv: list[str] | None = None) -> int:
     dump_parser.add_argument("--config-file", required=True)
     dump_parser.add_argument("--json", action="store_true")
 
+    list_parser = subparsers.add_parser("list")
+    add_config_arg(list_parser)
+
     args = parser.parse_args(argv)
 
     try:
@@ -192,6 +231,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "dump":
             result = dump_config(args.config_file)
             print(json.dumps(result))
+            return 0
+
+        if args.command == "list":
+            result = list_config(args.config_file)
+            print(json.dumps(result) if args.json else _render_list_human(result))
             return 0
     except ConfigError as exc:
         print(f"Error: {exc}", file=sys.stderr)
