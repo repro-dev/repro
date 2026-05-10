@@ -341,6 +341,8 @@ def main(argv: list[str] | None = None) -> int:
 
     recovery = subparsers.add_parser("decide-recovery")
 
+    subparsers.add_parser("summarize-review-activity")
+
     args = parser.parse_args(argv)
     payload = _load_json_argument(sys.stdin.read() or "{}", label="input payload")
 

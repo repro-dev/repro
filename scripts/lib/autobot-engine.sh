@@ -229,6 +229,21 @@ _autobot_engine_parse_json_field() {
   printf '%s' "$json_text" | python3 -c "import json,sys; payload=json.load(sys.stdin); print($expression)"
 }
 
+_autobot_engine_fetch_paginated_json_array() {
+  local endpoint="$1"
+  local output
+  if ! output="$(gh api --paginate --jq '.[]' "$endpoint" 2>/dev/null | python3 -c 'import json,sys; items=[json.loads(line.strip()) for line in sys.stdin if line.strip()]; print(json.dumps(items))')"; then
+    printf '[]\n'
+    return 0
+  fi
+
+  if [[ -z "$output" ]]; then
+    printf '[]\n'
+  else
+    printf '%s\n' "$output"
+  fi
+}
+
 _autobot_engine_lock_stale_cleanup() {
   local pid
   pid="$(_autobot_engine_read_pid)"
@@ -318,19 +333,19 @@ _autobot_engine_collect_monitor_snapshot() {
   local pr_branch
   pr_branch="$(git -C "$workspace_path" branch --show-current 2>/dev/null || true)"
   if [[ -n "$pr_branch" && "$pr_branch" != HEAD ]]; then
-    pr_json="$(gh pr view --head "$pr_branch" --json number,repository,state,mergeStateStatus,statusCheckRollup,reviewDecision,reviews,url 2>/dev/null || printf '{}')"
+    pr_json="$(gh pr view --head "$pr_branch" --json number,state,mergeStateStatus,statusCheckRollup,reviewDecision,reviews,url 2>/dev/null || printf '{}')"
   else
     pr_json="{}"
   fi
 
   local review_activity_json repo_name pr_number issue_comments_json review_comments_json
-  repo_name="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); repository=payload.get("repository") or {}; print(repository.get("nameWithOwner") or repository.get("name") or "")')"
+  repo_name="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; from urllib.parse import urlparse; payload=json.load(sys.stdin); url=payload.get("url") or ""; parts=[part for part in urlparse(url).path.split("/") if part]; print("/".join(parts[:2]) if len(parts) >= 2 else "")')"
   pr_number="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("number") or "")')"
   issue_comments_json='[]'
   review_comments_json='[]'
   if [[ -n "$repo_name" && -n "$pr_number" ]]; then
-    issue_comments_json="$(gh api "repos/$repo_name/issues/$pr_number/comments" 2>/dev/null || printf '[]')"
-    review_comments_json="$(gh api "repos/$repo_name/pulls/$pr_number/comments" 2>/dev/null || printf '[]')"
+    issue_comments_json="$(_autobot_engine_fetch_paginated_json_array "repos/$repo_name/issues/$pr_number/comments" || printf '[]')"
+    review_comments_json="$(_autobot_engine_fetch_paginated_json_array "repos/$repo_name/pulls/$pr_number/comments" || printf '[]')"
   fi
 
   review_activity_json="$(python3 - "$pr_json" "$issue_comments_json" "$review_comments_json" <<'PY'

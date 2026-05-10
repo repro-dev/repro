@@ -721,13 +721,13 @@ git() {
 gh() {
   case "$*" in
     pr\ view\ --head\ feature/review-comments\ --json\ *)
-      printf '%s\n' '{"number":123,"repository":{"nameWithOwner":"repro/repro"},"state":"OPEN","mergeStateStatus":"CLEAN","statusCheckRollup":[{"state":"SUCCESS"}],"reviewDecision":"COMMENTED","reviews":[{"author":{"login":"reviewer"},"body":"approved","state":"APPROVED","submittedAt":"2026-05-08T12:00:00Z"}],"url":"https://example.test/pr/123"}'
+      printf '%s\n' '{"number":123,"state":"OPEN","mergeStateStatus":"CLEAN","statusCheckRollup":[{"state":"SUCCESS"}],"reviewDecision":"COMMENTED","reviews":[{"author":{"login":"reviewer"},"body":"approved","state":"APPROVED","submittedAt":"2026-05-08T12:00:00Z"}],"url":"https://github.com/repro/repro/pull/123"}'
       ;;
-    api\ repos/repro/repro/issues/123/comments)
-      printf '%s\n' '[{"id":1,"body":"top-level","author":{"login":"alice"}}]'
+    api\ --paginate\ --jq\ .\[\]\ repos/repro/repro/issues/123/comments)
+      printf '%s\n%s\n' '{"id":1,"body":"top-level-1","author":{"login":"alice"}}' '{"id":2,"body":"top-level-2","author":{"login":"carol"}}'
       ;;
-    api\ repos/repro/repro/pulls/123/comments)
-      printf '%s\n' '[{"id":2,"body":"line comment","author":{"login":"bob"},"path":"src/app.py","line":12}]'
+    api\ --paginate\ --jq\ .\[\]\ repos/repro/repro/pulls/123/comments)
+      printf '%s\n%s\n' '{"id":3,"body":"line comment-1","author":{"login":"bob"},"path":"src/app.py","line":12}' '{"id":4,"body":"line comment-2","author":{"login":"dana"},"path":"src/app.py","line":34}'
       ;;
     *)
       return 1
@@ -746,8 +746,10 @@ assert payload['pr']['reviewDecision'] == 'COMMENTED'
 assert payload['pr']['statusCheckRollup'][0]['state'] == 'SUCCESS'
 assert review_activity['review_decision'] == 'COMMENTED'
 assert review_activity['reviews'][0]['state'] == 'APPROVED'
-assert review_activity['top_level_comments'][0]['body'] == 'top-level'
-assert review_activity['code_line_comments'][0]['path'] == 'src/app.py'
+assert len(review_activity['top_level_comments']) == 2
+assert len(review_activity['code_line_comments']) == 2
+assert review_activity['top_level_comments'][1]['author'] == 'carol'
+assert review_activity['code_line_comments'][1]['line'] == 34
 PY
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
@@ -917,6 +919,8 @@ test_auto_discover_skips_when_queue_has_active_work
 test_auto_discover_can_be_disabled_by_config
 test_auto_discover_caps_intake_by_queue_depth_and_concurrency
 test_auto_discover_skips_rejected_candidates_without_consuming_capacity
+test_monitor_snapshot_separates_review_comments_from_pr_review_data
+test_monitor_snapshot_degrades_review_comment_fetch_failures_to_empty_lists
 test_queued_work_is_prepared_before_delivery
 
 echo ""
