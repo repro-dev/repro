@@ -1,23 +1,22 @@
-% REPROCTL-AUTONOMY(1) reproctl | Repro Development Tools
+% REPROCTL-AUTOBOT(1) reproctl | Repro Development Tools
 % Repro
 % 2026
 
 # NAME
 
-reproctl-autonomy - durable local claim, status, and control state
+reproctl-autobot - durable local claim, status, and control state
 
 # SYNOPSIS
 
-**reproctl autonomy** _subcommand_ [*options*]
+**reproctl autobot** _subcommand_ [*options*]
 
 # DESCRIPTION
 
-Provisional repo-internal lifecycle plumbing for autonomous orchestration.
+Provisional repo-internal lifecycle plumbing for autobot orchestration.
 
-The autonomy surface records local claims, active runs, retry metadata, and
-Linear sync state for operator workflows. It is not the final public
-user-facing interface; that surface will move to standalone autobot and
-autobot-engine follow-ups REP-1107 through REP-1110.
+The autobot surface records local claims, active runs, retry metadata, and
+Linear sync state for operator workflows. It is the public user-facing
+interface for autobot orchestration.
 
 ## Actor model
 
@@ -98,10 +97,10 @@ daemon recovery or terminal controls with operator override use.
 
 # EXAMPLES
 
-reproctl autonomy status --json
+reproctl autobot status --json
 : Inspect claims, runs, retry state, and recent sync errors.
 
-reproctl autonomy retry REP-123 --phase observe --claimed-by autopilot
+reproctl autobot retry REP-123 --phase observe --claimed-by autopilot
 : Rebuild a stale claim and resume work.
 
 # SEE ALSO

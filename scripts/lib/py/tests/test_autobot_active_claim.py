@@ -1,4 +1,4 @@
-"""Tests for autonomy_active_claim.py."""
+"""Tests for autobot_active_claim.py."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from conftest import run_script
 
 def test_returns_first_active_claim():
     result = run_script(
-        "autonomy_active_claim.py",
+        "autobot_active_claim.py",
         args=["REP-1"],
         stdin=json.dumps(
             {
@@ -27,7 +27,7 @@ def test_returns_first_active_claim():
 
 def test_returns_nonzero_when_no_active_claim_exists():
     result = run_script(
-        "autonomy_active_claim.py",
+        "autobot_active_claim.py",
         args=["REP-1"],
         stdin=json.dumps({"items": [{"issue_identifier": "REP-1", "claim_state": "released"}]}),
     )

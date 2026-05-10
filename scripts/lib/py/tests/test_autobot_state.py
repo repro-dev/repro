@@ -1,4 +1,4 @@
-"""Tests for autonomy_state.py."""
+"""Tests for autobot_state.py."""
 
 import argparse
 import os
@@ -11,13 +11,13 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from autonomy_state import ActiveClaimError, AutonomyStore, _resolve_db_path, main
+from autobot_state import ActiveClaimError, AutobotStore, _resolve_db_path, main
 
 
-def _store(tmp_path: Path, workspace_root: Path | None = None) -> AutonomyStore:
+def _store(tmp_path: Path, workspace_root: Path | None = None) -> AutobotStore:
     checkout = tmp_path / "checkout"
     checkout.mkdir(exist_ok=True)
-    return AutonomyStore(
+    return AutobotStore(
         db_path=tmp_path / "state.sqlite",
         main_checkout=checkout,
         workspace_root=workspace_root,
@@ -249,7 +249,7 @@ def test_legacy_claim_schema_is_migrated_in_place(tmp_path: Path):
             ),
         )
 
-    store = AutonomyStore(db_path=db_path, main_checkout=tmp_path / "checkout")
+    store = AutobotStore(db_path=db_path, main_checkout=tmp_path / "checkout")
     status = store.status()
 
     with sqlite3.connect(db_path) as conn:

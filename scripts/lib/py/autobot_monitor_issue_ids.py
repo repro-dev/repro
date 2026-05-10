@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Emit eligible autonomy monitor issue IDs."""
+"""Emit eligible autobot monitor issue IDs."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import sys
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     if len(args) != 1:
-        print("Usage: autonomy_monitor_issue_ids.py <evaluation-json>", file=sys.stderr)
+        print("Usage: autobot_monitor_issue_ids.py <evaluation-json>", file=sys.stderr)
         return 1
 
     payload = json.loads(args[0])

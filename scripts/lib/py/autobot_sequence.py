@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pure helpers for autonomous discovery and sequencing."""
+"""Pure helpers for autobot discovery and sequencing."""
 
 from __future__ import annotations
 
@@ -389,7 +389,7 @@ def _parse_json_argument(value: str, *, label: str) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="autonomy_sequence.py")
+    parser = argparse.ArgumentParser(prog="autobot_sequence.py")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     render_parser = subparsers.add_parser("render")

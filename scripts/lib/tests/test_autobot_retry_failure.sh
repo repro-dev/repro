@@ -1,14 +1,14 @@
 #!/bin/bash
-# scripts/lib/tests/test_autonomy_retry_failure.sh
+# scripts/lib/tests/test_autobot_retry_failure.sh
 #
 # Regression tests for retry failure visibility.
 
 set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
-AUTONOMY_SH="$TESTS_DIR/../autonomy.sh"
+AUTOBOT_ORCH_SH="$TESTS_DIR/../autobot_orchestrator.sh"
 WORKTREE_SH="$TESTS_DIR/../worktree.sh"
-export TESTS_DIR AUTONOMY_SH WORKTREE_SH tmpdir
+export TESTS_DIR AUTOBOT_ORCH_SH WORKTREE_SH tmpdir
 
 PASS=0
 FAIL=0
@@ -16,7 +16,7 @@ FAIL=0
 _pass() { printf '  ✔ %s\n' "$1"; PASS=$((PASS + 1)); }
 _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); }
 
-tmpdir="$(mktemp -d 2>/dev/null || mktemp -d -t test_autonomy_retry_failure)"
+tmpdir="$(mktemp -d 2>/dev/null || mktemp -d -t test_autobot_retry_failure)"
 trap 'rm -rf "$tmpdir"' EXIT
 
 cat > "$tmpdir/run_test.sh" <<'RUNNER'
@@ -32,19 +32,19 @@ mkdir -p "$tmpdir/repro" "$tmpdir/tmp"
 slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
 worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
 source "$WORKTREE_SH"
-source "$AUTONOMY_SH"
+source "$AUTOBOT_ORCH_SH"
 
 die() { printf 'Error: %b\n' "$*" >&2; return 1; }
 _step() { :; }
 _ok() { :; }
 _err() { printf 'x %s\n' "$1" >&2; }
 _warn() { :; }
-eval "$(declare -f cmd_autonomy | sed '1s/cmd_autonomy/original_cmd_autonomy/')"
-cmd_autonomy() {
+eval "$(declare -f cmd_autobot_orchestrator | sed '1s/cmd_autobot_orchestrator/original_cmd_autobot/')"
+cmd_autobot_orchestrator() {
   if [[ "${1:-}" == prepare ]]; then
     return 1
   fi
-  original_cmd_autonomy "$@"
+  original_cmd_autobot "$@"
 }
 
 linear() {
@@ -161,7 +161,7 @@ with sqlite3.connect(db_path) as conn:
     conn.commit()
 PY
 
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fail1 cmd_autonomy retry REP-1095 --phase observe --claimed-by autopilot
+REPRO_AUTOBOT_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fail1 cmd_autobot_orchestrator retry REP-1095 --phase observe --claimed-by autopilot
 RUNNER
 
 chmod +x "$tmpdir/run_test.sh"
@@ -181,7 +181,7 @@ with sqlite3.connect(db_path) as conn:
 assert row == ('released', 'failed to prepare retry workspace'), row
 PY
 then
-  _pass 'cmd_autonomy retry records prepare failure visibility'
+  _pass 'cmd_autobot_orchestrator retry records prepare failure visibility'
 else
-  _fail 'cmd_autonomy retry records prepare failure visibility' "rc=${rc:-0}; output=$output"
+  _fail 'cmd_autobot_orchestrator retry records prepare failure visibility' "rc=${rc:-0}; output=$output"
 fi

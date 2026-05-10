@@ -1,4 +1,4 @@
-"""Tests for autonomy_monitor.py."""
+"""Tests for autobot_monitor.py."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from autonomy_monitor import evaluate_monitor_candidates, main
+from autobot_monitor import evaluate_monitor_candidates, main
 
 
 def _issue(

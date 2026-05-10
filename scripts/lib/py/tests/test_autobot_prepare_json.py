@@ -1,4 +1,4 @@
-"""Tests for autonomy_prepare_json.py."""
+"""Tests for autobot_prepare_json.py."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from conftest import run_script_json
 
 def test_wraps_existing_claim():
     result = run_script_json(
-        "autonomy_prepare_json.py",
+        "autobot_prepare_json.py",
         args=["existing-claim", json.dumps({"issue_identifier": "REP-1"})],
     )
 
@@ -18,7 +18,7 @@ def test_wraps_existing_claim():
 
 def test_wraps_prepare_output():
     result = run_script_json(
-        "autonomy_prepare_json.py",
+        "autobot_prepare_json.py",
         args=[
             "prepare",
             "observe",

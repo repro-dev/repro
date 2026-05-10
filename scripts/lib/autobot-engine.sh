@@ -137,7 +137,7 @@ _autobot_engine_run_opencode() {
 }
 
 _autobot_engine_queue_json() {
-  REPROCTL_JSON=true cmd_autonomy status --all --json
+  REPROCTL_JSON=true cmd_autobot_orchestrator status --all --json
 }
 
 _autobot_engine_select_work() {
@@ -368,7 +368,7 @@ _autobot_engine_apply_recovery_decision() {
 
   case "$action" in
     release)
-      REPROCTL_JSON=true cmd_autonomy release "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
+      REPROCTL_JSON=true cmd_autobot_orchestrator release "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
       if [[ "$fetch_main" = true ]]; then
         git -C "$MAIN_CHECKOUT" fetch --prune origin main >/dev/null 2>&1 || true
       fi
@@ -377,13 +377,13 @@ _autobot_engine_apply_recovery_decision() {
       fi
       ;;
     reconcile)
-      REPROCTL_JSON=true cmd_autonomy reconcile "$issue_identifier" >/dev/null 2>&1 || true
+      REPROCTL_JSON=true cmd_autobot_orchestrator reconcile "$issue_identifier" >/dev/null 2>&1 || true
       ;;
     cancel)
-      REPROCTL_JSON=true cmd_autonomy cancel "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
+      REPROCTL_JSON=true cmd_autobot_orchestrator cancel "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
       ;;
     retry)
-      REPROCTL_JSON=true cmd_autonomy retry "$issue_identifier" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
+      REPROCTL_JSON=true cmd_autobot_orchestrator retry "$issue_identifier" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
       ;;
     stop)
       _warn "Stopping work for $issue_identifier: $reason"
@@ -540,7 +540,7 @@ _autobot_engine_process_item() {
   mkdir -p "$MAIN_CHECKOUT/tmp"
   run_start_file="$(mktemp "$MAIN_CHECKOUT/tmp/autobot-engine-run-start.XXXXXX")"
 
-  if ! REPROCTL_JSON=true cmd_autonomy run start "$issue_identifier" --phase delivery --workspace "$workspace_path" >"$run_start_file" 2>/dev/null; then
+  if ! REPROCTL_JSON=true cmd_autobot_orchestrator run start "$issue_identifier" --phase delivery --workspace "$workspace_path" >"$run_start_file" 2>/dev/null; then
     _warn "Failed to start run for $issue_identifier"
     rm -f "$run_start_file"
     return 1
@@ -558,12 +558,12 @@ _autobot_engine_process_item() {
   mkdir -p "$run_dir"
 
   if ! _autobot_engine_run_delivery_attempt "$issue_identifier" "$workspace_path" "$attempt" "$run_dir" "$events_file"; then
-    REPROCTL_JSON=true cmd_autonomy run finish "$issue_identifier" --attempt "$attempt" --state failed --error "delivery phase failed" >/dev/null 2>&1 || true
+    REPROCTL_JSON=true cmd_autobot_orchestrator run finish "$issue_identifier" --attempt "$attempt" --state failed --error "delivery phase failed" >/dev/null 2>&1 || true
     _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt"
     return 1
   fi
 
-  REPROCTL_JSON=true cmd_autonomy run finish "$issue_identifier" --attempt "$attempt" --state finished >/dev/null 2>&1 || true
+  REPROCTL_JSON=true cmd_autobot_orchestrator run finish "$issue_identifier" --attempt "$attempt" --state finished >/dev/null 2>&1 || true
   snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$selected_item")"
   if _autobot_engine_apply_recovery_decision "$snapshot_json"; then
     return 0
@@ -589,7 +589,7 @@ _autobot_engine_process_queue() {
   selected_item="$selected_json"
 
   if [[ "$selected_state" == queued ]]; then
-    if ! REPROCTL_JSON=true cmd_autonomy prepare "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1; then
+    if ! REPROCTL_JSON=true cmd_autobot_orchestrator prepare "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1; then
       _warn "Failed to prepare queued item $selected_issue"
       _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
       return 0
@@ -616,7 +616,7 @@ _autobot_engine_process_queue() {
       _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
       return 0
     fi
-    REPROCTL_JSON=true cmd_autonomy retry "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
+    REPROCTL_JSON=true cmd_autobot_orchestrator retry "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
     _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
     return 0
   fi

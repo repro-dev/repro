@@ -86,4 +86,4 @@ autobot config list --json
 
 # SEE ALSO
 
-**reproctl-autonomy**(1), **reproctl**(1)
+**reproctl-autobot**(1), **reproctl**(1)

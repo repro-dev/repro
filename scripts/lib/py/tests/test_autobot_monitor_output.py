@@ -1,4 +1,4 @@
-"""Tests for autonomy monitor output helpers."""
+"""Tests for autobot monitor output helpers."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from conftest import run_script
 
 def test_issue_ids_helper_emits_eligible_ids_in_order():
     result = run_script(
-        "autonomy_monitor_issue_ids.py",
+        "autobot_monitor_issue_ids.py",
         args=[
             json.dumps(
                 {
@@ -29,7 +29,7 @@ def test_issue_ids_helper_emits_eligible_ids_in_order():
 
 def test_render_helper_prints_monitor_summary():
     result = run_script(
-        "autonomy_monitor_render.py",
+        "autobot_monitor_render.py",
         args=[
             json.dumps(
                 {

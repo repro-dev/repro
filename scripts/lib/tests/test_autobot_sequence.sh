@@ -1,12 +1,12 @@
 #!/bin/bash
-# scripts/lib/tests/test_autonomy_sequence.sh
+# scripts/lib/tests/test_autobot_sequence.sh
 #
 # Regression tests for autonomous discovery orchestration.
 
 set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
-AUTONOMY_SH="$TESTS_DIR/../autonomy.sh"
+AUTOBOT_ORCH_SH="$TESTS_DIR/../autobot_orchestrator.sh"
 WORKTREE_SH="$TESTS_DIR/../worktree.sh"
 
 PASS=0
@@ -17,7 +17,7 @@ _pass() { printf '  ✔ %s\n' "$1"; PASS=$((PASS + 1)); TESTS_RUN=$((TESTS_RUN +
 _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); TESTS_RUN=$((TESTS_RUN + 1)); }
 
 _make_tmpdir() {
-  mktemp -d 2>/dev/null || mktemp -d -t test_autonomy_sequence
+  mktemp -d 2>/dev/null || mktemp -d -t test_autobot_sequence
 }
 
 _write_runner() {
@@ -44,7 +44,7 @@ mkdir -p "$tmpdir/repro" "$tmpdir/tmp"
 slugify() { printf '%s\n' "\$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
 worktree_path() { echo "\${WORKSPACE_ROOT:-\$PARENT_DIR}/repro-wt-\$1"; }
 source "$WORKTREE_SH"
-source "$AUTONOMY_SH"
+source "$AUTOBOT_ORCH_SH"
 $extra
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
@@ -79,7 +79,7 @@ cmd_opencode() {
 JSON
 }
 
-REPRO_OPENCODE_PROFILE=alpha cmd_autonomy discover --limit 5 --project Engineering --output-dir "$tmpdir/discoveries" --profile alpha --json
+REPRO_OPENCODE_PROFILE=alpha cmd_autobot_orchestrator discover --limit 5 --project Engineering --output-dir "$tmpdir/discoveries" --profile alpha --json
 '
 
   bash "$tmpdir/run_test.sh" >"$tmpdir/stdout.json" 2>"$tmpdir/stderr.txt" || rc=$?
@@ -87,7 +87,7 @@ REPRO_OPENCODE_PROFILE=alpha cmd_autonomy discover --limit 5 --project Engineeri
 
   if [ $rc -ne 0 ]; then
     rm -rf "$tmpdir"
-    _fail 'cmd_autonomy discover runs and writes artifacts' "rc=$rc; output=$output"
+    _fail 'cmd_autobot_orchestrator discover runs and writes artifacts' "rc=$rc; output=$output"
     return 0
   fi
 
@@ -140,12 +140,12 @@ assert json.loads(canonical_path.read_text()) == canonical, canonical_path.read_
 PY
   then
     rm -rf "$tmpdir"
-    _fail 'cmd_autonomy discover runs and writes artifacts' 'discover artifacts were not written as expected'
+    _fail 'cmd_autobot_orchestrator discover runs and writes artifacts' 'discover artifacts were not written as expected'
     return 0
   fi
 
   rm -rf "$tmpdir"
-  _pass 'cmd_autonomy discover runs and writes artifacts'
+  _pass 'cmd_autobot_orchestrator discover runs and writes artifacts'
 }
 
 test_discover_writes_artifacts_and_keeps_project_scoped_context

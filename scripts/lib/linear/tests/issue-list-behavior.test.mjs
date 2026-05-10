@@ -398,7 +398,7 @@ test("issue list preserves summary relations without expanding labels", async ()
   assert.equal(records.labels.length, 1);
 });
 
-test("issue list can project comments and relations for autonomy workflows", async () => {
+test("issue list can project comments and relations for autobot workflows", async () => {
   const records = {
     teams: [],
     states: [],

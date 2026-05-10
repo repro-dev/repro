@@ -1,12 +1,12 @@
 #!/bin/bash
-# scripts/lib/tests/test_autonomy_controls.sh
+# scripts/lib/tests/test_autobot_controls.sh
 #
-# Regression tests for autonomy claim/release controls.
+# Regression tests for autobot claim/release controls.
 
 set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
-AUTONOMY_SH="$TESTS_DIR/../autonomy.sh"
+AUTOBOT_ORCH_SH="$TESTS_DIR/../autobot_orchestrator.sh"
 WORKTREE_SH="$TESTS_DIR/../worktree.sh"
 REPO_ROOT="$(cd "$TESTS_DIR/../../.." && pwd -P)"
 
@@ -19,7 +19,7 @@ _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); TESTS
 
 _make_tmpdir() {
   mkdir -p "$REPO_ROOT/tmp"
-  mktemp -d "$REPO_ROOT/tmp/test_autonomy_controls.XXXXXX"
+  mktemp -d "$REPO_ROOT/tmp/test_autobot_controls.XXXXXX"
 }
 
 _write_runner() {
@@ -46,7 +46,7 @@ mkdir -p "$tmpdir/repro" "$tmpdir/tmp"
 slugify() { printf '%s\n' "\$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
 worktree_path() { echo "\${WORKSPACE_ROOT:-\$PARENT_DIR}/repro-wt-\$1"; }
 source "$WORKTREE_SH"
-source "$AUTONOMY_SH"
+source "$AUTOBOT_ORCH_SH"
 $extra
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
@@ -104,18 +104,18 @@ JSON
   esac
 }
 
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace "$tmpdir/workspace" --phase observe --issue-state In-Progress
+REPRO_AUTOBOT_DB="$tmpdir/state.sqlite" cmd_autobot_orchestrator claim REP-1094 --workspace "$tmpdir/workspace" --phase observe --issue-state In-Progress
 python3 -c "import sqlite3,sys; db_path=sys.argv[1]; conn=sqlite3.connect(db_path); conn.execute(\"UPDATE claims SET linear_assignment_owned = 0 WHERE issue_identifier = ?\", [\"REP-1094\"]); conn.commit()" "$tmpdir/state.sqlite"
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy release REP-1094 --reason done
+REPRO_AUTOBOT_DB="$tmpdir/state.sqlite" cmd_autobot_orchestrator release REP-1094 --reason done
 '
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'claimed REP-1094' && printf '%s\n' "$output" | grep -q 'released REP-1094'; then
     rm -rf "$tmpdir"
-    _pass 'cmd_autonomy claim/release sync assignment ownership'
+    _pass 'cmd_autobot_orchestrator claim/release sync assignment ownership'
     return 0
   fi
   rm -rf "$tmpdir"
-  _fail 'cmd_autonomy claim/release sync assignment ownership' "rc=$rc; output=$output"
+  _fail 'cmd_autobot_orchestrator claim/release sync assignment ownership' "rc=$rc; output=$output"
 }
 
 test_release_records_state_mutation_failure_without_exiting() {
@@ -174,16 +174,16 @@ _linear_api_try() {
   esac
 }
 
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace "$tmpdir/workspace" --phase observe --issue-state In-Progress >/dev/null
+REPRO_AUTOBOT_DB="$tmpdir/state.sqlite" cmd_autobot_orchestrator claim REP-1094 --workspace "$tmpdir/workspace" --phase observe --issue-state In-Progress >/dev/null
 python3 -c "import sqlite3,sys; db_path=sys.argv[1]; conn=sqlite3.connect(db_path); conn.execute(\"UPDATE claims SET linear_assignment_owned = 0 WHERE issue_identifier = ?\", [\"REP-1094\"]); conn.commit()" "$tmpdir/state.sqlite"
 cmd_rc=0
-if REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy release REP-1094 --reason done; then
+if REPRO_AUTOBOT_DB="$tmpdir/state.sqlite" cmd_autobot_orchestrator release REP-1094 --reason done; then
   cmd_rc=0
 else
   cmd_rc=$?
 fi
 if [ "$cmd_rc" -eq 0 ]; then
-  die "expected cmd_autonomy release to fail"
+  die "expected cmd_autobot_orchestrator release to fail"
 fi
 '
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
@@ -217,18 +217,18 @@ assert row == (0, None), row
 PY
       then
       rm -rf "$tmpdir"
-      _pass 'cmd_autonomy release surfaces state mutation failure after cleanup'
+      _pass 'cmd_autobot_orchestrator release surfaces state mutation failure after cleanup'
       else
         rm -rf "$tmpdir"
-        _fail 'cmd_autonomy release surfaces state mutation failure after cleanup' "rc=$rc; output=$output"
+        _fail 'cmd_autobot_orchestrator release surfaces state mutation failure after cleanup' "rc=$rc; output=$output"
       fi
     else
       rm -rf "$tmpdir"
-      _fail 'cmd_autonomy release surfaces state mutation failure after cleanup' "rc=$rc; output=$output"
+      _fail 'cmd_autobot_orchestrator release surfaces state mutation failure after cleanup' "rc=$rc; output=$output"
     fi
   else
     rm -rf "$tmpdir"
-    _fail 'cmd_autonomy release surfaces state mutation failure after cleanup' "rc=$rc; output=$output"
+    _fail 'cmd_autobot_orchestrator release surfaces state mutation failure after cleanup' "rc=$rc; output=$output"
   fi
 }
 
@@ -275,7 +275,7 @@ cmd_wt_create() {
   mkdir -p "$WT_ISSUE_WORKTREE_PATH"
 }
 
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fresh1 cmd_autonomy prepare REP-1094 --phase observe --claimed-by autopilot
+REPRO_AUTOBOT_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fresh1 cmd_autobot_orchestrator prepare REP-1094 --phase observe --claimed-by autopilot
 '
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'Prepared workspace for REP-1094' && python3 - "$tmpdir/state.sqlite" <<'PY'
@@ -293,10 +293,10 @@ assert row is not None and row[0] == 'Linear issue already assigned to another o
 PY
   then
     rm -rf "$tmpdir"
-    _pass 'cmd_autonomy prepare records assignment sync error and continues'
+    _pass 'cmd_autobot_orchestrator prepare records assignment sync error and continues'
   else
     rm -rf "$tmpdir"
-    _fail 'cmd_autonomy prepare records assignment sync error and continues' "rc=$rc; output=$output"
+    _fail 'cmd_autobot_orchestrator prepare records assignment sync error and continues' "rc=$rc; output=$output"
   fi
 }
 
@@ -310,7 +310,7 @@ linear() {
 }
 
 mkdir -p "$tmpdir/workspace"
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim invalid-id --workspace "$tmpdir/workspace" --phase observe --issue-state In-Progress
+REPRO_AUTOBOT_DB="$tmpdir/state.sqlite" cmd_autobot_orchestrator claim invalid-id --workspace "$tmpdir/workspace" --phase observe --issue-state In-Progress
 '
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q 'Invalid issue identifier' && [ ! -s "$tmpdir/linear-calls.log" ]; then
@@ -334,17 +334,17 @@ _init_completion() {
   cword="$COMP_CWORD"
 }
 
-COMP_WORDS=(reproctl autonomy status --)
+COMP_WORDS=(reproctl autobot status --)
 COMP_CWORD=3
 _reproctl
 printf "status:%s\n" "${COMPREPLY[*]}"
 
-COMP_WORDS=(reproctl autonomy release --)
+COMP_WORDS=(reproctl autobot release --)
 COMP_CWORD=3
 _reproctl
 printf "release:%s\n" "${COMPREPLY[*]}"
 
-COMP_WORDS=(reproctl autonomy retry --)
+COMP_WORDS=(reproctl autobot retry --)
 COMP_CWORD=3
 _reproctl
 printf "retry:%s\n" "${COMPREPLY[*]}"
@@ -352,9 +352,9 @@ printf "retry:%s\n" "${COMPREPLY[*]}"
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
   if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'status:.*--json' && printf '%s\n' "$output" | grep -q 'release:.*--json' && printf '%s\n' "$output" | grep -q 'retry:.*--json'; then
-    _pass 'autonomy completions expose --json for control commands'
+    _pass 'autobot completions expose --json for control commands'
   else
-    _fail 'autonomy completions expose --json for control commands' "rc=$rc; output=$output"
+    _fail 'autobot completions expose --json for control commands' "rc=$rc; output=$output"
   fi
 }
 

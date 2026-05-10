@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read autonomy status JSON and report claim assignment ownership."""
+"""Read autobot status JSON and report claim assignment ownership."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import sys
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     if len(args) != 1:
-        print("Usage: autonomy_claim_assignment_owned.py <issue-identifier>", file=sys.stderr)
+        print("Usage: autobot_claim_assignment_owned.py <issue-identifier>", file=sys.stderr)
         return 1
 
     issue_identifier = args[0]

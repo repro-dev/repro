@@ -31,8 +31,8 @@ source "$SCRIPT_DIR/lib/version.sh"
 source "$SCRIPT_DIR/lib/code-index.sh"
 # shellcheck source=scripts/lib/opencode.sh
 source "$SCRIPT_DIR/lib/opencode.sh"
-# shellcheck source=scripts/lib/autonomy.sh
-source "$SCRIPT_DIR/lib/autonomy.sh"
+# shellcheck source=scripts/lib/autobot_orchestrator.sh
+source "$SCRIPT_DIR/lib/autobot_orchestrator.sh"
 
 # ── Main ────────────────────────────────────────────────────────────
 
@@ -83,10 +83,10 @@ ${CLR_BOLD}GENERAL${CLR_RESET}
   opencode [--profile <name>]     Launch OpenCode with optional model profile
 
 ${CLR_BOLD}ORCHESTRATION${CLR_RESET}
-  autonomy                        Durable local claim/run orchestration state
-  autonomy status                 Show durable claims and runs
-  autonomy claim/release/cancel/retry  Manage local orchestration claims
-  autonomy discover               Find what should be worked next and write discovery artifacts
+  autobot                        Durable local claim/run orchestration state
+  autobot status                 Show durable claims and runs
+  autobot claim/release/cancel/retry  Manage local orchestration claims
+  autobot discover               Find what should be worked next and write discovery artifacts
 
 Examples:
   reproctl setup                              # bootstrap entire environment
@@ -105,10 +105,10 @@ Examples:
   reproctl wt create --from-issue REP-123     # create worktree from Linear issue
   reproctl wt list                            # list all worktrees
   reproctl context                            # show current worktree/branch context
-  reproctl autonomy status --json             # show durable orchestration state
-  reproctl autonomy release REP-123           # release a local claim
-  reproctl autonomy retry REP-123             # retry a failed or stale claim
-  reproctl autonomy discover --limit 2 --json  # generate discovery artifacts
+  reproctl autobot status --json             # show durable orchestration state
+  reproctl autobot release REP-123           # release a local claim
+  reproctl autobot retry REP-123             # retry a failed or stale claim
+  reproctl autobot discover --limit 2 --json  # generate discovery artifacts
 EOF
 }
 
@@ -181,7 +181,7 @@ USAGE
   logs)    cmd_logs "$@" ;;
   ui)      cmd_ui "$@" ;;
   launch)  cmd_launch "$@" ;;
-  autonomy) cmd_autonomy "$@" ;;
+  autobot) cmd_autobot_orchestrator "$@" ;;
   context) cmd_context "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
   completion)  cmd_completion "$@" ;;
@@ -219,7 +219,7 @@ USAGE
   -h|--help)      usage ;;
   --version|-V)    cmd_version "$@" ;;
   *)
-    KNOWN_COMMANDS="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch autonomy context worktree wt completion version help opencode"
+    KNOWN_COMMANDS="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch autobot context worktree wt completion version help opencode"
     suggestions=$(python3 "$SCRIPT_DIR/lib/py/suggest_command.py" "$COMMAND" $KNOWN_COMMANDS 2>/dev/null) || true
     if [ -n "$suggestions" ]; then
       printf 'Error: Unknown command: %s\n' "$COMMAND" >&2

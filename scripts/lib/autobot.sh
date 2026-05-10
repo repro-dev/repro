@@ -36,7 +36,7 @@ _autobot_prompt_yes_no() {
 
 _autobot_public_status_json() {
   local status_json config_json
-  status_json="$(REPROCTL_JSON=true _autonomy_py status --all)" || return 1
+  status_json="$(REPROCTL_JSON=true _autobot_orch_py status --all)" || return 1
   config_json="$(_autobot_config_helper dump --config-file "$(_autobot_config_path)" --json)" || return 1
   python3 - "$status_json" "$config_json" <<'PY'
 import json
@@ -177,8 +177,8 @@ PY
   fi
 
   local queue_args=(queue "$issue_identifier" --issue-id "$issue_id" --workspace "$planned_workspace" --issue-state "$state_name" --issue-state-type "${state_type:-unstarted}")
-  REPROCTL_JSON=true _autonomy_py "${queue_args[@]}" >/dev/null || return 1
-  _autonomy_linear_sync_assignment "$issue_identifier" assign || true
+  REPROCTL_JSON=true _autobot_orch_py "${queue_args[@]}" >/dev/null || return 1
+  _autobot_orch_linear_sync_assignment "$issue_identifier" assign || true
 
   if [[ "$json_output" == true ]]; then
     status_json="$(_autobot_public_status_json)" || return 1
@@ -218,7 +218,7 @@ cmd_autobot_add() {
 
   local issue_identifier
   for issue_identifier in "${issue_identifiers[@]}"; do
-    _autonomy_validate_issue_identifier "$issue_identifier" || die "Invalid issue identifier: '$issue_identifier'. Expected format: REP-123"
+    _autobot_orch_validate_issue_identifier "$issue_identifier" || die "Invalid issue identifier: '$issue_identifier'. Expected format: REP-123"
     _autobot_add_issue "$issue_identifier" "$dry_run" "$json_output" || return 1
   done
 }
@@ -257,7 +257,7 @@ cmd_autobot_remove() {
   done
 
   [[ -n "$issue_identifier" ]] || die "Missing issue identifier"
-  _autonomy_validate_issue_identifier "$issue_identifier" || die "Invalid issue identifier: '$issue_identifier'. Expected format: REP-123"
+  _autobot_orch_validate_issue_identifier "$issue_identifier" || die "Invalid issue identifier: '$issue_identifier'. Expected format: REP-123"
 
   local status_json item_json public_state workspace_path
   status_json="$(_autobot_public_status_json)" || return 1
@@ -315,7 +315,7 @@ PY
     fi
   fi
 
-  REPROCTL_JSON=true cmd_autonomy cancel "$issue_identifier" --reason "removed by autobot" >/dev/null || return 1
+  REPROCTL_JSON=true cmd_autobot_orchestrator cancel "$issue_identifier" --reason "removed by autobot" >/dev/null || return 1
 
   if [[ "$json_output" == true ]]; then
     printf '%s\n' '{"removed":true,"issue_identifier":"'$issue_identifier'"}'
@@ -490,7 +490,7 @@ cmd_autobot_discover() {
   local config_json
   local previous_json="${REPROCTL_JSON:-false}"
   REPROCTL_JSON=true
-  discovery_json="$(cmd_autonomy "${discover_args[@]}")" || return 1
+  discovery_json="$(cmd_autobot_orchestrator "${discover_args[@]}")" || return 1
   REPROCTL_JSON="$previous_json"
 
   config_json="$(_autobot_config_helper dump --config-file "$(_autobot_config_path)" --json)" || return 1

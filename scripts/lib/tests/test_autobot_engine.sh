@@ -105,7 +105,7 @@ worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
     printf '%s\n' "$*" >> "$TEST_TMPDIR/opencode.log"
     printf 'phase output: %s\n' "$*"
   }
-  cmd_autonomy() {
+  cmd_autobot_orchestrator() {
     case "$*" in
       status\ --all\ --json)
         printf '%s\n' "{\"items\":[{\"issue_identifier\":\"REP-1094\",\"claim_state\":\"claimed\",\"workspace_path\":\"$TEST_TMPDIR/workspaces/repro-wt-rep-1094\",\"attempt_count\":0}],\"runs\":[],\"summary\":{\"claim_states\":{\"claimed\":1},\"active_runs\":0,\"stale_claims\":0,\"failed_runs\":0,\"sync_errors\":0},\"recent_errors\":[],\"generated_at\":\"2026-05-08T12:00:00Z\"}"
@@ -265,7 +265,7 @@ while :; do sleep 1; done
 DAEMON
 chmod +x "$SCRIPT_DIR/autobot-engine.sh"
 cmd_opencode() { printf 'OPENCODE %s\n' "$*"; }
-cmd_autonomy() {
+cmd_autobot_orchestrator() {
   case "$*" in
     status\ --all\ --json)
       printf '%s\n' "{\"items\":[{\"issue_identifier\":\"REP-1094\",\"claim_state\":\"claimed\",\"workspace_path\":\"$TEST_TMPDIR/workspaces/repro-wt-rep-1094\",\"attempt_count\":0}],\"runs\":[],\"summary\":{\"claim_states\":{\"claimed\":1},\"active_runs\":0,\"stale_claims\":0,\"failed_runs\":0,\"sync_errors\":0},\"recent_errors\":[],\"generated_at\":\"2026-05-08T12:00:00Z\"}"
@@ -284,7 +284,7 @@ cmd_autonomy() {
       ;;
   esac
 }
-export -f cmd_opencode cmd_autonomy
+export -f cmd_opencode cmd_autobot_orchestrator
 cmd_autobot_engine start -d
 cmd_autobot_engine status --json
 cmd_autobot_engine stop
@@ -376,7 +376,7 @@ autobot() {
       ;;
   esac
 }
-cmd_autonomy() {
+cmd_autobot_orchestrator() {
   case "$*" in
     status\ --all\ --json)
       printf '%s\n' '{"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
@@ -439,7 +439,7 @@ autobot() {
       ;;
   esac
 }
-cmd_autonomy() {
+cmd_autobot_orchestrator() {
   case "$*" in
     status\ --all\ --json)
       printf '%s\n' '{"schema_version":1,"items":[{"issue_identifier":"REP-1094","claim_state":"queued","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":0},{"issue_identifier":"REP-1095","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1095","attempt_count":1}],"runs":[],"summary":{"claim_states":{"queued":1,"running":1},"active_runs":1,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
@@ -504,7 +504,7 @@ autobot() {
       ;;
   esac
 }
-cmd_autonomy() {
+cmd_autobot_orchestrator() {
   case "$*" in
     status\ --all\ --json)
       printf '%s\n' '{"schema_version":1,"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
@@ -572,7 +572,7 @@ autobot() {
       ;;
   esac
 }
-cmd_autonomy() {
+cmd_autobot_orchestrator() {
   case "$*" in
     status\ --all\ --json)
       printf '%s\n' '{"schema_version":1,"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
@@ -617,7 +617,7 @@ slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-z
 worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
 source "$SCRIPTS_DIR/lib/autobot-engine.sh"
 cmd_opencode() { printf 'OPENCODE %s\n' "$*"; }
-cmd_autonomy() {
+cmd_autobot_orchestrator() {
   case "$*" in
     status\ --all\ --json)
       printf '%s\n' '{"items":[{"issue_identifier":"REP-1094","claim_state":"queued","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":0}],"runs":[],"summary":{"claim_states":{"queued":1},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
