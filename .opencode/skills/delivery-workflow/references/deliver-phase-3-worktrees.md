@@ -12,6 +12,8 @@ reproctl wt create --from-issue REP-xxx
 
 Wait for each command to finish before starting the next one.
 
+Once a worktree exists for an issue, treat that worktree root as the home for all issue-scoped `tmp/` artifacts (`tmp/context-*`, `tmp/test-plan-*`, and `tmp/plan-*`). Do not create those artifacts from the main checkout.
+
 ### Worktree creation retry policy
 
 - **Retryable**: git lock contention, transient network failures, other one-off non-zero exits
