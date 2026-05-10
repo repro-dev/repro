@@ -1,0 +1,22 @@
+{
+  "name": "@repro/autobot-board",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Read-only autobot queue board",
+  "scripts": {
+    "build": "pnpm run typecheck",
+    "dev": "tsx src/server.ts",
+    "fmt": "prettier --write src",
+    "lint": "prettier --check src",
+    "test": "tsx --test --test-timeout=30000 --test-force-exit src/**/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "22.14.0",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "tsx": "4.19.3",
+    "typescript": "overridden"
+  }
+}

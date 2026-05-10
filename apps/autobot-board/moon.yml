@@ -1,0 +1,18 @@
+id: repro/autobot-board
+language: typescript
+layer: application
+tags:
+  - type.app
+  - role.ui
+tasks:
+  build:
+    command: pnpm run build
+  dev:
+    command: pnpm run dev
+    preset: server
+  test:
+    command: pnpm run test
+  typecheck:
+    command: pnpm run typecheck
+toolchains:
+  default: node
