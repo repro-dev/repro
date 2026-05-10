@@ -594,6 +594,78 @@ RUNNER
   rm -rf "$tmpdir"
 }
 
+test_auto_discover_skips_rejected_candidates_without_consuming_capacity() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TMP_DIR"
+ln -s "$TEST_SCRIPTS_DIR" "$TEST_TMPDIR/repro/scripts"
+export CALLER_PWD="$TEST_TMPDIR/repro"
+SCRIPT_DIR="$TEST_TMPDIR/repro/scripts"
+SCRIPTS_DIR="$SCRIPT_DIR"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+_autobot_engine_config_helper set --config-file "$TEST_TMPDIR/repro/.autobot/config.json" --json engine.auto-discover on >/dev/null
+_autobot_engine_config_helper set --config-file "$TEST_TMPDIR/repro/.autobot/config.json" --json engine.queue-depth 3 >/dev/null
+_autobot_engine_config_helper set --config-file "$TEST_TMPDIR/repro/.autobot/config.json" --json engine.max-concurrency 2 >/dev/null
+autobot() {
+  case "$*" in
+    discover\ --limit\ 3\ --json)
+      printf '%s\n' '{"items":[{"issue_identifier":"REP-1094"},{"issue_identifier":"REP-1095"},{"issue_identifier":"REP-1096"}]}' > "$TEST_TMPDIR/discover.args"
+      printf '%s\n' '{"items":[{"issue_identifier":"REP-1094"},{"issue_identifier":"REP-1095"},{"issue_identifier":"REP-1096"}]}'
+      ;;
+    add\ REP-1094)
+      printf '%s\n' 'already in progress'
+      return 1
+      ;;
+    add\ REP-1095)
+      printf '%s\n' "REP-1095" >> "$TEST_TMPDIR/added.log"
+      ;;
+    add\ REP-1096)
+      printf '%s\n' "REP-1096" >> "$TEST_TMPDIR/added.log"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+cmd_autobot_orchestrator() {
+  case "$*" in
+    status\ --all\ --json)
+      printf '%s\n' '{"schema_version":1,"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+AUTOBOT_ENGINE_AUTO_DISCOVER=on cmd_autobot_engine start --once
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/discover.args" ] && [ "$(wc -l < "$tmpdir/added.log" | tr -d ' ')" = "2" ] && grep -q 'REP-1095' "$tmpdir/added.log" && grep -q 'REP-1096' "$tmpdir/added.log" && ! grep -q 'REP-1094' "$tmpdir/added.log" && printf '%s\n' "$output" | grep -q 'already in progress'; then
+    _pass 'auto-discover skips rejected candidates without consuming capacity'
+  else
+    _fail 'auto-discover skips rejected candidates without consuming capacity' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
 test_queued_work_is_prepared_before_delivery() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -660,6 +732,7 @@ test_auto_discover_runs_when_queue_empty
 test_auto_discover_skips_when_queue_has_active_work
 test_auto_discover_can_be_disabled_by_config
 test_auto_discover_caps_intake_by_queue_depth_and_concurrency
+test_auto_discover_skips_rejected_candidates_without_consuming_capacity
 test_queued_work_is_prepared_before_delivery
 
 echo ""

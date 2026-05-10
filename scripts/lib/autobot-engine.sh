@@ -639,8 +639,12 @@ _autobot_engine_run_once() {
         while IFS= read -r discover_id; do
           [[ -n "$discover_id" ]] || continue
           [[ "$discovered_count" -ge "$max_concurrency" ]] && break
-          autobot add "$discover_id" >/dev/null 2>&1 || true
-          discovered_count=$((discovered_count + 1))
+          local add_output
+          if add_output="$(autobot add "$discover_id" 2>&1)"; then
+            discovered_count=$((discovered_count + 1))
+          else
+            _warn "auto-discover skipped $discover_id: ${add_output:-autobot add rejected the candidate}"
+          fi
         done <<< "$discover_ids"
       fi
     fi
