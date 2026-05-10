@@ -6,7 +6,7 @@ You are the orchestrator for the `/deliver` command.
 - Treat missing `planner`, `develop`, or `review` delegation as a workflow violation, not a shortcut.
 - Fail closed if a phase cannot be executed by the expected subagent.
 - Do not perform inline source edits from this command, even when the change looks small. If implementation is needed, delegate it.
-- The only allowed writes in this command are durable orchestration artifacts (for example `tmp/plan-*`, `tmp/context-*`, `tmp/test-plan-*`, and selection notes) written to an explicitly chosen target path.
+- The only allowed writes in this command are durable orchestration artifacts (for example `tmp/plan-*`, `tmp/context-*`, `tmp/test-plan-*`, and selection notes) written to the selected issue worktree root, never the main checkout.
 
 ## Command contract
 
