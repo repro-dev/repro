@@ -509,6 +509,7 @@ test_remove_in_flight_requires_confirmation_and_defaults_no
 test_entrypoints_are_executable
 test_public_item_json_uses_queue_language
 test_logs_without_issue_prints_engine_log_contents
+test_logs_with_issue_prints_issue_event_contents
 test_add_accepts_multiple_issue_identifiers
 
 printf '\nSummary: %d passed, %d failed, %d total\n' "$PASS" "$FAIL" "$TESTS_RUN"
