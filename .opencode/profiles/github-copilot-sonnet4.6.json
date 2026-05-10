@@ -3,8 +3,7 @@
   "model": "github-copilot/claude-sonnet-4.6",
   "command": {
     "deliver": {
-      "model": "github-copilot/claude-sonnet-4.6",
-      "template": ""
+      "model": "github-copilot/claude-sonnet-4.6"
     },
     "groom": {
       "model": "github-copilot/claude-sonnet-4.6",

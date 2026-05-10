@@ -3,8 +3,7 @@
   "model": "openai/gpt-5.5",
   "command": {
     "deliver": {
-      "model": "openai/gpt-5.4-mini",
-      "template": ""
+      "model": "openai/gpt-5.4-mini"
     },
     "groom": {
       "model": "openai/gpt-5.4-mini",

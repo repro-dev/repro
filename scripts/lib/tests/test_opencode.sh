@@ -176,6 +176,21 @@ test_sequencer_profile_maps_to_cheaper_model() {
   _pass "sequencer agent maps to the cheaper model in both OpenAI profiles"
 }
 
+# Test 7: shipped profiles do not shadow /deliver with an empty template
+test_shipped_profiles_do_not_shadow_deliver_template() {
+  local profile_file
+
+  for profile_file in "$PROFILE_DIR"/*.json; do
+    if grep -A2 '^    "deliver": {' "$profile_file" | grep -q '^      "template": ""$'; then
+      _fail "shipped profiles do not shadow /deliver with an empty template" \
+        "empty deliver template found in $profile_file"
+      return 0
+    fi
+  done
+
+  _pass "shipped profiles keep /deliver template unset"
+}
+
 # Test 7: env default profile is selected without invoking _pick
 test_env_default_profile_selects_without_picker() {
   local tmpdir rc=0
@@ -365,6 +380,7 @@ test_file_exists
 test_function_defined
 test_help_exits_zero
 test_help_mentions_env_default_profile
+test_shipped_profiles_do_not_shadow_deliver_template
 test_env_default_profile_selects_without_picker
 test_profile_flag_overrides_env_default
 test_invalid_env_default_exits_nonzero
