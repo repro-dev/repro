@@ -70,6 +70,7 @@ describe("REP-1132 delivery fragment wiring", () => {
 
     assert.match(contract, /\/deliver --project <project>/);
     assert.match(contract, /\/deliver --issue REP-123/);
+    assert.match(contract, /--wave-concurrency <1-6>/);
   });
 
   it("keeps deliver.md as a shim instead of phase bodies", () => {

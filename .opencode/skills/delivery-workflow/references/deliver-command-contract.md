@@ -14,6 +14,15 @@ You are the orchestrator for the `/deliver` command.
 - `/deliver --issue REP-123` => single-track mode
 - `--query <term>` provides a semantic hint after `--project` and is used for fuzzy candidate scoring, not as a hard Linear text search
 
+### `--wave-concurrency <1-6>`
+
+- Default: `6`
+- Minimum: `1`
+- Maximum: `6`
+- This flag limits how many `planner`, `develop`, or `review` subagents are launched concurrently within a phase.
+- It does **not** change wave selection, resequencing, or publish boundaries. Waves remain the sequencing unit.
+- In single-track mode, reject `--wave-concurrency` with a clear validation error instead of silently ignoring it.
+
 ### Linear transport
 
 - Load `.opencode/skills/linear-cli/SKILL.md` before using the repo-owned CLI.
