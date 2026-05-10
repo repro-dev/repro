@@ -146,10 +146,21 @@ _autobot_engine_select_work() {
 }
 
 _autobot_engine_queue_has_work() {
-  local selection_json selected_state
-  selection_json="$(_autobot_engine_select_work "$1")" || return 1
-  selected_state="$(printf '%s' "$selection_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); selected=payload.get("selected") or {}; print(selected.get("issue_identifier", ""))')"
-  [[ -n "$selected_state" ]]
+  python3 - "$1" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1] or '{}')
+items = payload.get('items')
+if not isinstance(items, list):
+    items = payload.get('claims') if isinstance(payload.get('claims'), list) else []
+
+for item in items:
+    if isinstance(item, dict) and item.get('claim_state') in {'queued', 'running'}:
+        raise SystemExit(0)
+
+raise SystemExit(1)
+PY
 }
 
 _autobot_engine_build_status_json() {
@@ -623,13 +634,15 @@ _autobot_engine_run_once() {
   max_concurrency="$(_autobot_engine_config_get engine.max-concurrency)" || return 1
 
   if [[ "$auto_discover" = "on" ]] && command -v autobot >/dev/null 2>&1; then
-    if discover_ids="$(_autobot_engine_discover_candidates "$queue_depth")"; then
-      while IFS= read -r discover_id; do
-        [[ -n "$discover_id" ]] || continue
-        [[ "$discovered_count" -ge "$max_concurrency" ]] && break
-        autobot add "$discover_id" >/dev/null 2>&1 || true
-        discovered_count=$((discovered_count + 1))
-      done <<< "$discover_ids"
+    if ! _autobot_engine_queue_has_work "$queue_json"; then
+      if discover_ids="$(_autobot_engine_discover_candidates "$queue_depth")"; then
+        while IFS= read -r discover_id; do
+          [[ -n "$discover_id" ]] || continue
+          [[ "$discovered_count" -ge "$max_concurrency" ]] && break
+          autobot add "$discover_id" >/dev/null 2>&1 || true
+          discovered_count=$((discovered_count + 1))
+        done <<< "$discover_ids"
+      fi
     fi
   fi
 
