@@ -8,7 +8,13 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from autobot_engine import decide_recovery, discover_issue_ids, render_status, select_work
+from autobot_engine import (
+    decide_recovery,
+    discover_issue_ids,
+    render_status,
+    select_work,
+    summarize_review_activity,
+)
 
 
 def test_select_work_prefers_claimed_and_skips_terminal_states():
@@ -131,6 +137,41 @@ def test_decide_recovery_reconciles_on_ci_review_or_conflicts():
     )
 
     assert decision["action"] == "reconcile"
+
+
+def test_summarize_review_activity_separates_comment_types():
+    activity = summarize_review_activity(
+        {
+            "reviewDecision": "COMMENTED",
+            "reviews": [{"author": {"login": "reviewer"}, "state": "APPROVED", "submittedAt": "2026-05-08T12:00:00Z"}],
+            "issue_comments": [{"id": 1, "body": "top level", "author": {"login": "alice"}}],
+            "review_comments": [{"id": 2, "body": "code line", "author": {"login": "bob"}, "path": "src/app.py", "line": 12}],
+        }
+    )
+
+    assert activity["review_decision"] == "COMMENTED"
+    assert activity["reviews"][0]["state"] == "APPROVED"
+    assert activity["top_level_comments"][0]["body"] == "top level"
+    assert activity["code_line_comments"][0]["path"] == "src/app.py"
+
+
+def test_decide_recovery_ignores_comments_without_changes_requested_review():
+    decision = decide_recovery(
+        {
+            "attempt_count": 1,
+            "max_attempts": 3,
+            "workspace_exists": True,
+            "pr": {
+                "reviewDecision": "COMMENTED",
+                "review_activity": {
+                    "top_level_comments": [{"body": "nit"}],
+                    "code_line_comments": [{"body": "fix this"}],
+                },
+            },
+        }
+    )
+
+    assert decision["action"] == "continue"
 
 
 def test_decide_recovery_reconciles_on_failed_status_check_rollup_list():

@@ -84,6 +84,50 @@ def _rollup_status_state(value: Any) -> str:
     return "PENDING" if seen_pending else ""
 
 
+def _normalize_comment(entry: Any) -> dict[str, Any] | None:
+    if not isinstance(entry, dict):
+        return None
+
+    author = _as_mapping(entry.get("author") or entry.get("user"))
+    return {
+        "id": entry.get("id"),
+        "author": str(author.get("login") or author.get("name") or ""),
+        "body": str(entry.get("body") or ""),
+        "created_at": str(entry.get("createdAt") or entry.get("created_at") or ""),
+        "path": str(entry.get("path") or ""),
+        "line": entry.get("line"),
+        "side": str(entry.get("side") or ""),
+        "url": str(entry.get("url") or ""),
+    }
+
+
+def _normalize_review(entry: Any) -> dict[str, Any] | None:
+    if not isinstance(entry, dict):
+        return None
+
+    author = _as_mapping(entry.get("author") or entry.get("user"))
+    return {
+        "author": str(author.get("login") or author.get("name") or ""),
+        "body": str(entry.get("body") or ""),
+        "created_at": str(entry.get("submittedAt") or entry.get("submitted_at") or ""),
+        "state": str(entry.get("state") or "").upper(),
+        "url": str(entry.get("url") or ""),
+    }
+
+
+def summarize_review_activity(payload: dict[str, Any]) -> dict[str, Any]:
+    issue_comments = payload.get("issue_comments")
+    review_comments = payload.get("review_comments")
+    reviews = payload.get("reviews")
+
+    return {
+        "review_decision": str(payload.get("review_decision") or payload.get("reviewDecision") or "").upper(),
+        "reviews": [normalized for item in (reviews if isinstance(reviews, list) else []) if (normalized := _normalize_review(item))],
+        "top_level_comments": [normalized for item in (issue_comments if isinstance(issue_comments, list) else []) if (normalized := _normalize_comment(item))],
+        "code_line_comments": [normalized for item in (review_comments if isinstance(review_comments, list) else []) if (normalized := _normalize_comment(item))],
+    }
+
+
 def _queue_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
     counts: dict[str, int] = {}
     for item in items:
@@ -297,6 +341,8 @@ def main(argv: list[str] | None = None) -> int:
 
     recovery = subparsers.add_parser("decide-recovery")
 
+    subparsers.add_parser("summarize-review-activity")
+
     args = parser.parse_args(argv)
     payload = _load_json_argument(sys.stdin.read() or "{}", label="input payload")
 
@@ -339,6 +385,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "decide-recovery":
         print(json.dumps(decide_recovery(payload)))
+        return 0
+
+    if args.command == "summarize-review-activity":
+        print(json.dumps(summarize_review_activity(payload)))
         return 0
 
     return 1

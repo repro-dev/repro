@@ -666,6 +666,192 @@ RUNNER
   rm -rf "$tmpdir"
 }
 
+test_monitor_snapshot_separates_review_comments_from_pr_review_data() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TEST_TMPDIR/workspaces/repro-wt-rep-1094" "$TMP_DIR"
+ln -s "$TEST_SCRIPTS_DIR" "$TEST_TMPDIR/repro/scripts"
+export CALLER_PWD="$TEST_TMPDIR/repro"
+SCRIPT_DIR="$TEST_TMPDIR/repro/scripts"
+SCRIPTS_DIR="$SCRIPT_DIR"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+linear() {
+  case "$*" in
+    issue\ show\ REP-1094\ --json)
+      printf '%s\n' '{}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+git() {
+  case "$*" in
+    *"-C $TEST_TMPDIR/workspaces/repro-wt-rep-1094 branch --show-current"*)
+      printf '%s\n' 'feature/review-comments'
+      ;;
+    *"-C $TEST_TMPDIR/workspaces/repro-wt-rep-1094 status --porcelain"*)
+      return 0
+      ;;
+    *"-C $TEST_TMPDIR/workspaces/repro-wt-rep-1094 diff --name-only --diff-filter=U"*)
+      return 0
+      ;;
+    *)
+      command git "$@"
+      ;;
+  esac
+}
+gh() {
+  case "$*" in
+    pr\ view\ --head\ feature/review-comments\ --json\ *)
+      printf '%s\n' '{"number":123,"state":"OPEN","mergeStateStatus":"CLEAN","statusCheckRollup":[{"state":"SUCCESS"}],"reviewDecision":"COMMENTED","reviews":[{"author":{"login":"reviewer"},"body":"approved","state":"APPROVED","submittedAt":"2026-05-08T12:00:00Z"}],"url":"https://github.com/repro/repro/pull/123"}'
+      ;;
+    api\ --paginate\ --jq\ .\[\]\ repos/repro/repro/issues/123/comments)
+      printf '%s\n%s\n' '{"id":1,"body":"top-level-1","author":{"login":"alice"}}' '{"id":2,"body":"top-level-2","author":{"login":"carol"}}'
+      ;;
+    api\ --paginate\ --jq\ .\[\]\ repos/repro/repro/pulls/123/comments)
+      printf '%s\n%s\n' '{"id":3,"body":"line comment-1","author":{"login":"bob"},"path":"src/app.py","line":12}' '{"id":4,"body":"line comment-2","author":{"login":"dana"},"path":"src/app.py","line":34}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+item_json='{"issue_identifier":"REP-1094","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":1}'
+snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$item_json")"
+python3 - "$snapshot_json" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+review_activity = payload['pr']['review_activity']
+assert payload['pr']['reviewDecision'] == 'COMMENTED'
+assert payload['pr']['statusCheckRollup'][0]['state'] == 'SUCCESS'
+assert review_activity['review_decision'] == 'COMMENTED'
+assert review_activity['reviews'][0]['state'] == 'APPROVED'
+assert len(review_activity['top_level_comments']) == 2
+assert len(review_activity['code_line_comments']) == 2
+assert review_activity['top_level_comments'][1]['author'] == 'carol'
+assert review_activity['code_line_comments'][1]['line'] == 34
+PY
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ]; then
+    _pass 'monitor snapshot separates review comments from review data'
+  else
+    _fail 'monitor snapshot separates review comments from review data' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_monitor_snapshot_degrades_review_comment_fetch_failures_to_empty_lists() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TEST_TMPDIR/workspaces/repro-wt-rep-1094" "$TMP_DIR"
+ln -s "$TEST_SCRIPTS_DIR" "$TEST_TMPDIR/repro/scripts"
+export CALLER_PWD="$TEST_TMPDIR/repro"
+SCRIPT_DIR="$TEST_TMPDIR/repro/scripts"
+SCRIPTS_DIR="$SCRIPT_DIR"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+linear() {
+  case "$*" in
+    issue\ show\ REP-1094\ --json)
+      printf '%s\n' '{}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+git() {
+  case "$*" in
+    *"-C $TEST_TMPDIR/workspaces/repro-wt-rep-1094 branch --show-current"*)
+      printf '%s\n' 'feature/review-comments'
+      ;;
+    *"-C $TEST_TMPDIR/workspaces/repro-wt-rep-1094 status --porcelain"*)
+      return 0
+      ;;
+    *"-C $TEST_TMPDIR/workspaces/repro-wt-rep-1094 diff --name-only --diff-filter=U"*)
+      return 0
+      ;;
+    *)
+      command git "$@"
+      ;;
+  esac
+}
+gh() {
+  case "$*" in
+    pr\ view\ --head\ feature/review-comments\ --json\ *)
+      printf '%s\n' '{"number":123,"repository":{"nameWithOwner":"repro/repro"},"state":"OPEN","mergeStateStatus":"CLEAN","statusCheckRollup":[{"state":"SUCCESS"}],"reviewDecision":"COMMENTED","reviews":[],"url":"https://example.test/pr/123"}'
+      ;;
+    api\ repos/repro/repro/issues/123/comments)
+      return 1
+      ;;
+    api\ repos/repro/repro/pulls/123/comments)
+      return 1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+item_json='{"issue_identifier":"REP-1094","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":1}'
+snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$item_json")"
+python3 - "$snapshot_json" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+review_activity = payload['pr']['review_activity']
+assert review_activity['top_level_comments'] == []
+assert review_activity['code_line_comments'] == []
+PY
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ]; then
+    _pass 'monitor snapshot degrades comment fetch failures to empty review lists'
+  else
+    _fail 'monitor snapshot degrades comment fetch failures to empty review lists' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
 test_queued_work_is_prepared_before_delivery() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -733,6 +919,8 @@ test_auto_discover_skips_when_queue_has_active_work
 test_auto_discover_can_be_disabled_by_config
 test_auto_discover_caps_intake_by_queue_depth_and_concurrency
 test_auto_discover_skips_rejected_candidates_without_consuming_capacity
+test_monitor_snapshot_separates_review_comments_from_pr_review_data
+test_monitor_snapshot_degrades_review_comment_fetch_failures_to_empty_lists
 test_queued_work_is_prepared_before_delivery
 
 echo ""
