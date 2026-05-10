@@ -11,12 +11,6 @@ _autobot_orch_db_path() {
     return 0
   fi
 
-  # Compatibility alias for one release while callers migrate.
-  if [[ -n "${REPRO_AUTONOMY_DB:-}" ]]; then
-    printf '%s\n' "$REPRO_AUTONOMY_DB"
-    return 0
-  fi
-
   printf '%s\n' "$MAIN_CHECKOUT/.autobot/state.sqlite"
 }
 

@@ -788,8 +788,6 @@ def _resolve_db_path(args: argparse.Namespace) -> Path:
         return Path(args.db)
     if os.environ.get("REPRO_AUTOBOT_DB"):
         return Path(os.environ["REPRO_AUTOBOT_DB"])
-    if os.environ.get("REPRO_AUTONOMY_DB"):
-        return Path(os.environ["REPRO_AUTONOMY_DB"])
     main_checkout = Path(args.main_checkout or os.environ.get("MAIN_CHECKOUT", os.getcwd()))
     return main_checkout / ".autobot" / "state.sqlite"
 
@@ -1110,5 +1108,3 @@ def main(argv: list[str] | None = None) -> int:
 if __name__ == "__main__":
     raise SystemExit(main())
 
-
-AutonomyStore = AutobotStore

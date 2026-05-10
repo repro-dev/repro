@@ -67,7 +67,7 @@ Return strict JSON only.
 def test_render_discover_prompt_allows_discovery_pass_before_final_sequencing():
     from autobot_sequence import render_sequence_prompt
 
-    template = """Autonomy discovery
+    template = """Autobot discovery
 Schema version: {{SCHEMA_VERSION}}
 
 Candidate evaluation:
