@@ -177,7 +177,7 @@ def _render_list_human(result: dict[str, Any]) -> str:
     lines = [f"Autobot config: {result.get('config_path', '')}".rstrip()]
     for item in result.get("items") or []:
         lines.append(
-            f"- {item['key']} = {item['value']} ({item['source']}) — {item['description']}"
+            f"- {item['key']} = {item['value']} ({item['source']}) - {item['description']}"
         )
     return "\n".join(lines)
 
