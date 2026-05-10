@@ -15,12 +15,13 @@ ACTIVE_STATES = {"claimed", "running", "reconciling"}
 RECOVERY_STATES = {"failed", "error", "stale"}
 TERMINAL_STATES = {"released", "canceled"}
 STATE_PRIORITY = {
-    "claimed": 0,
-    "running": 1,
-    "reconciling": 2,
-    "failed": 3,
-    "error": 3,
-    "stale": 3,
+    "queued": 0,
+    "claimed": 1,
+    "running": 2,
+    "reconciling": 3,
+    "failed": 4,
+    "error": 4,
+    "stale": 4,
 }
 
 TERMINAL_LINEAR_STATE_TYPES = {"canceled", "closed"}
@@ -102,7 +103,7 @@ def select_work(payload: dict[str, Any], *, allow_recovery: bool = True) -> dict
     items = _items(payload)
     selected: dict[str, Any] | None = None
 
-    for state in ("claimed", "running", "reconciling"):
+    for state in ("queued", "claimed", "running", "reconciling"):
         for item in items:
             if _claim_state(item) == state:
                 selected = item

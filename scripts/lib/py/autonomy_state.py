@@ -14,6 +14,7 @@ from typing import Any
 
 
 ACTIVE_STATES = {"claimed", "running", "reconciling"}
+QUEUED_STATES = {"queued", "claimed", "running", "reconciling", "failed", "error", "stale"}
 TERMINAL_STATES = {"released", "stale", "canceled"}
 TERMINAL_ISSUE_STATE_TYPES = {"completed", "canceled", "closed", "done"}
 RETRYABLE_STATES = {"released", "stale", "canceled", "failed", "error"}
@@ -255,6 +256,110 @@ class AutonomyStore:
                 "claim_state": "claimed",
                 "workspace_path": workspace_path,
                 "phase": phase,
+                "attempt_count": 0,
+                "retry_state": None,
+                "retry_after": None,
+                "retry_reason": None,
+                "canceled_at": None,
+                "last_error": None,
+                "last_error_at": None,
+                "linear_synced_at": None,
+                "linear_assignment_owned": 0,
+                "linear_state_sync_error": None,
+                "linear_assignment_sync_error": None,
+                "linear_sync_error": None,
+                "last_observed_issue_state_name": issue_state_name,
+                "last_observed_issue_state_type": issue_state_type,
+                "claimed_by": claimed_by,
+                "claimed_at": now,
+                "updated_at": now,
+                "released_at": None,
+            }
+
+            if existing is None:
+                conn.execute(
+                    """
+                    INSERT INTO claims (
+                        issue_id, issue_identifier, claim_state, workspace_path, phase,
+                        attempt_count, retry_state, retry_after, retry_reason, canceled_at,
+                        last_error, last_error_at, linear_synced_at,
+                        linear_assignment_owned, linear_state_sync_error,
+                        linear_assignment_sync_error, linear_sync_error,
+                        last_observed_issue_state_name, last_observed_issue_state_type,
+                        claimed_by, claimed_at, updated_at, released_at
+                    ) VALUES (
+                        :issue_id, :issue_identifier, :claim_state, :workspace_path, :phase,
+                        :attempt_count, :retry_state, :retry_after, :retry_reason, :canceled_at,
+                        :last_error, :last_error_at, :linear_synced_at,
+                        :linear_assignment_owned, :linear_state_sync_error,
+                        :linear_assignment_sync_error, :linear_sync_error,
+                        :last_observed_issue_state_name, :last_observed_issue_state_type,
+                        :claimed_by, :claimed_at, :updated_at, :released_at
+                    )
+                    """,
+                    payload,
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE claims SET
+                        issue_id = :issue_id,
+                        claim_state = :claim_state,
+                        workspace_path = :workspace_path,
+                        phase = :phase,
+                        attempt_count = :attempt_count,
+                        retry_state = :retry_state,
+                        retry_after = :retry_after,
+                        retry_reason = :retry_reason,
+                        canceled_at = :canceled_at,
+                        last_error = :last_error,
+                        last_error_at = :last_error_at,
+                        linear_synced_at = :linear_synced_at,
+                        linear_assignment_owned = :linear_assignment_owned,
+                        linear_state_sync_error = :linear_state_sync_error,
+                        linear_assignment_sync_error = :linear_assignment_sync_error,
+                        linear_sync_error = :linear_sync_error,
+                        last_observed_issue_state_name = :last_observed_issue_state_name,
+                        last_observed_issue_state_type = :last_observed_issue_state_type,
+                        claimed_by = :claimed_by,
+                        claimed_at = :claimed_at,
+                        updated_at = :updated_at,
+                        released_at = :released_at
+                    WHERE issue_identifier = :issue_identifier
+                    """,
+                    payload,
+                )
+
+            claim = self._claim_dict(conn, issue_identifier)
+            assert claim is not None
+            return claim
+
+    def queue(
+        self,
+        *,
+        issue_identifier: str,
+        issue_id: str,
+        workspace_path: str,
+        issue_state_name: str,
+        issue_state_type: str,
+        claimed_by: str | None = None,
+    ) -> dict[str, Any]:
+        workspace_path = self._validate_workspace_path(workspace_path)
+        now = _now()
+        claimed_by = claimed_by or os.environ.get("USER", "unknown")
+
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            existing = self._claim_row(conn, issue_identifier)
+            if existing is not None and str(existing["claim_state"]) in QUEUED_STATES:
+                return _row_to_dict(existing) or {}
+
+            payload = {
+                "issue_id": issue_id,
+                "issue_identifier": issue_identifier,
+                "claim_state": "queued",
+                "workspace_path": workspace_path,
+                "phase": "queue",
                 "attempt_count": 0,
                 "retry_state": None,
                 "retry_after": None,
@@ -827,6 +932,14 @@ def _build_parser() -> argparse.ArgumentParser:
     reconcile.add_argument("--issue-state-name")
     reconcile.add_argument("--issue-state-type")
 
+    queue = subparsers.add_parser("queue")
+    queue.add_argument("issue_identifier")
+    queue.add_argument("--issue-id", required=True)
+    queue.add_argument("--workspace", required=True)
+    queue.add_argument("--issue-state", required=True)
+    queue.add_argument("--issue-state-type", default="unstarted")
+    queue.add_argument("--claimed-by")
+
     run = subparsers.add_parser("run")
     run_sub = run.add_subparsers(dest="run_command", required=True)
 
@@ -879,6 +992,21 @@ def main(argv: list[str] | None = None) -> int:
                 _json_dump({"claim": result})
             else:
                 print(f"claimed {result['issue_identifier']}")
+            return 0
+
+        if args.command == "queue":
+            result = store.queue(
+                issue_identifier=args.issue_identifier,
+                issue_id=args.issue_id,
+                workspace_path=args.workspace,
+                issue_state_name=args.issue_state,
+                issue_state_type=args.issue_state_type,
+                claimed_by=args.claimed_by,
+            )
+            if args.json:
+                _json_dump({"claim": result})
+            else:
+                print(f"queued {result['issue_identifier']}")
             return 0
 
         if args.command == "release":

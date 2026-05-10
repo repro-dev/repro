@@ -27,6 +27,22 @@ def test_select_work_prefers_claimed_and_skips_terminal_states():
     assert result["summary"]["terminal"] == 2
 
 
+def test_select_work_prefers_queued_before_claimed():
+    payload = {
+        "items": [
+            {"issue_identifier": "REP-1", "claim_state": "claimed"},
+            {"issue_identifier": "REP-2", "claim_state": "queued"},
+            {"issue_identifier": "REP-3", "claim_state": "running"},
+        ]
+    }
+
+    result = select_work(payload)
+
+    assert result["selected"]["issue_identifier"] == "REP-2"
+    assert result["summary"]["selected_state"] == "queued"
+    assert result["summary"]["by_state"]["queued"] == 1
+
+
 def test_select_work_skips_recovery_when_disabled():
     payload = {
         "items": [
