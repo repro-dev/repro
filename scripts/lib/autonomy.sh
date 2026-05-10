@@ -11,7 +11,7 @@ _autonomy_db_path() {
     return 0
   fi
 
-  printf '%s\n' "$MAIN_CHECKOUT/tmp/autonomy/state.sqlite"
+  printf '%s\n' "$MAIN_CHECKOUT/.autobot/state.sqlite"
 }
 
 _autonomy_main_checkout() {

@@ -68,6 +68,19 @@ test_help_exists() {
   fi
 }
 
+test_default_db_path_is_under_autobot() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" 'printf "%s\n" "$(_autonomy_db_path)"'
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && [ "$output" = "$tmpdir/repro/.autobot/state.sqlite" ]; then
+    _pass 'default autonomy DB path is under .autobot'
+  else
+    _fail 'default autonomy DB path is under .autobot' "rc=$rc; output=$output"
+  fi
+}
+
 test_status_json() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -471,6 +484,7 @@ REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fresh1 cmd_
 }
 
 test_help_exists
+test_default_db_path_is_under_autobot
 test_status_json
 test_duplicate_claim_fails
 test_prepare_records_workspace_path

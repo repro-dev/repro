@@ -1,5 +1,6 @@
 """Tests for autonomy_state.py."""
 
+import argparse
 import os
 import sqlite3
 import sys
@@ -10,7 +11,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from autonomy_state import ActiveClaimError, AutonomyStore, main
+from autonomy_state import ActiveClaimError, AutonomyStore, _resolve_db_path, main
 
 
 def _store(tmp_path: Path, workspace_root: Path | None = None) -> AutonomyStore:
@@ -66,6 +67,15 @@ def _legacy_db(tmp_path: Path) -> Path:
             """
         )
     return db_path
+
+
+def test_default_db_path_lives_under_autobot(tmp_path: Path):
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+
+    db_path = _resolve_db_path(argparse.Namespace(db=None, main_checkout=checkout))
+
+    assert db_path == checkout / ".autobot" / "state.sqlite"
 
 
 def test_claim_survives_store_reload(tmp_path: Path):
