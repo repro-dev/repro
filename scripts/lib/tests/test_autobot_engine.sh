@@ -390,7 +390,7 @@ AUTOBOT_ENGINE_AUTO_DISCOVER=on cmd_autobot_engine start --once
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ -f "$tmpdir/added.txt" ]; then
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/added.txt" ] && printf '%s\n' "$output" | grep -q 'discover queue empty' && printf '%s\n' "$output" | grep -q 'discover added issue=REP-1094'; then
     _pass 'auto-discover runs when the queue is empty'
   else
     _fail 'auto-discover runs when the queue is empty' "rc=$rc; output=$output"
@@ -456,7 +456,7 @@ AUTOBOT_ENGINE_AUTO_DISCOVER=on cmd_autobot_engine start --once
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ ! -f "$tmpdir/discover.log" ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/added.txt" ]; then
+  if [ $rc -eq 0 ] && [ ! -f "$tmpdir/discover.log" ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/added.txt" ] && printf '%s\n' "$output" | grep -q 'selected issue=REP-1094' && printf '%s\n' "$output" | grep -q 'prepare issue=REP-1094'; then
     _pass 'auto-discover skips when queued or running work is present'
   else
     _fail 'auto-discover skips when queued or running work is present' "rc=$rc; output=$output"
@@ -900,10 +900,56 @@ _autobot_engine_process_queue "$queue_json"
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/retry.txt" ] && [ ! -f "$tmpdir/run-start.txt" ]; then
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/retry.txt" ] && [ ! -f "$tmpdir/run-start.txt" ] && printf '%s\n' "$output" | grep -q 'selected issue=REP-1094' && printf '%s\n' "$output" | grep -q 'prepare issue=REP-1094'; then
     _pass 'queued work is prepared before delivery begins'
   else
     _fail 'queued work is prepared before delivery begins' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_empty_queue_logs_no_processable_work() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TEST_TMPDIR/workspaces" "$TMP_DIR"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+cmd_autobot_orchestrator() {
+  case "$*" in
+    status\ --all\ --json)
+      printf '%s\n' '{"schema_version":1,"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+set +e
+_autobot_engine_process_queue '{"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+set -e
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'no processable work'; then
+    _pass 'empty queue logs that no work is processable'
+  else
+    _fail 'empty queue logs that no work is processable' "rc=$rc; output=$output"
   fi
   rm -rf "$tmpdir"
 }
@@ -922,6 +968,7 @@ test_auto_discover_skips_rejected_candidates_without_consuming_capacity
 test_monitor_snapshot_separates_review_comments_from_pr_review_data
 test_monitor_snapshot_degrades_review_comment_fetch_failures_to_empty_lists
 test_queued_work_is_prepared_before_delivery
+test_empty_queue_logs_no_processable_work
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

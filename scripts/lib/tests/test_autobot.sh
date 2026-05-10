@@ -454,6 +454,24 @@ cmd_autobot_logs
   fi
 }
 
+test_logs_with_issue_prints_issue_event_contents() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+_write_runner "$tmpdir" '
+mkdir -p "$MAIN_CHECKOUT/.autobot/runs/REP-1-attempt-1" "$MAIN_CHECKOUT/.autobot"
+printf "engine log line one\n" > "$MAIN_CHECKOUT/.autobot/engine.log"
+printf "{\"kind\":\"phase-start\",\"phase\":\"plan\"}\n" > "$MAIN_CHECKOUT/.autobot/runs/REP-1-attempt-1/events.jsonl"
+cmd_autobot_logs REP-1
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'engine log line one' && printf '%s\n' "$output" | grep -q '"phase":"plan"' && ! printf '%s\n' "$output" | grep -q 'no logs yet for REP-1'; then
+    _pass 'autobot logs with issue prints matching event contents'
+  else
+    _fail 'autobot logs with issue prints matching event contents' "rc=$rc; output=$output"
+  fi
+}
+
 test_add_accepts_multiple_issue_identifiers() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
