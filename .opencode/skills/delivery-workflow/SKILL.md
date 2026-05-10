@@ -10,7 +10,16 @@ Use this skill when you are starting a feature or fix. Keep it thin: it coordina
 ## Shared `/deliver` fragments
 
 - `.opencode/skills/delivery-workflow/references/deliver-command-contract.md`
-- `.opencode/skills/delivery-workflow/references/deliver-phases.md`
+- `.opencode/skills/delivery-workflow/references/deliver-single-track.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-1-scan-and-select.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-2-provisional-sequencing.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-3-worktrees.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-4-plan.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-5-risk-and-resequence.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-6-implement.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-7-review.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md`
+- `.opencode/skills/delivery-workflow/references/deliver-throughout.md`
 - `.opencode/skills/delivery-workflow/references/deliver-verification.md`
 
 `/deliver` and this skill read the same fragments as the canonical source of truth for autonomous delivery orchestration.

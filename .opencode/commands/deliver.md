@@ -10,7 +10,16 @@ You are the orchestrator for `/deliver`.
 1. Load `delivery-workflow`.
 2. Read these canonical fragments in order:
    - `.opencode/skills/delivery-workflow/references/deliver-command-contract.md`
-   - `.opencode/skills/delivery-workflow/references/deliver-phases.md`
+   - `.opencode/skills/delivery-workflow/references/deliver-single-track.md`
+   - `.opencode/skills/delivery-workflow/references/deliver-phase-1-scan-and-select.md`
+   - `.opencode/skills/delivery-workflow/references/deliver-phase-2-provisional-sequencing.md`
+   - `.opencode/skills/delivery-workflow/references/deliver-phase-3-worktrees.md`
+   - `.opencode/skills/delivery-workflow/references/deliver-phase-4-plan.md`
+   - `.opencode/skills/delivery-workflow/references/deliver-phase-5-risk-and-resequence.md`
+   - `.opencode/skills/delivery-workflow/references/deliver-phase-6-implement.md`
+   - `.opencode/skills/delivery-workflow/references/deliver-phase-7-review.md`
+   - `.opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md`
+   - `.opencode/skills/delivery-workflow/references/deliver-throughout.md`
    - `.opencode/skills/delivery-workflow/references/deliver-verification.md`
 3. Treat those fragments as the source of truth for the command.
 4. Stop and report if the shim and fragments conflict.

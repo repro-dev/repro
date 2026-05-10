@@ -10,7 +10,16 @@ const repoRoot = path.resolve(
 );
 const fragmentPaths = [
   ".opencode/skills/delivery-workflow/references/deliver-command-contract.md",
-  ".opencode/skills/delivery-workflow/references/deliver-phases.md",
+  ".opencode/skills/delivery-workflow/references/deliver-single-track.md",
+  ".opencode/skills/delivery-workflow/references/deliver-phase-1-scan-and-select.md",
+  ".opencode/skills/delivery-workflow/references/deliver-phase-2-provisional-sequencing.md",
+  ".opencode/skills/delivery-workflow/references/deliver-phase-3-worktrees.md",
+  ".opencode/skills/delivery-workflow/references/deliver-phase-4-plan.md",
+  ".opencode/skills/delivery-workflow/references/deliver-phase-5-risk-and-resequence.md",
+  ".opencode/skills/delivery-workflow/references/deliver-phase-6-implement.md",
+  ".opencode/skills/delivery-workflow/references/deliver-phase-7-review.md",
+  ".opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md",
+  ".opencode/skills/delivery-workflow/references/deliver-throughout.md",
   ".opencode/skills/delivery-workflow/references/deliver-verification.md",
 ];
 
@@ -21,7 +30,7 @@ function readText(relativePath: string) {
 function extractFragmentPaths(text: string) {
   return [
     ...text.matchAll(
-      /\.opencode\/skills\/delivery-workflow\/references\/[a-z-]+\.md/g,
+      /\.opencode\/skills\/delivery-workflow\/references\/[a-z0-9-]+\.md/g,
     ),
   ].map((match) => match[0]);
 }
@@ -66,12 +75,26 @@ describe("REP-1132 delivery fragment wiring", () => {
   it("keeps deliver.md as a shim instead of phase bodies", () => {
     const deliverCommand = readText(".opencode/commands/deliver.md");
 
+    assert.doesNotMatch(
+      deliverCommand,
+      /## Single-track mode \(replaces Phases 1 and 2\)/,
+    );
     assert.doesNotMatch(deliverCommand, /## Phase 1: Scan and select/);
     assert.doesNotMatch(
       deliverCommand,
       /## Phase 8: Publish the active ready wave and stop/,
     );
+    assert.doesNotMatch(deliverCommand, /## Throughout/);
     assert.match(deliverCommand, /Read these canonical fragments in order:/);
+  });
+
+  it("keeps runtime-only interpolation out of the shared command contract", () => {
+    const contract = readText(
+      ".opencode/skills/delivery-workflow/references/deliver-command-contract.md",
+    );
+
+    assert.doesNotMatch(contract, /\$ARGUMENTS/);
+    assert.doesNotMatch(contract, /!`git branch --show-current`/);
   });
 
   it("separates local-only and CI-enforced verification wording", () => {
@@ -81,6 +104,6 @@ describe("REP-1132 delivery fragment wiring", () => {
 
     assert.match(verification, /## Local-only \/ orchestrator checks/);
     assert.match(verification, /## CI-enforced checks/);
-    assert.match(verification, /not[^\n]*wait on CI/i);
+    assert.ok(verification.includes("does **not** wait on CI"));
   });
 });
