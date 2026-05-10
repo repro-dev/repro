@@ -29,7 +29,7 @@ For each publishable issue:
 
 2. Push with the same lightweight retry posture used for worktree creation: retry transient failures up to 3 times; escalate permanent failures immediately.
 
-3. Create the PR. The body should help a human reviewer quickly understand the change. Include:
+3. Create the PR. This is the completion gate for the delivery run. The body should help a human reviewer quickly understand the change. Include:
 
    - `Closes REP-xxx`
    - A short summary of the change
