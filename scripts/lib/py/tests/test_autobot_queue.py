@@ -29,6 +29,8 @@ def test_public_state_maps_internal_states():
 
 def test_shape_status_filters_terminal_items_for_list_but_keeps_them_for_single_item():
     payload = {
+        "schema_version": 1,
+        "config": {"schema_version": 1, "config_path": "/repo/.autobot/config.json", "values": {}},
         "items": [
             {
                 "issue_identifier": "REP-1",
@@ -54,6 +56,8 @@ def test_shape_status_filters_terminal_items_for_list_but_keeps_them_for_single_
     assert detailed["items"][0]["state"] == "released"
     assert listed["summary"]["queued"] == 1
     assert listed["summary"]["released"] == 1
+    assert listed["schema_version"] == 1
+    assert listed["config"]["schema_version"] == 1
     assert "phase" not in listed["items"][0]
     assert "runs" not in listed
 
@@ -73,9 +77,27 @@ def test_public_item_keeps_public_fields_only():
     assert item["issue_identifier"] == "REP-1"
     assert item["state"] == "queued"
     assert item["queued_by"] == "autobot"
+    assert item["conditions"] == []
     assert "claim_state" not in item
     assert "claimed_by" not in item
     assert "phase" not in item
+
+
+def test_public_item_normalizes_wait_conditions():
+    item = public_item(
+        {
+            "issue_identifier": "REP-2",
+            "claim_state": "failed",
+            "retry_reason": "missing-workspace",
+            "conditions": ["waiting-on-ci", {"kind": "review", "value": "waiting-on-review"}],
+        }
+    )
+
+    assert item["conditions"] == [
+        {"kind": "condition", "value": "waiting-on-ci"},
+        {"kind": "review", "value": "waiting-on-review"},
+        {"kind": "retry_reason", "value": "missing-workspace"},
+    ]
 
 
 def test_public_summary_counts_public_states():

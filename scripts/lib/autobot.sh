@@ -10,6 +10,14 @@ _autobot_queue_helper() {
   python3 "$SCRIPTS_DIR/lib/py/autobot_queue.py" "$@"
 }
 
+_autobot_config_helper() {
+  python3 "$SCRIPTS_DIR/lib/py/autobot_config.py" "$@"
+}
+
+_autobot_config_path() {
+  printf '%s\n' "$MAIN_CHECKOUT/.autobot/config.json"
+}
+
 _autobot_main_checkout_guard() {
   if [[ "$REPO_ROOT" != "$MAIN_CHECKOUT" ]]; then
     die "autobot must run from the main checkout; worktrees are execution artifacts"
@@ -27,62 +35,29 @@ _autobot_prompt_yes_no() {
 }
 
 _autobot_public_status_json() {
-  REPROCTL_JSON=true _autonomy_py status --all
+  local status_json config_json
+  status_json="$(REPROCTL_JSON=true _autonomy_py status --all)" || return 1
+  config_json="$(_autobot_config_helper dump --config-file "$(_autobot_config_path)" --json)" || return 1
+  python3 - "$status_json" "$config_json" <<'PY'
+import json
+import sys
+
+status = json.loads(sys.argv[1] or '{}')
+config = json.loads(sys.argv[2] or '{}')
+status['schema_version'] = status.get('schema_version') or config.get('schema_version') or 1
+status['config'] = config
+print(json.dumps(status))
+PY
 }
 
 _autobot_public_item_json() {
   local status_json="$1"
   local issue_identifier="${2:-}"
-  local status_file
-  status_file="$(mktemp "$MAIN_CHECKOUT/tmp/autobot-status.XXXXXX")"
-  printf '%s' "$status_json" > "$status_file"
-  python3 - "$issue_identifier" "$status_file" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-PUBLIC_STATE_MAP = {
-    'queued': 'queued',
-    'claimed': 'queued',
-    'running': 'running',
-    'reconciling': 'needs_attention',
-    'failed': 'needs_attention',
-    'error': 'needs_attention',
-    'stale': 'needs_attention',
-    'released': 'released',
-    'canceled': 'removed',
-}
-
-issue_identifier = sys.argv[1]
-payload = json.loads(Path(sys.argv[2]).read_text(encoding='utf-8') or '{}')
-items = []
-for item in payload.get('items') or []:
-    identifier = str(item.get('issue_identifier') or item.get('identifier') or '')
-    if issue_identifier and identifier != issue_identifier:
-        continue
-    state = PUBLIC_STATE_MAP.get(str(item.get('claim_state') or ''), str(item.get('claim_state') or 'needs_attention'))
-    public_item = {
-        'issue_identifier': identifier,
-        'state': state,
-        'workspace_path': str(item.get('workspace_path') or ''),
-        'queued_by': str(item.get('claimed_by') or ''),
-        'updated_at': str(item.get('updated_at') or ''),
-        'attempt_count': int(item.get('attempt_count') or 0),
-        'last_observed_issue_state_name': str(item.get('last_observed_issue_state_name') or ''),
-        'last_observed_issue_state_type': str(item.get('last_observed_issue_state_type') or ''),
-    }
-    reason = item.get('retry_reason') or item.get('last_error') or item.get('linear_sync_error')
-    if reason:
-        public_item['reason'] = str(reason)
-    items.append(public_item)
-    if issue_identifier:
-        break
-
-print(json.dumps({'items': items, 'summary': {'total': len(items)}, 'generated_at': payload.get('generated_at') or ''}))
-PY
-  local rc=$?
-  rm -f "$status_file"
-  return "$rc"
+  if [[ -n "$issue_identifier" ]]; then
+    printf '%s' "$status_json" | _autobot_queue_helper status --issue "$issue_identifier"
+  else
+    printf '%s' "$status_json" | _autobot_queue_helper status
+  fi
 }
 
 _autobot_render_public_json() {
@@ -126,6 +101,9 @@ Subcommands:
   status [<issue>] [--json]
   logs [<issue>] [-t] [--json]
   discover [--limit N] [--project NAME] [-q] [--json]
+  config get <key> [--json]
+  config set <key> <value> [--json]
+  config unset <key> [--json]
 EOF
 }
 
@@ -508,10 +486,24 @@ cmd_autobot_discover() {
   [[ -n "$project_scope" ]] && discover_args+=(--project "$project_scope")
   discover_args+=(--json)
   local discovery_json
+  local config_json
   local previous_json="${REPROCTL_JSON:-false}"
   REPROCTL_JSON=true
   discovery_json="$(cmd_autonomy "${discover_args[@]}")" || return 1
   REPROCTL_JSON="$previous_json"
+
+  config_json="$(_autobot_config_helper dump --config-file "$(_autobot_config_path)" --json)" || return 1
+  discovery_json="$(python3 - "$discovery_json" "$config_json" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1] or '{}')
+config = json.loads(sys.argv[2] or '{}')
+payload['schema_version'] = payload.get('schema_version') or config.get('schema_version') or 1
+payload['config'] = config
+print(json.dumps(payload))
+PY
+)" || return 1
 
   if [[ "$json_output" == true ]]; then
     printf '%s\n' "$discovery_json"
@@ -529,6 +521,79 @@ cmd_autobot_discover() {
       printf '  %s\n' "$issue_identifier"
     done <<< "$issue_ids"
   fi
+}
+
+cmd_autobot_config() {
+  local subcmd="${1:-}"
+  shift || true
+
+  case "$subcmd" in
+    get|set|unset) ;;
+    -h|--help|help|"")
+      _autobot_help
+      return 0
+      ;;
+    *)
+      die "Unknown subcommand: $subcmd\nRun 'autobot --help' for usage."
+      ;;
+  esac
+
+  local json_output="${REPROCTL_JSON:-false}"
+  local config_file
+  local key="" value=""
+  config_file="$(_autobot_config_path)"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --json) json_output=true ;;
+      -h|--help)
+        _autobot_help
+        return 0
+        ;;
+      -*) die "Unknown option: $1\nRun 'autobot --help' for usage." ;;
+      *)
+        if [[ -z "$key" ]]; then
+          key="$1"
+        elif [[ -z "$value" ]]; then
+          value="$1"
+        else
+          die "Unexpected argument: $1\nRun 'autobot --help' for usage."
+        fi
+        ;;
+    esac
+    shift
+  done
+
+  case "$subcmd" in
+    get)
+      [[ -n "$key" ]] || die "Missing config key"
+      local result
+      local helper_args=(get --config-file "$config_file")
+      [[ "$json_output" == true ]] && helper_args+=(--json)
+      helper_args+=("$key")
+      result="$(_autobot_config_helper "${helper_args[@]}")" || return 1
+      printf '%s\n' "$result"
+      ;;
+    set)
+      [[ -n "$key" ]] || die "Missing config key"
+      [[ -n "$value" ]] || die "Missing config value"
+      local result
+      local helper_args=(set --config-file "$config_file")
+      [[ "$json_output" == true ]] && helper_args+=(--json)
+      helper_args+=("$key" "$value")
+      result="$(_autobot_config_helper "${helper_args[@]}")" || return 1
+      printf '%s\n' "$result"
+      ;;
+    unset)
+      [[ -n "$key" ]] || die "Missing config key"
+      local result
+      local helper_args=(unset --config-file "$config_file")
+      [[ "$json_output" == true ]] && helper_args+=(--json)
+      helper_args+=("$key")
+      result="$(_autobot_config_helper "${helper_args[@]}")" || return 1
+      printf '%s\n' "$result"
+      ;;
+  esac
 }
 
 cmd_autobot() {
@@ -559,6 +624,9 @@ cmd_autobot() {
       ;;
     logs)
       cmd_autobot_logs "$@"
+      ;;
+    config)
+      cmd_autobot_config "$@"
       ;;
     discover)
       cmd_autobot_discover "$@"

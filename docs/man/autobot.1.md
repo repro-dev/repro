@@ -19,6 +19,11 @@ from the main checkout.
 The queue is managed locally and the standalone engine performs work item
 handoff from queued to prepared delivery state.
 
+JSON responses are versioned with `schema_version: 1`. Public status-oriented
+commands also include a `config` block sourced from `.autobot/config.json`.
+Current config keys include `engine.auto-discover`, `engine.queue-depth`, and
+`engine.max-concurrency`.
+
 # SUBCOMMANDS
 
 **add** _issue_ [**--json**] [**--dry-run**]
@@ -38,6 +43,15 @@ handoff from queued to prepared delivery state.
 
 **discover** [**--limit** *N*] [**--project** *name*] [**-q**] [**--json**]
 : Reuse the discovery pipeline and print queued issue identifiers.
+
+**config get** _key_ [**--json**]
+: Read a repo-scoped Autobot setting.
+
+**config set** _key_ _value_ [**--json**]
+: Persist a repo-scoped Autobot setting.
+
+**config unset** _key_ [**--json**]
+: Remove a repo-scoped Autobot setting override.
 
 # OPTIONS
 
@@ -63,6 +77,9 @@ autobot list --json
 
 autobot discover -q | xargs autobot add
 : Pipe discovered work directly into the queue.
+
+autobot config set engine.auto-discover on
+: Enable engine-driven intake for the current repository.
 
 # SEE ALSO
 

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 
+SCHEMA_VERSION = 1
 ACTIVE_STATES = {"claimed", "running", "reconciling"}
 QUEUED_STATES = {"queued", "claimed", "running", "reconciling", "failed", "error", "stale"}
 TERMINAL_STATES = {"released", "stale", "canceled"}
@@ -767,6 +768,7 @@ class AutonomyStore:
             runs_dict = [dict(row) for row in runs]
             summary_items = all_items_dict
             return {
+                "schema_version": SCHEMA_VERSION,
                 "items": items_dict,
                 "runs": runs_dict,
                 "summary": {
@@ -787,7 +789,7 @@ def _resolve_db_path(args: argparse.Namespace) -> Path:
     if os.environ.get("REPRO_AUTONOMY_DB"):
         return Path(os.environ["REPRO_AUTONOMY_DB"])
     main_checkout = Path(args.main_checkout or os.environ.get("MAIN_CHECKOUT", os.getcwd()))
-    return main_checkout / "tmp" / "autonomy" / "state.sqlite"
+    return main_checkout / ".autobot" / "state.sqlite"
 
 
 def _resolve_main_checkout(args: argparse.Namespace) -> Path:

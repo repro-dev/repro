@@ -12,6 +12,12 @@ and is intended to be run from the main checkout.
 .PP
 The queue is managed locally and the standalone engine performs work
 item handoff from queued to prepared delivery state.
+.PP
+JSON responses are versioned with \f[CR]schema_version: 1\f[R].
+Public status\-oriented commands also include a \f[CR]config\f[R] block
+sourced from \f[CR].autobot/config.json\f[R].
+Current config keys include \f[CR]engine.auto\-discover\f[R],
+\f[CR]engine.queue\-depth\f[R], and \f[CR]engine.max\-concurrency\f[R].
 .SH SUBCOMMANDS
 .TP
 \f[B]add\f[R] \f[I]issue\f[R] [\f[B]\-\-json\f[R]] [\f[B]\-\-dry\-run\f[R]]
@@ -33,6 +39,15 @@ Inspect engine or issue logs.
 .TP
 \f[B]discover\f[R] [\f[B]\-\-limit\f[R] \f[I]N\f[R]] [\f[B]\-\-project\f[R] \f[I]name\f[R]] [\f[B]\-q\f[R]] [\f[B]\-\-json\f[R]]
 Reuse the discovery pipeline and print queued issue identifiers.
+.TP
+\f[B]config get\f[R] \f[I]key\f[R] [\f[B]\-\-json\f[R]]
+Read a repo\-scoped Autobot setting.
+.TP
+\f[B]config set\f[R] \f[I]key\f[R] \f[I]value\f[R] [\f[B]\-\-json\f[R]]
+Persist a repo\-scoped Autobot setting.
+.TP
+\f[B]config unset\f[R] \f[I]key\f[R] [\f[B]\-\-json\f[R]]
+Remove a repo\-scoped Autobot setting override.
 .SH OPTIONS
 .TP
 \f[B]\-\-json\f[R]
@@ -56,6 +71,9 @@ Inspect the current queue as JSON.
 .TP
 autobot discover \-q | xargs autobot add
 Pipe discovered work directly into the queue.
+.TP
+autobot config set engine.auto\-discover on
+Enable engine\-driven intake for the current repository.
 .SH SEE ALSO
 \f[B]reproctl\-autonomy\f[R](1), \f[B]reproctl\f[R](1)
 .SH AUTHORS

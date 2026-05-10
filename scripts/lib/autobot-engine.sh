@@ -14,6 +14,7 @@ AUTOBOT_ENGINE_LOG_FILE="$AUTOBOT_ENGINE_DIR/engine.log"
 AUTOBOT_ENGINE_STATUS_FILE="$AUTOBOT_ENGINE_DIR/status.json"
 AUTOBOT_ENGINE_CLEANUP_FILE="$AUTOBOT_ENGINE_DIR/cleanup.jsonl"
 AUTOBOT_ENGINE_RUNS_DIR="$AUTOBOT_ENGINE_DIR/runs"
+AUTOBOT_ENGINE_CONFIG_FILE="$AUTOBOT_ENGINE_DIR/config.json"
 AUTOBOT_ENGINE_EVENTS_FILE=""
 AUTOBOT_ENGINE_DEFAULT_INTERVAL="${AUTOBOT_ENGINE_INTERVAL:-2}"
 AUTOBOT_ENGINE_MAX_ATTEMPTS="${AUTOBOT_ENGINE_MAX_ATTEMPTS:-3}"
@@ -38,6 +39,14 @@ _autobot_engine_log_path() { printf '%s\n' "$AUTOBOT_ENGINE_LOG_FILE"; }
 _autobot_engine_status_path() { printf '%s\n' "$AUTOBOT_ENGINE_STATUS_FILE"; }
 _autobot_engine_runs_root() { printf '%s\n' "$AUTOBOT_ENGINE_RUNS_DIR"; }
 _autobot_engine_cleanup_path() { printf '%s\n' "$AUTOBOT_ENGINE_CLEANUP_FILE"; }
+_autobot_engine_config_path() { printf '%s\n' "$AUTOBOT_ENGINE_CONFIG_FILE"; }
+_autobot_engine_config_helper() { python3 "$SCRIPTS_DIR/lib/py/autobot_config.py" "$@"; }
+_autobot_engine_config_json() { _autobot_engine_config_helper dump --config-file "$(_autobot_engine_config_path)" --json; }
+_autobot_engine_config_get() {
+  local key="$1"
+  _autobot_engine_config_helper get --config-file "$(_autobot_engine_config_path)" --json "$key" |
+    python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])'
+}
 
 _autobot_engine_ensure_dirs() {
   mkdir -p "$AUTOBOT_ENGINE_DIR" "$AUTOBOT_ENGINE_RUNS_DIR"
@@ -153,12 +162,26 @@ _autobot_engine_build_status_json() {
   local current_attempt="${7:-}"
   local last_tick_at="${8:-}"
   local args=()
+  local config_json merged_queue_json
 
   [[ "$running" == true ]] && args+=(--running)
   [[ -n "$current_attempt" ]] && args+=(--current-attempt "$current_attempt")
   [[ -n "$last_tick_at" ]] && args+=(--last-tick-at "$last_tick_at")
 
-  printf '%s' "$queue_json" | python3 "$SCRIPTS_DIR/lib/py/autobot_engine.py" render-status \
+  config_json="$(_autobot_engine_config_json)" || return 1
+  merged_queue_json="$(python3 - "$queue_json" "$config_json" <<'PY'
+import json
+import sys
+
+queue_payload = json.loads(sys.argv[1] or '{}')
+config = json.loads(sys.argv[2] or '{}')
+queue_payload['schema_version'] = queue_payload.get('schema_version') or config.get('schema_version') or 1
+queue_payload['config'] = config
+print(json.dumps(queue_payload))
+PY
+)" || return 1
+
+  printf '%s' "$merged_queue_json" | python3 "$SCRIPTS_DIR/lib/py/autobot_engine.py" render-status \
     --pid "${pid:-}" \
     --lock-path "$(_autobot_engine_lock_path)" \
     --pid-path "$(_autobot_engine_pid_path)" \
@@ -255,8 +278,9 @@ _autobot_engine_print_status_human() {
 }
 
 _autobot_engine_discover_candidates() {
+  local limit="${1:-10}"
   local discover_json
-  discover_json="$(autobot discover --json)" || return 1
+  discover_json="$(autobot discover --limit "$limit" --json)" || return 1
   printf '%s' "$discover_json" | python3 "$SCRIPTS_DIR/lib/py/autobot_engine.py" discover-ids
 }
 
@@ -592,14 +616,19 @@ _autobot_engine_process_queue() {
 
 _autobot_engine_run_once() {
   local queue_json status_json selected_json selected_issue
+  local auto_discover queue_depth max_concurrency discover_ids discover_id discovered_count=0
   queue_json="$(_autobot_engine_queue_json)"
+  auto_discover="$(_autobot_engine_config_get engine.auto-discover)" || return 1
+  queue_depth="$(_autobot_engine_config_get engine.queue-depth)" || return 1
+  max_concurrency="$(_autobot_engine_config_get engine.max-concurrency)" || return 1
 
-  if [[ "${AUTOBOT_ENGINE_AUTO_DISCOVER:-off}" = "on" ]] && command -v autobot >/dev/null 2>&1; then
-    local discover_ids discover_id
-    if discover_ids="$(_autobot_engine_discover_candidates)"; then
+  if [[ "$auto_discover" = "on" ]] && command -v autobot >/dev/null 2>&1; then
+    if discover_ids="$(_autobot_engine_discover_candidates "$queue_depth")"; then
       while IFS= read -r discover_id; do
         [[ -n "$discover_id" ]] || continue
+        [[ "$discovered_count" -ge "$max_concurrency" ]] && break
         autobot add "$discover_id" >/dev/null 2>&1 || true
+        discovered_count=$((discovered_count + 1))
       done <<< "$discover_ids"
     fi
   fi

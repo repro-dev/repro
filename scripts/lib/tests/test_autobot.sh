@@ -69,7 +69,7 @@ test_help_lists_public_commands() {
   _write_runner "$tmpdir" 'cmd_autobot_help'
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'Usage: autobot <subcommand>' && printf '%s\n' "$output" | grep -q 'discover \[--limit N\] \[--project NAME\] \[-q\] \[--json\]' && ! printf '%s\n' "$output" | grep -q 'prepare <issue>'; then
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'Usage: autobot <subcommand>' && printf '%s\n' "$output" | grep -q 'discover \[--limit N\] \[--project NAME\] \[-q\] \[--json\]' && printf '%s\n' "$output" | grep -q 'config get <key> \[--json\]' && ! printf '%s\n' "$output" | grep -q 'prepare <issue>'; then
     _pass 'cmd_autobot_help shows only public commands'
   else
     _fail 'cmd_autobot_help shows only public commands' "rc=$rc; output=$output"
@@ -93,6 +93,64 @@ cmd_autobot list
   fi
 }
 
+test_config_commands_persist_repo_scoped_config() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+_autonomy_py() {
+  case "$*" in
+    status\ --all)
+      printf "%s\n" "{\"schema_version\":1,\"items\":[{\"issue_identifier\":\"REP-1\",\"claim_state\":\"failed\",\"retry_reason\":\"waiting-on-ci\",\"last_observed_issue_state_name\":\"Review\",\"last_observed_issue_state_type\":\"started\"}],\"runs\":[],\"summary\":{\"claim_states\":{\"failed\":1},\"active_runs\":0,\"stale_claims\":0,\"failed_runs\":0,\"sync_errors\":0},\"recent_errors\":[],\"generated_at\":\"2026-05-08T12:00:00Z\"}"
+      ;;
+    *) return 1 ;;
+  esac
+}
+cmd_autobot config get engine.auto-discover --json
+cmd_autobot config set engine.auto-discover on --json
+cmd_autobot status --json
+cmd_autobot status REP-1 --json
+python3 - "$MAIN_CHECKOUT/.autobot/config.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["schema_version"] == 1
+assert payload["engine.auto-discover"] == "on"
+PY
+cmd_autobot config get engine.auto-discover
+cmd_autobot config unset engine.auto-discover --json
+cmd_autobot config get engine.auto-discover --json
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q '"value": "off"' && printf '%s\n' "$output" | grep -q 'engine.auto-discover = on (repo)' && printf '%s\n' "$output" | grep -q '"schema_version": 1' && printf '%s\n' "$output" | grep -q '"conditions":'; then
+    _pass 'autobot config get/set/unset persists repo-scoped config'
+  else
+    _fail 'autobot config get/set/unset persists repo-scoped config' "rc=$rc; output=$output"
+  fi
+}
+
+test_config_rejects_invalid_key_and_value() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+bad_key_output="$(cmd_autobot config get nope 2>&1)" || bad_key_rc=$?
+bad_value_output="$(cmd_autobot config set engine.auto-discover maybe 2>&1)" || bad_value_rc=$?
+printf "%s\n" "$bad_key_output"
+printf "%s\n" "$bad_value_output"
+test ${bad_key_rc:-0} -ne 0
+test ${bad_value_rc:-0} -ne 0
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'unknown config key' && printf '%s\n' "$output" | grep -q "must be 'on' or 'off'"; then
+    _pass 'autobot config rejects invalid keys and values'
+  else
+    _fail 'autobot config rejects invalid keys and values' "rc=$rc; output=$output"
+  fi
+}
+
 test_discover_q_emits_issue_ids_only() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -100,7 +158,7 @@ test_discover_q_emits_issue_ids_only() {
 cmd_autonomy() {
   case "$*" in
     discover\ --limit\ 2\ --project\ Demo\ --json)
-      printf "%s\n" "{\"waves\":[{\"issues\":[{\"issue_identifier\":\"REP-1\"},{\"issue_identifier\":\"REP-2\"}]}],\"deferred\":[{\"issue_identifier\":\"REP-3\"}],\"out_of_limit\":[{\"issue_identifier\":\"REP-4\"}]}"
+      printf "%s\n" "{\"waves\":[{\"issues\":[{\"issue_identifier\":\"REP-1\"},{\"issue_identifier\":\"REP-2\"}]}],\"deferred\":[{\"issue_identifier\":\"REP-3\"}],\"out_of_limit\":[{\"issue_identifier\":\"REP-4\"}],\"generated_at\":\"2026-05-08T12:00:00Z\"}"
       ;;
     *) return 1 ;;
   esac
@@ -113,6 +171,29 @@ cmd_autobot discover --limit 2 --project Demo -q
     _pass 'autobot discover -q emits issue identifiers only'
   else
     _fail 'autobot discover -q emits issue identifiers only' "rc=$rc; output=$output"
+  fi
+}
+
+test_discover_json_includes_schema_contract() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  _write_runner "$tmpdir" '
+cmd_autonomy() {
+  case "$*" in
+    discover\ --limit\ 2\ --project\ Demo\ --json)
+      printf "%s\n" "{\"waves\":[{\"issues\":[{\"issue_identifier\":\"REP-1\"},{\"issue_identifier\":\"REP-2\"}]}],\"deferred\":[],\"out_of_limit\":[],\"generated_at\":\"2026-05-08T12:00:00Z\"}"
+      ;;
+    *) return 1 ;;
+  esac
+}
+cmd_autobot discover --limit 2 --project Demo --json
+'
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q '"schema_version": 1' && printf '%s\n' "$output" | grep -q '"config":'; then
+    _pass 'autobot discover --json includes schema contract'
+  else
+    _fail 'autobot discover --json includes schema contract' "rc=$rc; output=$output"
   fi
 }
 
@@ -392,7 +473,10 @@ cmd_autobot add REP-1 REP-2
 
 test_help_lists_public_commands
 test_worktree_guard_rejects_non_main_checkout
+test_config_commands_persist_repo_scoped_config
+test_config_rejects_invalid_key_and_value
 test_discover_q_emits_issue_ids_only
+test_discover_json_includes_schema_contract
 test_add_dry_run_does_not_queue_or_sync
 test_add_is_idempotent_for_existing_queue_item
 test_add_json_for_existing_queue_item_hides_internal_phase

@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from autobot_queue import public_item
+
 
 ACTIVE_STATES = {"claimed", "running", "reconciling"}
 RECOVERY_STATES = {"failed", "error", "stale"}
@@ -158,7 +160,10 @@ def render_status(
 ) -> dict[str, Any]:
     queue = select_work(queue_payload)
     items = _items(queue_payload)
+    config = _as_mapping(queue_payload.get("config"))
     return {
+        "schema_version": queue_payload.get("schema_version") or 1,
+        "config": config,
         "engine": {
             "pid": pid,
             "running": running,
@@ -175,8 +180,8 @@ def render_status(
             "status": status_path,
         },
         "queue": {
-            "items": items,
-            "selected_work": queue["selected"],
+            "items": [public_item(item) for item in items],
+            "selected_work": public_item(queue["selected"]) if queue["selected"] else None,
             "summary": queue["summary"],
         },
         "generated_at": _now(),

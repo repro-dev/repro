@@ -92,6 +92,14 @@ def test_claim_survives_store_reload(tmp_path: Path):
     assert status["items"][0]["claim_state"] == "claimed"
 
 
+def test_status_includes_schema_version(tmp_path: Path):
+    store = _store(tmp_path)
+
+    status = store.status()
+
+    assert status["schema_version"] == 1
+
+
 def test_duplicate_active_claim_is_rejected(tmp_path: Path):
     store = _store(tmp_path)
     first_workspace = _workspace(tmp_path, "repro-wt-first")
