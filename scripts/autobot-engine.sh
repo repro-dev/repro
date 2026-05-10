@@ -9,8 +9,8 @@ source "$SCRIPT_DIR/lib/common.sh"
 source "$SCRIPT_DIR/lib/worktree.sh"
 # shellcheck source=scripts/lib/opencode.sh
 source "$SCRIPT_DIR/lib/opencode.sh"
-# shellcheck source=scripts/lib/autonomy.sh
-source "$SCRIPT_DIR/lib/autonomy.sh"
+# shellcheck source=scripts/lib/autobot_orchestrator.sh
+source "$SCRIPT_DIR/lib/autobot_orchestrator.sh"
 # shellcheck source=scripts/lib/autobot-engine.sh
 source "$SCRIPT_DIR/lib/autobot-engine.sh"
 

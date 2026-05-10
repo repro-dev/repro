@@ -61,13 +61,13 @@ _reproctl() {
   local cur prev words cword
   _init_completion || return
 
-  local top_commands="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch autonomy context worktree wt completion version help opencode"
+  local top_commands="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch autobot context worktree wt completion version help opencode"
   local cluster_sub="up down status reset"
   local db_sub="reset migrate shell status"
   local code_index_sub="help"
   local wt_sub="create remove list attach prune"
   local completion_shells="bash zsh fish"
-  local help_topics="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch autonomy context worktree wt completion version environment exit-codes json opencode"
+  local help_topics="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch autobot context worktree wt completion version environment exit-codes json opencode"
 
   # Find the subcommand position (skip global flags)
   local cmd="" subcmd=""
@@ -167,7 +167,7 @@ _reproctl() {
       COMPREPLY=($(compgen -W "--worktree -w -h --help $(__reproctl_launchable_services)" -- "$cur"))
       ;;
 
-    autonomy)
+    autobot)
       if [[ -z "$subcmd" ]]; then
         COMPREPLY=($(compgen -W "status claim prepare release cancel retry reconcile discover run help -h --help" -- "$cur"))
       else

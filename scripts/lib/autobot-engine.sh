@@ -14,6 +14,7 @@ AUTOBOT_ENGINE_LOG_FILE="$AUTOBOT_ENGINE_DIR/engine.log"
 AUTOBOT_ENGINE_STATUS_FILE="$AUTOBOT_ENGINE_DIR/status.json"
 AUTOBOT_ENGINE_CLEANUP_FILE="$AUTOBOT_ENGINE_DIR/cleanup.jsonl"
 AUTOBOT_ENGINE_RUNS_DIR="$AUTOBOT_ENGINE_DIR/runs"
+AUTOBOT_ENGINE_CONFIG_FILE="$AUTOBOT_ENGINE_DIR/config.json"
 AUTOBOT_ENGINE_EVENTS_FILE=""
 AUTOBOT_ENGINE_DEFAULT_INTERVAL="${AUTOBOT_ENGINE_INTERVAL:-2}"
 AUTOBOT_ENGINE_MAX_ATTEMPTS="${AUTOBOT_ENGINE_MAX_ATTEMPTS:-3}"
@@ -38,6 +39,14 @@ _autobot_engine_log_path() { printf '%s\n' "$AUTOBOT_ENGINE_LOG_FILE"; }
 _autobot_engine_status_path() { printf '%s\n' "$AUTOBOT_ENGINE_STATUS_FILE"; }
 _autobot_engine_runs_root() { printf '%s\n' "$AUTOBOT_ENGINE_RUNS_DIR"; }
 _autobot_engine_cleanup_path() { printf '%s\n' "$AUTOBOT_ENGINE_CLEANUP_FILE"; }
+_autobot_engine_config_path() { printf '%s\n' "$AUTOBOT_ENGINE_CONFIG_FILE"; }
+_autobot_engine_config_helper() { python3 "$SCRIPTS_DIR/lib/py/autobot_config.py" "$@"; }
+_autobot_engine_config_json() { _autobot_engine_config_helper dump --config-file "$(_autobot_engine_config_path)" --json; }
+_autobot_engine_config_get() {
+  local key="$1"
+  _autobot_engine_config_helper get --config-file "$(_autobot_engine_config_path)" --json "$key" |
+    python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])'
+}
 
 _autobot_engine_ensure_dirs() {
   mkdir -p "$AUTOBOT_ENGINE_DIR" "$AUTOBOT_ENGINE_RUNS_DIR"
@@ -128,7 +137,7 @@ _autobot_engine_run_opencode() {
 }
 
 _autobot_engine_queue_json() {
-  REPROCTL_JSON=true cmd_autonomy status --all --json
+  REPROCTL_JSON=true cmd_autobot_orchestrator status --all --json
 }
 
 _autobot_engine_select_work() {
@@ -137,10 +146,21 @@ _autobot_engine_select_work() {
 }
 
 _autobot_engine_queue_has_work() {
-  local selection_json selected_state
-  selection_json="$(_autobot_engine_select_work "$1")" || return 1
-  selected_state="$(printf '%s' "$selection_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); selected=payload.get("selected") or {}; print(selected.get("issue_identifier", ""))')"
-  [[ -n "$selected_state" ]]
+  python3 - "$1" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1] or '{}')
+items = payload.get('items')
+if not isinstance(items, list):
+    items = payload.get('claims') if isinstance(payload.get('claims'), list) else []
+
+for item in items:
+    if isinstance(item, dict) and item.get('claim_state') in {'queued', 'running'}:
+        raise SystemExit(0)
+
+raise SystemExit(1)
+PY
 }
 
 _autobot_engine_build_status_json() {
@@ -153,12 +173,26 @@ _autobot_engine_build_status_json() {
   local current_attempt="${7:-}"
   local last_tick_at="${8:-}"
   local args=()
+  local config_json merged_queue_json
 
   [[ "$running" == true ]] && args+=(--running)
   [[ -n "$current_attempt" ]] && args+=(--current-attempt "$current_attempt")
   [[ -n "$last_tick_at" ]] && args+=(--last-tick-at "$last_tick_at")
 
-  printf '%s' "$queue_json" | python3 "$SCRIPTS_DIR/lib/py/autobot_engine.py" render-status \
+  config_json="$(_autobot_engine_config_json)" || return 1
+  merged_queue_json="$(python3 - "$queue_json" "$config_json" <<'PY'
+import json
+import sys
+
+queue_payload = json.loads(sys.argv[1] or '{}')
+config = json.loads(sys.argv[2] or '{}')
+queue_payload['schema_version'] = queue_payload.get('schema_version') or config.get('schema_version') or 1
+queue_payload['config'] = config
+print(json.dumps(queue_payload))
+PY
+)" || return 1
+
+  printf '%s' "$merged_queue_json" | python3 "$SCRIPTS_DIR/lib/py/autobot_engine.py" render-status \
     --pid "${pid:-}" \
     --lock-path "$(_autobot_engine_lock_path)" \
     --pid-path "$(_autobot_engine_pid_path)" \
@@ -255,8 +289,9 @@ _autobot_engine_print_status_human() {
 }
 
 _autobot_engine_discover_candidates() {
+  local limit="${1:-10}"
   local discover_json
-  discover_json="$(autobot discover --json)" || return 1
+  discover_json="$(autobot discover --limit "$limit" --json)" || return 1
   printf '%s' "$discover_json" | python3 "$SCRIPTS_DIR/lib/py/autobot_engine.py" discover-ids
 }
 
@@ -333,7 +368,7 @@ _autobot_engine_apply_recovery_decision() {
 
   case "$action" in
     release)
-      REPROCTL_JSON=true cmd_autonomy release "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
+      REPROCTL_JSON=true cmd_autobot_orchestrator release "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
       if [[ "$fetch_main" = true ]]; then
         git -C "$MAIN_CHECKOUT" fetch --prune origin main >/dev/null 2>&1 || true
       fi
@@ -342,13 +377,13 @@ _autobot_engine_apply_recovery_decision() {
       fi
       ;;
     reconcile)
-      REPROCTL_JSON=true cmd_autonomy reconcile "$issue_identifier" >/dev/null 2>&1 || true
+      REPROCTL_JSON=true cmd_autobot_orchestrator reconcile "$issue_identifier" >/dev/null 2>&1 || true
       ;;
     cancel)
-      REPROCTL_JSON=true cmd_autonomy cancel "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
+      REPROCTL_JSON=true cmd_autobot_orchestrator cancel "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
       ;;
     retry)
-      REPROCTL_JSON=true cmd_autonomy retry "$issue_identifier" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
+      REPROCTL_JSON=true cmd_autobot_orchestrator retry "$issue_identifier" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
       ;;
     stop)
       _warn "Stopping work for $issue_identifier: $reason"
@@ -505,7 +540,7 @@ _autobot_engine_process_item() {
   mkdir -p "$MAIN_CHECKOUT/tmp"
   run_start_file="$(mktemp "$MAIN_CHECKOUT/tmp/autobot-engine-run-start.XXXXXX")"
 
-  if ! REPROCTL_JSON=true cmd_autonomy run start "$issue_identifier" --phase delivery --workspace "$workspace_path" >"$run_start_file" 2>/dev/null; then
+  if ! REPROCTL_JSON=true cmd_autobot_orchestrator run start "$issue_identifier" --phase delivery --workspace "$workspace_path" >"$run_start_file" 2>/dev/null; then
     _warn "Failed to start run for $issue_identifier"
     rm -f "$run_start_file"
     return 1
@@ -523,12 +558,12 @@ _autobot_engine_process_item() {
   mkdir -p "$run_dir"
 
   if ! _autobot_engine_run_delivery_attempt "$issue_identifier" "$workspace_path" "$attempt" "$run_dir" "$events_file"; then
-    REPROCTL_JSON=true cmd_autonomy run finish "$issue_identifier" --attempt "$attempt" --state failed --error "delivery phase failed" >/dev/null 2>&1 || true
+    REPROCTL_JSON=true cmd_autobot_orchestrator run finish "$issue_identifier" --attempt "$attempt" --state failed --error "delivery phase failed" >/dev/null 2>&1 || true
     _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt"
     return 1
   fi
 
-  REPROCTL_JSON=true cmd_autonomy run finish "$issue_identifier" --attempt "$attempt" --state finished >/dev/null 2>&1 || true
+  REPROCTL_JSON=true cmd_autobot_orchestrator run finish "$issue_identifier" --attempt "$attempt" --state finished >/dev/null 2>&1 || true
   snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$selected_item")"
   if _autobot_engine_apply_recovery_decision "$snapshot_json"; then
     return 0
@@ -554,7 +589,7 @@ _autobot_engine_process_queue() {
   selected_item="$selected_json"
 
   if [[ "$selected_state" == queued ]]; then
-    if ! REPROCTL_JSON=true cmd_autonomy prepare "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1; then
+    if ! REPROCTL_JSON=true cmd_autobot_orchestrator prepare "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1; then
       _warn "Failed to prepare queued item $selected_issue"
       _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
       return 0
@@ -581,7 +616,7 @@ _autobot_engine_process_queue() {
       _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
       return 0
     fi
-    REPROCTL_JSON=true cmd_autonomy retry "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
+    REPROCTL_JSON=true cmd_autobot_orchestrator retry "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
     _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
     return 0
   fi
@@ -592,15 +627,22 @@ _autobot_engine_process_queue() {
 
 _autobot_engine_run_once() {
   local queue_json status_json selected_json selected_issue
+  local auto_discover queue_depth max_concurrency discover_ids discover_id discovered_count=0
   queue_json="$(_autobot_engine_queue_json)"
+  auto_discover="$(_autobot_engine_config_get engine.auto-discover)" || return 1
+  queue_depth="$(_autobot_engine_config_get engine.queue-depth)" || return 1
+  max_concurrency="$(_autobot_engine_config_get engine.max-concurrency)" || return 1
 
-  if [[ "${AUTOBOT_ENGINE_AUTO_DISCOVER:-off}" = "on" ]] && command -v autobot >/dev/null 2>&1; then
-    local discover_ids discover_id
-    if discover_ids="$(_autobot_engine_discover_candidates)"; then
-      while IFS= read -r discover_id; do
-        [[ -n "$discover_id" ]] || continue
-        autobot add "$discover_id" >/dev/null 2>&1 || true
-      done <<< "$discover_ids"
+  if [[ "$auto_discover" = "on" ]] && command -v autobot >/dev/null 2>&1; then
+    if ! _autobot_engine_queue_has_work "$queue_json"; then
+      if discover_ids="$(_autobot_engine_discover_candidates "$queue_depth")"; then
+        while IFS= read -r discover_id; do
+          [[ -n "$discover_id" ]] || continue
+          [[ "$discovered_count" -ge "$max_concurrency" ]] && break
+          autobot add "$discover_id" >/dev/null 2>&1 || true
+          discovered_count=$((discovered_count + 1))
+        done <<< "$discover_ids"
+      fi
     fi
   fi
 

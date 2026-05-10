@@ -1,4 +1,4 @@
-"""Tests for autonomy_monitor_payload.py."""
+"""Tests for autobot_monitor_payload.py."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from conftest import run_script_json
 
 def test_batches_candidates_and_preserves_order():
     payload = run_script_json(
-        "autonomy_monitor_payload.py",
+        "autobot_monitor_payload.py",
         args=[
             json.dumps(
                 [

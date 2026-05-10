@@ -72,7 +72,11 @@ def test_select_work_polls_reconciling_items_before_recovery():
 
 
 def test_render_status_uses_expected_shape():
-    payload = {"items": [{"issue_identifier": "REP-1", "claim_state": "claimed"}]}
+    payload = {
+        "schema_version": 1,
+        "config": {"schema_version": 1, "config_path": "/repo/.autobot/config.json", "values": {}},
+        "items": [{"issue_identifier": "REP-1", "claim_state": "claimed"}],
+    }
 
     status = render_status(
         pid=1234,
@@ -89,11 +93,14 @@ def test_render_status_uses_expected_shape():
         last_tick_at="2026-05-08T12:34:56Z",
     )
 
-    assert set(status) == {"engine", "paths", "queue", "generated_at"}
+    assert set(status) == {"schema_version", "config", "engine", "paths", "queue", "generated_at"}
+    assert status["schema_version"] == 1
+    assert status["config"]["schema_version"] == 1
     assert status["engine"]["pid"] == 1234
     assert status["engine"]["running"] is True
     assert status["engine"]["mode"] == "daemon"
     assert status["queue"]["selected_work"]["issue_identifier"] == "REP-1"
+    assert status["queue"]["items"][0]["conditions"] == []
     assert status["paths"]["log"] == "/repo/.autobot/engine.log"
 
 

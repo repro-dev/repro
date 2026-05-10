@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 
+SCHEMA_VERSION = 1
 PUBLIC_STATE_MAP = {
     "queued": "queued",
     "claimed": "queued",
@@ -36,6 +37,61 @@ def _items(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return [item for item in items if isinstance(item, dict)]
 
 
+def _normalize_condition(value: Any) -> dict[str, Any] | None:
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return None
+        return {"kind": "condition", "value": value}
+
+    if not isinstance(value, dict):
+        return None
+
+    kind = str(value.get("kind") or value.get("type") or value.get("name") or "condition").strip()
+    condition_value = value.get("value")
+    if condition_value in (None, ""):
+        condition_value = value.get("reason") or value.get("state") or value.get("message") or value.get("text") or ""
+    condition_value = str(condition_value).strip()
+    if not condition_value:
+        return None
+
+    return {"kind": kind or "condition", "value": condition_value}
+
+
+def _public_conditions(item: dict[str, Any]) -> list[dict[str, Any]]:
+    conditions: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+
+    for key, kind in (
+        ("conditions", "condition"),
+        ("wait_conditions", "wait"),
+    ):
+        raw = item.get(key)
+        if isinstance(raw, list):
+            for entry in raw:
+                normalized = _normalize_condition(entry)
+                if normalized is None:
+                    continue
+                identity = (normalized["kind"], normalized["value"])
+                if identity in seen:
+                    continue
+                seen.add(identity)
+                conditions.append(normalized)
+
+    for key in ("retry_reason", "last_error", "linear_sync_error"):
+        raw_value = str(item.get(key) or "").strip()
+        if not raw_value:
+            continue
+        normalized = {"kind": key, "value": raw_value}
+        identity = (normalized["kind"], normalized["value"])
+        if identity in seen:
+            continue
+        seen.add(identity)
+        conditions.append(normalized)
+
+    return conditions
+
+
 def public_state(claim_state: str) -> str:
     return PUBLIC_STATE_MAP.get(claim_state, claim_state or "needs_attention")
 
@@ -51,6 +107,7 @@ def public_item(item: dict[str, Any]) -> dict[str, Any]:
         "attempt_count": int(item.get("attempt_count") or 0),
         "last_observed_issue_state_name": str(item.get("last_observed_issue_state_name") or ""),
         "last_observed_issue_state_type": str(item.get("last_observed_issue_state_type") or ""),
+        "conditions": _public_conditions(item),
     }
     reason = item.get("retry_reason") or item.get("last_error") or item.get("linear_sync_error")
     if reason:
@@ -86,6 +143,8 @@ def shape_status(payload: dict[str, Any], issue_identifier: str | None = None) -
     items = _public_items(payload, issue_identifier=issue_identifier)
     summary_items = [public_item(item) for item in _items(payload)]
     return {
+        "schema_version": payload.get("schema_version") or SCHEMA_VERSION,
+        "config": payload.get("config") if isinstance(payload.get("config"), dict) else {},
         "items": items,
         "summary": public_summary(summary_items),
         "generated_at": payload.get("generated_at") or "",
@@ -97,22 +156,29 @@ def discover_issue_ids(payload: dict[str, Any]) -> list[str]:
     seen: set[str] = set()
 
     waves = payload.get("waves")
-    if not isinstance(waves, list):
+    if isinstance(waves, list):
+        for wave in waves:
+            if not isinstance(wave, dict):
+                continue
+            issues = wave.get("issues")
+            if not isinstance(issues, list):
+                continue
+            for issue in issues:
+                if not isinstance(issue, dict):
+                    continue
+                identifier = str(issue.get("issue_identifier") or issue.get("identifier") or "").strip()
+                if identifier and identifier not in seen:
+                    seen.add(identifier)
+                    ids.append(identifier)
+
+    if ids:
         return ids
 
-    for wave in waves:
-        if not isinstance(wave, dict):
-            continue
-        issues = wave.get("issues")
-        if not isinstance(issues, list):
-            continue
-        for issue in issues:
-            if not isinstance(issue, dict):
-                continue
-            identifier = str(issue.get("issue_identifier") or issue.get("identifier") or "").strip()
-            if identifier and identifier not in seen:
-                seen.add(identifier)
-                ids.append(identifier)
+    for item in _items(payload):
+        identifier = str(item.get("issue_identifier") or item.get("identifier") or "").strip()
+        if identifier and identifier not in seen:
+            seen.add(identifier)
+            ids.append(identifier)
 
     return ids
 

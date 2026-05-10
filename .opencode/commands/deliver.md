@@ -1,6 +1,6 @@
 ---
 description: Deliver orchestration — explicit project-scoped wave mode or issue-scoped single-track mode
-return: "After the active run's PRs are published, run /ledger to capture the session summary for continuity."
+return: "After the active run's PRs are published, run /ledger to capture the session summary for continuity. Do not treat local verification as completion; PR creation is the publish gate."
 ---
 
 You are the orchestrator for `/deliver`.

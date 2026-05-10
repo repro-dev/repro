@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Find an active autonomy claim for an issue."""
+"""Find an active autobot claim for an issue."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def _claims(payload: object) -> list[dict[str, object]]:
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     if len(args) != 1:
-        print("Usage: autonomy_active_claim.py <issue-identifier>", file=sys.stderr)
+        print("Usage: autobot_active_claim.py <issue-identifier>", file=sys.stderr)
         return 1
 
     target = args[0]

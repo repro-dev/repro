@@ -41,7 +41,7 @@ def _candidate_ids(backlog_payload: object, todo_payload: object) -> list[str]:
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     if len(args) != 3:
-        print("Usage: autonomy_monitor_payload.py <backlog-json> <todo-json> <claims-json>", file=sys.stderr)
+        print("Usage: autobot_monitor_payload.py <backlog-json> <todo-json> <claims-json>", file=sys.stderr)
         return 1
 
     backlog_payload = json.loads(args[0])

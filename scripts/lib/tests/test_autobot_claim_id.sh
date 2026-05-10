@@ -1,16 +1,16 @@
 #!/bin/bash
-# scripts/lib/tests/test_autonomy_claim_id.sh
+# scripts/lib/tests/test_autobot_claim_id.sh
 #
 # Regression tests for claim identifier resolution.
 
 set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
-AUTONOMY_SH="$TESTS_DIR/../autonomy.sh"
+AUTOBOT_ORCH_SH="$TESTS_DIR/../autobot_orchestrator.sh"
 WORKTREE_SH="$TESTS_DIR/../worktree.sh"
-export TESTS_DIR AUTONOMY_SH WORKTREE_SH tmpdir
+export TESTS_DIR AUTOBOT_ORCH_SH WORKTREE_SH tmpdir
 
-tmpdir="$(mktemp -d 2>/dev/null || mktemp -d -t test_autonomy_claim_id)"
+tmpdir="$(mktemp -d 2>/dev/null || mktemp -d -t test_autobot_claim_id)"
 trap 'rm -rf "$tmpdir"' EXIT
 
 cat > "$tmpdir/run_test.sh" <<'RUNNER'
@@ -26,7 +26,7 @@ mkdir -p "$tmpdir/repro" "$tmpdir/tmp"
 slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
 worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
 source "$WORKTREE_SH"
-source "$AUTONOMY_SH"
+source "$AUTOBOT_ORCH_SH"
 
 linear() {
   case "$1 $2 $3" in
@@ -61,7 +61,7 @@ JSON
 
 workspace="$tmpdir/repro-wt-rep-1094"
 mkdir -p "$workspace"
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy claim REP-1094 --workspace "$workspace" --phase observe --issue-state In-Progress
+REPRO_AUTOBOT_DB="$tmpdir/state.sqlite" cmd_autobot_orchestrator claim REP-1094 --workspace "$workspace" --phase observe --issue-state In-Progress
 python3 - "$tmpdir/state.sqlite" <<'PY'
 import sqlite3
 import sys

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pure evaluator for autonomy monitor ticks."""
+"""Pure evaluator for autobot monitor ticks."""
 
 from __future__ import annotations
 
@@ -303,7 +303,7 @@ def _load_payload(text: str | None = None) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None, *, input_text: str | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="autonomy_monitor.py")
+    parser = argparse.ArgumentParser(prog="autobot_monitor.py")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--claimed-by")

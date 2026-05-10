@@ -1,4 +1,4 @@
-"""Tests for autonomy discovery prompt helpers."""
+"""Tests for autobot discovery prompt helpers."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 def test_render_discover_prompt_includes_candidate_json_and_schema_instructions():
-    from autonomy_sequence import render_sequence_prompt
+    from autobot_sequence import render_sequence_prompt
 
     template = """Discovery policy
 Schema version: {{SCHEMA_VERSION}}
@@ -65,9 +65,9 @@ Return strict JSON only.
 
 
 def test_render_discover_prompt_allows_discovery_pass_before_final_sequencing():
-    from autonomy_sequence import render_sequence_prompt
+    from autobot_sequence import render_sequence_prompt
 
-    template = """Autonomy discovery
+    template = """Autobot discovery
 Schema version: {{SCHEMA_VERSION}}
 
 Candidate evaluation:
@@ -104,7 +104,7 @@ Return strict JSON only.
 
 
 def test_apply_sequence_result_limit_caps_ready_issues_after_sequencing():
-    from autonomy_sequence import apply_sequence_result_limit
+    from autobot_sequence import apply_sequence_result_limit
 
     canonical = {
         "schema_version": 1,
@@ -141,7 +141,7 @@ def test_apply_sequence_result_limit_caps_ready_issues_after_sequencing():
 
 
 def test_normalize_sequence_response_accepts_fenced_json():
-    from autonomy_sequence import normalize_sequence_response
+    from autobot_sequence import normalize_sequence_response
 
     evaluation = {
         "items": [
@@ -190,7 +190,7 @@ def test_normalize_sequence_response_accepts_fenced_json():
     ],
 )
 def test_normalize_sequence_response_canonicalizes_cap_reason_variants(reason_variant: str):
-    from autonomy_sequence import normalize_sequence_response
+    from autobot_sequence import normalize_sequence_response
 
     evaluation = {
         "items": [
@@ -224,7 +224,7 @@ def test_normalize_sequence_response_canonicalizes_cap_reason_variants(reason_va
 
 
 def test_normalize_sequence_response_rejects_ineligible_issue_in_wave():
-    from autonomy_sequence import SequenceValidationError, normalize_sequence_response
+    from autobot_sequence import SequenceValidationError, normalize_sequence_response
 
     evaluation = {
         "items": [
@@ -257,7 +257,7 @@ def test_normalize_sequence_response_rejects_ineligible_issue_in_wave():
 
 
 def test_normalize_sequence_response_rejects_missing_waves():
-    from autonomy_sequence import SequenceValidationError, normalize_sequence_response
+    from autobot_sequence import SequenceValidationError, normalize_sequence_response
 
     with pytest.raises(SequenceValidationError, match="waves"):
         normalize_sequence_response(
@@ -269,7 +269,7 @@ def test_normalize_sequence_response_rejects_missing_waves():
 
 @pytest.mark.parametrize("missing_key", ["deferred", "risk_notes"])
 def test_normalize_sequence_response_rejects_missing_contract_keys(missing_key: str):
-    from autonomy_sequence import SequenceValidationError, normalize_sequence_response
+    from autobot_sequence import SequenceValidationError, normalize_sequence_response
 
     payload = {"schema_version": 1, "waves": [], "deferred": [], "risk_notes": []}
     payload.pop(missing_key)
@@ -278,7 +278,7 @@ def test_normalize_sequence_response_rejects_missing_contract_keys(missing_key: 
 
 
 def test_normalize_sequence_response_rejects_malformed_issue_entries():
-    from autonomy_sequence import SequenceValidationError, normalize_sequence_response
+    from autobot_sequence import SequenceValidationError, normalize_sequence_response
 
     with pytest.raises(SequenceValidationError, match="REP-9"):
         normalize_sequence_response(
@@ -302,7 +302,7 @@ def test_normalize_sequence_response_rejects_malformed_issue_entries():
 
 
 def test_write_sequence_artifacts_persists_latest_pointer(tmp_path: Path):
-    from autonomy_sequence import write_sequence_artifacts
+    from autobot_sequence import write_sequence_artifacts
 
     output_dir = tmp_path / "sequences"
     canonical = {
@@ -334,9 +334,9 @@ def test_write_sequence_artifacts_persists_latest_pointer(tmp_path: Path):
 
 
 def test_main_preserves_prompt_raw_and_error_artifacts_on_validation_failure(tmp_path: Path, capsys):
-    from autonomy_sequence import main
+    from autobot_sequence import main
 
-    template_path = tmp_path / "autonomy-sequence.md"
+    template_path = tmp_path / "autobot-sequence.md"
     template_path.write_text(
         """Discovery policy
 Schema version: {{SCHEMA_VERSION}}

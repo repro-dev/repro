@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Durable local state for autonomous orchestration."""
+"""Durable local state for autobot orchestration."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 
+SCHEMA_VERSION = 1
 ACTIVE_STATES = {"claimed", "running", "reconciling"}
 QUEUED_STATES = {"queued", "claimed", "running", "reconciling", "failed", "error", "stale"}
 TERMINAL_STATES = {"released", "stale", "canceled"}
@@ -133,7 +134,7 @@ class ActiveClaimError(RuntimeError):
         self.existing_claim = existing_claim
 
 
-class AutonomyStore:
+class AutobotStore:
     def __init__(
         self,
         db_path: str | Path,
@@ -767,6 +768,7 @@ class AutonomyStore:
             runs_dict = [dict(row) for row in runs]
             summary_items = all_items_dict
             return {
+                "schema_version": SCHEMA_VERSION,
                 "items": items_dict,
                 "runs": runs_dict,
                 "summary": {
@@ -784,10 +786,10 @@ class AutonomyStore:
 def _resolve_db_path(args: argparse.Namespace) -> Path:
     if args.db:
         return Path(args.db)
-    if os.environ.get("REPRO_AUTONOMY_DB"):
-        return Path(os.environ["REPRO_AUTONOMY_DB"])
+    if os.environ.get("REPRO_AUTOBOT_DB"):
+        return Path(os.environ["REPRO_AUTOBOT_DB"])
     main_checkout = Path(args.main_checkout or os.environ.get("MAIN_CHECKOUT", os.getcwd()))
-    return main_checkout / "tmp" / "autonomy" / "state.sqlite"
+    return main_checkout / ".autobot" / "state.sqlite"
 
 
 def _resolve_main_checkout(args: argparse.Namespace) -> Path:
@@ -887,7 +889,7 @@ def _status_table(items: list[dict[str, Any]], runs: list[dict[str, Any]]) -> st
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="autonomy_state.py")
+    parser = argparse.ArgumentParser(prog="autobot_state.py")
     parser.add_argument("--db")
     parser.add_argument("--main-checkout")
     parser.add_argument("--workspace-root")
@@ -963,7 +965,7 @@ def main(argv: list[str] | None = None) -> int:
     db_path = _resolve_db_path(args)
     main_checkout = _resolve_main_checkout(args)
     workspace_root = _resolve_workspace_root(args, main_checkout)
-    store = AutonomyStore(
+    store = AutobotStore(
         db_path=db_path,
         main_checkout=main_checkout,
         workspace_root=workspace_root,
@@ -1105,3 +1107,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

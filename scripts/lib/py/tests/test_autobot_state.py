@@ -1,5 +1,6 @@
-"""Tests for autonomy_state.py."""
+"""Tests for autobot_state.py."""
 
+import argparse
 import os
 import sqlite3
 import sys
@@ -10,13 +11,13 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from autonomy_state import ActiveClaimError, AutonomyStore, main
+from autobot_state import ActiveClaimError, AutobotStore, _resolve_db_path, main
 
 
-def _store(tmp_path: Path, workspace_root: Path | None = None) -> AutonomyStore:
+def _store(tmp_path: Path, workspace_root: Path | None = None) -> AutobotStore:
     checkout = tmp_path / "checkout"
     checkout.mkdir(exist_ok=True)
-    return AutonomyStore(
+    return AutobotStore(
         db_path=tmp_path / "state.sqlite",
         main_checkout=checkout,
         workspace_root=workspace_root,
@@ -68,6 +69,15 @@ def _legacy_db(tmp_path: Path) -> Path:
     return db_path
 
 
+def test_default_db_path_lives_under_autobot(tmp_path: Path):
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+
+    db_path = _resolve_db_path(argparse.Namespace(db=None, main_checkout=checkout))
+
+    assert db_path == checkout / ".autobot" / "state.sqlite"
+
+
 def test_claim_survives_store_reload(tmp_path: Path):
     store = _store(tmp_path)
     workspace = _workspace(tmp_path)
@@ -90,6 +100,14 @@ def test_claim_survives_store_reload(tmp_path: Path):
     assert status["items"][0]["issue_identifier"] == "REP-1094"
     assert status["items"][0]["workspace_path"] == str(workspace)
     assert status["items"][0]["claim_state"] == "claimed"
+
+
+def test_status_includes_schema_version(tmp_path: Path):
+    store = _store(tmp_path)
+
+    status = store.status()
+
+    assert status["schema_version"] == 1
 
 
 def test_duplicate_active_claim_is_rejected(tmp_path: Path):
@@ -231,7 +249,7 @@ def test_legacy_claim_schema_is_migrated_in_place(tmp_path: Path):
             ),
         )
 
-    store = AutonomyStore(db_path=db_path, main_checkout=tmp_path / "checkout")
+    store = AutobotStore(db_path=db_path, main_checkout=tmp_path / "checkout")
     status = store.status()
 
     with sqlite3.connect(db_path) as conn:

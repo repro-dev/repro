@@ -1,12 +1,12 @@
 #!/bin/bash
-# scripts/lib/tests/test_autonomy_lifecycle.sh
+# scripts/lib/tests/test_autobot_lifecycle.sh
 #
-# Regression tests for autonomy lifecycle control commands.
+# Regression tests for autobot lifecycle control commands.
 
 set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
-AUTONOMY_SH="$TESTS_DIR/../autonomy.sh"
+AUTOBOT_ORCH_SH="$TESTS_DIR/../autobot_orchestrator.sh"
 WORKTREE_SH="$TESTS_DIR/../worktree.sh"
 REPO_ROOT="$(cd "$TESTS_DIR/../../.." && pwd -P)"
 
@@ -19,7 +19,7 @@ _fail() { printf '  ✖ %s\n  %s\n' "$1" "${2:-}" >&2; FAIL=$((FAIL + 1)); TESTS
 
 _make_tmpdir() {
   mkdir -p "$REPO_ROOT/tmp"
-  mktemp -d "$REPO_ROOT/tmp/test_autonomy_lifecycle.XXXXXX"
+  mktemp -d "$REPO_ROOT/tmp/test_autobot_lifecycle.XXXXXX"
 }
 
 _write_runner() {
@@ -46,7 +46,7 @@ mkdir -p "$tmpdir/repro" "$tmpdir/tmp"
 slugify() { printf '%s\n' "\$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
 worktree_path() { echo "\${WORKSPACE_ROOT:-\$PARENT_DIR}/repro-wt-\$1"; }
 source "$WORKTREE_SH"
-source "$AUTONOMY_SH"
+source "$AUTOBOT_ORCH_SH"
 $extra
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
@@ -159,7 +159,7 @@ JSON
 }
 
 python3 -c "import sqlite3,sys; db_path=sys.argv[1]; conn=sqlite3.connect(db_path); conn.execute(\"UPDATE claims SET linear_assignment_owned = 0 WHERE issue_identifier = ?\", [\"REP-1095\"]); conn.commit()" "$tmpdir/state.sqlite"
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPROCTL_JSON=true cmd_autonomy cancel REP-1095 --reason "manual stop"
+REPRO_AUTOBOT_DB="$tmpdir/state.sqlite" REPROCTL_JSON=true cmd_autobot_orchestrator cancel REP-1095 --reason "manual stop"
 '
   stdout_file="$tmpdir/stdout.json"
   stderr_file="$tmpdir/stderr.txt"
@@ -196,16 +196,16 @@ PY
   then
     if grep -q 'assigneeId: null' "$tmpdir/linear-calls.log"; then
       rm -rf "$tmpdir"
-      _pass 'cmd_autonomy cancel emits JSON and records Linear sync'
+      _pass 'cmd_autobot_orchestrator cancel emits JSON and records Linear sync'
     else
       output="$(cat "$stderr_file" 2>/dev/null)"
       rm -rf "$tmpdir"
-      _fail 'cmd_autonomy cancel emits JSON and records Linear sync' "rc=$rc; output=$output"
+      _fail 'cmd_autobot_orchestrator cancel emits JSON and records Linear sync' "rc=$rc; output=$output"
     fi
   else
     output="$(cat "$stderr_file" 2>/dev/null)"
     rm -rf "$tmpdir"
-    _fail 'cmd_autonomy cancel emits JSON and records Linear sync' "rc=$rc; output=$output"
+    _fail 'cmd_autobot_orchestrator cancel emits JSON and records Linear sync' "rc=$rc; output=$output"
   fi
 }
 
@@ -307,14 +307,14 @@ JSON
   esac
 }
 
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" cmd_autonomy retry REP-1095 --phase observe --claimed-by autopilot
+REPRO_AUTOBOT_DB="$tmpdir/state.sqlite" cmd_autobot_orchestrator retry REP-1095 --phase observe --claimed-by autopilot
 '
   output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   rm -rf "$tmpdir"
   if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -qi 'claim is not retryable'; then
-    _pass 'cmd_autonomy retry rejects active claims'
+    _pass 'cmd_autobot_orchestrator retry rejects active claims'
   else
-    _fail 'cmd_autonomy retry rejects active claims' "rc=$rc; output=$output"
+    _fail 'cmd_autobot_orchestrator retry rejects active claims' "rc=$rc; output=$output"
   fi
 }
 
@@ -445,7 +445,7 @@ cmd_wt_create() {
   mkdir -p "$WT_ISSUE_WORKTREE_PATH"
 }
 
-REPRO_AUTONOMY_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fresh1 REPROCTL_JSON=true cmd_autonomy retry REP-1095 --phase observe --claimed-by autopilot
+REPRO_AUTOBOT_DB="$tmpdir/state.sqlite" REPRO_ISSUE_WORKTREE_SUFFIX=fresh1 REPROCTL_JSON=true cmd_autobot_orchestrator retry REP-1095 --phase observe --claimed-by autopilot
 '
   stdout_file="$tmpdir/stdout.json"
   stderr_file="$tmpdir/stderr.txt"
@@ -474,11 +474,11 @@ assert row[2] is None, row
 PY
   then
     rm -rf "$tmpdir"
-    _pass 'cmd_autonomy retry rehydrates a released claim through prepare'
+    _pass 'cmd_autobot_orchestrator retry rehydrates a released claim through prepare'
   else
     output="$(cat "$stderr_file" 2>/dev/null)"
     rm -rf "$tmpdir"
-    _fail 'cmd_autonomy retry rehydrates a released claim through prepare' "rc=$rc; output=$output"
+    _fail 'cmd_autobot_orchestrator retry rehydrates a released claim through prepare' "rc=$rc; output=$output"
   fi
 }
 

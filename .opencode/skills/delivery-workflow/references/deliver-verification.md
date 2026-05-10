@@ -16,4 +16,4 @@
 - Prettier format check.
 - Conditional container / deploy jobs.
 
-`/deliver` publishes PRs after local verification and does **not** wait on CI. Report local checks separately so CI status is never implied unless it was actually observed elsewhere.
+`/deliver` publishes PRs after local verification and does **not** wait on CI. A run is not complete until the PR exists and the publish phase has run. Report local checks separately so CI status is never implied unless it was actually observed elsewhere.

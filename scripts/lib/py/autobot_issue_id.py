@@ -10,7 +10,7 @@ import sys
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     if len(args) != 1:
-        print("Usage: autonomy_issue_id.py <issue-json>", file=sys.stderr)
+        print("Usage: autobot_issue_id.py <issue-json>", file=sys.stderr)
         return 1
 
     payload = json.loads(args[0])

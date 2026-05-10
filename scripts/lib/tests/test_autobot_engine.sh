@@ -105,7 +105,7 @@ worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
     printf '%s\n' "$*" >> "$TEST_TMPDIR/opencode.log"
     printf 'phase output: %s\n' "$*"
   }
-  cmd_autonomy() {
+  cmd_autobot_orchestrator() {
     case "$*" in
       status\ --all\ --json)
         printf '%s\n' "{\"items\":[{\"issue_identifier\":\"REP-1094\",\"claim_state\":\"claimed\",\"workspace_path\":\"$TEST_TMPDIR/workspaces/repro-wt-rep-1094\",\"attempt_count\":0}],\"runs\":[],\"summary\":{\"claim_states\":{\"claimed\":1},\"active_runs\":0,\"stale_claims\":0,\"failed_runs\":0,\"sync_errors\":0},\"recent_errors\":[],\"generated_at\":\"2026-05-08T12:00:00Z\"}"
@@ -135,6 +135,8 @@ import sys
 from pathlib import Path
 
 status = json.loads(Path(sys.argv[1]).read_text())
+assert status["schema_version"] == 1
+assert status["config"]["schema_version"] == 1
 assert "engine" in status and "queue" in status
 assert status["engine"]["running"] is True
 PY
@@ -263,7 +265,7 @@ while :; do sleep 1; done
 DAEMON
 chmod +x "$SCRIPT_DIR/autobot-engine.sh"
 cmd_opencode() { printf 'OPENCODE %s\n' "$*"; }
-cmd_autonomy() {
+cmd_autobot_orchestrator() {
   case "$*" in
     status\ --all\ --json)
       printf '%s\n' "{\"items\":[{\"issue_identifier\":\"REP-1094\",\"claim_state\":\"claimed\",\"workspace_path\":\"$TEST_TMPDIR/workspaces/repro-wt-rep-1094\",\"attempt_count\":0}],\"runs\":[],\"summary\":{\"claim_states\":{\"claimed\":1},\"active_runs\":0,\"stale_claims\":0,\"failed_runs\":0,\"sync_errors\":0},\"recent_errors\":[],\"generated_at\":\"2026-05-08T12:00:00Z\"}"
@@ -282,7 +284,7 @@ cmd_autonomy() {
       ;;
   esac
 }
-export -f cmd_opencode cmd_autonomy
+export -f cmd_opencode cmd_autobot_orchestrator
 cmd_autobot_engine start -d
 cmd_autobot_engine status --json
 cmd_autobot_engine stop
@@ -334,7 +336,7 @@ RUNNER
   rm -rf "$tmpdir"
 }
 
-test_auto_discover_invokes_external_autobot() {
+test_auto_discover_runs_when_queue_empty() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
   cat > "$tmpdir/run_test.sh" <<'RUNNER'
@@ -360,9 +362,10 @@ SCRIPTS_DIR="$SCRIPT_DIR"
 slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
 worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
 source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+_autobot_engine_config_helper set --config-file "$TEST_TMPDIR/repro/.autobot/config.json" --json engine.auto-discover on >/dev/null
 autobot() {
   case "$*" in
-    discover\ --json)
+    discover\ --limit\ 10\ --json)
       printf '%s\n' '{"items":[{"issue_identifier":"REP-1094"}]}'
       ;;
     add\ REP-1094)
@@ -373,7 +376,7 @@ autobot() {
       ;;
   esac
 }
-cmd_autonomy() {
+cmd_autobot_orchestrator() {
   case "$*" in
     status\ --all\ --json)
       printf '%s\n' '{"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
@@ -388,9 +391,205 @@ RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
   if [ $rc -eq 0 ] && [ -f "$tmpdir/added.txt" ]; then
-    _pass 'auto-discover shells out to external autobot commands when enabled'
+    _pass 'auto-discover runs when the queue is empty'
   else
-    _fail 'auto-discover shells out to external autobot commands when enabled' "rc=$rc; output=$output"
+    _fail 'auto-discover runs when the queue is empty' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_auto_discover_skips_when_queue_has_active_work() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TMP_DIR"
+ln -s "$TEST_SCRIPTS_DIR" "$TEST_TMPDIR/repro/scripts"
+export CALLER_PWD="$TEST_TMPDIR/repro"
+SCRIPT_DIR="$TEST_TMPDIR/repro/scripts"
+SCRIPTS_DIR="$SCRIPT_DIR"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+_autobot_engine_config_helper set --config-file "$TEST_TMPDIR/repro/.autobot/config.json" --json engine.auto-discover on >/dev/null
+autobot() {
+  case "$*" in
+    discover\ --limit\ 10\ --json)
+      printf '%s\n' 'discover-called' > "$TEST_TMPDIR/discover.log"
+      printf '%s\n' '{"items":[{"issue_identifier":"REP-1094"}]}'
+      ;;
+    add\ REP-1094)
+      printf '%s\n' 'added' > "$TEST_TMPDIR/added.txt"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+cmd_autobot_orchestrator() {
+  case "$*" in
+    status\ --all\ --json)
+      printf '%s\n' '{"schema_version":1,"items":[{"issue_identifier":"REP-1094","claim_state":"queued","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":0},{"issue_identifier":"REP-1095","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1095","attempt_count":1}],"runs":[],"summary":{"claim_states":{"queued":1,"running":1},"active_runs":1,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+      ;;
+    prepare\ REP-1094\ --phase\ delivery\ --claimed-by\ autobot-engine)
+      printf '%s\n' '{"claim":{"issue_identifier":"REP-1094"}}' > "$TEST_TMPDIR/prepared.txt"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+AUTOBOT_ENGINE_AUTO_DISCOVER=on cmd_autobot_engine start --once
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && [ ! -f "$tmpdir/discover.log" ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/added.txt" ]; then
+    _pass 'auto-discover skips when queued or running work is present'
+  else
+    _fail 'auto-discover skips when queued or running work is present' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_auto_discover_can_be_disabled_by_config() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TMP_DIR"
+ln -s "$TEST_SCRIPTS_DIR" "$TEST_TMPDIR/repro/scripts"
+export CALLER_PWD="$TEST_TMPDIR/repro"
+SCRIPT_DIR="$TEST_TMPDIR/repro/scripts"
+SCRIPTS_DIR="$SCRIPT_DIR"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+_autobot_engine_config_helper set --config-file "$TEST_TMPDIR/repro/.autobot/config.json" --json engine.auto-discover off >/dev/null
+autobot() {
+  case "$*" in
+    discover\ --limit\ 10\ --json)
+      printf '%s\n' '{"items":[{"issue_identifier":"REP-1094"}]}'
+      ;;
+    add\ REP-1094)
+      printf '%s\n' "added" > "$TEST_TMPDIR/added.txt"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+cmd_autobot_orchestrator() {
+  case "$*" in
+    status\ --all\ --json)
+      printf '%s\n' '{"schema_version":1,"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+cmd_autobot_engine start --once
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && [ ! -f "$tmpdir/added.txt" ]; then
+    _pass 'auto-discover is disabled by config even when the env var is on'
+  else
+    _fail 'auto-discover is disabled by config even when the env var is on' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_auto_discover_caps_intake_by_queue_depth_and_concurrency() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TMP_DIR"
+ln -s "$TEST_SCRIPTS_DIR" "$TEST_TMPDIR/repro/scripts"
+export CALLER_PWD="$TEST_TMPDIR/repro"
+SCRIPT_DIR="$TEST_TMPDIR/repro/scripts"
+SCRIPTS_DIR="$SCRIPT_DIR"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+_autobot_engine_config_helper set --config-file "$TEST_TMPDIR/repro/.autobot/config.json" --json engine.auto-discover on >/dev/null
+_autobot_engine_config_helper set --config-file "$TEST_TMPDIR/repro/.autobot/config.json" --json engine.queue-depth 2 >/dev/null
+_autobot_engine_config_helper set --config-file "$TEST_TMPDIR/repro/.autobot/config.json" --json engine.max-concurrency 1 >/dev/null
+autobot() {
+  case "$*" in
+    discover\ --limit\ 2\ --json)
+      printf '%s\n' '{"items":[{"issue_identifier":"REP-1094"},{"issue_identifier":"REP-1095"}]}' > "$TEST_TMPDIR/discover.args"
+      printf '%s\n' '{"items":[{"issue_identifier":"REP-1094"},{"issue_identifier":"REP-1095"}]}'
+      ;;
+    add\ REP-1094)
+      printf '%s\n' "REP-1094" >> "$TEST_TMPDIR/added.log"
+      ;;
+    add\ REP-1095)
+      printf '%s\n' "REP-1095" >> "$TEST_TMPDIR/added.log"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+cmd_autobot_orchestrator() {
+  case "$*" in
+    status\ --all\ --json)
+      printf '%s\n' '{"schema_version":1,"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+cmd_autobot_engine start --once
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/discover.args" ] && [ "$(wc -l < "$tmpdir/added.log" | tr -d ' ')" = "1" ] && grep -q 'REP-1094' "$tmpdir/added.log" && ! grep -q 'REP-1095' "$tmpdir/added.log"; then
+    _pass 'auto-discover caps intake by configured queue depth and concurrency'
+  else
+    _fail 'auto-discover caps intake by configured queue depth and concurrency' "rc=$rc; output=$output"
   fi
   rm -rf "$tmpdir"
 }
@@ -418,7 +617,7 @@ slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-z
 worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
 source "$SCRIPTS_DIR/lib/autobot-engine.sh"
 cmd_opencode() { printf 'OPENCODE %s\n' "$*"; }
-cmd_autonomy() {
+cmd_autobot_orchestrator() {
   case "$*" in
     status\ --all\ --json)
       printf '%s\n' '{"items":[{"issue_identifier":"REP-1094","claim_state":"queued","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":0}],"runs":[],"summary":{"claim_states":{"queued":1},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
@@ -457,7 +656,10 @@ test_foreground_start_once_writes_metadata
 test_worktree_guard_rejects_non_main_checkout
 test_restart_preserves_daemon_mode
 test_daemon_start_status_and_stop
-test_auto_discover_invokes_external_autobot
+test_auto_discover_runs_when_queue_empty
+test_auto_discover_skips_when_queue_has_active_work
+test_auto_discover_can_be_disabled_by_config
+test_auto_discover_caps_intake_by_queue_depth_and_concurrency
 test_queued_work_is_prepared_before_delivery
 
 echo ""

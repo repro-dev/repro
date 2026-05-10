@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render JSON responses for autonomy prepare flows."""
+"""Render JSON responses for autobot prepare flows."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import sys
 
 def _usage() -> int:
     print(
-        "Usage: autonomy_prepare_json.py existing-claim <claim-json> | prepare <phase> <claimed-by> <issue-id> <issue-identifier> <workspace-path> <branch> <slug> <issue-state-name> <issue-state-type> <claim-json>",
+        "Usage: autobot_prepare_json.py existing-claim <claim-json> | prepare <phase> <claimed-by> <issue-id> <issue-identifier> <workspace-path> <branch> <slug> <issue-state-name> <issue-state-type> <claim-json>",
         file=sys.stderr,
     )
     return 1
