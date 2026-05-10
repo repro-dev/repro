@@ -90,7 +90,7 @@ export function Header() {
             )}
             href={signupHref}
           >
-            Start free
+            Get started for free
           </a>
 
           <button
@@ -114,7 +114,7 @@ export function Header() {
           className={headerStyles.mobileMenu}
           role="dialog"
           aria-modal="true"
-          aria-labelledby="marketing-menu-title"
+          aria-label="Site navigation"
           onClick={() => closeMobileMenu()}
           onKeyDown={handleMobileMenuKeyDown}
         >
@@ -123,13 +123,6 @@ export function Header() {
             onClick={event => event.stopPropagation()}
           >
             <div className={headerStyles.mobileMenuHeader}>
-              <h2
-                id="marketing-menu-title"
-                className={headerStyles.mobileMenuTitle}
-              >
-                Site navigation
-              </h2>
-
               <button
                 ref={closeButtonRef}
                 type="button"
@@ -164,7 +157,7 @@ export function Header() {
               )}
               onClick={() => closeMobileMenu(false)}
             >
-              Start free
+              Get started for free
             </a>
           </div>
         </div>

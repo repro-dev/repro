@@ -81,10 +81,8 @@ export function HomePageContent({ appUrl }: HomePageContentProps) {
         )}
       >
         <div className={homeStyles.closingInner}>
-          <p className={sharedStyles.sectionKicker}>Closing CTA</p>
-
           <h2 className={sharedStyles.sectionTitle}>
-            Capture the bug. Let AI find the fix.
+            Record the bug. Let AI find the fix.
           </h2>
 
           <div className={homeStyles.closingActions}>
@@ -92,14 +90,7 @@ export function HomePageContent({ appUrl }: HomePageContentProps) {
               className={cx(sharedStyles.button, sharedStyles.primaryCta)}
               href={appUrl}
             >
-              Start free
-            </a>
-
-            <a
-              className={cx(sharedStyles.button, sharedStyles.secondaryCta)}
-              href="#features"
-            >
-              See how it works
+              Get started for free
             </a>
           </div>
         </div>

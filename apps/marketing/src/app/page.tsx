@@ -6,9 +6,9 @@ import { createEnv } from '~/config/env'
 void React
 
 export const metadata: Metadata = {
-  title: 'Capture the bug. Let AI find the fix.',
+  title: 'Record the bug. Let AI find the fix.',
   description:
-    'Repro captures the session so AI can inspect the evidence, find the cause, and hand off the next step.',
+    'Repro creates replayable bug reports with clicks, errors, and network requests so coding agents can fix problems faster.',
 }
 
 export default function HomePage() {

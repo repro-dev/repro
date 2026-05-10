@@ -54,7 +54,7 @@ describe('marketing homepage route', () => {
     const header = screen.getByRole('banner')
     const logo = header.querySelector('svg') as SVGSVGElement | null
     const heroHeading = screen.getByRole('heading', {
-      name: 'Capture the bug. Let AI find the fix.',
+      name: 'Record the bug. Let AI find the fix.',
       level: 1,
     })
 
@@ -68,12 +68,12 @@ describe('marketing homepage route', () => {
 
     assert.ok(
       screen.getByText(
-        /one recorded session gives the agent the evidence to diagnose/i
+        /captures the clicks, errors, and network requests behind a bug/i
       )
     )
     assert.ok(
       screen
-        .getAllByRole('link', { name: 'Start free' })
+        .getAllByRole('link', { name: 'Get started for free' })
         .some(
           (link: HTMLElement) =>
             link.getAttribute('href') === 'https://app.example.test'
@@ -89,25 +89,25 @@ describe('marketing homepage route', () => {
     assert.ok(
       screen.getByText('Record the full session before the issue disappears.')
     )
-    assert.ok(screen.getByText('Let the agent find the fix.'))
+    assert.ok(screen.getByText('Give each bug a clear trail of evidence.'))
     assert.ok(document.querySelector('#features'))
     assert.equal(screen.queryByText('Activation'), null)
     assert.equal(screen.queryByText('Trust'), null)
     assert.ok(
       screen.getByRole('heading', {
-        name: 'Capture the bug. Let AI find the fix.',
+        name: 'Record the bug. Let AI find the fix.',
         level: 2,
       })
     )
-    assert.equal(metadata.title, 'Capture the bug. Let AI find the fix.')
+    assert.equal(metadata.title, 'Record the bug. Let AI find the fix.')
     assert.ok(
       metadata.description?.includes(
-        'AI can inspect the evidence, find the cause'
+        'clicks, errors, and network requests so coding agents can fix problems faster'
       )
     )
 
-    assert.ok(screen.getAllByText('Replay notes').length >= 1)
-    assert.ok(screen.getAllByText('Fix log').length >= 1)
+    assert.equal(screen.queryByText('Replay notes'), null)
+    assert.equal(screen.queryByText('Fix log'), null)
     assert.equal(screen.queryByText('capture-analyze-handoff'), null)
     assert.equal(screen.queryByText('Session-Replay-Brief'), null)
 
@@ -115,10 +115,13 @@ describe('marketing homepage route', () => {
     const footerLinks = within(footer)
 
     assert.ok(footerLinks.getByText('Product'))
-    assert.ok(footerLinks.getByText('Workflow'))
+    assert.equal(footerLinks.queryByText('Workflow'), null)
     assert.ok(footerLinks.getByText('Company'))
     assert.ok(footerLinks.getByText('Legal'))
-    assert.ok(footerLinks.getByRole('link', { name: 'GitHub' }))
-    assert.ok(footerLinks.getByRole('link', { name: 'X' }))
+    assert.ok(footerLinks.getByRole('link', { name: 'How it works' }))
+    assert.ok(footerLinks.getByRole('link', { name: 'Log in' }))
+    assert.equal(footerLinks.queryByRole('link', { name: 'GitHub' }), null)
+    assert.equal(footerLinks.queryByRole('link', { name: 'X' }), null)
+    assert.ok(footerLinks.getByText(/Repro Software Ltd/))
   })
 })

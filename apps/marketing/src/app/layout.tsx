@@ -26,11 +26,11 @@ const mono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Repro — Capture the bug. Let AI find the fix.',
+    default: 'Repro — Record the bug. Let AI find the fix.',
     template: '%s | Repro',
   },
   description:
-    'Repro captures sessions so AI can inspect the evidence, find the cause, and hand off the next step.',
+    'Repro creates replayable bug reports with clicks, errors, and network requests so coding agents can fix problems faster.',
   metadataBase: new URL(process.env.REPRO_MARKETING_URL ?? 'https://repro.dev'),
 }
 

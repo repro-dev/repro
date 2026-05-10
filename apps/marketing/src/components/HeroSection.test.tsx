@@ -27,12 +27,19 @@ describe('HeroSection', () => {
       React.createElement(HeroSection, { appUrl: 'https://app.repro.test' })
     )
 
-    const primaryCta = screen.getByRole('link', { name: 'Start free' })
+    const primaryCta = screen.getByRole('link', {
+      name: 'Get started for free',
+    })
 
     assert.equal(primaryCta.getAttribute('href'), 'https://app.repro.test')
     assert.ok(screen.getByRole('link', { name: 'See how it works' }))
-    assert.ok(screen.getByText('Capture / AI / find / fix'))
-    assert.ok(screen.getByText('Capture the bug. Let AI find the fix.'))
+    assert.ok(screen.getByText('Replayable bug reports for coding agents'))
+    assert.ok(screen.getByText('Record the bug. Let AI find the fix.'))
+    assert.ok(
+      screen.getByText(
+        'Repro captures the clicks, errors, and network requests behind a bug so coding agents can fix it faster.'
+      )
+    )
     assert.ok(screen.getByText('recorded evidence'))
     assert.ok(screen.getAllByText('AI finds the cause').length >= 1)
     assert.ok(screen.getByText('capture'))

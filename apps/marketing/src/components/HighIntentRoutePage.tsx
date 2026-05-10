@@ -39,7 +39,7 @@ export function HighIntentRoutePage({
             className={cx(sharedStyles.button, sharedStyles.primaryCta)}
             href={signupHref}
           >
-            Get started free
+            Get started for free
           </a>
 
           {secondaryCta ? (
