@@ -7,6 +7,14 @@ description: Top-level orchestration for features and fixes — pre-flight, plan
 
 Use this skill when you are starting a feature or fix. Keep it thin: it coordinates the work and points to the detailed support skills.
 
+## Shared `/deliver` fragments
+
+- `.opencode/skills/delivery-workflow/references/deliver-command-contract.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phases.md`
+- `.opencode/skills/delivery-workflow/references/deliver-verification.md`
+
+`/deliver` and this skill read the same fragments as the canonical source of truth for autonomous delivery orchestration.
+
 ## Load these support skills as needed
 
 - `worktree-workflow` — worktree isolation, lifecycle, and parallel worktree rules
@@ -58,7 +66,8 @@ For non-trivial UI changes, use `design-direction` only when the direction is st
 - Let `implementation-rigor` own the red/green/refactor loop and verification order.
 - Let `worktree-workflow` own isolation and branch/worktree mechanics.
 - Let `git-workflow` own commit and PR handling.
-- Never duplicate those rules here; this skill is the orchestrator, not the rule book.
+- Keep this skill thin; the detailed `/deliver` command contract, phase flow, and verification wording live in the shared fragments above.
+- Never duplicate those rules here.
 
 ## 5. Review loop handling
 
@@ -74,5 +83,3 @@ When a task enters the develop → review cycle, keep the loop iterative until b
    - the loop reaches 3 consecutive fix attempts for the same issue
 6. If the loop reaches the 3-attempt safety limit without clearing the Blockers, stop and ask the user whether to continue, defer, or escalate.
 7. If some issues in a batch are clean while others hit the safety stop, publish the merge-ready ones and surface a concise status summary for the blocked remainder.
-
-This keeps the workflow moving toward a clean review by default while still preserving a hard stop before unattended retries turn into a runaway loop.
