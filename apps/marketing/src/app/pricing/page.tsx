@@ -8,30 +8,31 @@ const tiers = [
   {
     name: 'Free',
     price: '$0/month',
-    audience: 'For individuals trying Repro on a real issue.',
+    audience:
+      'For individuals testing Repro with 25 saved recordings per month and a $10 one-off AI usage credit.',
     points: [
-      'Capture a session and review the replay.',
-      'Use the basic workflow to understand the issue before you scale up.',
+      'Save up to 25 recordings per month in a personal workspace.',
+      "Includes a $10 one-off AI usage credit for trying Repro's agentic debugging tools.",
     ],
   },
   {
-    name: 'Repro+',
-    price: '$19/user/month',
+    name: 'Growth',
+    price: '$29/user/month',
     audience:
-      'For engineers and QA teams that need richer evidence and AI diagnosis.',
+      'For teams using replayable bug reports to improve bug burn-down and product quality.',
     points: [
-      'Add more structure to the evidence trail.',
-      'Keep the core capture-to-diagnose workflow available to each user.',
+      'Save unlimited recordings across shared team projects.',
+      'Includes SDK access, MCP server access, and $10/month AI usage credit per user.',
     ],
   },
   {
-    name: 'Repro++',
-    price: '$49/user/month',
+    name: 'Scale',
+    price: 'Contact us',
     audience:
-      'For teams that need shared projects, SDK/reporting flow support, retention controls, handoff support, and collaboration.',
+      'For scale-ups standardising product quality across teams, projects, and longer-lived workflows.',
     points: [
-      'Coordinate across the people who file and fix the issue.',
-      'Use the shared workflow when the team needs a broader operating lane with SDK/reporting flow support and retention controls.',
+      'Unlimited projects, extended retention, and higher per-user AI usage credit.',
+      'Adds onboarding, priority support, and procurement support for larger teams.',
     ],
   },
 ] as const
@@ -39,25 +40,25 @@ const tiers = [
 export const metadata: Metadata = {
   title: 'Pricing',
   description:
-    'Compare Free, Repro+, and Repro++ plans for teams that need captured evidence, replay inspection, AI diagnosis, and fix handoff.',
+    'Compare Repro plans for teams that want to reduce bug reproduction time with replayable reports and coding-agent-ready evidence.',
 }
 
 export default function PricingPage() {
   return (
     <HighIntentRoutePage
-      kicker="Simple plans"
+      kicker="Plans for growing teams"
       title="Pricing"
-      summary="Choose the plan that matches how your team captures evidence, inspects replays, and hands the fix forward."
+      summary="Start free today. As your product and team grow, Repro scales with the bug-reporting workflow that helps keep quality high."
       secondaryCta={{
         href: '/features',
-        label: 'See the workflow',
+        label: 'See how it works',
       }}
     >
       <section className={routeStyles.band} aria-labelledby="pricing-tiers">
-        <p className={sharedStyles.sectionKicker}>Plans</p>
+        <p className={sharedStyles.sectionKicker}>Plan options</p>
 
         <h2 id="pricing-tiers" className={sharedStyles.sectionTitle}>
-          Three tiers with clear buyer guidance
+          Start small, protect quality as you scale
         </h2>
 
         <div
@@ -92,20 +93,6 @@ export default function PricingPage() {
             </article>
           ))}
         </div>
-      </section>
-
-      <section className={routeStyles.band} aria-labelledby="pricing-guidance">
-        <p className={sharedStyles.sectionKicker}>Buyer guidance</p>
-
-        <h2 id="pricing-guidance" className={sharedStyles.sectionTitle}>
-          Keep the pricing story grounded in the product reality
-        </h2>
-
-        <p className={routeStyles.supportNote}>
-          AI usage details are not expressed as fixed quotas here, and the plan
-          copy avoids unsupported overage language, credit bundles, or claims
-          that have not been finalized.
-        </p>
       </section>
     </HighIntentRoutePage>
   )

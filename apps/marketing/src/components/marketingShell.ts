@@ -3,26 +3,18 @@ import { defaultEnv } from '~/config/env'
 export const signupHref = defaultEnv.REPRO_APP_URL
 
 export const primaryNavLinks = [
-  { href: '/features', label: 'Features' },
+  { href: '/features', label: 'How it works' },
   { href: '/pricing', label: 'Pricing' },
-  { href: signupHref, label: 'Sign up' },
+  { href: signupHref, label: 'Log in' },
 ] as const
 
 export const footerGroups = [
   {
     title: 'Product',
     links: [
-      { href: '/features', label: 'Features' },
+      { href: '/features', label: 'How it works' },
       { href: '/pricing', label: 'Pricing' },
-      { href: signupHref, label: 'Sign up' },
-    ],
-  },
-  {
-    title: 'Workflow',
-    links: [
-      { href: '/install-extension', label: 'Capture setup' },
-      { href: '/blog', label: 'Replay notes' },
-      { href: '/changelog', label: 'Fix log' },
+      { href: signupHref, label: 'Log in' },
     ],
   },
   {
@@ -42,16 +34,11 @@ export const footerGroups = [
   },
 ] as const
 
-export const socialLinks = [
-  { href: '/github', label: 'GitHub' },
-  { href: '/x', label: 'X' },
-] as const
-
 export const homepageHeroMock = {
-  eyebrow: 'Capture / AI / find / fix',
-  headline: 'Capture the bug. Let AI find the fix.',
-  lede: 'One recorded session gives the agent the evidence to diagnose and hand off the next step.',
-  primaryCta: 'Start free',
+  eyebrow: 'Replayable bug reports for coding agents',
+  headline: 'Record the bug. Let AI find the fix.',
+  lede: 'Repro captures the clicks, errors, and network requests behind a bug so coding agents can fix it faster.',
+  primaryCta: 'Get started for free',
   secondaryCta: 'See how it works',
   labelRow: {
     left: 'recorded evidence',
@@ -81,72 +68,64 @@ export const homepageHeroMock = {
 export const homepageProofCards = [
   {
     tone: 'info',
-    body: 'The page keeps the story simple: capture, inspect, resolve.',
+    body: 'Clicks and user interactions',
   },
   {
     tone: 'success',
-    body: 'Teams keep the same evidence in front of support and engineering.',
+    body: 'Console logs and errors',
   },
   {
     tone: 'warning',
-    body: 'Short section copy supports the distilled message.',
+    body: 'Network requests and WebSockets',
   },
   {
     tone: 'danger',
-    body: 'The conversion path stays signup-oriented.',
+    body: 'Replay timeline and DOM state',
   },
 ] as const
 
 export const homepageNarrativeCards = [
   {
-    kicker: 'Capture',
-    title: 'Record the bug before the context is gone.',
-    body: 'Keep the session and the important UI changes together.',
+    kicker: 'Record',
+    title: 'Record the bug before the evidence is lost.',
+    body: 'Preserve the interactions and evidence that explain what happened.',
   },
   {
-    kicker: 'AI finds',
-    title: 'Let the agent find the fix.',
-    body: 'Use the replay to narrow the path from symptom to remedy.',
+    kicker: 'Evidence, not guesswork',
+    title: 'Give each bug a clear trail of evidence.',
+    body: 'Replay the session alongside the logs, requests, and interactions that explain the behaviour.',
   },
   {
-    kicker: 'Fix',
-    title: 'Make the handoff easy.',
-    body: 'Share a crisp summary that engineers can act on.',
+    kicker: 'Fix faster',
+    title: 'Give coding agents what they need to fix the problem.',
+    body: 'Send the replayable report to your coding agent with the evidence needed to diagnose, patch, and verify.',
   },
 ] as const
 
 export const routePageContent = {
   about: {
     title: 'About Repro',
-    body: 'Learn how Repro turns recorded evidence into a faster fix handoff.',
-  },
-  blog: {
-    title: 'Blog',
-    body: 'Read notes on capture, replay, and the AI-assisted fix path.',
-  },
-  changelog: {
-    title: 'Changelog',
-    body: 'See what shipped across capture, evidence, and fix handoffs.',
+    body: 'Learn why Repro exists: to make bug reports replayable, reproducible, and useful to the people fixing them.',
   },
   contact: {
     title: 'Contact',
-    body: 'Reach out about product questions, support, or partnerships.',
+    body: 'Contact Repro about product questions, support, partnerships, or early access.',
   },
   privacy: {
     title: 'Privacy policy',
-    body: 'Read how Repro handles customer data and recording privacy.',
+    body: 'Read how Repro handles customer data, recordings, and privacy.',
   },
   'refund-policy': {
     title: 'Refund policy',
-    body: 'Review refund terms for self-serve and sales-assisted purchases.',
+    body: 'Review refund terms for self-serve plans and sales-assisted purchases.',
   },
   support: {
     title: 'Support',
-    body: 'Get help when a session needs more evidence or a sharper handoff.',
+    body: 'Get help with recordings, replayable bug reports, agentic debugging, account access, or billing.',
   },
   terms: {
     title: 'Terms of service',
-    body: 'Review the rules for using the Repro site and app.',
+    body: 'Review the terms that apply to using the Repro site and app.',
   },
 } as const
 

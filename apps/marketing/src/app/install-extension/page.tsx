@@ -5,61 +5,46 @@ import routeStyles from '~/components/HighIntentRoutePage.module.css'
 import sharedStyles from '~/components/MarketingShell.module.css'
 
 const installSteps = [
-  'Add the extension from the Chrome Web Store on a supported Chromium browser.',
-  'Sign in, approve the workspace, and pin Repro where your QA or support team can reach it quickly.',
-  'Start a capture from the browser toolbar when the issue appears.',
-] as const
-
-const troubleshootingItems = [
-  {
-    title: 'The browser is not supported',
-    body: 'Use a Chromium-based browser for the current install flow, or switch to a supported desktop browser before capturing.',
-  },
-  {
-    title: 'The capture button is inactive',
-    body: 'Refresh the page, confirm the extension is enabled, and make sure the workspace sign-in completed successfully.',
-  },
-  {
-    title: 'The session did not record the right moment',
-    body: 'Restart the capture before reproducing the bug so the recording begins before the critical interaction.',
-  },
+  'Add Repro from the Chrome Web Store in a supported browser.',
+  "Sign in and get started with Repro's built-in recording and agentic tools.",
+  'Start recording when the bug appears.',
 ] as const
 
 export const metadata: Metadata = {
   title: 'Install the browser extension',
   description:
-    'Install the Repro browser extension, start your first capture, and learn what to do when the session needs a sharper handoff.',
+    'Install the Repro browser extension, record your first bug, and turn the replay into evidence your team or coding agent can use.',
 }
 
 export default function InstallExtensionPage() {
   return (
     <HighIntentRoutePage
-      kicker="Browser capture"
-      title="Install the browser extension"
-      summary="Set up the extension, capture your first issue, and hand the session off with enough evidence for QA and engineering to act quickly."
+      kicker="Browser extension"
+      title="Install the Repro browser extension"
+      summary="Set up the extension, record your first bug, and give your team or coding agent the replay, logs, and requests needed to fix it faster."
       secondaryCta={{
         href: '/pricing',
-        label: 'Compare plans',
+        label: 'See pricing',
       }}
     >
       <section className={routeStyles.band} aria-labelledby="install-support">
-        <p className={sharedStyles.sectionKicker}>Supported browsers</p>
+        <p className={sharedStyles.sectionKicker}>Browser support</p>
 
         <h2 id="install-support" className={sharedStyles.sectionTitle}>
-          Use a supported Chromium browser for capture
+          Use a supported browser
         </h2>
 
         <p className={sharedStyles.sectionCopy}>
-          The install flow is designed for QA and engineering teams that need a
-          fast route from browser setup to recorded evidence.
+          Repro works in supported desktop browsers so your team can record the
+          bug with the evidence attached.
         </p>
       </section>
 
       <section className={routeStyles.band} aria-labelledby="install-flow">
-        <p className={sharedStyles.sectionKicker}>Install flow</p>
+        <p className={sharedStyles.sectionKicker}>Setup steps</p>
 
         <h2 id="install-flow" className={sharedStyles.sectionTitle}>
-          Install
+          Add Repro to your browser
         </h2>
 
         <ol className={routeStyles.stepList} aria-label="Install steps">
@@ -77,28 +62,32 @@ export default function InstallExtensionPage() {
         className={routeStyles.band}
         aria-labelledby="install-first-capture"
       >
-        <p className={sharedStyles.sectionKicker}>First capture</p>
+        <p className={sharedStyles.sectionKicker}>Your first recording</p>
 
         <h2 id="install-first-capture" className={sharedStyles.sectionTitle}>
-          First capture
+          Record the bug before the evidence is lost
         </h2>
 
         <div className={cx(routeStyles.bandGrid, routeStyles.bandGridTwo)}>
           <article className={routeStyles.detailCard}>
-            <h3 className={sharedStyles.panelTitle}>What gets recorded</h3>
+            <h3 className={sharedStyles.panelTitle}>What Repro records</h3>
 
             <p className={sharedStyles.sectionCopy}>
-              The browser session captures the interactions and the surrounding
-              evidence so the report can move forward without guesswork.
+              Repro records the interactions, errors, requests, and page changes
+              behind the bug, so your team can see what happened instead of
+              guessing from a summary.
             </p>
           </article>
 
           <article className={routeStyles.detailCard}>
-            <h3 className={sharedStyles.panelTitle}>What happens next</h3>
+            <h3 className={sharedStyles.panelTitle}>
+              Turn the recording into evidence
+            </h3>
 
             <p className={sharedStyles.sectionCopy}>
-              Once the capture is complete, you can inspect the session and hand
-              it off to the next owner with a clearer reproduction path.
+              Once the recording is complete, inspect the replay and give your
+              team or coding agent the evidence needed to understand, patch, and
+              verify the fix.
             </p>
           </article>
         </div>
@@ -108,59 +97,31 @@ export default function InstallExtensionPage() {
         className={routeStyles.band}
         aria-labelledby="install-next-steps"
       >
-        <p className={sharedStyles.sectionKicker}>Next steps</p>
+        <p className={sharedStyles.sectionKicker}>After recording</p>
 
         <h2 id="install-next-steps" className={sharedStyles.sectionTitle}>
-          Next steps
+          Put the evidence to work
         </h2>
 
         <div className={cx(routeStyles.bandGrid, routeStyles.bandGridTwo)}>
           <article className={routeStyles.detailCard}>
-            <h3 className={sharedStyles.panelTitle}>Inspect the replay</h3>
+            <h3 className={sharedStyles.panelTitle}>Review the replay</h3>
 
             <p className={sharedStyles.sectionCopy}>
-              Review the captured evidence with the team so the next action is
-              obvious before you hand the session off.
+              Replay the bug instead of wasting time trying to reproduce it from
+              screenshots, logs, and incomplete steps.
             </p>
           </article>
 
           <article className={routeStyles.detailCard}>
-            <h3 className={sharedStyles.panelTitle}>Share the findings</h3>
+            <h3 className={sharedStyles.panelTitle}>Start from evidence</h3>
 
             <p className={sharedStyles.sectionCopy}>
-              Send the session to engineering or support with enough context to
-              continue without a second round of reproduction.
+              Attach the replay, logs, requests, and interactions so bugs can
+              move from reproduction to fix without another round of
+              back-and-forth.
             </p>
           </article>
-        </div>
-      </section>
-
-      <section
-        className={routeStyles.band}
-        aria-labelledby="install-troubleshooting"
-      >
-        <p className={sharedStyles.sectionKicker}>Troubleshooting</p>
-
-        <h2 id="install-troubleshooting" className={sharedStyles.sectionTitle}>
-          Troubleshooting
-        </h2>
-
-        <div
-          className={cx(routeStyles.bandGrid, routeStyles.bandGridThree)}
-          role="list"
-          aria-label="Troubleshooting guidance"
-        >
-          {troubleshootingItems.map(item => (
-            <article
-              key={item.title}
-              className={routeStyles.detailCard}
-              role="listitem"
-            >
-              <h3 className={sharedStyles.panelTitle}>{item.title}</h3>
-
-              <p className={sharedStyles.sectionCopy}>{item.body}</p>
-            </article>
-          ))}
         </div>
       </section>
     </HighIntentRoutePage>

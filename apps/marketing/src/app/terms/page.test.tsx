@@ -19,6 +19,10 @@ describe('TermsPage', () => {
     const { metadata } = await import('./page')
 
     assert.equal(metadata.title, 'Terms of Service')
+    assert.equal(
+      metadata.description,
+      'Read the Terms of Service that apply to using the Repro site, app, and browser extension.'
+    )
   })
 
   it('renders the terms route with summaries, policy links, and last-updated text', async t => {

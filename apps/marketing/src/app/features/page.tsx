@@ -7,60 +7,54 @@ import sharedStyles from '~/components/MarketingShell.module.css'
 const workflowStages = [
   {
     title: 'Record',
-    body: 'Capture the bug while the session is still happening, so the team starts from evidence instead of memory.',
+    body: 'Record the bug while it is happening, including the interactions, errors, requests, and DOM changes your team needs to start from evidence instead of guesswork.',
   },
   {
     title: 'Replay',
-    body: 'Inspect the session timeline, logs, and network behaviour without asking the reporter to repeat the issue.',
+    body: 'See what happened, with a full timeline of logs, network activity, and interactions. No need to reproduce the bug again.',
   },
   {
-    title: 'Diagnose',
-    body: 'Let AI read the evidence, suggest the likely cause, and highlight the next place to look.',
+    title: 'Find the cause',
+    body: 'Use the recorded evidence to identify likely causes before your coding agent starts changing code.',
   },
   {
-    title: 'Hand off',
-    body: 'Package the findings for engineering so the next owner can move straight from diagnosis to fix.',
+    title: 'Fix',
+    body: "Fix with confidence from the recorded evidence. Repro's MCP server lets your coding agent inspect the recording directly.",
   },
 ] as const
 
 const evidenceBands = [
   {
-    title: 'Captured evidence keeps the story intact',
-    body: 'The route speaks to QA and engineering leads who need the real session, not a templated bug summary.',
+    title: 'A replayable report keeps the evidence attached to the bug.',
   },
   {
-    title: 'Replay inspection shortens the back-and-forth',
-    body: 'Teams can review the sequence of events, then attach precise notes instead of re-asking for reproduction steps.',
-  },
-  {
-    title: 'Fix handoff stays focused on the next action',
-    body: 'The output is built to move the issue into the hands of the person who can ship the fix.',
+    title: 'No more chasing logs, screenshots, and steps to reproduce.',
   },
 ] as const
 
 export const metadata: Metadata = {
-  title: 'Features',
+  title: 'How it works',
   description:
-    'See how Repro turns an ambiguous bug report into recorded evidence, replay inspection, AI diagnosis, and fix handoff.',
+    'See how Repro records the interactions, errors, network requests, and changes behind a bug so teams can fix it faster.',
 }
 
 export default function FeaturesPage() {
   return (
     <HighIntentRoutePage
-      kicker="Capture / replay / fix"
-      title="Capture-to-fix workflow"
-      summary="Start with an ambiguous bug report, capture the session, inspect the replay, let AI diagnose the likely cause, and hand off the fix with less churn."
+      kicker="From recording to resolution"
+      title="How Repro records the evidence behind a bug"
+      summary="Record the reproduction once, then inspect the replay, logs, requests, and changes that show what happened and help your team fix it faster."
     >
       <section className={routeStyles.band} aria-labelledby="features-workflow">
-        <p className={sharedStyles.sectionKicker}>Workflow</p>
+        <p className={sharedStyles.sectionKicker}>The recording workflow</p>
 
         <h2 id="features-workflow" className={sharedStyles.sectionTitle}>
-          From evidence to handoff
+          From repro to fix
         </h2>
 
         <ol
           className={routeStyles.stepList}
-          aria-label="Capture to fix workflow stages"
+          aria-label="Reproduction to fix workflow stages"
         >
           {workflowStages.map(stage => (
             <li key={stage.title} className={routeStyles.stepCard}>
@@ -73,16 +67,16 @@ export default function FeaturesPage() {
       </section>
 
       <section className={routeStyles.band} aria-labelledby="features-benefits">
-        <p className={sharedStyles.sectionKicker}>What teams get</p>
+        <p className={sharedStyles.sectionKicker}>Why it matters</p>
 
         <h2 id="features-benefits" className={sharedStyles.sectionTitle}>
-          Focused on the work that gets the fix moving
+          Spend less time reproducing bugs. Start from recorded evidence.
         </h2>
 
         <div
-          className={cx(routeStyles.bandGrid, routeStyles.bandGridThree)}
+          className={cx(routeStyles.bandGrid, routeStyles.bandGridTwo)}
           role="list"
-          aria-label="Feature benefits"
+          aria-label="Repro benefits"
         >
           {evidenceBands.map(band => (
             <article
@@ -91,8 +85,6 @@ export default function FeaturesPage() {
               role="listitem"
             >
               <h3 className={sharedStyles.panelTitle}>{band.title}</h3>
-
-              <p className={sharedStyles.sectionCopy}>{band.body}</p>
             </article>
           ))}
         </div>
