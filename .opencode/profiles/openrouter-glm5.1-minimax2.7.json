@@ -3,7 +3,8 @@
   "model": "openrouter/minimax/minimax-m2.7",
   "command": {
     "deliver": {
-      "model": "openrouter/minimax/minimax-m2.7"
+      "model": "openrouter/minimax/minimax-m2.7",
+      "template": ""
     },
     "groom": {
       "model": "openrouter/minimax/minimax-m2.7",
