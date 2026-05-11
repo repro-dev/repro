@@ -456,7 +456,7 @@ AUTOBOT_ENGINE_AUTO_DISCOVER=on cmd_autobot_engine start --once
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ ! -f "$tmpdir/discover.log" ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/added.txt" ] && printf '%s\n' "$output" | grep -q 'selected issue=REP-1094' && printf '%s\n' "$output" | grep -q 'prepare issue=REP-1094'; then
+  if [ $rc -eq 0 ] && [ ! -f "$tmpdir/discover.log" ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/added.txt" ] && printf '%s\n' "$output" | grep -q 'process issue=REP-1094 state=queued attempt=0' && printf '%s\n' "$output" | grep -q 'prepare issue=REP-1094'; then
     _pass 'auto-discover skips when queued or running work is present'
   else
     _fail 'auto-discover skips when queued or running work is present' "rc=$rc; output=$output"
@@ -775,12 +775,12 @@ cmd_autobot_orchestrator() {
       ;;
   esac
 }
-queue_json='{"items":[{"issue_identifier":"REP-1094","claim_state":"claimed","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":2}],"runs":[],"summary":{"claim_states":{"claimed":1},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+queue_json='{"items":[{"issue_identifier":"REP-1094","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":2}],"runs":[],"summary":{"claim_states":{"running":1},"active_runs":1,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
 _autobot_engine_process_queue "$queue_json"
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'recover issue=REP-1094' && printf '%s\n' "$output" | grep -q 'recovery issue=REP-1094 attempt=2 action=release reason=merged upstream'; then
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'process issue=REP-1094 state=running attempt=2' && printf '%s\n' "$output" | grep -q 'recover issue=REP-1094 state=running attempt=2' && printf '%s\n' "$output" | grep -q 'recovery issue=REP-1094 attempt=2 action=release reason=merged upstream'; then
     _pass 'process queue logs recovery decisions'
   else
     _fail 'process queue logs recovery decisions' "rc=$rc; output=$output"
@@ -811,32 +811,61 @@ slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-z
 worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
 source "$SCRIPTS_DIR/lib/autobot-engine.sh"
 _autobot_engine_update_status() { :; }
+_autobot_engine_log_activity() {
+  printf '%s\n' "$*" >> "$TEST_TMPDIR/activity.log"
+}
 _autobot_engine_collect_monitor_snapshot() {
-  local issue_identifier
-  issue_identifier="$(printf '%s' "$1" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("issue_identifier") or payload.get("identifier") or "")')"
-  printf '%s\n' "$issue_identifier" >> "$TEST_TMPDIR/snapshots.log"
   printf '%s\n' '{}'
 }
 _autobot_engine_apply_recovery_decision() { return 1; }
 cmd_autobot_orchestrator() {
   case "$*" in
-    run\ start\ REP-1094\ --phase\ delivery\ --workspace\ *)
-      printf '%s\n' '{"run":{"attempt":1}}'
+    status\ --all\ --json)
+      printf '%s\n' "$queue_json"
+      ;;
+    prepare\ REP-1094\ --phase\ delivery\ --claimed-by\ autobot-engine)
+      :
+      ;;
+    retry\ REP-1096\ --phase\ delivery\ --claimed-by\ autobot-engine)
+      :
       ;;
     *)
       return 1
       ;;
   esac
 }
-queue_json='{"items":[{"issue_identifier":"REP-1094","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":1},{"issue_identifier":"REP-1095","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1095","attempt_count":2},{"issue_identifier":"REP-1096","claim_state":"failed","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1096","attempt_count":3}],"runs":[],"summary":{"claim_states":{"running":2,"failed":1},"active_runs":2,"stale_claims":0,"failed_runs":1,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+queue_json='{"items":[{"issue_identifier":"REP-1094","claim_state":"queued","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":0},{"issue_identifier":"REP-1095","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1095","attempt_count":1},{"issue_identifier":"REP-1096","claim_state":"failed","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1096","attempt_count":2}],"runs":[],"summary":{"claim_states":{"queued":1,"running":1,"failed":1},"active_runs":2,"stale_claims":0,"failed_runs":1,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
 _autobot_engine_process_queue "$queue_json"
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ "$(grep -c '^REP-1094$' "$tmpdir/snapshots.log")" -eq 1 ] && [ "$(grep -c '^REP-1095$' "$tmpdir/snapshots.log")" -eq 1 ] && [ "$(grep -c '^REP-1096$' "$tmpdir/snapshots.log")" -eq 0 ]; then
-    _pass 'process queue processes every active issue in one tick'
+  if [ $rc -eq 0 ] && python3 - "$tmpdir/activity.log" <<'PY'
+import pathlib
+import sys
+
+lines = pathlib.Path(sys.argv[1]).read_text().splitlines()
+expected = [
+    'process issue=REP-1094 state=queued attempt=0',
+    'process issue=REP-1095 state=running attempt=1',
+    'process issue=REP-1096 state=failed attempt=2',
+]
+positions = []
+for needle in expected:
+    try:
+        positions.append(lines.index(needle))
+    except ValueError:
+        raise SystemExit(1)
+
+if positions != sorted(positions):
+    raise SystemExit(1)
+
+if any(line.startswith('selected issue=') for line in lines):
+    raise SystemExit(1)
+PY
+  then
+    _pass 'process queue processes every tracked issue in order'
   else
-    _fail 'process queue processes every active issue in one tick' "rc=$rc; output=$output"
+    _fail 'process queue processes every tracked issue in order' "rc=$rc; output=$output"
   fi
   rm -rf "$tmpdir"
 }
@@ -1110,7 +1139,7 @@ _autobot_engine_process_queue "$queue_json"
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/retry.txt" ] && [ ! -f "$tmpdir/run-start.txt" ] && printf '%s\n' "$output" | grep -q 'selected issue=REP-1094' && printf '%s\n' "$output" | grep -q 'prepare issue=REP-1094'; then
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/retry.txt" ] && [ ! -f "$tmpdir/run-start.txt" ] && printf '%s\n' "$output" | grep -q 'process issue=REP-1094 state=queued attempt=0' && printf '%s\n' "$output" | grep -q 'prepare issue=REP-1094'; then
     _pass 'queued work is prepared before delivery begins'
   else
     _fail 'queued work is prepared before delivery begins' "rc=$rc; output=$output"
