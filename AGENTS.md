@@ -13,6 +13,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 - `context-gather` — compact planning context
 - `test-plan` — explicit test strategy before implementation
 - `issue-shaping-workflow` — goal-to-issue planning
+- `feedback-synthesis-workflow` — customer feedback clustering and briefing
 - `debug-workflow` — evidence-first debugging
 
 ### Discipline skills
@@ -93,6 +94,7 @@ Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer 
 - **Comments**: Add brief comments when they clarify non-obvious intent, invariants, sentinel values, or protocol quirks. Avoid comments that restate the code.
 - **Temporary files**: **Always use `tmp/` at the repo root** for any ephemeral output — screenshots, build artifacts, scratch files, test results, anything throwaway. **Never write to `/tmp`** (OpenCode requires elevated permission to access paths outside the project root, which blocks automated pipelines) **or `~/Downloads`** (pollutes the user's filesystem). `tmp/` is git-ignored; the `.gitkeep` sentinel keeps it tracked.
 - **Context artifacts**: For larger delivery work, prefer small durable artifacts in `tmp/` such as `tmp/context-REP-123.md`, `tmp/test-plan-REP-123.md`, or `tmp/debug-foo.md` rather than re-explaining the same context in every turn.
+- **Feedback artifacts**: Customer-feedback synthesis should accumulate in `tmp/feedback-brief-<topic>.md` so downstream issue shaping can reuse the same evidence and uncertainty notes.
 
 ## Environment Variables
 
