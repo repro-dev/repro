@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 
 import {
@@ -33,6 +34,48 @@ const CONFIG_DESCRIPTIONS: Record<keyof AutobotConfigValues, string> = {
 
 export function repoRoot(): string {
   return String(process.env.REPO_ROOT ?? process.cwd());
+}
+
+function validateIssueIdentifier(issueIdentifier: string): string {
+  const normalized = issueIdentifier.trim();
+  if (!/^[A-Z]+-[0-9]+$/.test(normalized)) {
+    throw new Error(`invalid issue identifier: ${issueIdentifier}`);
+  }
+  return normalized;
+}
+
+function issueWorkspacePath(issueIdentifier: string): string {
+  return path.resolve(
+    path.dirname(repoRoot()),
+    `repro-wt-${issueIdentifier.toLowerCase()}`,
+  );
+}
+
+function discoverFromLinear(): string[] {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+
+  for (const status of ["backlog", "todo"] as const) {
+    try {
+      const output = execFileSync(
+        "linear",
+        ["issue", "list", "--status", status, "--json", "identifier"],
+        { encoding: "utf8" },
+      ).trim();
+      if (!output) continue;
+      const parsed = JSON.parse(output) as Array<{ identifier?: string }>;
+      for (const item of parsed) {
+        const identifier = String(item.identifier ?? "").trim();
+        if (!identifier || seen.has(identifier)) continue;
+        seen.add(identifier);
+        ids.push(identifier);
+      }
+    } catch {
+      return [];
+    }
+  }
+
+  return ids;
 }
 
 export function autobotDir(): string {
@@ -286,6 +329,12 @@ export function discoverIssueIds(payload: QueuePayload): string[] {
     }
   }
 
+  for (const identifier of discoverFromLinear()) {
+    if (seen.has(identifier)) continue;
+    seen.add(identifier);
+    ids.push(identifier);
+  }
+
   return ids;
 }
 
@@ -420,22 +469,19 @@ export function getConfigValue(key: string): Record<string, unknown> {
 export function ensureQueueEntry(
   issueIdentifier: string,
 ): Record<string, unknown> {
+  const normalizedIssueIdentifier = validateIssueIdentifier(issueIdentifier);
   const payload = loadQueuePayload();
   const existing = items(payload).find(
-    (item) => taskId(item as never) === issueIdentifier,
+    (item) => taskId(item as never) === normalizedIssueIdentifier,
   );
   if (existing) {
     return existing;
   }
 
   const item = {
-    issue_identifier: issueIdentifier,
+    issue_identifier: normalizedIssueIdentifier,
     claim_state: "queued",
-    workspace_path: path.join(
-      repoRoot(),
-      "workspaces",
-      `repro-wt-${issueIdentifier.toLowerCase()}`,
-    ),
+    workspace_path: issueWorkspacePath(normalizedIssueIdentifier),
     claimed_by: "autobot",
     updated_at: nowIso(),
     attempt_count: 0,
@@ -448,10 +494,12 @@ export function ensureQueueEntry(
 export function removeQueueEntry(
   issueIdentifier: string,
 ): Record<string, unknown> | null {
+  const normalizedIssueIdentifier = validateIssueIdentifier(issueIdentifier);
   const payload = loadQueuePayload();
   const nextItems = items(payload).map((item) => {
     if (
-      String(item.issue_identifier ?? item.identifier ?? "") !== issueIdentifier
+      String(item.issue_identifier ?? item.identifier ?? "") !==
+      normalizedIssueIdentifier
     ) {
       return item;
     }
@@ -464,7 +512,8 @@ export function removeQueueEntry(
   saveQueuePayload(payload);
   return (
     nextItems.find(
-      (item) => String(item.issue_identifier ?? "") === issueIdentifier,
+      (item) =>
+        String(item.issue_identifier ?? "") === normalizedIssueIdentifier,
     ) ?? null
   );
 }

@@ -72,7 +72,7 @@ export function runAutobotEngine(argv: string[]): void {
       return;
     case "start": {
       const mode = daemon ? "daemon" : "foreground";
-      const status = startEngine(mode, once || !daemon);
+      const status = startEngine(mode, once);
       print(status);
       return;
     }
@@ -84,7 +84,7 @@ export function runAutobotEngine(argv: string[]): void {
     case "restart": {
       const mode = daemon ? "daemon" : "foreground";
       stopEngine();
-      print(startEngine(mode, once || !daemon));
+      print(startEngine(mode, once));
       return;
     }
     case "status": {
