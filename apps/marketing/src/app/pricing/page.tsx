@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { HighIntentRoutePage } from '~/components/HighIntentRoutePage'
 import routeStyles from '~/components/HighIntentRoutePage.module.css'
 import sharedStyles from '~/components/MarketingShell.module.css'
+import { signupHref } from '~/components/marketingShell'
 
 const tiers = [
   {
@@ -14,6 +15,10 @@ const tiers = [
       'Save up to 25 recordings per month in a personal workspace.',
       "Includes a $10 one-off AI usage credit for trying Repro's agentic debugging tools.",
     ],
+    cta: {
+      href: signupHref,
+      label: 'Get started for free',
+    },
   },
   {
     name: 'Growth',
@@ -24,6 +29,10 @@ const tiers = [
       'Save unlimited recordings across shared team projects.',
       'Includes SDK access, MCP server access, and $10/month AI usage credit per user.',
     ],
+    cta: {
+      href: signupHref,
+      label: 'Get started for free',
+    },
   },
   {
     name: 'Scale',
@@ -34,6 +43,10 @@ const tiers = [
       'Unlimited projects, extended retention, and higher per-user AI usage credit.',
       'Adds onboarding, priority support, and procurement support for larger teams.',
     ],
+    cta: {
+      href: signupHref,
+      label: 'Contact sales',
+    },
   },
 ] as const
 
@@ -50,7 +63,7 @@ export default function PricingPage() {
       title="Pricing"
       summary="Start free today. As your product and team grow, Repro scales with the bug-reporting workflow that helps keep quality high."
       secondaryCta={{
-        href: '/features',
+        href: '/#how-it-works',
         label: 'See how it works',
       }}
     >
@@ -90,6 +103,17 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
+
+              <a
+                className={cx(
+                  sharedStyles.button,
+                  sharedStyles.secondaryCta,
+                  routeStyles.pricingCta
+                )}
+                href={tier.cta.href}
+              >
+                {tier.cta.label}
+              </a>
             </article>
           ))}
         </div>

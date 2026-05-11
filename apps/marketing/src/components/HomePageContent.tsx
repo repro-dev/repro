@@ -1,6 +1,7 @@
 import { HeroSection } from './HeroSection'
+import routeStyles from './HighIntentRoutePage.module.css'
 import homeStyles from './HomePageContent.module.css'
-import { homepageNarrativeCards, homepageProofCards } from './marketingShell'
+import { homepageProofCards } from './marketingShell'
 import sharedStyles from './MarketingShell.module.css'
 
 const cx = (...classes: Array<string | undefined>) =>
@@ -13,14 +14,29 @@ const proofMarkerStyles = {
   warning: homeStyles.proofMarkerWarning,
 } as const
 
-type HomePageContentProps = {
-  appUrl: string
-}
+const workflowStages = [
+  {
+    title: 'Record',
+    body: 'Record the bug while it is happening, including the interactions, errors, requests, and DOM changes your team needs to start from evidence instead of guesswork.',
+  },
+  {
+    title: 'Replay',
+    body: 'See what happened, with a full timeline of logs, network activity, and interactions. No need to reproduce the bug again.',
+  },
+  {
+    title: 'Find the cause',
+    body: 'Use the recorded evidence to identify likely causes before your coding agent starts changing code.',
+  },
+  {
+    title: 'Fix',
+    body: "Fix with confidence from the recorded evidence. Repro's MCP server lets your coding agent inspect the recording directly.",
+  },
+] as const
 
-export function HomePageContent({ appUrl }: HomePageContentProps) {
+export function HomePageContent() {
   return (
     <div className={homeStyles.homeContent}>
-      <HeroSection appUrl={appUrl} />
+      <HeroSection />
 
       <section
         className={cx(
@@ -51,25 +67,41 @@ export function HomePageContent({ appUrl }: HomePageContentProps) {
       </section>
 
       <section
-        id="features"
-        className={cx(sharedStyles.grid12, sharedStyles.shellRow)}
+        id="how-it-works"
+        className={cx(
+          sharedStyles.shellRow,
+          routeStyles.band,
+          homeStyles.workflowSection
+        )}
+        aria-labelledby="how-it-works-title"
       >
-        {homepageNarrativeCards.map(card => (
-          <article
-            key={card.title}
-            className={cx(
-              sharedStyles.cell,
-              sharedStyles.span4,
-              homeStyles.storyCard
-            )}
-          >
-            <p className={sharedStyles.sectionKicker}>{card.kicker}</p>
+        <p
+          className={cx(sharedStyles.sectionKicker, homeStyles.workflowKicker)}
+        >
+          The recording workflow
+        </p>
 
-            <h2 className={sharedStyles.sectionTitle}>{card.title}</h2>
+        <h2
+          id="how-it-works-title"
+          className={cx(sharedStyles.sectionTitle, homeStyles.workflowTitle)}
+        >
+          From repro to fix
+        </h2>
 
-            <p className={sharedStyles.sectionCopy}>{card.body}</p>
-          </article>
-        ))}
+        <ol
+          className={routeStyles.stepList}
+          aria-label="Reproduction to fix workflow stages"
+        >
+          {workflowStages.map((stage, index) => (
+            <li key={stage.title} className={routeStyles.stepCard}>
+              <span className={routeStyles.stepNumber}>{index + 1}</span>
+
+              <h3 className={routeStyles.stepTitle}>{stage.title}</h3>
+
+              <p className={routeStyles.stepBody}>{stage.body}</p>
+            </li>
+          ))}
+        </ol>
       </section>
 
       <section
@@ -88,7 +120,7 @@ export function HomePageContent({ appUrl }: HomePageContentProps) {
           <div className={homeStyles.closingActions}>
             <a
               className={cx(sharedStyles.button, sharedStyles.primaryCta)}
-              href={appUrl}
+              href="/coming-soon"
             >
               Get started for free
             </a>

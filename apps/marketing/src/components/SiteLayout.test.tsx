@@ -57,10 +57,23 @@ describe('site layout', () => {
     assert.equal(logo?.getAttribute('height'), '30')
 
     assert.ok(headerLinks.getByRole('link', { name: /repro home/i }))
-    assert.ok(headerLinks.getByRole('link', { name: 'How it works' }))
+    assert.equal(
+      headerLinks
+        .getByRole('link', { name: 'How it works' })
+        .getAttribute('href'),
+      '/#how-it-works'
+    )
     assert.ok(headerLinks.getByRole('link', { name: 'Pricing' }))
-    assert.ok(headerLinks.getByRole('link', { name: 'Log in' }))
-    assert.ok(headerLinks.getByRole('link', { name: 'Get started for free' }))
+    assert.equal(
+      headerLinks.getByRole('link', { name: 'Log in' }).getAttribute('href'),
+      '/coming-soon'
+    )
+    assert.equal(
+      headerLinks
+        .getByRole('link', { name: 'Get started for free' })
+        .getAttribute('href'),
+      '/coming-soon'
+    )
   })
 
   it('opens the mobile navigation from the hamburger button', async t => {
@@ -90,8 +103,20 @@ describe('site layout', () => {
 
     assert.ok(footerLinks.getByText('Product'))
     assert.equal(footerLinks.queryByText('Workflow'), null)
-    assert.ok(footerLinks.getByText('Company'))
     assert.ok(footerLinks.getByText('Legal'))
+    assert.equal(footerLinks.queryByText('Company'), null)
+    assert.equal(footerLinks.queryByRole('link', { name: 'About' }), null)
+    assert.equal(footerLinks.queryByRole('link', { name: 'Contact' }), null)
+    assert.equal(
+      footerLinks.queryByRole('link', { name: 'Refund policy' }),
+      null
+    )
+    assert.equal(
+      footerLinks
+        .getByRole('link', { name: 'How it works' })
+        .getAttribute('href'),
+      '/#how-it-works'
+    )
     assert.equal(footerLinks.queryByRole('link', { name: 'GitHub' }), null)
     assert.equal(footerLinks.queryByRole('link', { name: 'X' }), null)
     assert.ok(footerLinks.getByText(/Repro Software Ltd/))
