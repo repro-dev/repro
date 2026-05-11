@@ -13,6 +13,7 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 - `context-gather` — compact planning context
 - `test-plan` — explicit test strategy before implementation
 - `issue-shaping-workflow` — goal-to-issue planning
+- `gtm-strategy-workflow` — launch goal to durable GTM plan
 - `debug-workflow` — evidence-first debugging
 
 ### Discipline skills
