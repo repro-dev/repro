@@ -828,12 +828,12 @@ cmd_autobot_orchestrator() {
       ;;
   esac
 }
-queue_json='{"items":[{"issue_identifier":"REP-1094","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":1},{"issue_identifier":"REP-1095","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1095","attempt_count":2}],"runs":[],"summary":{"claim_states":{"running":2},"active_runs":2,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+queue_json='{"items":[{"issue_identifier":"REP-1094","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":1},{"issue_identifier":"REP-1095","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1095","attempt_count":2},{"issue_identifier":"REP-1096","claim_state":"failed","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1096","attempt_count":3}],"runs":[],"summary":{"claim_states":{"running":2,"failed":1},"active_runs":2,"stale_claims":0,"failed_runs":1,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
 _autobot_engine_process_queue "$queue_json"
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ "$(grep -c '^REP-1094$' "$tmpdir/snapshots.log")" -eq 1 ] && [ "$(grep -c '^REP-1095$' "$tmpdir/snapshots.log")" -eq 1 ]; then
+  if [ $rc -eq 0 ] && [ "$(grep -c '^REP-1094$' "$tmpdir/snapshots.log")" -eq 1 ] && [ "$(grep -c '^REP-1095$' "$tmpdir/snapshots.log")" -eq 1 ] && [ "$(grep -c '^REP-1096$' "$tmpdir/snapshots.log")" -eq 0 ]; then
     _pass 'process queue processes every active issue in one tick'
   else
     _fail 'process queue processes every active issue in one tick' "rc=$rc; output=$output"

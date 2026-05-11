@@ -688,7 +688,7 @@ for item in items:
 
     claim_state = str(item.get('claim_state') or '')
     issue_identifier = str(item.get('issue_identifier') or item.get('identifier') or '')
-    if claim_state in {'claimed', 'running', 'reconciling', 'failed', 'error', 'stale'} and issue_identifier and issue_identifier != selected:
+    if claim_state in {'running', 'reconciling'} and issue_identifier and issue_identifier != selected:
         print(json.dumps(item, separators=(',', ':')))
 PY
     [[ -n "$item_json" ]] || continue
