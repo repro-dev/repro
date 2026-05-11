@@ -514,7 +514,9 @@ export function transition(
 }
 
 export function processQueue(payload: QueuePayload): ProcessQueueResult {
-  const selected = selectWork(payload);
+  const selected = selectWork(payload, {
+    allowRecovery: payload.allow_recovery !== false,
+  });
   const fallbackMaxAttempts = asInt(
     payload.max_attempts ?? payload.config?.max_attempts,
   );

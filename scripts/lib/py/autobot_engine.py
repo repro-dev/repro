@@ -66,6 +66,51 @@ def _run_ts(command: str, payload: dict[str, Any]) -> dict[str, Any]:
     return json.loads(result.stdout or "{}")
 
 
+def _normalize_recovery_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    linear = _as_mapping(payload.get("linear"))
+    pr = _as_mapping(payload.get("pr"))
+    normalized = dict(payload)
+    normalized["claimState"] = str(payload.get("claim_state") or payload.get("claimState") or "")
+    normalized["workspaceExists"] = bool(payload.get("workspace_exists") if "workspace_exists" in payload else payload.get("workspaceExists"))
+    normalized["workspaceDirty"] = bool(payload.get("workspace_dirty") if "workspace_dirty" in payload else payload.get("workspaceDirty"))
+    normalized["mergeConflictCount"] = int(payload.get("merge_conflict_count") or payload.get("mergeConflictCount") or 0)
+    normalized["attemptCount"] = int(payload.get("attempt_count") or payload.get("attemptCount") or 0)
+    normalized["maxAttempts"] = int(payload.get("max_attempts") or payload.get("maxAttempts") or 0)
+    normalized["linear"] = linear
+    normalized["pr"] = pr
+    normalized["linearStateType"] = str(
+        payload.get("linear_state_type")
+        or payload.get("linearStateType")
+        or linear.get("state_type")
+        or linear.get("type")
+        or ""
+    )
+    normalized["linearStateName"] = str(
+        payload.get("linear_state_name")
+        or payload.get("linearStateName")
+        or linear.get("state_name")
+        or linear.get("name")
+        or ""
+    )
+    normalized["prState"] = str(payload.get("pr_state") or payload.get("prState") or pr.get("state") or "")
+    normalized["mergeStateStatus"] = str(
+        payload.get("merge_state_status")
+        or payload.get("mergeStateStatus")
+        or pr.get("merge_state_status")
+        or pr.get("mergeStateStatus")
+        or ""
+    )
+    normalized["reviewDecision"] = str(
+        payload.get("review_decision")
+        or payload.get("reviewDecision")
+        or pr.get("review_decision")
+        or pr.get("reviewDecision")
+        or ""
+    )
+    normalized["statusState"] = str(payload.get("status_state") or payload.get("statusState") or "")
+    return normalized
+
+
 def _claim_state(item: dict[str, Any]) -> str:
     return str(item.get("claim_state") or "")
 
@@ -227,7 +272,7 @@ def render_status(
 
 
 def decide_recovery(payload: dict[str, Any]) -> dict[str, Any]:
-    return _run_ts("decide-recovery", payload)
+    return _run_ts("decide-recovery", _normalize_recovery_payload(payload))
 
 
 def process_queue(payload: dict[str, Any]) -> dict[str, Any]:

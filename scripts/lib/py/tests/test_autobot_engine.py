@@ -16,7 +16,9 @@ def _mock_ts(monkeypatch, expected_command: str, payload: dict[str, object], res
     def fake_run(args, input=None, text=None, capture_output=None, check=None):
         assert args[:5] == ["pnpm", "--dir", str(engine.AUTOBOT_ENGINE_TS_PACKAGE), "exec", "tsx"]
         assert args[5:] == ["src/cli.ts", expected_command]
-        assert json.loads(input or "{}") == payload
+        actual_payload = json.loads(input or "{}")
+        for key, value in payload.items():
+            assert actual_payload.get(key) == value
         return subprocess.CompletedProcess(args=args, returncode=0, stdout=json.dumps(response), stderr="")
 
     monkeypatch.setattr(engine.subprocess, "run", fake_run)
@@ -162,6 +164,29 @@ def test_decide_recovery_reconciles_on_ci_review_or_conflicts(monkeypatch):
     assert decision["action"] == "reconcile"
 
 
+def test_decide_recovery_normalizes_snake_case_payload(monkeypatch):
+    payload = {
+        "claim_state": "running",
+        "attempt_count": 2,
+        "max_attempts": 3,
+        "workspace_exists": True,
+        "merge_conflict_count": 0,
+        "linear": {"item": {"status": {"type": "done"}}},
+        "pr": {"state": "OPEN"},
+    }
+    response = {"action": "release", "reason": "linear-done", "fetch_main": True, "cleanup_eligible": True}
+    _mock_ts(
+        monkeypatch,
+        "decide-recovery",
+        {"claimState": "running", "attemptCount": 2, "maxAttempts": 3, "workspaceExists": True},
+        response,
+    )
+
+    decision = engine.decide_recovery(payload)
+
+    assert decision["action"] == "release"
+
+
 def test_summarize_review_activity_separates_comment_types():
     activity = engine.summarize_review_activity(
         {
@@ -261,9 +286,17 @@ def test_decide_recovery_retries_missing_workspace_until_attempts_are_exhausted(
 
     def fake_run(args, input=None, text=None, capture_output=None, check=None):
         payload = json.loads(input or "{}")
-        if payload == retry_payload:
+        if (
+            payload.get("claim_state") == "failed"
+            and payload.get("attempt_count") == 1
+            and payload.get("workspace_exists") is False
+        ):
             response = {"action": "retry", "reason": "missing-workspace", "fetch_main": False, "cleanup_eligible": False}
-        elif payload == stop_payload:
+        elif (
+            payload.get("claim_state") == "failed"
+            and payload.get("attempt_count") == 3
+            and payload.get("workspace_exists") is False
+        ):
             response = {"action": "stop", "reason": "missing-workspace-exhausted", "fetch_main": False, "cleanup_eligible": False}
         else:
             raise AssertionError(payload)

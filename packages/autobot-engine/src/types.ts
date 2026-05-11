@@ -42,6 +42,7 @@ export interface QueuePayload {
   config?: Record<string, unknown>;
   schema_version?: number;
   generated_at?: string;
+  allow_recovery?: boolean;
   [key: string]: unknown;
 }
 
@@ -96,6 +97,14 @@ export type EffectRequest =
       reason: string;
     };
 
+export type EffectOutcome = "succeeded" | "failed" | "skipped";
+
+export interface EffectResult {
+  request: EffectRequest;
+  outcome: EffectOutcome;
+  message: string;
+}
+
 export interface TransitionDecision {
   taskId: string;
   currentState: TaskState;
@@ -125,6 +134,7 @@ export interface QueueSummary {
 
 export interface ProcessQueueResult {
   items: TaskPlan[];
+  effectResults?: EffectResult[];
   summary: QueueSummary;
   selected_work: TaskInput | null;
   generated_at: string;

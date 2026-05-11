@@ -442,28 +442,53 @@ _autobot_engine_execute_recovery_effect() {
 
   case "$action" in
     release)
-      REPROCTL_JSON=true cmd_autobot_orchestrator release "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
+      if ! REPROCTL_JSON=true cmd_autobot_orchestrator release "$issue_identifier" --reason "$reason" >/dev/null 2>&1; then
+        _autobot_engine_log_activity "effect issue=$issue_identifier kind=recover outcome=failed reason=$reason"
+        _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt_count"
+        return 1
+      fi
       if [[ "$fetch_main" = true ]]; then
         git -C "$MAIN_CHECKOUT" fetch --prune origin main >/dev/null 2>&1 || true
       fi
       if [[ "$cleanup_eligible" = true ]]; then
         _autobot_engine_write_cleanup_record "$issue_identifier" "merged-or-released"
       fi
+      _autobot_engine_log_activity "effect issue=$issue_identifier kind=recover outcome=succeeded reason=$reason"
       ;;
     reconcile)
-      REPROCTL_JSON=true cmd_autobot_orchestrator reconcile "$issue_identifier" >/dev/null 2>&1 || true
+      if ! REPROCTL_JSON=true cmd_autobot_orchestrator reconcile "$issue_identifier" >/dev/null 2>&1; then
+        _autobot_engine_log_activity "effect issue=$issue_identifier kind=recover outcome=failed reason=$reason"
+        _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt_count"
+        return 1
+      fi
+      _autobot_engine_log_activity "effect issue=$issue_identifier kind=recover outcome=succeeded reason=$reason"
       ;;
     cancel)
-      REPROCTL_JSON=true cmd_autobot_orchestrator cancel "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
+      if ! REPROCTL_JSON=true cmd_autobot_orchestrator cancel "$issue_identifier" --reason "$reason" >/dev/null 2>&1; then
+        _autobot_engine_log_activity "effect issue=$issue_identifier kind=recover outcome=failed reason=$reason"
+        _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt_count"
+        return 1
+      fi
+      _autobot_engine_log_activity "effect issue=$issue_identifier kind=recover outcome=succeeded reason=$reason"
       ;;
     retry)
-      REPROCTL_JSON=true cmd_autobot_orchestrator retry "$issue_identifier" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
+      if ! REPROCTL_JSON=true cmd_autobot_orchestrator retry "$issue_identifier" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1; then
+        _autobot_engine_log_activity "effect issue=$issue_identifier kind=recover outcome=failed reason=$reason"
+        _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt_count"
+        return 1
+      fi
+      _autobot_engine_log_activity "effect issue=$issue_identifier kind=recover outcome=succeeded reason=$reason"
       ;;
     stop)
       _warn "Stopping work for $issue_identifier: $reason"
+      _autobot_engine_log_activity "effect issue=$issue_identifier kind=recover outcome=skipped reason=$reason"
+      _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt_count"
+      return 0
       ;;
     continue)
-      return 1
+      _autobot_engine_log_activity "effect issue=$issue_identifier kind=recover outcome=skipped reason=$reason"
+      _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt_count"
+      return 0
       ;;
     *)
       return 1
@@ -487,34 +512,66 @@ _autobot_engine_execute_task_plan() {
 
   _autobot_engine_log_activity "process issue=$issue_identifier state=$claim_state attempt=$attempt_count"
 
-  effect_json="$(printf '%s' "$decision_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); effects=payload.get("effects") if isinstance(payload.get("effects"), list) else []; print(json.dumps(effects[0] if effects else {}, separators=(",",":")))')"
-  effect_kind="$(printf '%s' "$effect_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("kind") or "")')"
+  local effect_count=0
+  while IFS= read -r effect_json; do
+    [[ -n "$effect_json" ]] || continue
+    effect_count=$((effect_count + 1))
+    effect_kind="$(printf '%s' "$effect_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("kind") or "")')"
 
-  case "$effect_kind" in
-    prepare)
-      _autobot_engine_log_activity "prepare issue=$issue_identifier attempt=$attempt_count"
-      if ! REPROCTL_JSON=true cmd_autobot_orchestrator prepare "$issue_identifier" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1; then
-        _warn "Failed to prepare queued item $issue_identifier"
-      fi
-      ;;
-    process-work)
-      if ! _autobot_engine_process_item "$item_json" "$queue_json"; then
+    case "$effect_kind" in
+      prepare)
+        _autobot_engine_log_activity "prepare issue=$issue_identifier attempt=$attempt_count"
+        if REPROCTL_JSON=true cmd_autobot_orchestrator prepare "$issue_identifier" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1; then
+          _autobot_engine_log_activity "effect issue=$issue_identifier kind=prepare outcome=succeeded reason=queued-task-needs-preparation"
+        else
+          _autobot_engine_log_activity "effect issue=$issue_identifier kind=prepare outcome=failed reason=queued-task-needs-preparation"
+          return 1
+        fi
+        ;;
+      process-work)
+        if _autobot_engine_process_item "$item_json" "$queue_json"; then
+          _autobot_engine_log_activity "effect issue=$issue_identifier kind=process-work outcome=succeeded reason=claimed-task-needs-delivery-run"
+        else
+          _autobot_engine_log_activity "effect issue=$issue_identifier kind=process-work outcome=failed reason=claimed-task-needs-delivery-run"
+          return 1
+        fi
+        ;;
+      recover)
+        _autobot_engine_log_activity "recover issue=$issue_identifier state=$claim_state attempt=$attempt_count"
+        if ! _autobot_engine_execute_recovery_effect "$effect_json"; then
+          return 1
+        fi
+        ;;
+      noop|"")
+        _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt_count"
+        _autobot_engine_log_activity "effect issue=$issue_identifier kind=noop outcome=skipped reason=no-transition"
+        ;;
+      *)
+        _warn "Unknown task effect kind for $issue_identifier: $effect_kind"
         return 1
-      fi
-      ;;
-    recover)
-      _autobot_engine_log_activity "recover issue=$issue_identifier state=$claim_state attempt=$attempt_count"
-      if ! _autobot_engine_execute_recovery_effect "$effect_json"; then
-        return 0
-      fi
-      ;;
-    noop|"")
-      _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt_count"
-      ;;
-    *)
-      _warn "Unknown task effect kind for $issue_identifier: $effect_kind"
-      ;;
-  esac
+        ;;
+    esac
+  done < <(
+    python3 - "$decision_json" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1] or '{}')
+effects = payload.get('effects')
+if not isinstance(effects, list):
+    effects = []
+
+for effect in effects:
+    if not isinstance(effect, dict):
+        continue
+    print(json.dumps(effect, separators=(',', ':')))
+PY
+  )
+
+  if [[ "$effect_count" -eq 0 ]]; then
+    _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt_count"
+    _autobot_engine_log_activity "effect issue=$issue_identifier kind=noop outcome=skipped reason=no-effects"
+  fi
 
   return 0
 }
@@ -533,38 +590,27 @@ _autobot_engine_apply_recovery_decision() {
 
   _autobot_engine_log_activity "recovery issue=$issue_identifier attempt=$current_attempt action=$action reason=$reason"
 
-  case "$action" in
-    release)
-      REPROCTL_JSON=true cmd_autobot_orchestrator release "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
-      if [[ "$fetch_main" = true ]]; then
-        git -C "$MAIN_CHECKOUT" fetch --prune origin main >/dev/null 2>&1 || true
-      fi
-      if [[ "$cleanup_eligible" = true ]]; then
-        _autobot_engine_write_cleanup_record "$issue_identifier" "merged-or-released"
-      fi
-      ;;
-    reconcile)
-      REPROCTL_JSON=true cmd_autobot_orchestrator reconcile "$issue_identifier" >/dev/null 2>&1 || true
-      ;;
-    cancel)
-      REPROCTL_JSON=true cmd_autobot_orchestrator cancel "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
-      ;;
-    retry)
-      REPROCTL_JSON=true cmd_autobot_orchestrator retry "$issue_identifier" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
-      ;;
-    stop)
-      _warn "Stopping work for $issue_identifier: $reason"
-      ;;
-    continue)
-      return 1
-      ;;
-    *)
-      return 1
-      ;;
-  esac
+  decision_json="$(python3 - "$decision_json" "$issue_identifier" "$current_attempt" <<'PY'
+import json
+import sys
 
-  _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$current_attempt"
-  return 0
+decision = json.loads(sys.argv[1] or '{}')
+issue_identifier = sys.argv[2]
+attempt_count = int(sys.argv[3] or 0)
+print(json.dumps({
+    'kind': 'recover',
+    'issueIdentifier': issue_identifier,
+    'action': decision.get('action') or '',
+    'reason': decision.get('reason') or '',
+    'fetchMain': bool(decision.get('fetch_main')),
+    'cleanupEligible': bool(decision.get('cleanup_eligible')),
+    'phase': 'delivery',
+    'attemptCount': attempt_count,
+}, separators=(',', ':')))
+PY
+)"
+
+  _autobot_engine_execute_recovery_effect "$decision_json"
 }
 
 _autobot_engine_run_delivery_attempt() {
@@ -858,7 +904,9 @@ PY
   while IFS= read -r item_json; do
     [[ -n "$item_json" ]] || continue
     processed_count=$((processed_count + 1))
-    _autobot_engine_execute_task_plan "$item_json" "$queue_json"
+    if ! _autobot_engine_execute_task_plan "$item_json" "$queue_json"; then
+      return 1
+    fi
   done < <(
     python3 - "$planned_json" <<'PY'
 import json

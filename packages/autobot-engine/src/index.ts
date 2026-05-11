@@ -11,6 +11,8 @@ export {
 } from "./core";
 export type {
   EffectRequest,
+  EffectOutcome,
+  EffectResult,
   KnownTaskState,
   ProcessQueueResult,
   QueuePayload,

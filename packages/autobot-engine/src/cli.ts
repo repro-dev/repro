@@ -20,7 +20,13 @@ function main(argv: string[]): void {
 
   switch (command) {
     case "select-work": {
-      process.stdout.write(`${JSON.stringify(selectWork(payload))}\n`);
+      process.stdout.write(
+        `${JSON.stringify(
+          selectWork(payload, {
+            allowRecovery: payload.allow_recovery !== false,
+          }),
+        )}\n`,
+      );
       return;
     }
     case "decide-recovery": {

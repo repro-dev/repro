@@ -788,6 +788,125 @@ RUNNER
   rm -rf "$tmpdir"
 }
 
+test_process_queue_records_continue_results() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TEST_TMPDIR/workspaces" "$TMP_DIR"
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+_autobot_engine_update_status() { printf '%s\n' "$1" > "$TEST_TMPDIR/repro/.autobot/status.json"; }
+cmd_autobot_orchestrator() {
+  case "$*" in
+    status\ --all\ --json)
+      printf '%s\n' '{"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+python3() {
+  if [[ "$1" == "$SCRIPTS_DIR/lib/py/autobot_engine.py" && "${2:-}" == process-queue ]]; then
+    printf '%s\n' '{"items":[{"item":{"issue_identifier":"REP-2094","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-2094","attempt_count":2},"decision":{"taskId":"REP-2094","currentState":"running","nextState":null,"reason":"no-recovery-needed","effects":[{"kind":"recover","issueIdentifier":"REP-2094","action":"continue","reason":"no-recovery-needed","fetchMain":false,"cleanupEligible":false,"phase":"delivery","attemptCount":2}]}}],"summary":{"total":1,"claimed":0,"running":1,"reconciling":0,"recovery":0,"terminal":0,"by_state":{"running":1},"selected_issue_identifier":"REP-2094","selected_state":"running","allow_recovery":true},"selected_work":null,"generated_at":"2026-05-08T12:00:00Z"}'
+    return 0
+  fi
+  command python3 "$@"
+}
+queue_json='{"items":[{"issue_identifier":"REP-2094","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-2094","attempt_count":2}],"runs":[],"summary":{"claim_states":{"running":1},"active_runs":1,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+_autobot_engine_process_queue "$queue_json"
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/repro/.autobot/status.json" ] && printf '%s\n' "$output" | grep -q 'effect issue=REP-2094 kind=recover outcome=skipped reason=no-recovery-needed'; then
+    _pass 'continue recovery paths record durable no-op results'
+  else
+    _fail 'continue recovery paths record durable no-op results' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_process_queue_surfaces_recovery_effect_failures() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TEST_TMPDIR/workspaces" "$TMP_DIR"
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+_autobot_engine_update_status() { :; }
+cmd_autobot_orchestrator() {
+  case "$*" in
+    status\ --all\ --json)
+      printf '%s\n' '{"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+python3() {
+  if [[ "$1" == "$SCRIPTS_DIR/lib/py/autobot_engine.py" && "${2:-}" == process-queue ]]; then
+    printf '%s\n' '{"items":[{"item":{"issue_identifier":"REP-2095","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-2095","attempt_count":2},"decision":{"taskId":"REP-2095","currentState":"running","nextState":"released","reason":"merged upstream","effects":[{"kind":"recover","issueIdentifier":"REP-2095","action":"release","reason":"merged upstream","fetchMain":false,"cleanupEligible":false,"phase":"delivery","attemptCount":2}]}}],"summary":{"total":1,"claimed":0,"running":1,"reconciling":0,"recovery":0,"terminal":0,"by_state":{"running":1},"selected_issue_identifier":"REP-2095","selected_state":"running","allow_recovery":true},"selected_work":null,"generated_at":"2026-05-08T12:00:00Z"}'
+    return 0
+  fi
+  command python3 "$@"
+}
+cmd_autobot_orchestrator() {
+  case "$*" in
+    release\ REP-2095\ --reason\ merged\ upstream)
+      return 1
+      ;;
+    status\ --all\ --json)
+      printf '%s\n' '{"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+queue_json='{"items":[{"issue_identifier":"REP-2095","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-2095","attempt_count":2}],"runs":[],"summary":{"claim_states":{"running":1},"active_runs":1,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+set +e
+_autobot_engine_process_queue "$queue_json"
+rc=$?
+set -e
+exit "$rc"
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -q 'effect issue=REP-2095 kind=recover outcome=failed reason=merged upstream'; then
+    _pass 'recovery effect failures surface instead of being swallowed'
+  else
+    _fail 'recovery effect failures surface instead of being swallowed' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
 test_process_queue_observes_all_active_issues() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -1212,6 +1331,8 @@ test_auto_discover_caps_intake_by_queue_depth_and_concurrency
 test_auto_discover_logs_when_no_candidates_are_returned
 test_auto_discover_skips_rejected_candidates_without_consuming_capacity
 test_process_queue_logs_recovery_path
+test_process_queue_records_continue_results
+test_process_queue_surfaces_recovery_effect_failures
 test_process_queue_observes_all_active_issues
 test_default_interval_uses_fifteen_seconds_when_unset
 test_monitor_snapshot_separates_review_comments_from_pr_review_data
