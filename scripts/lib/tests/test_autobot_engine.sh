@@ -788,6 +788,89 @@ RUNNER
   rm -rf "$tmpdir"
 }
 
+test_process_queue_observes_all_active_issues() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TEST_TMPDIR/workspaces" "$TMP_DIR"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+_autobot_engine_update_status() { :; }
+_autobot_engine_collect_monitor_snapshot() { printf '%s\n' '{}'; }
+_autobot_engine_apply_recovery_decision() { return 1; }
+cmd_autobot_orchestrator() {
+  case "$*" in
+    run\ start\ REP-1094\ --phase\ delivery\ --workspace\ *)
+      printf '%s\n' '{"run":{"attempt":1}}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+queue_json='{"items":[{"issue_identifier":"REP-1094","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":1},{"issue_identifier":"REP-1095","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1095","attempt_count":2}],"runs":[],"summary":{"claim_states":{"running":2},"active_runs":2,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+_autobot_engine_process_queue "$queue_json"
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'selected issue=REP-1094 state=running' && printf '%s\n' "$output" | grep -q 'observe issue=REP-1095 state=running'; then
+    _pass 'process queue observes every active issue in one tick'
+  else
+    _fail 'process queue observes every active issue in one tick' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_default_interval_uses_fifteen_seconds_when_unset() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TMP_DIR"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+unset AUTOBOT_ENGINE_INTERVAL
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+printf '%s\n' "$AUTOBOT_ENGINE_DEFAULT_INTERVAL"
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && [ "$output" = '15' ]; then
+    _pass 'default engine interval resolves to fifteen seconds'
+  else
+    _fail 'default engine interval resolves to fifteen seconds' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
 test_monitor_snapshot_separates_review_comments_from_pr_review_data() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
@@ -1089,6 +1172,8 @@ test_auto_discover_caps_intake_by_queue_depth_and_concurrency
 test_auto_discover_logs_when_no_candidates_are_returned
 test_auto_discover_skips_rejected_candidates_without_consuming_capacity
 test_process_queue_logs_recovery_path
+test_process_queue_observes_all_active_issues
+test_default_interval_uses_fifteen_seconds_when_unset
 test_monitor_snapshot_separates_review_comments_from_pr_review_data
 test_monitor_snapshot_degrades_review_comment_fetch_failures_to_empty_lists
 test_queued_work_is_prepared_before_delivery

@@ -16,7 +16,7 @@ AUTOBOT_ENGINE_CLEANUP_FILE="$AUTOBOT_ENGINE_DIR/cleanup.jsonl"
 AUTOBOT_ENGINE_RUNS_DIR="$AUTOBOT_ENGINE_DIR/runs"
 AUTOBOT_ENGINE_CONFIG_FILE="$AUTOBOT_ENGINE_DIR/config.json"
 AUTOBOT_ENGINE_EVENTS_FILE=""
-AUTOBOT_ENGINE_DEFAULT_INTERVAL="${AUTOBOT_ENGINE_INTERVAL:-2}"
+AUTOBOT_ENGINE_DEFAULT_INTERVAL="${AUTOBOT_ENGINE_INTERVAL:-15}"
 AUTOBOT_ENGINE_MAX_ATTEMPTS="${AUTOBOT_ENGINE_MAX_ATTEMPTS:-3}"
 
 _autobot_engine_usage() {
@@ -624,6 +624,38 @@ _autobot_engine_process_item() {
   return 0
 }
 
+_autobot_engine_observe_active_queue_items() {
+  local queue_json="$1"
+  local selected_issue="${2:-}"
+  local issue_identifier claim_state attempt_count
+
+  while IFS=$'\t' read -r issue_identifier claim_state attempt_count; do
+    [[ -n "$issue_identifier" ]] || continue
+    _autobot_engine_log_activity "observe issue=$issue_identifier state=$claim_state attempt=$attempt_count"
+  done < <(
+    python3 - "$selected_issue" "$queue_json" <<'PY'
+import json
+import sys
+
+selected = sys.argv[1] if len(sys.argv) > 1 else ''
+payload = json.loads(sys.argv[2] if len(sys.argv) > 2 else '{}')
+items = payload.get('items')
+if not isinstance(items, list):
+    items = payload.get('claims') if isinstance(payload.get('claims'), list) else []
+
+for item in items:
+    if not isinstance(item, dict):
+        continue
+
+    claim_state = str(item.get('claim_state') or '')
+    issue_identifier = str(item.get('issue_identifier') or item.get('identifier') or '')
+    if claim_state in {'claimed', 'running', 'reconciling'} and issue_identifier and issue_identifier != selected:
+        attempt_count = int(item.get('attempt_count') or 0)
+        print(f'{issue_identifier}\t{claim_state}\t{attempt_count}')
+PY
+  )
+}
+
 _autobot_engine_process_queue() {
   local queue_json="$1"
   local selection_json selected_json selected_issue selected_state selected_attempt selected_item snapshot_json
@@ -647,22 +679,26 @@ _autobot_engine_process_queue() {
     if ! REPROCTL_JSON=true cmd_autobot_orchestrator prepare "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1; then
       _warn "Failed to prepare queued item $selected_issue"
       _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
+      _autobot_engine_observe_active_queue_items "$queue_json" "$selected_issue"
       return 0
     fi
 
     queue_json="$(_autobot_engine_queue_json)"
     _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
+    _autobot_engine_observe_active_queue_items "$queue_json" "$selected_issue"
     return 0
   fi
 
   snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$selected_item")"
   _autobot_engine_log_activity "recover issue=$selected_issue state=$selected_state attempt=$selected_attempt"
   if _autobot_engine_apply_recovery_decision "$snapshot_json"; then
+    _autobot_engine_observe_active_queue_items "$queue_json" "$selected_issue"
     return 0
   fi
 
   if [[ "$selected_state" == running || "$selected_state" == reconciling ]]; then
     _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
+    _autobot_engine_observe_active_queue_items "$queue_json" "$selected_issue"
     return 0
   fi
 
@@ -670,14 +706,17 @@ _autobot_engine_process_queue() {
     if [[ "$selected_attempt" -ge "$AUTOBOT_ENGINE_MAX_ATTEMPTS" ]]; then
       _warn "Skipping $selected_issue after $selected_attempt attempts"
       _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
+      _autobot_engine_observe_active_queue_items "$queue_json" "$selected_issue"
       return 0
     fi
     REPROCTL_JSON=true cmd_autobot_orchestrator retry "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
     _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
+    _autobot_engine_observe_active_queue_items "$queue_json" "$selected_issue"
     return 0
   fi
 
   _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
+  _autobot_engine_observe_active_queue_items "$queue_json" "$selected_issue"
   _autobot_engine_process_item "$selected_item" "$queue_json"
 }
 
