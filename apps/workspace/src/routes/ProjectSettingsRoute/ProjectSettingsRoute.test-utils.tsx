@@ -1,7 +1,7 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { createAtom } from '@repro/atom'
 import { ConfirmDialogProvider } from '@repro/design'
-import { Project, ProjectRole } from '@repro/domain'
+import { Project, ProjectRole, StaffUser, User } from '@repro/domain'
 import {
   ProjectMember,
   deactivateProject as defaultDeactivateProject,
@@ -159,10 +159,11 @@ export function renderConnectedRoute({
   const state = createState({ apiClient })
   const [$sessionLoading] = createAtom(false)
   const sessionUser = { ...adminMember.user, id: currentUserId }
+  const [$session] = createAtom<User | StaffUser | null>(sessionUser)
 
   const authState = {
     ...state,
-    $session: sessionUser as unknown as typeof state.$session,
+    $session,
     $sessionLoading,
   }
 
@@ -224,10 +225,11 @@ export function renderConnectedRouteNavigationTest({
   const state = createState({ apiClient })
   const [$sessionLoading] = createAtom(false)
   const sessionUser = adminMember.user
+  const [$session] = createAtom<User | StaffUser | null>(sessionUser)
 
   const authState = {
     ...state,
-    $session: sessionUser as unknown as typeof state.$session,
+    $session,
     $sessionLoading,
   }
 

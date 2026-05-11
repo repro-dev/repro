@@ -252,9 +252,6 @@ export function ProjectSettingsRoute({
                         gap={spacing.md}
                         padding={spacing.md}
                         borderRadius={radius.sm}
-                        backgroundColor={
-                          isCurrentUser ? color.bg.hover : undefined
-                        }
                       >
                         <Avatar
                           email={member.user.email}
