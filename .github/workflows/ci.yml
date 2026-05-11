@@ -276,7 +276,7 @@ jobs:
     name: Deploy marketing (pages)
     needs: [build, format-check]
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' && contains(fromJSON(needs.build.outputs.app_ids), 'repro/marketing') }}
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || contains(fromJSON(needs.build.outputs.app_ids), 'repro/marketing')) }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
