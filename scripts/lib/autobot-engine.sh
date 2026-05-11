@@ -404,6 +404,121 @@ print(json.dumps(payload))
 PY
 }
 
+_autobot_engine_merge_snapshot_into_item() {
+  local item_json="$1"
+  local snapshot_json="$2"
+
+  python3 - "$item_json" "$snapshot_json" "$AUTOBOT_ENGINE_MAX_ATTEMPTS" <<'PY'
+import json
+import sys
+
+item = json.loads(sys.argv[1] or '{}')
+snapshot = json.loads(sys.argv[2] or '{}')
+max_attempts = int(sys.argv[3] or 0)
+
+item.update(snapshot)
+item['max_attempts'] = max_attempts
+print(json.dumps(item, separators=(',', ':')))
+PY
+}
+
+_autobot_engine_plan_queue() {
+  local queue_json="$1"
+  python3 "$SCRIPTS_DIR/lib/py/autobot_engine.py" process-queue <<< "$queue_json"
+}
+
+_autobot_engine_execute_recovery_effect() {
+  local effect_json="$1"
+  local issue_identifier action reason fetch_main cleanup_eligible attempt_count
+
+  issue_identifier="$(printf '%s' "$effect_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("issueIdentifier") or "")')"
+  action="$(printf '%s' "$effect_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("action") or "")')"
+  reason="$(printf '%s' "$effect_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("reason") or "")')"
+  fetch_main="$(printf '%s' "$effect_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print("true" if payload.get("fetchMain") else "false")')"
+  cleanup_eligible="$(printf '%s' "$effect_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print("true" if payload.get("cleanupEligible") else "false")')"
+  attempt_count="$(printf '%s' "$effect_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(int(payload.get("attemptCount") or 0))')"
+
+  _autobot_engine_log_activity "recovery issue=$issue_identifier attempt=$attempt_count action=$action reason=$reason"
+
+  case "$action" in
+    release)
+      REPROCTL_JSON=true cmd_autobot_orchestrator release "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
+      if [[ "$fetch_main" = true ]]; then
+        git -C "$MAIN_CHECKOUT" fetch --prune origin main >/dev/null 2>&1 || true
+      fi
+      if [[ "$cleanup_eligible" = true ]]; then
+        _autobot_engine_write_cleanup_record "$issue_identifier" "merged-or-released"
+      fi
+      ;;
+    reconcile)
+      REPROCTL_JSON=true cmd_autobot_orchestrator reconcile "$issue_identifier" >/dev/null 2>&1 || true
+      ;;
+    cancel)
+      REPROCTL_JSON=true cmd_autobot_orchestrator cancel "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
+      ;;
+    retry)
+      REPROCTL_JSON=true cmd_autobot_orchestrator retry "$issue_identifier" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1 || true
+      ;;
+    stop)
+      _warn "Stopping work for $issue_identifier: $reason"
+      ;;
+    continue)
+      return 1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  _autobot_engine_update_status "$(_autobot_engine_queue_json)" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt_count"
+  return 0
+}
+
+_autobot_engine_execute_task_plan() {
+  local task_json="$1"
+  local queue_json="$2"
+  local item_json decision_json effect_json effect_kind issue_identifier claim_state attempt_count
+
+  item_json="$(printf '%s' "$task_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(json.dumps(payload.get("item") or {}, separators=(",",":")))')"
+  decision_json="$(printf '%s' "$task_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(json.dumps(payload.get("decision") or {}, separators=(",",":")))')"
+  issue_identifier="$(printf '%s' "$item_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("issue_identifier") or payload.get("identifier") or "")')"
+  claim_state="$(printf '%s' "$item_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("claim_state") or "")')"
+  attempt_count="$(printf '%s' "$item_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(int(payload.get("attempt_count") or 0))')"
+
+  _autobot_engine_log_activity "process issue=$issue_identifier state=$claim_state attempt=$attempt_count"
+
+  effect_json="$(printf '%s' "$decision_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); effects=payload.get("effects") if isinstance(payload.get("effects"), list) else []; print(json.dumps(effects[0] if effects else {}, separators=(",",":")))')"
+  effect_kind="$(printf '%s' "$effect_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("kind") or "")')"
+
+  case "$effect_kind" in
+    prepare)
+      _autobot_engine_log_activity "prepare issue=$issue_identifier attempt=$attempt_count"
+      if ! REPROCTL_JSON=true cmd_autobot_orchestrator prepare "$issue_identifier" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1; then
+        _warn "Failed to prepare queued item $issue_identifier"
+      fi
+      ;;
+    process-work)
+      if ! _autobot_engine_process_item "$item_json" "$queue_json"; then
+        return 1
+      fi
+      ;;
+    recover)
+      _autobot_engine_log_activity "recover issue=$issue_identifier state=$claim_state attempt=$attempt_count"
+      if ! _autobot_engine_execute_recovery_effect "$effect_json"; then
+        return 0
+      fi
+      ;;
+    noop|"")
+      _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$issue_identifier" delivery "$attempt_count"
+      ;;
+    *)
+      _warn "Unknown task effect kind for $issue_identifier: $effect_kind"
+      ;;
+  esac
+
+  return 0
+}
+
 _autobot_engine_apply_recovery_decision() {
   local snapshot_json="$1"
   local decision_json action reason fetch_main cleanup_eligible issue_identifier current_attempt
@@ -616,7 +731,7 @@ _autobot_engine_process_item() {
   fi
 
   REPROCTL_JSON=true cmd_autobot_orchestrator run finish "$issue_identifier" --attempt "$attempt" --state finished >/dev/null 2>&1 || true
-  snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$selected_item")"
+  snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$item_json")"
   if _autobot_engine_apply_recovery_decision "$snapshot_json"; then
     return 0
   fi
@@ -684,12 +799,27 @@ _autobot_engine_process_active_queue_item() {
 
 _autobot_engine_process_queue() {
   local queue_json="$1"
-  local item_json processed_count=0
+  local item_json snapshot_json merged_item_json merged_items_json planned_json processed_count=0
+  local item_count=0
+  local merged_items=()
 
   while IFS= read -r item_json; do
     [[ -n "$item_json" ]] || continue
-    processed_count=$((processed_count + 1))
-    _autobot_engine_process_active_queue_item "$item_json" "$queue_json"
+    item_count=$((item_count + 1))
+
+    local claim_state
+    claim_state="$(printf '%s' "$item_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("claim_state") or "")')"
+    case "$claim_state" in
+      running|reconciling|failed|error|stale)
+        snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$item_json")"
+        merged_item_json="$(_autobot_engine_merge_snapshot_into_item "$item_json" "$snapshot_json")"
+        ;;
+      *)
+        merged_item_json="$(_autobot_engine_merge_snapshot_into_item "$item_json" '{}')"
+        ;;
+    esac
+
+    merged_items+=("$merged_item_json")
   done < <(
     python3 - "$queue_json" <<'PY'
 import json
@@ -705,6 +835,45 @@ for item in items:
         continue
 
     print(json.dumps(item, separators=(',', ':')))
+PY
+  )
+
+  if [[ "$item_count" -eq 0 ]]; then
+    _autobot_engine_log_activity "no processable work"
+    return 1
+  fi
+
+  merged_items_json="$(python3 - "$AUTOBOT_ENGINE_MAX_ATTEMPTS" "${merged_items[@]}" <<'PY'
+import json
+import sys
+
+max_attempts = int(sys.argv[1] or 0)
+items = [json.loads(arg) for arg in sys.argv[2:] if arg]
+print(json.dumps({"items": items, "max_attempts": max_attempts, "config": {"max_attempts": max_attempts}}, separators=(',', ':')))
+PY
+  )"
+
+  planned_json="$(_autobot_engine_plan_queue "$merged_items_json")"
+
+  while IFS= read -r item_json; do
+    [[ -n "$item_json" ]] || continue
+    processed_count=$((processed_count + 1))
+    _autobot_engine_execute_task_plan "$item_json" "$queue_json"
+  done < <(
+    python3 - "$planned_json" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1] if len(sys.argv) > 1 else '{}')
+tasks = payload.get('items')
+if not isinstance(tasks, list):
+    tasks = []
+
+for task in tasks:
+    if not isinstance(task, dict):
+        continue
+
+    print(json.dumps(task, separators=(',', ':')))
 PY
   )
 

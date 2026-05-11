@@ -5,12 +5,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from autobot_queue import public_item
+
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+AUTOBOT_ENGINE_TS_PACKAGE = REPO_ROOT / "packages" / "autobot-engine"
 
 
 ACTIVE_STATES = {"claimed", "running", "reconciling"}
@@ -45,6 +50,20 @@ def _items(payload: dict[str, Any]) -> list[dict[str, Any]]:
         items = payload.get("claims") if isinstance(payload.get("claims"), list) else []
 
     return [item for item in items if isinstance(item, dict)]
+
+
+def _run_ts(command: str, payload: dict[str, Any]) -> dict[str, Any]:
+    result = subprocess.run(
+        ["pnpm", "--dir", str(AUTOBOT_ENGINE_TS_PACKAGE), "exec", "tsx", "src/cli.ts", command],
+        input=json.dumps(payload),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise SystemExit(result.stderr.strip() or result.stdout.strip() or f"autobot-engine {command} failed")
+
+    return json.loads(result.stdout or "{}")
 
 
 def _claim_state(item: dict[str, Any]) -> str:
@@ -146,32 +165,7 @@ def _queue_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def select_work(payload: dict[str, Any], *, allow_recovery: bool = True) -> dict[str, Any]:
-    items = _items(payload)
-    selected: dict[str, Any] | None = None
-
-    for state in ("queued", "claimed", "running", "reconciling"):
-        for item in items:
-            if _claim_state(item) == state:
-                selected = item
-                break
-        if selected is not None:
-            break
-
-    if selected is None and allow_recovery:
-        for item in items:
-            if _claim_state(item) in RECOVERY_STATES:
-                selected = item
-                break
-
-    return {
-        "selected": selected,
-        "summary": {
-            **_queue_summary(items),
-            "selected_issue_identifier": str(selected.get("issue_identifier") or "") if selected else "",
-            "selected_state": _claim_state(selected) if selected else "",
-            "allow_recovery": allow_recovery,
-        },
-    }
+    return _run_ts("select-work", {**payload, "allow_recovery": allow_recovery})
 
 
 def discover_issue_ids(payload: dict[str, Any]) -> list[str]:
@@ -233,68 +227,15 @@ def render_status(
 
 
 def decide_recovery(payload: dict[str, Any]) -> dict[str, Any]:
-    attempt_count = int(payload.get("attempt_count") or 0)
-    max_attempts = int(payload.get("max_attempts") or 0)
-    workspace_exists = bool(payload.get("workspace_exists"))
-    claim_state = str(payload.get("claim_state") or "")
+    return _run_ts("decide-recovery", payload)
 
-    linear = _as_mapping(payload.get("linear"))
-    linear_item = _as_mapping(linear.get("item"))
-    linear_status = _as_mapping(linear.get("status") or linear_item.get("status"))
-    linear_issue = _as_mapping(linear.get("issue") or linear_item.get("issue"))
-    pr = _as_mapping(payload.get("pr"))
 
-    linear_state_type = str(
-        linear.get("state_type")
-        or linear.get("type")
-        or linear_status.get("type")
-        or linear_issue.get("state_type")
-        or linear_issue.get("stateType")
-        or ""
-    ).lower()
-    linear_state_name = str(
-        linear.get("state_name")
-        or linear.get("name")
-        or linear_status.get("name")
-        or linear_issue.get("state_name")
-        or linear_issue.get("stateName")
-        or ""
-    ).lower()
+def process_queue(payload: dict[str, Any]) -> dict[str, Any]:
+    return _run_ts("process-queue", payload)
 
-    pr_state = str(pr.get("state") or pr.get("State") or "").upper()
-    merge_state_status = str(pr.get("merge_state_status") or pr.get("mergeStateStatus") or "").upper()
-    review_decision = str(pr.get("review_decision") or pr.get("reviewDecision") or "").upper()
-    status_state = _rollup_status_state(pr.get("status_check_rollup") or pr.get("statusCheckRollup"))
 
-    merge_conflict_count = int(payload.get("merge_conflict_count") or 0)
-    workspace_dirty = bool(payload.get("workspace_dirty"))
-
-    if linear_state_type in TERMINAL_LINEAR_STATE_TYPES or linear_state_name in TERMINAL_LINEAR_STATE_TYPES:
-        return {"action": "cancel", "reason": f"linear-{linear_state_type or linear_state_name}"}
-
-    if linear_state_type in SUCCESS_LINEAR_STATE_TYPES or linear_state_name in SUCCESS_LINEAR_STATE_TYPES:
-        return {"action": "release", "reason": f"linear-{linear_state_type or linear_state_name}", "fetch_main": True, "cleanup_eligible": True}
-
-    if pr_state == "MERGED" or merge_state_status == "MERGED":
-        return {"action": "release", "reason": f"pr-{pr_state or merge_state_status}", "fetch_main": True, "cleanup_eligible": True}
-
-    if merge_conflict_count > 0 or review_decision == "CHANGES_REQUESTED" or status_state in {"FAILURE", "ERROR"}:
-        return {"action": "reconcile", "reason": "pr-ci-review-conflict"}
-
-    if not workspace_exists:
-        if max_attempts <= 0 or attempt_count < max_attempts:
-            return {"action": "retry", "reason": "missing-workspace", "phase": "delivery"}
-        return {"action": "stop", "reason": "missing-workspace-exhausted"}
-
-    if claim_state in RECOVERY_STATES:
-        if max_attempts <= 0 or attempt_count < max_attempts:
-            return {"action": "retry", "reason": f"claim-{claim_state}", "phase": "delivery"}
-        return {"action": "stop", "reason": f"claim-{claim_state}-exhausted"}
-
-    if workspace_dirty and claim_state in ACTIVE_STATES:
-        return {"action": "reconcile", "reason": "workspace-dirty"}
-
-    return {"action": "continue", "reason": "no-recovery-needed"}
+def transition(payload: dict[str, Any]) -> dict[str, Any]:
+    return _run_ts("transition", payload)
 
 
 def append_event(path: str | Path, event: dict[str, Any]) -> None:
@@ -319,6 +260,9 @@ def main(argv: list[str] | None = None) -> int:
 
     select = subparsers.add_parser("select-work")
     select.add_argument("--no-recovery", action="store_true")
+
+    subparsers.add_parser("process-queue")
+    subparsers.add_parser("transition")
 
     render = subparsers.add_parser("render-status")
     render.add_argument("--pid")
@@ -348,6 +292,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "select-work":
         print(json.dumps(select_work(payload, allow_recovery=not args.no_recovery)))
+        return 0
+
+    if args.command == "process-queue":
+        print(json.dumps(process_queue(payload)))
+        return 0
+
+    if args.command == "transition":
+        print(json.dumps(transition(payload)))
         return 0
 
     if args.command == "render-status":

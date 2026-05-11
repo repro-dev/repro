@@ -3,21 +3,26 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from autobot_engine import (
-    decide_recovery,
-    discover_issue_ids,
-    render_status,
-    select_work,
-    summarize_review_activity,
-)
+import autobot_engine as engine
 
 
-def test_select_work_prefers_claimed_and_skips_terminal_states():
+def _mock_ts(monkeypatch, expected_command: str, payload: dict[str, object], response: dict[str, object]):
+    def fake_run(args, input=None, text=None, capture_output=None, check=None):
+        assert args[:5] == ["pnpm", "--dir", str(engine.AUTOBOT_ENGINE_TS_PACKAGE), "exec", "tsx"]
+        assert args[5:] == ["src/cli.ts", expected_command]
+        assert json.loads(input or "{}") == payload
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout=json.dumps(response), stderr="")
+
+    monkeypatch.setattr(engine.subprocess, "run", fake_run)
+
+
+def test_select_work_prefers_claimed_and_skips_terminal_states(monkeypatch):
     payload = {
         "items": [
             {"issue_identifier": "REP-1", "claim_state": "released"},
@@ -25,15 +30,17 @@ def test_select_work_prefers_claimed_and_skips_terminal_states():
             {"issue_identifier": "REP-3", "claim_state": "canceled"},
         ]
     }
+    response = {"selected": payload["items"][1], "summary": {"selected_state": "claimed", "terminal": 2}}
+    _mock_ts(monkeypatch, "select-work", {**payload, "allow_recovery": True}, response)
 
-    result = select_work(payload)
+    result = engine.select_work(payload)
 
     assert result["selected"]["issue_identifier"] == "REP-2"
     assert result["summary"]["selected_state"] == "claimed"
     assert result["summary"]["terminal"] == 2
 
 
-def test_select_work_prefers_queued_before_claimed():
+def test_select_work_prefers_queued_before_claimed(monkeypatch):
     payload = {
         "items": [
             {"issue_identifier": "REP-1", "claim_state": "claimed"},
@@ -41,50 +48,62 @@ def test_select_work_prefers_queued_before_claimed():
             {"issue_identifier": "REP-3", "claim_state": "running"},
         ]
     }
+    response = {"selected": payload["items"][1], "summary": {"selected_state": "queued", "by_state": {"queued": 1}}}
+    _mock_ts(monkeypatch, "select-work", {**payload, "allow_recovery": True}, response)
 
-    result = select_work(payload)
+    result = engine.select_work(payload)
 
     assert result["selected"]["issue_identifier"] == "REP-2"
     assert result["summary"]["selected_state"] == "queued"
     assert result["summary"]["by_state"]["queued"] == 1
 
 
-def test_select_work_skips_recovery_when_disabled():
+def test_select_work_skips_recovery_when_disabled(monkeypatch):
     payload = {
         "items": [
             {"issue_identifier": "REP-1", "claim_state": "failed"},
             {"issue_identifier": "REP-2", "claim_state": "running"},
         ]
     }
+    response = {"selected": payload["items"][1], "summary": {"selected_state": "running"}}
+    _mock_ts(monkeypatch, "select-work", {**payload, "allow_recovery": False}, response)
 
-    result = select_work(payload, allow_recovery=False)
+    result = engine.select_work(payload, allow_recovery=False)
 
     assert result["selected"]["issue_identifier"] == "REP-2"
     assert result["summary"]["selected_state"] == "running"
 
 
-def test_select_work_polls_reconciling_items_before_recovery():
+def test_select_work_polls_reconciling_items_before_recovery(monkeypatch):
     payload = {
         "items": [
             {"issue_identifier": "REP-1", "claim_state": "reconciling"},
             {"issue_identifier": "REP-2", "claim_state": "failed"},
         ]
     }
+    response = {"selected": payload["items"][0], "summary": {"selected_state": "reconciling"}}
+    _mock_ts(monkeypatch, "select-work", {**payload, "allow_recovery": True}, response)
 
-    result = select_work(payload)
+    result = engine.select_work(payload)
 
     assert result["selected"]["issue_identifier"] == "REP-1"
     assert result["summary"]["selected_state"] == "reconciling"
 
 
-def test_render_status_uses_expected_shape():
+def test_render_status_uses_expected_shape(monkeypatch):
     payload = {
         "schema_version": 1,
         "config": {"schema_version": 1, "config_path": "/repo/.autobot/config.json", "values": {}},
         "items": [{"issue_identifier": "REP-1", "claim_state": "claimed"}],
     }
+    _mock_ts(
+        monkeypatch,
+        "select-work",
+        {**payload, "allow_recovery": True},
+        {"selected": payload["items"][0], "summary": {"selected_issue_identifier": "REP-1", "selected_state": "claimed"}},
+    )
 
-    status = render_status(
+    status = engine.render_status(
         pid=1234,
         running=True,
         engine_mode="daemon",
@@ -110,37 +129,41 @@ def test_render_status_uses_expected_shape():
     assert status["paths"]["log"] == "/repo/.autobot/engine.log"
 
 
-def test_decide_recovery_releases_on_merged_pr_or_done_linear():
-    decision = decide_recovery(
-        {
-            "attempt_count": 1,
-            "max_attempts": 3,
-            "workspace_exists": True,
-            "linear": {"item": {"status": {"type": "done"}}},
-            "pr": {"state": "OPEN"},
-        }
-    )
+def test_decide_recovery_releases_on_merged_pr_or_done_linear(monkeypatch):
+    payload = {
+        "attempt_count": 1,
+        "max_attempts": 3,
+        "workspace_exists": True,
+        "linear": {"item": {"status": {"type": "done"}}},
+        "pr": {"state": "OPEN"},
+    }
+    response = {"action": "release", "reason": "linear-done", "fetch_main": True, "cleanup_eligible": True}
+    _mock_ts(monkeypatch, "decide-recovery", payload, response)
+
+    decision = engine.decide_recovery(payload)
 
     assert decision["action"] == "release"
     assert decision["fetch_main"] is True
 
 
-def test_decide_recovery_reconciles_on_ci_review_or_conflicts():
-    decision = decide_recovery(
-        {
-            "attempt_count": 1,
-            "max_attempts": 3,
-            "workspace_exists": True,
-            "merge_conflict_count": 1,
-            "pr": {"reviewDecision": "CHANGES_REQUESTED"},
-        }
-    )
+def test_decide_recovery_reconciles_on_ci_review_or_conflicts(monkeypatch):
+    payload = {
+        "attempt_count": 1,
+        "max_attempts": 3,
+        "workspace_exists": True,
+        "merge_conflict_count": 1,
+        "pr": {"reviewDecision": "CHANGES_REQUESTED"},
+    }
+    response = {"action": "reconcile", "reason": "pr-ci-review-conflict", "fetch_main": False, "cleanup_eligible": False}
+    _mock_ts(monkeypatch, "decide-recovery", payload, response)
+
+    decision = engine.decide_recovery(payload)
 
     assert decision["action"] == "reconcile"
 
 
 def test_summarize_review_activity_separates_comment_types():
-    activity = summarize_review_activity(
+    activity = engine.summarize_review_activity(
         {
             "reviewDecision": "COMMENTED",
             "reviews": [{"author": {"login": "reviewer"}, "state": "APPROVED", "submittedAt": "2026-05-08T12:00:00Z"}],
@@ -155,89 +178,108 @@ def test_summarize_review_activity_separates_comment_types():
     assert activity["code_line_comments"][0]["path"] == "src/app.py"
 
 
-def test_decide_recovery_ignores_comments_without_changes_requested_review():
-    decision = decide_recovery(
-        {
-            "attempt_count": 1,
-            "max_attempts": 3,
-            "workspace_exists": True,
-            "pr": {
-                "reviewDecision": "COMMENTED",
-                "review_activity": {
-                    "top_level_comments": [{"body": "nit"}],
-                    "code_line_comments": [{"body": "fix this"}],
-                },
+def test_decide_recovery_ignores_comments_without_changes_requested_review(monkeypatch):
+    payload = {
+        "attempt_count": 1,
+        "max_attempts": 3,
+        "workspace_exists": True,
+        "pr": {
+            "reviewDecision": "COMMENTED",
+            "review_activity": {
+                "top_level_comments": [{"body": "nit"}],
+                "code_line_comments": [{"body": "fix this"}],
             },
-        }
-    )
+        },
+    }
+    response = {"action": "continue", "reason": "no-recovery-needed", "fetch_main": False, "cleanup_eligible": False}
+    _mock_ts(monkeypatch, "decide-recovery", payload, response)
+
+    decision = engine.decide_recovery(payload)
 
     assert decision["action"] == "continue"
 
 
-def test_decide_recovery_reconciles_on_failed_status_check_rollup_list():
-    decision = decide_recovery(
-        {
-            "attempt_count": 1,
-            "max_attempts": 3,
-            "workspace_exists": True,
-            "pr": {"statusCheckRollup": [{"name": "ci", "state": "FAILURE"}]},
-        }
-    )
+def test_decide_recovery_reconciles_on_failed_status_check_rollup_list(monkeypatch):
+    payload = {
+        "attempt_count": 1,
+        "max_attempts": 3,
+        "workspace_exists": True,
+        "pr": {"statusCheckRollup": [{"name": "ci", "state": "FAILURE"}]},
+    }
+    response = {"action": "reconcile", "reason": "pr-ci-review-conflict", "fetch_main": False, "cleanup_eligible": False}
+    _mock_ts(monkeypatch, "decide-recovery", payload, response)
+
+    decision = engine.decide_recovery(payload)
 
     assert decision["action"] == "reconcile"
 
 
-def test_decide_recovery_cancels_terminal_linear_states():
-    decision = decide_recovery(
-        {
-            "attempt_count": 1,
-            "max_attempts": 3,
-            "workspace_exists": True,
-            "linear": {"item": {"status": {"type": "canceled"}}},
-        }
-    )
+def test_decide_recovery_cancels_terminal_linear_states(monkeypatch):
+    payload = {
+        "attempt_count": 1,
+        "max_attempts": 3,
+        "workspace_exists": True,
+        "linear": {"item": {"status": {"type": "canceled"}}},
+    }
+    response = {"action": "cancel", "reason": "linear-canceled", "fetch_main": False, "cleanup_eligible": False}
+    _mock_ts(monkeypatch, "decide-recovery", payload, response)
+
+    decision = engine.decide_recovery(payload)
 
     assert decision["action"] == "cancel"
 
 
-def test_decide_recovery_keeps_in_progress_linear_work_unreleased():
-    decision = decide_recovery(
-        {
-            "attempt_count": 1,
-            "max_attempts": 3,
-            "workspace_exists": True,
-            "linear": {"item": {"status": {"type": "in_progress"}}},
-            "pr": {"state": "OPEN"},
-        }
-    )
+def test_decide_recovery_keeps_in_progress_linear_work_unreleased(monkeypatch):
+    payload = {
+        "attempt_count": 1,
+        "max_attempts": 3,
+        "workspace_exists": True,
+        "linear": {"item": {"status": {"type": "in_progress"}}},
+        "pr": {"state": "OPEN"},
+    }
+    response = {"action": "continue", "reason": "no-recovery-needed", "fetch_main": False, "cleanup_eligible": False}
+    _mock_ts(monkeypatch, "decide-recovery", payload, response)
+
+    decision = engine.decide_recovery(payload)
 
     assert decision["action"] == "continue"
 
 
-def test_decide_recovery_retries_missing_workspace_until_attempts_are_exhausted():
-    retry_decision = decide_recovery(
-        {
-            "attempt_count": 1,
-            "max_attempts": 3,
-            "workspace_exists": False,
-            "claim_state": "failed",
-        }
-    )
-    stop_decision = decide_recovery(
-        {
-            "attempt_count": 3,
-            "max_attempts": 3,
-            "workspace_exists": False,
-            "claim_state": "failed",
-        }
-    )
+def test_decide_recovery_retries_missing_workspace_until_attempts_are_exhausted(monkeypatch):
+    retry_payload = {
+        "attempt_count": 1,
+        "max_attempts": 3,
+        "workspace_exists": False,
+        "claim_state": "failed",
+    }
+    stop_payload = {
+        "attempt_count": 3,
+        "max_attempts": 3,
+        "workspace_exists": False,
+        "claim_state": "failed",
+    }
+
+    def fake_run(args, input=None, text=None, capture_output=None, check=None):
+        payload = json.loads(input or "{}")
+        if payload == retry_payload:
+            response = {"action": "retry", "reason": "missing-workspace", "fetch_main": False, "cleanup_eligible": False}
+        elif payload == stop_payload:
+            response = {"action": "stop", "reason": "missing-workspace-exhausted", "fetch_main": False, "cleanup_eligible": False}
+        else:
+            raise AssertionError(payload)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout=json.dumps(response), stderr="")
+
+    monkeypatch.setattr(engine.subprocess, "run", fake_run)
+
+    retry_decision = engine.decide_recovery(retry_payload)
+    stop_decision = engine.decide_recovery(stop_payload)
 
     assert retry_decision["action"] == "retry"
     assert stop_decision["action"] == "stop"
 
 
 def test_discover_issue_ids_deduplicates_items():
-    ids = discover_issue_ids(
+    ids = engine.discover_issue_ids(
         {
             "items": [
                 {"issue_identifier": "REP-1"},

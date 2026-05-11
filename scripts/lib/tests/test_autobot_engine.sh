@@ -758,13 +758,13 @@ _autobot_engine_update_status() { :; }
 _autobot_engine_collect_monitor_snapshot() {
   printf '%s\n' '{"issue_identifier":"REP-1094","attempt_count":2}'
 }
-python3() {
-  if [[ "$1" == "$SCRIPTS_DIR/lib/py/autobot_engine.py" && "${2:-}" == decide-recovery ]]; then
-    printf '%s\n' '{"action":"release","reason":"merged upstream","fetch_main":false,"cleanup_eligible":false}'
-    return 0
-  fi
-  command python3 "$@"
-}
+  python3() {
+    if [[ "$1" == "$SCRIPTS_DIR/lib/py/autobot_engine.py" && "${2:-}" == process-queue ]]; then
+      printf '%s\n' '{"items":[{"item":{"issue_identifier":"REP-1094","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":2},"decision":{"taskId":"REP-1094","currentState":"running","nextState":"released","reason":"merged upstream","effects":[{"kind":"recover","issueIdentifier":"REP-1094","action":"release","reason":"merged upstream","fetchMain":false,"cleanupEligible":false,"phase":"delivery","attemptCount":2}]}}],"summary":{"total":1,"claimed":0,"running":1,"reconciling":0,"recovery":0,"terminal":0,"by_state":{"running":1},"selected_issue_identifier":"REP-1094","selected_state":"running","allow_recovery":true},"selected_work":null,"generated_at":"2026-05-08T12:00:00Z"}'
+      return 0
+    fi
+    command python3 "$@"
+  }
 cmd_autobot_orchestrator() {
   case "$*" in
     release\ REP-1094\ --reason\ merged\ upstream)
@@ -809,20 +809,19 @@ TMP_DIR="$TEST_TMPDIR/tmp"
 mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TEST_TMPDIR/workspaces" "$TMP_DIR"
 slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
 worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
-source "$SCRIPTS_DIR/lib/autobot-engine.sh"
-_autobot_engine_update_status() { :; }
-_autobot_engine_log_activity() {
-  printf '%s\n' "$*" >> "$TEST_TMPDIR/activity.log"
-}
-_autobot_engine_collect_monitor_snapshot() {
-  printf '%s\n' '{}'
-}
-_autobot_engine_apply_recovery_decision() { return 1; }
-cmd_autobot_orchestrator() {
-  case "$*" in
-    status\ --all\ --json)
-      printf '%s\n' "$queue_json"
-      ;;
+  source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+  _autobot_engine_update_status() { :; }
+  _autobot_engine_log_activity() {
+    printf '%s\n' "$*" >> "$TEST_TMPDIR/activity.log"
+  }
+  _autobot_engine_collect_monitor_snapshot() {
+    printf '%s\n' '{}'
+  }
+  cmd_autobot_orchestrator() {
+    case "$*" in
+      status\ --all\ --json)
+        printf '%s\n' "$queue_json"
+        ;;
     prepare\ REP-1094\ --phase\ delivery\ --claimed-by\ autobot-engine)
       :
       ;;
@@ -834,8 +833,15 @@ cmd_autobot_orchestrator() {
       ;;
   esac
 }
-queue_json='{"items":[{"issue_identifier":"REP-1094","claim_state":"queued","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":0},{"issue_identifier":"REP-1095","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1095","attempt_count":1},{"issue_identifier":"REP-1096","claim_state":"failed","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1096","attempt_count":2}],"runs":[],"summary":{"claim_states":{"queued":1,"running":1,"failed":1},"active_runs":2,"stale_claims":0,"failed_runs":1,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
-_autobot_engine_process_queue "$queue_json"
+  python3() {
+    if [[ "$1" == "$SCRIPTS_DIR/lib/py/autobot_engine.py" && "${2:-}" == process-queue ]]; then
+      printf '%s\n' '{"items":[{"item":{"issue_identifier":"REP-1094","claim_state":"queued","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":0},"decision":{"taskId":"REP-1094","currentState":"queued","nextState":"claimed","reason":"queued-task-needs-preparation","effects":[{"kind":"prepare","issueIdentifier":"REP-1094","phase":"delivery","claimedBy":"autobot-engine"}]}},{"item":{"issue_identifier":"REP-1095","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1095","attempt_count":1},"decision":{"taskId":"REP-1095","currentState":"running","nextState":null,"reason":"no-recovery-needed","effects":[{"kind":"noop","issueIdentifier":"REP-1095","reason":"no-recovery-needed"}]}},{"item":{"issue_identifier":"REP-1096","claim_state":"failed","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1096","attempt_count":2},"decision":{"taskId":"REP-1096","currentState":"failed","nextState":"queued","reason":"claim-failed","effects":[{"kind":"recover","issueIdentifier":"REP-1096","action":"retry","reason":"claim-failed","fetchMain":false,"cleanupEligible":false,"phase":"delivery","attemptCount":2}]}}],"summary":{"total":3,"claimed":0,"running":1,"reconciling":0,"recovery":1,"terminal":0,"by_state":{"queued":1,"running":1,"failed":1},"selected_issue_identifier":"REP-1094","selected_state":"queued","allow_recovery":true},"selected_work":null,"generated_at":"2026-05-08T12:00:00Z"}'
+      return 0
+    fi
+    command python3 "$@"
+  }
+  queue_json='{"items":[{"issue_identifier":"REP-1094","claim_state":"queued","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":0},{"issue_identifier":"REP-1095","claim_state":"running","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1095","attempt_count":1},{"issue_identifier":"REP-1096","claim_state":"failed","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1096","attempt_count":2}],"runs":[],"summary":{"claim_states":{"queued":1,"running":1,"failed":1},"active_runs":2,"stale_claims":0,"failed_runs":1,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+  _autobot_engine_process_queue "$queue_json"
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
