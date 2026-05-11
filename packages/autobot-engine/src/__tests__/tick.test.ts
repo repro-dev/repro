@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { processQueue, trackedTasks } from "../core";
+import { processQueue, trackedTasks } from "../index";
 
 test("tracked tasks iterate deterministically by state and issue id", () => {
   const tasks = trackedTasks({

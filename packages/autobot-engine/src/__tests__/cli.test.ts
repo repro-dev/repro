@@ -49,13 +49,11 @@ test("select-work forwards allow_recovery=false to the core", async (t) => {
     },
   });
 
-  const originalArgv = process.argv;
-  process.argv = ["node", "cli", "select-work"];
-
   try {
-    await import("../cli");
+    const { main } = await import("../cli");
+    main(["node", "cli", "select-work"]);
   } finally {
-    process.argv = originalArgv;
+    /* noop */
   }
 
   assert.equal(calls[0]?.options?.allowRecovery, false);

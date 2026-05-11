@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { selectWork } from "../core";
+import { selectWork } from "../index";
 
 test("selectWork preserves queued-before-recovery behavior", () => {
   const result = selectWork({

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { processQueue } from "../core";
+import { processQueue } from "../index";
 
 test("recovery decisions retain visible action metadata", () => {
   const plan = processQueue({

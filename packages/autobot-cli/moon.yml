@@ -1,0 +1,24 @@
+id: repro/autobot-cli
+language: typescript
+layer: library
+tags:
+  - type.package
+  - role.util
+tasks:
+  test:
+    command: pnpm run test
+    inputs:
+      - src/**/*.ts
+    options:
+      cache: true
+  typecheck:
+    command: pnpm run typecheck
+    inputs:
+      - src/**/*.ts
+      - tsconfig.json
+  fmt:
+    command: pnpm run fmt
+    inputs:
+      - src/**/*.ts
+toolchains:
+  default: node

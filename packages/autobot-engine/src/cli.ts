@@ -14,7 +14,7 @@ function loadPayload(): QueuePayload {
   return JSON.parse(raw || "{}") as QueuePayload;
 }
 
-function main(argv: string[]): void {
+export function main(argv: string[]): void {
   const command = argv[2] ?? "";
   const payload = loadPayload();
 
@@ -56,4 +56,6 @@ function main(argv: string[]): void {
   }
 }
 
-main(process.argv);
+if (require.main === module) {
+  main(process.argv);
+}

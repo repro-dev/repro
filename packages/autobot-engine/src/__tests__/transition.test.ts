@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { decideRecovery, transition } from "../core";
+import { decideRecovery, transition } from "../index";
 
 test("transition prepares queued work before delivery", () => {
   const decision = transition(

@@ -139,3 +139,13 @@ export interface ProcessQueueResult {
   selected_work: TaskInput | null;
   generated_at: string;
 }
+
+export interface EngineRuntimeStatus {
+  pid: number | null;
+  running: boolean;
+  mode: "foreground" | "daemon";
+  current_issue: string;
+  current_phase: string;
+  current_attempt: number | null;
+  last_tick_at: string;
+}

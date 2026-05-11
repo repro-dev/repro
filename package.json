@@ -6,7 +6,8 @@
   "license": "UNLICENSED",
   "bin": {
     "linear": "bin/linear",
-    "autobot": "bin/autobot"
+    "autobot": "bin/autobot",
+    "autobot-engine": "bin/autobot-engine"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",

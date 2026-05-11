@@ -3,11 +3,11 @@
 TypeScript engine core for autobot task planning.
 
 ## Architecture
-- The shell layer keeps the public `autobot-engine` command surface and process supervision.
-- Python shims normalize legacy payloads and bridge into this package.
-- This package owns task-state normalization, tracked-task ordering, transition policy, and typed effect requests/results.
+- This package is the canonical source of truth for task-state normalization, tracked-task ordering, transition policy, and typed effect requests/results.
+- `packages/autobot-cli` owns the operator-facing command surface and engine orchestration.
+- The shell and Python layers remain compatibility shims for legacy callers.
 - `select-work` honors the `allow_recovery` compatibility flag so `--no-recovery` remains stable.
-- Recovery decisions are expressed with canonical camelCase fields internally, even when the shell bridge still sends legacy snake_case input.
+- Recovery decisions are expressed with canonical camelCase fields internally, even when compatibility input still uses legacy snake_case.
 - Effect execution is logged as typed outcome records and failures propagate instead of being swallowed.
 
 ### Task model
