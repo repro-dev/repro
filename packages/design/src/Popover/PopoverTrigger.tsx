@@ -28,6 +28,13 @@ export const PopoverTrigger = forwardRef<HTMLElement, PopoverTriggerProps>(
         }
       >
       const childProps = triggerChild.props
+      const { props: childPropsBagValue, ...childTopLevelProps } = childProps
+      const childPropsBag =
+        typeof childPropsBagValue === 'object' &&
+        childPropsBagValue !== null &&
+        !Array.isArray(childPropsBagValue)
+          ? (childPropsBagValue as Record<string, unknown>)
+          : undefined
       const childRef = (
         triggerChild as unknown as {
           ref?: React.Ref<HTMLElement>
@@ -39,20 +46,31 @@ export const PopoverTrigger = forwardRef<HTMLElement, PopoverTriggerProps>(
         ) as React.Ref<HTMLElement>[]
       )
 
-      const childAriaHasPopup = childProps.props?.['aria-haspopup'] as
+      const childAriaHasPopup = childPropsBag?.['aria-haspopup'] as
         | React.AriaAttributes['aria-haspopup']
         | undefined
       const ariaHasPopup: React.AriaAttributes['aria-haspopup'] | undefined =
         triggerProps['aria-haspopup'] ??
-        childProps['aria-haspopup'] ??
+        childTopLevelProps['aria-haspopup'] ??
         childAriaHasPopup
 
       const referenceProps = getReferenceProps({
         ...triggerProps,
-        ...childProps,
+        ...childTopLevelProps,
+        ...childPropsBag,
         ...(ariaHasPopup != null ? { 'aria-haspopup': ariaHasPopup } : {}),
         'aria-expanded': open,
       })
+
+      if (childPropsBag) {
+        return React.cloneElement(triggerChild, {
+          props: {
+            ...childPropsBag,
+            ...referenceProps,
+            ref: mergedRef,
+          },
+        })
+      }
 
       return React.cloneElement(triggerChild, {
         ...referenceProps,

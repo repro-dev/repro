@@ -1,3 +1,4 @@
+import { Row } from '@jsxstyle/react'
 import {
   cleanup,
   fireEvent,
@@ -104,6 +105,40 @@ describe('Popover', () => {
 
     const trigger = screen.getByRole('button', { name: 'Trigger' })
     expect(trigger.getAttribute('aria-haspopup')).toBe('grid')
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+
+    openPopover(trigger)
+
+    expect(screen.getByRole('dialog', { name: 'Filters' })).toBeDefined()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(clicks).toEqual(['child'])
+  })
+
+  it('preserves props-bag child handlers for jsxstyle triggers', () => {
+    const clicks: string[] = []
+
+    render(
+      <PortalRootProvider>
+        <Popover>
+          <Popover.Trigger>
+            <Row
+              component="button"
+              props={{
+                type: 'button',
+                onClick: () => clicks.push('child'),
+              }}
+            >
+              Trigger
+            </Row>
+          </Popover.Trigger>
+          <Popover.Content role="dialog" aria-label="Filters">
+            <div>Popover content</div>
+          </Popover.Content>
+        </Popover>
+      </PortalRootProvider>
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Trigger' })
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
 
     openPopover(trigger)
