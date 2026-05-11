@@ -116,6 +116,7 @@ CREATE TABLE agentic_conversation_messages (
   CHECK ("sequence" > 0),
   CHECK (("role" <> 'tool') OR ("toolCallId" IS NOT NULL)),
   CHECK (("role" = 'tool') OR ("toolCallId" IS NULL)),
+  CHECK (("role" = 'assistant') OR ("toolCalls" IS NULL)),
   CHECK (("role" <> 'assistant') OR is_valid_agentic_assistant_tool_calls("toolCalls")),
   CHECK (("role" = 'tool') OR (jsonb_typeof("content") = 'string')),
   CHECK (("role" <> 'tool') OR is_valid_agentic_tool_content("content"))

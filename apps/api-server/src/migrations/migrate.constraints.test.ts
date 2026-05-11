@@ -136,6 +136,31 @@ describe('agentic conversation migration constraints', () => {
             "createdAt"
           )
           VALUES (
+            ${conversationId},
+            3,
+            'user',
+            CAST(${JSON.stringify('Unexpected tool calls')} AS jsonb),
+            CAST(${JSON.stringify([])} AS jsonb),
+            NULL,
+            CURRENT_TIMESTAMP
+          )
+        `.execute(db),
+      '23514'
+    )
+
+    await expectSqlErrorCode(
+      () =>
+        sql`
+          INSERT INTO agentic_conversation_messages (
+            "conversationId",
+            "sequence",
+            "role",
+            "content",
+            "toolCalls",
+            "toolCallId",
+            "createdAt"
+          )
+          VALUES (
             999999,
             2,
             'tool',
