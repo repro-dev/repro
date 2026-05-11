@@ -811,7 +811,12 @@ slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-z
 worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
 source "$SCRIPTS_DIR/lib/autobot-engine.sh"
 _autobot_engine_update_status() { :; }
-_autobot_engine_collect_monitor_snapshot() { printf '%s\n' '{}'; }
+_autobot_engine_collect_monitor_snapshot() {
+  local issue_identifier
+  issue_identifier="$(printf '%s' "$1" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("issue_identifier") or payload.get("identifier") or "")')"
+  printf '%s\n' "$issue_identifier" >> "$TEST_TMPDIR/snapshots.log"
+  printf '%s\n' '{}'
+}
 _autobot_engine_apply_recovery_decision() { return 1; }
 cmd_autobot_orchestrator() {
   case "$*" in
@@ -828,10 +833,10 @@ _autobot_engine_process_queue "$queue_json"
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'selected issue=REP-1094 state=running' && printf '%s\n' "$output" | grep -q 'observe issue=REP-1095 state=running'; then
-    _pass 'process queue observes every active issue in one tick'
+  if [ $rc -eq 0 ] && [ "$(grep -c '^REP-1094$' "$tmpdir/snapshots.log")" -eq 1 ] && [ "$(grep -c '^REP-1095$' "$tmpdir/snapshots.log")" -eq 1 ]; then
+    _pass 'process queue processes every active issue in one tick'
   else
-    _fail 'process queue observes every active issue in one tick' "rc=$rc; output=$output"
+    _fail 'process queue processes every active issue in one tick' "rc=$rc; output=$output"
   fi
   rm -rf "$tmpdir"
 }
