@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "src/index.ts",
   "scripts": {
+    "autobot": "tsx src/cli.ts autobot",
+    "autobot-engine": "tsx src/cli.ts autobot-engine",
     "test": "tsx --experimental-test-module-mocks --test --test-timeout=30000 --test-force-exit src/**/*.test.ts",
     "fmt": "prettier --write src",
     "typecheck": "tsc --noEmit"
