@@ -1,8 +1,15 @@
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import {
+  adminMember,
   contributorMember,
   localStorageMock,
   renderConnectedRoute,
@@ -74,25 +81,28 @@ describe('ProjectSettingsRoute connected behavior', () => {
 
   it('renders the team members section with member count', async () => {
     renderConnectedRoute({
-      getMembers: () => resolve([viewerMember, contributorMember]),
+      getMembers: () => resolve([adminMember, viewerMember, contributorMember]),
     })
 
     await waitFor(() => {
       assert.ok(screen.getByText('Team Members'))
-      assert.ok(screen.getByText('2 members'))
+      assert.ok(screen.getByText('3 members'))
     })
   })
 
   it('renders each member with name, email, and role', async () => {
     renderConnectedRoute({
-      getMembers: () => resolve([viewerMember, contributorMember]),
+      getMembers: () => resolve([adminMember, viewerMember, contributorMember]),
     })
 
     await waitFor(() => {
+      assert.ok(screen.getByText('Admin User'))
+      assert.ok(screen.getByText('admin@example.com'))
       assert.ok(screen.getByText('Viewer User'))
       assert.ok(screen.getByText('viewer@example.com'))
       assert.ok(screen.getByText('Contributor User'))
       assert.ok(screen.getByText('contributor@example.com'))
+      assert.ok(screen.getByText('Admin'))
       assert.ok(screen.getByText('Viewer'))
       assert.ok(screen.getByText('Contributor'))
     })
@@ -100,7 +110,7 @@ describe('ProjectSettingsRoute connected behavior', () => {
 
   it('marks the current user with a You badge', async () => {
     renderConnectedRoute({
-      getMembers: () => resolve([viewerMember]),
+      getMembers: () => resolve([adminMember]),
     })
 
     await waitFor(() => {
@@ -110,15 +120,17 @@ describe('ProjectSettingsRoute connected behavior', () => {
 
   it('does not show a You badge for other members', async () => {
     renderConnectedRoute({
-      currentUserId: 'user-viewer',
-      getMembers: () => resolve([viewerMember]),
+      getMembers: () => resolve([adminMember, viewerMember]),
     })
 
     await waitFor(() => {
+      assert.ok(screen.getByText('Admin User'))
       assert.ok(screen.getByText('Viewer User'))
     })
 
-    const youBadges = screen.queryAllByText('You')
-    assert.equal(youBadges.length, 0)
+    const viewerRow = screen.getByText('Viewer User').closest('div')
+      ?.parentElement
+    assert.ok(viewerRow)
+    assert.equal(within(viewerRow).queryByText('You'), null)
   })
 })
