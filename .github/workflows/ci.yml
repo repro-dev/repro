@@ -306,6 +306,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --reporter=silent
 
+      - name: Run marketing tests
+        run: moon run repro/marketing:test
+
+      - name: Run marketing typecheck
+        run: moon run repro/marketing:typecheck
+
       - name: Build marketing export
         run: moon run repro/marketing:build --force
 
