@@ -187,6 +187,35 @@ def test_decide_recovery_normalizes_snake_case_payload(monkeypatch):
     assert decision["action"] == "release"
 
 
+def test_decide_recovery_preserves_missing_nested_fields_for_ts_fallback(monkeypatch):
+    payload = {
+        "attempt_count": 1,
+        "max_attempts": 3,
+        "workspace_exists": True,
+        "linear": {"item": {"status": {"type": "done"}}},
+        "pr": {"review_activity": {"top_level_comments": []}},
+    }
+
+    def fake_run(args, input=None, text=None, capture_output=None, check=None):
+        actual_payload = json.loads(input or "{}")
+        assert "linearStateType" not in actual_payload
+        assert "linearStateName" not in actual_payload
+        assert "statusState" not in actual_payload
+        assert actual_payload["linear"]["item"]["status"]["type"] == "done"
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=0,
+            stdout=json.dumps({"action": "release", "reason": "linear-done", "fetch_main": True, "cleanup_eligible": True}),
+            stderr="",
+        )
+
+    monkeypatch.setattr(engine.subprocess, "run", fake_run)
+
+    decision = engine.decide_recovery(payload)
+
+    assert decision["action"] == "release"
+
+
 def test_summarize_review_activity_separates_comment_types():
     activity = engine.summarize_review_activity(
         {

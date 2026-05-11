@@ -70,7 +70,12 @@ def _normalize_recovery_payload(payload: dict[str, Any]) -> dict[str, Any]:
     linear = _as_mapping(payload.get("linear"))
     pr = _as_mapping(payload.get("pr"))
     normalized = dict(payload)
-    normalized["claimState"] = str(payload.get("claim_state") or payload.get("claimState") or "")
+    claim_state = payload.get("claim_state") or payload.get("claimState")
+    if claim_state not in (None, ""):
+        normalized["claimState"] = str(claim_state)
+    else:
+        normalized.pop("claimState", None)
+
     normalized["workspaceExists"] = bool(payload.get("workspace_exists") if "workspace_exists" in payload else payload.get("workspaceExists"))
     normalized["workspaceDirty"] = bool(payload.get("workspace_dirty") if "workspace_dirty" in payload else payload.get("workspaceDirty"))
     normalized["mergeConflictCount"] = int(payload.get("merge_conflict_count") or payload.get("mergeConflictCount") or 0)
@@ -78,36 +83,42 @@ def _normalize_recovery_payload(payload: dict[str, Any]) -> dict[str, Any]:
     normalized["maxAttempts"] = int(payload.get("max_attempts") or payload.get("maxAttempts") or 0)
     normalized["linear"] = linear
     normalized["pr"] = pr
-    normalized["linearStateType"] = str(
-        payload.get("linear_state_type")
-        or payload.get("linearStateType")
-        or linear.get("state_type")
-        or linear.get("type")
-        or ""
-    )
-    normalized["linearStateName"] = str(
-        payload.get("linear_state_name")
-        or payload.get("linearStateName")
-        or linear.get("state_name")
-        or linear.get("name")
-        or ""
-    )
-    normalized["prState"] = str(payload.get("pr_state") or payload.get("prState") or pr.get("state") or "")
-    normalized["mergeStateStatus"] = str(
-        payload.get("merge_state_status")
-        or payload.get("mergeStateStatus")
-        or pr.get("merge_state_status")
-        or pr.get("mergeStateStatus")
-        or ""
-    )
-    normalized["reviewDecision"] = str(
-        payload.get("review_decision")
-        or payload.get("reviewDecision")
-        or pr.get("review_decision")
-        or pr.get("reviewDecision")
-        or ""
-    )
-    normalized["statusState"] = str(payload.get("status_state") or payload.get("statusState") or "")
+    linear_state_type = payload.get("linear_state_type") or payload.get("linearStateType") or linear.get("state_type") or linear.get("type")
+    if linear_state_type not in (None, ""):
+        normalized["linearStateType"] = str(linear_state_type)
+    else:
+        normalized.pop("linearStateType", None)
+
+    linear_state_name = payload.get("linear_state_name") or payload.get("linearStateName") or linear.get("state_name") or linear.get("name")
+    if linear_state_name not in (None, ""):
+        normalized["linearStateName"] = str(linear_state_name)
+    else:
+        normalized.pop("linearStateName", None)
+
+    pr_state = payload.get("pr_state") or payload.get("prState") or pr.get("state")
+    if pr_state not in (None, ""):
+        normalized["prState"] = str(pr_state)
+    else:
+        normalized.pop("prState", None)
+
+    merge_state_status = payload.get("merge_state_status") or payload.get("mergeStateStatus") or pr.get("merge_state_status") or pr.get("mergeStateStatus")
+    if merge_state_status not in (None, ""):
+        normalized["mergeStateStatus"] = str(merge_state_status)
+    else:
+        normalized.pop("mergeStateStatus", None)
+
+    review_decision = payload.get("review_decision") or payload.get("reviewDecision") or pr.get("review_decision") or pr.get("reviewDecision")
+    if review_decision not in (None, ""):
+        normalized["reviewDecision"] = str(review_decision)
+    else:
+        normalized.pop("reviewDecision", None)
+
+    status_state = payload.get("status_state") or payload.get("statusState")
+    if status_state not in (None, ""):
+        normalized["statusState"] = str(status_state)
+    else:
+        normalized.pop("statusState", None)
+
     return normalized
 
 
