@@ -390,7 +390,7 @@ AUTOBOT_ENGINE_AUTO_DISCOVER=on cmd_autobot_engine start --once
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ -f "$tmpdir/added.txt" ]; then
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/added.txt" ] && printf '%s\n' "$output" | grep -q 'discover queue empty' && printf '%s\n' "$output" | grep -q 'discover added issue=REP-1094'; then
     _pass 'auto-discover runs when the queue is empty'
   else
     _fail 'auto-discover runs when the queue is empty' "rc=$rc; output=$output"
@@ -456,7 +456,7 @@ AUTOBOT_ENGINE_AUTO_DISCOVER=on cmd_autobot_engine start --once
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ ! -f "$tmpdir/discover.log" ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/added.txt" ]; then
+  if [ $rc -eq 0 ] && [ ! -f "$tmpdir/discover.log" ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/added.txt" ] && printf '%s\n' "$output" | grep -q 'selected issue=REP-1094' && printf '%s\n' "$output" | grep -q 'prepare issue=REP-1094'; then
     _pass 'auto-discover skips when queued or running work is present'
   else
     _fail 'auto-discover skips when queued or running work is present' "rc=$rc; output=$output"
@@ -658,10 +658,132 @@ AUTOBOT_ENGINE_AUTO_DISCOVER=on cmd_autobot_engine start --once
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ -f "$tmpdir/discover.args" ] && [ "$(wc -l < "$tmpdir/added.log" | tr -d ' ')" = "2" ] && grep -q 'REP-1095' "$tmpdir/added.log" && grep -q 'REP-1096' "$tmpdir/added.log" && ! grep -q 'REP-1094' "$tmpdir/added.log" && printf '%s\n' "$output" | grep -q 'already in progress'; then
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/discover.args" ] && [ "$(wc -l < "$tmpdir/added.log" | tr -d ' ')" = "2" ] && grep -q 'REP-1095' "$tmpdir/added.log" && grep -q 'REP-1096' "$tmpdir/added.log" && ! grep -q 'REP-1094' "$tmpdir/added.log" && printf '%s\n' "$output" | grep -q 'already in progress' && printf '%s\n' "$output" | grep -q 'discover skipped issue=REP-1094'; then
     _pass 'auto-discover skips rejected candidates without consuming capacity'
   else
     _fail 'auto-discover skips rejected candidates without consuming capacity' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_auto_discover_logs_when_no_candidates_are_returned() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TMP_DIR"
+ln -s "$TEST_SCRIPTS_DIR" "$TEST_TMPDIR/repro/scripts"
+export CALLER_PWD="$TEST_TMPDIR/repro"
+SCRIPT_DIR="$TEST_TMPDIR/repro/scripts"
+SCRIPTS_DIR="$SCRIPT_DIR"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+_autobot_engine_config_helper set --config-file "$TEST_TMPDIR/repro/.autobot/config.json" --json engine.auto-discover on >/dev/null
+_autobot_engine_config_helper set --config-file "$TEST_TMPDIR/repro/.autobot/config.json" --json engine.queue-depth 3 >/dev/null
+_autobot_engine_config_helper set --config-file "$TEST_TMPDIR/repro/.autobot/config.json" --json engine.max-concurrency 2 >/dev/null
+autobot() {
+  case "$*" in
+    discover\ --limit\ 3\ --json)
+      printf '%s\n' '{"items":[]}' > "$TEST_TMPDIR/discover.args"
+      printf '%s\n' '{"items":[]}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+cmd_autobot_orchestrator() {
+  case "$*" in
+    status\ --all\ --json)
+      printf '%s\n' '{"schema_version":1,"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+AUTOBOT_ENGINE_AUTO_DISCOVER=on cmd_autobot_engine start --once
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/discover.args" ] && ! [ -f "$tmpdir/added.log" ] && printf '%s\n' "$output" | grep -q 'discover queue empty' && printf '%s\n' "$output" | grep -q 'discover returned no candidates'; then
+    _pass 'auto-discover logs when no candidates are returned'
+  else
+    _fail 'auto-discover logs when no candidates are returned' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_process_queue_logs_recovery_path() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TEST_TMPDIR/workspaces" "$TMP_DIR"
+ln -s "$TEST_SCRIPTS_DIR" "$TEST_TMPDIR/repro/scripts"
+export CALLER_PWD="$TEST_TMPDIR/repro"
+SCRIPT_DIR="$TEST_TMPDIR/repro/scripts"
+SCRIPTS_DIR="$SCRIPT_DIR"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+_autobot_engine_update_status() { :; }
+_autobot_engine_collect_monitor_snapshot() {
+  printf '%s\n' '{"issue_identifier":"REP-1094","attempt_count":2}'
+}
+python3() {
+  if [[ "$1" == "$SCRIPTS_DIR/lib/py/autobot_engine.py" && "${2:-}" == decide-recovery ]]; then
+    printf '%s\n' '{"action":"release","reason":"merged upstream","fetch_main":false,"cleanup_eligible":false}'
+    return 0
+  fi
+  command python3 "$@"
+}
+cmd_autobot_orchestrator() {
+  case "$*" in
+    release\ REP-1094\ --reason\ merged\ upstream)
+      :
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+queue_json='{"items":[{"issue_identifier":"REP-1094","claim_state":"claimed","workspace_path":"'$TEST_TMPDIR'/workspaces/repro-wt-rep-1094","attempt_count":2}],"runs":[],"summary":{"claim_states":{"claimed":1},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+_autobot_engine_process_queue "$queue_json"
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'recover issue=REP-1094' && printf '%s\n' "$output" | grep -q 'recovery issue=REP-1094 attempt=2 action=release reason=merged upstream'; then
+    _pass 'process queue logs recovery decisions'
+  else
+    _fail 'process queue logs recovery decisions' "rc=$rc; output=$output"
   fi
   rm -rf "$tmpdir"
 }
@@ -900,10 +1022,56 @@ _autobot_engine_process_queue "$queue_json"
 RUNNER
   chmod +x "$tmpdir/run_test.sh"
   output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/retry.txt" ] && [ ! -f "$tmpdir/run-start.txt" ]; then
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/prepared.txt" ] && [ ! -f "$tmpdir/retry.txt" ] && [ ! -f "$tmpdir/run-start.txt" ] && printf '%s\n' "$output" | grep -q 'selected issue=REP-1094' && printf '%s\n' "$output" | grep -q 'prepare issue=REP-1094'; then
     _pass 'queued work is prepared before delivery begins'
   else
     _fail 'queued work is prepared before delivery begins' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
+test_empty_queue_logs_no_processable_work() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  cat > "$tmpdir/run_test.sh" <<'RUNNER'
+#!/bin/bash
+set -euo pipefail
+die() { printf 'Error: %b\n' "$*" >&2; exit 1; }
+_err() { printf '✖ %s\n' "$*" >&2; }
+_ok() { printf '✔ %s\n' "$*" >&2; }
+_step() { :; }
+_warn() { printf '⚠ %s\n' "$*" >&2; }
+CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
+REPO_ROOT="$TEST_TMPDIR/repro"
+MAIN_CHECKOUT="$TEST_TMPDIR/repro"
+PARENT_DIR="$TEST_TMPDIR"
+WORKSPACE_ROOT="$TEST_TMPDIR/workspaces"
+SCRIPTS_DIR="$TEST_SCRIPTS_DIR"
+TMP_DIR="$TEST_TMPDIR/tmp"
+mkdir -p "$TEST_TMPDIR/repro/.autobot" "$TEST_TMPDIR/workspaces" "$TMP_DIR"
+slugify() { printf '%s\n' "$1" | sed 's|/|-|g' | sed 's|\.\.|-|g' | sed 's|[^a-zA-Z0-9._-]|-|g' | tr '[:upper:]' '[:lower:]'; }
+worktree_path() { echo "${WORKSPACE_ROOT:-$PARENT_DIR}/repro-wt-$1"; }
+source "$SCRIPTS_DIR/lib/autobot-engine.sh"
+cmd_autobot_orchestrator() {
+  case "$*" in
+    status\ --all\ --json)
+      printf '%s\n' '{"schema_version":1,"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+set +e
+_autobot_engine_process_queue '{"items":[],"runs":[],"summary":{"claim_states":{},"active_runs":0,"stale_claims":0,"failed_runs":0,"sync_errors":0},"recent_errors":[],"generated_at":"2026-05-08T12:00:00Z"}'
+set -e
+RUNNER
+  chmod +x "$tmpdir/run_test.sh"
+  output="$(TEST_TMPDIR="$tmpdir" TEST_SCRIPTS_DIR="$SCRIPTS_DIR" bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'no processable work'; then
+    _pass 'empty queue logs that no work is processable'
+  else
+    _fail 'empty queue logs that no work is processable' "rc=$rc; output=$output"
   fi
   rm -rf "$tmpdir"
 }
@@ -918,10 +1086,13 @@ test_auto_discover_runs_when_queue_empty
 test_auto_discover_skips_when_queue_has_active_work
 test_auto_discover_can_be_disabled_by_config
 test_auto_discover_caps_intake_by_queue_depth_and_concurrency
+test_auto_discover_logs_when_no_candidates_are_returned
 test_auto_discover_skips_rejected_candidates_without_consuming_capacity
+test_process_queue_logs_recovery_path
 test_monitor_snapshot_separates_review_comments_from_pr_review_data
 test_monitor_snapshot_degrades_review_comment_fetch_failures_to_empty_lists
 test_queued_work_is_prepared_before_delivery
+test_empty_queue_logs_no_processable_work
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed out of $TESTS_RUN tests"

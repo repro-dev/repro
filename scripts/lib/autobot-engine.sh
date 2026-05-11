@@ -48,6 +48,10 @@ _autobot_engine_config_get() {
     python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])'
 }
 
+_autobot_engine_log_activity() {
+  printf '%s autobot-engine: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*"
+}
+
 _autobot_engine_ensure_dirs() {
   mkdir -p "$AUTOBOT_ENGINE_DIR" "$AUTOBOT_ENGINE_RUNS_DIR"
 }
@@ -412,6 +416,8 @@ _autobot_engine_apply_recovery_decision() {
   issue_identifier="$(printf '%s' "$snapshot_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("issue_identifier") or "")')"
   current_attempt="$(printf '%s' "$snapshot_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("attempt_count") or 0)')"
 
+  _autobot_engine_log_activity "recovery issue=$issue_identifier attempt=$current_attempt action=$action reason=$reason"
+
   case "$action" in
     release)
       REPROCTL_JSON=true cmd_autobot_orchestrator release "$issue_identifier" --reason "$reason" >/dev/null 2>&1 || true
@@ -629,12 +635,15 @@ _autobot_engine_process_queue() {
   selected_attempt="$(printf '%s' "$selected_json" | python3 -c 'import json,sys; payload=json.load(sys.stdin); print(payload.get("attempt_count") or 0)')"
 
   if [[ -z "$selected_issue" ]]; then
+    _autobot_engine_log_activity "no processable work"
     return 1
   fi
 
   selected_item="$selected_json"
+  _autobot_engine_log_activity "selected issue=$selected_issue state=$selected_state attempt=$selected_attempt"
 
   if [[ "$selected_state" == queued ]]; then
+    _autobot_engine_log_activity "prepare issue=$selected_issue attempt=$selected_attempt"
     if ! REPROCTL_JSON=true cmd_autobot_orchestrator prepare "$selected_issue" --phase delivery --claimed-by autobot-engine >/dev/null 2>&1; then
       _warn "Failed to prepare queued item $selected_issue"
       _autobot_engine_update_status "$queue_json" "$$" true "$(_autobot_engine_read_mode)" "$selected_issue" delivery "$selected_attempt"
@@ -647,6 +656,7 @@ _autobot_engine_process_queue() {
   fi
 
   snapshot_json="$(_autobot_engine_collect_monitor_snapshot "$selected_item")"
+  _autobot_engine_log_activity "recover issue=$selected_issue state=$selected_state attempt=$selected_attempt"
   if _autobot_engine_apply_recovery_decision "$snapshot_json"; then
     return 0
   fi
@@ -681,14 +691,20 @@ _autobot_engine_run_once() {
 
   if [[ "$auto_discover" = "on" ]] && command -v autobot >/dev/null 2>&1; then
     if ! _autobot_engine_queue_has_work "$queue_json"; then
+      _autobot_engine_log_activity "discover queue empty; looking for candidates"
       if discover_ids="$(_autobot_engine_discover_candidates "$queue_depth")"; then
+        if [[ -z "$(printf '%s' "$discover_ids" | tr -d '[:space:]')" ]]; then
+          _autobot_engine_log_activity "discover returned no candidates"
+        fi
         while IFS= read -r discover_id; do
           [[ -n "$discover_id" ]] || continue
           [[ "$discovered_count" -ge "$max_concurrency" ]] && break
           local add_output
           if add_output="$(autobot add "$discover_id" 2>&1)"; then
             discovered_count=$((discovered_count + 1))
+            _autobot_engine_log_activity "discover added issue=$discover_id"
           else
+            _autobot_engine_log_activity "discover skipped issue=$discover_id reason=${add_output:-autobot add rejected the candidate}"
             _warn "auto-discover skipped $discover_id: ${add_output:-autobot add rejected the candidate}"
           fi
         done <<< "$discover_ids"

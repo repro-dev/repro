@@ -451,7 +451,7 @@ cmd_autobot_logs() {
 
   if [[ -f "$engine_log" ]]; then
     cat "$engine_log"
-  elif [[ -z "$issue_identifier" ]]; then
+  elif [[ -z "$issue_identifier" && ${#issue_logs[@]} -eq 0 ]]; then
     printf 'no logs yet\n'
   fi
   if [[ -n "$issue_identifier" && ${#issue_logs[@]} -gt 0 ]]; then
@@ -459,8 +459,9 @@ cmd_autobot_logs() {
     local p
     for p in "${issue_logs[@]}"; do
       printf '  %s\n' "$p"
+      cat "$p"
     done
-  elif [[ -n "$issue_identifier" ]]; then
+  elif [[ -n "$issue_identifier" && ! -f "$engine_log" ]]; then
     printf 'no logs yet for %s\n' "$issue_identifier"
   fi
 }
