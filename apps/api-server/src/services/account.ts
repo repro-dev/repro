@@ -524,7 +524,16 @@ export function createAccountService(
     return attemptQuery(() => {
       let query = database
         .selectFrom('users')
-        .select(['id', 'name', 'email', 'verified'])
+        .select([
+          'id',
+          'name',
+          'email',
+          'verified',
+          'admin',
+          'active',
+          'accountId',
+          'createdAt',
+        ])
         .where('accountId', '=', decodeId(accountId))
         .where('active', '=', true)
         .orderBy('id asc')
@@ -755,9 +764,17 @@ export function createAccountService(
     return attemptQuery(() =>
       database
         .selectFrom('users')
-        .select(['id', 'name', 'email', 'verified'])
+        .select([
+          'id',
+          'name',
+          'email',
+          'verified',
+          'admin',
+          'active',
+          'accountId',
+          'createdAt',
+        ])
         .where('id', '=', decodeId(id))
-        .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
     ).pipe(map(asStaffUserDetail))
   }

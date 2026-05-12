@@ -3,18 +3,21 @@ import { FastifyInstance } from 'fastify'
 import { promise } from 'fluture'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { AccountService } from '~/services/account'
+import { ProjectService } from '~/services/project'
 import { Harness, createTestHarness } from '~/testing'
 import { createStaffRouter } from './staff'
 
 describe('Routers > Staff', () => {
   let harness: Harness
   let accountService: AccountService
+  let projectService: ProjectService
   let app: FastifyInstance
 
   before(async () => {
     harness = await createTestHarness()
     accountService = harness.services.accountService
-    app = harness.bootstrap(createStaffRouter(accountService))
+    projectService = harness.services.projectService
+    app = harness.bootstrap(createStaffRouter(accountService, projectService))
   })
 
   beforeEach(async () => {

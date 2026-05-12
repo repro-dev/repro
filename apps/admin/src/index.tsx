@@ -22,6 +22,7 @@ import { FeatureGatesRoute } from './routes/FeatureGatesRoute'
 import { HealthRoute } from './routes/HealthRoute'
 import { RecordingsRoute } from './routes/RecordingsRoute'
 import { StaffUsersRoute } from './routes/StaffUsersRoute'
+import { UserDetailRoute } from './routes/UserDetailRoute'
 
 const HomeRoute = React.lazy(() =>
   import('./routes/HomeRoute').then(m => ({ default: m.HomeRoute }))
@@ -137,6 +138,7 @@ export const AppRoutes: React.FC = () => (
         <Route path="health" element={<HealthRoute />} />
         <Route element={<RequireAdminStaffSession />}>
           <Route path="staff-users" element={<StaffUsersRoute />} />
+          <Route path="users/:userId" element={<UserDetailRoute />} />
         </Route>
       </Route>
     </Route>

@@ -24,6 +24,10 @@ export interface StaffUserDetail {
   name: string
   email: string
   verified: boolean
+  admin: boolean
+  active: boolean
+  accountId: string
+  createdAt: string
 }
 
 export interface StaffUser {

@@ -15,7 +15,9 @@ describe('Routers > Staff', () => {
   before(async () => {
     harness = await createTestHarness()
     accountService = harness.services.accountService
-    app = harness.bootstrap(createStaffRouter(accountService))
+    app = harness.bootstrap(
+      createStaffRouter(accountService, harness.services.projectService)
+    )
   })
 
   beforeEach(async () => {
@@ -295,6 +297,72 @@ describe('Routers > Staff', () => {
         },
         body: {
           isAdmin: true,
+        },
+      })
+
+      expect(res.statusCode).toEqual(403)
+    })
+  })
+
+  describe('GET /users/:userId/projects', () => {
+    it('should return project memberships for a user', async () => {
+      const [staffSession, user, _project] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+        fixtures.account.UserA,
+        fixtures.project.ProjectA,
+        fixtures.project.UserA_ProjectA_Contributor,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/users/${(user as User).id}/projects`,
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      const body = res.json()
+      expect(body.items).toHaveLength(1)
+      expect(body.items[0]).toMatchObject({
+        project: {
+          id: expect.any(String),
+          name: 'Project A',
+        },
+        role: 'contributor',
+      })
+    })
+
+    it('should return empty array when user has no project memberships', async () => {
+      const [staffSession, user] = await harness.loadFixtures([
+        fixtures.account.StaffUserA_Session,
+        fixtures.account.UserA,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/users/${(user as User).id}/projects`,
+        headers: {
+          authorization: `Bearer ${(staffSession as Session).sessionToken}`,
+        },
+      })
+
+      expect(res.statusCode).toEqual(200)
+      const body = res.json()
+      expect(body.items).toHaveLength(0)
+    })
+
+    it('should return 403 when not authenticated as staff', async () => {
+      const [userSession, user] = await harness.loadFixtures([
+        fixtures.account.UserA_Session,
+        fixtures.account.UserA,
+      ])
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/users/${(user as User).id}/projects`,
+        headers: {
+          authorization: `Bearer ${(userSession as Session).sessionToken}`,
         },
       })
 
