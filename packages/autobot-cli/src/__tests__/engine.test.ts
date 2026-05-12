@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  holdEngineLoop,
   saveQueuePayload,
   shapeEngineStatus,
   startEngine,
@@ -52,4 +53,18 @@ test("engine status uses the same selected work as queue planning", () => {
     }
     fs.rmSync(tmpdir, { recursive: true, force: true });
   }
+});
+
+test("foreground engine start installs a heartbeat loop", () => {
+  const interval = test.mock.method(
+    globalThis,
+    "setInterval",
+    () => 1 as never,
+  );
+  const clear = test.mock.method(globalThis, "clearInterval", () => undefined);
+  const stop = holdEngineLoop("foreground", 10);
+
+  assert.equal(interval.mock.calls.length, 1);
+  stop();
+  assert.equal(clear.mock.calls.length, 1);
 });

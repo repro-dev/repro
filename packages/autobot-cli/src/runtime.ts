@@ -592,6 +592,23 @@ export function startEngine(
   return status;
 }
 
+export function holdEngineLoop(
+  mode: "foreground" | "daemon",
+  intervalMs = 1000,
+): () => void {
+  const heartbeat = setInterval(() => {
+    saveEngineStatus(shapeEngineStatus(mode));
+  }, intervalMs);
+
+  const stop = (): void => {
+    clearInterval(heartbeat);
+  };
+
+  process.once("SIGINT", stop);
+  process.once("SIGTERM", stop);
+  return stop;
+}
+
 export function stopEngine(): AutobotEngineStatus {
   const status = loadEngineStatus() ?? shapeEngineStatus("foreground");
   status.engine.running = false;

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import type { AutobotEngineStatus } from "../types";
 import {
   engineModePath,
+  holdEngineLoop,
   loadEngineStatus,
   planCurrentQueue,
   shapeEngineStatus,
@@ -74,6 +75,9 @@ export function runAutobotEngine(argv: string[]): void {
       const mode = daemon ? "daemon" : "foreground";
       const status = startEngine(mode, once);
       print(status);
+      if (!once) {
+        holdEngineLoop(mode);
+      }
       return;
     }
     case "stop": {
@@ -84,7 +88,11 @@ export function runAutobotEngine(argv: string[]): void {
     case "restart": {
       const mode = daemon ? "daemon" : "foreground";
       stopEngine();
-      print(startEngine(mode, once));
+      const status = startEngine(mode, once);
+      print(status);
+      if (!once) {
+        holdEngineLoop(mode);
+      }
       return;
     }
     case "status": {
