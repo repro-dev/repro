@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { execFileSync } from "node:child_process";
+import * as childProcess from "node:child_process";
 import path from "node:path";
 
 import { DatabaseSync as SQLiteDatabase } from "node:sqlite";
@@ -202,11 +202,13 @@ function discoverFromLinear(): string[] {
 
   for (const status of ["backlog", "todo"] as const) {
     try {
-      const output = execFileSync(
-        "linear",
-        ["issue", "list", "--status", status, "--json", "identifier"],
-        { encoding: "utf8" },
-      ).trim();
+      const output = childProcess
+        .execFileSync(
+          "linear",
+          ["issue", "list", "--status", status, "--json", "identifier"],
+          { encoding: "utf8" },
+        )
+        .trim();
       if (!output) continue;
       const parsed = JSON.parse(output) as Array<{ identifier?: string }>;
       for (const item of parsed) {
@@ -843,6 +845,24 @@ function effectOutcomeMessage(
   }
 }
 
+function provisionIssueWorkspace(issueIdentifier: string): void {
+  const root = repoRoot();
+  const command = [
+    `source "${path.join(root, "scripts/lib/common.sh")}"`,
+    `source "${path.join(root, "scripts/lib/worktree.sh")}"`,
+    `cmd_wt_create_from_issue "${issueIdentifier}"`,
+  ].join("; ");
+
+  childProcess.execFileSync("bash", ["-lc", command], {
+    cwd: root,
+    env: {
+      ...process.env,
+      CALLER_PWD: root,
+    },
+    stdio: "pipe",
+  });
+}
+
 function applyEffectToItem(
   item: Record<string, unknown>,
   effect: Record<string, unknown>,
@@ -928,6 +948,47 @@ function executeEffect(
     }`;
   }
 
+  if (effect.kind === "prepare" && workspaceMissing) {
+    try {
+      provisionIssueWorkspace(issueIdentifier);
+    } catch (error) {
+      const reason = `prepare-worktree-failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`;
+      return {
+        event: {
+          kind: "task-failure",
+          issue_identifier: issueIdentifier,
+          action: effect.kind,
+          outcome: "failed",
+          state: currentState,
+          next_state: currentState,
+          reason,
+          message: effectOutcomeMessage(
+            "task-failure",
+            issueIdentifier,
+            reason,
+            currentState,
+          ),
+          workspace_path: workspacePath,
+          attempted_action: attemptedAction,
+          generated_at: nowIso(),
+        },
+        nextItem: {
+          ...item,
+          updated_at: nowIso(),
+          last_error: reason,
+          retry_reason: reason,
+        },
+      };
+    }
+  }
+
+  const workspaceReady =
+    workspacePath &&
+    fs.existsSync(workspacePath) &&
+    fs.statSync(workspacePath).isDirectory();
+
   if (effect.kind === "noop") {
     return {
       event: {
@@ -951,10 +1012,7 @@ function executeEffect(
     };
   }
 
-  if (
-    (effect.kind === "prepare" || effect.kind === "process-work") &&
-    workspaceMissing
-  ) {
+  if (effect.kind === "process-work" && !workspaceReady) {
     const reason = missingWorkspaceReason(effect.kind);
     return {
       event: {

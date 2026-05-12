@@ -13,6 +13,7 @@ import {
   startEngine,
   stopEngine,
 } from "../runtime";
+import { runAutobot } from "../commands/autobot";
 import { runAutobotEngine } from "../commands/autobot-engine";
 
 function workspacePath(tmpdir: string, issue: string): string {
@@ -78,6 +79,88 @@ test("engine status keeps parallel active work only", () => {
     } else {
       process.env.REPO_ROOT = originalRepoRoot;
     }
+    fs.rmSync(tmpdir, { recursive: true, force: true });
+  }
+});
+
+test("prepare provisions a missing worktree before claiming the item", () => {
+  const mainCheckout = path.resolve(process.cwd(), "../..");
+  const tmpRoot = path.join(mainCheckout, "tmp");
+  fs.mkdirSync(tmpRoot, { recursive: true });
+  const tmpdir = fs.mkdtempSync(
+    path.join(tmpRoot, "autobot-cli-prepare-worktree-"),
+  );
+  const repoDir = path.join(tmpdir, "repo");
+  fs.mkdirSync(path.join(repoDir, ".autobot"), { recursive: true });
+  const originalRepoRoot = process.env.REPO_ROOT;
+  const originalPath = process.env.PATH;
+  process.env.REPO_ROOT = repoDir;
+  const workspace = path.join(tmpdir, "workspaces", "rep-3");
+  const fakeBinDir = path.join(tmpdir, "bin");
+  const callsFile = path.join(tmpdir, "bash-calls.txt");
+  fs.mkdirSync(fakeBinDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(fakeBinDir, "bash"),
+    `#!/bin/sh
+printf '%s\n' "$*" >> "$AUTOBOT_PREPARE_CALLS"
+mkdir -p "$AUTOBOT_PREPARE_WORKSPACE"
+exit 0
+`,
+  );
+  fs.chmodSync(path.join(fakeBinDir, "bash"), 0o755);
+  process.env.PATH = `${fakeBinDir}${path.delimiter}${originalPath ?? ""}`;
+  process.env.AUTOBOT_PREPARE_CALLS = callsFile;
+  process.env.AUTOBOT_PREPARE_WORKSPACE = workspace;
+
+  try {
+    saveQueuePayload({
+      items: [
+        {
+          issue_identifier: "REP-3",
+          claim_state: "queued",
+          workspace_path: workspace,
+        },
+      ],
+    });
+
+    runAutobotEngine(["node", "autobot-engine", "start", "--once"]);
+
+    const calls = fs.readFileSync(callsFile, "utf8");
+    assert.equal(calls.trim().length > 0, true);
+    assert.equal(calls.includes('cmd_wt_create_from_issue "REP-3"'), true);
+    assert.equal(fs.existsSync(workspace), true);
+
+    const writes: string[] = [];
+    const write = test.mock.method(
+      process.stdout,
+      "write",
+      (chunk: string | Uint8Array) => {
+        writes.push(String(chunk));
+        return true;
+      },
+    );
+    try {
+      runAutobot(["node", "autobot", "logs", "REP-3"]);
+    } finally {
+      write.mock.restore();
+    }
+
+    const logs = writes.join("").trim();
+    assert.equal(logs.includes("task-success"), true);
+    assert.equal(logs.includes("missing-workspace"), false);
+  } finally {
+    if (originalRepoRoot === undefined) {
+      delete process.env.REPO_ROOT;
+    } else {
+      process.env.REPO_ROOT = originalRepoRoot;
+    }
+    if (originalPath === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = originalPath;
+    }
+    delete process.env.AUTOBOT_PREPARE_CALLS;
+    delete process.env.AUTOBOT_PREPARE_WORKSPACE;
     fs.rmSync(tmpdir, { recursive: true, force: true });
   }
 });
