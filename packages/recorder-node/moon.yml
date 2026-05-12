@@ -1,0 +1,37 @@
+id: repro/recorder-node
+language: typescript
+layer: library
+tags:
+  - type.package
+  - role.util
+tasks:
+  build:
+    command: pnpm run build
+    deps:
+      - ^:build
+    inputs:
+      - glob: src/**/*.ts
+        cache: true
+    outputs:
+      - dist/**/*
+    options:
+      cache: true
+  typecheck:
+    command: pnpm run typecheck
+    deps:
+      - ^:build
+    options:
+      cache: true
+  test:
+    command: pnpm run test
+    deps:
+      - ~:build
+      - ^:build
+    options:
+      cache: true
+  lint:
+    command: pnpm run fmt
+    options:
+      cache: false
+toolchains:
+  default: node

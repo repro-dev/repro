@@ -1,0 +1,47 @@
+{
+  "name": "@repro/recorder-node",
+  "version": "0.0.1",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "pnpm exec vite build && pnpm exec tsc -p tsconfig-build.json",
+    "test": "pnpm exec tsx --experimental-test-module-mocks --test src/**/*.test.ts",
+    "fmt": "prettier --write src",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@repro/api-client": "workspace:*",
+    "@repro/domain": "workspace:*",
+    "@repro/recording": "workspace:*",
+    "@repro/recording-api": "workspace:*",
+    "@repro/wire-formats": "workspace:*",
+    "fluture": "^14.0.0"
+  },
+  "peerDependencies": {
+    "playwright": ">=1.30.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "22.14.0",
+    "@types/repro-shared-types": "workspace:*",
+    "prettier": "^3.0.0",
+    "prettier-plugin-organize-imports": "^3.2.3",
+    "tsx": "4.19.3",
+    "typescript": "overridden",
+    "vite": "^5.0.0",
+    "@vitejs/plugin-react": "^4.0.0"
+  }
+}

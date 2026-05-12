@@ -1078,6 +1078,19 @@ importers:
         specifier: 6.4.1
         version: 6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3)
 
+  examples/playwright-recording:
+    dependencies:
+      '@repro/recorder-node':
+        specifier: workspace:*
+        version: link:../../packages/recorder-node
+      playwright:
+        specifier: ^1.58.2
+        version: 1.58.2
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.58.2
+        version: 1.58.2
+
   packages/a11y:
     dependencies:
       react:
@@ -2392,6 +2405,58 @@ importers:
       typescript:
         specifier: 5.7.3
         version: 5.7.3
+
+  packages/recorder-node:
+    dependencies:
+      '@repro/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+      '@repro/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@repro/recording':
+        specifier: workspace:*
+        version: link:../recording
+      '@repro/recording-api':
+        specifier: workspace:*
+        version: link:../recording-api
+      '@repro/wire-formats':
+        specifier: workspace:*
+        version: link:../wire-formats
+      fluture:
+        specifier: ^14.0.0
+        version: 14.0.0
+      playwright:
+        specifier: '>=1.30.0'
+        version: 1.58.2
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.58.2
+        version: 1.58.2
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      '@types/repro-shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+      '@vitejs/plugin-react':
+        specifier: 4.7.0
+        version: 4.7.0(vite@6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3))
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+      vite:
+        specifier: 6.4.1
+        version: 6.4.1(@types/node@22.14.0)(jiti@2.6.1)(terser@5.39.0)(tsx@4.19.3)(yaml@2.8.3)
 
   packages/recording:
     dependencies:
