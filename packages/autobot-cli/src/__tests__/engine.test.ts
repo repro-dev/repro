@@ -41,7 +41,11 @@ test("engine status uses the same selected work as queue planning", () => {
 
     const status = shapeEngineStatus("foreground");
     assert.equal(status.queue.selected_work?.issue_identifier, "REP-1");
-    assert.equal(status.engine.current_issue, "REP-1");
+    assert.deepEqual(
+      status.engine.active_work.map((item) => item.issue_identifier),
+      ["REP-2", "REP-1"],
+    );
+    assert.equal(status.engine.current_issue, "REP-2");
 
     const started = startEngine("foreground", true);
     assert.equal(started.engine.running, true);
@@ -134,9 +138,27 @@ test("status defaults to human output and start emits a tick event", () => {
   );
   process.env.REPO_ROOT = repoDir;
 
+  saveQueuePayload({
+    items: [
+      {
+        issue_identifier: "REP-2",
+        claim_state: "running",
+        workspace_path: "/work/rep-2",
+      },
+      {
+        issue_identifier: "REP-1",
+        claim_state: "queued",
+        workspace_path: "/work/rep-1",
+      },
+    ],
+  });
+
   try {
     runAutobotEngine(["node", "autobot-engine", "status"]);
     assert.equal(writes.join("").startsWith("ENGINE\n"), true);
+    assert.equal(writes.join("").includes("active_work_count: 2"), true);
+    assert.equal(writes.join("").includes("REP-2"), true);
+    assert.equal(writes.join("").includes("REP-1"), true);
     assert.equal(writes.join("").includes('"schema_version"'), false);
 
     writes.length = 0;
@@ -158,6 +180,18 @@ test("status defaults to human output and start emits a tick event", () => {
     assert.equal(
       lines.some((line) => line.kind === "tick"),
       true,
+    );
+    assert.deepEqual(
+      (
+        (
+          lines.find((line) => line.kind === "tick")?.engine as
+            | {
+                active_work?: Array<{ issue_identifier?: string }>;
+              }
+            | undefined
+        )?.active_work ?? []
+      ).map((item) => item.issue_identifier),
+      ["REP-2", "REP-1"],
     );
     assert.equal(
       lines.some((line) => line.engine && line.schema_version),

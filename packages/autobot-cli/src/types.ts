@@ -75,6 +75,7 @@ export interface AutobotEngineStatus {
     pid: number | null;
     running: boolean;
     mode: "foreground" | "daemon";
+    active_work: AutobotPublicItem[];
     current_issue: string;
     current_phase: string;
     current_attempt: number | null;
@@ -89,6 +90,7 @@ export interface AutobotEngineStatus {
   queue: {
     items: AutobotPublicItem[];
     selected_work: AutobotPublicItem | null;
+    active_work: AutobotPublicItem[];
     summary: QueueSummary;
   };
   generated_at: string;

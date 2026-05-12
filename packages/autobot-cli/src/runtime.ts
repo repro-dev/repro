@@ -271,6 +271,12 @@ export function publicSummary(
   return counts;
 }
 
+function activeWorkItems(itemsList: AutobotPublicItem[]): AutobotPublicItem[] {
+  return itemsList.filter((item) =>
+    ["queued", "running", "needs_attention"].includes(item.state),
+  );
+}
+
 export function shapeStatus(
   payload: QueuePayload,
   issueIdentifier?: string,
@@ -545,6 +551,8 @@ export function shapeEngineStatus(
 ): AutobotEngineStatus {
   const queuePayload = loadQueuePayload();
   const plan = processQueue(queuePayload);
+  const publicItems = items(queuePayload).map(publicItem);
+  const activeWork = activeWorkItems(publicItems);
   const selected = plan.selected_work
     ? publicItem(plan.selected_work as never)
     : null;
@@ -560,9 +568,15 @@ export function shapeEngineStatus(
       pid,
       running,
       mode,
-      current_issue: selected?.issue_identifier ?? "",
+      active_work: activeWork,
+      current_issue:
+        activeWork[0]?.issue_identifier ?? selected?.issue_identifier ?? "",
       current_phase: "",
-      current_attempt: selected ? Number(selected.attempt_count ?? 0) : null,
+      current_attempt: activeWork[0]
+        ? Number(activeWork[0].attempt_count ?? 0)
+        : selected
+        ? Number(selected.attempt_count ?? 0)
+        : null,
       last_tick_at: nowIso(),
     },
     paths: {
@@ -572,7 +586,8 @@ export function shapeEngineStatus(
       status: statusPath(),
     },
     queue: {
-      items: items(queuePayload).map(publicItem),
+      items: publicItems,
+      active_work: activeWork,
       selected_work: selected,
       summary: plan.summary,
     },
@@ -581,11 +596,21 @@ export function shapeEngineStatus(
 }
 
 export function renderEngineStatusLines(status: AutobotEngineStatus): string[] {
+  const activeWorkLines = status.engine.active_work.map(
+    (item) =>
+      `  - ${item.issue_identifier} ${item.state} ${item.workspace_path}`,
+  );
+  const renderedActiveWorkLines =
+    activeWorkLines.length > 0 ? activeWorkLines : ["  - none"];
+
   return [
     "ENGINE",
     `  pid: ${status.engine.pid ?? "-"}`,
     `  running: ${status.engine.running ? "yes" : "no"}`,
     `  mode: ${status.engine.mode}`,
+    `  active_work_count: ${status.engine.active_work.length}`,
+    "  active_work:",
+    ...renderedActiveWorkLines,
     `  current_issue: ${status.engine.current_issue || "-"}`,
     `  current_phase: ${status.engine.current_phase || "-"}`,
     `  current_attempt: ${status.engine.current_attempt ?? "-"}`,
