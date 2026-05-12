@@ -15,7 +15,9 @@ let passthroughHTMLPolicy: Pick<TrustedTypePolicy, 'name' | 'createHTML'> | null
 
 try {
   passthroughHTMLPolicy =
-    window.trustedTypes && window.trustedTypes.createPolicy
+    typeof window !== 'undefined' &&
+    window.trustedTypes &&
+    window.trustedTypes.createPolicy
       ? window.trustedTypes.createPolicy('passthrough-html', {
           createHTML: (html: string) => html,
         })
