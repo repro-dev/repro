@@ -178,7 +178,11 @@ function formatLogEvent(event: EngineLogEvent): string {
 }
 
 export function repoRoot(): string {
-  return String(process.env.REPO_ROOT ?? process.cwd());
+  if (process.env.REPO_ROOT) {
+    return String(process.env.REPO_ROOT);
+  }
+
+  return path.resolve(__dirname, "..", "..", "..");
 }
 
 function validateIssueIdentifier(issueIdentifier: string): string {

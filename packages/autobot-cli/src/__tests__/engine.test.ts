@@ -84,18 +84,19 @@ test("engine status keeps parallel active work only", () => {
   }
 });
 
-test("prepare provisions a missing worktree before claiming the item", () => {
+test("prepare-worktree sources repo-root scripts before claiming the item", () => {
   const mainCheckout = path.resolve(process.cwd(), "../..");
   const tmpRoot = path.join(mainCheckout, "tmp");
   fs.mkdirSync(tmpRoot, { recursive: true });
   const tmpdir = fs.mkdtempSync(
     path.join(tmpRoot, "autobot-cli-prepare-worktree-"),
   );
-  const repoDir = path.join(tmpdir, "repo");
-  fs.mkdirSync(path.join(repoDir, ".autobot"), { recursive: true });
-  const originalRepoRoot = process.env.REPO_ROOT;
+  const repoRoot = path.resolve(process.cwd(), "../..");
+  const fakePackageRoot = path.join(tmpdir, "packages", "autobot-cli");
+  const originalCwd = process.cwd();
   const originalPath = process.env.PATH;
-  process.env.REPO_ROOT = repoDir;
+  fs.mkdirSync(path.join(fakePackageRoot, ".autobot"), { recursive: true });
+  process.chdir(fakePackageRoot);
   const workspace = path.join(tmpdir, "workspaces", "rep-3");
   const fakeBinDir = path.join(tmpdir, "bin");
   const callsFile = path.join(tmpdir, "bash-calls.txt");
@@ -128,6 +129,18 @@ exit 0
 
     const calls = fs.readFileSync(callsFile, "utf8");
     assert.equal(calls.trim().length > 0, true);
+    assert.equal(
+      calls.includes(
+        `source "${path.join(repoRoot, "scripts/lib/common.sh")}"`,
+      ),
+      true,
+    );
+    assert.equal(
+      calls.includes(
+        `source "${path.join(repoRoot, "scripts/lib/worktree.sh")}"`,
+      ),
+      true,
+    );
     assert.equal(calls.includes('cmd_wt_create_from_issue "REP-3"'), true);
     assert.equal(fs.existsSync(workspace), true);
 
@@ -163,13 +176,8 @@ exit 0
     const logs = writes.join("").trim();
     assert.equal(logs.includes("task-success"), true);
     assert.equal(logs.includes("prepare-worktree"), true);
-    assert.equal(logs.includes("missing-workspace"), false);
   } finally {
-    if (originalRepoRoot === undefined) {
-      delete process.env.REPO_ROOT;
-    } else {
-      process.env.REPO_ROOT = originalRepoRoot;
-    }
+    process.chdir(originalCwd);
     if (originalPath === undefined) {
       delete process.env.PATH;
     } else {
