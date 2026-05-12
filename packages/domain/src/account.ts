@@ -13,6 +13,7 @@ export interface User {
   type: 'user'
   id: string
   name: string
+  email: string
   verified: boolean
 }
 
