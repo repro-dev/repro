@@ -1,0 +1,188 @@
+.routePage {
+  display: grid;
+  gap: 32px;
+  padding: 40px 0 28px;
+}
+
+.intro {
+  display: grid;
+  gap: 18px;
+  max-width: 68rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.body {
+  display: grid;
+  gap: 24px;
+}
+
+.band {
+  display: grid;
+  gap: 16px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.bandGrid {
+  display: grid;
+  gap: 16px;
+}
+
+.bandGridTwo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.bandGridThree {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stepList,
+.detailList {
+  display: grid;
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stepCard,
+.detailCard,
+.pricingCard {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(11, 18, 32, 0.92);
+  box-shadow: 0 22px 64px rgba(0, 0, 0, 0.28);
+  padding: 24px;
+}
+
+.stepCard {
+  display: grid;
+  gap: 16px;
+  grid-template-rows: auto minmax(3.2rem, auto) 1fr;
+  min-height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.stepNumber {
+  align-items: center;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.44);
+  color: #60a5fa;
+  display: inline-flex;
+  font:
+    700 clamp(2.75rem, 4vw, 4rem) / 0.9 var(--marketing-font-display),
+    var(--marketing-font-display-fallback);
+  justify-content: flex-start;
+  letter-spacing: -0.08em;
+  padding-bottom: 18px;
+  width: 100%;
+}
+
+.stepNumber::before {
+  color: rgba(96, 165, 250, 0.5);
+  content: '0';
+}
+
+.stepTitle {
+  align-self: start;
+  color: #edf4ff;
+  font-family: var(--marketing-font-display),
+    var(--marketing-font-display-fallback);
+  font-size: clamp(1.35rem, 1.8vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.stepBody {
+  align-self: start;
+  color: #9fb2d0;
+  font-size: 1rem;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.pricingCard {
+  display: grid;
+  gap: 14px;
+  grid-template-rows: auto auto auto 1fr auto;
+}
+
+.pricingValue {
+  color: #edf4ff;
+  font-family: var(--marketing-font-display),
+    var(--marketing-font-display-fallback);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  align-self: start;
+}
+
+.pricingCta {
+  align-self: start;
+}
+
+.supportNote {
+  color: #9fb2d0;
+  max-width: 64ch;
+  line-height: 1.8;
+}
+
+.pricingPillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-self: start;
+}
+
+.pricingPill {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  color: #dbeafe;
+  font:
+    700 11px/1 var(--marketing-font-mono),
+    var(--marketing-font-mono-fallback);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 8px 10px;
+}
+
+.detailList {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  gap: 0;
+}
+
+.detailList li {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  padding-top: 14px;
+}
+
+.detailList li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+@media (max-width: 960px) {
+  .bandGridTwo,
+  .bandGridThree {
+    grid-template-columns: 1fr;
+  }
+
+  .stepList {
+    grid-template-columns: 1fr;
+  }
+
+  .stepCard {
+    grid-template-rows: auto auto auto;
+  }
+}
+
+@media (min-width: 961px) {
+  .stepList {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

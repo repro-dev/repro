@@ -78,6 +78,7 @@ describe('Services > Account', () => {
             type: 'user',
             id: staffUser.id,
             name: 'A User',
+            email: harness.generateRandomEmailAddress(),
             verified: true,
           })
         )

@@ -9,11 +9,14 @@
 WT_DRY_RUN=false
 WT_FROM_ISSUE=""
 WT_NO_STATUS_UPDATE=false
+WT_ISSUE_LINEAR_SYNCED=false
+WT_ISSUE_LINEAR_SYNC_ERROR=""
 
 _linear_api() {
   local query="$1"
   local _tmpfile http_code body
-  _tmpfile="$(mktemp)"
+  mkdir -p "$MAIN_CHECKOUT/tmp"
+  _tmpfile="$(mktemp "$MAIN_CHECKOUT/tmp/linear-api.XXXXXX")"
 
   http_code="$(curl -sS -o "$_tmpfile" -w '%{http_code}' -X POST \
     -H "Content-Type: application/json" \
@@ -43,6 +46,28 @@ _linear_api() {
   fi
 
   printf '%s' "$body"
+}
+
+_linear_api_try() {
+  local query="$1"
+  local stdout_file stderr_file rc=0
+
+  mkdir -p "$MAIN_CHECKOUT/tmp"
+  stdout_file="$(mktemp "$MAIN_CHECKOUT/tmp/linear-api-stdout.XXXXXX")"
+  stderr_file="$(mktemp "$MAIN_CHECKOUT/tmp/linear-api-stderr.XXXXXX")"
+
+  if ( _linear_api "$query" ) >"$stdout_file" 2>"$stderr_file"; then
+    cat "$stdout_file"
+    rm -f "$stdout_file" "$stderr_file"
+    return 0
+  fi
+
+  rc=$?
+  if [ -s "$stderr_file" ]; then
+    cat "$stderr_file" >&2
+  fi
+  rm -f "$stdout_file" "$stderr_file"
+  return "$rc"
 }
 
 issue_worktree_suffix() {
@@ -98,7 +123,25 @@ _latest_main_ref() {
   die "Could not resolve main branch for issue-based worktree creation."
 }
 
-cmd_wt_create_from_issue() {
+_require_worktree_bootstrap_config_sources() {
+  if [ ! -f "$MAIN_CHECKOUT/.linear" ] || [ ! -r "$MAIN_CHECKOUT/.linear" ]; then
+    die "Missing required worktree bootstrap config at $MAIN_CHECKOUT/.linear. Copy the main checkout's .linear config before creating a new worktree."
+  fi
+}
+
+_copy_worktree_bootstrap_local_files() {
+  local wt_path="$1"
+
+  cp -p "$MAIN_CHECKOUT/.linear" "$wt_path/.linear" ||
+    die "Failed to copy $MAIN_CHECKOUT/.linear into $wt_path/.linear"
+
+  if [ -f "$MAIN_CHECKOUT/.envrc.local" ]; then
+    cp -p "$MAIN_CHECKOUT/.envrc.local" "$wt_path/.envrc.local" ||
+      die "Failed to copy $MAIN_CHECKOUT/.envrc.local into $wt_path/.envrc.local"
+  fi
+}
+
+_resolve_issue_worktree_metadata() {
   local issue_id="$1"
 
   if [[ ! "$issue_id" =~ ^[A-Z]+-[0-9]+$ ]]; then
@@ -116,7 +159,7 @@ cmd_wt_create_from_issue() {
   issue_number="${issue_id##*-}"
 
   local query
-  query="{ issues(filter: { number: { eq: ${issue_number} }, team: { key: { eq: \"${team_key}\" } } }, first: 1) { nodes { id identifier title branchName team { states { nodes { id name type } } } } } }"
+  query="{ issues(filter: { number: { eq: ${issue_number} }, team: { key: { eq: \"${team_key}\" } } }, first: 1) { nodes { id identifier title branchName state { name type } team { states { nodes { id name type } } } } } }"
 
   local response
   response="$(_linear_api "$query")"
@@ -138,34 +181,75 @@ cmd_wt_create_from_issue() {
   issue_title="$(sed -n '3p' <<< "$issue_data")"
   branch_name="$(sed -n '4p' <<< "$issue_data")"
   in_progress_state_id="$(sed -n '5p' <<< "$issue_data")"
+  local issue_state_name issue_state_type
+  issue_state_name="$(sed -n '6p' <<< "$issue_data")"
+  issue_state_type="$(sed -n '7p' <<< "$issue_data")"
 
   if [[ -z "$branch_name" ]]; then
     die "No branch name returned by Linear for ${issue_identifier}."
   fi
 
   local issue_names fresh_branch fresh_slug start_ref
-  issue_names="$(_resolve_issue_worktree_names "$issue_identifier" "$branch_name")"
+  WT_ISSUE_UUID="$issue_uuid"
+  WT_ISSUE_IDENTIFIER="$issue_identifier"
+  WT_ISSUE_TITLE="$issue_title"
+  WT_ISSUE_BRANCH_NAME="$branch_name"
+  WT_ISSUE_STATE_NAME="$issue_state_name"
+  WT_ISSUE_STATE_TYPE="$issue_state_type"
+  WT_ISSUE_IN_PROGRESS_STATE_ID="$in_progress_state_id"
+}
+
+_populate_issue_worktree_names() {
+  local issue_names fresh_branch fresh_slug start_ref
+  issue_names="$(_resolve_issue_worktree_names "$WT_ISSUE_IDENTIFIER" "$WT_ISSUE_BRANCH_NAME")"
   fresh_branch="$(sed -n '1p' <<< "$issue_names")"
   fresh_slug="$(sed -n '2p' <<< "$issue_names")"
   start_ref="$(_latest_main_ref)"
 
-  _ok "Found: ${issue_identifier} — ${issue_title}"
-  echo "  Branch: ${fresh_branch}"
-  echo "  Slug:   ${fresh_slug}"
+  WT_ISSUE_WORKTREE_BRANCH="$fresh_branch"
+  WT_ISSUE_WORKTREE_SLUG="$fresh_slug"
+  WT_ISSUE_WORKTREE_PATH="$(worktree_path "$fresh_slug")"
+  WT_ISSUE_START_REF="$start_ref"
+}
+
+_create_issue_worktree_from_metadata() {
+  WT_ISSUE_LINEAR_SYNCED=false
+  WT_ISSUE_LINEAR_SYNC_ERROR=""
+  _ok "Found: ${WT_ISSUE_IDENTIFIER} — ${WT_ISSUE_TITLE}"
+  echo "  Branch: ${WT_ISSUE_WORKTREE_BRANCH}"
+  echo "  Slug:   ${WT_ISSUE_WORKTREE_SLUG}"
   echo ""
 
-  cmd_wt_create "$fresh_branch" "$fresh_slug" "$start_ref"
+  cmd_wt_create "$WT_ISSUE_WORKTREE_BRANCH" "$WT_ISSUE_WORKTREE_SLUG" "$WT_ISSUE_START_REF" || return $?
 
   if [[ "$WT_NO_STATUS_UPDATE" != true ]]; then
-    if [[ -n "$in_progress_state_id" ]]; then
-      _step 3 3 "Updating ${issue_identifier} status to In Progress..."
+    if [[ -n "$WT_ISSUE_IN_PROGRESS_STATE_ID" ]]; then
+      _step 3 3 "Updating ${WT_ISSUE_IDENTIFIER} status to In Progress..."
       local mutation
-      mutation="mutation { issueUpdate(id: \"${issue_uuid}\", input: { stateId: \"${in_progress_state_id}\" }) { issue { id identifier } } }"
-      _linear_api "$mutation" > /dev/null
-      _ok "Issue ${issue_identifier} marked In Progress"
+      mutation="mutation { issueUpdate(id: \"${WT_ISSUE_UUID}\", input: { stateId: \"${WT_ISSUE_IN_PROGRESS_STATE_ID}\" }) { issue { id identifier } } }"
+      if _linear_api_try "$mutation" > /dev/null; then
+        WT_ISSUE_LINEAR_SYNCED=true
+        _ok "Issue ${WT_ISSUE_IDENTIFIER} marked In Progress"
+      else
+        WT_ISSUE_LINEAR_SYNC_ERROR="Failed to update Linear state to In Progress"
+      fi
     else
+      WT_ISSUE_LINEAR_SYNC_ERROR="Could not find 'In Progress' state"
       echo "  ${CLR_DIM}Could not find 'In Progress' state — skipping status update${CLR_RESET}"
     fi
+  fi
+}
+
+cmd_wt_create_from_issue() {
+  local issue_id="$1"
+
+  _resolve_issue_worktree_metadata "$issue_id"
+  _populate_issue_worktree_names
+  _create_issue_worktree_from_metadata
+
+  if [[ -n "$WT_ISSUE_LINEAR_SYNC_ERROR" ]]; then
+    _warn "Linear sync failed for ${WT_ISSUE_IDENTIFIER}: ${WT_ISSUE_LINEAR_SYNC_ERROR}"
+    return 1
   fi
 } >&2
 
@@ -179,9 +263,17 @@ cmd_wt_create() {
   echo "${CLR_BOLD}Creating worktree for branch:${CLR_RESET} $branch"
   echo "  Path: $wt_path"
 
+  if ! _require_worktree_bootstrap_config_sources; then
+    return 1
+  fi
+
   if [ "$WT_DRY_RUN" = true ]; then
     echo ""
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: git worktree add ... \"$wt_path\" \"$branch\""
+    echo "${CLR_DIM}[dry-run]${CLR_RESET} Would copy: $MAIN_CHECKOUT/.linear -> $wt_path/.linear"
+    if [ -f "$MAIN_CHECKOUT/.envrc.local" ]; then
+      echo "${CLR_DIM}[dry-run]${CLR_RESET} Would copy: $MAIN_CHECKOUT/.envrc.local -> $wt_path/.envrc.local"
+    fi
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: pnpm install (in $wt_path)"
     echo "${CLR_DIM}[dry-run]${CLR_RESET} Would run: moon run :build (in $wt_path)"
 
@@ -204,9 +296,9 @@ cmd_wt_create() {
     has_direnv=true
   fi
 
-  local total_steps=3
+  local total_steps=4
   if [ "$has_direnv" = true ]; then
-    total_steps=4
+    total_steps=5
   fi
 
   local step=1
@@ -221,6 +313,12 @@ cmd_wt_create() {
   else
     echo "  Branch '$branch' does not exist locally or on remote, creating from HEAD..."
     git worktree add -b "$branch" "$wt_path"
+  fi
+
+  step=$((step + 1))
+  _step "$step" "$total_steps" "Copying local worktree config..."
+  if ! _copy_worktree_bootstrap_local_files "$wt_path"; then
+    return 1
   fi
 
   step=$((step + 1))
@@ -271,7 +369,8 @@ _cleanup_worktree_services() {
   current_config="$(cat "$CONFIG_FILE")"
 
   local svc_names svc_err
-  svc_err="$(mktemp)"
+  mkdir -p "$MAIN_CHECKOUT/tmp"
+  svc_err="$(mktemp "$MAIN_CHECKOUT/tmp/worktree-services.XXXXXX")"
   svc_names="$(python3 "$SCRIPTS_DIR/lib/py/worktree_services.py" "$current_config" "$slug" 2>"$svc_err")" || {
     local err_msg
     err_msg="$(cat "$svc_err")"

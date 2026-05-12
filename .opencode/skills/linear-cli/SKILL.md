@@ -43,6 +43,7 @@ The repo's `Brewfile` installs `jq` for trimming high-volume JSON responses duri
 - Use the repo-owned CLI as the source of truth for all Linear work in this repo.
 - Keep OpenCode prompts aligned with concrete CLI commands rather than abstract tool names.
 - `linear issue create` accepts `--parent <issue-id>` for tracker/sub-issue setup.
+- `linear issue create` and `linear issue update` verify parent-link mutations by refetching the issue; they return non-zero if Linear reads back the wrong parent.
 - `linear issue update` accepts `--title <title>` for renaming and `--parent <issue-id>` / `--remove-parent` for reparenting.
 - When creating or updating issue bodies, pass the body through a single-quoted heredoc so Markdown, backticks, and other code spans survive unchanged. Example: `linear issue create ... --description "$(cat <<'EOF'\n## Context\n...\nEOF\n)"`.
 - Use raw `--json` for single-issue deep reads when you need full descriptions, comments, relations, or labels.

@@ -39,6 +39,9 @@
     "develop": {
       "model": "openai/gpt-5.4-mini"
     },
+    "librarian": {
+      "model": "openai/gpt-5.4-mini"
+    },
     "planner": {
       "model": "openai/gpt-5.4"
     },
@@ -46,6 +49,9 @@
       "model": "openai/gpt-5.4"
     },
     "test": {
+      "model": "openai/gpt-5.4-mini"
+    },
+    "sequencer": {
       "model": "openai/gpt-5.4-mini"
     },
     "release": {

@@ -38,12 +38,18 @@
   background: #ef4444;
 }
 
-.storyCard {
-  display: grid;
-  gap: 10px;
-  grid-template-rows: auto auto 1fr;
-  min-height: 220px;
-  padding: 26px 28px 28px;
+.workflowSection.workflowSection {
+  gap: 0;
+  padding-top: 48px;
+  padding-bottom: 32px;
+}
+
+.workflowKicker {
+  margin: 0 0 6px;
+}
+
+.workflowTitle {
+  margin: 0 0 18px;
 }
 
 .closingCta {
@@ -65,6 +71,6 @@
 
 @media (max-width: 960px) {
   .proofStrip {
-    grid-template-columns: 1fr;
+    display: none;
   }
 }

@@ -200,6 +200,63 @@ function parseOptions(args, allowed) {
   return out;
 }
 
+const ISSUE_LIST_JSON_FIELDS = [
+  "id",
+  "identifier",
+  "title",
+  "url",
+  "priority",
+  "priorityLabel",
+  "status",
+  "project",
+  "milestone",
+  "assignee",
+  "labels",
+  "updatedAt",
+  "description",
+  "comments",
+  "relations",
+];
+
+const ISSUE_LIST_JSON_FIELD_SET = new Set(ISSUE_LIST_JSON_FIELDS);
+
+function parseIssueListJsonProjection(args) {
+  if (!args.length) return null;
+  if (args.length > 1) {
+    usageError("Usage: linear issue list [options]");
+  }
+
+  const fields = args[0]
+    .split(",")
+    .map((field) => field.trim())
+    .filter(Boolean);
+
+  if (!fields.length) {
+    usageError(
+      "Invalid --json projection. Expected a comma-separated list of fields.",
+    );
+  }
+
+  const invalidField = fields.find(
+    (field) => !ISSUE_LIST_JSON_FIELD_SET.has(field),
+  );
+  if (invalidField) {
+    usageError(
+      `Unknown issue list --json field: ${invalidField}. Supported fields: ${ISSUE_LIST_JSON_FIELDS.join(
+        ", ",
+      )}.`,
+    );
+  }
+
+  return [...new Set(fields)];
+}
+
+function projectJsonFields(item, fields) {
+  return Object.fromEntries(
+    fields.map((field) => [field, item?.[field] ?? null]),
+  );
+}
+
 function topLevelHelp() {
   return [
     "Usage: linear <command> [options]",
@@ -248,7 +305,9 @@ function issueListHelp() {
     "  --open",
     "  --limit <n> (max 250)",
     "  --after <cursor>",
-    "  --json",
+    "  --json [<fields>]",
+    "    Flat projection only; e.g. --json id,identifier,title,priority",
+    "    Supported detail fields: comments, relations",
     "",
     "Default:",
     "  backlog + todo when no filters are supplied.",
@@ -469,6 +528,76 @@ async function resolveIssueByIdentifierOnTeam(context, team, issueId, cache) {
   return resolved;
 }
 
+function getIssueIdentifierForRefetch(issue) {
+  if (notEmpty(issue?.identifier)) return issue.identifier;
+  if (!notEmpty(issue?.url)) return null;
+
+  try {
+    const pathname = new URL(issue.url).pathname;
+    const segments = pathname.split("/").filter(Boolean);
+    return segments[segments.length - 1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveIssueParentId(issue) {
+  const parent = await resolveRelationValue(issue?.parent);
+  return issue?.parentId ?? parent?.id ?? null;
+}
+
+async function unwrapIssueMutationResult(result) {
+  return resolveRelationValue(result?.issue ?? result ?? null);
+}
+
+function formatIssueIdentity(issue) {
+  return issue?.identifier ?? issue?.id ?? "unknown issue";
+}
+
+function formatParentIdentity(issue) {
+  return issue?.identifier ?? issue?.id ?? "null";
+}
+
+async function verifyIssueParentMutation(
+  context,
+  issueResult,
+  expectedParentIssue,
+) {
+  const issue = await unwrapIssueMutationResult(issueResult);
+  const issueIdentifier = getIssueIdentifierForRefetch(issue);
+  if (!issueIdentifier) {
+    runtimeError(
+      `Unable to verify parent mutation: missing issue identifier for ${formatIssueIdentity(
+        issue,
+      )}.`,
+    );
+  }
+
+  const freshIssue = await resolveIssueByIdentifier(context, issueIdentifier);
+  const actualParentId = await resolveIssueParentId(freshIssue.issue);
+  const expectedParentId = expectedParentIssue?.id ?? null;
+
+  if (actualParentId !== expectedParentId) {
+    const expectedParentText = expectedParentIssue
+      ? `${formatParentIdentity(expectedParentIssue)} (${
+          expectedParentIssue.id ?? "unknown id"
+        })`
+      : "null";
+    const actualParentText = actualParentId ?? "null";
+    const recoveryCommands = expectedParentIssue
+      ? `Run \`linear issue show ${issueIdentifier} --json\` and \`linear issue children ${formatParentIdentity(
+          expectedParentIssue,
+        )} --json\` to inspect the hierarchy.`
+      : `Run \`linear issue show ${issueIdentifier} --json\` to inspect the hierarchy.`;
+
+    runtimeError(
+      `Parent mutation did not persist for ${issueIdentifier}: expected parent ${expectedParentText}, read back ${actualParentText}. ${recoveryCommands}`,
+    );
+  }
+
+  return freshIssue.issue;
+}
+
 function serializeProject(project) {
   if (!project) return null;
   return {
@@ -528,11 +657,12 @@ async function serializeMilestonePreview(milestone, project = null) {
 }
 
 async function serializeIssue(client, issue, labels = []) {
-  const [project, milestone, assignee, status] = await Promise.all([
+  const [project, milestone, assignee, status, parent] = await Promise.all([
     issue.project ? issue.project : null,
     issue.projectMilestone ? issue.projectMilestone : null,
     issue.assignee ? issue.assignee : null,
     issue.state ? issue.state : null,
+    issue.parent ? issue.parent : null,
   ]);
 
   return {
@@ -552,6 +682,8 @@ async function serializeIssue(client, issue, labels = []) {
     project: serializeProject(project),
     milestone: await serializeMilestone(milestone, project),
     assignee: serializeUser(assignee),
+    parentId: issue.parentId ?? parent?.id ?? null,
+    parent: parent ? await serializeIssueSummaryCore(parent) : null,
     labels: serializeIssueLabels(issue, labels),
     updatedAt:
       issue.updatedAt instanceof Date
@@ -561,7 +693,7 @@ async function serializeIssue(client, issue, labels = []) {
   };
 }
 
-async function serializeIssueListItem(issue, labels = []) {
+async function serializeIssueListItem(issue, labels = [], detailFields = []) {
   // List/children stay bounded by resolving only the summary relations we render.
   const [project, milestone, assignee, status] = await Promise.all([
     resolveRelationValue(issue?.project),
@@ -570,7 +702,7 @@ async function serializeIssueListItem(issue, labels = []) {
     resolveRelationValue(issue?.state),
   ]);
 
-  return {
+  const item = {
     id: issue.id ?? null,
     identifier: issue.identifier ?? null,
     title: issue.title ?? null,
@@ -590,6 +722,14 @@ async function serializeIssueListItem(issue, labels = []) {
         : issue.updatedAt ?? null,
     description: issue.description ?? null,
   };
+
+  if (detailFields.length) {
+    const details = await serializeIssueDetails(issue);
+    if (detailFields.includes("comments")) item.comments = details.comments;
+    if (detailFields.includes("relations")) item.relations = details.relations;
+  }
+
+  return item;
 }
 
 async function serializeIssueSummaryCore(issue) {
@@ -951,6 +1091,13 @@ async function issueListCommand(args, context) {
   if (options.help)
     return { code: 0, stdout: `${issueListHelp()}\n`, stderr: "" };
 
+  const jsonProjection = context.json
+    ? parseIssueListJsonProjection(options._)
+    : null;
+  if (!context.json && options._.length > 0) {
+    usageError("Usage: linear issue list [options]");
+  }
+
   const limit = options.limit ? parseLimit(options.limit) : 50;
   const { config, client } = await resolveLinearContext(context);
   if (options.mine && options.assignee) {
@@ -1033,12 +1180,29 @@ async function issueListCommand(args, context) {
     : issueLabelIds.length
     ? await resolveLabels(team)
     : [];
+  const issueListDetailFields = jsonProjection
+    ? jsonProjection.filter(
+        (field) => field === "comments" || field === "relations",
+      )
+    : [];
 
   const items = await Promise.all(
-    responseIssues.map((issue) => serializeIssueListItem(issue, issueLabels)),
+    responseIssues.map((issue) =>
+      serializeIssueListItem(issue, issueLabels, issueListDetailFields),
+    ),
   );
 
   if (context.json) {
+    if (jsonProjection) {
+      return {
+        code: 0,
+        stdout: toJson(
+          items.map((item) => projectJsonFields(item, jsonProjection)),
+        ),
+        stderr: "",
+      };
+    }
+
     return {
       code: 0,
       stdout: toJson(buildJsonEnvelope(items, pageInfo)),
@@ -1161,6 +1325,9 @@ async function issueChildrenCommand(args, context) {
 
   const issueId = options._[0];
   if (!issueId) usageError("Missing issue identifier.");
+  if (options._.length !== 1) {
+    usageError("Usage: linear issue children <id>");
+  }
 
   const { client, issue, team } = await resolveIssueByIdentifier(
     context,
@@ -1252,7 +1419,7 @@ async function issueCreateCommand(args, context) {
       )
     : null;
 
-  const createdIssue = await createIssueWithFallback(client, {
+  const createdIssueResult = await createIssueWithFallback(client, {
     teamId: team.id,
     title: options.title,
     description: options.description ?? undefined,
@@ -1261,6 +1428,21 @@ async function issueCreateCommand(args, context) {
     priority,
     parentId: resolvedParent?.issue.id ?? undefined,
   });
+  const createdIssue = await unwrapIssueMutationResult(createdIssueResult);
+
+  let verifiedCreatedIssue = createdIssue;
+  if (options.parent) {
+    if (!createdIssue) {
+      runtimeError(
+        "Unable to verify parent mutation: Linear did not return the created issue.",
+      );
+    }
+    verifiedCreatedIssue = await verifyIssueParentMutation(
+      context,
+      createdIssue,
+      resolvedParent?.issue ?? null,
+    );
+  }
 
   if (createdIssue?.id) {
     const relationSpecs = [
@@ -1336,7 +1518,7 @@ async function issueCreateCommand(args, context) {
     : [];
   const item = await serializeIssue(
     client,
-    createdIssue ?? fallbackIssue,
+    verifiedCreatedIssue ?? createdIssue ?? fallbackIssue,
     createdIssueLabels,
   );
 
@@ -1500,20 +1682,29 @@ async function issueUpdateCommand(args, context) {
 
   if (!Object.keys(input).length) usageError("Missing update fields.");
 
-  const updatedIssue = await callBoundMethod(
+  const updatedIssueResult = await callBoundMethod(
     client,
     client.updateIssue,
     issue.id,
     input,
   );
+  const updatedIssue = await unwrapIssueMutationResult(updatedIssueResult);
+  const verifiedUpdatedIssue =
+    options.parent !== undefined || options.removeParent
+      ? await verifyIssueParentMutation(
+          context,
+          updatedIssue ?? issue,
+          resolvedParent?.issue ?? null,
+        )
+      : updatedIssue;
   const updatedIssueLabels = teamLabels.length
     ? teamLabels
-    : collectLabelIds([updatedIssue ?? issue]).length
+    : collectLabelIds([verifiedUpdatedIssue ?? issue]).length
     ? await resolveLabels(team)
     : [];
   const item = await serializeIssue(
     client,
-    updatedIssue ?? {
+    verifiedUpdatedIssue ?? {
       ...issue,
       state: targetState ? Promise.resolve(targetState) : issue.state,
       project: resolvedProject

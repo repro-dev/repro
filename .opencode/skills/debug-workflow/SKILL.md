@@ -19,30 +19,41 @@ Write the working notes to `tmp/debug-<topic>.md` when the investigation is non-
 6. Verify the hypothesis against the repro.
 7. Only then move into `bug-rigor` or implementation work.
 
+## Escalation path
+
+`debug-workflow` is the default lightweight path. If the investigation loops, assumptions outnumber confirmed facts, hypotheses fail without convergence, the repro is flaky or non-deterministic, or the evidence conflicts, keep the same `tmp/debug-<topic>.md` notes and continue the same `/debug <topic | REP-123>` flow under `debugger-escalation` instead of restarting from scratch.
+
 ## Debug note format
 
 ```md
 # Debug Notes — <topic>
 
 ## Observed Failure
+
 - <what breaks>
 
 ## Reproduction
+
 - <command, test, request, or interaction>
 
 ## Confirmed Facts
+
 - <facts backed by logs, code, or repro output>
 
 ## Assumptions
+
 - <unverified beliefs to challenge>
 
 ## Hypotheses
+
 - <candidate causes>
 
 ## Conclusion
+
 - The bug happens because <x>, triggered by <y>.
 
 ## Next Step
+
 - <test to write or file to change>
 ```
 

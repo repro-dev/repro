@@ -19,6 +19,10 @@ describe('TermsPage', () => {
     const { metadata } = await import('./page')
 
     assert.equal(metadata.title, 'Terms of Service')
+    assert.equal(
+      metadata.description,
+      'Read the Terms of Service that apply to using the Repro site, app, and browser extension.'
+    )
   })
 
   it('renders the terms route with summaries, policy links, and last-updated text', async t => {
@@ -41,8 +45,8 @@ describe('TermsPage', () => {
     const privacyLink = screen.getByRole('link', { name: /privacy policy/i })
     assert.equal(privacyLink.getAttribute('href'), '/privacy')
 
-    const refundLink = screen.getByRole('link', { name: /refund policy/i })
-    assert.equal(refundLink.getAttribute('href'), '/refund-policy')
+    assert.equal(screen.queryByRole('link', { name: /refund policy/i }), null)
+    assert.equal(screen.queryByText(/refund policy/i), null)
 
     assert.ok(screen.getByText(/last updated: april 15, 2026/i))
   })

@@ -26,24 +26,14 @@ describe('marketing homepage route', () => {
     t.mock.module('../components/MarketingShell.module.css', {
       defaultExport: {},
     })
+    t.mock.module('../components/HighIntentRoutePage.module.css', {
+      defaultExport: {},
+    })
     t.mock.module('../components/HomePageContent.module.css', {
       defaultExport: {},
     })
     t.mock.module('../components/HeroSection.module.css', {
       defaultExport: {},
-    })
-
-    const createEnv = t.mock.fn(() => ({
-      REPRO_APP_URL: 'https://app.example.test',
-    }))
-
-    t.mock.module('~/config/env', {
-      namedExports: {
-        createEnv,
-        defaultEnv: {
-          REPRO_APP_URL: 'https://app.example.test',
-        },
-      },
     })
 
     const { default: HomePage, metadata } = await import('./page')
@@ -54,7 +44,7 @@ describe('marketing homepage route', () => {
     const header = screen.getByRole('banner')
     const logo = header.querySelector('svg') as SVGSVGElement | null
     const heroHeading = screen.getByRole('heading', {
-      name: 'Capture the bug. Let AI find the fix.',
+      name: 'Record the bug. Let AI find the fix.',
       level: 1,
     })
 
@@ -65,60 +55,95 @@ describe('marketing homepage route', () => {
     assert.ok(logo)
     assert.equal(logo?.getAttribute('height'), '30')
     assert.ok(heroHeading)
+    assert.ok(screen.getByText('Bug reports for coding agents'))
 
     assert.ok(
       screen.getByText(
-        /one recorded session gives the agent the evidence to diagnose/i
+        /captures the clicks, errors, and network requests behind a bug/i
+      )
+    )
+    assert.ok(
+      screen.getByAltText(
+        'Repro session inspector showing a captured bug report with replay, logs, and request details'
       )
     )
     assert.ok(
       screen
-        .getAllByRole('link', { name: 'Start free' })
-        .some(
-          (link: HTMLElement) =>
-            link.getAttribute('href') === 'https://app.example.test'
+        .getAllByRole('link', { name: 'Get started for free' })
+        .every(
+          (link: HTMLElement) => link.getAttribute('href') === '/coming-soon'
         )
     )
     assert.ok(
       screen
         .getAllByRole('link', { name: 'See how it works' })
-        .some((link: HTMLElement) => link.getAttribute('href') === '#features')
+        .some(
+          (link: HTMLElement) => link.getAttribute('href') === '#how-it-works'
+        )
     )
-    assert.ok(screen.getByText('recorded evidence'))
-    assert.ok(screen.getAllByText('AI finds the cause').length >= 1)
     assert.ok(
-      screen.getByText('Record the full session before the issue disappears.')
+      screen.getByRole('heading', { level: 2, name: 'From repro to fix' })
     )
-    assert.ok(screen.getByText('Let the agent find the fix.'))
-    assert.ok(document.querySelector('#features'))
+    assert.ok(screen.getByRole('heading', { level: 3, name: 'Record' }))
+    assert.ok(screen.getByRole('heading', { level: 3, name: 'Replay' }))
+    assert.ok(screen.getByRole('heading', { level: 3, name: 'Find the cause' }))
+    assert.ok(screen.getByRole('heading', { level: 3, name: 'Fix' }))
+    assert.equal(document.querySelector('#features'), null)
+    const howItWorks = document.querySelector('#how-it-works')
+    const signup = document.querySelector('#signup')
+
+    assert.ok(howItWorks)
+    assert.ok(signup)
+    assert.ok(
+      ((howItWorks as Element).compareDocumentPosition(signup as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING) !==
+        0
+    )
+    assert.equal(
+      screen.queryByText('Record the bug before the evidence is lost.'),
+      null
+    )
+    assert.equal(
+      screen.queryByText('Give each bug a clear trail of evidence.'),
+      null
+    )
     assert.equal(screen.queryByText('Activation'), null)
     assert.equal(screen.queryByText('Trust'), null)
     assert.ok(
       screen.getByRole('heading', {
-        name: 'Capture the bug. Let AI find the fix.',
+        name: 'Record the bug. Let AI find the fix.',
         level: 2,
       })
     )
-    assert.equal(metadata.title, 'Capture the bug. Let AI find the fix.')
+    assert.equal(metadata.title, 'Record the bug. Let AI find the fix.')
     assert.ok(
       metadata.description?.includes(
-        'AI can inspect the evidence, find the cause'
+        'clicks, errors, and network requests so coding agents can fix problems faster'
       )
     )
-
-    assert.ok(screen.getAllByText('Replay notes').length >= 1)
-    assert.ok(screen.getAllByText('Fix log').length >= 1)
-    assert.equal(screen.queryByText('capture-analyze-handoff'), null)
-    assert.equal(screen.queryByText('Session-Replay-Brief'), null)
 
     const footer = screen.getByRole('contentinfo')
     const footerLinks = within(footer)
 
     assert.ok(footerLinks.getByText('Product'))
-    assert.ok(footerLinks.getByText('Workflow'))
-    assert.ok(footerLinks.getByText('Company'))
+    assert.equal(footerLinks.queryByText('Workflow'), null)
     assert.ok(footerLinks.getByText('Legal'))
-    assert.ok(footerLinks.getByRole('link', { name: 'GitHub' }))
-    assert.ok(footerLinks.getByRole('link', { name: 'X' }))
+    assert.equal(footerLinks.queryByText('Company'), null)
+    assert.equal(footerLinks.queryByRole('link', { name: 'About' }), null)
+    assert.equal(footerLinks.queryByRole('link', { name: 'Contact' }), null)
+    assert.equal(
+      footerLinks.queryByRole('link', { name: 'Refund policy' }),
+      null
+    )
+    assert.equal(
+      footerLinks
+        .getByRole('link', { name: 'How it works' })
+        .getAttribute('href'),
+      '/#how-it-works'
+    )
+    assert.ok(footerLinks.getByRole('link', { name: 'Log in' }))
+    assert.equal(footerLinks.queryByRole('link', { name: 'GitHub' }), null)
+    assert.equal(footerLinks.queryByRole('link', { name: 'X' }), null)
+    assert.ok(footerLinks.getByText(/Repro Software Ltd/))
   })
 })

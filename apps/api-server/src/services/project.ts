@@ -1,4 +1,10 @@
-import { Account, Project, ProjectRole, RecordingInfo } from '@repro/domain'
+import {
+  Account,
+  Project,
+  ProjectRole,
+  RecordingInfo,
+  UserProjectMembership,
+} from '@repro/domain'
 import {
   FutureInstance,
   bimap,
@@ -157,6 +163,26 @@ export function createProjectService(
     }).pipe(map(rows => rows.map(withEncodedId)))
   }
 
+  function getUserProjectsWithRoles(
+    userId: string
+  ): FutureInstance<Error, Array<UserProjectMembership>> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('memberships')
+        .innerJoin('projects', 'projects.id', 'memberships.projectId')
+        .where('memberships.userId', '=', decodeId(userId))
+        .select(['projects.id', 'projects.name', 'memberships.role'])
+        .execute()
+    ).pipe(
+      map(rows =>
+        rows.map(r => ({
+          project: { id: encodeId(r.id), name: r.name },
+          role: r.role,
+        }))
+      )
+    )
+  }
+
   function getProjectMembers(
     projectId: string
   ): FutureInstance<Error, Array<{ userId: string; role: ProjectRole }>> {
@@ -294,6 +320,7 @@ export function createProjectService(
     getProjectById,
     getUserProjectRole,
     getUserProjects,
+    getUserProjectsWithRoles,
     getRecordingsForProject,
     getAccountForProject,
     getProjectMembers,

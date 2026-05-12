@@ -1,9 +1,11 @@
+import { ListResponse } from '@repro/domain'
 import { tapF } from '@repro/future-utils'
 import { FastifyPluginAsync } from 'fastify'
 import { chain, chainRej, go, reject } from 'fluture'
 import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
+import { ProjectService } from '~/services/project'
 import { isNotFound, isTooManyRequests, notAuthenticated } from '~/utils/errors'
 import { createResponseUtils } from '~/utils/response'
 
@@ -16,6 +18,7 @@ const loginSchema = {
 
 export function createStaffRouter(
   accountService: AccountService,
+  projectService: ProjectService,
   config = defaultSystemConfig
 ): FastifyPluginAsync {
   const { respondWith } = createResponseUtils(config)
@@ -236,6 +239,32 @@ export function createStaffRouter(
             }
 
             return targetUser
+          })
+        )
+      }
+    )
+
+    // Get user project memberships
+    app.get<{
+      Params: z.infer<typeof userIdSchema.params>
+    }>(
+      '/users/:userId/projects',
+      {
+        schema: userIdSchema,
+      },
+      (req, res) => {
+        const { userId } = req.params
+        respondWith(
+          res,
+          go(function* () {
+            const user = yield req.getCurrentUser()
+            yield accountService.ensureStaffUser(user)
+            const memberships = yield projectService.getUserProjectsWithRoles(
+              userId
+            )
+            return {
+              items: memberships,
+            } as ListResponse<(typeof memberships)[number]>
           })
         )
       }

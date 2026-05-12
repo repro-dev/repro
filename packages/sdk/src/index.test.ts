@@ -12,9 +12,20 @@ describe('repro SDK', () => {
     })
 
     it('mark is a no-op and returns undefined', async () => {
-      const { repro } = await import('./index.js')
-      const result = repro.mark('page_view')
+      const { mark, repro } = await import('./index.js')
+      const result = mark('page_view')
       assert.equal(result, undefined)
+      assert.equal(repro.mark('page_view'), undefined)
+    })
+
+    it('mark is a no-op when the extension exists but mark is not callable', async () => {
+      ;(globalThis as Record<string, unknown>)['__REPRO__'] = {
+        mark: 'not-a-function',
+      }
+
+      const { mark } = await import('./index.js')
+
+      assert.equal(mark('page_view'), undefined)
     })
 
     it('captureState is a no-op and returns undefined', async () => {
@@ -44,8 +55,8 @@ describe('repro SDK', () => {
     })
 
     it('mark delegates to window.__REPRO__.mark', async () => {
-      const { repro } = await import('./index.js')
-      repro.mark('button_clicked', { label: 'Submit' })
+      const { mark } = await import('./index.js')
+      mark('button_clicked', { label: 'Submit' })
       assert.equal(calls.length, 1)
       assert.deepEqual(calls[0], {
         method: 'mark',
@@ -62,5 +73,13 @@ describe('repro SDK', () => {
         args: ['Counter', { value: 42 }],
       })
     })
+  })
+
+  it('accepts window.__REPRO__.mark through the ambient Window type', () => {
+    if (typeof window !== 'undefined' && window.__REPRO__) {
+      window.__REPRO__.mark?.('typed-check', { enabled: true })
+    }
+
+    assert.equal(true, true)
   })
 })

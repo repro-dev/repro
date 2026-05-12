@@ -57,10 +57,23 @@ describe('site layout', () => {
     assert.equal(logo?.getAttribute('height'), '30')
 
     assert.ok(headerLinks.getByRole('link', { name: /repro home/i }))
-    assert.ok(headerLinks.getByRole('link', { name: 'Features' }))
+    assert.equal(
+      headerLinks
+        .getByRole('link', { name: 'How it works' })
+        .getAttribute('href'),
+      '/#how-it-works'
+    )
     assert.ok(headerLinks.getByRole('link', { name: 'Pricing' }))
-    assert.ok(headerLinks.getByRole('link', { name: 'Sign up' }))
-    assert.ok(headerLinks.getByRole('link', { name: 'Start free' }))
+    assert.equal(
+      headerLinks.getByRole('link', { name: 'Log in' }).getAttribute('href'),
+      '/coming-soon'
+    )
+    assert.equal(
+      headerLinks
+        .getByRole('link', { name: 'Get started for free' })
+        .getAttribute('href'),
+      '/coming-soon'
+    )
   })
 
   it('opens the mobile navigation from the hamburger button', async t => {
@@ -76,24 +89,37 @@ describe('site layout', () => {
     assert.ok(screen.getByRole('dialog'))
 
     fireEvent.click(
-      within(screen.getByRole('dialog')).getByRole('link', { name: 'Sign up' })
+      within(screen.getByRole('dialog')).getByRole('link', { name: 'Log in' })
     )
 
     assert.equal(screen.queryByRole('dialog'), null)
   })
 
-  it('renders grouped footer links and social links', async t => {
+  it('renders grouped footer links without social links', async t => {
     await renderLayout(t)
 
     const footer = screen.getByRole('contentinfo')
     const footerLinks = within(footer)
 
     assert.ok(footerLinks.getByText('Product'))
-    assert.ok(footerLinks.getByText('Workflow'))
-    assert.ok(footerLinks.getByText('Company'))
+    assert.equal(footerLinks.queryByText('Workflow'), null)
     assert.ok(footerLinks.getByText('Legal'))
-    assert.ok(footerLinks.getByRole('link', { name: 'GitHub' }))
-    assert.ok(footerLinks.getByRole('link', { name: 'X' }))
+    assert.equal(footerLinks.queryByText('Company'), null)
+    assert.equal(footerLinks.queryByRole('link', { name: 'About' }), null)
+    assert.equal(footerLinks.queryByRole('link', { name: 'Contact' }), null)
+    assert.equal(
+      footerLinks.queryByRole('link', { name: 'Refund policy' }),
+      null
+    )
+    assert.equal(
+      footerLinks
+        .getByRole('link', { name: 'How it works' })
+        .getAttribute('href'),
+      '/#how-it-works'
+    )
+    assert.equal(footerLinks.queryByRole('link', { name: 'GitHub' }), null)
+    assert.equal(footerLinks.queryByRole('link', { name: 'X' }), null)
+    assert.ok(footerLinks.getByText(/Repro Software Ltd/))
   })
 
   it('keeps the skip link and main content container', async t => {

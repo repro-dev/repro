@@ -5,6 +5,7 @@ description: Shape a high-level goal into a curated Linear issue set with intera
 Arguments (required): `$ARGUMENTS`
 
 - Pass a goal, initiative statement, or planning prompt.
+- Redirect raw customer-feedback intake to /feedback instead of planning issues directly.
 
 ## Command contract
 

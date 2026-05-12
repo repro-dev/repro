@@ -1,4 +1,7 @@
-# Skill: backlog-grooming
+---
+name: backlog-grooming
+description: Backlog-grooming workflow for queue-health triage and conservative Linear mutations.
+---
 
 # Backlog Grooming
 

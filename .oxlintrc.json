@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": [
+    "**/dist",
+    "**/storybook-static",
+    "packages/domain/generated",
+    "packages/domain/src/generated",
+    "packages/wire-formats/generated",
+    "packages/wire-formats/src/generated",
+    "packages/tdl/src/cli/*.ohm-bundle.*"
+  ]
+}

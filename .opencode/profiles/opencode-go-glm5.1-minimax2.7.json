@@ -39,6 +39,9 @@
     "develop": {
       "model": "opencode-go/minimax-m2.7"
     },
+    "librarian": {
+      "model": "opencode-go/minimax-m2.7"
+    },
     "planner": {
       "model": "opencode-go/glm-5.1"
     },

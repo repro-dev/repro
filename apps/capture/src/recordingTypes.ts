@@ -6,7 +6,11 @@ export type RecordingType =
   | 'performance'
   | 'state'
 
-export type RuntimeInstalledType = 'console' | 'network' | 'performance'
+export type RuntimeInstalledType =
+  | 'console'
+  | 'custom'
+  | 'network'
+  | 'performance'
 
 const DEFAULT_RECORDING_TYPES: ReadonlyArray<Exclude<RecordingType, 'state'>> =
   ['dom', 'interaction', 'network', 'console', 'performance']

@@ -4,28 +4,50 @@ This file is loaded automatically at session start. It covers cross-cutting rule
 
 **Task entry points:**
 
-| Task type                     | Start here                                |
-| ----------------------------- | ----------------------------------------- |
-| Feature / fix                 | Load `delivery-workflow` skill            |
-| Bug fix / root-cause work     | Load `bug-rigor` with `delivery-workflow` |
-| Worktree / parallel work      | Load `worktree-workflow` skill            |
-| Implementation / testing      | Load `implementation-rigor` skill         |
-| Repo-specific testing         | Load `testing-workflow` skill             |
-| Commit / PR                   | Load `git-workflow` skill                 |
-| Code review                   | Load `review-standards` skill             |
-| Build / test / typecheck      | Load `build-and-test` skill               |
-| Context assembly              | Load `context-gather` skill               |
-| Test planning                 | Load `test-plan` skill                    |
-| Goal shaping / issue planning | Load `issue-shaping-workflow` skill       |
-| UI direction / intent         | Load `design-direction` skill             |
-| UI / components               | Load `design-system` skill                |
-| UI audits / polish            | Load `audit-ui-quality` skill             |
-| UI verification               | Load `ui-verification` skill              |
-| Database / migrations         | Load `database` skill                     |
-| File a Linear issue           | Load `create-issue` skill                 |
-| Debug investigation           | Load `debug-workflow` skill               |
-| Command authoring             | Load `command-thin-shim` skill            |
-| Skill compliance review       | Load `skill-compliance` skill             |
+### Workflow skills
+
+- `delivery-workflow` — feature/fix orchestration
+- `bug-rigor` — root-cause-first bug fixing
+- `implementation-rigor` — red/green/refactor and verification order
+- `review-standards` — branch/PR review contract
+- `context-gather` — compact planning context
+- `test-plan` — explicit test strategy before implementation
+- `issue-shaping-workflow` — goal-to-issue planning
+- `feedback-synthesis-workflow` — customer feedback clustering and briefing
+- `debug-workflow` — evidence-first debugging
+
+### Discipline skills
+
+- `database` — PostgreSQL, Kysely, migrations
+- `recording-playback` — capture/playback subsystem work
+- `agentic` — agentic debugger runtime, tools, UI, and API routes/services
+- `authentication`, `billing`, `dev-toolbar`, `api-server` — product/domain surfaces
+
+### UI-specific skills
+
+- `design-direction` — upstream visual intent
+- `design-edit` — localized follow-up edits on an existing UI surface
+- `design-handoff` — preserve settled UI decisions across handoffs
+- `design-system` — UI implementation, components, tokens, and reference files
+- `audit-ui-quality` — scored authored-vs-generic UI audit
+- `ui-verification` — browser evidence after a UI change
+- `extension-verification` — browser-extension verification
+
+### Lifecycle / tooling skills
+
+- `worktree-workflow` — isolated worktrees
+- `build-and-test` — moon, typecheck, formatter, and verification commands
+- `testing-workflow` — repo-specific harness guidance
+- `git-workflow` — commits, PRs, and Linear lifecycle
+- `create-issue` and `linear-cli` — issue creation and Linear lookups
+
+### Meta skills
+
+- `skill-architecture` — skill taxonomy and migration boundaries
+- `skill-compliance` — verify skill/AGENTS adherence
+- `instruction-artifact-workflow` — author and review instruction artifacts
+- `command-thin-shim` — command-file structure
+- `harden` — resilience follow-up when needed
 
 ## Code Style & Conventions
 
@@ -72,6 +94,7 @@ Use `fluture` (`FutureInstance`) for async operations, **not** Promises. Prefer 
 - **Comments**: Add brief comments when they clarify non-obvious intent, invariants, sentinel values, or protocol quirks. Avoid comments that restate the code.
 - **Temporary files**: **Always use `tmp/` at the repo root** for any ephemeral output — screenshots, build artifacts, scratch files, test results, anything throwaway. **Never write to `/tmp`** (OpenCode requires elevated permission to access paths outside the project root, which blocks automated pipelines) **or `~/Downloads`** (pollutes the user's filesystem). `tmp/` is git-ignored; the `.gitkeep` sentinel keeps it tracked.
 - **Context artifacts**: For larger delivery work, prefer small durable artifacts in `tmp/` such as `tmp/context-REP-123.md`, `tmp/test-plan-REP-123.md`, or `tmp/debug-foo.md` rather than re-explaining the same context in every turn.
+- **Feedback artifacts**: Customer-feedback synthesis should accumulate in `tmp/feedback-brief-<topic>.md` so downstream issue shaping can reuse the same evidence and uncertainty notes.
 
 ## Environment Variables
 
@@ -151,6 +174,7 @@ Update a skill proactively when any of these stronger triggers occur:
 - `.opencode/skills/<domain>/SKILL.md` for cross-cutting domain knowledge.
 - A package-level `AGENTS.md` for conventions too specific for a shared skill.
 - If no skill file exists for the domain and the knowledge is reusable, create one following the structure of existing skill files.
+- Use `instruction-artifact-workflow` when creating or materially changing OpenCode skills, agents, commands, or `AGENTS.md` guidance so placement stays lean and reviewable.
 - For command-specific workflow glue, keep `.opencode/commands/*.md` thin and move reusable operating logic into skills.
 - New skill files are discovered on session startup. In the same session that creates a skill, read the new `SKILL.md` directly instead of assuming the `skill` tool can load it by name immediately.
 
@@ -176,22 +200,24 @@ A useful mental shorthand is the **Explorer / Oracle / Fixer** model: Explorers 
 
 ### Agent roster
 
-| Agent     | Archetype | Primary role                                                                                            | Tool access                                         |
-| --------- | --------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `develop` | Fixer     | Executes implementation plans using red/green/refactor TDD                                              | Full read/write/bash                                |
-| `test`    | Fixer     | Adds test coverage, writes regression tests, and audits test sufficiency as a standalone utility        | Full read/write/bash                                |
-| `planner` | Oracle    | Explores the codebase and produces a structured implementation plan for `develop` to consume            | Read-only; restricted bash (git log/diff/show only) |
-| `review`  | Oracle    | Reviews a branch diff against Linear requirements and project conventions; never fixes, only reports    | Read-only; restricted bash (git log/diff/show only) |
-| `explore` | Explorer  | Answers fast read-only questions about architecture, patterns, and existing code without making changes | Read-only                                           |
-| `general` | —         | Handles tasks that don't fit another agent's scope (writing docs, analyzing logs, answering questions)  | Varies by task                                      |
+| Agent       | Archetype | Primary role                                                                                            | Tool access                                                            |
+| ----------- | --------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `develop`   | Fixer     | Executes implementation plans using red/green/refactor TDD                                              | Full read/write/bash                                                   |
+| `test`      | Fixer     | Adds test coverage, writes regression tests, and audits test sufficiency as a standalone utility        | Full read/write/bash                                                   |
+| `planner`   | Oracle    | Explores the codebase and produces a structured implementation plan for `develop` to consume            | Read-only; restricted bash (git log/diff/show only)                    |
+| `review`    | Oracle    | Reviews a branch diff against Linear requirements and project conventions; never fixes, only reports    | Read-only; restricted bash (git log/diff/show and linear issue show\*) |
+| `explore`   | Explorer  | Answers fast read-only questions about architecture, patterns, and existing code without making changes | Read-only                                                              |
+| `librarian` | Explorer  | Researches external libraries, frameworks, and public APIs from official docs and upstream source       | Read-only                                                              |
+| `general`   | —         | Handles tasks that don't fit another agent's scope (writing docs, analyzing logs, answering questions)  | Varies by task                                                         |
 
 **When to use each agent:**
 
 - **`develop`**: any implementation touching 2+ files. Preferred over writing code in the outer conversation.
 - **`test`**: after implementation to audit coverage or write targeted regression tests. Not part of the automated pipeline — invoke directly when needed.
 - **`planner`**: when a task involves 3+ packages or requires significant codebase exploration before implementation. For simpler single-package changes, plan inline in the outer conversation.
-- **`review`**: any time you want structured findings against Linear requirements and conventions before publishing a PR. Can also be invoked via `/review` for ad-hoc branch review.
+- **`review`**: any time you want structured findings against Linear requirements and conventions before publishing a PR. Can also be invoked via `/review` for ad-hoc branch review; restricted bash includes `git log/diff/show` and `linear issue show*`.
 - **`explore`**: when you need fast orientation or impact assessment without a full plan. Cheaper than `planner` for pure recon — use it first, then escalate to `planner` if planning is warranted.
+- **`librarian`**: when external dependency behavior is unclear and you need evidence-backed research from official docs, upstream source, or trustworthy examples before planning or implementing.
 - **`general`**: when no more-specific agent applies — e.g. writing a design doc, summarizing a log dump, or answering a question with no code change required.
 
 ### Agent permission boundaries
@@ -205,6 +231,7 @@ This table is normative — agents must treat it as a constraint, not a suggesti
 | `planner`            | No         | No       | No             | No                       | No                                 | No                       |
 | `review`             | No         | No       | No             | No                       | No                                 | No                       |
 | `explore`            | No         | No       | No             | No                       | No                                 | No                       |
+| `librarian`          | No         | No       | No             | No                       | No                                 | No                       |
 | `general`            | No         | No       | No             | No                       | No                                 | No                       |
 | `outer conversation` | Yes        | Yes      | Yes            | Yes                      | Yes                                | Yes                      |
 
@@ -212,6 +239,7 @@ This table is normative — agents must treat it as a constraint, not a suggesti
 
 - **`develop` agent**: Use for ALL implementation work that touches 2+ files. Do NOT write code directly in the outer conversation except for trivial single-file edits (e.g. fixing a typo, updating a config value). Provide the develop agent with: (1) the worktree path, (2) the exact file paths and line ranges to modify, (3) the specific changes to make, (4) how to verify (test commands), and (5) the Linear issue ID for commit messages.
 - Before delegating to `planner` for work that spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs, create `tmp/context-<issue-id>.md` first and pass it in as planning input. For non-Linear work, use `tmp/context-<topic>.md`.
+- Use `librarian` before planning or coding when the behavior of an external dependency is unclear and the answer needs official docs or upstream source instead of repo-local investigation.
 - Before delegating to `develop` for a new behavior, bug fix, or public contract change, create or confirm `tmp/test-plan-<issue-id>.md` and pass it in with the task. For non-Linear work, use `tmp/test-plan-<topic>.md`.
 - **`test` agent**: Use after implementation to audit test coverage and write additional tests. Do NOT write tests in the outer conversation. Provide the test agent with: (1) the worktree path, (2) which files were changed, (3) the relevant test commands.
 
@@ -235,7 +263,7 @@ The typical flow for a feature or fix:
 
 ### Artifact lifecycle
 
-- `tmp/context-<issue-id>.md`: required before planner delegation once work spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs. For unresolved UI direction, this same artifact should carry the `## Design Direction` block from the `design-direction` workflow. Use `tmp/context-<topic>.md` for non-Linear work.
+- `tmp/context-<issue-id>.md`: required before planner delegation once work spans 3+ packages, depends on prior investigation threads, or has scope scattered across related issues/comments/docs. For unresolved UI direction, this same artifact should carry the `## Design Direction` block from the `design-direction` workflow. For bounded follow-up UI edits, it may also carry a `## Targeted Design Edit` block from the `design-edit` workflow. Use `tmp/context-<topic>.md` for non-Linear work.
 - `tmp/test-plan-<issue-id>.md`: required before `develop` for new behavior, bug fixes, and public contract changes. Use `tmp/test-plan-<topic>.md` for non-Linear work.
 - Review and handoff workflows should explicitly note which `tmp/` artifacts were consumed and which still need updating.
 

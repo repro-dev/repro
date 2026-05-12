@@ -4,7 +4,7 @@
   "description": "Repro marketing website",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "node ./scripts/ensure-next-server-pages.mjs & next build",
     "dev": "next dev",
     "start": "next start",
     "typecheck": "tsc --noEmit",

@@ -1,35 +1,18 @@
-import { defaultEnv } from '~/config/env'
-
-export const signupHref = defaultEnv.REPRO_APP_URL
+export const signupHref = '/coming-soon'
 
 export const primaryNavLinks = [
-  { href: '/features', label: 'Features' },
+  { href: '/#how-it-works', label: 'How it works' },
   { href: '/pricing', label: 'Pricing' },
-  { href: signupHref, label: 'Sign up' },
+  { href: signupHref, label: 'Log in' },
 ] as const
 
 export const footerGroups = [
   {
     title: 'Product',
     links: [
-      { href: '/features', label: 'Features' },
+      { href: '/#how-it-works', label: 'How it works' },
       { href: '/pricing', label: 'Pricing' },
-      { href: signupHref, label: 'Sign up' },
-    ],
-  },
-  {
-    title: 'Workflow',
-    links: [
-      { href: '/install-extension', label: 'Capture setup' },
-      { href: '/blog', label: 'Replay notes' },
-      { href: '/changelog', label: 'Fix log' },
-    ],
-  },
-  {
-    title: 'Company',
-    links: [
-      { href: '/about', label: 'About' },
-      { href: '/contact', label: 'Contact' },
+      { href: signupHref, label: 'Log in' },
     ],
   },
   {
@@ -37,128 +20,49 @@ export const footerGroups = [
     links: [
       { href: '/terms', label: 'Terms' },
       { href: '/privacy', label: 'Privacy' },
-      { href: '/refund-policy', label: 'Refund policy' },
     ],
   },
 ] as const
 
-export const socialLinks = [
-  { href: '/github', label: 'GitHub' },
-  { href: '/x', label: 'X' },
-] as const
-
 export const homepageHeroMock = {
-  eyebrow: 'Capture / AI / find / fix',
-  headline: 'Capture the bug. Let AI find the fix.',
-  lede: 'One recorded session gives the agent the evidence to diagnose and hand off the next step.',
-  primaryCta: 'Start free',
+  eyebrow: 'Bug reports for coding agents',
+  headline: 'Record the bug. Let AI find the fix.',
+  lede: 'Repro captures the clicks, errors, and network requests behind a bug so coding agents can fix it faster.',
+  primaryCta: 'Get started for free',
   secondaryCta: 'See how it works',
-  labelRow: {
-    left: 'recorded evidence',
-    right: 'AI finds the cause',
-  },
-  transcriptRows: [
-    {
-      label: 'capture',
-      body: 'Record the full session before the issue disappears.',
-    },
-    {
-      label: 'analyze',
-      body: 'Let AI inspect the replay instead of guessing from logs.',
-    },
-    {
-      label: 'handoff',
-      body: 'Turn the diagnosis into a compact fix brief.',
-    },
-  ],
-  cards: [
-    { title: 'Session', body: 'Keep the evidence' },
-    { title: 'Replay', body: 'Let AI inspect it' },
-    { title: 'Brief', body: 'Share the next step' },
-  ],
 } as const
 
 export const homepageProofCards = [
   {
     tone: 'info',
-    body: 'The page keeps the story simple: capture, inspect, resolve.',
+    body: 'Clicks and user interactions',
   },
   {
     tone: 'success',
-    body: 'Teams keep the same evidence in front of support and engineering.',
+    body: 'Console logs and errors',
   },
   {
     tone: 'warning',
-    body: 'Short section copy supports the distilled message.',
+    body: 'Network requests and WebSockets',
   },
   {
     tone: 'danger',
-    body: 'The conversion path stays signup-oriented.',
-  },
-] as const
-
-export const homepageNarrativeCards = [
-  {
-    kicker: 'Capture',
-    title: 'Record the bug before the context is gone.',
-    body: 'Keep the session and the important UI changes together.',
-  },
-  {
-    kicker: 'AI finds',
-    title: 'Let the agent find the fix.',
-    body: 'Use the replay to narrow the path from symptom to remedy.',
-  },
-  {
-    kicker: 'Fix',
-    title: 'Make the handoff easy.',
-    body: 'Share a crisp summary that engineers can act on.',
+    body: 'Replay timeline and DOM state',
   },
 ] as const
 
 export const routePageContent = {
-  about: {
-    title: 'About Repro',
-    body: 'Learn how Repro turns recorded evidence into a faster fix handoff.',
-  },
-  blog: {
-    title: 'Blog',
-    body: 'Read notes on capture, replay, and the AI-assisted fix path.',
-  },
-  changelog: {
-    title: 'Changelog',
-    body: 'See what shipped across capture, evidence, and fix handoffs.',
-  },
-  contact: {
-    title: 'Contact',
-    body: 'Reach out about product questions, support, or partnerships.',
-  },
-  'install-extension': {
-    title: 'Install extension',
-    body: 'Add Repro to the browser and capture a session in a click.',
-  },
-  features: {
-    title: 'Features',
-    body: 'Explore the capture, replay, and handoff tools behind the fix path.',
-  },
-  pricing: {
-    title: 'Pricing',
-    body: 'Choose a plan that matches how your team captures and ships fixes.',
-  },
   privacy: {
     title: 'Privacy policy',
-    body: 'Read how Repro handles customer data and recording privacy.',
-  },
-  'refund-policy': {
-    title: 'Refund policy',
-    body: 'Review refund terms for self-serve and sales-assisted purchases.',
+    body: 'Read how Repro handles customer data, recordings, and privacy.',
   },
   support: {
     title: 'Support',
-    body: 'Get help when a session needs more evidence or a sharper handoff.',
+    body: 'Get help with recordings, replayable bug reports, agentic debugging, account access, or billing.',
   },
   terms: {
     title: 'Terms of service',
-    body: 'Review the rules for using the Repro site and app.',
+    body: 'Review the terms that apply to using the Repro site and app.',
   },
 } as const
 

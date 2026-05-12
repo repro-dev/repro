@@ -1,15 +1,16 @@
 ---
-description: Enrich thin or ambiguous Linear issues that are not yet ready for /deliver — generate grounded acceptance criteria and scope context, update issues in Linear, or flag them for human review
+description: Enrich thin or ambiguous Linear issues that are not yet ready for /deliver — run a project-scoped backlog scan or target one issue directly, then generate grounded acceptance criteria and scope context, update issues in Linear, or flag them for human review
 ---
 
-Scan Linear backlog issues that are not yet ready for `/deliver`. For each failing issue, gather codebase context and generate concrete acceptance criteria, scope notes, and description expansions. Update issues in Linear (with user approval, or autonomously with `--apply`). Flag un-enrichable issues as `needs-spec`. Queue-state fixes and duplicate/supersession triage belong to `/groom`, not this command.
+Scan Linear backlog issues that are not yet ready for `/deliver`, or target exactly one Linear issue for refinement. For each failing issue, gather codebase context and generate concrete acceptance criteria, scope notes, and description expansions. Update issues in Linear (with user approval, or autonomously with `--apply`). Flag un-enrichable issues as `needs-spec`. Queue-state fixes and duplicate/supersession triage belong to `/groom`, not this command.
 
 Arguments (optional):
 
-- **First positional argument**: project name/filter to restrict scanning (e.g. "Engineering", "Platform"). If empty, scan all projects.
+- **First positional argument**: project name/filter to restrict project-scan mode (e.g. "Engineering", "Platform"). If empty, scan all projects.
+- **`--issue REP-123` flag**: switch to single-issue mode and target exactly one Linear issue.
 - **`--apply` flag**: skip per-issue approval and write all enrichments directly to Linear (fully autonomous mode).
 
-Parse `$ARGUMENTS` carefully: separate the positional project filter from the `--apply` flag. Both may appear together (e.g. `/enrich-issues Platform --apply`).
+Parse `$ARGUMENTS` carefully: separate the positional project filter from the `--apply` flag in project-scan mode, or parse `--issue REP-123` for single-issue mode. These modes are mutually exclusive. Reject bare issue IDs, multiple positional arguments, unknown flags, and malformed issue identifiers as hard failures.
 
 <!-- Selection-readiness rubric — keep in sync with deliver.md Phase 1 and defer queue-normalization cases to /groom -->
 
@@ -32,12 +33,13 @@ This step is idempotent — if the label already exists, skip creation.
 
 ## Step 2: Fetch Candidate Issues
 
-1. Run `linear issue list --status backlog --json`, paginating through all results and trimming the list with `jq` to keep only routing fields needed for enrichment triage.
-2. Run `linear issue list --status todo --json`, paginating through all results and trimming the list with `jq` to keep only routing fields needed for enrichment triage.
+1. In project-scan mode, run `linear issue list --status backlog --json`, paginating through all results and trimming the list with `jq` to keep only routing fields needed for enrichment triage.
+2. In project-scan mode, run `linear issue list --status todo --json`, paginating through all results and trimming the list with `jq` to keep only routing fields needed for enrichment triage.
 3. If the positional argument from `$ARGUMENTS` is a project name (not a flag), pass it as the `project` filter in both calls.
-4. Deduplicate by issue ID.
-5. For each issue, run `linear issue show <issue-id> --json` to fetch blockers, comments, and the full description.
-6. For each issue that has any `relations.blockedBy` entries, run `linear issue show <blocker-id> --json` for each blocker issue as well so blocker status is known before applying the readiness rubric.
+4. In single-issue mode, run `linear issue show <target_issue_id> --json` once and skip the backlog/todo list scan entirely.
+5. Deduplicate by issue ID.
+6. For each issue, run `linear issue show <issue-id> --json` to fetch blockers, comments, and the full description.
+7. For each issue that has any `relations.blockedBy` entries, run `linear issue show <blocker-id> --json` for each blocker issue as well so blocker status is known before applying the readiness rubric.
 
 ---
 
@@ -136,6 +138,8 @@ After all issues are reviewed, proceed to Step 6 for approved issues, then Step 
 
 Write all enrichments directly without prompting. Proceed immediately to Step 6.
 
+In single-issue mode, this still applies to just the targeted issue; in project-scan mode, it applies to every enrichable issue in the scan.
+
 ---
 
 ## Step 6: Write Enrichments to Linear
@@ -213,6 +217,8 @@ Print the following table at the end:
 |-------|-------|--------|
 | REP-yyy | ... | Title too ambiguous, no codebase context found |
 ```
+
+In single-issue mode, report `Total scanned` as `1` once the targeted issue has been selected.
 
 If no issues were enriched and none flagged, print:
 

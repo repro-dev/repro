@@ -1,3 +1,8 @@
+---
+name: authentication
+description: Auth workflows for sessions, social login, invitations, and feature gates.
+---
+
 # Authentication Skill
 
 Load this skill when working on auth flows, session management, social login, invitations, feature gates, or the `packages/auth` frontend package.

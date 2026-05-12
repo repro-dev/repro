@@ -1,11 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
+
   // Extensibility point: CMS integration (Sanity, Contentlayer) can be added here
   // as a separate Platform issue when content management is needed.
 
   // Image optimization: promotional assets can be sourced from these domains.
   images: {
     remotePatterns: [],
+    unoptimized: true,
   },
 }
 

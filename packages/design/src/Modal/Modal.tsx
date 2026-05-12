@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react'
 import { color } from '../tokens/colors'
-import { radius, shadow } from '../tokens/elevation'
+import { radius, shadow, zIndex } from '../tokens/elevation'
 import { duration, easing } from '../tokens/motion'
 import { ModalHeader } from './ModalHeader'
 
@@ -327,6 +327,7 @@ const Backdrop: React.FC<PropsWithChildren<BackdropProps>> = ({
       justifyContent="center"
       background="rgba(0, 0, 0, 0.75)"
       position="fixed"
+      zIndex={zIndex.portal}
       top={0}
       left={0}
       bottom={0}

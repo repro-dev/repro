@@ -9,9 +9,14 @@ import {
   createPerformanceObserver,
 } from '@repro/recording'
 import { Box } from '@repro/tdl'
+import { type RuntimeInstalledType } from './recordingTypes'
 import { appendRuntimeBuffer } from './runtimeBuffer'
 
-type RuntimeInstalledType = 'console' | 'network' | 'performance'
+type RuntimeReproExtension = {
+  mark?: (name: string, data?: Record<string, unknown>) => void
+  captureState?: (component: string, state: Record<string, unknown>) => void
+  [key: string]: unknown
+}
 
 interface RuntimeHookListenerMap {
   [event: string]: Set<(...args: Array<unknown>) => void>
@@ -30,6 +35,7 @@ interface RuntimeHook {
 
 declare global {
   interface Window {
+    __REPRO__?: RuntimeReproExtension
     __REPRO_RUNTIME_BUFFER__?: Array<DataView>
     __REPRO_RUNTIME_BUFFER_SINK__?: (event: DataView) => void
     __REPRO_RUNTIME_INSTALLED__?: boolean
@@ -196,6 +202,50 @@ function installPerformanceObserver() {
   installedTypes.add('performance')
 }
 
+function safeSerializeCustomMarkData(value: unknown) {
+  try {
+    const json = JSON.stringify(value)
+    return json === undefined ? String(value) : json
+  } catch {
+    return String(value)
+  }
+}
+
+function createCustomMarkEvent(name: string, data?: Record<string, unknown>) {
+  return {
+    time: performance.now(),
+    type: SourceEventType.CustomMark,
+    data: {
+      name,
+      data: data ? safeSerializeCustomMarkData(data) : null,
+      frameId: 0,
+    },
+  }
+}
+
+function installCustomMarkHook() {
+  const installedTypes = getInstalledTypes()
+
+  if (installedTypes.has('custom')) {
+    return
+  }
+
+  const existing = window.__REPRO__
+  const repro =
+    existing && typeof existing === 'object'
+      ? existing
+      : (window.__REPRO__ = {})
+  const previousMark =
+    typeof repro.mark === 'function' ? repro.mark.bind(repro) : undefined
+
+  repro.mark = (name: string, data?: Record<string, unknown>) => {
+    previousMark?.call(repro, name, data)
+    bufferSourceEvent(createCustomMarkEvent(name, data))
+  }
+
+  installedTypes.add('custom')
+}
+
 function createReactHookStub(): RuntimeHook {
   const listeners: RuntimeHookListenerMap = {}
   const renderers = new Map<number, unknown>()
@@ -266,6 +316,7 @@ export function installRuntime() {
   window.__REPRO_RUNTIME_BUFFER__ ??= []
   getInstalledTypes()
   installReactHookStub()
+  installCustomMarkHook()
   installNetworkObserver()
   installPerformanceObserver()
   installConsoleObserver()

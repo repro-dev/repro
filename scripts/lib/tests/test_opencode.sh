@@ -1,14 +1,15 @@
 #!/bin/bash
 # scripts/lib/tests/test_opencode.sh
 #
-# Unit tests for the opencode command (REP-899): fzf profile picker
-# when --profile is not supplied.
+# Unit tests for the opencode command (REP-899): profile selection
+# with explicit flags, env defaults, and the interactive picker.
 
 set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 OPENCODE_SH="$TESTS_DIR/../opencode.sh"
 PROFILE_DIR="$TESTS_DIR/../../../.opencode/profiles"
+SEQ_AGENT_FILE="$TESTS_DIR/../../../.opencode/agents/sequencer.md"
 
 # ── Harness ──────────────────────────────────────────────────────────
 
@@ -117,8 +118,8 @@ test_help_exits_zero() {
   fi
 }
 
-# Test 4: help text mentions fzf picker (new behaviour from REP-899)
-test_help_mentions_fzf_picker() {
+# Test 4: help text mentions env default profile behavior
+test_help_mentions_env_default_profile() {
   local output rc=0
   output="$(bash -c "
     CLR_BOLD='' CLR_DIM='' CLR_RED='' CLR_GREEN='' CLR_YELLOW='' CLR_RESET=''
@@ -127,14 +128,128 @@ test_help_mentions_fzf_picker() {
     source '$OPENCODE_SH'
     cmd_opencode --help
   " 2>&1)" || rc=$?
-  if printf '%s\n' "$output" | grep -qi "fzf\|picker"; then
-    _pass "help text mentions fzf picker"
+  if printf '%s\n' "$output" | grep -q 'REPRO_OPENCODE_PROFILE'; then
+    _pass "help text mentions REPRO_OPENCODE_PROFILE"
   else
-    _fail "help text mentions fzf picker" "output did not contain 'fzf' or 'picker': $output"
+    _fail "help text mentions REPRO_OPENCODE_PROFILE" "output did not contain the env default reference: $output"
   fi
 }
 
-# Test 5: no profiles in directory → die with helpful message
+# Test 5: sequencer agent is a primary agent with sequencing guidance
+test_sequencer_agent_definition_is_primary() {
+  if [ -f "$SEQ_AGENT_FILE" ] \
+    && grep -q '^mode: primary$' "$SEQ_AGENT_FILE" \
+    && grep -q '^  write: false$' "$SEQ_AGENT_FILE" \
+    && grep -q '^  edit: false$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "\*": "deny"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "rg\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "sed\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "cat\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "ls\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "linear issue show\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "linear issue list\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "linear issue children\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "linear issue comments\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -q '^    "linear issue search\*": "allow"$' "$SEQ_AGENT_FILE" \
+    && grep -qi 'discover only' "$SEQ_AGENT_FILE" \
+    && grep -qi 'sequence only' "$SEQ_AGENT_FILE" \
+    && grep -qi 'discover+sequence' "$SEQ_AGENT_FILE" \
+    && grep -qi 'read-only' "$SEQ_AGENT_FILE" \
+    && grep -qi 'self-contained' "$SEQ_AGENT_FILE" \
+    && grep -qi 'live context' "$SEQ_AGENT_FILE"; then
+    _pass "sequencer agent file exists and is primary"
+  else
+    _fail "sequencer agent file exists and is primary" "file missing or frontmatter/body did not match: $SEQ_AGENT_FILE"
+  fi
+}
+
+# Test 6: sequencer profile mapping uses the cheaper model in both profiles
+test_sequencer_profile_maps_to_cheaper_model() {
+  local profile_file
+  for profile_file in "$PROFILE_DIR/openai-gpt5.4.json" "$PROFILE_DIR/openai-gpt5.5.json"; do
+    if ! grep -q '"sequencer"' "$profile_file" || ! grep -q '"model": "openai/gpt-5.4-mini"' "$profile_file"; then
+      _fail "sequencer agent maps to the cheaper model" "missing sequencer mapping in $profile_file"
+      return 0
+    fi
+  done
+
+  _pass "sequencer agent maps to the cheaper model in both OpenAI profiles"
+}
+
+# Test 7: env default profile is selected without invoking _pick
+test_env_default_profile_selects_without_picker() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  mkdir -p "$tmpdir/.opencode/profiles"
+  echo '{}' > "$tmpdir/.opencode/profiles/alpha.json"
+  echo '{}' > "$tmpdir/.opencode/profiles/beta.json"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" '
+_pick() { printf "Error: _pick should not be called when REPRO_OPENCODE_PROFILE is set\n" >&2; return 99; }
+REPRO_OPENCODE_PROFILE=alpha
+cmd_opencode
+'
+
+  local output
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'OPENCODE_CONFIG=.*alpha'; then
+    _pass "REPRO_OPENCODE_PROFILE selects alpha without picker"
+  else
+    _fail "REPRO_OPENCODE_PROFILE selects alpha without picker" "rc=$rc; output: $output"
+  fi
+}
+
+# Test 8: explicit --profile overrides the env default
+test_profile_flag_overrides_env_default() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  mkdir -p "$tmpdir/.opencode/profiles"
+  echo '{}' > "$tmpdir/.opencode/profiles/alpha.json"
+  echo '{}' > "$tmpdir/.opencode/profiles/beta.json"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" '
+REPRO_OPENCODE_PROFILE=alpha cmd_opencode --profile beta
+'
+
+  local output
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q 'OPENCODE_CONFIG=.*beta'; then
+    _pass "--profile beta overrides REPRO_OPENCODE_PROFILE=alpha"
+  else
+    _fail "--profile beta overrides REPRO_OPENCODE_PROFILE=alpha" "rc=$rc; output: $output"
+  fi
+}
+
+# Test 9: invalid env default fails with available profiles
+test_invalid_env_default_exits_nonzero() {
+  local tmpdir rc=0
+  tmpdir="$(_make_tmpdir)"
+  mkdir -p "$tmpdir/.opencode/profiles"
+  echo '{}' > "$tmpdir/.opencode/profiles/alpha.json"
+  echo '{}' > "$tmpdir/.opencode/profiles/beta.json"
+  _write_stubs "$tmpdir"
+  _write_runner "$tmpdir" '
+_pick() { printf "Error: _pick should not be called when REPRO_OPENCODE_PROFILE is invalid\n" >&2; return 99; }
+REPRO_OPENCODE_PROFILE=missing
+cmd_opencode
+'
+
+  local output
+  output="$(bash "$tmpdir/run_test.sh" 2>&1)" || rc=$?
+  rm -rf "$tmpdir"
+
+  if [ $rc -ne 0 ] && printf '%s\n' "$output" | grep -qi 'available profiles'; then
+    _pass "invalid REPRO_OPENCODE_PROFILE fails with available profile list"
+  else
+    _fail "invalid REPRO_OPENCODE_PROFILE fails with available profile list" "rc=$rc; output: $output"
+  fi
+}
+
+# Test 10: no profiles in directory → die with helpful message
 test_no_profiles_exits_nonzero() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -154,7 +269,7 @@ test_no_profiles_exits_nonzero() {
   fi
 }
 
-# Test 6: no --profile + 2 profiles + fzf absent → die with install instructions
+# Test 11: no --profile + 2 profiles + fzf absent → die with install instructions
 test_multi_profile_no_fzf_exits_nonzero() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -189,7 +304,7 @@ RUNNER
   fi
 }
 
-# Test 7: no --profile + exactly 1 profile → auto-selects, sets OPENCODE_CONFIG
+# Test 10: no --profile + exactly 1 profile → auto-selects, sets OPENCODE_CONFIG
 test_single_profile_auto_selects() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -210,7 +325,7 @@ test_single_profile_auto_selects() {
   fi
 }
 
-# Test 8: --profile flag bypasses picker entirely, sets OPENCODE_CONFIG
+# Test 11: --profile flag bypasses picker entirely, sets OPENCODE_CONFIG
 test_profile_flag_bypasses_picker() {
   local tmpdir rc=0
   tmpdir="$(_make_tmpdir)"
@@ -249,7 +364,10 @@ RUNNER
 test_file_exists
 test_function_defined
 test_help_exits_zero
-test_help_mentions_fzf_picker
+test_help_mentions_env_default_profile
+test_env_default_profile_selects_without_picker
+test_profile_flag_overrides_env_default
+test_invalid_env_default_exits_nonzero
 test_no_profiles_exits_nonzero
 test_multi_profile_no_fzf_exits_nonzero
 test_single_profile_auto_selects

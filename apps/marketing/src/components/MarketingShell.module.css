@@ -107,6 +107,7 @@
 .heroLede {
   max-width: 40ch;
   margin-top: 12px;
+  line-height: 1.5;
 }
 
 .routeCopy {
@@ -144,6 +145,7 @@
 
 .footerTitle {
   color: #9fb2d0 !important;
+  line-height: 1.15;
 }
 
 .heroPanelLabel,
@@ -158,8 +160,10 @@
 
 .heroTitle {
   color: #edf4ff;
-  font-size: clamp(2.5rem, 5vw, 4.25rem);
-  line-height: 0.96;
+  font-family: var(--marketing-font-display),
+    var(--marketing-font-display-fallback);
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  line-height: 1.15;
   font-weight: 700;
   letter-spacing: -0.05em;
   max-width: 11ch;
@@ -167,8 +171,10 @@
 
 .routeTitle {
   color: #edf4ff;
+  font-family: var(--marketing-font-display),
+    var(--marketing-font-display-fallback);
   font-size: clamp(2.25rem, 4.5vw, 4rem);
-  line-height: 0.98;
+  line-height: 1.15;
   font-weight: 700;
   letter-spacing: -0.05em;
   max-width: 12ch;
@@ -176,13 +182,20 @@
 
 .sectionTitle {
   color: #edf4ff;
+  line-height: 1.15;
 }
 
 .legalTitle {
   color: #edf4ff;
+  font-family: var(--marketing-font-display),
+    var(--marketing-font-display-fallback);
   font-size: clamp(2.4rem, 4vw, 4rem);
-  line-height: 0.98;
+  line-height: 1.15;
   letter-spacing: -0.05em;
+}
+
+.panelTitle {
+  line-height: 1.15;
 }
 
 @media (min-width: 961px) {

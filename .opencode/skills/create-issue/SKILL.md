@@ -46,6 +46,8 @@ List specific, verifiable outcomes. Each requirement should be testable — some
 
 Use a flat list for simple issues. For complex issues, group requirements under sub-headings.
 
+If the issue came from customer feedback, preserve traceable evidence and explicit uncertainty in the description so reviewers can see which observations are supported and which are still tentative.
+
 ### Decisions (optional)
 
 Document any choices that have already been made (API shape, algorithm, default values). This prevents reviewers and implementers from re-litigating settled questions.

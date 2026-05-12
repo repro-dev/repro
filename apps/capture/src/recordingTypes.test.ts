@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { it } from 'node:test'
-import { createRecordingTypes } from './recordingTypes'
+import {
+  createRecordingTypes,
+  type RuntimeInstalledType,
+} from './recordingTypes'
 
 it('excludes framework state by default', () => {
   assert.deepEqual(
@@ -25,5 +28,14 @@ it('keeps runtime-installed observer types filtered while preserving the opt-in 
       }),
     ],
     ['dom', 'interaction', 'network', 'state']
+  )
+})
+
+it('accepts custom runtime-installed types from the runtime hook', () => {
+  const installedTypes = new Set<RuntimeInstalledType>(['custom'])
+
+  assert.deepEqual(
+    [...createRecordingTypes({ runtimeInstalledTypes: installedTypes })],
+    ['dom', 'interaction', 'network', 'console', 'performance']
   )
 })

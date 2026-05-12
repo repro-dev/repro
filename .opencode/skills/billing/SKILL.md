@@ -1,3 +1,8 @@
+---
+name: billing
+description: Billing workflows for plans, subscriptions, entitlements, and Paddle integration.
+---
+
 # Billing Skill
 
 Load this skill when working on billing features: subscriptions, plans, entitlements, checkout, webhooks, or the `packages/billing` frontend package.

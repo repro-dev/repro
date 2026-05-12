@@ -7,6 +7,23 @@ description: Top-level orchestration for features and fixes — pre-flight, plan
 
 Use this skill when you are starting a feature or fix. Keep it thin: it coordinates the work and points to the detailed support skills.
 
+## Shared `/deliver` fragments
+
+- `.opencode/skills/delivery-workflow/references/deliver-command-contract.md`
+- `.opencode/skills/delivery-workflow/references/deliver-single-track.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-1-scan-and-select.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-2-provisional-sequencing.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-3-worktrees.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-4-plan.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-5-risk-and-resequence.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-6-implement.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-7-review.md`
+- `.opencode/skills/delivery-workflow/references/deliver-phase-8-publish.md`
+- `.opencode/skills/delivery-workflow/references/deliver-throughout.md`
+- `.opencode/skills/delivery-workflow/references/deliver-verification.md`
+
+`/deliver` and this skill read the same fragments as the canonical source of truth for autonomous delivery orchestration.
+
 ## Load these support skills as needed
 
 - `worktree-workflow` — worktree isolation, lifecycle, and parallel worktree rules
@@ -18,9 +35,11 @@ Use this skill when you are starting a feature or fix. Keep it thin: it coordina
 - `context-gather` — assemble issue, dependency, and prior-work context before planning
 - `test-plan` — write the test strategy explicitly when coverage needs coordination
 - `design-direction` — upstream UI intent capture for ambiguous or net-new visual direction
+- `design-edit` — localized follow-up edits on an existing UI surface
+- `design-handoff` — preserve settled UI direction across planning, implementation, review, audit, and browser verification
 - Domain skills — only when the changed code lives in that domain
 
-For non-trivial UI changes, use `design-direction` only when the direction is still unresolved. Otherwise, use `design-system` for implementation, `ui-verification` for post-change browser validation, and `audit-ui-quality` only for broader audits, scoring, or polish passes.
+For non-trivial UI changes, use `design-direction` only when the direction is still unresolved. Use `design-edit` when the work is a bounded follow-up on an existing surface. Use `design-handoff` when the direction is already settled and needs to survive downstream handoffs. Otherwise, use `design-system` for implementation, `ui-verification` for post-change browser validation, and `audit-ui-quality` only for broader audits, scoring, or polish passes.
 
 ## 1. Pre-flight
 
@@ -28,8 +47,9 @@ For non-trivial UI changes, use `design-direction` only when the direction is st
 2. Load the support skills you need for this change. If the work is a genuine bug fix or regression, load `bug-rigor` before implementation begins. If non-trivial UI work still needs visual direction, load `design-direction` before planning starts.
 3. Create or confirm the worktree for the issue.
 4. Set the issue to **In Progress**.
-5. If the issue spans 3+ packages, depends on prior investigation threads, or the relevant scope is scattered across related issues/comments/docs, run `context-gather` and write `tmp/context-<issue-id>.md` before planning. For UI work with unresolved visual direction, extend that same context artifact with the design-direction block instead of creating a second mandatory file. For non-Linear work, write `tmp/context-<topic>.md`.
-6. Treat missing required artifacts as a pre-flight failure. Create the missing artifact first, then retry the blocked step instead of continuing with degraded context.
+5. Treat issue-scoped `tmp/` artifacts as worktree-local. Create `tmp/context-<issue-id>.md` and `tmp/test-plan-<issue-id>.md` only after the worktree exists, and write them under the selected worktree root rather than the main checkout. For UI work with unresolved visual direction, extend that same context artifact with the `## Design Direction` block instead of creating a second mandatory file. For bounded UI follow-up edits, use the `## Targeted Design Edit` block. If the direction is already settled and only needs to persist across handoffs, add a `## Design Handoff Context` block instead of re-litigating the direction. For non-Linear work, write `tmp/context-<topic>.md`.
+6. If the issue spans 3+ packages, depends on prior investigation threads, or the relevant scope is scattered across related issues/comments/docs, run `context-gather` after the worktree is in place.
+7. Treat missing required artifacts as a pre-flight failure. Create the missing artifact first, then retry the blocked step instead of continuing with degraded context.
 
 ## 2. Planning
 
@@ -56,7 +76,8 @@ For non-trivial UI changes, use `design-direction` only when the direction is st
 - Let `implementation-rigor` own the red/green/refactor loop and verification order.
 - Let `worktree-workflow` own isolation and branch/worktree mechanics.
 - Let `git-workflow` own commit and PR handling.
-- Never duplicate those rules here; this skill is the orchestrator, not the rule book.
+- Keep this skill thin; the detailed `/deliver` command contract, phase flow, and verification wording live in the shared fragments above.
+- Never duplicate those rules here.
 
 ## 5. Review loop handling
 
@@ -72,5 +93,3 @@ When a task enters the develop → review cycle, keep the loop iterative until b
    - the loop reaches 3 consecutive fix attempts for the same issue
 6. If the loop reaches the 3-attempt safety limit without clearing the Blockers, stop and ask the user whether to continue, defer, or escalate.
 7. If some issues in a batch are clean while others hit the safety stop, publish the merge-ready ones and surface a concise status summary for the blocked remainder.
-
-This keeps the workflow moving toward a clean review by default while still preserving a hard stop before unattended retries turn into a runaway loop.

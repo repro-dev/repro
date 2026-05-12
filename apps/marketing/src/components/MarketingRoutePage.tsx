@@ -18,7 +18,7 @@ export function MarketingRoutePage({ slug }: MarketingRoutePageProps) {
 
   return (
     <section className={routeStyles.routePage}>
-      <p className={sharedStyles.routeKicker}>Capture / replay / fix</p>
+      <p className={sharedStyles.routeKicker}>Replayable bug reports</p>
 
       <h1 className={sharedStyles.routeTitle}>{page.title}</h1>
 
@@ -29,7 +29,7 @@ export function MarketingRoutePage({ slug }: MarketingRoutePageProps) {
           className={cx(sharedStyles.button, sharedStyles.primaryCta)}
           href={signupHref}
         >
-          Start free
+          Get started for free
         </a>
 
         <a

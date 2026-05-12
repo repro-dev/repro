@@ -1,5 +1,5 @@
 import footerStyles from './Footer.module.css'
-import { footerGroups, socialLinks } from './marketingShell'
+import { footerGroups } from './marketingShell'
 import sharedStyles from './MarketingShell.module.css'
 
 const cx = (...classes: Array<string | undefined>) =>
@@ -50,25 +50,7 @@ export function Footer() {
         </div>
 
         <div className={footerStyles.siteFooterMeta}>
-          <p>© {year} Repro</p>
-
-          <nav
-            aria-label="Social links"
-            className={footerStyles.siteFooterSocial}
-          >
-            {socialLinks.map(link => (
-              <a
-                key={link.href}
-                className={cx(
-                  sharedStyles.button,
-                  sharedStyles.footerSocialLink
-                )}
-                href={link.href}
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
+          <p>© {year} Repro Software Ltd</p>
         </div>
       </div>
     </footer>

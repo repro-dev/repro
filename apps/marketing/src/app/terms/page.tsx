@@ -10,7 +10,7 @@ import LegalPageShell, {
 export const metadata: Metadata = {
   title: 'Terms of Service',
   description:
-    'Read the Terms of Service for Repro — the capture, replay, and fix-handoff workflow for your team.',
+    'Read the Terms of Service that apply to using the Repro site, app, and browser extension.',
 }
 
 function LegalSummary({ children }: { children: ReactNode }) {
@@ -136,16 +136,14 @@ export default function TermsPage() {
         <LegalSection heading="5. Data and Privacy">
           <LegalSummary>
             We process recordings to provide the Service, your workspace
-            controls retention, and our Privacy Policy and Refund Policy explain
-            the rest.
+            controls retention, and our Privacy Policy explains the rest.
           </LegalSummary>
           <LegalParagraph>
             Your use of the Service is also governed by our{' '}
-            <Link href="/privacy">Privacy Policy</Link> and our{' '}
-            <Link href="/refund-policy">Refund Policy</Link>, which are
-            incorporated into these Terms by reference. By using the Service,
-            you consent to the collection and use of information as described in
-            the Privacy Policy.
+            <Link href="/privacy">Privacy Policy</Link>, which is incorporated
+            into these Terms by reference. By using the Service, you consent to
+            the collection and use of information as described in the Privacy
+            Policy.
           </LegalParagraph>
           <LegalParagraph>
             We take reasonable technical and organisational measures to protect
