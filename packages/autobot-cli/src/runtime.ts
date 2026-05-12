@@ -570,6 +570,47 @@ export function shapeEngineStatus(
   };
 }
 
+export function renderEngineStatusLines(status: AutobotEngineStatus): string[] {
+  return [
+    "ENGINE",
+    `  pid: ${status.engine.pid ?? "-"}`,
+    `  running: ${status.engine.running ? "yes" : "no"}`,
+    `  mode: ${status.engine.mode}`,
+    `  current_issue: ${status.engine.current_issue || "-"}`,
+    `  current_phase: ${status.engine.current_phase || "-"}`,
+    `  current_attempt: ${status.engine.current_attempt ?? "-"}`,
+    `  selected_issue: ${
+      status.queue.summary.selected_issue_identifier || "-"
+    }`,
+    `  selected_state: ${status.queue.summary.selected_state || "-"}`,
+    "QUEUE",
+    `  total: ${status.queue.summary.total}`,
+    `  claimed: ${status.queue.summary.claimed}`,
+    `  running: ${status.queue.summary.running}`,
+    `  reconciling: ${status.queue.summary.reconciling}`,
+    `  recovery: ${status.queue.summary.recovery}`,
+    `  terminal: ${status.queue.summary.terminal}`,
+  ];
+}
+
+export function renderEngineTickEvent(
+  status: AutobotEngineStatus,
+): Record<string, unknown> {
+  return {
+    kind: "tick",
+    emitted_at: nowIso(),
+    engine: status.engine,
+    queue: status.queue.summary,
+  };
+}
+
+export function emitEngineTick(status: AutobotEngineStatus): void {
+  const event = renderEngineTickEvent(status);
+  const line = `${JSON.stringify(event)}\n`;
+  process.stdout.write(line);
+  writeEngineLog(JSON.stringify(event));
+}
+
 export function writeEngineLog(message: string): void {
   ensureDirs();
   fs.appendFileSync(
@@ -596,8 +637,9 @@ export function holdEngineLoop(
   mode: "foreground" | "daemon",
   intervalMs = 1000,
 ): () => void {
+  emitEngineTick(shapeEngineStatus(mode));
   const heartbeat = setInterval(() => {
-    saveEngineStatus(shapeEngineStatus(mode));
+    emitEngineTick(shapeEngineStatus(mode));
   }, intervalMs);
 
   const stop = (): void => {

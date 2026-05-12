@@ -6,6 +6,7 @@ import {
   holdEngineLoop,
   loadEngineStatus,
   planCurrentQueue,
+  renderEngineStatusLines,
   shapeEngineStatus,
   startEngine,
   stopEngine,
@@ -35,6 +36,14 @@ function parseFlags(args: string[]): {
 
 function print(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value)}\n`);
+}
+
+function printHuman(lines: string[]): void {
+  process.stdout.write(`${lines.join("\n")}\n`);
+}
+
+function isJsonOutput(): boolean {
+  return process.env.REPROCTL_JSON === "true";
 }
 
 function statusOrFallback(): AutobotEngineStatus {
@@ -96,7 +105,12 @@ export function runAutobotEngine(argv: string[]): void {
       return;
     }
     case "status": {
-      print(statusOrFallback());
+      const status = statusOrFallback();
+      if (isJsonOutput()) {
+        print(status);
+      } else {
+        printHuman(renderEngineStatusLines(status));
+      }
       return;
     }
     case "process-queue": {

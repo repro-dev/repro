@@ -10,6 +10,7 @@ import {
   startEngine,
   stopEngine,
 } from "../runtime";
+import { runAutobotEngine } from "../commands/autobot-engine";
 
 test("engine status uses the same selected work as queue planning", () => {
   const mainCheckout = path.resolve(process.cwd(), "../..");
@@ -67,4 +68,77 @@ test("foreground engine start installs a heartbeat loop", () => {
   assert.equal(interval.mock.calls.length, 1);
   stop();
   assert.equal(clear.mock.calls.length, 1);
+});
+
+test("status defaults to human output and start emits a tick event", () => {
+  const mainCheckout = path.resolve(process.cwd(), "../..");
+  const tmpRoot = path.join(mainCheckout, "tmp");
+  fs.mkdirSync(tmpRoot, { recursive: true });
+  const tmpdir = fs.mkdtempSync(
+    path.join(tmpRoot, "autobot-cli-engine-output-"),
+  );
+  const repoDir = path.join(tmpdir, "repo");
+  fs.mkdirSync(path.join(repoDir, ".autobot"), { recursive: true });
+  const originalRepoRoot = process.env.REPO_ROOT;
+  const originalJson = process.env.REPROCTL_JSON;
+  const writes: string[] = [];
+  const write = test.mock.method(
+    process.stdout,
+    "write",
+    (chunk: string | Uint8Array) => {
+      writes.push(String(chunk));
+      return true;
+    },
+  );
+  const interval = test.mock.method(
+    globalThis,
+    "setInterval",
+    () => 1 as never,
+  );
+  process.env.REPO_ROOT = repoDir;
+
+  try {
+    runAutobotEngine(["node", "autobot-engine", "status"]);
+    assert.equal(writes.join("").startsWith("ENGINE\n"), true);
+    assert.equal(writes.join("").includes('"schema_version"'), false);
+
+    writes.length = 0;
+    process.env.REPROCTL_JSON = "true";
+    runAutobotEngine(["node", "autobot-engine", "status"]);
+    assert.equal(writes.join("").includes('"schema_version"'), true);
+
+    writes.length = 0;
+    process.env.REPROCTL_JSON = "";
+    runAutobotEngine(["node", "autobot-engine", "start"]);
+    const lines = writes
+      .join("")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+
+    assert.equal(interval.mock.calls.length >= 1, true);
+    assert.equal(
+      lines.some((line) => line.kind === "tick"),
+      true,
+    );
+    assert.equal(
+      lines.some((line) => line.engine && line.schema_version),
+      true,
+    );
+  } finally {
+    if (originalRepoRoot === undefined) {
+      delete process.env.REPO_ROOT;
+    } else {
+      process.env.REPO_ROOT = originalRepoRoot;
+    }
+    if (originalJson === undefined) {
+      delete process.env.REPROCTL_JSON;
+    } else {
+      process.env.REPROCTL_JSON = originalJson;
+    }
+    write.mock.restore();
+    interval.mock.restore();
+    fs.rmSync(tmpdir, { recursive: true, force: true });
+  }
 });
