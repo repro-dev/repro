@@ -45,10 +45,6 @@ function isQuiet(rest: string[]): boolean {
   );
 }
 
-function renderStatusHeader(): string {
-  return "ID | STATE | TITLE | PRIORITY | ASSIGNEE | LABELS | WORKSPACE";
-}
-
 function renderDiscoverHeader(): string {
   return "ID | TITLE | PRIORITY | ASSIGNEE | LABELS";
 }
@@ -69,19 +65,19 @@ function renderDiscoverRow(item: {
   ].join(" | ");
 }
 
-function renderStatusRows(
+function renderStatusTable(
   items: Array<ReturnType<typeof shapeStatus>["items"][number]>,
-): string[] {
-  return items.map((item) =>
-    [
-      item.issue_identifier,
-      item.state,
-      item.issue_title ?? "-",
-      item.issue_priority ?? "-",
-      item.issue_assignee ?? "-",
-      (item.issue_labels ?? []).join(", ") || "-",
-      item.workspace_path || "-",
-    ].join(" | "),
+): void {
+  console.table(
+    items.map((item) => ({
+      ID: item.issue_identifier,
+      STATE: item.state,
+      TITLE: item.issue_title ?? "-",
+      PRIORITY: item.issue_priority ?? "-",
+      ASSIGNEE: item.issue_assignee ?? "-",
+      LABELS: (item.issue_labels ?? []).join(", ") || "-",
+      WORKSPACE: item.workspace_path || "-",
+    })),
   );
 }
 
@@ -101,6 +97,7 @@ function renderIssueDetail(
     `  assignee: ${issue.issue.issue_assignee ?? "-"}`,
     `  labels: ${(issue.issue.issue_labels ?? []).join(", ") || "-"}`,
     `  workspace: ${issue.issue.workspace_path || "-"}`,
+    `  reason: ${issue.issue.reason || "-"}`,
     `  updated: ${issue.issue.updated_at || "-"}`,
     `  attempts: ${issue.issue.attempt_count}`,
     "HISTORY",
@@ -243,11 +240,8 @@ export function runAutobot(argv: string[]): void {
       if (json) {
         print(status);
       } else {
-        printHuman([
-          "QUEUE",
-          renderStatusHeader(),
-          ...renderStatusRows(status.items),
-        ]);
+        process.stdout.write("QUEUE\n");
+        renderStatusTable(status.items);
       }
       return;
     }
@@ -267,11 +261,8 @@ export function runAutobot(argv: string[]): void {
       if (json) {
         print(status);
       } else {
-        printHuman([
-          "STATUS",
-          renderStatusHeader(),
-          ...renderStatusRows(status.items),
-        ]);
+        process.stdout.write("STATUS\n");
+        renderStatusTable(status.items);
       }
       return;
     }
@@ -279,28 +270,11 @@ export function runAutobot(argv: string[]): void {
       const issue = rest.find((value) => !value.startsWith("-"));
       if (issue) {
         const detail = summarizeIssueStatus(issue);
-        if (json) {
-          print(detail);
-        } else {
-          printHuman([
-            `LOGS ${issue}`,
-            ...(detail.logs.length > 0
-              ? detail.logs.map((line) => `  - ${line}`)
-              : ["  - none"]),
-          ]);
-        }
+        print(detail);
         return;
       }
 
-      if (json) {
-        print(summarizeLogBundle());
-      } else {
-        const bundle = summarizeLogBundle();
-        const lines = (bundle.engine as { lines?: string[] }).lines ?? [];
-        process.stdout.write(
-          `${lines.length > 0 ? lines.join("\n") : "no logs yet"}\n`,
-        );
-      }
+      print(summarizeLogBundle());
       return;
     }
     case "discover": {

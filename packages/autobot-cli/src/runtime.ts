@@ -57,6 +57,8 @@ interface EngineLogEvent {
   next_state?: string | null;
   reason?: string;
   message?: string;
+  workspace_path?: string;
+  attempted_action?: string;
   generated_at: string;
 }
 
@@ -144,7 +146,9 @@ function extractIssueMetadata(item: Record<string, unknown>): IssueMetadata {
 }
 
 function parseEngineLogLine(line: string): EngineLogEvent | null {
-  const message = line.replace(/^\S+ autobot-engine: /, "");
+  const message = line.startsWith("{")
+    ? line
+    : line.replace(/^\S+ autobot-engine: /, "");
   try {
     const parsed = JSON.parse(message) as Partial<EngineLogEvent>;
     if (!parsed.kind || !parsed.generated_at) return null;
@@ -158,6 +162,10 @@ function formatLogEvent(event: EngineLogEvent): string {
   const detail = [
     event.issue_identifier ? event.issue_identifier : null,
     event.action ? event.action : null,
+    event.attempted_action && event.attempted_action !== event.action
+      ? `attempted=${event.attempted_action}`
+      : null,
+    event.workspace_path ? `workspace=${event.workspace_path}` : null,
     event.state ? event.state : null,
     event.next_state ? `→${event.next_state}` : null,
     event.reason ? `(${event.reason})` : null,
@@ -908,6 +916,21 @@ function executeEffect(
   const issueIdentifier =
     plan.item.issue_identifier || taskId(plan.item as never);
   const currentState = String(item.claim_state ?? "");
+  const workspacePath = String(item.workspace_path ?? "").trim();
+  const attemptedAction =
+    effect.kind === "recover"
+      ? String((effect as { action?: unknown }).action ?? effect.kind)
+      : effect.kind;
+  const workspaceMissing =
+    !workspacePath ||
+    !fs.existsSync(workspacePath) ||
+    !fs.statSync(workspacePath).isDirectory();
+
+  function missingWorkspaceReason(action: string): string {
+    return `missing-workspace: action=${action} workspace=${
+      workspacePath || "<unset>"
+    }`;
+  }
 
   if (effect.kind === "noop") {
     return {
@@ -925,6 +948,7 @@ function executeEffect(
           effectReason,
           currentState,
         ),
+        attempted_action: attemptedAction,
         generated_at: nowIso(),
       },
       nextItem: { ...item, updated_at: nowIso() },
@@ -933,8 +957,9 @@ function executeEffect(
 
   if (
     (effect.kind === "prepare" || effect.kind === "process-work") &&
-    !String((item as Record<string, unknown>).workspace_path ?? "").trim()
+    workspaceMissing
   ) {
+    const reason = missingWorkspaceReason(effect.kind);
     return {
       event: {
         kind: "task-failure",
@@ -943,26 +968,37 @@ function executeEffect(
         outcome: "failed",
         state: currentState,
         next_state: currentState,
-        reason: "missing-workspace",
+        reason,
         message: effectOutcomeMessage(
           "task-failure",
           issueIdentifier,
-          "missing-workspace",
+          reason,
           currentState,
         ),
+        workspace_path: workspacePath,
+        attempted_action: attemptedAction,
         generated_at: nowIso(),
       },
       nextItem: {
         ...item,
         updated_at: nowIso(),
-        last_error: "missing-workspace",
-        retry_reason: "missing-workspace",
+        last_error: reason,
+        retry_reason: reason,
       },
     };
   }
 
   const nextItem = applyEffectToItem(item, effect as Record<string, unknown>);
   const nextState = String(nextItem.claim_state ?? currentState);
+  const successReason =
+    effect.kind === "recover" && workspaceMissing
+      ? missingWorkspaceReason(attemptedAction)
+      : effectReason || "processed";
+
+  if (effect.kind === "recover" && workspaceMissing) {
+    nextItem.last_error = successReason;
+    nextItem.retry_reason = successReason;
+  }
 
   return {
     event: {
@@ -976,13 +1012,15 @@ function executeEffect(
       outcome: "succeeded",
       state: currentState,
       next_state: nextState,
-      reason: effectReason || "processed",
+      reason: successReason,
       message: effectOutcomeMessage(
         "task-success",
         issueIdentifier,
-        effectReason || "processed",
+        successReason,
         nextState,
       ),
+      workspace_path: workspacePath,
+      attempted_action: attemptedAction,
       generated_at: nowIso(),
     },
     nextItem,
@@ -1105,11 +1143,13 @@ export function summarizeLogBundle(): Record<string, unknown> {
   const parsed = engineLines
     .map(parseEngineLogLine)
     .filter((value): value is EngineLogEvent => value !== null)
-    .map(formatLogEvent);
+    .map((event) => event);
   return {
+    schema_version: SCHEMA_VERSION,
+    generated_at: nowIso(),
     engine: {
       path: logPath(),
-      lines: parsed,
+      events: parsed,
     },
     issues: [],
   };

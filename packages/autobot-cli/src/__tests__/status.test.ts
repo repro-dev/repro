@@ -64,15 +64,21 @@ test("status renders aggregate and single-issue detail views", () => {
       aggregate.includes(
         "ID | STATE | TITLE | PRIORITY | ASSIGNEE | LABELS | WORKSPACE",
       ),
-      true,
+      false,
     );
     assert.equal(
       aggregate.includes("REP-1 | queued | Migrate autobot CLI"),
-      true,
+      false,
     );
+    assert.equal(aggregate.includes("REP-1"), true);
+    assert.equal(aggregate.includes("REP-2"), true);
+    assert.equal(aggregate.includes("queued"), true);
+    assert.equal(aggregate.includes("running"), true);
+    assert.equal(aggregate.includes("┌"), true);
+    assert.equal(aggregate.includes("│"), true);
     assert.equal(
       aggregate.includes("REP-2 | running | Unblock engine loop"),
-      true,
+      false,
     );
 
     writes.length = 0;

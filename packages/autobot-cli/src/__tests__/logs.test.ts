@@ -7,7 +7,11 @@ import { saveQueuePayload } from "../runtime";
 import { runAutobot } from "../commands/autobot";
 import { runAutobotEngine } from "../commands/autobot-engine";
 
-function makeRepoRoot(): { restore: () => void } {
+function makeRepoRoot(): {
+  restore: () => void;
+  repoDir: string;
+  tmpdir: string;
+} {
   const mainCheckout = path.resolve(process.cwd(), "../..");
   const tmpRoot = path.join(mainCheckout, "tmp");
   fs.mkdirSync(tmpRoot, { recursive: true });
@@ -19,6 +23,8 @@ function makeRepoRoot(): { restore: () => void } {
   process.env.REPO_ROOT = repoDir;
 
   return {
+    repoDir,
+    tmpdir,
     restore: () => {
       if (originalRepoRoot === undefined) {
         delete process.env.REPO_ROOT;
@@ -35,8 +41,8 @@ function makeRepoRoot(): { restore: () => void } {
   };
 }
 
-test("engine activity is logged and surfaced by autobot logs", () => {
-  const { restore } = makeRepoRoot();
+test("engine activity is logged and surfaced by autobot logs as JSON", () => {
+  const { restore, tmpdir } = makeRepoRoot();
   const writes: string[] = [];
   const write = test.mock.method(
     process.stdout,
@@ -46,13 +52,15 @@ test("engine activity is logged and surfaced by autobot logs", () => {
       return true;
     },
   );
+  const workspacePath = path.join(tmpdir, "workspaces", "rep-1");
+  fs.mkdirSync(workspacePath, { recursive: true });
 
   saveQueuePayload({
     items: [
       {
         issue_identifier: "REP-1",
         claim_state: "queued",
-        workspace_path: "/work/rep-1",
+        workspace_path: workspacePath,
         linear: { issue: { title: "Build autobot logs" } },
       },
     ],
@@ -60,10 +68,20 @@ test("engine activity is logged and surfaced by autobot logs", () => {
 
   try {
     runAutobotEngine(["node", "autobot-engine", "start", "--once"]);
+    writes.length = 0;
     runAutobot(["node", "autobot", "logs"]);
-    const logs = writes.join("");
-    assert.equal(logs.includes("REP-1"), true);
-    assert.equal(logs.includes("task-success"), true);
+    const logs = writes.join("").trim();
+    const parsed = JSON.parse(logs) as {
+      engine: { path: string; events: Array<{ kind: string }> };
+      issues: unknown[];
+    };
+    assert.equal(Array.isArray(parsed.engine.events), true);
+    assert.equal(
+      parsed.engine.events.some((event) => event.kind === "task-success"),
+      true,
+    );
+    assert.equal(parsed.engine.path.includes(".autobot/engine.log"), true);
+    assert.equal(logs.startsWith("{"), true);
 
     writes.length = 0;
     runAutobot(["node", "autobot", "status", "REP-1"]);
@@ -77,7 +95,7 @@ test("engine activity is logged and surfaced by autobot logs", () => {
 });
 
 test("engine failures are surfaced in logs and status history", () => {
-  const { restore } = makeRepoRoot();
+  const { restore, tmpdir } = makeRepoRoot();
   const writes: string[] = [];
   const write = test.mock.method(
     process.stdout,
@@ -92,7 +110,8 @@ test("engine failures are surfaced in logs and status history", () => {
     items: [
       {
         issue_identifier: "REP-2",
-        claim_state: "queued",
+        claim_state: "running",
+        workspace_path: path.join(tmpdir, "missing-workspace"),
       },
     ],
   });
@@ -102,15 +121,50 @@ test("engine failures are surfaced in logs and status history", () => {
 
     writes.length = 0;
     runAutobot(["node", "autobot", "logs"]);
-    const logs = writes.join("");
-    assert.equal(logs.includes("task-failure"), true);
-    assert.equal(logs.includes("missing-workspace"), true);
+    const logs = writes.join("").trim();
+    const parsed = JSON.parse(logs) as {
+      engine: {
+        events: Array<{
+          kind: string;
+          action?: string;
+          attempted_action?: string;
+          reason?: string;
+          workspace_path?: string;
+          message?: string;
+        }>;
+      };
+    };
+    const failure = parsed.engine.events.find(
+      (event) => event.kind === "task-success",
+    );
+    assert.ok(failure);
+    assert.equal(failure?.action, "recover");
+    assert.equal(failure?.attempted_action, "retry");
+    assert.equal(failure?.reason?.includes("missing-workspace"), true);
+    assert.equal(failure?.workspace_path?.includes("missing-workspace"), true);
+    assert.equal(failure?.message?.includes("missing-workspace"), true);
 
     writes.length = 0;
-    runAutobot(["node", "autobot", "status", "REP-2"]);
-    const detail = writes.join("");
-    assert.equal(detail.includes("task-failure"), true);
-    assert.equal(detail.includes("missing-workspace"), true);
+    runAutobot(["node", "autobot", "status", "REP-2", "--json"]);
+    const detail = JSON.parse(writes.join("").trim()) as {
+      issue: { reason?: string } | null;
+      history: string[];
+      logs: string[];
+    };
+    assert.ok(detail.issue);
+    assert.equal(detail.issue?.reason?.includes("retry"), true);
+    assert.equal(
+      detail.issue?.reason?.includes(path.join(tmpdir, "missing-workspace")),
+      true,
+    );
+    assert.equal(
+      detail.history.some(
+        (line) =>
+          line.includes("attempted=retry") &&
+          line.includes(path.join(tmpdir, "missing-workspace")),
+      ),
+      true,
+    );
   } finally {
     write.mock.restore();
     restore();

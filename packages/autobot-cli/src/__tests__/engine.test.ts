@@ -15,6 +15,12 @@ import {
 } from "../runtime";
 import { runAutobotEngine } from "../commands/autobot-engine";
 
+function workspacePath(tmpdir: string, issue: string): string {
+  const workspace = path.join(tmpdir, "workspaces", issue.toLowerCase());
+  fs.mkdirSync(workspace, { recursive: true });
+  return workspace;
+}
+
 test("engine status keeps parallel active work only", () => {
   const mainCheckout = path.resolve(process.cwd(), "../..");
   const tmpRoot = path.join(mainCheckout, "tmp");
@@ -31,12 +37,12 @@ test("engine status keeps parallel active work only", () => {
         {
           issue_identifier: "REP-2",
           claim_state: "running",
-          workspace_path: "/work/rep-2",
+          workspace_path: workspacePath(tmpdir, "REP-2"),
         },
         {
           issue_identifier: "REP-1",
           claim_state: "queued",
-          workspace_path: "/work/rep-1",
+          workspace_path: workspacePath(tmpdir, "REP-1"),
         },
       ],
     });
@@ -158,12 +164,12 @@ test("status defaults to human output and start emits a tick event", () => {
       {
         issue_identifier: "REP-2",
         claim_state: "running",
-        workspace_path: "/work/rep-2",
+        workspace_path: workspacePath(tmpdir, "REP-2"),
       },
       {
         issue_identifier: "REP-1",
         claim_state: "queued",
-        workspace_path: "/work/rep-1",
+        workspace_path: workspacePath(tmpdir, "REP-1"),
       },
     ],
   });
