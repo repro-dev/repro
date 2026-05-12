@@ -197,3 +197,77 @@ esac
     restore()
   }
 })
+
+test('discover ignores legacy waves when filtering by project', () => {
+  const { restore } = makeRepoRoot()
+  const writes: string[] = []
+  const mainCheckout = path.resolve(process.cwd(), '../..')
+  const stubDir = fs.mkdtempSync(path.join(mainCheckout, 'tmp', 'linear-stub-'))
+  const linearPath = path.join(stubDir, 'linear')
+  fs.writeFileSync(
+    linearPath,
+    `#!/bin/sh
+printf '%s' '{"items":[{"identifier":"REP-30","project":{"name":"Platform"}}]}'
+`
+  )
+  fs.chmodSync(linearPath, 0o755)
+  const originalPath = process.env.PATH ?? ''
+  process.env.PATH = `${stubDir}:${originalPath}`
+  const write = test.mock.method(
+    process.stdout,
+    'write',
+    (chunk: string | Uint8Array) => {
+      writes.push(String(chunk))
+      return true
+    }
+  )
+
+  saveQueuePayload({
+    items: [
+      {
+        issue_identifier: 'REP-31',
+        claim_state: 'queued',
+        linear: {
+          issue: {
+            title: 'Unrelated queue-local work',
+            project: { name: 'Design System' },
+          },
+        },
+      },
+    ],
+    waves: [
+      {
+        issues: [
+          {
+            issue_identifier: 'REP-99',
+          },
+        ],
+      },
+    ],
+  })
+
+  try {
+    runAutobot([
+      'node',
+      'autobot',
+      'discover',
+      '--project',
+      'Platform',
+      '--json',
+    ])
+    const result = JSON.parse(writes.join('').trim()) as {
+      items: Array<{ issue_identifier: string }>
+      project?: string
+    }
+    assert.equal(result.project, 'Platform')
+    assert.deepEqual(
+      result.items.map(item => item.issue_identifier),
+      ['REP-30']
+    )
+  } finally {
+    write.mock.restore()
+    process.env.PATH = originalPath
+    fs.rmSync(stubDir, { recursive: true, force: true })
+    restore()
+  }
+})

@@ -661,23 +661,25 @@ export function discoverIssueIds(
     }
   }
 
-  const waves = payload as unknown as { waves?: unknown[] }
-  if (Array.isArray(waves.waves)) {
-    for (const wave of waves.waves) {
-      if (!wave || typeof wave !== 'object' || Array.isArray(wave)) continue
-      const issues = (wave as Record<string, unknown>).issues
-      if (!Array.isArray(issues)) continue
-      for (const issue of issues) {
-        if (!issue || typeof issue !== 'object' || Array.isArray(issue))
-          continue
-        const identifier = String(
-          (issue as Record<string, unknown>).issue_identifier ??
-            (issue as Record<string, unknown>).identifier ??
-            ''
-        ).trim()
-        if (identifier && !seen.has(identifier)) {
-          seen.add(identifier)
-          ids.push(identifier)
+  if (!projectName) {
+    const waves = payload as unknown as { waves?: unknown[] }
+    if (Array.isArray(waves.waves)) {
+      for (const wave of waves.waves) {
+        if (!wave || typeof wave !== 'object' || Array.isArray(wave)) continue
+        const issues = (wave as Record<string, unknown>).issues
+        if (!Array.isArray(issues)) continue
+        for (const issue of issues) {
+          if (!issue || typeof issue !== 'object' || Array.isArray(issue))
+            continue
+          const identifier = String(
+            (issue as Record<string, unknown>).issue_identifier ??
+              (issue as Record<string, unknown>).identifier ??
+              ''
+          ).trim()
+          if (identifier && !seen.has(identifier)) {
+            seen.add(identifier)
+            ids.push(identifier)
+          }
         }
       }
     }
