@@ -601,14 +601,6 @@ export function shapeEngineStatus(
       running,
       mode,
       active_work: activeWork,
-      current_issue:
-        activeWork[0]?.issue_identifier ?? selected?.issue_identifier ?? "",
-      current_phase: "",
-      current_attempt: activeWork[0]
-        ? Number(activeWork[0].attempt_count ?? 0)
-        : selected
-        ? Number(selected.attempt_count ?? 0)
-        : null,
       last_tick_at: nowIso(),
     },
     paths: {
@@ -643,9 +635,6 @@ export function renderEngineStatusLines(status: AutobotEngineStatus): string[] {
     `  active_work_count: ${status.engine.active_work.length}`,
     "  active_work:",
     ...renderedActiveWorkLines,
-    `  current_issue: ${status.engine.current_issue || "-"}`,
-    `  current_phase: ${status.engine.current_phase || "-"}`,
-    `  current_attempt: ${status.engine.current_attempt ?? "-"}`,
     `  selected_issue: ${
       status.queue.summary.selected_issue_identifier || "-"
     }`,

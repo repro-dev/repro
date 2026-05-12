@@ -47,7 +47,9 @@ test("engine status uses the same selected work as queue planning", () => {
       status.engine.active_work.map((item) => item.issue_identifier),
       ["REP-2", "REP-1"],
     );
-    assert.equal(status.engine.current_issue, "REP-2");
+    assert.equal("current_issue" in status.engine, false);
+    assert.equal("current_phase" in status.engine, false);
+    assert.equal("current_attempt" in status.engine, false);
     assert.equal(fs.existsSync(stateDbPath()), true);
 
     const db = new DatabaseSync(stateDbPath(), { readOnly: true });
@@ -195,6 +197,14 @@ test("status defaults to human output and start emits a tick event", () => {
       lines.some((line) => line.kind === "tick"),
       true,
     );
+    assert.equal(
+      "current_issue" in
+        (lines.find((line) => line.kind === "tick")?.engine as Record<
+          string,
+          unknown
+        >),
+      false,
+    );
     assert.deepEqual(
       (
         (
@@ -207,6 +217,21 @@ test("status defaults to human output and start emits a tick event", () => {
       ).map((item) => item.issue_identifier),
       ["REP-2", "REP-1"],
     );
+    assert.deepEqual(lines.find((line) => line.kind === "tick")?.queue, {
+      total: 2,
+      claimed: 0,
+      running: 1,
+      reconciling: 0,
+      recovery: 0,
+      terminal: 0,
+      by_state: {
+        queued: 1,
+        running: 1,
+      },
+      selected_issue_identifier: "REP-1",
+      selected_state: "queued",
+      allow_recovery: true,
+    });
     assert.equal(
       lines.some((line) => line.engine && line.schema_version),
       true,
