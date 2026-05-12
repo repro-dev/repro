@@ -885,7 +885,7 @@ function effectOutcomeMessage(
   }
 }
 
-function provisionIssueWorkspace(issueIdentifier: string): void {
+function provisionIssueWorkspace(issueIdentifier: string): string | null {
   const root = repoRoot();
   const command = [
     `source "${path.join(root, "scripts/lib/common.sh")}"`,
@@ -893,14 +893,26 @@ function provisionIssueWorkspace(issueIdentifier: string): void {
     `cmd_wt_create_from_issue "${issueIdentifier}"`,
   ].join("; ");
 
-  childProcess.execFileSync("bash", ["-lc", command], {
+  const result = childProcess.spawnSync("bash", ["-lc", command], {
     cwd: root,
     env: {
       ...process.env,
       CALLER_PWD: root,
     },
-    stdio: "pipe",
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
   });
+
+  if (result.status !== 0) {
+    const stderr = String(result.stderr ?? "").trim();
+    throw new Error(stderr || `prepare-worktree failed for ${issueIdentifier}`);
+  }
+
+  const output = `${String(result.stdout ?? "")}${String(result.stderr ?? "")}`;
+  const matches = [...output.matchAll(/^\s*Path:\s+(.+)$/gm)];
+  return matches.length > 0
+    ? String(matches[matches.length - 1]?.[1] ?? "").trim()
+    : null;
 }
 
 function applyEffectToItem(
@@ -995,7 +1007,7 @@ function executeEffect(
   const issueIdentifier =
     plan.item.issue_identifier || taskId(plan.item as never);
   const currentState = String(item.claim_state ?? "");
-  const workspacePath = String(item.workspace_path ?? "").trim();
+  let workspacePath = String(item.workspace_path ?? "").trim();
   const attemptedAction =
     effectKind === "recover"
       ? String((effect as { action?: unknown }).action ?? effectKind)
@@ -1013,7 +1025,12 @@ function executeEffect(
 
   if (effectKind === "prepare-worktree" && workspaceMissing) {
     try {
-      provisionIssueWorkspace(issueIdentifier);
+      const provisionedWorkspacePath = provisionIssueWorkspace(issueIdentifier);
+      if (provisionedWorkspacePath) {
+        workspacePath = provisionedWorkspacePath;
+        item.workspace_path = provisionedWorkspacePath;
+      }
+      item.workspace_exists = true;
     } catch (error) {
       const reason = `prepare-worktree-failed: ${
         error instanceof Error ? error.message : String(error)

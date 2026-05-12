@@ -106,6 +106,7 @@ test("prepare-worktree sources repo-root scripts before claiming the item", () =
     `#!/bin/sh
 printf '%s\n' "$*" >> "$AUTOBOT_PREPARE_CALLS"
 mkdir -p "$AUTOBOT_PREPARE_WORKSPACE"
+printf '  Path: %s\n' "$AUTOBOT_PREPARE_WORKSPACE" >&2
 exit 0
 `,
   );
@@ -151,10 +152,15 @@ exit 0
         .get("queue") as { value: string } | undefined;
       assert.ok(queueRow);
       const queue = JSON.parse(queueRow.value) as {
-        items?: Array<{ claim_state?: string; workspace_exists?: boolean }>;
+        items?: Array<{
+          claim_state?: string;
+          workspace_exists?: boolean;
+          workspace_path?: string;
+        }>;
       };
       assert.equal(queue.items?.[0]?.claim_state, "preparing");
       assert.equal(queue.items?.[0]?.workspace_exists, true);
+      assert.equal(queue.items?.[0]?.workspace_path, workspace);
     } finally {
       db.close();
     }
@@ -168,10 +174,15 @@ exit 0
         .get("queue") as { value: string } | undefined;
       assert.ok(queueRow);
       const queue = JSON.parse(queueRow.value) as {
-        items?: Array<{ claim_state?: string; workspace_exists?: boolean }>;
+        items?: Array<{
+          claim_state?: string;
+          workspace_exists?: boolean;
+          workspace_path?: string;
+        }>;
       };
       assert.equal(queue.items?.[0]?.claim_state, "planning");
       assert.equal(queue.items?.[0]?.workspace_exists, true);
+      assert.equal(queue.items?.[0]?.workspace_path, workspace);
     } finally {
       dbAfterRecovery.close();
     }
@@ -194,6 +205,7 @@ exit 0
     const logs = writes.join("").trim();
     assert.equal(logs.includes("task-success"), true);
     assert.equal(logs.includes("prepare-worktree"), true);
+    assert.equal(logs.includes(workspace), true);
   } finally {
     process.chdir(originalCwd);
     if (originalPath === undefined) {
