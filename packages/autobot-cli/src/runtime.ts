@@ -177,10 +177,6 @@ function formatLogEvent(event: EngineLogEvent): string {
   return `${event.generated_at} ${event.kind}${detail ? ` ${detail}` : ""}`;
 }
 
-function logPath(): string {
-  return engineLogPath();
-}
-
 export function repoRoot(): string {
   return String(process.env.REPO_ROOT ?? process.cwd());
 }
@@ -1136,23 +1132,18 @@ export function stopEngine(): AutobotEngineStatus {
   return status;
 }
 
-export function summarizeLogBundle(): Record<string, unknown> {
+export function readEngineLogLines(issueIdentifier?: string): string[] {
   const engineLines = fs.existsSync(engineLogPath())
     ? fs.readFileSync(engineLogPath(), "utf8").split(/\r?\n/).filter(Boolean)
     : [];
-  const parsed = engineLines
-    .map(parseEngineLogLine)
-    .filter((value): value is EngineLogEvent => value !== null)
-    .map((event) => event);
-  return {
-    schema_version: SCHEMA_VERSION,
-    generated_at: nowIso(),
-    engine: {
-      path: logPath(),
-      events: parsed,
-    },
-    issues: [],
-  };
+  if (issueIdentifier === undefined) {
+    return engineLines;
+  }
+
+  return engineLines.filter((line) => {
+    const event = parseEngineLogLine(line);
+    return event?.issue_identifier === issueIdentifier;
+  });
 }
 
 export function summarizeIssueStatus(

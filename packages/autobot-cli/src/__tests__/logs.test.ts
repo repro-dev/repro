@@ -41,7 +41,7 @@ function makeRepoRoot(): {
   };
 }
 
-test("engine activity is logged and surfaced by autobot logs as JSON", () => {
+test("engine activity is logged and surfaced by autobot logs as raw lines", () => {
   const { restore, tmpdir } = makeRepoRoot();
   const writes: string[] = [];
   const write = test.mock.method(
@@ -71,17 +71,10 @@ test("engine activity is logged and surfaced by autobot logs as JSON", () => {
     writes.length = 0;
     runAutobot(["node", "autobot", "logs"]);
     const logs = writes.join("").trim();
-    const parsed = JSON.parse(logs) as {
-      engine: { path: string; events: Array<{ kind: string }> };
-      issues: unknown[];
-    };
-    assert.equal(Array.isArray(parsed.engine.events), true);
-    assert.equal(
-      parsed.engine.events.some((event) => event.kind === "task-success"),
-      true,
-    );
-    assert.equal(parsed.engine.path.includes(".autobot/engine.log"), true);
-    assert.equal(logs.startsWith("{"), true);
+    assert.throws(() => JSON.parse(logs));
+    assert.equal(logs.includes("task-success"), true);
+    assert.equal(logs.includes(".autobot/engine.log"), false);
+    assert.equal(logs.startsWith("{"), false);
 
     writes.length = 0;
     runAutobot(["node", "autobot", "status", "REP-1"]);
@@ -120,29 +113,11 @@ test("engine failures are surfaced in logs and status history", () => {
     runAutobotEngine(["node", "autobot-engine", "start", "--once"]);
 
     writes.length = 0;
-    runAutobot(["node", "autobot", "logs"]);
+    runAutobot(["node", "autobot", "logs", "REP-2"]);
     const logs = writes.join("").trim();
-    const parsed = JSON.parse(logs) as {
-      engine: {
-        events: Array<{
-          kind: string;
-          action?: string;
-          attempted_action?: string;
-          reason?: string;
-          workspace_path?: string;
-          message?: string;
-        }>;
-      };
-    };
-    const failure = parsed.engine.events.find(
-      (event) => event.kind === "task-success",
-    );
-    assert.ok(failure);
-    assert.equal(failure?.action, "recover");
-    assert.equal(failure?.attempted_action, "retry");
-    assert.equal(failure?.reason?.includes("missing-workspace"), true);
-    assert.equal(failure?.workspace_path?.includes("missing-workspace"), true);
-    assert.equal(failure?.message?.includes("missing-workspace"), true);
+    assert.throws(() => JSON.parse(logs));
+    assert.equal(logs.includes("REP-2"), true);
+    assert.equal(logs.includes("missing-workspace"), true);
 
     writes.length = 0;
     runAutobot(["node", "autobot", "status", "REP-2", "--json"]);

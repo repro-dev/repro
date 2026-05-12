@@ -6,11 +6,11 @@ import {
   getConfigValue,
   listConfigItems,
   publicItem,
+  readEngineLogLines,
   queueForStatus,
   removeQueueEntry,
   loadConfigValues,
   shapeStatus,
-  summarizeLogBundle,
   summarizeIssueStatus,
   unsetConfigValue,
   setConfigValue,
@@ -268,13 +268,7 @@ export function runAutobot(argv: string[]): void {
     }
     case "logs": {
       const issue = rest.find((value) => !value.startsWith("-"));
-      if (issue) {
-        const detail = summarizeIssueStatus(issue);
-        print(detail);
-        return;
-      }
-
-      print(summarizeLogBundle());
+      printHuman(readEngineLogLines(issue));
       return;
     }
     case "discover": {
