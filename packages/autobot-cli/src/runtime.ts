@@ -921,6 +921,7 @@ function applyEffectToItem(
       return next;
     case "prepare-worktree":
       next.claim_state = "preparing";
+      next.workspace_exists = true;
       next.claimed_by = String(
         effect.claimedBy ?? next.claimed_by ?? "autobot",
       );

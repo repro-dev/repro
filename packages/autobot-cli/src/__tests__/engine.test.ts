@@ -151,11 +151,29 @@ exit 0
         .get("queue") as { value: string } | undefined;
       assert.ok(queueRow);
       const queue = JSON.parse(queueRow.value) as {
-        items?: Array<{ claim_state?: string }>;
+        items?: Array<{ claim_state?: string; workspace_exists?: boolean }>;
       };
       assert.equal(queue.items?.[0]?.claim_state, "preparing");
+      assert.equal(queue.items?.[0]?.workspace_exists, true);
     } finally {
       db.close();
+    }
+
+    runAutobotEngine(["node", "autobot-engine", "start", "--once"]);
+
+    const dbAfterRecovery = new DatabaseSync(stateDbPath(), { readOnly: true });
+    try {
+      const queueRow = dbAfterRecovery
+        .prepare("select value from state where key = ?")
+        .get("queue") as { value: string } | undefined;
+      assert.ok(queueRow);
+      const queue = JSON.parse(queueRow.value) as {
+        items?: Array<{ claim_state?: string; workspace_exists?: boolean }>;
+      };
+      assert.equal(queue.items?.[0]?.claim_state, "planning");
+      assert.equal(queue.items?.[0]?.workspace_exists, true);
+    } finally {
+      dbAfterRecovery.close();
     }
 
     const writes: string[] = [];
