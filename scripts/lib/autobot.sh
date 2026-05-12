@@ -5,6 +5,8 @@ _autobot_cli() {
   local script_dir repo_root
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   repo_root="$(dirname "$(dirname "$script_dir")")"
+  # Silence Node's experimental sqlite warning for the POC launcher.
+  NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--disable-warning=ExperimentalWarning" \
   pnpm --dir "$repo_root/packages/autobot-cli" exec tsx src/cli.ts autobot "$@"
 }
 

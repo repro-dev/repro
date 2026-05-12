@@ -125,9 +125,16 @@ function openStateDb(): SQLiteDatabase {
     return cached;
   }
 
+  const isNewDatabase = !fs.existsSync(dbPath);
   ensureDirs();
   const database = new SQLiteDatabase(dbPath);
-  database.exec("PRAGMA journal_mode = WAL");
+  if (isNewDatabase) {
+    try {
+      database.exec("PRAGMA journal_mode = WAL");
+    } catch {
+      // Leave the default journal mode in place if another process is opening the DB.
+    }
+  }
   database.exec("PRAGMA synchronous = NORMAL");
   database.exec(`
     CREATE TABLE IF NOT EXISTS state (
