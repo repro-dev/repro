@@ -73,3 +73,65 @@ test('discover shows issue metadata by default and ids in quiet mode', () => {
     restore()
   }
 })
+
+test('discover filters by project and preserves the project in json output', () => {
+  const { restore } = makeRepoRoot()
+  const writes: string[] = []
+  const write = test.mock.method(
+    process.stdout,
+    'write',
+    (chunk: string | Uint8Array) => {
+      writes.push(String(chunk))
+      return true
+    }
+  )
+
+  saveQueuePayload({
+    items: [
+      {
+        issue_identifier: 'REP-10',
+        claim_state: 'queued',
+        linear: {
+          issue: {
+            title: 'Ship the platform fix',
+            project: { name: 'Platform' },
+          },
+        },
+      },
+      {
+        issue_identifier: 'REP-11',
+        claim_state: 'queued',
+        linear: {
+          issue: {
+            title: 'Unrelated design task',
+            project: { name: 'Design System' },
+          },
+        },
+      },
+    ],
+  })
+
+  try {
+    runAutobot([
+      'node',
+      'autobot',
+      'discover',
+      '--project',
+      'Platform',
+      '--json',
+    ])
+    const result = JSON.parse(writes.join('').trim()) as {
+      project?: string
+      items: Array<{ issue_identifier: string; issue_project?: string }>
+    }
+    assert.equal(result.project, 'Platform')
+    assert.deepEqual(
+      result.items.map(item => item.issue_identifier),
+      ['REP-10']
+    )
+    assert.equal(result.items[0]?.issue_project, 'Platform')
+  } finally {
+    write.mock.restore()
+    restore()
+  }
+})

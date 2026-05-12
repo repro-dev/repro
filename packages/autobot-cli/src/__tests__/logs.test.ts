@@ -78,6 +78,26 @@ test('engine activity is logged and surfaced by autobot logs as raw lines', () =
     assert.equal(logs.startsWith('{'), false)
 
     writes.length = 0
+    runAutobot(['node', 'autobot', 'logs', '-t'])
+    const tail = writes.join('').trim()
+    assert.equal(tail.includes('task-success'), true)
+
+    writes.length = 0
+    runAutobot(['node', 'autobot', 'logs', 'REP-1', '--json'])
+    const json = JSON.parse(writes.join('').trim()) as {
+      issue_identifier: string | null
+      lines: string[]
+      tail: boolean
+    }
+    assert.equal(json.issue_identifier, 'REP-1')
+    assert.equal(Array.isArray(json.lines), true)
+    assert.equal(
+      json.lines.some(line => line.includes('task-success')),
+      true
+    )
+    assert.equal(json.tail, false)
+
+    writes.length = 0
     runAutobot(['node', 'autobot', 'status', 'REP-1'])
     const detail = writes.join('')
     assert.equal(detail.includes('HISTORY'), true)

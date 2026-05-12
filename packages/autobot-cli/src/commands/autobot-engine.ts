@@ -4,6 +4,7 @@ import {
   planCurrentQueue,
   renderEngineStatusLines,
   shapeEngineStatus,
+  startDaemonEngine,
   startEngine,
   stopEngine,
 } from '../runtime'
@@ -70,10 +71,13 @@ export function runAutobotEngine(argv: string[]): void {
       return
     case 'start': {
       const mode = daemon ? 'daemon' : 'foreground'
-      const status = startEngine(mode, once)
+      const status =
+        daemon && !once ? startDaemonEngine() : startEngine(mode, once)
       print(status)
       if (!once) {
-        holdEngineLoop(mode)
+        if (!daemon) {
+          holdEngineLoop(mode)
+        }
       }
       return
     }
@@ -85,10 +89,13 @@ export function runAutobotEngine(argv: string[]): void {
     case 'restart': {
       const mode = daemon ? 'daemon' : 'foreground'
       stopEngine()
-      const status = startEngine(mode, once)
+      const status =
+        daemon && !once ? startDaemonEngine() : startEngine(mode, once)
       print(status)
       if (!once) {
-        holdEngineLoop(mode)
+        if (!daemon) {
+          holdEngineLoop(mode)
+        }
       }
       return
     }
@@ -107,7 +114,9 @@ export function runAutobotEngine(argv: string[]): void {
     }
     default:
       if (rest.length === 0 && subcmd === '_daemon') {
-        print(startEngine('foreground', true))
+        const status = startEngine('daemon', false)
+        print(status)
+        holdEngineLoop('daemon')
         return
       }
       throw new Error(`Unknown autobot-engine command: ${subcmd}`)

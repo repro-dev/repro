@@ -126,11 +126,11 @@ export function runAutobot(argv: string[]): void {
         '',
         'Subcommands:',
         '  add <issue> [--json] [--dry-run]',
-        '  remove <issue> [-f] [--json] [--dry-run]',
+        '  remove <issue> [-f|--force] [--json] [--dry-run]',
         '  requeue <issue> [--json] [--dry-run]',
         '  list [--json]',
         '  status [<issue>] [--json]',
-        '  logs [<issue>] [-t] [--json]',
+        '  logs [<issue>] [-t|--tail] [--json]',
         '  discover [--limit N] [--project NAME] [-q] [--json]',
         '  config get <key> [--json]',
         '  config set <key> <value> [--json]',
@@ -212,6 +212,7 @@ export function runAutobot(argv: string[]): void {
     }
     case 'remove': {
       const issue = rest.find(value => !value.startsWith('-')) ?? ''
+      const force = rest.includes('-f') || rest.includes('--force')
       if (!issue) throw new Error('Missing issue identifier')
       if (rest.includes('--dry-run')) {
         if (json) {
@@ -221,17 +222,29 @@ export function runAutobot(argv: string[]): void {
         }
         return
       }
-      const item = removeQueueEntry(issue)
-      if (!item) {
+      const result = removeQueueEntry(issue, force)
+      if (!result.removed) {
         if (json) {
-          print({ removed: false, reason: 'not queued' })
+          print({
+            removed: false,
+            reason: result.reason,
+            issue_identifier: issue,
+          })
         } else {
-          process.stdout.write(`not queued: ${issue}\n`)
+          process.stdout.write(
+            result.reason === 'active work'
+              ? `not removed: active work ${issue}; use --force\n`
+              : `not queued: ${issue}\n`
+          )
         }
         return
       }
       if (json) {
-        print({ removed: true, issue_identifier: issue })
+        print({
+          removed: true,
+          issue_identifier: issue,
+          state: result.item.claim_state,
+        })
       } else {
         process.stdout.write(`removed queued item ${issue}\n`)
       }
@@ -288,28 +301,46 @@ export function runAutobot(argv: string[]): void {
       return
     }
     case 'logs': {
+      const tail = rest.includes('-t') || rest.includes('--tail')
       const issue = rest.find(value => !value.startsWith('-'))
-      printHuman(readEngineLogLines(issue))
+      const lines = readEngineLogLines(issue)
+      const outputLines = tail ? lines.slice(-20) : lines
+      if (json) {
+        print({
+          schema_version: 1,
+          issue_identifier: issue ?? null,
+          tail,
+          lines: outputLines,
+          generated_at: new Date().toISOString(),
+        })
+      } else {
+        printHuman(outputLines)
+      }
       return
     }
     case 'discover': {
       const limitIndex = rest.indexOf('--limit')
       const limit =
         limitIndex >= 0 ? Number.parseInt(rest[limitIndex + 1] ?? '10', 10) : 10
+      const projectIndex = rest.indexOf('--project')
+      const project =
+        projectIndex >= 0 ? (rest[projectIndex + 1] ?? '').trim() : ''
       const quiet = isQuiet(rest)
-      const discovered = discoverIssues(queueForStatus()).slice(
-        0,
-        Number.isFinite(limit) ? limit : 10
-      )
+      const queue = queueForStatus()
+      const discovered = discoverIssues(
+        queue,
+        project.length > 0 ? project : undefined
+      ).slice(0, Number.isFinite(limit) ? limit : 10)
       const records =
         discovered.length > 0
           ? discovered
-          : discoverIssueIds(queueForStatus())
+          : discoverIssueIds(queue, project.length > 0 ? project : undefined)
               .slice(0, Number.isFinite(limit) ? limit : 10)
               .map(issue_identifier => ({ issue_identifier }))
       if (json) {
         print({
           schema_version: 1,
+          project: project || undefined,
           config: {
             schema_version: 1,
             config_path: configPath(),

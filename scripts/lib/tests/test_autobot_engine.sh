@@ -62,8 +62,22 @@ NODE
   rm -rf "$tmpdir"
 }
 
+test_daemon_start_status_and_stop_round_trip() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  mkdir -p "$tmpdir/repro/.autobot"
+  output="$(TEST_TMPDIR="$tmpdir" REPO_ROOT="$tmpdir/repro" bash -lc 'source "$1/lib/autobot-engine.sh"; cmd_autobot_engine start --daemon; cmd_autobot_engine status --json; cmd_autobot_engine stop --json' _ "$SCRIPTS_DIR" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q '"mode":"daemon"' && printf '%s\n' "$output" | grep -q '"running":true' && printf '%s\n' "$output" | grep -q '"running":false'; then
+    _pass 'cmd_autobot_engine start/status/stop works in daemon mode'
+  else
+    _fail 'cmd_autobot_engine start/status/stop works in daemon mode' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
 test_help_mentions_commands
 test_start_status_and_stop_round_trip
+test_daemon_start_status_and_stop_round_trip
 
 printf '\nSummary: %d passed, %d failed, %d total\n' "$PASS" "$FAIL" "$TESTS_RUN"
 [ "$FAIL" -eq 0 ]

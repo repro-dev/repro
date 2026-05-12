@@ -115,6 +115,8 @@ else
   REPROCTL_DEBUG=false
 fi
 
+export REPROCTL_JSON REPROCTL_QUIET
+
 _args=()
 for _a in "$@"; do
   case "$_a" in

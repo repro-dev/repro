@@ -58,6 +58,7 @@ interface IssueMetadata {
   issue_priority?: string
   issue_assignee?: string
   issue_labels?: string[]
+  issue_project?: string
 }
 
 interface EngineCycleResult {
@@ -106,6 +107,9 @@ function extractIssueMetadata(item: Record<string, unknown>): IssueMetadata {
   const assignee = asMapping(
     linearIssue.assignee ?? linear.assignee ?? issue.assignee
   )
+  const project = asMapping(
+    linearIssue.project ?? linear.project ?? issue.project ?? item.project
+  )
 
   const labels = [
     ...asStringList(linearIssue.labels),
@@ -132,6 +136,9 @@ function extractIssueMetadata(item: Record<string, unknown>): IssueMetadata {
         assignee.name ?? assignee.display_name ?? assignee.displayName
       ) || undefined,
     issue_labels: labels.length > 0 ? [...new Set(labels)] : undefined,
+    issue_project:
+      asString(project.name ?? project.display_name ?? project.displayName) ||
+      undefined,
   }
 }
 
@@ -294,6 +301,15 @@ function readState<T>(key: StateKey, fallback: T): T {
   return JSON.parse(row.value) as T
 }
 
+function readStateValue<T>(key: StateKey): T | null {
+  const row = openStateDb()
+    .prepare('SELECT value FROM state WHERE key = ?')
+    .get(key) as { value?: string } | undefined
+
+  if (!row?.value) return null
+  return JSON.parse(row.value) as T
+}
+
 function writeState(key: StateKey, payload: unknown): void {
   const database = openStateDb()
   database
@@ -319,6 +335,82 @@ function items(payload: QueuePayload): Array<Record<string, unknown>> {
   return source.filter((item: unknown): item is Record<string, unknown> => {
     return typeof item === 'object' && item !== null && !Array.isArray(item)
   })
+}
+
+function legacyProjectName(item: Record<string, unknown>): string {
+  const linear = asMapping(item.linear)
+  const linearIssue = asMapping(linear.issue)
+  const issue = asMapping(item.issue)
+  const project = asMapping(
+    linearIssue.project ?? linear.project ?? issue.project ?? item.project
+  )
+
+  return (
+    asString(project.name ?? project.display_name ?? project.displayName) || ''
+  )
+}
+
+function normalizeLegacyQueueItem(
+  item: Record<string, unknown>,
+  fallbackState: string
+): Record<string, unknown> {
+  const state = String(
+    item.claim_state ?? item.state ?? item.status ?? fallbackState ?? 'queued'
+  ).trim()
+
+  return {
+    ...item,
+    issue_identifier: String(
+      item.issue_identifier ?? item.identifier ?? item.issue_id ?? ''
+    ).trim(),
+    claim_state: state || fallbackState,
+    workspace_path: String(item.workspace_path ?? item.workspace ?? '').trim(),
+    workspace_exists:
+      typeof item.workspace_exists === 'boolean'
+        ? item.workspace_exists
+        : undefined,
+    claimed_by: String(item.claimed_by ?? item.owned_by ?? '').trim(),
+    updated_at: String(item.updated_at ?? item.created_at ?? '').trim(),
+    attempt_count: Number(item.attempt_count ?? item.attempts ?? 0),
+  }
+}
+
+function legacyQueueItems(): Array<Record<string, unknown>> {
+  const database = openStateDb()
+  const tables = new Set(
+    (
+      database
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('claims', 'runs')"
+        )
+        .all() as Array<{ name?: string }>
+    )
+      .map(row => String(row.name ?? '').trim())
+      .filter(Boolean)
+  )
+
+  if (tables.size === 0) return []
+
+  const legacyItems = new Map<string, Record<string, unknown>>()
+  const readTable = (table: 'claims' | 'runs', fallbackState: string): void => {
+    if (!tables.has(table)) return
+    const rows = database.prepare(`SELECT * FROM ${table}`).all() as Array<
+      Record<string, unknown>
+    >
+    for (const row of rows) {
+      const normalized = normalizeLegacyQueueItem(row, fallbackState)
+      const identifier = String(normalized.issue_identifier ?? '').trim()
+      if (!identifier) continue
+      legacyItems.set(identifier, {
+        ...normalized,
+        issue_project: legacyProjectName(row) || undefined,
+      })
+    }
+  }
+
+  readTable('claims', 'queued')
+  readTable('runs', 'running')
+  return [...legacyItems.values()]
 }
 
 function normalizeCondition(
@@ -519,9 +611,28 @@ export function shapeStatus(
   }
 }
 
-export function discoverIssueIds(payload: QueuePayload): string[] {
+export function discoverIssueIds(
+  payload: QueuePayload,
+  projectName?: string
+): string[] {
   const seen = new Set<string>()
   const ids: string[] = []
+
+  if (projectName) {
+    for (const item of items(payload)) {
+      if (extractIssueMetadata(item).issue_project !== projectName) {
+        continue
+      }
+      const identifier = String(
+        item.issue_identifier ?? item.identifier ?? ''
+      ).trim()
+      if (identifier && !seen.has(identifier)) {
+        seen.add(identifier)
+        ids.push(identifier)
+      }
+    }
+    return ids
+  }
 
   const waves = payload as unknown as { waves?: unknown[] }
   if (Array.isArray(waves.waves)) {
@@ -549,7 +660,17 @@ export function discoverIssueIds(payload: QueuePayload): string[] {
     return ids
   }
 
+  if (projectName) {
+    return ids
+  }
+
   for (const item of items(payload)) {
+    if (
+      projectName &&
+      extractIssueMetadata(item).issue_project !== projectName
+    ) {
+      continue
+    }
     const identifier = String(
       item.issue_identifier ?? item.identifier ?? ''
     ).trim()
@@ -568,12 +689,18 @@ export function discoverIssueIds(payload: QueuePayload): string[] {
   return ids
 }
 
-export function discoverIssues(payload: QueuePayload): IssueMetadata[] {
+export function discoverIssues(
+  payload: QueuePayload,
+  projectName?: string
+): IssueMetadata[] {
   const seen = new Set<string>()
   const discovered: IssueMetadata[] = []
 
   for (const item of items(payload)) {
     const metadata = extractIssueMetadata(item)
+    if (projectName && metadata.issue_project !== projectName) {
+      continue
+    }
     if (!metadata.issue_identifier || seen.has(metadata.issue_identifier)) {
       continue
     }
@@ -585,6 +712,23 @@ export function discoverIssues(payload: QueuePayload): IssueMetadata[] {
 }
 
 export function loadQueuePayload(): QueuePayload {
+  const existing = readStateValue<QueuePayload>('queue')
+  if (existing) {
+    return existing
+  }
+
+  const legacyItems = legacyQueueItems()
+  if (legacyItems.length > 0) {
+    const payload = {
+      items: legacyItems,
+      claims: legacyItems,
+      config: {},
+      schema_version: SCHEMA_VERSION,
+    }
+    saveQueuePayload(payload)
+    return payload
+  }
+
   return readState<QueuePayload>('queue', {
     items: [],
     claims: [],
@@ -795,29 +939,58 @@ export function requeueQueueEntry(
 }
 
 export function removeQueueEntry(
-  issueIdentifier: string
-): Record<string, unknown> | null {
+  issueIdentifier: string,
+  force = false
+):
+  | {
+      removed: false
+      reason: 'not queued' | 'active work'
+      item?: Record<string, unknown>
+    }
+  | { removed: true; item: Record<string, unknown> } {
   const normalizedIssueIdentifier = validateIssueIdentifier(issueIdentifier)
   const payload = loadQueuePayload()
-  const nextItems = items(payload).map(item => {
-    if (
-      String(item.issue_identifier ?? item.identifier ?? '') !==
+  const existingItems = items(payload)
+  const index = existingItems.findIndex(
+    item =>
+      String(item.issue_identifier ?? item.identifier ?? '') ===
       normalizedIssueIdentifier
-    ) {
-      return item
-    }
-    return { ...item, claim_state: 'released', updated_at: nowIso() }
-  })
-  if (nextItems.length === 0) {
-    return null
-  }
-  payload.items = nextItems
-  saveQueuePayload(payload)
-  return (
-    nextItems.find(
-      item => String(item.issue_identifier ?? '') === normalizedIssueIdentifier
-    ) ?? null
   )
+
+  if (index < 0) {
+    return { removed: false, reason: 'not queued' }
+  }
+
+  const current = existingItems[index] as Record<string, unknown>
+  const currentState = String(current.claim_state ?? current.state ?? '')
+  const unsafeStates = [
+    'claimed',
+    'preparing',
+    'planning',
+    'developing',
+    'testing',
+    'reviewing',
+    'releasing',
+    'running',
+    'reconciling',
+    'failed',
+    'error',
+    'stale',
+  ]
+
+  if (!force && unsafeStates.includes(currentState)) {
+    return { removed: false, reason: 'active work', item: current }
+  }
+
+  const nextState = ['failed', 'error', 'stale'].includes(currentState)
+    ? 'canceled'
+    : 'released'
+  const nextItem = { ...current, claim_state: nextState, updated_at: nowIso() }
+  payload.items = existingItems.map((item, itemIndex) =>
+    itemIndex === index ? nextItem : item
+  )
+  saveQueuePayload(payload)
+  return { removed: true, item: nextItem }
 }
 
 export function loadEngineStatus(): AutobotEngineStatus | null {
@@ -1281,6 +1454,44 @@ export function startEngine(
   return status
 }
 
+export function startDaemonEngine(): AutobotEngineStatus {
+  ensureDirs()
+  const root = repoRoot()
+  const packageRoot = path.join(root, 'packages', 'autobot-cli')
+  const child = childProcess.spawn(
+    'pnpm',
+    [
+      '--dir',
+      packageRoot,
+      'exec',
+      'tsx',
+      'src/cli.ts',
+      'autobot-engine',
+      '_daemon',
+    ],
+    {
+      cwd: root,
+      detached: true,
+      stdio: 'ignore',
+      env: {
+        ...process.env,
+      },
+    }
+  )
+  child.unref()
+
+  if (child.pid) {
+    fs.writeFileSync(enginePidPath(), `${child.pid}\n`)
+  }
+
+  const status = shapeEngineStatus('daemon')
+  status.engine.pid = child.pid ?? null
+  status.engine.running = true
+  saveEngineStatus(status)
+  writeEngineLog('started daemon')
+  return status
+}
+
 export function holdEngineLoop(
   mode: 'foreground' | 'daemon',
   intervalMs = engineTickIntervalMs()
@@ -1301,9 +1512,17 @@ export function holdEngineLoop(
 
 export function stopEngine(): AutobotEngineStatus {
   const status = loadEngineStatus() ?? shapeEngineStatus('foreground')
+  const pid = status.engine.pid
   status.engine.running = false
   status.engine.pid = null
   saveEngineStatus(status)
+  if (pid && pid !== process.pid) {
+    try {
+      process.kill(pid, 'SIGTERM')
+    } catch {
+      // Ignore stale pid entries; the status/pid file is still cleared below.
+    }
+  }
   if (fs.existsSync(enginePidPath())) {
     fs.unlinkSync(enginePidPath())
   }

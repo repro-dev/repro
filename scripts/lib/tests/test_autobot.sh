@@ -45,8 +45,22 @@ test_config_and_queue_commands_round_trip() {
   rm -rf "$tmpdir"
 }
 
+test_global_flags_propagate_through_reproctl() {
+  local tmpdir output rc=0
+  tmpdir="$(_make_tmpdir)"
+  mkdir -p "$tmpdir/repro/.autobot"
+  output="$(TEST_TMPDIR="$tmpdir" REPO_ROOT="$tmpdir/repro" bash -lc 'source "$1/reproctl.sh" autobot add REP-2 >/dev/null; source "$1/reproctl.sh" --json autobot status; source "$1/reproctl.sh" --quiet autobot discover' _ "$SCRIPTS_DIR" 2>&1)" || rc=$?
+  if [ $rc -eq 0 ] && printf '%s\n' "$output" | grep -q '"schema_version":1' && printf '%s\n' "$output" | grep -q '"issue_identifier":"REP-2"' && printf '%s\n' "$output" | grep -qx 'REP-2'; then
+    _pass 'reproctl global json and quiet flags reach autobot'
+  else
+    _fail 'reproctl global json and quiet flags reach autobot' "rc=$rc; output=$output"
+  fi
+  rm -rf "$tmpdir"
+}
+
 test_help_lists_public_commands
 test_config_and_queue_commands_round_trip
+test_global_flags_propagate_through_reproctl
 
 printf '\nSummary: %d passed, %d failed, %d total\n' "$PASS" "$FAIL" "$TESTS_RUN"
 [ "$FAIL" -eq 0 ]
