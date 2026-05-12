@@ -3,6 +3,7 @@
   "name": "Repro",
   "description": "The developer tool for replayable bug reports. Debug faster and ship defect-free software to your users.",
   "version": "2.0",
+  "minimum_chrome_version": "111",
   "icons": {
     "128": "logo-128.png",
     "48": "logo-48.png",
@@ -20,6 +21,12 @@
       "js": ["content.js"],
       "matches": ["<all_urls>"],
       "run_at": "document_start"
+    },
+    {
+      "js": ["runtime.js"],
+      "matches": ["<all_urls>"],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "permissions": ["storage", "tabs"],

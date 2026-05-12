@@ -47,7 +47,31 @@ it('installs the runtime hook stub and stays idempotent', () => {
   assert.equal(window.__REPRO_RUNTIME_BUFFER__, buffer)
   assert.equal(window.__REPRO_RUNTIME_INSTALLED_TYPES__, installedTypes)
   assert.equal(window.__REPRO_RUNTIME_INSTALLED__, true)
-  assert.ok(installedTypes?.has('console'))
+})
+
+it('registers console, network, and performance as installed types', () => {
+  const installedTypes = window.__REPRO_RUNTIME_INSTALLED_TYPES__
+
+  assert.ok(installedTypes)
+  assert.ok(installedTypes.has('console'))
+  assert.ok(installedTypes.has('network'))
+  assert.ok(installedTypes.has('performance'))
+  assert.equal(installedTypes.size, 3)
+})
+
+it('does not re-wrap global patches on repeated installRuntime() calls', () => {
+  const installedTypes = window.__REPRO_RUNTIME_INSTALLED_TYPES__
+  const logBefore = console.log
+  const fetchBefore = globalThis.fetch
+  const xhrBefore = globalThis.XMLHttpRequest
+
+  installRuntime()
+
+  assert.equal(window.__REPRO_RUNTIME_INSTALLED_TYPES__, installedTypes)
+  assert.equal(installedTypes?.size, 3)
+  assert.equal(console.log, logBefore)
+  assert.equal(globalThis.fetch, fetchBefore)
+  assert.equal(globalThis.XMLHttpRequest, xhrBefore)
 })
 
 it('forwards live runtime events to the active sink without refilling the buffer', () => {
@@ -69,11 +93,11 @@ it('forwards live runtime events to the active sink without refilling the buffer
 it('evicts the oldest runtime buffer entries when the cap is reached', () => {
   window.__REPRO_RUNTIME_BUFFER__ = []
 
-  for (let index = 0; index <= 5_000; index += 1) {
+  for (let index = 0; index <= 10_000; index += 1) {
     appendRuntimeBuffer(new DataView(Uint8Array.of(index % 256).buffer))
   }
 
-  assert.equal(window.__REPRO_RUNTIME_BUFFER__?.length, 5_000)
+  assert.equal(window.__REPRO_RUNTIME_BUFFER__?.length, 10_000)
   const runtimeBuffer = window.__REPRO_RUNTIME_BUFFER__
 
   assert.ok(runtimeBuffer)
