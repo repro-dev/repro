@@ -13,8 +13,6 @@
   },
   "license": "UNLICENSED",
   "dependencies": {
-    "@jsxstyle/react": "^3.0.1",
-    "@repro/design": "workspace:*",
     "next": "^15.3.1",
     "react": "overridden",
     "react-dom": "overridden",
@@ -25,7 +23,6 @@
     "@types/node": "22.14.0",
     "@types/react": "overridden",
     "@types/react-dom": "overridden",
-    "@types/repro-shared-types": "workspace:*",
     "global-jsdom": "overridden",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
