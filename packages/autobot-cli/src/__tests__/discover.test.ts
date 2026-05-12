@@ -135,3 +135,65 @@ test('discover filters by project and preserves the project in json output', () 
     restore()
   }
 })
+
+test('discover falls back to Linear and filters project-aware responses', () => {
+  const { restore } = makeRepoRoot()
+  const writes: string[] = []
+  const mainCheckout = path.resolve(process.cwd(), '../..')
+  const stubDir = fs.mkdtempSync(path.join(mainCheckout, 'tmp', 'linear-stub-'))
+  const linearPath = path.join(stubDir, 'linear')
+  fs.writeFileSync(
+    linearPath,
+    `#!/bin/sh
+case "$4" in
+  backlog)
+    printf '%s' '{"items":[{"identifier":"REP-20","project":{"name":"Platform"}},{"identifier":"REP-21","project":{"name":"Design System"}}]}'
+    ;;
+  todo)
+    printf '%s' '[{"identifier":"REP-22","project_name":"Platform"},{"identifier":"REP-23","project":{"name":"Engineering"}}]'
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+`
+  )
+  fs.chmodSync(linearPath, 0o755)
+  const originalPath = process.env.PATH ?? ''
+  process.env.PATH = `${stubDir}:${originalPath}`
+  const write = test.mock.method(
+    process.stdout,
+    'write',
+    (chunk: string | Uint8Array) => {
+      writes.push(String(chunk))
+      return true
+    }
+  )
+
+  saveQueuePayload({ items: [] })
+
+  try {
+    runAutobot([
+      'node',
+      'autobot',
+      'discover',
+      '--project',
+      'Platform',
+      '--json',
+    ])
+    const result = JSON.parse(writes.join('').trim()) as {
+      items: Array<{ issue_identifier: string }>
+      project?: string
+    }
+    assert.equal(result.project, 'Platform')
+    assert.deepEqual(
+      result.items.map(item => item.issue_identifier),
+      ['REP-20', 'REP-22']
+    )
+  } finally {
+    write.mock.restore()
+    process.env.PATH = originalPath
+    fs.rmSync(stubDir, { recursive: true, force: true })
+    restore()
+  }
+})

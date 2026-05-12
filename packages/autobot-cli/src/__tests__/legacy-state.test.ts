@@ -39,34 +39,51 @@ test('legacy claims and runs tables migrate into canonical queue state', () => {
         issue_identifier TEXT PRIMARY KEY,
         claim_state TEXT,
         workspace_path TEXT,
-        attempt_count INTEGER
+        attempt_count INTEGER,
+        issue_title TEXT
       );
       CREATE TABLE runs (
         issue_identifier TEXT PRIMARY KEY,
         claim_state TEXT,
         workspace_path TEXT,
-        attempt_count INTEGER
+        attempt_count INTEGER,
+        issue_title TEXT
       );
     `)
     db.prepare(
-      'INSERT INTO claims (issue_identifier, claim_state, workspace_path, attempt_count) VALUES (?, ?, ?, ?)'
-    ).run('REP-1', 'queued', '/work/rep-1', 0)
+      'INSERT INTO claims (issue_identifier, claim_state, workspace_path, attempt_count, issue_title) VALUES (?, ?, ?, ?, ?)'
+    ).run('REP-1', 'queued', '/work/claim-1', 0, 'Claim title')
     db.prepare(
-      'INSERT INTO runs (issue_identifier, claim_state, workspace_path, attempt_count) VALUES (?, ?, ?, ?)'
-    ).run('REP-2', 'running', '/work/rep-2', 2)
+      'INSERT INTO claims (issue_identifier, claim_state, workspace_path, attempt_count, issue_title) VALUES (?, ?, ?, ?, ?)'
+    ).run('REP-2', 'queued', '/work/claim-2', 1, 'Claimed-only title')
+    db.prepare(
+      'INSERT INTO runs (issue_identifier, claim_state, workspace_path, attempt_count, issue_title) VALUES (?, ?, ?, ?, ?)'
+    ).run('REP-1', 'running', '/work/run-1', 5, 'Run title')
+    db.prepare(
+      'INSERT INTO runs (issue_identifier, claim_state, workspace_path, attempt_count, issue_title) VALUES (?, ?, ?, ?, ?)'
+    ).run('REP-3', 'running', '/work/run-3', 2, 'Run only title')
     db.close()
 
     const payload = loadQueuePayload()
     const items = (payload.items ?? []) as Array<{
       claim_state?: string
       issue_identifier: string
+      issue_title?: string
+      workspace_path?: string
     }>
     assert.deepEqual(items.map(item => item.issue_identifier).sort(), [
       'REP-1',
       'REP-2',
+      'REP-3',
     ])
-    assert.equal(items[0]?.claim_state === 'queued', true)
-    assert.equal(items[1]?.claim_state === 'running', true)
+    const shared = items.find(item => item.issue_identifier === 'REP-1')
+    assert.equal(shared?.claim_state, 'queued')
+    assert.equal(shared?.workspace_path, '/work/claim-1')
+    assert.equal(shared?.issue_title, 'Claim title')
+
+    const runOnly = items.find(item => item.issue_identifier === 'REP-3')
+    assert.equal(runOnly?.claim_state, 'running')
+    assert.equal(runOnly?.workspace_path, '/work/run-3')
 
     const canonicalDb = new DatabaseSync(stateDbPath(), { readOnly: true })
     try {
@@ -79,7 +96,7 @@ test('legacy claims and runs tables migrate into canonical queue state', () => {
       }
       assert.deepEqual(
         (migrated.items ?? []).map(item => item.issue_identifier).sort(),
-        ['REP-1', 'REP-2']
+        ['REP-1', 'REP-2', 'REP-3']
       )
     } finally {
       canonicalDb.close()

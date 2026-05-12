@@ -203,7 +203,7 @@ function workspaceExists(workspacePath: string): boolean {
   )
 }
 
-function discoverFromLinear(): string[] {
+function discoverFromLinear(projectName?: string): string[] {
   const seen = new Set<string>()
   const ids: string[] = []
 
@@ -212,15 +212,38 @@ function discoverFromLinear(): string[] {
       const output = childProcess
         .execFileSync(
           'linear',
-          ['issue', 'list', '--status', status, '--json', 'identifier'],
+          [
+            'issue',
+            'list',
+            '--status',
+            status,
+            '--json',
+            'identifier',
+            'project',
+          ],
           { encoding: 'utf8' }
         )
         .trim()
       if (!output) continue
-      const parsed = JSON.parse(output) as Array<{ identifier?: string }>
-      for (const item of parsed) {
+      const parsed = JSON.parse(output) as
+        | Array<Record<string, unknown>>
+        | { items?: Array<Record<string, unknown>> }
+      const records = Array.isArray(parsed) ? parsed : parsed.items ?? []
+      for (const item of records) {
         const identifier = String(item.identifier ?? '').trim()
         if (!identifier || seen.has(identifier)) continue
+        if (projectName) {
+          const project = asMapping(item.project)
+          const projectTitle = String(
+            project.name ?? project.display_name ?? project.displayName ?? ''
+          ).trim()
+          const projectNameValue = String(
+            item.project_name ?? item.projectName ?? ''
+          ).trim()
+          const matchesProject =
+            projectTitle === projectName || projectNameValue === projectName
+          if (!matchesProject && (projectTitle || projectNameValue)) continue
+        }
         seen.add(identifier)
         ids.push(identifier)
       }
@@ -392,7 +415,11 @@ function legacyQueueItems(): Array<Record<string, unknown>> {
   if (tables.size === 0) return []
 
   const legacyItems = new Map<string, Record<string, unknown>>()
-  const readTable = (table: 'claims' | 'runs', fallbackState: string): void => {
+  const readTable = (
+    table: 'claims' | 'runs',
+    fallbackState: string,
+    preserveExisting = false
+  ): void => {
     if (!tables.has(table)) return
     const rows = database.prepare(`SELECT * FROM ${table}`).all() as Array<
       Record<string, unknown>
@@ -401,6 +428,7 @@ function legacyQueueItems(): Array<Record<string, unknown>> {
       const normalized = normalizeLegacyQueueItem(row, fallbackState)
       const identifier = String(normalized.issue_identifier ?? '').trim()
       if (!identifier) continue
+      if (preserveExisting && legacyItems.has(identifier)) continue
       legacyItems.set(identifier, {
         ...normalized,
         issue_project: legacyProjectName(row) || undefined,
@@ -409,7 +437,7 @@ function legacyQueueItems(): Array<Record<string, unknown>> {
   }
 
   readTable('claims', 'queued')
-  readTable('runs', 'running')
+  readTable('runs', 'running', true)
   return [...legacyItems.values()]
 }
 
@@ -631,7 +659,6 @@ export function discoverIssueIds(
         ids.push(identifier)
       }
     }
-    return ids
   }
 
   const waves = payload as unknown as { waves?: unknown[] }
@@ -660,10 +687,6 @@ export function discoverIssueIds(
     return ids
   }
 
-  if (projectName) {
-    return ids
-  }
-
   for (const item of items(payload)) {
     if (
       projectName &&
@@ -680,7 +703,7 @@ export function discoverIssueIds(
     }
   }
 
-  for (const identifier of discoverFromLinear()) {
+  for (const identifier of discoverFromLinear(projectName)) {
     if (seen.has(identifier)) continue
     seen.add(identifier)
     ids.push(identifier)
