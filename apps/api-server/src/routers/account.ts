@@ -9,6 +9,7 @@ import {
   chain,
   chainRej,
   go,
+  map,
   reject,
   resolve,
 } from 'fluture'
@@ -66,6 +67,12 @@ const resetPasswordConfirmSchema = {
   body: z.object({
     token: z.string(),
     newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+  }),
+} as const
+
+const updateNameSchema = {
+  body: z.object({
+    name: z.string().min(1),
   }),
 } as const
 
@@ -356,6 +363,51 @@ export function createAccountRouter(
 
     app.get('/me', (req, res) => {
       respondWith(res, req.getCurrentUser())
+    })
+
+    app.get('/me/profile', (req, res) => {
+      respondWith(
+        res,
+        req
+          .getCurrentUser()
+          .pipe(
+            chain(user =>
+              both(accountService.getUserProfile(user.id))(
+                accountService.getAccountForUser(user.id)
+              ).pipe(map(([profile, account]) => ({ ...profile, account })))
+            )
+          )
+      )
+    })
+
+    app.put<{
+      Body: z.infer<typeof updateNameSchema.body>
+    }>(
+      '/me/name',
+      {
+        schema: updateNameSchema,
+      },
+      (req, res) => {
+        respondWith(
+          res,
+          req
+            .getCurrentUser()
+            .pipe(
+              chain(user =>
+                accountService.updateUserName(user.id, req.body.name)
+              )
+            )
+        )
+      }
+    )
+
+    app.post('/me/send-verification', (req, res) => {
+      respondWith(
+        res,
+        req
+          .getCurrentUser()
+          .pipe(chain(user => accountService.sendVerificationEmail(user.id)))
+      )
     })
   }
 }

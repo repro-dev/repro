@@ -6,6 +6,7 @@ import {
   StaffUser,
   StaffUserDetail,
   User,
+  UserProfile,
 } from '@repro/domain'
 import { addMinutes } from 'date-fns'
 import {
@@ -725,6 +726,28 @@ export function createAccountService(
     ).pipe(map(asUser))
   }
 
+  function getUserProfile(
+    id: string
+  ): FutureInstance<Error, Omit<UserProfile, 'account'>> {
+    return attemptQuery(() =>
+      database
+        .selectFrom('users')
+        .select(['id', 'name', 'email', 'verified', 'createdAt'])
+        .where('id', '=', decodeId(id))
+        .where('active', '=', true)
+        .executeTakeFirstOrThrow(() => notFound())
+    ).pipe(
+      map(row => ({
+        type: 'user' as const,
+        id: encodeId(row.id),
+        name: row.name,
+        email: row.email,
+        verified: row.verified,
+        createdAt: row.createdAt.toISOString(),
+      }))
+    )
+  }
+
   // Staff-facing variant that includes email in the response
   function getUserByIdForStaff(
     id: string
@@ -1232,6 +1255,7 @@ export function createAccountService(
     getUserById,
     getUserByIdForStaff,
     getUserEmailById,
+    getUserProfile,
     getUserIsAdmin,
     sendVerificationEmail,
     verifyUser,
