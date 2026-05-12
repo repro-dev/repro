@@ -120,7 +120,7 @@ describe('HomeRoute interactions', () => {
     setViewportWidth(originalInnerWidth)
   })
 
-  it('sorts by newest first by default and supports keyboard changes', async () => {
+  it('sorts by newest first by default and supports clicking column headers', async () => {
     const getProjectRecordings = (
       _apiClient: ApiClient,
       _projectId: string
@@ -132,33 +132,29 @@ describe('HomeRoute interactions', () => {
     })
 
     await waitFor(() => {
-      assert.ok(getTileTitles()[0]?.includes('Beta Recording'))
-      assert.ok(getTileTitles()[1]?.includes('Gamma Recording'))
-      assert.ok(getTileTitles()[2]?.includes('Alpha Recording'))
+      assert.ok(getRowTitles()[0]?.includes('Beta Recording'))
+      assert.ok(getRowTitles()[1]?.includes('Gamma Recording'))
+      assert.ok(getRowTitles()[2]?.includes('Alpha Recording'))
     })
 
-    screen.getByRole('radio', { name: 'Newest first' }).focus()
-
     act(() => {
-      fireEvent.keyDown(screen.getByRole('radio', { name: 'Newest first' }), {
-        key: 'ArrowRight',
-      })
+      screen.getByRole('columnheader', { name: 'Date' }).click()
     })
 
     await waitFor(() => {
-      assert.ok(getTileTitles()[0]?.includes('Alpha Recording'))
-      assert.ok(getTileTitles()[1]?.includes('Gamma Recording'))
-      assert.ok(getTileTitles()[2]?.includes('Beta Recording'))
+      assert.ok(getRowTitles()[0]?.includes('Alpha Recording'))
+      assert.ok(getRowTitles()[1]?.includes('Gamma Recording'))
+      assert.ok(getRowTitles()[2]?.includes('Beta Recording'))
       assert.equal(
         screen
-          .getByRole('radio', { name: 'Oldest first' })
-          .getAttribute('aria-checked'),
-        'true'
+          .getByRole('columnheader', { name: 'Date' })
+          .getAttribute('aria-sort'),
+        'ascending'
       )
     })
   })
 
-  it('filters by recording mode chips', async () => {
+  it('filters by recording mode checkboxes', async () => {
     const getProjectRecordings = (
       _apiClient: ApiClient,
       _projectId: string
@@ -174,7 +170,7 @@ describe('HomeRoute interactions', () => {
     })
 
     act(() => {
-      screen.getByRole('button', { name: 'Replay' }).click()
+      screen.getByRole('checkbox', { name: 'Replay' }).click()
     })
 
     await waitFor(() => {
@@ -205,14 +201,14 @@ describe('HomeRoute interactions', () => {
 
     await new Promise(resolve => setTimeout(resolve, 350))
 
-    assert.ok(getTileTitles()[0]?.includes('Beta Recording'))
+    assert.ok(getRowTitles()[0]?.includes('Beta Recording'))
     assert.equal(screen.getByText('2 hidden').textContent, '2 hidden')
     assert.equal(
-      getTileTitles().some(text => text.includes('Alpha Recording')),
+      getRowTitles().some(text => text.includes('Alpha Recording')),
       false
     )
     assert.equal(
-      getTileTitles().some(text => text.includes('Gamma Recording')),
+      getRowTitles().some(text => text.includes('Gamma Recording')),
       false
     )
   })
@@ -258,7 +254,7 @@ describe('HomeRoute interactions', () => {
     })
 
     act(() => {
-      screen.getByRole('button', { name: 'Replay' }).click()
+      screen.getByRole('checkbox', { name: 'Replay' }).click()
     })
 
     await waitFor(() => {
@@ -299,9 +295,9 @@ describe('HomeRoute interactions', () => {
     await waitFor(() => {
       assert.equal(
         screen
-          .getByRole('radio', { name: 'Longest first' })
-          .getAttribute('aria-checked'),
-        'true'
+          .getByRole('columnheader', { name: 'Duration' })
+          .getAttribute('aria-sort'),
+        'descending'
       )
     })
 
@@ -314,15 +310,15 @@ describe('HomeRoute interactions', () => {
     await waitFor(() => {
       assert.equal(
         screen
-          .getByRole('radio', { name: 'Longest first' })
-          .getAttribute('aria-checked'),
-        'true'
+          .getByRole('columnheader', { name: 'Duration' })
+          .getAttribute('aria-sort'),
+        'descending'
       )
-      assert.equal(getTileTitles()[0]?.includes('Gamma Recording'), true)
+      assert.equal(getRowTitles()[0]?.includes('Gamma Recording'), true)
     })
   })
 
-  it('keeps the control bar usable on narrow viewports', async () => {
+  it('keeps the toolbar usable on narrow viewports', async () => {
     setViewportWidth(375)
 
     const getProjectRecordings = (
@@ -338,12 +334,15 @@ describe('HomeRoute interactions', () => {
     await waitFor(() => {
       assert.ok(screen.getByText('Sessions (3)'))
       assert.ok(screen.getByRole('textbox', { name: 'Search sessions' }))
-      assert.ok(screen.getByRole('radio', { name: 'Newest first' }))
-      assert.ok(screen.getByRole('button', { name: 'Replay' }))
+      assert.ok(screen.getByRole('columnheader', { name: 'Date' }))
+      assert.ok(screen.getByRole('checkbox', { name: 'Replay' }))
     })
   })
 })
 
-function getTileTitles(): Array<string> {
-  return screen.getAllByRole('link').map(link => link.textContent ?? '')
+function getRowTitles(): Array<string> {
+  return screen
+    .getAllByRole('row')
+    .slice(1)
+    .map(row => (row as HTMLTableRowElement).cells[0]?.textContent ?? '')
 }

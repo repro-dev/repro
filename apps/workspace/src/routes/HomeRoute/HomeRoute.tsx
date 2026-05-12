@@ -1,4 +1,4 @@
-import { Col, Grid } from '@jsxstyle/react'
+import { Col } from '@jsxstyle/react'
 import { ApiClient, useApiClient } from '@repro/api-client'
 import { Button, EmptyState, PageFrame, spacing } from '@repro/design'
 import type { RecordingInfo } from '@repro/domain'
@@ -8,15 +8,14 @@ import { FutureInstance, resolve } from 'fluture'
 import { PuzzleIcon } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useProjectContext } from '~/ProjectContext'
-import { RecordingTile } from './RecordingTile'
-import { SessionListControlBar } from './SessionListControlBar'
+import { SessionTable } from './SessionTable'
+import { SessionTableToolbar } from './SessionTableToolbar'
 import {
   deriveVisibleSessionRecordings,
   getDefaultSessionListFilters,
   getSessionListFilters,
   isSessionListFilteringActive,
   readSessionListSortOrder,
-  SESSION_LIST_SORT_OPTIONS,
   setSessionListFilters,
   writeSessionListSortOrder,
   type SessionListFilters,
@@ -175,16 +174,37 @@ export const HomeRoute = ({
 
   const hasActiveFilters = isSessionListFilteringActive(filters)
 
-  const handleSortChange = useCallback((nextSortIndex: number) => {
-    const nextSortOrder = SESSION_LIST_SORT_OPTIONS[nextSortIndex]?.value
+  const tableSortColumn = sortOrder.startsWith('duration')
+    ? 'duration'
+    : sortOrder.startsWith('createdAt')
+    ? 'date'
+    : null
 
-    if (!nextSortOrder) {
-      return
-    }
+  const tableSortDirection: 'asc' | 'desc' | null = sortOrder.endsWith('asc')
+    ? 'asc'
+    : sortOrder.endsWith('desc')
+    ? 'desc'
+    : null
 
-    setSortOrder(nextSortOrder)
-    writeSessionListSortOrder(globalThis.localStorage, nextSortOrder)
-  }, [])
+  const handleTableSort = useCallback(
+    (columnId: string) => {
+      let nextSortOrder: SessionListSortOrder
+
+      if (columnId === 'date') {
+        nextSortOrder =
+          sortOrder === 'createdAt-desc' ? 'createdAt-asc' : 'createdAt-desc'
+      } else if (columnId === 'duration') {
+        nextSortOrder =
+          sortOrder === 'duration-desc' ? 'duration-asc' : 'duration-desc'
+      } else {
+        return
+      }
+
+      setSortOrder(nextSortOrder)
+      writeSessionListSortOrder(globalThis.localStorage, nextSortOrder)
+    },
+    [sortOrder]
+  )
 
   if (effectiveLoading) {
     return (
@@ -249,14 +269,12 @@ export const HomeRoute = ({
 
       <PageFrame.Body>
         <Col gap={spacing.lg}>
-          <SessionListControlBar
+          <SessionTableToolbar
             searchText={filters.searchText}
             selectedModes={filters.selectedModes}
-            sortOrder={sortOrder}
             hiddenCount={items.length - visibleItems.length}
             onSearchChange={handleSearchChange}
             onToggleMode={toggleMode}
-            onSortChange={handleSortChange}
           />
 
           {visibleItems.length === 0 ? (
@@ -282,18 +300,13 @@ export const HomeRoute = ({
               )}
             </EmptyState>
           ) : (
-            <Grid
-              gridTemplateColumns="repeat(auto-fill, minmax(320px, 1fr))"
-              gap={spacing.md}
-            >
-              {visibleItems.map(recording => (
-                <RecordingTile
-                  key={recording.id}
-                  recording={recording}
-                  projectId={currentProjectId}
-                />
-              ))}
-            </Grid>
+            <SessionTable
+              recordings={visibleItems}
+              projectId={currentProjectId}
+              sortColumn={tableSortColumn}
+              sortDirection={tableSortDirection}
+              onSort={handleTableSort}
+            />
           )}
         </Col>
       </PageFrame.Body>
