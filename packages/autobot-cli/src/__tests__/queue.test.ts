@@ -144,3 +144,43 @@ test("released items can be requeued with fresh state", () => {
     fs.rmSync(tmpdir, { recursive: true, force: true });
   }
 });
+
+test("released items with blank workspace paths fall back to sibling worktrees", () => {
+  const mainCheckout = path.resolve(process.cwd(), "../..");
+  const tmpRoot = path.join(mainCheckout, "tmp");
+  fs.mkdirSync(tmpRoot, { recursive: true });
+  const tmpdir = fs.mkdtempSync(
+    path.join(tmpRoot, "autobot-cli-requeue-blank-"),
+  );
+  const repoDir = path.join(tmpdir, "repo");
+  fs.mkdirSync(path.join(repoDir, ".autobot"), { recursive: true });
+  const originalRepoRoot = process.env.REPO_ROOT;
+  process.env.REPO_ROOT = repoDir;
+
+  try {
+    saveQueuePayload({
+      items: [
+        {
+          issue_identifier: "REP-3",
+          claim_state: "released",
+          workspace_path: "",
+          attempt_count: 2,
+        },
+      ],
+    });
+
+    const item = requeueQueueEntry("REP-3");
+    assert.equal(
+      item.workspace_path,
+      path.resolve(path.dirname(repoDir), "repro-wt-rep-3"),
+    );
+    assert.equal(item.workspace_exists, false);
+  } finally {
+    if (originalRepoRoot === undefined) {
+      delete process.env.REPO_ROOT;
+    } else {
+      process.env.REPO_ROOT = originalRepoRoot;
+    }
+    fs.rmSync(tmpdir, { recursive: true, force: true });
+  }
+});

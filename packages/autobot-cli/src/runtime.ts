@@ -766,9 +766,12 @@ export function requeueQueueEntry(
   const existing = existingItems.find(
     (item) => taskId(item as never) === normalizedIssueIdentifier,
   );
-  const workspacePath = String(
-    existing?.workspace_path ?? issueWorkspacePath(normalizedIssueIdentifier),
-  );
+  const existingWorkspacePath = existing?.workspace_path;
+  const workspacePath =
+    typeof existingWorkspacePath === "string" &&
+    existingWorkspacePath.trim().length > 0
+      ? existingWorkspacePath.trim()
+      : issueWorkspacePath(normalizedIssueIdentifier);
 
   const {
     last_error: _lastError,
