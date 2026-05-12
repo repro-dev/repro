@@ -1,3 +1,5 @@
+export * from './cli'
+export * from './core'
 export {
   decideRecovery,
   nowIso,
@@ -8,10 +10,11 @@ export {
   taskId,
   trackedTasks,
   transition,
-} from "./core";
+} from './core'
+export * from './types'
 export type {
-  EffectRequest,
   EffectOutcome,
+  EffectRequest,
   EffectResult,
   KnownTaskState,
   ProcessQueueResult,
@@ -22,7 +25,4 @@ export type {
   TaskPlan,
   TaskState,
   TransitionDecision,
-} from "./types";
-export * from "./core";
-export * from "./cli";
-export * from "./types";
+} from './types'

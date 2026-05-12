@@ -1,62 +1,62 @@
-import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
-import test from "node:test";
-import { DatabaseSync } from "node:sqlite";
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
+import test from 'node:test'
 
 import {
   getConfigValue,
   listConfigItems,
-  stateDbPath,
   setConfigValue,
+  stateDbPath,
   unsetConfigValue,
-} from "../runtime";
+} from '../runtime'
 
-test("config values persist repo-scoped settings", () => {
-  const mainCheckout = path.resolve(process.cwd(), "../..");
-  const tmpRoot = path.join(mainCheckout, "tmp");
-  fs.mkdirSync(tmpRoot, { recursive: true });
-  const tmpdir = fs.mkdtempSync(path.join(tmpRoot, "autobot-cli-config-"));
-  const repoDir = path.join(tmpdir, "repo");
-  fs.mkdirSync(path.join(repoDir, ".autobot"), { recursive: true });
-  const originalRepoRoot = process.env.REPO_ROOT;
-  process.env.REPO_ROOT = repoDir;
+test('config values persist repo-scoped settings', () => {
+  const mainCheckout = path.resolve(process.cwd(), '../..')
+  const tmpRoot = path.join(mainCheckout, 'tmp')
+  fs.mkdirSync(tmpRoot, { recursive: true })
+  const tmpdir = fs.mkdtempSync(path.join(tmpRoot, 'autobot-cli-config-'))
+  const repoDir = path.join(tmpdir, 'repo')
+  fs.mkdirSync(path.join(repoDir, '.autobot'), { recursive: true })
+  const originalRepoRoot = process.env.REPO_ROOT
+  process.env.REPO_ROOT = repoDir
 
   try {
-    assert.equal(getConfigValue("engine.auto-discover").value, "off");
-    assert.equal(getConfigValue("engine.tick-frequency").value, 15);
-    setConfigValue("engine.auto-discover", "on");
-    assert.equal(getConfigValue("engine.auto-discover").value, "on");
-    assert.equal(fs.existsSync(stateDbPath()), true);
+    assert.equal(getConfigValue('engine.auto-discover').value, 'off')
+    assert.equal(getConfigValue('engine.tick-frequency').value, 15)
+    setConfigValue('engine.auto-discover', 'on')
+    assert.equal(getConfigValue('engine.auto-discover').value, 'on')
+    assert.equal(fs.existsSync(stateDbPath()), true)
     assert.equal(
       listConfigItems()
-        .map((item) => item.key)
-        .includes("engine.tick-frequency"),
-      true,
-    );
-    setConfigValue("engine.tick-frequency", "20");
-    assert.equal(getConfigValue("engine.tick-frequency").value, 20);
-    unsetConfigValue("engine.auto-discover");
-    assert.equal(getConfigValue("engine.auto-discover").value, "off");
-    unsetConfigValue("engine.tick-frequency");
-    assert.equal(getConfigValue("engine.tick-frequency").value, 15);
+        .map(item => item.key)
+        .includes('engine.tick-frequency'),
+      true
+    )
+    setConfigValue('engine.tick-frequency', '20')
+    assert.equal(getConfigValue('engine.tick-frequency').value, 20)
+    unsetConfigValue('engine.auto-discover')
+    assert.equal(getConfigValue('engine.auto-discover').value, 'off')
+    unsetConfigValue('engine.tick-frequency')
+    assert.equal(getConfigValue('engine.tick-frequency').value, 15)
 
-    const db = new DatabaseSync(stateDbPath(), { readOnly: true });
+    const db = new DatabaseSync(stateDbPath(), { readOnly: true })
     try {
       const stored = db
-        .prepare("select value from state where key = ?")
-        .get("config") as { value: string } | undefined;
-      assert.ok(stored);
-      assert.equal(JSON.parse(stored.value)["engine.auto-discover"], undefined);
+        .prepare('select value from state where key = ?')
+        .get('config') as { value: string } | undefined
+      assert.ok(stored)
+      assert.equal(JSON.parse(stored.value)['engine.auto-discover'], undefined)
     } finally {
-      db.close();
+      db.close()
     }
   } finally {
     if (originalRepoRoot === undefined) {
-      delete process.env.REPO_ROOT;
+      delete process.env.REPO_ROOT
     } else {
-      process.env.REPO_ROOT = originalRepoRoot;
+      process.env.REPO_ROOT = originalRepoRoot
     }
-    fs.rmSync(tmpdir, { recursive: true, force: true });
+    fs.rmSync(tmpdir, { recursive: true, force: true })
   }
-});
+})
