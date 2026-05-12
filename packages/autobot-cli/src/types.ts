@@ -20,6 +20,7 @@ export interface AutobotConfigValues {
   "engine.auto-discover": "on" | "off";
   "engine.queue-depth": number;
   "engine.max-concurrency": number;
+  "engine.tick-frequency": number;
 }
 
 export interface AutobotConfigItem {

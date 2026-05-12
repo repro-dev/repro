@@ -5,6 +5,7 @@ import test from "node:test";
 
 import {
   holdEngineLoop,
+  setConfigValue,
   saveQueuePayload,
   shapeEngineStatus,
   startEngine,
@@ -66,8 +67,44 @@ test("foreground engine start installs a heartbeat loop", () => {
   const stop = holdEngineLoop("foreground", 10);
 
   assert.equal(interval.mock.calls.length, 1);
+  assert.equal(interval.mock.calls[0]?.arguments[1], 10);
   stop();
   assert.equal(clear.mock.calls.length, 1);
+});
+
+test("foreground engine heartbeat uses the configured tick frequency", () => {
+  const mainCheckout = path.resolve(process.cwd(), "../..");
+  const tmpRoot = path.join(mainCheckout, "tmp");
+  fs.mkdirSync(tmpRoot, { recursive: true });
+  const tmpdir = fs.mkdtempSync(path.join(tmpRoot, "autobot-cli-heartbeat-"));
+  const repoDir = path.join(tmpdir, "repo");
+  fs.mkdirSync(path.join(repoDir, ".autobot"), { recursive: true });
+  const originalRepoRoot = process.env.REPO_ROOT;
+  process.env.REPO_ROOT = repoDir;
+
+  const interval = test.mock.method(
+    globalThis,
+    "setInterval",
+    () => 1 as never,
+  );
+  const clear = test.mock.method(globalThis, "clearInterval", () => undefined);
+
+  try {
+    setConfigValue("engine.tick-frequency", "3");
+    holdEngineLoop("foreground");
+
+    assert.equal(interval.mock.calls.length, 1);
+    assert.equal(interval.mock.calls[0]?.arguments[1], 3000);
+  } finally {
+    if (originalRepoRoot === undefined) {
+      delete process.env.REPO_ROOT;
+    } else {
+      process.env.REPO_ROOT = originalRepoRoot;
+    }
+    interval.mock.restore();
+    clear.mock.restore();
+    fs.rmSync(tmpdir, { recursive: true, force: true });
+  }
 });
 
 test("status defaults to human output and start emits a tick event", () => {

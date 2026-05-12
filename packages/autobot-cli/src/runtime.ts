@@ -24,12 +24,14 @@ const DEFAULT_CONFIG: AutobotConfigValues = {
   "engine.auto-discover": "off",
   "engine.queue-depth": 10,
   "engine.max-concurrency": 1,
+  "engine.tick-frequency": 15,
 };
 
 const CONFIG_DESCRIPTIONS: Record<keyof AutobotConfigValues, string> = {
   "engine.auto-discover": "Enable engine-driven intake.",
   "engine.queue-depth": "Limit queued items for intake.",
   "engine.max-concurrency": "Limit concurrent intake work.",
+  "engine.tick-frequency": "Schedule foreground heartbeat ticks in seconds.",
 };
 
 export function repoRoot(): string {
@@ -373,6 +375,14 @@ export function loadConfigValues(): AutobotConfigValues {
           ),
         }
       : {}),
+    ...("engine.tick-frequency" in raw &&
+    Number.isFinite(Number(raw["engine.tick-frequency"]))
+      ? {
+          "engine.tick-frequency": Math.trunc(
+            Number(raw["engine.tick-frequency"]),
+          ),
+        }
+      : {}),
   };
 }
 
@@ -604,6 +614,10 @@ export function renderEngineTickEvent(
   };
 }
 
+function engineTickIntervalMs(): number {
+  return loadConfigValues()["engine.tick-frequency"] * 1000;
+}
+
 export function emitEngineTick(status: AutobotEngineStatus): void {
   const event = renderEngineTickEvent(status);
   const line = `${JSON.stringify(event)}\n`;
@@ -635,7 +649,7 @@ export function startEngine(
 
 export function holdEngineLoop(
   mode: "foreground" | "daemon",
-  intervalMs = 1000,
+  intervalMs = engineTickIntervalMs(),
 ): () => void {
   emitEngineTick(shapeEngineStatus(mode));
   const heartbeat = setInterval(() => {

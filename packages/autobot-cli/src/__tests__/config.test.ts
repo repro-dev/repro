@@ -22,11 +22,21 @@ test("config values persist repo-scoped settings", () => {
 
   try {
     assert.equal(getConfigValue("engine.auto-discover").value, "off");
+    assert.equal(getConfigValue("engine.tick-frequency").value, 15);
     setConfigValue("engine.auto-discover", "on");
     assert.equal(getConfigValue("engine.auto-discover").value, "on");
-    assert.equal(listConfigItems()[0]?.key, "engine.auto-discover");
+    assert.equal(
+      listConfigItems()
+        .map((item) => item.key)
+        .includes("engine.tick-frequency"),
+      true,
+    );
+    setConfigValue("engine.tick-frequency", "20");
+    assert.equal(getConfigValue("engine.tick-frequency").value, 20);
     unsetConfigValue("engine.auto-discover");
     assert.equal(getConfigValue("engine.auto-discover").value, "off");
+    unsetConfigValue("engine.tick-frequency");
+    assert.equal(getConfigValue("engine.tick-frequency").value, 15);
   } finally {
     if (originalRepoRoot === undefined) {
       delete process.env.REPO_ROOT;
