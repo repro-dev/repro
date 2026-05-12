@@ -173,6 +173,9 @@ test("status defaults to human output and start emits a tick event", () => {
     runAutobotEngine(["node", "autobot-engine", "status"]);
     assert.equal(writes.join("").startsWith("ENGINE\n"), true);
     assert.equal(writes.join("").includes("active_work_count: 2"), true);
+    assert.equal(writes.join("").includes("current_issue"), false);
+    assert.equal(writes.join("").includes("current_phase"), false);
+    assert.equal(writes.join("").includes("current_attempt"), false);
     assert.equal(writes.join("").includes("REP-2"), true);
     assert.equal(writes.join("").includes("REP-1"), true);
     assert.equal(writes.join("").includes('"schema_version"'), false);
@@ -199,6 +202,22 @@ test("status defaults to human output and start emits a tick event", () => {
     );
     assert.equal(
       "current_issue" in
+        (lines.find((line) => line.kind === "tick")?.engine as Record<
+          string,
+          unknown
+        >),
+      false,
+    );
+    assert.equal(
+      "current_phase" in
+        (lines.find((line) => line.kind === "tick")?.engine as Record<
+          string,
+          unknown
+        >),
+      false,
+    );
+    assert.equal(
+      "current_attempt" in
         (lines.find((line) => line.kind === "tick")?.engine as Record<
           string,
           unknown

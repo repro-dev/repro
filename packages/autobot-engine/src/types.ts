@@ -145,8 +145,5 @@ export interface EngineRuntimeStatus {
   running: boolean;
   mode: "foreground" | "daemon";
   active_work: TaskInput[];
-  current_issue: string;
-  current_phase: string;
-  current_attempt: number | null;
   last_tick_at: string;
 }
