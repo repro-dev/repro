@@ -36,11 +36,25 @@ test_start_status_and_stop_round_trip() {
   local tmpdir output rc=0
   tmpdir="$(_make_tmpdir)"
   mkdir -p "$tmpdir/repro/.autobot"
-  cat > "$tmpdir/repro/.autobot/queue.json" <<'JSON'
-{"items":[{"issue_identifier":"REP-1094","claim_state":"queued","workspace_path":"/work/rep-1094","attempt_count":0},{"issue_identifier":"REP-1095","claim_state":"running","workspace_path":"/work/rep-1095","attempt_count":1}],"schema_version":1}
-JSON
+  node - "$tmpdir/repro/.autobot/state.sqlite" <<'NODE'
+const { DatabaseSync } = require('node:sqlite')
+
+const db = new DatabaseSync(process.argv[2])
+db.exec('CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+db.prepare('INSERT INTO state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(
+  'queue',
+  JSON.stringify({
+    items: [
+      { issue_identifier: 'REP-1094', claim_state: 'queued', workspace_path: '/work/rep-1094', attempt_count: 0 },
+      { issue_identifier: 'REP-1095', claim_state: 'running', workspace_path: '/work/rep-1095', attempt_count: 1 },
+    ],
+    schema_version: 1,
+  })
+)
+db.close()
+NODE
   output="$(TEST_TMPDIR="$tmpdir" REPO_ROOT="$tmpdir/repro" bash -lc 'source "$1/lib/autobot-engine.sh"; cmd_autobot_engine start --once; cmd_autobot_engine status --json; cmd_autobot_engine stop --json' _ "$SCRIPTS_DIR" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ -f "$tmpdir/repro/.autobot/status.json" ] && printf '%s\n' "$output" | grep -q '"current_issue":"REP-1094"' && printf '%s\n' "$output" | grep -q '"running":true' && printf '%s\n' "$output" | grep -q '"running":false'; then
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/repro/.autobot/state.sqlite" ] && printf '%s\n' "$output" | grep -q '"current_issue":"REP-1094"' && printf '%s\n' "$output" | grep -q '"running":true' && printf '%s\n' "$output" | grep -q '"running":false'; then
     _pass 'cmd_autobot_engine start/status/stop stay in sync'
   else
     _fail 'cmd_autobot_engine start/status/stop stay in sync' "rc=$rc; output=$output"

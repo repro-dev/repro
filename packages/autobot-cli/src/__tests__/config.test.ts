@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { DatabaseSync } from "node:sqlite";
 
 import {
   getConfigValue,
   listConfigItems,
+  stateDbPath,
   setConfigValue,
   unsetConfigValue,
 } from "../runtime";
@@ -25,6 +27,7 @@ test("config values persist repo-scoped settings", () => {
     assert.equal(getConfigValue("engine.tick-frequency").value, 15);
     setConfigValue("engine.auto-discover", "on");
     assert.equal(getConfigValue("engine.auto-discover").value, "on");
+    assert.equal(fs.existsSync(stateDbPath()), true);
     assert.equal(
       listConfigItems()
         .map((item) => item.key)
@@ -37,6 +40,17 @@ test("config values persist repo-scoped settings", () => {
     assert.equal(getConfigValue("engine.auto-discover").value, "off");
     unsetConfigValue("engine.tick-frequency");
     assert.equal(getConfigValue("engine.tick-frequency").value, 15);
+
+    const db = new DatabaseSync(stateDbPath(), { readOnly: true });
+    try {
+      const stored = db
+        .prepare("select value from state where key = ?")
+        .get("config") as { value: string } | undefined;
+      assert.ok(stored);
+      assert.equal(JSON.parse(stored.value)["engine.auto-discover"], undefined);
+    } finally {
+      db.close();
+    }
   } finally {
     if (originalRepoRoot === undefined) {
       delete process.env.REPO_ROOT;

@@ -1,8 +1,5 @@
-import fs from "node:fs";
-
 import type { AutobotEngineStatus } from "../types";
 import {
-  engineModePath,
   holdEngineLoop,
   loadEngineStatus,
   planCurrentQueue,
@@ -47,16 +44,7 @@ function isJsonOutput(): boolean {
 }
 
 function statusOrFallback(): AutobotEngineStatus {
-  return (
-    loadEngineStatus() ??
-    shapeEngineStatus(
-      fs.existsSync(engineModePath())
-        ? (fs.readFileSync(engineModePath(), "utf8").trim() as
-            | "foreground"
-            | "daemon")
-        : "foreground",
-    )
-  );
+  return loadEngineStatus() ?? shapeEngineStatus("foreground");
 }
 
 export function runAutobotEngine(argv: string[]): void {

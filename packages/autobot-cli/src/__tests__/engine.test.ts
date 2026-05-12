@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { DatabaseSync } from "node:sqlite";
 
 import {
   holdEngineLoop,
   setConfigValue,
   saveQueuePayload,
+  stateDbPath,
   shapeEngineStatus,
   startEngine,
   stopEngine,
@@ -46,6 +48,18 @@ test("engine status uses the same selected work as queue planning", () => {
       ["REP-2", "REP-1"],
     );
     assert.equal(status.engine.current_issue, "REP-2");
+    assert.equal(fs.existsSync(stateDbPath()), true);
+
+    const db = new DatabaseSync(stateDbPath(), { readOnly: true });
+    try {
+      const queueRow = db
+        .prepare("select value from state where key = ?")
+        .get("queue") as { value: string } | undefined;
+      assert.ok(queueRow);
+      assert.equal(JSON.parse(queueRow.value).items.length, 2);
+    } finally {
+      db.close();
+    }
 
     const started = startEngine("foreground", true);
     assert.equal(started.engine.running, true);

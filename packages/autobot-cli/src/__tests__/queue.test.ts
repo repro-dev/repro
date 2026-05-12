@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { DatabaseSync } from "node:sqlite";
 
-import { ensureQueueEntry, shapeStatus } from "../runtime";
+import { ensureQueueEntry, shapeStatus, stateDbPath } from "../runtime";
 
 test("status shaping hides terminal items while preserving summary", () => {
   const status = shapeStatus({
@@ -39,6 +40,17 @@ test("queued items use sibling worktree paths and validated issue ids", () => {
       item.workspace_path,
       path.resolve(path.dirname(repoDir), "repro-wt-rep-1"),
     );
+    assert.equal(fs.existsSync(stateDbPath()), true);
+    const db = new DatabaseSync(stateDbPath(), { readOnly: true });
+    try {
+      const stored = db
+        .prepare("select value from state where key = ?")
+        .get("queue") as { value: string } | undefined;
+      assert.ok(stored);
+      assert.equal(JSON.parse(stored.value).items[0].issue_identifier, "REP-1");
+    } finally {
+      db.close();
+    }
     assert.throws(() => ensureQueueEntry("../../tmp/payload"));
   } finally {
     if (originalRepoRoot === undefined) {

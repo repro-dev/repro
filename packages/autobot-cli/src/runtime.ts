@@ -2,6 +2,8 @@ import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
+import { DatabaseSync as SQLiteDatabase } from "node:sqlite";
+
 import {
   nowIso,
   processQueue,
@@ -19,6 +21,10 @@ import type {
 } from "./types";
 
 export const SCHEMA_VERSION = 1;
+
+type StateKey = "queue" | "config" | "engine";
+
+const stateDbCache = new Map<string, SQLiteDatabase>();
 
 const DEFAULT_CONFIG: AutobotConfigValues = {
   "engine.auto-discover": "off",
@@ -84,51 +90,71 @@ export function autobotDir(): string {
   return path.join(repoRoot(), ".autobot");
 }
 
+export function stateDbPath(): string {
+  return path.join(autobotDir(), "state.sqlite");
+}
+
 export function queuePath(): string {
-  return path.join(autobotDir(), "queue.json");
+  return stateDbPath();
 }
 
 export function statusPath(): string {
-  return path.join(autobotDir(), "status.json");
+  return stateDbPath();
 }
 
 export function configPath(): string {
-  return path.join(autobotDir(), "config.json");
+  return stateDbPath();
 }
 
 export function enginePidPath(): string {
   return path.join(autobotDir(), "engine.pid");
 }
 
-export function engineModePath(): string {
-  return path.join(autobotDir(), "engine.mode");
-}
-
 export function engineLogPath(): string {
   return path.join(autobotDir(), "engine.log");
 }
 
-export function runsRoot(): string {
-  return path.join(autobotDir(), "runs");
-}
-
 function ensureDirs(): void {
-  fs.mkdirSync(runsRoot(), { recursive: true });
+  fs.mkdirSync(autobotDir(), { recursive: true });
 }
 
-function readJson<T>(filePath: string, fallback: T): T {
-  if (!fs.existsSync(filePath)) {
-    return fallback;
+function openStateDb(): SQLiteDatabase {
+  const dbPath = stateDbPath();
+  const cached = stateDbCache.get(dbPath);
+  if (cached) {
+    return cached;
   }
 
-  const raw = fs.readFileSync(filePath, "utf8").trim();
-  if (!raw) return fallback;
-  return JSON.parse(raw) as T;
+  ensureDirs();
+  const database = new SQLiteDatabase(dbPath);
+  database.exec("PRAGMA journal_mode = WAL");
+  database.exec("PRAGMA synchronous = NORMAL");
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS state (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `);
+  stateDbCache.set(dbPath, database);
+  return database;
 }
 
-function writeJson(filePath: string, payload: unknown): void {
-  ensureDirs();
-  fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`);
+function readState<T>(key: StateKey, fallback: T): T {
+  const row = openStateDb()
+    .prepare("SELECT value FROM state WHERE key = ?")
+    .get(key) as { value?: string } | undefined;
+
+  if (!row?.value) return fallback;
+  return JSON.parse(row.value) as T;
+}
+
+function writeState(key: StateKey, payload: unknown): void {
+  const database = openStateDb();
+  database
+    .prepare(
+      "INSERT INTO state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    )
+    .run(key, JSON.stringify(payload));
 }
 
 function mapping(value: unknown): Record<string, unknown> {
@@ -347,7 +373,7 @@ export function discoverIssueIds(payload: QueuePayload): string[] {
 }
 
 export function loadQueuePayload(): QueuePayload {
-  return readJson<QueuePayload>(queuePath(), {
+  return readState<QueuePayload>("queue", {
     items: [],
     claims: [],
     config: {},
@@ -356,11 +382,11 @@ export function loadQueuePayload(): QueuePayload {
 }
 
 export function saveQueuePayload(payload: QueuePayload): void {
-  writeJson(queuePath(), payload);
+  writeState("queue", payload);
 }
 
 export function loadConfigValues(): AutobotConfigValues {
-  const raw = readJson<Record<string, unknown>>(configPath(), {
+  const raw = readState<Record<string, unknown>>("config", {
     schema_version: SCHEMA_VERSION,
   });
   return {
@@ -402,7 +428,7 @@ export function dumpConfig(): Record<string, unknown> {
 
 export function listConfigItems(): AutobotConfigItem[] {
   const values = loadConfigValues();
-  const raw = readJson<Record<string, unknown>>(configPath(), {
+  const raw = readState<Record<string, unknown>>("config", {
     schema_version: SCHEMA_VERSION,
   });
   return (Object.keys(DEFAULT_CONFIG) as Array<keyof AutobotConfigValues>).map(
@@ -447,29 +473,29 @@ export function setConfigValue(
   rawValue: string,
 ): Record<string, unknown> {
   validateConfigKey(key);
-  const existing = readJson<Record<string, unknown>>(configPath(), {
+  const existing = readState<Record<string, unknown>>("config", {
     schema_version: SCHEMA_VERSION,
   });
   existing[key] = parseConfigValue(key, rawValue);
   existing.schema_version = SCHEMA_VERSION;
-  writeJson(configPath(), existing);
+  writeState("config", existing);
   return getConfigValue(key);
 }
 
 export function unsetConfigValue(key: string): Record<string, unknown> {
   validateConfigKey(key);
-  const existing = readJson<Record<string, unknown>>(configPath(), {
+  const existing = readState<Record<string, unknown>>("config", {
     schema_version: SCHEMA_VERSION,
   });
   delete existing[key];
   existing.schema_version = SCHEMA_VERSION;
-  writeJson(configPath(), existing);
+  writeState("config", existing);
   return getConfigValue(key);
 }
 
 export function getConfigValue(key: string): Record<string, unknown> {
   validateConfigKey(key);
-  const raw = readJson<Record<string, unknown>>(configPath(), {
+  const raw = readState<Record<string, unknown>>("config", {
     schema_version: SCHEMA_VERSION,
   });
   const values = loadConfigValues();
@@ -535,15 +561,14 @@ export function removeQueueEntry(
 }
 
 export function loadEngineStatus(): AutobotEngineStatus | null {
-  if (!fs.existsSync(statusPath())) return null;
-  return readJson<AutobotEngineStatus>(
-    statusPath(),
+  return readState<AutobotEngineStatus>(
+    "engine",
     null as unknown as AutobotEngineStatus,
   );
 }
 
 export function saveEngineStatus(status: AutobotEngineStatus): void {
-  writeJson(statusPath(), status);
+  writeState("engine", status);
 }
 
 export function shapeEngineStatus(
@@ -583,7 +608,7 @@ export function shapeEngineStatus(
       lock: path.join(autobotDir(), "engine.lock"),
       pid: enginePidPath(),
       log: engineLogPath(),
-      status: statusPath(),
+      status: stateDbPath(),
     },
     queue: {
       items: publicItems,
@@ -664,7 +689,6 @@ export function startEngine(
 ): AutobotEngineStatus {
   ensureDirs();
   fs.writeFileSync(enginePidPath(), `${process.pid}\n`);
-  fs.writeFileSync(engineModePath(), `${mode}\n`);
   const status = shapeEngineStatus(mode);
   status.engine.running = true;
   saveEngineStatus(status);
