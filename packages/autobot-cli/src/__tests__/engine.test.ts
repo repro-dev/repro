@@ -37,8 +37,9 @@ test("engine status keeps parallel active work only", () => {
       items: [
         {
           issue_identifier: "REP-2",
-          claim_state: "running",
+          claim_state: "developing",
           workspace_path: workspacePath(tmpdir, "REP-2"),
+          workspace_exists: true,
         },
         {
           issue_identifier: "REP-1",
@@ -130,6 +131,20 @@ exit 0
     assert.equal(calls.includes('cmd_wt_create_from_issue "REP-3"'), true);
     assert.equal(fs.existsSync(workspace), true);
 
+    const db = new DatabaseSync(stateDbPath(), { readOnly: true });
+    try {
+      const queueRow = db
+        .prepare("select value from state where key = ?")
+        .get("queue") as { value: string } | undefined;
+      assert.ok(queueRow);
+      const queue = JSON.parse(queueRow.value) as {
+        items?: Array<{ claim_state?: string }>;
+      };
+      assert.equal(queue.items?.[0]?.claim_state, "preparing");
+    } finally {
+      db.close();
+    }
+
     const writes: string[] = [];
     const write = test.mock.method(
       process.stdout,
@@ -147,6 +162,7 @@ exit 0
 
     const logs = writes.join("").trim();
     assert.equal(logs.includes("task-success"), true);
+    assert.equal(logs.includes("prepare-worktree"), true);
     assert.equal(logs.includes("missing-workspace"), false);
   } finally {
     if (originalRepoRoot === undefined) {
@@ -246,8 +262,9 @@ test("status defaults to human output and start emits a tick event", () => {
     items: [
       {
         issue_identifier: "REP-2",
-        claim_state: "running",
+        claim_state: "developing",
         workspace_path: workspacePath(tmpdir, "REP-2"),
+        workspace_exists: true,
       },
       {
         issue_identifier: "REP-1",
@@ -299,14 +316,14 @@ test("status defaults to human output and start emits a tick event", () => {
     );
     assert.deepEqual(lines.find((line) => line.kind === "tick")?.queue, {
       total: 2,
-      claimed: 1,
-      running: 0,
+      claimed: 0,
+      running: 2,
       reconciling: 0,
       recovery: 0,
       terminal: 0,
       by_state: {
-        claimed: 1,
-        queued: 1,
+        preparing: 1,
+        testing: 1,
       },
       allow_recovery: true,
     });

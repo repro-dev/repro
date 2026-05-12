@@ -1,11 +1,17 @@
 export type KnownTaskState =
   | "queued"
   | "claimed"
-  | "running"
-  | "reconciling"
+  | "preparing"
+  | "planning"
+  | "developing"
+  | "testing"
+  | "reviewing"
+  | "releasing"
   | "failed"
   | "error"
   | "stale"
+  | "running"
+  | "reconciling"
   | "released"
   | "canceled";
 
@@ -63,16 +69,45 @@ export interface TaskObservation {
 
 export type EffectRequest =
   | {
-      kind: "prepare";
+      kind: "claim";
       issueIdentifier: string;
       phase: "delivery";
       claimedBy: string;
     }
   | {
-      kind: "process-work";
+      kind: "prepare-worktree";
       issueIdentifier: string;
-      workspacePath: string;
-      attemptCount: number;
+      phase: "delivery";
+      claimedBy: string;
+    }
+  | {
+      kind: "prepare-context";
+      issueIdentifier: string;
+      phase: "delivery";
+    }
+  | {
+      kind: "plan";
+      issueIdentifier: string;
+      phase: "delivery";
+    }
+  | {
+      kind: "develop";
+      issueIdentifier: string;
+      phase: "delivery";
+    }
+  | {
+      kind: "test";
+      issueIdentifier: string;
+      phase: "delivery";
+    }
+  | {
+      kind: "review";
+      issueIdentifier: string;
+      phase: "delivery";
+    }
+  | {
+      kind: "release";
+      issueIdentifier: string;
       phase: "delivery";
     }
   | {

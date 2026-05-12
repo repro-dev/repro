@@ -10,7 +10,17 @@ import type {
   TransitionDecision,
 } from "./types";
 
-const ACTIVE_STATES = new Set<TaskState>(["claimed", "running", "reconciling"]);
+const ACTIVE_STATES = new Set<TaskState>([
+  "claimed",
+  "preparing",
+  "planning",
+  "developing",
+  "testing",
+  "reviewing",
+  "releasing",
+  "running",
+  "reconciling",
+]);
 const RECOVERY_STATES = new Set<TaskState>(["failed", "error", "stale"]);
 const TERMINAL_STATES = new Set<TaskState>(["released", "canceled"]);
 const TERMINAL_LINEAR_STATE_TYPES = new Set(["canceled", "closed"]);
@@ -19,11 +29,19 @@ const SUCCESS_LINEAR_STATE_TYPES = new Set(["completed", "done"]);
 const STATE_PRIORITY: Record<string, number> = {
   queued: 0,
   claimed: 1,
-  running: 2,
-  reconciling: 3,
-  failed: 4,
-  error: 4,
-  stale: 4,
+  preparing: 2,
+  planning: 3,
+  developing: 4,
+  testing: 5,
+  reviewing: 6,
+  releasing: 7,
+  running: 4,
+  reconciling: 6,
+  failed: 8,
+  error: 8,
+  stale: 8,
+  released: 9,
+  canceled: 10,
 };
 
 function asMapping(value: unknown): Record<string, unknown> {
@@ -61,6 +79,20 @@ export function stateRank(state: TaskState): number {
   return STATE_PRIORITY[state] ?? 99;
 }
 
+function phaseEffect(
+  issueIdentifier: string,
+  kind: EffectRequest["kind"],
+): EffectRequest {
+  return {
+    kind,
+    issueIdentifier,
+    phase: "delivery",
+    ...(kind === "claim" || kind === "prepare-worktree"
+      ? { claimedBy: "autobot-engine" }
+      : {}),
+  } as EffectRequest;
+}
+
 export function trackedTasks(payload: QueuePayload): TaskInput[] {
   return items(payload)
     .map((item, index) => ({ item, index }))
@@ -88,7 +120,15 @@ function queueSummary(trackedItems: TaskInput[]): QueueSummary {
   return {
     total: trackedItems.length,
     claimed: counts.claimed ?? 0,
-    running: counts.running ?? 0,
+    running:
+      (counts.preparing ?? 0) +
+      (counts.planning ?? 0) +
+      (counts.developing ?? 0) +
+      (counts.testing ?? 0) +
+      (counts.reviewing ?? 0) +
+      (counts.releasing ?? 0) +
+      (counts.running ?? 0) +
+      (counts.reconciling ?? 0),
     reconciling: counts.reconciling ?? 0,
     recovery: (counts.failed ?? 0) + (counts.error ?? 0) + (counts.stale ?? 0),
     terminal: (counts.released ?? 0) + (counts.canceled ?? 0),
@@ -110,6 +150,12 @@ export function selectWork(
   for (const state of [
     "queued",
     "claimed",
+    "preparing",
+    "planning",
+    "developing",
+    "testing",
+    "reviewing",
+    "releasing",
     "running",
     "reconciling",
   ] as const) {
@@ -411,6 +457,69 @@ function recoveryEffect(
   };
 }
 
+function phaseEffectsForState(
+  currentState: TaskState,
+  issueIdentifier: string,
+): { nextState: TaskState; effects: EffectRequest[]; reason: string } | null {
+  switch (currentState) {
+    case "queued":
+      return {
+        nextState: "preparing",
+        reason: "queued-task-needs-claim-and-setup",
+        effects: [
+          phaseEffect(issueIdentifier, "claim"),
+          phaseEffect(issueIdentifier, "prepare-worktree"),
+        ],
+      };
+    case "claimed":
+      return {
+        nextState: "preparing",
+        reason: "claimed-task-needs-worktree-preparation",
+        effects: [phaseEffect(issueIdentifier, "prepare-worktree")],
+      };
+    case "preparing":
+      return {
+        nextState: "planning",
+        reason: "preparing-task-needs-context-preparation",
+        effects: [phaseEffect(issueIdentifier, "prepare-context")],
+      };
+    case "planning":
+      return {
+        nextState: "developing",
+        reason: "planning-task-needs-development",
+        effects: [phaseEffect(issueIdentifier, "plan")],
+      };
+    case "developing":
+    case "running":
+      return {
+        nextState: "testing",
+        reason: "developing-task-needs-testing",
+        effects: [phaseEffect(issueIdentifier, "develop")],
+      };
+    case "testing":
+      return {
+        nextState: "reviewing",
+        reason: "testing-task-needs-review",
+        effects: [phaseEffect(issueIdentifier, "test")],
+      };
+    case "reviewing":
+    case "reconciling":
+      return {
+        nextState: "releasing",
+        reason: "reviewing-task-needs-release",
+        effects: [phaseEffect(issueIdentifier, "review")],
+      };
+    case "releasing":
+      return {
+        nextState: "released",
+        reason: "releasing-task-completes-release",
+        effects: [phaseEffect(issueIdentifier, "release")],
+      };
+    default:
+      return null;
+  }
+}
+
 export function transition(
   item: TaskInput,
   observation: TaskObservation,
@@ -418,67 +527,48 @@ export function transition(
   const currentState = claimState(item);
   const issueIdentifier = taskId(item);
 
-  if (currentState === "queued") {
-    return {
-      taskId: issueIdentifier,
-      currentState,
-      nextState: "claimed",
-      reason: "queued-task-needs-preparation",
-      effects: [
-        {
-          kind: "prepare",
-          issueIdentifier,
-          phase: "delivery",
-          claimedBy: "autobot-engine",
-        },
-      ],
-    };
-  }
-
-  if (currentState === "claimed") {
-    return {
-      taskId: issueIdentifier,
-      currentState,
-      nextState: "running",
-      reason: "claimed-task-needs-delivery-run",
-      effects: [
-        {
-          kind: "process-work",
-          issueIdentifier,
-          workspacePath: String(item.workspace_path ?? ""),
-          attemptCount: observation.attemptCount,
-          phase: "delivery",
-        },
-      ],
-    };
-  }
-
-  if (ACTIVE_STATES.has(currentState) || RECOVERY_STATES.has(currentState)) {
+  if (
+    currentState !== "queued" &&
+    (ACTIVE_STATES.has(currentState) || RECOVERY_STATES.has(currentState))
+  ) {
     const recovery = decideRecovery({
       ...item,
       ...observation,
       claimState: currentState,
     });
 
-    const nextState: TaskState | null =
-      recovery.action === "release"
-        ? "released"
-        : recovery.action === "cancel"
-        ? "canceled"
-        : recovery.action === "retry"
-        ? "queued"
-        : recovery.action === "reconcile"
-        ? "reconciling"
-        : recovery.action === "stop"
-        ? currentState
-        : null;
+    if (recovery.action !== "continue") {
+      const nextState: TaskState | null =
+        recovery.action === "release"
+          ? "released"
+          : recovery.action === "cancel"
+          ? "canceled"
+          : recovery.action === "retry"
+          ? "queued"
+          : recovery.action === "reconcile"
+          ? "reconciling"
+          : recovery.action === "stop"
+          ? currentState
+          : null;
 
+      return {
+        taskId: issueIdentifier,
+        currentState,
+        nextState,
+        reason: recovery.reason,
+        effects: [recoveryEffect(item, observation, recovery)],
+      };
+    }
+  }
+
+  const phaseTransition = phaseEffectsForState(currentState, issueIdentifier);
+  if (phaseTransition !== null) {
     return {
       taskId: issueIdentifier,
       currentState,
-      nextState,
-      reason: recovery.reason,
-      effects: [recoveryEffect(item, observation, recovery)],
+      nextState: phaseTransition.nextState,
+      reason: phaseTransition.reason,
+      effects: phaseTransition.effects,
     };
   }
 

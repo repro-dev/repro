@@ -67,7 +67,7 @@ export interface AutobotPublicStatus {
     running: number;
     needs_attention: number;
     released: number;
-    removed: number;
+    canceled: number;
   };
   generated_at: string;
 }

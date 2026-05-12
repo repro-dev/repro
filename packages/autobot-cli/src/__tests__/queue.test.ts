@@ -10,8 +10,8 @@ test("status shaping hides terminal items while preserving summary", () => {
   const status = shapeStatus({
     items: [
       { issue_identifier: "REP-1", claim_state: "queued" },
-      { issue_identifier: "REP-2", claim_state: "released" },
-      { issue_identifier: "REP-3", claim_state: "running" },
+      { issue_identifier: "REP-2", claim_state: "canceled" },
+      { issue_identifier: "REP-3", claim_state: "developing" },
     ],
   });
 
@@ -21,7 +21,7 @@ test("status shaping hides terminal items while preserving summary", () => {
   );
   assert.equal(status.summary.total, 3);
   assert.equal(status.summary.running, 1);
-  assert.equal(status.summary.released, 1);
+  assert.equal(status.summary.canceled, 1);
 });
 
 test("queued items use sibling worktree paths and validated issue ids", () => {

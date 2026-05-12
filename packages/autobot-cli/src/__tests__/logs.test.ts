@@ -73,6 +73,7 @@ test("engine activity is logged and surfaced by autobot logs as raw lines", () =
     const logs = writes.join("").trim();
     assert.throws(() => JSON.parse(logs));
     assert.equal(logs.includes("task-success"), true);
+    assert.equal(logs.includes("prepare-worktree"), true);
     assert.equal(logs.includes(".autobot/engine.log"), false);
     assert.equal(logs.startsWith("{"), false);
 
@@ -81,6 +82,7 @@ test("engine activity is logged and surfaced by autobot logs as raw lines", () =
     const detail = writes.join("");
     assert.equal(detail.includes("HISTORY"), true);
     assert.equal(detail.includes("task-success"), true);
+    assert.equal(detail.includes("preparing"), true);
   } finally {
     write.mock.restore();
     restore();
@@ -103,7 +105,7 @@ test("engine failures are surfaced in logs and status history", () => {
     items: [
       {
         issue_identifier: "REP-2",
-        claim_state: "running",
+        claim_state: "developing",
         workspace_path: path.join(tmpdir, "missing-workspace"),
       },
     ],
@@ -127,7 +129,7 @@ test("engine failures are surfaced in logs and status history", () => {
       logs: string[];
     };
     assert.ok(detail.issue);
-    assert.equal(detail.issue?.reason?.includes("retry"), true);
+    assert.equal(detail.issue?.reason?.includes("missing-workspace"), true);
     assert.equal(
       detail.issue?.reason?.includes(path.join(tmpdir, "missing-workspace")),
       true,
@@ -135,7 +137,7 @@ test("engine failures are surfaced in logs and status history", () => {
     assert.equal(
       detail.history.some(
         (line) =>
-          line.includes("attempted=retry") &&
+          line.includes("develop") &&
           line.includes(path.join(tmpdir, "missing-workspace")),
       ),
       true,

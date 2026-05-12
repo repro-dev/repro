@@ -50,7 +50,7 @@ test("status renders aggregate and single-issue detail views", () => {
       },
       {
         issue_identifier: "REP-2",
-        claim_state: "running",
+        claim_state: "developing",
         workspace_path: "/work/rep-2",
         linear: { issue: { title: "Unblock engine loop" } },
       },
@@ -73,11 +73,12 @@ test("status renders aggregate and single-issue detail views", () => {
     assert.equal(aggregate.includes("REP-1"), true);
     assert.equal(aggregate.includes("REP-2"), true);
     assert.equal(aggregate.includes("queued"), true);
-    assert.equal(aggregate.includes("running"), true);
+    assert.equal(aggregate.includes("developing"), true);
+    assert.equal(aggregate.includes("running"), false);
     assert.equal(aggregate.includes("┌"), true);
     assert.equal(aggregate.includes("│"), true);
     assert.equal(
-      aggregate.includes("REP-2 | running | Unblock engine loop"),
+      aggregate.includes("REP-2 | developing | Unblock engine loop"),
       false,
     );
 

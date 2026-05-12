@@ -8,7 +8,7 @@ test("selectWork preserves queued-before-recovery behavior", () => {
     items: [
       { issue_identifier: "REP-1", claim_state: "failed" },
       { issue_identifier: "REP-2", claim_state: "queued" },
-      { issue_identifier: "REP-3", claim_state: "running" },
+      { issue_identifier: "REP-3", claim_state: "developing" },
     ],
   });
 

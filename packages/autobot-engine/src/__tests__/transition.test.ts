@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { decideRecovery, transition } from "../index";
 
-test("transition prepares queued work before delivery", () => {
+test("transition claims queued work and starts preparation", () => {
   const decision = transition(
     {
       issue_identifier: "REP-1",
@@ -28,11 +28,14 @@ test("transition prepares queued work before delivery", () => {
   );
 
   assert.equal(decision.currentState, "queued");
-  assert.equal(decision.nextState, "claimed");
-  assert.equal(decision.effects[0]?.kind, "prepare");
+  assert.equal(decision.nextState, "preparing");
+  assert.deepEqual(
+    decision.effects.map((effect) => effect.kind),
+    ["claim", "prepare-worktree"],
+  );
 });
 
-test("transition routes claimed work into delivery processing", () => {
+test("transition keeps claimed work in the setup layer", () => {
   const decision = transition(
     {
       issue_identifier: "REP-2",
@@ -56,14 +59,42 @@ test("transition routes claimed work into delivery processing", () => {
     },
   );
 
-  assert.equal(decision.nextState, "running");
-  assert.equal(decision.effects[0]?.kind, "process-work");
+  assert.equal(decision.nextState, "preparing");
+  assert.equal(decision.effects[0]?.kind, "prepare-worktree");
+});
+
+test("transition advances setup work into planning", () => {
+  const decision = transition(
+    {
+      issue_identifier: "REP-2",
+      claim_state: "preparing",
+      workspace_path: "/work/rep-2",
+      attempt_count: 1,
+    },
+    {
+      workspaceExists: true,
+      workspaceDirty: false,
+      mergeConflictCount: 0,
+      linearStateType: "",
+      linearStateName: "",
+      prState: "",
+      mergeStateStatus: "",
+      reviewDecision: "",
+      statusState: "",
+      attemptCount: 1,
+      maxAttempts: 3,
+      claimState: "preparing",
+    },
+  );
+
+  assert.equal(decision.nextState, "planning");
+  assert.equal(decision.effects[0]?.kind, "prepare-context");
 });
 
 test("decideRecovery preserves current recovery policy", () => {
   const release = decideRecovery({
     issue_identifier: "REP-3",
-    claim_state: "running",
+    claim_state: "developing",
     attempt_count: 1,
     max_attempts: 3,
     workspace_exists: true,

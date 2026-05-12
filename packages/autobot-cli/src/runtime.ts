@@ -381,14 +381,20 @@ function publicConditions(
 export function publicState(claimStateValue: string): string {
   const map: Record<string, string> = {
     queued: "queued",
-    claimed: "queued",
-    running: "running",
+    claimed: "claimed",
+    preparing: "preparing",
+    planning: "planning",
+    developing: "developing",
+    testing: "testing",
+    reviewing: "reviewing",
+    releasing: "releasing",
+    running: "developing",
     reconciling: "needs_attention",
     failed: "needs_attention",
     error: "needs_attention",
     stale: "needs_attention",
     released: "released",
-    canceled: "removed",
+    canceled: "canceled",
   };
 
   return map[claimStateValue] ?? (claimStateValue || "needs_attention");
@@ -435,13 +441,33 @@ export function publicSummary(
     running: 0,
     needs_attention: 0,
     released: 0,
-    removed: 0,
+    canceled: 0,
   };
 
   for (const item of itemsList) {
     const state = String(item.state ?? "");
-    if (state in counts) {
-      counts[state as keyof typeof counts] += 1;
+    if (state === "queued") {
+      counts.queued += 1;
+    } else if (
+      [
+        "claimed",
+        "preparing",
+        "planning",
+        "developing",
+        "testing",
+        "reviewing",
+        "releasing",
+        "running",
+        "reconciling",
+      ].includes(state)
+    ) {
+      counts.running += 1;
+    } else if (state === "needs_attention") {
+      counts.needs_attention += 1;
+    } else if (state === "released") {
+      counts.released += 1;
+    } else if (state === "canceled") {
+      counts.canceled += 1;
     }
   }
 
@@ -456,7 +482,19 @@ function publicQueueSummary(summary: QueueSummary): AutobotPublicQueueSummary {
 
 function activeWorkItems(itemsList: AutobotPublicItem[]): AutobotPublicItem[] {
   return itemsList.filter((item) =>
-    ["queued", "running", "needs_attention"].includes(item.state),
+    [
+      "queued",
+      "claimed",
+      "preparing",
+      "planning",
+      "developing",
+      "testing",
+      "reviewing",
+      "releasing",
+      "running",
+      "reconciling",
+      "needs_attention",
+    ].includes(item.state),
   );
 }
 
@@ -470,9 +508,7 @@ export function shapeStatus(
     ? publicItems.filter((item) => item.issue_identifier === issueIdentifier)
     : includeAllItems
     ? publicItems
-    : publicItems.filter((item) =>
-        ["queued", "running", "needs_attention"].includes(item.state),
-      );
+    : activeWorkItems(publicItems);
 
   return {
     schema_version: Number(payload.schema_version ?? SCHEMA_VERSION),
@@ -869,19 +905,43 @@ function applyEffectToItem(
 ): Record<string, unknown> {
   const next = { ...item };
   const kind = String(effect.kind ?? "");
-  const reason = String(effect.reason ?? "");
 
   next.updated_at = nowIso();
 
   switch (kind) {
-    case "prepare":
+    case "claim":
       next.claim_state = "claimed";
       next.claimed_by = String(
         effect.claimedBy ?? next.claimed_by ?? "autobot",
       );
       return next;
-    case "process-work":
-      next.claim_state = "running";
+    case "prepare-worktree":
+      next.claim_state = "preparing";
+      next.claimed_by = String(
+        effect.claimedBy ?? next.claimed_by ?? "autobot",
+      );
+      return next;
+    case "prepare-context":
+      next.claim_state = "planning";
+      return next;
+    case "plan":
+      next.claim_state = "developing";
+      next.attempt_count = Number(next.attempt_count ?? 0) + 1;
+      return next;
+    case "develop":
+      next.claim_state = "testing";
+      next.attempt_count = Number(next.attempt_count ?? 0) + 1;
+      return next;
+    case "test":
+      next.claim_state = "reviewing";
+      next.attempt_count = Number(next.attempt_count ?? 0) + 1;
+      return next;
+    case "review":
+      next.claim_state = "releasing";
+      next.attempt_count = Number(next.attempt_count ?? 0) + 1;
+      return next;
+    case "release":
+      next.claim_state = "released";
       next.attempt_count = Number(next.attempt_count ?? 0) + 1;
       return next;
     case "recover": {
@@ -906,6 +966,7 @@ function applyEffectToItem(
           break;
       }
 
+      const reason = String(effect.reason ?? "");
       if (reason) {
         next.retry_reason = reason;
       }
@@ -919,12 +980,9 @@ function applyEffectToItem(
 function executeEffect(
   item: Record<string, unknown>,
   plan: ReturnType<typeof processQueue>["items"][number],
+  effect: Record<string, unknown>,
 ): { event: EngineLogEvent; nextItem: Record<string, unknown> } {
-  const effect = plan.decision.effects[0] ?? {
-    kind: "noop",
-    issueIdentifier: plan.item.issue_identifier,
-    reason: "no-effect",
-  };
+  const effectKind = String(effect.kind ?? "");
   const effectReason =
     "reason" in effect
       ? String((effect as { reason?: unknown }).reason ?? "")
@@ -934,9 +992,9 @@ function executeEffect(
   const currentState = String(item.claim_state ?? "");
   const workspacePath = String(item.workspace_path ?? "").trim();
   const attemptedAction =
-    effect.kind === "recover"
-      ? String((effect as { action?: unknown }).action ?? effect.kind)
-      : effect.kind;
+    effectKind === "recover"
+      ? String((effect as { action?: unknown }).action ?? effectKind)
+      : effectKind;
   const workspaceMissing =
     !workspacePath ||
     !fs.existsSync(workspacePath) ||
@@ -948,7 +1006,7 @@ function executeEffect(
     }`;
   }
 
-  if (effect.kind === "prepare" && workspaceMissing) {
+  if (effectKind === "prepare-worktree" && workspaceMissing) {
     try {
       provisionIssueWorkspace(issueIdentifier);
     } catch (error) {
@@ -959,7 +1017,7 @@ function executeEffect(
         event: {
           kind: "task-failure",
           issue_identifier: issueIdentifier,
-          action: effect.kind,
+          action: effectKind,
           outcome: "failed",
           state: currentState,
           next_state: currentState,
@@ -984,17 +1042,21 @@ function executeEffect(
     }
   }
 
+  const workspaceRequired =
+    effectKind === "prepare-context" ||
+    ["plan", "develop", "test", "review", "release"].includes(effectKind);
+
   const workspaceReady =
     workspacePath &&
     fs.existsSync(workspacePath) &&
     fs.statSync(workspacePath).isDirectory();
 
-  if (effect.kind === "noop") {
+  if (effectKind === "noop") {
     return {
       event: {
         kind: "task-skipped",
         issue_identifier: issueIdentifier,
-        action: effect.kind,
+        action: effectKind,
         outcome: "skipped",
         state: currentState,
         next_state: currentState,
@@ -1012,13 +1074,13 @@ function executeEffect(
     };
   }
 
-  if (effect.kind === "process-work" && !workspaceReady) {
-    const reason = missingWorkspaceReason(effect.kind);
+  if (workspaceRequired && !workspaceReady) {
+    const reason = missingWorkspaceReason(effectKind);
     return {
       event: {
         kind: "task-failure",
         issue_identifier: issueIdentifier,
-        action: effect.kind,
+        action: effectKind,
         outcome: "failed",
         state: currentState,
         next_state: currentState,
@@ -1045,24 +1107,20 @@ function executeEffect(
   const nextItem = applyEffectToItem(item, effect as Record<string, unknown>);
   const nextState = String(nextItem.claim_state ?? currentState);
   const successReason =
-    effect.kind === "recover" && workspaceMissing
+    effectKind === "recover" && workspaceMissing
       ? missingWorkspaceReason(attemptedAction)
       : effectReason || "processed";
 
-  if (effect.kind === "recover" && workspaceMissing) {
+  if (effectKind === "recover" && workspaceMissing) {
     nextItem.last_error = successReason;
     nextItem.retry_reason = successReason;
   }
 
   return {
     event: {
-      kind:
-        effect.kind === "recover" &&
-        ["retry", "reconcile"].includes(String(effect.action ?? ""))
-          ? "task-success"
-          : "task-success",
+      kind: "task-success",
       issue_identifier: issueIdentifier,
-      action: String(effect.kind),
+      action: effectKind,
       outcome: "succeeded",
       state: currentState,
       next_state: nextState,
@@ -1093,27 +1151,31 @@ function persistQueuePlan(
 
   for (const planItem of plan.items) {
     const issueIdentifier = taskId(planItem.item as never);
-    const current = itemById.get(issueIdentifier);
+    let current = itemById.get(issueIdentifier);
     if (!current) continue;
 
-    const startEvent: EngineLogEvent = {
-      kind: "task-start",
-      issue_identifier: issueIdentifier,
-      action: String(planItem.decision.effects[0]?.kind ?? "noop"),
-      state: String(current.claim_state ?? ""),
-      reason: planItem.decision.reason,
-      message: `${issueIdentifier} started ${String(
-        planItem.decision.effects[0]?.kind ?? "noop",
-      )}`,
-      generated_at: nowIso(),
-    };
-    events.push(startEvent);
-    writeEngineLog(JSON.stringify(startEvent));
+    for (const effect of planItem.decision.effects) {
+      const effectKind = String(effect.kind ?? "noop");
+      const startEvent: EngineLogEvent = {
+        kind: "task-start",
+        issue_identifier: issueIdentifier,
+        action: effectKind,
+        state: String(current.claim_state ?? ""),
+        reason: planItem.decision.reason,
+        message: `${issueIdentifier} started ${effectKind}`,
+        generated_at: nowIso(),
+      };
+      events.push(startEvent);
+      writeEngineLog(JSON.stringify(startEvent));
 
-    const { event, nextItem } = executeEffect(current, planItem as never);
-    itemById.set(issueIdentifier, nextItem);
-    events.push(event);
-    writeEngineLog(JSON.stringify(event));
+      const result = executeEffect(current, planItem as never, effect);
+      current = result.nextItem;
+      itemById.set(issueIdentifier, current);
+      events.push(result.event);
+      writeEngineLog(JSON.stringify(result.event));
+
+      if (result.event.kind === "task-failure") break;
+    }
   }
 
   payload.items = [...itemById.values()];
