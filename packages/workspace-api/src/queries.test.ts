@@ -52,6 +52,7 @@ const fakeUser: User = {
   type: 'user',
   id: 'user-1',
   name: 'Alice',
+  email: 'alice@example.com',
   verified: true,
 }
 

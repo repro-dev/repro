@@ -11,9 +11,17 @@ describe('marketing shell route map', () => {
       'pricing',
       'blog',
       'changelog',
+      'about',
+      'contact',
+      'refund-policy',
     ]) {
       assert.equal(slug in routePageContent, false)
       assert.equal(isMarketingRouteSlug(slug), false)
+    }
+
+    for (const slug of ['privacy', 'support', 'terms']) {
+      assert.equal(slug in routePageContent, true)
+      assert.equal(isMarketingRouteSlug(slug), true)
     }
   })
 })

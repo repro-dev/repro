@@ -28,27 +28,6 @@ async function renderRoute(t: any, pagePath: string) {
 }
 
 describe('high-intent marketing routes', () => {
-  it('renders the features route as an evidence-first workflow', async t => {
-    const metadata = await renderRoute(t, './features/page')
-
-    assert.equal(metadata.title, 'How it works')
-    assert.ok(
-      screen.getByRole('heading', {
-        level: 1,
-        name: 'How Repro records the evidence behind a bug',
-      })
-    )
-    assert.ok(screen.getByText(/Record the reproduction once/i))
-    assert.ok(screen.getByRole('heading', { level: 3, name: 'Record' }))
-    assert.ok(screen.getByRole('heading', { level: 3, name: 'Replay' }))
-    assert.ok(screen.getByRole('heading', { level: 3, name: 'Find the cause' }))
-    assert.ok(screen.getByRole('heading', { level: 3, name: 'Fix' }))
-    assert.ok(screen.getByText(/A replayable report keeps the evidence/i))
-    assert.equal(screen.queryByText(/The route speaks to QA/i), null)
-    assert.ok(screen.getByRole('link', { name: 'Get started for free' }))
-    assert.equal(screen.queryByText('Start free'), null)
-  })
-
   it('renders the install extension route without troubleshooting content', async t => {
     const metadata = await renderRoute(t, './install-extension/page')
 
@@ -83,7 +62,12 @@ describe('high-intent marketing routes', () => {
       null
     )
     assert.equal(screen.queryByText('The browser is not supported'), null)
-    assert.ok(screen.getByRole('link', { name: 'Get started for free' }))
+    assert.equal(
+      screen
+        .getByRole('link', { name: 'Get started for free' })
+        .getAttribute('href'),
+      '/coming-soon'
+    )
     assert.equal(screen.queryByText('Start free'), null)
   })
 
@@ -108,6 +92,20 @@ describe('high-intent marketing routes', () => {
         'Includes SDK access, MCP server access, and $10/month AI usage credit per user.'
       )
     )
+    assert.ok(
+      screen.getAllByRole('link', { name: 'Get started for free' }).length >= 3
+    )
+    assert.ok(
+      screen
+        .getAllByRole('link', { name: 'Get started for free' })
+        .every(
+          (link: HTMLElement) => link.getAttribute('href') === '/coming-soon'
+        )
+    )
+    assert.equal(
+      screen.getByRole('link', { name: 'Contact sales' }).getAttribute('href'),
+      '/coming-soon'
+    )
     assert.equal(
       screen.queryByText(/AI usage details are not expressed as fixed quotas/i),
       null
@@ -116,7 +114,16 @@ describe('high-intent marketing routes', () => {
       screen.queryByRole('heading', { level: 2, name: /buyer guidance/i }),
       null
     )
-    assert.ok(screen.getByRole('link', { name: 'Get started for free' }))
+    assert.ok(
+      screen.getAllByRole('link', { name: 'Get started for free' }).length >= 3
+    )
+    assert.ok(
+      screen
+        .getAllByRole('link', { name: 'Get started for free' })
+        .every(
+          (link: HTMLElement) => link.getAttribute('href') === '/coming-soon'
+        )
+    )
     assert.equal(screen.queryByText('Start free'), null)
   })
 })

@@ -187,7 +187,7 @@ const projectRouter = createProjectRouter(
   recordingService,
   accountService
 )
-const staffRouter = createStaffRouter(accountService)
+const staffRouter = createStaffRouter(accountService, projectService)
 
 // Build the Google OAuth provider for staff login (same credentials, different callback URL).
 const staffGoogleProvider =

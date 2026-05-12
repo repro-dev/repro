@@ -4,17 +4,7 @@ import React from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ApiKeysRoute from '~/routes/ApiKeysRoute'
 import BillingSettingsRouteConnected from '~/routes/BillingSettingsRoute'
-
-const ProfilePage: React.FC = () => (
-  <PageFrame>
-    <PageFrame.Header>
-      <PageFrame.Title>Profile</PageFrame.Title>
-    </PageFrame.Header>
-    <PageFrame.Body maxWidth={720}>
-      <Col gap={spacing['2xl']} />
-    </PageFrame.Body>
-  </PageFrame>
-)
+import ProfileSettingsRouteConnected from '~/routes/ProfileSettingsRoute'
 
 const AccountPage: React.FC = () => (
   <PageFrame>
@@ -42,7 +32,7 @@ const SettingsRoute: React.FC = () => (
   <Routes>
     {/* Default redirect to profile */}
     <Route index element={<Navigate to="profile" replace />} />
-    <Route path="profile" element={<ProfilePage />} />
+    <Route path="profile" element={<ProfileSettingsRouteConnected />} />
     <Route path="account" element={<AccountPage />} />
     <Route path="api-keys" element={<ApiKeysRoute />} />
     <Route path="team" element={<TeamPage />} />

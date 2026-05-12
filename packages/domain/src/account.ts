@@ -13,6 +13,7 @@ export interface User {
   type: 'user'
   id: string
   name: string
+  email: string
   verified: boolean
 }
 
@@ -23,6 +24,10 @@ export interface StaffUserDetail {
   name: string
   email: string
   verified: boolean
+  admin: boolean
+  active: boolean
+  accountId: string
+  createdAt: string
 }
 
 export interface StaffUser {
@@ -32,6 +37,16 @@ export interface StaffUser {
   email: string
   isAdmin: boolean
   isActive: boolean
+}
+
+export interface UserProfile {
+  type: 'user'
+  id: string
+  name: string
+  email: string
+  verified: boolean
+  createdAt: string
+  account: Account
 }
 
 export interface Session {

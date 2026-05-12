@@ -12,6 +12,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   build:
     name: Build, check & test
@@ -266,6 +271,64 @@ jobs:
           project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
           organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
           bucket-name: ${{ secrets.SCW_STATIC_BUCKET_NAME }}
+
+  deploy-marketing:
+    name: Deploy marketing (pages)
+    needs: [build, format-check]
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || contains(fromJSON(needs.build.outputs.app_ids), 'repro/marketing')) }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Moon toolchain
+        uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+
+      - name: Set PNPM store directory
+        run: |
+          pnpm config set store-dir ~/.pnpm-store
+
+      - name: Get cached PNPM store
+        uses: actions/cache@v3
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --reporter=silent
+
+      - name: Run marketing tests
+        run: moon run repro/marketing:test
+
+      - name: Run marketing typecheck
+        run: moon run repro/marketing:typecheck
+
+      - name: Build marketing export
+        run: moon run repro/marketing:build --force
+
+      - name: Add Jekyll bypass marker
+        run: touch apps/marketing/out/.nojekyll
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/marketing/out
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   deploy-capture:
     name: Deploy capture (extension)

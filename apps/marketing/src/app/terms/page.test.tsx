@@ -45,8 +45,8 @@ describe('TermsPage', () => {
     const privacyLink = screen.getByRole('link', { name: /privacy policy/i })
     assert.equal(privacyLink.getAttribute('href'), '/privacy')
 
-    const refundLink = screen.getByRole('link', { name: /refund policy/i })
-    assert.equal(refundLink.getAttribute('href'), '/refund-policy')
+    assert.equal(screen.queryByRole('link', { name: /refund policy/i }), null)
+    assert.equal(screen.queryByText(/refund policy/i), null)
 
     assert.ok(screen.getByText(/last updated: april 15, 2026/i))
   })

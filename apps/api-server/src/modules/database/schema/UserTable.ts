@@ -17,10 +17,20 @@ export interface UserTable {
   createdAt: GeneratedAlways<Date>
 }
 
-type DomainObject = Pick<Selectable<UserTable>, 'id' | 'name' | 'verified'>
-type StaffDomainObject = Pick<
+type DomainObject = Pick<
   Selectable<UserTable>,
   'id' | 'name' | 'email' | 'verified'
+>
+type StaffDomainObject = Pick<
+  Selectable<UserTable>,
+  | 'id'
+  | 'name'
+  | 'email'
+  | 'verified'
+  | 'admin'
+  | 'active'
+  | 'accountId'
+  | 'createdAt'
 >
 
 export function asUser<T extends DomainObject>(values: T): User {
@@ -28,6 +38,7 @@ export function asUser<T extends DomainObject>(values: T): User {
     type: 'user',
     id: encodeId(values.id),
     name: values.name,
+    email: values.email,
     verified: values.verified,
   }
 }
@@ -41,5 +52,9 @@ export function asStaffUserDetail<T extends StaffDomainObject>(
     name: values.name,
     email: values.email,
     verified: values.verified,
+    admin: values.admin,
+    active: values.active,
+    accountId: encodeId(values.accountId),
+    createdAt: values.createdAt.toISOString(),
   }
 }

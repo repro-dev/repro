@@ -27,7 +27,7 @@ mock.module('@repro/auth', {
 
 mock.module('../config/env', {
   namedExports: {
-    defaultEnv: createDefaultEnv(),
+    defaultEnv: { ...createDefaultEnv(), REPRO_API_URL: 'http://admin.test' },
   },
 })
 
@@ -60,6 +60,7 @@ describe('StaffLoginRoute', () => {
     )
     assert.match(html, /Email/)
     assert.match(html, /Password/)
+    assert.match(html, /Log in/)
     assert.match(html, /Continue with Google/)
   })
 
