@@ -9,6 +9,7 @@ import {
   readEngineLogLines,
   queueForStatus,
   removeQueueEntry,
+  requeueQueueEntry,
   loadConfigValues,
   shapeStatus,
   summarizeIssueStatus,
@@ -126,6 +127,7 @@ export function runAutobot(argv: string[]): void {
         "Subcommands:",
         "  add <issue> [--json] [--dry-run]",
         "  remove <issue> [-f] [--json] [--dry-run]",
+        "  requeue <issue> [--json] [--dry-run]",
         "  list [--json]",
         "  status [<issue>] [--json]",
         "  logs [<issue>] [-t] [--json]",
@@ -232,6 +234,25 @@ export function runAutobot(argv: string[]): void {
         print({ removed: true, issue_identifier: issue });
       } else {
         process.stdout.write(`removed queued item ${issue}\n`);
+      }
+      return;
+    }
+    case "requeue": {
+      const issue = rest.find((value) => !value.startsWith("-")) ?? "";
+      if (!issue) throw new Error("Missing issue identifier");
+      if (rest.includes("--dry-run")) {
+        if (json) {
+          print({ issue_identifier: issue, dry_run: true, requeued: false });
+        } else {
+          process.stdout.write(`Would requeue item ${issue}\n`);
+        }
+        return;
+      }
+      const item = requeueQueueEntry(issue);
+      if (json) {
+        print(publicItem(item));
+      } else {
+        process.stdout.write(`requeued item ${issue}\n`);
       }
       return;
     }

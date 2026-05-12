@@ -94,3 +94,44 @@ test("status renders aggregate and single-issue detail views", () => {
     restore();
   }
 });
+
+test("requeue command reports human and dry-run json outputs", () => {
+  const { restore } = withRepoRoot();
+  const writes: string[] = [];
+  const write = test.mock.method(
+    process.stdout,
+    "write",
+    (chunk: string | Uint8Array) => {
+      writes.push(String(chunk));
+      return true;
+    },
+  );
+
+  saveQueuePayload({
+    items: [
+      {
+        issue_identifier: "REP-4",
+        claim_state: "released",
+        workspace_path: "/tmp/workspaces/rep-4",
+        last_error: "boom",
+        retry_reason: "manual",
+      },
+    ],
+  });
+
+  try {
+    runAutobot(["node", "autobot", "requeue", "REP-4"]);
+    assert.equal(writes.join("").trim(), "requeued item REP-4");
+
+    writes.length = 0;
+    runAutobot(["node", "autobot", "requeue", "REP-5", "--dry-run", "--json"]);
+    assert.deepEqual(JSON.parse(writes.join("").trim()), {
+      issue_identifier: "REP-5",
+      dry_run: true,
+      requeued: false,
+    });
+  } finally {
+    write.mock.restore();
+    restore();
+  }
+});

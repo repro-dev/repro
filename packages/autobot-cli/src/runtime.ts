@@ -200,6 +200,12 @@ function issueWorkspacePath(issueIdentifier: string): string {
   );
 }
 
+function workspaceExists(workspacePath: string): boolean {
+  return (
+    fs.existsSync(workspacePath) && fs.statSync(workspacePath).isDirectory()
+  );
+}
+
 function discoverFromLinear(): string[] {
   const seen = new Set<string>();
   const ids: string[] = [];
@@ -736,15 +742,61 @@ export function ensureQueueEntry(
     return existing;
   }
 
+  const workspacePath = issueWorkspacePath(normalizedIssueIdentifier);
   const item = {
     issue_identifier: normalizedIssueIdentifier,
     claim_state: "queued",
-    workspace_path: issueWorkspacePath(normalizedIssueIdentifier),
+    workspace_path: workspacePath,
+    workspace_exists: workspaceExists(workspacePath),
     claimed_by: "autobot",
     updated_at: nowIso(),
     attempt_count: 0,
   };
   payload.items = [...items(payload), item];
+  saveQueuePayload(payload);
+  return item;
+}
+
+export function requeueQueueEntry(
+  issueIdentifier: string,
+): Record<string, unknown> {
+  const normalizedIssueIdentifier = validateIssueIdentifier(issueIdentifier);
+  const payload = loadQueuePayload();
+  const existingItems = items(payload);
+  const existing = existingItems.find(
+    (item) => taskId(item as never) === normalizedIssueIdentifier,
+  );
+  const workspacePath = String(
+    existing?.workspace_path ?? issueWorkspacePath(normalizedIssueIdentifier),
+  );
+
+  const {
+    last_error: _lastError,
+    retry_reason: _retryReason,
+    linear_sync_error: _linearSyncError,
+    conditions: _conditions,
+    wait_conditions: _waitConditions,
+    ...rest
+  } = existing ?? {};
+  const item = {
+    ...rest,
+    issue_identifier: normalizedIssueIdentifier,
+    claim_state: "queued",
+    workspace_path: workspacePath,
+    workspace_exists: workspaceExists(workspacePath),
+    claimed_by: "autobot",
+    updated_at: nowIso(),
+    attempt_count: 0,
+  };
+
+  if (!existing) {
+    payload.items = [...existingItems, item];
+  } else {
+    payload.items = existingItems.map((entry) =>
+      taskId(entry as never) === normalizedIssueIdentifier ? item : entry,
+    );
+  }
+
   saveQueuePayload(payload);
   return item;
 }
