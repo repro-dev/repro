@@ -14,9 +14,12 @@ import {
 import type {
   AutobotConfigItem,
   AutobotConfigValues,
+  AutobotIssueStatus,
   AutobotEngineStatus,
   AutobotPublicItem,
   AutobotPublicStatus,
+  AutobotPublicQueueSummary,
+  QueueSummary,
   QueuePayload,
 } from "./types";
 
@@ -39,6 +42,136 @@ const CONFIG_DESCRIPTIONS: Record<keyof AutobotConfigValues, string> = {
   "engine.max-concurrency": "Limit concurrent intake work.",
   "engine.tick-frequency": "Schedule foreground heartbeat ticks in seconds.",
 };
+
+interface EngineLogEvent {
+  kind:
+    | "tick"
+    | "task-start"
+    | "task-success"
+    | "task-failure"
+    | "task-skipped";
+  issue_identifier?: string;
+  action?: string;
+  outcome?: string;
+  state?: string;
+  next_state?: string | null;
+  reason?: string;
+  message?: string;
+  generated_at: string;
+}
+
+interface IssueMetadata {
+  issue_identifier: string;
+  issue_title?: string;
+  issue_priority?: string;
+  issue_assignee?: string;
+  issue_labels?: string[];
+}
+
+interface EngineCycleResult {
+  status: AutobotEngineStatus;
+  events: EngineLogEvent[];
+}
+
+function asMapping(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asString(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
+function asStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (typeof entry === "string") return entry.trim();
+      const item = asMapping(entry);
+      return asString(item.name ?? item.title ?? item.value);
+    })
+    .filter(Boolean);
+}
+
+function formatPriority(value: unknown): string | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `P${Math.trunc(value)}`;
+  }
+
+  const raw = asString(value);
+  if (!raw) return undefined;
+  if (/^p?[1-4]$/i.test(raw)) {
+    return `P${raw.replace(/^p/i, "")}`;
+  }
+  return raw;
+}
+
+function extractIssueMetadata(item: Record<string, unknown>): IssueMetadata {
+  const linear = asMapping(item.linear);
+  const linearIssue = asMapping(linear.issue);
+  const issue = asMapping(item.issue);
+  const assignee = asMapping(
+    linearIssue.assignee ?? linear.assignee ?? issue.assignee,
+  );
+
+  const labels = [
+    ...asStringList(linearIssue.labels),
+    ...asStringList(linear.labels),
+    ...asStringList(issue.labels),
+    ...asStringList(item.labels),
+  ];
+
+  return {
+    issue_identifier: asString(item.issue_identifier ?? item.identifier),
+    issue_title:
+      asString(
+        linearIssue.title ?? linear.title ?? issue.title ?? item.title,
+      ) || undefined,
+    issue_priority:
+      formatPriority(
+        linearIssue.priority ??
+          linear.priority ??
+          issue.priority ??
+          item.priority,
+      ) || undefined,
+    issue_assignee:
+      asString(
+        assignee.name ?? assignee.display_name ?? assignee.displayName,
+      ) || undefined,
+    issue_labels: labels.length > 0 ? [...new Set(labels)] : undefined,
+  };
+}
+
+function parseEngineLogLine(line: string): EngineLogEvent | null {
+  const message = line.replace(/^\S+ autobot-engine: /, "");
+  try {
+    const parsed = JSON.parse(message) as Partial<EngineLogEvent>;
+    if (!parsed.kind || !parsed.generated_at) return null;
+    return parsed as EngineLogEvent;
+  } catch {
+    return null;
+  }
+}
+
+function formatLogEvent(event: EngineLogEvent): string {
+  const detail = [
+    event.issue_identifier ? event.issue_identifier : null,
+    event.action ? event.action : null,
+    event.state ? event.state : null,
+    event.next_state ? `→${event.next_state}` : null,
+    event.reason ? `(${event.reason})` : null,
+    event.message ? event.message : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return `${event.generated_at} ${event.kind}${detail ? ` ${detail}` : ""}`;
+}
+
+function logPath(): string {
+  return engineLogPath();
+}
 
 export function repoRoot(): string {
   return String(process.env.REPO_ROOT ?? process.cwd());
@@ -257,9 +390,14 @@ export function publicState(claimStateValue: string): string {
 
 export function publicItem(item: Record<string, unknown>): AutobotPublicItem {
   const state = publicState(String(item.claim_state ?? ""));
+  const metadata = extractIssueMetadata(item);
 
   const publicItem: AutobotPublicItem = {
-    issue_identifier: String(item.issue_identifier ?? item.identifier ?? ""),
+    issue_identifier: metadata.issue_identifier,
+    issue_title: metadata.issue_title,
+    issue_priority: metadata.issue_priority,
+    issue_assignee: metadata.issue_assignee,
+    issue_labels: metadata.issue_labels,
     state,
     workspace_path: String(item.workspace_path ?? ""),
     queued_by: String(item.claimed_by ?? ""),
@@ -304,6 +442,12 @@ export function publicSummary(
   return counts;
 }
 
+function publicQueueSummary(summary: QueueSummary): AutobotPublicQueueSummary {
+  const { selected_issue_identifier, selected_state, ...publicSummaryValue } =
+    summary;
+  return publicSummaryValue;
+}
+
 function activeWorkItems(itemsList: AutobotPublicItem[]): AutobotPublicItem[] {
   return itemsList.filter((item) =>
     ["queued", "running", "needs_attention"].includes(item.state),
@@ -313,10 +457,13 @@ function activeWorkItems(itemsList: AutobotPublicItem[]): AutobotPublicItem[] {
 export function shapeStatus(
   payload: QueuePayload,
   issueIdentifier?: string,
+  includeAllItems = false,
 ): AutobotPublicStatus {
   const publicItems = items(payload).map(publicItem);
   const itemsForStatus = issueIdentifier
     ? publicItems.filter((item) => item.issue_identifier === issueIdentifier)
+    : includeAllItems
+    ? publicItems
     : publicItems.filter((item) =>
         ["queued", "running", "needs_attention"].includes(item.state),
       );
@@ -377,6 +524,22 @@ export function discoverIssueIds(payload: QueuePayload): string[] {
   }
 
   return ids;
+}
+
+export function discoverIssues(payload: QueuePayload): IssueMetadata[] {
+  const seen = new Set<string>();
+  const discovered: IssueMetadata[] = [];
+
+  for (const item of items(payload)) {
+    const metadata = extractIssueMetadata(item);
+    if (!metadata.issue_identifier || seen.has(metadata.issue_identifier)) {
+      continue;
+    }
+    seen.add(metadata.issue_identifier);
+    discovered.push(metadata);
+  }
+
+  return discovered;
 }
 
 export function loadQueuePayload(): QueuePayload {
@@ -585,9 +748,6 @@ export function shapeEngineStatus(
   const plan = processQueue(queuePayload);
   const publicItems = items(queuePayload).map(publicItem);
   const activeWork = activeWorkItems(publicItems);
-  const selected = plan.selected_work
-    ? publicItem(plan.selected_work as never)
-    : null;
   const running = fs.existsSync(enginePidPath());
   const pid = running
     ? Number(fs.readFileSync(enginePidPath(), "utf8").trim() || 0) || null
@@ -612,21 +772,13 @@ export function shapeEngineStatus(
     queue: {
       items: publicItems,
       active_work: activeWork,
-      selected_work: selected,
-      summary: plan.summary,
+      summary: publicQueueSummary(plan.summary),
     },
     generated_at: nowIso(),
   };
 }
 
 export function renderEngineStatusLines(status: AutobotEngineStatus): string[] {
-  const activeWorkLines = status.engine.active_work.map(
-    (item) =>
-      `  - ${item.issue_identifier} ${item.state} ${item.workspace_path}`,
-  );
-  const renderedActiveWorkLines =
-    activeWorkLines.length > 0 ? activeWorkLines : ["  - none"];
-
   return [
     "ENGINE",
     `  pid: ${status.engine.pid ?? "-"}`,
@@ -634,11 +786,14 @@ export function renderEngineStatusLines(status: AutobotEngineStatus): string[] {
     `  mode: ${status.engine.mode}`,
     `  active_work_count: ${status.engine.active_work.length}`,
     "  active_work:",
-    ...renderedActiveWorkLines,
-    `  selected_issue: ${
-      status.queue.summary.selected_issue_identifier || "-"
-    }`,
-    `  selected_state: ${status.queue.summary.selected_state || "-"}`,
+    ...(status.engine.active_work.length > 0
+      ? status.engine.active_work.map(
+          (item) =>
+            `  - ${item.issue_identifier} ${item.state} ${
+              item.issue_title ?? "-"
+            }`,
+        )
+      : ["  - none"]),
     "QUEUE",
     `  total: ${status.queue.summary.total}`,
     `  claimed: ${status.queue.summary.claimed}`,
@@ -664,6 +819,227 @@ function engineTickIntervalMs(): number {
   return loadConfigValues()["engine.tick-frequency"] * 1000;
 }
 
+function effectOutcomeMessage(
+  kind: EngineLogEvent["kind"],
+  issueIdentifier: string,
+  reason: string,
+  nextState: string | null,
+): string {
+  switch (kind) {
+    case "task-success":
+      return `${issueIdentifier} advanced to ${
+        nextState ?? "unchanged"
+      } (${reason})`;
+    case "task-failure":
+      return `${issueIdentifier} failed (${reason})`;
+    case "task-skipped":
+      return `${issueIdentifier} skipped (${reason})`;
+    default:
+      return `${issueIdentifier} processed (${reason})`;
+  }
+}
+
+function applyEffectToItem(
+  item: Record<string, unknown>,
+  effect: Record<string, unknown>,
+): Record<string, unknown> {
+  const next = { ...item };
+  const kind = String(effect.kind ?? "");
+  const reason = String(effect.reason ?? "");
+
+  next.updated_at = nowIso();
+
+  switch (kind) {
+    case "prepare":
+      next.claim_state = "claimed";
+      next.claimed_by = String(
+        effect.claimedBy ?? next.claimed_by ?? "autobot",
+      );
+      return next;
+    case "process-work":
+      next.claim_state = "running";
+      next.attempt_count = Number(next.attempt_count ?? 0) + 1;
+      return next;
+    case "recover": {
+      const action = String(effect.action ?? "continue");
+      switch (action) {
+        case "release":
+          next.claim_state = "released";
+          break;
+        case "reconcile":
+          next.claim_state = "reconciling";
+          break;
+        case "cancel":
+          next.claim_state = "canceled";
+          break;
+        case "retry":
+          next.claim_state = "queued";
+          next.attempt_count = Number(next.attempt_count ?? 0) + 1;
+          break;
+        case "stop":
+        case "continue":
+        default:
+          break;
+      }
+
+      if (reason) {
+        next.retry_reason = reason;
+      }
+      return next;
+    }
+    default:
+      return next;
+  }
+}
+
+function executeEffect(
+  item: Record<string, unknown>,
+  plan: ReturnType<typeof processQueue>["items"][number],
+): { event: EngineLogEvent; nextItem: Record<string, unknown> } {
+  const effect = plan.decision.effects[0] ?? {
+    kind: "noop",
+    issueIdentifier: plan.item.issue_identifier,
+    reason: "no-effect",
+  };
+  const effectReason =
+    "reason" in effect
+      ? String((effect as { reason?: unknown }).reason ?? "")
+      : "";
+  const issueIdentifier =
+    plan.item.issue_identifier || taskId(plan.item as never);
+  const currentState = String(item.claim_state ?? "");
+
+  if (effect.kind === "noop") {
+    return {
+      event: {
+        kind: "task-skipped",
+        issue_identifier: issueIdentifier,
+        action: effect.kind,
+        outcome: "skipped",
+        state: currentState,
+        next_state: currentState,
+        reason: effectReason,
+        message: effectOutcomeMessage(
+          "task-skipped",
+          issueIdentifier,
+          effectReason,
+          currentState,
+        ),
+        generated_at: nowIso(),
+      },
+      nextItem: { ...item, updated_at: nowIso() },
+    };
+  }
+
+  if (
+    (effect.kind === "prepare" || effect.kind === "process-work") &&
+    !String((item as Record<string, unknown>).workspace_path ?? "").trim()
+  ) {
+    return {
+      event: {
+        kind: "task-failure",
+        issue_identifier: issueIdentifier,
+        action: effect.kind,
+        outcome: "failed",
+        state: currentState,
+        next_state: currentState,
+        reason: "missing-workspace",
+        message: effectOutcomeMessage(
+          "task-failure",
+          issueIdentifier,
+          "missing-workspace",
+          currentState,
+        ),
+        generated_at: nowIso(),
+      },
+      nextItem: {
+        ...item,
+        updated_at: nowIso(),
+        last_error: "missing-workspace",
+        retry_reason: "missing-workspace",
+      },
+    };
+  }
+
+  const nextItem = applyEffectToItem(item, effect as Record<string, unknown>);
+  const nextState = String(nextItem.claim_state ?? currentState);
+
+  return {
+    event: {
+      kind:
+        effect.kind === "recover" &&
+        ["retry", "reconcile"].includes(String(effect.action ?? ""))
+          ? "task-success"
+          : "task-success",
+      issue_identifier: issueIdentifier,
+      action: String(effect.kind),
+      outcome: "succeeded",
+      state: currentState,
+      next_state: nextState,
+      reason: effectReason || "processed",
+      message: effectOutcomeMessage(
+        "task-success",
+        issueIdentifier,
+        effectReason || "processed",
+        nextState,
+      ),
+      generated_at: nowIso(),
+    },
+    nextItem,
+  };
+}
+
+function persistQueuePlan(
+  plan: ReturnType<typeof processQueue>,
+): EngineLogEvent[] {
+  const payload = loadQueuePayload();
+  const currentItems = items(payload);
+  const itemById = new Map<string, Record<string, unknown>>(
+    currentItems.map((item) => [taskId(item as never), { ...item }]),
+  );
+  const events: EngineLogEvent[] = [];
+
+  for (const planItem of plan.items) {
+    const issueIdentifier = taskId(planItem.item as never);
+    const current = itemById.get(issueIdentifier);
+    if (!current) continue;
+
+    const startEvent: EngineLogEvent = {
+      kind: "task-start",
+      issue_identifier: issueIdentifier,
+      action: String(planItem.decision.effects[0]?.kind ?? "noop"),
+      state: String(current.claim_state ?? ""),
+      reason: planItem.decision.reason,
+      message: `${issueIdentifier} started ${String(
+        planItem.decision.effects[0]?.kind ?? "noop",
+      )}`,
+      generated_at: nowIso(),
+    };
+    events.push(startEvent);
+    writeEngineLog(JSON.stringify(startEvent));
+
+    const { event, nextItem } = executeEffect(current, planItem as never);
+    itemById.set(issueIdentifier, nextItem);
+    events.push(event);
+    writeEngineLog(JSON.stringify(event));
+  }
+
+  payload.items = [...itemById.values()];
+  payload.generated_at = nowIso();
+  saveQueuePayload(payload);
+  return events;
+}
+
+export function runEngineCycle(
+  mode: "foreground" | "daemon",
+): EngineCycleResult {
+  const plan = processQueue(loadQueuePayload());
+  const events = persistQueuePlan(plan);
+  const status = shapeEngineStatus(mode);
+  saveEngineStatus(status);
+  return { status, events };
+}
+
 export function emitEngineTick(status: AutobotEngineStatus): void {
   const event = renderEngineTickEvent(status);
   const line = `${JSON.stringify(event)}\n`;
@@ -685,7 +1061,7 @@ export function startEngine(
 ): AutobotEngineStatus {
   ensureDirs();
   fs.writeFileSync(enginePidPath(), `${process.pid}\n`);
-  const status = shapeEngineStatus(mode);
+  const status = once ? runEngineCycle(mode).status : shapeEngineStatus(mode);
   status.engine.running = true;
   saveEngineStatus(status);
   writeEngineLog(`started ${mode}${once ? " once" : ""}`);
@@ -696,9 +1072,9 @@ export function holdEngineLoop(
   mode: "foreground" | "daemon",
   intervalMs = engineTickIntervalMs(),
 ): () => void {
-  emitEngineTick(shapeEngineStatus(mode));
+  emitEngineTick(runEngineCycle(mode).status);
   const heartbeat = setInterval(() => {
-    emitEngineTick(shapeEngineStatus(mode));
+    emitEngineTick(runEngineCycle(mode).status);
   }, intervalMs);
 
   const stop = (): void => {
@@ -726,12 +1102,41 @@ export function summarizeLogBundle(): Record<string, unknown> {
   const engineLines = fs.existsSync(engineLogPath())
     ? fs.readFileSync(engineLogPath(), "utf8").split(/\r?\n/).filter(Boolean)
     : [];
+  const parsed = engineLines
+    .map(parseEngineLogLine)
+    .filter((value): value is EngineLogEvent => value !== null)
+    .map(formatLogEvent);
   return {
     engine: {
-      path: engineLogPath(),
-      lines: engineLines,
+      path: logPath(),
+      lines: parsed,
     },
     issues: [],
+  };
+}
+
+export function summarizeIssueStatus(
+  issueIdentifier: string,
+): AutobotIssueStatus {
+  const payload = queueForStatus();
+  const item = items(payload)
+    .map(publicItem)
+    .find((entry) => entry.issue_identifier === issueIdentifier);
+  const lines = fs.existsSync(engineLogPath())
+    ? fs.readFileSync(engineLogPath(), "utf8").split(/\r?\n/).filter(Boolean)
+    : [];
+  const history = lines
+    .map((line) => parseEngineLogLine(line))
+    .filter((entry): entry is EngineLogEvent => entry !== null)
+    .filter((entry) => entry.issue_identifier === issueIdentifier)
+    .map(formatLogEvent);
+
+  return {
+    schema_version: SCHEMA_VERSION,
+    generated_at: nowIso(),
+    issue: item ?? null,
+    history,
+    logs: history,
   };
 }
 

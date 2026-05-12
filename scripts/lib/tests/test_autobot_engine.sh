@@ -54,7 +54,7 @@ db.prepare('INSERT INTO state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPD
 db.close()
 NODE
   output="$(TEST_TMPDIR="$tmpdir" REPO_ROOT="$tmpdir/repro" bash -lc 'source "$1/lib/autobot-engine.sh"; cmd_autobot_engine start --once; cmd_autobot_engine status --json; cmd_autobot_engine stop --json' _ "$SCRIPTS_DIR" 2>&1)" || rc=$?
-  if [ $rc -eq 0 ] && [ -f "$tmpdir/repro/.autobot/state.sqlite" ] && printf '%s\n' "$output" | grep -q '"current_issue":"REP-1094"' && printf '%s\n' "$output" | grep -q '"running":true' && printf '%s\n' "$output" | grep -q '"running":false'; then
+  if [ $rc -eq 0 ] && [ -f "$tmpdir/repro/.autobot/state.sqlite" ] && printf '%s\n' "$output" | grep -q '"active_work"' && printf '%s\n' "$output" | grep -q '"REP-1094"' && printf '%s\n' "$output" | grep -q '"running":true' && printf '%s\n' "$output" | grep -q '"running":false' && ! printf '%s\n' "$output" | grep -q 'selected_issue_identifier'; then
     _pass 'cmd_autobot_engine start/status/stop stay in sync'
   else
     _fail 'cmd_autobot_engine start/status/stop stay in sync' "rc=$rc; output=$output"

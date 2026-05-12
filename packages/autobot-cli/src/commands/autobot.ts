@@ -1,4 +1,5 @@
 import {
+  discoverIssues,
   discoverIssueIds,
   configPath,
   ensureQueueEntry,
@@ -10,6 +11,7 @@ import {
   loadConfigValues,
   shapeStatus,
   summarizeLogBundle,
+  summarizeIssueStatus,
   unsetConfigValue,
   setConfigValue,
 } from "../runtime";
@@ -33,6 +35,83 @@ function print(value: unknown): void {
 
 function printHuman(lines: string[]): void {
   process.stdout.write(`${lines.join("\n")}\n`);
+}
+
+function isQuiet(rest: string[]): boolean {
+  return (
+    rest.includes("-q") ||
+    rest.includes("--quiet") ||
+    process.env.REPROCTL_QUIET === "true"
+  );
+}
+
+function renderStatusHeader(): string {
+  return "ID | STATE | TITLE | PRIORITY | ASSIGNEE | LABELS | WORKSPACE";
+}
+
+function renderDiscoverHeader(): string {
+  return "ID | TITLE | PRIORITY | ASSIGNEE | LABELS";
+}
+
+function renderDiscoverRow(item: {
+  issue_identifier: string;
+  issue_title?: string;
+  issue_priority?: string;
+  issue_assignee?: string;
+  issue_labels?: string[];
+}): string {
+  return [
+    item.issue_identifier,
+    item.issue_title ?? "-",
+    item.issue_priority ?? "-",
+    item.issue_assignee ?? "-",
+    (item.issue_labels ?? []).join(", ") || "-",
+  ].join(" | ");
+}
+
+function renderStatusRows(
+  items: Array<ReturnType<typeof shapeStatus>["items"][number]>,
+): string[] {
+  return items.map((item) =>
+    [
+      item.issue_identifier,
+      item.state,
+      item.issue_title ?? "-",
+      item.issue_priority ?? "-",
+      item.issue_assignee ?? "-",
+      (item.issue_labels ?? []).join(", ") || "-",
+      item.workspace_path || "-",
+    ].join(" | "),
+  );
+}
+
+function renderIssueDetail(
+  issue: ReturnType<typeof summarizeIssueStatus>,
+): string[] {
+  if (!issue.issue) {
+    return ["STATUS", "  - not found"];
+  }
+
+  return [
+    `STATUS ${issue.issue.issue_identifier}`,
+    "DETAIL",
+    `  state: ${issue.issue.state}`,
+    `  title: ${issue.issue.issue_title ?? "-"}`,
+    `  priority: ${issue.issue.issue_priority ?? "-"}`,
+    `  assignee: ${issue.issue.issue_assignee ?? "-"}`,
+    `  labels: ${(issue.issue.issue_labels ?? []).join(", ") || "-"}`,
+    `  workspace: ${issue.issue.workspace_path || "-"}`,
+    `  updated: ${issue.issue.updated_at || "-"}`,
+    `  attempts: ${issue.issue.attempt_count}`,
+    "HISTORY",
+    ...(issue.history.length > 0
+      ? issue.history.map((line) => `  - ${line}`)
+      : ["  - none"]),
+    "LOGS",
+    ...(issue.logs.length > 0
+      ? issue.logs.map((line) => `  - ${line}`)
+      : ["  - none"]),
+  ];
 }
 
 export function runAutobot(argv: string[]): void {
@@ -160,47 +239,67 @@ export function runAutobot(argv: string[]): void {
       return;
     }
     case "list": {
-      const status = shapeStatus(queueForStatus());
+      const status = shapeStatus(queueForStatus(), undefined, true);
       if (json) {
         print(status);
       } else {
         printHuman([
           "QUEUE",
-          `  total: ${status.summary.total}`,
-          `  queued: ${status.summary.queued}`,
-          `  running: ${status.summary.running}`,
-          `  attention: ${status.summary.needs_attention}`,
-          ...status.items.map((item) =>
-            `  ${item.issue_identifier} ${item.state} ${item.workspace_path}`.trimEnd(),
-          ),
+          renderStatusHeader(),
+          ...renderStatusRows(status.items),
         ]);
       }
       return;
     }
     case "status": {
       const issue = rest.find((value) => !value.startsWith("-"));
-      const status = shapeStatus(queueForStatus(), issue);
+      if (issue) {
+        const detail = summarizeIssueStatus(issue);
+        if (json) {
+          print(detail);
+        } else {
+          printHuman(renderIssueDetail(detail));
+        }
+        return;
+      }
+
+      const status = shapeStatus(queueForStatus());
       if (json) {
         print(status);
       } else {
         printHuman([
-          "QUEUE",
-          `  total: ${status.summary.total}`,
-          `  queued: ${status.summary.queued}`,
-          `  running: ${status.summary.running}`,
-          `  attention: ${status.summary.needs_attention}`,
-          ...status.items.map(
-            (item) => `  ${item.issue_identifier} ${item.state}`,
-          ),
+          "STATUS",
+          renderStatusHeader(),
+          ...renderStatusRows(status.items),
         ]);
       }
       return;
     }
     case "logs": {
+      const issue = rest.find((value) => !value.startsWith("-"));
+      if (issue) {
+        const detail = summarizeIssueStatus(issue);
+        if (json) {
+          print(detail);
+        } else {
+          printHuman([
+            `LOGS ${issue}`,
+            ...(detail.logs.length > 0
+              ? detail.logs.map((line) => `  - ${line}`)
+              : ["  - none"]),
+          ]);
+        }
+        return;
+      }
+
       if (json) {
         print(summarizeLogBundle());
       } else {
-        process.stdout.write("no logs yet\n");
+        const bundle = summarizeLogBundle();
+        const lines = (bundle.engine as { lines?: string[] }).lines ?? [];
+        process.stdout.write(
+          `${lines.length > 0 ? lines.join("\n") : "no logs yet"}\n`,
+        );
       }
       return;
     }
@@ -210,10 +309,17 @@ export function runAutobot(argv: string[]): void {
         limitIndex >= 0
           ? Number.parseInt(rest[limitIndex + 1] ?? "10", 10)
           : 10;
-      const ids = discoverIssueIds(queueForStatus()).slice(
+      const quiet = isQuiet(rest);
+      const discovered = discoverIssues(queueForStatus()).slice(
         0,
         Number.isFinite(limit) ? limit : 10,
       );
+      const records =
+        discovered.length > 0
+          ? discovered
+          : discoverIssueIds(queueForStatus())
+              .slice(0, Number.isFinite(limit) ? limit : 10)
+              .map((issue_identifier) => ({ issue_identifier }));
       if (json) {
         print({
           schema_version: 1,
@@ -222,11 +328,21 @@ export function runAutobot(argv: string[]): void {
             config_path: configPath(),
             values: loadConfigValues(),
           },
-          items: ids.map((issue_identifier) => ({ issue_identifier })),
+          items: records,
           generated_at: new Date().toISOString(),
         });
       } else {
-        process.stdout.write(`${ids.join("\n")}\n`);
+        if (quiet) {
+          process.stdout.write(
+            `${records.map((item) => item.issue_identifier).join("\n")}\n`,
+          );
+        } else {
+          printHuman([
+            "DISCOVER",
+            renderDiscoverHeader(),
+            ...records.map((item) => renderDiscoverRow(item)),
+          ]);
+        }
       }
       return;
     }

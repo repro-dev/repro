@@ -15,7 +15,7 @@ import {
 } from "../runtime";
 import { runAutobotEngine } from "../commands/autobot-engine";
 
-test("engine status uses the same selected work as queue planning", () => {
+test("engine status keeps parallel active work only", () => {
   const mainCheckout = path.resolve(process.cwd(), "../..");
   const tmpRoot = path.join(mainCheckout, "tmp");
   fs.mkdirSync(tmpRoot, { recursive: true });
@@ -42,14 +42,13 @@ test("engine status uses the same selected work as queue planning", () => {
     });
 
     const status = shapeEngineStatus("foreground");
-    assert.equal(status.queue.selected_work?.issue_identifier, "REP-1");
     assert.deepEqual(
       status.engine.active_work.map((item) => item.issue_identifier),
       ["REP-2", "REP-1"],
     );
-    assert.equal("current_issue" in status.engine, false);
-    assert.equal("current_phase" in status.engine, false);
-    assert.equal("current_attempt" in status.engine, false);
+    assert.equal("selected_work" in status.queue, false);
+    assert.equal("selected_issue_identifier" in status.queue.summary, false);
+    assert.equal("selected_state" in status.queue.summary, false);
     assert.equal(fs.existsSync(stateDbPath()), true);
 
     const db = new DatabaseSync(stateDbPath(), { readOnly: true });
@@ -173,9 +172,6 @@ test("status defaults to human output and start emits a tick event", () => {
     runAutobotEngine(["node", "autobot-engine", "status"]);
     assert.equal(writes.join("").startsWith("ENGINE\n"), true);
     assert.equal(writes.join("").includes("active_work_count: 2"), true);
-    assert.equal(writes.join("").includes("current_issue"), false);
-    assert.equal(writes.join("").includes("current_phase"), false);
-    assert.equal(writes.join("").includes("current_attempt"), false);
     assert.equal(writes.join("").includes("REP-2"), true);
     assert.equal(writes.join("").includes("REP-1"), true);
     assert.equal(writes.join("").includes('"schema_version"'), false);
@@ -200,30 +196,6 @@ test("status defaults to human output and start emits a tick event", () => {
       lines.some((line) => line.kind === "tick"),
       true,
     );
-    assert.equal(
-      "current_issue" in
-        (lines.find((line) => line.kind === "tick")?.engine as Record<
-          string,
-          unknown
-        >),
-      false,
-    );
-    assert.equal(
-      "current_phase" in
-        (lines.find((line) => line.kind === "tick")?.engine as Record<
-          string,
-          unknown
-        >),
-      false,
-    );
-    assert.equal(
-      "current_attempt" in
-        (lines.find((line) => line.kind === "tick")?.engine as Record<
-          string,
-          unknown
-        >),
-      false,
-    );
     assert.deepEqual(
       (
         (
@@ -238,17 +210,15 @@ test("status defaults to human output and start emits a tick event", () => {
     );
     assert.deepEqual(lines.find((line) => line.kind === "tick")?.queue, {
       total: 2,
-      claimed: 0,
-      running: 1,
+      claimed: 1,
+      running: 0,
       reconciling: 0,
       recovery: 0,
       terminal: 0,
       by_state: {
+        claimed: 1,
         queued: 1,
-        running: 1,
       },
-      selected_issue_identifier: "REP-1",
-      selected_state: "queued",
       allow_recovery: true,
     });
     assert.equal(

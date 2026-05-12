@@ -42,6 +42,10 @@ export interface AutobotConfigResult<T> {
 
 export interface AutobotPublicItem {
   issue_identifier: string;
+  issue_title?: string;
+  issue_priority?: string;
+  issue_assignee?: string;
+  issue_labels?: string[];
   state: string;
   workspace_path: string;
   queued_by: string;
@@ -68,6 +72,19 @@ export interface AutobotPublicStatus {
   generated_at: string;
 }
 
+export interface AutobotIssueStatus {
+  schema_version: number;
+  generated_at: string;
+  issue: AutobotPublicItem | null;
+  history: string[];
+  logs: string[];
+}
+
+export type AutobotPublicQueueSummary = Omit<
+  QueueSummary,
+  "selected_issue_identifier" | "selected_state"
+>;
+
 export interface AutobotEngineStatus {
   schema_version: number;
   config: Record<string, unknown>;
@@ -86,9 +103,8 @@ export interface AutobotEngineStatus {
   };
   queue: {
     items: AutobotPublicItem[];
-    selected_work: AutobotPublicItem | null;
     active_work: AutobotPublicItem[];
-    summary: QueueSummary;
+    summary: AutobotPublicQueueSummary;
   };
   generated_at: string;
 }
