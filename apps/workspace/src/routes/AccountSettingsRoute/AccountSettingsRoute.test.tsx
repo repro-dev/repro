@@ -135,7 +135,9 @@ describe('AccountSettingsRoute', () => {
         /Projects\s*1/
       )
       assert.ok(
-        screen.getByText(/account deactivation is not currently supported/i)
+        screen.getByText(
+          /account retiring and deactivation help is handled by support/i
+        )
       )
     })
   })
