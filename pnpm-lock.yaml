@@ -1550,6 +1550,19 @@ importers:
         version: 5.7.3
 
   packages/autobot-cli:
+    dependencies:
+      '@repro/autobot-core':
+        specifier: workspace:*
+        version: link:../autobot-core
+      commander:
+        specifier: ^12.1.0
+        version: 12.1.0
+      fluture:
+        specifier: ^14.0.0
+        version: 14.0.0
+      serialize-error:
+        specifier: ^11.0.3
+        version: 11.0.3
     devDependencies:
       '@types/node':
         specifier: 22.14.0
@@ -1560,6 +1573,9 @@ importers:
       prettier-plugin-organize-imports:
         specifier: ^3.2.3
         version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
       typescript:
         specifier: 5.7.3
         version: 5.7.3
@@ -6324,6 +6340,10 @@ packages:
 
   comma-separated-tokens@2.0.3:
     resolution: {integrity: sha512-Fu4hJdvzeylCfQPp9SGWidpzrMs7tTrlu6Vb8XGaRGck8QSNZJJp538Wrb60Lax4fPwR64ViY468OIUTbRlGZg==}
+
+  commander@12.1.0:
+    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
+    engines: {node: '>=18'}
 
   commander@14.0.3:
     resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
@@ -13834,6 +13854,8 @@ snapshots:
       delayed-stream: 1.0.0
 
   comma-separated-tokens@2.0.3: {}
+
+  commander@12.1.0: {}
 
   commander@14.0.3: {}
 
