@@ -12,3 +12,6 @@ gitBranchLockfile: true
 # pnpm-lock.yaml automatically during `pnpm install`.
 mergeGitBranchLockfilesBranchPattern:
   - main
+
+onlyBuiltDependencies:
+  - better-sqlite3

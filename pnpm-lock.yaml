@@ -1616,7 +1616,23 @@ importers:
         version: 5.7.3
 
   packages/autobot-store:
+    dependencies:
+      '@repro/autobot-core':
+        specifier: workspace:*
+        version: link:../autobot-core
+      better-sqlite3:
+        specifier: ^11.7.2
+        version: 11.7.2
+      fluture:
+        specifier: ^14.0.0
+        version: 14.0.0
+      kysely:
+        specifier: ^0.27.2
+        version: 0.27.2
     devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.8
+        version: 7.6.8
       '@types/node':
         specifier: 22.14.0
         version: 22.14.0
@@ -1626,6 +1642,9 @@ importers:
       prettier-plugin-organize-imports:
         specifier: ^3.2.3
         version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
       typescript:
         specifier: 5.7.3
         version: 5.7.3
@@ -8586,6 +8605,7 @@ packages:
   prebuild-install@7.1.2:
     resolution: {integrity: sha512-UnNke3IQb6sgarcZIDU3gbMeTp/9SSU1DAIkil7PrqG1vZlBtY5msYccSKSHDqa3hNg436IXK+SNImReuA1wEQ==}
     engines: {node: '>=10'}
+    deprecated: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
     hasBin: true
 
   prelude-ls@1.2.1:
