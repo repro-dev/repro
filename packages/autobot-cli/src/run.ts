@@ -60,6 +60,10 @@ function buildCommand(commandPath: readonly string[]): string {
   return ["autobot-next", ...commandPath].join(" ");
 }
 
+function shouldShowHelp(args: readonly string[]): boolean {
+  return args.some((arg) => arg === "--help" || arg === "-h");
+}
+
 function extractCanonicalCommandPath(
   args: readonly string[],
   program = createAutobotProgram(),
@@ -163,6 +167,8 @@ export function runAutobotCli(
     void reject;
     let invocation: AutobotInvocation | null = null;
     const args = argv.slice(2);
+    const helpRequested = shouldShowHelp(args);
+    const bareCommand = args.length === 0;
     const program = createAutobotProgram({
       onInvocation(nextInvocation) {
         invocation = nextInvocation;
@@ -179,6 +185,12 @@ export function runAutobotCli(
     try {
       program.parse(args, { from: "user" });
     } catch (error) {
+      if (helpRequested || (bareCommand && !argv.includes("--json"))) {
+        io.stdout.write(`${program.helpInformation()}\n`);
+        resolve(autobotExitCodes.ok);
+        return () => undefined;
+      }
+
       const commandPath = extractCanonicalCommandPath(args);
       const command = buildCommand(commandPath);
       const usageError = createUsageError({
@@ -201,6 +213,12 @@ export function runAutobotCli(
     }
 
     if (invocation === null) {
+      if (helpRequested || (bareCommand && !argv.includes("--json"))) {
+        io.stdout.write(`${program.helpInformation()}\n`);
+        resolve(autobotExitCodes.ok);
+        return () => undefined;
+      }
+
       if (argv.includes("--json")) {
         const command = buildCommand(extractCanonicalCommandPath(args));
         const usageError = createUsageError({ command });

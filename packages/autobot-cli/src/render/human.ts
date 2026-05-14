@@ -1,9 +1,10 @@
-import type {
-  ConfigEntry,
-  EngineStatus,
-  ItemDetail,
-  ItemSummary,
-  ItemState,
+import {
+  isTerminalState,
+  type ConfigEntry,
+  type EngineStatus,
+  type ItemDetail,
+  type ItemSummary,
+  type ItemState,
 } from "@repro/autobot-core";
 
 import { createTextTheme, indentLines } from "./text";
@@ -25,6 +26,10 @@ function renderCommonFields(item: ItemSummary, color: boolean): string[] {
 }
 
 function renderNext(item: ItemDetail): string[] {
+  if (isTerminalState(item.state)) {
+    return [];
+  }
+
   const next =
     item.recovery_commands.length > 0
       ? item.recovery_commands
@@ -32,11 +37,15 @@ function renderNext(item: ItemDetail): string[] {
   return ["Next:", ...next];
 }
 
+function renderConfigValue(value: string | number | boolean): string {
+  return value === "" ? "(unset)" : String(value);
+}
+
 function renderConfigEntry(entry: ConfigEntry): string[] {
   return [
-    `${entry.key}: ${String(entry.value)}`,
+    `${entry.key}: ${renderConfigValue(entry.value)}`,
     `  source: ${entry.source}`,
-    `  default: ${String(entry.default_value)}`,
+    `  default: ${renderConfigValue(entry.default_value)}`,
     `  description: ${entry.description}`,
   ];
 }
@@ -174,8 +183,8 @@ export function renderAutobotConfigMutation(input: {
     `Config ${input.action}: ${input.next.key}`,
     `Changed: ${input.changed ? "yes" : "no"}`,
     `Dry run: ${input.dry_run ? "yes" : "no"}`,
-    `Previous: ${String(input.previous.value)}`,
-    `Next: ${String(input.next.value)}`,
+    `Previous: ${renderConfigValue(input.previous.value)}`,
+    `Next: ${renderConfigValue(input.next.value)}`,
     `Events: ${input.events.length}`,
   ];
 
