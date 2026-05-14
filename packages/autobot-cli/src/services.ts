@@ -1,14 +1,18 @@
+import { reject, type FutureInstance } from "fluture";
+
 import { createNotImplementedError } from "./errors";
 import type { AutobotCommandResult, AutobotInvocation } from "./types";
 
 export interface AutobotServices {
-  handleInvocation(invocation: AutobotInvocation): AutobotCommandResult;
+  handleInvocation(
+    invocation: AutobotInvocation,
+  ): FutureInstance<unknown, AutobotCommandResult>;
 }
 
 export function createAutobotServices(): AutobotServices {
   return {
     handleInvocation(invocation: AutobotInvocation) {
-      throw createNotImplementedError(invocation.command);
+      return reject(createNotImplementedError(invocation.command));
     },
   };
 }

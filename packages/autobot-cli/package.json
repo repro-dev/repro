@@ -19,8 +19,9 @@
     "typescript": "overridden"
   },
   "dependencies": {
-    "commander": "^12.1.0",
     "@repro/autobot-core": "workspace:*",
+    "commander": "^12.1.0",
+    "fluture": "^14.0.0",
     "serialize-error": "^11.0.3"
   }
 }

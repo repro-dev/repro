@@ -1,5 +1,3 @@
-import { serializeError } from "serialize-error";
-
 import type { ErrorPayload } from "@repro/autobot-core";
 
 export const autobotExitCodes = {
@@ -60,9 +58,7 @@ export function createUsageError(input: {
     what_failed: input.what_failed ?? "command parsing",
     likely_cause:
       input.likely_cause ?? "the command usage did not match the parser tree",
-    recovery_commands: input.recovery_commands ?? [
-      `autobot-next ${input.command} --help`,
-    ],
+    recovery_commands: input.recovery_commands ?? [`${input.command} --help`],
     details: input.details ?? null,
     exit_code: autobotExitCodes.usage,
   });
@@ -85,20 +81,9 @@ export function toErrorPayload(error: unknown): ErrorPayload {
     return error.toErrorPayload();
   }
 
-  const serialized = serializeError(error) as {
-    message?: string;
-  };
-
-  const message =
-    typeof serialized.message === "string"
-      ? serialized.message
-      : error instanceof Error
-      ? error.message
-      : "Unexpected Autobot CLI error";
-
   return {
     code: "AUTOBOT-UNEXPECTED-ERROR",
-    message,
+    message: "Unexpected Autobot CLI error",
     what_failed: "CLI execution",
     likely_cause: "an unhandled error escaped the command handler",
     recovery_commands: ["autobot-next --help"],

@@ -1,4 +1,5 @@
 import type { RepoRef } from "@repro/autobot-core";
+import { Future, fork, type FutureInstance } from "fluture";
 
 import {
   AutobotCliError,
@@ -6,7 +7,11 @@ import {
   createUsageError,
   toErrorPayload,
 } from "./errors";
-import { renderAutobotError } from "./render/human";
+import {
+  renderAutobotError,
+  renderAutobotItemDetail,
+  renderAutobotItemSummary,
+} from "./render/human";
 import {
   renderJsonErrorEnvelope,
   renderJsonSuccessEnvelope,
@@ -65,10 +70,6 @@ function extractCanonicalCommandPath(
     const next = current.commands.find((command) => command.name() === token);
 
     if (next === undefined) {
-      if (path.length === 0) {
-        path.push(token);
-      }
-
       break;
     }
 
@@ -96,93 +97,149 @@ function renderSuccess(
     return;
   }
 
-  io.stdout.write(`${result.human}\n`);
+  switch (result.kind) {
+    case "item-detail":
+      io.stdout.write(
+        `${renderAutobotItemDetail(result.data, {
+          color: io.isTTY === true,
+        })}\n`,
+      );
+      return;
+    case "item-summary":
+      io.stdout.write(
+        `${renderAutobotItemSummary(result.data, {
+          color: io.isTTY === true,
+        })}\n`,
+      );
+      return;
+  }
 }
 
 export function runAutobotCli(
   argv: string[] = process.argv,
   io: AutobotCliIO = process,
   services: AutobotServices = createAutobotServices(),
-): number {
-  let invocation: AutobotInvocation | null = null;
-  const args = argv.slice(2);
-  const program = createAutobotProgram({
-    onInvocation(nextInvocation) {
-      invocation = nextInvocation;
-    },
-  });
-
-  program.exitOverride();
-  program.configureOutput({
-    writeOut: () => undefined,
-    writeErr: () => undefined,
-    outputError: () => undefined,
-  });
-
-  try {
-    program.parse(args, { from: "user" });
-  } catch (error) {
-    const commandPath = extractCanonicalCommandPath(args);
-    const command = buildCommand(commandPath);
-    const usageError = createUsageError({
-      command: commandPath.join(" "),
-      message:
-        error instanceof Error && error.message.length > 0
-          ? error.message
-          : "Invalid command usage",
+): FutureInstance<unknown, number> {
+  return Future((reject, resolve) => {
+    void reject;
+    let invocation: AutobotInvocation | null = null;
+    const args = argv.slice(2);
+    const program = createAutobotProgram({
+      onInvocation(nextInvocation) {
+        invocation = nextInvocation;
+      },
     });
 
-    if (argv.includes("--json")) {
-      io.stdout.write(
-        renderJsonErrorEnvelope({
-          command,
-          error: usageError.toErrorPayload(),
-        }),
-      );
-    } else {
-      io.stderr.write(`${renderAutobotError(usageError.toErrorPayload())}\n`);
+    program.exitOverride();
+    program.configureOutput({
+      writeOut: () => undefined,
+      writeErr: () => undefined,
+      outputError: () => undefined,
+    });
+
+    try {
+      program.parse(args, { from: "user" });
+    } catch (error) {
+      const commandPath = extractCanonicalCommandPath(args);
+      const command = buildCommand(commandPath);
+      const usageError = createUsageError({
+        command,
+        message:
+          error instanceof Error && error.message.length > 0
+            ? error.message
+            : "Invalid command usage",
+      });
+
+      if (argv.includes("--json")) {
+        io.stdout.write(
+          renderJsonErrorEnvelope({
+            command,
+            error: usageError.toErrorPayload(),
+          }),
+        );
+      } else {
+        io.stderr.write(`${renderAutobotError(usageError.toErrorPayload())}\n`);
+      }
+
+      resolve(usageError.exit_code);
+      return () => undefined;
     }
 
-    return usageError.exit_code;
-  }
-
-  if (invocation === null) {
-    return autobotExitCodes.ok;
-  }
-
-  const parsedInvocation = invocation as AutobotInvocation;
-
-  try {
-    const result = services.handleInvocation(parsedInvocation);
-    renderSuccess(result, parsedInvocation.options.json, io);
-    return autobotExitCodes.ok;
-  } catch (error) {
-    const payload = toErrorPayload(error);
-    const command = buildCommand(parsedInvocation.command_path);
-
-    if (parsedInvocation.options.json) {
-      io.stdout.write(
-        renderJsonErrorEnvelope({
-          command,
-          repo: buildRepoRef(parsedInvocation.options),
-          error: payload,
-        }),
-      );
-    } else {
-      io.stderr.write(
-        `${renderAutobotError(payload, {
-          color: parsedInvocation.options.color && io.isTTY === true,
-        })}\n`,
-      );
+    if (invocation === null) {
+      resolve(autobotExitCodes.ok);
+      return () => undefined;
     }
 
-    return error instanceof AutobotCliError
-      ? error.exit_code
-      : autobotExitCodes.failure;
-  }
+    const parsedInvocation = invocation as AutobotInvocation;
+
+    try {
+      return services.handleInvocation(parsedInvocation).pipe(
+        fork((error) => {
+          const payload = toErrorPayload(error);
+          const command = buildCommand(parsedInvocation.command_path);
+
+          if (parsedInvocation.options.json) {
+            io.stdout.write(
+              renderJsonErrorEnvelope({
+                command,
+                repo: buildRepoRef(parsedInvocation.options),
+                error: payload,
+              }),
+            );
+          } else {
+            io.stderr.write(
+              `${renderAutobotError(payload, {
+                color: parsedInvocation.options.color && io.isTTY === true,
+              })}\n`,
+            );
+          }
+
+          resolve(
+            error instanceof AutobotCliError
+              ? error.exit_code
+              : autobotExitCodes.failure,
+          );
+        })((result) => {
+          renderSuccess(result, parsedInvocation.options.json, io);
+          resolve(autobotExitCodes.ok);
+        }),
+      );
+    } catch (error) {
+      const payload = toErrorPayload(error);
+      const command = buildCommand(parsedInvocation.command_path);
+
+      if (parsedInvocation.options.json) {
+        io.stdout.write(
+          renderJsonErrorEnvelope({
+            command,
+            repo: buildRepoRef(parsedInvocation.options),
+            error: payload,
+          }),
+        );
+      } else {
+        io.stderr.write(
+          `${renderAutobotError(payload, {
+            color: parsedInvocation.options.color && io.isTTY === true,
+          })}\n`,
+        );
+      }
+
+      resolve(
+        error instanceof AutobotCliError
+          ? error.exit_code
+          : autobotExitCodes.failure,
+      );
+      return () => undefined;
+    }
+  });
 }
 
 export function main(argv: string[] = process.argv): void {
-  const exitCode = runAutobotCli(argv);
-  process.exitCode = exitCode;
+  runAutobotCli(argv).pipe(
+    fork(() => {
+      process.exitCode = autobotExitCodes.failure;
+    })((exitCode) => {
+      process.exitCode = exitCode;
+    }),
+  );
 }
