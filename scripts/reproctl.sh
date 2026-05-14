@@ -31,9 +31,6 @@ source "$SCRIPT_DIR/lib/version.sh"
 source "$SCRIPT_DIR/lib/code-index.sh"
 # shellcheck source=scripts/lib/opencode.sh
 source "$SCRIPT_DIR/lib/opencode.sh"
-# shellcheck source=scripts/lib/autobot_orchestrator.sh
-source "$SCRIPT_DIR/lib/autobot_orchestrator.sh"
-
 # ── Main ────────────────────────────────────────────────────────────
 
 usage() {
@@ -82,12 +79,6 @@ ${CLR_BOLD}GENERAL${CLR_RESET}
                                   Topics: environment, exit-codes, json
   opencode [--profile <name>]     Launch OpenCode with optional model profile
 
-${CLR_BOLD}ORCHESTRATION${CLR_RESET}
-  autobot                        Durable local claim/run orchestration state
-  autobot status                 Show durable claims and runs
-  autobot claim/release/cancel/retry  Manage local orchestration claims
-  autobot discover               Find what should be worked next and write discovery artifacts
-
 Examples:
   reproctl setup                              # bootstrap entire environment
   reproctl doctor                             # check installed tools and versions
@@ -105,10 +96,6 @@ Examples:
   reproctl wt create --from-issue REP-123     # create worktree from Linear issue
   reproctl wt list                            # list all worktrees
   reproctl context                            # show current worktree/branch context
-  reproctl autobot status --json             # show durable orchestration state
-  reproctl autobot release REP-123           # release a local claim
-  reproctl autobot retry REP-123             # retry a failed or stale claim
-  reproctl autobot discover --limit 2 --json  # generate discovery artifacts
 EOF
 }
 
@@ -181,7 +168,6 @@ USAGE
   logs)    cmd_logs "$@" ;;
   ui)      cmd_ui "$@" ;;
   launch)  cmd_launch "$@" ;;
-  autobot) cmd_autobot_orchestrator "$@" ;;
   context) cmd_context "$@" ;;
   worktree|wt) cmd_wt "$@" ;;
   completion)  cmd_completion "$@" ;;
@@ -219,7 +205,7 @@ USAGE
   -h|--help)      usage ;;
   --version|-V)    cmd_version "$@" ;;
   *)
-    KNOWN_COMMANDS="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch autobot context worktree wt completion version help opencode"
+    KNOWN_COMMANDS="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help opencode"
     suggestions=$(python3 "$SCRIPT_DIR/lib/py/suggest_command.py" "$COMMAND" $KNOWN_COMMANDS 2>/dev/null) || true
     if [ -n "$suggestions" ]; then
       printf 'Error: Unknown command: %s\n' "$COMMAND" >&2
