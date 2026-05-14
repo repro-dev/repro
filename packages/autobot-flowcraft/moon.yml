@@ -1,0 +1,9 @@
+id: repro/autobot-flowcraft
+language: typescript
+layer: library
+tags:
+  - type.package
+  - role.util
+tasks: {}
+toolchains:
+  default: node

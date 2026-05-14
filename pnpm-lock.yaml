@@ -1534,6 +1534,54 @@ importers:
         specifier: 5.7.3
         version: 5.7.3
 
+  packages/autobot-adapters:
+    devDependencies:
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
+  packages/autobot-cli:
+    devDependencies:
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
+  packages/autobot-core:
+    devDependencies:
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
   packages/autobot-engine:
     devDependencies:
       '@types/node':
@@ -1548,6 +1596,36 @@ importers:
       tsx:
         specifier: 4.19.3
         version: 4.19.3
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
+  packages/autobot-flowcraft:
+    devDependencies:
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
+  packages/autobot-store:
+    devDependencies:
+      '@types/node':
+        specifier: 22.14.0
+        version: 22.14.0
+      prettier:
+        specifier: ^3.0.0
+        version: 3.8.1
+      prettier-plugin-organize-imports:
+        specifier: ^3.2.3
+        version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
       typescript:
         specifier: 5.7.3
         version: 5.7.3
