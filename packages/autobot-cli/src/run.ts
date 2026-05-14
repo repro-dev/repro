@@ -84,6 +84,7 @@ function renderSuccess(
   result: AutobotCommandResult,
   json: boolean,
   io: AutobotCliIO,
+  colorEnabled: boolean,
 ): void {
   if (json) {
     io.stdout.write(
@@ -101,14 +102,14 @@ function renderSuccess(
     case "item-detail":
       io.stdout.write(
         `${renderAutobotItemDetail(result.data, {
-          color: io.isTTY === true,
+          color: colorEnabled,
         })}\n`,
       );
       return;
     case "item-summary":
       io.stdout.write(
         `${renderAutobotItemSummary(result.data, {
-          color: io.isTTY === true,
+          color: colorEnabled,
         })}\n`,
       );
       return;
@@ -200,7 +201,12 @@ export function runAutobotCli(
               : autobotExitCodes.failure,
           );
         })((result) => {
-          renderSuccess(result, parsedInvocation.options.json, io);
+          renderSuccess(
+            result,
+            parsedInvocation.options.json,
+            io,
+            parsedInvocation.options.color && io.isTTY === true,
+          );
           resolve(autobotExitCodes.ok);
         }),
       );

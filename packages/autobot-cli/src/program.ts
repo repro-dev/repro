@@ -16,7 +16,7 @@ function readGlobalOptions(command: Command): AutobotGlobalOptions {
     profile: typeof options.profile === "string" ? options.profile : null,
     quiet: options.quiet === true,
     verbose: options.verbose === true,
-    color: options.noColor !== true,
+    color: options.color !== false && options.noColor !== true,
   };
 }
 

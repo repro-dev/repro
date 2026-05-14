@@ -135,6 +135,31 @@ test("successful human invocations render the human output", async () => {
   assert.equal(io.read().stderr, "");
 });
 
+test("tty human output respects no-color", async () => {
+  const io = createIo();
+  io.io.isTTY = true;
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "--no-color", "list"], io.io, {
+      handleInvocation() {
+        return resolve({
+          kind: "item-detail",
+          command: "autobot-next list",
+          repo: {
+            path: "/worktrees/autobot",
+            state_dir: ".autobot",
+          },
+          data: makeDetail("failed"),
+          warnings: [],
+        });
+      },
+    }),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(io.read().stdout.includes("\u001b["), false);
+});
+
 test("unexpected errors are generic and redact stacks", async () => {
   const io = createIo();
 
