@@ -684,7 +684,7 @@ function buildDiscoverResult(input: {
   query: string | null;
   labels: string[];
   priority: string | null;
-  limit: number | null;
+  limit: number;
   quiet: boolean;
   scanned: number;
   candidates: DiscoverCandidate[];
@@ -767,11 +767,27 @@ function handleDiscover(
           projects: input.projects,
         }));
 
-    const resolveProjects = (fallback: ConfigOverrideRecord | null) => {
+    const resolveDiscoverLimit = (
+      fallback: ConfigOverrideRecord | null,
+    ): number => {
+      if (fallback !== null) {
+        return fallback.value as number;
+      }
+
+      return configDefinitionsByKey.get("engine.queue-depth")!
+        .default_value as number;
+    };
+
+    const resolveProjects = (
+      fallback: ConfigOverrideRecord | null,
+      queueDepthOverride: ConfigOverrideRecord | null,
+    ) => {
       const effectiveProjects =
         projectFlags.length > 0
           ? projectFlags
           : normalizeDiscoverProjects(fallback?.value as string | undefined);
+      const effectiveLimit =
+        limit === null ? resolveDiscoverLimit(queueDepthOverride) : limit;
 
       store.projections.listItems().pipe(
         fork(reject)((localItems) => {
@@ -848,17 +864,16 @@ function handleDiscover(
                 return true;
               });
 
-              const limited =
-                limit === null ? filtered : filtered.slice(0, limit);
+              const limited = filtered.slice(0, effectiveLimit);
 
-              if (limit !== null && filtered.length > limited.length) {
+              if (filtered.length > limited.length) {
                 for (const candidate of filtered.slice(limited.length)) {
                   exclusions.push(
                     createDiscoverExclusion({
                       issue_id: candidate.issue_id,
                       reason: "limit-reached",
                       details: {
-                        limit,
+                        limit: effectiveLimit,
                       },
                     }),
                   );
@@ -872,7 +887,7 @@ function handleDiscover(
                   query,
                   labels,
                   priority,
-                  limit,
+                  limit: effectiveLimit,
                   quiet: invocation.options.quiet,
                   scanned: issues.length,
                   candidates: limited,
@@ -888,15 +903,22 @@ function handleDiscover(
     };
 
     if (projectFlags.length > 0) {
-      resolveProjects(null);
-      return () => undefined;
+      store.config.getOverride("engine.queue-depth").pipe(
+        fork(reject)((queueDepthOverride) => {
+          resolveProjects(null, queueDepthOverride);
+        }),
+      );
+    } else {
+      store.config.getOverride("discovery.projects").pipe(
+        fork(reject)((override) => {
+          store.config.getOverride("engine.queue-depth").pipe(
+            fork(reject)((queueDepthOverride) => {
+              resolveProjects(override, queueDepthOverride);
+            }),
+          );
+        }),
+      );
     }
-
-    store.config.getOverride("discovery.projects").pipe(
-      fork(reject)((override) => {
-        resolveProjects(override);
-      }),
-    );
 
     return () => undefined;
   });

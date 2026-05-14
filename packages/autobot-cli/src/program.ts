@@ -64,7 +64,9 @@ function createInvocation(
     args: args
       .filter(
         (arg): arg is string | number | boolean =>
-          arg !== undefined && arg !== null,
+          typeof arg === "string" ||
+          typeof arg === "number" ||
+          typeof arg === "boolean",
       )
       .map((arg) => String(arg)),
     options: readGlobalOptions(command),

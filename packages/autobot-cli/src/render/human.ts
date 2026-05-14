@@ -197,14 +197,13 @@ export function renderAutobotDiscoverResults(input: DiscoverData): string {
   const scope =
     input.projects.length > 0 ? input.projects.join(", ") : "all projects";
 
-  if (input.scanned === 0) {
-    return `No remote issues scanned for ${scope}.`;
-  }
-
   const lines = [
     input.candidates.length > 0
       ? `Found ${input.candidates.length} candidates for ${scope}.`
+      : input.scanned === 0
+      ? `No remote issues scanned for ${scope}.`
       : `Scanned ${input.scanned} remote issues for ${scope}; all excluded.`,
+    `Limit: ${input.filters.limit}`,
   ];
 
   if (input.candidates.length > 0) {
@@ -217,7 +216,14 @@ export function renderAutobotDiscoverResults(input: DiscoverData): string {
     );
   }
 
-  if (input.exclusions.length > 0) {
+  if (input.exclusions.length > 0 && input.candidates.length > 0) {
+    lines.push(
+      "",
+      `Exclusions: ${input.exclusions.length} (see --json for details)`,
+    );
+  }
+
+  if (input.exclusions.length > 0 && input.candidates.length === 0) {
     lines.push(
       "",
       `Exclusions: ${input.exclusions.length}`,

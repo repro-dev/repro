@@ -106,4 +106,32 @@ test("discover accepts repeatable project flags", () => {
     "Engineering",
     "Platform",
   ]);
+  assert.deepStrictEqual(discoverInvocation.args, []);
+});
+
+test("discover preserves an explicit query argument without option objects", () => {
+  let invocation: AutobotInvocation | null = null;
+  const program = createAutobotProgram({
+    onInvocation(nextInvocation) {
+      invocation = nextInvocation;
+    },
+  });
+
+  program.parse([
+    "node",
+    "autobot-next",
+    "discover",
+    "REP-11",
+    "--project",
+    "Platform",
+  ]);
+
+  if (invocation === null) {
+    throw new Error("expected discover invocation");
+  }
+
+  const discoverInvocation = invocation as AutobotInvocation;
+
+  assert.deepStrictEqual(discoverInvocation.args, ["REP-11"]);
+  assert.deepStrictEqual(discoverInvocation.options.project, ["Platform"]);
 });

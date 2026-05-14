@@ -72,7 +72,14 @@ function makeCandidate(
   };
 }
 
-function makeStore(configProject: string | null = null) {
+function makeStore(
+  overrides: {
+    configProject?: string | null;
+    queueDepth?: number | null;
+  } = {},
+) {
+  const configProject = overrides.configProject ?? null;
+  const queueDepth = overrides.queueDepth ?? null;
   const listItemsCalls: Array<Record<string, unknown> | undefined> = [];
   const store = {
     repo: {
@@ -121,6 +128,20 @@ function makeStore(configProject: string | null = null) {
         return resolve(undefined);
       },
       getOverride(key: string) {
+        if (key === "engine.queue-depth") {
+          return resolve(
+            queueDepth !== null
+              ? {
+                  key,
+                  value: queueDepth,
+                  value_type: "integer",
+                  source: "repo",
+                  updated_at: "2026-05-14T12:00:00Z",
+                }
+              : null,
+          );
+        }
+
         return resolve(
           key === "discovery.projects" && configProject !== null
             ? {
@@ -229,6 +250,7 @@ test("discover returns candidates and local exclusion reasons", async () => {
 
   assert.equal(result.kind, "discover");
   assert.equal(result.command, "autobot-next discover");
+  assert.deepStrictEqual(result.data.filters.limit, 1);
   assert.deepStrictEqual(received, [
     {
       repo: {
@@ -285,7 +307,7 @@ test("discover scans all projects when no flags or config are provided", async (
 });
 
 test("discover falls back to configured project allowlists", async () => {
-  const fixture = makeStore("Engineering, Platform");
+  const fixture = makeStore({ configProject: "Engineering, Platform" });
   const received: Array<{ projects: string[] }> = [];
   const services = createAutobotServices({
     openStore() {
@@ -314,8 +336,44 @@ test("discover falls back to configured project allowlists", async () => {
   assert.deepStrictEqual(result.data.projects, ["Engineering", "Platform"]);
 });
 
+test("discover defaults to the configured queue depth when limit is omitted", async () => {
+  const fixture = makeStore({ queueDepth: 2 });
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store);
+    },
+    discoverIssues() {
+      return resolve([
+        makeCandidate("REP-201"),
+        makeCandidate("REP-202"),
+        makeCandidate("REP-203"),
+      ]);
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["discover"], [])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "discover");
+  assert.deepStrictEqual(result.data.filters.limit, 2);
+  assert.deepStrictEqual(result.data.issue_ids, ["REP-201", "REP-202"]);
+  assert.deepStrictEqual(result.data.candidates, [
+    makeCandidate("REP-201"),
+    makeCandidate("REP-202"),
+  ]);
+  assert.deepStrictEqual(
+    result.data.exclusions.map((entry) => [
+      entry.issue_id,
+      entry.reason,
+      entry.details,
+    ]),
+    [["REP-203", "limit-reached", { limit: 2 }]],
+  );
+});
+
 test("discover project flags override configured allowlists", async () => {
-  const fixture = makeStore("Engineering, Platform");
+  const fixture = makeStore({ configProject: "Engineering, Platform" });
   const received: Array<{ projects: string[] }> = [];
   const services = createAutobotServices({
     openStore() {

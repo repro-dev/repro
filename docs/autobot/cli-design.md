@@ -388,13 +388,16 @@ Semantics:
 - Does not queue anything by default.
 - Excludes issues already known as non-terminal items unless `--all` is added in a future version.
 - With no `--project` flags, manual discovery scans all projects unless `discovery.projects` is configured.
+- `--limit` caps the post-filter candidate set; when omitted, discovery defaults the cap to `engine.queue-depth`.
+- Remote Linear fetches remain capped at one page (250 issues) for now.
 - `-q` prints issue IDs only, one per line, for piping into `autobot-next add`.
-- JSON output always includes the scan count, candidate metadata, issue IDs, and exclusion reasons.
+- JSON output always includes the scan count, effective candidate limit, candidate metadata, issue IDs, and exclusion reasons.
 
 Human output:
 
 ```text
 Found 3 candidates
+Limit: 5
 REP-123  Normal  Engineering  Short title
 REP-124  High    Platform     Another title
 

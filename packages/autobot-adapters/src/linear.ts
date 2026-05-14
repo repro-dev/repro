@@ -44,6 +44,7 @@ function createDiscoverError(input: {
   command: string;
   args: string[];
   cause: unknown;
+  failureKind: "command" | "parse";
 }): {
   code: string;
   message: string;
@@ -58,9 +59,7 @@ function createDiscoverError(input: {
   const missingBinary =
     cause?.code === "ENOENT" ||
     /ENOENT|not found|no such file/i.test(causeMessage);
-  const malformedJson = /JSON|Unexpected token|Unexpected end/i.test(
-    causeMessage,
-  );
+  const malformedJson = input.failureKind === "parse";
 
   return {
     code: "AUTOBOT-LINEAR-DISCOVERY-FAILED",
@@ -271,6 +270,7 @@ export function discoverLinearIssues(
             command: resolveLinearBinary(input.repoRoot),
             args,
             cause: error,
+            failureKind: "command",
           }),
         );
       })((payload) => {
@@ -284,6 +284,7 @@ export function discoverLinearIssues(
               command: resolveLinearBinary(input.repoRoot),
               args,
               cause: error,
+              failureKind: "parse",
             }),
           );
         }

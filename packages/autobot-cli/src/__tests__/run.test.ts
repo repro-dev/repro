@@ -217,7 +217,7 @@ test("discover quiet output prints issue ids only", async () => {
             filters: {
               labels: [],
               priority: null,
-              limit: null,
+              limit: 5,
             },
             scanned: 2,
             candidates: [

@@ -94,7 +94,7 @@ test("discover renderer distinguishes empty scan, all excluded, and candidates",
     filters: {
       labels: [],
       priority: null,
-      limit: null,
+      limit: 5,
     },
     scanned: 0,
     candidates: [],
@@ -107,6 +107,7 @@ test("discover renderer distinguishes empty scan, all excluded, and candidates",
     renderAutobotDiscoverResults(noRemoteScan),
     `
     No remote issues scanned for all projects.
+    Limit: 5
     `,
   );
 
@@ -116,7 +117,7 @@ test("discover renderer distinguishes empty scan, all excluded, and candidates",
     filters: {
       labels: [],
       priority: null,
-      limit: null,
+      limit: 5,
     },
     scanned: 2,
     candidates: [],
@@ -137,6 +138,7 @@ test("discover renderer distinguishes empty scan, all excluded, and candidates",
     renderAutobotDiscoverResults(allExcluded),
     `
     Scanned 2 remote issues for Engineering; all excluded.
+    Limit: 5
 
     Exclusions: 1
     REP-200 (local-non-terminal) {"state":"failed"}
@@ -167,7 +169,15 @@ test("discover renderer distinguishes empty scan, all excluded, and candidates",
       },
     ],
     issue_ids: ["REP-201"],
-    exclusions: [],
+    exclusions: [
+      {
+        issue_id: "REP-202",
+        reason: "limit-reached",
+        details: {
+          limit: 2,
+        },
+      },
+    ],
     quiet: false,
   };
 
@@ -175,9 +185,12 @@ test("discover renderer distinguishes empty scan, all excluded, and candidates",
     renderAutobotDiscoverResults(candidatesFound),
     `
     Found 1 candidates for Engineering, Platform.
+    Limit: 2
     Scanned 3 remote issues.
 
     REP-201 · Candidate REP-201
+
+    Exclusions: 1 (see --json for details)
     `,
   );
 });
