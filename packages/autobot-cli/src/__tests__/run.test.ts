@@ -135,6 +135,69 @@ test("successful human invocations render the human output", async () => {
   assert.equal(io.read().stderr, "");
 });
 
+test("terminal status output omits next steps", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "status", "REP-1151"], io.io, {
+      handleInvocation() {
+        return resolve({
+          kind: "item-detail",
+          command: "autobot-next status REP-1151",
+          repo: {
+            path: "/worktrees/autobot",
+            state_dir: ".autobot",
+          },
+          data: makeDetail("canceled"),
+          warnings: [],
+        });
+      },
+    }),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(io.read().stdout.includes("Next:"), false);
+});
+
+test("config list renders unset defaults explicitly", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "config", "list"], io.io, {
+      handleInvocation() {
+        return resolve({
+          kind: "config-list",
+          command: "autobot-next config list",
+          repo: {
+            path: "/worktrees/autobot",
+            state_dir: ".autobot",
+          },
+          data: {
+            config: [
+              {
+                key: "discovery.project",
+                value: "",
+                default_value: "",
+                type: "string",
+                source: "default",
+                description:
+                  "Default Linear project used by discover and engine auto-discovery; leave it unset to run without a default project filter.",
+                requires_engine_restart: false,
+                bounds: null,
+                allowed_values: null,
+              },
+            ],
+          },
+          warnings: [],
+        });
+      },
+    }),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.match(io.read().stdout, /default: \(unset\)/);
+});
+
 test("tty human output respects no-color", async () => {
   const io = createIo();
   io.io.isTTY = true;
@@ -180,6 +243,30 @@ test("unexpected errors are generic and redact stacks", async () => {
     JSON.stringify(envelope).includes("/Users/gary/secret.txt"),
     false,
   );
+});
+
+test("bare command renders top-level help", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next"], io.io),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.match(io.read().stdout, /Usage: autobot-next/);
+  assert.equal(io.read().stderr, "");
+});
+
+test("help flag renders top-level help", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "--help"], io.io),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.match(io.read().stdout, /Usage: autobot-next/);
+  assert.equal(io.read().stderr, "");
 });
 
 test("json usage errors use the canonical command path", async () => {
