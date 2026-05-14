@@ -14,7 +14,11 @@ export type AccountTestContext = {
 export async function createAccountTestContext(): Promise<AccountTestContext> {
   const harness = await createTestHarness()
   const accountService = harness.services.accountService
-  const app = harness.bootstrap(createAccountRouter(accountService))
+  const app = harness.bootstrap(async app => {
+    await app.register(createAccountRouter(accountService), {
+      prefix: '/account',
+    })
+  })
 
   await app.ready()
 

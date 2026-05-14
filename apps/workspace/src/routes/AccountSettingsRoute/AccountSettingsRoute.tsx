@@ -153,8 +153,8 @@ export function AccountSettingsRoute({
           <Col gap={spacing.sm}>
             <Text variant="heading3">Danger zone</Text>
             <Alert type="danger">
-              Account deactivation is not available yet. Contact support if you
-              need to retire this account, or check back later.
+              Account deactivation is not currently supported. Contact support
+              if you need help retiring this account.
             </Alert>
           </Col>
         </Stack>

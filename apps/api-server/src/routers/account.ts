@@ -366,7 +366,7 @@ export function createAccountRouter(
       respondWith(res, req.getCurrentUser())
     })
 
-    app.get('/account/settings', (req, res) => {
+    app.get('/settings', (req, res) => {
       respondWith(
         res,
         getCurrentUserAccount(req, accountService).pipe(
@@ -386,7 +386,7 @@ export function createAccountRouter(
     app.put<{
       Body: z.infer<typeof updateNameSchema.body>
     }>(
-      '/account/name',
+      '/name',
       {
         schema: updateNameSchema,
       },

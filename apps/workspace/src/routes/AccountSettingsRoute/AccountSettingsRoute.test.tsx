@@ -134,7 +134,9 @@ describe('AccountSettingsRoute', () => {
         screen.getByText('Projects').parentElement?.textContent ?? '',
         /Projects\s*1/
       )
-      assert.ok(screen.getByText(/account deactivation is not available yet/i))
+      assert.ok(
+        screen.getByText(/account deactivation is not currently supported/i)
+      )
     })
   })
 
