@@ -145,6 +145,7 @@ export interface DiscoverData {
     labels: string[];
     priority: string | null;
     limit: number;
+    scan_limit: number;
   };
   scanned: number;
   candidates: DiscoverCandidate[];

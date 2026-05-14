@@ -220,7 +220,7 @@ test("discover returns candidates and local exclusion reasons", async () => {
   const received: Array<{
     repo: { path: string; state_dir: string };
     projects: string[];
-    limit: number;
+    scanLimit: number;
   }> = [];
 
   const services = createAutobotServices({
@@ -252,6 +252,7 @@ test("discover returns candidates and local exclusion reasons", async () => {
   assert.equal(result.kind, "discover");
   assert.equal(result.command, "autobot-next discover");
   assert.deepStrictEqual(result.data.filters.limit, 1);
+  assert.deepStrictEqual(result.data.filters.scan_limit, 100);
   assert.deepStrictEqual(received, [
     {
       repo: {
@@ -259,7 +260,7 @@ test("discover returns candidates and local exclusion reasons", async () => {
         state_dir: ".autobot",
       },
       projects: ["Engineering"],
-      limit: 1,
+      scanLimit: 100,
     },
   ]);
   assert.deepStrictEqual(result.data.issue_ids, ["REP-201"]);
@@ -279,7 +280,7 @@ test("discover scans all projects when no flags or config are provided", async (
   const received: Array<{
     repo: { path: string; state_dir: string };
     projects: string[];
-    limit: number;
+    scanLimit: number;
   }> = [];
   const services = createAutobotServices({
     openStore() {
@@ -307,7 +308,7 @@ test("discover scans all projects when no flags or config are provided", async (
         state_dir: ".autobot",
       },
       projects: [],
-      limit: 5,
+      scanLimit: 100,
     },
   ]);
   assert.deepStrictEqual(result.data.projects, []);
@@ -338,7 +339,7 @@ test("discover falls back to configured project allowlists", async () => {
         state_dir: ".autobot",
       },
       projects: ["Engineering", "Platform"],
-      limit: 5,
+      scanLimit: 100,
     },
   ]);
   assert.deepStrictEqual(result.data.projects, ["Engineering", "Platform"]);
@@ -349,7 +350,7 @@ test("discover defaults to the configured queue depth when limit is omitted", as
   const received: Array<{
     repo: { path: string; state_dir: string };
     projects: string[];
-    limit: number;
+    scanLimit: number;
   }> = [];
   const services = createAutobotServices({
     openStore() {
@@ -371,6 +372,7 @@ test("discover defaults to the configured queue depth when limit is omitted", as
 
   assert.equal(result.kind, "discover");
   assert.deepStrictEqual(result.data.filters.limit, 2);
+  assert.deepStrictEqual(result.data.filters.scan_limit, 100);
   assert.deepStrictEqual(received, [
     {
       repo: {
@@ -378,7 +380,7 @@ test("discover defaults to the configured queue depth when limit is omitted", as
         state_dir: ".autobot",
       },
       projects: [],
-      limit: 2,
+      scanLimit: 100,
     },
   ]);
   assert.deepStrictEqual(result.data.issue_ids, ["REP-201", "REP-202"]);
@@ -425,8 +427,48 @@ test("discover project flags override configured allowlists", async () => {
         state_dir: ".autobot",
       },
       projects: ["Security", "Billing"],
-      limit: 5,
+      scanLimit: 100,
     },
   ]);
   assert.deepStrictEqual(result.data.projects, ["Security", "Billing"]);
+});
+
+test("discover expands the scan limit when an explicit limit exceeds the default scan size", async () => {
+  const fixture = makeStore();
+  const received: Array<{
+    repo: { path: string; state_dir: string };
+    projects: string[];
+    scanLimit: number;
+  }> = [];
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store);
+    },
+    discoverIssues(input) {
+      received.push(input as unknown as (typeof received)[number]);
+      return resolve([]);
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(
+      makeInvocation(["discover"], [], {
+        limit: 150,
+      }),
+    ),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "discover");
+  assert.deepStrictEqual(result.data.filters.limit, 150);
+  assert.deepStrictEqual(result.data.filters.scan_limit, 150);
+  assert.deepStrictEqual(received, [
+    {
+      repo: {
+        path: "/worktrees/autobot",
+        state_dir: ".autobot",
+      },
+      projects: [],
+      scanLimit: 150,
+    },
+  ]);
 });

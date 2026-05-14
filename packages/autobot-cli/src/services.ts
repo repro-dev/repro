@@ -48,7 +48,7 @@ export interface AutobotServiceDependencies {
 interface DiscoverIssueInput {
   repo: RepoRef;
   projects: string[];
-  limit: number;
+  scanLimit: number;
 }
 
 interface ConfigDefinition {
@@ -143,6 +143,8 @@ const configDefinitions: readonly ConfigDefinition[] = [
 const configDefinitionsByKey = new Map(
   configDefinitions.map((definition) => [definition.key, definition] as const),
 );
+
+const discoverDefaultScanLimit = 100;
 
 function resolveRepoRef(options: AutobotGlobalOptions): RepoRef {
   return {
@@ -686,6 +688,7 @@ function buildDiscoverResult(input: {
   labels: string[];
   priority: string | null;
   limit: number;
+  scanLimit: number;
   quiet: boolean;
   scanned: number;
   candidates: DiscoverCandidate[];
@@ -708,6 +711,7 @@ function buildDiscoverResult(input: {
         labels: [...input.labels],
         priority: input.priority,
         limit: input.limit,
+        scan_limit: input.scanLimit,
       },
       scanned: input.scanned,
       candidates: input.candidates,
@@ -766,7 +770,7 @@ function handleDiscover(
         discoverLinearIssues({
           repoRoot: input.repo.path,
           projects: input.projects,
-          limit: input.limit,
+          limit: input.scanLimit,
         }));
 
     const resolveDiscoverLimit = (
@@ -790,6 +794,7 @@ function handleDiscover(
           : normalizeDiscoverProjects(fallback?.value as string | undefined);
       const effectiveLimit =
         limit === null ? resolveDiscoverLimit(queueDepthOverride) : limit;
+      const scanLimit = Math.max(discoverDefaultScanLimit, effectiveLimit);
 
       store.projections.listItems().pipe(
         fork(reject)((localItems) => {
@@ -800,7 +805,7 @@ function handleDiscover(
           defaultDiscoverIssues({
             repo: store.repo,
             projects: effectiveProjects,
-            limit: effectiveLimit,
+            scanLimit,
           }).pipe(
             fork(reject)((issues) => {
               const exclusions: Array<{
@@ -891,6 +896,7 @@ function handleDiscover(
                   labels,
                   priority,
                   limit: effectiveLimit,
+                  scanLimit,
                   quiet: invocation.options.quiet,
                   scanned: issues.length,
                   candidates: limited,
