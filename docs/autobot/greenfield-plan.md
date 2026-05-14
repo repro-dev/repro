@@ -62,13 +62,39 @@ This document summarizes the current `autobot` / `autobot-engine` intent from th
 
 ## Current User-Facing CLI Surface
 
-### `autobot-next`
+### `autobot`
 
-The greenfield public CLI surface is `autobot-next`. It is the only supported path during the rewrite and should be treated as the operator-facing command line for discovery, queue management, status, logs, and config.
+Public queue interface from `docs/man/autobot.1.md`:
+
+- `autobot add <issue> [--json] [--dry-run]` queues an issue without creating a worktree.
+- `autobot remove <issue> [-f] [--json] [--dry-run]` removes a queued item and restores Linear assignment/state where possible.
+- `autobot list [--json]` shows non-terminal queued items.
+- `autobot status [issue] [--json]` shows aggregate queue state or per-item detail/history.
+- `autobot logs [issue] [-t] [--json]` inspects engine or issue logs.
+- `autobot discover [--limit N] [--project name] [-q] [--json]` discovers candidate work and prints metadata by default, or identifiers with `-q`.
+- `autobot config get <key> [--json]` reads a repo-scoped setting.
+- `autobot config set <key> <value> [--json]` persists a repo-scoped setting.
+- `autobot config unset <key> [--json]` removes a repo-scoped setting override.
+- `autobot config list [--json]` is referenced in examples and prior context as the discoverability surface for config keys.
 
 Public JSON responses are versioned with `schema_version: 1`. Public status-oriented responses include a `config` block sourced from `.autobot/config.json`. Current config keys are `engine.auto-discover`, `engine.queue-depth`, and `engine.max-concurrency`.
 
-Low-level lifecycle commands remain internal to the delivery engine and should not be exposed as a deprecated public `reproctl autobot` surface.
+### `reproctl autobot`
+
+Internal/provisional lifecycle surface from `docs/man/reproctl-autobot.1.md`:
+
+- `reproctl autobot status [--all] [--json]` inspects claim and run state.
+- `reproctl autobot discover [--limit count] [--profile name] [--prompt-file path] [--output-dir path] [--claimed-by name] [--project name] [--json]` runs intake discovery.
+- `reproctl autobot claim <issue> --workspace <path> --phase <phase> --issue-state <name> [--issue-state-type type] [--claimed-by user]` records an intake claim.
+- `reproctl autobot prepare <issue> [--phase observe] [--claimed-by name]` performs delivery-daemon preparation.
+- `reproctl autobot release <issue> [--reason text] [--json]` releases terminal or recovery state.
+- `reproctl autobot cancel <issue> [--reason text] [--json]` cancels work.
+- `reproctl autobot retry <issue> [--phase observe] [--claimed-by name] [--reason text] [--json]` retries from a phase.
+- `reproctl autobot reconcile [issue | --all]` reconciles stale or ambiguous state.
+- `reproctl autobot run start <issue> --phase <phase> --workspace <path>` records run start.
+- `reproctl autobot run finish <issue> --attempt <n> --state <state> [--error text]` records run finish.
+
+For a greenfield FlowCraft delivery, this should be collapsed into a clearer command model: keep `autobot` as the public surface and expose low-level lifecycle commands only as hidden or explicitly marked operator/debug commands.
 
 ## FlowCraft Capability Assessment
 

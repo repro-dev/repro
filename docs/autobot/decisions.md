@@ -150,8 +150,9 @@ Publish/release is fully deferred to `REP-1164`.
 
 Expose the greenfield implementation as `autobot-next` until cutover.
 
-- Target public CLI is `autobot-next`.
-- Package is `@repro/autobot-cli`.
+- Target public CLI remains `autobot`.
+- During phased implementation, binary is `autobot-next`.
+- Package can still be named `@repro/autobot-cli`.
 - Tests and early Linear acceptance criteria should use `autobot-next`.
-- No public `autobot` entrypoint is exposed during the rewrite.
-- `REP-1165` owns any future rename, redirect, or replacement decision.
+- No public `autobot` entrypoint is switched until `REP-1165`.
+- `REP-1165` owns reconciling, deleting, redirecting, or replacing the old implementation.
