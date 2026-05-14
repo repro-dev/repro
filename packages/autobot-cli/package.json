@@ -2,8 +2,12 @@
   "name": "@repro/autobot-cli",
   "version": "1.0.0",
   "main": "src/index.ts",
+  "bin": {
+    "autobot-next": "./bin/autobot-next"
+  },
   "scripts": {
-    "fmt": "prettier --write src",
+    "test": "tsx --experimental-test-module-mocks --test --test-timeout=30000 --test-force-exit src/**/*.test.ts",
+    "fmt": "prettier --write src bin",
     "typecheck": "tsc --noEmit"
   },
   "license": "UNLICENSED",
@@ -11,6 +15,12 @@
     "@types/node": "22.14.0",
     "prettier": "^3.0.0",
     "prettier-plugin-organize-imports": "^3.2.3",
+    "tsx": "4.19.3",
     "typescript": "overridden"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "@repro/autobot-core": "workspace:*",
+    "serialize-error": "^11.0.3"
   }
 }
