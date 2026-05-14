@@ -17,6 +17,7 @@ import z from 'zod'
 import { defaultSystemConfig } from '~/config/system'
 import { AccountService } from '~/services/account'
 import { isNotFound, notAuthenticated, resourceConflict } from '~/utils/errors'
+import { getCurrentUserAccount } from '~/utils/request'
 import { createResponseUtils } from '~/utils/response'
 
 const registerSchema = {
@@ -364,6 +365,48 @@ export function createAccountRouter(
     app.get('/me', (req, res) => {
       respondWith(res, req.getCurrentUser())
     })
+
+    app.get('/account/settings', (req, res) => {
+      respondWith(
+        res,
+        getCurrentUserAccount(req, accountService).pipe(
+          chain(({ user, account }) =>
+            accountService
+              .ensureUserIsAdmin(user)
+              .pipe(
+                chain(() =>
+                  accountService.getAccountSettingsSummary(account.id)
+                )
+              )
+          )
+        )
+      )
+    })
+
+    app.put<{
+      Body: z.infer<typeof updateNameSchema.body>
+    }>(
+      '/account/name',
+      {
+        schema: updateNameSchema,
+      },
+      (req, res) => {
+        respondWith(
+          res,
+          getCurrentUserAccount(req, accountService).pipe(
+            chain(({ user, account }) =>
+              accountService
+                .ensureUserIsAdmin(user)
+                .pipe(
+                  chain(() =>
+                    accountService.updateAccountName(account.id, req.body.name)
+                  )
+                )
+            )
+          )
+        )
+      }
+    )
 
     app.get('/me/profile', (req, res) => {
       respondWith(

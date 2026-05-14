@@ -54,6 +54,12 @@ const currentUser: User = {
   name: 'Admin User',
   email: 'admin@example.com',
   verified: true,
+  admin: true,
+}
+
+const nonAdminUser: User = {
+  ...currentUser,
+  admin: false,
 }
 
 const apiClient = createApiClient({
@@ -65,9 +71,12 @@ const apiClient = createApiClient({
 // Test providers
 // ---------------------------------------------------------------------------
 
-function TestAuthProvider({ children }: React.PropsWithChildren) {
+function TestAuthProvider({
+  children,
+  sessionUser = currentUser,
+}: React.PropsWithChildren<{ sessionUser?: User | null }>) {
   const state = createState({ apiClient })
-  const [$session] = createAtom(currentUser) as unknown as [
+  const [$session] = createAtom(sessionUser) as unknown as [
     typeof state.$session,
     unknown,
     unknown,
@@ -114,11 +123,14 @@ function hasActiveClasses(
 // compare class names within the same jsxstyle cache session.
 // ---------------------------------------------------------------------------
 
-function renderLayoutWithRefs(initialPath: string) {
+function renderLayoutWithRefs(
+  initialPath: string,
+  sessionUser: User | null = currentUser
+) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <ApiProvider client={apiClient}>
-        <TestAuthProvider>
+        <TestAuthProvider sessionUser={sessionUser}>
           <ProjectProvider getProjects={() => resolve(projects)}>
             <Layout />
             {/* Reference items rendered off-screen to capture active/inactive
@@ -148,6 +160,16 @@ function getProjectsNavLink(): HTMLAnchorElement {
     .find(link => link.getAttribute('href') === '/projects')
 
   assert.ok(link, 'Expected the /projects navigation link')
+
+  return link as HTMLAnchorElement
+}
+
+function getAccountNavLink(): HTMLAnchorElement {
+  const link = screen
+    .queryAllByRole('link', { name: /^account$/i })
+    .find(link => link.getAttribute('href') === '/settings/account')
+
+  assert.ok(link, 'Expected the /settings/account navigation link')
 
   return link as HTMLAnchorElement
 }
@@ -264,5 +286,37 @@ describe('Layout nav active states', () => {
       false,
       'Project settings nav link should NOT be visually active at /'
     )
+  })
+
+  it('/settings/account — account nav is active for admins', async () => {
+    const { getByTestId } = renderLayoutWithRefs(
+      '/settings/account',
+      currentUser
+    )
+
+    await waitFor(() => {
+      getAccountNavLink()
+    })
+
+    const activeRefClasses = getElementClasses(getByTestId('ref-active'))
+    const inactiveRefClasses = getElementClasses(getByTestId('ref-inactive'))
+    const accountLink = getAccountNavLink()
+    const accountClasses = new Set(
+      accountLink.className.split(' ').filter(Boolean)
+    )
+
+    assert.equal(
+      hasActiveClasses(accountClasses, activeRefClasses, inactiveRefClasses),
+      true,
+      'Account nav link SHOULD be visually active at /settings/account'
+    )
+  })
+
+  it('hides the account nav link for non-admin users', async () => {
+    renderLayoutWithRefs('/settings', nonAdminUser)
+
+    await waitFor(() => {
+      assert.equal(screen.queryByRole('link', { name: /^account$/i }), null)
+    })
   })
 })

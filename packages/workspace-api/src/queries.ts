@@ -1,5 +1,6 @@
 import type { ApiClient } from '@repro/api-client'
 import { map } from 'fluture'
+import type { AccountSettingsSummary } from './types'
 
 export function getProjects(apiClient: ApiClient) {
   return apiClient.fetch('/projects').pipe(map(res => res.items))
@@ -46,4 +47,16 @@ export function getProjectMembers(apiClient: ApiClient, projectId: string) {
   return apiClient
     .fetch(`/projects/${projectId}/members`)
     .pipe(map(res => res.items))
+}
+
+export function getAccountSettings(apiClient: ApiClient) {
+  return apiClient.fetch<AccountSettingsSummary>('/account/settings')
+}
+
+export function renameAccount(apiClient: ApiClient, name: string) {
+  return apiClient.fetch('/account/name', {
+    method: 'put',
+    body: JSON.stringify({ name }),
+    headers: { 'content-type': 'application/json' },
+  })
 }
