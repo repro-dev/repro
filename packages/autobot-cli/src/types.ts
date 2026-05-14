@@ -26,6 +26,14 @@ export interface AutobotProgramOptions {
   onInvocation?: (invocation: AutobotInvocation) => void;
 }
 
+export interface AutobotCommandResult<TData = unknown> {
+  command: string;
+  repo: RepoRef;
+  data: TData;
+  human: string;
+  warnings?: readonly Warning[];
+}
+
 export interface AutobotErrorEnvelopeInput {
   command: string;
   repo?: RepoRef;

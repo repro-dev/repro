@@ -7,10 +7,17 @@ import {
   toErrorPayload,
 } from "./errors";
 import { renderAutobotError } from "./render/human";
-import { renderJsonErrorEnvelope } from "./render/json";
+import {
+  renderJsonErrorEnvelope,
+  renderJsonSuccessEnvelope,
+} from "./render/json";
 import { createAutobotProgram } from "./program";
 import { createAutobotServices, type AutobotServices } from "./services";
-import type { AutobotGlobalOptions, AutobotInvocation } from "./types";
+import type {
+  AutobotCommandResult,
+  AutobotGlobalOptions,
+  AutobotInvocation,
+} from "./types";
 
 export interface AutobotCliIO {
   stdout: Pick<NodeJS.WriteStream, "write">;
@@ -29,8 +36,67 @@ function buildRepoRef(options: AutobotGlobalOptions): RepoRef | undefined {
   };
 }
 
-function inferCommand(argv: string[]): string {
-  return argv.join(" ") || "autobot-next";
+function buildCommand(commandPath: readonly string[]): string {
+  return ["autobot-next", ...commandPath].join(" ");
+}
+
+function extractCanonicalCommandPath(
+  args: readonly string[],
+  program = createAutobotProgram(),
+): string[] {
+  const path: string[] = [];
+  let current = program;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index]!;
+
+    if (token.startsWith("-")) {
+      if (
+        token === "--repo" ||
+        token === "--state-dir" ||
+        token === "--profile"
+      ) {
+        index += 1;
+      }
+
+      continue;
+    }
+
+    const next = current.commands.find((command) => command.name() === token);
+
+    if (next === undefined) {
+      if (path.length === 0) {
+        path.push(token);
+      }
+
+      break;
+    }
+
+    path.push(token);
+    current = next;
+  }
+
+  return path;
+}
+
+function renderSuccess(
+  result: AutobotCommandResult,
+  json: boolean,
+  io: AutobotCliIO,
+): void {
+  if (json) {
+    io.stdout.write(
+      renderJsonSuccessEnvelope({
+        command: result.command,
+        repo: result.repo,
+        data: result.data,
+        warnings: result.warnings,
+      }),
+    );
+    return;
+  }
+
+  io.stdout.write(`${result.human}\n`);
 }
 
 export function runAutobotCli(
@@ -56,9 +122,10 @@ export function runAutobotCli(
   try {
     program.parse(args, { from: "user" });
   } catch (error) {
-    const command = inferCommand(args);
+    const commandPath = extractCanonicalCommandPath(args);
+    const command = buildCommand(commandPath);
     const usageError = createUsageError({
-      command,
+      command: commandPath.join(" "),
       message:
         error instanceof Error && error.message.length > 0
           ? error.message
@@ -86,15 +153,17 @@ export function runAutobotCli(
   const parsedInvocation = invocation as AutobotInvocation;
 
   try {
-    services.handleInvocation(parsedInvocation);
+    const result = services.handleInvocation(parsedInvocation);
+    renderSuccess(result, parsedInvocation.options.json, io);
     return autobotExitCodes.ok;
   } catch (error) {
     const payload = toErrorPayload(error);
+    const command = buildCommand(parsedInvocation.command_path);
 
     if (parsedInvocation.options.json) {
       io.stdout.write(
         renderJsonErrorEnvelope({
-          command: inferCommand(args),
+          command,
           repo: buildRepoRef(parsedInvocation.options),
           error: payload,
         }),

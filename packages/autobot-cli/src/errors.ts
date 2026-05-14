@@ -87,8 +87,6 @@ export function toErrorPayload(error: unknown): ErrorPayload {
 
   const serialized = serializeError(error) as {
     message?: string;
-    name?: string;
-    stack?: string;
   };
 
   const message =
@@ -104,12 +102,6 @@ export function toErrorPayload(error: unknown): ErrorPayload {
     what_failed: "CLI execution",
     likely_cause: "an unhandled error escaped the command handler",
     recovery_commands: ["autobot-next --help"],
-    details:
-      serialized !== null && typeof serialized === "object"
-        ? {
-            name: serialized.name ?? null,
-            stack: serialized.stack ?? null,
-          }
-        : null,
+    details: null,
   };
 }

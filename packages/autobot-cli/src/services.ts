@@ -1,8 +1,8 @@
 import { createNotImplementedError } from "./errors";
-import type { AutobotInvocation } from "./types";
+import type { AutobotCommandResult, AutobotInvocation } from "./types";
 
 export interface AutobotServices {
-  handleInvocation(invocation: AutobotInvocation): unknown;
+  handleInvocation(invocation: AutobotInvocation): AutobotCommandResult;
 }
 
 export function createAutobotServices(): AutobotServices {

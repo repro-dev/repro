@@ -29,7 +29,7 @@ test("usage errors in json mode still emit a json envelope", () => {
 
   assert.equal(envelope.ok, false);
   assert.equal(envelope.schema_version, 1);
-  assert.equal(envelope.command, "--json bogus");
+  assert.equal(envelope.command, "autobot-next bogus");
   assert.equal(envelope.error.code, "AUTOBOT-USAGE-ERROR");
   assert.equal("repo" in envelope, false);
 });
