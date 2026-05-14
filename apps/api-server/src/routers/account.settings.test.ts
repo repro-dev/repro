@@ -10,7 +10,7 @@ describe('Routers > Account > Account settings', () => {
   let context: AccountTestContext
 
   before(async () => {
-    context = await createAccountTestContext()
+    context = await createAccountTestContext({ prefix: '/account' })
   })
 
   beforeEach(async () => {
