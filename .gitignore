@@ -71,3 +71,4 @@ packages/tdl/src/cli/*.ohm-bundle.*
 
 # AUTOBOT
 /.autobot/
+**/.autobot/
