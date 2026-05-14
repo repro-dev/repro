@@ -156,7 +156,10 @@ export interface ArtifactRepository {
 
 export interface DomainEventRepository {
   append(input: DomainEventRecord): FutureInstance<unknown, DomainEventRecord>;
-  list(issueId?: string): FutureInstance<unknown, DomainEventRecord[]>;
+  list(
+    issueId?: string,
+    options?: DomainEventListOptions,
+  ): FutureInstance<unknown, DomainEventRecord[]>;
 }
 
 export interface FlowcraftHistoryRepository {
@@ -179,9 +182,14 @@ export interface StoreProjectionRepository extends ItemProjections {
   getItemDetail(issueId: string): FutureInstance<unknown, ItemDetail | null>;
 }
 
+export interface DomainEventListOptions {
+  limit?: number;
+  beforeOccurredAt?: string;
+  afterOccurredAt?: string;
+}
+
 export interface AutobotStore {
   repo: RepoRef;
-  db: Db;
   close(): FutureInstance<unknown, void>;
   items: ItemRepository;
   runs: RunRepository;
@@ -569,7 +577,7 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
   const artifacts: ArtifactRepository = {
     record(input) {
       return futureAsync(async () => {
-        await db
+        const row = await db
           .insertInto("artifacts")
           .values({
             issue_id: input.issue_id,
@@ -583,15 +591,9 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
             inherited_from_artifact_id: input.inherited_from_artifact_id,
             created_at: input.created_at,
           })
-          .execute();
-
-        const row = await db
-          .selectFrom("artifacts")
-          .selectAll()
-          .where("issue_id", "=", input.issue_id)
-          .where("path", "=", input.path)
-          .where("created_at", "=", input.created_at)
+          .returningAll()
           .executeTakeFirstOrThrow();
+
         return fromArtifactRow(row);
       });
     },
@@ -635,16 +637,28 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
         return fromEventRow(row);
       });
     },
-    list(issueId) {
+    list(issueId, options) {
       return futureAsync(async () => {
-        const query = db
+        let query = db
           .selectFrom("domain_events")
           .selectAll()
           .orderBy("occurred_at", "asc");
-        const rows =
-          issueId === undefined
-            ? await query.execute()
-            : await query.where("issue_id", "=", issueId).execute();
+
+        if (issueId !== undefined) {
+          query = query.where("issue_id", "=", issueId);
+        }
+
+        if (options?.afterOccurredAt !== undefined) {
+          query = query.where("occurred_at", ">", options.afterOccurredAt);
+        }
+
+        if (options?.beforeOccurredAt !== undefined) {
+          query = query.where("occurred_at", "<", options.beforeOccurredAt);
+        }
+
+        const rows = await query
+          .limit(Math.max(0, Math.min(options?.limit ?? 100, 1000)))
+          .execute();
         return rows.map(fromEventRow);
       });
     },
@@ -720,7 +734,6 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
 
   return {
     repo,
-    db,
     close() {
       return futureAsync(() => db.destroy());
     },

@@ -20,7 +20,14 @@ export interface ItemStateFilter {
 
 export interface ItemProjections {
   listItems(input?: ItemStateFilter): FutureInstance<unknown, ItemSummary[]>;
-  getItemDetail(issueId: string): FutureInstance<unknown, ItemDetail | null>;
+  getItemDetail(
+    issueId: string,
+    options?: ItemDetailOptions,
+  ): FutureInstance<unknown, ItemDetail | null>;
+}
+
+export interface ItemDetailOptions {
+  eventLimit?: number;
 }
 
 function fromItemRow(row: Selectable<AutobotSchema["items"]>): ItemSummary {
@@ -153,7 +160,7 @@ export function createItemProjections(db: Db): ItemProjections {
         return () => undefined;
       });
     },
-    getItemDetail(issueId) {
+    getItemDetail(issueId, options) {
       return Future((reject, resolve) => {
         void (async () => {
           const row = await db
@@ -179,7 +186,8 @@ export function createItemProjections(db: Db): ItemProjections {
               .selectFrom("domain_events")
               .selectAll()
               .where("issue_id", "=", issueId)
-              .orderBy("occurred_at", "asc")
+              .orderBy("occurred_at", "desc")
+              .limit(Math.max(0, Math.min(options?.eventLimit ?? 50, 500)))
               .execute(),
             db
               .selectFrom("artifacts")
@@ -200,7 +208,7 @@ export function createItemProjections(db: Db): ItemProjections {
               row.recovery_commands_json,
             ),
             artifacts: artifacts.map(fromArtifactRow),
-            events: events.map(fromEventRow),
+            events: events.reverse().map(fromEventRow),
           });
         })().catch(reject);
 
@@ -214,6 +222,10 @@ export function listItems(db: Db, input?: ItemStateFilter) {
   return createItemProjections(db).listItems(input);
 }
 
-export function getItemDetail(db: Db, issueId: string) {
-  return createItemProjections(db).getItemDetail(issueId);
+export function getItemDetail(
+  db: Db,
+  issueId: string,
+  options?: ItemDetailOptions,
+) {
+  return createItemProjections(db).getItemDetail(issueId, options);
 }

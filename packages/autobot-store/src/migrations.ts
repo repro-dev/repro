@@ -178,6 +178,14 @@ function createBaseTables(db: Kysely<AutobotSchema>) {
     )
     .then(() =>
       db.schema
+        .createIndex("idx_flowcraft_executions_issue_started_at")
+        .ifNotExists()
+        .on("flowcraft_executions")
+        .columns(["issue_id", "started_at"])
+        .execute(),
+    )
+    .then(() =>
+      db.schema
         .createTable("flowcraft_events")
         .ifNotExists()
         .addColumn("flowcraft_event_id", "text", (column) =>

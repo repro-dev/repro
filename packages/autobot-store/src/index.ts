@@ -3,6 +3,7 @@ export type {
   ArtifactRepository,
   ConfigOverrideRecord,
   ConfigRepository,
+  DomainEventListOptions,
   DomainEventRecord,
   DomainEventRepository,
   FlowcraftEventRecord,
@@ -18,27 +19,8 @@ export type {
   WorkerRepository,
 } from "./repositories";
 
-export { createItemProjections, getItemDetail, listItems } from "./projections";
-
-export type { ItemStateFilter } from "./projections";
-
-export {
-  createAutobotStore,
-  createAutobotStoreClient,
-  resolveAutobotDatabasePath,
-  resolveAutobotStateDir,
-} from "./client";
+export { createAutobotStore } from "./client";
 
 export type { OpenAutobotStoreInput } from "./client";
 
-export {
-  decodeJson,
-  decodeJsonArray,
-  decodeJsonNullable,
-  encodeJson,
-  encodeJsonArray,
-} from "./json";
-
-export { migrateAutobotStore, autobotMigrationNames } from "./migrations";
-
-export type { AutobotSchema } from "./schema";
+export type { ItemStateFilter, ItemDetailOptions } from "./projections";
