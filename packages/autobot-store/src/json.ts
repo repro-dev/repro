@@ -1,40 +1,40 @@
 export function encodeJson(value: unknown): string {
-  return JSON.stringify(value);
+  return JSON.stringify(value)
 }
 
 export function encodeJsonArray(value: readonly unknown[]): string {
-  return JSON.stringify(value);
+  return JSON.stringify(value)
 }
 
 export function decodeJson<T>(
   value: string | null | undefined,
-  fallback: T,
+  fallback: T
 ): T {
-  if (value === null || value === undefined || value === "") {
-    return fallback;
+  if (value === null || value === undefined || value === '') {
+    return fallback
   }
 
   try {
-    return JSON.parse(value) as T;
+    return JSON.parse(value) as T
   } catch {
-    return fallback;
+    return fallback
   }
 }
 
 export function decodeJsonNullable<T>(
-  value: string | null | undefined,
+  value: string | null | undefined
 ): T | null {
-  if (value === null || value === undefined || value === "") {
-    return null;
+  if (value === null || value === undefined || value === '') {
+    return null
   }
 
   try {
-    return JSON.parse(value) as T;
+    return JSON.parse(value) as T
   } catch {
-    return null;
+    return null
   }
 }
 
 export function decodeJsonArray<T>(value: string | null | undefined): T[] {
-  return decodeJson<T[]>(value, []);
+  return decodeJson<T[]>(value, [])
 }

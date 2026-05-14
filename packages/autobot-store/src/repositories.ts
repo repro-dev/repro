@@ -10,221 +10,221 @@ import type {
   RepoRef,
   RunSummary,
   WorkerSummary,
-} from "@repro/autobot-core";
-import { Future, type FutureInstance } from "fluture";
-import type { Kysely, Selectable } from "kysely";
+} from '@repro/autobot-core'
+import { Future, type FutureInstance } from 'fluture'
+import type { Kysely, Selectable } from 'kysely'
 
-import { decodeJsonNullable, encodeJson, encodeJsonArray } from "./json";
+import { decodeJsonNullable, encodeJson, encodeJsonArray } from './json'
 import {
   createItemProjections,
   type ItemProjections,
   type ItemStateFilter,
-} from "./projections";
-import type { AutobotSchema } from "./schema";
+} from './projections'
+import type { AutobotSchema } from './schema'
 
-type Db = Kysely<AutobotSchema>;
+type Db = Kysely<AutobotSchema>
 
 export interface ItemRecord {
-  issue_id: string;
-  title: string | null;
-  url: string | null;
-  state: ItemState;
-  attempt: number;
-  priority: number | null;
-  owner: string | null;
-  workspace: string | null;
-  branch: string | null;
-  queued_at: string | null;
-  started_at: string | null;
-  updated_at: string;
-  last_event: string | null;
-  last_error: ErrorSummary | null;
-  recovery_commands: string[];
-  cancellation_requested: boolean;
-  cancellation_requested_at: string | null;
-  state_name: string | null;
-  state_type: string | null;
-  project: string | null;
-  labels: string[];
-  assignee: string | null;
-  current_run_id: string | null;
+  issue_id: string
+  title: string | null
+  url: string | null
+  state: ItemState
+  attempt: number
+  priority: number | null
+  owner: string | null
+  workspace: string | null
+  branch: string | null
+  queued_at: string | null
+  started_at: string | null
+  updated_at: string
+  last_event: string | null
+  last_error: ErrorSummary | null
+  recovery_commands: string[]
+  cancellation_requested: boolean
+  cancellation_requested_at: string | null
+  state_name: string | null
+  state_type: string | null
+  project: string | null
+  labels: string[]
+  assignee: string | null
+  current_run_id: string | null
 }
 
 export interface RunRecord {
-  run_id: string;
-  issue_id: string;
-  attempt: number;
-  state: ItemState;
-  flowcraft_execution_id: string | null;
-  blueprint_id: string;
-  blueprint_version: string;
-  started_at: string;
-  finished_at: string | null;
-  worker_id: string | null;
-  last_heartbeat_at: string | null;
+  run_id: string
+  issue_id: string
+  attempt: number
+  state: ItemState
+  flowcraft_execution_id: string | null
+  blueprint_id: string
+  blueprint_version: string
+  started_at: string
+  finished_at: string | null
+  worker_id: string | null
+  last_heartbeat_at: string | null
 }
 
 export interface WorkerRecord {
-  worker_id: string;
-  issue_id: string | null;
-  run_id: string | null;
-  state: WorkerSummary["state"];
-  pid: number | null;
-  started_at: string;
-  last_heartbeat_at: string | null;
+  worker_id: string
+  issue_id: string | null
+  run_id: string | null
+  state: WorkerSummary['state']
+  pid: number | null
+  started_at: string
+  last_heartbeat_at: string | null
 }
 
 export interface ConfigOverrideRecord {
-  key: string;
-  value: ConfigValue;
-  value_type: "boolean" | "integer" | "string";
-  source: ConfigSource;
-  updated_at: string;
+  key: string
+  value: ConfigValue
+  value_type: 'boolean' | 'integer' | 'string'
+  source: ConfigSource
+  updated_at: string
 }
 
 export interface ArtifactRecord {
-  artifact_id: number;
-  issue_id: string;
-  run_id: string | null;
-  attempt: number;
-  kind: ArtifactRef["kind"];
-  path: string;
-  description: string | null;
-  content_hash: string | null;
-  supersedes_artifact_id: number | null;
-  inherited_from_artifact_id: number | null;
-  created_at: string;
+  artifact_id: number
+  issue_id: string
+  run_id: string | null
+  attempt: number
+  kind: ArtifactRef['kind']
+  path: string
+  description: string | null
+  content_hash: string | null
+  supersedes_artifact_id: number | null
+  inherited_from_artifact_id: number | null
+  created_at: string
 }
 
 export interface DomainEventRecord extends DomainEvent {}
 
 export interface FlowcraftExecutionRecord {
-  execution_id: string;
-  issue_id: string;
-  run_id: string | null;
-  state: string;
-  started_at: string;
-  finished_at: string | null;
-  metadata: Record<string, unknown>;
+  execution_id: string
+  issue_id: string
+  run_id: string | null
+  state: string
+  started_at: string
+  finished_at: string | null
+  metadata: Record<string, unknown>
 }
 
 export interface FlowcraftEventRecord {
-  flowcraft_event_id: string;
-  execution_id: string;
-  node_id: string;
-  type: string;
-  occurred_at: string;
-  data: Record<string, unknown>;
+  flowcraft_event_id: string
+  execution_id: string
+  node_id: string
+  type: string
+  occurred_at: string
+  data: Record<string, unknown>
 }
 
 export interface ItemRepository {
-  upsert(input: ItemRecord): FutureInstance<unknown, ItemSummary>;
-  get(issueId: string): FutureInstance<unknown, ItemSummary | null>;
+  upsert(input: ItemRecord): FutureInstance<unknown, ItemSummary>
+  get(issueId: string): FutureInstance<unknown, ItemSummary | null>
 }
 
 export interface RunRepository {
-  upsert(input: RunRecord): FutureInstance<unknown, RunSummary>;
-  getCurrent(issueId: string): FutureInstance<unknown, RunSummary | null>;
+  upsert(input: RunRecord): FutureInstance<unknown, RunSummary>
+  getCurrent(issueId: string): FutureInstance<unknown, RunSummary | null>
 }
 
 export interface WorkerRepository {
-  upsert(input: WorkerRecord): FutureInstance<unknown, WorkerSummary>;
-  list(): FutureInstance<unknown, WorkerSummary[]>;
+  upsert(input: WorkerRecord): FutureInstance<unknown, WorkerSummary>
+  list(): FutureInstance<unknown, WorkerSummary[]>
 }
 
 export interface ConfigRepository {
   setOverride(input: {
-    key: string;
-    value: ConfigValue;
-    value_type: ConfigOverrideRecord["value_type"];
-    source: ConfigSource;
-    updated_at: string;
-  }): FutureInstance<unknown, ConfigOverrideRecord>;
-  getOverride(
-    key: string,
-  ): FutureInstance<unknown, ConfigOverrideRecord | null>;
-  listOverrides(): FutureInstance<unknown, ConfigOverrideRecord[]>;
-  deleteOverride(key: string): FutureInstance<unknown, void>;
+    key: string
+    value: ConfigValue
+    value_type: ConfigOverrideRecord['value_type']
+    source: ConfigSource
+    updated_at: string
+  }): FutureInstance<unknown, ConfigOverrideRecord>
+  getOverride(key: string): FutureInstance<unknown, ConfigOverrideRecord | null>
+  listOverrides(): FutureInstance<unknown, ConfigOverrideRecord[]>
+  deleteOverride(key: string): FutureInstance<unknown, void>
 }
 
 export interface ArtifactRepository {
   record(
-    input: Omit<ArtifactRecord, "artifact_id">,
-  ): FutureInstance<unknown, ArtifactRecord>;
-  list(issueId: string): FutureInstance<unknown, ArtifactRecord[]>;
+    input: Omit<ArtifactRecord, 'artifact_id'>
+  ): FutureInstance<unknown, ArtifactRecord>
+  list(issueId: string): FutureInstance<unknown, ArtifactRecord[]>
 }
 
 export interface DomainEventRepository {
-  append(input: DomainEventRecord): FutureInstance<unknown, DomainEventRecord>;
+  append(input: DomainEventRecord): FutureInstance<unknown, DomainEventRecord>
   list(
     issueId?: string,
-    options?: DomainEventListOptions,
-  ): FutureInstance<unknown, DomainEventRecord[]>;
+    options?: DomainEventListOptions
+  ): FutureInstance<unknown, DomainEventRecord[]>
 }
 
 export interface FlowcraftHistoryRepository {
   recordExecution(
-    input: FlowcraftExecutionRecord,
-  ): FutureInstance<unknown, FlowcraftExecutionRecord>;
+    input: FlowcraftExecutionRecord
+  ): FutureInstance<unknown, FlowcraftExecutionRecord>
   listExecutions(
-    issueId: string,
-  ): FutureInstance<unknown, FlowcraftExecutionRecord[]>;
+    issueId: string
+  ): FutureInstance<unknown, FlowcraftExecutionRecord[]>
   recordEvent(
-    input: FlowcraftEventRecord,
-  ): FutureInstance<unknown, FlowcraftEventRecord>;
+    input: FlowcraftEventRecord
+  ): FutureInstance<unknown, FlowcraftEventRecord>
   listEvents(
-    executionId: string,
-  ): FutureInstance<unknown, FlowcraftEventRecord[]>;
+    executionId: string
+  ): FutureInstance<unknown, FlowcraftEventRecord[]>
 }
 
 export interface StoreProjectionRepository extends ItemProjections {
-  listItems(input?: ItemStateFilter): FutureInstance<unknown, ItemSummary[]>;
-  getItemDetail(issueId: string): FutureInstance<unknown, ItemDetail | null>;
+  listItems(input?: ItemStateFilter): FutureInstance<unknown, ItemSummary[]>
+  getItemDetail(issueId: string): FutureInstance<unknown, ItemDetail | null>
 }
 
 export interface DomainEventListOptions {
-  limit?: number;
-  beforeOccurredAt?: string;
-  afterOccurredAt?: string;
+  limit?: number
+  beforeOccurredAt?: string
+  beforeEventId?: string
+  afterOccurredAt?: string
+  afterEventId?: string
 }
 
 export interface AutobotStore {
-  repo: RepoRef;
-  close(): FutureInstance<unknown, void>;
-  items: ItemRepository;
-  runs: RunRepository;
-  workers: WorkerRepository;
-  config: ConfigRepository;
-  artifacts: ArtifactRepository;
-  events: DomainEventRepository;
-  flowcraft: FlowcraftHistoryRepository;
-  projections: StoreProjectionRepository;
+  repo: RepoRef
+  close(): FutureInstance<unknown, void>
+  items: ItemRepository
+  runs: RunRepository
+  workers: WorkerRepository
+  config: ConfigRepository
+  artifacts: ArtifactRepository
+  events: DomainEventRepository
+  flowcraft: FlowcraftHistoryRepository
+  projections: StoreProjectionRepository
 }
 
 function futureAsync<T>(thunk: () => Promise<T>): FutureInstance<unknown, T> {
   return Future((reject, resolve) => {
-    let cancelled = false;
+    let cancelled = false
 
     void thunk().then(
-      (value) => {
+      value => {
         if (!cancelled) {
-          resolve(value);
+          resolve(value)
         }
       },
-      (error) => {
+      error => {
         if (!cancelled) {
-          reject(error);
+          reject(error)
         }
-      },
-    );
+      }
+    )
 
     return () => {
-      cancelled = true;
-    };
-  });
+      cancelled = true
+    }
+  })
 }
 
-function fromItemRow(row: Selectable<AutobotSchema["items"]>): ItemSummary {
+function fromItemRow(row: Selectable<AutobotSchema['items']>): ItemSummary {
   return {
     issue_id: row.issue_id,
     title: row.title,
@@ -240,10 +240,10 @@ function fromItemRow(row: Selectable<AutobotSchema["items"]>): ItemSummary {
     updated_at: row.updated_at,
     last_event: row.last_event,
     last_error: decodeJsonNullable<ErrorSummary>(row.last_error_json),
-  };
+  }
 }
 
-function fromRunRow(row: Selectable<AutobotSchema["runs"]>): RunSummary {
+function fromRunRow(row: Selectable<AutobotSchema['runs']>): RunSummary {
   return {
     run_id: row.run_id,
     issue_id: row.issue_id,
@@ -256,43 +256,43 @@ function fromRunRow(row: Selectable<AutobotSchema["runs"]>): RunSummary {
     finished_at: row.finished_at,
     worker_id: row.worker_id,
     last_heartbeat_at: row.last_heartbeat_at,
-  };
+  }
 }
 
 function fromWorkerRow(
-  row: Selectable<AutobotSchema["workers"]>,
+  row: Selectable<AutobotSchema['workers']>
 ): WorkerSummary {
   return {
     worker_id: row.worker_id,
     issue_id: row.issue_id,
     run_id: row.run_id,
-    state: row.state as WorkerSummary["state"],
+    state: row.state as WorkerSummary['state'],
     pid: row.pid,
     started_at: row.started_at,
     last_heartbeat_at: row.last_heartbeat_at,
-  };
+  }
 }
 
 function fromArtifactRow(
-  row: Selectable<AutobotSchema["artifacts"]>,
+  row: Selectable<AutobotSchema['artifacts']>
 ): ArtifactRecord {
   return {
     artifact_id: row.artifact_id,
     issue_id: row.issue_id,
     run_id: row.run_id,
     attempt: row.attempt,
-    kind: row.kind as ArtifactRef["kind"],
+    kind: row.kind as ArtifactRef['kind'],
     path: row.path,
     description: row.description,
     content_hash: row.content_hash,
     supersedes_artifact_id: row.supersedes_artifact_id,
     inherited_from_artifact_id: row.inherited_from_artifact_id,
     created_at: row.created_at,
-  };
+  }
 }
 
 function fromEventRow(
-  row: Selectable<AutobotSchema["domain_events"]>,
+  row: Selectable<AutobotSchema['domain_events']>
 ): DomainEventRecord {
   return {
     event_id: row.event_id,
@@ -301,15 +301,15 @@ function fromEventRow(
     type: row.type,
     state: row.state as ItemState | null,
     message: row.message,
-    severity: row.severity as DomainEvent["severity"],
+    severity: row.severity as DomainEvent['severity'],
     occurred_at: row.occurred_at,
     actor: row.actor,
     data: decodeJsonNullable<Record<string, unknown>>(row.data_json) ?? {},
-  };
+  }
 }
 
 function fromFlowcraftExecutionRow(
-  row: Selectable<AutobotSchema["flowcraft_executions"]>,
+  row: Selectable<AutobotSchema['flowcraft_executions']>
 ): FlowcraftExecutionRecord {
   return {
     execution_id: row.execution_id,
@@ -320,11 +320,11 @@ function fromFlowcraftExecutionRow(
     finished_at: row.finished_at,
     metadata:
       decodeJsonNullable<Record<string, unknown>>(row.metadata_json) ?? {},
-  };
+  }
 }
 
 function fromFlowcraftEventRow(
-  row: Selectable<AutobotSchema["flowcraft_events"]>,
+  row: Selectable<AutobotSchema['flowcraft_events']>
 ): FlowcraftEventRecord {
   return {
     flowcraft_event_id: row.flowcraft_event_id,
@@ -333,30 +333,30 @@ function fromFlowcraftEventRow(
     type: row.type,
     occurred_at: row.occurred_at,
     data: decodeJsonNullable<Record<string, unknown>>(row.data_json) ?? {},
-  };
+  }
 }
 
 function toConfigRecord(
-  row: Selectable<AutobotSchema["config_overrides"]>,
+  row: Selectable<AutobotSchema['config_overrides']>
 ): ConfigOverrideRecord {
-  const parsed = decodeJsonNullable<ConfigValue>(row.value);
+  const parsed = decodeJsonNullable<ConfigValue>(row.value)
   return {
     key: row.key,
     value: parsed ?? row.value,
-    value_type: row.value_type as ConfigOverrideRecord["value_type"],
+    value_type: row.value_type as ConfigOverrideRecord['value_type'],
     source: row.source as ConfigSource,
     updated_at: row.updated_at,
-  };
+  }
 }
 
 export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
-  const projections = createItemProjections(db);
+  const projections = createItemProjections(db)
 
   const items: ItemRepository = {
     upsert(input) {
       return futureAsync(async () => {
         await db
-          .insertInto("items")
+          .insertInto('items')
           .values({
             issue_id: input.issue_id,
             title: input.title,
@@ -383,8 +383,8 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
             assignee: input.assignee,
             current_run_id: input.current_run_id,
           })
-          .onConflict((conflict) =>
-            conflict.column("issue_id").doUpdateSet({
+          .onConflict(conflict =>
+            conflict.column('issue_id').doUpdateSet({
               title: input.title,
               url: input.url,
               state: input.state,
@@ -408,38 +408,38 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
               labels_json: encodeJsonArray(input.labels),
               assignee: input.assignee,
               current_run_id: input.current_run_id,
-            }),
+            })
           )
-          .execute();
+          .execute()
 
         const row = await db
-          .selectFrom("items")
+          .selectFrom('items')
           .selectAll()
-          .where("issue_id", "=", input.issue_id)
-          .executeTakeFirstOrThrow();
-        return fromItemRow(row);
-      });
+          .where('issue_id', '=', input.issue_id)
+          .executeTakeFirstOrThrow()
+        return fromItemRow(row)
+      })
     },
     get(issueId) {
       return futureAsync(async () => {
         const row = await db
-          .selectFrom("items")
+          .selectFrom('items')
           .selectAll()
-          .where("issue_id", "=", issueId)
-          .executeTakeFirst();
-        return row === undefined ? null : fromItemRow(row);
-      });
+          .where('issue_id', '=', issueId)
+          .executeTakeFirst()
+        return row === undefined ? null : fromItemRow(row)
+      })
     },
-  };
+  }
 
   const runs: RunRepository = {
     upsert(input) {
       return futureAsync(async () => {
         await db
-          .insertInto("runs")
+          .insertInto('runs')
           .values(input)
-          .onConflict((conflict) =>
-            conflict.column("run_id").doUpdateSet({
+          .onConflict(conflict =>
+            conflict.column('run_id').doUpdateSet({
               issue_id: input.issue_id,
               attempt: input.attempt,
               state: input.state,
@@ -450,75 +450,75 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
               finished_at: input.finished_at,
               worker_id: input.worker_id,
               last_heartbeat_at: input.last_heartbeat_at,
-            }),
+            })
           )
-          .execute();
+          .execute()
 
         const row = await db
-          .selectFrom("runs")
+          .selectFrom('runs')
           .selectAll()
-          .where("run_id", "=", input.run_id)
-          .executeTakeFirstOrThrow();
-        return fromRunRow(row);
-      });
+          .where('run_id', '=', input.run_id)
+          .executeTakeFirstOrThrow()
+        return fromRunRow(row)
+      })
     },
     getCurrent(issueId) {
       return futureAsync(async () => {
         const row = await db
-          .selectFrom("runs")
+          .selectFrom('runs')
           .selectAll()
-          .where("issue_id", "=", issueId)
-          .orderBy("attempt", "desc")
-          .orderBy("started_at", "desc")
-          .executeTakeFirst();
-        return row === undefined ? null : fromRunRow(row);
-      });
+          .where('issue_id', '=', issueId)
+          .orderBy('attempt', 'desc')
+          .orderBy('started_at', 'desc')
+          .executeTakeFirst()
+        return row === undefined ? null : fromRunRow(row)
+      })
     },
-  };
+  }
 
   const workers: WorkerRepository = {
     upsert(input) {
       return futureAsync(async () => {
         await db
-          .insertInto("workers")
+          .insertInto('workers')
           .values(input)
-          .onConflict((conflict) =>
-            conflict.column("worker_id").doUpdateSet({
+          .onConflict(conflict =>
+            conflict.column('worker_id').doUpdateSet({
               issue_id: input.issue_id,
               run_id: input.run_id,
               state: input.state,
               pid: input.pid,
               started_at: input.started_at,
               last_heartbeat_at: input.last_heartbeat_at,
-            }),
+            })
           )
-          .execute();
+          .execute()
 
         const row = await db
-          .selectFrom("workers")
+          .selectFrom('workers')
           .selectAll()
-          .where("worker_id", "=", input.worker_id)
-          .executeTakeFirstOrThrow();
-        return fromWorkerRow(row);
-      });
+          .where('worker_id', '=', input.worker_id)
+          .executeTakeFirstOrThrow()
+        return fromWorkerRow(row)
+      })
     },
     list() {
       return futureAsync(async () => {
         const rows = await db
-          .selectFrom("workers")
+          .selectFrom('workers')
           .selectAll()
-          .orderBy("started_at", "desc")
-          .execute();
-        return rows.map(fromWorkerRow);
-      });
+          .orderBy('started_at', 'desc')
+          .execute()
+        return rows.map(fromWorkerRow)
+      })
     },
-  };
+  }
 
   const config: ConfigRepository = {
     setOverride(input) {
       return futureAsync(async () => {
         await db
-          .insertInto("config_overrides")
+          .insertInto('config_overrides')
           .values({
             key: input.key,
             value: encodeJson(input.value),
@@ -526,59 +526,56 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
             source: input.source,
             updated_at: input.updated_at,
           })
-          .onConflict((conflict) =>
-            conflict.column("key").doUpdateSet({
+          .onConflict(conflict =>
+            conflict.column('key').doUpdateSet({
               value: encodeJson(input.value),
               value_type: input.value_type,
               source: input.source,
               updated_at: input.updated_at,
-            }),
+            })
           )
-          .execute();
+          .execute()
         return {
           key: input.key,
           value: input.value,
           value_type: input.value_type,
           source: input.source,
           updated_at: input.updated_at,
-        };
-      });
+        }
+      })
     },
     getOverride(key) {
       return futureAsync(async () => {
         const row = await db
-          .selectFrom("config_overrides")
+          .selectFrom('config_overrides')
           .selectAll()
-          .where("key", "=", key)
-          .executeTakeFirst();
-        return row === undefined ? null : toConfigRecord(row);
-      });
+          .where('key', '=', key)
+          .executeTakeFirst()
+        return row === undefined ? null : toConfigRecord(row)
+      })
     },
     listOverrides() {
       return futureAsync(async () => {
         const rows = await db
-          .selectFrom("config_overrides")
+          .selectFrom('config_overrides')
           .selectAll()
-          .orderBy("key", "asc")
-          .execute();
-        return rows.map(toConfigRecord);
-      });
+          .orderBy('key', 'asc')
+          .execute()
+        return rows.map(toConfigRecord)
+      })
     },
     deleteOverride(key) {
       return futureAsync(async () => {
-        await db
-          .deleteFrom("config_overrides")
-          .where("key", "=", key)
-          .execute();
-      });
+        await db.deleteFrom('config_overrides').where('key', '=', key).execute()
+      })
     },
-  };
+  }
 
   const artifacts: ArtifactRepository = {
     record(input) {
       return futureAsync(async () => {
         const row = await db
-          .insertInto("artifacts")
+          .insertInto('artifacts')
           .values({
             issue_id: input.issue_id,
             run_id: input.run_id,
@@ -592,29 +589,29 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
             created_at: input.created_at,
           })
           .returningAll()
-          .executeTakeFirstOrThrow();
+          .executeTakeFirstOrThrow()
 
-        return fromArtifactRow(row);
-      });
+        return fromArtifactRow(row)
+      })
     },
     list(issueId) {
       return futureAsync(async () => {
         const rows = await db
-          .selectFrom("artifacts")
+          .selectFrom('artifacts')
           .selectAll()
-          .where("issue_id", "=", issueId)
-          .orderBy("created_at", "asc")
-          .execute();
-        return rows.map(fromArtifactRow);
-      });
+          .where('issue_id', '=', issueId)
+          .orderBy('created_at', 'asc')
+          .execute()
+        return rows.map(fromArtifactRow)
+      })
     },
-  };
+  }
 
   const events: DomainEventRepository = {
     append(input) {
       return futureAsync(async () => {
         await db
-          .insertInto("domain_events")
+          .insertInto('domain_events')
           .values({
             event_id: input.event_id,
             issue_id: input.issue_id,
@@ -627,48 +624,73 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
             actor: input.actor,
             data_json: encodeJson(input.data),
           })
-          .execute();
+          .execute()
 
         const row = await db
-          .selectFrom("domain_events")
+          .selectFrom('domain_events')
           .selectAll()
-          .where("event_id", "=", input.event_id)
-          .executeTakeFirstOrThrow();
-        return fromEventRow(row);
-      });
+          .where('event_id', '=', input.event_id)
+          .executeTakeFirstOrThrow()
+        return fromEventRow(row)
+      })
     },
     list(issueId, options) {
       return futureAsync(async () => {
         let query = db
-          .selectFrom("domain_events")
+          .selectFrom('domain_events')
           .selectAll()
-          .orderBy("occurred_at", "asc");
+          .orderBy('occurred_at', 'asc')
+          .orderBy('event_id', 'asc')
+        const afterOccurredAt = options?.afterOccurredAt
+        const afterEventId = options?.afterEventId
+        const beforeOccurredAt = options?.beforeOccurredAt
+        const beforeEventId = options?.beforeEventId
 
         if (issueId !== undefined) {
-          query = query.where("issue_id", "=", issueId);
+          query = query.where('issue_id', '=', issueId)
         }
 
-        if (options?.afterOccurredAt !== undefined) {
-          query = query.where("occurred_at", ">", options.afterOccurredAt);
+        if (afterOccurredAt !== undefined) {
+          query = query.where(builder =>
+            afterEventId === undefined
+              ? builder('occurred_at', '>', afterOccurredAt)
+              : builder.or([
+                  builder('occurred_at', '>', afterOccurredAt),
+                  builder.and([
+                    builder('occurred_at', '=', afterOccurredAt),
+                    builder('event_id', '>', afterEventId),
+                  ]),
+                ])
+          )
         }
 
-        if (options?.beforeOccurredAt !== undefined) {
-          query = query.where("occurred_at", "<", options.beforeOccurredAt);
+        if (beforeOccurredAt !== undefined) {
+          query = query.where(builder =>
+            beforeEventId === undefined
+              ? builder('occurred_at', '<', beforeOccurredAt)
+              : builder.or([
+                  builder('occurred_at', '<', beforeOccurredAt),
+                  builder.and([
+                    builder('occurred_at', '=', beforeOccurredAt),
+                    builder('event_id', '<', beforeEventId),
+                  ]),
+                ])
+          )
         }
 
         const rows = await query
           .limit(Math.max(0, Math.min(options?.limit ?? 100, 1000)))
-          .execute();
-        return rows.map(fromEventRow);
-      });
+          .execute()
+        return rows.map(fromEventRow)
+      })
     },
-  };
+  }
 
   const flowcraft: FlowcraftHistoryRepository = {
     recordExecution(input) {
       return futureAsync(async () => {
         await db
-          .insertInto("flowcraft_executions")
+          .insertInto('flowcraft_executions')
           .values({
             execution_id: input.execution_id,
             issue_id: input.issue_id,
@@ -678,35 +700,35 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
             finished_at: input.finished_at,
             metadata_json: encodeJson(input.metadata),
           })
-          .onConflict((conflict) =>
-            conflict.column("execution_id").doUpdateSet({
+          .onConflict(conflict =>
+            conflict.column('execution_id').doUpdateSet({
               issue_id: input.issue_id,
               run_id: input.run_id,
               state: input.state,
               started_at: input.started_at,
               finished_at: input.finished_at,
               metadata_json: encodeJson(input.metadata),
-            }),
+            })
           )
-          .execute();
-        return input;
-      });
+          .execute()
+        return input
+      })
     },
     listExecutions(issueId) {
       return futureAsync(async () => {
         const rows = await db
-          .selectFrom("flowcraft_executions")
+          .selectFrom('flowcraft_executions')
           .selectAll()
-          .where("issue_id", "=", issueId)
-          .orderBy("started_at", "asc")
-          .execute();
-        return rows.map(fromFlowcraftExecutionRow);
-      });
+          .where('issue_id', '=', issueId)
+          .orderBy('started_at', 'asc')
+          .execute()
+        return rows.map(fromFlowcraftExecutionRow)
+      })
     },
     recordEvent(input) {
       return futureAsync(async () => {
         await db
-          .insertInto("flowcraft_events")
+          .insertInto('flowcraft_events')
           .values({
             flowcraft_event_id: input.flowcraft_event_id,
             execution_id: input.execution_id,
@@ -715,27 +737,27 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
             occurred_at: input.occurred_at,
             data_json: encodeJson(input.data),
           })
-          .execute();
-        return input;
-      });
+          .execute()
+        return input
+      })
     },
     listEvents(executionId) {
       return futureAsync(async () => {
         const rows = await db
-          .selectFrom("flowcraft_events")
+          .selectFrom('flowcraft_events')
           .selectAll()
-          .where("execution_id", "=", executionId)
-          .orderBy("occurred_at", "asc")
-          .execute();
-        return rows.map(fromFlowcraftEventRow);
-      });
+          .where('execution_id', '=', executionId)
+          .orderBy('occurred_at', 'asc')
+          .execute()
+        return rows.map(fromFlowcraftEventRow)
+      })
     },
-  };
+  }
 
   return {
     repo,
     close() {
-      return futureAsync(() => db.destroy());
+      return futureAsync(() => db.destroy())
     },
     items,
     runs,
@@ -745,5 +767,5 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
     events,
     flowcraft,
     projections,
-  };
+  }
 }

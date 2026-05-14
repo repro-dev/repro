@@ -17,10 +17,10 @@ export type {
   AutobotStore,
   WorkerRecord,
   WorkerRepository,
-} from "./repositories";
+} from './repositories'
 
-export { createAutobotStore } from "./client";
+export { createAutobotStore } from './client'
 
-export type { OpenAutobotStoreInput } from "./client";
+export type { OpenAutobotStoreInput } from './client'
 
-export type { ItemStateFilter, ItemDetailOptions } from "./projections";
+export type { ItemStateFilter, ItemDetailOptions } from './projections'
