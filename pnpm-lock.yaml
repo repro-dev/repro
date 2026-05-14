@@ -1554,6 +1554,9 @@ importers:
       '@repro/autobot-core':
         specifier: workspace:*
         version: link:../autobot-core
+      '@repro/autobot-store':
+        specifier: workspace:*
+        version: link:../autobot-store
       commander:
         specifier: ^12.1.0
         version: 12.1.0

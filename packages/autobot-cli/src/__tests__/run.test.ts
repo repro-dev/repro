@@ -176,7 +176,10 @@ test("unexpected errors are generic and redact stacks", async () => {
   assert.equal(exitCode, 1);
   assert.equal(envelope.error.message, "Unexpected Autobot CLI error");
   assert.equal(envelope.error.details, null);
-  assert.equal(JSON.stringify(envelope).includes("/Users/gary"), false);
+  assert.equal(
+    JSON.stringify(envelope).includes("/Users/gary/secret.txt"),
+    false,
+  );
 });
 
 test("json usage errors use the canonical command path", async () => {

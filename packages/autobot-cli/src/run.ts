@@ -9,8 +9,13 @@ import {
 } from "./errors";
 import {
   renderAutobotError,
+  renderAutobotConfigList,
+  renderAutobotConfigMutation,
+  renderAutobotConfigValue,
   renderAutobotItemDetail,
-  renderAutobotItemSummary,
+  renderAutobotQueueList,
+  renderAutobotQueueMutation,
+  renderAutobotQueueStatus,
 } from "./render/human";
 import {
   renderJsonErrorEnvelope,
@@ -30,9 +35,19 @@ export interface AutobotCliIO {
   isTTY?: boolean;
 }
 
-function buildRepoRef(options: AutobotGlobalOptions): RepoRef | undefined {
+function buildRepoRef(
+  options: AutobotGlobalOptions,
+  useCwdFallback = false,
+): RepoRef | undefined {
   if (options.repo === null) {
-    return undefined;
+    if (!useCwdFallback) {
+      return undefined;
+    }
+
+    return {
+      path: process.cwd(),
+      state_dir: options.state_dir ?? ".autobot",
+    };
   }
 
   return {
@@ -106,12 +121,35 @@ function renderSuccess(
         })}\n`,
       );
       return;
-    case "item-summary":
+    case "queue-list":
       io.stdout.write(
-        `${renderAutobotItemSummary(result.data, {
+        `${renderAutobotQueueList(result.data.items, {
           color: colorEnabled,
         })}\n`,
       );
+      return;
+    case "queue-status":
+      io.stdout.write(
+        `${renderAutobotQueueStatus(result.data, {
+          color: colorEnabled,
+        })}\n`,
+      );
+      return;
+    case "queue-mutation":
+      io.stdout.write(
+        `${renderAutobotQueueMutation(result.data, {
+          color: colorEnabled,
+        })}\n`,
+      );
+      return;
+    case "config-list":
+      io.stdout.write(`${renderAutobotConfigList(result.data.config)}\n`);
+      return;
+    case "config-value":
+      io.stdout.write(`${renderAutobotConfigValue(result.data.config)}\n`);
+      return;
+    case "config-mutation":
+      io.stdout.write(`${renderAutobotConfigMutation(result.data)}\n`);
       return;
   }
 }
@@ -194,7 +232,7 @@ export function runAutobotCli(
             io.stdout.write(
               renderJsonErrorEnvelope({
                 command,
-                repo: buildRepoRef(parsedInvocation.options),
+                repo: buildRepoRef(parsedInvocation.options, true),
                 error: payload,
               }),
             );
@@ -229,7 +267,7 @@ export function runAutobotCli(
         io.stdout.write(
           renderJsonErrorEnvelope({
             command,
-            repo: buildRepoRef(parsedInvocation.options),
+            repo: buildRepoRef(parsedInvocation.options, true),
             error: payload,
           }),
         );

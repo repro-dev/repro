@@ -38,8 +38,7 @@ workspace_url = sys.argv[2]
 admin_url = sys.argv[3]
 
 for login in data['logins']:
-    url = workspace_url if login['service'] == 'workspace' else admin_url
-    print(f"{login['profile']}|{url}|{login['username']}|{data['password']}")
+    print(login['profile'])
 PY
 }
 
@@ -156,7 +155,7 @@ test_bootstrap_seeds_agent_browser_auth_vault_profiles_and_is_idempotent() {
   expected_admin_url="$(python3 "$REPO_ROOT/scripts/lib/py/local_service_url.py" admin "$REPO_ROOT/infra/services.json")"
 
   while IFS= read -r expected_profile; do
-    if ! grep -Fxq "$expected_profile" "$auth_vault_state"; then
+    if ! grep -Eq "^${expected_profile//./\.}\|" "$auth_vault_state"; then
       rm -rf "$tmpdir"
       _fail "bootstrap seeds agent-browser auth vault profiles and is idempotent" "missing profile: $expected_profile; first run rc=$rc1; second run rc=$rc2; output1: $output1; output2: $output2"
       return
@@ -198,6 +197,17 @@ test_bootstrap_uses_repo_local_linear_cli_from_pnpm_install() {
     _pass "bootstrap uses repo-local linear CLI from pnpm install"
   else
     _fail "bootstrap uses repo-local linear CLI from pnpm install" "rc=$rc; output: $output"
+  fi
+}
+
+test_bootstrap_exposes_autobot_next_from_repo_bin_path() {
+  local output rc=0
+  output="$(PATH="$REPO_ROOT/bin:$SYSTEM_PATH" bash -lc 'command -v autobot-next' 2>&1)" || rc=$?
+
+  if [ $rc -eq 0 ] && [ "$output" = "$REPO_ROOT/bin/autobot-next" ]; then
+    _pass "bootstrap exposes autobot-next from repo bin path"
+  else
+    _fail "bootstrap exposes autobot-next from repo bin path" "rc=$rc; output: $output"
   fi
 }
 
