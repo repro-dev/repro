@@ -817,13 +817,28 @@ async function serializeIssue(client, issue, labels = []) {
   };
 }
 
-async function serializeIssueListItem(issue, labels = [], detailFields = []) {
-  // List/children stay bounded by resolving only the summary relations we render.
+async function serializeIssueListItem(issue, labels = [], projection = null) {
+  const requestedFields = projection ? new Set(projection) : null;
+  const resolveProject =
+    !requestedFields ||
+    requestedFields.has("project") ||
+    requestedFields.has("milestone");
+  const resolveMilestone = !requestedFields || requestedFields.has("milestone");
+  const resolveAssignee = !requestedFields || requestedFields.has("assignee");
+  const resolveStatus = !requestedFields || requestedFields.has("status");
+  const resolveLabels = !requestedFields || requestedFields.has("labels");
+  const resolveDescription =
+    !requestedFields || requestedFields.has("description");
+  const resolveDetails = Boolean(
+    requestedFields &&
+      (requestedFields.has("comments") || requestedFields.has("relations")),
+  );
+
   const [project, milestone, assignee, status] = await Promise.all([
-    resolveRelationValue(issue?.project),
-    resolveRelationValue(issue?.projectMilestone),
-    resolveRelationValue(issue?.assignee),
-    resolveRelationValue(issue?.state),
+    resolveProject ? resolveRelationValue(issue?.project) : null,
+    resolveMilestone ? resolveRelationValue(issue?.projectMilestone) : null,
+    resolveAssignee ? resolveRelationValue(issue?.assignee) : null,
+    resolveStatus ? resolveRelationValue(issue?.state) : null,
   ]);
 
   const item = {
@@ -833,24 +848,40 @@ async function serializeIssueListItem(issue, labels = [], detailFields = []) {
     url: issue.url ?? null,
     priority: issue.priority ?? null,
     priorityLabel: issue.priorityLabel ?? null,
-    status: status ? serializeStatus(status) : null,
-    project: project ? await serializeProjectSummary(project) : null,
-    milestone: milestone
-      ? await serializeMilestonePreview(milestone, project)
-      : null,
-    assignee: serializeUser(assignee),
-    labels: serializeIssueLabels(issue, labels),
     updatedAt:
       issue.updatedAt instanceof Date
         ? issue.updatedAt.toISOString()
         : issue.updatedAt ?? null,
-    description: issue.description ?? null,
   };
 
-  if (detailFields.length) {
+  if (resolveStatus) item.status = status ? serializeStatus(status) : null;
+  if (resolveProject) {
+    item.project = project ? await serializeProjectSummary(project) : null;
+  }
+  if (resolveMilestone) {
+    item.milestone = milestone
+      ? await serializeMilestonePreview(milestone, project)
+      : null;
+  }
+  if (resolveAssignee) item.assignee = serializeUser(assignee);
+  if (resolveLabels) item.labels = serializeIssueLabels(issue, labels);
+  if (resolveDescription) item.description = issue.description ?? null;
+
+  if (resolveDetails) {
     const details = await serializeIssueDetails(issue);
-    if (detailFields.includes("comments")) item.comments = details.comments;
-    if (detailFields.includes("relations")) item.relations = details.relations;
+    if (requestedFields.has("comments")) item.comments = details.comments;
+    if (requestedFields.has("relations")) item.relations = details.relations;
+  }
+
+  if (!requestedFields) {
+    item.status = status ? serializeStatus(status) : null;
+    item.project = project ? await serializeProjectSummary(project) : null;
+    item.milestone = milestone
+      ? await serializeMilestonePreview(milestone, project)
+      : null;
+    item.assignee = serializeUser(assignee);
+    item.labels = serializeIssueLabels(issue, labels);
+    item.description = issue.description ?? null;
   }
 
   return item;
@@ -1298,21 +1329,22 @@ async function issueListCommand(args, context) {
     filter,
   });
 
-  const issueLabelIds = collectLabelIds(responseIssues);
-  const issueLabels = labels.length
-    ? labels
-    : issueLabelIds.length
-    ? await resolveLabels(team)
+  const issueLabelsRequested =
+    !jsonProjection || jsonProjection.includes("labels");
+  const issueLabelIds = issueLabelsRequested
+    ? collectLabelIds(responseIssues)
     : [];
-  const issueListDetailFields = jsonProjection
-    ? jsonProjection.filter(
-        (field) => field === "comments" || field === "relations",
-      )
+  const issueLabels = issueLabelsRequested
+    ? labels.length
+      ? labels
+      : issueLabelIds.length
+      ? await resolveLabels(team)
+      : []
     : [];
 
   const items = await Promise.all(
     responseIssues.map((issue) =>
-      serializeIssueListItem(issue, issueLabels, issueListDetailFields),
+      serializeIssueListItem(issue, issueLabels, jsonProjection),
     ),
   );
 
