@@ -44,6 +44,9 @@ test("queue commands and global flags are present in the parser tree", () => {
   const statusCommand = program.commands.find(
     (command) => command.name() === "status",
   );
+  const discoverCommand = program.commands.find(
+    (command) => command.name() === "discover",
+  );
 
   assert.ok(
     addCommand?.options.some((option) => option.flags.includes("--dry-run")),
@@ -55,4 +58,21 @@ test("queue commands and global flags are present in the parser tree", () => {
     removeCommand?.options.some((option) => option.flags.includes("--force")),
   );
   assert.match(statusCommand?.usage() ?? "", /issue-id/);
+  assert.ok(program.options.some((option) => option.flags.includes("-q")));
+  assert.ok(
+    discoverCommand?.options.some((option) =>
+      option.flags.includes("--project"),
+    ),
+  );
+  assert.ok(
+    discoverCommand?.options.some((option) => option.flags.includes("--label")),
+  );
+  assert.ok(
+    discoverCommand?.options.some((option) =>
+      option.flags.includes("--priority"),
+    ),
+  );
+  assert.ok(
+    discoverCommand?.options.some((option) => option.flags.includes("--limit")),
+  );
 });

@@ -34,6 +34,10 @@ function makeOptions(
     color: false,
     dry_run: false,
     force: false,
+    project: null,
+    labels: [],
+    priority: null,
+    limit: null,
     ...overrides,
   };
 }

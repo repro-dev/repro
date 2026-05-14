@@ -7,6 +7,8 @@ import {
   type ItemState,
 } from "@repro/autobot-core";
 
+import type { DiscoverData } from "../types";
+
 import { createTextTheme, indentLines } from "./text";
 
 function headline(item: ItemSummary): string {
@@ -187,6 +189,35 @@ export function renderAutobotConfigMutation(input: {
     `Next: ${renderConfigValue(input.next.value)}`,
     `Events: ${input.events.length}`,
   ];
+
+  return lines.join("\n");
+}
+
+export function renderAutobotDiscoverResults(input: DiscoverData): string {
+  if (input.candidates.length === 0) {
+    return `No discovery candidates found for ${input.project}.`;
+  }
+
+  const lines = [
+    `Discover results for ${input.project}`,
+    `Candidates: ${input.candidates.length}`,
+    ...input.candidates.map(
+      (candidate) =>
+        `${candidate.issue_id} · ${candidate.title ?? "(untitled)"}`,
+    ),
+  ];
+
+  if (input.exclusions.length > 0) {
+    lines.push(
+      "",
+      `Exclusions: ${input.exclusions.length}`,
+      ...input.exclusions.map((entry) => {
+        const suffix =
+          entry.details === null ? "" : ` ${JSON.stringify(entry.details)}`;
+        return `${entry.issue_id} (${entry.reason})${suffix}`;
+      }),
+    );
+  }
 
   return lines.join("\n");
 }

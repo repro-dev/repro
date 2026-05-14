@@ -198,6 +198,56 @@ test("config list renders unset defaults explicitly", async () => {
   assert.match(io.read().stdout, /default: \(unset\)/);
 });
 
+test("discover quiet output prints issue ids only", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "discover", "-q"], io.io, {
+      handleInvocation() {
+        return resolve({
+          kind: "discover",
+          command: "autobot-next discover",
+          repo: {
+            path: "/worktrees/autobot",
+            state_dir: ".autobot",
+          },
+          data: {
+            project: "Engineering",
+            query: null,
+            filters: {
+              labels: [],
+              priority: null,
+              limit: null,
+            },
+            scanned: 2,
+            candidates: [
+              {
+                issue_id: "REP-300",
+                title: "Ship discovery path",
+                url: "https://linear.app/repro/issue/REP-300",
+                project: "Engineering",
+                labels: ["backend"],
+                priority: 2,
+                priority_label: "High",
+                status_name: "Todo",
+                state_type: "unstarted",
+                assignee: "Gary",
+              },
+            ],
+            issue_ids: ["REP-300"],
+            exclusions: [],
+            quiet: true,
+          },
+          warnings: [],
+        } as AutobotCommandResult);
+      },
+    }),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(io.read().stdout, "REP-300\n");
+});
+
 test("tty human output respects no-color", async () => {
   const io = createIo();
   io.io.isTTY = true;

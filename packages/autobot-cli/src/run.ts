@@ -12,6 +12,7 @@ import {
   renderAutobotConfigList,
   renderAutobotConfigMutation,
   renderAutobotConfigValue,
+  renderAutobotDiscoverResults,
   renderAutobotItemDetail,
   renderAutobotQueueList,
   renderAutobotQueueMutation,
@@ -154,6 +155,18 @@ function renderSuccess(
       return;
     case "config-mutation":
       io.stdout.write(`${renderAutobotConfigMutation(result.data)}\n`);
+      return;
+    case "discover":
+      if (result.data.quiet) {
+        io.stdout.write(
+          `${result.data.issue_ids.join("\n")}${
+            result.data.issue_ids.length > 0 ? "\n" : ""
+          }`,
+        );
+        return;
+      }
+
+      io.stdout.write(`${renderAutobotDiscoverResults(result.data)}\n`);
       return;
   }
 }
