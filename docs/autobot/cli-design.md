@@ -35,7 +35,7 @@ The CLI is not a raw FlowCraft CLI. FlowCraft execution IDs, node IDs, and bluep
 - Do not expose FlowCraft as the primary product vocabulary.
 - Do not require the legacy lifecycle surface for normal use.
 - Do not expose internal worker locks, lease tokens, raw context blobs, or database table names in default human output.
-- Do not make `autobot` responsible for merging PRs or bypassing review gates.
+- Do not make `autobot-next` responsible for merging PRs or bypassing review gates.
 - Do not hide destructive actions behind ambiguous verbs.
 
 ## Global Invocation
@@ -104,8 +104,8 @@ Base error envelope:
     "what_failed": "Autobot refused to create a retry attempt.",
     "likely_cause": "The item is already terminal and has no failed run.",
     "recovery_commands": [
-      "autobot status REP-123 --json",
-      "autobot add REP-123 --dry-run"
+      "autobot-next status REP-123 --json",
+      "autobot-next add REP-123 --dry-run"
     ]
   },
   "warnings": []
@@ -163,16 +163,16 @@ Rejected selectors:
 
 - bare numeric issue IDs.
 - ambiguous branch names.
-- PR URLs, unless a future `autobot import` command is added.
+- PR URLs, unless a future `autobot-next import` command is added.
 
 ## Command Groups
 
 ### Queue Commands
 
-#### `autobot add`
+#### `autobot-next add`
 
 ```bash
-autobot add <issue> [--json] [--dry-run] [--priority <n>] [--reason <text>]
+autobot-next add <issue> [--json] [--dry-run] [--priority <n>] [--reason <text>]
 ```
 
 Queues a Linear issue for automated delivery. This command does not create a worktree or start delivery directly.
@@ -211,10 +211,10 @@ JSON `data` shape:
 }
 ```
 
-#### `autobot remove`
+#### `autobot-next remove`
 
 ```bash
-autobot remove <issue> [--json] [--dry-run] [-f|--force] [--reason <text>]
+autobot-next remove <issue> [--json] [--dry-run] [-f|--force] [--reason <text>]
 ```
 
 Removes queued work or requests cancellation for in-progress work.
@@ -223,7 +223,7 @@ Semantics:
 
 - For `queued` items, removes the item from the runnable queue and emits `item.removed`.
 - For `awaiting` or `failed` items, marks the item `canceled` unless `--force` is required by policy.
-- For in-progress items, default behavior refuses immediate removal and suggests `autobot cancel`. With `--force`, it writes a cancellation request and lets reconciliation clean up workers.
+- For in-progress items, default behavior refuses immediate removal and suggests `autobot-next cancel`. With `--force`, it writes a cancellation request and lets reconciliation clean up workers.
 - Never deletes run history or logs.
 - Does not remove worktrees by default. If future cleanup is added, it should require an explicit `--cleanup-workspace` flag.
 
@@ -231,13 +231,13 @@ Human output for in-progress without force:
 
 ```text
 REP-123 is developing and cannot be removed directly.
-Use: autobot cancel REP-123 --reason "..."
+Use: autobot-next cancel REP-123 --reason "..."
 ```
 
-#### `autobot list`
+#### `autobot-next list`
 
 ```bash
-autobot list [--json] [--state <state>] [--all] [--limit <n>]
+autobot-next list [--json] [--state <state>] [--all] [--limit <n>]
 ```
 
 Lists work items.
@@ -278,10 +278,10 @@ JSON `data` shape:
 
 ### Status And Logs
 
-#### `autobot status`
+#### `autobot-next status`
 
 ```bash
-autobot status [issue] [--json] [--events] [--all] [--verbose]
+autobot-next status [issue] [--json] [--events] [--all] [--verbose]
 ```
 
 Without an issue, shows engine and queue summary. With an issue, shows per-item detail.
@@ -356,10 +356,10 @@ Per-item JSON `data` shape:
 }
 ```
 
-#### `autobot logs`
+#### `autobot-next logs`
 
 ```bash
-autobot logs [issue|--engine] [-t|--tail] [--json] [--lines <n>] [--phase <phase>]
+autobot-next logs [issue|--engine] [-t|--tail] [--json] [--lines <n>] [--phase <phase>]
 ```
 
 Shows engine or issue logs.
@@ -367,17 +367,17 @@ Shows engine or issue logs.
 Semantics:
 
 - Default with no issue is engine logs.
-- `autobot logs REP-123` shows issue/run logs, newest attempt by default.
+- `autobot-next logs REP-123` shows issue/run logs, newest attempt by default.
 - `--phase` filters phase logs when available.
 - `-t` follows logs until interrupted.
 - JSON mode does not stream unless a future JSON-lines mode is explicitly added.
 
 ### Discovery
 
-#### `autobot discover`
+#### `autobot-next discover`
 
 ```bash
-autobot discover [--limit <n>] [--project <name>] [--label <name>] [--priority <n>] [-q|--quiet] [--json]
+autobot-next discover [--limit <n>] [--project <name>] [--label <name>] [--priority <n>] [-q|--quiet] [--json]
 ```
 
 Discovers Linear issues eligible for Autobot.
@@ -387,7 +387,7 @@ Semantics:
 - Applies configured policy filters plus explicit flags.
 - Does not queue anything by default.
 - Excludes issues already known as non-terminal items unless `--all` is added in a future version.
-- `-q` prints issue IDs only, one per line, for piping into `autobot add`.
+- `-q` prints issue IDs only, one per line, for piping into `autobot-next add`.
 - JSON output includes candidate metadata and exclusion reasons when `--verbose` is set.
 
 Human output:
@@ -398,15 +398,15 @@ REP-123  Normal  Engineering  Short title
 REP-124  High    Platform     Another title
 
 Queue them with:
-autobot discover -q | xargs -n1 autobot add
+autobot-next discover -q | xargs -n1 autobot-next add
 ```
 
 ### Config
 
-#### `autobot config list`
+#### `autobot-next config list`
 
 ```bash
-autobot config list [--json]
+autobot-next config list [--json]
 ```
 
 Shows all known config keys, effective values, source, and description.
@@ -422,18 +422,18 @@ Required keys for MVP:
 - `delivery.allow-release`: boolean, default `false` for MVP.
 - `logs.retention-days`: integer, default `30`.
 
-#### `autobot config get`
+#### `autobot-next config get`
 
 ```bash
-autobot config get <key> [--json]
+autobot-next config get <key> [--json]
 ```
 
 Reads one effective config value.
 
-#### `autobot config set`
+#### `autobot-next config set`
 
 ```bash
-autobot config set <key> <value> [--json] [--dry-run]
+autobot-next config set <key> <value> [--json] [--dry-run]
 ```
 
 Validates and persists one override.
@@ -444,28 +444,28 @@ Value parsing:
 - integers must be base-10 and within key-specific bounds.
 - strings are accepted only for string-typed keys.
 
-#### `autobot config unset`
+#### `autobot-next config unset`
 
 ```bash
-autobot config unset <key> [--json] [--dry-run]
+autobot-next config unset <key> [--json] [--dry-run]
 ```
 
 Removes one override and falls back to default/profile value.
 
 ### Engine
 
-#### `autobot engine status`
+#### `autobot-next engine status`
 
 ```bash
-autobot engine status [--json] [--verbose]
+autobot-next engine status [--json] [--verbose]
 ```
 
 Shows daemon lifecycle, PID, uptime, last tick, config, active workers, and health warnings.
 
-#### `autobot engine start`
+#### `autobot-next engine start`
 
 ```bash
-autobot engine start [--foreground] [--json] [--once]
+autobot-next engine start [--foreground] [--json] [--once]
 ```
 
 Starts the local engine.
@@ -474,13 +474,13 @@ Semantics:
 
 - Refuses to start a duplicate engine for the same state dir.
 - `--foreground` runs in the current process and logs to stdout/stderr.
-- `--once` is an alias for `autobot engine run-once` and should not daemonize.
+- `--once` is an alias for `autobot-next engine run-once` and should not daemonize.
 - Writes `engine.started` event.
 
-#### `autobot engine stop`
+#### `autobot-next engine stop`
 
 ```bash
-autobot engine stop [--json] [--timeout <seconds>] [-f|--force]
+autobot-next engine stop [--json] [--timeout <seconds>] [-f|--force]
 ```
 
 Stops the local engine.
@@ -491,18 +491,18 @@ Semantics:
 - Does not kill active worker processes unless `--force` is provided.
 - With `--force`, records cancellation/reconciliation-needed events for active workers.
 
-#### `autobot engine restart` (deferred)
+#### `autobot-next engine restart` (deferred)
 
 ```bash
-autobot engine restart [--json]
+autobot-next engine restart [--json]
 ```
 
 Deferred from MVP. Future command stops then starts the engine.
 
-#### `autobot engine run-once`
+#### `autobot-next engine run-once`
 
 ```bash
-autobot engine run-once [--json] [--dry-run]
+autobot-next engine run-once [--json] [--dry-run]
 ```
 
 Runs one scheduler tick without daemonizing.
@@ -517,10 +517,10 @@ Semantics:
 
 ### Recovery Controls
 
-#### `autobot retry`
+#### `autobot-next retry`
 
 ```bash
-autobot retry <issue> [--reason <text>] [--json] [--dry-run]
+autobot-next retry <issue> [--reason <text>] [--json] [--dry-run]
 ```
 
 Creates a new attempt for a failed item.
@@ -531,10 +531,10 @@ Semantics:
 - Clears stale worker ownership for the new attempt.
 - Preserves prior run history.
 
-#### `autobot cancel`
+#### `autobot-next cancel`
 
 ```bash
-autobot cancel <issue> [--reason <text>] [--json] [--dry-run] [-f|--force]
+autobot-next cancel <issue> [--reason <text>] [--json] [--dry-run] [-f|--force]
 ```
 
 Requests cancellation for queued, awaiting, failed, or in-progress items.
@@ -546,10 +546,10 @@ Semantics:
 - Active items receive a cancellation request; worker shutdown is graceful unless `--force` is used. Final `canceled` state is confirmed by reconciliation.
 - Final cleanup is confirmed by reconciliation.
 
-#### `autobot release` (deferred)
+#### `autobot-next release` (deferred)
 
 ```bash
-autobot release <issue> [--reason <text>] [--json] [--dry-run]
+autobot-next release <issue> [--reason <text>] [--json] [--dry-run]
 ```
 
 Deferred from MVP. Future command may mark an item released only when external publication already exists or release policy says no publish step is required.
@@ -558,12 +558,12 @@ Semantics:
 
 - Refuses to release in-progress work unless it is awaiting a future release approval or reconciliation proves terminal success.
 - Records who/what released it and why.
-- Does not push branches or create PRs directly. That belongs to workflow phase nodes unless a future `autobot publish` command is introduced.
+- Does not push branches or create PRs directly. That belongs to workflow phase nodes unless a future `autobot-next publish` command is introduced.
 
-#### `autobot reconcile`
+#### `autobot-next reconcile`
 
 ```bash
-autobot reconcile [issue|--all] [--json] [--dry-run]
+autobot-next reconcile [issue|--all] [--json] [--dry-run]
 ```
 
 Repairs or reports mismatches between Autobot store, FlowCraft history, worker processes, worktrees, Linear, GitHub, and CI.
@@ -575,10 +575,10 @@ Semantics:
 - Reconciliation never deletes history.
 - Emits one event per detected mismatch and one event per applied repair.
 
-#### `autobot resume` (deferred)
+#### `autobot-next resume` (deferred)
 
 ```bash
-autobot resume <issue|run-id> --action <action> [--payload <path>] [--node <node-id>] [--json] [--dry-run]
+autobot-next resume <issue|run-id> --action <action> [--payload <path>] [--node <node-id>] [--json] [--dry-run]
 ```
 
 Deferred from MVP. Future command resumes an awaiting workflow from an operator decision.
@@ -595,34 +595,34 @@ Semantics:
 
 These commands are developer/operator diagnostics, not the common happy path.
 
-#### `autobot workflow list`
+#### `autobot-next workflow list`
 
 ```bash
-autobot workflow list [--json]
+autobot-next workflow list [--json]
 ```
 
 Lists registered FlowCraft blueprints, versions, and descriptions.
 
-#### `autobot workflow validate`
+#### `autobot-next workflow validate`
 
 ```bash
-autobot workflow validate [workflow-id] [--json]
+autobot-next workflow validate [workflow-id] [--json]
 ```
 
 Runs FlowCraft analysis and linting.
 
-#### `autobot workflow diagram`
+#### `autobot-next workflow diagram`
 
 ```bash
-autobot workflow diagram <workflow-id> [--format mermaid]
+autobot-next workflow diagram <workflow-id> [--format mermaid]
 ```
 
 Prints a workflow graph. MVP supports Mermaid only.
 
-#### `autobot inspect`
+#### `autobot-next inspect`
 
 ```bash
-autobot inspect <run-id|flowcraft-execution-id> [--json]
+autobot-next inspect <run-id|flowcraft-execution-id> [--json]
 ```
 
 Shows raw-ish execution timeline, FlowCraft node events, context summary, and mapped domain events.
@@ -632,9 +632,9 @@ Shows raw-ish execution timeline, FlowCraft node events, context summary, and ma
 The old `claim`, `prepare`, `run start`, and `run finish` command concepts should not be public top-level commands. If needed for worker implementation, expose them as hidden commands under:
 
 ```bash
-autobot internal claim ...
-autobot internal run-start ...
-autobot internal run-finish ...
+autobot-next internal claim ...
+autobot-next internal run-start ...
+autobot-next internal run-finish ...
 ```
 
 Rules:
@@ -646,7 +646,7 @@ Rules:
 
 ## Help Text Structure
 
-Top-level `autobot --help` should group commands by intent:
+Top-level `autobot-next --help` should group commands by intent:
 
 - Queue: `add`, `remove`, `list`, `discover`.
 - Observe: `status`, `logs`, `inspect`.
@@ -670,35 +670,35 @@ Every mutating command help must include one example with `--dry-run`.
 
 The first implementation should include:
 
-- `autobot add`
-- `autobot remove`
-- `autobot list`
-- `autobot status`
-- `autobot logs`
-- `autobot discover`
-- `autobot config list|get|set|unset`
-- `autobot engine status|run-once|start|stop`
-- `autobot retry`
-- `autobot cancel`
-- `autobot reconcile`
-- `autobot inspect`
-- `autobot workflow list|validate|diagram`
+- `autobot-next add`
+- `autobot-next remove`
+- `autobot-next list`
+- `autobot-next status`
+- `autobot-next logs`
+- `autobot-next discover`
+- `autobot-next config list|get|set|unset`
+- `autobot-next engine status|run-once|start|stop`
+- `autobot-next retry`
+- `autobot-next cancel`
+- `autobot-next reconcile`
+- `autobot-next inspect`
+- `autobot-next workflow list|validate|diagram`
 
 Defer from MVP unless the workflow prototype needs them:
 
-- `autobot release`
-- `autobot resume`
-- `autobot engine restart`
-- hidden `autobot internal ...` commands.
+- `autobot-next release`
+- `autobot-next resume`
+- `autobot-next engine restart`
+- hidden `autobot-next internal ...` commands.
 
 ## Acceptance Criteria For Implementation
 
 - Every command has human and JSON output tests.
 - Every JSON response includes `schema_version: 1`, `ok`, `command`, and either `data` or `error`.
 - Every mutating command has a `--dry-run` test where meaningful.
-- `autobot status` aggregate shows engine state, counts, in-progress items, warnings, and next action.
-- `autobot status <issue>` shows event history with separate queue, prepare, phase, failure, retry, and terminal rows.
-- `autobot config list` documents all known keys, defaults, effective values, sources, and descriptions.
-- `autobot engine run-once --dry-run` explains what would be selected without starting workers.
+- `autobot-next status` aggregate shows engine state, counts, in-progress items, warnings, and next action.
+- `autobot-next status <issue>` shows event history with separate queue, prepare, phase, failure, retry, and terminal rows.
+- `autobot-next config list` documents all known keys, defaults, effective values, sources, and descriptions.
+- `autobot-next engine run-once --dry-run` explains what would be selected without starting workers.
 - Recovery command errors include actionable recovery commands.
 - Default output never exposes hidden/internal lifecycle commands as the preferred path.
