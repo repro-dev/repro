@@ -132,7 +132,7 @@ const configDefinitions: readonly ConfigDefinition[] = [
     default_value: "",
     type: "string",
     description:
-      "Default Linear project used by discover and engine auto-discovery; leave it unset to run without a default project filter.",
+      "Default Linear project used by discover and engine auto-discovery; leave it unset only if you will pass --project explicitly.",
     requires_engine_restart: false,
     bounds: null,
     allowed_values: null,
