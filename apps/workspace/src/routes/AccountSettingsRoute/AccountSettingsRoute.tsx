@@ -1,10 +1,11 @@
-import { Col, Row } from '@jsxstyle/react'
-import { ApiClient, useApiClient } from '@repro/api-client'
+import { Col, Grid, Row } from '@jsxstyle/react'
+import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
 import {
   Alert,
   Button,
   Card,
+  DefinitionList,
   FullPageLoading,
   Input,
   Label,
@@ -13,32 +14,23 @@ import {
   Text,
   spacing,
 } from '@repro/design'
-import { AccountSettingsSummary } from '@repro/domain'
 import { useFuture } from '@repro/future-utils'
+import {
+  getAccountSettings as getWorkspaceAccountSettings,
+  renameAccount as renameWorkspaceAccount,
+} from '@repro/workspace-api'
 import { fork } from 'fluture'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 
-function defaultGetAccountSettings(apiClient: ApiClient) {
-  return apiClient.fetch<AccountSettingsSummary>('/account/settings')
-}
-
-function defaultRenameAccount(apiClient: ApiClient, name: string) {
-  return apiClient.fetch('/account/name', {
-    method: 'put',
-    body: JSON.stringify({ name }),
-    headers: { 'content-type': 'application/json' },
-  })
-}
-
 interface AccountSettingsRouteProps {
-  getAccountSettings?: typeof defaultGetAccountSettings
-  renameAccount?: typeof defaultRenameAccount
+  getAccountSettings?: typeof getWorkspaceAccountSettings
+  renameAccount?: typeof renameWorkspaceAccount
 }
 
 export function AccountSettingsRoute({
-  getAccountSettings = defaultGetAccountSettings,
-  renameAccount = defaultRenameAccount,
+  getAccountSettings = getWorkspaceAccountSettings,
+  renameAccount = renameWorkspaceAccount,
 }: AccountSettingsRouteProps) {
   const apiClient = useApiClient()
 
@@ -113,10 +105,16 @@ export function AccountSettingsRoute({
       </PageFrame.Header>
 
       <PageFrame.Body maxWidth={720}>
-        <Stack gap="2xl">
+        <Stack gap="xl">
           <Card>
             <Col padding={spacing.xl} gap={spacing.lg}>
-              <Text variant="heading3">Account name</Text>
+              <Col gap={spacing.xs}>
+                <Text variant="heading3">Account name</Text>
+                <Text variant="body">
+                  Change the name shown across the workspace.
+                </Text>
+              </Col>
+
               <Col gap={spacing.sm}>
                 <Label htmlFor="account-name">Name</Label>
                 <Input
@@ -141,39 +139,24 @@ export function AccountSettingsRoute({
             </Col>
           </Card>
 
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
-              <Text variant="heading3">Account details</Text>
-              <Stack gap="md">
-                <Col gap={spacing.xs}>
-                  <Text variant="caption">Created</Text>
-                  <Text variant="body">
-                    {new Date(summary.createdAt).toLocaleDateString()}
-                  </Text>
-                </Col>
+          <Grid gridTemplateColumns="minmax(0, 160px) minmax(0, 1fr)">
+            <DefinitionList
+              title="Account details"
+              pairs={[
+                ['Created', new Date(summary.createdAt).toLocaleDateString()],
+                ['Users', summary.userCount],
+                ['Projects', summary.projectCount],
+              ]}
+            />
+          </Grid>
 
-                <Col gap={spacing.xs}>
-                  <Text variant="caption">Users</Text>
-                  <Text variant="body">{summary.userCount}</Text>
-                </Col>
-
-                <Col gap={spacing.xs}>
-                  <Text variant="caption">Projects</Text>
-                  <Text variant="body">{summary.projectCount}</Text>
-                </Col>
-              </Stack>
-            </Col>
-          </Card>
-
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.sm}>
-              <Text variant="heading3">Danger zone</Text>
-              <Text variant="body">
-                Account deactivation is not available yet. When support lands,
-                controls will appear here.
-              </Text>
-            </Col>
-          </Card>
+          <Col gap={spacing.sm}>
+            <Text variant="heading3">Danger zone</Text>
+            <Alert type="danger">
+              Account deactivation is not available yet. Contact support if you
+              need to retire this account, or check back later.
+            </Alert>
+          </Col>
         </Stack>
       </PageFrame.Body>
     </PageFrame>

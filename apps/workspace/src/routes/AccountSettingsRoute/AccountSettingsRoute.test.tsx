@@ -120,6 +120,7 @@ describe('AccountSettingsRoute', () => {
 
     await waitFor(() => {
       assert.ok(screen.getByLabelText(/name/i))
+      assert.ok(screen.getByText(/account details/i))
       assert.ok(
         screen.getByText(
           new Date(accountSummary.createdAt).toLocaleDateString()
@@ -133,6 +134,7 @@ describe('AccountSettingsRoute', () => {
         screen.getByText('Projects').parentElement?.textContent ?? '',
         /Projects\s*1/
       )
+      assert.ok(screen.getByText(/account deactivation is not available yet/i))
     })
   })
 

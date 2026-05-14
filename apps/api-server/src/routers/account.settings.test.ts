@@ -159,6 +159,23 @@ describe('Routers > Account > Account settings', () => {
       expect(res.statusCode).toEqual(400)
     })
 
+    it('should return 400 for a whitespace-only account name', async () => {
+      const { session } = await createAdminSession()
+
+      const res = await context.app.inject({
+        method: 'PUT',
+        url: '/account/name',
+        body: { name: '   ' },
+        cookies: {
+          [context.harness.env.SESSION_COOKIE]: context.app.signCookie(
+            session.sessionToken
+          ),
+        },
+      })
+
+      expect(res.statusCode).toEqual(400)
+    })
+
     it('should return 403 for a non-admin user', async () => {
       const account = await promise(
         context.accountService.createAccount('Member Account')

@@ -73,7 +73,7 @@ const resetPasswordConfirmSchema = {
 
 const updateNameSchema = {
   body: z.object({
-    name: z.string().min(1),
+    name: z.string().trim().min(1, 'Account name is required'),
   }),
 } as const
 

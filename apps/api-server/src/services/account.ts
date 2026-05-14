@@ -485,19 +485,19 @@ export function createAccountService(
     const activeUsers = attemptQuery(() => {
       return database
         .selectFrom('users')
-        .select(['id'])
+        .select(sql<number>`count(*)::int`.as('count'))
         .where('accountId', '=', decodedAccountId)
         .where('active', '=', true)
-        .execute()
+        .executeTakeFirstOrThrow()
     })
 
     const activeProjects = attemptQuery(() => {
       return database
         .selectFrom('projects')
-        .select(['id'])
+        .select(sql<number>`count(*)::int`.as('count'))
         .where('accountId', '=', decodedAccountId)
         .where('active', '=', true)
-        .execute()
+        .executeTakeFirstOrThrow()
     })
 
     return account.pipe(
@@ -506,8 +506,8 @@ export function createAccountService(
           map(([users, projects]) => ({
             ...withEncodedId(account),
             createdAt: account.createdAt.toISOString(),
-            userCount: users.length,
-            projectCount: projects.length,
+            userCount: users.count,
+            projectCount: projects.count,
           }))
         )
       )
