@@ -26,4 +26,21 @@ test("config and workflow command groups are present in the parser tree", () => 
     "workflow list",
     "workflow validate",
   ]);
+
+  const configGroup = program.commands.find(
+    (command) => command.name() === "config",
+  );
+  const setCommand = configGroup?.commands.find(
+    (command) => command.name() === "set",
+  );
+  const unsetCommand = configGroup?.commands.find(
+    (command) => command.name() === "unset",
+  );
+
+  assert.ok(
+    setCommand?.options.some((option) => option.flags.includes("--dry-run")),
+  );
+  assert.ok(
+    unsetCommand?.options.some((option) => option.flags.includes("--dry-run")),
+  );
 });

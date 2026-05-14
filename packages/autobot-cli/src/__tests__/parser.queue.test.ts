@@ -34,4 +34,25 @@ test("queue commands and global flags are present in the parser tree", () => {
   assert.ok(flagNames.some((flags) => flags.includes("--quiet")));
   assert.ok(flagNames.some((flags) => flags.includes("--verbose")));
   assert.ok(flagNames.some((flags) => flags.includes("--no-color")));
+
+  const addCommand = program.commands.find(
+    (command) => command.name() === "add",
+  );
+  const removeCommand = program.commands.find(
+    (command) => command.name() === "remove",
+  );
+  const statusCommand = program.commands.find(
+    (command) => command.name() === "status",
+  );
+
+  assert.ok(
+    addCommand?.options.some((option) => option.flags.includes("--dry-run")),
+  );
+  assert.ok(
+    removeCommand?.options.some((option) => option.flags.includes("--dry-run")),
+  );
+  assert.ok(
+    removeCommand?.options.some((option) => option.flags.includes("--force")),
+  );
+  assert.match(statusCommand?.usage() ?? "", /issue-id/);
 });

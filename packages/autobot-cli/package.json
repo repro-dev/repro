@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@repro/autobot-core": "workspace:*",
+    "@repro/autobot-store": "workspace:*",
     "commander": "^12.1.0",
     "fluture": "^14.0.0",
     "serialize-error": "^11.0.3"

@@ -17,6 +17,8 @@ function readGlobalOptions(command: Command): AutobotGlobalOptions {
     quiet: options.quiet === true,
     verbose: options.verbose === true,
     color: options.color !== false && options.noColor !== true,
+    dry_run: options.dryRun === true,
+    force: options.force === true,
   };
 }
 
@@ -56,20 +58,24 @@ function registerLeafCommand(
   spec: {
     command: string;
     description: string;
+    options?: string[];
   },
   onInvocation?: (invocation: AutobotInvocation) => void,
 ): void {
-  program
-    .command(spec.command)
-    .description(spec.description)
-    .action(function (...values: unknown[]) {
-      const command = values[values.length - 1];
-      if (!(command instanceof Command)) {
-        return;
-      }
+  const command = program.command(spec.command).description(spec.description);
 
-      onInvocation?.(createInvocation(command, values.slice(0, -1)));
-    });
+  for (const option of spec.options ?? []) {
+    command.option(option);
+  }
+
+  command.action(function (...values: unknown[]) {
+    const command = values[values.length - 1];
+    if (!(command instanceof Command)) {
+      return;
+    }
+
+    onInvocation?.(createInvocation(command, values.slice(0, -1)));
+  });
 }
 
 function registerGroupCommand(
@@ -77,24 +83,33 @@ function registerGroupCommand(
   spec: {
     command: string;
     description: string;
-    children: Array<{ command: string; description: string }>;
+    children: Array<{
+      command: string;
+      description: string;
+      options?: string[];
+    }>;
   },
   onInvocation?: (invocation: AutobotInvocation) => void,
 ): void {
   const group = program.command(spec.command).description(spec.description);
 
   for (const child of spec.children) {
-    group
+    const childCommand = group
       .command(child.command)
-      .description(child.description)
-      .action(function (...values: unknown[]) {
-        const command = values[values.length - 1];
-        if (!(command instanceof Command)) {
-          return;
-        }
+      .description(child.description);
 
-        onInvocation?.(createInvocation(command, values.slice(0, -1)));
-      });
+    for (const option of child.options ?? []) {
+      childCommand.option(option);
+    }
+
+    childCommand.action(function (...values: unknown[]) {
+      const command = values[values.length - 1];
+      if (!(command instanceof Command)) {
+        return;
+      }
+
+      onInvocation?.(createInvocation(command, values.slice(0, -1)));
+    });
   }
 }
 
@@ -117,7 +132,11 @@ export function createAutobotProgram(
 
   registerLeafCommand(
     program,
-    { command: "add <issue-id>", description: "add an issue to the queue" },
+    {
+      command: "add <issue-id>",
+      description: "add an issue to the queue",
+      options: ["--dry-run"],
+    },
     options.onInvocation,
   );
   registerLeafCommand(
@@ -125,6 +144,7 @@ export function createAutobotProgram(
     {
       command: "remove <issue-id>",
       description: "remove an issue from the queue",
+      options: ["--dry-run", "-f, --force"],
     },
     options.onInvocation,
   );
@@ -135,7 +155,7 @@ export function createAutobotProgram(
   );
   registerLeafCommand(
     program,
-    { command: "status <issue-id>", description: "show issue status" },
+    { command: "status [issue-id]", description: "show issue status" },
     options.onInvocation,
   );
   registerLeafCommand(
@@ -189,8 +209,13 @@ export function createAutobotProgram(
         {
           command: "set <key> <value>",
           description: "set a configuration value",
+          options: ["--dry-run"],
         },
-        { command: "unset <key>", description: "unset a configuration value" },
+        {
+          command: "unset <key>",
+          description: "unset a configuration value",
+          options: ["--dry-run"],
+        },
       ],
     },
     options.onInvocation,
