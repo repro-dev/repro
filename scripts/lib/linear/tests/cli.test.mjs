@@ -139,6 +139,9 @@ test("top-level help prints command surface", async () => {
   assert.match(result.stdout, /issue start <id>/);
   assert.match(result.stdout, /issue update <id>/);
   assert.match(result.stdout, /issue comment <id> <body>/);
+  assert.match(result.stdout, /issue attach <id> --document <title>/);
+  assert.match(result.stdout, /document create --title <title>/);
+  assert.match(result.stdout, /document link <url>/);
   assert.match(result.stdout, /label list/);
   assert.match(result.stdout, /label create --name <name>/);
   assert.match(result.stdout, /login/);
@@ -265,6 +268,36 @@ test("issue help lists the new issue subcommands", async () => {
   assert.match(result.stdout, /start <id> \[--json\]/);
   assert.match(result.stdout, /update <id> \[options\]/);
   assert.match(result.stdout, /comment <id> <body>/);
+  assert.match(result.stdout, /attach <id> --document <title>/);
+});
+
+test("document help lists the document subcommands", async () => {
+  const result = await execute(["help", "document"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => makeClient(),
+  });
+
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /document <subcommand>/);
+  assert.match(result.stdout, /create --title <title> \[--issue <id>\]/);
+  assert.match(result.stdout, /show <id-or-url>/);
+  assert.match(result.stdout, /update <id-or-url> \[--title <title>\]/);
+  assert.match(result.stdout, /link <url> --issue <id> \[--issue <id>\.\.\.\]/);
+  assert.match(result.stdout, /issue attach <id> --document <title>/);
+});
+
+test("issue attach help points to document create", async () => {
+  const result = await execute(["help", "issue", "attach"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => makeClient(),
+  });
+
+  assert.equal(result.code, 0);
+  assert.match(
+    result.stdout,
+    /Compatibility command for issue-scoped documents\./,
+  );
+  assert.match(result.stdout, /Prefer linear document create --issue <id>\./);
 });
 
 test("issue create help advertises the parent flag", async () => {

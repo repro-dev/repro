@@ -29,6 +29,10 @@ The repo's `Brewfile` installs `jq` for trimming high-volume JSON responses duri
 - Reparent an issue: `linear issue update ISSUE-2 --parent ISSUE-1`
 - Remove a parent: `linear issue update ISSUE-2 --remove-parent`
 - Add a comment: `linear issue comment ISSUE-1 "needs follow-up"`
+- Create a document from stdin: `linear document create --title "Runbook" --issue ISSUE-1 < README.md`
+- Show or update a document: `linear document show https://linear.app/.../doc/...` / `linear document update DOC-1 --title "Runbook v2"`
+- Link a document URL to issues: `linear document link https://linear.app/.../doc/... --issue ISSUE-1 --issue ISSUE-2`
+- Compatibility only: `linear issue attach ISSUE-1 --document "Runbook"` (prefer the first-class document commands)
 - List labels: `linear label list`
 - Create a label: `linear label create --name "needs-spec" --description "Issue requires additional specification" --color "#F2994A"`
 - List projects: `linear projects`
@@ -49,7 +53,7 @@ The repo's `Brewfile` installs `jq` for trimming high-volume JSON responses duri
 - Use raw `--json` for single-issue deep reads when you need full descriptions, comments, relations, or labels.
 - Use `--json | jq '...'` for list and scan flows where only routing fields are needed; keep the projection stable and narrow.
 - `linear issue list` supports `--unblocked` and `--leaf` for server-side narrowing of backlog scans, and accepts `--limit` up to 250.
-- The current CLI surface is: `whoami`, `issue list`, `issue create`, `issue show`, `issue children`, `issue start`, `issue update`, `issue comment`, `label list`, `label create`, `project list`, `project show`, `milestone list`.
+- The current CLI surface is: `whoami`, `issue list`, `issue create`, `issue show`, `issue children`, `issue start`, `issue update`, `issue comment`, `issue attach`, `document create`, `document show`, `document update`, `document link`, `label list`, `label create`, `project list`, `project show`, `milestone list`.
 - Canonical projections:
   - Issue lists: `linear issue list --status backlog --json | jq '[.items[] | {id, identifier, title, state, priority, project}]'`
   - Label lists: `linear label list --json | jq '[.items[] | {id, name, color}]'`

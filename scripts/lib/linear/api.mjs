@@ -258,6 +258,36 @@ export async function createIssueWithFallback(receiver, payload) {
   return null;
 }
 
+export async function createDocumentWithFallback(receiver, payload) {
+  for (const methodName of ["createDocument", "documentCreate"]) {
+    if (typeof receiver?.[methodName] === "function") {
+      return callBoundMethod(receiver, receiver[methodName], payload);
+    }
+  }
+
+  return null;
+}
+
+export async function updateDocumentWithFallback(receiver, id, payload) {
+  for (const methodName of ["updateDocument", "documentUpdate"]) {
+    if (typeof receiver?.[methodName] === "function") {
+      return callBoundMethod(receiver, receiver[methodName], id, payload);
+    }
+  }
+
+  return null;
+}
+
+export async function createAttachmentWithFallback(receiver, payload) {
+  for (const methodName of ["createAttachment", "attachmentCreate"]) {
+    if (typeof receiver?.[methodName] === "function") {
+      return callBoundMethod(receiver, receiver[methodName], payload);
+    }
+  }
+
+  return null;
+}
+
 export async function createIssueLabelWithFallback(receiver, payload) {
   for (const methodName of [
     "createIssueLabel",
