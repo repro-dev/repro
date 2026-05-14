@@ -51,46 +51,54 @@ function makeDocumentClient(records, options = {}) {
       : {
           createDocument: async (payload) => {
             records.createDocument.push(payload);
-            return (
-              records.createdDocuments[payload.title] ??
-              records.createdDocuments.default
-            );
+            return {
+              document:
+                records.createdDocuments[payload.title] ??
+                records.createdDocuments.default,
+            };
           },
           updateDocument: async (id, payload) => {
             records.updateDocument.push({ id, payload });
-            return (
-              records.updatedDocuments[id] ?? records.updatedDocuments.default
-            );
+            return {
+              document:
+                records.updatedDocuments[id] ??
+                records.updatedDocuments.default,
+            };
           },
           createAttachment: async (payload) => {
             records.createAttachment.push(payload);
-            return (
-              records.createdAttachments[payload.issueId] ??
-              records.createdAttachments.default
-            );
+            return {
+              attachment:
+                records.createdAttachments[payload.issueId] ??
+                records.createdAttachments.default,
+            };
           },
         }),
     ...(options.includeFallbackMethods
       ? {
           documentCreate: async (payload) => {
             records.documentCreate.push(payload);
-            return (
-              records.createdDocuments[payload.title] ??
-              records.createdDocuments.default
-            );
+            return {
+              document:
+                records.createdDocuments[payload.title] ??
+                records.createdDocuments.default,
+            };
           },
           documentUpdate: async (id, payload) => {
             records.documentUpdate.push({ id, payload });
-            return (
-              records.updatedDocuments[id] ?? records.updatedDocuments.default
-            );
+            return {
+              document:
+                records.updatedDocuments[id] ??
+                records.updatedDocuments.default,
+            };
           },
           attachmentCreate: async (payload) => {
             records.attachmentCreate.push(payload);
-            return (
-              records.createdAttachments[payload.issueId] ??
-              records.createdAttachments.default
-            );
+            return {
+              attachment:
+                records.createdAttachments[payload.issueId] ??
+                records.createdAttachments.default,
+            };
           },
         }
       : {}),

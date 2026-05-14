@@ -589,6 +589,14 @@ function mergeDocumentPayload(document, payload = {}) {
   };
 }
 
+async function resolveDocumentMutationValue(result) {
+  return resolveRelationValue(result?.document ?? result ?? null);
+}
+
+async function resolveAttachmentMutationValue(result) {
+  return resolveRelationValue(result?.attachment ?? result ?? null);
+}
+
 function compactText(value, limit = 120) {
   const text = String(value ?? "")
     .replace(/\s+/g, " ")
@@ -2061,7 +2069,9 @@ async function documentCreateCommand(args, context) {
     payload.teamId = team.id;
   }
 
-  const createdDocument = await createDocumentWithFallback(client, payload);
+  const createdDocument = await resolveDocumentMutationValue(
+    await createDocumentWithFallback(client, payload),
+  );
   const item = await serializeDocument(
     mergeDocumentPayload(createdDocument, {
       ...payload,
@@ -2135,10 +2145,8 @@ async function documentUpdateCommand(args, context) {
   if (notEmpty(options.title)) input.title = options.title;
   if (hasContent) input.content = content;
 
-  const updatedDocument = await updateDocumentWithFallback(
-    client,
-    documentId,
-    input,
+  const updatedDocument = await resolveDocumentMutationValue(
+    await updateDocumentWithFallback(client, documentId, input),
   );
   const item = await serializeDocument(
     mergeDocumentPayload(updatedDocument, {
@@ -2176,11 +2184,13 @@ async function documentLinkCommand(args, context) {
   const items = [];
   for (const issueId of options.issues) {
     const { issue } = await resolveIssueByIdentifier(context, issueId);
-    const createdAttachment = await createAttachmentWithFallback(client, {
-      issueId: issue.id,
-      title: options.title ?? "Linear document",
-      url,
-    });
+    const createdAttachment = await resolveAttachmentMutationValue(
+      await createAttachmentWithFallback(client, {
+        issueId: issue.id,
+        title: options.title ?? "Linear document",
+        url,
+      }),
+    );
     items.push(
       await serializeAttachment(
         createdAttachment ?? {
@@ -2233,11 +2243,13 @@ async function issueAttachCommand(args, context) {
 
   const content = await readStdin(context, { required: true });
   const { client, issue } = await resolveIssueByIdentifier(context, issueId);
-  const createdDocument = await createDocumentWithFallback(client, {
-    issueId: issue.id,
-    title: options.document,
-    content,
-  });
+  const createdDocument = await resolveDocumentMutationValue(
+    await createDocumentWithFallback(client, {
+      issueId: issue.id,
+      title: options.document,
+      content,
+    }),
+  );
   const item = await serializeDocument(
     mergeDocumentPayload(createdDocument, {
       issueId: issue.id,
