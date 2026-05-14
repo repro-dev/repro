@@ -199,5 +199,25 @@ test("json usage errors use the canonical command path", async () => {
   assert.equal(exitCode, 2);
   assert.equal(envelope.command, "autobot-next");
   assert.equal(envelope.error.code, "AUTOBOT-USAGE-ERROR");
+  assert.equal(envelope.error.message, "Invalid command usage");
   assert.equal(JSON.stringify(envelope).includes("secret-token"), false);
+});
+
+test("json mode without a subcommand emits a usage envelope", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "--json"], io.io, {
+      handleInvocation() {
+        throw new Error("should not be called");
+      },
+    }),
+  );
+
+  const envelope = JSON.parse(io.read().stdout);
+
+  assert.equal(exitCode, 2);
+  assert.equal(envelope.command, "autobot-next");
+  assert.equal(envelope.error.code, "AUTOBOT-USAGE-ERROR");
+  assert.equal(envelope.error.message, "Invalid command usage");
 });

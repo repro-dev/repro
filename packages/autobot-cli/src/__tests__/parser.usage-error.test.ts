@@ -41,6 +41,7 @@ test("usage errors in json mode still emit a json envelope", async () => {
   assert.equal(envelope.schema_version, 1);
   assert.equal(envelope.command, "autobot-next");
   assert.equal(envelope.error.code, "AUTOBOT-USAGE-ERROR");
+  assert.equal(envelope.error.message, "Invalid command usage");
   assert.equal("repo" in envelope, false);
   assert.equal(JSON.stringify(envelope).includes("secret-token"), false);
 });

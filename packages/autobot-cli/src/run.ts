@@ -145,10 +145,6 @@ export function runAutobotCli(
       const command = buildCommand(commandPath);
       const usageError = createUsageError({
         command,
-        message:
-          error instanceof Error && error.message.length > 0
-            ? error.message
-            : "Invalid command usage",
       });
 
       if (argv.includes("--json")) {
@@ -167,6 +163,21 @@ export function runAutobotCli(
     }
 
     if (invocation === null) {
+      if (argv.includes("--json")) {
+        const command = buildCommand(extractCanonicalCommandPath(args));
+        const usageError = createUsageError({ command });
+
+        io.stdout.write(
+          renderJsonErrorEnvelope({
+            command,
+            error: usageError.toErrorPayload(),
+          }),
+        );
+
+        resolve(usageError.exit_code);
+        return () => undefined;
+      }
+
       resolve(autobotExitCodes.ok);
       return () => undefined;
     }

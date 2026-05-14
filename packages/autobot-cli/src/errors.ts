@@ -46,7 +46,7 @@ export class AutobotCliError extends Error {
 
 export function createUsageError(input: {
   command: string;
-  message: string;
+  message?: string;
   what_failed?: string;
   likely_cause?: string;
   recovery_commands?: string[];
@@ -54,7 +54,7 @@ export function createUsageError(input: {
 }): AutobotCliError {
   return new AutobotCliError({
     code: "AUTOBOT-USAGE-ERROR",
-    message: input.message,
+    message: input.message ?? "Invalid command usage",
     what_failed: input.what_failed ?? "command parsing",
     likely_cause:
       input.likely_cause ?? "the command usage did not match the parser tree",
