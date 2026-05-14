@@ -20,6 +20,7 @@ export interface LinearDiscoverIssue {
 export interface LinearDiscoverInput {
   repoRoot: string;
   projects: string[];
+  limit: number;
 }
 
 interface RunCommandInput {
@@ -41,6 +42,7 @@ function resolveLinearBinary(repoRoot: string): string {
 function createDiscoverError(input: {
   repoRoot: string;
   projects: string[];
+  limit: number;
   command: string;
   args: string[];
   cause: unknown;
@@ -81,6 +83,7 @@ function createDiscoverError(input: {
     details: {
       repo_root: input.repoRoot,
       projects: [...input.projects],
+      limit: input.limit,
       command: input.command,
       args: [...input.args],
       error: causeMessage,
@@ -253,7 +256,7 @@ export function discoverLinearIssues(
     "--json",
     "identifier,title,url,priority,priorityLabel,status,project,assignee,labels",
     "--limit",
-    "250",
+    String(input.limit),
   ];
 
   return Future((reject, resolve) => {
@@ -267,6 +270,7 @@ export function discoverLinearIssues(
           createDiscoverError({
             repoRoot: input.repoRoot,
             projects: input.projects,
+            limit: input.limit,
             command: resolveLinearBinary(input.repoRoot),
             args,
             cause: error,
@@ -281,6 +285,7 @@ export function discoverLinearIssues(
             createDiscoverError({
               repoRoot: input.repoRoot,
               projects: input.projects,
+              limit: input.limit,
               command: resolveLinearBinary(input.repoRoot),
               args,
               cause: error,

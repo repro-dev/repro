@@ -220,6 +220,7 @@ test("discover returns candidates and local exclusion reasons", async () => {
   const received: Array<{
     repo: { path: string; state_dir: string };
     projects: string[];
+    limit: number;
   }> = [];
 
   const services = createAutobotServices({
@@ -258,6 +259,7 @@ test("discover returns candidates and local exclusion reasons", async () => {
         state_dir: ".autobot",
       },
       projects: ["Engineering"],
+      limit: 1,
     },
   ]);
   assert.deepStrictEqual(result.data.issue_ids, ["REP-201"]);
@@ -274,7 +276,11 @@ test("discover returns candidates and local exclusion reasons", async () => {
 
 test("discover scans all projects when no flags or config are provided", async () => {
   const fixture = makeStore();
-  const received: Array<{ projects: string[] }> = [];
+  const received: Array<{
+    repo: { path: string; state_dir: string };
+    projects: string[];
+    limit: number;
+  }> = [];
   const services = createAutobotServices({
     openStore() {
       return resolve(fixture.store);
@@ -301,6 +307,7 @@ test("discover scans all projects when no flags or config are provided", async (
         state_dir: ".autobot",
       },
       projects: [],
+      limit: 5,
     },
   ]);
   assert.deepStrictEqual(result.data.projects, []);
@@ -331,6 +338,7 @@ test("discover falls back to configured project allowlists", async () => {
         state_dir: ".autobot",
       },
       projects: ["Engineering", "Platform"],
+      limit: 5,
     },
   ]);
   assert.deepStrictEqual(result.data.projects, ["Engineering", "Platform"]);
@@ -338,11 +346,17 @@ test("discover falls back to configured project allowlists", async () => {
 
 test("discover defaults to the configured queue depth when limit is omitted", async () => {
   const fixture = makeStore({ queueDepth: 2 });
+  const received: Array<{
+    repo: { path: string; state_dir: string };
+    projects: string[];
+    limit: number;
+  }> = [];
   const services = createAutobotServices({
     openStore() {
       return resolve(fixture.store);
     },
-    discoverIssues() {
+    discoverIssues(input) {
+      received.push(input as unknown as (typeof received)[number]);
       return resolve([
         makeCandidate("REP-201"),
         makeCandidate("REP-202"),
@@ -357,6 +371,16 @@ test("discover defaults to the configured queue depth when limit is omitted", as
 
   assert.equal(result.kind, "discover");
   assert.deepStrictEqual(result.data.filters.limit, 2);
+  assert.deepStrictEqual(received, [
+    {
+      repo: {
+        path: "/worktrees/autobot",
+        state_dir: ".autobot",
+      },
+      projects: [],
+      limit: 2,
+    },
+  ]);
   assert.deepStrictEqual(result.data.issue_ids, ["REP-201", "REP-202"]);
   assert.deepStrictEqual(result.data.candidates, [
     makeCandidate("REP-201"),
@@ -401,6 +425,7 @@ test("discover project flags override configured allowlists", async () => {
         state_dir: ".autobot",
       },
       projects: ["Security", "Billing"],
+      limit: 5,
     },
   ]);
   assert.deepStrictEqual(result.data.projects, ["Security", "Billing"]);

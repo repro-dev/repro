@@ -19,6 +19,7 @@ test("discover linear issues repeats project flags and keeps status scope explic
       {
         repoRoot: "/repo",
         projects: ["Engineering", "Platform"],
+        limit: 5,
       },
       {
         runCommand(input) {
@@ -48,10 +49,33 @@ test("discover linear issues repeats project flags and keeps status scope explic
         "--json",
         "identifier,title,url,priority,priorityLabel,status,project,assignee,labels",
         "--limit",
-        "250",
+        "5",
       ],
     },
   ]);
+});
+
+test("discover linear issues uses the provided remote limit", async () => {
+  const calls: Array<{ command: string; args: string[] }> = [];
+
+  const result = await runFuture(
+    discoverLinearIssues(
+      {
+        repoRoot: "/repo",
+        projects: ["Engineering"],
+        limit: 17,
+      },
+      {
+        runCommand(input) {
+          calls.push(input);
+          return resolve("[]");
+        },
+      },
+    ),
+  );
+
+  assert.deepStrictEqual(result, []);
+  assert.deepStrictEqual(calls[0]?.args.at(-1), "17");
 });
 
 test("discover linear issues omits the project flag when scanning all projects", async () => {
@@ -62,6 +86,7 @@ test("discover linear issues omits the project flag when scanning all projects",
       {
         repoRoot: "/repo",
         projects: [],
+        limit: 5,
       },
       {
         runCommand(input) {
@@ -83,6 +108,7 @@ test("discover linear issues reports malformed json loudly", async () => {
         {
           repoRoot: "/repo",
           projects: ["Engineering"],
+          limit: 5,
         },
         {
           runCommand() {

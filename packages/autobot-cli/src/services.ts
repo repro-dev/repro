@@ -48,6 +48,7 @@ export interface AutobotServiceDependencies {
 interface DiscoverIssueInput {
   repo: RepoRef;
   projects: string[];
+  limit: number;
 }
 
 interface ConfigDefinition {
@@ -765,6 +766,7 @@ function handleDiscover(
         discoverLinearIssues({
           repoRoot: input.repo.path,
           projects: input.projects,
+          limit: input.limit,
         }));
 
     const resolveDiscoverLimit = (
@@ -798,6 +800,7 @@ function handleDiscover(
           defaultDiscoverIssues({
             repo: store.repo,
             projects: effectiveProjects,
+            limit: effectiveLimit,
           }).pipe(
             fork(reject)((issues) => {
               const exclusions: Array<{
