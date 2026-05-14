@@ -20,7 +20,7 @@ export interface AutobotGlobalOptions {
   color: boolean;
   dry_run: boolean;
   force: boolean;
-  project: string | null;
+  project: string[];
   labels: string[];
   priority: string | null;
   limit: number | null;
@@ -139,7 +139,7 @@ export interface DiscoverExclusion {
 }
 
 export interface DiscoverData {
-  project: string;
+  projects: string[];
   query: string | null;
   filters: {
     labels: string[];

@@ -32,7 +32,7 @@ function makeOptions(
     color: false,
     dry_run: false,
     force: false,
-    project: null,
+    project: [],
     labels: [],
     priority: null,
     limit: null,
@@ -122,7 +122,7 @@ function makeStore(configProject: string | null = null) {
       },
       getOverride(key: string) {
         return resolve(
-          key === "discovery.project" && configProject !== null
+          key === "discovery.projects" && configProject !== null
             ? {
                 key,
                 value: configProject,
@@ -198,7 +198,7 @@ test("discover returns candidates and local exclusion reasons", async () => {
   const fixture = makeStore();
   const received: Array<{
     repo: { path: string; state_dir: string };
-    project: string;
+    projects: string[];
   }> = [];
 
   const services = createAutobotServices({
@@ -219,7 +219,7 @@ test("discover returns candidates and local exclusion reasons", async () => {
   const result = (await runFuture(
     services.handleInvocation(
       makeInvocation(["discover"], ["Engineering"], {
-        project: "Engineering",
+        project: ["Engineering"],
         labels: ["backend"],
         priority: "high",
         limit: 1,
@@ -235,7 +235,7 @@ test("discover returns candidates and local exclusion reasons", async () => {
         path: "/worktrees/autobot",
         state_dir: ".autobot",
       },
-      project: "Engineering",
+      projects: ["Engineering"],
     },
   ]);
   assert.deepStrictEqual(result.data.issue_ids, ["REP-201"]);
@@ -244,34 +244,106 @@ test("discover returns candidates and local exclusion reasons", async () => {
   ]);
   assert.deepStrictEqual(
     result.data.exclusions.map((entry) => entry.reason),
-    ["already-queued", "label-filter", "limit-reached"],
+    ["local-non-terminal", "label-filter", "limit-reached"],
   );
   assert.equal(fixture.listItemsCalls.length, 1);
   assert.deepStrictEqual(fixture.listItemsCalls[0], undefined);
 });
 
-test("discover missing project fails with actionable recovery commands", async () => {
+test("discover scans all projects when no flags or config are provided", async () => {
   const fixture = makeStore();
+  const received: Array<{ projects: string[] }> = [];
   const services = createAutobotServices({
     openStore() {
       return resolve(fixture.store);
     },
-    discoverIssues() {
-      throw new Error("should not be called");
+    discoverIssues(input) {
+      received.push(input as unknown as (typeof received)[number]);
+      return resolve([]);
     },
   });
 
-  await assert.rejects(
-    runFuture(services.handleInvocation(makeInvocation(["discover"], []))),
-    (error: any) => {
-      assert.equal(error.code, "AUTOBOT-USAGE-ERROR");
-      assert.match(error.message, /project/i);
-      assert.deepStrictEqual(error.recovery_commands, [
-        "autobot-next discover --project <name>",
-        "autobot-next config set discovery.project <name>",
-        "linear issue list --project <name> --json",
-      ]);
-      return true;
+  const result = (await runFuture(
+    services.handleInvocation(
+      makeInvocation(["discover"], [], {
+        project: [],
+      }),
+    ),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "discover");
+  assert.deepStrictEqual(received, [
+    {
+      repo: {
+        path: "/worktrees/autobot",
+        state_dir: ".autobot",
+      },
+      projects: [],
     },
-  );
+  ]);
+  assert.deepStrictEqual(result.data.projects, []);
+});
+
+test("discover falls back to configured project allowlists", async () => {
+  const fixture = makeStore("Engineering, Platform");
+  const received: Array<{ projects: string[] }> = [];
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store);
+    },
+    discoverIssues(input) {
+      received.push(input as unknown as (typeof received)[number]);
+      return resolve([]);
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["discover"], [])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "discover");
+  assert.deepStrictEqual(received, [
+    {
+      repo: {
+        path: "/worktrees/autobot",
+        state_dir: ".autobot",
+      },
+      projects: ["Engineering", "Platform"],
+    },
+  ]);
+  assert.deepStrictEqual(result.data.projects, ["Engineering", "Platform"]);
+});
+
+test("discover project flags override configured allowlists", async () => {
+  const fixture = makeStore("Engineering, Platform");
+  const received: Array<{ projects: string[] }> = [];
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store);
+    },
+    discoverIssues(input) {
+      received.push(input as unknown as (typeof received)[number]);
+      return resolve([]);
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(
+      makeInvocation(["discover"], [], {
+        project: ["Security", "Billing"],
+      }),
+    ),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "discover");
+  assert.deepStrictEqual(received, [
+    {
+      repo: {
+        path: "/worktrees/autobot",
+        state_dir: ".autobot",
+      },
+      projects: ["Security", "Billing"],
+    },
+  ]);
+  assert.deepStrictEqual(result.data.projects, ["Security", "Billing"]);
 });

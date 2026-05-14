@@ -47,7 +47,7 @@ export interface AutobotServiceDependencies {
 
 interface DiscoverIssueInput {
   repo: RepoRef;
-  project: string;
+  projects: string[];
 }
 
 interface ConfigDefinition {
@@ -128,11 +128,11 @@ const configDefinitions: readonly ConfigDefinition[] = [
     allowed_values: null,
   },
   {
-    key: "discovery.project",
+    key: "discovery.projects",
     default_value: "",
     type: "string",
     description:
-      "Default Linear project used by discover and engine auto-discovery; leave it unset only if you will pass --project explicitly.",
+      "Comma-separated Linear project allowlist used by discover when no --project flags are provided.",
     requires_engine_restart: false,
     bounds: null,
     allowed_values: null,
@@ -569,6 +569,19 @@ function normalizeDiscoverText(
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function normalizeDiscoverProjects(value: string | null | undefined): string[] {
+  const normalized = normalizeDiscoverText(value);
+
+  if (normalized === null) {
+    return [];
+  }
+
+  return normalized
+    .split(/[,\n]/)
+    .map((project) => project.trim())
+    .filter(Boolean);
+}
+
 function discoverPriorityToNumber(priority: string | null): number | null {
   if (priority === null) {
     return null;
@@ -667,7 +680,7 @@ function createDiscoverExclusion(input: {
 
 function buildDiscoverResult(input: {
   store: AutobotStore;
-  project: string;
+  projects: string[];
   query: string | null;
   labels: string[];
   priority: string | null;
@@ -688,7 +701,7 @@ function buildDiscoverResult(input: {
     command: "autobot-next discover",
     repo: input.store.repo,
     data: {
-      project: input.project,
+      projects: [...input.projects],
       query: input.query,
       filters: {
         labels: [...input.labels],
@@ -729,6 +742,9 @@ function handleDiscover(
       .filter(Boolean);
     const priority = normalizeDiscoverText(invocation.options.priority);
     const limit = invocation.options.limit;
+    const projectFlags = invocation.options.project
+      .map((project) => normalizeDiscoverText(project))
+      .filter((project): project is string => project !== null);
 
     if (limit !== null && (!Number.isInteger(limit) || limit < 1)) {
       reject(
@@ -748,36 +764,14 @@ function handleDiscover(
       ((input: DiscoverIssueInput) =>
         discoverLinearIssues({
           repoRoot: input.repo.path,
-          project: input.project,
+          projects: input.projects,
         }));
 
-    const project =
-      normalizeDiscoverText(invocation.options.project) ?? undefined;
-
-    const resolveProject = (fallback: ConfigOverrideRecord | null) => {
-      const effectiveProject =
-        project ?? normalizeDiscoverText(fallback?.value as string | undefined);
-
-      if (effectiveProject === null) {
-        reject(
-          createUsageError({
-            command: "autobot-next discover",
-            message: "discover requires a project",
-            what_failed: "project resolution",
-            likely_cause:
-              "neither --project nor discovery.project was provided",
-            recovery_commands: [
-              "autobot-next discover --project <name>",
-              "autobot-next config set discovery.project <name>",
-              "linear issue list --project <name> --json",
-            ],
-            details: {
-              project: null,
-            },
-          }),
-        );
-        return;
-      }
+    const resolveProjects = (fallback: ConfigOverrideRecord | null) => {
+      const effectiveProjects =
+        projectFlags.length > 0
+          ? projectFlags
+          : normalizeDiscoverProjects(fallback?.value as string | undefined);
 
       store.projections.listItems().pipe(
         fork(reject)((localItems) => {
@@ -787,7 +781,7 @@ function handleDiscover(
 
           defaultDiscoverIssues({
             repo: store.repo,
-            project: effectiveProject,
+            projects: effectiveProjects,
           }).pipe(
             fork(reject)((issues) => {
               const exclusions: Array<{
@@ -801,7 +795,7 @@ function handleDiscover(
                   exclusions.push(
                     createDiscoverExclusion({
                       issue_id: candidate.issue_id,
-                      reason: "already-queued",
+                      reason: "local-non-terminal",
                       details: {
                         state: localItem.state,
                       },
@@ -874,7 +868,7 @@ function handleDiscover(
               resolve(
                 buildDiscoverResult({
                   store,
-                  project: effectiveProject,
+                  projects: effectiveProjects,
                   query,
                   labels,
                   priority,
@@ -893,14 +887,14 @@ function handleDiscover(
       return;
     };
 
-    if (project !== undefined) {
-      resolveProject(null);
+    if (projectFlags.length > 0) {
+      resolveProjects(null);
       return () => undefined;
     }
 
-    store.config.getOverride("discovery.project").pipe(
+    store.config.getOverride("discovery.projects").pipe(
       fork(reject)((override) => {
-        resolveProject(override);
+        resolveProjects(override);
       }),
     );
 

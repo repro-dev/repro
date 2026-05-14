@@ -19,7 +19,7 @@ export interface LinearDiscoverIssue {
 
 export interface LinearDiscoverInput {
   repoRoot: string;
-  project: string;
+  projects: string[];
 }
 
 interface RunCommandInput {
@@ -36,6 +36,57 @@ const execFileAsync = promisify(execFile);
 
 function resolveLinearBinary(repoRoot: string): string {
   return path.join(repoRoot, "bin", "linear");
+}
+
+function createDiscoverError(input: {
+  repoRoot: string;
+  projects: string[];
+  command: string;
+  args: string[];
+  cause: unknown;
+}): {
+  code: string;
+  message: string;
+  what_failed: string;
+  likely_cause: string;
+  recovery_commands: string[];
+  details: Record<string, unknown> | null;
+} {
+  const cause = input.cause as { code?: unknown; message?: unknown } | null;
+  const causeMessage =
+    typeof cause?.message === "string" ? cause.message : String(input.cause);
+  const missingBinary =
+    cause?.code === "ENOENT" ||
+    /ENOENT|not found|no such file/i.test(causeMessage);
+  const malformedJson = /JSON|Unexpected token|Unexpected end/i.test(
+    causeMessage,
+  );
+
+  return {
+    code: "AUTOBOT-LINEAR-DISCOVERY-FAILED",
+    message: malformedJson
+      ? "Linear discovery returned malformed JSON"
+      : "Linear discovery command failed",
+    what_failed: "Linear discovery command",
+    likely_cause: missingBinary
+      ? `the repo-owned Linear CLI at ${resolveLinearBinary(
+          input.repoRoot,
+        )} is missing or not executable`
+      : malformedJson
+      ? "Linear CLI output was not valid JSON"
+      : causeMessage,
+    recovery_commands: [
+      `${resolveLinearBinary(input.repoRoot)} issue list --help`,
+      "autobot-next discover --help",
+    ],
+    details: {
+      repo_root: input.repoRoot,
+      projects: [...input.projects],
+      command: input.command,
+      args: [...input.args],
+      error: causeMessage,
+    },
+  };
 }
 
 function normalizeString(value: unknown): string | null {
@@ -189,31 +240,52 @@ export function discoverLinearIssues(
   dependencies: DiscoverDependencies = {},
 ): FutureInstance<unknown, LinearDiscoverIssue[]> {
   const runCommand = dependencies.runCommand ?? defaultRunCommand;
+  const projectArgs = input.projects.flatMap((project) =>
+    project.length > 0 ? ["--project", project] : [],
+  );
+  const args = [
+    "issue",
+    "list",
+    ...projectArgs,
+    "--status",
+    "backlog",
+    "--status",
+    "todo",
+    "--json",
+    "identifier,title,url,priority,priorityLabel,status,project,assignee,labels",
+    "--limit",
+    "250",
+  ];
 
   return Future((reject, resolve) => {
     runCommand({
       cwd: input.repoRoot,
       command: resolveLinearBinary(input.repoRoot),
-      args: [
-        "issue",
-        "list",
-        "--project",
-        input.project,
-        "--status",
-        "backlog",
-        "--status",
-        "todo",
-        "--json",
-        "identifier,title,url,priority,priorityLabel,status,project,assignee,labels",
-        "--limit",
-        "250",
-      ],
+      args,
     }).pipe(
-      fork(reject)((payload) => {
+      fork((error) => {
+        reject(
+          createDiscoverError({
+            repoRoot: input.repoRoot,
+            projects: input.projects,
+            command: resolveLinearBinary(input.repoRoot),
+            args,
+            cause: error,
+          }),
+        );
+      })((payload) => {
         try {
           resolve(parseLinearDiscoverPayload(payload));
         } catch (error) {
-          reject(error);
+          reject(
+            createDiscoverError({
+              repoRoot: input.repoRoot,
+              projects: input.projects,
+              command: resolveLinearBinary(input.repoRoot),
+              args,
+              cause: error,
+            }),
+          );
         }
       }),
     );

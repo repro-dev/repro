@@ -19,7 +19,9 @@ function readGlobalOptions(command: Command): AutobotGlobalOptions {
     color: options.color !== false && options.noColor !== true,
     dry_run: options.dryRun === true,
     force: options.force === true,
-    project: typeof options.project === "string" ? options.project : null,
+    project: Array.isArray(options.project)
+      ? options.project.filter((project) => typeof project === "string")
+      : [],
     labels: Array.isArray(options.labels)
       ? options.labels.filter((label) => typeof label === "string")
       : Array.isArray(options.label)
@@ -182,7 +184,12 @@ export function createAutobotProgram(
   const discoverCommand = program
     .command("discover [query]")
     .description("discover matching work items")
-    .option("--project <name>", "filter by Linear project")
+    .option(
+      "--project <name>",
+      "filter by Linear project (repeatable)",
+      (value: string, previous: string[] = []) => [...previous, value],
+      [],
+    )
     .option(
       "--label <name>",
       "filter by Linear label",

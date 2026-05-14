@@ -81,6 +81,27 @@ export function toErrorPayload(error: unknown): ErrorPayload {
     return error.toErrorPayload();
   }
 
+  if (
+    error !== null &&
+    typeof error === "object" &&
+    typeof (error as { code?: unknown }).code === "string" &&
+    typeof (error as { message?: unknown }).message === "string" &&
+    typeof (error as { what_failed?: unknown }).what_failed === "string" &&
+    typeof (error as { likely_cause?: unknown }).likely_cause === "string" &&
+    Array.isArray((error as { recovery_commands?: unknown }).recovery_commands)
+  ) {
+    const payload = error as ErrorPayload;
+
+    return {
+      code: payload.code,
+      message: payload.message,
+      what_failed: payload.what_failed,
+      likely_cause: payload.likely_cause,
+      recovery_commands: [...payload.recovery_commands],
+      details: payload.details ?? null,
+    };
+  }
+
   return {
     code: "AUTOBOT-UNEXPECTED-ERROR",
     message: "Unexpected Autobot CLI error",

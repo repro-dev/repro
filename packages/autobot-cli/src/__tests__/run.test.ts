@@ -175,13 +175,13 @@ test("config list renders unset defaults explicitly", async () => {
           data: {
             config: [
               {
-                key: "discovery.project",
+                key: "discovery.projects",
                 value: "",
                 default_value: "",
                 type: "string",
                 source: "default",
                 description:
-                  "Default Linear project used by discover and engine auto-discovery; leave it unset only if you will pass --project explicitly.",
+                  "Comma-separated Linear project allowlist used by discover when no --project flags are provided.",
                 requires_engine_restart: false,
                 bounds: null,
                 allowed_values: null,
@@ -212,7 +212,7 @@ test("discover quiet output prints issue ids only", async () => {
             state_dir: ".autobot",
           },
           data: {
-            project: "Engineering",
+            projects: ["Engineering"],
             query: null,
             filters: {
               labels: [],

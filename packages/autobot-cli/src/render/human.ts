@@ -194,18 +194,28 @@ export function renderAutobotConfigMutation(input: {
 }
 
 export function renderAutobotDiscoverResults(input: DiscoverData): string {
-  if (input.candidates.length === 0) {
-    return `No discovery candidates found for ${input.project}.`;
+  const scope =
+    input.projects.length > 0 ? input.projects.join(", ") : "all projects";
+
+  if (input.scanned === 0) {
+    return `No remote issues scanned for ${scope}.`;
   }
 
   const lines = [
-    `Discover results for ${input.project}`,
-    `Candidates: ${input.candidates.length}`,
-    ...input.candidates.map(
-      (candidate) =>
-        `${candidate.issue_id} · ${candidate.title ?? "(untitled)"}`,
-    ),
+    input.candidates.length > 0
+      ? `Found ${input.candidates.length} candidates for ${scope}.`
+      : `Scanned ${input.scanned} remote issues for ${scope}; all excluded.`,
   ];
+
+  if (input.candidates.length > 0) {
+    lines.push(`Scanned ${input.scanned} remote issues.`);
+    lines.push(
+      ...input.candidates.map(
+        (candidate) =>
+          `${candidate.issue_id} · ${candidate.title ?? "(untitled)"}`,
+      ),
+    );
+  }
 
   if (input.exclusions.length > 0) {
     lines.push(

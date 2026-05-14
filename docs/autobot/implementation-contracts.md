@@ -51,7 +51,7 @@ This document refines `cli-design.md` into implementation-ready contracts. It re
 
 ### 2026-05-13 Discovery And Selection Policy
 
-- MVP discovery requires an explicit Linear project from `--project` or config.
+- Manual MVP discovery accepts repeatable `--project` flags; if none are provided, `discovery.projects` config is used, and if that is also empty the command scans all projects by omitting project flags.
 - When `engine.auto-discover=true`, engine ticks may auto-queue eligible candidates up to `engine.queue-depth`.
 - Engine selection reconciles in-progress/stale state first, then starts oldest queued items first, subject to concurrency limits.
 

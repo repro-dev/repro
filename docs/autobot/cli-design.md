@@ -377,7 +377,7 @@ Semantics:
 #### `autobot-next discover`
 
 ```bash
-autobot-next discover [--limit <n>] [--project <name>] [--label <name>] [--priority <n>] [-q|--quiet] [--json]
+autobot-next discover [--limit <n>] [--project <name>]... [--label <name>] [--priority <n>] [-q|--quiet] [--json]
 ```
 
 Discovers Linear issues eligible for Autobot.
@@ -387,8 +387,9 @@ Semantics:
 - Applies configured policy filters plus explicit flags.
 - Does not queue anything by default.
 - Excludes issues already known as non-terminal items unless `--all` is added in a future version.
+- With no `--project` flags, manual discovery scans all projects unless `discovery.projects` is configured.
 - `-q` prints issue IDs only, one per line, for piping into `autobot-next add`.
-- JSON output includes candidate metadata and exclusion reasons when `--verbose` is set.
+- JSON output always includes the scan count, candidate metadata, issue IDs, and exclusion reasons.
 
 Human output:
 
@@ -398,7 +399,7 @@ REP-123  Normal  Engineering  Short title
 REP-124  High    Platform     Another title
 
 Queue them with:
-autobot-next discover -q | xargs -n1 autobot-next add
+  autobot-next discover -q | xargs -n1 autobot-next add
 ```
 
 ### Config
@@ -417,7 +418,7 @@ Required keys for MVP:
 - `engine.queue-depth`: integer, default `5`.
 - `engine.max-concurrency`: integer, default `1`.
 - `engine.tick-interval-seconds`: integer, default `15`.
-- `discovery.project`: string, default empty.
+- `discovery.projects`: string, default empty comma-separated allowlist.
 - `delivery.require-review`: boolean, default `true`.
 - `delivery.allow-release`: boolean, default `false` for MVP.
 - `logs.retention-days`: integer, default `30`.

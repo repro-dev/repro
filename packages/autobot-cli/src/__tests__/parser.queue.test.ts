@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createAutobotProgram } from "../program";
+import type { AutobotInvocation } from "../types";
 
 test("queue commands and global flags are present in the parser tree", () => {
   const program = createAutobotProgram();
@@ -75,4 +76,34 @@ test("queue commands and global flags are present in the parser tree", () => {
   assert.ok(
     discoverCommand?.options.some((option) => option.flags.includes("--limit")),
   );
+});
+
+test("discover accepts repeatable project flags", () => {
+  let invocation: AutobotInvocation | null = null;
+  const program = createAutobotProgram({
+    onInvocation(nextInvocation) {
+      invocation = nextInvocation;
+    },
+  });
+
+  program.parse([
+    "node",
+    "autobot-next",
+    "discover",
+    "--project",
+    "Engineering",
+    "--project",
+    "Platform",
+  ]);
+
+  if (invocation === null) {
+    throw new Error("expected discover invocation");
+  }
+
+  const discoverInvocation = invocation as AutobotInvocation;
+
+  assert.deepStrictEqual(discoverInvocation.options.project, [
+    "Engineering",
+    "Platform",
+  ]);
 });
