@@ -5,8 +5,7 @@
   "main": "index.js",
   "license": "UNLICENSED",
   "bin": {
-    "linear": "bin/linear",
-    "autobot": "bin/autobot"
+    "linear": "bin/linear"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",
