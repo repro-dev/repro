@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { resolveLinearConfig, writeLinearConfig } from "./config.mjs";
 import {
   buildIssueFilter,
+  createAttachmentWithFallback,
+  createDocumentWithFallback,
   createIssueLabelWithFallback,
   createIssueWithFallback,
   createIssueRelationWithFallback,
@@ -26,6 +28,7 @@ import {
   resolveTeam,
   resolveUser,
   resolveViewer,
+  updateDocumentWithFallback,
 } from "./api.mjs";
 
 const REPO_ROOT = path.resolve(
@@ -170,6 +173,8 @@ function parseOptions(args, allowed) {
     }
 
     if (arg === "--title") out.title = next;
+    else if (arg === "--issue") out.issues = [...(out.issues ?? []), next];
+    else if (arg === "--document") out.document = next;
     else if (arg === "--name") out.name = next;
     else if (arg === "--color") out.color = next;
     else if (arg === "--api-key") out.apiKey = next;
@@ -271,6 +276,11 @@ function topLevelHelp() {
     "  issue start <id>",
     "  issue update <id> [options]",
     "  issue comment <id> <body>",
+    "  issue attach <id> --document <title>",
+    "  document create --title <title>",
+    "  document show <id-or-url>",
+    "  document update <id-or-url>",
+    "  document link <url>",
     "  label list",
     "  label create --name <name>",
     "  project list",
@@ -355,6 +365,24 @@ function issueHelp() {
     "    --assignee <name|email>",
     "    --mine",
     "  comment <id> <body>",
+    "  attach <id> --document <title>",
+    "    Compatibility command; prefer linear document create --issue <id>",
+  ].join("\n");
+}
+
+function documentHelp() {
+  return [
+    "Usage: linear document <subcommand>",
+    "",
+    "Subcommands:",
+    "  create --title <title> [--issue <id>]",
+    "  show <id-or-url>",
+    "  update <id-or-url> [--title <title>]",
+    "  link <url> --issue <id> [--issue <id>...]",
+    "",
+    "Compatibility:",
+    "  issue attach <id> --document <title>",
+    "    Prefer linear document create --issue <id> or linear document link <url> --issue <id>.",
   ].join("\n");
 }
 
@@ -470,6 +498,94 @@ function serializeComment(comment, issueId = null) {
     ...(issueId || comment.issueId || comment.issue?.id
       ? { issueId: issueId ?? comment.issueId ?? comment.issue?.id ?? null }
       : {}),
+  };
+}
+
+async function readStdin(context, { required = false } = {}) {
+  if (required && context.stdin?.isTTY) {
+    usageError("Missing document content. Pipe markdown on stdin.");
+  }
+
+  if (!context.stdin || context.stdin.isTTY) return "";
+
+  let content = "";
+  for await (const chunk of context.stdin) {
+    content += chunk;
+  }
+
+  return content;
+}
+
+function normalizeDocumentLookup(value) {
+  if (!notEmpty(value)) return value;
+
+  try {
+    const url = new URL(value);
+    const segments = url.pathname.split("/").filter(Boolean);
+    return segments[segments.length - 1] ?? value;
+  } catch {
+    return value;
+  }
+}
+
+async function serializeDocument(document) {
+  if (!document) return null;
+  const [issue, project, team] = await Promise.all([
+    resolveRelationValue(document.issue ?? null),
+    resolveRelationValue(document.project ?? null),
+    resolveRelationValue(document.team ?? null),
+  ]);
+
+  return {
+    id: document.id ?? null,
+    title: document.title ?? null,
+    url: document.url ?? null,
+    content: document.content ?? null,
+    slugId: document.slugId ?? document.slug ?? null,
+    createdAt:
+      document.createdAt instanceof Date
+        ? document.createdAt.toISOString()
+        : document.createdAt ?? null,
+    updatedAt:
+      document.updatedAt instanceof Date
+        ? document.updatedAt.toISOString()
+        : document.updatedAt ?? null,
+    issueId: document.issueId ?? issue?.id ?? null,
+    projectId: document.projectId ?? project?.id ?? null,
+    teamId: document.teamId ?? team?.id ?? null,
+  };
+}
+
+async function serializeAttachment(attachment) {
+  if (!attachment) return null;
+  const issue = await resolveRelationValue(attachment.issue ?? null);
+
+  return {
+    id: attachment.id ?? null,
+    title: attachment.title ?? null,
+    url: attachment.url ?? null,
+    issueId: attachment.issueId ?? issue?.id ?? null,
+    createdAt:
+      attachment.createdAt instanceof Date
+        ? attachment.createdAt.toISOString()
+        : attachment.createdAt ?? null,
+    updatedAt:
+      attachment.updatedAt instanceof Date
+        ? attachment.updatedAt.toISOString()
+        : attachment.updatedAt ?? null,
+  };
+}
+
+function mergeDocumentPayload(document, payload = {}) {
+  if (!document) return { ...payload };
+
+  return {
+    ...payload,
+    ...document,
+    issueId: document.issueId ?? payload.issueId ?? null,
+    projectId: document.projectId ?? payload.projectId ?? null,
+    teamId: document.teamId ?? payload.teamId ?? null,
+    slugId: document.slugId ?? payload.slugId ?? null,
   };
 }
 
@@ -1897,6 +2013,246 @@ async function issueCommentCommand(args, context) {
   };
 }
 
+async function resolveDocumentByLookup(context, lookup) {
+  const { client } = await resolveLinearContext(context);
+  const documentId = normalizeDocumentLookup(lookup);
+  if (!notEmpty(documentId)) {
+    usageError("Missing document identifier.");
+  }
+
+  const document = await callBoundMethod(client, client.document, documentId);
+  if (!document) {
+    runtimeError(`Document ${lookup} not found.`);
+  }
+
+  return { client, document, documentId };
+}
+
+async function documentCreateCommand(args, context) {
+  const options = parseOptions(args, ["--title", "--issue"]);
+  if (options.help)
+    return {
+      code: 0,
+      stdout: `${documentHelp()}\n`,
+      stderr: "",
+    };
+
+  if (!notEmpty(options.title)) usageError("Missing --title <title>.");
+  if (options.issues && options.issues.length > 1) {
+    usageError("Use a single --issue <id> when creating a document.");
+  }
+
+  const content = await readStdin(context, { required: true });
+  const { config, client } = await resolveLinearContext(context);
+  const payload = {
+    title: options.title,
+    content,
+  };
+
+  if (options.issues?.length) {
+    const { issue } = await resolveIssueByIdentifier(
+      context,
+      options.issues[0],
+    );
+    payload.issueId = issue.id;
+  } else {
+    if (!config.team) runtimeError(missingTeamError());
+    const team = await resolveTeam(client, config.team);
+    payload.teamId = team.id;
+  }
+
+  const createdDocument = await createDocumentWithFallback(client, payload);
+  const item = await serializeDocument(
+    mergeDocumentPayload(createdDocument, {
+      ...payload,
+      slugId: null,
+      createdAt: null,
+      updatedAt: null,
+    }),
+  );
+
+  if (context.json) return { code: 0, stdout: toJson({ item }), stderr: "" };
+
+  return {
+    code: 0,
+    stdout: `${item.title ?? "document"} created\n`,
+    stderr: "",
+  };
+}
+
+async function documentShowCommand(args, context) {
+  const options = parseOptions(args, []);
+  if (options.help)
+    return {
+      code: 0,
+      stdout: `${documentHelp()}\n`,
+      stderr: "",
+    };
+
+  const documentLookup = options._[0];
+  if (!documentLookup) usageError("Missing document identifier.");
+  if (options._.length !== 1)
+    usageError("Usage: linear document show <id-or-url>");
+
+  const { document } = await resolveDocumentByLookup(context, documentLookup);
+  const item = await serializeDocument(document);
+
+  if (context.json) return { code: 0, stdout: toJson({ item }), stderr: "" };
+
+  const lines = [
+    item.title ?? item.id,
+    item.url ? `URL: ${item.url}` : null,
+    item.content ? `Content:\n${item.content}` : null,
+  ].filter(Boolean);
+
+  return { code: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+}
+
+async function documentUpdateCommand(args, context) {
+  const options = parseOptions(args, ["--title"]);
+  if (options.help)
+    return {
+      code: 0,
+      stdout: `${documentHelp()}\n`,
+      stderr: "",
+    };
+
+  const documentLookup = options._[0];
+  if (!documentLookup) usageError("Missing document identifier.");
+  if (options._.length !== 1)
+    usageError("Usage: linear document update <id-or-url> [--title <title>]");
+
+  const content = await readStdin(context, { required: false });
+  const hasContent = content.length > 0;
+  if (!notEmpty(options.title) && !hasContent)
+    usageError("Missing update fields.");
+
+  const { client, document, documentId } = await resolveDocumentByLookup(
+    context,
+    documentLookup,
+  );
+  const input = {};
+  if (notEmpty(options.title)) input.title = options.title;
+  if (hasContent) input.content = content;
+
+  const updatedDocument = await updateDocumentWithFallback(
+    client,
+    documentId,
+    input,
+  );
+  const item = await serializeDocument(
+    mergeDocumentPayload(updatedDocument, {
+      ...document,
+      ...input,
+      content: input.content ?? document.content ?? null,
+      title: input.title ?? document.title ?? null,
+      updatedAt: null,
+    }),
+  );
+
+  if (context.json) return { code: 0, stdout: toJson({ item }), stderr: "" };
+
+  return { code: 0, stdout: `${item.title ?? item.id} updated\n`, stderr: "" };
+}
+
+async function documentLinkCommand(args, context) {
+  const options = parseOptions(args, ["--issue", "--title"]);
+  if (options.help)
+    return {
+      code: 0,
+      stdout: `${documentHelp()}\n`,
+      stderr: "",
+    };
+
+  const url = options._[0];
+  if (!notEmpty(url)) usageError("Missing document URL.");
+  if (options._.length !== 1)
+    usageError(
+      "Usage: linear document link <url> --issue <id> [--issue <id>...]",
+    );
+  if (!options.issues?.length) usageError("Missing --issue <id>.");
+
+  const { client } = await resolveLinearContext(context);
+  const items = [];
+  for (const issueId of options.issues) {
+    const { issue } = await resolveIssueByIdentifier(context, issueId);
+    const createdAttachment = await createAttachmentWithFallback(client, {
+      issueId: issue.id,
+      title: options.title ?? "Linear document",
+      url,
+    });
+    items.push(
+      await serializeAttachment(
+        createdAttachment ?? {
+          issueId: issue.id,
+          title: options.title ?? "Linear document",
+          url,
+        },
+      ),
+    );
+  }
+
+  if (context.json)
+    return {
+      code: 0,
+      stdout: toJson({
+        items,
+        pageInfo: { hasNextPage: false, endCursor: null },
+      }),
+      stderr: "",
+    };
+
+  return {
+    code: 0,
+    stdout: `${items.length} document links created\n`,
+    stderr: "",
+  };
+}
+
+async function issueAttachCommand(args, context) {
+  const options = parseOptions(args, ["--document"]);
+  if (options.help)
+    return {
+      code: 0,
+      stdout: `${simpleHelp(
+        "Usage: linear issue attach <id> --document <title>",
+        [
+          "Compatibility command for issue-scoped documents.",
+          "Prefer linear document create --issue <id>.",
+          "  --json",
+        ],
+      )}\n`,
+      stderr: "",
+    };
+
+  const issueId = options._[0];
+  if (!issueId) usageError("Missing issue identifier.");
+  if (!notEmpty(options.document)) usageError("Missing --document <title>.");
+  if (options._.length !== 1)
+    usageError("Usage: linear issue attach <id> --document <title>");
+
+  const content = await readStdin(context, { required: true });
+  const { client, issue } = await resolveIssueByIdentifier(context, issueId);
+  const createdDocument = await createDocumentWithFallback(client, {
+    issueId: issue.id,
+    title: options.document,
+    content,
+  });
+  const item = await serializeDocument(
+    mergeDocumentPayload(createdDocument, {
+      issueId: issue.id,
+      title: options.document,
+      content,
+      createdAt: null,
+      updatedAt: null,
+    }),
+  );
+
+  if (context.json) return { code: 0, stdout: toJson({ item }), stderr: "" };
+
+  return { code: 0, stdout: `${issueId} document attached\n`, stderr: "" };
+}
+
 async function whoamiCommand(args, context) {
   const options = parseOptions(args, []);
   if (options.help)
@@ -2191,6 +2547,29 @@ async function helpCommand(args) {
       ])}\n`,
       stderr: "",
     };
+  if (topic === "issue" && args[1] === "attach")
+    return {
+      code: 0,
+      stdout: `${simpleHelp(
+        "Usage: linear issue attach <id> --document <title>",
+        [
+          "Compatibility command for issue-scoped documents.",
+          "Prefer linear document create --issue <id>.",
+          "  --json",
+        ],
+      )}\n`,
+      stderr: "",
+    };
+  if (topic === "document" && !args[1])
+    return { code: 0, stdout: `${documentHelp()}\n`, stderr: "" };
+  if (topic === "document" && args[1] === "create")
+    return { code: 0, stdout: `${documentHelp()}\n`, stderr: "" };
+  if (topic === "document" && args[1] === "show")
+    return { code: 0, stdout: `${documentHelp()}\n`, stderr: "" };
+  if (topic === "document" && args[1] === "update")
+    return { code: 0, stdout: `${documentHelp()}\n`, stderr: "" };
+  if (topic === "document" && args[1] === "link")
+    return { code: 0, stdout: `${documentHelp()}\n`, stderr: "" };
   return { code: 0, stdout: `${topLevelHelp()}\n`, stderr: "" };
 }
 
@@ -2249,9 +2628,25 @@ export async function execute(argv = process.argv.slice(2), deps = {}) {
         return await issueUpdateCommand(args, context);
       if (subcommand === "comment")
         return await issueCommentCommand(args, context);
+      if (subcommand === "attach")
+        return await issueAttachCommand(args, context);
       usageError(
-        "Usage: linear issue <list|create|show|children|start|update|comment>",
+        "Usage: linear issue <list|create|show|children|start|update|comment|attach>",
       );
+    }
+
+    if (command === "document" || command === "documents") {
+      const subcommand = command === "documents" ? "create" : tail[0];
+      const args = command === "documents" ? tail : tail.slice(1);
+      if (subcommand === "create")
+        return await documentCreateCommand(args, context);
+      if (subcommand === "show")
+        return await documentShowCommand(args, context);
+      if (subcommand === "update")
+        return await documentUpdateCommand(args, context);
+      if (subcommand === "link")
+        return await documentLinkCommand(args, context);
+      usageError("Usage: linear document <create|show|update|link>");
     }
 
     if (command === "label") {
