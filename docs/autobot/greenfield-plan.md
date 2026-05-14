@@ -2,19 +2,19 @@
 
 ## Purpose
 
-This document summarizes the current `autobot` / `autobot-engine` intent from the repo docs and plans a greenfield delivery using [FlowCraft](https://flowcraft.js.org). It intentionally does not integrate with, preserve, or incrementally refactor the existing implementation. Existing docs are used only to extract product and architectural requirements. Frontloaded implementation decisions live in `decisions.md`.
+This document summarizes the current `autobot-next` intent from the repo docs and plans a greenfield delivery using [FlowCraft](https://flowcraft.js.org). It intentionally does not integrate with, preserve, or incrementally refactor the existing implementation. Existing docs are used only to extract product and architectural requirements. Frontloaded implementation decisions live in `decisions.md`.
 
 ## Source Documents Reviewed
 
-- `packages/autobot-engine/README.md` — current TypeScript engine architecture, explicit task states, pure transition contract, and typed effect contract.
-- `docs/man/autobot.1.md` — public queue CLI surface.
-- `docs/man/reproctl-autobot.1.md` — provisional internal lifecycle/control CLI surface and actor model.
+- `packages/autobot-cli/README.md` — current public CLI architecture, explicit task states, pure transition contract, and typed effect contract.
+- `docs/man/autobot-next.1.md` — public queue CLI surface.
+- `docs/man/autobot-next-internal.1.md` — provisional internal lifecycle/control CLI surface and actor model.
 - `tmp/context-REP-1143.md` and `tmp/test-plan-REP-1143.md` — explicit lifecycle-state correction and end-to-end expectations.
 - `tmp/context-REP-1109.md` — shift from broad `running` lifecycle to first-class `preparing`.
 - `tmp/context-REP-1110.md` — repo-scoped config surface and `.autobot/` state directory expectation.
 - `tmp/context-autobot-status-events.md` — status history and event visibility goals.
-- `tmp/context-autobot-engine-workers.md` — engine tick should schedule detached side-effect workers instead of blocking inline.
-- `tmp/debug-autobot-engine-logging.md` — engine logs must report meaningful loop and processing activity.
+- `tmp/context-autobot-next-workers.md` — engine tick should schedule detached side-effect workers instead of blocking inline.
+- `tmp/debug-autobot-next-logging.md` — engine logs must report meaningful loop and processing activity.
 - `tmp/context-autonomous-opencode-orchestration.md` — broader monitor/runner principles: deterministic infrastructure, per-issue workspace isolation, durable artifacts, operator visibility, Linear as source of truth, GitHub/CI as validation truth.
 
 ## Current High-Level Goals
@@ -62,39 +62,28 @@ This document summarizes the current `autobot` / `autobot-engine` intent from th
 
 ## Current User-Facing CLI Surface
 
-### `autobot`
+### `autobot-next`
 
-Public queue interface from `docs/man/autobot.1.md`:
+Public queue interface from `docs/man/autobot-next.1.md`:
 
-- `autobot add <issue> [--json] [--dry-run]` queues an issue without creating a worktree.
-- `autobot remove <issue> [-f] [--json] [--dry-run]` removes a queued item and restores Linear assignment/state where possible.
-- `autobot list [--json]` shows non-terminal queued items.
-- `autobot status [issue] [--json]` shows aggregate queue state or per-item detail/history.
-- `autobot logs [issue] [-t] [--json]` inspects engine or issue logs.
-- `autobot discover [--limit N] [--project name] [-q] [--json]` discovers candidate work and prints metadata by default, or identifiers with `-q`.
-- `autobot config get <key> [--json]` reads a repo-scoped setting.
-- `autobot config set <key> <value> [--json]` persists a repo-scoped setting.
-- `autobot config unset <key> [--json]` removes a repo-scoped setting override.
-- `autobot config list [--json]` is referenced in examples and prior context as the discoverability surface for config keys.
+- `autobot-next add <issue> [--json] [--dry-run]` queues an issue without creating a worktree.
+- `autobot-next remove <issue> [-f] [--json] [--dry-run]` removes a queued item and restores Linear assignment/state where possible.
+- `autobot-next list [--json]` shows non-terminal queued items.
+- `autobot-next status [issue] [--json]` shows aggregate queue state or per-item detail/history.
+- `autobot-next logs [issue] [-t] [--json]` inspects engine or issue logs.
+- `autobot-next discover [--limit N] [--project name] [-q] [--json]` discovers candidate work and prints metadata by default, or identifiers with `-q`.
+- `autobot-next config get <key> [--json]` reads a repo-scoped setting.
+- `autobot-next config set <key> <value> [--json]` persists a repo-scoped setting.
+- `autobot-next config unset <key> [--json]` removes a repo-scoped setting override.
+- `autobot-next config list [--json]` is referenced in examples and prior context as the discoverability surface for config keys.
 
 Public JSON responses are versioned with `schema_version: 1`. Public status-oriented responses include a `config` block sourced from `.autobot/config.json`. Current config keys are `engine.auto-discover`, `engine.queue-depth`, and `engine.max-concurrency`.
 
-### `reproctl autobot`
+### Internal lifecycle surface
 
-Internal/provisional lifecycle surface from `docs/man/reproctl-autobot.1.md`:
+Internal/provisional lifecycle surface from `docs/man/autobot-next-internal.1.md`:
 
-- `reproctl autobot status [--all] [--json]` inspects claim and run state.
-- `reproctl autobot discover [--limit count] [--profile name] [--prompt-file path] [--output-dir path] [--claimed-by name] [--project name] [--json]` runs intake discovery.
-- `reproctl autobot claim <issue> --workspace <path> --phase <phase> --issue-state <name> [--issue-state-type type] [--claimed-by user]` records an intake claim.
-- `reproctl autobot prepare <issue> [--phase observe] [--claimed-by name]` performs delivery-daemon preparation.
-- `reproctl autobot release <issue> [--reason text] [--json]` releases terminal or recovery state.
-- `reproctl autobot cancel <issue> [--reason text] [--json]` cancels work.
-- `reproctl autobot retry <issue> [--phase observe] [--claimed-by name] [--reason text] [--json]` retries from a phase.
-- `reproctl autobot reconcile [issue | --all]` reconciles stale or ambiguous state.
-- `reproctl autobot run start <issue> --phase <phase> --workspace <path>` records run start.
-- `reproctl autobot run finish <issue> --attempt <n> --state <state> [--error text]` records run finish.
-
-For a greenfield FlowCraft delivery, this should be collapsed into a clearer command model: keep `autobot` as the public surface and expose low-level lifecycle commands only as hidden or explicitly marked operator/debug commands.
+The internal lifecycle commands are not part of the public operator surface and should remain hidden or explicitly debug-only.
 
 ## FlowCraft Capability Assessment
 
@@ -138,8 +127,7 @@ For a greenfield FlowCraft delivery, this should be collapsed into a clearer com
 - `packages/autobot-store` — local durable state abstraction and SQLite implementation rooted at `.autobot/autobot.sqlite`.
 - `packages/autobot-flowcraft` — FlowCraft blueprints, node registry, subflows, runtime wiring, history integration, and event mapping.
 - `packages/autobot-adapters` — side-effect adapters for Linear, git/worktrees, OpenCode sessions, tests, review, reconciliation, GitHub inspection, filesystem artifacts, and future release/publish behavior.
-- `packages/autobot-cli` — public `autobot` command parser/renderers.
-- `packages/autobot-engine` — daemon/worker supervisor, scheduler, distributed adapter selection, process lifecycle.
+- `packages/autobot-cli` — public `autobot-next` command parser/renderers.
 
 This is a greenfield decomposition; names can be adjusted, but the boundaries should remain: domain/store/workflows/effects/CLI/supervisor.
 

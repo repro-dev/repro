@@ -2,13 +2,13 @@
 
 ## Purpose
 
-This document defines the target greenfield `autobot` CLI contract. It is a companion to `greenfield-plan.md` and should be treated as the implementation basis for the CLI, JSON response shapes, operator semantics, and recovery controls. During phased implementation, expose this CLI as `autobot-next` until `REP-1165` cuts over the public `autobot` entrypoint.
+This document defines the target greenfield `autobot-next` CLI contract. It is a companion to `greenfield-plan.md` and should be treated as the implementation basis for the CLI, JSON response shapes, operator semantics, and recovery controls.
 
 The spec intentionally describes a new CLI. It preserves the useful public concepts from the current docs, but it does not attempt to maintain implementation compatibility with the existing shell/Python/TypeScript code.
 
 ## Product Positioning
 
-`autobot` is the repo-owned local automation CLI for Linear work items. It exposes queue, engine, status, logs, config, and recovery controls in operator language.
+`autobot-next` is the repo-owned local automation CLI for Linear work items. It exposes queue, engine, status, logs, config, and recovery controls in operator language.
 
 The CLI is not a raw FlowCraft CLI. FlowCraft execution IDs, node IDs, and blueprint internals may appear in debug commands and JSON diagnostics, but the primary user model is:
 
@@ -33,7 +33,7 @@ The CLI is not a raw FlowCraft CLI. FlowCraft execution IDs, node IDs, and bluep
 ## Non-Goals
 
 - Do not expose FlowCraft as the primary product vocabulary.
-- Do not require `reproctl autobot` for normal use.
+- Do not require the legacy lifecycle surface for normal use.
 - Do not expose internal worker locks, lease tokens, raw context blobs, or database table names in default human output.
 - Do not make `autobot` responsible for merging PRs or bypassing review gates.
 - Do not hide destructive actions behind ambiguous verbs.
@@ -41,7 +41,7 @@ The CLI is not a raw FlowCraft CLI. FlowCraft execution IDs, node IDs, and bluep
 ## Global Invocation
 
 ```bash
-autobot <command> [options]
+autobot-next <command> [options]
 ```
 
 Global options:
@@ -268,7 +268,7 @@ JSON `data` shape:
       "title": "Short issue title",
       "state": "developing",
       "attempt": 1,
-      "owner": "autobot-engine:pid-12345",
+      "owner": "autobot-next:pid-12345",
       "queued_at": "2026-05-13T12:00:00.000Z",
       "updated_at": "2026-05-13T12:15:00.000Z"
     }
