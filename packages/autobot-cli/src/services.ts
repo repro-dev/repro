@@ -1323,18 +1323,42 @@ function handleEngineRunOnce(
                                           transaction.events.append(event),
                                       ),
                                     ).pipe(
-                                      map(
-                                        (domain_events): AutobotCommandResult =>
-                                          createFlowcraftInspectResult({
-                                            invocation,
-                                            kind: "run",
-                                            identifier: run.run_id,
-                                            issue_id: target.issue_id,
-                                            run,
-                                            execution,
-                                            domain_events,
-                                            flowcraft_events,
-                                          }),
+                                      chain((domain_events) =>
+                                        transaction.items
+                                          .upsert({
+                                            ...buildItemSummaryFromExisting(
+                                              target,
+                                              "completed",
+                                              finishedAt,
+                                            ),
+                                            last_event:
+                                              plan.domain_events.at(-1)?.type ??
+                                              target.last_event,
+                                            recovery_commands: [],
+                                            cancellation_requested: false,
+                                            cancellation_requested_at: null,
+                                            state_name: null,
+                                            state_type: null,
+                                            project: null,
+                                            labels: [],
+                                            assignee: target.owner,
+                                            current_run_id: null,
+                                          })
+                                          .pipe(
+                                            map(
+                                              (): AutobotCommandResult =>
+                                                createFlowcraftInspectResult({
+                                                  invocation,
+                                                  kind: "run",
+                                                  identifier: run.run_id,
+                                                  issue_id: target.issue_id,
+                                                  run,
+                                                  execution,
+                                                  domain_events,
+                                                  flowcraft_events,
+                                                }),
+                                            ),
+                                          ),
                                       ),
                                     ),
                                 ),

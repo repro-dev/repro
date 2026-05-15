@@ -57,6 +57,7 @@ function makeWorkflowStore() {
   const executionRecords: Array<Record<string, unknown>> = [];
   const flowcraftEvents: Array<Record<string, unknown>> = [];
   const domainEvents: Array<Record<string, unknown>> = [];
+  const itemUpserts: Array<Record<string, unknown>> = [];
   const runGetLookups: string[] = [];
   const flowcraftGetLookups: string[] = [];
   const domainEventLookups: Array<{
@@ -64,6 +65,29 @@ function makeWorkflowStore() {
     options: Record<string, unknown> | undefined;
   }> = [];
   let transactionCalls = 0;
+  const itemRecord = {
+    issue_id: "REP-1154",
+    title: "Ship FlowCraft workflow skeleton",
+    url: "https://linear.app/repro/issue/REP-1154/ship-flowcraft-workflow-skeleton",
+    state: "queued" as const,
+    attempt: 1,
+    priority: 2,
+    owner: "Gary",
+    workspace: "autobot",
+    branch: "autobot/REP-1154",
+    queued_at: "2026-05-15T11:00:00Z",
+    started_at: "2026-05-15T11:05:00Z",
+    updated_at: "2026-05-15T11:05:00Z",
+    last_event: null as string | null,
+    last_error: null,
+    recovery_commands: [] as string[],
+    linear: null,
+    current_run: null,
+    cancellation_requested: false,
+    cancellation_requested_at: null as string | null,
+    artifacts: [],
+    events: [],
+  };
 
   const store = {
     repo: {
@@ -81,10 +105,12 @@ function makeWorkflowStore() {
     },
     items: {
       get() {
-        return resolve(null);
+        return resolve({ ...itemRecord });
       },
-      upsert() {
-        return resolve(undefined);
+      upsert(input: Record<string, unknown>) {
+        itemUpserts.push(input);
+        Object.assign(itemRecord, input);
+        return resolve({ ...itemRecord });
       },
     },
     projections: {
@@ -92,32 +118,10 @@ function makeWorkflowStore() {
         throw new Error("listItems should not be used for engine run-once");
       },
       getNextRunnableItem() {
-        return resolve({
-          issue_id: "REP-1154",
-          title: "Ship FlowCraft workflow skeleton",
-          url: "https://linear.app/repro/issue/REP-1154/ship-flowcraft-workflow-skeleton",
-          state: "claimed",
-          attempt: 1,
-          priority: 2,
-          owner: "Gary",
-          workspace: "autobot",
-          branch: "autobot/REP-1154",
-          queued_at: "2026-05-15T11:00:00Z",
-          started_at: "2026-05-15T11:05:00Z",
-          updated_at: "2026-05-15T11:05:00Z",
-          last_event: null,
-          last_error: null,
-          recovery_commands: [],
-          linear: null,
-          current_run: null,
-          cancellation_requested: false,
-          cancellation_requested_at: null,
-          artifacts: [],
-          events: [],
-        });
+        return resolve({ ...itemRecord, state: "claimed" });
       },
       getItemDetail() {
-        return resolve(null);
+        return resolve({ ...itemRecord });
       },
     },
     config: {
@@ -356,6 +360,7 @@ function makeWorkflowStore() {
     executionRecords,
     flowcraftEvents,
     domainEvents,
+    itemUpserts,
     runGetLookups,
     flowcraftGetLookups,
     domainEventLookups,
@@ -478,7 +483,7 @@ test("inspect routes flowcraft execution ids directly to execution lookup", asyn
   assert.deepEqual(fixture.flowcraftGetLookups, ["flowcraft-exec-1156"]);
 });
 
-test("engine run-once persists the bounded flowcraft skeleton", async () => {
+test("engine run-once marks the item completed in status projection", async () => {
   const fixture = makeWorkflowStore();
   const services = createAutobotServices({
     openStore() {
@@ -503,7 +508,20 @@ test("engine run-once persists the bounded flowcraft skeleton", async () => {
   assert.equal(fixture.flowcraftEvents[0]?.type, "workflow:start");
   assert.equal(fixture.flowcraftEvents.at(-1)?.type, "workflow:finish");
   assert.equal(fixture.domainEvents.length, 3);
+  assert.equal(fixture.itemUpserts.length, 1);
+  assert.equal(fixture.itemUpserts[0]?.state, "completed");
   assert.equal(fixture.transactionCalls, 1);
   assert.equal("transport_json" in fixture.runUpserts[0]!, false);
   assert.equal(fixture.runUpserts[0]?.transport, null);
+
+  const statusResult = (await runFuture(
+    services.handleInvocation({
+      ...makeInvocation(["status"]),
+      args: ["REP-1154"],
+      command: "status REP-1154",
+    }),
+  )) as AutobotCommandResult;
+
+  assert.equal(statusResult.kind, "item-detail");
+  assert.equal(statusResult.data.state, "completed");
 });
