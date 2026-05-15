@@ -18,7 +18,7 @@ test("success envelopes use the documented stable shape", () => {
   ];
 
   const envelope = createJsonSuccessEnvelope({
-    command: "autobot list --json",
+    command: "autobot-next list --json",
     repo,
     data: { items: [] },
     warnings,
@@ -27,7 +27,7 @@ test("success envelopes use the documented stable shape", () => {
   assert.deepStrictEqual(envelope, {
     schema_version: 1,
     ok: true,
-    command: "autobot list --json",
+    command: "autobot-next list --json",
     repo,
     data: { items: [] },
     warnings,
@@ -36,15 +36,15 @@ test("success envelopes use the documented stable shape", () => {
 
 test("error envelopes preserve recovery guidance and omit repo when absent", () => {
   const envelope = createJsonErrorEnvelope({
-    command: "autobot retry REP-123",
+    command: "autobot-next retry REP-123",
     error: {
       code: "AUTOBOT-RETRY-NOT-ALLOWED",
       message: "retry is only available after failed runs",
       what_failed: "retry request",
       likely_cause: "the item is not in failed state",
       recovery_commands: [
-        "autobot status REP-123 --json",
-        "autobot cancel REP-123",
+        "autobot-next status REP-123 --json",
+        "autobot-next cancel REP-123",
       ],
       details: null,
     },
@@ -53,15 +53,15 @@ test("error envelopes preserve recovery guidance and omit repo when absent", () 
   assert.deepStrictEqual(envelope, {
     schema_version: 1,
     ok: false,
-    command: "autobot retry REP-123",
+    command: "autobot-next retry REP-123",
     error: {
       code: "AUTOBOT-RETRY-NOT-ALLOWED",
       message: "retry is only available after failed runs",
       what_failed: "retry request",
       likely_cause: "the item is not in failed state",
       recovery_commands: [
-        "autobot status REP-123 --json",
-        "autobot cancel REP-123",
+        "autobot-next status REP-123 --json",
+        "autobot-next cancel REP-123",
       ],
       details: null,
     },

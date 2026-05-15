@@ -4,9 +4,11 @@ import type { ItemDetail, ItemSummary } from "@repro/autobot-core";
 
 import { assertNormalizedEqual } from "./helpers";
 import {
+  renderAutobotDiscoverResults,
   renderAutobotItemDetail,
   renderAutobotItemSummary,
 } from "../render/human";
+import type { DiscoverData } from "../types";
 
 test("item summary renderer uses the shared core contract", () => {
   const item: ItemSummary = {
@@ -81,6 +83,117 @@ test("failed item detail renderer keeps semantic next-step guidance", () => {
     Last error: AUTOBOT-RETRY-NOT-ALLOWED — retry is only available after failed runs
     Next:
     autobot-next status REP-1151 --json
+    `,
+  );
+});
+
+test("discover renderer distinguishes empty scan, all excluded, and candidates", () => {
+  const noRemoteScan: DiscoverData = {
+    projects: [],
+    query: null,
+    filters: {
+      labels: [],
+      priority: null,
+      limit: 5,
+      scan_limit: 100,
+    },
+    scanned: 0,
+    candidates: [],
+    issue_ids: [],
+    exclusions: [],
+    quiet: false,
+  };
+
+  assertNormalizedEqual(
+    renderAutobotDiscoverResults(noRemoteScan),
+    `
+    No remote issues scanned for all projects.
+    Limit: 5
+    `,
+  );
+
+  const allExcluded: DiscoverData = {
+    projects: ["Engineering"],
+    query: null,
+    filters: {
+      labels: [],
+      priority: null,
+      limit: 5,
+      scan_limit: 100,
+    },
+    scanned: 2,
+    candidates: [],
+    issue_ids: [],
+    exclusions: [
+      {
+        issue_id: "REP-200",
+        reason: "local-non-terminal",
+        details: {
+          state: "failed",
+        },
+      },
+    ],
+    quiet: false,
+  };
+
+  assertNormalizedEqual(
+    renderAutobotDiscoverResults(allExcluded),
+    `
+    Scanned 2 remote issues for Engineering; all excluded.
+    Limit: 5
+
+    Exclusions: 1
+    REP-200 (local-non-terminal) {"state":"failed"}
+    `,
+  );
+
+  const candidatesFound: DiscoverData = {
+    projects: ["Engineering", "Platform"],
+    query: "autobot",
+    filters: {
+      labels: ["backend"],
+      priority: "high",
+      limit: 2,
+      scan_limit: 100,
+    },
+    scanned: 3,
+    candidates: [
+      {
+        issue_id: "REP-201",
+        title: "Candidate REP-201",
+        url: "https://linear.app/repro/issue/REP-201",
+        project: "Engineering",
+        labels: ["backend"],
+        priority: 2,
+        priority_label: "High",
+        status_name: "Todo",
+        state_type: "unstarted",
+        assignee: "Gary",
+      },
+    ],
+    issue_ids: ["REP-201"],
+    exclusions: [
+      {
+        issue_id: "REP-202",
+        reason: "limit-reached",
+        details: {
+          limit: 2,
+        },
+      },
+    ],
+    quiet: false,
+  };
+
+  assertNormalizedEqual(
+    renderAutobotDiscoverResults(candidatesFound),
+    `
+    Found 1 candidates for Engineering, Platform.
+    Limit: 2
+    Scanned 3 remote issues.
+
+    REP-201 · Candidate REP-201
+
+    Exclusions: 1 (see --json for details)
     `,
   );
 });

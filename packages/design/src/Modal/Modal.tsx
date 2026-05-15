@@ -1,4 +1,4 @@
-import { Block, Row } from '@jsxstyle/react'
+import { Block, Col, Row } from '@jsxstyle/react'
 import { useFocusTrap } from '@repro/a11y'
 import React, {
   PropsWithChildren,
@@ -8,8 +8,9 @@ import React, {
   useState,
 } from 'react'
 import { color } from '../tokens/colors'
-import { radius, shadow, zIndex } from '../tokens/elevation'
+import { radius, shadow } from '../tokens/elevation'
 import { duration, easing } from '../tokens/motion'
+import { spacing } from '../tokens/spacing'
 import { ModalHeader } from './ModalHeader'
 
 // ---------------------------------------------------------------------------
@@ -190,6 +191,12 @@ type Props = PropsWithChildren<{
 // Modal component
 // ---------------------------------------------------------------------------
 
+const ModalBody: React.FC<PropsWithChildren<{}>> = ({ children }) => (
+  <Col padding={spacing.xl}>{children}</Col>
+)
+
+ModalBody.displayName = 'ModalBody'
+
 /**
  * Centered modal dialog with a dark backdrop overlay.
  *
@@ -203,6 +210,7 @@ type Props = PropsWithChildren<{
  *
  * Compound subcomponents:
  *   `Modal.Header` — standard title + description header slot
+ *   `Modal.Body` — default padded content region
  */
 const _Modal: React.FC<Props> = ({
   children,
@@ -280,9 +288,13 @@ const _Modal: React.FC<Props> = ({
 
 _Modal.displayName = 'Modal'
 
-export const Modal = _Modal as typeof _Modal & { Header: typeof ModalHeader }
+export const Modal = _Modal as typeof _Modal & {
+  Header: typeof ModalHeader
+  Body: typeof ModalBody
+}
 
 Modal.Header = ModalHeader
+Modal.Body = ModalBody
 
 // ---------------------------------------------------------------------------
 // Backdrop component
@@ -327,7 +339,6 @@ const Backdrop: React.FC<PropsWithChildren<BackdropProps>> = ({
       justifyContent="center"
       background="rgba(0, 0, 0, 0.75)"
       position="fixed"
-      zIndex={zIndex.portal}
       top={0}
       left={0}
       bottom={0}

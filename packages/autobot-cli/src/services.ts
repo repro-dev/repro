@@ -21,6 +21,7 @@ import {
   type AutobotStore,
   type ConfigOverrideRecord,
 } from "@repro/autobot-store";
+import { discoverLinearIssues } from "@repro/autobot-adapters";
 import { Future, fork, type FutureInstance } from "fluture";
 
 import {
@@ -32,12 +33,22 @@ import type {
   AutobotCommandResult,
   AutobotGlobalOptions,
   AutobotInvocation,
+  DiscoverCandidate,
 } from "./types";
 
 export interface AutobotServiceDependencies {
   openStore?: (repo: RepoRef | string) => FutureInstance<unknown, AutobotStore>;
   now?: () => string;
   randomId?: () => string;
+  discoverIssues?: (
+    input: DiscoverIssueInput,
+  ) => FutureInstance<unknown, DiscoverCandidate[]>;
+}
+
+interface DiscoverIssueInput {
+  repo: RepoRef;
+  projects: string[];
+  scanLimit: number;
 }
 
 interface ConfigDefinition {
@@ -118,11 +129,11 @@ const configDefinitions: readonly ConfigDefinition[] = [
     allowed_values: null,
   },
   {
-    key: "discovery.project",
+    key: "discovery.projects",
     default_value: "",
     type: "string",
     description:
-      "Default Linear project used by discover and engine auto-discovery; leave it unset to run without a default project filter.",
+      "Comma-separated Linear project allowlist used by discover when no --project flags are provided.",
     requires_engine_restart: false,
     bounds: null,
     allowed_values: null,
@@ -132,6 +143,8 @@ const configDefinitions: readonly ConfigDefinition[] = [
 const configDefinitionsByKey = new Map(
   configDefinitions.map((definition) => [definition.key, definition] as const),
 );
+
+const discoverDefaultScanLimit = 100;
 
 function resolveRepoRef(options: AutobotGlobalOptions): RepoRef {
   return {
@@ -546,6 +559,378 @@ function createConfigMutationResult(input: {
       events: input.events,
     },
   };
+}
+
+function normalizeDiscoverText(
+  value: string | null | undefined,
+): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeDiscoverProjects(value: string | null | undefined): string[] {
+  const normalized = normalizeDiscoverText(value);
+
+  if (normalized === null) {
+    return [];
+  }
+
+  return normalized
+    .split(/[,\n]/)
+    .map((project) => project.trim())
+    .filter(Boolean);
+}
+
+function discoverPriorityToNumber(priority: string | null): number | null {
+  if (priority === null) {
+    return null;
+  }
+
+  switch (priority.toLowerCase()) {
+    case "urgent":
+      return 1;
+    case "high":
+      return 2;
+    case "medium":
+      return 3;
+    case "low":
+      return 4;
+    case "none":
+      return 0;
+    default:
+      return null;
+  }
+}
+
+function discoverMatchesLabels(
+  candidate: DiscoverCandidate,
+  labels: string[],
+): boolean {
+  if (labels.length === 0) {
+    return true;
+  }
+
+  const available = new Set(
+    candidate.labels.map((label) => label.toLowerCase()),
+  );
+  return labels.every((label) => available.has(label.toLowerCase()));
+}
+
+function discoverMatchesPriority(
+  candidate: DiscoverCandidate,
+  priority: string | null,
+): boolean {
+  if (priority === null) {
+    return true;
+  }
+
+  const expected = discoverPriorityToNumber(priority);
+  if (expected === null) {
+    return false;
+  }
+
+  if (expected === 0) {
+    return candidate.priority === null || candidate.priority === 0;
+  }
+
+  return candidate.priority === expected;
+}
+
+function discoverMatchesQuery(
+  candidate: DiscoverCandidate,
+  query: string | null,
+): boolean {
+  if (query === null) {
+    return true;
+  }
+
+  const searchable = [
+    candidate.issue_id,
+    candidate.title,
+    candidate.project,
+    candidate.priority_label,
+    candidate.status_name,
+    candidate.state_type,
+    candidate.assignee,
+    ...candidate.labels,
+  ]
+    .filter((part): part is string => typeof part === "string")
+    .join(" ")
+    .toLowerCase();
+
+  return searchable.includes(query.toLowerCase());
+}
+
+function createDiscoverExclusion(input: {
+  issue_id: string;
+  reason: string;
+  details: Record<string, unknown> | null;
+}): {
+  issue_id: string;
+  reason: string;
+  details: Record<string, unknown> | null;
+} {
+  return {
+    issue_id: input.issue_id,
+    reason: input.reason,
+    details: input.details,
+  };
+}
+
+function buildDiscoverResult(input: {
+  store: AutobotStore;
+  projects: string[];
+  query: string | null;
+  labels: string[];
+  priority: string | null;
+  limit: number;
+  scanLimit: number;
+  quiet: boolean;
+  scanned: number;
+  candidates: DiscoverCandidate[];
+  exclusions: Array<{
+    issue_id: string;
+    reason: string;
+    details: Record<string, unknown> | null;
+  }>;
+}): AutobotCommandResult {
+  const issue_ids = input.candidates.map((candidate) => candidate.issue_id);
+
+  return {
+    kind: "discover",
+    command: "autobot-next discover",
+    repo: input.store.repo,
+    data: {
+      projects: [...input.projects],
+      query: input.query,
+      filters: {
+        labels: [...input.labels],
+        priority: input.priority,
+        limit: input.limit,
+        scan_limit: input.scanLimit,
+      },
+      scanned: input.scanned,
+      candidates: input.candidates,
+      issue_ids,
+      exclusions: input.exclusions,
+      quiet: input.quiet,
+    },
+  };
+}
+
+function handleDiscover(
+  invocation: AutobotInvocation,
+  store: AutobotStore,
+  discoverIssues: AutobotServiceDependencies["discoverIssues"],
+): FutureInstance<unknown, AutobotCommandResult> {
+  return Future((reject, resolve) => {
+    const query = normalizeDiscoverText(invocation.args[0]);
+    if (invocation.args.length > 1) {
+      reject(
+        createUsageError({
+          command: "autobot-next discover",
+          message: "discover accepts at most one query argument",
+          what_failed: "discover command parsing",
+          likely_cause: "multiple positional query tokens were provided",
+          recovery_commands: ["autobot-next discover --help"],
+        }),
+      );
+      return () => undefined;
+    }
+
+    const labels = invocation.options.labels
+      .map((label) => label.trim())
+      .filter(Boolean);
+    const priority = normalizeDiscoverText(invocation.options.priority);
+    const limit = invocation.options.limit;
+    const projectFlags = invocation.options.project
+      .map((project) => normalizeDiscoverText(project))
+      .filter((project): project is string => project !== null);
+
+    if (limit !== null && (!Number.isInteger(limit) || limit < 1)) {
+      reject(
+        createUsageError({
+          command: "autobot-next discover",
+          message: `Invalid limit: ${limit}`,
+          what_failed: "discover limit parsing",
+          likely_cause: "--limit must be a positive integer",
+          recovery_commands: ["autobot-next discover --help"],
+        }),
+      );
+      return () => undefined;
+    }
+
+    const defaultDiscoverIssues =
+      discoverIssues ??
+      ((input: DiscoverIssueInput) =>
+        discoverLinearIssues({
+          repoRoot: input.repo.path,
+          projects: input.projects,
+          limit: input.scanLimit,
+        }));
+
+    const resolveDiscoverLimit = (
+      fallback: ConfigOverrideRecord | null,
+    ): number => {
+      if (fallback !== null) {
+        return fallback.value as number;
+      }
+
+      return configDefinitionsByKey.get("engine.queue-depth")!
+        .default_value as number;
+    };
+
+    const resolveProjects = (
+      fallback: ConfigOverrideRecord | null,
+      queueDepthOverride: ConfigOverrideRecord | null,
+    ) => {
+      const effectiveProjects =
+        projectFlags.length > 0
+          ? projectFlags
+          : normalizeDiscoverProjects(fallback?.value as string | undefined);
+      const effectiveLimit =
+        limit === null ? resolveDiscoverLimit(queueDepthOverride) : limit;
+      const scanLimit = Math.max(discoverDefaultScanLimit, effectiveLimit);
+
+      store.projections.listItems().pipe(
+        fork(reject)((localItems) => {
+          const localById = new Map(
+            localItems.map((item) => [item.issue_id, item] as const),
+          );
+
+          defaultDiscoverIssues({
+            repo: store.repo,
+            projects: effectiveProjects,
+            scanLimit,
+          }).pipe(
+            fork(reject)((issues) => {
+              const exclusions: Array<{
+                issue_id: string;
+                reason: string;
+                details: Record<string, unknown> | null;
+              }> = [];
+              const filtered = issues.filter((candidate) => {
+                const localItem = localById.get(candidate.issue_id);
+                if (localItem !== undefined) {
+                  exclusions.push(
+                    createDiscoverExclusion({
+                      issue_id: candidate.issue_id,
+                      reason: "local-non-terminal",
+                      details: {
+                        state: localItem.state,
+                      },
+                    }),
+                  );
+                  return false;
+                }
+
+                if (!discoverMatchesQuery(candidate, query)) {
+                  exclusions.push(
+                    createDiscoverExclusion({
+                      issue_id: candidate.issue_id,
+                      reason: "query-filter",
+                      details: {
+                        query,
+                      },
+                    }),
+                  );
+                  return false;
+                }
+
+                if (!discoverMatchesLabels(candidate, labels)) {
+                  exclusions.push(
+                    createDiscoverExclusion({
+                      issue_id: candidate.issue_id,
+                      reason: "label-filter",
+                      details: {
+                        labels,
+                        candidate_labels: candidate.labels,
+                      },
+                    }),
+                  );
+                  return false;
+                }
+
+                if (!discoverMatchesPriority(candidate, priority)) {
+                  exclusions.push(
+                    createDiscoverExclusion({
+                      issue_id: candidate.issue_id,
+                      reason: "priority-filter",
+                      details: {
+                        priority,
+                        candidate_priority: candidate.priority,
+                      },
+                    }),
+                  );
+                  return false;
+                }
+
+                return true;
+              });
+
+              const limited = filtered.slice(0, effectiveLimit);
+
+              if (filtered.length > limited.length) {
+                for (const candidate of filtered.slice(limited.length)) {
+                  exclusions.push(
+                    createDiscoverExclusion({
+                      issue_id: candidate.issue_id,
+                      reason: "limit-reached",
+                      details: {
+                        limit: effectiveLimit,
+                      },
+                    }),
+                  );
+                }
+              }
+
+              resolve(
+                buildDiscoverResult({
+                  store,
+                  projects: effectiveProjects,
+                  query,
+                  labels,
+                  priority,
+                  limit: effectiveLimit,
+                  scanLimit,
+                  quiet: invocation.options.quiet,
+                  scanned: issues.length,
+                  candidates: limited,
+                  exclusions,
+                }),
+              );
+            }),
+          );
+        }),
+      );
+
+      return;
+    };
+
+    if (projectFlags.length > 0) {
+      store.config.getOverride("engine.queue-depth").pipe(
+        fork(reject)((queueDepthOverride) => {
+          resolveProjects(null, queueDepthOverride);
+        }),
+      );
+    } else {
+      store.config.getOverride("discovery.projects").pipe(
+        fork(reject)((override) => {
+          store.config.getOverride("engine.queue-depth").pipe(
+            fork(reject)((queueDepthOverride) => {
+              resolveProjects(override, queueDepthOverride);
+            }),
+          );
+        }),
+      );
+    }
+
+    return () => undefined;
+  });
 }
 
 function withStore<T>(
@@ -1302,6 +1687,7 @@ function handleCommand(
   invocation: AutobotInvocation,
   store: AutobotStore,
   now: () => string,
+  discoverIssues?: AutobotServiceDependencies["discoverIssues"],
 ): FutureInstance<unknown, AutobotCommandResult> {
   const [head] = invocation.command_path;
 
@@ -1314,6 +1700,8 @@ function handleCommand(
       return createQueueList(store);
     case "status":
       return handleStatus(invocation, store);
+    case "discover":
+      return handleDiscover(invocation, store, discoverIssues);
     case "config":
       return handleConfig(invocation, store, now);
     default:
@@ -1341,7 +1729,7 @@ export function createAutobotServices(
   return {
     handleInvocation(invocation: AutobotInvocation) {
       return withStore(invocation.options, openStore, (store) =>
-        handleCommand(invocation, store, now),
+        handleCommand(invocation, store, now, dependencies.discoverIssues),
       );
     },
   };

@@ -19,6 +19,7 @@
     "typescript": "overridden"
   },
   "dependencies": {
+    "@repro/autobot-adapters": "workspace:*",
     "@repro/autobot-core": "workspace:*",
     "@repro/autobot-store": "workspace:*",
     "commander": "^12.1.0",

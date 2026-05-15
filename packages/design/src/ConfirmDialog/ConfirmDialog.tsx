@@ -38,29 +38,31 @@ export const ConfirmDialog: React.FC<Props> = ({
       onClose={onCancel}
       aria-label={title}
     >
-      <Col padding={spacing.xl} gap={spacing.md}>
-        <Modal.Header title={title} description={description} />
-        <Row justifyContent="flex-end" gap={spacing.md}>
-          <Button
-            variant="outlined"
-            context="neutral"
-            size="medium"
-            rounded
-            onClick={onCancel}
-          >
-            {cancelLabel}
-          </Button>
-          <Button
-            variant="contained"
-            context={variant === 'destructive' ? 'danger' : 'info'}
-            size="medium"
-            rounded
-            onClick={onConfirm}
-          >
-            {confirmLabel}
-          </Button>
-        </Row>
-      </Col>
+      <Modal.Body>
+        <Col gap={spacing.md}>
+          <Modal.Header title={title} description={description} />
+          <Row justifyContent="flex-end" gap={spacing.md}>
+            <Button
+              variant="outlined"
+              context="neutral"
+              size="medium"
+              rounded
+              onClick={onCancel}
+            >
+              {cancelLabel}
+            </Button>
+            <Button
+              variant="contained"
+              context={variant === 'destructive' ? 'danger' : 'info'}
+              size="medium"
+              rounded
+              onClick={onConfirm}
+            >
+              {confirmLabel}
+            </Button>
+          </Row>
+        </Col>
+      </Modal.Body>
     </Modal>
   )
 }

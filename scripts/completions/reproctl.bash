@@ -61,13 +61,13 @@ _reproctl() {
   local cur prev words cword
   _init_completion || return
 
-  local top_commands="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch autobot context worktree wt completion version help opencode"
+  local top_commands="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version help opencode"
   local cluster_sub="up down status reset"
   local db_sub="reset migrate shell status"
   local code_index_sub="help"
   local wt_sub="create remove list attach prune"
   local completion_shells="bash zsh fish"
-  local help_topics="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch autobot context worktree wt completion version environment exit-codes json opencode"
+  local help_topics="setup doctor checkhealth cluster db code-index start stop restart status logs ui launch context worktree wt completion version environment exit-codes json opencode"
 
   # Find the subcommand position (skip global flags)
   local cmd="" subcmd=""
@@ -165,69 +165,6 @@ _reproctl() {
         --worktree|-w) COMPREPLY=($(compgen -W "$(__reproctl_worktree_branches)" -- "$cur")); return ;;
       esac
       COMPREPLY=($(compgen -W "--worktree -w -h --help $(__reproctl_launchable_services)" -- "$cur"))
-      ;;
-
-    autobot)
-      if [[ -z "$subcmd" ]]; then
-        COMPREPLY=($(compgen -W "status claim prepare release cancel retry reconcile discover run help -h --help" -- "$cur"))
-      else
-        case "$subcmd" in
-          status)
-            COMPREPLY=($(compgen -W "--all --json -h --help" -- "$cur"))
-            ;;
-          claim)
-            case "$prev" in
-              --issue-id|--workspace|--phase|--issue-state|--issue-state-type|--claimed-by) return ;;
-            esac
-            COMPREPLY=($(compgen -W "--issue-id --workspace --phase --issue-state --issue-state-type --claimed-by -h --help" -- "$cur"))
-            ;;
-          prepare)
-            case "$prev" in
-              --phase|--claimed-by) return ;;
-            esac
-            COMPREPLY=($(compgen -W "--phase --claimed-by -h --help" -- "$cur"))
-            ;;
-          release)
-            case "$prev" in
-              --reason) return ;;
-            esac
-            COMPREPLY=($(compgen -W "--reason --json -h --help" -- "$cur"))
-            ;;
-          cancel)
-            case "$prev" in
-              --reason) return ;;
-            esac
-            COMPREPLY=($(compgen -W "--reason --json -h --help" -- "$cur"))
-            ;;
-          retry)
-            case "$prev" in
-              --phase|--claimed-by|--reason) return ;;
-            esac
-            COMPREPLY=($(compgen -W "--phase --claimed-by --reason --json -h --help" -- "$cur"))
-            ;;
-          reconcile)
-            case "$prev" in
-              --issue-state-name|--issue-state-type) return ;;
-            esac
-            COMPREPLY=($(compgen -W "--all --issue-state-name --issue-state-type -h --help" -- "$cur"))
-            ;;
-          discover)
-            case "$prev" in
-              --limit|--profile|--prompt-file|--output-dir|--claimed-by|--project) return ;;
-            esac
-            COMPREPLY=($(compgen -W "--limit --profile --prompt-file --output-dir --claimed-by --project --json -h --help" -- "$cur"))
-            ;;
-          run)
-            case "$prev" in
-              run) COMPREPLY=($(compgen -W "start finish -h --help" -- "$cur")); return ;;
-              --phase|--workspace|--attempt|--state|--error) return ;;
-              start) COMPREPLY=($(compgen -W "--phase --workspace -h --help" -- "$cur")); return ;;
-              finish) COMPREPLY=($(compgen -W "--attempt --state --error -h --help" -- "$cur")); return ;;
-            esac
-            COMPREPLY=($(compgen -W "start finish -h --help" -- "$cur"))
-            ;;
-        esac
-      fi
       ;;
 
     context)
