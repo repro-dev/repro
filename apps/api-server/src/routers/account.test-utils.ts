@@ -11,10 +11,21 @@ export type AccountTestContext = {
   app: FastifyInstance
 }
 
-export async function createAccountTestContext(): Promise<AccountTestContext> {
+export async function createAccountTestContext({
+  prefix,
+}: {
+  prefix?: string
+} = {}): Promise<AccountTestContext> {
   const harness = await createTestHarness()
   const accountService = harness.services.accountService
-  const app = harness.bootstrap(createAccountRouter(accountService))
+  const app = harness.bootstrap(async app => {
+    if (prefix == null) {
+      await app.register(createAccountRouter(accountService))
+      return
+    }
+
+    await app.register(createAccountRouter(accountService), { prefix })
+  })
 
   await app.ready()
 

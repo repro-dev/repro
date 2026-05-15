@@ -1,6 +1,7 @@
 import * as argon2 from '@node-rs/argon2'
 import {
   Account,
+  AccountSettingsSummary,
   Invitation,
   Session,
   StaffUser,
@@ -14,6 +15,7 @@ import {
   alt,
   and,
   ap,
+  both,
   chain,
   map,
   reject,
@@ -463,6 +465,55 @@ export function createAccountService(
     }).pipe(map(withEncodedId))
   }
 
+  function getAccountSettingsSummary(
+    accountId: string
+  ): FutureInstance<Error, AccountSettingsSummary> {
+    const decodedAccountId = decodeId(accountId)
+
+    if (decodedAccountId == null) {
+      return reject(badRequest('Invalid account ID'))
+    }
+
+    const account = attemptQuery(() => {
+      return database
+        .selectFrom('accounts')
+        .select(['id', 'name', 'createdAt'])
+        .where('id', '=', decodedAccountId)
+        .executeTakeFirstOrThrow(() => notFound())
+    })
+
+    const activeUsers = attemptQuery(() => {
+      return database
+        .selectFrom('users')
+        .select(sql<number>`count(*)::int`.as('count'))
+        .where('accountId', '=', decodedAccountId)
+        .where('active', '=', true)
+        .executeTakeFirstOrThrow()
+    })
+
+    const activeProjects = attemptQuery(() => {
+      return database
+        .selectFrom('projects')
+        .select(sql<number>`count(*)::int`.as('count'))
+        .where('accountId', '=', decodedAccountId)
+        .where('active', '=', true)
+        .executeTakeFirstOrThrow()
+    })
+
+    return account.pipe(
+      chain(account =>
+        both(activeUsers)(activeProjects).pipe(
+          map(([users, projects]) => ({
+            ...withEncodedId(account),
+            createdAt: account.createdAt.toISOString(),
+            userCount: users.count,
+            projectCount: projects.count,
+          }))
+        )
+      )
+    )
+  }
+
   type AccountListQueryOptions = {
     cursor?: string
     limit?: number
@@ -677,7 +728,7 @@ export function createAccountService(
               accountId: decodedAccountId,
               verificationToken: '',
             })
-            .returning(['id', 'name', 'email', 'verified'])
+            .returning(['id', 'name', 'email', 'verified', 'admin'])
             .executeTakeFirstOrThrow()
         }).pipe(map(asUser))
       )
@@ -728,7 +779,7 @@ export function createAccountService(
     return attemptQuery(() =>
       database
         .selectFrom('users')
-        .select(['id', 'name', 'email', 'verified'])
+        .select(['id', 'name', 'email', 'verified', 'admin'])
         .where('id', '=', decodeId(id))
         .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
@@ -794,7 +845,7 @@ export function createAccountService(
     return attemptQuery(async () => {
       return database
         .selectFrom('users')
-        .select(['id', 'name', 'email', 'verified'])
+        .select(['id', 'name', 'email', 'verified', 'admin'])
         .where('email', '=', email.toLowerCase())
         .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
@@ -808,7 +859,7 @@ export function createAccountService(
     return attemptQuery(async () => {
       const row = await database
         .selectFrom('users')
-        .select(['id', 'name', 'email', 'password', 'verified'])
+        .select(['id', 'name', 'email', 'password', 'verified', 'admin'])
         .where('email', '=', email.toLowerCase())
         .where('active', '=', true)
         .executeTakeFirst()
@@ -1253,6 +1304,7 @@ export function createAccountService(
     getAccountById,
     getAccountForUser,
     getAccountForInvitation,
+    getAccountSettingsSummary,
     listAccounts,
     listUsersForAccount,
 

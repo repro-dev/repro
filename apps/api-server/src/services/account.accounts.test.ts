@@ -7,6 +7,7 @@ import { Harness, createTestHarness, fixtures } from '~/testing'
 import { notFound } from '~/utils/errors'
 import { AccountService } from './account'
 import { BillingService } from './billing'
+import { ProjectService } from './project'
 
 function range(size: number) {
   return new Array(size).fill(undefined)
@@ -16,11 +17,13 @@ describe('Services > Account', () => {
   let harness: Harness
   let accountService: AccountService
   let billingService: BillingService
+  let projectService: ProjectService
 
   before(async () => {
     harness = await createTestHarness()
     accountService = harness.services.accountService
     billingService = harness.services.billingService
+    projectService = harness.services.projectService
   })
 
   beforeEach(async () => {
@@ -164,6 +167,47 @@ describe('Services > Account', () => {
       await expect(
         promise(accountService.updateAccountName(encodeId(999), 'New Account'))
       ).rejects.toThrow(notFound())
+    })
+
+    it('should return account settings summary with active user and project counts', async () => {
+      const account = await promise(
+        accountService.createAccount('Summary Account')
+      )
+      const activeUser = await promise(
+        accountService.createUser(
+          account.id,
+          'Active User',
+          'active@example.com',
+          'hunter2!'
+        )
+      )
+      await promise(
+        accountService.createUser(
+          account.id,
+          'Inactive User',
+          'inactive@example.com',
+          'hunter2!'
+        )
+      )
+      await promise(accountService.deactivateUser(activeUser.id))
+
+      const activeProject = await promise(
+        projectService.createProject(account.id, 'Active Project')
+      )
+      await promise(
+        projectService.createProject(account.id, 'Inactive Project')
+      )
+      await promise(projectService.deactivateProject(activeProject.id))
+
+      await expect(
+        promise(accountService.getAccountSettingsSummary(account.id))
+      ).resolves.toMatchObject({
+        id: account.id,
+        name: 'Summary Account',
+        createdAt: expect.any(String),
+        userCount: 1,
+        projectCount: 1,
+      })
     })
   })
 })

@@ -19,7 +19,7 @@ export interface UserTable {
 
 type DomainObject = Pick<
   Selectable<UserTable>,
-  'id' | 'name' | 'email' | 'verified'
+  'id' | 'name' | 'email' | 'verified' | 'admin'
 >
 type StaffDomainObject = Pick<
   Selectable<UserTable>,
@@ -40,6 +40,7 @@ export function asUser<T extends DomainObject>(values: T): User {
     name: values.name,
     email: values.email,
     verified: values.verified,
+    admin: values.admin,
   }
 }
 

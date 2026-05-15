@@ -1,4 +1,4 @@
-import { IfSession, UnlessSession, UserMenu } from '@repro/auth'
+import { IfSession, UnlessSession, UserMenu, useSession } from '@repro/auth'
 import { AppShell, Divider, Link, SideNav } from '@repro/design'
 import {
   BoltIcon,
@@ -24,9 +24,14 @@ export const Layout: React.FC = () => {
     path: '/projects/:projectId/settings',
     end: false,
   })
+  const session = useSession()
   // Billing lives under /settings/billing; match it separately so the
   // Settings item can exclude billing routes from its active range.
   const billingActive = useMatch({ path: '/settings/billing', end: false })
+  const accountSettingsActive = useMatch({
+    path: '/settings/account',
+    end: false,
+  })
   const settingsActive = useMatch({ path: '/settings', end: false })
 
   return (
@@ -67,10 +72,23 @@ export const Layout: React.FC = () => {
                   label="Settings"
                   // Active for all /settings/* routes except /settings/billing,
                   // which is handled by the Billing item below.
-                  active={!!settingsActive && !billingActive}
+                  active={
+                    !!settingsActive && !billingActive && !accountSettingsActive
+                  }
                   component={RouterNavLink}
                   props={{ to: '/settings' }}
                 />
+                {session != null &&
+                  'admin' in session &&
+                  session.admin === true && (
+                    <SideNav.Item
+                      icon={SettingsIcon}
+                      label="Account"
+                      active={!!accountSettingsActive}
+                      component={RouterNavLink}
+                      props={{ to: '/settings/account' }}
+                    />
+                  )}
                 <SideNav.Item
                   icon={CreditCardIcon}
                   label="Billing"

@@ -15,6 +15,15 @@ export interface User {
   name: string
   email: string
   verified: boolean
+  admin?: boolean
+}
+
+export interface AccountSettingsSummary {
+  id: string
+  name: string
+  createdAt: string
+  userCount: number
+  projectCount: number
 }
 
 // Staff-facing view of a user — includes email for administrative purposes

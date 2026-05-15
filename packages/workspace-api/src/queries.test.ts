@@ -13,10 +13,12 @@ import { describe, it } from 'node:test'
 import {
   createProject,
   deactivateProject,
+  getAccountSettings,
   getProject,
   getProjectMembers,
   getProjectRecordings,
   getProjects,
+  renameAccount,
   renameProject,
 } from './queries'
 
@@ -68,6 +70,14 @@ const fakeRecording: RecordingInfo = {
   browserVersion: '120',
   operatingSystem: 'macOS',
   codecVersion: '1.0.0',
+}
+
+const fakeAccountSettings = {
+  id: 'account-1',
+  name: 'Repro Test',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  userCount: 3,
+  projectCount: 2,
 }
 
 describe('workspace-api: queries', () => {
@@ -197,6 +207,37 @@ describe('workspace-api: queries', () => {
       const stub = createStubApiClient(() => ({ items: [] }))
       await promise(getProjectMembers(stub, 'proj-1'))
       assert.equal(stub.calls[0]?.url, '/projects/proj-1/members')
+    })
+  })
+
+  describe('getAccountSettings', () => {
+    it('fetches GET /account/settings and returns the account summary', async () => {
+      const stub = createStubApiClient(() => fakeAccountSettings)
+      const result = await promise(getAccountSettings(stub))
+      assert.deepEqual(result, fakeAccountSettings)
+    })
+
+    it('calls the correct URL', async () => {
+      const stub = createStubApiClient(() => fakeAccountSettings)
+      await promise(getAccountSettings(stub))
+      assert.equal(stub.calls[0]?.url, '/account/settings')
+    })
+  })
+
+  describe('renameAccount', () => {
+    it('PUTs to /account/name with name in body', async () => {
+      const stub = createStubApiClient(() => undefined)
+      await promise(renameAccount(stub, 'Renamed Account'))
+      const call = stub.calls[0]
+      assert.equal(call?.url, '/account/name')
+      assert.equal(call?.options.method, 'put')
+    })
+
+    it('serialises name in JSON body', async () => {
+      const stub = createStubApiClient(() => undefined)
+      await promise(renameAccount(stub, 'Renamed Account'))
+      const body = stub.calls[0]?.options.body as string
+      assert.deepEqual(JSON.parse(body), { name: 'Renamed Account' })
     })
   })
 

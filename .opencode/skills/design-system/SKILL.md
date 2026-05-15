@@ -37,7 +37,7 @@ For detailed sub-topics, read the reference files in `references/`:
 | File                                        | When to read                                                                                                         |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `references/anti-patterns.md`               | Need named UI guardrails for authored-vs-generic review, design direction, or audit cross-references                 |
-| `references/visual-direction-presets.md`    | Need implementation cues for an already chosen visual scaffold while staying grounded in Repro UI patterns            |
+| `references/visual-direction-presets.md`    | Need implementation cues for an already chosen visual scaffold while staying grounded in Repro UI patterns           |
 | `references/palette-surface-spacing.md`     | Need composition, surface, and spacing heuristics plus named anti-patterns like nested cards and everything centered |
 | `references/typography-readability.md`      | Need concrete typography and readability heuristics, including body-size, line-length, and hierarchy guardrails      |
 | `references/interaction-responsive.md`      | Need named guardrails for feedback timing, hover/touch, responsiveness, or modal/reflex behavior                     |
@@ -54,6 +54,21 @@ For detailed sub-topics, read the reference files in `references/`:
 | `references/forms-and-state.md`             | Building forms (react-hook-form + zod), state management (@repro/atom), loading/empty/error patterns                 |
 | `references/design-package.md`              | Working inside `packages/design/` (directory structure, inventory, add/modify checklists, pitfalls)                  |
 | `references/pre-delivery-ui-checklist.md`   | Final shared shipping pass: confirm the UI is directionally correct, complete, and ready to hand off                 |
+
+## Settings / Detail Page Convention
+
+For admin/workspace settings and entity-detail surfaces, use the REP-520 user detail layout as the baseline instead of inventing new page structures:
+
+- Put the page header inside `<PageFrame.Body>`, not `<PageFrame.Header>`, when the surface needs tabs or wide context.
+- Use `<PageFrame.Body>` without `maxWidth`, then an inner `<Block width="100%" maxWidth={1440} margin="0 auto">`.
+- Use tabs only for 2+ peer sections with distinct tasks or mental models. If there would only be one tab, do not render a tab bar.
+- Prefer stacked sections for short settings pages where the content is part of one flow, such as rename/details/danger-zone account settings.
+- When tabs are warranted, keep the header and `Tabs.List` at the full wrapper width.
+- Constrain tab-panel or single-panel settings content separately with a local section wrapper: desktop `maxWidth: '66.666%'`, mobile `100%`.
+- Keep major content regions in that constrained wrapper on one consistent vertical rhythm, using `spacing['3xl']` between regions and `spacing.md` inside each region unless the reference surface establishes a different token.
+- Prefer `Card fullBleed` + `Table` for stable key/value summaries.
+- Use `Card context="danger" padding={0}` plus an action-row composition for destructive/support-only areas.
+- Do not create a novel settings-page rhythm when a surface is another variant of profile/account/user settings.
 
 ---
 

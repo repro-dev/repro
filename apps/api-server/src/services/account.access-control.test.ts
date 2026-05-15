@@ -131,7 +131,7 @@ describe('Services > Account', () => {
 
       await expect(
         promise(accountService.ensureUserIsAdmin(userA))
-      ).resolves.toEqual(userA)
+      ).resolves.toEqual({ ...userA, admin: true })
 
       await expect(
         promise(accountService.ensureUserIsAdmin(userB))
@@ -192,7 +192,7 @@ describe('Services > Account', () => {
 
       await expect(
         promise(accountService.ensureCanModifyAccount(adminUser, account.id))
-      ).resolves.toEqual(adminUser)
+      ).resolves.toEqual({ ...adminUser, admin: true })
 
       await expect(
         promise(accountService.ensureCanModifyAccount(user, account.id))
@@ -312,7 +312,7 @@ describe('Services > Account', () => {
 
       await expect(
         promise(accountService.ensureCanModifyUser(adminUser, targetUser.id))
-      ).resolves.toEqual(adminUser)
+      ).resolves.toEqual({ ...adminUser, admin: true })
 
       await expect(
         promise(accountService.ensureCanModifyUser(nonAdminUser, targetUser.id))
