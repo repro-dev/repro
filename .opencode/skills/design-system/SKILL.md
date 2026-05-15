@@ -72,6 +72,14 @@ For admin/workspace settings and entity-detail surfaces, use the REP-520 user de
 
 ---
 
+## Settings Page Heuristics
+
+- Use tabs only when a page has 2+ peer sections with distinct tasks or mental models that benefit from direct switching.
+- If a settings page has only one logical panel, do not show a tab bar; stack the sections in order instead.
+- For short detail/settings pages, prefer stacked sections over tabs so the rhythm stays predictable.
+- Keep vertical spacing uniform between major content regions; reuse the same gap token rather than inventing ad-hoc section margins.
+- Avoid introducing a new settings rhythm when an existing page pattern already fits the layout.
+
 ## Two-Layer Architecture
 
 ### Component layer (`@repro/design`)
