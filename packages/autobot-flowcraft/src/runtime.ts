@@ -1,4 +1,4 @@
-import type { EdgeDefinition } from "./flowcraft";
+import type { EdgeDefinition } from "flowcraft";
 import type {
   FlowcraftExecutionPlan,
   FlowcraftNodeId,
@@ -18,7 +18,7 @@ import {
   generateMermaid,
   lintBlueprint,
   FlowRuntime,
-} from "./flowcraft";
+} from "flowcraft";
 
 import type { TransportCorrelation } from "@repro/autobot-core";
 import { Future, type FutureInstance } from "fluture";
