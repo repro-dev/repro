@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { fork, type FutureInstance } from "../future";
+import { fork, type FutureInstance } from "fluture";
 
 import { generateMermaid } from "../flowcraft";
 
 import {
   buildFlowcraftExecutionPlan,
+  type FlowcraftExecutionPlan,
   flowcraftWorkflows,
   listFlowcraftWorkflows,
   renderFlowcraftWorkflowDiagram,
@@ -56,7 +57,7 @@ test("workflow validation and diagram output come from FlowCraft analysis", () =
 });
 
 test("execution plans project the skeleton phases into events", async () => {
-  const plan = await runFuture(
+  const plan = await runFuture<FlowcraftExecutionPlan>(
     buildFlowcraftExecutionPlan({
       issue_id: "REP-1154",
       run_id: "run-1154",

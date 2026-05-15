@@ -21,7 +21,7 @@ import {
 } from "./flowcraft";
 
 import type { TransportCorrelation } from "@repro/autobot-core";
-import { Future, type FutureInstance } from "./future";
+import { Future, type FutureInstance } from "fluture";
 
 const autobotDeliverIssueWorkflowId: FlowcraftWorkflowId =
   "autobot-deliver-issue";

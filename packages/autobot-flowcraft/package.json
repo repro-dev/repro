@@ -10,6 +10,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@repro/autobot-core": "workspace:*",
+    "fluture": "^14.0.0",
     "flowcraft": "2.10.1"
   },
   "devDependencies": {

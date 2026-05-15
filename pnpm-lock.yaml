@@ -1619,6 +1619,9 @@ importers:
       flowcraft:
         specifier: 2.10.1
         version: 2.10.1
+      fluture:
+        specifier: ^14.0.0
+        version: 14.0.0
     devDependencies:
       '@types/node':
         specifier: 22.14.0
