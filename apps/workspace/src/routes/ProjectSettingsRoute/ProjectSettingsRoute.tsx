@@ -13,7 +13,9 @@ import {
   FullPageLoading,
   Input,
   Label,
+  Modal,
   PageFrame,
+  Select,
   Stack,
   Text,
   color,
@@ -27,7 +29,10 @@ import {
   ProjectMember,
   deactivateProject as defaultDeactivateProject,
   getProjectMembers as defaultGetProjectMembers,
+  inviteProjectMember as defaultInviteProjectMember,
+  removeProjectMember as defaultRemoveProjectMember,
   renameProject as defaultRenameProject,
+  updateProjectMemberRole as defaultUpdateProjectMemberRole,
 } from '@repro/workspace-api'
 import { fork } from 'fluture'
 import React, { useCallback, useEffect, useState } from 'react'
@@ -40,6 +45,16 @@ const renameSchema = z.object({
   name: z.string().min(1, 'Project name is required'),
 })
 
+const projectRoleOptions = [
+  { value: ProjectRole.Admin, label: 'Admin' },
+  { value: ProjectRole.Contributor, label: 'Contributor' },
+  { value: ProjectRole.Viewer, label: 'Viewer' },
+] as const
+
+function formatRole(role: ProjectRole) {
+  return role.charAt(0).toUpperCase() + role.slice(1)
+}
+
 type RenameFormValues = typeof renameSchema._output
 
 interface ProjectSettingsRouteProps {
@@ -47,6 +62,9 @@ interface ProjectSettingsRouteProps {
   currentUserId: string
   projectName: string
   getMembers?: typeof defaultGetProjectMembers
+  inviteMember?: typeof defaultInviteProjectMember
+  updateMemberRole?: typeof defaultUpdateProjectMemberRole
+  removeMember?: typeof defaultRemoveProjectMember
   renameProject?: typeof defaultRenameProject
   deactivateProject?: typeof defaultDeactivateProject
 }
@@ -55,6 +73,9 @@ export function ProjectSettingsRoute({
   currentUserId,
   projectName,
   getMembers = defaultGetProjectMembers,
+  inviteMember = defaultInviteProjectMember,
+  updateMemberRole = defaultUpdateProjectMemberRole,
+  removeMember = defaultRemoveProjectMember,
   renameProject = defaultRenameProject,
   deactivateProject = defaultDeactivateProject,
 }: ProjectSettingsRouteProps) {
@@ -65,6 +86,18 @@ export function ProjectSettingsRoute({
 
   const [renameError, setRenameError] = useState(null as string | null)
   const [archiveError, setArchiveError] = useState(null as string | null)
+  const [memberActionError, setMemberActionError] = useState(
+    null as string | null
+  )
+  const [inviteError, setInviteError] = useState(null as string | null)
+  const [inviteSuccess, setInviteSuccess] = useState(null as string | null)
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState<ProjectRole>(
+    ProjectRole.Contributor
+  )
+  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([])
+  const [membersInitialized, setMembersInitialized] = useState(false)
 
   const {
     loading,
@@ -89,6 +122,13 @@ export function ProjectSettingsRoute({
     reset({ name: projectName })
   }, [projectName, reset])
 
+  useEffect(() => {
+    if (members != null) {
+      setProjectMembers(members)
+      setMembersInitialized(true)
+    }
+  }, [members])
+
   const onRename = useCallback(
     (values: RenameFormValues) => {
       setRenameError(null)
@@ -109,6 +149,101 @@ export function ProjectSettingsRoute({
       })
     },
     [apiClient, projectId, renameProject, reset]
+  )
+
+  const handleInviteSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+
+      const email = inviteEmail.trim()
+      if (email.length === 0) {
+        setInviteError('Email is required')
+        return
+      }
+
+      setInviteError(null)
+      setInviteSuccess(null)
+
+      inviteMember(apiClient, email, inviteRole).pipe(
+        fork((err: unknown) => {
+          setInviteError(
+            (err as Error).message ??
+              'Failed to invite member. Please try again.'
+          )
+        })(() => {
+          setInviteEmail('')
+          setInviteRole(ProjectRole.Contributor)
+          setInviteModalOpen(false)
+          setInviteSuccess(
+            `Invitation sent to ${email}. Role selection is currently UI-only until the backend contract expands.`
+          )
+        })
+      )
+    },
+    [apiClient, inviteEmail, inviteMember, inviteRole]
+  )
+
+  const handleUpdateMemberRole = useCallback(
+    (member: ProjectMember, role: ProjectRole) => {
+      if (member.user.id === currentUserId || member.role === role) {
+        return
+      }
+
+      setMemberActionError(null)
+
+      updateMemberRole(apiClient, projectId, member.user.id, role).pipe(
+        fork((err: unknown) => {
+          setMemberActionError(
+            (err as Error).message ?? 'Failed to update member role.'
+          )
+        })(() => {
+          setProjectMembers(currentMembers =>
+            currentMembers.map(currentMember =>
+              currentMember.user.id === member.user.id
+                ? { ...currentMember, role }
+                : currentMember
+            )
+          )
+        })
+      )
+    },
+    [apiClient, currentUserId, projectId, updateMemberRole]
+  )
+
+  const handleRemoveMember = useCallback(
+    async (member: ProjectMember) => {
+      if (member.user.id === currentUserId) {
+        return
+      }
+
+      const confirmed = await confirm({
+        title: 'Remove Member',
+        description: `Remove ${member.user.name} from this project? They will lose access immediately.`,
+        confirmLabel: 'Remove',
+        variant: 'destructive',
+      })
+
+      if (!confirmed) {
+        return
+      }
+
+      setMemberActionError(null)
+
+      removeMember(apiClient, projectId, member.user.id).pipe(
+        fork((err: unknown) => {
+          setMemberActionError(
+            (err as Error).message ?? 'Failed to remove member.'
+          )
+        })(() => {
+          setProjectMembers(currentMembers =>
+            currentMembers.filter(
+              currentMember => currentMember.user.id !== member.user.id
+            )
+          )
+        })
+      )
+    },
+    [apiClient, confirm, currentUserId, projectId, removeMember]
   )
 
   const handleArchive = useCallback(async () => {
@@ -156,26 +291,12 @@ export function ProjectSettingsRoute({
     )
   }
 
-  const currentMember = (members ?? []).find(
+  const visibleMembers = membersInitialized ? projectMembers : members ?? []
+
+  const currentMember = visibleMembers.find(
     (m: ProjectMember) => m.user.id === currentUserId
   )
   const isAdmin = currentMember?.role === ProjectRole.Admin
-
-  if (!isAdmin) {
-    return (
-      <PageFrame>
-        <PageFrame.Header>
-          <PageFrame.Title>Project Settings</PageFrame.Title>
-        </PageFrame.Header>
-        <PageFrame.Body maxWidth={720}>
-          <Alert type="warning">
-            You don&apos;t have permission to manage project settings. Only
-            project admins can access this page.
-          </Alert>
-        </PageFrame.Body>
-      </PageFrame>
-    )
-  }
 
   return (
     <PageFrame>
@@ -185,65 +306,99 @@ export function ProjectSettingsRoute({
 
       <PageFrame.Body maxWidth={720}>
         <Stack gap="lg">
-          {/* Rename section */}
+          {isAdmin && (
+            <Card>
+              <Col padding={spacing.xl} gap={spacing.lg}>
+                <Text variant="heading3">Rename Project</Text>
+
+                <form onSubmit={handleSubmit(onRename)}>
+                  <Stack gap="md">
+                    {renameError && <Alert type="danger">{renameError}</Alert>}
+
+                    <FormField>
+                      <Label htmlFor="project-name">Project name</Label>
+                      <Input
+                        id="project-name"
+                        context={errors.name ? 'error' : 'normal'}
+                        aria-describedby={
+                          errors.name ? 'project-name-error' : undefined
+                        }
+                        {...register('name')}
+                      />
+                      {errors.name && (
+                        <FormFieldError
+                          id="project-name-error"
+                          error={errors.name}
+                        />
+                      )}
+                    </FormField>
+
+                    <Row justifyContent="flex-end">
+                      <Button
+                        variant="contained"
+                        context="info"
+                        type="submit"
+                        disabled={!isDirty || isSubmitting}
+                      >
+                        Save
+                      </Button>
+                    </Row>
+                  </Stack>
+                </form>
+              </Col>
+            </Card>
+          )}
+
           <Card>
             <Col padding={spacing.xl} gap={spacing.lg}>
-              <Text variant="heading3">Rename Project</Text>
-
-              <form onSubmit={handleSubmit(onRename)}>
-                <Stack gap="md">
-                  {renameError && <Alert type="danger">{renameError}</Alert>}
-
-                  <FormField>
-                    <Label htmlFor="project-name">Project name</Label>
-                    <Input
-                      id="project-name"
-                      context={errors.name ? 'error' : 'normal'}
-                      aria-describedby={
-                        errors.name ? 'project-name-error' : undefined
-                      }
-                      {...register('name')}
-                    />
-                    {errors.name && (
-                      <FormFieldError
-                        id="project-name-error"
-                        error={errors.name}
-                      />
-                    )}
-                  </FormField>
-
-                  <Row justifyContent="flex-end">
+              <Row
+                alignItems="center"
+                justifyContent="space-between"
+                gap={spacing.md}
+              >
+                <Col gap={spacing.xs}>
+                  <Text variant="heading3">Team Members</Text>
+                  {!isAdmin && (
+                    <Text variant="bodySmall" color={color.text.muted}>
+                      Read-only for project members who aren&apos;t admins.
+                    </Text>
+                  )}
+                </Col>
+                <Row alignItems="center" gap={spacing.sm}>
+                  <Badge context="neutral" rounded>
+                    {visibleMembers.length} member
+                    {visibleMembers.length !== 1 ? 's' : ''}
+                  </Badge>
+                  {isAdmin && (
                     <Button
                       variant="contained"
                       context="info"
-                      type="submit"
-                      disabled={!isDirty || isSubmitting}
+                      size="medium"
+                      rounded
+                      onClick={() => {
+                        setInviteError(null)
+                        setInviteModalOpen(true)
+                      }}
                     >
-                      Save
+                      Invite member
                     </Button>
-                  </Row>
-                </Stack>
-              </form>
-            </Col>
-          </Card>
-
-          {/* Team Members section */}
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
-              <Row alignItems="center" justifyContent="space-between">
-                <Text variant="heading3">Team Members</Text>
-                <Badge context="neutral" rounded>
-                  {members.length} member{members.length !== 1 ? 's' : ''}
-                </Badge>
+                  )}
+                </Row>
               </Row>
 
-              {members.length === 0 ? (
+              {inviteSuccess && <Alert type="success">{inviteSuccess}</Alert>}
+              {inviteError && <Alert type="danger">{inviteError}</Alert>}
+              {memberActionError && (
+                <Alert type="danger">{memberActionError}</Alert>
+              )}
+
+              {visibleMembers.length === 0 ? (
                 <Text variant="body" color={color.text.muted}>
                   No members found.
                 </Text>
               ) : (
                 <Col gap={spacing.sm}>
-                  {members.map((member: ProjectMember) => {
+                  {visibleMembers.map((member: ProjectMember) => {
                     const isCurrentUser = member.user.id === currentUserId
                     return (
                       <Row
@@ -274,10 +429,39 @@ export function ProjectSettingsRoute({
                             {member.user.email}
                           </Text>
                         </Col>
-                        <Badge context="neutral">
-                          {member.role.charAt(0).toUpperCase() +
-                            member.role.slice(1)}
-                        </Badge>
+                        {isAdmin && !isCurrentUser ? (
+                          <Row alignItems="center" gap={spacing.sm}>
+                            <Select
+                              aria-label={`Role for ${member.user.name}`}
+                              value={member.role}
+                              options={projectRoleOptions.map(option => ({
+                                value: option.value,
+                                label: option.label,
+                              }))}
+                              onChange={nextRole =>
+                                handleUpdateMemberRole(
+                                  member,
+                                  nextRole as ProjectRole
+                                )
+                              }
+                            />
+                            <Button
+                              variant="outlined"
+                              context="danger"
+                              size="medium"
+                              rounded
+                              onClick={() => {
+                                void handleRemoveMember(member)
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          </Row>
+                        ) : (
+                          <Badge context="neutral">
+                            {formatRole(member.role)}
+                          </Badge>
+                        )}
                       </Row>
                     )
                   })}
@@ -286,30 +470,103 @@ export function ProjectSettingsRoute({
             </Col>
           </Card>
 
-          {/* Archive section */}
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
-              <Text variant="heading3">Archive Project</Text>
+          {isAdmin && (
+            <Card>
+              <Col padding={spacing.xl} gap={spacing.lg}>
+                <Text variant="heading3">Archive Project</Text>
 
-              <Text variant="body" color={color.text.muted}>
-                Archiving a project is permanent. The project will no longer be
-                accessible to team members. Re-activation is not currently
-                supported.
-              </Text>
+                <Text variant="body" color={color.text.muted}>
+                  Archiving a project is permanent. The project will no longer
+                  be accessible to team members. Re-activation is not currently
+                  supported.
+                </Text>
 
-              <Row>
-                <Button
-                  variant="outlined"
-                  context="danger"
-                  onClick={handleArchive}
-                >
-                  Archive Project
-                </Button>
-              </Row>
+                <Row>
+                  <Button
+                    variant="outlined"
+                    context="danger"
+                    onClick={handleArchive}
+                  >
+                    Archive Project
+                  </Button>
+                </Row>
 
-              {archiveError && <Alert type="danger">{archiveError}</Alert>}
-            </Col>
-          </Card>
+                {archiveError && <Alert type="danger">{archiveError}</Alert>}
+              </Col>
+            </Card>
+          )}
+
+          <Modal
+            width={520}
+            height="auto"
+            open={inviteModalOpen}
+            onClose={() => setInviteModalOpen(false)}
+            aria-label="Invite member"
+          >
+            <Modal.Body>
+              <Col gap={spacing.lg}>
+                <Modal.Header
+                  title="Invite member"
+                  description="Invite someone to join this project by email."
+                />
+
+                <form onSubmit={handleInviteSubmit}>
+                  <Stack gap="md">
+                    <FormField>
+                      <Label htmlFor="invite-email">Email</Label>
+                      <Input
+                        id="invite-email"
+                        type="email"
+                        value={inviteEmail}
+                        onChange={event => setInviteEmail(event.target.value)}
+                        placeholder="name@example.com"
+                      />
+                    </FormField>
+
+                    <FormField>
+                      <Label htmlFor="invite-role">Role</Label>
+                      <Select
+                        id="invite-role"
+                        aria-label="Invite role"
+                        value={inviteRole}
+                        options={projectRoleOptions.map(option => ({
+                          value: option.value,
+                          label: option.label,
+                        }))}
+                        onChange={value => setInviteRole(value as ProjectRole)}
+                      />
+                    </FormField>
+
+                    <Text variant="bodySmall" color={color.text.muted}>
+                      The selected role is currently kept in the UI only.
+                    </Text>
+
+                    <Row justifyContent="flex-end" gap={spacing.sm}>
+                      <Button
+                        variant="outlined"
+                        context="neutral"
+                        size="medium"
+                        rounded
+                        type="button"
+                        onClick={() => setInviteModalOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="contained"
+                        context="info"
+                        size="medium"
+                        rounded
+                        type="submit"
+                      >
+                        Send invite
+                      </Button>
+                    </Row>
+                  </Stack>
+                </form>
+              </Col>
+            </Modal.Body>
+          </Modal>
         </Stack>
       </PageFrame.Body>
     </PageFrame>

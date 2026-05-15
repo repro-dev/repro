@@ -1,12 +1,15 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { createAtom } from '@repro/atom'
-import { ConfirmDialogProvider } from '@repro/design'
+import { ConfirmDialogProvider, PortalRootProvider } from '@repro/design'
 import { Project, ProjectRole, StaffUser, User } from '@repro/domain'
 import {
   ProjectMember,
   deactivateProject as defaultDeactivateProject,
   getProjectMembers as defaultGetProjectMembers,
+  inviteProjectMember as defaultInviteProjectMember,
+  removeProjectMember as defaultRemoveProjectMember,
   renameProject as defaultRenameProject,
+  updateProjectMemberRole as defaultUpdateProjectMemberRole,
 } from '@repro/workspace-api'
 import { render } from '@testing-library/react'
 import { map, reject, resolve } from 'fluture'
@@ -62,11 +65,17 @@ export const contributorMember: ProjectMember = {
 }
 
 export type GetMembersFn = typeof defaultGetProjectMembers
+export type InviteMemberFn = typeof defaultInviteProjectMember
+export type UpdateMemberRoleFn = typeof defaultUpdateProjectMemberRole
+export type RemoveMemberFn = typeof defaultRemoveProjectMember
 export type RenameFn = typeof defaultRenameProject
 export type DeactivateFn = typeof defaultDeactivateProject
 
 export interface TestProps {
   getMembers?: GetMembersFn
+  inviteMember?: InviteMemberFn
+  updateMemberRole?: UpdateMemberRoleFn
+  removeMember?: RemoveMemberFn
   renameProject?: RenameFn
   deactivateProject?: DeactivateFn
   projectName?: string
@@ -103,6 +112,9 @@ Object.defineProperty(global, 'localStorage', {
 
 export function renderRoute({
   getMembers = () => resolve([adminMember]),
+  inviteMember = () => resolve(undefined),
+  updateMemberRole = () => resolve(undefined),
+  removeMember = () => resolve(undefined),
   renameProject = () => resolve(fakeProject),
   deactivateProject = () => resolve(undefined),
   projectName = 'My Project',
@@ -111,25 +123,33 @@ export function renderRoute({
 }: TestProps = {}) {
   return render(
     <ApiProvider client={apiClient}>
-      <ConfirmDialogProvider>
-        <MemoryRouter initialEntries={[`/projects/${projectId}/settings`]}>
-          <Routes>
-            <Route
-              path="/projects/:projectId/settings"
-              element={
-                <ProjectSettingsRoute
-                  currentUserId={currentUserId}
-                  projectName={projectName}
-                  getMembers={getMembers}
-                  renameProject={renameProject}
-                  deactivateProject={deactivateProject}
-                />
-              }
-            />
-            <Route path="/" element={<div data-testid="home-page">Home</div>} />
-          </Routes>
-        </MemoryRouter>
-      </ConfirmDialogProvider>
+      <PortalRootProvider>
+        <ConfirmDialogProvider>
+          <MemoryRouter initialEntries={[`/projects/${projectId}/settings`]}>
+            <Routes>
+              <Route
+                path="/projects/:projectId/settings"
+                element={
+                  <ProjectSettingsRoute
+                    currentUserId={currentUserId}
+                    projectName={projectName}
+                    getMembers={getMembers}
+                    inviteMember={inviteMember}
+                    updateMemberRole={updateMemberRole}
+                    removeMember={removeMember}
+                    renameProject={renameProject}
+                    deactivateProject={deactivateProject}
+                  />
+                }
+              />
+              <Route
+                path="/"
+                element={<div data-testid="home-page">Home</div>}
+              />
+            </Routes>
+          </MemoryRouter>
+        </ConfirmDialogProvider>
+      </PortalRootProvider>
     </ApiProvider>
   )
 }
@@ -182,18 +202,22 @@ export function renderConnectedRoute({
   return render(
     <ApiProvider client={connectedApiClient}>
       <AuthContext.Provider value={authState}>
-        <ConfirmDialogProvider>
-          <ProjectProvider getProjects={() => resolve(projects)}>
-            <MemoryRouter initialEntries={[`/projects/${projectId}/settings`]}>
-              <Routes>
-                <Route
-                  path="/projects/:projectId/settings"
-                  element={<ProjectSettingsRouteConnected />}
-                />
-              </Routes>
-            </MemoryRouter>
-          </ProjectProvider>
-        </ConfirmDialogProvider>
+        <PortalRootProvider>
+          <ConfirmDialogProvider>
+            <ProjectProvider getProjects={() => resolve(projects)}>
+              <MemoryRouter
+                initialEntries={[`/projects/${projectId}/settings`]}
+              >
+                <Routes>
+                  <Route
+                    path="/projects/:projectId/settings"
+                    element={<ProjectSettingsRouteConnected />}
+                  />
+                </Routes>
+              </MemoryRouter>
+            </ProjectProvider>
+          </ConfirmDialogProvider>
+        </PortalRootProvider>
       </AuthContext.Provider>
     </ApiProvider>
   )
@@ -248,21 +272,23 @@ export function renderConnectedRouteNavigationTest({
   return render(
     <ApiProvider client={connectedApiClient}>
       <AuthContext.Provider value={authState}>
-        <ConfirmDialogProvider>
-          <ProjectProvider getProjects={() => resolve(projects)}>
-            <MemoryRouter
-              initialEntries={[`/projects/${initialProjectId}/settings`]}
-            >
-              <NavigateToProjectSettingsButton projectId="proj-2" />
-              <Routes>
-                <Route
-                  path="/projects/:projectId/settings"
-                  element={<ProjectSettingsRouteConnected />}
-                />
-              </Routes>
-            </MemoryRouter>
-          </ProjectProvider>
-        </ConfirmDialogProvider>
+        <PortalRootProvider>
+          <ConfirmDialogProvider>
+            <ProjectProvider getProjects={() => resolve(projects)}>
+              <MemoryRouter
+                initialEntries={[`/projects/${initialProjectId}/settings`]}
+              >
+                <NavigateToProjectSettingsButton projectId="proj-2" />
+                <Routes>
+                  <Route
+                    path="/projects/:projectId/settings"
+                    element={<ProjectSettingsRouteConnected />}
+                  />
+                </Routes>
+              </MemoryRouter>
+            </ProjectProvider>
+          </ConfirmDialogProvider>
+        </PortalRootProvider>
       </AuthContext.Provider>
     </ApiProvider>
   )

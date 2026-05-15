@@ -1,9 +1,17 @@
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import { ProjectRole } from '@repro/domain'
+import {
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { never, reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import {
   adminMember,
+  contributorMember,
   GetMembersFn,
   renderRoute,
   viewerMember,
@@ -30,22 +38,25 @@ describe('ProjectSettingsRoute', () => {
   })
 
   describe('permission gate', () => {
-    it('renders "no permission" message when user role is not admin', async () => {
-      renderRoute({ getMembers: () => resolve([viewerMember]) })
-
-      await waitFor(() => {
-        assert.ok(screen.getByText(/don.t have permission|not authorized/i))
+    it('renders the project settings page for non-admin members without management controls', async () => {
+      renderRoute({
+        getMembers: () => resolve([viewerMember, contributorMember]),
       })
-    })
-
-    it('does NOT render rename form when user is not admin', async () => {
-      renderRoute({ getMembers: () => resolve([viewerMember]) })
 
       await waitFor(() => {
+        assert.ok(screen.getByText('Team Members'))
+        assert.ok(screen.getByText('Viewer'))
         assert.equal(
-          screen.queryByRole('textbox', { name: /project name/i }),
+          screen.queryByRole('button', { name: /invite member/i }),
           null
         )
+        assert.equal(screen.queryByRole('button', { name: /save/i }), null)
+        assert.equal(
+          screen.queryByRole('button', { name: /archive project/i }),
+          null
+        )
+        assert.equal(screen.queryByRole('button', { name: /remove/i }), null)
+        assert.equal(screen.queryByRole('button', { name: /role for/i }), null)
       })
     })
 
@@ -73,6 +84,164 @@ describe('ProjectSettingsRoute', () => {
         const input = screen.getByRole('textbox', { name: /project name/i })
         assert.equal((input as HTMLInputElement).value, 'Awesome Project')
       })
+    })
+
+    it('renders invite, role change, and remove controls for other members', async () => {
+      renderRoute({
+        getMembers: () => resolve([adminMember, viewerMember]),
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByRole('button', { name: /invite member/i }))
+        assert.ok(screen.getByRole('button', { name: /role for viewer user/i }))
+        assert.ok(screen.getByRole('button', { name: /^remove$/i }))
+      })
+    })
+
+    it('opens the invite modal, submits the invite, and shows the acceptance note', async () => {
+      const inviteCalls: Array<[string, ProjectRole | undefined]> = []
+      const mockInvite = (
+        _client: unknown,
+        email: string,
+        role?: ProjectRole
+      ) => {
+        inviteCalls.push([email, role])
+        return resolve(undefined)
+      }
+
+      renderRoute({
+        getMembers: () => resolve([adminMember]),
+        inviteMember: mockInvite as any,
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByRole('button', { name: /invite member/i }))
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: /invite member/i }))
+
+      const dialog = await screen.findByRole('dialog', {
+        name: /invite member/i,
+      })
+      fireEvent.change(
+        within(dialog).getByRole('textbox', { name: /email/i }),
+        {
+          target: { value: 'invitee@example.com' },
+        }
+      )
+
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: /invite role/i })
+      )
+      fireEvent.click(
+        within(document.body).getByRole('option', { name: /admin/i })
+      )
+
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: /send invite/i })
+      )
+
+      await waitFor(() => {
+        assert.equal(inviteCalls.length, 1)
+        assert.deepEqual(inviteCalls[0], [
+          'invitee@example.com',
+          ProjectRole.Admin,
+        ])
+        assert.ok(screen.getByText(/invitation sent to invitee@example.com/i))
+      })
+    })
+
+    it('updates a member role and keeps the local member list in sync', async () => {
+      const roleCalls: Array<[string, ProjectRole]> = []
+      const mockUpdateRole = (
+        _client: unknown,
+        _projectId: string,
+        userId: string,
+        role: ProjectRole
+      ) => {
+        roleCalls.push([userId, role])
+        return resolve(undefined)
+      }
+
+      renderRoute({
+        getMembers: () => resolve([adminMember, viewerMember]),
+        updateMemberRole: mockUpdateRole as any,
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByRole('button', { name: /role for viewer user/i }))
+      })
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /role for viewer user/i })
+      )
+      fireEvent.click(
+        within(document.body).getByRole('option', { name: /contributor/i })
+      )
+
+      await waitFor(() => {
+        assert.deepEqual(roleCalls, [['user-viewer', ProjectRole.Contributor]])
+        assert.ok(screen.getByText('Contributor'))
+      })
+    })
+
+    it('removes a member after confirmation and updates the list', async () => {
+      const removeCalls: Array<[string, string]> = []
+      const mockRemove = (
+        _client: unknown,
+        projectId: string,
+        userId: string
+      ) => {
+        removeCalls.push([projectId, userId])
+        return resolve(undefined)
+      }
+
+      renderRoute({
+        getMembers: () => resolve([adminMember, viewerMember]),
+        removeMember: mockRemove as any,
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByRole('button', { name: /^remove$/i }))
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: /^remove$/i }))
+
+      const dialog = await screen.findByRole('dialog', {
+        name: /remove member/i,
+      })
+      fireEvent.click(within(dialog).getByRole('button', { name: /^remove$/i }))
+
+      await waitFor(() => {
+        assert.deepEqual(removeCalls, [['proj-1', 'user-viewer']])
+        assert.equal(screen.queryByText('Viewer User'), null)
+      })
+    })
+
+    it('blocks self role changes and self removal', async () => {
+      renderRoute({
+        getMembers: () => resolve([adminMember, viewerMember]),
+      })
+
+      await waitFor(() => {
+        assert.ok(screen.getByText('Admin User'))
+      })
+
+      const adminRow = screen.getByText('Admin User').closest('div')
+        ?.parentElement
+      assert.ok(adminRow)
+      assert.equal(
+        within(adminRow as HTMLElement).queryByRole('button', {
+          name: /role for admin user/i,
+        }),
+        null
+      )
+      assert.equal(
+        within(adminRow as HTMLElement).queryByRole('button', {
+          name: /^remove$/i,
+        }),
+        null
+      )
     })
 
     it('shows validation error when rename form submitted with empty name', async () => {
