@@ -55,8 +55,10 @@ test('initializes sqlite state and FlowCraft indexes', async () => {
   const migrations = db
     .prepare('SELECT name FROM autobot_migrations ORDER BY name')
     .all() as Array<{ name: string }>
-  assert.equal(migrations.length, 1)
-  assert.equal(migrations[0]?.name, '0001_initial_schema')
+  assert.deepEqual(
+    migrations.map(migration => migration.name),
+    ['0001_initial_schema', '0002_transport_metadata']
+  )
 
   const flowcraftIndexes = db
     .prepare("PRAGMA index_list('flowcraft_executions')")
@@ -132,6 +134,7 @@ test('event pagination is exhaustive for identical timestamps', async () => {
         severity: 'info',
         occurred_at: '2026-05-14T09:00:00Z',
         actor: 'engine',
+        transport: null,
         data: { index },
       })
     )
@@ -236,6 +239,7 @@ test('domain events remain append-only through the database', async () => {
       severity: 'info',
       occurred_at: '2026-05-14T09:05:00Z',
       actor: 'engine',
+      transport: null,
       data: {},
     })
   )

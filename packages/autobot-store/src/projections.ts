@@ -5,6 +5,7 @@ import type {
   LinearIssueRef,
   ItemSummary,
   RunSummary,
+  TransportCorrelation,
 } from '@repro/autobot-core'
 import { Future, type FutureInstance } from 'fluture'
 import type { Kysely, Selectable } from 'kysely'
@@ -62,6 +63,7 @@ function fromRunRow(row: Selectable<AutobotSchema['runs']>): RunSummary {
     finished_at: row.finished_at,
     worker_id: row.worker_id,
     last_heartbeat_at: row.last_heartbeat_at,
+    transport: decodeJsonNullable<TransportCorrelation>(row.transport_json),
   }
 }
 
@@ -107,6 +109,7 @@ function fromEventRow(
     severity: row.severity as DomainEvent['severity'],
     occurred_at: row.occurred_at,
     actor: row.actor,
+    transport: decodeJsonNullable<TransportCorrelation>(row.transport_json),
     data: decodeJsonNullable<Record<string, unknown>>(row.data_json) ?? {},
   }
 }

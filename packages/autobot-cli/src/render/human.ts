@@ -1,11 +1,22 @@
 import {
   isTerminalState,
   type ConfigEntry,
+  type DomainEvent,
   type EngineStatus,
   type ItemDetail,
   type ItemSummary,
   type ItemState,
+  type RunSummary,
+  type TransportCorrelation,
 } from "@repro/autobot-core";
+import type {
+  FlowcraftEventRecord,
+  FlowcraftExecutionRecord,
+} from "@repro/autobot-store";
+import type {
+  FlowcraftValidationResult,
+  FlowcraftWorkflowSummary,
+} from "@repro/autobot-flowcraft";
 
 import type { DiscoverData } from "../types";
 
@@ -236,6 +247,150 @@ export function renderAutobotDiscoverResults(input: DiscoverData): string {
   }
 
   return lines.join("\n");
+}
+
+function renderTransportCorrelation(
+  transport: TransportCorrelation | null,
+): string[] {
+  if (transport === null) {
+    return [];
+  }
+
+  return [
+    "Transport:",
+    ...Object.entries(transport).map(
+      ([key, value]) => `  ${key}: ${value ?? "n/a"}`,
+    ),
+  ];
+}
+
+function renderWorkflowSummary(workflow: FlowcraftWorkflowSummary): string {
+  return `${workflow.id} v${workflow.version} · ${workflow.node_ids.join(
+    " → ",
+  )}`;
+}
+
+export function renderAutobotWorkflowList(
+  workflows: FlowcraftWorkflowSummary[],
+): string {
+  if (workflows.length === 0) {
+    return "No workflows available.";
+  }
+
+  return ["Workflow list", ...workflows.map(renderWorkflowSummary)].join(
+    String.fromCharCode(10),
+  );
+}
+
+export function renderAutobotWorkflowValidation(
+  validations: FlowcraftValidationResult[],
+): string {
+  if (validations.length === 0) {
+    return "No workflows available.";
+  }
+
+  const lines = ["Workflow validation"];
+
+  for (const validation of validations) {
+    lines.push(
+      `${validation.workflow_id}: ${validation.valid ? "valid" : "invalid"}`,
+    );
+
+    for (const issue of validation.issues) {
+      lines.push(`  - ${issue.code}: ${issue.message}`);
+    }
+  }
+
+  return lines.join(String.fromCharCode(10));
+}
+
+export function renderAutobotWorkflowDiagram(diagram: string): string {
+  return diagram;
+}
+
+function renderDomainEvent(event: DomainEvent): string {
+  const transport =
+    event.transport === null
+      ? ""
+      : ` transport=${JSON.stringify(event.transport)}`;
+  return `${event.occurred_at} ${event.type} ${event.message}${transport}`;
+}
+
+function renderFlowcraftEvent(event: FlowcraftEventRecord): string {
+  return `${event.occurred_at} ${event.node_id} ${event.type} ${JSON.stringify(
+    event.data,
+  )}`;
+}
+
+function renderExecutionSummary(
+  execution: FlowcraftExecutionRecord | null,
+): string[] {
+  if (execution === null) {
+    return ["Execution: n/a"];
+  }
+
+  const lines = [
+    `Execution: ${execution.execution_id}`,
+    `Workflow state: ${execution.state}`,
+    `Started: ${execution.started_at}`,
+  ];
+
+  if (execution.finished_at !== null) {
+    lines.push(`Finished: ${execution.finished_at}`);
+  }
+
+  if (Object.keys(execution.metadata).length > 0) {
+    lines.push(`Metadata: ${JSON.stringify(execution.metadata)}`);
+  }
+
+  return lines;
+}
+
+export function renderAutobotFlowcraftInspect(input: {
+  lookup: {
+    kind: "run" | "flowcraft-execution";
+    identifier: string;
+    issue_id: string | null;
+    run: RunSummary | null;
+    execution: FlowcraftExecutionRecord | null;
+    domain_events: DomainEvent[];
+    flowcraft_events: FlowcraftEventRecord[];
+  };
+}): string {
+  const lines = [
+    `Inspect: ${input.lookup.identifier}`,
+    `Lookup: ${input.lookup.kind}`,
+    `Issue: ${input.lookup.issue_id ?? "n/a"}`,
+    ...renderExecutionSummary(input.lookup.execution),
+    ...renderTransportCorrelation(
+      input.lookup.run?.transport ??
+        (input.lookup.execution?.metadata.transport as
+          | TransportCorrelation
+          | null
+          | undefined) ??
+        null,
+    ),
+  ];
+
+  if (input.lookup.domain_events.length > 0) {
+    lines.push("", "Domain events:");
+    lines.push(
+      ...input.lookup.domain_events.map(
+        (event) => `  ${renderDomainEvent(event)}`,
+      ),
+    );
+  }
+
+  if (input.lookup.flowcraft_events.length > 0) {
+    lines.push("", "FlowCraft events:");
+    lines.push(
+      ...input.lookup.flowcraft_events.map(
+        (event) => `  ${renderFlowcraftEvent(event)}`,
+      ),
+    );
+  }
+
+  return lines.join(String.fromCharCode(10));
 }
 
 export function renderAutobotError(

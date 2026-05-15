@@ -1561,6 +1561,9 @@ importers:
       '@repro/autobot-core':
         specifier: workspace:*
         version: link:../autobot-core
+      '@repro/autobot-flowcraft':
+        specifier: workspace:*
+        version: link:../autobot-flowcraft
       '@repro/autobot-store':
         specifier: workspace:*
         version: link:../autobot-store
@@ -1609,6 +1612,10 @@ importers:
         version: 5.7.3
 
   packages/autobot-flowcraft:
+    dependencies:
+      '@repro/autobot-core':
+        specifier: workspace:*
+        version: link:../autobot-core
     devDependencies:
       '@types/node':
         specifier: 22.14.0

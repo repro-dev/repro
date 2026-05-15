@@ -101,6 +101,15 @@ export interface ArtifactRef {
   created_at: IsoTimestamp;
 }
 
+export interface TransportCorrelation {
+  source: string;
+  workspace_id: string | null;
+  channel_id: string | null;
+  thread_id: string | null;
+  agent_id: string | null;
+  message_id: string | null;
+}
+
 export interface DomainEvent {
   event_id: string;
   issue_id: string | null;
@@ -111,6 +120,7 @@ export interface DomainEvent {
   severity: Severity;
   occurred_at: IsoTimestamp;
   actor: string;
+  transport: TransportCorrelation | null;
   data: Record<string, unknown>;
 }
 
@@ -137,6 +147,7 @@ export interface RunSummary {
   finished_at: IsoTimestamp | null;
   worker_id: string | null;
   last_heartbeat_at: IsoTimestamp | null;
+  transport: TransportCorrelation | null;
 }
 
 export interface AttemptSummary {

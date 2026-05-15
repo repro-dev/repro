@@ -13,6 +13,10 @@ import {
   renderAutobotConfigMutation,
   renderAutobotConfigValue,
   renderAutobotDiscoverResults,
+  renderAutobotFlowcraftInspect,
+  renderAutobotWorkflowDiagram,
+  renderAutobotWorkflowList,
+  renderAutobotWorkflowValidation,
   renderAutobotItemDetail,
   renderAutobotQueueList,
   renderAutobotQueueMutation,
@@ -167,6 +171,20 @@ function renderSuccess(
       }
 
       io.stdout.write(`${renderAutobotDiscoverResults(result.data)}\n`);
+      return;
+    case "workflow-list":
+      io.stdout.write(`${renderAutobotWorkflowList(result.data.workflows)}\n`);
+      return;
+    case "workflow-validation":
+      io.stdout.write(
+        `${renderAutobotWorkflowValidation(result.data.validations)}\n`,
+      );
+      return;
+    case "workflow-diagram":
+      io.stdout.write(`${renderAutobotWorkflowDiagram(result.data.diagram)}\n`);
+      return;
+    case "flowcraft-inspect":
+      io.stdout.write(`${renderAutobotFlowcraftInspect(result.data)}\n`);
       return;
   }
 }

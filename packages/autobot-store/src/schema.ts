@@ -45,6 +45,7 @@ export interface RunsTable {
   finished_at: string | null
   worker_id: string | null
   last_heartbeat_at: string | null
+  transport_json: string | null
 }
 
 export interface WorkersTable {
@@ -89,6 +90,7 @@ export interface DomainEventsTable {
   severity: string
   occurred_at: string
   actor: string
+  transport_json: string | null
   data_json: string
 }
 

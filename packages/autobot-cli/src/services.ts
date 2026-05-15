@@ -7,9 +7,11 @@ import type {
   ConfigValue,
   DomainEvent,
   EngineStatus,
+  ItemDetail,
   ItemState,
   ItemSummary,
   RepoRef,
+  RunSummary,
 } from "@repro/autobot-core";
 import {
   itemStates,
@@ -18,9 +20,18 @@ import {
 } from "@repro/autobot-core";
 import {
   createAutobotStore,
+  type FlowcraftEventRecord,
+  type FlowcraftExecutionRecord,
   type AutobotStore,
   type ConfigOverrideRecord,
 } from "@repro/autobot-store";
+import {
+  buildFlowcraftExecutionPlan,
+  getFlowcraftWorkflow,
+  listFlowcraftWorkflows,
+  renderFlowcraftWorkflowDiagram,
+  validateFlowcraftWorkflows,
+} from "@repro/autobot-flowcraft";
 import { discoverLinearIssues } from "@repro/autobot-adapters";
 import { Future, fork, type FutureInstance } from "fluture";
 
@@ -276,6 +287,23 @@ function toConfigEntry(
   };
 }
 
+function stripTransportFromItemDetail(item: ItemDetail): ItemDetail {
+  return {
+    ...item,
+    current_run:
+      item.current_run === null
+        ? null
+        : {
+            ...item.current_run,
+            transport: null,
+          },
+    events: item.events.map((event) => ({
+      ...event,
+      transport: null,
+    })),
+  };
+}
+
 function createDomainEvent(input: {
   type: string;
   state: ItemState | null;
@@ -297,6 +325,7 @@ function createDomainEvent(input: {
     severity: input.severity,
     occurred_at: input.occurred_at ?? new Date().toISOString(),
     actor: input.actor ?? "autobot-cli",
+    transport: null,
     data: input.data,
   };
 }
@@ -561,6 +590,77 @@ function createConfigMutationResult(input: {
   };
 }
 
+function createWorkflowListResult(
+  invocation: AutobotInvocation,
+): AutobotCommandResult {
+  return {
+    kind: "workflow-list",
+    command: invocation.command,
+    repo: resolveRepoRef(invocation.options),
+    data: {
+      workflows: listFlowcraftWorkflows(),
+    },
+  };
+}
+
+function createWorkflowValidationResult(
+  invocation: AutobotInvocation,
+): AutobotCommandResult {
+  return {
+    kind: "workflow-validation",
+    command: invocation.command,
+    repo: resolveRepoRef(invocation.options),
+    data: {
+      validations: validateFlowcraftWorkflows(),
+    },
+  };
+}
+
+function createWorkflowDiagramResult(
+  invocation: AutobotInvocation,
+): AutobotCommandResult {
+  const workflowId = (invocation.args[0] ??
+    "autobot-deliver-issue") as Parameters<typeof getFlowcraftWorkflow>[0];
+
+  return {
+    kind: "workflow-diagram",
+    command: invocation.command,
+    repo: resolveRepoRef(invocation.options),
+    data: {
+      workflow_id: workflowId,
+      diagram: renderFlowcraftWorkflowDiagram(workflowId),
+    },
+  };
+}
+
+function createFlowcraftInspectResult(input: {
+  invocation: AutobotInvocation;
+  kind: "run" | "flowcraft-execution";
+  identifier: string;
+  issue_id: string | null;
+  run: RunSummary | null;
+  execution: FlowcraftExecutionRecord | null;
+  domain_events: DomainEvent[];
+  flowcraft_events: FlowcraftEventRecord[];
+}): AutobotCommandResult {
+  return {
+    kind: "flowcraft-inspect",
+    command: input.invocation.command,
+    repo: resolveRepoRef(input.invocation.options),
+    data: {
+      lookup: {
+        kind: input.kind,
+        identifier: input.identifier,
+        issue_id: input.issue_id,
+        run: input.run,
+        execution: input.execution,
+        domain_events: input.domain_events,
+        flowcraft_events: input.flowcraft_events,
+      },
+    },
+  };
+}
+
 function normalizeDiscoverText(
   value: string | null | undefined,
 ): string | null {
@@ -606,38 +706,16 @@ function discoverPriorityToNumber(priority: string | null): number | null {
   }
 }
 
-function discoverMatchesLabels(
-  candidate: DiscoverCandidate,
-  labels: string[],
-): boolean {
-  if (labels.length === 0) {
-    return true;
-  }
-
-  const available = new Set(
-    candidate.labels.map((label) => label.toLowerCase()),
-  );
-  return labels.every((label) => available.has(label.toLowerCase()));
-}
-
-function discoverMatchesPriority(
-  candidate: DiscoverCandidate,
-  priority: string | null,
-): boolean {
-  if (priority === null) {
-    return true;
-  }
-
-  const expected = discoverPriorityToNumber(priority);
-  if (expected === null) {
-    return false;
-  }
-
-  if (expected === 0) {
-    return candidate.priority === null || candidate.priority === 0;
-  }
-
-  return candidate.priority === expected;
+function createDiscoverExclusion(input: {
+  issue_id: string;
+  reason: string;
+  details: Record<string, unknown> | null;
+}): {
+  issue_id: string;
+  reason: string;
+  details: Record<string, unknown> | null;
+} {
+  return input;
 }
 
 function discoverMatchesQuery(
@@ -648,7 +726,7 @@ function discoverMatchesQuery(
     return true;
   }
 
-  const searchable = [
+  const haystack = [
     candidate.issue_id,
     candidate.title,
     candidate.project,
@@ -656,29 +734,36 @@ function discoverMatchesQuery(
     candidate.status_name,
     candidate.state_type,
     candidate.assignee,
-    ...candidate.labels,
+    candidate.labels.join(" "),
   ]
-    .filter((part): part is string => typeof part === "string")
+    .filter((value): value is string => typeof value === "string")
     .join(" ")
     .toLowerCase();
 
-  return searchable.includes(query.toLowerCase());
+  return haystack.includes(query.toLowerCase());
 }
 
-function createDiscoverExclusion(input: {
-  issue_id: string;
-  reason: string;
-  details: Record<string, unknown> | null;
-}): {
-  issue_id: string;
-  reason: string;
-  details: Record<string, unknown> | null;
-} {
-  return {
-    issue_id: input.issue_id,
-    reason: input.reason,
-    details: input.details,
-  };
+function discoverMatchesLabels(
+  candidate: DiscoverCandidate,
+  labels: string[],
+): boolean {
+  if (labels.length === 0) {
+    return true;
+  }
+
+  return labels.every((label) => candidate.labels.includes(label));
+}
+
+function discoverMatchesPriority(
+  candidate: DiscoverCandidate,
+  priority: string | null,
+): boolean {
+  if (priority === null) {
+    return true;
+  }
+
+  const priorityNumber = discoverPriorityToNumber(priority);
+  return priorityNumber === candidate.priority;
 }
 
 function buildDiscoverResult(input: {
@@ -928,6 +1013,279 @@ function handleDiscover(
         }),
       );
     }
+
+    return () => undefined;
+  });
+}
+
+function handleWorkflow(
+  invocation: AutobotInvocation,
+): FutureInstance<unknown, AutobotCommandResult> {
+  const [subcommand] = invocation.command_path.slice(1);
+
+  return Future((reject, resolve) => {
+    switch (subcommand) {
+      case "list":
+        resolve(createWorkflowListResult(invocation));
+        return () => undefined;
+      case "validate":
+        resolve(createWorkflowValidationResult(invocation));
+        return () => undefined;
+      case "diagram":
+        resolve(createWorkflowDiagramResult(invocation));
+        return () => undefined;
+      default:
+        reject(createNotImplementedError(invocation.command));
+        return () => undefined;
+    }
+  });
+}
+
+function handleInspect(
+  invocation: AutobotInvocation,
+  store: AutobotStore,
+): FutureInstance<unknown, AutobotCommandResult> {
+  const identifier = invocation.args[0];
+
+  if (identifier === undefined) {
+    return Future((reject) => {
+      reject(
+        createUsageError({
+          command: invocation.command,
+          message: "inspect requires a run id or flowcraft execution id",
+          what_failed: "inspect request",
+          likely_cause: "the identifier argument was missing",
+          recovery_commands: [
+            "autobot-next inspect <run-id|flowcraft-execution-id>",
+          ],
+        }),
+      );
+      return () => undefined;
+    });
+  }
+
+  return Future((reject, resolve) => {
+    void (async () => {
+      const run = await new Promise<RunSummary | null>(
+        (resolveRun, rejectRun) => {
+          store.runs.get(identifier).pipe(fork(rejectRun)(resolveRun));
+        },
+      );
+
+      if (run !== null) {
+        const executionId = run.flowcraft_execution_id;
+        const execution =
+          executionId === null
+            ? null
+            : await new Promise<FlowcraftExecutionRecord | null>(
+                (resolveExecution, rejectExecution) => {
+                  store.flowcraft
+                    .getExecution(executionId)
+                    .pipe(fork(rejectExecution)(resolveExecution));
+                },
+              );
+
+        const domain_events =
+          executionId === null
+            ? []
+            : await new Promise<DomainEvent[]>(
+                (resolveEvents, rejectEvents) => {
+                  store.events
+                    .list(run.issue_id, { runId: run.run_id })
+                    .pipe(fork(rejectEvents)(resolveEvents));
+                },
+              );
+
+        const flowcraft_events =
+          executionId === null
+            ? []
+            : await new Promise<FlowcraftEventRecord[]>(
+                (resolveEvents, rejectEvents) => {
+                  store.flowcraft
+                    .listEvents(executionId)
+                    .pipe(fork(rejectEvents)(resolveEvents));
+                },
+              );
+
+        resolve(
+          createFlowcraftInspectResult({
+            invocation,
+            kind: "run",
+            identifier,
+            issue_id: run.issue_id,
+            run,
+            execution,
+            domain_events,
+            flowcraft_events,
+          }),
+        );
+        return;
+      }
+
+      const execution = await new Promise<FlowcraftExecutionRecord | null>(
+        (resolveExecution, rejectExecution) => {
+          store.flowcraft
+            .getExecution(identifier)
+            .pipe(fork(rejectExecution)(resolveExecution));
+        },
+      );
+
+      if (execution === null) {
+        reject(
+          new AutobotCliError({
+            code: "FLOWCRAFT_EXECUTION_NOT_FOUND",
+            message: `No run or flowcraft execution found for ${identifier}`,
+            what_failed: "inspect request",
+            likely_cause: "the run or execution id is not stored locally",
+            recovery_commands: ["autobot-next status --json"],
+            details: { identifier },
+            exit_code: 2,
+          }),
+        );
+        return;
+      }
+
+      const domain_events = await new Promise<DomainEvent[]>(
+        (resolveEvents, rejectEvents) => {
+          store.events
+            .list(execution.issue_id, { runId: execution.run_id ?? undefined })
+            .pipe(fork(rejectEvents)(resolveEvents));
+        },
+      );
+
+      const flowcraft_events = await new Promise<FlowcraftEventRecord[]>(
+        (resolveEvents, rejectEvents) => {
+          store.flowcraft
+            .listEvents(execution.execution_id)
+            .pipe(fork(rejectEvents)(resolveEvents));
+        },
+      );
+
+      resolve(
+        createFlowcraftInspectResult({
+          invocation,
+          kind: "flowcraft-execution",
+          identifier,
+          issue_id: execution.issue_id,
+          run: null,
+          execution,
+          domain_events,
+          flowcraft_events,
+        }),
+      );
+    })().catch(reject);
+
+    return () => undefined;
+  });
+}
+
+function handleEngineRunOnce(
+  invocation: AutobotInvocation,
+  store: AutobotStore,
+  now: () => string,
+  randomId: () => string,
+): FutureInstance<unknown, AutobotCommandResult> {
+  return Future((reject, resolve) => {
+    void (async () => {
+      const items = await new Promise<ItemSummary[]>(
+        (resolveItems, rejectItems) => {
+          store.projections.listItems().pipe(fork(rejectItems)(resolveItems));
+        },
+      );
+      const target = items.find((item) => isInProgressState(item.state));
+
+      if (target === undefined) {
+        createQueueStatus(store).pipe(fork(reject)(resolve));
+        return;
+      }
+
+      const startedAt = now();
+      const finishedAt = startedAt;
+      const runId = randomId();
+      const executionId = `flowcraft-${runId}`;
+      const plan = buildFlowcraftExecutionPlan({
+        issue_id: target.issue_id,
+        run_id: runId,
+        execution_id: executionId,
+        started_at: startedAt,
+        finished_at: finishedAt,
+        transport: null,
+      });
+
+      const run = await new Promise<RunSummary>((resolveRun, rejectRun) => {
+        store.runs
+          .upsert({
+            run_id: runId,
+            issue_id: target.issue_id,
+            attempt: target.attempt,
+            state: "completed",
+            flowcraft_execution_id: executionId,
+            blueprint_id: plan.workflow.id,
+            blueprint_version: plan.workflow.version,
+            started_at: startedAt,
+            finished_at: finishedAt,
+            worker_id: null,
+            last_heartbeat_at: null,
+            transport_json: null,
+          })
+          .pipe(fork(rejectRun)(resolveRun));
+      });
+
+      const execution = await new Promise<FlowcraftExecutionRecord>(
+        (resolveExecution, rejectExecution) => {
+          store.flowcraft
+            .recordExecution({
+              execution_id: executionId,
+              issue_id: target.issue_id,
+              run_id: run.run_id,
+              state: "completed",
+              started_at: startedAt,
+              finished_at: finishedAt,
+              metadata: plan.metadata,
+            })
+            .pipe(fork(rejectExecution)(resolveExecution));
+        },
+      );
+
+      const flowcraft_events: FlowcraftEventRecord[] = [];
+      for (const event of plan.flowcraft_events) {
+        // Skeleton execution: persist each projected FlowCraft event deterministically.
+        // The runtime stays bounded by the single plan produced above.
+        // eslint-disable-next-line no-await-in-loop
+        const storedEvent = await new Promise<FlowcraftEventRecord>(
+          (resolveEvent, rejectEvent) => {
+            store.flowcraft
+              .recordEvent(event)
+              .pipe(fork(rejectEvent)(resolveEvent));
+          },
+        );
+        flowcraft_events.push(storedEvent);
+      }
+
+      const domain_events: DomainEvent[] = [];
+      for (const event of plan.domain_events) {
+        // eslint-disable-next-line no-await-in-loop
+        const storedEvent = await new Promise<DomainEvent>(
+          (resolveEvent, rejectEvent) => {
+            store.events.append(event).pipe(fork(rejectEvent)(resolveEvent));
+          },
+        );
+        domain_events.push(storedEvent);
+      }
+
+      resolve(
+        createFlowcraftInspectResult({
+          invocation,
+          kind: "run",
+          identifier: run.run_id,
+          issue_id: target.issue_id,
+          run,
+          execution,
+          domain_events,
+          flowcraft_events,
+        }),
+      );
+    })().catch(reject);
 
     return () => undefined;
   });
@@ -1355,7 +1713,7 @@ function handleStatus(
             kind: "item-detail",
             command: `autobot-next status ${issueId}`,
             repo: store.repo,
-            data: item,
+            data: stripTransportFromItemDetail(item),
           });
         }),
       );
@@ -1688,6 +2046,7 @@ function handleCommand(
   store: AutobotStore,
   now: () => string,
   discoverIssues?: AutobotServiceDependencies["discoverIssues"],
+  randomId: () => string = randomUUID,
 ): FutureInstance<unknown, AutobotCommandResult> {
   const [head] = invocation.command_path;
 
@@ -1704,6 +2063,17 @@ function handleCommand(
       return handleDiscover(invocation, store, discoverIssues);
     case "config":
       return handleConfig(invocation, store, now);
+    case "inspect":
+      return handleInspect(invocation, store);
+    case "engine":
+      return invocation.command_path[1] === "run-once"
+        ? handleEngineRunOnce(invocation, store, now, randomId)
+        : Future((reject) => {
+            reject(createNotImplementedError(invocation.command));
+            return () => undefined;
+          });
+    case "workflow":
+      return handleWorkflow(invocation);
     default:
       return Future((reject) => {
         reject(createNotImplementedError(invocation.command));
@@ -1729,7 +2099,13 @@ export function createAutobotServices(
   return {
     handleInvocation(invocation: AutobotInvocation) {
       return withStore(invocation.options, openStore, (store) =>
-        handleCommand(invocation, store, now, dependencies.discoverIssues),
+        handleCommand(
+          invocation,
+          store,
+          now,
+          dependencies.discoverIssues,
+          dependencies.randomId ?? randomUUID,
+        ),
       );
     },
   };

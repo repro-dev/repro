@@ -21,6 +21,7 @@ export type {
   RepoRef,
   RunSummary,
   Severity,
+  TransportCorrelation,
   Warning,
   WorkerSummary,
 } from "./contracts";

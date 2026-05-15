@@ -12,6 +12,7 @@ test("operate commands and engine subcommands are present in the parser tree", (
 
   assert.ok(topLevelNames.includes("cancel"));
   assert.ok(topLevelNames.includes("engine"));
+  assert.ok(topLevelNames.includes("inspect"));
   assert.ok(topLevelNames.includes("reconcile"));
   assert.ok(topLevelNames.includes("retry"));
 

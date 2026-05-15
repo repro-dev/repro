@@ -9,6 +9,7 @@ import type {
   ItemSummary,
   RepoRef,
   RunSummary,
+  TransportCorrelation,
   WorkerSummary,
 } from '@repro/autobot-core'
 import { Future, type FutureInstance } from 'fluture'
@@ -62,6 +63,7 @@ export interface RunRecord {
   finished_at: string | null
   worker_id: string | null
   last_heartbeat_at: string | null
+  transport_json: string | null
 }
 
 export interface WorkerRecord {
@@ -124,6 +126,7 @@ export interface ItemRepository {
 
 export interface RunRepository {
   upsert(input: RunRecord): FutureInstance<unknown, RunSummary>
+  get(runId: string): FutureInstance<unknown, RunSummary | null>
   getCurrent(issueId: string): FutureInstance<unknown, RunSummary | null>
 }
 
@@ -164,6 +167,9 @@ export interface FlowcraftHistoryRepository {
   recordExecution(
     input: FlowcraftExecutionRecord
   ): FutureInstance<unknown, FlowcraftExecutionRecord>
+  getExecution(
+    executionId: string
+  ): FutureInstance<unknown, FlowcraftExecutionRecord | null>
   listExecutions(
     issueId: string
   ): FutureInstance<unknown, FlowcraftExecutionRecord[]>
@@ -182,6 +188,7 @@ export interface StoreProjectionRepository extends ItemProjections {
 
 export interface DomainEventListOptions {
   limit?: number
+  runId?: string
   beforeOccurredAt?: string
   beforeEventId?: string
   afterOccurredAt?: string
@@ -256,6 +263,7 @@ function fromRunRow(row: Selectable<AutobotSchema['runs']>): RunSummary {
     finished_at: row.finished_at,
     worker_id: row.worker_id,
     last_heartbeat_at: row.last_heartbeat_at,
+    transport: decodeJsonNullable<TransportCorrelation>(row.transport_json),
   }
 }
 
@@ -304,6 +312,7 @@ function fromEventRow(
     severity: row.severity as DomainEvent['severity'],
     occurred_at: row.occurred_at,
     actor: row.actor,
+    transport: decodeJsonNullable<TransportCorrelation>(row.transport_json),
     data: decodeJsonNullable<Record<string, unknown>>(row.data_json) ?? {},
   }
 }
@@ -450,6 +459,7 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
               finished_at: input.finished_at,
               worker_id: input.worker_id,
               last_heartbeat_at: input.last_heartbeat_at,
+              transport_json: input.transport_json,
             })
           )
           .execute()
@@ -460,6 +470,16 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
           .where('run_id', '=', input.run_id)
           .executeTakeFirstOrThrow()
         return fromRunRow(row)
+      })
+    },
+    get(runId) {
+      return futureAsync(async () => {
+        const row = await db
+          .selectFrom('runs')
+          .selectAll()
+          .where('run_id', '=', runId)
+          .executeTakeFirst()
+        return row === undefined ? null : fromRunRow(row)
       })
     },
     getCurrent(issueId) {
@@ -622,6 +642,8 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
             severity: input.severity,
             occurred_at: input.occurred_at,
             actor: input.actor,
+            transport_json:
+              input.transport === null ? null : encodeJson(input.transport),
             data_json: encodeJson(input.data),
           })
           .execute()
@@ -648,6 +670,10 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
 
         if (issueId !== undefined) {
           query = query.where('issue_id', '=', issueId)
+        }
+
+        if (options?.runId !== undefined) {
+          query = query.where('run_id', '=', options.runId)
         }
 
         if (afterOccurredAt !== undefined) {
@@ -712,6 +738,16 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
           )
           .execute()
         return input
+      })
+    },
+    getExecution(executionId) {
+      return futureAsync(async () => {
+        const row = await db
+          .selectFrom('flowcraft_executions')
+          .selectAll()
+          .where('execution_id', '=', executionId)
+          .executeTakeFirst()
+        return row === undefined ? null : fromFlowcraftExecutionRow(row)
       })
     },
     listExecutions(issueId) {

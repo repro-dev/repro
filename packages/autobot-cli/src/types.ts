@@ -7,8 +7,18 @@ import type {
   ItemSummary,
   ErrorPayload,
   RepoRef,
+  RunSummary,
   Warning,
 } from "@repro/autobot-core";
+import type {
+  FlowcraftExecutionRecord,
+  FlowcraftEventRecord,
+} from "@repro/autobot-store";
+import type {
+  FlowcraftValidationResult,
+  FlowcraftWorkflowId,
+  FlowcraftWorkflowSummary,
+} from "@repro/autobot-flowcraft";
 
 export interface AutobotGlobalOptions {
   json: boolean;
@@ -116,6 +126,51 @@ export type AutobotCommandResult =
       command: string;
       repo: RepoRef;
       data: DiscoverData;
+      warnings?: readonly Warning[];
+    }
+  | {
+      kind: "workflow-list";
+      command: string;
+      repo: RepoRef;
+      data: {
+        workflows: FlowcraftWorkflowSummary[];
+      };
+      warnings?: readonly Warning[];
+    }
+  | {
+      kind: "workflow-validation";
+      command: string;
+      repo: RepoRef;
+      data: {
+        validations: FlowcraftValidationResult[];
+      };
+      warnings?: readonly Warning[];
+    }
+  | {
+      kind: "workflow-diagram";
+      command: string;
+      repo: RepoRef;
+      data: {
+        workflow_id: FlowcraftWorkflowId;
+        diagram: string;
+      };
+      warnings?: readonly Warning[];
+    }
+  | {
+      kind: "flowcraft-inspect";
+      command: string;
+      repo: RepoRef;
+      data: {
+        lookup: {
+          kind: "run" | "flowcraft-execution";
+          identifier: string;
+          issue_id: string | null;
+          run: RunSummary | null;
+          execution: FlowcraftExecutionRecord | null;
+          domain_events: DomainEvent[];
+          flowcraft_events: FlowcraftEventRecord[];
+        };
+      };
       warnings?: readonly Warning[];
     };
 
