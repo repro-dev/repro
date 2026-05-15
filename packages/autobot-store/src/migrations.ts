@@ -6,6 +6,7 @@ import type { AutobotSchema } from './schema'
 export const autobotMigrationNames = [
   '0001_initial_schema',
   '0002_transport_metadata',
+  '0003_domain_event_run_lookup',
 ] as const
 
 type MigrationName = (typeof autobotMigrationNames)[number]
@@ -230,6 +231,15 @@ async function addTransportMetadataColumns(db: Kysely<AutobotSchema>) {
   }
 }
 
+async function addDomainEventRunLookupIndex(db: Kysely<AutobotSchema>) {
+  await db.schema
+    .createIndex('idx_domain_events_run_occurred_at_event_id')
+    .ifNotExists()
+    .on('domain_events')
+    .columns(['run_id', 'occurred_at', 'event_id'])
+    .execute()
+}
+
 async function createAppendOnlyTriggers(db: Kysely<AutobotSchema>) {
   await sql`
     CREATE TRIGGER IF NOT EXISTS domain_events_no_update
@@ -251,6 +261,7 @@ async function createAppendOnlyTriggers(db: Kysely<AutobotSchema>) {
 const migrations: readonly Migration[] = [
   { name: '0001_initial_schema', up: createBaseTables },
   { name: '0002_transport_metadata', up: addTransportMetadataColumns },
+  { name: '0003_domain_event_run_lookup', up: addDomainEventRunLookupIndex },
 ]
 
 async function ensureMigrationsTable(db: Kysely<AutobotSchema>) {

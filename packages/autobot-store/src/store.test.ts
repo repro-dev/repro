@@ -57,7 +57,11 @@ test('initializes sqlite state and FlowCraft indexes', async () => {
     .all() as Array<{ name: string }>
   assert.deepEqual(
     migrations.map(migration => migration.name),
-    ['0001_initial_schema', '0002_transport_metadata']
+    [
+      '0001_initial_schema',
+      '0002_transport_metadata',
+      '0003_domain_event_run_lookup',
+    ]
   )
 
   const flowcraftIndexes = db
@@ -76,6 +80,12 @@ test('initializes sqlite state and FlowCraft indexes', async () => {
   assert.equal(
     domainEventIndexes.some(
       index => index.name === 'idx_domain_events_issue_occurred_at_event_id'
+    ),
+    true
+  )
+  assert.equal(
+    domainEventIndexes.some(
+      index => index.name === 'idx_domain_events_run_occurred_at_event_id'
     ),
     true
   )

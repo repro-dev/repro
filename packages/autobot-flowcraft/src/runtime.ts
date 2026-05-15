@@ -46,6 +46,8 @@ function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
   };
 }
 
+// REP-1154 keeps FlowCraft as the local greenfield runtime skeleton here:
+// workflow definitions are the authoritative builder/runtime/analyzer source.
 export const flowcraftWorkflows = [
   createAutobotDeliverIssueWorkflow(),
 ] as const;

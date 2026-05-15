@@ -57,6 +57,10 @@ function makeWorkflowStore() {
   const executionRecords: Array<Record<string, unknown>> = [];
   const flowcraftEvents: Array<Record<string, unknown>> = [];
   const domainEvents: Array<Record<string, unknown>> = [];
+  const domainEventLookups: Array<{
+    issueId: string | undefined;
+    options: Record<string, unknown> | undefined;
+  }> = [];
 
   const store = {
     repo: {
@@ -125,21 +129,36 @@ function makeWorkflowStore() {
         domainEvents.push(input);
         return resolve(input);
       },
-      list() {
+      list(issueId?: string, options?: Record<string, unknown>) {
+        domainEventLookups.push({ issueId, options });
         return resolve([
-          {
-            event_id: "domain-event-1",
-            issue_id: "REP-1154",
-            run_id: "run-1154",
-            type: "workflow.phase.claimed",
-            state: "claimed",
-            message: "Issue claimed",
-            severity: "info",
-            occurred_at: "2026-05-15T11:00:00Z",
-            actor: "autobot-flowcraft",
-            transport: null,
-            data: {},
-          },
+          issueId === "REP-1155"
+            ? {
+                event_id: "domain-event-2",
+                issue_id: "REP-1155",
+                run_id: "run-1155",
+                type: "workflow.phase.claimed",
+                state: "claimed",
+                message: "Issue claimed",
+                severity: "info",
+                occurred_at: "2026-05-15T11:10:00Z",
+                actor: "autobot-flowcraft",
+                transport: null,
+                data: {},
+              }
+            : {
+                event_id: "domain-event-1",
+                issue_id: "REP-1154",
+                run_id: "run-1154",
+                type: "workflow.phase.claimed",
+                state: "claimed",
+                message: "Issue claimed",
+                severity: "info",
+                occurred_at: "2026-05-15T11:00:00Z",
+                actor: "autobot-flowcraft",
+                transport: null,
+                data: {},
+              },
         ]);
       },
     },
@@ -173,6 +192,21 @@ function makeWorkflowStore() {
                 blueprint_id: "autobot-deliver-issue",
                 blueprint_version: "1.0.0",
                 started_at: "2026-05-15T11:00:00Z",
+                finished_at: null,
+                worker_id: null,
+                last_heartbeat_at: null,
+                transport: null,
+              }
+            : runId === "run-1155"
+            ? {
+                run_id: "run-1155",
+                issue_id: "REP-1155",
+                attempt: 1,
+                state: "claimed",
+                flowcraft_execution_id: null,
+                blueprint_id: "autobot-deliver-issue",
+                blueprint_version: "1.0.0",
+                started_at: "2026-05-15T11:10:00Z",
                 finished_at: null,
                 worker_id: null,
                 last_heartbeat_at: null,
@@ -264,13 +298,16 @@ function makeWorkflowStore() {
     executionRecords,
     flowcraftEvents,
     domainEvents,
+    domainEventLookups,
   };
 }
 
 test("workflow commands surface the FlowCraft skeleton", async () => {
   const fixture = makeWorkflowStore();
+  let openStoreCalls = 0;
   const services = createAutobotServices({
     openStore() {
+      openStoreCalls += 1;
       return resolve(fixture.store as unknown as AutobotStore);
     },
   });
@@ -299,6 +336,7 @@ test("workflow commands surface the FlowCraft skeleton", async () => {
 
   assert.equal(diagramResult.kind, "workflow-diagram");
   assert.match(diagramResult.data.diagram, /flowchart TD/);
+  assert.equal(openStoreCalls, 0);
 });
 
 test("inspect resolves runs and flowcraft executions with persisted events", async () => {
@@ -327,6 +365,32 @@ test("inspect resolves runs and flowcraft executions with persisted events", asy
   assert.equal(byRun.data.lookup.kind, "run");
   assert.equal(byRun.data.lookup.domain_events.length, 1);
   assert.equal(byRun.data.lookup.flowcraft_events.length, 1);
+});
+
+test("inspect loads domain events for runs without flowcraft execution ids", async () => {
+  const fixture = makeWorkflowStore();
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+  });
+
+  const byRun = (await runFuture(
+    services.handleInvocation({
+      ...makeInvocation(["inspect"]),
+      args: ["run-1155"],
+      command: "inspect run-1155",
+    }),
+  )) as AutobotCommandResult;
+
+  assert.equal(byRun.kind, "flowcraft-inspect");
+  assert.equal(byRun.data.lookup.kind, "run");
+  assert.equal(byRun.data.lookup.domain_events.length, 1);
+  assert.equal(byRun.data.lookup.flowcraft_events.length, 0);
+  assert.deepEqual(fixture.domainEventLookups[0], {
+    issueId: "REP-1155",
+    options: { runId: "run-1155" },
+  });
 });
 
 test("engine run-once persists the bounded flowcraft skeleton", async () => {
