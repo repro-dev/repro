@@ -1,17 +1,17 @@
-import { Col, Grid, Row } from '@jsxstyle/react'
+import { Block, Col, Grid } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
 import {
   Alert,
   Button,
   Card,
-  DefinitionList,
   FullPageLoading,
   Input,
   Label,
   PageFrame,
-  Stack,
+  Table,
   Text,
+  color,
   spacing,
 } from '@repro/design'
 import { useFuture } from '@repro/future-utils'
@@ -22,6 +22,96 @@ import {
 import { fork } from 'fluture'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+
+type ActionRowProps = {
+  label: string
+  description: string
+  control: React.ReactNode
+}
+
+function ActionRow({ label, description, control }: ActionRowProps) {
+  return (
+    <Grid
+      gridTemplateColumns="minmax(0, 1fr) auto"
+      gap={spacing.lg}
+      alignItems="center"
+    >
+      <Col gap={spacing.xs} minWidth={0}>
+        <Text variant="label" as="span" color={color.text.label}>
+          {label}
+        </Text>
+        <Text variant="bodySmall" as="span" color={color.text.muted}>
+          {description}
+        </Text>
+      </Col>
+
+      {control}
+    </Grid>
+  )
+}
+
+const desktopViewportQuery = '(min-width: 1024px)'
+const accountRetirementSupportUrl =
+  'mailto:support@repro.dev?subject=Account%20retirement%20request'
+
+function useIsDesktopViewport() {
+  const [isDesktop, setIsDesktop] = useState(() => {
+    return (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia(desktopViewportQuery).matches
+    )
+  })
+
+  React.useEffect(() => {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.matchMedia !== 'function'
+    ) {
+      return
+    }
+
+    const mediaQueryList = window.matchMedia(desktopViewportQuery)
+    const updateMatches = () => setIsDesktop(mediaQueryList.matches)
+
+    updateMatches()
+
+    if (typeof mediaQueryList.addEventListener === 'function') {
+      mediaQueryList.addEventListener('change', updateMatches)
+
+      return () => {
+        mediaQueryList.removeEventListener('change', updateMatches)
+      }
+    }
+
+    mediaQueryList.addListener(updateMatches)
+
+    return () => {
+      mediaQueryList.removeListener(updateMatches)
+    }
+  }, [])
+
+  return isDesktop
+}
+
+function SettingsContent({ children }: React.PropsWithChildren) {
+  const isDesktop = useIsDesktopViewport()
+
+  return (
+    <Col
+      component="section"
+      gap={spacing['3xl']}
+      width="100%"
+      props={{
+        style: {
+          maxWidth: isDesktop ? '66.666%' : '100%',
+        },
+      }}
+    >
+      {children}
+    </Col>
+  )
+}
 
 interface AccountSettingsRouteProps {
   getAccountSettings?: typeof getWorkspaceAccountSettings
@@ -78,6 +168,10 @@ export function AccountSettingsRoute({
     )
   }, [apiClient, nameValue, renameAccount])
 
+  const handleContactSupport = useCallback(() => {
+    window.location.href = accountRetirementSupportUrl
+  }, [])
+
   if (loading) {
     return <FullPageLoading />
   }
@@ -85,14 +179,13 @@ export function AccountSettingsRoute({
   if (error || summary == null) {
     return (
       <PageFrame>
-        <PageFrame.Header>
-          <PageFrame.Title>Account</PageFrame.Title>
-        </PageFrame.Header>
-        <PageFrame.Body maxWidth={720}>
-          <Alert type="danger">
-            Failed to load account settings. Please refresh the page and try
-            again.
-          </Alert>
+        <PageFrame.Body>
+          <Block width="100%" maxWidth={1440} margin="0 auto">
+            <Alert type="danger">
+              Failed to load account settings. Please refresh the page and try
+              again.
+            </Alert>
+          </Block>
         </PageFrame.Body>
       </PageFrame>
     )
@@ -100,64 +193,130 @@ export function AccountSettingsRoute({
 
   return (
     <PageFrame>
-      <PageFrame.Header>
-        <PageFrame.Title>Account</PageFrame.Title>
-      </PageFrame.Header>
-
-      <PageFrame.Body maxWidth={720}>
-        <Stack gap="xl">
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
-              <Col gap={spacing.xs}>
-                <Text variant="heading3">Account name</Text>
-                <Text variant="body">
-                  Change the name shown across the workspace.
+      <PageFrame.Body>
+        <Block width="100%" maxWidth={1440} margin="0 auto">
+          <Col gap={spacing.xl} width="100%">
+            <Block
+              component="header"
+              width="100%"
+              paddingBottom={spacing.lg}
+              borderBottom={`1px solid ${color.border.default}`}
+            >
+              <Col gap={spacing.sm}>
+                <PageFrame.Title>Account</PageFrame.Title>
+                <Text variant="bodySmall" color={color.text.secondary}>
+                  Manage account settings for this workspace.
+                </Text>
+                <Text variant="bodySmall" color={color.text.muted}>
+                  Current account name: {summary.name}
                 </Text>
               </Col>
+            </Block>
 
-              <Col gap={spacing.sm}>
-                <Label htmlFor="account-name">Name</Label>
-                <Input
-                  id="account-name"
-                  value={nameValue}
-                  onChange={event => setNameValue(event.target.value)}
-                  placeholder="Account name"
-                />
+            <SettingsContent>
+              <Col gap={spacing.md}>
+                <Col gap={spacing.xs}>
+                  <Text variant="heading2">Rename account</Text>
+                  <Text variant="bodySmall" color={color.text.muted}>
+                    Change the name shown across the workspace.
+                  </Text>
+                </Col>
+
+                <Card padding={spacing.lg}>
+                  <Col gap={spacing.md}>
+                    <Col gap={spacing.sm}>
+                      <Label htmlFor="account-name">Name</Label>
+                      <Input
+                        id="account-name"
+                        value={nameValue}
+                        onChange={event => setNameValue(event.target.value)}
+                        placeholder="Account name"
+                      />
+                    </Col>
+
+                    {nameError && <Alert type="danger">{nameError}</Alert>}
+
+                    <Block>
+                      <Button
+                        variant="contained"
+                        onClick={handleSave}
+                        disabled={saving}
+                      >
+                        Save changes
+                      </Button>
+                    </Block>
+                  </Col>
+                </Card>
               </Col>
 
-              {nameError && <Alert type="danger">{nameError}</Alert>}
+              <Col gap={spacing.md}>
+                <Col gap={spacing.xs}>
+                  <Text variant="heading2">Account details</Text>
+                  <Text variant="bodySmall" color={color.text.muted}>
+                    Created date, seat count, and project count for this
+                    account.
+                  </Text>
+                </Col>
 
-              <Row gap={spacing.md}>
-                <Button
-                  variant="contained"
-                  onClick={handleSave}
-                  disabled={saving}
-                >
-                  Save changes
-                </Button>
-              </Row>
-            </Col>
-          </Card>
+                <Block width="100%">
+                  <Card fullBleed>
+                    <Table aria-label="Account details">
+                      <Table.Header>
+                        <Table.Row>
+                          <Table.HeaderCell>Field</Table.HeaderCell>
+                          <Table.HeaderCell>Value</Table.HeaderCell>
+                        </Table.Row>
+                      </Table.Header>
+                      <Table.Body>
+                        <Table.Row>
+                          <Table.Cell>Created</Table.Cell>
+                          <Table.Cell>
+                            {new Date(summary.createdAt).toLocaleDateString()}
+                          </Table.Cell>
+                        </Table.Row>
+                        <Table.Row>
+                          <Table.Cell>Users</Table.Cell>
+                          <Table.Cell>{summary.userCount}</Table.Cell>
+                        </Table.Row>
+                        <Table.Row>
+                          <Table.Cell>Projects</Table.Cell>
+                          <Table.Cell>{summary.projectCount}</Table.Cell>
+                        </Table.Row>
+                      </Table.Body>
+                    </Table>
+                  </Card>
+                </Block>
+              </Col>
 
-          <Grid gridTemplateColumns="minmax(0, 160px) minmax(0, 1fr)">
-            <DefinitionList
-              title="Account details"
-              pairs={[
-                ['Created', new Date(summary.createdAt).toLocaleDateString()],
-                ['Users', summary.userCount],
-                ['Projects', summary.projectCount],
-              ]}
-            />
-          </Grid>
+              <Col gap={spacing.md}>
+                <Col gap={spacing.xs}>
+                  <Text variant="heading2">Danger zone</Text>
+                  <Text variant="bodySmall" color={color.text.muted}>
+                    Account retiring is handled by support.
+                  </Text>
+                </Col>
 
-          <Col gap={spacing.sm}>
-            <Text variant="heading3">Danger zone</Text>
-            <Alert type="danger">
-              Account retiring and deactivation help is handled by support.
-              Contact support if you need help retiring this account.
-            </Alert>
+                <Card context="danger" padding={0}>
+                  <Block padding={spacing.lg}>
+                    <ActionRow
+                      label="Retire account"
+                      description="Need help retiring this account? Contact support for the supported path."
+                      control={
+                        <Button
+                          variant="outlined"
+                          context="danger"
+                          onClick={handleContactSupport}
+                        >
+                          Contact support
+                        </Button>
+                      }
+                    />
+                  </Block>
+                </Card>
+              </Col>
+            </SettingsContent>
           </Col>
-        </Stack>
+        </Block>
       </PageFrame.Body>
     </PageFrame>
   )

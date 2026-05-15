@@ -109,37 +109,94 @@ function renderConnectedRoute(session: User | null) {
   )
 }
 
+function mockMatchMedia(matches: boolean) {
+  const originalMatchMedia = window.matchMedia
+  const mediaQueryList = {
+    matches,
+    media: '(min-width: 1024px)',
+    onchange: null,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    dispatchEvent: () => true,
+  } as MediaQueryList
+
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: () => mediaQueryList,
+  })
+
+  return () => {
+    if (originalMatchMedia === undefined) {
+      Reflect.deleteProperty(window, 'matchMedia')
+      return
+    }
+
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: originalMatchMedia,
+    })
+  }
+}
+
 describe('AccountSettingsRoute', () => {
   it('shows loading state while account settings are fetching', async () => {
     renderRoute({ getAccountSettings: () => never })
     assert.equal(screen.queryByLabelText(/account name/i), null)
   })
 
-  it('renders account summary after loading', async () => {
+  it('renders the settings baseline and account summary after loading', async () => {
     renderRoute()
 
     await waitFor(() => {
-      assert.ok(screen.getByLabelText(/name/i))
-      assert.ok(screen.getByText(/account details/i))
-      assert.ok(
-        screen.getByText(
-          new Date(accountSummary.createdAt).toLocaleDateString()
-        )
-      )
-      assert.match(
-        screen.getByText('Users').parentElement?.textContent ?? '',
-        /Users\s*2/
-      )
-      assert.match(
-        screen.getByText('Projects').parentElement?.textContent ?? '',
-        /Projects\s*1/
-      )
-      assert.ok(
-        screen.getByText(
-          /account retiring and deactivation help is handled by support/i
-        )
-      )
+      assert.ok(screen.getByRole('heading', { name: 'Account', level: 1 }))
     })
+
+    assert.equal(
+      screen.queryByRole('tablist', { name: 'Account settings sections' }),
+      null
+    )
+    assert.ok(screen.getByRole('heading', { name: 'Rename account', level: 2 }))
+    assert.ok(
+      screen.getByRole('heading', { name: 'Account details', level: 2 })
+    )
+    assert.ok(screen.getByRole('heading', { name: 'Danger zone', level: 2 }))
+
+    const renameHeading = screen.getByRole('heading', {
+      name: 'Rename account',
+      level: 2,
+    })
+    const detailsHeading = screen.getByRole('heading', {
+      name: 'Account details',
+      level: 2,
+    })
+    const dangerHeading = screen.getByRole('heading', {
+      name: 'Danger zone',
+      level: 2,
+    })
+
+    assert.ok(
+      renameHeading.compareDocumentPosition(detailsHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    )
+    assert.ok(
+      detailsHeading.compareDocumentPosition(dangerHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    )
+    assert.ok(screen.getByRole('table', { name: 'Account details' }))
+    assert.ok(screen.getByRole('columnheader', { name: 'Field' }))
+    assert.ok(screen.getByRole('columnheader', { name: 'Value' }))
+    assert.ok(screen.getByText('Created'))
+    assert.ok(screen.getByText('Users'))
+    assert.ok(screen.getByText('Projects'))
+    assert.ok(
+      screen.getByText(new Date(accountSummary.createdAt).toLocaleDateString())
+    )
+    assert.ok(screen.getByText('Current account name: Repro Test'))
+    assert.ok(screen.getByRole('button', { name: 'Contact support' }))
   })
 
   it('validates the account name before saving', async () => {
@@ -150,6 +207,10 @@ describe('AccountSettingsRoute', () => {
     }
 
     renderRoute({ renameAccount })
+
+    await waitFor(() =>
+      screen.getByRole('heading', { name: 'Account', level: 1 })
+    )
 
     await waitFor(() => screen.getByLabelText(/name/i))
 
@@ -168,14 +229,19 @@ describe('AccountSettingsRoute', () => {
   })
 
   it('calls renameAccount and refreshes summary after save', async () => {
-    let callCount = 0
+    const renameCalls: string[] = []
+    let loadCount = 0
     const updatedSummary = { ...accountSummary, name: 'Renamed Account' }
     const getAccountSettings = () => {
-      callCount++
-      return callCount === 1 ? resolve(accountSummary) : resolve(updatedSummary)
+      loadCount++
+      return loadCount === 1 ? resolve(accountSummary) : resolve(updatedSummary)
+    }
+    const renameAccount = (_apiClient: typeof apiClient, name: string) => {
+      renameCalls.push(name)
+      return resolve(undefined)
     }
 
-    renderRoute({ getAccountSettings })
+    renderRoute({ getAccountSettings, renameAccount })
 
     await waitFor(() => screen.getByDisplayValue('Repro Test'))
 
@@ -192,6 +258,9 @@ describe('AccountSettingsRoute', () => {
     await waitFor(() => {
       assert.ok(screen.getByDisplayValue('Renamed Account'))
     })
+
+    assert.deepEqual(renameCalls, ['Renamed Account'])
+    assert.equal(loadCount, 2)
   })
 
   it('shows error alert when loading fails', async () => {
@@ -200,12 +269,21 @@ describe('AccountSettingsRoute', () => {
     })
 
     await waitFor(() => {
-      assert.ok(screen.getByText(/failed to load account settings/i))
+      assert.ok(screen.getByRole('alert'))
     })
+
+    assert.match(
+      screen.getByRole('alert').textContent ?? '',
+      /failed to load account settings/i
+    )
   })
 
   it('shows error alert when renaming fails', async () => {
     renderRoute({ renameAccount: () => reject(new Error('Update failed')) })
+
+    await waitFor(() =>
+      screen.getByRole('heading', { name: 'Account', level: 1 })
+    )
 
     await waitFor(() => screen.getByLabelText(/name/i))
 
@@ -214,8 +292,34 @@ describe('AccountSettingsRoute', () => {
     })
 
     await waitFor(() => {
-      assert.ok(screen.getByText(/failed to update the account name/i))
+      assert.ok(screen.getByRole('alert'))
     })
+
+    assert.match(
+      screen.getByRole('alert').textContent ?? '',
+      /failed to update the account name/i
+    )
+  })
+
+  it('constrains settings content at desktop widths', async () => {
+    const restoreMatchMedia = mockMatchMedia(true)
+
+    try {
+      renderRoute()
+
+      await waitFor(() => {
+        assert.ok(screen.getByRole('heading', { name: 'Account', level: 1 }))
+      })
+
+      const overviewSection = screen
+        .getByRole('heading', { name: 'Rename account', level: 2 })
+        .closest('section')
+
+      assert.ok(overviewSection)
+      assert.equal(overviewSection.style.maxWidth, '66.666%')
+    } finally {
+      restoreMatchMedia()
+    }
   })
 
   it('redirects non-admin users to profile settings', async () => {
