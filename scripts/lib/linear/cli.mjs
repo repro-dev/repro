@@ -1314,7 +1314,7 @@ function buildIssueListProjectionQuery(fields) {
     .join("\n        ");
 
   return [
-    "query IssueListProjection($teamId: ID!, $after: String, $first: Int!, $filter: IssueFilter) {",
+    "query IssueListProjection($teamId: String!, $after: String, $first: Int!, $filter: IssueFilter) {",
     "  team(id: $teamId) {",
     "    issues(after: $after, first: $first, filter: $filter) {",
     "      nodes {",
