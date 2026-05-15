@@ -254,3 +254,34 @@ test("engine run-once advances every runnable item and reports queue status", as
   assert.equal(failedStatusResult.kind, "item-detail");
   assert.equal(failedStatusResult.data.state, "completed");
 });
+
+test("engine run-once reports tick scope for an empty queue", async () => {
+  const fixture = makeWorkflowStore({ items: [] });
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    randomId() {
+      throw new Error(
+        "run-once should not allocate a run id for an empty queue",
+      );
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation(makeInvocation(["engine", "run-once"])),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "queue-status");
+  assert.equal(result.command, "engine run-once");
+  assert.equal(result.data.engine.last_tick_at, "2026-05-15T12:00:00Z");
+  assert.equal(result.data.items.length, 0);
+  assert.equal(fixture.runUpserts.length, 0);
+  assert.equal(fixture.executionRecords.length, 0);
+  assert.equal(fixture.domainEvents.length, 0);
+  assert.equal(fixture.itemUpserts.length, 0);
+  assert.equal(fixture.transactionCalls, 0);
+});

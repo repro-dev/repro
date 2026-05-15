@@ -283,7 +283,11 @@ export function createAutobotProgram(
   );
   registerLeafCommand(
     engineCommand,
-    { command: "start", description: "start the engine" },
+    {
+      command: "start",
+      description:
+        "start repeating the bounded full-queue tick pass until stopped",
+    },
     options.onInvocation,
   );
   registerLeafCommand(

@@ -1362,11 +1362,14 @@ function handleEngineRunOnce(
 ): FutureInstance<unknown, AutobotCommandResult> {
   return store.projections.listItems().pipe(
     chain((targets): FutureInstance<unknown, AutobotCommandResult> => {
-      if (targets.length === 0) {
-        return createQueueStatus(store, { command: invocation.command });
-      }
-
       const tickAt = now();
+
+      if (targets.length === 0) {
+        return createQueueStatus(store, {
+          command: invocation.command,
+          lastTickAt: tickAt,
+        });
+      }
 
       return sequenceFutures(
         targets.map((target) =>
