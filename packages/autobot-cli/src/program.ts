@@ -263,32 +263,51 @@ export function createAutobotProgram(
     options.onInvocation,
   );
 
-  registerGroupCommand(
-    program,
-    {
-      command: "engine",
-      description: "manage the engine",
-      children: [
-        { command: "status", description: "show engine status" },
-        { command: "run-once", description: "run the engine once" },
-        { command: "start", description: "start the engine" },
-        { command: "stop", description: "stop the engine" },
-      ],
-    },
+  const engineCommand = program
+    .command("engine")
+    .description("manage the engine");
+
+  registerLeafCommand(
+    engineCommand,
+    { command: "status", description: "show engine status" },
+    options.onInvocation,
+  );
+  registerLeafCommand(
+    engineCommand,
+    { command: "run-once", description: "run the engine once" },
+    options.onInvocation,
+  );
+  registerLeafCommand(
+    engineCommand,
+    { command: "start", description: "start the engine" },
+    options.onInvocation,
+  );
+  registerLeafCommand(
+    engineCommand,
+    { command: "stop", description: "stop the engine" },
     options.onInvocation,
   );
 
-  registerGroupCommand(
-    program,
-    {
-      command: "workflow",
-      description: "inspect workflow helpers",
-      children: [
-        { command: "list", description: "list available workflows" },
-        { command: "validate", description: "validate workflow definitions" },
-        { command: "diagram", description: "render a workflow diagram" },
-      ],
-    },
+  const engineDebugCommand = engineCommand
+    .command("debug")
+    .description("engine debug helpers");
+  const workflowCommand = engineDebugCommand
+    .command("workflow")
+    .description("inspect workflow helpers");
+
+  registerLeafCommand(
+    workflowCommand,
+    { command: "list", description: "list available workflows" },
+    options.onInvocation,
+  );
+  registerLeafCommand(
+    workflowCommand,
+    { command: "validate", description: "validate workflow definitions" },
+    options.onInvocation,
+  );
+  registerLeafCommand(
+    workflowCommand,
+    { command: "diagram", description: "render a workflow diagram" },
     options.onInvocation,
   );
 

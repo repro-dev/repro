@@ -4,17 +4,18 @@ import test from "node:test";
 import { createAutobotProgram } from "../program";
 import { collectCommandPaths } from "./helpers";
 
-test("config and workflow command groups are present in the parser tree", () => {
+test("config and engine debug workflow command groups are present in the parser tree", () => {
   const program = createAutobotProgram();
   const topLevelNames = program.commands
     .map((command) => command.name())
     .sort();
 
   assert.ok(topLevelNames.includes("config"));
-  assert.ok(topLevelNames.includes("workflow"));
+  assert.ok(topLevelNames.includes("engine"));
+  assert.ok(!topLevelNames.includes("workflow"));
 
   const nestedPaths = collectCommandPaths(program).filter(
-    (path) => path.startsWith("config ") || path.startsWith("workflow "),
+    (path) => path.startsWith("config ") || path.startsWith("engine debug"),
   );
 
   assert.deepStrictEqual(nestedPaths.sort(), [
@@ -22,9 +23,11 @@ test("config and workflow command groups are present in the parser tree", () => 
     "config list",
     "config set",
     "config unset",
-    "workflow diagram",
-    "workflow list",
-    "workflow validate",
+    "engine debug",
+    "engine debug workflow",
+    "engine debug workflow diagram",
+    "engine debug workflow list",
+    "engine debug workflow validate",
   ]);
 
   const configGroup = program.commands.find(

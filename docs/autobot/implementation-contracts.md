@@ -79,7 +79,7 @@ Included:
 - `autobot cancel`
 - `autobot reconcile`
 - `autobot inspect`
-- `autobot workflow list|validate|diagram`
+- `autobot engine debug workflow list|validate|diagram`
 
 Deferred:
 

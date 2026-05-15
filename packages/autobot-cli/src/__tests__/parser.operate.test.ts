@@ -20,6 +20,16 @@ test("operate commands and engine subcommands are present in the parser tree", (
     collectCommandPaths(program)
       .filter((path) => path.startsWith("engine "))
       .sort(),
-    ["engine run-once", "engine start", "engine status", "engine stop"],
+    [
+      "engine debug",
+      "engine debug workflow",
+      "engine debug workflow diagram",
+      "engine debug workflow list",
+      "engine debug workflow validate",
+      "engine run-once",
+      "engine start",
+      "engine status",
+      "engine stop",
+    ],
   );
 });

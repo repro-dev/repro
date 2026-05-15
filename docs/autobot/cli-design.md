@@ -147,7 +147,7 @@ Internal-only states should be hidden unless `--verbose` or `--json` diagnostic 
 
 - worker lock/lease state.
 - raw FlowCraft statuses such as `stalled` or `cancelled`; these should be mapped to public states such as `failed`, `awaiting`, or `canceled` plus diagnostics.
-- raw node IDs, unless in `workflow` or `inspect` debug commands.
+- raw node IDs, unless in `engine debug workflow` or `inspect` debug commands.
 
 ## Item Identity
 
@@ -687,7 +687,7 @@ The first implementation should include:
 - `autobot-next cancel`
 - `autobot-next reconcile`
 - `autobot-next inspect`
-- `autobot-next workflow list|validate|diagram`
+- `autobot-next engine debug workflow list|validate|diagram`
 
 Defer from MVP unless the workflow prototype needs them:
 
