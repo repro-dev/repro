@@ -714,6 +714,7 @@ test("issue list can project comments and relations for autobot workflows", asyn
   assert.match(records.graphqlRequests[0].query, /comments \{/);
   assert.match(records.graphqlRequests[0].query, /relations \{/);
   assert.match(records.graphqlRequests[0].query, /inverseRelations \{/);
+  assert.doesNotMatch(records.graphqlRequests[0].query, /author \{/);
   assert.equal(records.issues.length, 0);
 });
 

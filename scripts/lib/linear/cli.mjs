@@ -1283,7 +1283,6 @@ function buildIssueListProjectionQuery(fields) {
           "    body",
           "    createdAt",
           "    updatedAt",
-          "    author { id name displayName email }",
           "    user { id name displayName email }",
           "  }",
           "}",
