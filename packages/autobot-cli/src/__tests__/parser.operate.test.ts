@@ -32,4 +32,15 @@ test("operate commands and engine subcommands are present in the parser tree", (
       "engine stop",
     ],
   );
+
+  const engineCommand = program.commands.find(
+    (command) => command.name() === "engine",
+  );
+  const runOnceCommand = engineCommand?.commands.find(
+    (command) => command.name() === "run-once",
+  );
+
+  assert.ok(runOnceCommand);
+  assert.match(runOnceCommand!.description(), /all runnable queue items/i);
+  assert.match(runOnceCommand!.description(), /one bounded tick/i);
 });

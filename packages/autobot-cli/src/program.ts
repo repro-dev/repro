@@ -274,7 +274,11 @@ export function createAutobotProgram(
   );
   registerLeafCommand(
     engineCommand,
-    { command: "run-once", description: "run the engine once" },
+    {
+      command: "run-once",
+      description:
+        "run one bounded tick across all runnable queue items and exit",
+    },
     options.onInvocation,
   );
   registerLeafCommand(
