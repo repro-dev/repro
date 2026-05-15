@@ -3,7 +3,12 @@ import test from "node:test";
 
 import { execute } from "../cli.mjs";
 
-function makeIssueListClient(records, issue, teamOverrides = {}) {
+function makeIssueListClient(
+  records,
+  issue,
+  teamOverrides = {},
+  clientOverrides = {},
+) {
   const team = {
     id: "team-1",
     key: "REP",
@@ -37,6 +42,23 @@ function makeIssueListClient(records, issue, teamOverrides = {}) {
   };
 
   return {
+    client: {
+      request: async (query, variables) => {
+        records.graphqlRequests.push({ query, variables });
+        if (typeof clientOverrides.request === "function") {
+          return clientOverrides.request(query, variables);
+        }
+
+        return {
+          team: {
+            issues: {
+              nodes: [issue],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        };
+      },
+    },
     teams: async () => ({ nodes: [team] }),
   };
 }
@@ -107,18 +129,8 @@ test("issue list json projection still resolves requested relation fields", asyn
   const records = {
     states: [],
     issues: [],
+    graphqlRequests: [],
     labels: [],
-    resolutions: {
-      project: 0,
-      assignee: 0,
-      state: 0,
-    },
-  };
-
-  const project = {
-    id: "project-1",
-    name: "Workspace",
-    url: "https://linear.app/acme/project/workspace",
   };
 
   const issue = {
@@ -129,26 +141,25 @@ test("issue list json projection still resolves requested relation fields", asyn
     priority: 3,
     priorityLabel: "Medium",
     updatedAt: new Date("2026-04-18T00:00:00.000Z"),
-    labelIds: ["label-1"],
-    get project() {
-      records.resolutions.project += 1;
-      return Promise.resolve(project);
+    project: {
+      id: "project-1",
+      key: null,
+      name: "Workspace",
+      url: "https://linear.app/acme/project/workspace",
+      updatedAt: null,
     },
-    get assignee() {
-      records.resolutions.assignee += 1;
-      return Promise.resolve({
-        id: "user-1",
-        name: "Test User",
-        email: "test@example.com",
-      });
+    assignee: {
+      id: "user-1",
+      name: "Test User",
+      email: "test@example.com",
     },
-    get state() {
-      records.resolutions.state += 1;
-      return Promise.resolve({
-        id: "state-backlog",
-        name: "Backlog",
-        type: "backlog",
-      });
+    state: {
+      id: "state-backlog",
+      name: "Backlog",
+      type: "backlog",
+    },
+    labels: {
+      nodes: [{ id: "label-1", name: "Feature" }],
     },
     get projectMilestone() {
       throw new Error("milestone should not be accessed");
@@ -177,22 +188,42 @@ test("issue list json projection still resolves requested relation fields", asyn
     {
       env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
       clientFactory: async () =>
-        makeIssueListClient(records, issue, {
-          labels: async (vars) => {
-            records.labels.push(vars);
-            return { nodes: [{ id: "label-1", name: "Feature" }] };
+        makeIssueListClient(
+          records,
+          issue,
+          {
+            issues: async () => {
+              throw new Error(
+                "issues should not be resolved for this projection",
+              );
+            },
+            labels: async () => {
+              throw new Error(
+                "labels should not be resolved for this projection",
+              );
+            },
+            projects: async () => {
+              throw new Error(
+                "projects should not be resolved for this projection",
+              );
+            },
+            projectMilestones: async () => {
+              throw new Error(
+                "milestones should not be resolved for this projection",
+              );
+            },
           },
-          projects: async () => {
-            throw new Error(
-              "projects should not be resolved for this projection",
-            );
+          {
+            request: async (query, variables) => ({
+              team: {
+                issues: {
+                  nodes: [issue],
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                },
+              },
+            }),
           },
-          projectMilestones: async () => {
-            throw new Error(
-              "milestones should not be resolved for this projection",
-            );
-          },
-        }),
+        ),
     },
   );
 
@@ -224,10 +255,13 @@ test("issue list json projection still resolves requested relation fields", asyn
       labels: [{ id: "label-1", name: "Feature" }],
     },
   ]);
-  assert.deepEqual(records.resolutions, {
-    project: 1,
-    assignee: 1,
-    state: 1,
-  });
-  assert.equal(records.labels.length, 1);
+  assert.equal(records.graphqlRequests.length, 1);
+  assert.match(records.graphqlRequests[0].query, /\$teamId: String!/);
+  assert.match(records.graphqlRequests[0].query, /project \{/);
+  assert.doesNotMatch(records.graphqlRequests[0].query, /project \{[^}]*key/);
+  assert.match(records.graphqlRequests[0].query, /assignee \{/);
+  assert.match(records.graphqlRequests[0].query, /state \{/);
+  assert.match(records.graphqlRequests[0].query, /labels \{/);
+  assert.equal(records.issues.length, 0);
+  assert.equal(records.labels.length, 0);
 });

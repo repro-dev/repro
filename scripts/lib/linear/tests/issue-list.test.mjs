@@ -7,6 +7,7 @@ export function makeClient(records) {
   records.viewerCalls ??= [];
   records.relationIssueAccesses ??= [];
   records.relationRelatedIssueAccesses ??= [];
+  records.graphqlRequests ??= [];
   const project = {
     id: "project-1",
     name: "Workspace",
@@ -247,6 +248,255 @@ export function makeClient(records) {
     },
   };
 
+  const hydratedIssue = {
+    id: "issue-1",
+    identifier: "REP-875",
+    title: "Backlog item",
+    url: "https://linear.app/acme/issue/REP-875",
+    priority: 3,
+    priorityLabel: "Medium",
+    updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+    description: "desc",
+    project: {
+      id: "project-1",
+      name: "Workspace",
+      url: "https://linear.app/acme/project/workspace",
+      updatedAt: null,
+    },
+    projectMilestone: {
+      id: "milestone-1",
+      name: "Sprint 1",
+      targetDate: null,
+      updatedAt: new Date("2026-04-18T00:00:00.000Z"),
+      project: {
+        id: "project-1",
+        name: "Workspace",
+        url: "https://linear.app/acme/project/workspace",
+        updatedAt: null,
+      },
+    },
+    assignee: {
+      id: "user-1",
+      name: "Test User",
+      email: "test@example.com",
+    },
+    state: {
+      id: "state-backlog",
+      name: "Backlog",
+      type: "backlog",
+    },
+    parent: null,
+    labels: {
+      nodes: [{ id: "label-1", name: "Feature" }],
+    },
+    comments: {
+      nodes: [
+        {
+          id: "comment-1",
+          body: "Looks good to me.",
+          createdAt: new Date("2026-04-18T01:00:00.000Z"),
+          updatedAt: new Date("2026-04-18T01:30:00.000Z"),
+          user: {
+            id: "user-2",
+            name: "Reviewer",
+            email: "reviewer@example.com",
+          },
+        },
+      ],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    },
+    relations: {
+      nodes: [
+        {
+          id: "relation-blocks-1",
+          type: "blocks",
+          issue: {
+            id: "issue-1",
+            identifier: "REP-875",
+            title: "Backlog item",
+            url: "https://linear.app/acme/issue/REP-875",
+            state: {
+              id: "state-backlog",
+              name: "Backlog",
+              type: "backlog",
+            },
+            assignee: null,
+          },
+          relatedIssue: {
+            id: "issue-2",
+            identifier: "REP-876",
+            title: "Blocked issue",
+            url: "https://linear.app/acme/issue/REP-876",
+            state: {
+              id: "state-todo",
+              name: "Todo",
+              type: "unstarted",
+            },
+            assignee: null,
+          },
+        },
+        {
+          id: "relation-related-out-1",
+          type: "related",
+          issue: {
+            id: "issue-1",
+            identifier: "REP-875",
+            title: "Backlog item",
+            url: "https://linear.app/acme/issue/REP-875",
+            state: {
+              id: "state-backlog",
+              name: "Backlog",
+              type: "backlog",
+            },
+            assignee: null,
+          },
+          relatedIssue: {
+            id: "issue-3",
+            identifier: "REP-877",
+            title: "Related issue",
+            url: "https://linear.app/acme/issue/REP-877",
+            state: {
+              id: "state-done",
+              name: "Done",
+              type: "completed",
+            },
+            assignee: {
+              id: "user-3",
+              name: "Build User",
+              email: "build@example.com",
+            },
+          },
+        },
+        {
+          id: "relation-duplicate-of-1",
+          type: "duplicate",
+          issue: {
+            id: "issue-1",
+            identifier: "REP-875",
+            title: "Backlog item",
+            url: "https://linear.app/acme/issue/REP-875",
+            state: {
+              id: "state-backlog",
+              name: "Backlog",
+              type: "backlog",
+            },
+            assignee: null,
+          },
+          relatedIssue: {
+            id: "issue-4",
+            identifier: "REP-878",
+            title: "Original issue",
+            url: "https://linear.app/acme/issue/REP-878",
+            state: {
+              id: "state-todo",
+              name: "Todo",
+              type: "unstarted",
+            },
+            assignee: null,
+          },
+        },
+      ],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    },
+    inverseRelations: {
+      nodes: [
+        {
+          id: "relation-blocked-by-1",
+          type: "blocks",
+          issue: {
+            id: "issue-5",
+            identifier: "REP-879",
+            title: "Blocking issue",
+            url: "https://linear.app/acme/issue/REP-879",
+            state: {
+              id: "state-todo",
+              name: "Todo",
+              type: "unstarted",
+            },
+            assignee: {
+              id: "user-4",
+              name: "Planner",
+              email: "planner@example.com",
+            },
+          },
+          relatedIssue: {
+            id: "issue-1",
+            identifier: "REP-875",
+            title: "Backlog item",
+            url: "https://linear.app/acme/issue/REP-875",
+            state: {
+              id: "state-backlog",
+              name: "Backlog",
+              type: "backlog",
+            },
+            assignee: null,
+          },
+        },
+        {
+          id: "relation-related-in-1",
+          type: "related",
+          issue: {
+            id: "issue-6",
+            identifier: "REP-880",
+            title: "Related incoming issue",
+            url: "https://linear.app/acme/issue/REP-880",
+            state: {
+              id: "state-backlog",
+              name: "Backlog",
+              type: "backlog",
+            },
+            assignee: null,
+          },
+          relatedIssue: {
+            id: "issue-1",
+            identifier: "REP-875",
+            title: "Backlog item",
+            url: "https://linear.app/acme/issue/REP-875",
+            state: {
+              id: "state-backlog",
+              name: "Backlog",
+              type: "backlog",
+            },
+            assignee: null,
+          },
+        },
+        {
+          id: "relation-duplicate-in-1",
+          type: "duplicate",
+          issue: {
+            id: "issue-7",
+            identifier: "REP-881",
+            title: "Duplicate issue",
+            url: "https://linear.app/acme/issue/REP-881",
+            state: {
+              id: "state-done",
+              name: "Done",
+              type: "completed",
+            },
+            assignee: {
+              id: "user-5",
+              name: "Closer",
+              email: "closer@example.com",
+            },
+          },
+          relatedIssue: {
+            id: "issue-1",
+            identifier: "REP-875",
+            title: "Backlog item",
+            url: "https://linear.app/acme/issue/REP-875",
+            state: {
+              id: "state-backlog",
+              name: "Backlog",
+              type: "backlog",
+            },
+            assignee: null,
+          },
+        },
+      ],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    },
+  };
+
   const team = {
     id: "team-1",
     key: "REP",
@@ -281,6 +531,19 @@ export function makeClient(records) {
   };
 
   return {
+    client: {
+      request: async (query, variables) => {
+        records.graphqlRequests.push({ query, variables });
+        return {
+          team: {
+            issues: {
+              nodes: [hydratedIssue],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        };
+      },
+    },
     viewer: async () => {
       records.viewerCalls.push(true);
       return {
