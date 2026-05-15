@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { fork, type FutureInstance } from "fluture";
 
-import { generateMermaid } from "flowcraft";
+import { generateMermaid } from "../flowcraft-runtime";
 
 import {
   buildFlowcraftExecutionPlan,

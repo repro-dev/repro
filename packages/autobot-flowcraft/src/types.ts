@@ -6,7 +6,7 @@ import type {
   NodeClass,
   NodeFunction,
   WorkflowBlueprint,
-} from "flowcraft";
+} from "./flowcraft-runtime";
 
 import type { TransportCorrelation } from "@repro/autobot-core";
 
