@@ -258,6 +258,7 @@ test("issue list json projection still resolves requested relation fields", asyn
   assert.equal(records.graphqlRequests.length, 1);
   assert.match(records.graphqlRequests[0].query, /\$teamId: String!/);
   assert.match(records.graphqlRequests[0].query, /project \{/);
+  assert.doesNotMatch(records.graphqlRequests[0].query, /project \{[^}]*key/);
   assert.match(records.graphqlRequests[0].query, /assignee \{/);
   assert.match(records.graphqlRequests[0].query, /state \{/);
   assert.match(records.graphqlRequests[0].query, /labels \{/);

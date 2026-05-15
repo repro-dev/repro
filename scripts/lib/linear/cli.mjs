@@ -1261,7 +1261,7 @@ function buildIssueListProjectionQuery(fields) {
     "updatedAt",
     selectDescription ? "description" : null,
     selectStatus ? "state { id name type }" : null,
-    selectProject ? "project { id key name url updatedAt }" : null,
+    selectProject ? "project { id name url updatedAt }" : null,
     selectMilestone
       ? [
           "projectMilestone {",
@@ -1269,7 +1269,7 @@ function buildIssueListProjectionQuery(fields) {
           "  name",
           "  targetDate",
           "  updatedAt",
-          "  project { id key name url updatedAt }",
+          "  project { id name url updatedAt }",
           "}",
         ].join("\n        ")
       : null,
