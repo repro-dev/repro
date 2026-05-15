@@ -377,7 +377,7 @@ Semantics:
 #### `autobot-next discover`
 
 ```bash
-autobot-next discover [--limit <n>] [--project <name>] [--label <name>] [--priority <n>] [-q|--quiet] [--json]
+autobot-next discover [--limit <n>] [--project <name>]... [--label <name>] [--priority <n>] [-q|--quiet] [--json]
 ```
 
 Discovers Linear issues eligible for Autobot.
@@ -387,18 +387,23 @@ Semantics:
 - Applies configured policy filters plus explicit flags.
 - Does not queue anything by default.
 - Excludes issues already known as non-terminal items unless `--all` is added in a future version.
+- With no `--project` flags, manual discovery scans all projects unless `discovery.projects` is configured.
+- `--limit` caps the post-filter candidate set; when omitted, discovery defaults the cap to `engine.queue-depth`.
+- Discovery first fetches a bounded remote scan set (currently 100 by default, or higher when needed to satisfy `--limit`), then prunes and applies the candidate cap.
+- REP-1170 will insert agent-led sequencing between fetch and limit.
 - `-q` prints issue IDs only, one per line, for piping into `autobot-next add`.
-- JSON output includes candidate metadata and exclusion reasons when `--verbose` is set.
+- JSON output always includes the scan count, scan limit, effective candidate limit, candidate metadata, issue IDs, and exclusion reasons.
 
 Human output:
 
 ```text
 Found 3 candidates
+Limit: 5
 REP-123  Normal  Engineering  Short title
 REP-124  High    Platform     Another title
 
 Queue them with:
-autobot-next discover -q | xargs -n1 autobot-next add
+  autobot-next discover -q | xargs -n1 autobot-next add
 ```
 
 ### Config
@@ -417,7 +422,7 @@ Required keys for MVP:
 - `engine.queue-depth`: integer, default `5`.
 - `engine.max-concurrency`: integer, default `1`.
 - `engine.tick-interval-seconds`: integer, default `15`.
-- `discovery.project`: string, default empty.
+- `discovery.projects`: string, default empty comma-separated allowlist.
 - `delivery.require-review`: boolean, default `true`.
 - `delivery.allow-release`: boolean, default `false` for MVP.
 - `logs.retention-days`: integer, default `30`.

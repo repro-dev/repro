@@ -34,6 +34,10 @@ function makeOptions(
     color: false,
     dry_run: false,
     force: false,
+    project: [],
+    labels: [],
+    priority: null,
+    limit: null,
     ...overrides,
   };
 }
@@ -162,7 +166,9 @@ function makeStore(
       },
       getOverride(key: string) {
         return resolve(
-          key === "discovery.project" ? overrides.configOverride ?? null : null,
+          key === "discovery.projects"
+            ? overrides.configOverride ?? null
+            : null,
         );
       },
       listOverrides() {
@@ -288,7 +294,7 @@ test("config set and unset mutate repo config and emit events", async () => {
 
   const setResult = (await runFuture(
     services.handleInvocation(
-      makeInvocation(["config", "set"], ["discovery.project", "REP"], {
+      makeInvocation(["config", "set"], ["discovery.projects", "REP"], {
         dry_run: false,
       }),
     ),
@@ -303,7 +309,7 @@ test("config set and unset mutate repo config and emit events", async () => {
 
   const unsetResult = (await runFuture(
     services.handleInvocation(
-      makeInvocation(["config", "unset"], ["discovery.project"], {
+      makeInvocation(["config", "unset"], ["discovery.projects"], {
         dry_run: true,
       }),
     ),

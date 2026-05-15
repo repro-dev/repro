@@ -7,6 +7,8 @@ import {
   type ItemState,
 } from "@repro/autobot-core";
 
+import type { DiscoverData } from "../types";
+
 import { createTextTheme, indentLines } from "./text";
 
 function headline(item: ItemSummary): string {
@@ -187,6 +189,51 @@ export function renderAutobotConfigMutation(input: {
     `Next: ${renderConfigValue(input.next.value)}`,
     `Events: ${input.events.length}`,
   ];
+
+  return lines.join("\n");
+}
+
+export function renderAutobotDiscoverResults(input: DiscoverData): string {
+  const scope =
+    input.projects.length > 0 ? input.projects.join(", ") : "all projects";
+
+  const lines = [
+    input.candidates.length > 0
+      ? `Found ${input.candidates.length} candidates for ${scope}.`
+      : input.scanned === 0
+      ? `No remote issues scanned for ${scope}.`
+      : `Scanned ${input.scanned} remote issues for ${scope}; all excluded.`,
+    `Limit: ${input.filters.limit}`,
+  ];
+
+  if (input.candidates.length > 0) {
+    lines.push(`Scanned ${input.scanned} remote issues.`);
+    lines.push(
+      ...input.candidates.map(
+        (candidate) =>
+          `${candidate.issue_id} · ${candidate.title ?? "(untitled)"}`,
+      ),
+    );
+  }
+
+  if (input.exclusions.length > 0 && input.candidates.length > 0) {
+    lines.push(
+      "",
+      `Exclusions: ${input.exclusions.length} (see --json for details)`,
+    );
+  }
+
+  if (input.exclusions.length > 0 && input.candidates.length === 0) {
+    lines.push(
+      "",
+      `Exclusions: ${input.exclusions.length}`,
+      ...input.exclusions.map((entry) => {
+        const suffix =
+          entry.details === null ? "" : ` ${JSON.stringify(entry.details)}`;
+        return `${entry.issue_id} (${entry.reason})${suffix}`;
+      }),
+    );
+  }
 
   return lines.join("\n");
 }

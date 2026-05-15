@@ -175,13 +175,13 @@ test("config list renders unset defaults explicitly", async () => {
           data: {
             config: [
               {
-                key: "discovery.project",
+                key: "discovery.projects",
                 value: "",
                 default_value: "",
                 type: "string",
                 source: "default",
                 description:
-                  "Default Linear project used by discover and engine auto-discovery; leave it unset to run without a default project filter.",
+                  "Comma-separated Linear project allowlist used by discover when no --project flags are provided.",
                 requires_engine_restart: false,
                 bounds: null,
                 allowed_values: null,
@@ -196,6 +196,57 @@ test("config list renders unset defaults explicitly", async () => {
 
   assert.equal(exitCode, 0);
   assert.match(io.read().stdout, /default: \(unset\)/);
+});
+
+test("discover quiet output prints issue ids only", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "discover", "-q"], io.io, {
+      handleInvocation() {
+        return resolve({
+          kind: "discover",
+          command: "autobot-next discover",
+          repo: {
+            path: "/worktrees/autobot",
+            state_dir: ".autobot",
+          },
+          data: {
+            projects: ["Engineering"],
+            query: null,
+            filters: {
+              labels: [],
+              priority: null,
+              limit: 5,
+              scan_limit: 100,
+            },
+            scanned: 2,
+            candidates: [
+              {
+                issue_id: "REP-300",
+                title: "Ship discovery path",
+                url: "https://linear.app/repro/issue/REP-300",
+                project: "Engineering",
+                labels: ["backend"],
+                priority: 2,
+                priority_label: "High",
+                status_name: "Todo",
+                state_type: "unstarted",
+                assignee: "Gary",
+              },
+            ],
+            issue_ids: ["REP-300"],
+            exclusions: [],
+            quiet: true,
+          },
+          warnings: [],
+        } as AutobotCommandResult);
+      },
+    }),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(io.read().stdout, "REP-300\n");
 });
 
 test("tty human output respects no-color", async () => {

@@ -97,6 +97,7 @@ The first Linear adapter uses the repo-owned `linear` CLI.
 
 - Call `linear` only through `packages/autobot-adapters`.
 - Prefer JSON output.
+- Discover uses repeatable `--project` flags; omit `--project` entirely when no allowlist is configured so manual discovery can scan all projects.
 - Missing Linear CLI capability is a dependency gap to fix in the repo-owned CLI, not a reason to add another Linear client.
 - Keep behavior behind typed adapter interfaces so a future API client can replace the CLI backend if needed.
 

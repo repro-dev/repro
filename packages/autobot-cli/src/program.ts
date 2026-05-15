@@ -19,6 +19,19 @@ function readGlobalOptions(command: Command): AutobotGlobalOptions {
     color: options.color !== false && options.noColor !== true,
     dry_run: options.dryRun === true,
     force: options.force === true,
+    project: Array.isArray(options.project)
+      ? options.project.filter((project) => typeof project === "string")
+      : [],
+    labels: Array.isArray(options.labels)
+      ? options.labels.filter((label) => typeof label === "string")
+      : Array.isArray(options.label)
+      ? options.label.filter((label) => typeof label === "string")
+      : [],
+    priority: typeof options.priority === "string" ? options.priority : null,
+    limit:
+      typeof options.limit === "number" && Number.isFinite(options.limit)
+        ? options.limit
+        : null,
   };
 }
 
@@ -48,7 +61,14 @@ function createInvocation(
   return {
     command_path: commandSegments,
     command: commandSegments.join(" "),
-    args: args.map((arg) => String(arg)),
+    args: args
+      .filter(
+        (arg): arg is string | number | boolean =>
+          typeof arg === "string" ||
+          typeof arg === "number" ||
+          typeof arg === "boolean",
+      )
+      .map((arg) => String(arg)),
     options: readGlobalOptions(command),
   };
 }
@@ -125,7 +145,7 @@ export function createAutobotProgram(
     .option("--repo <path>", "repository root path")
     .option("--state-dir <path>", "override the state directory")
     .option("--profile <name>", "select a profile")
-    .option("--quiet", "reduce output verbosity")
+    .option("-q, --quiet", "reduce output verbosity")
     .option("--verbose", "increase output verbosity")
     .option("--no-color", "disable ANSI color output")
     .showHelpAfterError("(use --help to inspect the current parser tree)");
@@ -163,14 +183,36 @@ export function createAutobotProgram(
     { command: "logs <issue-id>", description: "show issue logs" },
     options.onInvocation,
   );
-  registerLeafCommand(
-    program,
-    {
-      command: "discover [query]",
-      description: "discover matching work items",
-    },
-    options.onInvocation,
-  );
+  const discoverCommand = program
+    .command("discover [query]")
+    .description("discover matching work items")
+    .option(
+      "--project <name>",
+      "filter by Linear project (repeatable)",
+      (value: string, previous: string[] = []) => [...previous, value],
+      [],
+    )
+    .option(
+      "--label <name>",
+      "filter by Linear label",
+      (value: string, previous: string[] = []) => [...previous, value],
+      [],
+    )
+    .option("--priority <level>", "filter by priority")
+    .option(
+      "--limit <count>",
+      "limit the number of discovered candidates",
+      (value: string) => Number(value),
+    );
+
+  discoverCommand.action(function (...values: unknown[]) {
+    const command = values[values.length - 1];
+    if (!(command instanceof Command)) {
+      return;
+    }
+
+    options.onInvocation?.(createInvocation(command, values.slice(0, -1)));
+  });
   registerLeafCommand(
     program,
     { command: "retry <issue-id>", description: "retry the current run" },

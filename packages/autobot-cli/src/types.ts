@@ -20,6 +20,10 @@ export interface AutobotGlobalOptions {
   color: boolean;
   dry_run: boolean;
   force: boolean;
+  project: string[];
+  labels: string[];
+  priority: string | null;
+  limit: number | null;
 }
 
 export interface AutobotInvocation {
@@ -106,7 +110,49 @@ export type AutobotCommandResult =
         events: DomainEvent[];
       };
       warnings?: readonly Warning[];
+    }
+  | {
+      kind: "discover";
+      command: string;
+      repo: RepoRef;
+      data: DiscoverData;
+      warnings?: readonly Warning[];
     };
+
+export interface DiscoverCandidate {
+  issue_id: string;
+  title: string | null;
+  url: string | null;
+  project: string | null;
+  labels: string[];
+  priority: number | null;
+  priority_label: string | null;
+  status_name: string | null;
+  state_type: string | null;
+  assignee: string | null;
+}
+
+export interface DiscoverExclusion {
+  issue_id: string;
+  reason: string;
+  details: Record<string, unknown> | null;
+}
+
+export interface DiscoverData {
+  projects: string[];
+  query: string | null;
+  filters: {
+    labels: string[];
+    priority: string | null;
+    limit: number;
+    scan_limit: number;
+  };
+  scanned: number;
+  candidates: DiscoverCandidate[];
+  issue_ids: string[];
+  exclusions: DiscoverExclusion[];
+  quiet: boolean;
+}
 
 export interface AutobotErrorEnvelopeInput {
   command: string;
