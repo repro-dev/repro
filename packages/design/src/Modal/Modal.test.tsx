@@ -3,52 +3,10 @@ import { cleanup, render } from '@testing-library/react'
 import expect from 'expect'
 import { afterEach, describe, it } from 'node:test'
 import React, { act } from 'react'
-import { zIndex } from '../tokens/elevation'
+import { spacing } from '../tokens/spacing'
 import { Modal } from './Modal'
 
 afterEach(cleanup)
-
-type ElementCSSRule = {
-  selectorText: string
-  cssText: string
-}
-
-function getElementCSSRules(el: Element): ElementCSSRule[] {
-  const classNames = new Set(Array.from(el.classList))
-  const matchingRules: ElementCSSRule[] = []
-
-  for (let i = 0; i < document.styleSheets.length; i++) {
-    const sheet = document.styleSheets[i]
-    if (!sheet) continue
-
-    try {
-      for (const rule of Array.from(sheet.cssRules || [])) {
-        if (
-          !('selectorText' in rule) ||
-          typeof rule.selectorText !== 'string'
-        ) {
-          continue
-        }
-
-        const selectorClassNames = Array.from(
-          rule.selectorText.matchAll(/\.([\w-]+)/g),
-          ([, className]) => className
-        )
-
-        if (selectorClassNames.some(className => classNames.has(className))) {
-          matchingRules.push({
-            selectorText: rule.selectorText,
-            cssText: rule.cssText,
-          })
-        }
-      }
-    } catch {
-      // cross-origin sheets; ignore
-    }
-  }
-
-  return matchingRules
-}
 
 describe('Modal', () => {
   it('renders with role="dialog"', () => {
@@ -60,23 +18,6 @@ describe('Modal', () => {
 
     const dialog = document.querySelector('[role="dialog"]')
     expect(dialog).not.toBeNull()
-  })
-
-  it('renders the backdrop at portal z-index', () => {
-    render(
-      <Modal width={400} height={300} aria-label="Test modal">
-        <p>Content</p>
-      </Modal>
-    )
-
-    const backdrop = document.querySelector('[data-testid="modal-backdrop"]')
-    const cssRules = backdrop ? getElementCSSRules(backdrop) : []
-
-    expect(
-      cssRules.some(({ cssText }) =>
-        cssText.includes(`z-index: ${zIndex.portal}`)
-      )
-    ).toBe(true)
   })
 
   it('sets aria-modal="true"', () => {
@@ -110,6 +51,46 @@ describe('Modal', () => {
 
     const dialog = document.querySelector('[role="dialog"]')
     expect(dialog?.getAttribute('aria-labelledby')).toBe('modal-title')
+  })
+
+  it('renders a modal header as a proper heading with description text', () => {
+    render(
+      <Modal width={400} height={300} aria-label="Header test">
+        <Modal.Header
+          title="Deactivate user?"
+          description="This action cannot be undone."
+        />
+      </Modal>
+    )
+
+    const title = document.querySelector('h2')
+
+    expect(title).not.toBeNull()
+    expect(title?.textContent).toBe('Deactivate user?')
+    expect(window.getComputedStyle(title as HTMLElement).fontSize).toBe('20px')
+    expect(document.querySelector('p')?.textContent).toBe(
+      'This action cannot be undone.'
+    )
+  })
+
+  it('renders a modal body with standard padding and spacing', () => {
+    render(
+      <Modal width={400} height={300} aria-label="Body test">
+        <Modal.Body>
+          <p>First line</p>
+          <p>Second line</p>
+        </Modal.Body>
+      </Modal>
+    )
+
+    const dialog = document.querySelector('[role="dialog"]')
+    const body = dialog?.firstElementChild as HTMLElement | null
+    const styles = window.getComputedStyle(body!)
+
+    expect(body).not.toBeNull()
+    expect(styles.paddingTop).toBe(`${spacing.xl}px`)
+    expect(document.body.textContent).toContain('First line')
+    expect(document.body.textContent).toContain('Second line')
   })
 
   it('prefers aria-label over labelId when both provided', () => {

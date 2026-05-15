@@ -1,5 +1,13 @@
-import { Row } from '@jsxstyle/react'
-import { Button, Modal, spacing } from '@repro/design'
+import { Col, Row } from '@jsxstyle/react'
+import {
+  Button,
+  Input,
+  Label,
+  Modal,
+  Text,
+  color,
+  spacing,
+} from '@repro/design'
 import React, { useState } from 'react'
 
 interface DeactivateUserDialogProps {
@@ -18,6 +26,8 @@ export const DeactivateUserDialog: React.FC<DeactivateUserDialogProps> = ({
   onConfirmError,
 }) => {
   const [loading, setLoading] = useState(false)
+  const [confirmationName, setConfirmationName] = useState('')
+  const canDeactivate = confirmationName === userName
 
   const handleConfirm = async () => {
     setLoading(true)
@@ -41,48 +51,51 @@ export const DeactivateUserDialog: React.FC<DeactivateUserDialogProps> = ({
       width={400}
       height="auto"
     >
-      <Modal.Header title={`Deactivate ${userName}?`} />
-      <Row
-        component="p"
-        paddingV={spacing.lg}
-        paddingH={spacing.xl}
-        {...{ fontSize: 14, lineHeight: 1.5 }}
-      >
-        This will permanently deactivate this user. They will lose access to all
-        projects and recordings. This action cannot be undone.
-      </Row>
-      {confirmError && (
-        <Row paddingH={spacing.xl} paddingBottom={spacing.md}>
-          <Row
-            component="p"
-            {...{
-              fontSize: 13,
-              color: 'var(--color-danger-fg)',
-              lineHeight: 1.4,
-            }}
-          >
-            {confirmError}
+      <Modal.Body>
+        <Col gap={spacing.md}>
+          <Modal.Header
+            title={`Deactivate ${userName}?`}
+            description="This will permanently deactivate this user. They will lose access to all projects and recordings. This action cannot be undone."
+          />
+          <Col gap={spacing.md}>
+            <Text variant="body">Type {userName} exactly to continue.</Text>
+            <Col gap={spacing.xs}>
+              <Label htmlFor="deactivate-user-confirmation">User name</Label>
+              <Input
+                id="deactivate-user-confirmation"
+                value={confirmationName}
+                onChange={event => setConfirmationName(event.target.value)}
+                placeholder={userName}
+                autoFocus
+                disabled={loading}
+              />
+            </Col>
+            {confirmError && (
+              <Text variant="bodySmall" color={color.danger}>
+                {confirmError}
+              </Text>
+            )}
+          </Col>
+          <Row justifyContent="flex-end" gap={spacing.md}>
+            <Button
+              variant="outlined"
+              context="neutral"
+              onClick={onClose}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              context="danger"
+              onClick={handleConfirm}
+              disabled={loading || !canDeactivate}
+            >
+              {loading ? 'Deactivating...' : 'Deactivate user'}
+            </Button>
           </Row>
-        </Row>
-      )}
-      <Row justifyContent="flex-end" gap={spacing.md} padding={spacing.xl}>
-        <Button
-          variant="outlined"
-          context="neutral"
-          onClick={onClose}
-          disabled={loading}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          context="danger"
-          onClick={handleConfirm}
-          disabled={loading}
-        >
-          {loading ? 'Deactivating...' : 'Deactivate user'}
-        </Button>
-      </Row>
+        </Col>
+      </Modal.Body>
     </Modal>
   )
 }
