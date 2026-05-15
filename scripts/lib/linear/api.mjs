@@ -52,6 +52,27 @@ export async function createLinearClient(apiKey, clientFactory) {
   return new LinearClient({ apiKey });
 }
 
+export async function requestLinearGraphQL(client, query, variables) {
+  const graphQLClient = client?.client;
+  const request = graphQLClient?.request ?? graphQLClient?.rawRequest;
+
+  if (typeof request !== "function") {
+    throw new Error(
+      "Linear client does not expose a raw GraphQL request method",
+    );
+  }
+
+  // The SDK's list helpers lock the selection set, so projection-aware reads
+  // go through the underlying GraphQL client when we need inline relation data.
+  const response = await callBoundMethod(
+    graphQLClient,
+    request,
+    query,
+    variables,
+  );
+  return response?.data ?? response;
+}
+
 export async function resolveTeam(client, teamKey) {
   const result = await callBoundMethod(client, client.teams, {
     filter: { key: { eqIgnoreCase: teamKey } },

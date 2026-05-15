@@ -28,6 +28,7 @@ import {
   resolveTeam,
   resolveUser,
   resolveViewer,
+  requestLinearGraphQL,
   updateDocumentWithFallback,
 } from "./api.mjs";
 
@@ -224,6 +225,21 @@ const ISSUE_LIST_JSON_FIELDS = [
 ];
 
 const ISSUE_LIST_JSON_FIELD_SET = new Set(ISSUE_LIST_JSON_FIELDS);
+const ISSUE_LIST_GRAPHQL_PROJECTION_FIELDS = new Set([
+  "project",
+  "milestone",
+  "assignee",
+  "status",
+  "labels",
+  "comments",
+  "relations",
+]);
+
+function issueListProjectionNeedsGraphQL(fields) {
+  return fields.some((field) =>
+    ISSUE_LIST_GRAPHQL_PROJECTION_FIELDS.has(field),
+  );
+}
 
 function parseIssueListJsonProjection(args) {
   if (!args.length) return null;
@@ -468,7 +484,29 @@ function serializeIssueLabel(label) {
   };
 }
 
+function serializeInlineLabels(labels) {
+  if (labels == null) return null;
+
+  const nodes = Array.isArray(labels)
+    ? labels
+    : Array.isArray(labels.nodes)
+    ? labels.nodes
+    : null;
+
+  if (nodes === null) return null;
+
+  return nodes.flatMap((label) => {
+    const serialized = serializeIssueLabel(label);
+    return serialized ? [serialized] : [];
+  });
+}
+
 function serializeIssueLabels(issue, labels = []) {
+  const inlineLabels = serializeInlineLabels(issue?.labels);
+  if (inlineLabels !== null) {
+    return inlineLabels;
+  }
+
   return selectLabelsById(labels, issue?.labelIds ?? []).map(
     serializeIssueLabel,
   );
@@ -1192,14 +1230,129 @@ function parseIssueIdentifier(issueId) {
 
 const ISSUE_LIST_PAGE_SIZE = 100;
 
-async function fetchIssueListPages(team, { after, first, filter }) {
+const ISSUE_LIST_GRAPHQL_ISSUE_SUMMARY_FIELDS = [
+  "id",
+  "identifier",
+  "title",
+  "url",
+  "state { id name type }",
+  "assignee { id name displayName email }",
+].join("\n        ");
+
+function buildIssueListProjectionQuery(fields) {
+  const requestedFields = new Set(fields);
+  const selectProject =
+    requestedFields.has("project") || requestedFields.has("milestone");
+  const selectMilestone = requestedFields.has("milestone");
+  const selectStatus = requestedFields.has("status");
+  const selectAssignee = requestedFields.has("assignee");
+  const selectLabels = requestedFields.has("labels");
+  const selectDescription = requestedFields.has("description");
+  const selectComments = requestedFields.has("comments");
+  const selectRelations = requestedFields.has("relations");
+
+  const issueFields = [
+    "id",
+    "identifier",
+    "title",
+    "url",
+    "priority",
+    "priorityLabel",
+    "updatedAt",
+    selectDescription ? "description" : null,
+    selectStatus ? "state { id name type }" : null,
+    selectProject ? "project { id key name url updatedAt }" : null,
+    selectMilestone
+      ? [
+          "projectMilestone {",
+          "  id",
+          "  name",
+          "  targetDate",
+          "  updatedAt",
+          "  project { id key name url updatedAt }",
+          "}",
+        ].join("\n        ")
+      : null,
+    selectAssignee ? "assignee { id name displayName email }" : null,
+    selectLabels ? "labels { nodes { id name } }" : null,
+    selectComments
+      ? [
+          "comments {",
+          "  nodes {",
+          "    id",
+          "    body",
+          "    createdAt",
+          "    updatedAt",
+          "    author { id name displayName email }",
+          "    user { id name displayName email }",
+          "  }",
+          "}",
+        ].join("\n        ")
+      : null,
+    selectRelations
+      ? [
+          "relations {",
+          "  nodes {",
+          "    id",
+          "    type",
+          `    issue {\n        ${ISSUE_LIST_GRAPHQL_ISSUE_SUMMARY_FIELDS}\n      }`,
+          `    relatedIssue {\n        ${ISSUE_LIST_GRAPHQL_ISSUE_SUMMARY_FIELDS}\n      }`,
+          "  }",
+          "}",
+          "inverseRelations {",
+          "  nodes {",
+          "    id",
+          "    type",
+          `    issue {\n        ${ISSUE_LIST_GRAPHQL_ISSUE_SUMMARY_FIELDS}\n      }`,
+          `    relatedIssue {\n        ${ISSUE_LIST_GRAPHQL_ISSUE_SUMMARY_FIELDS}\n      }`,
+          "  }",
+          "}",
+        ].join("\n        ")
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n        ");
+
+  return [
+    "query IssueListProjection($teamId: ID!, $after: String, $first: Int!, $filter: IssueFilter) {",
+    "  team(id: $teamId) {",
+    "    issues(after: $after, first: $first, filter: $filter) {",
+    "      nodes {",
+    `        ${issueFields}`,
+    "      }",
+    "      pageInfo {",
+    "        hasNextPage",
+    "        endCursor",
+    "      }",
+    "    }",
+    "  }",
+    "}",
+  ].join("\n");
+}
+
+function createIssueListProjectionFetcher(client, team, fields) {
+  const query = buildIssueListProjectionQuery(fields);
+
+  return async ({ after, first, filter }) => {
+    const response = await requestLinearGraphQL(client, query, {
+      teamId: team.id,
+      after,
+      first,
+      filter,
+    });
+
+    return response?.team?.issues ?? null;
+  };
+}
+
+async function fetchIssueListPages(fetchPage, { after, first, filter }) {
   const items = [];
   let nextCursor = after ?? undefined;
   let pageInfo = { hasNextPage: false, endCursor: null };
 
   while (items.length < first) {
     const pageSize = Math.min(ISSUE_LIST_PAGE_SIZE, first - items.length);
-    const response = await fetchIssues(team, {
+    const response = await fetchPage({
       after: nextCursor,
       first: pageSize,
       filter,
@@ -1323,24 +1476,36 @@ async function issueListCommand(args, context) {
     defaultBacklogStateIds: defaultBacklogStates.map((state) => state.id),
   });
 
-  const { items: responseIssues, pageInfo } = await fetchIssueListPages(team, {
-    after: options.after ?? undefined,
-    first: limit,
-    filter,
-  });
+  const useGraphQLProjection = Boolean(
+    jsonProjection && issueListProjectionNeedsGraphQL(jsonProjection),
+  );
+  const fetchIssuePage = useGraphQLProjection
+    ? createIssueListProjectionFetcher(client, team, jsonProjection)
+    : (variables) => fetchIssues(team, variables);
+
+  const { items: responseIssues, pageInfo } = await fetchIssueListPages(
+    fetchIssuePage,
+    {
+      after: options.after ?? undefined,
+      first: limit,
+      filter,
+    },
+  );
 
   const issueLabelsRequested =
     !jsonProjection || jsonProjection.includes("labels");
-  const issueLabelIds = issueLabelsRequested
-    ? collectLabelIds(responseIssues)
-    : [];
-  const issueLabels = issueLabelsRequested
-    ? labels.length
-      ? labels
-      : issueLabelIds.length
-      ? await resolveLabels(team)
-      : []
-    : [];
+  const issueLabelIds =
+    !useGraphQLProjection && issueLabelsRequested
+      ? collectLabelIds(responseIssues)
+      : [];
+  const issueLabels =
+    !useGraphQLProjection && issueLabelsRequested
+      ? labels.length
+        ? labels
+        : issueLabelIds.length
+        ? await resolveLabels(team)
+        : []
+      : [];
 
   const items = await Promise.all(
     responseIssues.map((issue) =>
