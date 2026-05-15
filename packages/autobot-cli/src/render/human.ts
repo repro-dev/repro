@@ -258,9 +258,8 @@ function renderTransportCorrelation(
 
   return [
     "Transport:",
-    ...Object.entries(transport).map(
-      ([key, value]) => `  ${key}: ${value ?? "n/a"}`,
-    ),
+    `  workspace_id: ${transport.workspace_id ?? "n/a"}`,
+    `  channel_id: ${transport.channel_id ?? "n/a"}`,
   ];
 }
 
@@ -362,14 +361,7 @@ export function renderAutobotFlowcraftInspect(input: {
     `Lookup: ${input.lookup.kind}`,
     `Issue: ${input.lookup.issue_id ?? "n/a"}`,
     ...renderExecutionSummary(input.lookup.execution),
-    ...renderTransportCorrelation(
-      input.lookup.run?.transport ??
-        (input.lookup.execution?.metadata.transport as
-          | TransportCorrelation
-          | null
-          | undefined) ??
-        null,
-    ),
+    ...renderTransportCorrelation(input.lookup.run?.transport ?? null),
   ];
 
   if (input.lookup.domain_events.length > 0) {

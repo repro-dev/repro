@@ -12,7 +12,7 @@ import type {
   TransportCorrelation,
   WorkerSummary,
 } from '@repro/autobot-core'
-import { Future, type FutureInstance } from 'fluture'
+import { Future, fork, type FutureInstance } from 'fluture'
 import type { Kysely, Selectable } from 'kysely'
 
 import { decodeJsonNullable, encodeJson, encodeJsonArray } from './json'
@@ -24,6 +24,10 @@ import {
 import type { AutobotSchema } from './schema'
 
 type Db = Kysely<AutobotSchema>
+
+interface CreateAutobotRepositoriesOptions {
+  destroyOnClose?: boolean
+}
 
 export interface ItemRecord {
   issue_id: string
@@ -63,7 +67,7 @@ export interface RunRecord {
   finished_at: string | null
   worker_id: string | null
   last_heartbeat_at: string | null
-  transport_json: string | null
+  transport: TransportCorrelation | null
 }
 
 export interface WorkerRecord {
@@ -198,6 +202,9 @@ export interface DomainEventListOptions {
 export interface AutobotStore {
   repo: RepoRef
   close(): FutureInstance<unknown, void>
+  transaction<T>(
+    handler: (store: AutobotStore) => FutureInstance<unknown, T>
+  ): FutureInstance<unknown, T>
   items: ItemRepository
   runs: RunRepository
   workers: WorkerRepository
@@ -358,7 +365,12 @@ function toConfigRecord(
   }
 }
 
-export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
+export function createAutobotRepositories(
+  db: Db,
+  repo: RepoRef,
+  options: CreateAutobotRepositoriesOptions = {}
+): AutobotStore {
+  const destroyOnClose = options.destroyOnClose !== false
   const projections = createItemProjections(db)
 
   const items: ItemRepository = {
@@ -446,7 +458,21 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
       return futureAsync(async () => {
         await db
           .insertInto('runs')
-          .values(input)
+          .values({
+            run_id: input.run_id,
+            issue_id: input.issue_id,
+            attempt: input.attempt,
+            state: input.state,
+            flowcraft_execution_id: input.flowcraft_execution_id,
+            blueprint_id: input.blueprint_id,
+            blueprint_version: input.blueprint_version,
+            started_at: input.started_at,
+            finished_at: input.finished_at,
+            worker_id: input.worker_id,
+            last_heartbeat_at: input.last_heartbeat_at,
+            transport_json:
+              input.transport === null ? null : encodeJson(input.transport),
+          })
           .onConflict(conflict =>
             conflict.column('run_id').doUpdateSet({
               issue_id: input.issue_id,
@@ -459,7 +485,8 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
               finished_at: input.finished_at,
               worker_id: input.worker_id,
               last_heartbeat_at: input.last_heartbeat_at,
-              transport_json: input.transport_json,
+              transport_json:
+                input.transport === null ? null : encodeJson(input.transport),
             })
           )
           .execute()
@@ -712,6 +739,51 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
     },
   }
 
+  const transaction: AutobotStore['transaction'] = <T>(
+    handler: (store: AutobotStore) => FutureInstance<unknown, T>
+  ) =>
+    Future(
+      (reject: (error: unknown) => void, resolve: (value: unknown) => void) => {
+        let cancelled = false
+
+        void db
+          .transaction()
+          .execute(async transactionDb => {
+            const transactionStore = createAutobotRepositories(
+              transactionDb,
+              repo,
+              {
+                destroyOnClose: false,
+              }
+            )
+
+            return await new Promise<T>(
+              (transactionResolve, transactionReject) => {
+                handler(transactionStore).pipe(
+                  fork(transactionReject)(transactionResolve)
+                )
+              }
+            )
+          })
+          .then(
+            value => {
+              if (!cancelled) {
+                resolve(value)
+              }
+            },
+            error => {
+              if (!cancelled) {
+                reject(error)
+              }
+            }
+          )
+
+        return () => {
+          cancelled = true
+        }
+      }
+    ) as FutureInstance<unknown, T>
+
   const flowcraft: FlowcraftHistoryRepository = {
     recordExecution(input) {
       return futureAsync(async () => {
@@ -793,8 +865,16 @@ export function createAutobotRepositories(db: Db, repo: RepoRef): AutobotStore {
   return {
     repo,
     close() {
+      if (!destroyOnClose) {
+        return Future((_reject, resolve) => {
+          resolve(undefined)
+          return () => undefined
+        })
+      }
+
       return futureAsync(() => db.destroy())
     },
+    transaction,
     items,
     runs,
     workers,

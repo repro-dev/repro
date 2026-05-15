@@ -4,6 +4,7 @@ export {
   getFlowcraftWorkflow,
   listFlowcraftWorkflows,
   renderFlowcraftWorkflowDiagram,
+  executeAutobotDeliverIssueWorkflow,
   validateFlowcraftWorkflows,
 } from "./runtime";
 

@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterEach, test } from 'node:test'
 
 import SQLiteDatabase from 'better-sqlite3'
-import { fork, type FutureInstance } from 'fluture'
+import { chain, fork, Future, type FutureInstance } from 'fluture'
 
 import { createAutobotStore } from './client'
 import type { AutobotStore } from './repositories'
@@ -362,6 +362,100 @@ test('domain events remain append-only through the database', async () => {
       'evt-append-only'
     )
   }, /append-only/i)
+
+  db.close()
+  await runFuture(store.close())
+})
+
+test('run records persist transport correlation metadata through the store API', async () => {
+  const repoRoot = await makeRepoRoot()
+  const store = await openStore(repoRoot)
+  const db = openRawDb(repoRoot)
+
+  const inserted = await runFuture(
+    store.runs.upsert({
+      run_id: 'run-transport',
+      issue_id: 'REP-1150',
+      attempt: 1,
+      state: 'completed',
+      flowcraft_execution_id: 'flowcraft-run-transport',
+      blueprint_id: 'autobot-deliver-issue',
+      blueprint_version: '1.0.0',
+      started_at: '2026-05-15T12:00:00Z',
+      finished_at: '2026-05-15T12:00:01Z',
+      worker_id: null,
+      last_heartbeat_at: null,
+      transport: {
+        source: 'relay',
+        workspace_id: 'relay-workspace',
+        channel_id: 'relay-channel',
+        thread_id: 'relay-thread',
+        agent_id: 'relay-agent',
+        message_id: 'relay-message',
+      },
+    })
+  )
+
+  assert.equal(inserted.transport?.channel_id, 'relay-channel')
+  const row = db
+    .prepare('SELECT transport_json FROM runs WHERE run_id = ?')
+    .get('run-transport') as { transport_json: string | null }
+  assert.equal(
+    row.transport_json,
+    JSON.stringify({
+      source: 'relay',
+      workspace_id: 'relay-workspace',
+      channel_id: 'relay-channel',
+      thread_id: 'relay-thread',
+      agent_id: 'relay-agent',
+      message_id: 'relay-message',
+    })
+  )
+
+  db.close()
+  await runFuture(store.close())
+})
+
+test('store transactions roll back a partial persistence sequence', async () => {
+  const repoRoot = await makeRepoRoot()
+  const store = await openStore(repoRoot)
+  const db = openRawDb(repoRoot)
+
+  await assert.rejects(
+    runFuture(
+      store.transaction(transaction =>
+        transaction.runs
+          .upsert({
+            run_id: 'run-rollback',
+            issue_id: 'REP-1150',
+            attempt: 1,
+            state: 'completed',
+            flowcraft_execution_id: 'flowcraft-run-rollback',
+            blueprint_id: 'autobot-deliver-issue',
+            blueprint_version: '1.0.0',
+            started_at: '2026-05-15T12:10:00Z',
+            finished_at: '2026-05-15T12:10:01Z',
+            worker_id: null,
+            last_heartbeat_at: null,
+            transport: null,
+          })
+          .pipe(
+            chain(() =>
+              Future(reject => {
+                reject(new Error('boom'))
+                return () => undefined
+              })
+            )
+          )
+      )
+    ),
+    /boom/
+  )
+
+  const row = db
+    .prepare('SELECT run_id FROM runs WHERE run_id = ?')
+    .get('run-rollback') as { run_id?: string } | undefined
+  assert.equal(row, undefined)
 
   db.close()
   await runFuture(store.close())

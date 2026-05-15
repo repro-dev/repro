@@ -21,6 +21,7 @@ import {
 } from "./flowcraft";
 
 import type { TransportCorrelation } from "@repro/autobot-core";
+import { Future, type FutureInstance } from "./future";
 
 const autobotDeliverIssueWorkflowId: FlowcraftWorkflowId =
   "autobot-deliver-issue";
@@ -205,34 +206,228 @@ function renderWorkflowDiagram(workflow: FlowcraftWorkflowDefinition): string {
   return generateMermaid(workflow.blueprint);
 }
 
-function phaseEventsForIssue(input: {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stripNestedTransport<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((entry) => stripNestedTransport(entry)) as T;
+  }
+
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const result: Record<string, unknown> = {};
+
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (key === "transport") {
+      continue;
+    }
+
+    result[key] = stripNestedTransport(nestedValue);
+  }
+
+  return result as T;
+}
+
+function getRuntimeEventNodeId(event: {
+  type: string;
+  payload: Record<string, unknown>;
+}): string {
+  if (typeof event.payload.nodeId === "string") {
+    return event.payload.nodeId;
+  }
+
+  if (typeof event.payload.sourceNode === "string") {
+    return event.payload.sourceNode;
+  }
+
+  if (typeof event.payload.scatterNodeId === "string") {
+    return event.payload.scatterNodeId;
+  }
+
+  if (typeof event.payload.gatherNodeId === "string") {
+    return event.payload.gatherNodeId;
+  }
+
+  if (typeof event.payload.source === "string") {
+    return event.payload.source;
+  }
+
+  return "workflow";
+}
+
+function createCapturedRuntimeEventRecord(input: {
+  execution_id: string;
+  event: { type: string; payload: Record<string, unknown> };
+  index: number;
+  occurred_at: string;
+}): {
+  flowcraft_event_id: string;
+  execution_id: string;
+  node_id: FlowcraftNodeId;
+  type: string;
+  occurred_at: string;
+  data: Record<string, unknown>;
+} {
+  return {
+    flowcraft_event_id: `${input.execution_id}-${String(input.index).padStart(
+      2,
+      "0",
+    )}`,
+    execution_id: input.execution_id,
+    node_id: getRuntimeEventNodeId(input.event) as FlowcraftNodeId,
+    type: input.event.type,
+    occurred_at: input.occurred_at,
+    data: stripNestedTransport(input.event.payload),
+  };
+}
+
+function createPhaseEventsFromRun(input: {
   workflow: FlowcraftWorkflowDefinition;
   issue_id: string;
   run_id: string;
   execution_id: string;
-  started_at: string;
   transport: TransportCorrelation | null;
-}): FlowcraftPhaseEvent[] {
-  return input.workflow.blueprint.nodes.map((node) => {
-    const phase = node.id as FlowcraftNodeId;
-    const definition = phaseDefinitions[phase];
+  started_at: string;
+  phaseOutputs: Array<{
+    phase: FlowcraftNodeId;
+    occurred_at: string;
+    output: unknown;
+  }>;
+}): FlowcraftExecutionPlan["domain_events"] {
+  return input.phaseOutputs.map((event, index) => ({
+    event_id: `${input.execution_id}-${event.phase}-domain-${index}`,
+    issue_id: input.issue_id,
+    run_id: input.run_id,
+    type: phaseDefinitions[event.phase].type,
+    state: phaseDefinitions[event.phase].state,
+    message: phaseDefinitions[event.phase].message,
+    severity: "info" as const,
+    occurred_at: event.occurred_at,
+    actor: "autobot-flowcraft",
+    transport: input.transport,
+    data: {
+      issue_id: input.issue_id,
+      run_id: input.run_id,
+      execution_id: input.execution_id,
+      workflow_id: input.workflow.id,
+      workflow_version: input.workflow.version,
+      phase: event.phase,
+      output: stripNestedTransport(event.output),
+      started_at: input.started_at,
+    },
+  }));
+}
 
-    return {
-      phase,
-      type: definition.type,
-      state: definition.state,
-      message: definition.message,
-      occurred_at: input.started_at,
-      data: {
-        issue_id: input.issue_id,
-        run_id: input.run_id,
-        execution_id: input.execution_id,
-        workflow_id: input.workflow.id,
-        workflow_version: input.workflow.version,
-        transport: input.transport,
-      },
-    };
-  });
+export function executeAutobotDeliverIssueWorkflow(input: {
+  issue_id: string;
+  run_id: string;
+  execution_id: string;
+  started_at: string;
+  finished_at: string;
+  transport: TransportCorrelation | null;
+}): FutureInstance<unknown, FlowcraftExecutionPlan> {
+  return Future(
+    (
+      reject: (reason: unknown) => void,
+      resolve: (value: FlowcraftExecutionPlan) => void,
+    ) => {
+      const workflow = flowcraftWorkflows[0];
+      const capturedEvents: Array<{
+        type: string;
+        payload: Record<string, unknown>;
+      }> = [];
+      const runtime = new FlowRuntime<
+        FlowcraftWorkflowContext,
+        FlowcraftWorkflowDependencies
+      >({
+        eventBus: {
+          emit(event) {
+            capturedEvents.push({
+              type: event.type,
+              payload: stripNestedTransport(
+                event.payload as Record<string, unknown>,
+              ),
+            });
+          },
+        },
+      });
+
+      void workflow.flow
+        .run(runtime, {
+          issue_id: input.issue_id,
+          run_id: input.run_id,
+          execution_id: input.execution_id,
+          started_at: input.started_at,
+          finished_at: input.finished_at,
+          transport: input.transport,
+        })
+        .then((result) => {
+          const phaseOutputs = workflow.blueprint.nodes.flatMap((node) => {
+            const phase = node.id as FlowcraftNodeId;
+            const phaseOutput = (
+              result.context as unknown as Record<string, unknown>
+            )[phase];
+            const nodeFinishEvent = capturedEvents.find(
+              (event) =>
+                event.type === "node:finish" && event.payload.nodeId === phase,
+            );
+            const finishedOutput =
+              nodeFinishEvent?.payload.result &&
+              isRecord(nodeFinishEvent.payload.result)
+                ? nodeFinishEvent.payload.result.output ?? phaseOutput
+                : phaseOutput;
+
+            return {
+              phase,
+              occurred_at: input.started_at,
+              output: finishedOutput,
+            };
+          });
+
+          resolve({
+            workflow,
+            execution_id: input.execution_id,
+            run_id: input.run_id,
+            issue_id: input.issue_id,
+            started_at: input.started_at,
+            finished_at: input.finished_at,
+            transport: input.transport,
+            metadata: {
+              workflow_id: workflow.id,
+              workflow_version: workflow.version,
+              bounded: true,
+              status: result.status,
+            },
+            flowcraft_events: capturedEvents.map((event, index) =>
+              createCapturedRuntimeEventRecord({
+                execution_id: input.execution_id,
+                event,
+                index,
+                occurred_at:
+                  event.type === "workflow:finish"
+                    ? input.finished_at
+                    : input.started_at,
+              }),
+            ),
+            domain_events: createPhaseEventsFromRun({
+              workflow,
+              issue_id: input.issue_id,
+              run_id: input.run_id,
+              execution_id: input.execution_id,
+              transport: input.transport,
+              started_at: input.started_at,
+              phaseOutputs,
+            }),
+          });
+        }, reject);
+
+      return () => undefined;
+    },
+  );
 }
 
 export const flowcraftWorkflows = [
@@ -273,115 +468,8 @@ export function buildFlowcraftExecutionPlan(input: {
   started_at: string;
   finished_at: string;
   transport: TransportCorrelation | null;
-}): FlowcraftExecutionPlan {
-  const workflow = flowcraftWorkflows[0];
-  const metadata = {
-    workflow_id: workflow.id,
-    workflow_version: workflow.version,
-    bounded: true,
-    transport: input.transport,
-  };
-
-  const phaseEvents = phaseEventsForIssue({
-    workflow,
-    issue_id: input.issue_id,
-    run_id: input.run_id,
-    execution_id: input.execution_id,
-    started_at: input.started_at,
-    transport: input.transport,
-  });
-
-  return {
-    workflow,
-    execution_id: input.execution_id,
-    run_id: input.run_id,
-    issue_id: input.issue_id,
-    started_at: input.started_at,
-    finished_at: input.finished_at,
-    transport: input.transport,
-    metadata,
-    flowcraft_events: [
-      {
-        flowcraft_event_id: `${input.execution_id}-started`,
-        execution_id: input.execution_id,
-        node_id: "claim",
-        type: "execution.started",
-        occurred_at: input.started_at,
-        data: {
-          issue_id: input.issue_id,
-          run_id: input.run_id,
-          workflow_id: workflow.id,
-          workflow_version: workflow.version,
-          transport: input.transport,
-        },
-      },
-      ...phaseEvents.flatMap((event) => [
-        {
-          flowcraft_event_id: `${input.execution_id}-${event.phase}-entered`,
-          execution_id: input.execution_id,
-          node_id: event.phase,
-          type: "node.entered",
-          occurred_at: input.started_at,
-          data: {
-            issue_id: input.issue_id,
-            run_id: input.run_id,
-            workflow_id: workflow.id,
-            workflow_version: workflow.version,
-            phase: event.phase,
-            transport: input.transport,
-          },
-        },
-        {
-          flowcraft_event_id: `${input.execution_id}-${event.phase}-completed`,
-          execution_id: input.execution_id,
-          node_id: event.phase,
-          type: "node.completed",
-          occurred_at: event.occurred_at,
-          data: {
-            issue_id: input.issue_id,
-            run_id: input.run_id,
-            workflow_id: workflow.id,
-            workflow_version: workflow.version,
-            phase: event.phase,
-            phase_state: event.state,
-            transport: input.transport,
-          },
-        },
-      ]),
-      {
-        flowcraft_event_id: `${input.execution_id}-finished`,
-        execution_id: input.execution_id,
-        node_id: "complete",
-        type: "execution.completed",
-        occurred_at: input.finished_at,
-        data: {
-          issue_id: input.issue_id,
-          run_id: input.run_id,
-          workflow_id: workflow.id,
-          workflow_version: workflow.version,
-          transport: input.transport,
-        },
-      },
-    ],
-    domain_events: phaseEvents.map((event, index) => ({
-      event_id: `${input.execution_id}-${event.phase}-domain-${index}`,
-      issue_id: input.issue_id,
-      run_id: input.run_id,
-      type: event.type,
-      state: event.state,
-      message: event.message,
-      severity: "info" as const,
-      occurred_at: event.occurred_at,
-      actor: "autobot-flowcraft",
-      transport: input.transport,
-      data: {
-        ...event.data,
-        workflow_id: workflow.id,
-        workflow_version: workflow.version,
-        phase: event.phase,
-      },
-    })),
-  };
+}): FutureInstance<unknown, FlowcraftExecutionPlan> {
+  return executeAutobotDeliverIssueWorkflow(input);
 }
 
 export type {

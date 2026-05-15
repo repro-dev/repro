@@ -57,10 +57,13 @@ function makeWorkflowStore() {
   const executionRecords: Array<Record<string, unknown>> = [];
   const flowcraftEvents: Array<Record<string, unknown>> = [];
   const domainEvents: Array<Record<string, unknown>> = [];
+  const runGetLookups: string[] = [];
+  const flowcraftGetLookups: string[] = [];
   const domainEventLookups: Array<{
     issueId: string | undefined;
     options: Record<string, unknown> | undefined;
   }> = [];
+  let transactionCalls = 0;
 
   const store = {
     repo: {
@@ -69,6 +72,12 @@ function makeWorkflowStore() {
     },
     close() {
       return resolve(undefined);
+    },
+    transaction(
+      handler: (store: AutobotStore) => FutureInstance<unknown, unknown>,
+    ) {
+      transactionCalls += 1;
+      return handler(store as unknown as AutobotStore);
     },
     items: {
       get() {
@@ -133,7 +142,21 @@ function makeWorkflowStore() {
       list(issueId?: string, options?: Record<string, unknown>) {
         domainEventLookups.push({ issueId, options });
         return resolve([
-          issueId === "REP-1155"
+          issueId === "REP-1156"
+            ? {
+                event_id: "domain-event-3",
+                issue_id: "REP-1156",
+                run_id: null,
+                type: "workflow.phase.claimed",
+                state: "claimed",
+                message: "Issue claimed",
+                severity: "info",
+                occurred_at: "2026-05-15T11:20:00Z",
+                actor: "autobot-flowcraft",
+                transport: null,
+                data: {},
+              }
+            : issueId === "REP-1155"
             ? {
                 event_id: "domain-event-2",
                 issue_id: "REP-1155",
@@ -178,10 +201,11 @@ function makeWorkflowStore() {
           finished_at: input.finished_at,
           worker_id: input.worker_id,
           last_heartbeat_at: input.last_heartbeat_at,
-          transport: null,
+          transport: input.transport,
         });
       },
       get(runId: string) {
+        runGetLookups.push(runId);
         return resolve(
           runId === "run-1154"
             ? {
@@ -193,6 +217,21 @@ function makeWorkflowStore() {
                 blueprint_id: "autobot-deliver-issue",
                 blueprint_version: "1.0.0",
                 started_at: "2026-05-15T11:00:00Z",
+                finished_at: null,
+                worker_id: null,
+                last_heartbeat_at: null,
+                transport: null,
+              }
+            : runId === "run-1156"
+            ? {
+                run_id: "run-1156",
+                issue_id: "REP-1156",
+                attempt: 1,
+                state: "claimed",
+                flowcraft_execution_id: null,
+                blueprint_id: "autobot-deliver-issue",
+                blueprint_version: "1.0.0",
+                started_at: "2026-05-15T11:20:00Z",
                 finished_at: null,
                 worker_id: null,
                 last_heartbeat_at: null,
@@ -250,6 +289,7 @@ function makeWorkflowStore() {
         });
       },
       getExecution(executionId: string) {
+        flowcraftGetLookups.push(executionId);
         return resolve(
           executionId === "exec-1154"
             ? {
@@ -261,7 +301,24 @@ function makeWorkflowStore() {
                 finished_at: "2026-05-15T11:00:01Z",
                 metadata: {
                   workflow_id: "autobot-deliver-issue",
-                  transport: null,
+                  workflow_version: "1.0.0",
+                  bounded: true,
+                  status: "completed",
+                },
+              }
+            : executionId === "flowcraft-exec-1156"
+            ? {
+                execution_id: "flowcraft-exec-1156",
+                issue_id: "REP-1156",
+                run_id: null,
+                state: "completed",
+                started_at: "2026-05-15T11:20:00Z",
+                finished_at: "2026-05-15T11:20:01Z",
+                metadata: {
+                  workflow_id: "autobot-deliver-issue",
+                  workflow_version: "1.0.0",
+                  bounded: true,
+                  status: "completed",
                 },
               }
             : null,
@@ -299,7 +356,12 @@ function makeWorkflowStore() {
     executionRecords,
     flowcraftEvents,
     domainEvents,
+    runGetLookups,
+    flowcraftGetLookups,
     domainEventLookups,
+    get transactionCalls() {
+      return transactionCalls;
+    },
   };
 }
 
@@ -394,6 +456,28 @@ test("inspect loads domain events for runs without flowcraft execution ids", asy
   });
 });
 
+test("inspect routes flowcraft execution ids directly to execution lookup", async () => {
+  const fixture = makeWorkflowStore();
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+  });
+
+  const result = (await runFuture(
+    services.handleInvocation({
+      ...makeInvocation(["inspect"]),
+      args: ["flowcraft-exec-1156"],
+      command: "inspect flowcraft-exec-1156",
+    }),
+  )) as AutobotCommandResult;
+
+  assert.equal(result.kind, "flowcraft-inspect");
+  assert.equal(result.data.lookup.kind, "flowcraft-execution");
+  assert.deepEqual(fixture.runGetLookups, []);
+  assert.deepEqual(fixture.flowcraftGetLookups, ["flowcraft-exec-1156"]);
+});
+
 test("engine run-once persists the bounded flowcraft skeleton", async () => {
   const fixture = makeWorkflowStore();
   const services = createAutobotServices({
@@ -415,6 +499,11 @@ test("engine run-once persists the bounded flowcraft skeleton", async () => {
   assert.equal(result.kind, "flowcraft-inspect");
   assert.equal(fixture.runUpserts.length, 1);
   assert.equal(fixture.executionRecords.length, 1);
-  assert.equal(fixture.flowcraftEvents.length, 8);
+  assert.ok(fixture.flowcraftEvents.length >= 8);
+  assert.equal(fixture.flowcraftEvents[0]?.type, "workflow:start");
+  assert.equal(fixture.flowcraftEvents.at(-1)?.type, "workflow:finish");
   assert.equal(fixture.domainEvents.length, 3);
+  assert.equal(fixture.transactionCalls, 1);
+  assert.equal("transport_json" in fixture.runUpserts[0]!, false);
+  assert.equal(fixture.runUpserts[0]?.transport, null);
 });

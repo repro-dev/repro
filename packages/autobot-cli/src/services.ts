@@ -26,12 +26,13 @@ import {
   type ConfigOverrideRecord,
 } from "@repro/autobot-store";
 import {
-  buildFlowcraftExecutionPlan,
+  executeAutobotDeliverIssueWorkflow,
   getFlowcraftWorkflow,
   listFlowcraftWorkflows,
   renderFlowcraftWorkflowDiagram,
   validateFlowcraftWorkflows,
 } from "@repro/autobot-flowcraft";
+import type { FlowcraftExecutionPlan } from "@repro/autobot-flowcraft";
 import { discoverLinearIssues } from "@repro/autobot-adapters";
 import {
   Future,
@@ -53,6 +54,12 @@ import type {
   AutobotInvocation,
   DiscoverCandidate,
 } from "./types";
+
+type FlowcraftExecutionContext = {
+  execution: FlowcraftExecutionRecord | null;
+  run: RunSummary | null;
+  flowcraft_events: FlowcraftEventRecord[];
+};
 
 export interface AutobotServiceDependencies {
   openStore?: (repo: RepoRef | string) => FutureInstance<unknown, AutobotStore>;
@@ -685,22 +692,38 @@ function createFlowcraftInspectResult(input: {
 function loadFlowcraftExecutionContext(
   store: AutobotStore,
   executionId: string,
-): FutureInstance<
-  unknown,
-  {
-    execution: FlowcraftExecutionRecord | null;
-    flowcraft_events: FlowcraftEventRecord[];
-  }
-> {
-  return store.flowcraft
-    .getExecution(executionId)
-    .pipe(
-      chain((execution) =>
-        store.flowcraft
-          .listEvents(executionId)
-          .pipe(map((flowcraft_events) => ({ execution, flowcraft_events }))),
-      ),
-    );
+): FutureInstance<unknown, FlowcraftExecutionContext> {
+  return store.flowcraft.getExecution(executionId).pipe(
+    chain((execution) => {
+      if (execution === null) {
+        return resolve({
+          execution,
+          run: null,
+          flowcraft_events: [],
+        } as FlowcraftExecutionContext);
+      }
+
+      const runFuture =
+        execution.run_id === null
+          ? resolve(null)
+          : store.runs.get(execution.run_id);
+
+      return runFuture.pipe(
+        chain((run) =>
+          store.flowcraft.listEvents(executionId).pipe(
+            map(
+              (flowcraft_events) =>
+                ({
+                  execution,
+                  run,
+                  flowcraft_events,
+                }) as FlowcraftExecutionContext,
+            ),
+          ),
+        ),
+      );
+    }),
+  );
 }
 
 function normalizeDiscoverText(
@@ -1106,6 +1129,55 @@ function handleInspect(
     });
   }
 
+  if (identifier.startsWith("flowcraft-")) {
+    return loadFlowcraftExecutionContext(store, identifier).pipe(
+      chain(
+        ({
+          execution,
+          run,
+          flowcraft_events,
+        }): FutureInstance<unknown, AutobotCommandResult> => {
+          if (execution === null) {
+            return Future((reject) => {
+              reject(
+                new AutobotCliError({
+                  code: "FLOWCRAFT_EXECUTION_NOT_FOUND",
+                  message: `No run or flowcraft execution found for ${identifier}`,
+                  what_failed: "inspect request",
+                  likely_cause: "the run or execution id is not stored locally",
+                  recovery_commands: ["autobot-next status --json"],
+                  details: { identifier },
+                  exit_code: 2,
+                }),
+              );
+              return () => undefined;
+            });
+          }
+
+          return store.events
+            .list(execution.issue_id, {
+              runId: execution.run_id ?? undefined,
+            })
+            .pipe(
+              map(
+                (domain_events): AutobotCommandResult =>
+                  createFlowcraftInspectResult({
+                    invocation,
+                    kind: "flowcraft-execution",
+                    identifier,
+                    issue_id: execution.issue_id,
+                    run,
+                    execution,
+                    domain_events,
+                    flowcraft_events,
+                  }),
+              ),
+            );
+        },
+      ),
+    );
+  }
+
   return store.runs.get(identifier).pipe(
     chain((run): FutureInstance<unknown, AutobotCommandResult> => {
       if (run !== null) {
@@ -1149,53 +1221,20 @@ function handleInspect(
         );
       }
 
-      return store.flowcraft.getExecution(identifier).pipe(
-        chain((execution): FutureInstance<unknown, AutobotCommandResult> => {
-          if (execution === null) {
-            return Future((reject) => {
-              reject(
-                new AutobotCliError({
-                  code: "FLOWCRAFT_EXECUTION_NOT_FOUND",
-                  message: `No run or flowcraft execution found for ${identifier}`,
-                  what_failed: "inspect request",
-                  likely_cause: "the run or execution id is not stored locally",
-                  recovery_commands: ["autobot-next status --json"],
-                  details: { identifier },
-                  exit_code: 2,
-                }),
-              );
-              return () => undefined;
-            });
-          }
-
-          return store.events
-            .list(execution.issue_id, {
-              runId: execution.run_id ?? undefined,
-            })
-            .pipe(
-              chain(
-                (
-                  domain_events,
-                ): FutureInstance<unknown, AutobotCommandResult> =>
-                  store.flowcraft.listEvents(execution.execution_id).pipe(
-                    map(
-                      (flowcraft_events): AutobotCommandResult =>
-                        createFlowcraftInspectResult({
-                          invocation,
-                          kind: "flowcraft-execution",
-                          identifier,
-                          issue_id: execution.issue_id,
-                          run: null,
-                          execution,
-                          domain_events,
-                          flowcraft_events,
-                        }),
-                    ),
-                  ),
-              ),
-            );
-        }),
-      );
+      return Future((reject) => {
+        reject(
+          new AutobotCliError({
+            code: "FLOWCRAFT_EXECUTION_NOT_FOUND",
+            message: `No run or flowcraft execution found for ${identifier}`,
+            what_failed: "inspect request",
+            likely_cause: "the run or execution id is not stored locally",
+            recovery_commands: ["autobot-next status --json"],
+            details: { identifier },
+            exit_code: 2,
+          }),
+        );
+        return () => undefined;
+      });
     }),
   );
 }
@@ -1216,82 +1255,97 @@ function handleEngineRunOnce(
       const finishedAt = startedAt;
       const runId = randomId();
       const executionId = `flowcraft-${runId}`;
-      const plan = buildFlowcraftExecutionPlan({
-        issue_id: target.issue_id,
-        run_id: runId,
-        execution_id: executionId,
-        started_at: startedAt,
-        finished_at: finishedAt,
-        transport: null,
-      });
 
-      return store.runs
-        .upsert({
-          run_id: runId,
+      return (
+        executeAutobotDeliverIssueWorkflow({
           issue_id: target.issue_id,
-          attempt: target.attempt,
-          state: "completed",
-          flowcraft_execution_id: executionId,
-          blueprint_id: plan.workflow.id,
-          blueprint_version: plan.workflow.version,
+          run_id: runId,
+          execution_id: executionId,
           started_at: startedAt,
           finished_at: finishedAt,
-          worker_id: null,
-          last_heartbeat_at: null,
-          transport_json: null,
-        })
-        .pipe(
-          chain(
-            (run): FutureInstance<unknown, AutobotCommandResult> =>
-              store.flowcraft
-                .recordExecution({
-                  execution_id: executionId,
+          transport: null,
+        }) as unknown as FutureInstance<unknown, FlowcraftExecutionPlan>
+      ).pipe(
+        chain(
+          (
+            plan: FlowcraftExecutionPlan,
+          ): FutureInstance<unknown, AutobotCommandResult> =>
+            store.transaction((transaction) =>
+              transaction.runs
+                .upsert({
+                  run_id: runId,
                   issue_id: target.issue_id,
-                  run_id: run.run_id,
+                  attempt: target.attempt,
                   state: "completed",
+                  flowcraft_execution_id: executionId,
+                  blueprint_id: plan.workflow.id,
+                  blueprint_version: plan.workflow.version,
                   started_at: startedAt,
                   finished_at: finishedAt,
-                  metadata: plan.metadata,
+                  worker_id: null,
+                  last_heartbeat_at: null,
+                  transport: null,
                 })
                 .pipe(
                   chain(
-                    (
-                      execution,
-                    ): FutureInstance<unknown, AutobotCommandResult> =>
-                      sequenceFutures(
-                        plan.flowcraft_events.map((event) =>
-                          store.flowcraft.recordEvent(event),
-                        ),
-                      ).pipe(
-                        chain(
-                          (
-                            flowcraft_events,
-                          ): FutureInstance<unknown, AutobotCommandResult> =>
-                            sequenceFutures(
-                              plan.domain_events.map((event) =>
-                                store.events.append(event),
-                              ),
-                            ).pipe(
-                              map(
-                                (domain_events): AutobotCommandResult =>
-                                  createFlowcraftInspectResult({
-                                    invocation,
-                                    kind: "run",
-                                    identifier: run.run_id,
-                                    issue_id: target.issue_id,
-                                    run,
-                                    execution,
-                                    domain_events,
+                    (run): FutureInstance<unknown, AutobotCommandResult> =>
+                      transaction.flowcraft
+                        .recordExecution({
+                          execution_id: executionId,
+                          issue_id: target.issue_id,
+                          run_id: run.run_id,
+                          state: "completed",
+                          started_at: startedAt,
+                          finished_at: finishedAt,
+                          metadata: plan.metadata,
+                        })
+                        .pipe(
+                          chain(
+                            (
+                              execution,
+                            ): FutureInstance<unknown, AutobotCommandResult> =>
+                              sequenceFutures(
+                                plan.flowcraft_events.map(
+                                  (event: FlowcraftEventRecord) =>
+                                    transaction.flowcraft.recordEvent(event),
+                                ),
+                              ).pipe(
+                                chain(
+                                  (
                                     flowcraft_events,
-                                  }),
+                                  ): FutureInstance<
+                                    unknown,
+                                    AutobotCommandResult
+                                  > =>
+                                    sequenceFutures(
+                                      plan.domain_events.map(
+                                        (event: DomainEvent) =>
+                                          transaction.events.append(event),
+                                      ),
+                                    ).pipe(
+                                      map(
+                                        (domain_events): AutobotCommandResult =>
+                                          createFlowcraftInspectResult({
+                                            invocation,
+                                            kind: "run",
+                                            identifier: run.run_id,
+                                            issue_id: target.issue_id,
+                                            run,
+                                            execution,
+                                            domain_events,
+                                            flowcraft_events,
+                                          }),
+                                      ),
+                                    ),
+                                ),
                               ),
-                            ),
+                          ),
                         ),
-                      ),
                   ),
                 ),
-          ),
-        );
+            ),
+        ),
+      );
     }),
   );
 }

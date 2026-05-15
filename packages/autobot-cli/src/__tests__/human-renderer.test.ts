@@ -71,7 +71,27 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
         kind: "flowcraft-execution",
         identifier: "exec-1154",
         issue_id: "REP-1154",
-        run: null,
+        run: {
+          run_id: "run-1154",
+          issue_id: "REP-1154",
+          attempt: 1,
+          state: "completed",
+          flowcraft_execution_id: "exec-1154",
+          blueprint_id: "autobot-deliver-issue",
+          blueprint_version: "1.0.0",
+          started_at: "2026-05-15T11:00:00Z",
+          finished_at: "2026-05-15T11:00:01Z",
+          worker_id: null,
+          last_heartbeat_at: null,
+          transport: {
+            source: "relay",
+            workspace_id: "relay-workspace",
+            channel_id: "relay-channel",
+            thread_id: "relay-thread",
+            agent_id: "relay-agent",
+            message_id: "relay-message",
+          },
+        },
         execution: {
           execution_id: "exec-1154",
           issue_id: "REP-1154",
@@ -80,10 +100,10 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
           started_at: "2026-05-15T11:00:00Z",
           finished_at: "2026-05-15T11:00:01Z",
           metadata: {
-            transport: {
-              workspace_id: "relay-workspace",
-              channel_id: "relay-channel",
-            },
+            workflow_id: "autobot-deliver-issue",
+            workflow_version: "1.0.0",
+            bounded: true,
+            status: "completed",
           },
         },
         domain_events: [
@@ -121,7 +141,7 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
     Workflow state: completed
     Started: 2026-05-15T11:00:00Z
     Finished: 2026-05-15T11:00:01Z
-    Metadata: {"transport":{"workspace_id":"relay-workspace","channel_id":"relay-channel"}}
+    Metadata: {"workflow_id":"autobot-deliver-issue","workflow_version":"1.0.0","bounded":true,"status":"completed"}
     Transport:
       workspace_id: relay-workspace
       channel_id: relay-channel

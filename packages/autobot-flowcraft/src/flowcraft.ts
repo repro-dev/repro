@@ -15,4 +15,4 @@ export type {
   NodeClass,
   NodeFunction,
   WorkflowBlueprint,
-} from "../node_modules/flowcraft/dist/index.d.mts";
+} from "../node_modules/flowcraft/dist/index.mjs";

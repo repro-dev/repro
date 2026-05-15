@@ -2,7 +2,6 @@ import type {
   BlueprintAnalysis,
   EdgeDefinition,
   FlowBuilder,
-  FlowRuntime,
   LinterResult,
   NodeClass,
   NodeFunction,
@@ -31,7 +30,7 @@ export interface FlowcraftWorkflowDefinition {
   version: string;
   description: string;
   flow: FlowBuilder<FlowcraftWorkflowContext, FlowcraftWorkflowDependencies>;
-  runtime: FlowRuntime<FlowcraftWorkflowContext, FlowcraftWorkflowDependencies>;
+  runtime: unknown;
   blueprint: WorkflowBlueprint;
   analysis: BlueprintAnalysis;
   lint: LinterResult;
