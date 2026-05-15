@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { generateMermaid } from "../flowcraft";
+
 import {
   buildFlowcraftExecutionPlan,
   flowcraftWorkflows,
@@ -9,27 +11,35 @@ import {
   validateFlowcraftWorkflows,
 } from "../index";
 
-test("autobot deliver issue workflow keeps stable phase ids", () => {
+test("autobot deliver issue workflow is FlowCraft-backed with stable phase ids", () => {
   const workflow = flowcraftWorkflows[0];
+  const blueprint = workflow.flow.toBlueprint();
 
   assert.equal(workflow.id, "autobot-deliver-issue");
   assert.deepEqual(
-    workflow.nodes.map((node) => node.id),
+    blueprint.nodes.map((node) => node.id),
     ["claim", "reconcile", "complete"],
   );
-  assert.equal(workflow.edges.length, 2);
+  assert.deepEqual(workflow.blueprint, blueprint);
+  assert.deepEqual(workflow.analysis.startNodeIds, ["claim"]);
+  assert.deepEqual(workflow.analysis.terminalNodeIds, ["complete"]);
+  assert.equal(workflow.analysis.isDag, true);
+  assert.equal(workflow.lint.isValid, true);
 });
 
-test("workflow validation and diagram output are deterministic", () => {
+test("workflow validation and diagram output come from FlowCraft analysis", () => {
+  const workflow = flowcraftWorkflows[0];
   const [validation] = validateFlowcraftWorkflows();
 
   assert.ok(validation);
   assert.equal(validation.valid, true);
   assert.deepEqual(validation.issues, []);
-  assert.match(renderFlowcraftWorkflowDiagram(), /flowchart TD/);
-  assert.match(renderFlowcraftWorkflowDiagram(), /claim/);
-  assert.match(renderFlowcraftWorkflowDiagram(), /reconcile/);
-  assert.match(renderFlowcraftWorkflowDiagram(), /complete/);
+  assert.deepEqual(validation.analysis, workflow.analysis);
+  assert.deepEqual(validation.lint, workflow.lint);
+  assert.equal(
+    renderFlowcraftWorkflowDiagram(),
+    generateMermaid(workflow.blueprint),
+  );
   assert.deepEqual(listFlowcraftWorkflows()[0]?.node_ids, [
     "claim",
     "reconcile",

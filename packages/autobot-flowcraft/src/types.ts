@@ -1,30 +1,40 @@
+import type {
+  BlueprintAnalysis,
+  EdgeDefinition,
+  FlowBuilder,
+  FlowRuntime,
+  LinterResult,
+  NodeClass,
+  NodeFunction,
+  WorkflowBlueprint,
+} from "./flowcraft";
+
 import type { TransportCorrelation } from "@repro/autobot-core";
 
 export type FlowcraftWorkflowId = "autobot-deliver-issue";
 
 export type FlowcraftNodeId = "claim" | "reconcile" | "complete";
 
-export type FlowcraftNodeKind = "task" | "terminal";
-
-export interface FlowcraftNodeDefinition {
-  id: FlowcraftNodeId;
-  title: string;
-  description: string;
-  kind: FlowcraftNodeKind;
+export interface FlowcraftWorkflowContext {
+  issue_id: string;
+  run_id: string;
+  execution_id: string;
+  started_at: string;
+  finished_at: string;
+  transport: TransportCorrelation | null;
 }
 
-export interface FlowcraftEdgeDefinition {
-  from: FlowcraftNodeId;
-  to: FlowcraftNodeId;
-  label?: string;
-}
+export type FlowcraftWorkflowDependencies = Record<string, never>;
 
 export interface FlowcraftWorkflowDefinition {
   id: FlowcraftWorkflowId;
   version: string;
   description: string;
-  nodes: FlowcraftNodeDefinition[];
-  edges: FlowcraftEdgeDefinition[];
+  flow: FlowBuilder<FlowcraftWorkflowContext, FlowcraftWorkflowDependencies>;
+  runtime: FlowRuntime<FlowcraftWorkflowContext, FlowcraftWorkflowDependencies>;
+  blueprint: WorkflowBlueprint;
+  analysis: BlueprintAnalysis;
+  lint: LinterResult;
 }
 
 export interface FlowcraftWorkflowSummary {
@@ -36,15 +46,18 @@ export interface FlowcraftWorkflowSummary {
 }
 
 export interface FlowcraftValidationIssue {
+  source: "analysis" | "lint";
   code: string;
   message: string;
   node_id: FlowcraftNodeId | null;
-  edge: FlowcraftEdgeDefinition | null;
+  edge: EdgeDefinition | null;
 }
 
 export interface FlowcraftValidationResult {
   workflow_id: FlowcraftWorkflowId;
   valid: boolean;
+  analysis: BlueprintAnalysis;
+  lint: LinterResult;
   issues: FlowcraftValidationIssue[];
 }
 
@@ -88,3 +101,5 @@ export interface FlowcraftExecutionPlan {
     data: Record<string, unknown>;
   }>;
 }
+
+export type FlowcraftNodeImplementation = NodeFunction | NodeClass;

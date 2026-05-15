@@ -8,14 +8,15 @@ export {
 } from "./runtime";
 
 export type {
-  FlowcraftEdgeDefinition,
   FlowcraftExecutionPlan,
-  FlowcraftNodeDefinition,
   FlowcraftNodeId,
+  FlowcraftNodeImplementation,
   FlowcraftPhaseEvent,
   FlowcraftValidationIssue,
   FlowcraftValidationResult,
+  FlowcraftWorkflowContext,
   FlowcraftWorkflowDefinition,
+  FlowcraftWorkflowDependencies,
   FlowcraftWorkflowSummary,
   FlowcraftWorkflowId,
 } from "./runtime";

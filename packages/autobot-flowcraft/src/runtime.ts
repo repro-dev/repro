@@ -1,56 +1,101 @@
-import type { TransportCorrelation } from "@repro/autobot-core";
-
+import type { EdgeDefinition } from "./flowcraft";
 import type {
-  FlowcraftEdgeDefinition,
   FlowcraftExecutionPlan,
-  FlowcraftNodeDefinition,
   FlowcraftNodeId,
+  FlowcraftNodeImplementation,
   FlowcraftPhaseEvent,
   FlowcraftValidationIssue,
   FlowcraftValidationResult,
+  FlowcraftWorkflowContext,
+  FlowcraftWorkflowDependencies,
   FlowcraftWorkflowDefinition,
   FlowcraftWorkflowId,
   FlowcraftWorkflowSummary,
 } from "./types";
+import {
+  analyzeBlueprint,
+  createFlow,
+  generateMermaid,
+  lintBlueprint,
+  FlowRuntime,
+} from "./flowcraft";
 
-function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
-  return {
-    id: "autobot-deliver-issue",
-    version: "1.0.0",
-    description:
-      "Claim an issue, reconcile the local and remote state, then complete the delivery skeleton.",
-    nodes: [
-      {
-        id: "claim",
-        title: "Claim",
-        description: "Mark the issue as claimed and begin the delivery run.",
-        kind: "task",
-      },
-      {
-        id: "reconcile",
-        title: "Reconcile",
-        description: "Align local state, remote state, and delivery intent.",
-        kind: "task",
-      },
-      {
-        id: "complete",
-        title: "Complete",
-        description: "Finish the bounded skeleton run.",
-        kind: "terminal",
-      },
-    ],
-    edges: [
-      { from: "claim", to: "reconcile" },
-      { from: "reconcile", to: "complete" },
-    ],
-  };
+import type { TransportCorrelation } from "@repro/autobot-core";
+
+const autobotDeliverIssueWorkflowId: FlowcraftWorkflowId =
+  "autobot-deliver-issue";
+const autobotDeliverIssueWorkflowVersion = "1.0.0";
+
+const phaseDefinitions: Record<
+  FlowcraftNodeId,
+  {
+    type: string;
+    state: FlowcraftPhaseEvent["state"];
+    message: string;
+  }
+> = {
+  claim: {
+    type: "workflow.phase.claimed",
+    state: "claimed",
+    message: "Issue claimed",
+  },
+  reconcile: {
+    type: "workflow.phase.reconciled",
+    state: "reconciling",
+    message: "Issue reconciled",
+  },
+  complete: {
+    type: "workflow.phase.completed",
+    state: "completed",
+    message: "Issue completed",
+  },
+};
+
+function createPhaseNode(nodeId: FlowcraftNodeId): FlowcraftNodeImplementation {
+  return async () => ({
+    output: {
+      phase: nodeId,
+      state: phaseDefinitions[nodeId].state,
+    },
+  });
 }
 
-// REP-1154 keeps FlowCraft as the local greenfield runtime skeleton here:
-// workflow definitions are the authoritative builder/runtime/analyzer source.
-export const flowcraftWorkflows = [
-  createAutobotDeliverIssueWorkflow(),
-] as const;
+function createAutobotDeliverIssueWorkflow(): FlowcraftWorkflowDefinition {
+  const flow = createFlow<
+    FlowcraftWorkflowContext,
+    FlowcraftWorkflowDependencies
+  >(autobotDeliverIssueWorkflowId)
+    .node("claim", createPhaseNode("claim"))
+    .node("reconcile", createPhaseNode("reconcile"))
+    .node("complete", createPhaseNode("complete"))
+    .edge("claim", "reconcile")
+    .edge("reconcile", "complete");
+
+  const blueprint = flow.toBlueprint();
+  const runtime = new FlowRuntime<
+    FlowcraftWorkflowContext,
+    FlowcraftWorkflowDependencies
+  >({
+    registry: Object.fromEntries(flow.getFunctionRegistry()) as Record<
+      string,
+      FlowcraftNodeImplementation
+    >,
+  });
+  const analysis = analyzeBlueprint(blueprint);
+  const lint = lintBlueprint(blueprint, flow.getFunctionRegistry());
+
+  return {
+    id: autobotDeliverIssueWorkflowId,
+    version: autobotDeliverIssueWorkflowVersion,
+    description:
+      "Claim an issue, reconcile the local and remote state, then complete the delivery skeleton.",
+    flow,
+    runtime,
+    blueprint,
+    analysis,
+    lint,
+  };
+}
 
 function toSummary(
   workflow: FlowcraftWorkflowDefinition,
@@ -59,145 +104,140 @@ function toSummary(
     id: workflow.id,
     version: workflow.version,
     description: workflow.description,
-    node_ids: workflow.nodes.map((node) => node.id),
-    edge_count: workflow.edges.length,
+    node_ids: workflow.blueprint.nodes.map(
+      (node) => node.id as FlowcraftNodeId,
+    ),
+    edge_count: workflow.blueprint.edges.length,
   };
 }
 
-function validateWorkflow(
-  workflow: FlowcraftWorkflowDefinition,
-): FlowcraftValidationResult {
-  const issues: FlowcraftValidationIssue[] = [];
-  const nodeIds = new Set<FlowcraftNodeId>();
+function findEdge(
+  blueprint: FlowcraftWorkflowDefinition["blueprint"],
+  source: string,
+  target: string,
+): EdgeDefinition | null {
+  return (
+    blueprint.edges.find(
+      (edge) => edge.source === source && edge.target === target,
+    ) ?? null
+  );
+}
 
-  if (workflow.nodes.length === 0) {
+function createAnalysisIssues(
+  workflow: FlowcraftWorkflowDefinition,
+): FlowcraftValidationIssue[] {
+  const issues: FlowcraftValidationIssue[] = [];
+
+  if (workflow.analysis.nodeCount === 0) {
     issues.push({
-      code: "flowcraft.workflow.empty",
+      source: "analysis",
+      code: "flowcraft.analysis.empty-blueprint",
       message: "Workflow has no nodes",
       node_id: null,
       edge: null,
     });
   }
 
-  for (const node of workflow.nodes) {
-    if (nodeIds.has(node.id)) {
-      issues.push({
-        code: "flowcraft.workflow.duplicate-node",
-        message: `Duplicate node id ${node.id}`,
-        node_id: node.id,
-        edge: null,
-      });
-    }
-
-    nodeIds.add(node.id);
-  }
-
-  for (const edge of workflow.edges) {
-    if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) {
-      issues.push({
-        code: "flowcraft.workflow.invalid-edge",
-        message: `Invalid edge ${edge.from} -> ${edge.to}`,
-        node_id: null,
-        edge,
-      });
-    }
-  }
-
-  const hasClaim = nodeIds.has("claim");
-  const hasReconcile = nodeIds.has("reconcile");
-  const hasComplete = nodeIds.has("complete");
-
-  if (!hasClaim || !hasReconcile || !hasComplete) {
+  for (const cycle of workflow.analysis.cycles) {
     issues.push({
-      code: "flowcraft.workflow.missing-phase",
-      message: "Workflow must include claim, reconcile, and complete phases",
+      source: "analysis",
+      code: "flowcraft.analysis.cycle",
+      message: `Cycle detected: ${cycle.join(" -> ")}`,
+      node_id: (cycle[0] as FlowcraftNodeId | undefined) ?? null,
+      edge: null,
+    });
+  }
+
+  if (workflow.analysis.startNodeIds.length === 0) {
+    issues.push({
+      source: "analysis",
+      code: "flowcraft.analysis.missing-start-node",
+      message: "Workflow has no start node",
       node_id: null,
       edge: null,
     });
   }
 
+  if (workflow.analysis.terminalNodeIds.length === 0) {
+    issues.push({
+      source: "analysis",
+      code: "flowcraft.analysis.missing-terminal-node",
+      message: "Workflow has no terminal node",
+      node_id: null,
+      edge: null,
+    });
+  }
+
+  return issues;
+}
+
+function createLintIssues(
+  workflow: FlowcraftWorkflowDefinition,
+): FlowcraftValidationIssue[] {
+  return workflow.lint.issues.map((issue) => ({
+    source: "lint",
+    code: `flowcraft.lint.${issue.code.toLowerCase()}`,
+    message: issue.message,
+    node_id: (issue.nodeId as FlowcraftNodeId | undefined) ?? null,
+    edge:
+      issue.nodeId !== undefined && issue.relatedId !== undefined
+        ? findEdge(workflow.blueprint, issue.nodeId, issue.relatedId)
+        : null,
+  }));
+}
+
+function validateWorkflow(
+  workflow: FlowcraftWorkflowDefinition,
+): FlowcraftValidationResult {
+  const analysisIssues = createAnalysisIssues(workflow);
+  const lintIssues = createLintIssues(workflow);
+
   return {
     workflow_id: workflow.id,
-    valid: issues.length === 0,
-    issues,
+    valid: analysisIssues.length === 0 && workflow.lint.isValid,
+    analysis: workflow.analysis,
+    lint: workflow.lint,
+    issues: [...analysisIssues, ...lintIssues],
   };
 }
 
-function renderNode(node: FlowcraftNodeDefinition): string {
-  switch (node.kind) {
-    case "task":
-      return `${node.id}["${node.title}"]`;
-    case "terminal":
-      return `${node.id}(("${node.title}"))`;
-  }
-}
-
-function renderEdge(edge: FlowcraftEdgeDefinition): string {
-  return edge.label === undefined
-    ? `${edge.from} --> ${edge.to}`
-    : `${edge.from} -- ${edge.label} --> ${edge.to}`;
-}
-
 function renderWorkflowDiagram(workflow: FlowcraftWorkflowDefinition): string {
-  const lines = [
-    "flowchart TD",
-    `  %% ${workflow.id} v${workflow.version}`,
-    ...workflow.nodes.map((node) => `  ${renderNode(node)}`),
-    ...workflow.edges.map((edge) => `  ${renderEdge(edge)}`),
-  ];
-
-  return `${lines.join("\n")}\n`;
+  return generateMermaid(workflow.blueprint);
 }
 
 function phaseEventsForIssue(input: {
+  workflow: FlowcraftWorkflowDefinition;
   issue_id: string;
   run_id: string;
   execution_id: string;
   started_at: string;
   transport: TransportCorrelation | null;
 }): FlowcraftPhaseEvent[] {
-  return [
-    {
-      phase: "claim",
-      type: "workflow.phase.claimed",
-      state: "claimed",
-      message: "Issue claimed",
+  return input.workflow.blueprint.nodes.map((node) => {
+    const phase = node.id as FlowcraftNodeId;
+    const definition = phaseDefinitions[phase];
+
+    return {
+      phase,
+      type: definition.type,
+      state: definition.state,
+      message: definition.message,
       occurred_at: input.started_at,
       data: {
         issue_id: input.issue_id,
         run_id: input.run_id,
         execution_id: input.execution_id,
+        workflow_id: input.workflow.id,
+        workflow_version: input.workflow.version,
         transport: input.transport,
       },
-    },
-    {
-      phase: "reconcile",
-      type: "workflow.phase.reconciled",
-      state: "reconciling",
-      message: "Issue reconciled",
-      occurred_at: input.started_at,
-      data: {
-        issue_id: input.issue_id,
-        run_id: input.run_id,
-        execution_id: input.execution_id,
-        transport: input.transport,
-      },
-    },
-    {
-      phase: "complete",
-      type: "workflow.phase.completed",
-      state: "completed",
-      message: "Issue completed",
-      occurred_at: input.started_at,
-      data: {
-        issue_id: input.issue_id,
-        run_id: input.run_id,
-        execution_id: input.execution_id,
-        transport: input.transport,
-      },
-    },
-  ];
+    };
+  });
 }
+
+export const flowcraftWorkflows = [
+  createAutobotDeliverIssueWorkflow(),
+] as const;
 
 export function listFlowcraftWorkflows(): FlowcraftWorkflowSummary[] {
   return flowcraftWorkflows.map(toSummary);
@@ -243,6 +283,7 @@ export function buildFlowcraftExecutionPlan(input: {
   };
 
   const phaseEvents = phaseEventsForIssue({
+    workflow,
     issue_id: input.issue_id,
     run_id: input.run_id,
     execution_id: input.execution_id,
@@ -344,14 +385,15 @@ export function buildFlowcraftExecutionPlan(input: {
 }
 
 export type {
-  FlowcraftEdgeDefinition,
   FlowcraftExecutionPlan,
-  FlowcraftNodeDefinition,
   FlowcraftNodeId,
+  FlowcraftNodeImplementation,
   FlowcraftPhaseEvent,
   FlowcraftValidationIssue,
   FlowcraftValidationResult,
+  FlowcraftWorkflowContext,
   FlowcraftWorkflowDefinition,
-  FlowcraftWorkflowSummary,
   FlowcraftWorkflowId,
+  FlowcraftWorkflowDependencies,
+  FlowcraftWorkflowSummary,
 } from "./types";

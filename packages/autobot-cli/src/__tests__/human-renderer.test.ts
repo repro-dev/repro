@@ -37,6 +37,18 @@ test("workflow renderers keep the stable FlowCraft skeleton visible", () => {
       {
         workflow_id: "autobot-deliver-issue",
         valid: true,
+        analysis: {
+          cycles: [],
+          startNodeIds: ["claim"],
+          terminalNodeIds: ["complete"],
+          nodeCount: 3,
+          edgeCount: 2,
+          isDag: true,
+        },
+        lint: {
+          isValid: true,
+          issues: [],
+        },
         issues: [],
       },
     ]),

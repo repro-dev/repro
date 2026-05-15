@@ -21,6 +21,7 @@ export interface ItemStateFilter {
 
 export interface ItemProjections {
   listItems(input?: ItemStateFilter): FutureInstance<unknown, ItemSummary[]>
+  getNextRunnableItem(): FutureInstance<unknown, ItemSummary | null>
   getItemDetail(
     issueId: string,
     options?: ItemDetailOptions
@@ -163,6 +164,19 @@ export function createItemProjections(db: Db): ItemProjections {
         return () => undefined
       })
     },
+    getNextRunnableItem() {
+      return Future((reject, resolve) => {
+        void listQuery(db)
+          .limit(1)
+          .executeTakeFirst()
+          .then(
+            row => resolve(row === undefined ? null : fromItemRow(row)),
+            reject
+          )
+
+        return () => undefined
+      })
+    },
     getItemDetail(issueId, options) {
       return Future((reject, resolve) => {
         void (async () => {
@@ -224,6 +238,10 @@ export function createItemProjections(db: Db): ItemProjections {
 
 export function listItems(db: Db, input?: ItemStateFilter) {
   return createItemProjections(db).listItems(input)
+}
+
+export function getNextRunnableItem(db: Db) {
+  return createItemProjections(db).getNextRunnableItem()
 }
 
 export function getItemDetail(

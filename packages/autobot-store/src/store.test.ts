@@ -100,6 +100,102 @@ test('initializes sqlite state and FlowCraft indexes', async () => {
   await runFuture(store.close())
 })
 
+test('next runnable projection returns the newest non-terminal item', async () => {
+  const repoRoot = await makeRepoRoot()
+  const store = await openStore(repoRoot)
+
+  await runFuture(
+    store.items.upsert({
+      issue_id: 'REP-1150',
+      title: 'Queued item',
+      url: 'https://linear.app/repro/issue/REP-1150/queued-item',
+      state: 'queued',
+      attempt: 1,
+      priority: 2,
+      owner: 'gary',
+      workspace: 'repro',
+      branch: 'autobot/REP-1150',
+      queued_at: '2026-05-14T09:00:00Z',
+      started_at: null,
+      updated_at: '2026-05-14T09:01:00Z',
+      last_event: 'item.queued',
+      last_error: null,
+      recovery_commands: [],
+      cancellation_requested: false,
+      cancellation_requested_at: null,
+      state_name: 'Backlog',
+      state_type: 'planned',
+      project: 'Platform',
+      labels: ['Feature'],
+      assignee: 'Gary',
+      current_run_id: null,
+    })
+  )
+
+  await runFuture(
+    store.items.upsert({
+      issue_id: 'REP-1151',
+      title: 'Completed item',
+      url: 'https://linear.app/repro/issue/REP-1151/completed-item',
+      state: 'completed',
+      attempt: 1,
+      priority: 2,
+      owner: 'gary',
+      workspace: 'repro',
+      branch: 'autobot/REP-1151',
+      queued_at: '2026-05-14T09:02:00Z',
+      started_at: '2026-05-14T09:03:00Z',
+      updated_at: '2026-05-14T09:04:00Z',
+      last_event: 'item.completed',
+      last_error: null,
+      recovery_commands: [],
+      cancellation_requested: false,
+      cancellation_requested_at: null,
+      state_name: 'Done',
+      state_type: 'completed',
+      project: 'Platform',
+      labels: ['Feature'],
+      assignee: 'Gary',
+      current_run_id: null,
+    })
+  )
+
+  await runFuture(
+    store.items.upsert({
+      issue_id: 'REP-1152',
+      title: 'Claimed item',
+      url: 'https://linear.app/repro/issue/REP-1152/claimed-item',
+      state: 'claimed',
+      attempt: 1,
+      priority: 2,
+      owner: 'gary',
+      workspace: 'repro',
+      branch: 'autobot/REP-1152',
+      queued_at: '2026-05-14T09:05:00Z',
+      started_at: '2026-05-14T09:06:00Z',
+      updated_at: '2026-05-14T09:07:00Z',
+      last_event: 'item.claimed',
+      last_error: null,
+      recovery_commands: [],
+      cancellation_requested: false,
+      cancellation_requested_at: null,
+      state_name: 'In Progress',
+      state_type: 'started',
+      project: 'Platform',
+      labels: ['Feature'],
+      assignee: 'Gary',
+      current_run_id: null,
+    })
+  )
+
+  const nextRunnable = await runFuture(store.projections.getNextRunnableItem())
+
+  assert.equal(nextRunnable?.issue_id, 'REP-1152')
+  assert.equal(nextRunnable?.state, 'claimed')
+
+  await runFuture(store.close())
+})
+
 test('event pagination is exhaustive for identical timestamps', async () => {
   const repoRoot = await makeRepoRoot()
   const store = await openStore(repoRoot)

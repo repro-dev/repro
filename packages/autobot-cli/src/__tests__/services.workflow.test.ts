@@ -80,31 +80,32 @@ function makeWorkflowStore() {
     },
     projections: {
       listItems() {
-        return resolve([
-          {
-            issue_id: "REP-1154",
-            title: "Ship FlowCraft workflow skeleton",
-            url: "https://linear.app/repro/issue/REP-1154/ship-flowcraft-workflow-skeleton",
-            state: "claimed",
-            attempt: 1,
-            priority: 2,
-            owner: "Gary",
-            workspace: "autobot",
-            branch: "autobot/REP-1154",
-            queued_at: "2026-05-15T11:00:00Z",
-            started_at: "2026-05-15T11:05:00Z",
-            updated_at: "2026-05-15T11:05:00Z",
-            last_event: null,
-            last_error: null,
-            recovery_commands: [],
-            linear: null,
-            current_run: null,
-            cancellation_requested: false,
-            cancellation_requested_at: null,
-            artifacts: [],
-            events: [],
-          },
-        ]);
+        throw new Error("listItems should not be used for engine run-once");
+      },
+      getNextRunnableItem() {
+        return resolve({
+          issue_id: "REP-1154",
+          title: "Ship FlowCraft workflow skeleton",
+          url: "https://linear.app/repro/issue/REP-1154/ship-flowcraft-workflow-skeleton",
+          state: "claimed",
+          attempt: 1,
+          priority: 2,
+          owner: "Gary",
+          workspace: "autobot",
+          branch: "autobot/REP-1154",
+          queued_at: "2026-05-15T11:00:00Z",
+          started_at: "2026-05-15T11:05:00Z",
+          updated_at: "2026-05-15T11:05:00Z",
+          last_event: null,
+          last_error: null,
+          recovery_commands: [],
+          linear: null,
+          current_run: null,
+          cancellation_requested: false,
+          cancellation_requested_at: null,
+          artifacts: [],
+          events: [],
+        });
       },
       getItemDetail() {
         return resolve(null);

@@ -1206,11 +1206,9 @@ function handleEngineRunOnce(
   now: () => string,
   randomId: () => string,
 ): FutureInstance<unknown, AutobotCommandResult> {
-  return store.projections.listItems().pipe(
-    chain((items): FutureInstance<unknown, AutobotCommandResult> => {
-      const target = items.find((item) => isInProgressState(item.state));
-
-      if (target === undefined) {
+  return store.projections.getNextRunnableItem().pipe(
+    chain((target): FutureInstance<unknown, AutobotCommandResult> => {
+      if (target === null) {
         return createQueueStatus(store);
       }
 
