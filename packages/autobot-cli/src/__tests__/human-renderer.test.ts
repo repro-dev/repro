@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ItemDetail, ItemSummary } from "@repro/autobot-core";
@@ -5,10 +6,152 @@ import type { ItemDetail, ItemSummary } from "@repro/autobot-core";
 import { assertNormalizedEqual } from "./helpers";
 import {
   renderAutobotDiscoverResults,
+  renderAutobotFlowcraftInspect,
   renderAutobotItemDetail,
   renderAutobotItemSummary,
+  renderAutobotWorkflowDiagram,
+  renderAutobotWorkflowList,
+  renderAutobotWorkflowValidation,
 } from "../render/human";
 import type { DiscoverData } from "../types";
+
+test("workflow renderers keep the stable FlowCraft skeleton visible", () => {
+  assertNormalizedEqual(
+    renderAutobotWorkflowList([
+      {
+        id: "autobot-deliver-issue",
+        version: "1.0.0",
+        description: "Claim an issue, reconcile the state, then complete it.",
+        node_ids: ["claim", "reconcile", "complete"],
+        edge_count: 2,
+      },
+    ]),
+    `
+    Workflow list
+    autobot-deliver-issue v1.0.0 · claim → reconcile → complete
+    `,
+  );
+
+  assertNormalizedEqual(
+    renderAutobotWorkflowValidation([
+      {
+        workflow_id: "autobot-deliver-issue",
+        valid: true,
+        analysis: {
+          cycles: [],
+          startNodeIds: ["claim"],
+          terminalNodeIds: ["complete"],
+          nodeCount: 3,
+          edgeCount: 2,
+          isDag: true,
+        },
+        lint: {
+          isValid: true,
+          issues: [],
+        },
+        issues: [],
+      },
+    ]),
+    `
+    Workflow validation
+    autobot-deliver-issue: valid
+    `,
+  );
+
+  assert.match(
+    renderAutobotWorkflowDiagram("flowchart TD\nclaim --> reconcile\n"),
+    /flowchart TD/,
+  );
+});
+
+test("flowcraft inspect renderer includes persisted transports but keeps raw payloads scoped", () => {
+  assertNormalizedEqual(
+    renderAutobotFlowcraftInspect({
+      lookup: {
+        kind: "flowcraft-execution",
+        identifier: "exec-1154",
+        issue_id: "REP-1154",
+        run: {
+          run_id: "run-1154",
+          issue_id: "REP-1154",
+          attempt: 1,
+          state: "completed",
+          flowcraft_execution_id: "exec-1154",
+          blueprint_id: "autobot-deliver-issue",
+          blueprint_version: "1.0.0",
+          started_at: "2026-05-15T11:00:00Z",
+          finished_at: "2026-05-15T11:00:01Z",
+          worker_id: null,
+          last_heartbeat_at: null,
+          transport: {
+            source: "relay",
+            workspace_id: "relay-workspace",
+            channel_id: "relay-channel",
+            thread_id: "relay-thread",
+            agent_id: "relay-agent",
+            message_id: "relay-message",
+          },
+        },
+        execution: {
+          execution_id: "exec-1154",
+          issue_id: "REP-1154",
+          run_id: "run-1154",
+          state: "completed",
+          started_at: "2026-05-15T11:00:00Z",
+          finished_at: "2026-05-15T11:00:01Z",
+          metadata: {
+            workflow_id: "autobot-deliver-issue",
+            workflow_version: "1.0.0",
+            bounded: true,
+            status: "completed",
+          },
+        },
+        domain_events: [
+          {
+            event_id: "event-1",
+            issue_id: "REP-1154",
+            run_id: "run-1154",
+            type: "workflow.phase.claimed",
+            state: "claimed",
+            message: "Issue claimed",
+            severity: "info",
+            occurred_at: "2026-05-15T11:00:00Z",
+            actor: "autobot-flowcraft",
+            transport: null,
+            data: {},
+          },
+        ],
+        flowcraft_events: [
+          {
+            flowcraft_event_id: "flowcraft-1",
+            execution_id: "exec-1154",
+            node_id: "claim",
+            type: "execution.started",
+            occurred_at: "2026-05-15T11:00:00Z",
+            data: {},
+          },
+        ],
+      },
+    }),
+    `
+    Inspect: exec-1154
+    Lookup: flowcraft-execution
+    Issue: REP-1154
+    Execution: exec-1154
+    Workflow state: completed
+    Started: 2026-05-15T11:00:00Z
+    Finished: 2026-05-15T11:00:01Z
+    Metadata: {"workflow_id":"autobot-deliver-issue","workflow_version":"1.0.0","bounded":true,"status":"completed"}
+    Transport:
+      workspace_id: relay-workspace
+      channel_id: relay-channel
+    Domain events:
+      2026-05-15T11:00:00Z workflow.phase.claimed Issue claimed
+    FlowCraft events:
+      2026-05-15T11:00:00Z claim execution.started {}
+    `,
+  );
+});
 
 test("item summary renderer uses the shared core contract", () => {
   const item: ItemSummary = {

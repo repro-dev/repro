@@ -198,6 +198,41 @@ test("config list renders unset defaults explicitly", async () => {
   assert.match(io.read().stdout, /default: \(unset\)/);
 });
 
+test("workflow list renders the FlowCraft skeleton summary", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "workflow", "list"], io.io, {
+      handleInvocation() {
+        return resolve({
+          kind: "workflow-list",
+          command: "autobot-next workflow list",
+          repo: {
+            path: "/worktrees/autobot",
+            state_dir: ".autobot",
+          },
+          data: {
+            workflows: [
+              {
+                id: "autobot-deliver-issue",
+                version: "1.0.0",
+                description: "Claim an issue, reconcile state, then complete.",
+                node_ids: ["claim", "reconcile", "complete"],
+                edge_count: 2,
+              },
+            ],
+          },
+          warnings: [],
+        });
+      },
+    }),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.match(io.read().stdout, /Workflow list/);
+  assert.match(io.read().stdout, /claim → reconcile → complete/);
+});
+
 test("discover quiet output prints issue ids only", async () => {
   const io = createIo();
 

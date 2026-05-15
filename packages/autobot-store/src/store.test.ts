@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterEach, test } from 'node:test'
 
 import SQLiteDatabase from 'better-sqlite3'
-import { fork, type FutureInstance } from 'fluture'
+import { chain, fork, Future, type FutureInstance } from 'fluture'
 
 import { createAutobotStore } from './client'
 import type { AutobotStore } from './repositories'
@@ -55,8 +55,14 @@ test('initializes sqlite state and FlowCraft indexes', async () => {
   const migrations = db
     .prepare('SELECT name FROM autobot_migrations ORDER BY name')
     .all() as Array<{ name: string }>
-  assert.equal(migrations.length, 1)
-  assert.equal(migrations[0]?.name, '0001_initial_schema')
+  assert.deepEqual(
+    migrations.map(migration => migration.name),
+    [
+      '0001_initial_schema',
+      '0002_transport_metadata',
+      '0003_domain_event_run_lookup',
+    ]
+  )
 
   const flowcraftIndexes = db
     .prepare("PRAGMA index_list('flowcraft_executions')")
@@ -79,12 +85,114 @@ test('initializes sqlite state and FlowCraft indexes', async () => {
   )
   assert.equal(
     domainEventIndexes.some(
+      index => index.name === 'idx_domain_events_run_occurred_at_event_id'
+    ),
+    true
+  )
+  assert.equal(
+    domainEventIndexes.some(
       index => index.name === 'idx_domain_events_occurred_at_event_id'
     ),
     true
   )
 
   db.close()
+  await runFuture(store.close())
+})
+
+test('next runnable projection returns the newest non-terminal item', async () => {
+  const repoRoot = await makeRepoRoot()
+  const store = await openStore(repoRoot)
+
+  await runFuture(
+    store.items.upsert({
+      issue_id: 'REP-1150',
+      title: 'Queued item',
+      url: 'https://linear.app/repro/issue/REP-1150/queued-item',
+      state: 'queued',
+      attempt: 1,
+      priority: 2,
+      owner: 'gary',
+      workspace: 'repro',
+      branch: 'autobot/REP-1150',
+      queued_at: '2026-05-14T09:00:00Z',
+      started_at: null,
+      updated_at: '2026-05-14T09:01:00Z',
+      last_event: 'item.queued',
+      last_error: null,
+      recovery_commands: [],
+      cancellation_requested: false,
+      cancellation_requested_at: null,
+      state_name: 'Backlog',
+      state_type: 'planned',
+      project: 'Platform',
+      labels: ['Feature'],
+      assignee: 'Gary',
+      current_run_id: null,
+    })
+  )
+
+  await runFuture(
+    store.items.upsert({
+      issue_id: 'REP-1151',
+      title: 'Completed item',
+      url: 'https://linear.app/repro/issue/REP-1151/completed-item',
+      state: 'completed',
+      attempt: 1,
+      priority: 2,
+      owner: 'gary',
+      workspace: 'repro',
+      branch: 'autobot/REP-1151',
+      queued_at: '2026-05-14T09:02:00Z',
+      started_at: '2026-05-14T09:03:00Z',
+      updated_at: '2026-05-14T09:04:00Z',
+      last_event: 'item.completed',
+      last_error: null,
+      recovery_commands: [],
+      cancellation_requested: false,
+      cancellation_requested_at: null,
+      state_name: 'Done',
+      state_type: 'completed',
+      project: 'Platform',
+      labels: ['Feature'],
+      assignee: 'Gary',
+      current_run_id: null,
+    })
+  )
+
+  await runFuture(
+    store.items.upsert({
+      issue_id: 'REP-1152',
+      title: 'Claimed item',
+      url: 'https://linear.app/repro/issue/REP-1152/claimed-item',
+      state: 'claimed',
+      attempt: 1,
+      priority: 2,
+      owner: 'gary',
+      workspace: 'repro',
+      branch: 'autobot/REP-1152',
+      queued_at: '2026-05-14T09:05:00Z',
+      started_at: '2026-05-14T09:06:00Z',
+      updated_at: '2026-05-14T09:07:00Z',
+      last_event: 'item.claimed',
+      last_error: null,
+      recovery_commands: [],
+      cancellation_requested: false,
+      cancellation_requested_at: null,
+      state_name: 'In Progress',
+      state_type: 'started',
+      project: 'Platform',
+      labels: ['Feature'],
+      assignee: 'Gary',
+      current_run_id: null,
+    })
+  )
+
+  const nextRunnable = await runFuture(store.projections.getNextRunnableItem())
+
+  assert.equal(nextRunnable?.issue_id, 'REP-1152')
+  assert.equal(nextRunnable?.state, 'claimed')
+
   await runFuture(store.close())
 })
 
@@ -132,6 +240,7 @@ test('event pagination is exhaustive for identical timestamps', async () => {
         severity: 'info',
         occurred_at: '2026-05-14T09:00:00Z',
         actor: 'engine',
+        transport: null,
         data: { index },
       })
     )
@@ -236,6 +345,7 @@ test('domain events remain append-only through the database', async () => {
       severity: 'info',
       occurred_at: '2026-05-14T09:05:00Z',
       actor: 'engine',
+      transport: null,
       data: {},
     })
   )
@@ -252,6 +362,100 @@ test('domain events remain append-only through the database', async () => {
       'evt-append-only'
     )
   }, /append-only/i)
+
+  db.close()
+  await runFuture(store.close())
+})
+
+test('run records persist transport correlation metadata through the store API', async () => {
+  const repoRoot = await makeRepoRoot()
+  const store = await openStore(repoRoot)
+  const db = openRawDb(repoRoot)
+
+  const inserted = await runFuture(
+    store.runs.upsert({
+      run_id: 'run-transport',
+      issue_id: 'REP-1150',
+      attempt: 1,
+      state: 'completed',
+      flowcraft_execution_id: 'flowcraft-run-transport',
+      blueprint_id: 'autobot-deliver-issue',
+      blueprint_version: '1.0.0',
+      started_at: '2026-05-15T12:00:00Z',
+      finished_at: '2026-05-15T12:00:01Z',
+      worker_id: null,
+      last_heartbeat_at: null,
+      transport: {
+        source: 'relay',
+        workspace_id: 'relay-workspace',
+        channel_id: 'relay-channel',
+        thread_id: 'relay-thread',
+        agent_id: 'relay-agent',
+        message_id: 'relay-message',
+      },
+    })
+  )
+
+  assert.equal(inserted.transport?.channel_id, 'relay-channel')
+  const row = db
+    .prepare('SELECT transport_json FROM runs WHERE run_id = ?')
+    .get('run-transport') as { transport_json: string | null }
+  assert.equal(
+    row.transport_json,
+    JSON.stringify({
+      source: 'relay',
+      workspace_id: 'relay-workspace',
+      channel_id: 'relay-channel',
+      thread_id: 'relay-thread',
+      agent_id: 'relay-agent',
+      message_id: 'relay-message',
+    })
+  )
+
+  db.close()
+  await runFuture(store.close())
+})
+
+test('store transactions roll back a partial persistence sequence', async () => {
+  const repoRoot = await makeRepoRoot()
+  const store = await openStore(repoRoot)
+  const db = openRawDb(repoRoot)
+
+  await assert.rejects(
+    runFuture(
+      store.transaction(transaction =>
+        transaction.runs
+          .upsert({
+            run_id: 'run-rollback',
+            issue_id: 'REP-1150',
+            attempt: 1,
+            state: 'completed',
+            flowcraft_execution_id: 'flowcraft-run-rollback',
+            blueprint_id: 'autobot-deliver-issue',
+            blueprint_version: '1.0.0',
+            started_at: '2026-05-15T12:10:00Z',
+            finished_at: '2026-05-15T12:10:01Z',
+            worker_id: null,
+            last_heartbeat_at: null,
+            transport: null,
+          })
+          .pipe(
+            chain(() =>
+              Future(reject => {
+                reject(new Error('boom'))
+                return () => undefined
+              })
+            )
+          )
+      )
+    ),
+    /boom/
+  )
+
+  const row = db
+    .prepare('SELECT run_id FROM runs WHERE run_id = ?')
+    .get('run-rollback') as { run_id?: string } | undefined
+  assert.equal(row, undefined)
 
   db.close()
   await runFuture(store.close())

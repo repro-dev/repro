@@ -21,6 +21,7 @@
   "dependencies": {
     "@repro/autobot-adapters": "workspace:*",
     "@repro/autobot-core": "workspace:*",
+    "@repro/autobot-flowcraft": "workspace:*",
     "@repro/autobot-store": "workspace:*",
     "commander": "^12.1.0",
     "fluture": "^14.0.0",

@@ -1561,6 +1561,9 @@ importers:
       '@repro/autobot-core':
         specifier: workspace:*
         version: link:../autobot-core
+      '@repro/autobot-flowcraft':
+        specifier: workspace:*
+        version: link:../autobot-flowcraft
       '@repro/autobot-store':
         specifier: workspace:*
         version: link:../autobot-store
@@ -1609,6 +1612,16 @@ importers:
         version: 5.7.3
 
   packages/autobot-flowcraft:
+    dependencies:
+      '@repro/autobot-core':
+        specifier: workspace:*
+        version: link:../autobot-core
+      flowcraft:
+        specifier: 2.10.1
+        version: 2.10.1
+      fluture:
+        specifier: ^14.0.0
+        version: 14.0.0
     devDependencies:
       '@types/node':
         specifier: 22.14.0
@@ -1619,6 +1632,9 @@ importers:
       prettier-plugin-organize-imports:
         specifier: ^3.2.3
         version: 3.2.3(prettier@3.8.1)(typescript@5.7.3)
+      tsx:
+        specifier: 4.19.3
+        version: 4.19.3
       typescript:
         specifier: 5.7.3
         version: 5.7.3
@@ -7064,6 +7080,9 @@ packages:
 
   flatted@3.3.3:
     resolution: {integrity: sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==}
+
+  flowcraft@2.10.1:
+    resolution: {integrity: sha512-+wt28fosbqwadgdbM9TYSXQHDBNGla9r8Ky1Y3zZbRW8B0mIz+Q/2RnTmsHKemmbKEOzETKGwM2TxcghcGHULg==}
 
   fluture@14.0.0:
     resolution: {integrity: sha512-pENtLF948a8DfduVKugT8edTAbFi4rBS94xjHwzLanQqIu5PYtLGl+xqs6H8TaIRL7z/B0cDpswdINzH/HRUGA==}
@@ -14671,6 +14690,8 @@ snapshots:
       keyv: 4.5.4
 
   flatted@3.3.3: {}
+
+  flowcraft@2.10.1: {}
 
   fluture@14.0.0:
     dependencies:

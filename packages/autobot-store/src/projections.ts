@@ -5,6 +5,7 @@ import type {
   LinearIssueRef,
   ItemSummary,
   RunSummary,
+  TransportCorrelation,
 } from '@repro/autobot-core'
 import { Future, type FutureInstance } from 'fluture'
 import type { Kysely, Selectable } from 'kysely'
@@ -20,6 +21,7 @@ export interface ItemStateFilter {
 
 export interface ItemProjections {
   listItems(input?: ItemStateFilter): FutureInstance<unknown, ItemSummary[]>
+  getNextRunnableItem(): FutureInstance<unknown, ItemSummary | null>
   getItemDetail(
     issueId: string,
     options?: ItemDetailOptions
@@ -62,6 +64,7 @@ function fromRunRow(row: Selectable<AutobotSchema['runs']>): RunSummary {
     finished_at: row.finished_at,
     worker_id: row.worker_id,
     last_heartbeat_at: row.last_heartbeat_at,
+    transport: decodeJsonNullable<TransportCorrelation>(row.transport_json),
   }
 }
 
@@ -107,6 +110,7 @@ function fromEventRow(
     severity: row.severity as DomainEvent['severity'],
     occurred_at: row.occurred_at,
     actor: row.actor,
+    transport: decodeJsonNullable<TransportCorrelation>(row.transport_json),
     data: decodeJsonNullable<Record<string, unknown>>(row.data_json) ?? {},
   }
 }
@@ -157,6 +161,19 @@ export function createItemProjections(db: Db): ItemProjections {
         void listQuery(db, input)
           .execute()
           .then(rows => resolve(rows.map(fromItemRow)), reject)
+        return () => undefined
+      })
+    },
+    getNextRunnableItem() {
+      return Future((reject, resolve) => {
+        void listQuery(db)
+          .limit(1)
+          .executeTakeFirst()
+          .then(
+            row => resolve(row === undefined ? null : fromItemRow(row)),
+            reject
+          )
+
         return () => undefined
       })
     },
@@ -221,6 +238,10 @@ export function createItemProjections(db: Db): ItemProjections {
 
 export function listItems(db: Db, input?: ItemStateFilter) {
   return createItemProjections(db).listItems(input)
+}
+
+export function getNextRunnableItem(db: Db) {
+  return createItemProjections(db).getNextRunnableItem()
 }
 
 export function getItemDetail(

@@ -234,8 +234,8 @@ export function createAutobotProgram(
   registerLeafCommand(
     program,
     {
-      command: "inspect <issue-id>",
-      description: "inspect the execution history",
+      command: "inspect <run-id|flowcraft-execution-id>",
+      description: "inspect a flowcraft execution",
     },
     options.onInvocation,
   );
