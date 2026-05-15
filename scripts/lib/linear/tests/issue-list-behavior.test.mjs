@@ -26,6 +26,7 @@ test("issue list constructs server-side filters and forwards pagination", async 
     comments: [],
     relations: [],
     inverseRelations: [],
+    graphqlRequests: [],
   };
 
   const result = await execute(
@@ -169,6 +170,7 @@ test("issue list forwards leaf and unblocked filters together", async () => {
     comments: [],
     relations: [],
     inverseRelations: [],
+    graphqlRequests: [],
   };
 
   const result = await execute(
@@ -221,6 +223,39 @@ test("issue list keeps SDK-style methods bound when invoking queries", async () 
   });
 
   assert.equal(result.code, 0);
+});
+
+test("issue list hydrates human display fields eagerly", async () => {
+  const records = {
+    teams: [],
+    states: [],
+    labels: [],
+    projects: [],
+    issues: [],
+    users: [],
+    projectMilestones: [],
+    issueLabels: [],
+    comments: [],
+    relations: [],
+    inverseRelations: [],
+    graphqlRequests: [],
+  };
+
+  const result = await execute(["issue", "list"], {
+    env: { LINEAR_API_KEY: "api", LINEAR_TEAM: "REP" },
+    clientFactory: async () => makeClient(records),
+  });
+
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /REP-875\s+Backlog item\s+Backlog\s+Medium/);
+  assert.equal(records.graphqlRequests.length, 1);
+  assert.equal(records.issues.length, 0);
+  assert.equal(records.labels.length, 0);
+  assert.equal(records.projectMilestones.length, 0);
+  assert.equal(records.users.length, 0);
+  assert.equal(records.comments.length, 0);
+  assert.equal(records.relations.length, 0);
+  assert.equal(records.inverseRelations.length, 0);
 });
 
 test("issue list defaults to backlog and todo when no filters are supplied", async () => {
@@ -766,13 +801,19 @@ test("issue show returns the shared serializer plus description, comments, and r
   assert.equal(payload.item.relations.duplicateOf[0].identifier, "REP-878");
   assert.equal(payload.item.relations.duplicates.length, 1);
   assert.equal(payload.item.relations.duplicates[0].identifier, "REP-881");
-  assert.equal(records.labels.length, 1);
+  assert.equal(records.graphqlRequests.length, 1);
+  assert.match(records.graphqlRequests[0].query, /\$number: Float!/);
+  assert.match(records.graphqlRequests[0].query, /comments \{/);
+  assert.match(records.graphqlRequests[0].query, /relations \{/);
+  assert.match(records.graphqlRequests[0].query, /inverseRelations \{/);
+  assert.doesNotMatch(records.graphqlRequests[0].query, /author \{/);
+  assert.equal(records.labels.length, 0);
   assert.deepEqual(records.issueLabels, []);
-  assert.equal(records.relationIssueAccesses.length, 6);
-  assert.equal(records.relationRelatedIssueAccesses.length, 6);
-  assert.deepEqual(records.comments, [{ first: 50 }]);
-  assert.deepEqual(records.relations, [{ first: 50 }]);
-  assert.deepEqual(records.inverseRelations, [{ first: 50 }]);
+  assert.equal(records.relationIssueAccesses.length, 0);
+  assert.equal(records.relationRelatedIssueAccesses.length, 0);
+  assert.deepEqual(records.comments, []);
+  assert.deepEqual(records.relations, []);
+  assert.deepEqual(records.inverseRelations, []);
 });
 
 test("issue show human output includes blockers and comments", async () => {
@@ -788,6 +829,7 @@ test("issue show human output includes blockers and comments", async () => {
     comments: [],
     relations: [],
     inverseRelations: [],
+    graphqlRequests: [],
   };
 
   const result = await execute(["issue", "show", "REP-875"], {
@@ -801,4 +843,5 @@ test("issue show human output includes blockers and comments", async () => {
   assert.match(result.stdout, /Related:/);
   assert.match(result.stdout, /Comments:/);
   assert.match(result.stdout, /Looks good to me\./);
+  assert.equal(records.graphqlRequests.length, 1);
 });

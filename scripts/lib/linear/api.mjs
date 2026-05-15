@@ -52,6 +52,73 @@ export async function createLinearClient(apiKey, clientFactory) {
   return new LinearClient({ apiKey });
 }
 
+const ISSUE_BY_NUMBER_SUMMARY_FIELDS = [
+  "id",
+  "identifier",
+  "title",
+  "url",
+  "state { id name type }",
+  "assignee { id name displayName email }",
+].join("\n            ");
+
+const ISSUE_BY_NUMBER_QUERY = [
+  "query IssueByNumber($teamId: String!, $number: Float!) {",
+  "  team(id: $teamId) {",
+  "    issues(filter: { number: { eq: $number } }, first: 1) {",
+  "      nodes {",
+  "        id",
+  "        identifier",
+  "        title",
+  "        url",
+  "        priority",
+  "        priorityLabel",
+  "        updatedAt",
+  "        description",
+  "        project { id name url updatedAt }",
+  "        projectMilestone {",
+  "          id",
+  "          name",
+  "          targetDate",
+  "          updatedAt",
+  "          project { id name url updatedAt }",
+  "        }",
+  "        assignee { id name displayName email }",
+  "        state { id name type }",
+  "        parent {",
+  `          ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}`,
+  "        }",
+  "        labels { nodes { id name } }",
+  "        comments {",
+  "          nodes {",
+  "            id",
+  "            body",
+  "            createdAt",
+  "            updatedAt",
+  "            user { id name displayName email }",
+  "          }",
+  "        }",
+  "        relations {",
+  "          nodes {",
+  "            id",
+  "            type",
+  `            issue {\n              ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}\n            }`,
+  `            relatedIssue {\n              ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}\n            }`,
+  "          }",
+  "        }",
+  "        inverseRelations {",
+  "          nodes {",
+  "            id",
+  "            type",
+  `            issue {\n              ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}\n            }`,
+  `            relatedIssue {\n              ${ISSUE_BY_NUMBER_SUMMARY_FIELDS}\n            }`,
+  "          }",
+  "        }",
+  "      }",
+  "    }",
+  "  }",
+  "}",
+].join("\n");
+
 export async function requestLinearGraphQL(client, query, variables) {
   const graphQLClient = client?.client;
   const request = graphQLClient?.request ?? graphQLClient?.rawRequest;
@@ -254,11 +321,13 @@ export async function fetchIssues(team, variables) {
   return callBoundMethod(team, team.issues, variables);
 }
 
-export async function fetchIssueByNumber(team, number) {
-  return callBoundMethod(team, team.issues, {
-    filter: { number: { eq: number } },
-    first: 1,
+export async function fetchIssueByNumber(client, team, number) {
+  const response = await requestLinearGraphQL(client, ISSUE_BY_NUMBER_QUERY, {
+    teamId: team.id,
+    number,
   });
+
+  return response?.team?.issues;
 }
 
 export async function fetchProjectMilestones(receiver, source, variables) {

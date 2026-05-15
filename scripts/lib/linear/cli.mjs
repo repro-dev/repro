@@ -512,6 +512,10 @@ function serializeIssueLabels(issue, labels = []) {
   );
 }
 
+function issueHasInlineLabels(issue) {
+  return serializeInlineLabels(issue?.labels) !== null;
+}
+
 function serializeStatus(status) {
   if (!status) return null;
   return {
@@ -661,7 +665,7 @@ async function resolveIssueByIdentifier(context, issueId) {
       ? await resolveTeam(client, config.team)
       : await resolveTeam(client, teamKey);
 
-  const response = await fetchIssueByNumber(team, number);
+  const response = await fetchIssueByNumber(client, team, number);
 
   const issue = response?.nodes?.[0];
   if (!issue) runtimeError(`Issue ${issueId} not found.`);
@@ -669,7 +673,13 @@ async function resolveIssueByIdentifier(context, issueId) {
   return { config, client, team, issue };
 }
 
-async function resolveIssueByIdentifierOnTeam(context, team, issueId, cache) {
+async function resolveIssueByIdentifierOnTeam(
+  context,
+  client,
+  team,
+  issueId,
+  cache,
+) {
   const cacheKey = normalizeText(issueId);
   if (cache?.has(cacheKey)) return cache.get(cacheKey);
 
@@ -677,7 +687,7 @@ async function resolveIssueByIdentifierOnTeam(context, team, issueId, cache) {
   const activeTeamKey = normalizeText(team.key ?? team.name ?? "");
 
   if (teamKey && activeTeamKey === normalizeText(teamKey)) {
-    const response = await fetchIssueByNumber(team, number);
+    const response = await fetchIssueByNumber(client, team, number);
     const issue = response?.nodes?.[0];
     if (!issue) runtimeError(`Issue ${issueId} not found.`);
     const resolved = { team, issue };
@@ -776,6 +786,15 @@ function serializeProject(project) {
 async function resolveRelationValue(value) {
   if (!value) return null;
   return typeof value.then === "function" ? await value : value;
+}
+
+async function resolveIssueConnection(issue, value, first = 50) {
+  if (!value) return null;
+  if (typeof value === "function") {
+    return callBoundMethod(issue, value, { first });
+  }
+
+  return resolveRelationValue(value);
 }
 
 async function serializeMilestoneProject(milestone, project = null) {
@@ -967,15 +986,9 @@ async function serializeIssueSummary(
 async function serializeIssueDetails(issue) {
   const [commentsResponse, relationsResponse, inverseRelationsResponse] =
     await Promise.all([
-      issue.comments
-        ? callBoundMethod(issue, issue.comments, { first: 50 })
-        : null,
-      issue.relations
-        ? callBoundMethod(issue, issue.relations, { first: 50 })
-        : null,
-      issue.inverseRelations
-        ? callBoundMethod(issue, issue.inverseRelations, { first: 50 })
-        : null,
+      resolveIssueConnection(issue, issue.comments),
+      resolveIssueConnection(issue, issue.relations),
+      resolveIssueConnection(issue, issue.inverseRelations),
     ]);
 
   const summaryCache = new Map();
@@ -1239,6 +1252,13 @@ const ISSUE_LIST_GRAPHQL_ISSUE_SUMMARY_FIELDS = [
   "assignee { id name displayName email }",
 ].join("\n        ");
 
+const ISSUE_LIST_DISPLAY_FIELDS = [
+  "status",
+  "project",
+  "milestone",
+  "assignee",
+];
+
 function buildIssueListProjectionQuery(fields) {
   const requestedFields = new Set(fields);
   const selectProject =
@@ -1478,8 +1498,13 @@ async function issueListCommand(args, context) {
   const useGraphQLProjection = Boolean(
     jsonProjection && issueListProjectionNeedsGraphQL(jsonProjection),
   );
-  const fetchIssuePage = useGraphQLProjection
-    ? createIssueListProjectionFetcher(client, team, jsonProjection)
+  const listProjection = context.json
+    ? useGraphQLProjection
+      ? jsonProjection
+      : null
+    : ISSUE_LIST_DISPLAY_FIELDS;
+  const fetchIssuePage = listProjection
+    ? createIssueListProjectionFetcher(client, team, listProjection)
     : (variables) => fetchIssues(team, variables);
 
   const { items: responseIssues, pageInfo } = await fetchIssueListPages(
@@ -1492,7 +1517,7 @@ async function issueListCommand(args, context) {
   );
 
   const issueLabelsRequested =
-    !jsonProjection || jsonProjection.includes("labels");
+    context.json && (!jsonProjection || jsonProjection.includes("labels"));
   const issueLabelIds =
     !useGraphQLProjection && issueLabelsRequested
       ? collectLabelIds(responseIssues)
@@ -1560,7 +1585,9 @@ async function issueShowCommand(args, context) {
     context,
     issueId,
   );
-  const issueLabels = collectLabelIds([issue]).length
+  const issueLabels = issueHasInlineLabels(issue)
+    ? []
+    : collectLabelIds([issue]).length
     ? await resolveLabels(team)
     : [];
 
@@ -1733,6 +1760,7 @@ async function issueCreateCommand(args, context) {
   const resolvedParent = options.parent
     ? await resolveIssueByIdentifierOnTeam(
         context,
+        client,
         team,
         options.parent,
         issueResolutionCache,
@@ -1793,6 +1821,7 @@ async function issueCreateCommand(args, context) {
         ? (
             await resolveIssueByIdentifierOnTeam(
               context,
+              client,
               team,
               relationSpec.sourceIssueIdentifier,
               issueResolutionCache,
@@ -1803,6 +1832,7 @@ async function issueCreateCommand(args, context) {
         ? (
             await resolveIssueByIdentifierOnTeam(
               context,
+              client,
               team,
               relationSpec.targetIssueIdentifier,
               issueResolutionCache,
@@ -1833,6 +1863,8 @@ async function issueCreateCommand(args, context) {
   };
   const createdIssueLabels = resolvedLabels.length
     ? resolvedLabels
+    : issueHasInlineLabels(createdIssue ?? fallbackIssue)
+    ? []
     : collectLabelIds([createdIssue ?? fallbackIssue]).length
     ? await resolveLabels(team)
     : [];
@@ -1957,6 +1989,7 @@ async function issueUpdateCommand(args, context) {
   const resolvedParent = options.parent
     ? await resolveIssueByIdentifierOnTeam(
         context,
+        client,
         team,
         options.parent,
         issueResolutionCache,
@@ -2019,6 +2052,8 @@ async function issueUpdateCommand(args, context) {
       : updatedIssue;
   const updatedIssueLabels = teamLabels.length
     ? teamLabels
+    : issueHasInlineLabels(verifiedUpdatedIssue ?? issue)
+    ? []
     : collectLabelIds([verifiedUpdatedIssue ?? issue]).length
     ? await resolveLabels(team)
     : [];
@@ -2094,7 +2129,9 @@ async function issueStartCommand(args, context) {
       stateId: inProgressState.id,
     },
   );
-  const startedIssueLabels = collectLabelIds([updatedIssue ?? issue]).length
+  const startedIssueLabels = issueHasInlineLabels(updatedIssue ?? issue)
+    ? []
+    : collectLabelIds([updatedIssue ?? issue]).length
     ? await resolveLabels(team)
     : [];
   const item = await serializeIssue(
