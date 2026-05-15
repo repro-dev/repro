@@ -61,10 +61,13 @@ test("workflow commands surface the FlowCraft skeleton", async () => {
   });
 
   const listResult = (await runFuture(
-    services.handleInvocation(makeInvocation(["workflow", "list"])),
+    services.handleInvocation(
+      makeInvocation(["engine", "debug", "workflow", "list"]),
+    ),
   )) as AutobotCommandResult;
 
   assert.equal(listResult.kind, "workflow-list");
+  assert.equal(listResult.command, "engine debug workflow list");
   assert.deepEqual(listResult.data.workflows[0]?.node_ids, [
     "claim",
     "reconcile",
@@ -72,14 +75,18 @@ test("workflow commands surface the FlowCraft skeleton", async () => {
   ]);
 
   const validationResult = (await runFuture(
-    services.handleInvocation(makeInvocation(["workflow", "validate"])),
+    services.handleInvocation(
+      makeInvocation(["engine", "debug", "workflow", "validate"]),
+    ),
   )) as AutobotCommandResult;
 
   assert.equal(validationResult.kind, "workflow-validation");
   assert.equal(validationResult.data.validations[0]?.valid, true);
 
   const diagramResult = (await runFuture(
-    services.handleInvocation(makeInvocation(["workflow", "diagram"])),
+    services.handleInvocation(
+      makeInvocation(["engine", "debug", "workflow", "diagram"]),
+    ),
   )) as AutobotCommandResult;
 
   assert.equal(diagramResult.kind, "workflow-diagram");

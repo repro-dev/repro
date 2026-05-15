@@ -23,7 +23,6 @@ test("queue commands and global flags are present in the parser tree", () => {
     "remove",
     "retry",
     "status",
-    "workflow",
   ]);
 
   const flagNames = program.options.map((option) => option.flags);

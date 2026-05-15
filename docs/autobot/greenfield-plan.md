@@ -76,6 +76,7 @@ Public queue interface from `docs/autobot/cli-design.md`:
 - `autobot-next config set <key> <value> [--json]` persists a repo-scoped setting.
 - `autobot-next config unset <key> [--json]` removes a repo-scoped setting override.
 - `autobot-next config list [--json]` is referenced in examples and prior context as the discoverability surface for config keys.
+- `autobot-next engine debug workflow list|validate|diagram [--json]` keeps FlowCraft inspection available without advertising a top-level workflow group.
 
 Public JSON responses are versioned with `schema_version: 1`. Public status-oriented responses include a `config` block sourced from `.autobot/config.json`. Current config keys are `engine.auto-discover`, `engine.queue-depth`, and `engine.max-concurrency`.
 
@@ -233,9 +234,9 @@ Core commands:
 
 Developer/debug commands:
 
-- `autobot-next workflow list [--json]` — list available FlowCraft blueprints and versions.
-- `autobot-next workflow validate [workflow] [--json]` — run FlowCraft analysis/linting.
-- `autobot-next workflow diagram <workflow>` — print Mermaid graph.
+- `autobot-next engine debug workflow list [--json]` — list available FlowCraft blueprints and versions.
+- `autobot-next engine debug workflow validate [workflow] [--json]` — run FlowCraft analysis/linting.
+- `autobot-next engine debug workflow diagram <workflow>` — print Mermaid graph.
 - `autobot-next inspect <run-id> [--json]` — domain wrapper around FlowCraft history inspection.
 
 Deferred commands:

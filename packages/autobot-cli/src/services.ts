@@ -1086,7 +1086,8 @@ function handleDiscover(
 function handleWorkflow(
   invocation: AutobotInvocation,
 ): FutureInstance<unknown, AutobotCommandResult> {
-  const [subcommand] = invocation.command_path.slice(1);
+  const subcommand =
+    invocation.command_path[invocation.command_path.length - 1];
 
   return Future((reject, resolve) => {
     switch (subcommand) {
@@ -2155,8 +2156,6 @@ function handleCommand(
             reject(createNotImplementedError(invocation.command));
             return () => undefined;
           });
-    case "workflow":
-      return handleWorkflow(invocation);
     default:
       return Future((reject) => {
         reject(createNotImplementedError(invocation.command));
@@ -2181,7 +2180,11 @@ export function createAutobotServices(
 
   return {
     handleInvocation(invocation: AutobotInvocation) {
-      if (invocation.command_path[0] === "workflow") {
+      if (
+        invocation.command_path[0] === "engine" &&
+        invocation.command_path[1] === "debug" &&
+        invocation.command_path[2] === "workflow"
+      ) {
         return handleWorkflow(invocation);
       }
 
