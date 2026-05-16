@@ -9,6 +9,7 @@ import type { AutobotStore } from "@repro/autobot-store";
 
 import {
   acquireEngineRuntime,
+  type EngineRuntimeRecord,
   readEngineRuntime,
   requestEngineStop,
   resolveEngineRuntimePaths,
@@ -583,26 +584,30 @@ test("engine runtime acquisition is atomic under a stale lock", async () => {
         ),
       );
 
-    const outcomes = await Promise.allSettled([
-      acquire(process.pid, "2026-05-15T12:00:00Z"),
-      acquire(process.pid + 1, "2026-05-15T12:00:01Z"),
-    ]);
-
-    assert.equal(outcomes[0].status, "fulfilled");
-    assert.equal(
-      (outcomes[0] as PromiseFulfilledResult<{ pid: number }>).value.pid,
-      process.pid,
+    const outcomes = await Promise.allSettled(
+      Array.from({ length: 8 }, (_, index) =>
+        acquire(process.pid, `2026-05-15T12:00:0${index}Z`),
+      ),
     );
-    assert.equal(outcomes[1].status, "rejected");
+
+    const fulfilled = outcomes.filter(
+      (outcome) => outcome.status === "fulfilled",
+    ) as PromiseFulfilledResult<EngineRuntimeRecord>[];
+    const rejected = outcomes.filter(
+      (outcome) => outcome.status === "rejected",
+    ) as PromiseRejectedResult[];
+
+    assert.equal(fulfilled.length, 1);
+    assert.equal(fulfilled[0]?.value.pid, process.pid);
+    assert.equal(rejected.length, 7);
     assert.equal(
-      (outcomes[1] as PromiseRejectedResult).reason instanceof Error
-        ? (
-            (outcomes[1] as PromiseRejectedResult).reason as Error & {
-              code?: string;
-            }
-          ).code
-        : null,
-      "ENGINE_ALREADY_RUNNING",
+      rejected.some((outcome) =>
+        outcome.reason instanceof Error
+          ? (outcome.reason as Error & { code?: string }).code ===
+            "ENGINE_ALREADY_RUNNING"
+          : false,
+      ),
+      true,
     );
   } finally {
     await rm(root, { recursive: true, force: true });

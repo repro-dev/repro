@@ -18,6 +18,7 @@ export interface EngineRuntimeRecord {
 
 export interface EngineRuntimePaths {
   state_dir: string;
+  acquire_guard_path: string;
   lock_path: string;
   status_path: string;
   stop_path: string;
@@ -114,6 +115,7 @@ export function resolveEngineRuntimePaths(repo: RepoRef): EngineRuntimePaths {
 
   return {
     state_dir: stateDir,
+    acquire_guard_path: path.join(stateDir, "engine.acquire.lock"),
     lock_path: path.join(stateDir, "engine.lock"),
     status_path: path.join(stateDir, "engine.status.json"),
     stop_path: path.join(stateDir, "engine.stop"),
@@ -190,7 +192,7 @@ export function acquireEngineRuntime(
     while (true) {
       try {
         await writeFile(
-          paths.lock_path,
+          paths.acquire_guard_path,
           `${JSON.stringify(record, null, 2)}\n`,
           {
             encoding: "utf8",
@@ -209,39 +211,39 @@ export function acquireEngineRuntime(
           throw error;
         }
 
-        const existingLock = await readJsonFile<EngineRuntimeRecord>(
-          paths.lock_path,
-        );
-
-        if (
-          existingLock !== null &&
-          existingLock.pid > 0 &&
-          isProcessAlive(existingLock.pid)
-        ) {
-          throw createEngineAlreadyRunningError(existingLock);
-        }
-
-        if (existingLock !== null) {
-          const currentLock = await readJsonFile<EngineRuntimeRecord>(
-            paths.lock_path,
-          );
-
-          if (
-            currentLock !== null &&
-            !sameEngineRuntimeOwner(currentLock, existingLock)
-          ) {
-            continue;
-          }
-        }
-
-        await rm(paths.lock_path, { force: true });
+        await new Promise((resolve) => setTimeout(resolve, 5));
       }
     }
 
-    await writeJsonFile(paths.status_path, record);
-    await removeFile(paths.stop_path);
+    try {
+      const existingLock = await readJsonFile<EngineRuntimeRecord>(
+        paths.lock_path,
+      );
 
-    return record;
+      if (
+        existingLock !== null &&
+        existingLock.pid > 0 &&
+        isProcessAlive(existingLock.pid)
+      ) {
+        throw createEngineAlreadyRunningError(existingLock);
+      }
+
+      if (existingLock !== null) {
+        await rm(paths.lock_path, { force: true });
+      }
+
+      await writeFile(paths.lock_path, `${JSON.stringify(record, null, 2)}\n`, {
+        encoding: "utf8",
+        flag: "wx",
+      });
+
+      await writeJsonFile(paths.status_path, record);
+      await removeFile(paths.stop_path);
+
+      return record;
+    } finally {
+      await removeFile(paths.acquire_guard_path);
+    }
   });
 }
 
