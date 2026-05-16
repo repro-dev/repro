@@ -1,7 +1,7 @@
 import { ApiProvider, createApiClient } from '@repro/api-client'
 import { createAtom } from '@repro/atom'
 import { SideNavItem } from '@repro/design'
-import { Project, User } from '@repro/domain'
+import { Project, ProjectRole, User } from '@repro/domain'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { resolve } from 'fluture'
 import assert from 'node:assert/strict'
@@ -132,7 +132,12 @@ function renderLayoutWithRefs(
       <ApiProvider client={apiClient}>
         <TestAuthProvider sessionUser={sessionUser}>
           <ProjectProvider getProjects={() => resolve(projects)}>
-            <Layout />
+            <Layout
+              projectGetProjects={() => resolve(projects)}
+              projectSettingsGetMembers={() =>
+                resolve([{ role: ProjectRole.Admin, user: currentUser }])
+              }
+            />
             {/* Reference items rendered off-screen to capture active/inactive
                 jsxstyle class names without affecting visible test content. */}
             <div data-testid="ref-active" style={{ display: 'none' }}>
