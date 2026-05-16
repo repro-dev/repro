@@ -173,31 +173,51 @@ describe('Services > Account', () => {
       const account = await promise(
         accountService.createAccount('Summary Account')
       )
-      const activeUser = await promise(
+      await promise(
         accountService.createUser(
           account.id,
-          'Active User',
-          'active@example.com',
+          'Active User 1',
+          'active-1@example.com',
           'hunter2!'
         )
       )
       await promise(
         accountService.createUser(
           account.id,
-          'Inactive User',
-          'inactive@example.com',
+          'Active User 2',
+          'active-2@example.com',
           'hunter2!'
         )
       )
-      await promise(accountService.deactivateUser(activeUser.id))
+      await promise(
+        accountService.createUser(
+          account.id,
+          'Active User 3',
+          'active-3@example.com',
+          'hunter2!'
+        )
+      )
+      await promise(
+        accountService.createUser(
+          account.id,
+          'Active User 4',
+          'active-4@example.com',
+          'hunter2!'
+        )
+      )
+      await promise(
+        accountService.createUser(
+          account.id,
+          'Active User 5',
+          'active-5@example.com',
+          'hunter2!'
+        )
+      )
 
-      const activeProject = await promise(
-        projectService.createProject(account.id, 'Active Project')
-      )
-      await promise(
-        projectService.createProject(account.id, 'Inactive Project')
-      )
-      await promise(projectService.deactivateProject(activeProject.id))
+      await promise(projectService.createProject(account.id, 'Active Project'))
+      await promise(projectService.createProject(account.id, 'Second Project'))
+      await promise(projectService.createProject(account.id, 'Third Project'))
+      await promise(projectService.createProject(account.id, 'Fourth Project'))
 
       await expect(
         promise(accountService.getAccountSettingsSummary(account.id))
@@ -205,9 +225,44 @@ describe('Services > Account', () => {
         id: account.id,
         name: 'Summary Account',
         createdAt: expect.any(String),
-        userCount: 1,
-        projectCount: 1,
+        userCount: 5,
+        projectCount: 4,
+        additionalUserCount: 2,
+        additionalProjectCount: 1,
+        users: [
+          expect.objectContaining({
+            id: expect.any(String),
+            name: 'Active User 5',
+            email: 'active-5@example.com',
+            admin: false,
+          }),
+          expect.objectContaining({
+            name: 'Active User 4',
+            email: 'active-4@example.com',
+          }),
+          expect.objectContaining({
+            name: 'Active User 3',
+            email: 'active-3@example.com',
+          }),
+        ],
+        projects: [
+          expect.objectContaining({ name: 'Fourth Project' }),
+          expect.objectContaining({ name: 'Third Project' }),
+          expect.objectContaining({ name: 'Second Project' }),
+        ],
       })
+    })
+
+    it('should not return settings for an inactive account', async () => {
+      const account = await promise(
+        accountService.createAccount('Inactive Summary Account')
+      )
+
+      await promise(accountService.deactivateAccount(account.id))
+
+      await expect(
+        promise(accountService.getAccountSettingsSummary(account.id))
+      ).rejects.toThrow()
     })
   })
 })

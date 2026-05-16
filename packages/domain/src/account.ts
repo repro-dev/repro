@@ -24,6 +24,18 @@ export interface AccountSettingsSummary {
   createdAt: string
   userCount: number
   projectCount: number
+  users: Array<{
+    id: string
+    name: string
+    email: string
+    admin: boolean
+  }>
+  projects: Array<{
+    id: string
+    name: string
+  }>
+  additionalUserCount: number
+  additionalProjectCount: number
 }
 
 // Staff-facing view of a user — includes email for administrative purposes

@@ -1,27 +1,34 @@
-import { Block, Col, Grid } from '@jsxstyle/react'
+import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession, useSessionLoading } from '@repro/auth'
 import {
   Alert,
+  Avatar,
   Button,
   Card,
+  FormField,
+  FormFieldError,
   FullPageLoading,
   Input,
   Label,
+  Link,
+  Modal,
   PageFrame,
   Table,
   Text,
   color,
+  radius,
   spacing,
 } from '@repro/design'
 import { useFuture } from '@repro/future-utils'
 import {
+  deleteAccount as deleteWorkspaceAccount,
   getAccountSettings as getWorkspaceAccountSettings,
   renameAccount as renameWorkspaceAccount,
 } from '@repro/workspace-api'
 import { fork } from 'fluture'
 import React, { useCallback, useEffect, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, Link as RouterLink } from 'react-router-dom'
 
 type ActionRowProps = {
   label: string
@@ -51,8 +58,6 @@ function ActionRow({ label, description, control }: ActionRowProps) {
 }
 
 const desktopViewportQuery = '(min-width: 1024px)'
-const accountRetirementSupportUrl =
-  'mailto:support@repro.dev?subject=Account%20retirement%20request'
 
 function useIsDesktopViewport() {
   const [isDesktop, setIsDesktop] = useState(() => {
@@ -116,18 +121,24 @@ function SettingsContent({ children }: React.PropsWithChildren) {
 interface AccountSettingsRouteProps {
   getAccountSettings?: typeof getWorkspaceAccountSettings
   renameAccount?: typeof renameWorkspaceAccount
+  deleteAccount?: typeof deleteWorkspaceAccount
 }
 
 export function AccountSettingsRoute({
   getAccountSettings = getWorkspaceAccountSettings,
   renameAccount = renameWorkspaceAccount,
+  deleteAccount = deleteWorkspaceAccount,
 }: AccountSettingsRouteProps) {
   const apiClient = useApiClient()
 
   const [refreshKey, setRefreshKey] = useState(0)
-  const [nameValue, setNameValue] = useState('')
+  const [nameValue, setNameValue] = useState<string | undefined>(undefined)
   const [nameError, setNameError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleted, setDeleted] = useState(false)
 
   const {
     loading,
@@ -144,8 +155,23 @@ export function AccountSettingsRoute({
     }
   }, [summary])
 
+  const currentNameValue = nameValue ?? summary?.name ?? ''
+  const hasUnsavedNameChanges =
+    summary != null && currentNameValue.trim() !== summary.name
+  const visibleUsers = summary?.users.slice(0, 3) ?? []
+  const visibleProjects = summary?.projects.slice(0, 2) ?? []
+  const userOverflowCount =
+    summary != null
+      ? summary.additionalUserCount + Math.max(0, summary.users.length - 3)
+      : 0
+  const projectOverflowCount =
+    summary != null
+      ? summary.additionalProjectCount +
+        Math.max(0, summary.projects.length - 2)
+      : 0
+
   const handleSave = useCallback(() => {
-    const trimmed = nameValue.trim()
+    const trimmed = currentNameValue.trim()
 
     if (trimmed.length === 0) {
       setNameError('Account name is required')
@@ -166,14 +192,65 @@ export function AccountSettingsRoute({
         setRefreshKey(key => key + 1)
       })
     )
-  }, [apiClient, nameValue, renameAccount])
+  }, [apiClient, currentNameValue, renameAccount])
 
-  const handleContactSupport = useCallback(() => {
-    window.location.href = accountRetirementSupportUrl
+  const handleNameChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setNameValue(event.target.value)
+
+      if (nameError != null) {
+        setNameError(null)
+      }
+    },
+    [nameError]
+  )
+
+  const handleCancelNameChange = useCallback(() => {
+    if (summary != null) {
+      setNameValue(summary.name)
+    }
+
+    setNameError(null)
+  }, [summary])
+
+  const handleOpenDeleteModal = useCallback(() => {
+    setDeleteError(null)
+    setDeleteModalOpen(true)
   }, [])
+
+  const handleCloseDeleteModal = useCallback(() => {
+    if (deleting) {
+      return
+    }
+
+    setDeleteModalOpen(false)
+    setDeleteError(null)
+  }, [deleting])
+
+  const handleDeleteAccount = useCallback(() => {
+    setDeleteError(null)
+    setDeleting(true)
+
+    deleteAccount(apiClient).pipe(
+      fork(() => {
+        setDeleteError(
+          'Failed to delete the account. The server may be unavailable or your session may have expired. Refresh the page, sign back in if needed, and try again.'
+        )
+        setDeleting(false)
+      })(() => {
+        setDeleting(false)
+        setDeleteModalOpen(false)
+        setDeleted(true)
+      })
+    )
+  }, [apiClient, deleteAccount])
 
   if (loading) {
     return <FullPageLoading />
+  }
+
+  if (deleted) {
+    return <Navigate replace to="/login" />
   }
 
   if (error || summary == null) {
@@ -223,29 +300,47 @@ export function AccountSettingsRoute({
                 </Col>
 
                 <Card padding={spacing.lg}>
-                  <Col gap={spacing.md}>
-                    <Col gap={spacing.sm}>
-                      <Label htmlFor="account-name">Name</Label>
-                      <Input
-                        id="account-name"
-                        value={nameValue}
-                        onChange={event => setNameValue(event.target.value)}
-                        placeholder="Account name"
-                      />
-                    </Col>
+                  <FormField id="account-name" invalid={nameError != null}>
+                    <Label>Name</Label>
+                    <Row gap={spacing.sm} alignItems="flex-start" width="100%">
+                      <Block flex={1} minWidth={0}>
+                        <Input
+                          value={currentNameValue}
+                          onChange={handleNameChange}
+                          placeholder="Account name"
+                          required
+                        />
+                        <FormFieldError
+                          error={
+                            nameError != null
+                              ? { message: nameError }
+                              : undefined
+                          }
+                        />
+                      </Block>
 
-                    {nameError && <Alert type="danger">{nameError}</Alert>}
-
-                    <Block>
                       <Button
+                        size="medium"
                         variant="contained"
                         onClick={handleSave}
-                        disabled={saving}
+                        disabled={saving || !hasUnsavedNameChanges}
                       >
                         Save changes
                       </Button>
-                    </Block>
-                  </Col>
+                    </Row>
+
+                    {hasUnsavedNameChanges && !saving && (
+                      <Row justifyContent="flex-end">
+                        <Button
+                          size="small"
+                          variant="text"
+                          onClick={handleCancelNameChange}
+                        >
+                          Cancel
+                        </Button>
+                      </Row>
+                    )}
+                  </FormField>
                 </Card>
               </Col>
 
@@ -260,30 +355,133 @@ export function AccountSettingsRoute({
 
                 <Block width="100%">
                   <Card fullBleed>
-                    <Table aria-label="Account details">
-                      <Table.Header>
-                        <Table.Row>
-                          <Table.HeaderCell>Field</Table.HeaderCell>
-                          <Table.HeaderCell>Value</Table.HeaderCell>
-                        </Table.Row>
-                      </Table.Header>
-                      <Table.Body>
-                        <Table.Row>
-                          <Table.Cell>Created</Table.Cell>
-                          <Table.Cell>
-                            {new Date(summary.createdAt).toLocaleDateString()}
-                          </Table.Cell>
-                        </Table.Row>
-                        <Table.Row>
-                          <Table.Cell>Users</Table.Cell>
-                          <Table.Cell>{summary.userCount}</Table.Cell>
-                        </Table.Row>
-                        <Table.Row>
-                          <Table.Cell>Projects</Table.Cell>
-                          <Table.Cell>{summary.projectCount}</Table.Cell>
-                        </Table.Row>
-                      </Table.Body>
-                    </Table>
+                    <Col gap={spacing.lg} padding={spacing.lg}>
+                      <Table aria-label="Account details">
+                        <Table.Header>
+                          <Table.Row>
+                            <Table.HeaderCell>Field</Table.HeaderCell>
+                            <Table.HeaderCell>Value</Table.HeaderCell>
+                          </Table.Row>
+                        </Table.Header>
+                        <Table.Body>
+                          <Table.Row>
+                            <Table.Cell>Created</Table.Cell>
+                            <Table.Cell>
+                              {new Date(summary.createdAt).toLocaleDateString()}
+                            </Table.Cell>
+                          </Table.Row>
+                          <Table.Row>
+                            <Table.Cell>Users</Table.Cell>
+                            <Table.Cell>
+                              <Col gap={spacing.xs}>
+                                <Text variant="bodySmall">
+                                  {summary.userCount} users
+                                </Text>
+
+                                <Link
+                                  component={RouterLink}
+                                  props={{
+                                    to: '/settings/team',
+                                    'aria-label': 'View team members',
+                                  }}
+                                >
+                                  <Row
+                                    alignItems="center"
+                                    gap={spacing.sm}
+                                    flexWrap="wrap"
+                                  >
+                                    <Row alignItems="center">
+                                      {visibleUsers.map((user, index) => (
+                                        <Block
+                                          key={user.id}
+                                          width={24}
+                                          height={24}
+                                          marginLeft={
+                                            index === 0 ? 0 : -spacing.xs
+                                          }
+                                          position="relative"
+                                          zIndex={index + 1}
+                                          borderRadius={radius.full}
+                                          overflow="hidden"
+                                        >
+                                          <Avatar
+                                            mode="image-only"
+                                            size={24}
+                                            name={user.name}
+                                            email={user.email}
+                                          />
+                                        </Block>
+                                      ))}
+                                    </Row>
+
+                                    {userOverflowCount > 0 && (
+                                      <Text
+                                        variant="bodySmall"
+                                        color={color.text.muted}
+                                      >
+                                        and {userOverflowCount} more
+                                      </Text>
+                                    )}
+                                  </Row>
+                                </Link>
+                              </Col>
+                            </Table.Cell>
+                          </Table.Row>
+                          <Table.Row>
+                            <Table.Cell>Projects</Table.Cell>
+                            <Table.Cell>
+                              <Col gap={spacing.xs}>
+                                <Text variant="bodySmall">
+                                  {summary.projectCount} projects
+                                </Text>
+
+                                <Row
+                                  alignItems="center"
+                                  gap={spacing.xs}
+                                  flexWrap="wrap"
+                                >
+                                  {visibleProjects.map((project, index) => (
+                                    <Row key={project.id} alignItems="center">
+                                      {index > 0 && (
+                                        <Text
+                                          variant="bodySmall"
+                                          as="span"
+                                          color={color.text.muted}
+                                        >
+                                          ·
+                                        </Text>
+                                      )}
+
+                                      <Text variant="bodySmall" as="span">
+                                        <Link
+                                          component={RouterLink}
+                                          props={{
+                                            to: `/projects/${project.id}`,
+                                          }}
+                                        >
+                                          {project.name}
+                                        </Link>
+                                      </Text>
+                                    </Row>
+                                  ))}
+
+                                  {projectOverflowCount > 0 && (
+                                    <Text variant="bodySmall" as="span">
+                                      <Link
+                                        component={RouterLink}
+                                        props={{ to: '/projects' }}
+                                      >
+                                        and {projectOverflowCount} more projects
+                                      </Link>
+                                    </Text>
+                                  )}
+                                </Row>
+                              </Col>
+                            </Table.Cell>
+                          </Table.Row>
+                        </Table.Body>
+                      </Table>
+                    </Col>
                   </Card>
                 </Block>
               </Col>
@@ -292,22 +490,24 @@ export function AccountSettingsRoute({
                 <Col gap={spacing.xs}>
                   <Text variant="heading2">Danger zone</Text>
                   <Text variant="bodySmall" color={color.text.muted}>
-                    Account retiring is handled by support.
+                    Deleting the account disables the workspace for every
+                    member.
                   </Text>
                 </Col>
 
                 <Card context="danger" padding={0}>
                   <Block padding={spacing.lg}>
                     <ActionRow
-                      label="Retire account"
-                      description="Need help retiring this account? Contact support for the supported path."
+                      label="Delete account"
+                      description="Delete this account to disable the workspace for all members."
                       control={
                         <Button
+                          size="medium"
                           variant="outlined"
                           context="danger"
-                          onClick={handleContactSupport}
+                          onClick={handleOpenDeleteModal}
                         >
-                          Contact support
+                          Delete account
                         </Button>
                       }
                     />
@@ -318,6 +518,50 @@ export function AccountSettingsRoute({
           </Col>
         </Block>
       </PageFrame.Body>
+
+      {deleteModalOpen && (
+        <Modal
+          width={560}
+          height={360}
+          aria-label="Delete account"
+          onClose={handleCloseDeleteModal}
+        >
+          <Modal.Header
+            title="Delete account?"
+            description="Deleting the account disables the workspace for every member."
+          />
+          <Modal.Body>
+            <Col gap={spacing.md}>
+              <Text variant="bodySmall" color={color.text.muted}>
+                This removes access to the workspace for all members and cannot
+                be undone.
+              </Text>
+
+              {deleteError && <Alert type="danger">{deleteError}</Alert>}
+
+              <Row gap={spacing.sm} justifyContent="flex-end">
+                <Button
+                  size="medium"
+                  variant="outlined"
+                  onClick={handleCloseDeleteModal}
+                  disabled={deleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="medium"
+                  variant="contained"
+                  context="danger"
+                  onClick={handleDeleteAccount}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Deleting…' : 'Delete account'}
+                </Button>
+              </Row>
+            </Col>
+          </Modal.Body>
+        </Modal>
+      )}
     </PageFrame>
   )
 }

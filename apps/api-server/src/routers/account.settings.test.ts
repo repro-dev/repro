@@ -216,4 +216,77 @@ describe('Routers > Account > Account settings', () => {
       expect(res.statusCode).toEqual(401)
     })
   })
+
+  describe('DELETE /account', () => {
+    it('should deactivate the account for an admin user', async () => {
+      const { account, session } = await createAdminSession()
+
+      const res = await context.app.inject({
+        method: 'DELETE',
+        url: '/account',
+        cookies: {
+          [context.harness.env.SESSION_COOKIE]: context.app.signCookie(
+            session.sessionToken
+          ),
+        },
+      })
+
+      expect(res.statusCode).toEqual(204)
+
+      const inactiveSummary = await context.app.inject({
+        method: 'GET',
+        url: '/account/settings',
+        cookies: {
+          [context.harness.env.SESSION_COOKIE]: context.app.signCookie(
+            session.sessionToken
+          ),
+        },
+      })
+
+      expect(inactiveSummary.statusCode).toEqual(404)
+
+      const updatedAccount = await promise(
+        context.accountService.getAccountById(account.id)
+      )
+      expect(updatedAccount.id).toEqual(account.id)
+    })
+
+    it('should return 403 for a non-admin user', async () => {
+      const account = await promise(
+        context.accountService.createAccount('Member Account')
+      )
+      const memberUser = await promise(
+        context.accountService.createUser(
+          account.id,
+          'Member User',
+          'member@example.com',
+          'hunter2!'
+        )
+      )
+      const session = await promise(
+        context.accountService.createSession(memberUser.id, 'user')
+      )
+
+      const res = await context.app.inject({
+        method: 'DELETE',
+        url: '/account',
+        cookies: {
+          [context.harness.env.SESSION_COOKIE]: context.app.signCookie(
+            session.sessionToken
+          ),
+        },
+      })
+
+      expect(res.statusCode).toEqual(403)
+    })
+
+    it('should return 401 without session', async () => {
+      const res = await context.app.inject({
+        method: 'DELETE',
+        url: '/account',
+      })
+
+      expect(res.statusCode).toEqual(401)
+    })
+  })
 })

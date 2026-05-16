@@ -13,6 +13,7 @@ import { describe, it } from 'node:test'
 import {
   createProject,
   deactivateProject,
+  deleteAccount,
   getAccountSettings,
   getProject,
   getProjectMembers,
@@ -238,6 +239,16 @@ describe('workspace-api: queries', () => {
       await promise(renameAccount(stub, 'Renamed Account'))
       const body = stub.calls[0]?.options.body as string
       assert.deepEqual(JSON.parse(body), { name: 'Renamed Account' })
+    })
+  })
+
+  describe('deleteAccount', () => {
+    it('DELETEs /account', async () => {
+      const stub = createStubApiClient(() => undefined)
+      await promise(deleteAccount(stub))
+      const call = stub.calls[0]
+      assert.equal(call?.url, '/account')
+      assert.equal(call?.options.method, 'delete')
     })
   })
 
