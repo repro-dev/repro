@@ -44,7 +44,13 @@ describe('ProjectSettingsRoute', () => {
       })
 
       await waitFor(() => {
-        assert.ok(screen.getByText('Team Members'))
+        assert.ok(screen.getByText('Project settings'))
+        assert.ok(
+          screen.getByText(
+            /manage project name, team members, and archive settings/i
+          )
+        )
+        assert.ok(screen.getByText('Team members'))
         assert.ok(screen.getByText('Viewer'))
         assert.equal(
           screen.queryByRole('button', { name: /invite member/i }),
@@ -83,6 +89,10 @@ describe('ProjectSettingsRoute', () => {
       await waitFor(() => {
         const input = screen.getByRole('textbox', { name: /project name/i })
         assert.equal((input as HTMLInputElement).value, 'Awesome Project')
+        assert.ok(screen.getByText('Project settings'))
+        assert.ok(screen.getByText('Rename project'))
+        assert.ok(screen.getByText('Team members'))
+        assert.ok(screen.getByText('Danger zone'))
       })
     })
 
@@ -147,7 +157,11 @@ describe('ProjectSettingsRoute', () => {
           'invitee@example.com',
           ProjectRole.Admin,
         ])
-        assert.ok(screen.getByText(/invitation sent to invitee@example.com/i))
+        assert.ok(
+          screen.getByText(
+            /invitation sent to invitee@example.com.*accept the invitation before appearing in the project/i
+          )
+        )
       })
     })
 

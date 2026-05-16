@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Col, Row } from '@jsxstyle/react'
+import { Block, Col, Grid, Row } from '@jsxstyle/react'
 import { useApiClient } from '@repro/api-client'
 import { useSession } from '@repro/auth'
 import {
@@ -16,7 +16,6 @@ import {
   Modal,
   PageFrame,
   Select,
-  Stack,
   Text,
   color,
   radius,
@@ -56,6 +55,140 @@ function formatRole(role: ProjectRole) {
 }
 
 type RenameFormValues = typeof renameSchema._output
+
+type ActionRowProps = {
+  label: string
+  description: string
+  control: React.ReactNode
+}
+
+function ActionRow({ label, description, control }: ActionRowProps) {
+  return (
+    <Grid
+      gridTemplateColumns="minmax(0, 1fr) auto"
+      gap={spacing.lg}
+      alignItems="center"
+    >
+      <Col gap={spacing.xs} minWidth={0}>
+        <Text variant="label" as="span" color={color.text.label}>
+          {label}
+        </Text>
+        <Text variant="bodySmall" as="span" color={color.text.muted}>
+          {description}
+        </Text>
+      </Col>
+
+      {control}
+    </Grid>
+  )
+}
+
+type SectionHeaderProps = {
+  title: string
+  description: string
+}
+
+function SectionHeader({ title, description }: SectionHeaderProps) {
+  return (
+    <Col gap={spacing.xs}>
+      <Text variant="heading2">{title}</Text>
+      <Text variant="bodySmall" color={color.text.muted}>
+        {description}
+      </Text>
+    </Col>
+  )
+}
+
+function useIsDesktopViewport() {
+  const [isDesktop, setIsDesktop] = useState(() => {
+    return (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(min-width: 1024px)').matches
+    )
+  })
+
+  React.useEffect(() => {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.matchMedia !== 'function'
+    ) {
+      return
+    }
+
+    const mediaQueryList = window.matchMedia('(min-width: 1024px)')
+    const updateMatches = () => setIsDesktop(mediaQueryList.matches)
+
+    updateMatches()
+
+    if (typeof mediaQueryList.addEventListener === 'function') {
+      mediaQueryList.addEventListener('change', updateMatches)
+
+      return () => {
+        mediaQueryList.removeEventListener('change', updateMatches)
+      }
+    }
+
+    mediaQueryList.addListener(updateMatches)
+
+    return () => {
+      mediaQueryList.removeListener(updateMatches)
+    }
+  }, [])
+
+  return isDesktop
+}
+
+function SettingsContent({ children }: React.PropsWithChildren) {
+  const isDesktop = useIsDesktopViewport()
+
+  return (
+    <Col
+      component="section"
+      gap={spacing['3xl']}
+      width="100%"
+      maxWidth={isDesktop ? '66.666%' : '100%'}
+    >
+      {children}
+    </Col>
+  )
+}
+
+type ProjectSettingsBodyProps = React.PropsWithChildren<{
+  projectName: string
+}>
+
+function ProjectSettingsBody({
+  projectName,
+  children,
+}: ProjectSettingsBodyProps) {
+  return (
+    <PageFrame.Body>
+      <Block width="100%" maxWidth={1440} margin="0 auto">
+        <Col gap={spacing.xl} width="100%">
+          <Block
+            component="header"
+            width="100%"
+            paddingBottom={spacing.lg}
+            borderBottom={`1px solid ${color.border.default}`}
+          >
+            <Col gap={spacing.sm}>
+              <PageFrame.Title>Project settings</PageFrame.Title>
+              <Text variant="bodySmall" color={color.text.secondary}>
+                Manage project name, team members, and archive settings.
+              </Text>
+              <Text variant="bodySmall" color={color.text.muted}>
+                Current project name: {projectName}
+              </Text>
+            </Col>
+          </Block>
+
+          {children}
+        </Col>
+      </Block>
+    </PageFrame.Body>
+  )
+}
 
 interface ProjectSettingsRouteProps {
   // Injected for testing; defaults to the real workspace-api functions
@@ -175,7 +308,7 @@ export function ProjectSettingsRoute({
           setInviteRole(ProjectRole.Contributor)
           setInviteModalOpen(false)
           setInviteSuccess(
-            `Invitation sent to ${email}. Role selection is currently UI-only until the backend contract expands.`
+            `Invitation sent to ${email}. They need to accept the invitation before appearing in the project.`
           )
         })
       )
@@ -279,14 +412,11 @@ export function ProjectSettingsRoute({
   if (membersError) {
     return (
       <PageFrame>
-        <PageFrame.Header>
-          <PageFrame.Title>Project Settings</PageFrame.Title>
-        </PageFrame.Header>
-        <PageFrame.Body maxWidth={720}>
+        <ProjectSettingsBody projectName={projectName}>
           <Alert type="danger">
             Failed to load project membership. Please try refreshing the page.
           </Alert>
-        </PageFrame.Body>
+        </ProjectSettingsBody>
       </PageFrame>
     )
   }
@@ -300,71 +430,76 @@ export function ProjectSettingsRoute({
 
   return (
     <PageFrame>
-      <PageFrame.Header>
-        <PageFrame.Title>Project Settings</PageFrame.Title>
-      </PageFrame.Header>
-
-      <PageFrame.Body maxWidth={720}>
-        <Stack gap="lg">
+      <ProjectSettingsBody projectName={projectName}>
+        <SettingsContent>
           {isAdmin && (
-            <Card>
-              <Col padding={spacing.xl} gap={spacing.lg}>
-                <Text variant="heading3">Rename Project</Text>
+            <Col gap={spacing.md}>
+              <SectionHeader
+                title="Rename project"
+                description="Change the name shown across the workspace."
+              />
 
-                <form onSubmit={handleSubmit(onRename)}>
-                  <Stack gap="md">
-                    {renameError && <Alert type="danger">{renameError}</Alert>}
-
-                    <FormField>
-                      <Label htmlFor="project-name">Project name</Label>
-                      <Input
-                        id="project-name"
-                        context={errors.name ? 'error' : 'normal'}
-                        aria-describedby={
-                          errors.name ? 'project-name-error' : undefined
-                        }
-                        {...register('name')}
-                      />
-                      {errors.name && (
-                        <FormFieldError
-                          id="project-name-error"
-                          error={errors.name}
-                        />
+              <Card>
+                <Col padding={spacing.lg} gap={spacing.md}>
+                  <form onSubmit={handleSubmit(onRename)}>
+                    <Col gap={spacing.md}>
+                      {renameError && (
+                        <Alert type="danger">{renameError}</Alert>
                       )}
-                    </FormField>
 
-                    <Row justifyContent="flex-end">
-                      <Button
-                        variant="contained"
-                        context="info"
-                        type="submit"
-                        disabled={!isDirty || isSubmitting}
-                      >
-                        Save
-                      </Button>
-                    </Row>
-                  </Stack>
-                </form>
-              </Col>
-            </Card>
+                      <FormField>
+                        <Label htmlFor="project-name">Project name</Label>
+                        <Input
+                          id="project-name"
+                          context={errors.name ? 'error' : 'normal'}
+                          aria-describedby={
+                            errors.name ? 'project-name-error' : undefined
+                          }
+                          {...register('name')}
+                        />
+                        {errors.name && (
+                          <FormFieldError
+                            id="project-name-error"
+                            error={errors.name}
+                          />
+                        )}
+                      </FormField>
+
+                      <Row justifyContent="flex-end">
+                        <Button
+                          variant="contained"
+                          context="info"
+                          type="submit"
+                          disabled={!isDirty || isSubmitting}
+                        >
+                          Save
+                        </Button>
+                      </Row>
+                    </Col>
+                  </form>
+                </Col>
+              </Card>
+            </Col>
           )}
 
-          <Card>
-            <Col padding={spacing.xl} gap={spacing.lg}>
-              <Row
-                alignItems="center"
-                justifyContent="space-between"
-                gap={spacing.md}
-              >
-                <Col gap={spacing.xs}>
-                  <Text variant="heading3">Team Members</Text>
-                  {!isAdmin && (
-                    <Text variant="bodySmall" color={color.text.muted}>
-                      Read-only for project members who aren&apos;t admins.
-                    </Text>
-                  )}
-                </Col>
-                <Row alignItems="center" gap={spacing.sm}>
+          <Col gap={spacing.md}>
+            <SectionHeader
+              title="Team members"
+              description="Invite new members, change roles, and remove access."
+            />
+            {!isAdmin && (
+              <Text variant="bodySmall" color={color.text.muted}>
+                Read-only for project members who aren&apos;t admins.
+              </Text>
+            )}
+
+            <Card>
+              <Col padding={spacing.lg} gap={spacing.lg}>
+                <Row
+                  alignItems="center"
+                  justifyContent="space-between"
+                  gap={spacing.md}
+                >
                   <Badge context="neutral" rounded>
                     {visibleMembers.length} member
                     {visibleMembers.length !== 1 ? 's' : ''}
@@ -384,191 +519,195 @@ export function ProjectSettingsRoute({
                     </Button>
                   )}
                 </Row>
-              </Row>
 
-              {inviteSuccess && <Alert type="success">{inviteSuccess}</Alert>}
-              {inviteError && <Alert type="danger">{inviteError}</Alert>}
-              {memberActionError && (
-                <Alert type="danger">{memberActionError}</Alert>
-              )}
+                {inviteSuccess && <Alert type="success">{inviteSuccess}</Alert>}
+                {inviteError && <Alert type="danger">{inviteError}</Alert>}
+                {memberActionError && (
+                  <Alert type="danger">{memberActionError}</Alert>
+                )}
 
-              {visibleMembers.length === 0 ? (
-                <Text variant="body" color={color.text.muted}>
-                  No members found.
-                </Text>
-              ) : (
-                <Col gap={spacing.sm}>
-                  {visibleMembers.map((member: ProjectMember) => {
-                    const isCurrentUser = member.user.id === currentUserId
-                    return (
-                      <Row
-                        key={member.user.id}
-                        alignItems="center"
-                        gap={spacing.md}
-                        padding={spacing.md}
-                        borderRadius={radius.sm}
-                      >
-                        <Avatar
-                          email={member.user.email}
-                          name={member.user.name}
-                          size={36}
-                          mode="image-only"
-                        />
-                        <Col flex={1} gap={spacing.xs}>
-                          <Row alignItems="center" gap={spacing.sm}>
-                            <Text variant="body" weight="semibold">
-                              {member.user.name}
+                {visibleMembers.length === 0 ? (
+                  <Text variant="body" color={color.text.muted}>
+                    No members found.
+                  </Text>
+                ) : (
+                  <Col gap={spacing.sm}>
+                    {visibleMembers.map((member: ProjectMember) => {
+                      const isCurrentUser = member.user.id === currentUserId
+                      return (
+                        <Row
+                          key={member.user.id}
+                          alignItems="center"
+                          gap={spacing.md}
+                          padding={spacing.md}
+                          borderRadius={radius.sm}
+                        >
+                          <Avatar
+                            email={member.user.email}
+                            name={member.user.name}
+                            size={36}
+                            mode="image-only"
+                          />
+                          <Col flex={1} gap={spacing.xs}>
+                            <Row alignItems="center" gap={spacing.sm}>
+                              <Text variant="body" weight="semibold">
+                                {member.user.name}
+                              </Text>
+                              {isCurrentUser && (
+                                <Badge context="info" size="small" rounded>
+                                  You
+                                </Badge>
+                              )}
+                            </Row>
+                            <Text variant="bodySmall" color={color.text.muted}>
+                              {member.user.email}
                             </Text>
-                            {isCurrentUser && (
-                              <Badge context="info" size="small" rounded>
-                                You
-                              </Badge>
-                            )}
-                          </Row>
-                          <Text variant="bodySmall" color={color.text.muted}>
-                            {member.user.email}
-                          </Text>
-                        </Col>
-                        {isAdmin && !isCurrentUser ? (
-                          <Row alignItems="center" gap={spacing.sm}>
-                            <Select
-                              aria-label={`Role for ${member.user.name}`}
-                              value={member.role}
-                              options={projectRoleOptions.map(option => ({
-                                value: option.value,
-                                label: option.label,
-                              }))}
-                              onChange={nextRole =>
-                                handleUpdateMemberRole(
-                                  member,
-                                  nextRole as ProjectRole
-                                )
-                              }
-                            />
-                            <Button
-                              variant="outlined"
-                              context="danger"
-                              size="medium"
-                              rounded
-                              onClick={() => {
-                                void handleRemoveMember(member)
-                              }}
-                            >
-                              Remove
-                            </Button>
-                          </Row>
-                        ) : (
-                          <Badge context="neutral">
-                            {formatRole(member.role)}
-                          </Badge>
-                        )}
-                      </Row>
-                    )
-                  })}
-                </Col>
-              )}
-            </Col>
-          </Card>
-
-          {isAdmin && (
-            <Card>
-              <Col padding={spacing.xl} gap={spacing.lg}>
-                <Text variant="heading3">Archive Project</Text>
-
-                <Text variant="body" color={color.text.muted}>
-                  Archiving a project is permanent. The project will no longer
-                  be accessible to team members. Re-activation is not currently
-                  supported.
-                </Text>
-
-                <Row>
-                  <Button
-                    variant="outlined"
-                    context="danger"
-                    onClick={handleArchive}
-                  >
-                    Archive Project
-                  </Button>
-                </Row>
-
-                {archiveError && <Alert type="danger">{archiveError}</Alert>}
+                          </Col>
+                          {isAdmin && !isCurrentUser ? (
+                            <Row alignItems="center" gap={spacing.sm}>
+                              <Select
+                                aria-label={`Role for ${member.user.name}`}
+                                value={member.role}
+                                options={projectRoleOptions.map(option => ({
+                                  value: option.value,
+                                  label: option.label,
+                                }))}
+                                onChange={nextRole =>
+                                  handleUpdateMemberRole(
+                                    member,
+                                    nextRole as ProjectRole
+                                  )
+                                }
+                              />
+                              <Button
+                                variant="outlined"
+                                context="danger"
+                                size="medium"
+                                rounded
+                                onClick={() => {
+                                  void handleRemoveMember(member)
+                                }}
+                              >
+                                Remove
+                              </Button>
+                            </Row>
+                          ) : (
+                            <Badge context="neutral">
+                              {formatRole(member.role)}
+                            </Badge>
+                          )}
+                        </Row>
+                      )
+                    })}
+                  </Col>
+                )}
               </Col>
             </Card>
-          )}
+          </Col>
 
-          <Modal
-            width={520}
-            height="auto"
-            open={inviteModalOpen}
-            onClose={() => setInviteModalOpen(false)}
-            aria-label="Invite member"
-          >
-            <Modal.Body>
-              <Col gap={spacing.lg}>
-                <Modal.Header
-                  title="Invite member"
-                  description="Invite someone to join this project by email."
-                />
+          {isAdmin && (
+            <Col gap={spacing.md}>
+              <SectionHeader
+                title="Danger zone"
+                description="Archiving a project is permanent and removes access for the team."
+              />
 
-                <form onSubmit={handleInviteSubmit}>
-                  <Stack gap="md">
-                    <FormField>
-                      <Label htmlFor="invite-email">Email</Label>
-                      <Input
-                        id="invite-email"
-                        type="email"
-                        value={inviteEmail}
-                        onChange={event => setInviteEmail(event.target.value)}
-                        placeholder="name@example.com"
-                      />
-                    </FormField>
-
-                    <FormField>
-                      <Label htmlFor="invite-role">Role</Label>
-                      <Select
-                        id="invite-role"
-                        aria-label="Invite role"
-                        value={inviteRole}
-                        options={projectRoleOptions.map(option => ({
-                          value: option.value,
-                          label: option.label,
-                        }))}
-                        onChange={value => setInviteRole(value as ProjectRole)}
-                      />
-                    </FormField>
-
-                    <Text variant="bodySmall" color={color.text.muted}>
-                      The selected role is currently kept in the UI only.
-                    </Text>
-
-                    <Row justifyContent="flex-end" gap={spacing.sm}>
+              <Card context="danger" padding={0}>
+                <Block padding={spacing.lg}>
+                  <ActionRow
+                    label="Archive project"
+                    description="Archive this project to remove access for the team."
+                    control={
                       <Button
                         variant="outlined"
-                        context="neutral"
-                        size="medium"
-                        rounded
-                        type="button"
-                        onClick={() => setInviteModalOpen(false)}
+                        context="danger"
+                        onClick={handleArchive}
                       >
-                        Cancel
+                        Archive project
                       </Button>
-                      <Button
-                        variant="contained"
-                        context="info"
-                        size="medium"
-                        rounded
-                        type="submit"
-                      >
-                        Send invite
-                      </Button>
-                    </Row>
-                  </Stack>
-                </form>
-              </Col>
-            </Modal.Body>
-          </Modal>
-        </Stack>
-      </PageFrame.Body>
+                    }
+                  />
+
+                  {archiveError && <Alert type="danger">{archiveError}</Alert>}
+                </Block>
+              </Card>
+            </Col>
+          )}
+        </SettingsContent>
+
+        <Modal
+          width={520}
+          height="auto"
+          open={inviteModalOpen}
+          onClose={() => setInviteModalOpen(false)}
+          aria-label="Invite member"
+        >
+          <Modal.Body>
+            <Col gap={spacing.lg}>
+              <Modal.Header
+                title="Invite member"
+                description="Invite someone to join this project by email."
+              />
+
+              <form onSubmit={handleInviteSubmit}>
+                <Col gap={spacing.md}>
+                  <FormField>
+                    <Label htmlFor="invite-email">Email</Label>
+                    <Input
+                      id="invite-email"
+                      type="email"
+                      value={inviteEmail}
+                      onChange={event => setInviteEmail(event.target.value)}
+                      placeholder="name@example.com"
+                    />
+                  </FormField>
+
+                  <FormField>
+                    <Label htmlFor="invite-role">Role</Label>
+                    <Select
+                      id="invite-role"
+                      aria-label="Invite role"
+                      value={inviteRole}
+                      options={projectRoleOptions.map(option => ({
+                        value: option.value,
+                        label: option.label,
+                      }))}
+                      onChange={value => setInviteRole(value as ProjectRole)}
+                    />
+                  </FormField>
+
+                  <Text variant="bodySmall" color={color.text.muted}>
+                    They need to accept the invitation before appearing in the
+                    project.
+                  </Text>
+
+                  <Row justifyContent="flex-end" gap={spacing.sm}>
+                    <Button
+                      variant="outlined"
+                      context="neutral"
+                      size="medium"
+                      rounded
+                      type="button"
+                      onClick={() => setInviteModalOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="contained"
+                      context="info"
+                      size="medium"
+                      rounded
+                      type="submit"
+                    >
+                      Send invite
+                    </Button>
+                  </Row>
+                </Col>
+              </form>
+            </Col>
+          </Modal.Body>
+        </Modal>
+      </ProjectSettingsBody>
     </PageFrame>
   )
 }
