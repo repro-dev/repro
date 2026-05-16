@@ -193,42 +193,13 @@ function loadEngineEvents(
 ): FutureInstance<unknown, DomainEvent[]> {
   const pageSize = 1000;
 
-  const collect = (
-    afterOccurredAt?: string,
-    afterEventId?: string,
-    collected: DomainEvent[] = [],
-  ): FutureInstance<unknown, DomainEvent[]> =>
-    store.events
-      .list(undefined, {
-        limit: pageSize,
-        afterOccurredAt,
-        afterEventId,
-      })
-      .pipe(
-        chain((events) => {
-          const engineEvents = events.filter((event) =>
-            event.type.startsWith("engine."),
-          );
-          const nextCollected = [...collected, ...engineEvents];
-
-          if (events.length < pageSize) {
-            return resolve(nextCollected);
-          }
-
-          const lastEvent = events[events.length - 1];
-          if (lastEvent === undefined) {
-            return resolve(nextCollected);
-          }
-
-          return collect(
-            lastEvent.occurred_at,
-            lastEvent.event_id,
-            nextCollected,
-          );
-        }),
-      );
-
-  return collect();
+  return store.events
+    .list(undefined, {
+      limit: pageSize,
+      typePrefix: "engine.",
+      order: "desc",
+    })
+    .pipe(chain((events) => resolve([...events].reverse())));
 }
 
 function waitForEngineTickDelay(

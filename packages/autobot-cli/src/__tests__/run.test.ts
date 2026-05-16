@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { fork, reject, resolve, type FutureInstance } from "fluture";
+import { fork, Future, reject, resolve, type FutureInstance } from "fluture";
 
 import type { ItemDetail } from "@repro/autobot-core";
 
@@ -404,6 +404,48 @@ test("engine logs output renders engine events", async () => {
   assert.equal(exitCode, 0);
   assert.match(io.read().stdout, /Engine logs/);
   assert.match(io.read().stdout, /engine\.tick\.finished/);
+});
+
+test("engine start responds to SIGINT and SIGTERM by cancelling the long-running future", async () => {
+  const signalNames: Array<NodeJS.Signals> = ["SIGINT", "SIGTERM"];
+
+  for (const signalName of signalNames) {
+    const io = createIo();
+    const signalHandlers = new Map<NodeJS.Signals, NodeJS.SignalsListener>();
+    const originalOn = process.on;
+
+    process.on = ((event, listener) => {
+      if (event === "SIGINT" || event === "SIGTERM") {
+        signalHandlers.set(event, listener as NodeJS.SignalsListener);
+      }
+
+      return originalOn.call(process, event, listener);
+    }) as typeof process.on;
+
+    try {
+      const future = runAutobotCli(
+        ["node", "autobot-next", "engine", "start"],
+        io.io,
+        {
+          handleInvocation() {
+            return Future(() => {
+              return () => undefined;
+            });
+          },
+        },
+      );
+
+      const cancel = future.pipe(fork(() => undefined)(() => undefined));
+
+      await new Promise((resolvePromise) => setImmediate(resolvePromise));
+      assert.ok(signalHandlers.get(signalName));
+
+      cancel();
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 20));
+    } finally {
+      process.on = originalOn;
+    }
+  }
 });
 
 test("terminal status output omits next steps", async () => {

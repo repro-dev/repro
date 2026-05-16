@@ -888,6 +888,67 @@ test("engine runtime acquisition stops retrying after cancellation", async () =>
   }
 });
 
+test("engine runtime acquisition cancellation does not remove another starter's guard", async () => {
+  const { root } = await createEngineWorktreeFixture();
+
+  try {
+    const paths = resolveEngineRuntimePaths({
+      path: root,
+      state_dir: ".autobot",
+    });
+
+    await mkdir(paths.state_dir, { recursive: true });
+    await writeFile(
+      paths.acquire_guard_path,
+      `${JSON.stringify(
+        {
+          pid: process.pid,
+          started_at: "2026-05-15T11:00:00Z",
+          state: "starting",
+          last_tick_at: null,
+          stop_requested_at: null,
+          health: [],
+          tick_interval_seconds: 15,
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    const future = acquireEngineRuntime(
+      {
+        path: root,
+        state_dir: ".autobot",
+      },
+      {
+        pid: process.pid + 1,
+        started_at: "2026-05-15T12:00:00Z",
+        tick_interval_seconds: 15,
+      },
+    );
+
+    const cancel = future.pipe(fork(() => undefined)(() => undefined));
+
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 20));
+    cancel();
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 40));
+
+    const guard = JSON.parse(
+      await readFile(paths.acquire_guard_path, "utf8"),
+    ) as {
+      pid: number;
+      started_at: string;
+    };
+
+    assert.equal(guard.pid, process.pid);
+    assert.equal(guard.started_at, "2026-05-15T11:00:00Z");
+    await assert.rejects(readFile(paths.lock_path, "utf8"));
+    await assert.rejects(readFile(paths.status_path, "utf8"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("engine runtime acquisition clears stale stop markers when replacing a dead lock", async () => {
   const { root } = await createEngineWorktreeFixture();
 
@@ -915,6 +976,52 @@ test("engine runtime acquisition clears stale stop markers when replacing a dead
       )}\n`,
       "utf8",
     );
+    await writeFile(
+      paths.stop_path,
+      `${JSON.stringify({ requested_at: "2026-05-15T09:06:00Z" })}\n`,
+      "utf8",
+    );
+
+    const record = await runFuture(
+      acquireEngineRuntime(
+        {
+          path: root,
+          state_dir: ".autobot",
+        },
+        {
+          pid: process.pid,
+          started_at: "2026-05-15T12:00:00Z",
+          tick_interval_seconds: 15,
+        },
+      ),
+    );
+
+    assert.equal(record.pid, process.pid);
+    await assert.rejects(readFile(paths.stop_path, "utf8"));
+
+    const runtime = await runFuture(
+      readEngineRuntime({
+        path: root,
+        state_dir: ".autobot",
+      }),
+    );
+
+    assert.equal(runtime.stop_requested_at, null);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("engine runtime acquisition clears orphaned stop markers for a fresh owner", async () => {
+  const { root } = await createEngineWorktreeFixture();
+
+  try {
+    const paths = resolveEngineRuntimePaths({
+      path: root,
+      state_dir: ".autobot",
+    });
+
+    await mkdir(paths.state_dir, { recursive: true });
     await writeFile(
       paths.stop_path,
       `${JSON.stringify({ requested_at: "2026-05-15T09:06:00Z" })}\n`,
@@ -1045,6 +1152,16 @@ test("engine start cancellation releases runtime ownership", async () => {
 test("engine status and logs surface engine events", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const originalList = fixture.store.events.list;
+  const listCalls: Array<{
+    issueId?: string;
+    options?: {
+      limit?: number;
+      order?: "asc" | "desc";
+      typePrefix?: string;
+      afterOccurredAt?: string;
+      afterEventId?: string;
+    };
+  }> = [];
   const services = createAutobotServices({
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
@@ -1054,12 +1171,20 @@ test("engine status and logs surface engine events", async () => {
   try {
     fixture.store.events.list = ((
       issueId?: string,
-      options?: { limit?: number },
+      options?: {
+        limit?: number;
+        order?: "asc" | "desc";
+        typePrefix?: string;
+        afterOccurredAt?: string;
+        afterEventId?: string;
+      },
     ) => {
+      listCalls.push({ issueId, options });
       const events = [...fixture.domainEvents] as Array<{
         issue_id: string | null;
         occurred_at: string;
         event_id: string;
+        type: string;
       }>;
 
       events.sort(
@@ -1067,10 +1192,25 @@ test("engine status and logs surface engine events", async () => {
           left.occurred_at.localeCompare(right.occurred_at) ||
           left.event_id.localeCompare(right.event_id),
       );
+      const engineEvents = events.filter((event) =>
+        event.type.startsWith("engine."),
+      );
+
+      if (options?.typePrefix === "engine." && options.order === "desc") {
+        return resolve(
+          engineEvents.slice(-Math.max(0, options.limit ?? 100)).reverse(),
+        );
+      }
+
       const scopedEvents =
         issueId === undefined
           ? events
           : events.filter((event) => event.issue_id === issueId);
+
+      if (options?.afterOccurredAt !== undefined) {
+        return resolve([]);
+      }
+
       const limit = Math.max(0, Math.min(options?.limit ?? 100, 1000));
 
       return resolve(scopedEvents.slice(0, limit));
@@ -1137,6 +1277,14 @@ test("engine status and logs surface engine events", async () => {
     assert.equal(logs.kind, "engine-logs");
     assert.equal(
       logs.data.events?.some((event) => event.type === "engine.tick.started"),
+      true,
+    );
+    assert.equal(listCalls.length, 2);
+    assert.equal(
+      listCalls.every(
+        ({ options }) =>
+          options?.typePrefix === "engine." && options.order === "desc",
+      ),
       true,
     );
   } finally {

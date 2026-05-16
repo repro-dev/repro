@@ -193,6 +193,8 @@ export interface StoreProjectionRepository extends ItemProjections {
 export interface DomainEventListOptions {
   limit?: number
   runId?: string
+  typePrefix?: string
+  order?: 'asc' | 'desc'
   beforeOccurredAt?: string
   beforeEventId?: string
   afterOccurredAt?: string
@@ -710,15 +712,13 @@ export function createAutobotRepositories(
     },
     list(issueId, options) {
       return futureAsync(async () => {
-        let query = db
-          .selectFrom('domain_events')
-          .selectAll()
-          .orderBy('occurred_at', 'asc')
-          .orderBy('event_id', 'asc')
+        let query = db.selectFrom('domain_events').selectAll()
+        const order = options?.order ?? 'asc'
         const afterOccurredAt = options?.afterOccurredAt
         const afterEventId = options?.afterEventId
         const beforeOccurredAt = options?.beforeOccurredAt
         const beforeEventId = options?.beforeEventId
+        const typePrefix = options?.typePrefix
 
         if (issueId !== undefined) {
           query = query.where('issue_id', '=', issueId)
@@ -726,6 +726,10 @@ export function createAutobotRepositories(
 
         if (options?.runId !== undefined) {
           query = query.where('run_id', '=', options.runId)
+        }
+
+        if (typePrefix !== undefined) {
+          query = query.where('type', 'like', `${typePrefix}%`)
         }
 
         if (afterOccurredAt !== undefined) {
@@ -755,6 +759,11 @@ export function createAutobotRepositories(
                 ])
           )
         }
+
+        query =
+          order === 'desc'
+            ? query.orderBy('occurred_at', 'desc').orderBy('event_id', 'desc')
+            : query.orderBy('occurred_at', 'asc').orderBy('event_id', 'asc')
 
         const rows = await query
           .limit(Math.max(0, Math.min(options?.limit ?? 100, 1000)))

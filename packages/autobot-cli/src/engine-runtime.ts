@@ -215,6 +215,7 @@ export function acquireEngineRuntime(
     let cancelled = false;
     let settled = false;
     let acquired = false;
+    let acquireGuardOwned = false;
 
     const wait = (milliseconds: number) =>
       new Promise<void>((resolveDelay) => {
@@ -222,7 +223,9 @@ export function acquireEngineRuntime(
       });
 
     const cleanupAcquireState = async () => {
-      await removeFile(paths.acquire_guard_path);
+      if (acquireGuardOwned) {
+        await removeFile(paths.acquire_guard_path);
+      }
     };
 
     const cleanupOwnedState = async () => {
@@ -270,6 +273,7 @@ export function acquireEngineRuntime(
               },
             );
 
+            acquireGuardOwned = true;
             break;
           } catch (error) {
             if (cancelled) {
@@ -318,7 +322,6 @@ export function acquireEngineRuntime(
 
         if (existingLock !== null) {
           await rm(paths.lock_path, { force: true });
-          await removeFile(paths.stop_path);
         }
 
         await writeFile(
@@ -331,6 +334,7 @@ export function acquireEngineRuntime(
         );
 
         acquired = true;
+        await removeFile(paths.stop_path);
 
         if (cancelled) {
           await cleanupOwnedState();
@@ -346,7 +350,7 @@ export function acquireEngineRuntime(
           return;
         }
 
-        await removeFile(paths.acquire_guard_path);
+        await cleanupAcquireState();
         settleResolve();
       } catch (error) {
         await settleReject(error);
@@ -357,13 +361,9 @@ export function acquireEngineRuntime(
       cancelled = true;
 
       if (!settled) {
-        void cleanupAcquireState().then(() => {
-          if (acquired) {
-            return cleanupOwnedState();
-          }
-
-          return undefined;
-        });
+        void cleanupAcquireState().then(() =>
+          acquired ? cleanupOwnedState() : undefined,
+        );
       }
     };
   });

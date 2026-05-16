@@ -291,10 +291,50 @@ export function runAutobotCli(
     }
 
     const parsedInvocation = invocation as AutobotInvocation;
+    const shouldHandleShutdownSignals = true;
+
+    let invocationCancel: (() => void) | null = null;
+    let shutdownRequested = false;
+    const shutdownSignals: Array<NodeJS.Signals> = ["SIGINT", "SIGTERM"];
+
+    const cleanupShutdownHandlers = () => {
+      if (!shouldHandleShutdownSignals) {
+        return;
+      }
+
+      for (const signalName of shutdownSignals) {
+        process.off(signalName, handleShutdownSignal);
+      }
+    };
+
+    const cancelInvocation = () => {
+      if (invocationCancel === null) {
+        shutdownRequested = true;
+        return;
+      }
+
+      const cancel = invocationCancel;
+      invocationCancel = null;
+      cleanupShutdownHandlers();
+      cancel();
+    };
+
+    const handleShutdownSignal = () => {
+      shutdownRequested = true;
+      cancelInvocation();
+    };
+
+    if (shouldHandleShutdownSignals) {
+      for (const signalName of shutdownSignals) {
+        process.on(signalName, handleShutdownSignal);
+      }
+    }
 
     try {
-      return services.handleInvocation(parsedInvocation).pipe(
+      const result = services.handleInvocation(parsedInvocation).pipe(
         fork((error) => {
+          cleanupShutdownHandlers();
+          invocationCancel = null;
           const payload = toErrorPayload(error);
           const command = buildCommand(parsedInvocation.command_path);
 
@@ -320,6 +360,8 @@ export function runAutobotCli(
               : autobotExitCodes.failure,
           );
         })((result) => {
+          cleanupShutdownHandlers();
+          invocationCancel = null;
           renderSuccess(
             result,
             parsedInvocation.options.json,
@@ -329,7 +371,17 @@ export function runAutobotCli(
           resolve(autobotExitCodes.ok);
         }),
       );
+
+      invocationCancel = result;
+
+      if (shutdownRequested) {
+        cancelInvocation();
+      }
+
+      return cancelInvocation;
     } catch (error) {
+      cleanupShutdownHandlers();
+      invocationCancel = null;
       const payload = toErrorPayload(error);
       const command = buildCommand(parsedInvocation.command_path);
 
