@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+current_branch=$(git symbolic-ref --short HEAD 2>/dev/null || true)
+
+if [ "$current_branch" = "main" ]; then
+  export MOON_BASE=HEAD~1
+else
+  git fetch origin main --depth=2 --quiet
+  export MOON_BASE=origin/main
+fi
+
+export MOON_HEAD=HEAD
+export MOON_LOG=warn
+export NODE_OPTIONS="--test-reporter spec"
+
+echo "Running affected build, typecheck, and test checks..."
+moon ci :build :typecheck :test
+
+echo "Running workspace lint..."
+pnpm run lint
+
+echo "Checking formatting..."
+pnpm run fmt:check
