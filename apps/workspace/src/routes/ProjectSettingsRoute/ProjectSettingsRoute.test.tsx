@@ -51,6 +51,11 @@ describe('ProjectSettingsRoute', () => {
           )
         )
         assert.ok(screen.getByText('Team members'))
+        const table = screen.getByRole('table', { name: /project members/i })
+        assert.ok(table)
+        assert.ok(within(table).getByRole('columnheader', { name: /member/i }))
+        assert.ok(within(table).getByRole('columnheader', { name: /role/i }))
+        assert.ok(within(table).getByRole('columnheader', { name: /actions/i }))
         assert.ok(screen.getByText('Viewer'))
         assert.equal(
           screen.queryByRole('button', { name: /invite member/i }),
@@ -62,7 +67,10 @@ describe('ProjectSettingsRoute', () => {
           null
         )
         assert.equal(screen.queryByRole('button', { name: /remove/i }), null)
-        assert.equal(screen.queryByRole('button', { name: /role for/i }), null)
+        assert.equal(
+          screen.queryByRole('combobox', { name: /role for/i }),
+          null
+        )
       })
     })
 
@@ -103,7 +111,10 @@ describe('ProjectSettingsRoute', () => {
 
       await waitFor(() => {
         assert.ok(screen.getByRole('button', { name: /invite member/i }))
-        assert.ok(screen.getByRole('button', { name: /role for viewer user/i }))
+        assert.ok(screen.getByRole('table', { name: /project members/i }))
+        assert.ok(
+          screen.getByRole('combobox', { name: /role for viewer user/i })
+        )
         assert.ok(screen.getByRole('button', { name: /^remove$/i }))
       })
     })
@@ -140,9 +151,10 @@ describe('ProjectSettingsRoute', () => {
         }
       )
 
-      fireEvent.click(
-        within(dialog).getByRole('button', { name: /invite role/i })
-      )
+      const inviteRole = within(dialog).getByRole('combobox', {
+        name: /invite role/i,
+      })
+      fireEvent.click(inviteRole)
       fireEvent.click(
         within(document.body).getByRole('option', { name: /admin/i })
       )
@@ -183,6 +195,7 @@ describe('ProjectSettingsRoute', () => {
       })
 
       await waitFor(() => {
+        assert.ok(screen.getByRole('table', { name: /project members/i }))
         assert.ok(
           screen.getByRole('combobox', { name: /role for viewer user/i })
         )
@@ -243,11 +256,10 @@ describe('ProjectSettingsRoute', () => {
         assert.ok(screen.getByText('Admin User'))
       })
 
-      const adminRow = screen.getByText('Admin User').closest('div')
-        ?.parentElement
+      const adminRow = screen.getByText('Admin User').closest('tr')
       assert.ok(adminRow)
       assert.equal(
-        within(adminRow as HTMLElement).queryByRole('button', {
+        within(adminRow as HTMLElement).queryByRole('combobox', {
           name: /role for admin user/i,
         }),
         null
@@ -332,6 +344,7 @@ describe('ProjectSettingsRoute', () => {
 
       const saveButton = screen.getByRole('button', { name: /save/i })
       assert.equal((saveButton as HTMLButtonElement).disabled, false)
+      assert.ok(screen.getByRole('button', { name: /cancel/i }))
 
       fireEvent.click(saveButton)
 

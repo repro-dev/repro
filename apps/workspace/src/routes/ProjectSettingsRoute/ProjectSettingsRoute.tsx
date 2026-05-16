@@ -16,9 +16,9 @@ import {
   Modal,
   PageFrame,
   Select,
+  Table,
   Text,
   color,
-  radius,
   spacing,
   useConfirm,
 } from '@repro/design'
@@ -284,6 +284,11 @@ export function ProjectSettingsRoute({
     [apiClient, projectId, renameProject, reset]
   )
 
+  const handleCancelNameChange = useCallback(() => {
+    reset({ name: projectName })
+    setRenameError(null)
+  }, [projectName, reset])
+
   const handleInviteSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault()
@@ -442,40 +447,62 @@ export function ProjectSettingsRoute({
               <Card>
                 <Col padding={spacing.lg} gap={spacing.md}>
                   <form onSubmit={handleSubmit(onRename)}>
-                    <Col gap={spacing.md}>
+                    <FormField
+                      id="project-name"
+                      invalid={renameError != null || errors.name != null}
+                    >
+                      <Label htmlFor="project-name">Project name</Label>
+
                       {renameError && (
                         <Alert type="danger">{renameError}</Alert>
                       )}
 
-                      <FormField>
-                        <Label htmlFor="project-name">Project name</Label>
-                        <Input
-                          id="project-name"
-                          context={errors.name ? 'error' : 'normal'}
-                          aria-describedby={
-                            errors.name ? 'project-name-error' : undefined
-                          }
-                          {...register('name')}
-                        />
-                        {errors.name && (
-                          <FormFieldError
-                            id="project-name-error"
-                            error={errors.name}
+                      <Row
+                        alignItems="flex-start"
+                        gap={spacing.sm}
+                        width="100%"
+                      >
+                        <Block flex={1} minWidth={0}>
+                          <Input
+                            id="project-name"
+                            context={errors.name ? 'error' : 'normal'}
+                            aria-describedby={
+                              errors.name ? 'project-name-error' : undefined
+                            }
+                            {...register('name')}
                           />
-                        )}
-                      </FormField>
+                          {errors.name && (
+                            <FormFieldError
+                              id="project-name-error"
+                              error={errors.name}
+                            />
+                          )}
+                        </Block>
 
-                      <Row justifyContent="flex-end">
                         <Button
                           variant="contained"
                           context="info"
+                          size="medium"
                           type="submit"
                           disabled={!isDirty || isSubmitting}
                         >
                           Save
                         </Button>
                       </Row>
-                    </Col>
+
+                      {isDirty && !isSubmitting && (
+                        <Row justifyContent="flex-end">
+                          <Button
+                            size="small"
+                            variant="text"
+                            type="button"
+                            onClick={handleCancelNameChange}
+                          >
+                            Cancel
+                          </Button>
+                        </Row>
+                      )}
+                    </FormField>
                   </form>
                 </Col>
               </Card>
@@ -493,7 +520,7 @@ export function ProjectSettingsRoute({
               </Text>
             )}
 
-            <Card>
+            <Card fullBleed>
               <Col padding={spacing.lg} gap={spacing.lg}>
                 <Row
                   alignItems="center"
@@ -531,75 +558,102 @@ export function ProjectSettingsRoute({
                     No members found.
                   </Text>
                 ) : (
-                  <Col gap={spacing.sm}>
-                    {visibleMembers.map((member: ProjectMember) => {
-                      const isCurrentUser = member.user.id === currentUserId
-                      return (
-                        <Row
-                          key={member.user.id}
-                          alignItems="center"
-                          gap={spacing.md}
-                          padding={spacing.md}
-                          borderRadius={radius.sm}
-                        >
-                          <Avatar
-                            email={member.user.email}
-                            name={member.user.name}
-                            size={36}
-                            mode="image-only"
-                          />
-                          <Col flex={1} gap={spacing.xs}>
-                            <Row alignItems="center" gap={spacing.sm}>
-                              <Text variant="body" weight="semibold">
-                                {member.user.name}
-                              </Text>
-                              {isCurrentUser && (
-                                <Badge context="info" size="small" rounded>
-                                  You
+                  <Table aria-label="Project members">
+                    <Table.Header>
+                      <Table.Row>
+                        <Table.HeaderCell>Member</Table.HeaderCell>
+                        <Table.HeaderCell>Role</Table.HeaderCell>
+                        <Table.HeaderCell>Actions</Table.HeaderCell>
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {visibleMembers.map((member: ProjectMember) => {
+                        const isCurrentUser = member.user.id === currentUserId
+                        const canManageMember = isAdmin && !isCurrentUser
+
+                        return (
+                          <Table.Row key={member.user.id}>
+                            <Table.Cell>
+                              <Row alignItems="center" gap={spacing.md}>
+                                <Avatar
+                                  email={member.user.email}
+                                  name={member.user.name}
+                                  size={36}
+                                  mode="image-only"
+                                />
+                                <Col flex={1} gap={spacing.xs} minWidth={0}>
+                                  <Row alignItems="center" gap={spacing.sm}>
+                                    <Text variant="body" weight="semibold">
+                                      {member.user.name}
+                                    </Text>
+                                    {isCurrentUser && (
+                                      <Badge
+                                        context="info"
+                                        size="small"
+                                        rounded
+                                      >
+                                        You
+                                      </Badge>
+                                    )}
+                                  </Row>
+                                  <Text
+                                    variant="bodySmall"
+                                    color={color.text.muted}
+                                  >
+                                    {member.user.email}
+                                  </Text>
+                                </Col>
+                              </Row>
+                            </Table.Cell>
+                            <Table.Cell>
+                              {canManageMember ? (
+                                <Select
+                                  aria-label={`Role for ${member.user.name}`}
+                                  value={member.role}
+                                  options={projectRoleOptions.map(option => ({
+                                    value: option.value,
+                                    label: option.label,
+                                  }))}
+                                  onChange={nextRole =>
+                                    handleUpdateMemberRole(
+                                      member,
+                                      nextRole as ProjectRole
+                                    )
+                                  }
+                                />
+                              ) : (
+                                <Badge context="neutral">
+                                  {formatRole(member.role)}
                                 </Badge>
                               )}
-                            </Row>
-                            <Text variant="bodySmall" color={color.text.muted}>
-                              {member.user.email}
-                            </Text>
-                          </Col>
-                          {isAdmin && !isCurrentUser ? (
-                            <Row alignItems="center" gap={spacing.sm}>
-                              <Select
-                                aria-label={`Role for ${member.user.name}`}
-                                value={member.role}
-                                options={projectRoleOptions.map(option => ({
-                                  value: option.value,
-                                  label: option.label,
-                                }))}
-                                onChange={nextRole =>
-                                  handleUpdateMemberRole(
-                                    member,
-                                    nextRole as ProjectRole
-                                  )
-                                }
-                              />
-                              <Button
-                                variant="outlined"
-                                context="danger"
-                                size="medium"
-                                rounded
-                                onClick={() => {
-                                  void handleRemoveMember(member)
-                                }}
-                              >
-                                Remove
-                              </Button>
-                            </Row>
-                          ) : (
-                            <Badge context="neutral">
-                              {formatRole(member.role)}
-                            </Badge>
-                          )}
-                        </Row>
-                      )
-                    })}
-                  </Col>
+                            </Table.Cell>
+                            <Table.Cell>
+                              {canManageMember ? (
+                                <Button
+                                  variant="outlined"
+                                  context="danger"
+                                  size="medium"
+                                  rounded
+                                  onClick={() => {
+                                    void handleRemoveMember(member)
+                                  }}
+                                >
+                                  Remove
+                                </Button>
+                              ) : (
+                                <Text
+                                  variant="bodySmall"
+                                  color={color.text.muted}
+                                >
+                                  —
+                                </Text>
+                              )}
+                            </Table.Cell>
+                          </Table.Row>
+                        )
+                      })}
+                    </Table.Body>
+                  </Table>
                 )}
               </Col>
             </Card>
