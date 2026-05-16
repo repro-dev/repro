@@ -41,8 +41,13 @@ test("operate commands and engine subcommands are present in the parser tree", (
   );
 
   assert.ok(runOnceCommand);
-  assert.match(runOnceCommand!.description(), /all runnable queue items/i);
-  assert.match(runOnceCommand!.description(), /one bounded tick/i);
+  assert.match(runOnceCommand!.description(), /scheduler tick/i);
+  assert.match(runOnceCommand!.description(), /reconcile state/i);
+  assert.ok(
+    runOnceCommand!.options.some((option) =>
+      option.flags.includes("--dry-run"),
+    ),
+  );
 
   const startCommand = engineCommand?.commands.find(
     (command) => command.name() === "start",

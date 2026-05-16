@@ -21,6 +21,7 @@ import {
   renderAutobotQueueList,
   renderAutobotQueueMutation,
   renderAutobotQueueStatus,
+  renderAutobotWarnings,
 } from "./render/human";
 import {
   renderJsonErrorEnvelope,
@@ -120,6 +121,10 @@ function renderSuccess(
       }),
     );
     return;
+  }
+
+  if (result.warnings !== undefined && result.warnings.length > 0) {
+    io.stdout.write(`${renderAutobotWarnings(result.warnings)}\n\n`);
   }
 
   switch (result.kind) {

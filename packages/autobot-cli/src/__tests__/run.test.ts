@@ -135,6 +135,78 @@ test("successful human invocations render the human output", async () => {
   assert.equal(io.read().stderr, "");
 });
 
+test("successful human queue status output renders warnings and tick details", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "engine", "run-once"], io.io, {
+      handleInvocation() {
+        return resolve({
+          kind: "queue-status",
+          command: "autobot-next engine run-once",
+          repo: {
+            path: "/worktrees/autobot",
+            state_dir: ".autobot",
+          },
+          data: {
+            engine: {
+              state: "unknown",
+              pid: null,
+              started_at: null,
+              last_tick_at: "2026-05-15T12:00:00Z",
+              tick_interval_seconds: 15,
+              queue_depth: 1,
+              max_concurrency: 1,
+              active_runs: 0,
+              active_workers: [],
+              health: [],
+            },
+            counts: {
+              queued: 1,
+              claimed: 0,
+              preparing: 0,
+              planning: 0,
+              developing: 0,
+              testing: 0,
+              reviewing: 0,
+              reconciling: 0,
+              awaiting: 0,
+              failed: 0,
+              completed: 0,
+              canceled: 0,
+            },
+            items: [makeDetail("queued")],
+            config: [],
+            tick: {
+              dry_run: true,
+              tick_at: "2026-05-15T12:00:00Z",
+              reconciled_issue_ids: ["REP-1151"],
+              discovered_issue_ids: ["REP-300"],
+              queued_issue_ids: ["REP-300"],
+              selected_issue_ids: ["REP-1151"],
+              started_issue_ids: [],
+              skipped: [],
+            },
+          },
+          warnings: [
+            {
+              code: "ENGINE_DISCOVERY_PROJECTS_MISSING",
+              message:
+                "Auto-discovery is enabled but discovery.projects is unset; skipping discovery.",
+              severity: "warning",
+            },
+          ],
+        } as AutobotCommandResult);
+      },
+    }),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.match(io.read().stdout, /ENGINE_DISCOVERY_PROJECTS_MISSING/);
+  assert.match(io.read().stdout, /Dry run: yes/);
+  assert.match(io.read().stdout, /Selected: REP-1151/);
+});
+
 test("terminal status output omits next steps", async () => {
   const io = createIo();
 

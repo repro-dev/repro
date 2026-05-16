@@ -277,7 +277,8 @@ export function createAutobotProgram(
     {
       command: "run-once",
       description:
-        "run one bounded tick across all runnable queue items and exit",
+        "run one scheduler tick across the queue, reconcile state, and exit",
+      options: ["--dry-run"],
     },
     options.onInvocation,
   );

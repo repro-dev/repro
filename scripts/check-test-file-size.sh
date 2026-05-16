@@ -3,14 +3,19 @@ set -euo pipefail
 
 WARN_THRESHOLD=400
 ERROR_THRESHOLD=500
+WARN_ONLY=false
 
 usage() {
-  echo "Usage: $0 [--warn-threshold N] [--error-threshold N]" >&2
+  echo "Usage: $0 [--warn-only] [--warn-threshold N] [--error-threshold N]" >&2
   exit 2
 }
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --warn-only)
+      WARN_ONLY=true
+      shift
+      ;;
     --warn-threshold)
       [ "$#" -ge 2 ] || usage
       WARN_THRESHOLD="$2"
@@ -57,9 +62,14 @@ get_candidate_files() {
 while IFS= read -r file; do
   lines=$(wc -l < "$file" | tr -d ' ')
   if [ "$lines" -gt "$ERROR_THRESHOLD" ]; then
-    echo "ERROR: $file has $lines lines (limit: $ERROR_THRESHOLD)" >&2
-    exit_code=1
-    error_count=$((error_count + 1))
+    if [ "$WARN_ONLY" = true ]; then
+      echo "WARN: $file has $lines lines (warning threshold: $WARN_THRESHOLD)"
+      warn_count=$((warn_count + 1))
+    else
+      echo "ERROR: $file has $lines lines (limit: $ERROR_THRESHOLD)" >&2
+      exit_code=1
+      error_count=$((error_count + 1))
+    fi
   elif [ "$lines" -gt "$WARN_THRESHOLD" ]; then
     echo "WARN: $file has $lines lines (warning threshold: $WARN_THRESHOLD)"
     warn_count=$((warn_count + 1))

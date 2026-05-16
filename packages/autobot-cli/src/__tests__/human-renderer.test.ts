@@ -105,7 +105,7 @@ test("queue status renderer includes tick metadata when available", () => {
     Engine: unknown
     Counts: queued: 0, claimed: 0, preparing: 0, planning: 0, developing: 0, testing: 0, reviewing: 0, reconciling: 0, awaiting: 0, failed: 0, completed: 0, canceled: 0
     Last tick: 2026-05-15T11:00:00Z
-    Tick scope: all runnable queue items, one unit each
+    Tick scope: queue scheduler
     `,
   );
 });
