@@ -13,6 +13,7 @@ import {
   renderAutobotConfigMutation,
   renderAutobotConfigValue,
   renderAutobotDiscoverResults,
+  renderAutobotEngineLogs,
   renderAutobotEngineStatus,
   renderAutobotFlowcraftInspect,
   renderAutobotWorkflowDiagram,
@@ -153,6 +154,13 @@ function renderSuccess(
     case "engine-status":
       io.stdout.write(
         `${renderAutobotEngineStatus(result.data, {
+          color: colorEnabled,
+        })}\n`,
+      );
+      return;
+    case "engine-logs":
+      io.stdout.write(
+        `${renderAutobotEngineLogs(result.data, {
           color: colorEnabled,
         })}\n`,
       );

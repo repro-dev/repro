@@ -69,6 +69,7 @@ export interface EngineStatusData {
   engine: EngineStatus;
   counts: Record<ItemState, number>;
   active_workers: WorkerSummary[];
+  events?: readonly DomainEvent[];
   items: ItemSummary[];
   config: ConfigEntry[];
   tick?: EngineTickReport;
@@ -95,6 +96,13 @@ export type AutobotCommandResult =
     }
   | {
       kind: "engine-status";
+      command: string;
+      repo: RepoRef;
+      data: EngineStatusData;
+      warnings?: readonly Warning[];
+    }
+  | {
+      kind: "engine-logs";
       command: string;
       repo: RepoRef;
       data: EngineStatusData;

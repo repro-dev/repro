@@ -274,6 +274,11 @@ export function createAutobotProgram(
   );
   registerLeafCommand(
     engineCommand,
+    { command: "logs", description: "show engine logs" },
+    options.onInvocation,
+  );
+  registerLeafCommand(
+    engineCommand,
     {
       command: "run-once",
       description:

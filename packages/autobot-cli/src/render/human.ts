@@ -143,6 +143,12 @@ function renderStatusSection(
     );
   }
 
+  const events = input.events ?? input.engine.events ?? [];
+
+  if (events.length > 0) {
+    lines.push("", "Events:", indentLines(events.map(renderDomainEvent)));
+  }
+
   if (input.tick !== undefined) {
     lines.push(
       "",
@@ -301,6 +307,13 @@ export function renderAutobotEngineStatus(
   options?: { color?: boolean },
 ): string {
   return renderStatusSection("Engine status", input, options);
+}
+
+export function renderAutobotEngineLogs(
+  input: EngineStatusData,
+  options?: { color?: boolean },
+): string {
+  return renderStatusSection("Engine logs", input, options);
 }
 
 export function renderAutobotConfigList(config: ConfigEntry[]): string {

@@ -250,6 +250,26 @@ test("engine status output renders relay-aware workers", async () => {
                   },
                 },
               ],
+              events: [
+                {
+                  event_id: "event-engine-1",
+                  issue_id: null,
+                  run_id: null,
+                  type: "engine.tick.started",
+                  state: null,
+                  message: "engine.tick.started",
+                  severity: "info",
+                  occurred_at: "2026-05-15T12:00:00Z",
+                  actor: "engine",
+                  transport: null,
+                  data: {
+                    selected_issue_ids: [],
+                    reconciled_issue_ids: [],
+                    queued_issue_ids: [],
+                    started_issue_ids: [],
+                  },
+                },
+              ],
               health: [
                 {
                   code: "ENGINE_STOP_REQUESTED",
@@ -305,7 +325,85 @@ test("engine status output renders relay-aware workers", async () => {
   assert.equal(exitCode, 0);
   assert.match(io.read().stdout, /Engine status/);
   assert.match(io.read().stdout, /Relay:/);
+  assert.match(io.read().stdout, /Events:/);
+  assert.match(io.read().stdout, /engine\.tick\.started/);
   assert.match(io.read().stdout, /Graceful shutdown requested/);
+});
+
+test("engine logs output renders engine events", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "engine", "logs"], io.io, {
+      handleInvocation() {
+        return resolve({
+          kind: "engine-logs",
+          command: "autobot-next engine logs",
+          repo: {
+            path: "/worktrees/autobot",
+            state_dir: ".autobot",
+          },
+          data: {
+            engine: {
+              state: "running",
+              pid: 4242,
+              started_at: "2026-05-15T10:00:00Z",
+              last_tick_at: "2026-05-15T10:05:00Z",
+              tick_interval_seconds: 15,
+              queue_depth: 1,
+              max_concurrency: 1,
+              active_runs: 1,
+              active_workers: [],
+              events: [
+                {
+                  event_id: "event-engine-1",
+                  issue_id: null,
+                  run_id: null,
+                  type: "engine.tick.finished",
+                  state: null,
+                  message: "engine.tick.finished",
+                  severity: "info",
+                  occurred_at: "2026-05-15T12:00:00Z",
+                  actor: "engine",
+                  transport: null,
+                  data: {
+                    selected_issue_ids: [],
+                    reconciled_issue_ids: [],
+                    queued_issue_ids: [],
+                    started_issue_ids: [],
+                  },
+                },
+              ],
+              health: [],
+            },
+            counts: {
+              queued: 1,
+              claimed: 0,
+              preparing: 0,
+              planning: 0,
+              developing: 0,
+              testing: 0,
+              reviewing: 0,
+              reconciling: 0,
+              awaiting: 0,
+              failed: 0,
+              completed: 0,
+              canceled: 0,
+            },
+            active_workers: [],
+            items: [makeDetail("queued")],
+            config: [],
+            message: "Recent engine events",
+          },
+          warnings: [],
+        } as AutobotCommandResult);
+      },
+    }),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.match(io.read().stdout, /Engine logs/);
+  assert.match(io.read().stdout, /engine\.tick\.finished/);
 });
 
 test("terminal status output omits next steps", async () => {

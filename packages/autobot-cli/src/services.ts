@@ -188,6 +188,54 @@ function loadActiveWorkers(
   >;
 }
 
+function loadEngineEvents(
+  store: AutobotStore,
+): FutureInstance<unknown, DomainEvent[]> {
+  return store.events
+    .list(undefined, { limit: 50 })
+    .pipe(
+      map((events) =>
+        events.filter((event) => event.type.startsWith("engine.")),
+      ),
+    );
+}
+
+function synthesizeEngineEvents(
+  runtime: EngineRuntimeSnapshot | null,
+  events: readonly DomainEvent[],
+): DomainEvent[] {
+  if (events.length > 0) {
+    return [...events];
+  }
+
+  const runtimeRecord = runtime?.status ?? runtime?.lock ?? null;
+  const state = runtimeRecord?.state ?? "stopped";
+  const occurredAt =
+    runtimeRecord?.last_tick_at ??
+    runtimeRecord?.started_at ??
+    new Date().toISOString();
+
+  return [
+    {
+      event_id: `engine-status-${state}-${runtimeRecord?.started_at ?? "n-a"}`,
+      issue_id: null,
+      run_id: null,
+      type: `engine.status.${state}`,
+      state: null,
+      message: `engine ${state}`,
+      severity: "info",
+      occurred_at: occurredAt,
+      actor: "engine",
+      transport: null,
+      data: {
+        state,
+        stop_requested_at: runtime?.stop_requested_at ?? null,
+        stale_lock: runtime?.stale_lock ?? false,
+      },
+    },
+  ];
+}
+
 const configDefinitions: readonly ConfigDefinition[] = [
   {
     key: "engine.auto-discover",
@@ -504,6 +552,7 @@ function createEngineStatus(
     runtime?: EngineRuntimeSnapshot | null;
     lastTickAt?: string | null;
     activeWorkers?: Array<EngineStatusData["active_workers"][number]>;
+    events?: readonly DomainEvent[];
     health?: HealthCheck[];
     fallbackState?: EngineStatus["state"];
   } = {},
@@ -517,6 +566,7 @@ function createEngineStatus(
   const runtimeStatus = runtime?.status ?? null;
   const runtimeLock = runtime?.lock ?? null;
   const activeWorkers = input.activeWorkers ?? [];
+  const events = input.events ?? [];
   const runtimeHealth = runtimeStatus?.health ?? [];
   const providedHealth = input.health ?? [];
   const health = [...runtimeHealth, ...providedHealth];
@@ -558,6 +608,7 @@ function createEngineStatus(
       0,
     ),
     active_workers: activeWorkers,
+    events,
     health: [
       ...(runtime !== null && runtime.stale_lock
         ? [
@@ -1006,6 +1057,7 @@ function createQueueStatus(
     lastTickAt?: string | null;
     runtime?: EngineRuntimeSnapshot | null;
     fallbackState?: EngineStatus["state"];
+    events?: readonly DomainEvent[];
     tick?: EngineTickReport;
     warnings?: readonly Warning[];
   } = {},
@@ -1034,6 +1086,7 @@ function createQueueStatus(
                       runtime: options.runtime ?? null,
                       lastTickAt: options.lastTickAt ?? null,
                       activeWorkers,
+                      events: options.events,
                       health:
                         options.warnings === undefined
                           ? []
@@ -1042,6 +1095,7 @@ function createQueueStatus(
                     }),
                     counts,
                     active_workers: activeWorkers,
+                    events: options.events,
                     items: items.filter((item) => !isTerminalState(item.state)),
                     config,
                     ...(options.tick === undefined
@@ -1068,15 +1122,18 @@ function createEngineStatusResult(input: {
   command: string;
   runtime?: EngineRuntimeSnapshot | null;
   lastTickAt?: string | null;
+  events?: readonly DomainEvent[];
   tick?: EngineTickReport;
   warnings?: readonly Warning[];
   action?: "start" | "stop";
   message?: string;
+  kind?: "engine-status" | "engine-logs";
 }): FutureInstance<unknown, AutobotCommandResult> {
   return createQueueStatus(input.store, {
     command: input.command,
     runtime: input.runtime ?? null,
     lastTickAt: input.lastTickAt ?? null,
+    events: input.events,
     fallbackState: "stopped",
     tick: input.tick,
     warnings: input.warnings,
@@ -1089,7 +1146,7 @@ function createEngineStatusResult(input: {
 
       return {
         ...queueStatus,
-        kind: "engine-status",
+        kind: input.kind ?? "engine-status",
         data: {
           ...queueStatus.data,
           action: input.action,
@@ -2655,21 +2712,48 @@ function handleEngineStatus(
   invocation: AutobotInvocation,
   store: AutobotStore,
 ): FutureInstance<unknown, AutobotCommandResult> {
-  return readEngineRuntime(store.repo).pipe(
-    chain((runtime) =>
-      createEngineStatusResult({
-        store,
-        command: invocation.command,
-        runtime,
-        message:
-          runtime.stop_requested_at !== null
-            ? "Graceful shutdown is in progress"
-            : runtime.stale_lock
-            ? "Engine lock is stale"
-            : runtime.lock !== null || runtime.status !== null
-            ? "Engine is running"
-            : "Engine is stopped",
-      }),
+  return loadEngineEvents(store).pipe(
+    chain((events) =>
+      readEngineRuntime(store.repo).pipe(
+        chain((runtime) =>
+          createEngineStatusResult({
+            store,
+            command: invocation.command,
+            runtime,
+            events: synthesizeEngineEvents(runtime, events),
+            message:
+              runtime.stop_requested_at !== null
+                ? "Graceful shutdown is in progress"
+                : runtime.stale_lock
+                ? "Engine lock is stale"
+                : runtime.lock !== null || runtime.status !== null
+                ? "Engine is running"
+                : "Engine is stopped",
+          }),
+        ),
+      ),
+    ),
+  );
+}
+
+function handleEngineLogs(
+  invocation: AutobotInvocation,
+  store: AutobotStore,
+): FutureInstance<unknown, AutobotCommandResult> {
+  return loadEngineEvents(store).pipe(
+    chain((events) =>
+      readEngineRuntime(store.repo).pipe(
+        chain((runtime) =>
+          createEngineStatusResult({
+            store,
+            command: invocation.command,
+            runtime,
+            events: synthesizeEngineEvents(runtime, events),
+            kind: "engine-logs",
+            message: "Recent engine events",
+          }),
+        ),
+      ),
     ),
   );
 }
@@ -2723,9 +2807,15 @@ function handleEngineStart(
         chain((record) =>
           Future((reject, resolveFuture) => {
             let cancelled = false;
+            let released = false;
             let currentRecord = record;
 
             const finish = (message: string) => {
+              if (released) {
+                return;
+              }
+
+              released = true;
               releaseEngineRuntime(store.repo, currentRecord).pipe(
                 fork(reject)(() => {
                   createEngineStatusResult({
@@ -2837,6 +2927,13 @@ function handleEngineStart(
 
             return () => {
               cancelled = true;
+
+              if (!released) {
+                released = true;
+                releaseEngineRuntime(store.repo, currentRecord).pipe(
+                  fork(() => undefined)(() => undefined),
+                );
+              }
             };
           }),
         ),
@@ -3194,6 +3291,8 @@ function handleCommand(
       return handleLogs(invocation, store);
     case "engine":
       switch (invocation.command_path[1]) {
+        case "logs":
+          return handleEngineLogs(invocation, store);
         case "run-once":
           return handleEngineRunOnce(
             invocation,

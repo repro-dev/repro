@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { fork, map, resolve, type FutureInstance } from "fluture";
+import { Future, fork, map, resolve, type FutureInstance } from "fluture";
 
 import type { AutobotStore } from "@repro/autobot-store";
 
@@ -609,6 +609,200 @@ test("engine runtime acquisition is atomic under a stale lock", async () => {
       ),
       true,
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("engine runtime recovers a stale acquire guard", async () => {
+  const { root } = await createEngineWorktreeFixture();
+
+  try {
+    const paths = resolveEngineRuntimePaths({
+      path: root,
+      state_dir: ".autobot",
+    });
+
+    await mkdir(paths.state_dir, { recursive: true });
+    await writeFile(
+      paths.acquire_guard_path,
+      `${JSON.stringify(
+        {
+          pid: 999999,
+          started_at: "2026-05-15T09:00:00Z",
+          state: "starting",
+          last_tick_at: null,
+          stop_requested_at: null,
+          health: [],
+          tick_interval_seconds: 15,
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    const record = await runFuture(
+      acquireEngineRuntime(
+        {
+          path: root,
+          state_dir: ".autobot",
+        },
+        {
+          pid: process.pid,
+          started_at: "2026-05-15T12:00:00Z",
+          tick_interval_seconds: 15,
+        },
+      ),
+    );
+
+    assert.equal(record.pid, process.pid);
+    await assert.rejects(readFile(paths.acquire_guard_path, "utf8"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("engine runtime release ignores tick interval changes for the same owner", async () => {
+  const { root } = await createEngineWorktreeFixture();
+
+  try {
+    await writeRuntimeFiles(root, {
+      pid: process.pid,
+      state: "running",
+      started_at: "2026-05-15T10:00:00Z",
+      last_tick_at: "2026-05-15T10:05:00Z",
+      stop_requested_at: null,
+      tick_interval_seconds: 30,
+    });
+
+    await runFuture(
+      releaseEngineRuntime(
+        {
+          path: root,
+          state_dir: ".autobot",
+        },
+        {
+          pid: process.pid,
+          started_at: "2026-05-15T10:00:00Z",
+          state: "running",
+          last_tick_at: "2026-05-15T10:05:00Z",
+          stop_requested_at: null,
+          health: [],
+          tick_interval_seconds: 15,
+        },
+      ),
+    );
+
+    const paths = resolveEngineRuntimePaths({
+      path: root,
+      state_dir: ".autobot",
+    });
+
+    await assert.rejects(readFile(paths.lock_path, "utf8"));
+    const status = JSON.parse(await readFile(paths.status_path, "utf8")) as {
+      state: string;
+    };
+    assert.equal(status.state, "stopped");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("engine start cancellation releases runtime ownership", async () => {
+  const { root, fixture } = await createEngineWorktreeFixture();
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    sleep() {
+      return Future(() => {
+        return () => undefined;
+      });
+    },
+  });
+
+  try {
+    const future = services.handleInvocation({
+      ...makeInvocation(["engine", "start"]),
+      options: makeOptions({ repo: root }),
+    });
+
+    const cancel = future.pipe(fork(() => undefined)(() => undefined));
+
+    const paths = resolveEngineRuntimePaths({
+      path: root,
+      state_dir: ".autobot",
+    });
+
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
+    await assert.doesNotReject(readFile(paths.lock_path, "utf8"));
+    cancel();
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
+
+    await assert.rejects(readFile(paths.lock_path, "utf8"));
+    const status = JSON.parse(await readFile(paths.status_path, "utf8")) as {
+      state: string;
+    };
+
+    assert.equal(status.state, "stopped");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("engine status and logs surface engine events", async () => {
+  const { root, fixture } = await createEngineWorktreeFixture();
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+  });
+
+  try {
+    await runFuture(
+      fixture.store.events.append({
+        event_id: "event-engine-1",
+        issue_id: null,
+        run_id: null,
+        type: "engine.tick.started",
+        state: null,
+        message: "engine.tick.started",
+        severity: "info",
+        occurred_at: "2026-05-15T12:00:00Z",
+        actor: "engine",
+        transport: null,
+        data: {
+          selected_issue_ids: [],
+          reconciled_issue_ids: [],
+          queued_issue_ids: [],
+          started_issue_ids: [],
+        },
+      }),
+    );
+
+    const status = (await runFuture(
+      services.handleInvocation({
+        ...makeInvocation(["engine", "status"]),
+        options: makeOptions({ repo: root }),
+      }),
+    )) as AutobotCommandResult;
+
+    const logs = (await runFuture(
+      services.handleInvocation({
+        ...makeInvocation(["engine", "logs"]),
+        options: makeOptions({ repo: root }),
+      }),
+    )) as AutobotCommandResult;
+
+    assert.equal(status.kind, "engine-status");
+    assert.equal((status.data.events?.length ?? 0) > 0, true);
+    assert.equal(status.data.events?.[0]?.type.startsWith("engine."), true);
+    assert.equal(logs.kind, "engine-logs");
+    assert.equal((logs.data.events?.length ?? 0) > 0, true);
+    assert.equal(logs.data.events?.[0]?.type.startsWith("engine."), true);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

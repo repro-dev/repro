@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { EngineState, HealthCheck, RepoRef } from "@repro/autobot-core";
@@ -103,11 +103,36 @@ function sameEngineRuntimeOwner(
   left: EngineRuntimeRecord,
   right: EngineRuntimeRecord,
 ): boolean {
-  return (
-    left.pid === right.pid &&
-    left.started_at === right.started_at &&
-    left.tick_interval_seconds === right.tick_interval_seconds
+  return left.pid === right.pid && left.started_at === right.started_at;
+}
+
+const acquireGuardStaleTimeoutMilliseconds = 30_000;
+
+async function recoverStaleAcquireGuard(paths: EngineRuntimePaths) {
+  const guard = await readJsonFile<EngineRuntimeRecord>(
+    paths.acquire_guard_path,
   );
+
+  if (guard === null) {
+    return true;
+  }
+
+  if (guard.pid > 0 && isProcessAlive(guard.pid)) {
+    try {
+      const guardStat = await stat(paths.acquire_guard_path);
+      if (
+        Date.now() - guardStat.mtimeMs <
+        acquireGuardStaleTimeoutMilliseconds
+      ) {
+        return false;
+      }
+    } catch {
+      return true;
+    }
+  }
+
+  await removeFile(paths.acquire_guard_path);
+  return true;
 }
 
 export function resolveEngineRuntimePaths(repo: RepoRef): EngineRuntimePaths {
@@ -211,7 +236,10 @@ export function acquireEngineRuntime(
           throw error;
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 5));
+        const recovered = await recoverStaleAcquireGuard(paths);
+        if (!recovered) {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        }
       }
     }
 
