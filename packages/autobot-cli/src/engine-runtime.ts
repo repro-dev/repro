@@ -211,13 +211,117 @@ export function acquireEngineRuntime(
     tick_interval_seconds: input.tick_interval_seconds,
   };
 
-  return futureAsync(async () => {
-    await mkdir(paths.state_dir, { recursive: true });
+  return Future((reject, resolve) => {
+    let cancelled = false;
+    let settled = false;
+    let acquired = false;
 
-    while (true) {
+    const wait = (milliseconds: number) =>
+      new Promise<void>((resolveDelay) => {
+        setTimeout(resolveDelay, milliseconds);
+      });
+
+    const cleanupAcquireState = async () => {
+      await removeFile(paths.acquire_guard_path);
+    };
+
+    const cleanupOwnedState = async () => {
+      await removeFile(paths.lock_path);
+      await removeFile(paths.status_path);
+    };
+
+    const settleReject = async (error: unknown) => {
+      if (settled || cancelled) {
+        return;
+      }
+
+      settled = true;
+      await cleanupAcquireState();
+
+      if (acquired) {
+        await cleanupOwnedState();
+      }
+
+      reject(error);
+    };
+
+    const settleResolve = async () => {
+      if (settled || cancelled) {
+        return;
+      }
+
+      settled = true;
+      await removeFile(paths.acquire_guard_path);
+      resolve(record);
+    };
+
+    void (async () => {
       try {
+        await mkdir(paths.state_dir, { recursive: true });
+
+        while (!cancelled) {
+          try {
+            await writeFile(
+              paths.acquire_guard_path,
+              `${JSON.stringify(record, null, 2)}\n`,
+              {
+                encoding: "utf8",
+                flag: "wx",
+              },
+            );
+
+            break;
+          } catch (error) {
+            if (cancelled) {
+              return;
+            }
+
+            if (
+              error !== null &&
+              typeof error === "object" &&
+              "code" in error &&
+              (error as { code?: unknown }).code !== "EEXIST"
+            ) {
+              throw error;
+            }
+
+            const recovered = await recoverStaleAcquireGuard(paths);
+            if (cancelled) {
+              return;
+            }
+
+            if (!recovered) {
+              await wait(5);
+            }
+          }
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        const existingLock = await readJsonFile<EngineRuntimeRecord>(
+          paths.lock_path,
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        if (
+          existingLock !== null &&
+          existingLock.pid > 0 &&
+          isProcessAlive(existingLock.pid)
+        ) {
+          throw createEngineAlreadyRunningError(existingLock);
+        }
+
+        if (existingLock !== null) {
+          await rm(paths.lock_path, { force: true });
+        }
+
         await writeFile(
-          paths.acquire_guard_path,
+          paths.lock_path,
           `${JSON.stringify(record, null, 2)}\n`,
           {
             encoding: "utf8",
@@ -225,53 +329,42 @@ export function acquireEngineRuntime(
           },
         );
 
-        break;
+        acquired = true;
+
+        if (cancelled) {
+          await cleanupOwnedState();
+          await cleanupAcquireState();
+          return;
+        }
+
+        await writeJsonFile(paths.status_path, record);
+
+        if (cancelled) {
+          await cleanupOwnedState();
+          await cleanupAcquireState();
+          return;
+        }
+
+        await removeFile(paths.acquire_guard_path);
+        settleResolve();
       } catch (error) {
-        if (
-          error !== null &&
-          typeof error === "object" &&
-          "code" in error &&
-          (error as { code?: unknown }).code !== "EEXIST"
-        ) {
-          throw error;
-        }
-
-        const recovered = await recoverStaleAcquireGuard(paths);
-        if (!recovered) {
-          await new Promise((resolve) => setTimeout(resolve, 5));
-        }
+        await settleReject(error);
       }
-    }
+    })();
 
-    try {
-      const existingLock = await readJsonFile<EngineRuntimeRecord>(
-        paths.lock_path,
-      );
+    return () => {
+      cancelled = true;
 
-      if (
-        existingLock !== null &&
-        existingLock.pid > 0 &&
-        isProcessAlive(existingLock.pid)
-      ) {
-        throw createEngineAlreadyRunningError(existingLock);
+      if (!settled) {
+        void cleanupAcquireState().then(() => {
+          if (acquired) {
+            return cleanupOwnedState();
+          }
+
+          return undefined;
+        });
       }
-
-      if (existingLock !== null) {
-        await rm(paths.lock_path, { force: true });
-      }
-
-      await writeFile(paths.lock_path, `${JSON.stringify(record, null, 2)}\n`, {
-        encoding: "utf8",
-        flag: "wx",
-      });
-
-      await writeJsonFile(paths.status_path, record);
-      await removeFile(paths.stop_path);
-
-      return record;
-    } finally {
-      await removeFile(paths.acquire_guard_path);
-    }
+    };
   });
 }
 
@@ -296,6 +389,19 @@ export function requestEngineStop(
     const paths = resolveEngineRuntimePaths(repo);
     const snapshot = await readEngineRuntimeValue(repo);
     if (snapshot.status === null) {
+      if (snapshot.lock !== null) {
+        await writeFile(
+          paths.stop_path,
+          `${JSON.stringify({ requested_at: requestedAt })}\n`,
+          "utf8",
+        );
+
+        return {
+          ...snapshot,
+          stop_requested_at: requestedAt,
+        };
+      }
+
       await removeFile(paths.stop_path);
 
       return {

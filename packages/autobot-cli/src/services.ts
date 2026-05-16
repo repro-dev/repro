@@ -2810,6 +2810,21 @@ function handleEngineStart(
             let released = false;
             let currentRecord = record;
 
+            const releaseAndReject = (error: unknown) => {
+              if (released) {
+                return;
+              }
+
+              released = true;
+              releaseEngineRuntime(store.repo, currentRecord).pipe(
+                fork(() => {
+                  reject(error);
+                })(() => {
+                  reject(error);
+                }),
+              );
+            };
+
             const finish = (message: string) => {
               if (released) {
                 return;
@@ -2844,7 +2859,7 @@ function handleEngineStart(
               }
 
               readEngineRuntime(store.repo).pipe(
-                fork(reject)((snapshotBeforeTick) => {
+                fork(releaseAndReject)((snapshotBeforeTick) => {
                   if (snapshotBeforeTick.stop_requested_at !== null) {
                     currentRecord = {
                       ...currentRecord,
@@ -2877,7 +2892,7 @@ function handleEngineStart(
                       stale_lock: false,
                     },
                   ).pipe(
-                    fork(reject)((result) => {
+                    fork(releaseAndReject)((result) => {
                       const queueStatus = result as Extract<
                         AutobotCommandResult,
                         { kind: "queue-status" }
@@ -2898,9 +2913,9 @@ function handleEngineStart(
                       };
 
                       writeEngineRuntimeStatus(store.repo, currentRecord).pipe(
-                        fork(reject)(() => {
+                        fork(releaseAndReject)(() => {
                           readEngineRuntime(store.repo).pipe(
-                            fork(reject)((snapshotAfterTick) => {
+                            fork(releaseAndReject)((snapshotAfterTick) => {
                               if (
                                 snapshotAfterTick.stop_requested_at !== null
                               ) {
@@ -2909,7 +2924,7 @@ function handleEngineStart(
                               }
 
                               sleep(engine.tick_interval_seconds * 1000).pipe(
-                                fork(reject)(() => {
+                                fork(releaseAndReject)(() => {
                                   tick();
                                 }),
                               );
