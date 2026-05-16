@@ -1,5 +1,6 @@
 import { resolve, type FutureInstance } from "fluture";
 
+import type { TransportCorrelation } from "@repro/autobot-core";
 import type { AutobotStore } from "@repro/autobot-store";
 
 type Mutable<T> = {
@@ -49,7 +50,7 @@ type WorkflowRunRecord = {
   finished_at: string | null;
   worker_id: string | null;
   last_heartbeat_at: string | null;
-  transport: null;
+  transport: TransportCorrelation | null;
 };
 
 type WorkflowWorkerRecord = {
@@ -368,6 +369,15 @@ export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
       },
       get(runId: string) {
         runGetLookups.push(runId);
+        const currentRun = [...currentRuns.values()].find(
+          (run): run is WorkflowRunRecord =>
+            run !== null && run !== undefined && run.run_id === runId,
+        );
+
+        if (currentRun !== undefined) {
+          return resolve({ ...currentRun });
+        }
+
         return resolve(
           runId === "run-1154"
             ? {

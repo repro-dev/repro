@@ -175,6 +175,7 @@ test("successful human queue status output renders warnings and tick details", a
               completed: 0,
               canceled: 0,
             },
+            active_workers: [],
             items: [makeDetail("queued")],
             config: [],
             tick: {
@@ -205,6 +206,106 @@ test("successful human queue status output renders warnings and tick details", a
   assert.match(io.read().stdout, /ENGINE_DISCOVERY_PROJECTS_MISSING/);
   assert.match(io.read().stdout, /Dry run: yes/);
   assert.match(io.read().stdout, /Selected: REP-1151/);
+});
+
+test("engine status output renders relay-aware workers", async () => {
+  const io = createIo();
+
+  const exitCode = await runFuture(
+    runAutobotCli(["node", "autobot-next", "engine", "status"], io.io, {
+      handleInvocation() {
+        return resolve({
+          kind: "engine-status",
+          command: "autobot-next engine status",
+          repo: {
+            path: "/worktrees/autobot",
+            state_dir: ".autobot",
+          },
+          data: {
+            engine: {
+              state: "running",
+              pid: 4242,
+              started_at: "2026-05-15T10:00:00Z",
+              last_tick_at: "2026-05-15T10:05:00Z",
+              tick_interval_seconds: 15,
+              queue_depth: 1,
+              max_concurrency: 1,
+              active_runs: 1,
+              active_workers: [
+                {
+                  worker_id: "worker-1",
+                  issue_id: "REP-1154",
+                  run_id: "run-1154",
+                  state: "running",
+                  pid: 4242,
+                  started_at: "2026-05-15T10:00:00Z",
+                  last_heartbeat_at: "2026-05-15T10:05:00Z",
+                  transport: {
+                    source: "relay",
+                    workspace_id: "relay-workspace",
+                    channel_id: "relay-channel",
+                    thread_id: "relay-thread",
+                    agent_id: "relay-agent",
+                    message_id: "relay-message",
+                  },
+                },
+              ],
+              health: [
+                {
+                  code: "ENGINE_STOP_REQUESTED",
+                  status: "warning",
+                  message: "graceful shutdown requested",
+                },
+              ],
+            },
+            counts: {
+              queued: 1,
+              claimed: 0,
+              preparing: 0,
+              planning: 0,
+              developing: 0,
+              testing: 0,
+              reviewing: 0,
+              reconciling: 0,
+              awaiting: 0,
+              failed: 0,
+              completed: 0,
+              canceled: 0,
+            },
+            active_workers: [
+              {
+                worker_id: "worker-1",
+                issue_id: "REP-1154",
+                run_id: "run-1154",
+                state: "running",
+                pid: 4242,
+                started_at: "2026-05-15T10:00:00Z",
+                last_heartbeat_at: "2026-05-15T10:05:00Z",
+                transport: {
+                  source: "relay",
+                  workspace_id: "relay-workspace",
+                  channel_id: "relay-channel",
+                  thread_id: "relay-thread",
+                  agent_id: "relay-agent",
+                  message_id: "relay-message",
+                },
+              },
+            ],
+            items: [makeDetail("queued")],
+            config: [],
+            action: "stop",
+            message: "Graceful shutdown requested",
+          },
+          warnings: [],
+        } as AutobotCommandResult);
+      },
+    }),
+  );
+
+  assert.equal(exitCode, 0);
+  assert.match(io.read().stdout, /Engine status/);
+  assert.match(io.read().stdout, /Relay:/);
+  assert.match(io.read().stdout, /Graceful shutdown requested/);
 });
 
 test("terminal status output omits next steps", async () => {

@@ -6,6 +6,7 @@ import type { ItemDetail, ItemSummary } from "@repro/autobot-core";
 import { assertNormalizedEqual } from "./helpers";
 import {
   renderAutobotDiscoverResults,
+  renderAutobotEngineStatus,
   renderAutobotFlowcraftInspect,
   renderAutobotItemDetail,
   renderAutobotItemSummary,
@@ -95,6 +96,7 @@ test("queue status renderer includes tick metadata when available", () => {
           completed: 0,
           canceled: 0,
         },
+        active_workers: [],
         items: [],
         config: [],
       },
@@ -103,6 +105,8 @@ test("queue status renderer includes tick metadata when available", () => {
     `
     Queue status
     Engine: unknown
+    PID: n/a
+    Started: n/a
     Counts: queued: 0, claimed: 0, preparing: 0, planning: 0, developing: 0, testing: 0, reviewing: 0, reconciling: 0, awaiting: 0, failed: 0, completed: 0, canceled: 0
     Last tick: 2026-05-15T11:00:00Z
     Tick scope: queue scheduler
@@ -189,12 +193,129 @@ test("flowcraft inspect renderer includes persisted transports but keeps raw pay
     Finished: 2026-05-15T11:00:01Z
     Metadata: {"workflow_id":"autobot-deliver-issue","workflow_version":"1.0.0","bounded":true,"status":"completed"}
     Transport:
+      source: relay
       workspace_id: relay-workspace
       channel_id: relay-channel
+      thread_id: relay-thread
+      agent_id: relay-agent
+      message_id: relay-message
     Domain events:
       2026-05-15T11:00:00Z workflow.phase.claimed Issue claimed
     FlowCraft events:
       2026-05-15T11:00:00Z claim execution.started {}
+    `,
+  );
+});
+
+test("engine status renderer shows relay-aware worker supervision", () => {
+  assertNormalizedEqual(
+    renderAutobotEngineStatus(
+      {
+        engine: {
+          state: "running",
+          pid: 4242,
+          started_at: "2026-05-15T10:00:00Z",
+          last_tick_at: "2026-05-15T10:05:00Z",
+          tick_interval_seconds: 15,
+          queue_depth: 1,
+          max_concurrency: 1,
+          active_runs: 1,
+          active_workers: [
+            {
+              worker_id: "worker-1",
+              issue_id: "REP-1154",
+              run_id: "run-1154",
+              state: "running",
+              pid: 4242,
+              started_at: "2026-05-15T10:00:00Z",
+              last_heartbeat_at: "2026-05-15T10:05:00Z",
+              transport: {
+                source: "relay",
+                workspace_id: "relay-workspace",
+                channel_id: "relay-channel",
+                thread_id: "relay-thread",
+                agent_id: "relay-agent",
+                message_id: "relay-message",
+              },
+            },
+          ],
+          health: [
+            {
+              code: "ENGINE_STOP_REQUESTED",
+              status: "warning",
+              message: "graceful shutdown requested",
+            },
+          ],
+        },
+        counts: {
+          queued: 1,
+          claimed: 0,
+          preparing: 0,
+          planning: 0,
+          developing: 0,
+          testing: 0,
+          reviewing: 0,
+          reconciling: 0,
+          awaiting: 0,
+          failed: 0,
+          completed: 0,
+          canceled: 0,
+        },
+        active_workers: [
+          {
+            worker_id: "worker-1",
+            issue_id: "REP-1154",
+            run_id: "run-1154",
+            state: "running",
+            pid: 4242,
+            started_at: "2026-05-15T10:00:00Z",
+            last_heartbeat_at: "2026-05-15T10:05:00Z",
+            transport: {
+              source: "relay",
+              workspace_id: "relay-workspace",
+              channel_id: "relay-channel",
+              thread_id: "relay-thread",
+              agent_id: "relay-agent",
+              message_id: "relay-message",
+            },
+          },
+        ],
+        items: [],
+        config: [],
+        action: "stop",
+        message: "Graceful shutdown requested",
+      },
+      { color: false },
+    ),
+    `
+    Engine status
+    Engine: running
+    PID: 4242
+    Started: 2026-05-15T10:00:00Z
+    Counts: queued: 1, claimed: 0, preparing: 0, planning: 0, developing: 0, testing: 0, reviewing: 0, reconciling: 0, awaiting: 0, failed: 0, completed: 0, canceled: 0
+    Last tick: 2026-05-15T10:05:00Z
+    Tick scope: queue scheduler
+    Action: stop
+    Message: Graceful shutdown requested
+
+    Health:
+    WARNING ENGINE_STOP_REQUESTED: graceful shutdown requested
+
+    Workers:
+    Worker: worker-1
+      state: running
+      issue_id: REP-1154
+      run_id: run-1154
+      pid: 4242
+      started_at: 2026-05-15T10:00:00Z
+      last_heartbeat_at: 2026-05-15T10:05:00Z
+      Relay:
+        source: relay
+        workspace_id: relay-workspace
+        channel_id: relay-channel
+        thread_id: relay-thread
+        agent_id: relay-agent
+        message_id: relay-message
     `,
   );
 });
@@ -272,6 +393,79 @@ test("failed item detail renderer keeps semantic next-step guidance", () => {
     Last error: AUTOBOT-RETRY-NOT-ALLOWED — retry is only available after failed runs
     Next:
     autobot-next status REP-1151 --json
+    `,
+  );
+});
+
+test("item detail renderer surfaces relay transport for active runs", () => {
+  const item: ItemDetail = {
+    issue_id: "REP-1154",
+    title: "Ship FlowCraft workflow skeleton",
+    url: "https://linear.app/repro/issue/REP-1154/ship-flowcraft-workflow-skeleton",
+    state: "claimed",
+    attempt: 1,
+    priority: 2,
+    owner: "Gary",
+    workspace: "autobot",
+    branch: "autobot/REP-1154",
+    queued_at: "2026-05-15T11:00:00Z",
+    started_at: "2026-05-15T11:05:00Z",
+    updated_at: "2026-05-15T11:10:00Z",
+    last_event: "workflow.phase.claimed",
+    last_error: null,
+    linear: null,
+    current_run: {
+      run_id: "run-1154",
+      issue_id: "REP-1154",
+      attempt: 1,
+      state: "claimed",
+      flowcraft_execution_id: null,
+      blueprint_id: "autobot-deliver-issue",
+      blueprint_version: "1.0.0",
+      started_at: "2026-05-15T11:00:00Z",
+      finished_at: null,
+      worker_id: "worker-1",
+      last_heartbeat_at: "2026-05-15T11:10:00Z",
+      transport: {
+        source: "relay",
+        workspace_id: "relay-workspace",
+        channel_id: "relay-channel",
+        thread_id: "relay-thread",
+        agent_id: "relay-agent",
+        message_id: "relay-message",
+      },
+    },
+    cancellation_requested: false,
+    cancellation_requested_at: null,
+    recovery_commands: ["autobot-next status REP-1154 --json"],
+    artifacts: [],
+    events: [],
+  };
+
+  assertNormalizedEqual(
+    renderAutobotItemDetail(item),
+    `
+    REP-1154 · Ship FlowCraft workflow skeleton
+    State: claimed
+    Priority: 2
+    Owner: Gary
+    Workspace: autobot
+    Branch: autobot/REP-1154
+    Last event: workflow.phase.claimed
+    Current run:
+      run_id: run-1154
+      state: claimed
+      worker_id: worker-1
+      last_heartbeat_at: 2026-05-15T11:10:00Z
+    Transport:
+      source: relay
+      workspace_id: relay-workspace
+      channel_id: relay-channel
+      thread_id: relay-thread
+      agent_id: relay-agent
+      message_id: relay-message
+    Next:
+    autobot-next status REP-1154 --json
     `,
   );
 });

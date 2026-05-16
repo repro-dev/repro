@@ -8,6 +8,7 @@ import type {
   ErrorPayload,
   RepoRef,
   RunSummary,
+  WorkerSummary,
   Warning,
 } from "@repro/autobot-core";
 import type {
@@ -64,6 +65,17 @@ export interface EngineTickReport {
   skipped: EngineTickSkip[];
 }
 
+export interface EngineStatusData {
+  engine: EngineStatus;
+  counts: Record<ItemState, number>;
+  active_workers: WorkerSummary[];
+  items: ItemSummary[];
+  config: ConfigEntry[];
+  tick?: EngineTickReport;
+  action?: "start" | "stop";
+  message?: string;
+}
+
 export type AutobotCommandResult =
   | {
       kind: "queue-list";
@@ -78,13 +90,14 @@ export type AutobotCommandResult =
       kind: "queue-status";
       command: string;
       repo: RepoRef;
-      data: {
-        engine: EngineStatus;
-        counts: Record<ItemState, number>;
-        items: ItemSummary[];
-        config: ConfigEntry[];
-        tick?: EngineTickReport;
-      };
+      data: EngineStatusData;
+      warnings?: readonly Warning[];
+    }
+  | {
+      kind: "engine-status";
+      command: string;
+      repo: RepoRef;
+      data: EngineStatusData;
       warnings?: readonly Warning[];
     }
   | {

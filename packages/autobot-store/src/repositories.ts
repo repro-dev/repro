@@ -285,6 +285,7 @@ function fromWorkerRow(
     pid: row.pid,
     started_at: row.started_at,
     last_heartbeat_at: row.last_heartbeat_at,
+    transport: null,
   }
 }
 

@@ -205,6 +205,7 @@ export interface WorkerSummary {
   pid: number | null;
   started_at: IsoTimestamp;
   last_heartbeat_at: IsoTimestamp | null;
+  transport: TransportCorrelation | null;
 }
 
 export interface HealthCheck {
