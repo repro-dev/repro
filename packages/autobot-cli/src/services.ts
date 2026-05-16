@@ -594,7 +594,7 @@ function buildItemSummaryFromExisting(
   });
 }
 
-function createEngineStatus(
+export function createEngineStatus(
   config: ConfigEntry[],
   counts: Record<ItemState, number>,
   input: {
@@ -616,9 +616,29 @@ function createEngineStatus(
   const runtimeLock = runtime?.lock ?? null;
   const activeWorkers = input.activeWorkers ?? [];
   const events = input.events ?? [];
-  const runtimeHealth = runtimeStatus?.health ?? [];
-  const providedHealth = input.health ?? [];
-  const health = [...runtimeHealth, ...providedHealth];
+  const providedHealth = input.health ?? null;
+  const statusHealth = providedHealth ?? runtimeStatus?.health ?? [];
+  const health = [
+    ...(runtime !== null && runtime.stale_lock
+      ? [
+          {
+            code: "ENGINE_STALE_LOCK",
+            status: "error" as const,
+            message: `stale engine lock at pid ${runtimeLock?.pid ?? "n/a"}`,
+          },
+        ]
+      : []),
+    ...(runtime !== null && runtime.stop_requested_at !== null
+      ? [
+          {
+            code: "ENGINE_STOP_REQUESTED",
+            status: "warning" as const,
+            message: "graceful shutdown requested",
+          },
+        ]
+      : []),
+    ...statusHealth,
+  ];
   const startedAt =
     runtimeStatus?.started_at ?? runtimeLock?.started_at ?? null;
   const pid = runtimeStatus?.pid ?? runtimeLock?.pid ?? null;
@@ -639,7 +659,7 @@ function createEngineStatus(
       : runtimeStatus?.state === "starting"
       ? "starting"
       : runtimeLock !== null || runtimeStatus !== null
-      ? health.some((item) => item.status === "error")
+      ? statusHealth.some((item) => item.status === "error")
         ? "unhealthy"
         : "running"
       : "stopped";
@@ -658,27 +678,7 @@ function createEngineStatus(
     ),
     active_workers: activeWorkers,
     events,
-    health: [
-      ...(runtime !== null && runtime.stale_lock
-        ? [
-            {
-              code: "ENGINE_STALE_LOCK",
-              status: "error" as const,
-              message: `stale engine lock at pid ${runtimeLock?.pid ?? "n/a"}`,
-            },
-          ]
-        : []),
-      ...(runtime !== null && runtime.stop_requested_at !== null
-        ? [
-            {
-              code: "ENGINE_STOP_REQUESTED",
-              status: "warning" as const,
-              message: "graceful shutdown requested",
-            },
-          ]
-        : []),
-      ...health,
-    ],
+    health,
   };
 }
 
@@ -1136,10 +1136,11 @@ function createQueueStatus(
                       lastTickAt: options.lastTickAt ?? null,
                       activeWorkers,
                       events: options.events,
-                      health:
-                        options.warnings === undefined
-                          ? []
-                          : options.warnings.map(warningToHealthCheck),
+                      ...(options.warnings === undefined
+                        ? {}
+                        : {
+                            health: options.warnings.map(warningToHealthCheck),
+                          }),
                       fallbackState: options.fallbackState ?? "unknown",
                     }),
                     counts,
@@ -2952,7 +2953,11 @@ function handleEngineStart(
                     discoverIssues,
                     {
                       lock: currentRecord,
-                      status: currentRecord,
+                      // Do not re-feed persisted warnings into the next tick.
+                      status: {
+                        ...currentRecord,
+                        health: [],
+                      },
                       stop_requested_at: currentRecord.stop_requested_at,
                       stale_lock: false,
                     },
@@ -2977,7 +2982,8 @@ function handleEngineStart(
                           : "running",
                         last_tick_at: engine.last_tick_at,
                         stop_requested_at: snapshotBeforeTick.stop_requested_at,
-                        health: engine.health,
+                        health:
+                          queueStatus.warnings?.map(warningToHealthCheck) ?? [],
                         tick_interval_seconds: engine.tick_interval_seconds,
                       };
 

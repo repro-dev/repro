@@ -15,7 +15,7 @@ import {
   resolveEngineRuntimePaths,
   releaseEngineRuntime,
 } from "../engine-runtime";
-import { createAutobotServices } from "../services";
+import { createAutobotServices, createEngineStatus } from "../services";
 import type {
   AutobotCommandResult,
   AutobotGlobalOptions,
@@ -1311,6 +1311,75 @@ test("engine start cancellation prevents an in-flight tick from rewriting status
     fixture.store.projections.listItems = originalListItems;
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("engine status health favors the current tick over persisted runtime warnings", () => {
+  const warning = {
+    code: "ENGINE_DISCOVERY_PROJECTS_MISSING",
+    status: "warning" as const,
+    message: "discovery.projects is required when auto-discover is enabled",
+  };
+  const config = [
+    { key: "engine.max-concurrency", value: 1 },
+    { key: "engine.tick-interval-seconds", value: 1 },
+  ] as Array<{ key: string; value: number }>;
+  const counts = new Proxy(
+    {},
+    {
+      get: () => 0,
+    },
+  ) as Record<string, number>;
+  const runtime = {
+    lock: {
+      pid: process.pid,
+      started_at: "2026-05-15T10:00:00Z",
+    },
+    status: {
+      pid: process.pid,
+      started_at: "2026-05-15T10:00:00Z",
+      state: "running" as const,
+      last_tick_at: "2026-05-15T10:05:00Z",
+      stop_requested_at: null,
+      health: [warning],
+      tick_interval_seconds: 1,
+    },
+    stop_requested_at: null,
+    stale_lock: false,
+  };
+
+  const persistedStatus = createEngineStatus(config as never, counts, {
+    runtime: runtime as never,
+  });
+
+  assert.deepEqual(
+    persistedStatus.health.map((health) => health.code),
+    ["ENGINE_DISCOVERY_PROJECTS_MISSING"],
+  );
+
+  const currentTickClearsPersistedHealth = createEngineStatus(
+    config as never,
+    counts,
+    {
+      runtime: runtime as never,
+      health: [],
+    },
+  );
+
+  assert.deepEqual(currentTickClearsPersistedHealth.health, []);
+
+  const currentTickWinsOverPersistedHealth = createEngineStatus(
+    config as never,
+    counts,
+    {
+      runtime: runtime as never,
+      health: [warning],
+    },
+  );
+
+  assert.deepEqual(
+    currentTickWinsOverPersistedHealth.health.map((health) => health.code),
+    ["ENGINE_DISCOVERY_PROJECTS_MISSING"],
+  );
 });
 
 test("engine status and logs surface engine events", async () => {
