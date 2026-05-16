@@ -107,7 +107,7 @@ cmd_opencode() {
   fi
 
   if [[ "$(uname)" == "Darwin" ]]; then
-    exec caffeinate -dims opencode "$@"
+    exec caffeinate -i opencode "$@"
   else
     exec opencode "$@"
   fi
