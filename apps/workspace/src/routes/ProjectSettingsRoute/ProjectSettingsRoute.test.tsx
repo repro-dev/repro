@@ -169,11 +169,13 @@ describe('ProjectSettingsRoute', () => {
       })
 
       await waitFor(() => {
-        assert.ok(screen.getByRole('button', { name: /role for viewer user/i }))
+        assert.ok(
+          screen.getByRole('combobox', { name: /role for viewer user/i })
+        )
       })
 
       fireEvent.click(
-        screen.getByRole('button', { name: /role for viewer user/i })
+        screen.getByRole('combobox', { name: /role for viewer user/i })
       )
       fireEvent.click(
         within(document.body).getByRole('option', { name: /contributor/i })
