@@ -448,6 +448,7 @@ export function createAccountService(
         .innerJoin('accounts as a', 'a.id', 'u.accountId')
         .select(['a.id', 'a.name'])
         .where('u.id', '=', decodeId(userId))
+        .where('a.active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
     }).pipe(map(withEncodedId))
   }
@@ -479,10 +480,11 @@ export function createAccountService(
         .selectFrom('accounts')
         .select(['id', 'name', 'createdAt'])
         .where('id', '=', decodedAccountId)
+        .where('active', '=', true)
         .executeTakeFirstOrThrow(() => notFound())
     })
 
-    const activeUsers = attemptQuery(() => {
+    const activeUserCount = attemptQuery(() => {
       return database
         .selectFrom('users')
         .select(sql<number>`count(*)::int`.as('count'))
@@ -491,7 +493,7 @@ export function createAccountService(
         .executeTakeFirstOrThrow()
     })
 
-    const activeProjects = attemptQuery(() => {
+    const activeProjectCount = attemptQuery(() => {
       return database
         .selectFrom('projects')
         .select(sql<number>`count(*)::int`.as('count'))
@@ -500,16 +502,61 @@ export function createAccountService(
         .executeTakeFirstOrThrow()
     })
 
+    const activeUsers = attemptQuery(() => {
+      return database
+        .selectFrom('users')
+        .select(['id', 'name', 'email', 'admin'])
+        .where('accountId', '=', decodedAccountId)
+        .where('active', '=', true)
+        .orderBy('createdAt desc')
+        .limit(3)
+        .execute()
+    }).pipe(map(rows => rows.map(withEncodedId)))
+
+    const activeProjects = attemptQuery(() => {
+      return database
+        .selectFrom('projects')
+        .select(['id', 'name'])
+        .where('accountId', '=', decodedAccountId)
+        .where('active', '=', true)
+        .orderBy('createdAt desc')
+        .limit(3)
+        .execute()
+    }).pipe(map(rows => rows.map(withEncodedId)))
+
     return account.pipe(
       chain(account =>
-        both(activeUsers)(activeProjects).pipe(
-          map(([users, projects]) => ({
+        both(both(activeUserCount)(activeProjectCount))(
+          both(activeUsers)(activeProjects)
+        ).pipe(
+          map(([[users, projects], [userPreviews, projectPreviews]]) => ({
             ...withEncodedId(account),
             createdAt: account.createdAt.toISOString(),
             userCount: users.count,
             projectCount: projects.count,
+            users: userPreviews,
+            projects: projectPreviews,
+            additionalUserCount: Math.max(users.count - userPreviews.length, 0),
+            additionalProjectCount: Math.max(
+              projects.count - projectPreviews.length,
+              0
+            ),
           }))
         )
+      )
+    )
+  }
+
+  function deactivateAccount(accountId: string): FutureInstance<Error, void> {
+    return getAccountById(accountId).pipe(
+      chain(() =>
+        attemptQuery(async () => {
+          await database
+            .updateTable('accounts')
+            .set('active', false)
+            .where('id', '=', decodeId(accountId))
+            .execute()
+        })
       )
     )
   }
@@ -1301,6 +1348,7 @@ export function createAccountService(
     // Accounts
     createAccount,
     updateAccountName,
+    deactivateAccount,
     getAccountById,
     getAccountForUser,
     getAccountForInvitation,

@@ -8,8 +8,9 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
-import { never, reject, resolve } from 'fluture'
+import { reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import React from 'react'
@@ -28,12 +29,38 @@ const apiClient = createApiClient({
   authStorage: 'memory',
 })
 
+const accountUsers: AccountSettingsSummary['users'] = [
+  { id: 'user-1', name: 'Admin User', email: 'admin@example.com', admin: true },
+  {
+    id: 'user-2',
+    name: 'Member User',
+    email: 'member@example.com',
+    admin: false,
+  },
+  {
+    id: 'user-3',
+    name: 'Reviewer',
+    email: 'reviewer@example.com',
+    admin: false,
+  },
+]
+
+const accountProjects: AccountSettingsSummary['projects'] = [
+  { id: 'project-1', name: 'Platform Upgrade' },
+  { id: 'project-2', name: 'Launch Prep' },
+  { id: 'project-3', name: 'Billing Cleanup' },
+]
+
 const accountSummary: AccountSettingsSummary = {
   id: 'account-1',
   name: 'Repro Test',
   createdAt: '2026-01-01T00:00:00.000Z',
-  userCount: 2,
-  projectCount: 1,
+  userCount: 5,
+  projectCount: 4,
+  users: accountUsers,
+  projects: accountProjects,
+  additionalUserCount: 2,
+  additionalProjectCount: 1,
 }
 
 const adminUser: User = {
@@ -53,22 +80,26 @@ const nonAdminUser: User = {
 interface TestProps {
   getAccountSettings?: (_apiClient: typeof apiClient) => any
   renameAccount?: (_apiClient: typeof apiClient, _name: string) => any
+  deleteAccount?: (_apiClient: typeof apiClient) => any
 }
 
 function renderRoute({
   getAccountSettings = () => resolve(accountSummary),
   renameAccount = () => resolve(undefined),
+  deleteAccount = () => resolve(undefined),
 }: TestProps = {}) {
   return render(
     <ApiProvider client={apiClient}>
       <MemoryRouter initialEntries={['/settings/account']}>
         <Routes>
+          <Route path="/login" element={<div>Login page</div>} />
           <Route
             path="/settings/account"
             element={
               <AccountSettingsRoute
                 getAccountSettings={getAccountSettings as any}
                 renameAccount={renameAccount as any}
+                deleteAccount={deleteAccount as any}
               />
             }
           />
@@ -142,12 +173,21 @@ function mockMatchMedia(matches: boolean) {
   }
 }
 
-describe('AccountSettingsRoute', () => {
-  it('shows loading state while account settings are fetching', async () => {
-    renderRoute({ getAccountSettings: () => never })
-    assert.equal(screen.queryByLabelText(/account name/i), null)
+async function changeAccountName(value: string) {
+  await act(async () => {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), {
+      target: { value },
+    })
   })
+}
 
+async function clickRouteButton(name: RegExp) {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name }))
+  })
+}
+
+describe('AccountSettingsRoute', () => {
   it('renders the settings baseline and account summary after loading', async () => {
     renderRoute()
 
@@ -155,48 +195,68 @@ describe('AccountSettingsRoute', () => {
       assert.ok(screen.getByRole('heading', { name: 'Account', level: 1 }))
     })
 
+    for (const name of ['Rename account', 'Account details', 'Danger zone']) {
+      assert.ok(screen.getByRole('heading', { name, level: 2 }))
+    }
+    assert.ok(screen.getByRole('textbox', { name: 'Name' }))
+
     assert.equal(
-      screen.queryByRole('tablist', { name: 'Account settings sections' }),
+      screen
+        .getByRole('button', { name: /save changes/i })
+        .hasAttribute('disabled'),
+      true
+    )
+
+    assert.ok(screen.getByRole('table', { name: 'Account details' }))
+    for (const text of [
+      '5 users',
+      '4 projects',
+      'and 2 more',
+      'and 2 more projects',
+    ]) {
+      assert.ok(screen.getByText(text))
+    }
+
+    for (const text of [/Platform Upgrade/i, /Launch Prep/i]) {
+      assert.ok(screen.getByText(text))
+    }
+
+    for (const user of accountUsers) {
+      assert.ok(screen.getByAltText(user.name))
+      assert.equal(screen.queryByText(user.name), null)
+      assert.equal(screen.queryByText(user.email), null)
+    }
+
+    assert.equal(screen.queryByText('Billing Cleanup'), null)
+    assert.equal(
+      screen.queryByRole('heading', { name: 'Active users', level: 3 }),
       null
     )
-    assert.ok(screen.getByRole('heading', { name: 'Rename account', level: 2 }))
-    assert.ok(
-      screen.getByRole('heading', { name: 'Account details', level: 2 })
-    )
-    assert.ok(screen.getByRole('heading', { name: 'Danger zone', level: 2 }))
 
-    const renameHeading = screen.getByRole('heading', {
-      name: 'Rename account',
-      level: 2,
-    })
-    const detailsHeading = screen.getByRole('heading', {
-      name: 'Account details',
-      level: 2,
-    })
-    const dangerHeading = screen.getByRole('heading', {
-      name: 'Danger zone',
-      level: 2,
-    })
+    assert.equal(
+      screen
+        .getByRole('link', { name: 'View team members' })
+        .getAttribute('href'),
+      '/settings/team'
+    )
 
-    assert.ok(
-      renameHeading.compareDocumentPosition(detailsHeading) &
-        Node.DOCUMENT_POSITION_FOLLOWING
+    for (const [name, href] of [
+      ['Platform Upgrade', '/projects/project-1'],
+      ['Launch Prep', '/projects/project-2'],
+    ] as const) {
+      assert.equal(
+        screen.getByRole('link', { name }).getAttribute('href'),
+        href
+      )
+    }
+
+    assert.equal(
+      screen
+        .getByRole('link', { name: 'and 2 more projects' })
+        .getAttribute('href'),
+      '/projects'
     )
-    assert.ok(
-      detailsHeading.compareDocumentPosition(dangerHeading) &
-        Node.DOCUMENT_POSITION_FOLLOWING
-    )
-    assert.ok(screen.getByRole('table', { name: 'Account details' }))
-    assert.ok(screen.getByRole('columnheader', { name: 'Field' }))
-    assert.ok(screen.getByRole('columnheader', { name: 'Value' }))
-    assert.ok(screen.getByText('Created'))
-    assert.ok(screen.getByText('Users'))
-    assert.ok(screen.getByText('Projects'))
-    assert.ok(
-      screen.getByText(new Date(accountSummary.createdAt).toLocaleDateString())
-    )
-    assert.ok(screen.getByText('Current account name: Repro Test'))
-    assert.ok(screen.getByRole('button', { name: 'Contact support' }))
+    assert.ok(screen.getByRole('button', { name: 'Delete account' }))
   })
 
   it('validates the account name before saving', async () => {
@@ -226,9 +286,13 @@ describe('AccountSettingsRoute', () => {
 
     assert.equal(callCount, 0)
     assert.ok(screen.getByText(/account name is required/i))
+
+    await changeAccountName('Fixed name')
+
+    assert.equal(screen.queryByText(/account name is required/i), null)
   })
 
-  it('calls renameAccount and refreshes summary after save', async () => {
+  it('enables save only after a trimmed change and submits the trimmed name', async () => {
     const renameCalls: string[] = []
     let loadCount = 0
     const updatedSummary = { ...accountSummary, name: 'Renamed Account' }
@@ -245,15 +309,23 @@ describe('AccountSettingsRoute', () => {
 
     await waitFor(() => screen.getByDisplayValue('Repro Test'))
 
-    await act(async () => {
-      fireEvent.change(screen.getByLabelText(/name/i), {
-        target: { value: 'Renamed Account' },
-      })
-    })
+    assert.equal(
+      screen
+        .getByRole('button', { name: /save changes/i })
+        .hasAttribute('disabled'),
+      true
+    )
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
-    })
+    await changeAccountName('  Renamed Account  ')
+
+    assert.equal(
+      screen
+        .getByRole('button', { name: /save changes/i })
+        .hasAttribute('disabled'),
+      false
+    )
+
+    await clickRouteButton(/save changes/i)
 
     await waitFor(() => {
       assert.ok(screen.getByDisplayValue('Renamed Account'))
@@ -261,6 +333,36 @@ describe('AccountSettingsRoute', () => {
 
     assert.deepEqual(renameCalls, ['Renamed Account'])
     assert.equal(loadCount, 2)
+  })
+
+  it('shows cancel when the name changes and restores the account name', async () => {
+    let renameCount = 0
+    const renameAccount = () => {
+      renameCount++
+      return resolve(undefined)
+    }
+
+    renderRoute({ renameAccount })
+
+    await waitFor(() => screen.getByDisplayValue('Repro Test'))
+
+    await changeAccountName('Updated name')
+
+    const cancelButton = screen.getByRole('button', { name: /cancel/i })
+    assert.ok(cancelButton)
+
+    await act(async () => {
+      fireEvent.click(cancelButton)
+    })
+
+    assert.ok(screen.getByDisplayValue('Repro Test'))
+    assert.equal(
+      screen
+        .getByRole('button', { name: /save changes/i })
+        .hasAttribute('disabled'),
+      true
+    )
+    assert.equal(renameCount, 0)
   })
 
   it('shows error alert when loading fails', async () => {
@@ -287,9 +389,9 @@ describe('AccountSettingsRoute', () => {
 
     await waitFor(() => screen.getByLabelText(/name/i))
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
-    })
+    await changeAccountName('Updated account')
+
+    await clickRouteButton(/save changes/i)
 
     await waitFor(() => {
       assert.ok(screen.getByRole('alert'))
@@ -298,6 +400,70 @@ describe('AccountSettingsRoute', () => {
     assert.match(
       screen.getByRole('alert').textContent ?? '',
       /failed to update the account name/i
+    )
+  })
+
+  it('opens the delete confirmation modal and redirects after deleting', async () => {
+    const deleteCalls: number[] = []
+    renderRoute({
+      deleteAccount: () => {
+        deleteCalls.push(Date.now())
+        return resolve(undefined)
+      },
+    })
+
+    await waitFor(() =>
+      screen.getByRole('heading', { name: 'Account', level: 1 })
+    )
+
+    await clickRouteButton(/delete account/i)
+
+    assert.ok(
+      screen.getByRole('heading', { name: 'Delete account?', level: 2 })
+    )
+
+    const dialog = screen.getByRole('dialog')
+    const modalButtons = within(dialog).getAllByRole('button', {
+      name: /^delete account$/i,
+    })
+
+    await act(async () => {
+      fireEvent.click(modalButtons[0]!)
+    })
+
+    await waitFor(() => {
+      assert.ok(screen.getByText('Login page'))
+    })
+
+    assert.equal(deleteCalls.length, 1)
+  })
+
+  it('shows an alert when deleting the account fails', async () => {
+    renderRoute({
+      deleteAccount: () => reject(new Error('Delete failed')),
+    })
+
+    await waitFor(() =>
+      screen.getByRole('heading', { name: 'Account', level: 1 })
+    )
+
+    await clickRouteButton(/delete account/i)
+
+    const dialog = screen.getByRole('dialog')
+
+    await act(async () => {
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: /^delete account$/i })
+      )
+    })
+
+    await waitFor(() => {
+      assert.ok(screen.getByRole('alert'))
+    })
+
+    assert.match(
+      screen.getByRole('alert').textContent ?? '',
+      /failed to delete the account/i
     )
   })
 

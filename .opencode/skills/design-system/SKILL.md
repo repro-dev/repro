@@ -67,7 +67,9 @@ For admin/workspace settings and entity-detail surfaces, use the REP-520 user de
 - Constrain tab-panel or single-panel settings content separately with a local section wrapper: desktop `maxWidth: '66.666%'`, mobile `100%`.
 - Keep major content regions in that constrained wrapper on one consistent vertical rhythm, using `spacing['3xl']` between regions and `spacing.md` inside each region unless the reference surface establishes a different token.
 - Prefer `Card fullBleed` + `Table` for stable key/value summaries.
-- Use `Card context="danger" padding={0}` plus an action-row composition for destructive/support-only areas.
+- Use `FormField` for editable settings fields so labels, controls, help, and errors keep shared spacing and accessibility wiring.
+- For inline settings edits, use explicit Save/Cancel actions with appropriately sized buttons; disable Save until the trimmed value changes and make Cancel restore the persisted value.
+- Use `Card context="danger" padding={0}` plus an action-row composition for destructive areas. Destructive account actions should be self-serve with an explicit confirmation flow, not support-mediated copy.
 - Do not create a novel settings-page rhythm when a surface is another variant of profile/account/user settings.
 
 ---

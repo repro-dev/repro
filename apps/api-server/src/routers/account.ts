@@ -408,6 +408,19 @@ export function createAccountRouter(
       }
     )
 
+    app.delete('/', (req, res) => {
+      respondWith(
+        res,
+        getCurrentUserAccount(req, accountService).pipe(
+          chain(({ user, account }) =>
+            accountService
+              .ensureUserIsAdmin(user)
+              .pipe(chain(() => accountService.deactivateAccount(account.id)))
+          )
+        )
+      )
+    })
+
     app.get('/me/profile', (req, res) => {
       respondWith(
         res,

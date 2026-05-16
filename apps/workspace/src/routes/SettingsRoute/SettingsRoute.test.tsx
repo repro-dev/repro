@@ -29,6 +29,17 @@ const apiClient = {
           createdAt: '2026-01-01T00:00:00.000Z',
           userCount: 2,
           projectCount: 1,
+          users: [
+            {
+              id: 'user-1',
+              name: 'Admin User',
+              email: 'admin@example.com',
+              admin: true,
+            },
+          ],
+          projects: [{ id: 'project-1', name: 'Test Project' }],
+          additionalUserCount: 0,
+          additionalProjectCount: 0,
         })
       : resolve({ items: [] })) as any,
 } as typeof baseClient

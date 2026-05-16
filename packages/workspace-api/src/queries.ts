@@ -60,3 +60,9 @@ export function renameAccount(apiClient: ApiClient, name: string) {
     headers: { 'content-type': 'application/json' },
   })
 }
+
+export function deleteAccount(apiClient: ApiClient) {
+  return apiClient.fetch('/account', {
+    method: 'delete',
+  })
+}
