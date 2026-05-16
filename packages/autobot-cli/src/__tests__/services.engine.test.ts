@@ -8,8 +8,11 @@ import { fork, map, resolve, type FutureInstance } from "fluture";
 import type { AutobotStore } from "@repro/autobot-store";
 
 import {
+  acquireEngineRuntime,
+  readEngineRuntime,
   requestEngineStop,
   resolveEngineRuntimePaths,
+  releaseEngineRuntime,
 } from "../engine-runtime";
 import { createAutobotServices } from "../services";
 import type {
@@ -59,7 +62,9 @@ function makeInvocation(
   };
 }
 
-async function createEngineWorktreeFixture() {
+async function createEngineWorktreeFixture(
+  options: Parameters<typeof makeWorkflowStore>[0] = {},
+) {
   const root = await mkdtemp(
     path.join(process.cwd(), "..", "..", "tmp", "autobot-engine-"),
   );
@@ -98,6 +103,7 @@ async function createEngineWorktreeFixture() {
         },
       },
     },
+    ...options,
   });
 
   fixture.store.repo.path = root;
@@ -178,7 +184,8 @@ test("engine status reports stopped, running, and unhealthy runtime states", asy
     assert.equal(running.kind, "engine-status");
     assert.equal(running.data.engine.state, "running");
     assert.equal(running.data.engine.pid, process.pid);
-    assert.equal(running.data.active_workers[0]?.transport?.source, "relay");
+    assert.equal(running.data.active_workers.length, 1);
+    assert.equal(running.data.active_workers[0]?.worker_id, "worker-1");
 
     await writeRuntimeFiles(root, {
       pid: 999999,
@@ -336,6 +343,267 @@ test("engine start refuses to replace an active process lock", async () => {
     ).catch((caught) => caught)) as Error & { code?: string };
 
     assert.equal(error.code, "ENGINE_ALREADY_RUNNING");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("logs returns issue detail through the command dispatcher", async () => {
+  const { root, fixture } = await createEngineWorktreeFixture();
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+  });
+
+  try {
+    const result = (await runFuture(
+      services.handleInvocation({
+        ...makeInvocation(["logs"]),
+        args: ["REP-1154"],
+        command: "autobot-next logs REP-1154",
+        options: makeOptions({ repo: root }),
+      }),
+    )) as AutobotCommandResult;
+
+    assert.equal(result.kind, "item-detail");
+    assert.equal(result.command, "autobot-next logs REP-1154");
+    assert.equal(result.data.issue_id, "REP-1154");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("engine stop on an already stopped runtime stays stopped", async () => {
+  const { root, fixture } = await createEngineWorktreeFixture();
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+  });
+
+  try {
+    await writeRuntimeFiles(root, {
+      pid: process.pid,
+      state: "stopped",
+      started_at: "2026-05-15T10:00:00Z",
+      last_tick_at: "2026-05-15T10:05:00Z",
+      stop_requested_at: null,
+      tick_interval_seconds: 15,
+    });
+
+    const result = (await runFuture(
+      services.handleInvocation({
+        ...makeInvocation(["engine", "stop"]),
+        options: makeOptions({ repo: root }),
+      }),
+    )) as AutobotCommandResult;
+
+    assert.equal(result.kind, "engine-status");
+    assert.equal(result.data.action, "stop");
+    assert.equal(result.data.engine.state, "stopped");
+    assert.equal(result.data.message, "Engine is already stopped");
+
+    const paths = resolveEngineRuntimePaths({
+      path: root,
+      state_dir: ".autobot",
+    });
+    const status = JSON.parse(await readFile(paths.status_path, "utf8")) as {
+      state: string;
+      stop_requested_at: string | null;
+    };
+
+    assert.equal(status.state, "stopped");
+    assert.equal(status.stop_requested_at, null);
+    await assert.rejects(readFile(paths.stop_path, "utf8"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("engine status excludes exited workers", async () => {
+  const { root, fixture } = await createEngineWorktreeFixture({
+    workers: [
+      {
+        worker_id: "worker-1",
+        issue_id: "REP-1154",
+        run_id: "run-1154",
+        state: "running",
+        pid: process.pid,
+        started_at: "2026-05-15T10:00:00Z",
+        last_heartbeat_at: "2026-05-15T10:05:00Z",
+      },
+      {
+        worker_id: "worker-exited",
+        issue_id: "REP-1155",
+        run_id: null,
+        state: "exited",
+        pid: null,
+        started_at: "2026-05-15T10:10:00Z",
+        last_heartbeat_at: "2026-05-15T10:11:00Z",
+      },
+    ],
+  });
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+  });
+
+  try {
+    const result = (await runFuture(
+      services.handleInvocation({
+        ...makeInvocation(["engine", "status"]),
+        options: makeOptions({ repo: root }),
+      }),
+    )) as AutobotCommandResult;
+
+    assert.equal(result.kind, "engine-status");
+    assert.equal(result.data.active_workers.length, 1);
+    assert.equal(result.data.active_workers[0]?.worker_id, "worker-1");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("engine runtime treats EPERM as an alive process", async () => {
+  const { root } = await createEngineWorktreeFixture();
+  const originalKill = process.kill;
+
+  try {
+    process.kill = (() => {
+      const error = new Error(
+        "operation not permitted",
+      ) as NodeJS.ErrnoException;
+      error.code = "EPERM";
+      throw error;
+    }) as unknown as typeof process.kill;
+
+    await writeRuntimeFiles(root, {
+      pid: 999999,
+      state: "running",
+      started_at: "2026-05-15T10:00:00Z",
+      last_tick_at: "2026-05-15T10:05:00Z",
+      stop_requested_at: null,
+      tick_interval_seconds: 15,
+    });
+
+    const runtime = await runFuture(
+      readEngineRuntime({
+        path: root,
+        state_dir: ".autobot",
+      }),
+    );
+
+    assert.equal(runtime.stale_lock, false);
+  } finally {
+    process.kill = originalKill;
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("engine runtime release keeps a newer owner's lock intact", async () => {
+  const { root } = await createEngineWorktreeFixture();
+  const staleOwner = {
+    pid: 111111,
+    started_at: "2026-05-15T09:00:00Z",
+    state: "starting" as const,
+    last_tick_at: null,
+    stop_requested_at: null,
+    health: [],
+    tick_interval_seconds: 15,
+  };
+  const currentOwner = {
+    pid: 222222,
+    started_at: "2026-05-15T10:00:00Z",
+    state: "running" as const,
+    last_tick_at: "2026-05-15T10:05:00Z",
+    stop_requested_at: null,
+    health: [],
+    tick_interval_seconds: 15,
+  };
+
+  try {
+    await writeRuntimeFiles(root, currentOwner);
+
+    await runFuture(
+      releaseEngineRuntime(
+        {
+          path: root,
+          state_dir: ".autobot",
+        },
+        staleOwner,
+      ),
+    );
+
+    const paths = resolveEngineRuntimePaths({
+      path: root,
+      state_dir: ".autobot",
+    });
+    const lock = JSON.parse(await readFile(paths.lock_path, "utf8")) as {
+      pid: number;
+      started_at: string;
+    };
+
+    assert.equal(lock.pid, currentOwner.pid);
+    assert.equal(lock.started_at, currentOwner.started_at);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("engine runtime acquisition is atomic under a stale lock", async () => {
+  const { root } = await createEngineWorktreeFixture();
+
+  try {
+    await writeRuntimeFiles(root, {
+      pid: 999999,
+      state: "running",
+      started_at: "2026-05-15T09:00:00Z",
+      last_tick_at: "2026-05-15T09:05:00Z",
+      stop_requested_at: null,
+      tick_interval_seconds: 15,
+    });
+
+    const acquire = (pid: number, startedAt: string) =>
+      runFuture(
+        acquireEngineRuntime(
+          {
+            path: root,
+            state_dir: ".autobot",
+          },
+          {
+            pid,
+            started_at: startedAt,
+            tick_interval_seconds: 15,
+          },
+        ),
+      );
+
+    const outcomes = await Promise.allSettled([
+      acquire(process.pid, "2026-05-15T12:00:00Z"),
+      acquire(process.pid + 1, "2026-05-15T12:00:01Z"),
+    ]);
+
+    assert.equal(outcomes[0].status, "fulfilled");
+    assert.equal(
+      (outcomes[0] as PromiseFulfilledResult<{ pid: number }>).value.pid,
+      process.pid,
+    );
+    assert.equal(outcomes[1].status, "rejected");
+    assert.equal(
+      (outcomes[1] as PromiseRejectedResult).reason instanceof Error
+        ? (
+            (outcomes[1] as PromiseRejectedResult).reason as Error & {
+              code?: string;
+            }
+          ).code
+        : null,
+      "ENGINE_ALREADY_RUNNING",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

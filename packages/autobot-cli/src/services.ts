@@ -157,25 +157,32 @@ function warningToHealthCheck(warning: Warning): {
 function loadActiveWorkers(
   store: AutobotStore,
 ): FutureInstance<unknown, Array<EngineStatusData["active_workers"][number]>> {
-  return store.workers.list().pipe(
-    chain((workers) =>
-      sequenceFutures(
-        workers.map((worker) =>
-          worker.run_id === null
-            ? resolve({
-                ...worker,
-                transport: null,
-              })
-            : store.runs.get(worker.run_id).pipe(
-                map((run) => ({
+  return store.workers
+    .list()
+    .pipe(
+      map((workers: Array<EngineStatusData["active_workers"][number]>) =>
+        workers.filter((worker) => worker.state !== "exited"),
+      ),
+    )
+    .pipe(
+      chain((workers) =>
+        sequenceFutures(
+          workers.map((worker) =>
+            worker.run_id === null
+              ? resolve({
                   ...worker,
-                  transport: run?.transport ?? null,
-                })),
-              ),
+                  transport: null,
+                })
+              : store.runs.get(worker.run_id).pipe(
+                  map((run) => ({
+                    ...worker,
+                    transport: run?.transport ?? null,
+                  })),
+                ),
+          ),
         ),
       ),
-    ),
-  ) as FutureInstance<
+    ) as FutureInstance<
     unknown,
     Array<EngineStatusData["active_workers"][number]>
   >;
@@ -2573,30 +2580,31 @@ function handleStatus(
   const issueId = invocation.args[0];
 
   if (issueId !== undefined) {
-    return Future((reject, resolve) => {
-      store.projections.getItemDetail(issueId).pipe(
-        fork(reject)((item) => {
-          if (item === null) {
-            reject(
-              new AutobotCliError({
-                code: "ITEM_NOT_FOUND",
-                message: `Issue ${issueId} is not known locally`,
-                what_failed: "queue status",
-                likely_cause: "the item has not been queued yet",
-                recovery_commands: ["autobot-next list --json"],
-                details: { issue_id: issueId },
-                exit_code: 1,
-              }),
-            );
-            return;
-          }
+    return createItemDetailResult(
+      store,
+      issueId,
+      `autobot-next status ${issueId}`,
+    );
+  }
 
-          resolve({
-            kind: "item-detail",
-            command: `autobot-next status ${issueId}`,
-            repo: store.repo,
-            data: item,
-          });
+  return createQueueStatus(store);
+}
+
+function handleLogs(
+  invocation: AutobotInvocation,
+  store: AutobotStore,
+): FutureInstance<unknown, AutobotCommandResult> {
+  const issueId = invocation.args[0];
+
+  if (issueId === undefined) {
+    return Future((reject) => {
+      reject(
+        createUsageError({
+          command: invocation.command,
+          message: "logs requires an issue id",
+          what_failed: "logs request",
+          likely_cause: "the issue id argument was missing",
+          recovery_commands: ["autobot-next logs <issue-id>"],
         }),
       );
 
@@ -2604,7 +2612,43 @@ function handleStatus(
     });
   }
 
-  return createQueueStatus(store);
+  return createItemDetailResult(store, issueId, `autobot-next logs ${issueId}`);
+}
+
+function createItemDetailResult(
+  store: AutobotStore,
+  issueId: string,
+  command: string,
+): FutureInstance<unknown, AutobotCommandResult> {
+  return Future((reject, resolve) => {
+    store.projections.getItemDetail(issueId).pipe(
+      fork(reject)((item) => {
+        if (item === null) {
+          reject(
+            new AutobotCliError({
+              code: "ITEM_NOT_FOUND",
+              message: `Issue ${issueId} is not known locally`,
+              what_failed: "queue status",
+              likely_cause: "the item has not been queued yet",
+              recovery_commands: ["autobot-next list --json"],
+              details: { issue_id: issueId },
+              exit_code: 1,
+            }),
+          );
+          return;
+        }
+
+        resolve({
+          kind: "item-detail",
+          command,
+          repo: store.repo,
+          data: item,
+        });
+      }),
+    );
+
+    return () => undefined;
+  });
 }
 
 function handleEngineStatus(
@@ -2643,7 +2687,9 @@ function handleEngineStop(
         runtime,
         action: "stop",
         message:
-          runtime.lock === null && runtime.status === null
+          runtime.status?.state === "stopped"
+            ? "Engine is already stopped"
+            : runtime.lock === null && runtime.status === null
             ? "No engine lock was active"
             : "Graceful shutdown requested",
       }),
@@ -3144,6 +3190,8 @@ function handleCommand(
       return handleConfig(invocation, store, now);
     case "inspect":
       return handleInspect(invocation, store);
+    case "logs":
+      return handleLogs(invocation, store);
     case "engine":
       switch (invocation.command_path[1]) {
         case "run-once":

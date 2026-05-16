@@ -84,9 +84,29 @@ function isProcessAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (
+      error !== null &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "ESRCH"
+    ) {
+      return false;
+    }
+
+    return true;
   }
+}
+
+function sameEngineRuntimeOwner(
+  left: EngineRuntimeRecord,
+  right: EngineRuntimeRecord,
+): boolean {
+  return (
+    left.pid === right.pid &&
+    left.started_at === right.started_at &&
+    left.tick_interval_seconds === right.tick_interval_seconds
+  );
 }
 
 export function resolveEngineRuntimePaths(repo: RepoRef): EngineRuntimePaths {
@@ -167,23 +187,57 @@ export function acquireEngineRuntime(
   return futureAsync(async () => {
     await mkdir(paths.state_dir, { recursive: true });
 
-    const existingLock = await readJsonFile<EngineRuntimeRecord>(
-      paths.lock_path,
-    );
+    while (true) {
+      try {
+        await writeFile(
+          paths.lock_path,
+          `${JSON.stringify(record, null, 2)}\n`,
+          {
+            encoding: "utf8",
+            flag: "wx",
+          },
+        );
 
-    if (existingLock !== null) {
-      if (existingLock.pid > 0 && isProcessAlive(existingLock.pid)) {
-        throw createEngineAlreadyRunningError(existingLock);
+        break;
+      } catch (error) {
+        if (
+          error !== null &&
+          typeof error === "object" &&
+          "code" in error &&
+          (error as { code?: unknown }).code !== "EEXIST"
+        ) {
+          throw error;
+        }
+
+        const existingLock = await readJsonFile<EngineRuntimeRecord>(
+          paths.lock_path,
+        );
+
+        if (
+          existingLock !== null &&
+          existingLock.pid > 0 &&
+          isProcessAlive(existingLock.pid)
+        ) {
+          throw createEngineAlreadyRunningError(existingLock);
+        }
+
+        if (existingLock !== null) {
+          const currentLock = await readJsonFile<EngineRuntimeRecord>(
+            paths.lock_path,
+          );
+
+          if (
+            currentLock !== null &&
+            !sameEngineRuntimeOwner(currentLock, existingLock)
+          ) {
+            continue;
+          }
+        }
+
+        await rm(paths.lock_path, { force: true });
       }
-
-      await rm(paths.lock_path, { force: true });
     }
 
-    await writeFile(
-      paths.lock_path,
-      `${JSON.stringify(record, null, 2)}\n`,
-      "utf8",
-    );
     await writeJsonFile(paths.status_path, record);
     await removeFile(paths.stop_path);
 
@@ -211,30 +265,44 @@ export function requestEngineStop(
   return futureAsync(async () => {
     const paths = resolveEngineRuntimePaths(repo);
     const snapshot = await readEngineRuntimeValue(repo);
+    if (snapshot.status === null) {
+      await removeFile(paths.stop_path);
+
+      return {
+        ...snapshot,
+        stop_requested_at: null,
+      };
+    }
+
     const nextStatus =
-      snapshot.status === null
-        ? null
+      snapshot.status.state === "stopped"
+        ? {
+            ...snapshot.status,
+            state: "stopped" as EngineState,
+            stop_requested_at: null,
+          }
         : {
             ...snapshot.status,
             state: "stopping" as EngineState,
             stop_requested_at: requestedAt,
           };
 
-    if (nextStatus === null) {
-      await removeFile(paths.stop_path);
-    } else {
-      await writeJsonFile(paths.status_path, nextStatus);
+    await writeJsonFile(paths.status_path, nextStatus);
+
+    if (nextStatus.state === "stopping") {
       await writeFile(
         paths.stop_path,
         `${JSON.stringify({ requested_at: requestedAt })}\n`,
         "utf8",
       );
+    } else {
+      await removeFile(paths.stop_path);
     }
 
     return {
       ...snapshot,
       status: nextStatus,
-      stop_requested_at: requestedAt,
+      stop_requested_at: nextStatus.stop_requested_at,
     };
   });
 }
@@ -244,21 +312,25 @@ export function releaseEngineRuntime(
   record?: EngineRuntimeRecord | null,
 ): FutureInstance<unknown, void> {
   const paths = resolveEngineRuntimePaths(repo);
-  const status =
-    record === undefined
-      ? null
-      : record === null
-      ? null
-      : {
-          ...record,
-          state: "stopped" as EngineState,
-          stop_requested_at: null,
-        };
 
   return futureAsync(async () => {
-    if (status !== null) {
-      await writeJsonFile(paths.status_path, status);
+    if (record === undefined || record === null) {
+      return;
     }
+
+    const currentLock = await readJsonFile<EngineRuntimeRecord>(
+      paths.lock_path,
+    );
+
+    if (currentLock === null || !sameEngineRuntimeOwner(currentLock, record)) {
+      return;
+    }
+
+    await writeJsonFile(paths.status_path, {
+      ...record,
+      state: "stopped" as EngineState,
+      stop_requested_at: null,
+    });
 
     await removeFile(paths.lock_path);
     await removeFile(paths.stop_path);
