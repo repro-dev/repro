@@ -319,6 +319,10 @@ export function runAutobotCli(
       invocationCancel = null;
       cleanupShutdownHandlers();
       cancel();
+
+      if (shouldHandleShutdownSignals) {
+        resolve(autobotExitCodes.ok);
+      }
     };
 
     const handleShutdownSignal = () => {

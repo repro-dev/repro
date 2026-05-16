@@ -163,25 +163,6 @@ function loadActiveWorkers(
       map((workers: Array<EngineStatusData["active_workers"][number]>) =>
         workers.filter((worker) => worker.state !== "exited"),
       ),
-    )
-    .pipe(
-      chain((workers) =>
-        sequenceFutures(
-          workers.map((worker) =>
-            worker.run_id === null
-              ? resolve({
-                  ...worker,
-                  transport: null,
-                })
-              : store.runs.get(worker.run_id).pipe(
-                  map((run) => ({
-                    ...worker,
-                    transport: run?.transport ?? null,
-                  })),
-                ),
-          ),
-        ),
-      ),
     ) as FutureInstance<
     unknown,
     Array<EngineStatusData["active_workers"][number]>
@@ -2783,8 +2764,10 @@ function handleEngineStatus(
   return loadEngineEvents(store).pipe(
     chain((events) =>
       readEngineRuntime(store.repo).pipe(
-        chain((runtime) =>
-          createEngineStatusResult({
+        chain((runtime) => {
+          const runtimeState = runtime.status?.state ?? null;
+
+          return createEngineStatusResult({
             store,
             command: invocation.command,
             runtime,
@@ -2794,11 +2777,21 @@ function handleEngineStatus(
                 ? "Graceful shutdown is in progress"
                 : runtime.stale_lock
                 ? "Engine lock is stale"
+                : runtimeState === "starting"
+                ? "Engine is starting"
+                : runtimeState === "running"
+                ? "Engine is running"
+                : runtimeState === "stopping"
+                ? "Graceful shutdown is in progress"
+                : runtimeState === "unhealthy"
+                ? "Engine is unhealthy"
+                : runtimeState === "stopped"
+                ? "Engine is stopped"
                 : runtime.lock !== null || runtime.status !== null
                 ? "Engine is running"
                 : "Engine is stopped",
-          }),
-        ),
+          });
+        }),
       ),
     ),
   );

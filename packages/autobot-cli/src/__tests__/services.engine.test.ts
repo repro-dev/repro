@@ -164,6 +164,7 @@ test("engine status reports stopped, running, and unhealthy runtime states", asy
 
     assert.equal(stopped.kind, "engine-status");
     assert.equal(stopped.data.engine.state, "stopped");
+    assert.equal(stopped.data.message, "Engine is stopped");
     assert.equal(stopped.data.engine.pid, null);
 
     await writeRuntimeFiles(root, {
@@ -212,6 +213,62 @@ test("engine status reports stopped, running, and unhealthy runtime states", asy
       ),
       true,
     );
+    assert.equal(fixture.runGetLookups.length, 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("engine status uses store-owned worker transport without requerying runs", async () => {
+  const { root, fixture } = await createEngineWorktreeFixture();
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+  });
+
+  fixture.store.runs.get = (() => {
+    throw new Error(
+      "engine status should not requery runs for worker transport",
+    );
+  }) as typeof fixture.store.runs.get;
+
+  fixture.store.workers.list = (() =>
+    resolve([
+      {
+        worker_id: "worker-1",
+        issue_id: "REP-1154",
+        run_id: "run-1154",
+        state: "running",
+        pid: process.pid,
+        started_at: "2026-05-15T10:00:00Z",
+        last_heartbeat_at: "2026-05-15T10:05:00Z",
+        transport: {
+          source: "relay",
+          workspace_id: "relay-workspace",
+          channel_id: "relay-channel",
+          thread_id: "relay-thread",
+          agent_id: "relay-agent",
+          message_id: "relay-message",
+        },
+      },
+    ])) as typeof fixture.store.workers.list;
+
+  try {
+    await runFuture(
+      services.handleInvocation({
+        ...makeInvocation(["engine", "status"]),
+        options: makeOptions({ repo: root }),
+      }),
+    ).then((result) => {
+      assert.equal(result.kind, "engine-status");
+      assert.equal(result.data.active_workers[0]?.transport?.source, "relay");
+      assert.equal(
+        result.data.active_workers[0]?.transport?.channel_id,
+        "relay-channel",
+      );
+      assert.equal(fixture.runGetLookups.length, 0);
+    });
   } finally {
     await rm(root, { recursive: true, force: true });
   }

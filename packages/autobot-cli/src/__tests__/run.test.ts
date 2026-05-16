@@ -406,13 +406,14 @@ test("engine logs output renders engine events", async () => {
   assert.match(io.read().stdout, /engine\.tick\.finished/);
 });
 
-test("engine start responds to SIGINT and SIGTERM by cancelling the long-running future", async () => {
+test("engine start responds to SIGINT and SIGTERM by resolving after cleanup", async () => {
   const signalNames: Array<NodeJS.Signals> = ["SIGINT", "SIGTERM"];
 
   for (const signalName of signalNames) {
     const io = createIo();
     const signalHandlers = new Map<NodeJS.Signals, NodeJS.SignalsListener>();
     const originalOn = process.on;
+    let cleanupCalls = 0;
 
     process.on = ((event, listener) => {
       if (event === "SIGINT" || event === "SIGTERM") {
@@ -429,19 +430,34 @@ test("engine start responds to SIGINT and SIGTERM by cancelling the long-running
         {
           handleInvocation() {
             return Future(() => {
-              return () => undefined;
+              return () => {
+                cleanupCalls += 1;
+              };
             });
           },
         },
       );
 
-      const cancel = future.pipe(fork(() => undefined)(() => undefined));
+      const exitCodePromise = runFuture(future);
 
       await new Promise((resolvePromise) => setImmediate(resolvePromise));
-      assert.ok(signalHandlers.get(signalName));
+      const signalHandler = signalHandlers.get(signalName);
+      assert.ok(signalHandler);
 
-      cancel();
-      await new Promise((resolvePromise) => setTimeout(resolvePromise, 20));
+      signalHandler(signalName);
+
+      const exitCode = await Promise.race([
+        exitCodePromise,
+        new Promise<number>((_, rejectPromise) => {
+          setTimeout(
+            () => rejectPromise(new Error("engine start did not settle")),
+            100,
+          );
+        }),
+      ]);
+
+      assert.equal(exitCode, 0);
+      assert.equal(cleanupCalls, 1);
     } finally {
       process.on = originalOn;
     }
