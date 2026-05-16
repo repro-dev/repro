@@ -149,7 +149,7 @@ function renderLayoutWithRefs(
         <TestAuthProvider sessionUser={sessionUser}>
           <Layout />
           {/* Reference items rendered off-screen to capture active/inactive
-                jsxstyle class names without affecting visible test content. */}
+              jsxstyle class names without affecting visible test content. */}
           <div data-testid="ref-active" style={{ display: 'none' }}>
             <SideNavItem label="ref-active-item" active={true} />
           </div>
