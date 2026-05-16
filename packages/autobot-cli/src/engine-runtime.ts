@@ -318,6 +318,7 @@ export function acquireEngineRuntime(
 
         if (existingLock !== null) {
           await rm(paths.lock_path, { force: true });
+          await removeFile(paths.stop_path);
         }
 
         await writeFile(

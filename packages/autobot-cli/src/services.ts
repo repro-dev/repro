@@ -191,13 +191,110 @@ function loadActiveWorkers(
 function loadEngineEvents(
   store: AutobotStore,
 ): FutureInstance<unknown, DomainEvent[]> {
-  return store.events
-    .list(undefined, { limit: 50 })
-    .pipe(
-      map((events) =>
-        events.filter((event) => event.type.startsWith("engine.")),
-      ),
-    );
+  const pageSize = 1000;
+
+  const collect = (
+    afterOccurredAt?: string,
+    afterEventId?: string,
+    collected: DomainEvent[] = [],
+  ): FutureInstance<unknown, DomainEvent[]> =>
+    store.events
+      .list(undefined, {
+        limit: pageSize,
+        afterOccurredAt,
+        afterEventId,
+      })
+      .pipe(
+        chain((events) => {
+          const engineEvents = events.filter((event) =>
+            event.type.startsWith("engine."),
+          );
+          const nextCollected = [...collected, ...engineEvents];
+
+          if (events.length < pageSize) {
+            return resolve(nextCollected);
+          }
+
+          const lastEvent = events[events.length - 1];
+          if (lastEvent === undefined) {
+            return resolve(nextCollected);
+          }
+
+          return collect(
+            lastEvent.occurred_at,
+            lastEvent.event_id,
+            nextCollected,
+          );
+        }),
+      );
+
+  return collect();
+}
+
+function waitForEngineTickDelay(
+  repo: RepoRef,
+  milliseconds: number,
+  sleep: (milliseconds: number) => FutureInstance<unknown, void>,
+): FutureInstance<unknown, void> {
+  const pollIntervalMilliseconds = Math.max(1, Math.min(milliseconds, 1000));
+
+  return Future((reject, resolveFuture) => {
+    let cancelled = false;
+
+    const settle = () => {
+      if (!cancelled) {
+        resolveFuture(undefined);
+      }
+    };
+
+    const step = (remainingMilliseconds: number) => {
+      if (cancelled) {
+        return;
+      }
+
+      readEngineRuntime(repo).pipe(
+        fork(reject)((snapshotBeforeDelay) => {
+          if (snapshotBeforeDelay.stop_requested_at !== null) {
+            settle();
+            return;
+          }
+
+          const delayMilliseconds = Math.min(
+            pollIntervalMilliseconds,
+            remainingMilliseconds,
+          );
+
+          sleep(delayMilliseconds).pipe(
+            fork(reject)(() => {
+              if (cancelled) {
+                return;
+              }
+
+              readEngineRuntime(repo).pipe(
+                fork(reject)((snapshotAfterDelay) => {
+                  if (
+                    snapshotAfterDelay.stop_requested_at !== null ||
+                    remainingMilliseconds - delayMilliseconds <= 0
+                  ) {
+                    settle();
+                    return;
+                  }
+
+                  step(remainingMilliseconds - delayMilliseconds);
+                }),
+              );
+            }),
+          );
+        }),
+      );
+    };
+
+    step(milliseconds);
+
+    return () => {
+      cancelled = true;
+    };
+  });
 }
 
 function synthesizeEngineEvents(
@@ -2923,7 +3020,11 @@ function handleEngineStart(
                                 return;
                               }
 
-                              sleep(engine.tick_interval_seconds * 1000).pipe(
+                              waitForEngineTickDelay(
+                                store.repo,
+                                engine.tick_interval_seconds * 1000,
+                                sleep,
+                              ).pipe(
                                 fork(releaseAndReject)(() => {
                                   tick();
                                 }),

@@ -275,7 +275,8 @@ function fromRunRow(row: Selectable<AutobotSchema['runs']>): RunSummary {
 }
 
 function fromWorkerRow(
-  row: Selectable<AutobotSchema['workers']>
+  row: Selectable<AutobotSchema['workers']>,
+  transport: TransportCorrelation | null
 ): WorkerSummary {
   return {
     worker_id: row.worker_id,
@@ -285,8 +286,27 @@ function fromWorkerRow(
     pid: row.pid,
     started_at: row.started_at,
     last_heartbeat_at: row.last_heartbeat_at,
-    transport: null,
+    transport,
   }
+}
+
+async function resolveWorkerTransport(
+  db: Db,
+  runId: string | null
+): Promise<TransportCorrelation | null> {
+  if (runId === null) {
+    return null
+  }
+
+  const row = await db
+    .selectFrom('runs')
+    .select(['transport_json'])
+    .where('run_id', '=', runId)
+    .executeTakeFirst()
+
+  return row === undefined
+    ? null
+    : decodeJsonNullable<TransportCorrelation>(row.transport_json)
 }
 
 function fromArtifactRow(
@@ -547,7 +567,7 @@ export function createAutobotRepositories(
           .selectAll()
           .where('worker_id', '=', input.worker_id)
           .executeTakeFirstOrThrow()
-        return fromWorkerRow(row)
+        return fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
       })
     },
     list() {
@@ -557,7 +577,11 @@ export function createAutobotRepositories(
           .selectAll()
           .orderBy('started_at', 'desc')
           .execute()
-        return rows.map(fromWorkerRow)
+        return Promise.all(
+          rows.map(async row =>
+            fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
+          )
+        )
       })
     },
   }

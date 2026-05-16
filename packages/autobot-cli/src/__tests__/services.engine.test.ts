@@ -265,6 +265,56 @@ test("engine start acquires the lock and exits cleanly after stop is requested",
   }
 });
 
+test("engine start polls for stop requests while waiting between ticks", async () => {
+  const { root, fixture } = await createEngineWorktreeFixture();
+  const sleepDurations: number[] = [];
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    sleep(milliseconds) {
+      sleepDurations.push(milliseconds);
+
+      if (sleepDurations.length === 1) {
+        return requestEngineStop(
+          fixture.store.repo,
+          "2026-05-15T12:00:01Z",
+        ).pipe(map(() => undefined));
+      }
+
+      return resolve(undefined);
+    },
+  });
+
+  try {
+    const result = (await runFuture(
+      services.handleInvocation({
+        ...makeInvocation(["engine", "start"]),
+        options: makeOptions({ repo: root }),
+      }),
+    )) as AutobotCommandResult;
+
+    assert.equal(result.kind, "engine-status");
+    assert.equal(result.data.action, "start");
+    assert.equal(result.data.engine.state, "stopped");
+    assert.equal(
+      sleepDurations[0] !== undefined && sleepDurations[0] < 15_000,
+      true,
+    );
+
+    const paths = resolveEngineRuntimePaths({
+      path: root,
+      state_dir: ".autobot",
+    });
+    await assert.rejects(readFile(paths.lock_path, "utf8"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("engine stop requests graceful shutdown and updates the runtime files", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const services = createAutobotServices({
@@ -731,7 +781,8 @@ test("engine stop preserves a pending stop request during startup", async () => 
       }),
     );
 
-    assert.equal(snapshot.stop_requested_at, requestedAt);
+    assert.equal(snapshot.stop_requested_at, null);
+    await assert.rejects(readFile(paths.stop_path, "utf8"));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -837,6 +888,69 @@ test("engine runtime acquisition stops retrying after cancellation", async () =>
   }
 });
 
+test("engine runtime acquisition clears stale stop markers when replacing a dead lock", async () => {
+  const { root } = await createEngineWorktreeFixture();
+
+  try {
+    const paths = resolveEngineRuntimePaths({
+      path: root,
+      state_dir: ".autobot",
+    });
+
+    await mkdir(paths.state_dir, { recursive: true });
+    await writeFile(
+      paths.lock_path,
+      `${JSON.stringify(
+        {
+          pid: 111111,
+          started_at: "2026-05-15T09:00:00Z",
+          state: "running",
+          last_tick_at: "2026-05-15T09:05:00Z",
+          stop_requested_at: null,
+          health: [],
+          tick_interval_seconds: 15,
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    await writeFile(
+      paths.stop_path,
+      `${JSON.stringify({ requested_at: "2026-05-15T09:06:00Z" })}\n`,
+      "utf8",
+    );
+
+    const record = await runFuture(
+      acquireEngineRuntime(
+        {
+          path: root,
+          state_dir: ".autobot",
+        },
+        {
+          pid: process.pid,
+          started_at: "2026-05-15T12:00:00Z",
+          tick_interval_seconds: 15,
+        },
+      ),
+    );
+
+    assert.equal(record.pid, process.pid);
+    await assert.rejects(readFile(paths.stop_path, "utf8"));
+
+    const runtime = await runFuture(
+      readEngineRuntime({
+        path: root,
+        state_dir: ".autobot",
+      }),
+    );
+
+    assert.equal(runtime.stop_requested_at, null);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("engine runtime release ignores tick interval changes for the same owner", async () => {
   const { root } = await createEngineWorktreeFixture();
 
@@ -930,6 +1044,7 @@ test("engine start cancellation releases runtime ownership", async () => {
 
 test("engine status and logs surface engine events", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
+  const originalList = fixture.store.events.list;
   const services = createAutobotServices({
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
@@ -937,6 +1052,48 @@ test("engine status and logs surface engine events", async () => {
   });
 
   try {
+    fixture.store.events.list = ((
+      issueId?: string,
+      options?: { limit?: number },
+    ) => {
+      const events = [...fixture.domainEvents] as Array<{
+        issue_id: string | null;
+        occurred_at: string;
+        event_id: string;
+      }>;
+
+      events.sort(
+        (left, right) =>
+          left.occurred_at.localeCompare(right.occurred_at) ||
+          left.event_id.localeCompare(right.event_id),
+      );
+      const scopedEvents =
+        issueId === undefined
+          ? events
+          : events.filter((event) => event.issue_id === issueId);
+      const limit = Math.max(0, Math.min(options?.limit ?? 100, 1000));
+
+      return resolve(scopedEvents.slice(0, limit));
+    }) as typeof fixture.store.events.list;
+
+    for (let index = 0; index < 60; index += 1) {
+      await runFuture(
+        fixture.store.events.append({
+          event_id: `event-old-${String(index).padStart(2, "0")}`,
+          issue_id: null,
+          run_id: null,
+          type: `item.queued.${index}`,
+          state: null,
+          message: `queued ${index}`,
+          severity: "info",
+          occurred_at: "2026-05-15T11:00:00Z",
+          actor: "engine",
+          transport: null,
+          data: { index },
+        }),
+      );
+    }
+
     await runFuture(
       fixture.store.events.append({
         event_id: "event-engine-1",
@@ -973,12 +1130,17 @@ test("engine status and logs surface engine events", async () => {
     )) as AutobotCommandResult;
 
     assert.equal(status.kind, "engine-status");
-    assert.equal((status.data.events?.length ?? 0) > 0, true);
-    assert.equal(status.data.events?.[0]?.type.startsWith("engine."), true);
+    assert.equal(
+      status.data.events?.some((event) => event.type === "engine.tick.started"),
+      true,
+    );
     assert.equal(logs.kind, "engine-logs");
-    assert.equal((logs.data.events?.length ?? 0) > 0, true);
-    assert.equal(logs.data.events?.[0]?.type.startsWith("engine."), true);
+    assert.equal(
+      logs.data.events?.some((event) => event.type === "engine.tick.started"),
+      true,
+    );
   } finally {
+    fixture.store.events.list = originalList;
     await rm(root, { recursive: true, force: true });
   }
 });

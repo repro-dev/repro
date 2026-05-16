@@ -416,6 +416,55 @@ test('run records persist transport correlation metadata through the store API',
   await runFuture(store.close())
 })
 
+test('worker summaries surface relay transport metadata through the store API', async () => {
+  const repoRoot = await makeRepoRoot()
+  const store = await openStore(repoRoot)
+
+  await runFuture(
+    store.runs.upsert({
+      run_id: 'run-worker-transport',
+      issue_id: 'REP-1150',
+      attempt: 1,
+      state: 'claimed',
+      flowcraft_execution_id: null,
+      blueprint_id: 'autobot-deliver-issue',
+      blueprint_version: '1.0.0',
+      started_at: '2026-05-15T12:00:00Z',
+      finished_at: null,
+      worker_id: 'worker-transport',
+      last_heartbeat_at: '2026-05-15T12:00:01Z',
+      transport: {
+        source: 'relay',
+        workspace_id: 'relay-workspace',
+        channel_id: 'relay-channel',
+        thread_id: 'relay-thread',
+        agent_id: 'relay-agent',
+        message_id: 'relay-message',
+      },
+    })
+  )
+
+  const worker = await runFuture(
+    store.workers.upsert({
+      worker_id: 'worker-transport',
+      issue_id: 'REP-1150',
+      run_id: 'run-worker-transport',
+      state: 'running',
+      pid: 4242,
+      started_at: '2026-05-15T12:00:00Z',
+      last_heartbeat_at: '2026-05-15T12:00:01Z',
+    })
+  )
+
+  assert.equal(worker.transport?.source, 'relay')
+  assert.equal(worker.transport?.channel_id, 'relay-channel')
+
+  const listed = await runFuture(store.workers.list())
+  assert.equal(listed[0]?.transport?.thread_id, 'relay-thread')
+
+  await runFuture(store.close())
+})
+
 test('store transactions roll back a partial persistence sequence', async () => {
   const repoRoot = await makeRepoRoot()
   const store = await openStore(repoRoot)
