@@ -555,7 +555,22 @@ function createDiscoveredItemRecord(
   queuedAt: string,
 ): EngineTickCandidateRecord {
   return {
-    summary: buildQueuedItemSummary(candidate.issue_id, queuedAt),
+    summary: buildItemSummary({
+      issue_id: candidate.issue_id,
+      title: candidate.title,
+      url: candidate.url,
+      state: "queued",
+      attempt: 1,
+      priority: candidate.priority,
+      owner: candidate.assignee,
+      workspace: candidate.project,
+      branch: null,
+      queued_at: queuedAt,
+      started_at: null,
+      updated_at: queuedAt,
+      last_event: "item.queued",
+      last_error: null,
+    }),
     record: {
       issue_id: candidate.issue_id,
       title: candidate.title,
