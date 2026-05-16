@@ -30,7 +30,7 @@ const ProjectContext = createContext<ProjectContextValue>({
   addProject: (_project: Project) => void 0,
 })
 
-export interface ProjectProviderProps extends React.PropsWithChildren {
+interface ProjectProviderProps extends React.PropsWithChildren {
   // Injectable for testing; defaults to the real workspace-api function.
   getProjects?: (apiClient: ApiClient) => FutureInstance<unknown, Project[]>
 }

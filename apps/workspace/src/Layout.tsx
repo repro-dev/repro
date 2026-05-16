@@ -3,23 +3,12 @@ import { AppShell, Divider, Link, SideNav } from '@repro/design'
 import { CreditCardIcon, ListVideoIcon, SettingsIcon } from 'lucide-react'
 import React from 'react'
 import { Outlet, NavLink as RouterNavLink, useMatch } from 'react-router-dom'
-import {
-  ProjectSettingsNavItem,
-  ProjectSettingsNavItemProps,
-} from '~/components/ProjectSettingsNavItem'
+import { ProjectSettingsNavItem } from '~/components/ProjectSettingsNavItem'
 import { ProjectSwitcher } from '~/components/ProjectSwitcher'
 import { WorkspaceHeader } from '~/components/WorkspaceHeader'
-import { ProjectProvider, ProjectProviderProps } from './ProjectContext'
+import { ProjectProvider } from './ProjectContext'
 
-export interface LayoutProps {
-  projectGetProjects?: ProjectProviderProps['getProjects']
-  projectSettingsGetMembers?: ProjectSettingsNavItemProps['getMembers']
-}
-
-export const Layout: React.FC<LayoutProps> = ({
-  projectGetProjects,
-  projectSettingsGetMembers,
-}) => {
+export const Layout: React.FC = () => {
   const sessionsActive = useMatch({ path: '/', end: true })
   const session = useSession()
   // Billing lives under /settings/billing; match it separately so the
@@ -32,7 +21,7 @@ export const Layout: React.FC<LayoutProps> = ({
   const settingsActive = useMatch({ path: '/settings', end: false })
 
   return (
-    <ProjectProvider getProjects={projectGetProjects}>
+    <ProjectProvider>
       <AppShell>
         <AppShell.Sidebar
           header={<WorkspaceHeader />}
@@ -53,7 +42,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 component={RouterNavLink}
                 props={{ to: '/' }}
               />
-              <ProjectSettingsNavItem getMembers={projectSettingsGetMembers} />
+              <ProjectSettingsNavItem />
 
               <Divider />
 

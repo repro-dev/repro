@@ -3,12 +3,11 @@ import { createAtom } from '@repro/atom'
 import { SideNavItem } from '@repro/design'
 import { Project, ProjectRole, User } from '@repro/domain'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
-import { resolve } from 'fluture'
+import { reject, resolve } from 'fluture'
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { ProjectProvider } from '~/ProjectContext'
 import { AuthContext } from '../../../packages/auth/src/AuthProvider'
 import { createState } from '../../../packages/auth/src/createState'
 import { Layout } from './Layout'
@@ -62,10 +61,27 @@ const nonAdminUser: User = {
   admin: false,
 }
 
-const apiClient = createApiClient({
+const baseApiClient = createApiClient({
   baseUrl: 'http://test',
   authStorage: 'memory',
 })
+
+const apiClient = {
+  ...baseApiClient,
+  fetch: ((url: string) => {
+    if (url === '/projects') {
+      return resolve({ items: projects })
+    }
+
+    if (url === '/projects/project-1/members') {
+      return resolve({
+        items: [{ role: ProjectRole.Admin, user: currentUser }],
+      })
+    }
+
+    return reject(new Error(`unexpected fetch: ${url}`))
+  }) as typeof baseApiClient.fetch,
+}
 
 // ---------------------------------------------------------------------------
 // Test providers
@@ -131,22 +147,15 @@ function renderLayoutWithRefs(
     <MemoryRouter initialEntries={[initialPath]}>
       <ApiProvider client={apiClient}>
         <TestAuthProvider sessionUser={sessionUser}>
-          <ProjectProvider getProjects={() => resolve(projects)}>
-            <Layout
-              projectGetProjects={() => resolve(projects)}
-              projectSettingsGetMembers={() =>
-                resolve([{ role: ProjectRole.Admin, user: currentUser }])
-              }
-            />
-            {/* Reference items rendered off-screen to capture active/inactive
+          <Layout />
+          {/* Reference items rendered off-screen to capture active/inactive
                 jsxstyle class names without affecting visible test content. */}
-            <div data-testid="ref-active" style={{ display: 'none' }}>
-              <SideNavItem label="ref-active-item" active={true} />
-            </div>
-            <div data-testid="ref-inactive" style={{ display: 'none' }}>
-              <SideNavItem label="ref-inactive-item" active={false} />
-            </div>
-          </ProjectProvider>
+          <div data-testid="ref-active" style={{ display: 'none' }}>
+            <SideNavItem label="ref-active-item" active={true} />
+          </div>
+          <div data-testid="ref-inactive" style={{ display: 'none' }}>
+            <SideNavItem label="ref-inactive-item" active={false} />
+          </div>
         </TestAuthProvider>
       </ApiProvider>
     </MemoryRouter>
