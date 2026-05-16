@@ -18,7 +18,7 @@ import type {
   FlowcraftWorkflowSummary,
 } from "@repro/autobot-flowcraft";
 
-import type { DiscoverData } from "../types";
+import type { DiscoverData, EngineTickReport } from "../types";
 
 import { createTextTheme, indentLines } from "./text";
 
@@ -61,6 +61,24 @@ function renderConfigEntry(entry: ConfigEntry): string[] {
     `  default: ${renderConfigValue(entry.default_value)}`,
     `  description: ${entry.description}`,
   ];
+}
+
+export function renderAutobotWarnings(
+  warnings: readonly { code: string; message: string; severity: string }[],
+): string {
+  if (warnings.length === 0) {
+    return "";
+  }
+
+  return [
+    "Warnings:",
+    ...warnings.map(
+      (warning) =>
+        `  ${warning.severity.toUpperCase()} ${warning.code}: ${
+          warning.message
+        }`,
+    ),
+  ].join("\n");
 }
 
 export function renderAutobotItemSummary(
@@ -137,6 +155,7 @@ export function renderAutobotQueueStatus(
     counts: Record<ItemState, number>;
     items: ItemSummary[];
     config: ConfigEntry[];
+    tick?: EngineTickReport;
   },
   options?: { color?: boolean },
 ): string {
@@ -154,7 +173,34 @@ export function renderAutobotQueueStatus(
   if (input.engine.last_tick_at !== null) {
     lines.push(
       `${theme.bold("Last tick:")} ${input.engine.last_tick_at}`,
-      `${theme.bold("Tick scope:")} all runnable queue items, one unit each`,
+      `${theme.bold("Tick scope:")} queue scheduler`,
+    );
+  }
+
+  if (input.tick !== undefined) {
+    lines.push(
+      `${theme.bold("Dry run:")} ${input.tick.dry_run ? "yes" : "no"}`,
+      `${theme.bold("Reconciled:")} ${
+        input.tick.reconciled_issue_ids.length > 0
+          ? input.tick.reconciled_issue_ids.join(", ")
+          : "none"
+      }`,
+      `${theme.bold("Discovered:")} ${
+        input.tick.discovered_issue_ids.length > 0
+          ? input.tick.discovered_issue_ids.join(", ")
+          : "none"
+      }`,
+      `${theme.bold("Queued:")} ${
+        input.tick.queued_issue_ids.length > 0
+          ? input.tick.queued_issue_ids.join(", ")
+          : "none"
+      }`,
+      `${theme.bold("Selected:")} ${
+        input.tick.selected_issue_ids.length > 0
+          ? input.tick.selected_issue_ids.join(", ")
+          : "none"
+      }`,
+      `${theme.bold("Skipped:")} ${input.tick.skipped.length}`,
     );
   }
 

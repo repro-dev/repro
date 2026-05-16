@@ -47,6 +47,23 @@ export interface AutobotProgramOptions {
   onInvocation?: (invocation: AutobotInvocation) => void;
 }
 
+export interface EngineTickSkip {
+  issue_id: string;
+  reason: string;
+  details: Record<string, unknown> | null;
+}
+
+export interface EngineTickReport {
+  dry_run: boolean;
+  tick_at: string;
+  reconciled_issue_ids: string[];
+  discovered_issue_ids: string[];
+  queued_issue_ids: string[];
+  selected_issue_ids: string[];
+  started_issue_ids: string[];
+  skipped: EngineTickSkip[];
+}
+
 export type AutobotCommandResult =
   | {
       kind: "queue-list";
@@ -66,6 +83,7 @@ export type AutobotCommandResult =
         counts: Record<ItemState, number>;
         items: ItemSummary[];
         config: ConfigEntry[];
+        tick?: EngineTickReport;
       };
       warnings?: readonly Warning[];
     }
