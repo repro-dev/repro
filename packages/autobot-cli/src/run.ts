@@ -291,7 +291,9 @@ export function runAutobotCli(
     }
 
     const parsedInvocation = invocation as AutobotInvocation;
-    const shouldHandleShutdownSignals = true;
+    const shouldHandleShutdownSignals =
+      parsedInvocation.command_path[0] === "engine" &&
+      parsedInvocation.command_path[1] === "start";
 
     let invocationCancel: (() => void) | null = null;
     let shutdownRequested = false;

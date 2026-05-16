@@ -788,6 +788,49 @@ test("engine stop preserves a pending stop request during startup", async () => 
   }
 });
 
+test("engine runtime acquisition preserves a concurrent stop request during startup", async () => {
+  const { root } = await createEngineWorktreeFixture();
+
+  try {
+    const paths = resolveEngineRuntimePaths({
+      path: root,
+      state_dir: ".autobot",
+    });
+
+    await mkdir(paths.state_dir, { recursive: true });
+    await writeFile(
+      paths.stop_path,
+      `${JSON.stringify({ requested_at: "2026-05-15T12:00:05Z" })}\n`,
+      "utf8",
+    );
+
+    const record = await runFuture(
+      acquireEngineRuntime(
+        {
+          path: root,
+          state_dir: ".autobot",
+        },
+        {
+          pid: process.pid,
+          started_at: "2026-05-15T12:00:00Z",
+          tick_interval_seconds: 15,
+        },
+      ),
+    );
+
+    assert.equal(record.stop_requested_at, "2026-05-15T12:00:05Z");
+
+    const status = JSON.parse(await readFile(paths.status_path, "utf8")) as {
+      stop_requested_at: string | null;
+    };
+
+    assert.equal(status.stop_requested_at, "2026-05-15T12:00:05Z");
+    await assert.doesNotReject(readFile(paths.stop_path, "utf8"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("engine start releases runtime files when a tick step rejects", async () => {
   const { root, fixture } = await createEngineWorktreeFixture();
   const originalListItems = fixture.store.projections.listItems;
@@ -1145,6 +1188,70 @@ test("engine start cancellation releases runtime ownership", async () => {
 
     assert.equal(status.state, "stopped");
   } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("engine start cancellation prevents an in-flight tick from rewriting status", async () => {
+  const { root, fixture } = await createEngineWorktreeFixture();
+  const originalListItems = fixture.store.projections.listItems;
+  let releaseListItems: (() => void) | null = null;
+
+  fixture.store.projections.listItems = (() =>
+    Future((_, resolveFuture) => {
+      releaseListItems = () => resolveFuture([]);
+
+      return () => undefined;
+    })) as typeof originalListItems;
+
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+  });
+
+  try {
+    const future = services.handleInvocation({
+      ...makeInvocation(["engine", "start"]),
+      options: makeOptions({ repo: root }),
+    });
+
+    const cancel = future.pipe(fork(() => undefined)(() => undefined));
+
+    const paths = resolveEngineRuntimePaths({
+      path: root,
+      state_dir: ".autobot",
+    });
+
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
+    await assert.doesNotReject(readFile(paths.lock_path, "utf8"));
+
+    cancel();
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
+
+    let status = JSON.parse(await readFile(paths.status_path, "utf8")) as {
+      state: string;
+    };
+
+    assert.equal(status.state, "stopped");
+    await assert.rejects(readFile(paths.lock_path, "utf8"));
+
+    const release = releaseListItems as (() => void) | null;
+    if (release !== null) {
+      release();
+    }
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 50));
+
+    status = JSON.parse(await readFile(paths.status_path, "utf8")) as {
+      state: string;
+    };
+
+    assert.equal(status.state, "stopped");
+  } finally {
+    fixture.store.projections.listItems = originalListItems;
     await rm(root, { recursive: true, force: true });
   }
 });

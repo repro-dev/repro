@@ -448,6 +448,44 @@ test("engine start responds to SIGINT and SIGTERM by cancelling the long-running
   }
 });
 
+test("non-daemon commands do not register shutdown handlers", async () => {
+  const io = createIo();
+  const signalHandlers = new Map<NodeJS.Signals, NodeJS.SignalsListener>();
+  const originalOn = process.on;
+
+  process.on = ((event, listener) => {
+    if (event === "SIGINT" || event === "SIGTERM") {
+      signalHandlers.set(event, listener as NodeJS.SignalsListener);
+    }
+
+    return originalOn.call(process, event, listener);
+  }) as typeof process.on;
+
+  try {
+    const exitCode = await runFuture(
+      runAutobotCli(["node", "autobot-next", "list"], io.io, {
+        handleInvocation() {
+          return resolve({
+            kind: "item-detail",
+            command: "autobot-next list",
+            repo: {
+              path: "/worktrees/autobot",
+              state_dir: ".autobot",
+            },
+            data: makeDetail("queued"),
+            warnings: [],
+          });
+        },
+      }),
+    );
+
+    assert.equal(exitCode, 0);
+    assert.equal(signalHandlers.size, 0);
+  } finally {
+    process.on = originalOn;
+  }
+});
+
 test("terminal status output omits next steps", async () => {
   const io = createIo();
 

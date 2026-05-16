@@ -201,7 +201,7 @@ export function acquireEngineRuntime(
   },
 ): FutureInstance<unknown, EngineRuntimeRecord> {
   const paths = resolveEngineRuntimePaths(repo);
-  const record: EngineRuntimeRecord = {
+  let record: EngineRuntimeRecord = {
     pid: input.pid,
     started_at: input.started_at,
     state: "starting",
@@ -334,7 +334,22 @@ export function acquireEngineRuntime(
         );
 
         acquired = true;
-        await removeFile(paths.stop_path);
+
+        const pendingStop = await readJsonFile<{ requested_at: string }>(
+          paths.stop_path,
+        );
+
+        if (
+          pendingStop !== null &&
+          pendingStop.requested_at >= record.started_at
+        ) {
+          record = {
+            ...record,
+            stop_requested_at: pendingStop.requested_at,
+          };
+        } else {
+          await removeFile(paths.stop_path);
+        }
 
         if (cancelled) {
           await cleanupOwnedState();

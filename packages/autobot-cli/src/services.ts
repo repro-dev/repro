@@ -2928,6 +2928,10 @@ function handleEngineStart(
 
               readEngineRuntime(store.repo).pipe(
                 fork(releaseAndReject)((snapshotBeforeTick) => {
+                  if (cancelled) {
+                    return;
+                  }
+
                   if (snapshotBeforeTick.stop_requested_at !== null) {
                     currentRecord = {
                       ...currentRecord,
@@ -2961,6 +2965,10 @@ function handleEngineStart(
                     },
                   ).pipe(
                     fork(releaseAndReject)((result) => {
+                      if (cancelled) {
+                        return;
+                      }
+
                       const queueStatus = result as Extract<
                         AutobotCommandResult,
                         { kind: "queue-status" }
@@ -2980,10 +2988,22 @@ function handleEngineStart(
                         tick_interval_seconds: engine.tick_interval_seconds,
                       };
 
+                      if (cancelled) {
+                        return;
+                      }
+
                       writeEngineRuntimeStatus(store.repo, currentRecord).pipe(
                         fork(releaseAndReject)(() => {
+                          if (cancelled) {
+                            return;
+                          }
+
                           readEngineRuntime(store.repo).pipe(
                             fork(releaseAndReject)((snapshotAfterTick) => {
+                              if (cancelled) {
+                                return;
+                              }
+
                               if (
                                 snapshotAfterTick.stop_requested_at !== null
                               ) {
@@ -2997,6 +3017,10 @@ function handleEngineStart(
                                 sleep,
                               ).pipe(
                                 fork(releaseAndReject)(() => {
+                                  if (cancelled) {
+                                    return;
+                                  }
+
                                   tick();
                                 }),
                               );
