@@ -151,6 +151,13 @@ export function renderAutobotQueueStatus(
     `${theme.bold("Counts:")} ${counts}`,
   ];
 
+  if (input.engine.last_tick_at !== null) {
+    lines.push(
+      `${theme.bold("Last tick:")} ${input.engine.last_tick_at}`,
+      `${theme.bold("Tick scope:")} all runnable queue items, one unit each`,
+    );
+  }
+
   if (input.items.length > 0) {
     lines.push(
       "",

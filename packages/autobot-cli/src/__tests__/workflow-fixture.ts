@@ -6,7 +6,120 @@ type Mutable<T> = {
   -readonly [K in keyof T]: T[K];
 };
 
-export function makeWorkflowStore() {
+type WorkflowItemState =
+  | "queued"
+  | "claimed"
+  | "failed"
+  | "completed"
+  | "canceled";
+
+type WorkflowItemRecord = {
+  issue_id: string;
+  title: string;
+  url: string;
+  state: WorkflowItemState;
+  attempt: number;
+  priority: number;
+  owner: string;
+  workspace: string;
+  branch: string;
+  queued_at: string;
+  started_at: string | null;
+  updated_at: string;
+  last_event: string | null;
+  last_error: null;
+  recovery_commands: string[];
+  linear: null;
+  current_run: null;
+  cancellation_requested: boolean;
+  cancellation_requested_at: string | null;
+  artifacts: [];
+  events: [];
+};
+
+type WorkflowStoreOptions = {
+  items?: WorkflowItemRecord[];
+};
+
+function createItemRecord(input: WorkflowItemRecord): WorkflowItemRecord {
+  return { ...input };
+}
+
+function createDefaultWorkflowItems(): WorkflowItemRecord[] {
+  return [
+    createItemRecord({
+      issue_id: "REP-1154",
+      title: "Ship FlowCraft workflow skeleton",
+      url: "https://linear.app/repro/issue/REP-1154/ship-flowcraft-workflow-skeleton",
+      state: "queued",
+      attempt: 1,
+      priority: 2,
+      owner: "Gary",
+      workspace: "autobot",
+      branch: "autobot/REP-1154",
+      queued_at: "2026-05-15T11:00:00Z",
+      started_at: "2026-05-15T11:05:00Z",
+      updated_at: "2026-05-15T11:05:00Z",
+      last_event: null,
+      last_error: null,
+      recovery_commands: [],
+      linear: null,
+      current_run: null,
+      cancellation_requested: false,
+      cancellation_requested_at: null,
+      artifacts: [],
+      events: [],
+    }),
+    createItemRecord({
+      issue_id: "REP-1155",
+      title: "Track queued engine passes",
+      url: "https://linear.app/repro/issue/REP-1155/track-queued-engine-passes",
+      state: "claimed",
+      attempt: 1,
+      priority: 3,
+      owner: "Gary",
+      workspace: "autobot",
+      branch: "autobot/REP-1155",
+      queued_at: "2026-05-15T10:50:00Z",
+      started_at: "2026-05-15T10:55:00Z",
+      updated_at: "2026-05-15T10:55:00Z",
+      last_event: null,
+      last_error: null,
+      recovery_commands: [],
+      linear: null,
+      current_run: null,
+      cancellation_requested: false,
+      cancellation_requested_at: null,
+      artifacts: [],
+      events: [],
+    }),
+    createItemRecord({
+      issue_id: "REP-1156",
+      title: "Record full queue ticks",
+      url: "https://linear.app/repro/issue/REP-1156/record-full-queue-ticks",
+      state: "failed",
+      attempt: 2,
+      priority: 1,
+      owner: "Gary",
+      workspace: "autobot",
+      branch: "autobot/REP-1156",
+      queued_at: "2026-05-15T10:40:00Z",
+      started_at: "2026-05-15T10:45:00Z",
+      updated_at: "2026-05-15T10:45:00Z",
+      last_event: null,
+      last_error: null,
+      recovery_commands: [],
+      linear: null,
+      current_run: null,
+      cancellation_requested: false,
+      cancellation_requested_at: null,
+      artifacts: [],
+      events: [],
+    }),
+  ];
+}
+
+export function makeWorkflowStore(options: WorkflowStoreOptions = {}) {
   const runUpserts: Array<Record<string, unknown>> = [];
   const executionRecords: Array<Record<string, unknown>> = [];
   const flowcraftEvents: Array<Record<string, unknown>> = [];
@@ -19,28 +132,32 @@ export function makeWorkflowStore() {
     options: Record<string, unknown> | undefined;
   }> = [];
   let transactionCalls = 0;
-  const itemRecord = {
-    issue_id: "REP-1154",
-    title: "Ship FlowCraft workflow skeleton",
-    url: "https://linear.app/repro/issue/REP-1154/ship-flowcraft-workflow-skeleton",
-    state: "queued" as const,
-    attempt: 1,
-    priority: 2,
-    owner: "Gary",
-    workspace: "autobot",
-    branch: "autobot/REP-1154",
-    queued_at: "2026-05-15T11:00:00Z",
-    started_at: "2026-05-15T11:05:00Z",
-    updated_at: "2026-05-15T11:05:00Z",
-    last_event: null as string | null,
-    last_error: null,
-    recovery_commands: [] as string[],
-    linear: null,
-    current_run: null,
-    cancellation_requested: false,
-    cancellation_requested_at: null as string | null,
-    artifacts: [],
-    events: [],
+  const itemRecords = (options.items ?? createDefaultWorkflowItems()).map(
+    createItemRecord,
+  );
+
+  const findItem = (issueId: string) =>
+    itemRecords.find((item) => item.issue_id === issueId) ?? null;
+
+  const upsertItem = (input: Record<string, unknown>) => {
+    const issueId = input.issue_id as string | undefined;
+    if (issueId === undefined) {
+      itemUpserts.push(input);
+      return input;
+    }
+
+    const current = findItem(issueId);
+    const next = current === null ? { ...input } : { ...current, ...input };
+    const index = itemRecords.findIndex((item) => item.issue_id === issueId);
+
+    if (index === -1) {
+      itemRecords.push(next as (typeof itemRecords)[number]);
+    } else {
+      itemRecords[index] = next as (typeof itemRecords)[number];
+    }
+
+    itemUpserts.push(input);
+    return next;
   };
 
   const store = {
@@ -58,24 +175,38 @@ export function makeWorkflowStore() {
       return handler(store as unknown as AutobotStore);
     },
     items: {
-      get() {
-        return resolve({ ...itemRecord });
+      get(issueId: string) {
+        const item = findItem(issueId);
+        return resolve(item === null ? null : { ...item });
       },
       upsert(input: Record<string, unknown>) {
-        itemUpserts.push(input);
-        Object.assign(itemRecord, input);
-        return resolve({ ...itemRecord });
+        return resolve(upsertItem(input) as Record<string, unknown>);
       },
     },
     projections: {
-      listItems() {
-        throw new Error("listItems should not be used for engine run-once");
+      listItems(input?: { include_terminal?: boolean }) {
+        const visibleItems =
+          input?.include_terminal === true
+            ? itemRecords
+            : itemRecords.filter(
+                (item) =>
+                  item.state !== "completed" && item.state !== "canceled",
+              );
+
+        return resolve(
+          [...visibleItems].sort((left, right) =>
+            right.updated_at.localeCompare(left.updated_at),
+          ),
+        );
       },
       getNextRunnableItem() {
-        return resolve({ ...itemRecord, state: "claimed" });
+        throw new Error(
+          "getNextRunnableItem should not be used for engine run-once",
+        );
       },
-      getItemDetail() {
-        return resolve({ ...itemRecord });
+      getItemDetail(issueId: string) {
+        const item = findItem(issueId);
+        return resolve(item === null ? null : { ...item });
       },
     },
     config: {

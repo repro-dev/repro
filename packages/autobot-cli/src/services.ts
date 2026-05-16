@@ -429,6 +429,7 @@ function buildItemSummaryFromExisting(
 function createEngineStatus(
   config: ConfigEntry[],
   counts: Record<ItemState, number>,
+  lastTickAt: string | null = null,
 ): EngineStatus {
   const maxConcurrency =
     config.find((entry) => entry.key === "engine.max-concurrency")?.value ?? 1;
@@ -440,7 +441,7 @@ function createEngineStatus(
     state: "unknown",
     pid: null,
     started_at: null,
-    last_tick_at: null,
+    last_tick_at: lastTickAt,
     tick_interval_seconds: Number(tickIntervalSeconds),
     queue_depth: counts.queued,
     max_concurrency: Number(maxConcurrency),
@@ -536,6 +537,10 @@ function createQueueList(
 
 function createQueueStatus(
   store: AutobotStore,
+  options: {
+    command?: string;
+    lastTickAt?: string | null;
+  } = {},
 ): FutureInstance<unknown, AutobotCommandResult> {
   return Future((reject, resolve) => {
     createConfigList(store).pipe(
@@ -552,10 +557,14 @@ function createQueueStatus(
 
             resolve({
               kind: "queue-status",
-              command: "autobot-next status",
+              command: options.command ?? "autobot-next status",
               repo: store.repo,
               data: {
-                engine: createEngineStatus(config, counts),
+                engine: createEngineStatus(
+                  config,
+                  counts,
+                  options.lastTickAt ?? null,
+                ),
                 counts,
                 items: items.filter((item) => !isTerminalState(item.state)),
                 config,
@@ -1240,135 +1249,138 @@ function handleInspect(
   );
 }
 
+function runBoundedWorkflowTickForItem(
+  store: AutobotStore,
+  target: ItemSummary,
+  tickAt: string,
+  randomId: () => string,
+): FutureInstance<unknown, void> {
+  const startedAt = tickAt;
+  const finishedAt = tickAt;
+  const runId = randomId();
+  const executionId = `flowcraft-${runId}`;
+
+  return (
+    executeAutobotDeliverIssueWorkflow({
+      issue_id: target.issue_id,
+      run_id: runId,
+      execution_id: executionId,
+      started_at: startedAt,
+      finished_at: finishedAt,
+      transport: null,
+    }) as unknown as FutureInstance<unknown, FlowcraftExecutionPlan>
+  ).pipe(
+    chain(
+      (plan: FlowcraftExecutionPlan): FutureInstance<unknown, void> =>
+        store.transaction((transaction) =>
+          transaction.runs
+            .upsert({
+              run_id: runId,
+              issue_id: target.issue_id,
+              attempt: target.attempt,
+              state: "completed",
+              flowcraft_execution_id: executionId,
+              blueprint_id: plan.workflow.id,
+              blueprint_version: plan.workflow.version,
+              started_at: startedAt,
+              finished_at: finishedAt,
+              worker_id: null,
+              last_heartbeat_at: null,
+              transport: null,
+            })
+            .pipe(
+              chain(
+                (run): FutureInstance<unknown, void> =>
+                  transaction.flowcraft
+                    .recordExecution({
+                      execution_id: executionId,
+                      issue_id: target.issue_id,
+                      run_id: run.run_id,
+                      state: "completed",
+                      started_at: startedAt,
+                      finished_at: finishedAt,
+                      metadata: plan.metadata,
+                    })
+                    .pipe(
+                      chain(
+                        (_execution): FutureInstance<unknown, void> =>
+                          sequenceFutures(
+                            plan.flowcraft_events.map(
+                              (event: FlowcraftEventRecord) =>
+                                transaction.flowcraft.recordEvent(event),
+                            ),
+                          ).pipe(
+                            chain(
+                              (
+                                _flowcraftEvents,
+                              ): FutureInstance<unknown, void> =>
+                                sequenceFutures(
+                                  plan.domain_events.map((event: DomainEvent) =>
+                                    transaction.events.append(event),
+                                  ),
+                                ).pipe(
+                                  chain((_domainEvents) =>
+                                    transaction.items
+                                      .upsert({
+                                        ...buildItemSummaryFromExisting(
+                                          target,
+                                          "completed",
+                                          finishedAt,
+                                        ),
+                                        last_event:
+                                          plan.domain_events.at(-1)?.type ??
+                                          target.last_event,
+                                        recovery_commands: [],
+                                        cancellation_requested: false,
+                                        cancellation_requested_at: null,
+                                        state_name: null,
+                                        state_type: null,
+                                        project: null,
+                                        labels: [],
+                                        assignee: target.owner,
+                                        current_run_id: null,
+                                      })
+                                      .pipe(map(() => undefined)),
+                                  ),
+                                ),
+                            ),
+                          ),
+                      ),
+                    ),
+              ),
+            ),
+        ),
+    ),
+  );
+}
+
 function handleEngineRunOnce(
   invocation: AutobotInvocation,
   store: AutobotStore,
   now: () => string,
   randomId: () => string,
 ): FutureInstance<unknown, AutobotCommandResult> {
-  return store.projections.getNextRunnableItem().pipe(
-    chain((target): FutureInstance<unknown, AutobotCommandResult> => {
-      if (target === null) {
-        return createQueueStatus(store);
+  return store.projections.listItems().pipe(
+    chain((targets): FutureInstance<unknown, AutobotCommandResult> => {
+      const tickAt = now();
+
+      if (targets.length === 0) {
+        return createQueueStatus(store, {
+          command: invocation.command,
+          lastTickAt: tickAt,
+        });
       }
 
-      const startedAt = now();
-      const finishedAt = startedAt;
-      const runId = randomId();
-      const executionId = `flowcraft-${runId}`;
-
-      return (
-        executeAutobotDeliverIssueWorkflow({
-          issue_id: target.issue_id,
-          run_id: runId,
-          execution_id: executionId,
-          started_at: startedAt,
-          finished_at: finishedAt,
-          transport: null,
-        }) as unknown as FutureInstance<unknown, FlowcraftExecutionPlan>
+      return sequenceFutures(
+        targets.map((target) =>
+          runBoundedWorkflowTickForItem(store, target, tickAt, randomId),
+        ),
       ).pipe(
-        chain(
-          (
-            plan: FlowcraftExecutionPlan,
-          ): FutureInstance<unknown, AutobotCommandResult> =>
-            store.transaction((transaction) =>
-              transaction.runs
-                .upsert({
-                  run_id: runId,
-                  issue_id: target.issue_id,
-                  attempt: target.attempt,
-                  state: "completed",
-                  flowcraft_execution_id: executionId,
-                  blueprint_id: plan.workflow.id,
-                  blueprint_version: plan.workflow.version,
-                  started_at: startedAt,
-                  finished_at: finishedAt,
-                  worker_id: null,
-                  last_heartbeat_at: null,
-                  transport: null,
-                })
-                .pipe(
-                  chain(
-                    (run): FutureInstance<unknown, AutobotCommandResult> =>
-                      transaction.flowcraft
-                        .recordExecution({
-                          execution_id: executionId,
-                          issue_id: target.issue_id,
-                          run_id: run.run_id,
-                          state: "completed",
-                          started_at: startedAt,
-                          finished_at: finishedAt,
-                          metadata: plan.metadata,
-                        })
-                        .pipe(
-                          chain(
-                            (
-                              execution,
-                            ): FutureInstance<unknown, AutobotCommandResult> =>
-                              sequenceFutures(
-                                plan.flowcraft_events.map(
-                                  (event: FlowcraftEventRecord) =>
-                                    transaction.flowcraft.recordEvent(event),
-                                ),
-                              ).pipe(
-                                chain(
-                                  (
-                                    flowcraft_events,
-                                  ): FutureInstance<
-                                    unknown,
-                                    AutobotCommandResult
-                                  > =>
-                                    sequenceFutures(
-                                      plan.domain_events.map(
-                                        (event: DomainEvent) =>
-                                          transaction.events.append(event),
-                                      ),
-                                    ).pipe(
-                                      chain((domain_events) =>
-                                        transaction.items
-                                          .upsert({
-                                            ...buildItemSummaryFromExisting(
-                                              target,
-                                              "completed",
-                                              finishedAt,
-                                            ),
-                                            last_event:
-                                              plan.domain_events.at(-1)?.type ??
-                                              target.last_event,
-                                            recovery_commands: [],
-                                            cancellation_requested: false,
-                                            cancellation_requested_at: null,
-                                            state_name: null,
-                                            state_type: null,
-                                            project: null,
-                                            labels: [],
-                                            assignee: target.owner,
-                                            current_run_id: null,
-                                          })
-                                          .pipe(
-                                            map(
-                                              (): AutobotCommandResult =>
-                                                createFlowcraftInspectResult({
-                                                  invocation,
-                                                  kind: "run",
-                                                  identifier: run.run_id,
-                                                  issue_id: target.issue_id,
-                                                  run,
-                                                  execution,
-                                                  domain_events,
-                                                  flowcraft_events,
-                                                }),
-                                            ),
-                                          ),
-                                      ),
-                                    ),
-                                ),
-                              ),
-                          ),
-                        ),
-                  ),
-                ),
-            ),
+        chain(() =>
+          createQueueStatus(store, {
+            command: invocation.command,
+            lastTickAt: tickAt,
+          }),
         ),
       );
     }),

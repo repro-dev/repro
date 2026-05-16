@@ -9,6 +9,7 @@ import {
   renderAutobotFlowcraftInspect,
   renderAutobotItemDetail,
   renderAutobotItemSummary,
+  renderAutobotQueueStatus,
   renderAutobotWorkflowDiagram,
   renderAutobotWorkflowList,
   renderAutobotWorkflowValidation,
@@ -61,6 +62,51 @@ test("workflow renderers keep the stable FlowCraft skeleton visible", () => {
   assert.match(
     renderAutobotWorkflowDiagram("flowchart TD\nclaim --> reconcile\n"),
     /flowchart TD/,
+  );
+});
+
+test("queue status renderer includes tick metadata when available", () => {
+  assertNormalizedEqual(
+    renderAutobotQueueStatus(
+      {
+        engine: {
+          state: "unknown",
+          pid: null,
+          started_at: null,
+          last_tick_at: "2026-05-15T11:00:00Z",
+          tick_interval_seconds: 15,
+          queue_depth: 3,
+          max_concurrency: 1,
+          active_runs: 0,
+          active_workers: [],
+          health: [],
+        },
+        counts: {
+          queued: 0,
+          claimed: 0,
+          preparing: 0,
+          planning: 0,
+          developing: 0,
+          testing: 0,
+          reviewing: 0,
+          reconciling: 0,
+          awaiting: 0,
+          failed: 0,
+          completed: 0,
+          canceled: 0,
+        },
+        items: [],
+        config: [],
+      },
+      { color: false },
+    ),
+    `
+    Queue status
+    Engine: unknown
+    Counts: queued: 0, claimed: 0, preparing: 0, planning: 0, developing: 0, testing: 0, reviewing: 0, reconciling: 0, awaiting: 0, failed: 0, completed: 0, canceled: 0
+    Last tick: 2026-05-15T11:00:00Z
+    Tick scope: all runnable queue items, one unit each
+    `,
   );
 });
 
