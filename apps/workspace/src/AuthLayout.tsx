@@ -1,24 +1,59 @@
-import { Col, Grid, Row } from '@jsxstyle/react'
-import { color, Logo, spacing } from '@repro/design'
+import { Col, Row } from '@jsxstyle/react'
+import { color, Logo, ParticleArtwork, spacing } from '@repro/design'
 import React from 'react'
 import { Outlet } from 'react-router'
 
-export const AuthLayout: React.FC = () => (
-  <Grid
-    height="100vh"
-    alignItems="center"
-    justifyContent="center"
-    gridAutoRows="auto"
-    padding={spacing['4xl']}
-    backgroundColor={color.border.default}
-    backgroundImage={`linear-gradient(to top right, ${color.border.default}, ${color.bg.subtle})`}
-  >
-    <Col alignItems="stretch" width={360} maxWidth="100%" gap={spacing['3xl']}>
-      <Row paddingH={spacing.md} alignItems="center" gap={spacing.xs}>
-        <Logo size={24} />
-      </Row>
+const artworkPalette = {
+  backgroundStart: color.bg.subtle,
+  backgroundEnd: color.bg.surface,
+  particle: color.text.muted,
+  particleAlt: color.border.strong,
+  line: color.border.default,
+  glow: color.border.strong,
+}
 
-      <Outlet />
+export const AuthLayout: React.FC = () => (
+  <Row
+    minHeight="100vh"
+    alignItems="stretch"
+    flexWrap="wrap"
+    backgroundColor={color.bg.subtle}
+  >
+    <Col
+      flex={1}
+      flexBasis={360}
+      minWidth={0}
+      alignItems="stretch"
+      justifyContent="flex-start"
+      gap={spacing['3xl']}
+      padding={spacing['4xl']}
+      backgroundColor={color.bg.surface}
+    >
+      <Col
+        alignItems="stretch"
+        width="100%"
+        maxWidth={440}
+        gap={spacing['2xl']}
+      >
+        <Row alignItems="center" gap={spacing.sm}>
+          <Logo size={24} />
+        </Row>
+
+        <Outlet />
+      </Col>
     </Col>
-  </Grid>
+    <Col
+      flex={2}
+      flexBasis={720}
+      minWidth={0}
+      alignItems="stretch"
+      overflow="hidden"
+      borderLeftColor={color.border.default}
+      borderLeftStyle="solid"
+      borderLeftWidth={1}
+      backgroundColor={artworkPalette.backgroundStart}
+    >
+      <ParticleArtwork palette={artworkPalette} seed={29} />
+    </Col>
+  </Row>
 )

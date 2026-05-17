@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Block, Col } from '@jsxstyle/react'
+import { Col } from '@jsxstyle/react'
 import {
   Alert,
   Button,
@@ -9,7 +9,7 @@ import {
   Input,
   Label,
   spacing,
-  textStyles,
+  Text,
 } from '@repro/design'
 import { fork } from 'fluture'
 import { AlertCircleIcon } from 'lucide-react'
@@ -78,22 +78,14 @@ export const ResetPasswordForm: React.FC<Props> = ({
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Col gap={spacing.xl}>
-          <Col gap={spacing.lg}>
-            <Block
-              component="h1"
-              {...textStyles.heading2}
-              color={color.primary}
-            >
+          <Col gap={spacing.sm}>
+            <Text variant="heading2" color={color.primary} as="h1">
               Set new password
-            </Block>
+            </Text>
 
-            <Block
-              component="p"
-              {...textStyles.bodySmall}
-              color={color.text.muted}
-            >
+            <Text variant="bodySmall" color={color.text.muted}>
               Enter a new password for your account.
-            </Block>
+            </Text>
           </Col>
 
           {errorMessage && (

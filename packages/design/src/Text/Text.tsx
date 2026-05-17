@@ -1,9 +1,9 @@
 import { Block, InlineBlock } from '@jsxstyle/react'
 import React from 'react'
-import { color } from '../tokens/colors'
 import type { TextStyleToken } from '../tokens/typography'
 import {
   fontWeight as fontWeightTokens,
+  lineHeight as lineHeightTokens,
   textStyles,
 } from '../tokens/typography'
 
@@ -40,17 +40,20 @@ const inlineVariants = new Set<TextVariant>([
 ])
 
 type FontWeightToken = keyof typeof fontWeightTokens
+type LineHeightToken = keyof typeof lineHeightTokens
 
 interface TextProps {
   /** Text style variant. Determines font size, weight, line height, and family. */
   variant?: TextVariant
   /**
    * Semantic color override from `color.text.*` or any status color token.
-   * Defaults to `color.text.default`.
+   * Defaults to `currentColor` so text inherits from its parent surface.
    */
   color?: string
   /** Font weight override from the weight token scale. */
   weight?: FontWeightToken
+  /** Line height override from the line-height token scale. */
+  lineHeight?: LineHeightToken
   /**
    * Rendered HTML element. Defaults to a sensible element for the variant
    * (e.g. `heading1` renders as `<h1>`, `body` as `<p>`, `label` as `<label>`).
@@ -80,7 +83,15 @@ interface TextProps {
  */
 export const Text = React.forwardRef<HTMLElement, TextProps>(
   (
-    { variant = 'body', color: colorProp, weight, as, truncate, children },
+    {
+      variant = 'body',
+      color: colorProp,
+      weight,
+      lineHeight,
+      as,
+      truncate,
+      children,
+    },
     ref
   ) => {
     const style = textStyles[variant]
@@ -93,8 +104,11 @@ export const Text = React.forwardRef<HTMLElement, TextProps>(
         margin={0}
         padding={0}
         {...style}
-        color={colorProp ?? color.text.default}
+        color={colorProp ?? 'currentColor'}
         {...(weight != null && { fontWeight: fontWeightTokens[weight] })}
+        {...(lineHeight != null && {
+          lineHeight: lineHeightTokens[lineHeight],
+        })}
         {...(truncate && {
           overflow: 'hidden',
           textOverflow: 'ellipsis',

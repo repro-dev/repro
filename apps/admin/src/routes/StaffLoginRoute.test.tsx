@@ -12,11 +12,14 @@ globalThis.window = {
 
 const loginMock = mock.fn(() => null)
 const navigateMock = mock.fn()
-const googleSignInButtonMock = mock.fn(({ onClick }: { onClick(): void }) => (
-  <button type="button" onClick={onClick}>
-    Continue with Google
-  </button>
-))
+let searchParams = new URLSearchParams()
+const googleSignInButtonMock = mock.fn(
+  ({ onClick, size }: { onClick(): void; size?: string }) => (
+    <button type="button" data-size={size} onClick={onClick}>
+      Continue with Google
+    </button>
+  )
+)
 
 mock.module('@repro/auth', {
   namedExports: {
@@ -34,7 +37,7 @@ mock.module('../config/env', {
 mock.module('react-router-dom', {
   namedExports: {
     useNavigate: () => navigateMock,
-    useSearchParams: () => [new URLSearchParams()],
+    useSearchParams: () => [searchParams],
   },
 })
 
@@ -46,6 +49,7 @@ afterEach(() => {
   loginMock.mock.resetCalls()
   navigateMock.mock.resetCalls()
   googleSignInButtonMock.mock.resetCalls()
+  searchParams = new URLSearchParams()
   window.location.href = 'http://admin.test/login'
 })
 
@@ -62,6 +66,13 @@ describe('StaffLoginRoute', () => {
     assert.match(html, /Password/)
     assert.match(html, /Log in/)
     assert.match(html, /Continue with Google/)
+
+    const buttonProps = googleSignInButtonMock.mock.calls[0]!.arguments[0] as {
+      onClick(): void
+      size?: string
+    }
+
+    assert.equal(buttonProps.size, 'large')
   })
 
   it('keeps the Google button pointed at staff OAuth', () => {
@@ -74,5 +85,14 @@ describe('StaffLoginRoute', () => {
     buttonProps.onClick()
 
     assert.equal(window.location.href, 'http://admin.test/staff/oauth/google')
+  })
+
+  it('renders the Google domain restriction alert when requested', () => {
+    searchParams = new URLSearchParams('error=domain_not_allowed')
+
+    const html = renderToStaticMarkup(<StaffLoginRoute />)
+
+    assert.match(html, /Google sign-in is restricted to @repro\.dev accounts\./)
+    assert.match(html, /Use your staff email and password for local testing\./)
   })
 })

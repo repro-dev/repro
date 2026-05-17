@@ -18,6 +18,8 @@
     "@repro/domain": "workspace:*",
     "@repro/logger": "workspace:*",
     "@repro/vdom-utils": "workspace:*",
+    "@tsparticles/engine": "^4.0.2",
+    "@tsparticles/preset-ambient": "^4.0.2",
     "lucide-react": "^0.277.0",
     "md5": "^2.3.0",
     "prop-types": "^15.8.1",
@@ -30,9 +32,9 @@
     "tailwindcss": "^3.3.2"
   },
   "devDependencies": {
+    "@repro/testing-utils": "workspace:*",
     "@storybook/addon-docs": "^10.2.13",
     "@storybook/react": "^10.2.13",
-    "@repro/testing-utils": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@types/expect": "overridden",
     "@types/md5": "^2.3.2",

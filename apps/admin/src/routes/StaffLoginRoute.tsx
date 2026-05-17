@@ -1,13 +1,15 @@
-import { Block, Col, Row } from '@jsxstyle/react'
+import { Col, Row } from '@jsxstyle/react'
 import { GoogleSignInButton, useLogin } from '@repro/auth'
 import {
+  Alert,
   Button,
-  Card,
   color,
-  colors,
   Divider,
+  FormField,
   Input,
   Label,
+  spacing,
+  Text,
 } from '@repro/design'
 import { fork } from 'fluture'
 import React, { useState } from 'react'
@@ -43,99 +45,82 @@ export const StaffLoginRoute: React.FC = () => {
   }
 
   return (
-    <Col width={360} alignItems="stretch" gap={12}>
-      <Card>
-        <form onSubmit={onSubmit}>
-          <Col gap={16} alignItems="stretch">
-            <Col gap={8}>
-              <Block fontSize={15} fontWeight={700} color={color.primary}>
-                Staff login
-              </Block>
+    <Col alignItems="stretch" gap={spacing['3xl']} width="100%">
+      <Col gap={spacing.sm}>
+        <Text variant="heading2" color={color.primary}>
+          Staff login
+        </Text>
 
-              <Block fontSize={13} lineHeight={1.5} color={color.text.muted}>
-                Use your staff email and password, or continue with Google.
-              </Block>
-            </Col>
+        <Text variant="bodySmall" color={color.text.muted}>
+          Use your staff email and password, or continue with Google.
+        </Text>
+      </Col>
 
-            {error === 'domain_not_allowed' && (
-              <Block
-                alignSelf="stretch"
-                padding={10}
-                fontSize={13}
-                lineHeight={1.5}
-                backgroundColor={colors.rose['100']}
-                color={colors.rose['700']}
-                borderRadius={4}
-                borderColor={colors.rose['300']}
-                borderStyle="solid"
-                borderWidth={1}
-              >
-                Google sign-in is restricted to @repro.dev accounts. Use your
-                staff email and password for local testing.
-              </Block>
-            )}
+      {error === 'domain_not_allowed' && (
+        <Alert type="warning">
+          <Text variant="bodySmall" color="currentColor">
+            Google sign-in is restricted to @repro.dev accounts. Use your staff
+            email and password for local testing.
+          </Text>
+        </Alert>
+      )}
 
-            {errorMessage && (
-              <Block
-                alignSelf="stretch"
-                padding={10}
-                fontSize={13}
-                lineHeight={1.5}
-                backgroundColor={colors.rose['100']}
-                color={colors.rose['700']}
-                borderRadius={4}
-                borderColor={colors.rose['300']}
-                borderStyle="solid"
-                borderWidth={1}
-              >
-                {errorMessage}
-              </Block>
-            )}
+      {errorMessage && (
+        <Alert type="danger">
+          <Text variant="bodySmall" color="currentColor">
+            {errorMessage}
+          </Text>
+        </Alert>
+      )}
 
-            <Col gap={8} alignItems="stretch">
-              <Label htmlFor="staff-login-email">Email</Label>
-              <Input
-                id="staff-login-email"
-                autoFocus={true}
-                autoComplete="email"
-                required={true}
-                value={email}
-                onChange={event => setEmail(event.currentTarget.value)}
-              />
-            </Col>
-
-            <Col gap={8} alignItems="stretch">
-              <Label htmlFor="staff-login-password">Password</Label>
-              <Input
-                id="staff-login-password"
-                type="password"
-                autoComplete="current-password"
-                required={true}
-                value={password}
-                onChange={event => setPassword(event.currentTarget.value)}
-              />
-            </Col>
-
-            <Button disabled={isSubmitting} type="submit">
-              Log in
-            </Button>
-
-            <Row alignItems="center" gap={8}>
-              <Divider spacing="none" />
-              <Block flexShrink={0} fontSize={12} color={colors.slate['400']}>
-                or
-              </Block>
-              <Divider spacing="none" />
-            </Row>
-
-            <GoogleSignInButton
-              onClick={() => {
-                window.location.href = `${env.REPRO_API_URL}/staff/oauth/google`
-              }}
+      <form onSubmit={onSubmit}>
+        <Col gap={spacing['2xl']} alignItems="stretch">
+          <FormField>
+            <Label htmlFor="staff-login-email">Email</Label>
+            <Input
+              id="staff-login-email"
+              autoFocus={true}
+              autoComplete="email"
+              context={errorMessage ? 'error' : 'normal'}
+              required={true}
+              value={email}
+              onChange={event => setEmail(event.currentTarget.value)}
             />
-          </Col>
-        </form>
-      </Card>
+          </FormField>
+
+          <FormField>
+            <Label htmlFor="staff-login-password">Password</Label>
+            <Input
+              id="staff-login-password"
+              type="password"
+              autoComplete="current-password"
+              context={errorMessage ? 'error' : 'normal'}
+              required={true}
+              value={password}
+              onChange={event => setPassword(event.currentTarget.value)}
+            />
+          </FormField>
+
+          <Button size="large" disabled={isSubmitting} type="submit">
+            Log in
+          </Button>
+
+          <Row alignItems="center" gap={spacing.md}>
+            <Divider spacing="none" />
+            <Text variant="caption" color={color.text.muted}>
+              or
+            </Text>
+            <Divider spacing="none" />
+          </Row>
+
+          <GoogleSignInButton
+            size="large"
+            onClick={() => {
+              window.location.href = `${env.REPRO_API_URL}/staff/oauth/google`
+            }}
+          />
+        </Col>
+      </form>
     </Col>
   )
 }
