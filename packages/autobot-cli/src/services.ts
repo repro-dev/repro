@@ -23,6 +23,7 @@ import type {
 } from "@repro/autobot-core";
 import {
   itemStates,
+  getRetryTransition,
   isInProgressState,
   isTerminalState,
 } from "@repro/autobot-core";
@@ -2692,7 +2693,7 @@ function createEngineStatusResult(input: {
 }
 
 function createQueueMutationResult(input: {
-  action: "add" | "remove";
+  action: "add" | "remove" | "retry";
   dry_run: boolean;
   changed: boolean;
   item: ItemSummary;
@@ -5707,6 +5708,146 @@ function handleRemove(
   });
 }
 
+function handleRetry(
+  invocation: AutobotInvocation,
+  store: AutobotStore,
+  now: () => string,
+): FutureInstance<unknown, AutobotCommandResult> {
+  return Future((reject, resolve) => {
+    const issueId = invocation.args[0];
+    if (issueId === undefined) {
+      reject(
+        createUsageError({
+          command: "autobot-next retry",
+          message: "retry requires an issue id",
+          what_failed: "retry request",
+          likely_cause: "the issue identifier was missing",
+          recovery_commands: ["autobot-next retry REP-123 --dry-run"],
+        }),
+      );
+      return () => undefined;
+    }
+
+    store.items.get(issueId).pipe(
+      fork(reject)((existing) => {
+        if (existing === null) {
+          reject(
+            new AutobotCliError({
+              code: "ITEM_NOT_FOUND",
+              message: `Issue ${issueId} is not known locally`,
+              what_failed: "retry request",
+              likely_cause: "the item has not been queued yet",
+              recovery_commands: ["autobot-next list --json"],
+              details: { issue_id: issueId },
+              exit_code: 1,
+            }),
+          );
+          return;
+        }
+
+        const nextState = getRetryTransition(existing.state);
+        if (nextState === null) {
+          reject(
+            new AutobotCliError({
+              code: "AUTOBOT-RETRY-NOT-ALLOWED",
+              message: "retry is only available after failed runs",
+              what_failed: "retry request",
+              likely_cause: "the item is not in failed state",
+              recovery_commands: [`autobot-next status ${issueId} --json`],
+              details: { issue_id: issueId, state: existing.state },
+              exit_code: 1,
+            }),
+          );
+          return;
+        }
+
+        const updatedAt = now();
+        const nextItem = buildItemSummary({
+          issue_id: existing.issue_id,
+          title: existing.title,
+          url: existing.url,
+          state: nextState,
+          attempt: existing.attempt + 1,
+          priority: existing.priority,
+          owner: existing.owner,
+          workspace: existing.workspace,
+          branch: existing.branch,
+          queued_at: updatedAt,
+          started_at: null,
+          updated_at: updatedAt,
+          last_event: "item.retried",
+          last_error: null,
+        });
+        const event = createDomainEvent({
+          type: "item.retried",
+          severity: "info",
+          state: "queued",
+          message: "Item retried after failure",
+          issue_id: issueId,
+          data: {
+            issue_id: issueId,
+            previous_state: existing.state,
+            failed_phase:
+              existing.last_event === "failed-from-preparing"
+                ? "preparing"
+                : existing.last_event,
+          },
+        });
+
+        const nextRecord = {
+          ...nextItem,
+          state_name: null,
+          state_type: null,
+          project: null,
+          labels: [],
+          assignee: existing.owner,
+          current_run_id: null,
+          cancellation_requested: false,
+          cancellation_requested_at: null,
+          recovery_commands: [`autobot-next status ${issueId} --json`],
+        };
+
+        if (invocation.options.dry_run) {
+          resolve(
+            createQueueMutationResult({
+              action: "retry",
+              dry_run: true,
+              changed: false,
+              item: nextItem,
+              events: [],
+              store,
+              command: `autobot-next retry ${issueId}`,
+            }),
+          );
+          return;
+        }
+
+        store.items.upsert(nextRecord).pipe(
+          fork(reject)((retriedItem) => {
+            store.events.append(event).pipe(
+              fork(reject)((storedEvent) => {
+                resolve(
+                  createQueueMutationResult({
+                    action: "retry",
+                    dry_run: false,
+                    changed: true,
+                    item: retriedItem,
+                    events: [storedEvent],
+                    store,
+                    command: `autobot-next retry ${issueId}`,
+                  }),
+                );
+              }),
+            );
+          }),
+        );
+      }),
+    );
+
+    return () => undefined;
+  });
+}
+
 function handleStatus(
   invocation: AutobotInvocation,
   store: AutobotStore,
@@ -6474,6 +6615,8 @@ function handleCommand(
       return handleAdd(invocation, store, now);
     case "remove":
       return handleRemove(invocation, store, now);
+    case "retry":
+      return handleRetry(invocation, store, now);
     case "list":
       return createQueueList(store);
     case "status":

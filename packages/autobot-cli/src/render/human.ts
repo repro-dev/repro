@@ -373,7 +373,7 @@ export function renderAutobotQueueList(
 
 export function renderAutobotQueueMutation(
   input: {
-    action: "add" | "remove";
+    action: "add" | "remove" | "retry";
     changed: boolean;
     dry_run: boolean;
     item: ItemSummary;
@@ -381,7 +381,12 @@ export function renderAutobotQueueMutation(
   },
   options?: { color?: boolean },
 ): string {
-  const title = input.action === "add" ? "Queued item" : "Removed item";
+  const title =
+    input.action === "add"
+      ? "Queued item"
+      : input.action === "retry"
+      ? "Retried item"
+      : "Removed item";
   const lines = [
     `${title}: ${headline(input.item)}`,
     ...renderCommonFields(input.item, options?.color === true),

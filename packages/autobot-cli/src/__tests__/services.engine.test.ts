@@ -1734,6 +1734,12 @@ test("supervisor run-once prepares a real worktree before completing an item", a
         (event) => event.type === "workflow.phase.started",
       ),
     );
+    assert.equal(
+      fixture.domainEvents.filter(
+        (event) => event.type === "workflow.phase.started",
+      ).length,
+      1,
+    );
     assert.ok(
       fixture.domainEvents.some(
         (event) => event.type === "workflow.phase.succeeded",
@@ -1833,6 +1839,90 @@ test("supervisor run-once records failed-from-preparing when worktree prep rejec
       fixture.domainEvents.some(
         (event) => event.type === "workflow.phase.failed",
       ),
+    );
+    assert.equal(
+      fixture.domainEvents.filter(
+        (event) => event.type === "workflow.phase.started",
+      ).length,
+      1,
+    );
+    assert.equal(
+      fixture.domainEvents.filter(
+        (event) => event.type === "workflow.phase.failed",
+      ).length,
+      1,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("retry requeues a failed preparation run", async () => {
+  const { root, fixture } = await createEngineWorktreeFixture({
+    items: [
+      {
+        issue_id: "REP-502",
+        title: "Retry failed preparation",
+        url: "https://linear.app/repro/issue/REP-502/retry-failed-preparation",
+        state: "failed",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "autobot/REP-502",
+        queued_at: "2026-05-15T11:30:00Z",
+        started_at: "2026-05-15T11:31:00Z",
+        updated_at: "2026-05-15T11:32:00Z",
+        last_event: "failed-from-preparing",
+        last_error: null,
+        recovery_commands: ["autobot-next retry REP-502"],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+    ],
+  });
+  const services = createAutobotServices({
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+  });
+
+  try {
+    const result = (await runFuture(
+      services.handleInvocation({
+        ...makeInvocation(["retry"]),
+        args: ["REP-502"],
+        command: "autobot-next retry REP-502",
+        options: makeOptions({ repo: root }),
+      }),
+    )) as AutobotCommandResult;
+
+    assert.equal(result.kind, "queue-mutation");
+    assert.equal(result.data.action, "retry");
+    assert.equal(result.data.changed, true);
+    assert.equal(result.data.item.state, "queued");
+    assert.equal(result.data.item.attempt, 2);
+    assert.equal(result.data.item.branch, "autobot/REP-502");
+    assert.equal(result.data.item.workspace, "autobot");
+    assert.equal(result.data.item.last_error, null);
+    assert.equal(result.data.events[0]?.type, "item.retried");
+    assert.ok(
+      fixture.itemUpserts.some(
+        (item) =>
+          item.issue_id === "REP-502" &&
+          item.state === "queued" &&
+          item.last_event === "item.retried",
+      ),
+    );
+    assert.ok(
+      fixture.domainEvents.some((event) => event.type === "item.retried"),
     );
   } finally {
     await rm(root, { recursive: true, force: true });
