@@ -12,6 +12,7 @@ globalThis.window = {
 
 const loginMock = mock.fn(() => null)
 const navigateMock = mock.fn()
+let searchParams = new URLSearchParams()
 const googleSignInButtonMock = mock.fn(({ onClick }: { onClick(): void }) => (
   <button type="button" onClick={onClick}>
     Continue with Google
@@ -34,7 +35,7 @@ mock.module('../config/env', {
 mock.module('react-router-dom', {
   namedExports: {
     useNavigate: () => navigateMock,
-    useSearchParams: () => [new URLSearchParams()],
+    useSearchParams: () => [searchParams],
   },
 })
 
@@ -46,6 +47,7 @@ afterEach(() => {
   loginMock.mock.resetCalls()
   navigateMock.mock.resetCalls()
   googleSignInButtonMock.mock.resetCalls()
+  searchParams = new URLSearchParams()
   window.location.href = 'http://admin.test/login'
 })
 
@@ -74,5 +76,14 @@ describe('StaffLoginRoute', () => {
     buttonProps.onClick()
 
     assert.equal(window.location.href, 'http://admin.test/staff/oauth/google')
+  })
+
+  it('renders the Google domain restriction alert when requested', () => {
+    searchParams = new URLSearchParams('error=domain_not_allowed')
+
+    const html = renderToStaticMarkup(<StaffLoginRoute />)
+
+    assert.match(html, /Google sign-in is restricted to @repro\.dev accounts\./)
+    assert.match(html, /Use your staff email and password for local testing\./)
   })
 })
