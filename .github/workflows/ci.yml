@@ -2,6 +2,7 @@ name: Build, test and deploy (split)
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches:
       - "**"
@@ -186,23 +187,21 @@ jobs:
     name: Build container image
     needs: [build, format-check]
     runs-on: ubuntu-latest
-    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/api-server') }}
+    outputs:
+      registry_image: ${{ steps.image.outputs.registry_image }}
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && contains(fromJSON(needs.build.outputs.app_ids), 'repro/api-server') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.CONTAINER_REGISTRY_ENDPOINT}}/repro
-          tags: |
-            type=schedule
-            type=ref,event=branch
-            type=ref,event=tag
-            type=ref,event=pr
+      - name: Set registry image
+        id: image
+        run: |
+          echo "registry_image=${CONTAINER_REGISTRY_ENDPOINT}/repro:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+        env:
+          CONTAINER_REGISTRY_ENDPOINT: ${{ secrets.CONTAINER_REGISTRY_ENDPOINT }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -222,26 +221,41 @@ jobs:
         with:
           cache-from: type=registry,ref=${{ secrets.CONTAINER_REGISTRY_ENDPOINT }}/repro:build-cache
           cache-to: type=registry,ref=${{ secrets.CONTAINER_REGISTRY_ENDPOINT }}/repro:build-cache
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.image.outputs.registry_image }}
           file: infra/Dockerfile
           push: true
 
   deploy-api-server:
     name: Deploy api-server (api)
-    needs: [containerize]
+    needs: [build, containerize]
     runs-on: ubuntu-latest
-    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/api-server') }}
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && contains(fromJSON(needs.build.outputs.app_ids), 'repro/api-server') }}
     steps:
-      - name: Log
+      - name: Initialize Scaleway CLI
+        uses: scaleway/action-scw@v0
+        with:
+          save-config: true
+          access-key: ${{ secrets.SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.SCW_SECRET_KEY }}
+          default-project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+          default-organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+
+      - name: Update api-server container image
         run: |
-          echo "Deploying api-server (api)"
+          scw container container update "$SCW_CONTAINER_ID" region="$SCW_REGION" registry-image="$REGISTRY_IMAGE"
+        env:
+          SCW_CONTAINER_ID: ${{ secrets.SCW_API_CONTAINER_ID }}
+          SCW_REGION: ${{ vars.SCW_REGION || 'fr-par' }}
+          REGISTRY_IMAGE: ${{ needs.containerize.outputs.registry_image }}
 
   deploy-admin:
     name: Deploy admin (app)
     needs: [build, format-check]
     runs-on: ubuntu-latest
-    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/admin') }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/heads/')) && contains(fromJSON(needs.build.outputs.app_ids), 'repro/admin') }}
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'admin-staging' || 'admin-preview' }}
+      url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -249,10 +263,17 @@ jobs:
           fetch-depth: 0
 
       - name: Deploy
+        id: deploy
         uses: ./.github/actions/deploy-static-app
         with:
           build-env: production
           app-name: admin
+          repro-workspace-url: https://app.reproqa.dev
+          repro-admin-url: https://admin.reproqa.dev
+          repro-api-url: https://api.reproqa.dev
+          paddle-client-token: ""
+          paddle-environment: production
+          auth-storage: local-storage
           access-key: ${{ secrets.SCW_ACCESS_KEY }}
           secret-key: ${{ secrets.SCW_SECRET_KEY }}
           project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
@@ -263,7 +284,10 @@ jobs:
     name: Deploy workspace (app)
     needs: [build, format-check]
     runs-on: ubuntu-latest
-    if: ${{ contains(fromJSON(needs.build.outputs.app_ids), 'repro/workspace') }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/heads/')) && contains(fromJSON(needs.build.outputs.app_ids), 'repro/workspace') }}
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'workspace-staging' || 'workspace-preview' }}
+      url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -271,10 +295,17 @@ jobs:
           fetch-depth: 0
 
       - name: Deploy
+        id: deploy
         uses: ./.github/actions/deploy-static-app
         with:
           build-env: production
           app-name: workspace
+          repro-workspace-url: https://app.reproqa.dev
+          repro-admin-url: https://admin.reproqa.dev
+          repro-api-url: https://api.reproqa.dev
+          paddle-client-token: ${{ secrets.PADDLE_CLIENT_TOKEN }}
+          paddle-environment: production
+          auth-storage: local-storage
           access-key: ${{ secrets.SCW_ACCESS_KEY }}
           secret-key: ${{ secrets.SCW_SECRET_KEY }}
           project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}

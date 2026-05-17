@@ -6,6 +6,8 @@
   "scripts": {
     "build": "./scripts/build",
     "dev-serve": "vite",
+    "prepare-env": "bash ./scripts/prepare-env",
+    "serve": "vite preview --host",
     "fmt": "prettier --write src",
     "lint": "prettier --check src",
     "test": "tsx --experimental-test-module-mocks --import=global-jsdom/register --test --test-timeout=30000 --test-force-exit src/**/*.test.ts{,x}",

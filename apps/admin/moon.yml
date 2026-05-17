@@ -12,7 +12,20 @@ tasks:
     command: pnpm run dev-serve
     deps:
       - ^:build
+      - prepare-env
     preset: server
+  serve:
+    command: pnpm run serve
+    deps:
+      - build
+      - prepare-env
+    preset: server
+  prepare-env:
+    command: pnpm run prepare-env
+    deps:
+      - build
+    options:
+      cache: false
   lint:
     command: pnpm run lint
     deps:

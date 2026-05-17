@@ -22,6 +22,34 @@ inputs:
   bucket-name:
     type: string
     required: true
+  repro-app-url:
+    type: string
+    required: false
+    default: ""
+  repro-workspace-url:
+    type: string
+    required: false
+    default: ""
+  repro-admin-url:
+    type: string
+    required: false
+    default: ""
+  repro-api-url:
+    type: string
+    required: false
+    default: ""
+  paddle-client-token:
+    type: string
+    required: false
+    default: ""
+  paddle-environment:
+    type: string
+    required: false
+    default: ""
+  auth-storage:
+    type: string
+    required: false
+    default: ""
   region:
     type: string
     required: false
@@ -35,6 +63,16 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Validate deployment inputs
+      run: |
+        if [ -z "$SCW_BUCKET_NAME" ]; then
+          echo "::error::SCW_STATIC_BUCKET_NAME is empty. Set the secret before running static deploys."
+          exit 1
+        fi
+      shell: bash
+      env:
+        SCW_BUCKET_NAME: ${{ inputs.bucket-name }}
+
     - name: Validate credentials
       run: |
         if [ -z "$SCW_ACCESS_KEY" ]; then
@@ -75,7 +113,17 @@ runs:
         case $GITHUB_EVENT_NAME in
           push)
             if [ "$GITHUB_REF_NAME" = "main" ]; then
-              BASE_ORIGIN="https://app.reproqa.dev"
+              case "${{ inputs.app-name }}" in
+                workspace)
+                  BASE_ORIGIN="https://app.reproqa.dev"
+                  ;;
+                admin)
+                  BASE_ORIGIN="https://admin.reproqa.dev"
+                  ;;
+                *)
+                  BASE_ORIGIN="https://${{ inputs.app-name }}.reproqa.dev"
+                  ;;
+              esac
               BASE_PATH=""
             else
               BASE_ORIGIN="https://${{ inputs.app-name }}.env.reproqa.dev"
@@ -128,16 +176,29 @@ runs:
       if: ${{ steps.deploy-config.outputs.enabled == 'true' }}
       run: |
         if [ ! -f "apps/${{ inputs.app-name }}/scripts/prepare-env" ]; then
+          # Some static apps do not need deploy-time env templating.
           exit 0
+        fi
+
+        if [ -n "$REPRO_APP_URL_INPUT" ]; then
+          export REPRO_APP_URL="$REPRO_APP_URL_INPUT"
+        else
+          export REPRO_APP_URL="$DEPLOYMENT_URL"
         fi
 
         "./apps/${{ inputs.app-name }}/scripts/prepare-env"
       shell: bash
       env:
         BUILD_ENV: ${{ inputs.build-env }}
-        REPRO_APP_URL: ${{ steps.vars.outputs.base-origin }}${{ steps.vars.outputs.base-path }}
-        # TODO: Provide branch build of API server
-        REPRO_API_URL: https://api.reproqa.dev
+        DEPLOYMENT_URL: ${{ steps.vars.outputs.deployment-url }}
+        REPRO_APP_URL_INPUT: ${{ inputs.repro-app-url }}
+        REPRO_WORKSPACE_URL: ${{ inputs.repro-workspace-url }}
+        REPRO_ADMIN_URL: ${{ inputs.repro-admin-url }}
+        # API previews are not enabled yet, so branch previews still point at the staged API.
+        REPRO_API_URL: ${{ inputs.repro-api-url }}
+        PADDLE_CLIENT_TOKEN: ${{ inputs.paddle-client-token }}
+        PADDLE_ENVIRONMENT: ${{ inputs.paddle-environment }}
+        AUTH_STORAGE: ${{ inputs.auth-storage }}
 
     - name: Upload hashed assets to S3
       if: ${{ steps.deploy-config.outputs.enabled == 'true' }}
@@ -149,6 +210,7 @@ runs:
           "s3://${{ inputs.bucket-name }}/${{ steps.vars.outputs.s3-prefix }}/" \
           --endpoint-url "https://s3.${{ inputs.region }}.scw.cloud" \
           --exclude "index.html" \
+          --exclude "*.template.html" \
           --cache-control "public, max-age=31536000, immutable" \
           --delete
       shell: bash
