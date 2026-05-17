@@ -51,6 +51,14 @@ const noOpPlanningSessionRunner = (input: { phase?: string }) => {
     stderr: "",
   });
 };
+const noOpPrepareWorktree = (input: { repoRoot: string; issueId: string }) =>
+  resolve({
+    issue_id: input.issueId,
+    branch: `autobot/${input.issueId}`,
+    slug: input.issueId,
+    worktree_path: `${input.repoRoot}/.autobot/worktrees/${input.issueId}`,
+    archived_worktree_path: null,
+  });
 
 function makeOptions(
   overrides: Partial<AutobotGlobalOptions> = {},
@@ -189,6 +197,7 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
   const runIds = ["run-200", "run-201"];
   let runIndex = 0;
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter: noOpArtifactWriter,
     artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
@@ -348,6 +357,7 @@ test("supervisor run-once reconciles a planning worker even when the run lost it
   });
 
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter: noOpArtifactWriter,
     artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
@@ -446,6 +456,7 @@ test("supervisor run-once retries a signal-terminated planning worker and starts
   });
 
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter: noOpArtifactWriter,
     artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
@@ -610,6 +621,7 @@ test("supervisor run-once exhausts retries for a signal-terminated worker past t
   });
 
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter: noOpArtifactWriter,
     artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
@@ -744,6 +756,7 @@ test("supervisor run-once retries a previously failed item on a later tick", asy
   });
 
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter: noOpArtifactWriter,
     artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
@@ -826,6 +839,7 @@ test("supervisor run-once leaves a previously failed item failed once retries ar
   });
 
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter: noOpArtifactWriter,
     artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
@@ -1196,6 +1210,7 @@ test("supervisor run-once reconciles durable worker records into terminal and st
   });
   const killCalls: Array<[number, NodeJS.Signals | number | undefined]> = [];
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter: noOpArtifactWriter,
     artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
@@ -1291,6 +1306,7 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     ],
   });
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter: noOpArtifactWriter,
     artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
@@ -1330,10 +1346,10 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     attempt: 1,
     priority: 2,
     owner: "Gary",
-    workspace: "autobot",
+    workspace: "/worktrees/autobot/.autobot/worktrees/REP-400",
     branch: "autobot/REP-400",
     queued_at: "2026-05-15T09:00:00Z",
-    started_at: null,
+    started_at: "2026-05-15T12:00:00Z",
     updated_at: "2026-05-15T12:00:02.001Z",
     last_event: "workflow.phase.completed",
     last_error: null,
@@ -1357,6 +1373,14 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
       item.current_run_id,
     ]),
     [
+      [
+        "REP-400",
+        "preparing",
+        "2026-05-15T12:00:00Z",
+        "2026-05-15T12:00:00Z",
+        "workflow.phase.succeeded",
+        null,
+      ],
       [
         "REP-400",
         "claimed",
@@ -1384,7 +1408,7 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
       [
         "REP-400",
         "completed",
-        null,
+        "2026-05-15T12:00:00Z",
         "2026-05-15T12:00:02.001Z",
         "workflow.phase.completed",
         null,
@@ -1434,11 +1458,31 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
     ).length,
     0,
   );
+  assert.equal(
+    fixture.domainEvents.filter(
+      (event) =>
+        event.issue_id === "REP-400" &&
+        event.type === "workflow.phase.started" &&
+        event.data.phase === "preparing",
+    ).length,
+    1,
+  );
+  assert.equal(
+    fixture.domainEvents.filter(
+      (event) =>
+        event.issue_id === "REP-400" &&
+        event.type === "workflow.phase.succeeded" &&
+        event.data.phase === "preparing",
+    ).length,
+    1,
+  );
   assert.deepEqual(
     fixture.domainEvents
       .filter((event) => event.issue_id === "REP-400")
       .map((event) => [event.type, event.occurred_at]),
     [
+      ["workflow.phase.started", "2026-05-15T12:00:00Z"],
+      ["workflow.phase.succeeded", "2026-05-15T12:00:00Z"],
       ["workflow.phase.claimed", "2026-05-15T12:00:00Z"],
       ["workflow.phase.prepared", "2026-05-15T12:00:00.001Z"],
       ["workflow.phase.planned", "2026-05-15T12:00:00.002Z"],
@@ -1543,6 +1587,7 @@ test("supervisor run-once --dry-run reports planned discovery and selection with
     scanLimit: number;
   }> = [];
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter: noOpArtifactWriter,
     artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,
@@ -1654,6 +1699,7 @@ test("supervisor run-once persists discovered work and caps it by queue-depth", 
     scanLimit: number;
   }> = [];
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter: noOpArtifactWriter,
     artifactReader: noOpArtifactReader,
     planningSessionRunner: noOpPlanningSessionRunner,

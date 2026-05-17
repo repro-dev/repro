@@ -79,6 +79,15 @@ function makeQueuedPlanningItem() {
   };
 }
 
+const noOpPrepareWorktree = (input: { repoRoot: string; issueId: string }) =>
+  resolve({
+    issue_id: input.issueId,
+    branch: `autobot/${input.issueId}`,
+    slug: input.issueId,
+    worktree_path: `${input.repoRoot}/.autobot/worktrees/${input.issueId}`,
+    archived_worktree_path: null,
+  });
+
 const validRunPlan = [
   "## Readiness",
   "ready_to_proceed",
@@ -140,6 +149,7 @@ test("supervisor run-once passes durable planning artifact paths into opencode",
   const reads: Array<{ path: string }> = [];
   const writes: Array<{ path: string; content: string }> = [];
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter(input) {
       writes.push(input);
       return resolve(undefined);
@@ -191,7 +201,7 @@ test("supervisor run-once passes durable planning artifact paths into opencode",
   assert.equal(result.kind, "supervisor-status");
   assert.deepEqual(reads, [
     {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
+      path: "/worktrees/autobot/.autobot/worktrees/REP-1208/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     },
   ]);
   assert.equal(received.length, 1);
@@ -241,6 +251,7 @@ test("supervisor run-once rejects empty required run-plan sections before flowcr
   const reads: Array<{ path: string }> = [];
   const writes: Array<{ path: string; content: string }> = [];
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter(input) {
       writes.push(input);
       return resolve(undefined);
@@ -293,7 +304,7 @@ test("supervisor run-once rejects empty required run-plan sections before flowcr
   assert.ok(writes.length >= 4);
   assert.deepEqual(reads, [
     {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
+      path: "/worktrees/autobot/.autobot/worktrees/REP-1208/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     },
   ]);
   assert.equal(
@@ -316,6 +327,7 @@ test("supervisor run-once preserves non-ready run plans without flowcraft comple
   const reads: Array<{ path: string }> = [];
   const writes: Array<{ path: string; content: string }> = [];
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter(input) {
       writes.push(input);
       return resolve(undefined);
@@ -370,7 +382,7 @@ test("supervisor run-once preserves non-ready run plans without flowcraft comple
   assert.ok(writes.length >= 4);
   assert.deepEqual(reads, [
     {
-      path: "/worktrees/autobot/.autobot/runs/REP-1208/attempt-1/run-plan.md",
+      path: "/worktrees/autobot/.autobot/worktrees/REP-1208/.autobot/runs/REP-1208/attempt-1/run-plan.md",
     },
   ]);
   assert.equal(
@@ -408,6 +420,7 @@ test("supervisor run-once records planner failure without flowcraft completion",
     items: [makeQueuedPlanningItem()],
   });
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     artifactWriter() {
       return resolve(undefined);
     },

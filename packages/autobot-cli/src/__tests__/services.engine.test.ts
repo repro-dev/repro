@@ -90,7 +90,32 @@ async function waitForRuntimeState(
 }
 
 const noOpArtifactWriter = () => resolve(undefined);
+const validRunPlan = [
+  "## Readiness",
+  "ready_to_proceed",
+  "",
+  "## Sequence Notes",
+  "- Implement in one bounded pass.",
+  "",
+  "## Risk Notes",
+  "- No high-risk signals.",
+  "",
+  "## Plan",
+  "- Modify the selected issue files.",
+].join("\n");
+const noOpArtifactReader = () => resolve(validRunPlan);
 const noOpLinearIssue = () => resolve(null);
+const noOpPlanningSessionRunner = () =>
+  resolve({
+    command: "opencode",
+    args: ["run"],
+    started_at: "2026-05-15T12:00:01Z",
+    finished_at: "2026-05-15T12:00:02Z",
+    exit_code: 0,
+    signal: null,
+    stdout: validRunPlan,
+    stderr: "",
+  });
 
 function makeOptions(
   overrides: Partial<AutobotGlobalOptions> = {},
@@ -402,6 +427,20 @@ test("supervisor start polls for stop requests while waiting between ticks", asy
     },
     now() {
       return "2026-05-15T12:00:00Z";
+    },
+    prepareWorktree(input) {
+      return resolve({
+        issue_id: input.issueId,
+        branch: `autobot/${input.issueId}`,
+        slug: input.issueId,
+        worktree_path: path.join(
+          input.repoRoot,
+          ".autobot",
+          "worktrees",
+          input.issueId,
+        ),
+        archived_worktree_path: null,
+      });
     },
     sleep(milliseconds) {
       sleepDurations.push(milliseconds);
@@ -1602,6 +1641,200 @@ test("supervisor status and logs surface engine events", async () => {
     );
   } finally {
     fixture.store.events.list = originalList;
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("supervisor run-once prepares a real worktree before completing an item", async () => {
+  const { root, fixture } = await createEngineWorktreeFixture({
+    items: [
+      {
+        issue_id: "REP-500",
+        title: "Prepare a worktree",
+        url: "https://linear.app/repro/issue/REP-500/prepare-a-worktree",
+        state: "queued",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "",
+        queued_at: "2026-05-15T11:30:00Z",
+        started_at: null,
+        updated_at: "2026-05-15T11:30:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+    ],
+  });
+  const worktreePath = path.join(root, ".autobot", "worktrees", "REP-500");
+  const prepareCalls: Array<{ repoRoot: string; issueId: string }> = [];
+  const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
+    planningSessionRunner: noOpPlanningSessionRunner,
+    loadLinearIssue: noOpLinearIssue,
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    prepareWorktree(input) {
+      prepareCalls.push(input);
+      return resolve({
+        issue_id: input.issueId,
+        branch: `autobot/${input.issueId}`,
+        slug: input.issueId,
+        worktree_path: worktreePath,
+        archived_worktree_path: null,
+      });
+    },
+  });
+
+  try {
+    const result = (await runFuture(
+      services.handleInvocation({
+        ...makeInvocation(["supervisor", "run-once"]),
+        options: makeOptions({ repo: root }),
+      }),
+    )) as AutobotCommandResult;
+
+    assert.equal(result.kind, "supervisor-status");
+    assert.deepEqual(prepareCalls, [
+      {
+        repoRoot: root,
+        issueId: "REP-500",
+      },
+    ]);
+    assert.ok(
+      fixture.itemUpserts.some(
+        (item) =>
+          item.issue_id === "REP-500" &&
+          item.state === "preparing" &&
+          item.branch === "autobot/REP-500",
+      ),
+    );
+    assert.ok(
+      fixture.itemUpserts.some(
+        (item) =>
+          item.issue_id === "REP-500" &&
+          item.state === "completed" &&
+          item.branch === "autobot/REP-500",
+      ),
+    );
+    assert.ok(
+      fixture.domainEvents.some(
+        (event) => event.type === "workflow.phase.started",
+      ),
+    );
+    assert.ok(
+      fixture.domainEvents.some(
+        (event) => event.type === "workflow.phase.succeeded",
+      ),
+    );
+
+    const detail = (await runFuture(
+      services.handleInvocation({
+        ...makeInvocation(["status"], { repo: root }),
+        args: ["REP-500"],
+        command: "autobot-next status REP-500",
+        options: makeOptions({ repo: root }),
+      }),
+    )) as AutobotCommandResult;
+
+    assert.equal(detail.kind, "item-detail");
+    assert.equal(detail.data.branch, "autobot/REP-500");
+    assert.equal(detail.data.workspace, worktreePath);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("supervisor run-once records failed-from-preparing when worktree prep rejects", async () => {
+  const { root, fixture } = await createEngineWorktreeFixture({
+    items: [
+      {
+        issue_id: "REP-501",
+        title: "Fail worktree prep",
+        url: "https://linear.app/repro/issue/REP-501/fail-worktree-prep",
+        state: "queued",
+        attempt: 1,
+        priority: 2,
+        owner: "Gary",
+        workspace: "autobot",
+        branch: "",
+        queued_at: "2026-05-15T11:30:00Z",
+        started_at: null,
+        updated_at: "2026-05-15T11:30:00Z",
+        last_event: null,
+        last_error: null,
+        recovery_commands: [],
+        linear: null,
+        current_run: null,
+        cancellation_requested: false,
+        cancellation_requested_at: null,
+        artifacts: [],
+        events: [],
+      },
+    ],
+  });
+  const services = createAutobotServices({
+    artifactWriter: noOpArtifactWriter,
+    artifactReader: noOpArtifactReader,
+    planningSessionRunner: noOpPlanningSessionRunner,
+    loadLinearIssue: noOpLinearIssue,
+    openStore() {
+      return resolve(fixture.store as unknown as AutobotStore);
+    },
+    now() {
+      return "2026-05-15T12:00:00Z";
+    },
+    prepareWorktree() {
+      return Future((reject) => {
+        reject(
+          new Error(
+            "git refused to create the worktree",
+          ) as NodeJS.ErrnoException,
+        );
+        return () => undefined;
+      });
+    },
+  });
+
+  try {
+    const result = (await runFuture(
+      services.handleInvocation({
+        ...makeInvocation(["supervisor", "run-once"]),
+        options: makeOptions({ repo: root }),
+      }),
+    )) as AutobotCommandResult;
+
+    assert.equal(result.kind, "supervisor-status");
+    assert.deepEqual(
+      result.data.items.map((item) => [item.issue_id, item.state]),
+      [["REP-501", "failed"]],
+    );
+    assert.ok(
+      fixture.itemUpserts.some(
+        (item) =>
+          item.issue_id === "REP-501" &&
+          item.state === "failed" &&
+          item.last_event === "failed-from-preparing",
+      ),
+    );
+    assert.ok(
+      fixture.domainEvents.some(
+        (event) => event.type === "workflow.phase.failed",
+      ),
+    );
+  } finally {
     await rm(root, { recursive: true, force: true });
   }
 });

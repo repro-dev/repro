@@ -106,6 +106,15 @@ test("supervisor run-once preserves discovered metadata when it selects a new ca
     now() {
       return "2026-05-15T12:30:00Z";
     },
+    prepareWorktree(input) {
+      return resolve({
+        issue_id: input.issueId,
+        branch: `autobot/${input.issueId}`,
+        slug: input.issueId,
+        worktree_path: `${input.repoRoot}/.autobot/worktrees/${input.issueId}`,
+        archived_worktree_path: null,
+      });
+    },
     randomId() {
       return "run-401";
     },
@@ -167,13 +176,15 @@ test("supervisor run-once preserves discovered metadata when it selects a new ca
       priority: lastRep400Upsert.priority,
       owner: lastRep400Upsert.owner,
       workspace: lastRep400Upsert.workspace,
+      branch: lastRep400Upsert.branch,
     },
     {
       title: "Discovered one",
       url: "https://linear.app/repro/issue/REP-400/discovered-one",
       priority: 2,
       owner: "Gary",
-      workspace: "Engineering",
+      workspace: "/worktrees/autobot/.autobot/worktrees/REP-400",
+      branch: "autobot/REP-400",
     },
   );
 });
@@ -195,6 +206,15 @@ test("supervisor run-once warns and skips discovery when discovery.projects is m
     },
     now() {
       return "2026-05-15T12:00:00Z";
+    },
+    prepareWorktree(input) {
+      return resolve({
+        issue_id: input.issueId,
+        branch: `autobot/${input.issueId}`,
+        slug: input.issueId,
+        worktree_path: `${input.repoRoot}/.autobot/worktrees/${input.issueId}`,
+        archived_worktree_path: null,
+      });
     },
     discoverIssues() {
       throw new Error(

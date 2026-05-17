@@ -105,6 +105,15 @@ const invalidRunPlan = [
   "- Planner returned a malformed plan.",
 ].join("\n");
 
+const noOpPrepareWorktree = (input: { repoRoot: string; issueId: string }) =>
+  resolve({
+    issue_id: input.issueId,
+    branch: `autobot/${input.issueId}`,
+    slug: input.issueId,
+    worktree_path: `${input.repoRoot}/.autobot/worktrees/${input.issueId}`,
+    archived_worktree_path: null,
+  });
+
 test("default supervisor run-once starts planning workers up to capacity and returns before Flowcraft completion", async () => {
   const fixture = makeWorkflowStore({
     configOverrides: {
@@ -122,6 +131,7 @@ test("default supervisor run-once starts planning workers up to capacity and ret
     return resolve(undefined);
   };
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     openStore: () => resolve(fixture.store as unknown as AutobotStore),
     now: () => "2026-05-15T12:00:00Z",
     randomId: () => runIds.shift() ?? "run-300",
@@ -250,6 +260,7 @@ test("inspect resolves an in-progress planning worker before Flowcraft execution
     ],
   });
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     openStore: () => resolve(fixture.store as unknown as AutobotStore),
   });
 
@@ -322,6 +333,7 @@ test("later run-once advances the workflow from a completed planning worker resu
     ],
   });
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     openStore: () => resolve(fixture.store as unknown as AutobotStore),
     now: () => "2026-05-15T12:00:03Z",
     artifactWriter: () => resolve(undefined),
@@ -422,6 +434,7 @@ test("completed planning worker reconciliation is idempotent after awaiting Flow
     ],
   });
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     openStore: () => resolve(fixture.store as unknown as AutobotStore),
     now: () => "2026-05-15T12:00:03Z",
     artifactWriter: () => resolve(undefined),
@@ -544,6 +557,7 @@ test("run-once reconciles multiple completed in-progress workers per tick", asyn
   });
   const started: string[] = [];
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     openStore: () => resolve(fixture.store as unknown as AutobotStore),
     now: () => "2026-05-15T12:00:04Z",
     artifactWriter: () => resolve(undefined),
@@ -604,6 +618,7 @@ test("run-once retries multiple failed items and starts queued work with remaini
   });
   const started: string[] = [];
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     openStore: () => resolve(fixture.store as unknown as AutobotStore),
     now: () => "2026-05-15T12:00:02Z",
     randomId: () => "run-retry",
@@ -694,6 +709,7 @@ test("completed planning worker failure preserves invalid plan lastError", async
     ],
   });
   const services = createAutobotServices({
+    prepareWorktree: noOpPrepareWorktree,
     openStore: () => resolve(fixture.store as unknown as AutobotStore),
     now: () => "2026-05-15T12:00:03Z",
     artifactWriter: () => resolve(undefined),
