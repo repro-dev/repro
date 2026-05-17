@@ -1,5 +1,4 @@
 import { LoginForm } from '@repro/auth'
-import { Card } from '@repro/design'
 import { logger } from '@repro/logger'
 import React, { useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router'
@@ -21,11 +20,7 @@ const LoginRoute: React.FC = () => {
     logger.debug('login failed', error)
   }, [])
 
-  return (
-    <Card>
-      <LoginForm onSuccess={onSuccess} onFailure={onFailure} />
-    </Card>
-  )
+  return <LoginForm onSuccess={onSuccess} onFailure={onFailure} />
 }
 
 export default LoginRoute
