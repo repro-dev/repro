@@ -12,7 +12,7 @@ describe('AuthLayout', () => {
       <MemoryRouter initialEntries={['/login']}>
         <Routes>
           <Route element={<AuthLayout />}>
-            <Route index element={<div>Login outlet</div>} />
+            <Route path="login" element={<div>Login outlet</div>} />
           </Route>
         </Routes>
       </MemoryRouter>
