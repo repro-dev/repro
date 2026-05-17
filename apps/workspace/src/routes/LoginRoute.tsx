@@ -20,7 +20,13 @@ const LoginRoute: React.FC = () => {
     logger.debug('login failed', error)
   }, [])
 
-  return <LoginForm onSuccess={onSuccess} onFailure={onFailure} />
+  return (
+    <LoginForm
+      onSuccess={onSuccess}
+      onFailure={onFailure}
+      registerHref="/account/register"
+    />
+  )
 }
 
 export default LoginRoute

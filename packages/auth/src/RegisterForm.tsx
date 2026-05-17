@@ -168,6 +168,7 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
           </FormField>
 
           <Button
+            size="large"
             disabled={!formState.isValid || formState.isSubmitting}
             type="submit"
           >
@@ -183,6 +184,7 @@ export const RegisterForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
           </Row>
 
           <GoogleSignInButton
+            size="large"
             onClick={() => {
               window.location.href = '/account/oauth/google'
             }}

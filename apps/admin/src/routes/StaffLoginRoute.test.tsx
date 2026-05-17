@@ -13,11 +13,13 @@ globalThis.window = {
 const loginMock = mock.fn(() => null)
 const navigateMock = mock.fn()
 let searchParams = new URLSearchParams()
-const googleSignInButtonMock = mock.fn(({ onClick }: { onClick(): void }) => (
-  <button type="button" onClick={onClick}>
-    Continue with Google
-  </button>
-))
+const googleSignInButtonMock = mock.fn(
+  ({ onClick, size }: { onClick(): void; size?: string }) => (
+    <button type="button" data-size={size} onClick={onClick}>
+      Continue with Google
+    </button>
+  )
+)
 
 mock.module('@repro/auth', {
   namedExports: {
@@ -64,6 +66,13 @@ describe('StaffLoginRoute', () => {
     assert.match(html, /Password/)
     assert.match(html, /Log in/)
     assert.match(html, /Continue with Google/)
+
+    const buttonProps = googleSignInButtonMock.mock.calls[0]!.arguments[0] as {
+      onClick(): void
+      size?: string
+    }
+
+    assert.equal(buttonProps.size, 'large')
   })
 
   it('keeps the Google button pointed at staff OAuth', () => {

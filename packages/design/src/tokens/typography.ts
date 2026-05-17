@@ -47,6 +47,7 @@ export type FontSizeValue = (typeof fontSize)[FontSizeToken]
 // ---------------------------------------------------------------------------
 
 export const fontWeight = {
+  light: 300,
   normal: 400,
   semibold: 600,
   bold: 700,

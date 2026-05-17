@@ -1,12 +1,5 @@
 import { Block, Col, Row } from '@jsxstyle/react'
-import {
-  color,
-  Logo,
-  ParticleArtwork,
-  radius,
-  spacing,
-  Text,
-} from '@repro/design'
+import { color, Logo, ParticleArtwork, spacing, Text } from '@repro/design'
 import React from 'react'
 import { Outlet } from 'react-router'
 
@@ -33,33 +26,32 @@ export const AuthLayout: React.FC = () => (
       alignItems="stretch"
       justifyContent="flex-start"
       gap={spacing['3xl']}
-      padding={spacing['4xl']}
       backgroundColor={color.bg.surface}
     >
+      <Block
+        width="100%"
+        paddingH={spacing['4xl']}
+        paddingV={spacing['2xl']}
+        backgroundColor={color.bg.emphasis}
+        color={color.text.inverse}
+        borderBottomColor={color.border.emphasis}
+        borderBottomStyle="solid"
+        borderBottomWidth={1}
+      >
+        <Row alignItems="center" gap={spacing.md}>
+          <Logo size={24} inverted />
+          <Text variant="body" as="span" weight="light" lineHeight="tight">
+            admin
+          </Text>
+        </Row>
+      </Block>
+
       <Col
         alignItems="stretch"
         width="100%"
-        maxWidth={440}
         gap={spacing['2xl']}
+        paddingH={spacing['4xl']}
       >
-        <Row alignItems="center" gap={spacing.sm}>
-          <Logo size={24} />
-          <Block
-            paddingH={spacing.sm}
-            paddingV={spacing.xs}
-            backgroundColor={color.bg.subtle}
-            color={color.text.secondary}
-            borderRadius={radius.full}
-            borderColor={color.border.default}
-            borderStyle="solid"
-            borderWidth={1}
-          >
-            <Text variant="label" as="span" weight="semibold">
-              Admin
-            </Text>
-          </Block>
-        </Row>
-
         <Outlet />
       </Col>
     </Col>

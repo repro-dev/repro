@@ -101,7 +101,7 @@ export const StaffLoginRoute: React.FC = () => {
             />
           </FormField>
 
-          <Button disabled={isSubmitting} type="submit">
+          <Button size="large" disabled={isSubmitting} type="submit">
             Log in
           </Button>
 
@@ -114,6 +114,7 @@ export const StaffLoginRoute: React.FC = () => {
           </Row>
 
           <GoogleSignInButton
+            size="large"
             onClick={() => {
               window.location.href = `${env.REPRO_API_URL}/staff/oauth/google`
             }}

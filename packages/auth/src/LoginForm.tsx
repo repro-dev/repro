@@ -9,6 +9,7 @@ import {
   FormFieldError,
   Input,
   Label,
+  Link,
   spacing,
   Text,
 } from '@repro/design'
@@ -37,11 +38,16 @@ type FormState = LoginFormState | ResetFormState
 
 interface Props {
   redirectTo?: string
+  registerHref?: string
   onSuccess(): void
   onFailure(error: Error): void
 }
 
-export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
+export const LoginForm: React.FC<Props> = ({
+  onSuccess,
+  onFailure,
+  registerHref,
+}) => {
   const [errorMessage, setErrorMessage] = useState('')
   const [showResetFlow, setShowResetFlow] = useState(false)
   const [showPostResetMessage, setShowPostResetMessage] = useState(false)
@@ -182,7 +188,7 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
             </Block>
           )}
 
-          <Button disabled={formState.isSubmitting} type="submit">
+          <Button size="large" disabled={formState.isSubmitting} type="submit">
             {showResetFlow ? 'Send reset email' : 'Log in'}
           </Button>
 
@@ -214,10 +220,18 @@ export const LoginForm: React.FC<Props> = ({ onSuccess, onFailure }) => {
               </Row>
 
               <GoogleSignInButton
+                size="large"
                 onClick={() => {
                   window.location.href = '/account/oauth/google'
                 }}
               />
+
+              {registerHref && (
+                <Text variant="bodySmall" color={color.text.muted}>
+                  Don&apos;t have an account?{' '}
+                  <Link href={registerHref}>Sign up now</Link>
+                </Text>
+              )}
             </>
           )}
         </Col>

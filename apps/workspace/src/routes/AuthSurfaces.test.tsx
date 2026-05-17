@@ -104,6 +104,10 @@ describe('auth surfaces', () => {
     assert.ok(
       screen.getByText('Use your email and password to continue.') !== null
     )
+    assert.equal(
+      screen.getByRole('link', { name: 'Sign up now' }).getAttribute('href'),
+      '/account/register'
+    )
     assert.ok(screen.getByRole('button', { name: 'Forgot password?' }) !== null)
 
     fireEvent.click(screen.getByRole('button', { name: 'Forgot password?' }))
