@@ -181,6 +181,33 @@ type PlanningArtifactDraft = {
 
 type PlanningPhaseName = SingleTrackPhaseContractName;
 
+function createPreparationRunDirectories(input: {
+  repoRoot: string;
+  runId: string;
+}): FutureInstance<unknown, void> {
+  return Future((_reject, resolve) => {
+    void Promise.all([
+      mkdir(
+        path.join(input.repoRoot, ".autobot", "runs", input.runId, "artifacts"),
+        {
+          recursive: true,
+        },
+      ),
+      mkdir(
+        path.join(input.repoRoot, ".autobot", "runs", input.runId, "logs"),
+        {
+          recursive: true,
+        },
+      ),
+    ]).then(
+      () => resolve(undefined),
+      () => resolve(undefined),
+    );
+
+    return () => undefined;
+  });
+}
+
 interface ConfigDefinition {
   key: string;
   default_value: ConfigValue;
@@ -4490,8 +4517,8 @@ function runBoundedWorkflowTickForItem(
       ],
     }),
     branch: worktreePaths.branch,
-    workspace: target.workspace,
-    started_at: startedAt,
+    workspace: worktreePaths.worktree_path,
+    started_at: tickAt,
     last_event: "failed-from-preparing",
   });
   const failFromPreparing = (error: unknown): FutureInstance<unknown, void> =>
@@ -4545,6 +4572,10 @@ function runBoundedWorkflowTickForItem(
                   });
 
             return sequenceFutures([
+              createPreparationRunDirectories({
+                repoRoot: preparedRepo.path,
+                runId,
+              }),
               store.items
                 .upsert({
                   ...createReconciledItemRecord({

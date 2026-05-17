@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 
 import { resolve, type FutureInstance, fork } from "fluture";
@@ -183,7 +184,12 @@ test("supervisor run-once preserves discovered metadata when it selects a new ca
       url: "https://linear.app/repro/issue/REP-400/discovered-one",
       priority: 2,
       owner: "Gary",
-      workspace: "/worktrees/autobot/.autobot/worktrees/REP-400",
+      workspace: path.join(
+        "/worktrees/autobot",
+        ".autobot",
+        "worktrees",
+        "REP-400",
+      ),
       branch: "autobot/REP-400",
     },
   );

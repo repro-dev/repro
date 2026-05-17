@@ -33,8 +33,80 @@ export interface GitWorktreePreparationResult {
 const execFileAsync = promisify(execFile);
 
 function resolveAutobotWorktreeSlug(issueId: string): string {
-  const slug = issueId.trim().replace(/[^A-Za-z0-9._-]+/g, "-");
-  return slug.length > 0 ? slug : issueId;
+  const slug = issueId
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/^[._-]+|[._-]+$/g, "");
+
+  return slug.length > 0 ? slug : "issue";
+}
+
+function assertContainedPath(basePath: string, candidatePath: string): string {
+  const resolvedBasePath = path.resolve(basePath);
+  const resolvedCandidatePath = path.resolve(candidatePath);
+  const relativePath = path.relative(resolvedBasePath, resolvedCandidatePath);
+
+  if (
+    relativePath === "" ||
+    (!relativePath.startsWith("..") && !path.isAbsolute(relativePath))
+  ) {
+    return resolvedCandidatePath;
+  }
+
+  throw new Error(
+    `Resolved path ${resolvedCandidatePath} escapes base path ${resolvedBasePath}`,
+  );
+}
+
+function parseGitWorktreeList(output: string): Array<{
+  path: string;
+  branch: string | null;
+}> {
+  const entries: Array<{ path: string; branch: string | null }> = [];
+  let current: { path: string; branch: string | null } | null = null;
+
+  for (const line of output.split(/\r?\n/)) {
+    if (line.length === 0) {
+      if (current !== null) {
+        entries.push(current);
+        current = null;
+      }
+      continue;
+    }
+
+    if (line.startsWith("worktree ")) {
+      if (current !== null) {
+        entries.push(current);
+      }
+
+      current = { path: line.slice("worktree ".length), branch: null };
+      continue;
+    }
+
+    if (current === null) {
+      continue;
+    }
+
+    if (line.startsWith("branch ")) {
+      current.branch = line.slice("branch ".length);
+    }
+  }
+
+  if (current !== null) {
+    entries.push(current);
+  }
+
+  return entries;
+}
+
+function isAutobotBranch(
+  branch: string | null,
+  desiredBranch: string,
+): boolean {
+  return (
+    branch === `refs/heads/${desiredBranch}` ||
+    branch === `refs/remotes/origin/${desiredBranch}`
+  );
 }
 
 export function resolveAutobotWorktreePaths(input: {
@@ -42,12 +114,17 @@ export function resolveAutobotWorktreePaths(input: {
   issueId: string;
 }): GitWorktreePreparationResult {
   const slug = resolveAutobotWorktreeSlug(input.issueId);
+  const worktreesRoot = path.resolve(input.repoRoot, ".autobot", "worktrees");
+  const worktreePath = assertContainedPath(
+    worktreesRoot,
+    path.join(worktreesRoot, slug),
+  );
 
   return {
     issue_id: input.issueId,
     branch: `autobot/${slug}`,
     slug,
-    worktree_path: path.join(input.repoRoot, ".autobot", "worktrees", slug),
+    worktree_path: worktreePath,
     archived_worktree_path: null,
   };
 }
@@ -137,8 +214,32 @@ export function prepareAutobotWorktree(
 
         await mkdir(archiveRoot, { recursive: true });
 
-        const existing = await stat(paths.worktree_path).catch(() => null);
+        const worktreeList = parseGitWorktreeList(
+          await runCommandAsPromise(runCommand, {
+            cwd: input.repoRoot,
+            command: "git",
+            args: ["worktree", "list", "--porcelain"],
+          }).catch(() => ""),
+        );
+
+        const activeWorktree = worktreeList.find((entry) =>
+          isAutobotBranch(entry.branch, paths.branch),
+        );
+
+        if (
+          activeWorktree !== undefined &&
+          path.resolve(activeWorktree.path) ===
+            path.resolve(paths.worktree_path)
+        ) {
+          resolve({
+            ...paths,
+            archived_worktree_path: null,
+          });
+          return;
+        }
+
         let archivedWorktreePath: string | null = null;
+        const existing = await stat(paths.worktree_path).catch(() => null);
 
         if (existing !== null) {
           archivedWorktreePath = path.join(
@@ -148,53 +249,66 @@ export function prepareAutobotWorktree(
           await rename(paths.worktree_path, archivedWorktreePath);
         }
 
-        const branchExists = await runCommandAsPromise(runCommand, {
-          cwd: input.repoRoot,
-          command: "git",
-          args: [
-            "rev-parse",
-            "--verify",
-            "--quiet",
-            `refs/heads/${paths.branch}`,
-          ],
-        })
-          .then(() => true)
-          .catch(() => false);
-
-        const remoteBranchExists = branchExists
-          ? true
-          : await runCommandAsPromise(runCommand, {
-              cwd: input.repoRoot,
-              command: "git",
-              args: [
-                "rev-parse",
-                "--verify",
-                "--quiet",
-                `refs/remotes/origin/${paths.branch}`,
-              ],
-            })
-              .then(() => true)
-              .catch(() => false);
-
-        if (branchExists || remoteBranchExists) {
-          await runCommandAsPromise(runCommand, {
-            cwd: input.repoRoot,
-            command: "git",
-            args: ["worktree", "add", paths.worktree_path, paths.branch],
-          });
-        } else {
+        if (activeWorktree !== undefined) {
           await runCommandAsPromise(runCommand, {
             cwd: input.repoRoot,
             command: "git",
             args: [
               "worktree",
-              "add",
-              "-b",
-              paths.branch,
+              "move",
+              activeWorktree.path,
               paths.worktree_path,
-              startRef,
             ],
           });
+        } else {
+          const branchExists = await runCommandAsPromise(runCommand, {
+            cwd: input.repoRoot,
+            command: "git",
+            args: [
+              "rev-parse",
+              "--verify",
+              "--quiet",
+              `refs/heads/${paths.branch}`,
+            ],
+          })
+            .then(() => true)
+            .catch(() => false);
+
+          const remoteBranchExists = branchExists
+            ? true
+            : await runCommandAsPromise(runCommand, {
+                cwd: input.repoRoot,
+                command: "git",
+                args: [
+                  "rev-parse",
+                  "--verify",
+                  "--quiet",
+                  `refs/remotes/origin/${paths.branch}`,
+                ],
+              })
+                .then(() => true)
+                .catch(() => false);
+
+          if (branchExists || remoteBranchExists) {
+            await runCommandAsPromise(runCommand, {
+              cwd: input.repoRoot,
+              command: "git",
+              args: ["worktree", "add", paths.worktree_path, paths.branch],
+            });
+          } else {
+            await runCommandAsPromise(runCommand, {
+              cwd: input.repoRoot,
+              command: "git",
+              args: [
+                "worktree",
+                "add",
+                "-b",
+                paths.branch,
+                paths.worktree_path,
+                startRef,
+              ],
+            });
+          }
         }
 
         resolve({

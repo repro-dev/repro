@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
@@ -375,6 +382,9 @@ test("supervisor start acquires the lock and exits cleanly after stop is request
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
+    randomId() {
+      return "run-500";
+    },
     now() {
       return "2026-05-15T12:00:00Z";
     },
@@ -424,6 +434,9 @@ test("supervisor start polls for stop requests while waiting between ticks", asy
     loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
+    },
+    randomId() {
+      return "run-501";
     },
     now() {
       return "2026-05-15T12:00:00Z";
@@ -490,6 +503,9 @@ test("engine stop requests graceful shutdown and updates the runtime files", asy
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
+    randomId() {
+      return "run-500";
+    },
     now() {
       return "2026-05-15T12:00:00Z";
     },
@@ -544,6 +560,9 @@ test("supervisor start refuses to replace an active process lock", async () => {
     loadLinearIssue: noOpLinearIssue,
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
+    },
+    randomId() {
+      return "run-501";
     },
     now() {
       return "2026-05-15T12:00:00Z";
@@ -1683,6 +1702,9 @@ test("supervisor run-once prepares a real worktree before completing an item", a
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
+    randomId() {
+      return "run-500";
+    },
     now() {
       return "2026-05-15T12:00:00Z";
     },
@@ -1718,7 +1740,8 @@ test("supervisor run-once prepares a real worktree before completing an item", a
         (item) =>
           item.issue_id === "REP-500" &&
           item.state === "preparing" &&
-          item.branch === "autobot/REP-500",
+          item.branch === "autobot/REP-500" &&
+          item.workspace === worktreePath,
       ),
     );
     assert.ok(
@@ -1758,6 +1781,8 @@ test("supervisor run-once prepares a real worktree before completing an item", a
     assert.equal(detail.kind, "item-detail");
     assert.equal(detail.data.branch, "autobot/REP-500");
     assert.equal(detail.data.workspace, worktreePath);
+    await stat(path.join(root, ".autobot", "runs", "run-500", "artifacts"));
+    await stat(path.join(root, ".autobot", "runs", "run-500", "logs"));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -1799,6 +1824,9 @@ test("supervisor run-once records failed-from-preparing when worktree prep rejec
     openStore() {
       return resolve(fixture.store as unknown as AutobotStore);
     },
+    randomId() {
+      return "run-501";
+    },
     now() {
       return "2026-05-15T12:00:00Z";
     },
@@ -1832,7 +1860,9 @@ test("supervisor run-once records failed-from-preparing when worktree prep rejec
         (item) =>
           item.issue_id === "REP-501" &&
           item.state === "failed" &&
-          item.last_event === "failed-from-preparing",
+          item.last_event === "failed-from-preparing" &&
+          item.workspace ===
+            path.join(root, ".autobot", "worktrees", "REP-501"),
       ),
     );
     assert.ok(

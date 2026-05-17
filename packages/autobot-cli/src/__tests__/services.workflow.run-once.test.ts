@@ -1463,7 +1463,7 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
       (event) =>
         event.issue_id === "REP-400" &&
         event.type === "workflow.phase.started" &&
-        event.data.phase === "preparing",
+        (event.data as { phase?: string }).phase === "preparing",
     ).length,
     1,
   );
@@ -1472,7 +1472,7 @@ test("supervisor run-once hydrates Linear metadata before writing planning artif
       (event) =>
         event.issue_id === "REP-400" &&
         event.type === "workflow.phase.succeeded" &&
-        event.data.phase === "preparing",
+        (event.data as { phase?: string }).phase === "preparing",
     ).length,
     1,
   );
