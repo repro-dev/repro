@@ -26,6 +26,7 @@ test("operate commands and engine subcommands are present in the parser tree", (
       "engine debug workflow diagram",
       "engine debug workflow list",
       "engine debug workflow validate",
+      "engine logs",
       "engine run-once",
       "engine start",
       "engine status",

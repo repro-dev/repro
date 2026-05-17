@@ -7,8 +7,8 @@ import type {
   ConfigValue,
   DomainEvent,
   EngineStatus,
+  HealthCheck,
   Warning,
-  ItemDetail,
   ItemState,
   ItemSummary,
   RepoRef,
@@ -46,6 +46,14 @@ import {
 } from "fluture";
 
 import {
+  acquireEngineRuntime,
+  readEngineRuntime,
+  releaseEngineRuntime,
+  requestEngineStop,
+  writeEngineRuntimeStatus,
+  type EngineRuntimeSnapshot,
+} from "./engine-runtime";
+import {
   AutobotCliError,
   createNotImplementedError,
   createUsageError,
@@ -57,6 +65,7 @@ import type {
   EngineTickSkip,
   EngineTickReport,
   DiscoverCandidate,
+  EngineStatusData,
 } from "./types";
 
 type FlowcraftExecutionContext = {
@@ -82,6 +91,7 @@ export interface AutobotServiceDependencies {
   openStore?: (repo: RepoRef | string) => FutureInstance<unknown, AutobotStore>;
   now?: () => string;
   randomId?: () => string;
+  sleep?: (milliseconds: number) => FutureInstance<unknown, void>;
   discoverIssues?: (
     input: DiscoverIssueInput,
   ) => FutureInstance<unknown, DiscoverCandidate[]>;
@@ -115,6 +125,164 @@ function sequenceFutures<T>(
   }
 
   return result;
+}
+
+function createDelayFuture(
+  milliseconds: number,
+): FutureInstance<unknown, void> {
+  return Future((reject, resolveFuture) => {
+    void reject;
+    const timeout = setTimeout(() => {
+      resolveFuture(undefined);
+    }, milliseconds);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  });
+}
+
+function warningToHealthCheck(warning: Warning): {
+  code: string;
+  status: "warning";
+  message: string;
+} {
+  return {
+    code: warning.code,
+    status: "warning",
+    message: warning.message,
+  };
+}
+
+function loadActiveWorkers(
+  store: AutobotStore,
+): FutureInstance<unknown, Array<EngineStatusData["active_workers"][number]>> {
+  return store.workers
+    .list()
+    .pipe(
+      map((workers: Array<EngineStatusData["active_workers"][number]>) =>
+        workers.filter((worker) => worker.state !== "exited"),
+      ),
+    ) as FutureInstance<
+    unknown,
+    Array<EngineStatusData["active_workers"][number]>
+  >;
+}
+
+function loadEngineEvents(
+  store: AutobotStore,
+): FutureInstance<unknown, DomainEvent[]> {
+  const pageSize = 1000;
+
+  return store.events
+    .list(undefined, {
+      limit: pageSize,
+      typePrefix: "engine.",
+      order: "desc",
+    })
+    .pipe(chain((events) => resolve([...events].reverse())));
+}
+
+function waitForEngineTickDelay(
+  repo: RepoRef,
+  milliseconds: number,
+  sleep: (milliseconds: number) => FutureInstance<unknown, void>,
+): FutureInstance<unknown, void> {
+  const pollIntervalMilliseconds = Math.max(1, Math.min(milliseconds, 1000));
+
+  return Future((reject, resolveFuture) => {
+    let cancelled = false;
+
+    const settle = () => {
+      if (!cancelled) {
+        resolveFuture(undefined);
+      }
+    };
+
+    const step = (remainingMilliseconds: number) => {
+      if (cancelled) {
+        return;
+      }
+
+      readEngineRuntime(repo).pipe(
+        fork(reject)((snapshotBeforeDelay) => {
+          if (snapshotBeforeDelay.stop_requested_at !== null) {
+            settle();
+            return;
+          }
+
+          const delayMilliseconds = Math.min(
+            pollIntervalMilliseconds,
+            remainingMilliseconds,
+          );
+
+          sleep(delayMilliseconds).pipe(
+            fork(reject)(() => {
+              if (cancelled) {
+                return;
+              }
+
+              readEngineRuntime(repo).pipe(
+                fork(reject)((snapshotAfterDelay) => {
+                  if (
+                    snapshotAfterDelay.stop_requested_at !== null ||
+                    remainingMilliseconds - delayMilliseconds <= 0
+                  ) {
+                    settle();
+                    return;
+                  }
+
+                  step(remainingMilliseconds - delayMilliseconds);
+                }),
+              );
+            }),
+          );
+        }),
+      );
+    };
+
+    step(milliseconds);
+
+    return () => {
+      cancelled = true;
+    };
+  });
+}
+
+function synthesizeEngineEvents(
+  runtime: EngineRuntimeSnapshot | null,
+  events: readonly DomainEvent[],
+): DomainEvent[] {
+  if (events.length > 0) {
+    return [...events];
+  }
+
+  const runtimeRecord = runtime?.status ?? runtime?.lock ?? null;
+  const state = runtimeRecord?.state ?? "stopped";
+  const occurredAt =
+    runtimeRecord?.last_tick_at ??
+    runtimeRecord?.started_at ??
+    new Date().toISOString();
+
+  return [
+    {
+      event_id: `engine-status-${state}-${runtimeRecord?.started_at ?? "n-a"}`,
+      issue_id: null,
+      run_id: null,
+      type: `engine.status.${state}`,
+      state: null,
+      message: `engine ${state}`,
+      severity: "info",
+      occurred_at: occurredAt,
+      actor: "engine",
+      transport: null,
+      data: {
+        state,
+        stop_requested_at: runtime?.stop_requested_at ?? null,
+        stale_lock: runtime?.stale_lock ?? false,
+      },
+    },
+  ];
 }
 
 const configDefinitions: readonly ConfigDefinition[] = [
@@ -332,23 +500,6 @@ function toConfigEntry(
   };
 }
 
-function stripTransportFromItemDetail(item: ItemDetail): ItemDetail {
-  return {
-    ...item,
-    current_run:
-      item.current_run === null
-        ? null
-        : {
-            ...item.current_run,
-            transport: null,
-          },
-    events: item.events.map((event) => ({
-      ...event,
-      transport: null,
-    })),
-  };
-}
-
 function createDomainEvent(input: {
   type: string;
   state: ItemState | null;
@@ -443,21 +594,80 @@ function buildItemSummaryFromExisting(
   });
 }
 
-function createEngineStatus(
+export function createEngineStatus(
   config: ConfigEntry[],
   counts: Record<ItemState, number>,
-  lastTickAt: string | null = null,
+  input: {
+    runtime?: EngineRuntimeSnapshot | null;
+    lastTickAt?: string | null;
+    activeWorkers?: Array<EngineStatusData["active_workers"][number]>;
+    events?: readonly DomainEvent[];
+    health?: HealthCheck[];
+    fallbackState?: EngineStatus["state"];
+  } = {},
 ): EngineStatus {
   const maxConcurrency =
     config.find((entry) => entry.key === "engine.max-concurrency")?.value ?? 1;
   const tickIntervalSeconds =
     config.find((entry) => entry.key === "engine.tick-interval-seconds")
       ?.value ?? 15;
+  const runtime = input.runtime ?? null;
+  const runtimeStatus = runtime?.status ?? null;
+  const runtimeLock = runtime?.lock ?? null;
+  const activeWorkers = input.activeWorkers ?? [];
+  const events = input.events ?? [];
+  const providedHealth = input.health ?? null;
+  const statusHealth = providedHealth ?? runtimeStatus?.health ?? [];
+  const health = [
+    ...(runtime !== null && runtime.stale_lock
+      ? [
+          {
+            code: "ENGINE_STALE_LOCK",
+            status: "error" as const,
+            message: `stale engine lock at pid ${runtimeLock?.pid ?? "n/a"}`,
+          },
+        ]
+      : []),
+    ...(runtime !== null && runtime.stop_requested_at !== null
+      ? [
+          {
+            code: "ENGINE_STOP_REQUESTED",
+            status: "warning" as const,
+            message: "graceful shutdown requested",
+          },
+        ]
+      : []),
+    ...statusHealth,
+  ];
+  const startedAt =
+    runtimeStatus?.started_at ?? runtimeLock?.started_at ?? null;
+  const pid = runtimeStatus?.pid ?? runtimeLock?.pid ?? null;
+  const lastTickAt = input.lastTickAt ?? runtimeStatus?.last_tick_at ?? null;
+
+  const state =
+    runtime === null
+      ? input.fallbackState ?? "unknown"
+      : runtime.stale_lock
+      ? "unhealthy"
+      : runtime.stop_requested_at !== null ||
+        runtimeStatus?.state === "stopping"
+      ? "stopping"
+      : runtimeStatus?.state === "unhealthy"
+      ? "unhealthy"
+      : runtimeStatus?.state === "stopped"
+      ? "stopped"
+      : runtimeStatus?.state === "starting"
+      ? "starting"
+      : runtimeLock !== null || runtimeStatus !== null
+      ? statusHealth.some((item) => item.status === "error")
+        ? "unhealthy"
+        : "running"
+      : "stopped";
 
   return {
-    state: "unknown",
-    pid: null,
-    started_at: null,
+    state,
+    pid,
+    started_at: startedAt,
     last_tick_at: lastTickAt,
     tick_interval_seconds: Number(tickIntervalSeconds),
     queue_depth: counts.queued,
@@ -466,8 +676,9 @@ function createEngineStatus(
       (total, state) => total + (isInProgressState(state) ? counts[state] : 0),
       0,
     ),
-    active_workers: [],
-    health: [],
+    active_workers: activeWorkers,
+    events,
+    health,
   };
 }
 
@@ -893,6 +1104,9 @@ function createQueueStatus(
   options: {
     command?: string;
     lastTickAt?: string | null;
+    runtime?: EngineRuntimeSnapshot | null;
+    fallbackState?: EngineStatus["state"];
+    events?: readonly DomainEvent[];
     tick?: EngineTickReport;
     warnings?: readonly Warning[];
   } = {},
@@ -902,33 +1116,48 @@ function createQueueStatus(
       fork(reject)((config) => {
         store.projections.listItems({ include_terminal: true }).pipe(
           fork(reject)((items) => {
-            const counts = Object.fromEntries(
-              itemStates.map((state) => [state, 0]),
-            ) as Record<ItemState, number>;
+            loadActiveWorkers(store).pipe(
+              fork(reject)((activeWorkers) => {
+                const counts = Object.fromEntries(
+                  itemStates.map((state) => [state, 0]),
+                ) as Record<ItemState, number>;
 
-            for (const item of items) {
-              counts[item.state] += 1;
-            }
+                for (const item of items) {
+                  counts[item.state] += 1;
+                }
 
-            resolve({
-              kind: "queue-status",
-              command: options.command ?? "autobot-next status",
-              repo: store.repo,
-              data: {
-                engine: createEngineStatus(
-                  config,
-                  counts,
-                  options.lastTickAt ?? null,
-                ),
-                counts,
-                items: items.filter((item) => !isTerminalState(item.state)),
-                config,
-                ...(options.tick === undefined ? {} : { tick: options.tick }),
-              },
-              ...(options.warnings === undefined
-                ? {}
-                : { warnings: options.warnings }),
-            });
+                resolve({
+                  kind: "queue-status",
+                  command: options.command ?? "autobot-next status",
+                  repo: store.repo,
+                  data: {
+                    engine: createEngineStatus(config, counts, {
+                      runtime: options.runtime ?? null,
+                      lastTickAt: options.lastTickAt ?? null,
+                      activeWorkers,
+                      events: options.events,
+                      ...(options.warnings === undefined
+                        ? {}
+                        : {
+                            health: options.warnings.map(warningToHealthCheck),
+                          }),
+                      fallbackState: options.fallbackState ?? "unknown",
+                    }),
+                    counts,
+                    active_workers: activeWorkers,
+                    events: options.events,
+                    items: items.filter((item) => !isTerminalState(item.state)),
+                    config,
+                    ...(options.tick === undefined
+                      ? {}
+                      : { tick: options.tick }),
+                  },
+                  ...(options.warnings === undefined
+                    ? {}
+                    : { warnings: options.warnings }),
+                });
+              }),
+            );
           }),
         );
       }),
@@ -936,6 +1165,46 @@ function createQueueStatus(
 
     return () => undefined;
   });
+}
+
+function createEngineStatusResult(input: {
+  store: AutobotStore;
+  command: string;
+  runtime?: EngineRuntimeSnapshot | null;
+  lastTickAt?: string | null;
+  events?: readonly DomainEvent[];
+  tick?: EngineTickReport;
+  warnings?: readonly Warning[];
+  action?: "start" | "stop";
+  message?: string;
+  kind?: "engine-status" | "engine-logs";
+}): FutureInstance<unknown, AutobotCommandResult> {
+  return createQueueStatus(input.store, {
+    command: input.command,
+    runtime: input.runtime ?? null,
+    lastTickAt: input.lastTickAt ?? null,
+    events: input.events,
+    fallbackState: "stopped",
+    tick: input.tick,
+    warnings: input.warnings,
+  }).pipe(
+    map((result): AutobotCommandResult => {
+      const queueStatus = result as Extract<
+        AutobotCommandResult,
+        { kind: "queue-status" }
+      >;
+
+      return {
+        ...queueStatus,
+        kind: input.kind ?? "engine-status",
+        data: {
+          ...queueStatus.data,
+          action: input.action,
+          message: input.message,
+        },
+      };
+    }),
+  );
 }
 
 function createQueueMutationResult(input: {
@@ -1089,7 +1358,7 @@ function loadFlowcraftExecutionContext(
             ),
           ),
         ),
-      );
+      ) as FutureInstance<unknown, FlowcraftExecutionContext>;
     }),
   );
 }
@@ -1719,6 +1988,7 @@ function handleEngineRunOnce(
   now: () => string,
   randomId: () => string,
   discoverIssues?: AutobotServiceDependencies["discoverIssues"],
+  runtime?: EngineRuntimeSnapshot | null,
 ): FutureInstance<unknown, AutobotCommandResult> {
   return createConfigList(store).pipe(
     chain((config): FutureInstance<unknown, AutobotCommandResult> => {
@@ -1944,6 +2214,7 @@ function handleEngineRunOnce(
                         return createQueueStatus(store, {
                           command: invocation.command,
                           lastTickAt: tickAt,
+                          runtime: runtime ?? null,
                           tick: tickReport,
                           warnings,
                         });
@@ -1996,6 +2267,7 @@ function handleEngineRunOnce(
                               createQueueStatus(store, {
                                 command: invocation.command,
                                 lastTickAt: tickAt,
+                                runtime: runtime ?? null,
                                 tick: tickReport,
                                 warnings,
                               }),
@@ -2012,7 +2284,7 @@ function handleEngineRunOnce(
         ),
       );
     }),
-  );
+  ) as FutureInstance<unknown, AutobotCommandResult>;
 }
 
 function withStore<T>(
@@ -2415,30 +2687,31 @@ function handleStatus(
   const issueId = invocation.args[0];
 
   if (issueId !== undefined) {
-    return Future((reject, resolve) => {
-      store.projections.getItemDetail(issueId).pipe(
-        fork(reject)((item) => {
-          if (item === null) {
-            reject(
-              new AutobotCliError({
-                code: "ITEM_NOT_FOUND",
-                message: `Issue ${issueId} is not known locally`,
-                what_failed: "queue status",
-                likely_cause: "the item has not been queued yet",
-                recovery_commands: ["autobot-next list --json"],
-                details: { issue_id: issueId },
-                exit_code: 1,
-              }),
-            );
-            return;
-          }
+    return createItemDetailResult(
+      store,
+      issueId,
+      `autobot-next status ${issueId}`,
+    );
+  }
 
-          resolve({
-            kind: "item-detail",
-            command: `autobot-next status ${issueId}`,
-            repo: store.repo,
-            data: stripTransportFromItemDetail(item),
-          });
+  return createQueueStatus(store);
+}
+
+function handleLogs(
+  invocation: AutobotInvocation,
+  store: AutobotStore,
+): FutureInstance<unknown, AutobotCommandResult> {
+  const issueId = invocation.args[0];
+
+  if (issueId === undefined) {
+    return Future((reject) => {
+      reject(
+        createUsageError({
+          command: invocation.command,
+          message: "logs requires an issue id",
+          what_failed: "logs request",
+          likely_cause: "the issue id argument was missing",
+          recovery_commands: ["autobot-next logs <issue-id>"],
         }),
       );
 
@@ -2446,7 +2719,339 @@ function handleStatus(
     });
   }
 
-  return createQueueStatus(store);
+  return createItemDetailResult(store, issueId, `autobot-next logs ${issueId}`);
+}
+
+function createItemDetailResult(
+  store: AutobotStore,
+  issueId: string,
+  command: string,
+): FutureInstance<unknown, AutobotCommandResult> {
+  return Future((reject, resolve) => {
+    store.projections.getItemDetail(issueId).pipe(
+      fork(reject)((item) => {
+        if (item === null) {
+          reject(
+            new AutobotCliError({
+              code: "ITEM_NOT_FOUND",
+              message: `Issue ${issueId} is not known locally`,
+              what_failed: "queue status",
+              likely_cause: "the item has not been queued yet",
+              recovery_commands: ["autobot-next list --json"],
+              details: { issue_id: issueId },
+              exit_code: 1,
+            }),
+          );
+          return;
+        }
+
+        resolve({
+          kind: "item-detail",
+          command,
+          repo: store.repo,
+          data: item,
+        });
+      }),
+    );
+
+    return () => undefined;
+  });
+}
+
+function handleEngineStatus(
+  invocation: AutobotInvocation,
+  store: AutobotStore,
+): FutureInstance<unknown, AutobotCommandResult> {
+  return loadEngineEvents(store).pipe(
+    chain((events) =>
+      readEngineRuntime(store.repo).pipe(
+        chain((runtime) => {
+          const runtimeState = runtime.status?.state ?? null;
+
+          return createEngineStatusResult({
+            store,
+            command: invocation.command,
+            runtime,
+            events: synthesizeEngineEvents(runtime, events),
+            message:
+              runtime.stop_requested_at !== null
+                ? "Graceful shutdown is in progress"
+                : runtime.stale_lock
+                ? "Engine lock is stale"
+                : runtimeState === "starting"
+                ? "Engine is starting"
+                : runtimeState === "running"
+                ? "Engine is running"
+                : runtimeState === "stopping"
+                ? "Graceful shutdown is in progress"
+                : runtimeState === "unhealthy"
+                ? "Engine is unhealthy"
+                : runtimeState === "stopped"
+                ? "Engine is stopped"
+                : runtime.lock !== null || runtime.status !== null
+                ? "Engine is running"
+                : "Engine is stopped",
+          });
+        }),
+      ),
+    ),
+  );
+}
+
+function handleEngineLogs(
+  invocation: AutobotInvocation,
+  store: AutobotStore,
+): FutureInstance<unknown, AutobotCommandResult> {
+  return loadEngineEvents(store).pipe(
+    chain((events) =>
+      readEngineRuntime(store.repo).pipe(
+        chain((runtime) =>
+          createEngineStatusResult({
+            store,
+            command: invocation.command,
+            runtime,
+            events: synthesizeEngineEvents(runtime, events),
+            kind: "engine-logs",
+            message: "Recent engine events",
+          }),
+        ),
+      ),
+    ),
+  );
+}
+
+function handleEngineStop(
+  invocation: AutobotInvocation,
+  store: AutobotStore,
+  now: () => string,
+): FutureInstance<unknown, AutobotCommandResult> {
+  return requestEngineStop(store.repo, now()).pipe(
+    chain((runtime) =>
+      createEngineStatusResult({
+        store,
+        command: invocation.command,
+        runtime,
+        action: "stop",
+        message:
+          runtime.status?.state === "stopped"
+            ? "Engine is already stopped"
+            : runtime.lock === null && runtime.status === null
+            ? "No engine lock was active"
+            : "Graceful shutdown requested",
+      }),
+    ),
+  );
+}
+
+function handleEngineStart(
+  invocation: AutobotInvocation,
+  store: AutobotStore,
+  now: () => string,
+  randomId: () => string,
+  discoverIssues?: AutobotServiceDependencies["discoverIssues"],
+  sleep: (
+    milliseconds: number,
+  ) => FutureInstance<unknown, void> = createDelayFuture,
+): FutureInstance<unknown, AutobotCommandResult> {
+  const result = createConfigList(store).pipe(
+    chain((config) => {
+      const tickIntervalSeconds = Number(
+        config.find((entry) => entry.key === "engine.tick-interval-seconds")
+          ?.value ?? 15,
+      );
+      const startedAt = now();
+
+      return acquireEngineRuntime(store.repo, {
+        pid: process.pid,
+        started_at: startedAt,
+        tick_interval_seconds: tickIntervalSeconds,
+      }).pipe(
+        chain((record) =>
+          Future((reject, resolveFuture) => {
+            let cancelled = false;
+            let released = false;
+            let currentRecord = record;
+
+            const releaseAndReject = (error: unknown) => {
+              if (released) {
+                return;
+              }
+
+              released = true;
+              releaseEngineRuntime(store.repo, currentRecord).pipe(
+                fork(() => {
+                  reject(error);
+                })(() => {
+                  reject(error);
+                }),
+              );
+            };
+
+            const finish = (message: string) => {
+              if (released) {
+                return;
+              }
+
+              released = true;
+              releaseEngineRuntime(store.repo, currentRecord).pipe(
+                fork(reject)(() => {
+                  createEngineStatusResult({
+                    store,
+                    command: invocation.command,
+                    runtime: {
+                      lock: null,
+                      status: {
+                        ...currentRecord,
+                        state: "stopped",
+                        stop_requested_at: null,
+                      },
+                      stop_requested_at: null,
+                      stale_lock: false,
+                    },
+                    action: "start",
+                    message,
+                  }).pipe(fork(reject)(resolveFuture));
+                }),
+              );
+            };
+
+            const tick = () => {
+              if (cancelled) {
+                return;
+              }
+
+              readEngineRuntime(store.repo).pipe(
+                fork(releaseAndReject)((snapshotBeforeTick) => {
+                  if (cancelled) {
+                    return;
+                  }
+
+                  if (snapshotBeforeTick.stop_requested_at !== null) {
+                    currentRecord = {
+                      ...currentRecord,
+                      state: "stopped",
+                      stop_requested_at: snapshotBeforeTick.stop_requested_at,
+                    };
+                    finish("Engine stopped gracefully");
+                    return;
+                  }
+
+                  handleEngineRunOnce(
+                    {
+                      ...invocation,
+                      command_path: ["engine", "run-once"],
+                      command: "engine run-once",
+                      args: [],
+                      options: {
+                        ...invocation.options,
+                        dry_run: false,
+                      },
+                    },
+                    store,
+                    now,
+                    randomId,
+                    discoverIssues,
+                    {
+                      lock: currentRecord,
+                      // Do not re-feed persisted warnings into the next tick.
+                      status: {
+                        ...currentRecord,
+                        health: [],
+                      },
+                      stop_requested_at: currentRecord.stop_requested_at,
+                      stale_lock: false,
+                    },
+                  ).pipe(
+                    fork(releaseAndReject)((result) => {
+                      if (cancelled) {
+                        return;
+                      }
+
+                      const queueStatus = result as Extract<
+                        AutobotCommandResult,
+                        { kind: "queue-status" }
+                      >;
+                      const engine = queueStatus.data.engine;
+                      currentRecord = {
+                        pid: currentRecord.pid,
+                        started_at: currentRecord.started_at,
+                        state: engine.health.some(
+                          (check: HealthCheck) => check.status === "error",
+                        )
+                          ? "unhealthy"
+                          : "running",
+                        last_tick_at: engine.last_tick_at,
+                        stop_requested_at: snapshotBeforeTick.stop_requested_at,
+                        health:
+                          queueStatus.warnings?.map(warningToHealthCheck) ?? [],
+                        tick_interval_seconds: engine.tick_interval_seconds,
+                      };
+
+                      if (cancelled) {
+                        return;
+                      }
+
+                      writeEngineRuntimeStatus(store.repo, currentRecord).pipe(
+                        fork(releaseAndReject)(() => {
+                          if (cancelled) {
+                            return;
+                          }
+
+                          readEngineRuntime(store.repo).pipe(
+                            fork(releaseAndReject)((snapshotAfterTick) => {
+                              if (cancelled) {
+                                return;
+                              }
+
+                              if (
+                                snapshotAfterTick.stop_requested_at !== null
+                              ) {
+                                finish("Engine stopped gracefully");
+                                return;
+                              }
+
+                              waitForEngineTickDelay(
+                                store.repo,
+                                engine.tick_interval_seconds * 1000,
+                                sleep,
+                              ).pipe(
+                                fork(releaseAndReject)(() => {
+                                  if (cancelled) {
+                                    return;
+                                  }
+
+                                  tick();
+                                }),
+                              );
+                            }),
+                          );
+                        }),
+                      );
+                    }),
+                  );
+                }),
+              );
+            };
+
+            tick();
+
+            return () => {
+              cancelled = true;
+
+              if (!released) {
+                released = true;
+                releaseEngineRuntime(store.repo, currentRecord).pipe(
+                  fork(() => undefined)(() => undefined),
+                );
+              }
+            };
+          }),
+        ),
+      );
+    }),
+  );
+
+  return result as FutureInstance<unknown, AutobotCommandResult>;
 }
 
 function handleConfigList(
@@ -2771,6 +3376,9 @@ function handleCommand(
   now: () => string,
   discoverIssues?: AutobotServiceDependencies["discoverIssues"],
   randomId: () => string = randomUUID,
+  sleep: (
+    milliseconds: number,
+  ) => FutureInstance<unknown, void> = createDelayFuture,
 ): FutureInstance<unknown, AutobotCommandResult> {
   const [head] = invocation.command_path;
 
@@ -2789,13 +3397,39 @@ function handleCommand(
       return handleConfig(invocation, store, now);
     case "inspect":
       return handleInspect(invocation, store);
+    case "logs":
+      return handleLogs(invocation, store);
     case "engine":
-      return invocation.command_path[1] === "run-once"
-        ? handleEngineRunOnce(invocation, store, now, randomId, discoverIssues)
-        : Future((reject) => {
+      switch (invocation.command_path[1]) {
+        case "logs":
+          return handleEngineLogs(invocation, store);
+        case "run-once":
+          return handleEngineRunOnce(
+            invocation,
+            store,
+            now,
+            randomId,
+            discoverIssues,
+          );
+        case "status":
+          return handleEngineStatus(invocation, store);
+        case "start":
+          return handleEngineStart(
+            invocation,
+            store,
+            now,
+            randomId,
+            discoverIssues,
+            sleep,
+          );
+        case "stop":
+          return handleEngineStop(invocation, store, now);
+        default:
+          return Future((reject) => {
             reject(createNotImplementedError(invocation.command));
             return () => undefined;
           });
+      }
     default:
       return Future((reject) => {
         reject(createNotImplementedError(invocation.command));
@@ -2835,6 +3469,7 @@ export function createAutobotServices(
           now,
           dependencies.discoverIssues,
           dependencies.randomId ?? randomUUID,
+          dependencies.sleep ?? createDelayFuture,
         ),
       );
     },

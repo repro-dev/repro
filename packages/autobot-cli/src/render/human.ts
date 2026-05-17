@@ -5,7 +5,6 @@ import {
   type EngineStatus,
   type ItemDetail,
   type ItemSummary,
-  type ItemState,
   type RunSummary,
   type TransportCorrelation,
 } from "@repro/autobot-core";
@@ -18,7 +17,7 @@ import type {
   FlowcraftWorkflowSummary,
 } from "@repro/autobot-flowcraft";
 
-import type { DiscoverData, EngineTickReport } from "../types";
+import type { DiscoverData, EngineStatusData } from "../types";
 
 import { createTextTheme, indentLines } from "./text";
 
@@ -61,6 +60,142 @@ function renderConfigEntry(entry: ConfigEntry): string[] {
     `  default: ${renderConfigValue(entry.default_value)}`,
     `  description: ${entry.description}`,
   ];
+}
+
+function renderHealthEntry(health: EngineStatus["health"][number]): string {
+  return `${health.status.toUpperCase()} ${health.code}: ${health.message}`;
+}
+
+function renderWorkerEntry(
+  worker: EngineStatus["active_workers"][number],
+): string[] {
+  const lines = [
+    `Worker: ${worker.worker_id}`,
+    `  state: ${worker.state}`,
+    `  issue_id: ${worker.issue_id ?? "n/a"}`,
+    `  run_id: ${worker.run_id ?? "n/a"}`,
+    `  pid: ${worker.pid ?? "n/a"}`,
+    `  started_at: ${worker.started_at}`,
+    `  last_heartbeat_at: ${worker.last_heartbeat_at ?? "n/a"}`,
+  ];
+
+  if (worker.transport !== null) {
+    lines.push(
+      "  Relay:",
+      `    source: ${worker.transport.source}`,
+      `    workspace_id: ${worker.transport.workspace_id ?? "n/a"}`,
+      `    channel_id: ${worker.transport.channel_id ?? "n/a"}`,
+      `    thread_id: ${worker.transport.thread_id ?? "n/a"}`,
+      `    agent_id: ${worker.transport.agent_id ?? "n/a"}`,
+      `    message_id: ${worker.transport.message_id ?? "n/a"}`,
+    );
+  }
+
+  return lines;
+}
+
+function renderStatusSection(
+  title: string,
+  input: EngineStatusData,
+  options?: { color?: boolean },
+): string {
+  const theme = createTextTheme({ color: options?.color === true });
+  const counts = Object.entries(input.counts)
+    .map(([state, count]) => `${state}: ${count}`)
+    .join(", ");
+
+  const lines = [
+    theme.bold(title),
+    `${theme.bold("Engine:")} ${input.engine.state}`,
+    `${theme.bold("PID:")} ${input.engine.pid ?? "n/a"}`,
+    `${theme.bold("Started:")} ${input.engine.started_at ?? "n/a"}`,
+    `${theme.bold("Counts:")} ${counts}`,
+  ];
+
+  if (input.engine.last_tick_at !== null) {
+    lines.push(
+      `${theme.bold("Last tick:")} ${input.engine.last_tick_at}`,
+      `${theme.bold("Tick scope:")} queue scheduler`,
+    );
+  }
+
+  if (input.action !== undefined) {
+    lines.push(`${theme.bold("Action:")} ${input.action}`);
+  }
+
+  if (input.message !== undefined) {
+    lines.push(`${theme.bold("Message:")} ${input.message}`);
+  }
+
+  if (input.engine.health.length > 0) {
+    lines.push(
+      "",
+      "Health:",
+      indentLines(input.engine.health.map(renderHealthEntry)),
+    );
+  }
+
+  if (input.engine.active_workers.length > 0) {
+    lines.push(
+      "",
+      "Workers:",
+      indentLines(input.engine.active_workers.flatMap(renderWorkerEntry)),
+    );
+  }
+
+  const events = input.events ?? input.engine.events ?? [];
+
+  if (events.length > 0) {
+    lines.push("", "Events:", indentLines(events.map(renderDomainEvent)));
+  }
+
+  if (input.tick !== undefined) {
+    lines.push(
+      "",
+      `${theme.bold("Dry run:")} ${input.tick.dry_run ? "yes" : "no"}`,
+      `${theme.bold("Reconciled:")} ${
+        input.tick.reconciled_issue_ids.length > 0
+          ? input.tick.reconciled_issue_ids.join(", ")
+          : "none"
+      }`,
+      `${theme.bold("Discovered:")} ${
+        input.tick.discovered_issue_ids.length > 0
+          ? input.tick.discovered_issue_ids.join(", ")
+          : "none"
+      }`,
+      `${theme.bold("Queued:")} ${
+        input.tick.queued_issue_ids.length > 0
+          ? input.tick.queued_issue_ids.join(", ")
+          : "none"
+      }`,
+      `${theme.bold("Selected:")} ${
+        input.tick.selected_issue_ids.length > 0
+          ? input.tick.selected_issue_ids.join(", ")
+          : "none"
+      }`,
+      `${theme.bold("Skipped:")} ${input.tick.skipped.length}`,
+    );
+  }
+
+  if (input.items.length > 0) {
+    lines.push(
+      "",
+      "Items:",
+      indentLines(
+        input.items.map((item) => renderAutobotItemSummary(item, options)),
+      ),
+    );
+  }
+
+  if (input.config.length > 0) {
+    lines.push(
+      "",
+      "Config:",
+      indentLines(input.config.flatMap(renderConfigEntry)),
+    );
+  }
+
+  return lines.join("\n");
 }
 
 export function renderAutobotWarnings(
@@ -110,6 +245,17 @@ export function renderAutobotItemDetail(
     );
   }
 
+  if (item.current_run !== null) {
+    lines.push(
+      "Current run:",
+      `  run_id: ${item.current_run.run_id}`,
+      `  state: ${item.current_run.state}`,
+      `  worker_id: ${item.current_run.worker_id ?? "n/a"}`,
+      `  last_heartbeat_at: ${item.current_run.last_heartbeat_at ?? "n/a"}`,
+      ...renderTransportCorrelation(item.current_run.transport),
+    );
+  }
+
   lines.push(...renderNext(item));
   return lines.join("\n");
 }
@@ -150,79 +296,24 @@ export function renderAutobotQueueMutation(
 }
 
 export function renderAutobotQueueStatus(
-  input: {
-    engine: EngineStatus;
-    counts: Record<ItemState, number>;
-    items: ItemSummary[];
-    config: ConfigEntry[];
-    tick?: EngineTickReport;
-  },
+  input: EngineStatusData,
   options?: { color?: boolean },
 ): string {
-  const theme = createTextTheme({ color: options?.color === true });
-  const counts = Object.entries(input.counts)
-    .map(([state, count]) => `${state}: ${count}`)
-    .join(", ");
+  return renderStatusSection("Queue status", input, options);
+}
 
-  const lines = [
-    theme.bold("Queue status"),
-    `${theme.bold("Engine:")} ${input.engine.state}`,
-    `${theme.bold("Counts:")} ${counts}`,
-  ];
+export function renderAutobotEngineStatus(
+  input: EngineStatusData,
+  options?: { color?: boolean },
+): string {
+  return renderStatusSection("Engine status", input, options);
+}
 
-  if (input.engine.last_tick_at !== null) {
-    lines.push(
-      `${theme.bold("Last tick:")} ${input.engine.last_tick_at}`,
-      `${theme.bold("Tick scope:")} queue scheduler`,
-    );
-  }
-
-  if (input.tick !== undefined) {
-    lines.push(
-      `${theme.bold("Dry run:")} ${input.tick.dry_run ? "yes" : "no"}`,
-      `${theme.bold("Reconciled:")} ${
-        input.tick.reconciled_issue_ids.length > 0
-          ? input.tick.reconciled_issue_ids.join(", ")
-          : "none"
-      }`,
-      `${theme.bold("Discovered:")} ${
-        input.tick.discovered_issue_ids.length > 0
-          ? input.tick.discovered_issue_ids.join(", ")
-          : "none"
-      }`,
-      `${theme.bold("Queued:")} ${
-        input.tick.queued_issue_ids.length > 0
-          ? input.tick.queued_issue_ids.join(", ")
-          : "none"
-      }`,
-      `${theme.bold("Selected:")} ${
-        input.tick.selected_issue_ids.length > 0
-          ? input.tick.selected_issue_ids.join(", ")
-          : "none"
-      }`,
-      `${theme.bold("Skipped:")} ${input.tick.skipped.length}`,
-    );
-  }
-
-  if (input.items.length > 0) {
-    lines.push(
-      "",
-      "Items:",
-      indentLines(
-        input.items.map((item) => renderAutobotItemSummary(item, options)),
-      ),
-    );
-  }
-
-  if (input.config.length > 0) {
-    lines.push(
-      "",
-      "Config:",
-      indentLines(input.config.flatMap(renderConfigEntry)),
-    );
-  }
-
-  return lines.join("\n");
+export function renderAutobotEngineLogs(
+  input: EngineStatusData,
+  options?: { color?: boolean },
+): string {
+  return renderStatusSection("Engine logs", input, options);
 }
 
 export function renderAutobotConfigList(config: ConfigEntry[]): string {
@@ -311,8 +402,12 @@ function renderTransportCorrelation(
 
   return [
     "Transport:",
+    `  source: ${transport.source}`,
     `  workspace_id: ${transport.workspace_id ?? "n/a"}`,
     `  channel_id: ${transport.channel_id ?? "n/a"}`,
+    `  thread_id: ${transport.thread_id ?? "n/a"}`,
+    `  agent_id: ${transport.agent_id ?? "n/a"}`,
+    `  message_id: ${transport.message_id ?? "n/a"}`,
   ];
 }
 

@@ -193,6 +193,8 @@ export interface StoreProjectionRepository extends ItemProjections {
 export interface DomainEventListOptions {
   limit?: number
   runId?: string
+  typePrefix?: string
+  order?: 'asc' | 'desc'
   beforeOccurredAt?: string
   beforeEventId?: string
   afterOccurredAt?: string
@@ -275,7 +277,8 @@ function fromRunRow(row: Selectable<AutobotSchema['runs']>): RunSummary {
 }
 
 function fromWorkerRow(
-  row: Selectable<AutobotSchema['workers']>
+  row: Selectable<AutobotSchema['workers']>,
+  transport: TransportCorrelation | null
 ): WorkerSummary {
   return {
     worker_id: row.worker_id,
@@ -285,7 +288,27 @@ function fromWorkerRow(
     pid: row.pid,
     started_at: row.started_at,
     last_heartbeat_at: row.last_heartbeat_at,
+    transport,
   }
+}
+
+async function resolveWorkerTransport(
+  db: Db,
+  runId: string | null
+): Promise<TransportCorrelation | null> {
+  if (runId === null) {
+    return null
+  }
+
+  const row = await db
+    .selectFrom('runs')
+    .select(['transport_json'])
+    .where('run_id', '=', runId)
+    .executeTakeFirst()
+
+  return row === undefined
+    ? null
+    : decodeJsonNullable<TransportCorrelation>(row.transport_json)
 }
 
 function fromArtifactRow(
@@ -546,7 +569,7 @@ export function createAutobotRepositories(
           .selectAll()
           .where('worker_id', '=', input.worker_id)
           .executeTakeFirstOrThrow()
-        return fromWorkerRow(row)
+        return fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
       })
     },
     list() {
@@ -556,7 +579,11 @@ export function createAutobotRepositories(
           .selectAll()
           .orderBy('started_at', 'desc')
           .execute()
-        return rows.map(fromWorkerRow)
+        return Promise.all(
+          rows.map(async row =>
+            fromWorkerRow(row, await resolveWorkerTransport(db, row.run_id))
+          )
+        )
       })
     },
   }
@@ -685,15 +712,13 @@ export function createAutobotRepositories(
     },
     list(issueId, options) {
       return futureAsync(async () => {
-        let query = db
-          .selectFrom('domain_events')
-          .selectAll()
-          .orderBy('occurred_at', 'asc')
-          .orderBy('event_id', 'asc')
+        let query = db.selectFrom('domain_events').selectAll()
+        const order = options?.order ?? 'asc'
         const afterOccurredAt = options?.afterOccurredAt
         const afterEventId = options?.afterEventId
         const beforeOccurredAt = options?.beforeOccurredAt
         const beforeEventId = options?.beforeEventId
+        const typePrefix = options?.typePrefix
 
         if (issueId !== undefined) {
           query = query.where('issue_id', '=', issueId)
@@ -701,6 +726,10 @@ export function createAutobotRepositories(
 
         if (options?.runId !== undefined) {
           query = query.where('run_id', '=', options.runId)
+        }
+
+        if (typePrefix !== undefined) {
+          query = query.where('type', 'like', `${typePrefix}%`)
         }
 
         if (afterOccurredAt !== undefined) {
@@ -730,6 +759,11 @@ export function createAutobotRepositories(
                 ])
           )
         }
+
+        query =
+          order === 'desc'
+            ? query.orderBy('occurred_at', 'desc').orderBy('event_id', 'desc')
+            : query.orderBy('occurred_at', 'asc').orderBy('event_id', 'asc')
 
         const rows = await query
           .limit(Math.max(0, Math.min(options?.limit ?? 100, 1000)))
