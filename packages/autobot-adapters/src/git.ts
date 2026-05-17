@@ -225,6 +225,10 @@ export function prepareAutobotWorktree(
         const activeWorktree = worktreeList.find((entry) =>
           isAutobotBranch(entry.branch, paths.branch),
         );
+        const canonicalWorktree = worktreeList.find(
+          (entry) =>
+            path.resolve(entry.path) === path.resolve(paths.worktree_path),
+        );
 
         if (
           activeWorktree !== undefined &&
@@ -239,14 +243,33 @@ export function prepareAutobotWorktree(
         }
 
         let archivedWorktreePath: string | null = null;
-        const existing = await stat(paths.worktree_path).catch(() => null);
-
-        if (existing !== null) {
+        if (canonicalWorktree !== undefined) {
           archivedWorktreePath = path.join(
             archiveRoot,
             `${paths.slug}-${dependencies.now?.() ?? new Date().toISOString()}`,
           );
-          await rename(paths.worktree_path, archivedWorktreePath);
+          await runCommandAsPromise(runCommand, {
+            cwd: input.repoRoot,
+            command: "git",
+            args: [
+              "worktree",
+              "move",
+              paths.worktree_path,
+              archivedWorktreePath,
+            ],
+          });
+        } else {
+          const existing = await stat(paths.worktree_path).catch(() => null);
+
+          if (existing !== null) {
+            archivedWorktreePath = path.join(
+              archiveRoot,
+              `${paths.slug}-${
+                dependencies.now?.() ?? new Date().toISOString()
+              }`,
+            );
+            await rename(paths.worktree_path, archivedWorktreePath);
+          }
         }
 
         if (activeWorktree !== undefined) {

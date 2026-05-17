@@ -15,6 +15,14 @@ import type {
 
 import { makeWorkflowStore } from "./workflow-fixture";
 
+const testRepoRoot = path.join(
+  process.cwd(),
+  "..",
+  "..",
+  "tmp",
+  "autobot-cli-worktree-tests",
+);
+
 function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolvePromise, rejectPromise) => {
     future.pipe(fork(rejectPromise)(resolvePromise));
@@ -58,7 +66,7 @@ function makeOptions(
 ): AutobotGlobalOptions {
   return {
     json: false,
-    repo: "/worktrees/autobot",
+    repo: testRepoRoot,
     state_dir: ".autobot",
     profile: null,
     quiet: false,
@@ -96,6 +104,8 @@ test("supervisor run-once preserves discovered metadata when it selects a new ca
     },
     items: [],
   });
+  fixture.store.repo.path = testRepoRoot;
+  fixture.store.repo.state_dir = ".autobot";
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
     artifactReader: noOpArtifactReader,
@@ -184,12 +194,7 @@ test("supervisor run-once preserves discovered metadata when it selects a new ca
       url: "https://linear.app/repro/issue/REP-400/discovered-one",
       priority: 2,
       owner: "Gary",
-      workspace: path.join(
-        "/worktrees/autobot",
-        ".autobot",
-        "worktrees",
-        "REP-400",
-      ),
+      workspace: path.join(testRepoRoot, ".autobot", "worktrees", "REP-400"),
       branch: "autobot/REP-400",
     },
   );
@@ -202,6 +207,8 @@ test("supervisor run-once warns and skips discovery when discovery.projects is m
     },
     items: [],
   });
+  fixture.store.repo.path = testRepoRoot;
+  fixture.store.repo.state_dir = ".autobot";
   const services = createAutobotServices({
     artifactWriter: noOpArtifactWriter,
     artifactReader: noOpArtifactReader,

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 
 import { resolve, type FutureInstance, fork } from "fluture";
@@ -13,6 +14,14 @@ import type {
 } from "../types";
 
 import { makeWorkflowStore } from "./workflow-fixture";
+
+const testRepoRoot = path.join(
+  process.cwd(),
+  "..",
+  "..",
+  "tmp",
+  "autobot-cli-worktree-tests",
+);
 
 function runFuture<T>(future: FutureInstance<unknown, T>): Promise<T> {
   return new Promise((resolvePromise, rejectPromise) => {
@@ -65,7 +74,7 @@ function makeOptions(
 ): AutobotGlobalOptions {
   return {
     json: false,
-    repo: "/worktrees/autobot",
+    repo: testRepoRoot,
     state_dir: ".autobot",
     profile: null,
     quiet: false,
@@ -194,6 +203,8 @@ test("supervisor run-once reconciles stale in-progress items before selecting th
       },
     ],
   });
+  fixture.store.repo.path = testRepoRoot;
+  fixture.store.repo.state_dir = ".autobot";
   const runIds = ["run-200", "run-201"];
   let runIndex = 0;
   const services = createAutobotServices({
@@ -1581,6 +1592,8 @@ test("supervisor run-once --dry-run reports planned discovery and selection with
       },
     ],
   });
+  fixture.store.repo.path = testRepoRoot;
+  fixture.store.repo.state_dir = ".autobot";
   const received: Array<{
     repo: { path: string; state_dir: string };
     projects: string[];
@@ -1649,7 +1662,16 @@ test("supervisor run-once --dry-run reports planned discovery and selection with
   assert.deepEqual(result.data.tick?.queued_issue_ids, ["REP-400"]);
   assert.deepEqual(result.data.tick?.selected_issue_ids, ["REP-300"]);
   assert.deepEqual(result.data.tick?.started_issue_ids, []);
-  assert.equal(received.length, 1);
+  assert.deepEqual(received, [
+    {
+      repo: {
+        path: testRepoRoot,
+        state_dir: ".autobot",
+      },
+      projects: ["Engineering", "Platform"],
+      scanLimit: 100,
+    },
+  ]);
   assert.equal(fixture.runUpserts.length, 0);
   assert.equal(fixture.executionRecords.length, 0);
   assert.equal(fixture.domainEvents.length, 0);
@@ -1691,6 +1713,8 @@ test("supervisor run-once persists discovered work and caps it by queue-depth", 
       },
     ],
   });
+  fixture.store.repo.path = testRepoRoot;
+  fixture.store.repo.state_dir = ".autobot";
   const runIds = ["run-300"];
   let runIndex = 0;
   const received: Array<{
@@ -1772,7 +1796,7 @@ test("supervisor run-once persists discovered work and caps it by queue-depth", 
   assert.deepEqual(received, [
     {
       repo: {
-        path: "/worktrees/autobot",
+        path: testRepoRoot,
         state_dir: ".autobot",
       },
       projects: ["Engineering", "Platform"],
